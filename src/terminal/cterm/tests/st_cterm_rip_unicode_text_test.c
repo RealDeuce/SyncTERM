@@ -56,7 +56,7 @@ main(void)
 			.emulation = ST_CTERM_ANSI_BBS,
 			.encoding = i == 0 ? ST_CTERM_ENCODING_CODEPAGE
 			    : ST_CTERM_ENCODING_UTF8,
-			.rip_version = ST_CTERM_RIP_1,
+			.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 			.codepage = ST_CODEPAGE_CP437,
 		};
 		CHECK(st_cterm_create(&terminal[i], &config) == 0);

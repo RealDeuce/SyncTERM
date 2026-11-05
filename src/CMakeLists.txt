@@ -162,6 +162,15 @@ if(BUILD_TESTING)
 				set_tests_properties(syncterm_font_assignments_${_encoding}
 					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;font")
 			endforeach()
+			add_test(NAME syncterm_amiga_font_manager
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_amiga_font_manager_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_amiga_font_manager PROPERTIES TIMEOUT 60)
+			add_test(NAME syncterm_skypix_conformance
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_conformance_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_skypix_conformance PROPERTIES
+				TIMEOUT 90 LABELS "terminal;conformance;skypix")
 			foreach(_group movement editing margins attributes queries extensions keyboard recovery)
 				foreach(_encoding CP437 UTF-8)
 					add_test(NAME syncterm_conformance_${_group}_${_encoding}
@@ -318,7 +327,7 @@ if(BUILD_TESTING)
 		add_executable(st_app_session_mode_test
 			tests/st_app_session_mode_test.c st_syncterm_icon.c st_terminfo.c)
 		target_link_libraries(st_app_session_mode_test PRIVATE st_wren_host
-			st_settings st_app_startup st_audio st_fonts st_font_catalog st_term
+			st_settings st_app_startup st_audio st_fonts st_font_catalog st_term st_amiga_font
 			st_session_history st_hyperlink st_bbs_list st_time syncterm_threads syncterm_path
 			syncterm_filesystem syncterm_value_convert)
 		target_compile_definitions(st_app_session_mode_test PRIVATE
@@ -350,3 +359,5 @@ if(BUILD_TESTING)
 	add_test(NAME command_line_empty_backend
 		COMMAND st_command_line_empty_backend_test)
 endif()
+
+target_link_libraries(st_application PRIVATE st_amiga_font)

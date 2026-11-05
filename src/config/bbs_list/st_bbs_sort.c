@@ -55,7 +55,7 @@ st_bbs_sort_field_name(int field)
 		"Password", "System Password", "Connection Type", "Screen Mode",
 		"Status Line Visibility", "Download Directory", "Upload Directory",
 		"Log File", "Transfer Log Level", "BPS Rate", "ANSI Music",
-		"Address Family", "Font", "Hide Popups", "RIP", "Flow Control",
+		"Address Family", "Font", "Hide Popups", "Graphics", "Flow Control",
 		"Comment", "Force LCF", "Yellow Is Yellow", "Terminal Type",
 		"Explicit Sort Order"
 	};
@@ -150,7 +150,7 @@ compare_field(const struct st_profile *a, enum st_bbs_source a_source,
 	case ST_BBS_SORT_FONT: return compare_nullable_text(a->font, b->font);
 	case ST_BBS_SORT_HIDE_POPUPS:
 		return COMPARE_VALUE(a->hide_popups, b->hide_popups);
-	case ST_BBS_SORT_RIP: return COMPARE_VALUE(a->rip_version, b->rip_version);
+	case ST_BBS_SORT_GRAPHICS: return COMPARE_VALUE(a->graphics_mode, b->graphics_mode);
 	case ST_BBS_SORT_FLOW_CONTROL:
 		return COMPARE_VALUE(a->flow_control, b->flow_control);
 	case ST_BBS_SORT_COMMENT: return compare_nullable_text(a->comment, b->comment);

@@ -27,6 +27,7 @@
 #endif
 #include "st_profile.h"
 #include "st_screen_mode.h"
+#include "st_amiga_fonts.h"
 #include "st_session_history.h"
 #include "st_settings.h"
 #include "st_syncterm_icon.h"
@@ -65,7 +66,7 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 	FIELD(x); FIELD(y); FIELD(top_margin); FIELD(bottom_margin); FIELD(left_margin); FIELD(right_margin);
 	FIELD(attr); FIELD(fg_color); FIELD(bg_color); FIELD(font_slot);
 	FIELD(scrollback_lines); FIELD(scrollback_width); FIELD(scrollback_pos); FIELD(scrollback_start);
-	FIELD(emulation); FIELD(started); FIELD(skypix);
+	FIELD(emulation); FIELD(started); FIELD(skypix); FIELD(graphics_mode);
 	FIELD(ext_attr.auto_wrap); FIELD(ext_attr.origin_mode); FIELD(ext_attr.sx_scroll); FIELD(ext_attr.dec_lrmm);
 	FIELD(ext_attr.bracket_paste); FIELD(ext_attr.dec_bkm); FIELD(ext_attr.alternate_keypad);
 	FIELD(ext_attr.prestel_mosaic); FIELD(ext_attr.prestel_double_height); FIELD(ext_attr.prestel_conceal);
@@ -700,6 +701,13 @@ run_wren_event_hook(void *context, const struct st_console_event *event,
 }
 
 static int
+run_wren_skypix_transfer(void *context, unsigned mode, unsigned width, unsigned height,
+	const uint8_t *name, size_t size)
+{
+	return st_wren_connected_skypix_transfer(*(st_wren_connected_t **)context,mode,width,height,name,size);
+}
+
+static int
 run_wren_rip_transfer(void *context, const struct st_cterm_rip_transfer_request *request)
 {
 	return st_wren_connected_rip_transfer(*(st_wren_connected_t **)context, request);
@@ -775,6 +783,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	st_wren_connected_t *connected = NULL;
 	struct application_inspection inspection = {0};
 	char *cache_directory = NULL;
+	char *amiga_font_directory = NULL;
 	char *disconnect_details = NULL;
 	bool notify_disconnect;
 	struct st_connection_error error = {0};
@@ -810,8 +819,11 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	connection_log_open(&connection_ui);
 	if (mode != NULL)
 		selector = mode->font_selector;
-	status = prepare_session_fonts(&fonts, console, profile, selector,
-	    &selector);
+	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
+		session_mode = ST_SCREEN_MODE_80X25; selector = 0;
+		status = st_font_catalog_create(&fonts, console);
+	}
+	else status = prepare_session_fonts(&fonts, console, profile, selector, &selector);
 	if (status != 0)
 		goto finished;
 	status = st_term_connect_profile(&connection, profile, console, &connection_hooks,
@@ -841,6 +853,10 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		if (status != 0)
 			goto finished;
 	}
+	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
+		status = st_amiga_fonts_directory(&amiga_font_directory, paths->settings_file);
+		if (status != 0) goto finished;
+	}
 	const struct st_term_config config = {
 		.console = console,
 		.connection = connection,
@@ -850,8 +866,11 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.history = history,
 		.screen_mode = session_mode,
 		.encoding = st_term_profile_encoding(profile),
-		.rip_version = st_term_profile_rip_version(profile),
+		.graphics_mode = st_term_profile_graphics_mode(profile),
 		.rip_directory = cache_directory,
+		.amiga_font_directory = amiga_font_directory,
+		.skypix_transfer = run_wren_skypix_transfer,
+		.skypix_transfer_context = &connected,
 		.rip_transfer = run_wren_rip_transfer,
 		.rip_transfer_context = &connected,
 		.apc_directory = cache_directory,
@@ -977,6 +996,7 @@ finished:
 		if (status == 0)
 			status = close_status;
 	}
+	if (session != NULL) (void)st_wren_host_capture_history_mode(host);
 	/* Close first: the log viewer must include final transport diagnostics.
 	 * Save offline history before displaying the notice, retaining CTerm
 	 * until the notice is dismissed. */
@@ -1006,6 +1026,7 @@ finished:
 	st_mutex_destroy(&connection_ui.log_mutex);
 	st_font_catalog_destroy(fonts);
 	free(cache_directory);
+	free(amiga_font_directory);
 	return status;
 }
 
@@ -1016,8 +1037,9 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
 	st_session_history_t *history, enum st_term_disposition *disposition)
 {
-	int status = st_wren_host_begin_session_mode(host,
-	    (enum st_screen_mode)profile->screen_mode);
+	int status = profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13
+	    ? st_wren_host_begin_skypix_session(host, profile->hide_status)
+	    : st_wren_host_begin_session_mode(host, (enum st_screen_mode)profile->screen_mode);
 	int restore_status;
 
 	if (status == 0)

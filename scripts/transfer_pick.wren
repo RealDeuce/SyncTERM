@@ -101,6 +101,12 @@ class TransferFlow {
       upload(true, 0)
     } else if (pending == "download") {
       launch_(Fn.new { TransferApp.new("ZMODEM Download").run() })
+    } else if (pending == "skypix-download") {
+      launch_(Fn.new {
+        var app = TransferApp.new("SkyPix Asset Download")
+        app.waitTimeoutMs = 0
+        app.run()
+      })
     } else if (pending == "rip-download") {
       launch_(Fn.new {
         if (Transfer.inlineProgress) {

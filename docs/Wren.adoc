@@ -4155,7 +4155,8 @@ logic. Terminal operations are available in the connected VM.
 | Mode flags
 | `emulation` (`Emulation`), `doorwayMode`, `music` /
   `music = i` (`MusicMode` enum; setter clamps out-of-range
-  values), `started`, `skypix`,
+  values), `started`, `graphicsMode` (read-only `GraphicsMode`), `skypix`
+  (true for either SkyPix variant),
   `statusDisplay` (`StatusDisplay`), `atasciiInverse` (Bool —
   ATASCII inverse-video mode), `ooiiMode` (0 = off, 1..3 = OOTerm
   / OOTerm1 / OOTerm2).  Streaming-log state moved to the
@@ -4458,7 +4459,7 @@ updating another entry's statistics.
   `tlsPsk`, `tlsPskVersion`, `tlsVersionFloor`, `ghostProgram`
 
 | Presentation
-| `music`, `rip`, `termName`, `screenMode`, `font`, `encoding`,
+| `music`, `graphics`, `termName`, `screenMode`, `font`, `encoding`,
   `palette`, `noStatus`, `hidePopups`, `yellowIsYellow`, `forceLcf`, `lfExpand`
 
 | Files and logging
@@ -5032,6 +5033,14 @@ preferences.  The next successful Program Settings save writes all six
 `[ClassicTheme]` values and removes `[UIFC]`.  A failed save leaves the
 existing file unchanged.
 
+Program Settings includes an Amiga Fonts manager. User-installed families live
+under `fonts/amiga/` beside the active `syncterm.ini`; the 11 bundled families
+(39 strikes) are compiled into SyncTERM and are not copied there. SkyPix font
+selection tries an exact installed name/height, an exact bundled strike, then
+Pearl 8; it does not stretch a neighbouring size. A selected font remains valid
+if its installed package is subsequently replaced or removed. Catalog queries
+and management are menu-only; connected scripts cannot import this interface.
+
 The host supplies display catalogs rather than requiring scripts to
 duplicate platform-dependent enum tables:
 
@@ -5043,7 +5052,7 @@ duplicate platform-dependent enum tables:
 | Lists of display names indexed by the corresponding numeric setting.
 
 | `connectionTypes`, `addressFamilies`, `rates`, `musicModes`,
-  `ripModes`, `flowControls`, `parities`, `fontsCatalog`, `encodings`,
+  `graphicsModes`, `flowControls`, `parities`, `fontsCatalog`, `encodings`,
   `logLevels`
 | Lists of `[value, displayName]` rows for directory-entry editors.
   `fontsCatalog` uses the loaded conio font index as `value`; a BBS's
@@ -5055,7 +5064,25 @@ duplicate platform-dependent enum tables:
   configured custom fonts for every encoding and every built-in font for
   UTF-8. The latter returns a built-in font's canonical encoding number,
   or `null` for a custom or unknown name. The editor coordinates these with
-  screen mode and RIP; setting the raw BBS properties individually does not.
+  screen mode and graphics; setting the raw BBS properties individually does not.
+
+| `amigaFonts`
+| Fresh List of immutable `AmigaFontFamily` metadata snapshots. A family has
+  `name`, `sizes` (all available heights), `installedSizes`, `source`
+  (`"bundled"`, `"installed"` or `"mixed"`) and `error` (null or MenuError).
+  Size Lists are fresh values; corrupt installed packages retain their error.
+
+| `installAmigaFont()`
+| Open the local Amiga `.font` family picker. Return a family snapshot on
+  success, null on cancellation, or MenuError. Replacement requires the picker
+  confirmation. Every referenced bitmap strike is validated before publication;
+  malformed, colour and outline fonts are rejected. This imports the selected
+  family and its confined relative files, with no script-supplied pathname.
+
+| `removeAmigaFont(family)`
+| Remove the installed portion of the current family snapshot; return null or
+  MenuError. Bundled fonts cannot be removed. A snapshot retained across another
+  install/remove operation must be reacquired before removal.
 
 | `defaultPort(connectionType)`
 | Return the built-in default port for a connection-type value.  RLogin uses
@@ -5645,16 +5672,34 @@ character).
 | `enabled`  | 2    | Most permissive — all forms accepted.
 |===
 
-==== RipVersion
+==== GraphicsMode
 
 [options="header",cols="2,1,4"]
 |===
 | Constant | Code | Description
-| `none`   | 0    | RIP support disabled for this connection.
+| `none`   | 0    | Remote graphics disabled for this connection.
 | `v1`     | 1    | RIPscrip v1.54 compatibility mode.
 | `v3`     | 2    | SyncTERM's "idealized" RIP v3 — bug-fixed and
                     extended; **not** bug-compatible with v1.54.
+| `skypix13` | 3 | SkyPix following JR-Comm, with Kickstart 1.3 rendering.
+| `skypix31` | 4 | SkyPix following JR-Comm, with Kickstart 3.1 rendering.
 |===
+
+SkyPix is selected before connecting, independently of RIP. Both variants use
+JR-Comm command behaviour, Pearl 8 by default, native Amiga font metrics and
+50 Hz delays; their rendering differences concern ellipse arithmetic and final
+proportional-glyph overhang. Effective geometry is 80x25 at 8x8 (640x200), displayed at 4:3, with a
+separate status row when enabled, and the wire character set is Latin-1. Stored
+ANSI geometry, font, palette and encoding preferences are preserved. Runtime
+encoding changes cannot switch a SkyPix session to another character set.
+`CTerm.skypix` reports the selected graphics engine, rather than inferring it
+from a remote command. RIP sessions do not interpret SkyPix commands.
+
+SkyPix brush and general-file downloads use CRC XMODEM and the active BBS's
+`skypix` cache subdirectory. Completed files are reused; partial or invalid
+brush downloads are discarded. They do not use RIP asset framing. Sound and
+interactive gadget commands remain unsupported. See
+link:SKYPIX_CONFORMANCE.md[SkyPix conformance] for the precise supported subset.
 
 ==== Parity
 

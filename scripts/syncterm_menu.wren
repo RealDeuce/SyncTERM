@@ -3,6 +3,15 @@ import "syncterm" for Error
 // Trusted main-menu data model.  This module is available only in the
 // persistent menu VM; connected-session VMs cannot import or bind it.
 
+// Immutable metadata for one compiled/installed Amiga font family.
+foreign class AmigaFontFamily {
+  foreign name
+  foreign sizes
+  foreign installedSizes
+  foreign source
+  foreign error
+}
+
 // Existing native result: portable reason and raw integer status may be absent.
 foreign class MenuError is Error {
   foreign code
@@ -94,12 +103,15 @@ class Menu {
   // the device cannot be opened or does not publish a rate catalog.
   foreign static serialRates(device)
   foreign static musicModes
-  foreign static ripModes
+  foreign static graphicsModes
   foreign static flowControls
   foreign static flowControlsNoRts
   foreign static parities
   // [minimumColorCount, sixteen mode-specific conio default colors].
   foreign static paletteDefaults(screenMode)
+  foreign static amigaFonts
+  foreign static installAmigaFont()
+  foreign static removeAmigaFont(family)
   foreign static fontsCatalog
   foreign static encodings
   foreign static fontsForEncoding(encoding)

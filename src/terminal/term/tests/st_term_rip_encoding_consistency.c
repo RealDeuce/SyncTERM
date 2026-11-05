@@ -111,7 +111,7 @@ compare_file(const char *path)
 			.emulation = ST_CTERM_ANSI_BBS,
 			.encoding = i == 0 ? ST_CTERM_ENCODING_CODEPAGE
 			    : ST_CTERM_ENCODING_UTF8,
-			.rip_version = ST_CTERM_RIP_3,
+			.graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
 			.codepage = ST_CODEPAGE_CP437,
 		};
 		if (st_cterm_create(&terminal[i], &config) != 0)

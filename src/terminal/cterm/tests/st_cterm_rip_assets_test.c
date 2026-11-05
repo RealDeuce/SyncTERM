@@ -109,7 +109,7 @@ main(void)
 	const struct st_cterm_config config = {
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_3,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
 		.codepage = ST_CODEPAGE_CP437,
 		.rip_directory = RIP_ASSET_TEST_DIRECTORY,
 		.output = capture_response,

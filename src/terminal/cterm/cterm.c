@@ -38,6 +38,7 @@
 #include "cterm_render.h"
 
 #include "cterm.h"
+#include "cterm_skypix.h"
 #include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_ecma48.h"
@@ -1958,6 +1959,8 @@ cterm_reset(struct cterminal *cterm)
 		cterm->mouse_state_change(1015, 0, cterm->mouse_state_change_cbdata);
 		cterm->mouse_state_change(1016, 0, cterm->mouse_state_change_cbdata);
 	}
+	if (cterm->skypix_engine != NULL)
+		cterm_render_record_error(cterm, cterm_skypix_reset(cterm->skypix_engine));
 }
 
 struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
@@ -1995,7 +1998,7 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 		cterm->api_log_level = initial->log_level;
 		cterm->api_diagnostic = initial->diagnostic;
 		cterm->api_diagnostic_context = initial->diagnostic_context;
-		if (initial->force_lcf || initial->rip_version != ST_CTERM_RIP_OFF)
+		if (initial->force_lcf || (initial->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || initial->graphics_mode == ST_CTERM_GRAPHICS_RIP_3))
 			cterm->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 		cterm->yellow_is_yellow = initial->yellow_is_yellow;
 		if (initial->palette_override != NULL) {

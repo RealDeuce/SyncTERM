@@ -35,7 +35,7 @@ def exclusion_reason(path):
     if 'private' in path.parts or 'internal' in path.name:
         return 'Private component representation/callback plumbing behind the public component owner.'
     owners = {
-        Path('src/terminal/cterm'): ('st_cterm.h', 'CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime.'),
+        Path('src/terminal/cterm'): ('st_cterm.h', 'CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime.'),
         Path('src/terminal/ooii'): ('st_ooii.h', 'OOII immutable resource tables and private parser implementation behind st_ooii.h.'),
         Path('src/media/console'): ('st_console.h', 'Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays.'),
         Path('src/net/sftp_client'): ('st_sftp.h', 'SSH/SFTP adapter machinery; st_sftp.h is the typed provider boundary assessed in the ledger.'),

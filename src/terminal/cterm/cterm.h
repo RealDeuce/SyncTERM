@@ -89,12 +89,17 @@ enum prestel_prog_states {
 #define PRESTEL_MEM_SLOT_SIZE 16
 
 struct cterm_rip_engine;
+struct cterm_skypix;
 struct cterm_apc_state;
 
 struct cterminal {
 	/* Rendering state */
 	struct cterm_render_state screen;
 	struct cterm_rip_engine *rip_engine;
+	struct cterm_skypix *skypix_engine;
+	enum st_cterm_graphics_mode graphics_mode;
+	st_cterm_skypix_transfer_callback_t skypix_transfer;
+	void *skypix_transfer_context;
 	struct cterm_apc_state *apc;
 	const char *rip_directory;
 	st_cterm_rip_prompt_callback_t rip_prompt;

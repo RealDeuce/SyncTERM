@@ -1803,6 +1803,14 @@ st_wren_connected_handle_key_record(st_wren_connected_t *connected,
 }
 
 int
+st_wren_connected_skypix_transfer(st_wren_connected_t *connected, unsigned mode,
+	unsigned width, unsigned height, const uint8_t *name, size_t size)
+{
+	return connected == NULL ? IO_ERROR_NOT_CONNECTED
+	    : st_wren_transfer_skypix_request(&connected->context, mode, width, height, name, size);
+}
+
+int
 st_wren_connected_rip_transfer(st_wren_connected_t *connected,
 	const struct st_cterm_rip_transfer_request *request)
 {

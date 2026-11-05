@@ -251,7 +251,9 @@ feed_escape(struct cterm_rip_parser *parser,
 		parser->escape[parser->escape_length++] = byte;
 		return 0;
 	}
-	if (parser->escape_length >= 2 && byte == '!') {
+	if (byte == '!' && (parser->escape_length == 2
+	    || (parser->escape_length == 3 && parser->escape[2] >= '0'
+	    && parser->escape[2] <= '2'))) {
 		parser->escape[parser->escape_length++] = byte;
 		status = sink->boundary == NULL ? 0 : sink->boundary(sink->context);
 		if (status == 0 && sink->control != NULL)

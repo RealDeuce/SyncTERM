@@ -1,7 +1,7 @@
 [[bbs-entry-fields]]
 === BBS entry field coverage
 
-The INI codec covers 50 canonical keys and 56 profile members. `bbs_list`
+The INI codec covers 51 canonical keys and 57 profile members. `bbs_list`
 tests default and non-default encode/decode values for every persisted member,
 including full-width BPS/call counters, optional paths, palettes and fingerprints.
 Six metadata/derived members below are not additional INI keys.
@@ -26,6 +26,7 @@ Six metadata/derived members below are not additional INI keys.
 | log_path | LogFile | logFile | Application-owned protocol/transfer log file
 | transfer_log_level | TransferLogLevel | xferLogLevel | Initial VM-local Host.logLevel transfer threshold
 | protocol_log_level | ProtocolLogLevel | protocolLogLevel | Connection diagnostic threshold
+| cterm_log_level | CTermLogLevel | ctermLogLevel | Terminal parser diagnostic threshold
 | append_log | AppendLogFile | appendLogFile | Log file append/truncate mode
 | bps_rate | BPSRate | bpsRate | Serial speed or terminal receive pacing; full uint32 range
 | music | ANSIMusic | music | Initial CTerm mode before scripts/input; reset restores BANSI
@@ -33,7 +34,7 @@ Six metadata/derived members below are not additional INI keys.
 | font | Font | font | Session font catalog selection, independent of transport
 | encoding | Encoding | encoding | Terminal Unicode boundary; ConPTY UTF-8/codepage bridge
 | hide_popups | HidePopups | hidePopups | Connection progress/error/disconnect UI
-| rip_version | RIP | rip | CTerm RIP parser/canvas setup
+| graphics_mode | Graphics | graphics | Independent RIP or SkyPix parser/canvas selection
 | comment | Comment | comment | Directory UI/sort
 | wren_scripts | WrenScripts | wrenScripts | Ordered connected-script imports
 | force_lcf | ForceLCF | forceLcf | CTerm last-column flag, including reset
@@ -65,7 +66,7 @@ Six metadata/derived members below are not additional INI keys.
 |===
 | Metadata member | Wren property | Contract
 | name | DirectoryEntry.name / Session.name | INI section name; normalized once at INI/Wren text boundary
-| source | DirectoryEntry.type / Session.entrySource | Personal/system provenance, not stored as a key
+| source | DirectoryEntry.source / Session.entrySource | DirectoryEntry.source distinguishes personal/shared/web-system/web-named origins; Session.entrySource retains the personal/system profile classification. Neither is an INI key.
 | identifier | DirectoryEntry.id / Session.entryId | Distinct per menu load, stable across sort/rename; -1 for defaults/quick/unsaved records; assigned on successful save
 | ghost_program | ghostProgram | Transient URL override; named copies/save use Password, never a GHostProgram key
 | palette_size | palette.count | Number of explicit Palette values (0..16)
@@ -77,6 +78,15 @@ ASCII letters/digits/underscores), deduplicated in first-occurrence order, and
 limited to 1023 serialized bytes. Reserved menu/bootstrap module names are
 rejected. Invalid stored lists are ignored; invalid Wren assignments leave the
 previous list intact. Names have no `.wren` suffix.
+
+SkyPix uses an effective 640x200, 80x25, Latin-1 session with native Amiga
+fonts. Stored ScreenMode, Font, Encoding and Palette preferences remain available
+when another graphics mode is selected. `NoStatus` reserves a separate row when
+false; it never changes the SkyPix canvas. The Graphics selector offers Off,
+RIP v1, RIP v3, SkyPix (Kick 1.3) and SkyPix (Kick 3.1).
+
+`Graphics` is canonical. Legacy `RIP` is read only when Graphics is absent;
+saving removes RIP after writing Graphics.
 
 Saving an affected entry or defaults materializes canonical ConnectionType and
 ProtocolLogLevel values before removing BeDumb and TelnetLogLevel aliases.

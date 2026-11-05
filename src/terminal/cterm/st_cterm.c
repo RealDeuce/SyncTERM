@@ -11,6 +11,7 @@
 #include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_rip_engine.h"
+#include "cterm_skypix.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_file_query.h"
 #include "cterm_rip_fonts.h"
@@ -1844,6 +1845,10 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	int saved_y;
 	(void)context;
 
+	if (terminal->skypix_engine != NULL && (old_type >= 1) != (new_type >= 1)) {
+		terminal->status_display_type = old_type;
+		return;
+	}
 	if (st_console_size(terminal->screen.console, &columns, &rows) != 0) {
 		terminal->status_display_type = old_type;
 		cterm_render_record_error(terminal, IO_ERROR_IO);
@@ -2032,7 +2037,11 @@ initialize_render_state(struct cterm_render_state *screen,
 	else
 		default_palette_mapping(config->emulation, config->petscii_machine,
 		    screen->mode_palette);
-	screen->capabilities = capabilities;
+	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) {
+		for (unsigned i = 0; i < 16; ++i) screen->mode_palette[i] = (uint16_t)(CTERM_SKYPIX_PALETTE_FIRST+i);
+	}
+	screen->capabilities = config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13
+	    ? capabilities & ~ST_CONSOLE_CAP_EXTENDED_PALETTE : capabilities;
 	screen->wscroll = 1;
 	return 0;
 }
@@ -2057,9 +2066,9 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	    || config->emulation > ST_CTERM_ATARI_ST_VT52
 	    || config->encoding < ST_CTERM_ENCODING_UTF8
 	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE
-	    || config->rip_version < ST_CTERM_RIP_OFF
-	    || config->rip_version > ST_CTERM_RIP_3
-	    || (config->rip_version != ST_CTERM_RIP_OFF
+	    || config->graphics_mode < ST_CTERM_GRAPHICS_OFF
+	    || config->graphics_mode > ST_CTERM_GRAPHICS_SKYPIX_31
+	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF
 	        && config->emulation != ST_CTERM_ANSI_BBS)
 	    || config->codepage >= ST_CODEPAGE_COUNT
 	    || (config->encoding == ST_CTERM_ENCODING_UTF8
@@ -2125,13 +2134,18 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		free(scrollback);
 		return status;
 	}
+	terminal->graphics_mode = config->graphics_mode;
+	terminal->skypix_transfer = config->skypix_transfer;
+	terminal->skypix_transfer_context = config->skypix_transfer_context;
 	terminal->quiet = config->quiet;
 	terminal->lf_expand = config->expand_lf;
-	if (config->rip_version != ST_CTERM_RIP_OFF)
+	if ((config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3))
 		terminal->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 	terminal->status_display_type = config->status_line ? 1 : 0;
 	terminal->api_reserved_rows = rows - terminal_rows - status_rows;
-	terminal->wire_encoding = config->encoding;
+	terminal->wire_encoding = config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13
+	    ? ST_CTERM_ENCODING_CODEPAGE : config->encoding;
+	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) terminal->screen.codepage = ST_CODEPAGE_ISO_8859_1;
 	terminal->api_input_filter = config->input_filter;
 	terminal->api_input_filter_active = config->input_filter_active;
 	terminal->api_input_filter_context = config->input_filter_context;
@@ -2196,7 +2210,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		}
 		terminal->screen.hyperlink_root_registered = true;
 	}
-	if (config->rip_version != ST_CTERM_RIP_OFF) {
+	if ((config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)) {
 		const struct cterm_rip_parser_sink sink = {
 			.context = terminal,
 			.boundary = rip_text_boundary,
@@ -2227,7 +2241,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			return status;
 		}
 		terminal->rip_engine->raster.version =
-		    config->rip_version == ST_CTERM_RIP_3 ? 3 : 1;
+		    config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 ? 3 : 1;
 		terminal->rip_engine->default_text.font_identifier = normal;
 		terminal->rip_engine->default_text.codepage = st_font_catalog_codepage(config->fonts, config->font_selector);
 		status = st_console_size(config->console,
@@ -2241,7 +2255,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			st_cterm_destroy(&terminal);
 			return status;
 		}
-		if (config->rip_version == ST_CTERM_RIP_3)
+		if (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
 			terminal->rip_text_font_style = RIP_TEXT_FONT_DEFAULT;
 		terminal->rip_engine->raster.text_codepage = config->codepage;
 		terminal->rip_engine->raster.unicode_text =
@@ -2253,6 +2267,10 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			st_cterm_destroy(&terminal);
 			return status;
 		}
+	}
+	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) {
+		status = cterm_skypix_create(terminal, config->amiga_font_directory);
+		if (status != 0) { st_cterm_destroy(&terminal); return status; }
 	}
 	*result = terminal;
 	return 0;
@@ -2268,6 +2286,8 @@ st_cterm_destroy(st_cterm_t **terminal)
 	scrollback = (*terminal)->scrollback;
 	(void)st_cterm_finish(*terminal);
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
+	cterm_skypix_destroy((*terminal)->skypix_engine);
+	(*terminal)->skypix_engine = NULL;
 	if ((*terminal)->rip_engine != NULL) {
 		cterm_rip_engine_destroy((*terminal)->rip_engine);
 		free((*terminal)->rip_engine);
@@ -2500,7 +2520,9 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size,
 			}
 			bool protocol = target->accumulator != NULL;
 			++target->input_depth;
-			bool used = cterm_parse_byte(target, byte, &speed);
+			bool used = target->skypix_engine != NULL && target->accumulator == NULL
+			    && cterm_skypix_control(target->skypix_engine, byte);
+			if (!used) used = cterm_parse_byte(target, byte, &speed);
 			if (used) {
 				++*consumed;
 				if (hooks && protocol && capture_enabled(owner))
@@ -2572,10 +2594,26 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		*consumed = 0;
 	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (terminal->skypix_engine != NULL)
+		return cterm_skypix_feed(terminal->skypix_engine, bytes, size, consumed);
 	if (terminal->rip_engine != NULL)
 		return cterm_rip_engine_feed(terminal->rip_engine, bytes,
 		    size, consumed);
 	return write_plain(terminal, bytes, size, consumed, false);
+}
+
+bool
+st_cterm_input_paused(st_cterm_t *terminal)
+{
+	return terminal != NULL && terminal->skypix_engine != NULL
+	    && cterm_skypix_paused(terminal->skypix_engine);
+}
+
+int
+st_cterm_skypix_receive(st_cterm_t *terminal, const void *bytes, size_t size)
+{
+	return terminal == NULL || terminal->skypix_engine == NULL ? IO_ERROR_NOT_SUPPORTED
+	    : cterm_skypix_receive(terminal->skypix_engine, bytes, size);
 }
 
 int
@@ -2628,8 +2666,8 @@ st_cterm_finish(st_cterm_t *terminal)
 
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = terminal->rip_engine == NULL ? 0
-	    : cterm_rip_engine_flush(terminal->rip_engine);
+	status = terminal->skypix_engine != NULL ? cterm_skypix_finish(terminal->skypix_engine)
+	    : terminal->rip_engine == NULL ? 0 : cterm_rip_engine_flush(terminal->rip_engine);
 	if (status == 0)
 		status = cterm_text_boundary(terminal);
 	if (status == 0 && terminal->status_sub != NULL)
@@ -2790,6 +2828,8 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
+	if (terminal->skypix_engine != NULL && (columns != 80 || terminal_rows != 25))
+		return IO_ERROR_NOT_SUPPORTED;
 	/* Geometry commits the old placement, but is not end-of-input for
 	 * the UTF-8 decoder or the RIP command parser. */
 	status = cterm_text_commit(terminal);
@@ -2893,6 +2933,7 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 		.emulation = (enum st_cterm_emulation)terminal->emulation,
 		.started = terminal->started != 0,
 		.skypix = terminal->skypix != 0,
+		.graphics_mode = terminal->graphics_mode,
 		.ext_attr = {
 			.auto_wrap = (terminal->extattr & CTERM_EXTATTR_AUTOWRAP) != 0,
 			.origin_mode = (terminal->extattr & CTERM_EXTATTR_ORIGINMODE) != 0,
@@ -3193,6 +3234,8 @@ st_cterm_set_encoding(st_cterm_t *terminal, enum st_cterm_encoding encoding,
 	    || (encoding == ST_CTERM_ENCODING_UTF8
 	    && !utf8_supported((enum st_cterm_emulation)terminal->emulation)))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (terminal->skypix_engine != NULL && (encoding != ST_CTERM_ENCODING_CODEPAGE
+	    || codepage != ST_CODEPAGE_ISO_8859_1)) return IO_ERROR_NOT_SUPPORTED;
 	status = st_cterm_finish(terminal);
 	if (status != 0)
 		return status;

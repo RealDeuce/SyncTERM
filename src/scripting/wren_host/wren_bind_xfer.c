@@ -1,6 +1,7 @@
 /* Per-VM transfer ownership; workers never touch Wren or CTerm. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "wren_host_internal.h"
+#include "path.h"
 #include "st_transfer.h"
 #include "st_transfer_detect.h"
 #include "st_term.h"
@@ -11,6 +12,9 @@
 #include "string_util.h"
 #include "st_app_paths.h"
 #include "cterm_rip_asset.h"
+#include "st_bbs_list.h"
+#include "st_unicode_text.h"
+#include "st_utf8.h"
 #include "st_time.h"
 #include <stdlib.h>
 #include <string.h>
@@ -99,6 +103,11 @@ struct st_wren_transfer {
 	int automatic;
 	bool upload, inline_upload;
 	char *rip_directory, *rip_filename;
+	char *skypix_directory, *skypix_filename, *skypix_partial;
+	unsigned skypix_mode;
+	int skypix_error;
+	uint8_t *skypix_bytes;
+	size_t skypix_size;
 	unsigned rip_protocol, rip_file_type;
 	bool rip_upload_pending, rip_scene;
 	unsigned cancel_remaining;
@@ -124,19 +133,19 @@ static void log_entry(struct st_wren_context *context, const struct st_transfer_
 	if (context->transfer_log != NULL && entry->level <= context->transfer_log_level)
 		context->transfer_log(context->transfer_log_context, entry->level, entry->text);
 }
-static int start(struct st_wren_context *context, struct st_transfer_config *config, bool rip)
+static int start(struct st_wren_context *context, struct st_transfer_config *config, bool asset, bool inline_receive)
 {
 	if (st_term_session_wire_owned(context->session)) return IO_ERROR_BUSY;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (s->worker != NULL) return IO_ERROR_BUSY;
-	if (!rip && (s->rip_directory != NULL || s->cancel_remaining != 0)) return IO_ERROR_BUSY;
+	if (!asset && (s->rip_directory != NULL || s->skypix_directory != NULL || s->cancel_remaining != 0)) return IO_ERROR_BUSY;
 	if (config->protocol != ST_TRANSFER_FAKE) {
 		if (context->host->config.safe_mode || context->connection == NULL || context->session == NULL
 		    || context->profile == NULL || context->profile->connection_type == ST_CONNECTION_MQTT)
 			return IO_ERROR_PERMISSION_DENIED;
 		config->send = send_bytes; config->send_context = context->connection;
-		if (!rip) config->directory = download_root(context);
+		if (!asset) config->directory = download_root(context);
 		if (!config->upload && config->directory == NULL) return IO_ERROR_PERMISSION_DENIED;
 	}
 	int status = st_transfer_create(&s->worker, config);
@@ -153,7 +162,7 @@ static int start(struct st_wren_context *context, struct st_transfer_config *con
 	}
 	s->upload = config->upload;
 	s->inline_upload = config->protocol == ST_TRANSFER_ASCII || config->protocol == ST_TRANSFER_RAW
-	    || (rip && !config->upload && (s->rip_file_type == 0 || s->rip_file_type == 5));
+	    || inline_receive;
 	if (s->prefix_size != 0) {
 		(void)st_transfer_feed(s->worker, s->prefix, s->prefix_size); s->prefix_size = 0;
 	}
@@ -207,8 +216,169 @@ static int start_rip(struct st_wren_context *context, bool upload)
 		if (s->rip_protocol < 3) config.protocol = s->rip_protocol == 2
 		    ? ST_TRANSFER_XMODEM_1K : ST_TRANSFER_XMODEM_128;
 	}
-	int status = start(context, &config, true);
+	int status = start(context, &config, true, !upload && (s->rip_file_type == 0 || s->rip_file_type == 5));
 	free(source);
+	return status;
+}
+
+static int skypix_destination(void *context, const char *directory, const char *name, char **out)
+{
+	struct st_wren_transfer *s = context;
+	(void)directory;
+	if (strcmp(name, s->skypix_filename) != 0 || s->skypix_partial == NULL)
+		return IO_ERROR_PERMISSION_DENIED;
+	struct fs_info info;
+	int status = fs_get_link_info(&info, s->skypix_partial);
+	if (status != IO_ERROR_NOT_FOUND && (status != 0 || info.kind != FS_ENTRY_FILE))
+		return status == 0 ? IO_ERROR_PERMISSION_DENIED : status;
+	*out = strdup(s->skypix_partial);
+	return *out == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
+}
+static int skypix_cached(struct st_wren_context *context, const char *path, unsigned mode)
+{
+	int status = 0;
+	if (mode == 1) {
+		struct fs_info info;
+		status = fs_get_link_info(&info, path);
+		if (status == 0 && (info.kind != FS_ENTRY_FILE || info.size > 4 * 1024 * 1024))
+			status = IO_ERROR_INVALID_FORMAT;
+		FILE *file = NULL;
+		uint8_t *bytes = NULL;
+		if (status == 0)
+			status = fs_open(&file, path, "rb");
+		if (status == 0) {
+			bytes = malloc(info.size ? (size_t)info.size : 1);
+			if (bytes == NULL)
+				status = IO_ERROR_OUT_OF_MEMORY;
+		}
+		if (status == 0 && fread(bytes, 1, (size_t)info.size, file) != (size_t)info.size)
+			status = IO_ERROR_IO;
+		if (file != NULL && fclose(file) != 0 && status == 0)
+			status = IO_ERROR_IO;
+		if (status == 0)
+			status = st_cterm_skypix_receive(context->cterm, bytes, (size_t)info.size);
+		free(bytes);
+	}
+	if (status == 0) {
+		static const uint8_t cached[] = {24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 8,
+										 8,	 8,	 8,	 8,	 8,	 8,	 8,	 8,	 8,	 13};
+		ssize_t sent = st_connection_send_bytes(context->connection, cached, sizeof(cached), 100);
+		if (sent != (ssize_t)sizeof(cached))
+			status = sent < 0 ? (int)sent : IO_ERROR_IO;
+	}
+	return status;
+}
+int st_wren_transfer_skypix_request(struct st_wren_context *context, unsigned mode, unsigned width,
+									unsigned height, const uint8_t *filename, size_t size)
+{
+	(void)width;
+	(void)height;
+	if (context == NULL || context->profile == NULL || context->host->config.paths == NULL ||
+		!st_wren_transfer_detect_enabled(context) || (mode != 1 && mode != 20) || size == 0 ||
+		size > 255)
+		return IO_ERROR_NOT_SUPPORTED;
+	struct st_wren_transfer *s = state(context);
+	if (s == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL ||
+		s->skypix_directory != NULL || s->cancel_remaining != 0)
+		return IO_ERROR_BUSY;
+	char text[511];
+	size_t used = 0;
+	for (size_t i = 0; i < size; ++i) {
+		if (filename[i] < 0x20 || filename[i] == 0x7f || filename[i] == '/' ||
+			filename[i] == '\\' || filename[i] == ':')
+			return IO_ERROR_PERMISSION_DENIED;
+		char bytes[4];
+		ptrdiff_t n = st_utf8_encode_one(bytes, sizeof(bytes), filename[i]);
+		if (n < 0 || (size_t)n >= sizeof(text) - used)
+			return IO_ERROR_INVALID_ENCODING;
+		memcpy(text + used, bytes, (size_t)n);
+		used += (size_t)n;
+	}
+	text[used] = 0;
+	char *normal = NULL;
+	size_t normal_size = 0;
+	int status = st_unicode_text_normalize(&normal, &normal_size, text, used, NULL);
+	if (status != 0)
+		return status;
+	if (!path_untrusted_component_valid(normal) || normal[0] == '.') {
+		free(normal);
+		return IO_ERROR_PERMISSION_DENIED;
+	}
+	char *bbs = NULL, *root = NULL;
+	status = st_bbs_cache_path_for_name(&bbs, context->host->config.paths->cache_directory,
+										context->profile->name);
+	if (status == 0)
+		status = path_join_alloc(&root, bbs, "skypix");
+	free(bbs);
+	struct fs_info info;
+	if (status == 0) {
+		status = fs_get_link_info(&info, root);
+		if (status == IO_ERROR_NOT_FOUND)
+			status = fs_create_directories(root);
+		else if (status == 0 && info.kind != FS_ENTRY_DIRECTORY)
+			status = IO_ERROR_PERMISSION_DENIED;
+	}
+	if (status != 0) {
+		free(root);
+		free(normal);
+		return status;
+	}
+	char *cached = NULL;
+	status = path_join_alloc(&cached, root, normal);
+	if (status == 0) {
+		int found = fs_get_link_info(&info, cached);
+		if (found == 0) {
+			status = info.kind == FS_ENTRY_FILE ? skypix_cached(context, cached, mode)
+												: IO_ERROR_PERMISSION_DENIED;
+			free(cached);
+			free(root);
+			free(normal);
+			return status;
+		}
+		if (found != IO_ERROR_NOT_FOUND)
+			status = found;
+	}
+	free(cached);
+	char partial_name[520];
+	int count = snprintf(partial_name, sizeof(partial_name), ".%s.part", normal);
+	if (status == 0 && (count < 0 || (size_t)count >= sizeof(partial_name)))
+		status = IO_ERROR_NAME_TOO_LONG;
+	char *partial = NULL;
+	if (status == 0)
+		status = path_join_alloc(&partial, root, partial_name);
+	if (status != 0) {
+		free(root);
+		free(normal);
+		return status;
+	}
+	s->skypix_directory = root;
+	s->skypix_filename = normal;
+	s->skypix_mode = mode;
+	s->skypix_partial = partial;
+	s->skypix_error = 0;
+	const struct st_transfer_config config_template = {.protocol = ST_TRANSFER_XMODEM_CRC,
+													   .directory = root,
+													   .filename = normal,
+													   .destination = skypix_destination,
+													   .destination_context = s,
+													   .overwrite = true,
+													   .receive_events = true};
+	struct st_transfer_config config = config_template;
+	st_term_session_reserve_transfer(context->session, true);
+	status = start(context, &config, true, false);
+	if (status == 0) {
+		s->automatic = 5;
+		return IO_ERROR_IN_PROGRESS;
+	}
+	st_term_session_reserve_transfer(context->session, false);
+	free(s->skypix_directory);
+	s->skypix_directory = NULL;
+	free(s->skypix_filename);
+	s->skypix_filename = NULL;
+	free(s->skypix_partial);
+	s->skypix_partial = NULL;
 	return status;
 }
 
@@ -222,7 +392,7 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 		return IO_ERROR_NOT_SUPPORTED;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->cancel_remaining != 0)
+	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->skypix_directory != NULL || s->cancel_remaining != 0)
 		return IO_ERROR_BUSY;
 	struct fs_info info;
 	int status = fs_get_link_info(&info, request->directory);
@@ -273,6 +443,36 @@ void st_wren_transfer_pump(struct st_wren_context *context)
 	 * even when a fast sender continuously replenishes the mailbox. */
 	for (unsigned batch = 0; batch < 16 && st_transfer_take_received(s->worker, &event); ++batch) {
 		int status = 0;
+		if (s->skypix_directory != NULL) {
+			if (event.kind == ST_TRANSFER_RECEIVE_BEGIN) s->skypix_size = 0;
+			else if (event.kind == ST_TRANSFER_RECEIVE_DATA && s->skypix_mode == 1) {
+				if (event.size > 4*1024*1024 - s->skypix_size) status = IO_ERROR_OUT_OF_RANGE;
+				else {
+					uint8_t *bytes = realloc(s->skypix_bytes,s->skypix_size+event.size);
+					if (bytes == NULL) status = IO_ERROR_OUT_OF_MEMORY;
+					else { s->skypix_bytes=bytes; memcpy(bytes+s->skypix_size,event.bytes,event.size); s->skypix_size+=event.size; }
+				}
+			}
+			else if (event.kind == ST_TRANSFER_RECEIVE_END) {
+				status = s->skypix_error!=0 ? s->skypix_error : st_cterm_skypix_receive(context->cterm,
+				    event.success && s->skypix_mode==1?s->skypix_bytes:NULL,
+				    event.success && s->skypix_mode==1?s->skypix_size:0);
+				if(event.success && status==0) {
+					char *live=NULL;
+					status=path_join_alloc(&live,s->skypix_directory,s->skypix_filename);
+					if(status==0) status=fs_rename(s->skypix_partial,live);
+					free(live);
+				}
+			}
+			if (status != 0) {
+				struct st_transfer_log log={.level=ST_CTERM_LOG_WARNING};
+				snprintf(log.text,sizeof(log.text),"SkyPix asset failed (%d)",status); log_entry(context,&log);
+				s->skypix_error=status;
+				if (event.kind != ST_TRANSFER_RECEIVE_END) (void)st_transfer_request_abort(s->worker);
+				(void)st_cterm_skypix_receive(context->cterm,NULL,0);
+			}
+			continue;
+		}
 		switch (event.kind) {
 		case ST_TRANSFER_RECEIVE_BEGIN:
 			if (s->rip_file_type == 0 || rip_extension(event.filename, ".rip")) {
@@ -304,8 +504,10 @@ static void finish(struct st_wren_context *context)
 	if (s->worker != NULL) {
 		(void)st_transfer_join(s->worker);
 		st_wren_transfer_pump(context);
-		(void)st_cterm_rip_receive_end(context->cterm, false); s->rip_scene = false;
+		if (s->rip_scene) (void)st_cterm_rip_receive_end(context->cterm, false);
+		s->rip_scene = false;
 		(void)st_term_session_end_transfer(context->session);
+		if (s->skypix_directory != NULL) (void)st_cterm_skypix_receive(context->cterm,NULL,0);
 		size_t replay_size;
 		const uint8_t *replay = st_transfer_replay(s->worker, &replay_size);
 		if (context->cterm != NULL && replay_size != 0) {
@@ -320,6 +522,12 @@ static void finish(struct st_wren_context *context)
 		st_transfer_destroy(&s->worker);
 	}
 	st_term_session_reserve_transfer(context->session, false);
+	if (s->skypix_directory != NULL) (void)st_cterm_skypix_receive(context->cterm,NULL,0);
+	free(s->skypix_directory); s->skypix_directory=NULL;
+	free(s->skypix_filename); s->skypix_filename=NULL;
+	if(s->skypix_partial!=NULL) (void)fs_remove_file(s->skypix_partial);
+	free(s->skypix_partial); s->skypix_partial=NULL;
+	free(s->skypix_bytes); s->skypix_bytes=NULL; s->skypix_size=0;
 	free(s->rip_directory); s->rip_directory = NULL;
 	free(s->rip_filename); s->rip_filename = NULL;
 	s->rip_upload_pending = false; s->inline_upload = false; s->cancel_remaining = 0;
@@ -341,7 +549,7 @@ int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
 	if (!st_wren_transfer_detect_enabled(context)) return 0;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->cancel_remaining != 0) return 0;
+	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->skypix_directory != NULL || s->cancel_remaining != 0) return 0;
 	uint8_t output[33]; size_t count;
 	int event = st_transfer_detect(&s->detector, byte, output, &count);
 	if (event != 0) {
@@ -352,7 +560,7 @@ int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
 			memcpy(s->prefix, output, count); s->prefix_size = count; s->automatic = event;
 			if (event == 1) {
 				struct st_transfer_config config = {.protocol = ST_TRANSFER_ZMODEM};
-				int status = start(context, &config, false);
+				int status = start(context, &config, false, false);
 				if (status != 0) { s->automatic = 0; s->prefix_size = 0; return status; }
 			} else st_term_session_reserve_transfer(context->session, true);
 			*consumed = true; *size = 0; return 0;
@@ -390,7 +598,7 @@ static void begin(WrenVM *vm)
 	if (!transfer_text(vm, 1, &kind)) return;
 	if (strcmp(kind, "fake") != 0) { st_wren_abort(vm, "Transfer.beginSession expects fake"); return; }
 	struct st_transfer_config config = {.protocol = ST_TRANSFER_FAKE};
-	transfer_result(vm, start(st_wren_context_from_vm(vm), &config, false), "Transfer startup failed");
+	transfer_result(vm, start(st_wren_context_from_vm(vm), &config, false, false), "Transfer startup failed");
 }
 static void end(WrenVM *vm) { finish(st_wren_context_from_vm(vm)); wrenSetSlotNull(vm, 0); }
 static void done(WrenVM *vm) { wrenSetSlotBool(vm, 0, st_transfer_done(get_worker(vm))); }
@@ -506,7 +714,7 @@ static void dispatch(WrenVM *vm, bool upload, bool batch)
 	    || config.protocol == ST_TRANSFER_XMODEM_G) {
 		if (!transfer_text(vm, 2, &config.filename)) return;
 	}
-	transfer_result(vm, start(context, &config, false), "Transfer startup failed");
+	transfer_result(vm, start(context, &config, false, false), "Transfer startup failed");
 finished:
 	for (size_t i = 0; i < config.path_count; ++i) free(paths[i]);
 	free(paths);
@@ -519,7 +727,7 @@ static void automatic(WrenVM *vm)
 	struct st_wren_transfer *s = st_wren_context_from_vm(vm)->transfer;
 	int event = s == NULL ? 0 : s->automatic;
 	if (s != NULL) s->automatic = 0;
-	static const char *const names[] = {"", "download", "upload", "rip-download", "rip-upload"};
+	static const char *const names[] = {"", "download", "upload", "rip-download", "rip-upload", "skypix-download"};
 	if (event == 0) wrenSetSlotNull(vm, 0); else wrenSetSlotString(vm, 0, names[event]);
 }
 static void rip_upload_name(WrenVM *vm)

@@ -891,6 +891,7 @@ CTERM_NUMBER(emulation, emulation)
 CTERM_BOOL(has_palette_override, has_palette_override)
 CTERM_BOOL(started, started)
 CTERM_BOOL(skypix, skypix)
+CTERM_NUMBER(graphics_mode, graphics_mode)
 #undef CTERM_NUMBER
 #undef CTERM_BOOL
 
@@ -1453,6 +1454,7 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "emulation", fn_cterm_emulation},
 	{"CTerm", "started", fn_cterm_started},
 	{"CTerm", "skypix", fn_cterm_skypix},
+	{"CTerm", "graphicsMode", fn_cterm_graphics_mode},
 	{"CTerm", "extAttr", fn_cterm_ext_attr},
 	{"CTerm", "lastColumnFlag", fn_cterm_last_column_flag},
 	{"CTerm", "doorwayMode", fn_cterm_doorway_mode},

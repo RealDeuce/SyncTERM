@@ -29,7 +29,7 @@
 import "syncterm" for Session, WireLease, ConnError, Hook, Conn, Console, Screen, CTerm, Key, Mod,
     Codepage, ConnType, Emulation, Font, LogSource, LogLevel,
     Parity, BBSListType, ScreenMode, AddressFamily, MusicMode,
-    RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
+    GraphicsMode, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
     REPL, Input, Wake, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse,
     Cache, Digest, Platform, Text,
     Timer, Operation, WON, FileError, IOErr, WONError, WONErr,
@@ -221,7 +221,7 @@ class WrenTest {
     testScreenModeConstants_()
     testAddressFamilyConstants_()
     testMusicModeConstants_()
-    testRipVersionConstants_()
+    testGraphicsModeConstants_()
     testLogModeConstants_()
     testStatusDisplayConstants_()
 
@@ -430,10 +430,11 @@ class WrenTest {
            "MusicMode constants")
   }
 
-  static testRipVersionConstants_() {
-    check_(RipVersion.none == 0 && RipVersion.v1 == 1 &&
-           RipVersion.v3 == 2,
-           "RipVersion constants")
+  static testGraphicsModeConstants_() {
+    check_(GraphicsMode.none == 0 && GraphicsMode.v1 == 1 &&
+           GraphicsMode.v3 == 2 && GraphicsMode.skypix13 == 3 &&
+           GraphicsMode.skypix31 == 4,
+           "GraphicsMode constants")
   }
 
   static testLogModeConstants_() {

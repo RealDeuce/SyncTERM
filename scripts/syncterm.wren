@@ -1269,6 +1269,7 @@ class CTerm {
   foreign static music
   foreign static music=(b)
   foreign static started
+  foreign static graphicsMode
   foreign static skypix
   // Save the cterm area (status bar excluded) as IBM-CGA / BinaryText
   // to the given write-consent File, optionally with a SAUCE block.
@@ -1365,8 +1366,8 @@ foreign class Profile {
   foreign syspass=(value)
   foreign music
   foreign music=(value)
-  foreign rip
-  foreign rip=(value)
+  foreign graphics
+  foreign graphics=(value)
   foreign comment
   foreign comment=(value)
   foreign addressFamily
@@ -1523,10 +1524,12 @@ class MusicMode {
   static bansi    { 1 }
   static enabled  { 2 }
 }
-class RipVersion {
+class GraphicsMode {
   static none { 0 }
   static v1   { 1 }
   static v3   { 2 }
+  static skypix13 { 3 }
+  static skypix31 { 4 }
 }
 class Parity {
   static none { 0 }

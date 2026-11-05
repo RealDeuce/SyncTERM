@@ -362,6 +362,60 @@ st_wren_host_begin_session_mode(st_wren_host_t *host,
 }
 
 int
+st_wren_host_begin_skypix_session(st_wren_host_t *host, bool hide_status)
+{
+	int status = st_wren_host_begin_session_mode(host, ST_SCREEN_MODE_CURRENT);
+	if (status != 0) return status;
+	struct st_screen_mode_descriptor mode = *st_screen_mode_get(ST_SCREEN_MODE_80X25);
+	mode.console.columns = 80;
+	mode.console.rows = hide_status ? 25 : 26;
+	mode.console.cell_width = 8;
+	mode.console.cell_height = 8;
+	mode.console.pixel_width = 640;
+	mode.console.pixel_height = hide_status ? 200 : 208;
+	/* These are display proportions, not pixel proportions. Keep the
+	 * 640x200 canvas at 4:3 and give the extra status row the same scale. */
+	mode.console.aspect_width = 4 * 25;
+	mode.console.aspect_height = 3 * mode.console.rows;
+	mode.font_selector = 0;
+	status = install_mode_state(&host->menu, &mode, true);
+	if (status == 0 && host->picker.console != host->menu.console)
+		status = install_mode_state(&host->picker, &mode, true);
+	else if (status == 0) host->picker.fonts = host->menu.fonts;
+	if (status == 0) {
+		host->current_mode = mode;
+		host->current_screen_mode = ST_SCREEN_MODE_80X25;
+	}
+	else (void)st_wren_host_end_session_mode(host);
+	return status;
+}
+
+int
+st_wren_host_capture_history_mode(st_wren_host_t *host)
+{
+	if (host == NULL || !host->session_mode_active) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_screen_mode_descriptor mode = host->current_mode;
+	struct st_console_config *config = &mode.console;
+	int status = st_console_size(host->menu.console, &config->columns, &config->rows);
+	if (status == 0) status = st_console_cell_pixel_size(host->menu.console, &config->cell_width, &config->cell_height);
+	if (status == 0) status = st_console_pixel_size(host->menu.console, &config->pixel_width, &config->pixel_height);
+	if (status == 0) status = st_console_get_aspect_ratio(host->menu.console, &config->aspect_width, &config->aspect_height);
+	if (status == 0) { host->history_mode = mode; host->history_mode_valid = true; }
+	return status;
+}
+
+int
+st_wren_host_prepare_history_mode(struct st_wren_host *host)
+{
+	if (host == NULL || !host->history_mode_valid) return IO_ERROR_NOT_FOUND;
+	int status = install_mode_state(&host->menu, &host->history_mode, true);
+	if (status == 0 && host->picker.console != host->menu.console)
+		status = install_mode_state(&host->picker, &host->history_mode, true);
+	else if (status == 0) host->picker.fonts = host->menu.fonts;
+	return status;
+}
+
+int
 st_wren_host_end_session_mode(st_wren_host_t *host)
 {
 	int status;

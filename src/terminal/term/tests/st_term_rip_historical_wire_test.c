@@ -125,7 +125,7 @@ main(void)
 	st_pixel_buffer_destroy(initial);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.rip_version = ST_RIP_VERSION_1;
+	profile.graphics_mode = ST_GRAPHICS_RIP_1;
 	CHECK(setenv("ST_RIP_TEST_SOURCE", RIP_SURFER1_PATH, 1) == 0);
 	strcpy(profile.address,
 	    "stty raw -echo; cat \"$ST_RIP_TEST_SOURCE\"");
@@ -137,7 +137,7 @@ main(void)
 		.fonts = fonts,
 		.screen_mode = ST_SCREEN_MODE_80X25,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 		.hide_status = true,
 	};

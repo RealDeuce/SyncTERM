@@ -91,10 +91,12 @@ enum st_address_family {
 	ST_ADDRESS_FAMILY_HAPPY_EYEBALLS,
 };
 
-enum st_rip_version {
-	ST_RIP_VERSION_NONE,
-	ST_RIP_VERSION_1,
-	ST_RIP_VERSION_3,
+enum st_graphics_mode {
+	ST_GRAPHICS_NONE,
+	ST_GRAPHICS_RIP_1,
+	ST_GRAPHICS_RIP_3,
+	ST_GRAPHICS_SKYPIX_13,
+	ST_GRAPHICS_SKYPIX_31,
 };
 
 enum st_profile_parity {
@@ -165,7 +167,7 @@ struct st_profile {
 	int cterm_log_level;
 	int music;
 	int address_family;
-	int rip_version;
+	int graphics_mode;
 	int flow_control;
 	int tls_psk_version;
 	int tls_version_floor;

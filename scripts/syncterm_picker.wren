@@ -50,6 +50,8 @@ class PickerPath {
 }
 
 foreign class PickerRequest {
+  foreign amigaReplacement_
+  foreign acceptAmigaReplacement_()
   foreign mode
   foreign title
   foreign initialPath

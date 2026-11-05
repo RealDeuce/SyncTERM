@@ -95,7 +95,7 @@ check_complete_profile_roundtrip(void)
 			source.cterm_log_level = ST_PROFILE_LOG_DEBUG;
 			source.music = ST_PROFILE_MUSIC_ALL;
 			source.address_family = ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
-			source.rip_version = ST_RIP_VERSION_3;
+			source.graphics_mode = ST_GRAPHICS_RIP_3;
 			source.flow_control = ST_PROFILE_FLOW_NONE;
 			source.tls_psk_version = ST_TLS_VERSION_1_2;
 			source.tls_version_floor = ST_TLS_VERSION_1_2;
@@ -118,7 +118,7 @@ check_complete_profile_roundtrip(void)
 		NUMBER(added); NUMBER(connected); NUMBER(calls); NUMBER(bps_rate);
 		NUMBER(sort_order); NUMBER(connection_type); NUMBER(source); NUMBER(identifier);
 		NUMBER(screen_mode); NUMBER(encoding); NUMBER(transfer_log_level); NUMBER(protocol_log_level); NUMBER(cterm_log_level);
-		NUMBER(music); NUMBER(address_family); NUMBER(rip_version); NUMBER(flow_control);
+		NUMBER(music); NUMBER(address_family); NUMBER(graphics_mode); NUMBER(flow_control);
 		NUMBER(tls_psk_version); NUMBER(tls_version_floor); NUMBER(parity);
 		NUMBER(palette_size); NUMBER(port); NUMBER(stop_bits); NUMBER(data_bits);
 		NUMBER(ssh_fingerprint_size); NUMBER(hide_status); NUMBER(append_log); NUMBER(hide_popups);
@@ -142,6 +142,77 @@ check_complete_profile_roundtrip(void)
 		st_profile_dispose(&result);
 		ini_document_free(&document);
 	}
+	return 0;
+}
+
+static int
+check_graphics_codec(void)
+{
+	static const char *const names[]={"Off","RIPv1","RIPv3","SkyPix (Kick 1.3)","SkyPix (Kick 3.1)"};
+	for (int mode=0;mode<=ST_GRAPHICS_SKYPIX_31;++mode) {
+		ini_document_t *document=NULL;
+		struct st_profile profile, decoded;
+		st_profile_init(&profile); profile.graphics_mode=mode;
+		CHECK(ini_document_create(&document)==0);
+		ini_section_t *section=ini_document_root(document);
+		CHECK(ini_section_set_string(section,"RIP","RIPv1",&ini_default_style)==0);
+		CHECK(st_bbs_decode_profile(&decoded,section,"Graphics",false,NULL)==0);
+		CHECK(decoded.graphics_mode==ST_GRAPHICS_RIP_1); st_profile_dispose(&decoded);
+		CHECK(ini_section_set_string(section,"Graphics",names[mode],&ini_default_style)==0);
+		CHECK(st_bbs_decode_profile(&decoded,section,"Graphics",false,NULL)==0);
+		CHECK(decoded.graphics_mode==mode); st_profile_dispose(&decoded);
+		CHECK(st_bbs_encode_profile(section,&profile,false)==0);
+		CHECK(!ini_section_has_key(section,"RIP"));
+		CHECK(strcmp(ini_section_get_string(section,"Graphics",""),names[mode])==0);
+		st_profile_dispose(&profile); ini_document_free(&document);
+	}
+	return 0;
+}
+
+static int
+check_graphics_transactions(const struct st_app_paths *base)
+{
+	const char *path = ST_BBS_TEST_DIRECTORY "/graphics.lst";
+	struct st_app_paths paths = *base;
+	paths.personal_list = (char *)path;
+	st_bbs_list_t *first = NULL, *second = NULL;
+	struct st_profile local, stale;
+	st_profile_init(&local);
+	st_profile_init(&stale);
+	CHECK(fs_create_parent_directories(path) == 0);
+	CHECK(write_text(path, "RIP=RIPv3\n[Graphics]\nRIP=RIPv1\nExtra=keep\n") == 0);
+	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
+	CHECK(st_bbs_list_open(&second, &paths, NULL, 0) == 0);
+	CHECK(copy_named(&local, first, "Graphics") == 0);
+	CHECK(copy_named(&stale, second, "Graphics") == 0);
+	local.graphics_mode = ST_GRAPHICS_SKYPIX_31;
+	CHECK(st_bbs_list_update(first, "Graphics", &local, NULL) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	CHECK(st_bbs_list_find(first, "Graphics")->profile->graphics_mode == ST_GRAPHICS_SKYPIX_31);
+	CHECK(file_contains(path, "SkyPix (Kick 3.1)") && file_contains(path, "Extra=keep"));
+	strcpy(stale.comment, "concurrent comment");
+	CHECK(st_bbs_list_update(second, "Graphics", &stale, NULL) == 0);
+	CHECK(st_bbs_list_find(second, "Graphics")->profile->graphics_mode == ST_GRAPHICS_SKYPIX_31);
+	CHECK(copy_named(&local, first, "Graphics") == 0);
+	CHECK(copy_named(&stale, second, "Graphics") == 0);
+	local.graphics_mode = ST_GRAPHICS_SKYPIX_13;
+	stale.graphics_mode = ST_GRAPHICS_NONE;
+	CHECK(st_bbs_list_update(first, "Graphics", &local, NULL) == 0);
+	CHECK(st_bbs_list_update(second, "Graphics", &stale, NULL) == IO_ERROR_CONFLICT);
+	CHECK(st_profile_copy(&local, st_bbs_list_defaults(first)));
+	local.graphics_mode = ST_GRAPHICS_SKYPIX_13;
+	CHECK(st_bbs_list_set_defaults(first, &local) == 0);
+	st_bbs_list_close(first);
+	st_bbs_list_close(second);
+	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
+	CHECK(st_bbs_list_defaults(first)->graphics_mode == ST_GRAPHICS_SKYPIX_13);
+	CHECK(st_bbs_list_find(first, "Graphics")->profile->graphics_mode == ST_GRAPHICS_SKYPIX_13);
+	CHECK(!file_contains(path, "RIP="));
+	st_bbs_list_close(first);
+	st_profile_dispose(&local);
+	st_profile_dispose(&stale);
+	CHECK(fs_remove_file(path) == 0);
+	(void)fs_remove_file(ST_BBS_TEST_DIRECTORY "/graphics.lst.lock");
 	return 0;
 }
 
@@ -717,6 +788,7 @@ main(void)
 
 	CHECK(check_profile_default_ports() == 0);
 	CHECK(check_script_codec() == 0);
+	CHECK(check_graphics_codec() == 0);
 	CHECK(check_complete_profile_roundtrip() == 0);
 	CHECK(check_profile_encodings() == 0);
 	CHECK(check_prepared_sort() == 0);
@@ -759,6 +831,7 @@ main(void)
 	paths.download_directory = ST_BBS_TEST_DIRECTORY;
 	CHECK(check_loaded_names(&paths) == 0);
 	CHECK(check_encoding_persistence(&paths) == 0);
+	CHECK(check_graphics_transactions(&paths) == 0);
 	CHECK(check_connection_stats(&paths) == 0);
 	CHECK(check_scripts_are_per_entry(&paths) == 0);
 
@@ -832,7 +905,7 @@ main(void)
 	profile.parity = ST_PROFILE_PARITY_ODD;
 	profile.music = ST_PROFILE_MUSIC_ALL;
 	profile.address_family = ST_ADDRESS_FAMILY_IPV6;
-	profile.rip_version = ST_RIP_VERSION_3;
+	profile.graphics_mode = ST_GRAPHICS_RIP_3;
 	profile.tls_psk_version = ST_TLS_VERSION_1_2;
 	profile.tls_version_floor = ST_TLS_VERSION_1_2;
 	profile.hide_status = true;

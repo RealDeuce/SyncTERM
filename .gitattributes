@@ -1,3 +1,6 @@
 # Preserve exact upstream bytes checked by emoji data and license pins.
 src/text/emoji/data/*.txt -text
 src/text/emoji/LICENSE.CLDR -text
+# Preserve pinned Amiga font bytes, including upstream whitespace.
+src/media/amiga_font/data/*.yaff -text -whitespace
+src/media/amiga_font/data/LICENSE-MIT -text

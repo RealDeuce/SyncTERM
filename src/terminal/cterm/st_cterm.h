@@ -42,10 +42,12 @@ enum st_cterm_encoding {
 	ST_CTERM_ENCODING_CODEPAGE,
 };
 
-enum st_cterm_rip_version {
-	ST_CTERM_RIP_OFF = 0,
-	ST_CTERM_RIP_1 = 1,
-	ST_CTERM_RIP_3 = 2,
+enum st_cterm_graphics_mode {
+	ST_CTERM_GRAPHICS_OFF = 0,
+	ST_CTERM_GRAPHICS_RIP_1 = 1,
+	ST_CTERM_GRAPHICS_RIP_3 = 2,
+	ST_CTERM_GRAPHICS_SKYPIX_13 = 3,
+	ST_CTERM_GRAPHICS_SKYPIX_31 = 4,
 };
 
 enum st_cterm_petscii_machine {
@@ -109,6 +111,11 @@ enum st_cterm_log_level {
 typedef void (*st_cterm_log_callback_t)(void *context,
 	enum st_cterm_log_level level, const char *message);
 
+/* Called at the second bang, with following wire bytes unread. Return 0 for
+ * a completed cache hit, IO_ERROR_IN_PROGRESS for an owned transfer, or an error. */
+typedef int (*st_cterm_skypix_transfer_callback_t)(void *context, unsigned mode,
+	unsigned width, unsigned height, const uint8_t *filename, size_t size);
+
 struct st_cterm_config {
 	/* Pointers are borrowed through destruction, except palette arrays which
 	 * are copied during creation. */
@@ -118,10 +125,14 @@ struct st_cterm_config {
 	st_hyperlink_registry_t *hyperlinks;
 	enum st_cterm_emulation emulation;
 	enum st_cterm_encoding encoding;
-	/* RIP requires ANSI-BBS and at least a 640x350 pixel console. */
-	enum st_cterm_rip_version rip_version;
+	/* RIP requires ANSI-BBS and at least 640x350 pixels. SkyPix requires
+	 * ANSI-BBS, an 80x25 terminal and a 640x200 canvas; input is Latin-1. */
+	enum st_cterm_graphics_mode graphics_mode;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
 	const char *rip_directory;
+	const char *amiga_font_directory;
+	st_cterm_skypix_transfer_callback_t skypix_transfer;
+	void *skypix_transfer_context;
 	/* Enables built-in SyncTERM APC commands independently of RIP. Both
 	 * strings are borrowed through destruction. NULL directory retains
 	 * callback-only handling. Version is NUL-terminated and control-free;
@@ -211,6 +222,11 @@ int st_cterm_finish(st_cterm_t *terminal);
  * serialized owner as write(), even when no input arrives. Responses use
  * the synchronous output callback. NULL is IO_ERROR_INVALID_ARGUMENT. */
 int st_cterm_poll(st_cterm_t *terminal);
+/* Owner-thread timing gate. The caller retains bytes after a write
+ * consumed count while paused; no input suffix is queued by this API. */
+bool st_cterm_input_paused(st_cterm_t *terminal);
+/* Load a completed native ILBM brush; NULL/zero cancels a pending request. */
+int st_cterm_skypix_receive(st_cterm_t *terminal, const void *bytes, size_t size);
 /* After disconnect only: finish pending output and, without a status row,
  * scroll the whole terminal once to make room for a local notice. Dimensions
  * and status layout remain unchanged; capture completed history beforehand. */
@@ -246,6 +262,7 @@ struct st_cterm_state {
 	enum st_cterm_emulation emulation;
 	bool started;
 	bool skypix;
+	enum st_cterm_graphics_mode graphics_mode;
 	struct {
 		bool auto_wrap;
 		bool origin_mode;

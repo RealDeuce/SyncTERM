@@ -194,8 +194,10 @@ test_controls_and_disable(void)
 	CHECK(capture.controls == 1 && capture.control_size == sizeof(query) - 1);
 	CHECK(memcmp(capture.control, query, sizeof(query) - 1) == 0);
 	CHECK(write_bytes(&parser, &capture, skypix, sizeof(skypix) - 1) == 0);
-	CHECK(capture.controls == 2);
-	CHECK(memcmp(capture.control, skypix, sizeof(skypix) - 1) == 0);
+	CHECK(capture.controls == 1);
+	CHECK(capture.text_size == sizeof(skypix) - 1);
+	CHECK(memcmp(capture.text, skypix, sizeof(skypix) - 1) == 0);
+	capture.text_size = 0;
 	CHECK(write_bytes(&parser, &capture, disable, sizeof(disable) - 1) == 0);
 	CHECK(!parser.enabled);
 	CHECK(write_bytes(&parser, &capture, after, sizeof(after) - 1) == 0);

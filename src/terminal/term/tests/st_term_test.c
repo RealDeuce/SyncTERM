@@ -493,7 +493,7 @@ test_wire_capture(enum st_cterm_encoding encoding, bool rip)
 	const struct st_term_config config = {
 		.console = console, .connection = connection, .fonts = fonts,
 		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = encoding,
-		.rip_version = rip ? ST_CTERM_RIP_1 : ST_CTERM_RIP_OFF,
+		.graphics_mode = rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
 		.codepage = ST_CODEPAGE_CP437, .hide_status = true,
 		/* Replacements and drops must never change the captured wire. */
 		.wire_filter = rip ? test_wire_filter : NULL,
@@ -1029,7 +1029,7 @@ test_shell_rip_cp437_boundary(void)
 		.fonts = reference_fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&reference_terminal, &reference_config) == 0);
@@ -1044,7 +1044,7 @@ test_shell_rip_cp437_boundary(void)
 	CHECK(painted);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.rip_version = ST_RIP_VERSION_1;
+	profile.graphics_mode = ST_GRAPHICS_RIP_1;
 	strcpy(profile.address,
 	    "printf '!|c0F\\r\\n!|@1E1E\\202\\r\\n'; sleep 2");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
@@ -1055,7 +1055,7 @@ test_shell_rip_cp437_boundary(void)
 		.fonts = fonts,
 		.screen_mode = ST_SCREEN_MODE_80X43,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 		.hide_status = true,
 	};
@@ -1130,13 +1130,13 @@ main(void)
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	st_profile_init(&profile);
-	CHECK(st_term_profile_rip_version(NULL) == ST_CTERM_RIP_OFF);
-	CHECK(st_term_profile_rip_version(&profile) == ST_CTERM_RIP_OFF);
-	profile.rip_version = ST_RIP_VERSION_1;
-	CHECK(st_term_profile_rip_version(&profile) == ST_CTERM_RIP_1);
-	profile.rip_version = ST_RIP_VERSION_3;
-	CHECK(st_term_profile_rip_version(&profile) == ST_CTERM_RIP_3);
-	profile.rip_version = ST_RIP_VERSION_NONE;
+	CHECK(st_term_profile_graphics_mode(NULL) == ST_CTERM_GRAPHICS_OFF);
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_OFF);
+	profile.graphics_mode = ST_GRAPHICS_RIP_1;
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_RIP_1);
+	profile.graphics_mode = ST_GRAPHICS_RIP_3;
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_RIP_3);
+	profile.graphics_mode = ST_GRAPHICS_NONE;
 	profile.connection_type = ST_CONNECTION_TELNET;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);
 	profile.connection_type = ST_CONNECTION_SHELL;

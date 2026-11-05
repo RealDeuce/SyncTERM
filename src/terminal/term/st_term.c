@@ -89,20 +89,22 @@ profile_emulation(enum st_screen_mode mode)
 enum st_cterm_encoding
 st_term_profile_encoding(const struct st_profile *profile)
 {
-	return profile != NULL
+	return profile != NULL && profile->graphics_mode < ST_GRAPHICS_SKYPIX_13
 	    && profile->encoding == ST_PROFILE_ENCODING_UTF8
 	    ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE;
 }
 
-enum st_cterm_rip_version
-st_term_profile_rip_version(const struct st_profile *profile)
+enum st_cterm_graphics_mode
+st_term_profile_graphics_mode(const struct st_profile *profile)
 {
 	if (profile == NULL)
-		return ST_CTERM_RIP_OFF;
-	switch (profile->rip_version) {
-	case ST_RIP_VERSION_1: return ST_CTERM_RIP_1;
-	case ST_RIP_VERSION_3: return ST_CTERM_RIP_3;
-	default: return ST_CTERM_RIP_OFF;
+		return ST_CTERM_GRAPHICS_OFF;
+	switch (profile->graphics_mode) {
+	case ST_GRAPHICS_RIP_1: return ST_CTERM_GRAPHICS_RIP_1;
+	case ST_GRAPHICS_RIP_3: return ST_CTERM_GRAPHICS_RIP_3;
+	case ST_GRAPHICS_SKYPIX_13: return ST_CTERM_GRAPHICS_SKYPIX_13;
+	case ST_GRAPHICS_SKYPIX_31: return ST_CTERM_GRAPHICS_SKYPIX_31;
+	default: return ST_CTERM_GRAPHICS_OFF;
 	}
 }
 
@@ -145,7 +147,7 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	if (session->output_error != 0
 	    || !st_connection_is_connected(session->config.connection))
 		return;
-	if (session->config.rip_version != ST_CTERM_RIP_OFF
+	if ((session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
 	    && session->config.encoding == ST_CTERM_ENCODING_CODEPAGE)
 		session->output_error = st_term_session_send_text(session,
 		    (const char *)bytes, size);
@@ -221,6 +223,13 @@ st_term_connect_profile(st_connection_t **result,
 	if (result == NULL || profile == NULL || console == NULL
 	    || !st_profile_encoding_valid(profile->encoding))
 		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_profile effective;
+	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
+		effective = *profile;
+		effective.screen_mode = ST_SCREEN_MODE_80X25;
+		effective.encoding = ST_CODEPAGE_ISO_8859_1;
+		profile = &effective;
+	}
 	if (st_console_size(console, &geometry.columns, &geometry.rows) != 0)
 		return IO_ERROR_IO;
 	if (st_console_pixel_size(console, &geometry.pixel_width,
@@ -282,6 +291,15 @@ st_term_session_create(st_term_session_t **result,
 	session = calloc(1, sizeof(*session));
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	struct st_term_config effective = *config;
+	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) {
+		effective.encoding = ST_CTERM_ENCODING_CODEPAGE;
+		effective.codepage = ST_CODEPAGE_ISO_8859_1;
+		effective.screen_mode = ST_SCREEN_MODE_80X25;
+		effective.palette = NULL; effective.palette_size = 0;
+		effective.expand_lf = false; effective.force_lcf = false;
+		config = &effective;
+	}
 	session->config = *config;
 	if (config->throttle_supported)
 		session->throttle_bps = config->initial_throttle_bps;
@@ -300,11 +318,15 @@ st_term_session_create(st_term_session_t **result,
 		.fonts = config->fonts,
 		.audio = config->audio,
 		.hyperlinks = config->hyperlinks,
-		.emulation = profile_emulation(config->screen_mode),
-		.encoding = config->rip_version != ST_CTERM_RIP_OFF
+		.emulation = config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13
+		    ? ST_CTERM_ANSI_BBS : profile_emulation(config->screen_mode),
+		.encoding = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
 		    ? ST_CTERM_ENCODING_UTF8 : config->encoding,
-		.rip_version = config->rip_version,
+		.graphics_mode = config->graphics_mode,
 		.rip_directory = config->rip_directory,
+		.amiga_font_directory = config->amiga_font_directory,
+		.skypix_transfer = config->skypix_transfer,
+		.skypix_transfer_context = config->skypix_transfer_context,
 		.apc_directory = config->apc_directory,
 		.application_version = config->application_version,
 		.codepage = config->codepage,
@@ -688,7 +710,8 @@ write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
 	size_t consumed;
 	int status;
 
-	if (session->config.rip_version == ST_CTERM_RIP_OFF
+	if ((session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
+	    && session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 	    || session->config.encoding == ST_CTERM_ENCODING_UTF8) {
 		status = st_cterm_write(session->cterm, bytes, size, &consumed);
 		return status == 0 && consumed != size ? IO_ERROR_IO : status;
@@ -933,6 +956,7 @@ handle_event(st_term_session_t *session,
 		    event->data.focus.focused);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_RESIZE: {
+		if (session->config.graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) return 0;
 		uint32_t capabilities;
 		int status;
 
@@ -1018,7 +1042,13 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	bool protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 	if (session->transfer != NULL && st_transfer_done(session->transfer)) read_size = 0;
-	if (session->transfer_reserved || session->wire_owner != NULL) read_size = 0;
+	if (!protocol_input && !st_connection_is_connected(session->config.connection)
+	    && st_cterm_input_paused(session->cterm)) {
+		status = st_cterm_finish(session->cterm);
+		if (status != 0) return status;
+	}
+	bool input_paused = !protocol_input && st_cterm_input_paused(session->cterm);
+	if (session->transfer_reserved || session->wire_owner != NULL || input_paused) read_size = 0;
 	if (protocol_input) {
 		size_t space = st_transfer_input_space(session->transfer);
 		if (read_size > space) read_size = space;
@@ -1056,7 +1086,7 @@ st_term_session_pump(st_term_session_t *session,
 	if (protocol_input && received == 0) st_transfer_eof(session->transfer);
 	/* A detector can claim the stream midway through this read. Recheck
 	 * ownership after each ordinary byte, retaining any suffix on backpressure. */
-	while (session->wire_owner == NULL && (!session->suspended || protocol_input) && !session->transfer_reserved
+	while (session->wire_owner == NULL && (!st_cterm_input_paused(session->cterm) || protocol_input) && (!session->suspended || protocol_input) && !session->transfer_reserved
 	    && (session->returned_position < session->returned_size
 	    || session->wire_position < session->wire_size)) {
 		bool replay = session->returned_position < session->returned_size;
@@ -1090,7 +1120,7 @@ st_term_session_pump(st_term_session_t *session,
 		    && (session->config.wire_filter_active == NULL
 		    || session->config.wire_filter_active(session->config.wire_filter_context));
 		if (!filtering && !session->config.throttle_supported && session->throttle_bps == 0
-		    && session->config.rip_version == ST_CTERM_RIP_OFF
+		    && session->config.graphics_mode == ST_CTERM_GRAPHICS_OFF
 		    && session->config.screen_mode != ST_SCREEN_MODE_PRESTEL)
 			count = size - *position;
 		if (!replay && session->config.screen_mode == ST_SCREEN_MODE_PRESTEL) {

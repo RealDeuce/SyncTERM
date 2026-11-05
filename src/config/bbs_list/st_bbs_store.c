@@ -25,7 +25,7 @@ static const char *profile_keys[] = {
 	"Password", "SystemPassword", "ConnectionType", "FlowControl",
 	"ScreenMode", "NoStatus", "DownloadPath", "UploadPath", "LogFile",
 	"TransferLogLevel", "ProtocolLogLevel", "CTermLogLevel", "AppendLogFile", "BPSRate",
-	"ANSIMusic", "AddressFamily", "Font", "Encoding", "HidePopups", "RIP", "Comment",
+	"ANSIMusic", "AddressFamily", "Font", "Encoding", "HidePopups", "Graphics", "Comment",
 	"WrenScripts", "ForceLCF", "YellowIsYellow", "TerminalType", "LFExpand",
 	"TelnetBrokenTextmode", "TelnetDeferNegotiate", "TLSTrustWebPKI",
 	"TLSTrustedCertificate", "TLSClientCertificate", "TLSClientKey",
@@ -152,7 +152,7 @@ merge_profile_sections(ini_section_t *remote,
     const ini_section_t *local)
 {
 	/* Materialize aliases before removing them, including unchanged values. */
-	static const char *const canonical[] = { "ConnectionType", "ProtocolLogLevel" };
+	static const char *const canonical[] = { "ConnectionType", "ProtocolLogLevel", "Graphics" };
 	for (size_t i = 0; i < sizeof(canonical) / sizeof(canonical[0]); ++i) {
 		const char *value = ini_section_find(remote_compare, canonical[i]);
 		if (value != NULL) {
@@ -202,6 +202,7 @@ merge_profile_sections(ini_section_t *remote,
 	}
 	(void)ini_section_remove_key(remote, "BeDumb");
 	(void)ini_section_remove_key(remote, "TelnetLogLevel");
+	(void)ini_section_remove_key(remote, "RIP");
 	return 0;
 }
 

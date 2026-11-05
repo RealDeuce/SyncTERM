@@ -1,5 +1,11 @@
 # RIPterm 1.54 compatibility tests
 
+SkyPix is selected independently and has its own parser, raster policy, fonts
+and asset state; see [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). The RIP parser
+recognizes only its own CSI `!`, `0!`, `1!` and `2!` forms, passing unrelated CSI
+forms to ANSI handling. SkyPix commands do not activate a RIP graphics engine.
+Historical RIP captures and their exclusions remain unchanged.
+
 Enable `ST_CONSOLE_TEST` and run:
 
 ```sh

@@ -73,6 +73,7 @@ struct st_wren_picker_call {
 	bool active;
 	bool completed;
 	bool quit_application;
+	bool amiga_replacement, confirmed;
 	enum st_wren_picker_mode mode;
 	const char *title;
 	const char *initial_path;
@@ -282,11 +283,14 @@ struct st_wren_host {
 	bool hyperlink_root_registered;
 	struct surface_storage *surface_storage;
 	uint64_t font_generation;
+	uint64_t amiga_font_generation;
 	struct st_settings_font_draft font_draft;
 	uint64_t settings_generation;
 	enum st_screen_mode current_screen_mode;
 	struct st_screen_mode_descriptor current_mode;
 	struct st_screen_mode_descriptor menu_mode;
+	struct st_screen_mode_descriptor history_mode;
+	bool history_mode_valid;
 	enum st_screen_mode menu_mode_identity;
 	bool session_mode_active;
 	struct st_wren_context menu;
@@ -335,6 +339,8 @@ WrenForeignMethodFn st_wren_transfer_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_transfer_bind_class(const char *class_name);
 void st_wren_transfer_dispose(struct st_wren_context *context);
+int st_wren_transfer_skypix_request(struct st_wren_context *context, unsigned mode,
+	unsigned width, unsigned height, const uint8_t *name, size_t size);
 int st_wren_transfer_rip_request(struct st_wren_context *context,
 	const struct st_cterm_rip_transfer_request *request);
 void st_wren_transfer_pump(struct st_wren_context *context);
@@ -417,6 +423,7 @@ WrenForeignMethodFn st_wren_picker_bind_method(const char *module,
 	const char *class_name, bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_picker_bind_class(const char *module,
 	const char *class_name);
+int st_wren_host_prepare_history_mode(struct st_wren_host *host);
 int st_wren_picker_host_init(struct st_wren_host *host);
 void st_wren_picker_host_dispose(struct st_wren_host *host);
 bool st_wren_picker_host_run(struct st_wren_host *host,

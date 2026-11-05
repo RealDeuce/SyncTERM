@@ -1,6 +1,33 @@
 [[reference-media]]
 === Media and console API reference
 
+==== Native Amiga bitmap fonts
+
+`st_amiga_font.h` supplies immutable compiled strikes and owned decoded HUNK
+bitmap fonts. `st_amiga_font_glyph` returns borrowed native bitmap/stride/bit
+position and signed bearing/advance/top metrics; it does not convert to fixed
+console cells. Compiled values have static lifetime; `st_amiga_font_release`
+also accepts them. Decoded fonts own their file bytes and survive replacement
+or removal of the package from which they were loaded. Decode outputs remain
+unchanged on failure. Family descriptor decoding retains every referenced
+strike and rejects paths outside the selected family.
+
+`st_amiga_fonts.h` owns the application font store under `fonts/amiga/` beside
+the active settings file. Its owner-thread catalog returns native family
+metadata, available/installed heights and per-family errors. The catalog and
+individual installation result have matching dispose operations. Install
+validates all files before staging/publication; optional result metadata is
+constructed only when requested, before publication. A post-publication cleanup
+failure does not report a failed installation. Remove affects only installed
+packages. Exact installed lookup precedes exact compiled lookup and Pearl 8
+fallback; lookup can return a usable compiled fallback together with the actual
+error for missing/corrupt installed data. No neighbouring size is stretched.
+
+The persistent menu host owns consent, replacement confirmation and stale
+snapshot checks. The terminal owns selected fonts; scripts receive immutable
+family metadata through the menu API rather than native bitmap pointers.
+See link:../../SKYPIX_CONFORMANCE.md[SkyPix conformance] for sources and tests.
+
 ==== Audio mixer
 
 Mixer input/output is interleaved native-endian signed 16-bit stereo.  Counts

@@ -6,12 +6,14 @@
  */
 
 #include "wren_host_internal.h"
+#include "path.h"
 #include "wren_licenses.h"
 
 #include "audio.h"
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_app_paths.h"
+#include "st_amiga_fonts.h"
 #include "st_audio_runtime.h"
 #include "st_audio_file.h"
 #include "st_bbs_list.h"
@@ -44,6 +46,7 @@ enum menu_foreign_kind {
 	MENU_FOREIGN_SETTINGS,
 	MENU_FOREIGN_THEME_DOCUMENT,
 	MENU_FOREIGN_FONT,
+	MENU_FOREIGN_AMIGA_FONT,
 	MENU_FOREIGN_ENCRYPTION_INFO,
 	MENU_FOREIGN_ERROR,
 	MENU_FOREIGN_LOAD_DIAGNOSTIC,
@@ -78,6 +81,12 @@ struct foreign_theme_document {
 struct foreign_font {
 	struct menu_foreign_header header;
 	size_t index;
+	uint64_t generation;
+};
+
+struct foreign_amiga_font {
+	struct menu_foreign_header header;
+	struct st_amiga_font_family_info info;
 	uint64_t generation;
 };
 
@@ -247,7 +256,11 @@ finalize_menu_foreign(void *data)
 
 	if (header == NULL)
 		return;
-	if (header->kind == MENU_FOREIGN_ERROR)
+	if (header->kind == MENU_FOREIGN_AMIGA_FONT) {
+		struct foreign_amiga_font *font = data;
+		st_amiga_font_family_info_dispose(&font->info);
+	}
+	else if (header->kind == MENU_FOREIGN_ERROR)
 		free(((struct foreign_menu_error *)data)->message);
 	else if (header->kind == MENU_FOREIGN_LOAD_DIAGNOSTIC) {
 		struct foreign_load_diagnostic *item = data;
@@ -1495,8 +1508,11 @@ fn_menu_prepare_offline_scrollback(WrenVM *vm)
 	bool success = offline_scrollback_info(host, &mode, &has_status);
 
 	(void)has_status;
-	if (success && mode != ST_SCREEN_MODE_CURRENT
-	    && !st_wren_screen_status(vm, st_wren_host_set_screen_mode(host, mode), "Menu.prepareOfflineScrollback")) return;
+	if (success) {
+		int status = host->history_mode_valid ? st_wren_host_prepare_history_mode(host)
+		    : mode == ST_SCREEN_MODE_CURRENT ? 0 : st_wren_host_set_screen_mode(host, mode);
+		if (!st_wren_screen_status(vm, status, "Menu.prepareOfflineScrollback")) return;
+	}
 	wrenSetSlotBool(vm, 0, success);
 }
 
@@ -1670,9 +1686,9 @@ fn_menu_music_modes(WrenVM *vm)
 }
 
 static void
-fn_menu_rip_modes(WrenVM *vm)
+fn_menu_graphics_modes(WrenVM *vm)
 {
-	static const char *const names[] = {"None", "RIP v1", "RIP v3"};
+	static const char *const names[] = {"None", "RIP v1", "RIP v3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)"};
 	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
 }
 
@@ -2932,6 +2948,191 @@ fn_menu_set_screen_mode(WrenVM *vm)
 		return;
 	st_wren_screen_result(vm, st_wren_host_set_screen_mode(host,
 	    (enum st_screen_mode)mode), "Menu.setScreenMode");
+}
+
+static void amiga_push(WrenVM *vm, int slot, int class_slot, struct st_amiga_font_family_info *info)
+{
+	wrenGetVariable(vm, "syncterm_menu", "AmigaFontFamily", class_slot);
+	struct foreign_amiga_font *font = wrenSetSlotNewForeign(vm, slot, class_slot, sizeof(*font));
+	*font =
+		(struct foreign_amiga_font){.header.kind = MENU_FOREIGN_AMIGA_FONT,
+									.info = *info,
+									.generation = st_wren_host_from_vm(vm)->amiga_font_generation};
+	*info = (struct st_amiga_font_family_info){0};
+}
+static struct foreign_amiga_font *amiga_value(WrenVM *vm, int slot)
+{
+	if (!st_wren_foreign_is(vm, slot, "syncterm_menu", "AmigaFontFamily"))
+		return NULL;
+	struct foreign_amiga_font *font = wrenGetSlotForeign(vm, slot);
+	return font->header.kind == MENU_FOREIGN_AMIGA_FONT ? font : NULL;
+}
+static int amiga_root(WrenVM *vm, char **root)
+{
+	const struct st_app_paths *paths = st_wren_host_from_vm(vm)->config.paths;
+	return paths == NULL ? IO_ERROR_NOT_FOUND
+						 : st_amiga_fonts_directory(root, paths->settings_file);
+}
+static void fn_menu_amiga_fonts(WrenVM *vm)
+{
+	char *root = NULL;
+	struct st_amiga_fonts_catalog catalog = {0};
+	int status = amiga_root(vm, &root);
+	if (status == 0)
+		status = st_amiga_fonts_catalog_read(&catalog, root);
+	free(root);
+	if (status != 0) {
+		menu_error(vm, status, status, "The Amiga font catalog could not be read.");
+		return;
+	}
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < catalog.count; ++i) {
+		amiga_push(vm, 1, 2, &catalog.families[i]);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+	st_amiga_fonts_catalog_dispose(&catalog);
+}
+static void fn_amiga_name(WrenVM *vm)
+{
+	struct foreign_amiga_font *font = amiga_value(vm, 0);
+	if (font == NULL) {
+		st_wren_abort(vm, "Invalid AmigaFontFamily");
+		return;
+	}
+	wrenSetSlotString(vm, 0, font->info.name);
+}
+static void amiga_sizes(WrenVM *vm, bool installed)
+{
+	struct foreign_amiga_font *font = amiga_value(vm, 0);
+	if (font == NULL) {
+		st_wren_abort(vm, "Invalid AmigaFontFamily");
+		return;
+	}
+	const unsigned *sizes = installed ? font->info.installed_sizes : font->info.sizes;
+	size_t count = installed ? font->info.installed_count : font->info.count;
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < count; ++i) {
+		wrenSetSlotDouble(vm, 1, sizes[i]);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+}
+static void fn_amiga_sizes(WrenVM *vm) { amiga_sizes(vm, false); }
+static void fn_amiga_installed_sizes(WrenVM *vm) { amiga_sizes(vm, true); }
+static void fn_amiga_source(WrenVM *vm)
+{
+	struct foreign_amiga_font *font = amiga_value(vm, 0);
+	if (font == NULL) {
+		st_wren_abort(vm, "Invalid AmigaFontFamily");
+		return;
+	}
+	wrenSetSlotString(
+		vm, 0, font->info.installed ? (font->info.bundled ? "mixed" : "installed") : "bundled");
+}
+static void fn_amiga_error(WrenVM *vm)
+{
+	struct foreign_amiga_font *font = amiga_value(vm, 0);
+	if (font == NULL) {
+		st_wren_abort(vm, "Invalid AmigaFontFamily");
+		return;
+	}
+	menu_result(vm, font->info.error, true,
+				"The installed Amiga font descriptor could not be read.");
+}
+static void fn_menu_install_amiga_font(WrenVM *vm)
+{
+	if (!menu_writable(vm, "Amiga fonts cannot be installed in safe mode."))
+		return;
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	const char *initial = ".";
+	struct fs_info directory;
+	if (host->config.paths != NULL && host->config.paths->download_directory != NULL &&
+		fs_get_info(&directory, host->config.paths->download_directory) == 0 &&
+		directory.kind == FS_ENTRY_DIRECTORY)
+		initial = host->config.paths->download_directory;
+	struct st_wren_picker_call call = {
+		.mode = ST_WREN_PICKER_FILE,
+		.title = "Install Amiga font family (.font and its bitmap strikes)",
+		.initial_path = initial,
+		.mask = "*.font",
+		.options = ST_WREN_PICKER_FILE_MUST_EXIST | ST_WREN_PICKER_PATH_MUST_EXIST |
+				   ST_WREN_PICKER_MASK_LOCKED | ST_WREN_PICKER_ALLOW_ENTRY};
+	if (!st_wren_picker_host_run(host, &call)) {
+		st_wren_picker_call_dispose(&call);
+		menu_error(vm, IO_ERROR_IO, IO_ERROR_IO, "The Amiga font picker failed.");
+		return;
+	}
+	if (call.path_count == 0) {
+		st_wren_picker_call_dispose(&call);
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	char *root = NULL;
+	int status = amiga_root(vm, &root);
+	struct st_amiga_font_family_info installed = {0};
+	if (status == 0)
+		status = st_amiga_fonts_install(root, call.paths[0], false, &installed);
+	if (status == IO_ERROR_ALREADY_EXISTS) {
+		/* The menu VM is inside a foreign call. Confirmation belongs to
+		 * the isolated picker VM, through its synchronous UI driver. */
+		struct st_wren_picker_call confirm = {.mode = ST_WREN_PICKER_FILE,
+											  .amiga_replacement = true,
+											  .title = "Replace Amiga font family",
+											  .initial_path = path_basename(call.paths[0])};
+		if (!st_wren_picker_host_run(host, &confirm))
+			status = IO_ERROR_IO;
+		else if (confirm.confirmed)
+			status = st_amiga_fonts_install(root, call.paths[0], true, &installed);
+		else {
+			free(root);
+			st_wren_picker_call_dispose(&call);
+			st_wren_picker_call_dispose(&confirm);
+			wrenSetSlotNull(vm, 0);
+			return;
+		}
+		st_wren_picker_call_dispose(&confirm);
+	}
+	if (status == 0)
+		++host->amiga_font_generation;
+	if (status == 0) {
+		wrenEnsureSlots(vm, 2);
+		amiga_push(vm, 0, 1, &installed);
+	}
+	free(root);
+	st_wren_picker_call_dispose(&call);
+	st_amiga_font_family_info_dispose(&installed);
+	if (status != 0)
+		menu_error(vm, status, status, "The Amiga font family could not be installed.");
+}
+static void fn_menu_remove_amiga_font(WrenVM *vm)
+{
+	if (!menu_writable(vm, "Amiga fonts cannot be removed in safe mode."))
+		return;
+	struct foreign_amiga_font *font = amiga_value(vm, 1);
+	if (font == NULL) {
+		st_wren_abort(vm, "Menu.removeAmigaFont expects an AmigaFontFamily");
+		return;
+	}
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	if (font->generation != host->amiga_font_generation) {
+		menu_error(vm, IO_ERROR_BUSY, IO_ERROR_BUSY,
+				   "Refresh the Amiga font catalog before removing a family.");
+		return;
+	}
+	if (!font->info.installed) {
+		menu_error(vm, IO_ERROR_READ_ONLY, IO_ERROR_READ_ONLY,
+				   "Bundled Amiga fonts cannot be removed.");
+		return;
+	}
+	char *root = NULL;
+	int status = amiga_root(vm, &root);
+	if (status == 0)
+		status = st_amiga_fonts_remove(root, font->info.name);
+	free(root);
+	if (status == 0)
+		++host->amiga_font_generation;
+	menu_result(vm, status, true, "The Amiga font family could not be removed.");
 }
 
 static void
@@ -4348,7 +4549,7 @@ BBS_NUM_PROPERTY(conn_type, connection_type, int, ST_CONNECTION_UNKNOWN,
     ST_CONNECTION_MQTT)
 BBS_NUM_PROPERTY(music, music, int, ST_PROFILE_MUSIC_SYNCTERM,
     ST_PROFILE_MUSIC_ALL)
-BBS_NUM_PROPERTY(rip, rip_version, int, ST_RIP_VERSION_NONE, ST_RIP_VERSION_3)
+BBS_NUM_PROPERTY(graphics, graphics_mode, int, ST_GRAPHICS_NONE, ST_GRAPHICS_SKYPIX_31)
 BBS_NUM_PROPERTY(address_family, address_family, int,
     ST_ADDRESS_FAMILY_UNSPECIFIED, ST_ADDRESS_FAMILY_HAPPY_EYEBALLS)
 BBS_NUM_PROPERTY(screen_mode, screen_mode, int, ST_SCREEN_MODE_CURRENT,
@@ -4883,12 +5084,20 @@ static const struct binding bindings[] = {
 	{"Menu", true, "rates", fn_menu_rates},
 	{"Menu", true, "serialRates(_)", fn_menu_serial_rates},
 	{"Menu", true, "musicModes", fn_menu_music_modes},
-	{"Menu", true, "ripModes", fn_menu_rip_modes},
+	{"Menu", true, "graphicsModes", fn_menu_graphics_modes},
 	{"Menu", true, "flowControls", fn_menu_flow_controls},
 	{"Menu", true, "flowControlsNoRts", fn_menu_flow_controls_no_rts},
 	{"Menu", true, "parities", fn_menu_parities},
 	{"Menu", true, "paletteDefaults(_)", fn_menu_palette_defaults},
 	{"Menu", true, "fontsCatalog", fn_menu_fonts_catalog},
+	{"Menu", true, "amigaFonts", fn_menu_amiga_fonts},
+	{"Menu", true, "installAmigaFont()", fn_menu_install_amiga_font},
+	{"Menu", true, "removeAmigaFont(_)", fn_menu_remove_amiga_font},
+	{"AmigaFontFamily", false, "name", fn_amiga_name},
+	{"AmigaFontFamily", false, "sizes", fn_amiga_sizes},
+	{"AmigaFontFamily", false, "installedSizes", fn_amiga_installed_sizes},
+	{"AmigaFontFamily", false, "source", fn_amiga_source},
+	{"AmigaFontFamily", false, "error", fn_amiga_error},
 	{"Menu", true, "encodings", fn_menu_encodings},
 	{"Menu", true, "fontsForEncoding(_)", fn_menu_fonts_for_encoding},
 	{"Menu", true, "fontEncoding(_)", fn_menu_font_encoding},
@@ -5072,7 +5281,7 @@ static const struct binding bindings[] = {
 	BIND_GETSET("Profile", "password", bbs_password),
 	BIND_GETSET("Profile", "syspass", bbs_syspass),
 	BIND_GETSET("Profile", "music", bbs_music),
-	BIND_GETSET("Profile", "rip", bbs_rip),
+	BIND_GETSET("Profile", "graphics", bbs_graphics),
 	BIND_GETSET("Profile", "addressFamily", bbs_address_family),
 	BIND_GETSET("Profile", "termName", bbs_term_name),
 	BIND_GETSET("Profile", "screenMode", bbs_screen_mode),
@@ -5138,6 +5347,7 @@ st_wren_menu_bind_class(const char *class_name)
 	    && strcmp(class_name, "MenuError") != 0
 	    && strcmp(class_name, "ListEncryptionInfo") != 0
 	    && strcmp(class_name, "MenuFont") != 0
+	    && strcmp(class_name, "AmigaFontFamily") != 0
 	    && strcmp(class_name, "ThemeDocument") != 0
 	    && strcmp(class_name, "CloudThemeEntry") != 0
 	    && strcmp(class_name, "Settings") != 0

@@ -43,7 +43,7 @@ test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 	const struct st_cterm_config config = {
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = encoding,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 	};
 	st_console_t *console = NULL;
@@ -137,7 +137,7 @@ test_text_window_reinit_wrap(void)
 		.fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
@@ -222,7 +222,7 @@ test_text_window_reinit_keeps_start_state(void)
 		.console = console, .fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
@@ -275,7 +275,7 @@ test_rip3_reset_default_font(void)
 		.console = console, .fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_3,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
 		.codepage = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
@@ -435,7 +435,7 @@ test_v110a_flood(const char *stream, bool patterned)
 		.fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
@@ -513,7 +513,7 @@ main(void)
 		.fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_UTF8,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 		.font_selector = 0,
 		.output = capture_output,

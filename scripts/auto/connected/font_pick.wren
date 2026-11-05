@@ -11,6 +11,12 @@ class FontApp {
     Fiber.new {
       if (Host.safeMode) return
       Screen.checked_(Screen.modalRun(Fn.new {
+        if (CTerm.skypix) {
+          Alert.runStandalone(App.new(),
+              "SkyPix selects Amiga fonts remotely. Install or remove families " +
+              "through Amiga Font Management in the main menu.")
+          return
+        }
         if (!Screen.checked_(ScreenSupports.fontSelection)) {
           Alert.runStandalone(App.new(),
               "Font cannot be changed in the current video output mode.")

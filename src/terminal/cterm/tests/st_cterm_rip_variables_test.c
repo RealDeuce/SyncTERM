@@ -161,7 +161,7 @@ main(void)
 		.fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_UTF8,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.rip_directory = RIP_VARIABLES_TEST_DIRECTORY,
 		.codepage = ST_CODEPAGE_CP437,
 		.output = output,

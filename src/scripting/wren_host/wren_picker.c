@@ -325,6 +325,21 @@ push_request(struct st_wren_host *host, int slot,
 }
 
 static void
+fn_request_amiga_replacement(WrenVM *vm)
+{
+	struct st_wren_picker_call *call=request_call(vm);
+	if (call != NULL) wrenSetSlotBool(vm,0,call->amiga_replacement);
+}
+static void
+fn_request_accept_amiga_replacement(WrenVM *vm)
+{
+	struct st_wren_picker_call *call=request_call(vm);
+	if (call == NULL) return;
+	if (!call->amiga_replacement) { st_wren_abort(vm,"No Amiga replacement confirmation is active"); return; }
+	call->confirmed=true; call->completed=true;
+	wrenSetSlotNull(vm,0);
+}
+static void
 fn_request_mode(WrenVM *vm)
 {
 	static const char *const names[] = {
@@ -700,8 +715,8 @@ fn_request_accept(WrenVM *vm)
 
 	if (call == NULL)
 		return;
-	if (call->mode != ST_WREN_PICKER_FILE
-	    && call->mode != ST_WREN_PICKER_DIRECTORY) {
+	if (call->amiga_replacement || (call->mode != ST_WREN_PICKER_FILE
+	    && call->mode != ST_WREN_PICKER_DIRECTORY)) {
 		st_wren_abort(vm,
 		    "PickerRequest.accept: picker is not single-select");
 		return;
@@ -1013,6 +1028,8 @@ fn_host_pick_save_options(WrenVM *vm)
 
 static const struct binding bindings[] = {
 	{"syncterm_picker", "PickerRequest", false, "mode", fn_request_mode},
+	{"syncterm_picker", "PickerRequest", false, "amigaReplacement_", fn_request_amiga_replacement},
+	{"syncterm_picker", "PickerRequest", false, "acceptAmigaReplacement_()", fn_request_accept_amiga_replacement},
 	{"syncterm_picker", "PickerRequest", false, "title", fn_request_title},
 	{"syncterm_picker", "PickerRequest", false, "initialPath", fn_request_initial_path},
 	{"syncterm_picker", "PickerRequest", false, "mask", fn_request_mask},

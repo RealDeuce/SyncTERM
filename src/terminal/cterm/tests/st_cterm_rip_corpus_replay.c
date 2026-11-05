@@ -60,7 +60,7 @@ replay(const char *path, const char *capture_path, bool harness_trailer,
 		.fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_UTF8,
-		.rip_version = rip3 ? ST_CTERM_RIP_3 : ST_CTERM_RIP_1,
+		.graphics_mode = rip3 ? ST_CTERM_GRAPHICS_RIP_3 : ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 		.rip_directory = getenv("ST_RIP_TEST_DIRECTORY"),
 	};

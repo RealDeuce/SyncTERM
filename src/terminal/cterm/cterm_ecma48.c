@@ -35,6 +35,7 @@
 
 #include "cterm_render.h"
 #include "cterm.h"
+#include "cterm_skypix.h"
 #include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_ecma48.h"
@@ -1610,6 +1611,8 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 	flags = cterm_render_get_video_flags(cterm);
 	switch (cterm->seq_param_int[*pi]) {
 		case 0:
+			if (cterm->skypix_engine != NULL)
+				cterm_render_record_error(cterm, cterm_skypix_reset_style(cterm->skypix_engine));
 			cterm_set_negative(cterm, false);
 			cterm->attr = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);

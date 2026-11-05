@@ -1373,3 +1373,120 @@ contract. Native declarations/ledger remain unchanged: 80 public headers,
 Eighteen original topics are resolved; 33 topics plus the documentation finding
 remain open. Coverage and diff checks pass. Retain the temporary skill and record
 for the next Plan-mode phase.
+
+== Approved independent SkyPix and Amiga fonts plan
+
+The complete Plan-mode plan was approved with "Implement the plan" in Default
+mode on 2026-11-05. This is additional selected work, not closure of an unrelated
+original Wren finding. Phase: complete.
+
+Contract: one per-BBS Graphics selector (None/RIP v1/RIP v3/SkyPix), separate
+protocol implementations and state; replace rip/RipVersion/ripModes APIs with
+graphics/GraphicsMode/graphicsModes, preserve legacy numeric 0-2 and add 3.
+Read legacy RIP only if Graphics absent; write Graphics and remove RIP.
+SkyPix uses logical 640x200, 80x25, Latin-1, status outside canvas; retain geometry
+through disconnect/scrollback and preserve inactive ANSI preferences. Expose
+CTerm.graphicsMode and selected-SkyPix CTerm.skypix.
+
+Reference: ~/SkyPix/ANSI.TXT. IcyTerm pin
+b568f6a087b7ececb28d0b45edd38f70a6bf692d supplies comparison/font provenance;
+the guide wins for RGB order and brush minterm/mask behavior. Compile its 11
+families/39 bitmap strikes into binary with provenance/notices and build-tree
+code generation. User fonts live in fonts/amiga beside the selected syncterm.ini.
+Exact installed strike overrides exact bundled strike; missing size uses compiled
+Topaz 8, with a deduplicated warning. No nearest size or bitmap stretching.
+
+Native .font/bitmap reader validates big-endian HUNK data, glyph bitmaps,
+baseline, signed spacing/kern, overhang/default glyph. Unsupported outline/colour
+formats are diagnosed. Catalog reads metadata lazily; selected native font owns
+its data through replacement/removal. Menu-only Amiga Fonts manager lists names,
+sizes, installed/bundled origin/errors. Install complete picker-selected families,
+confirm replacement, stage/validate before publish, roll back failed replacement
+and recover interrupted staging. Removal cannot remove bundled data. Post-commit
+cleanup failures do not masquerade as failed installation. Menu.amigaFonts,
+Menu.installAmigaFont() and Menu.removeAmigaFont(family) use immutable family
+metadata and native MenuError outcomes; cancel install is null.
+
+Independent SkyPix parser/renderer owns pens, brush, fonts, cursor and assets;
+shares only low-level console/pixel/transfer mechanisms. Visual commands 1-8,
+fonts/palettes/filled ellipse/delay/pens/display modes/pixel text/reset/end;
+proper minterms/masks, RGB4 and initial 8-colour mode. Native font text preserves
+metrics/baselines, JAM1/JAM2, clipping/cursor and custom CR/LF. Split/malformed/
+overflow/string parsing recovers without state leakage. RIP handles only its own
+control forms. Monotonic delays never block UI and cancel on reset/teardown.
+CRC-XMODEM brush/general assets go to active BBS SkyPix cache; decode planar ILBM.
+No RIP CR/LF transfer framing; preserve read-ahead/cancellation. Remote commands
+cannot install global fonts or access arbitrary paths. Sound/gadgets remain out;
+consume their syntax safely and decline unsupported transfer kinds normally.
+
+Acceptance: independent native font/decoder and pixel/state regressions, corrupt
+files and negative metrics, exact/missing sizes, manager lifecycle/failures,
+protocol drawing/palettes/brushes/text/stream recovery; real session timing and
+XMODEM success/failure/cancel/disconnect/read-ahead. Test status on/off and menu
+geometry restoration. CMake/CTest native Clang, GCC, sanitizers and both MinGW
+cross-builds; CP437/UTF-8 ANSI/RIP regression coverage, coherent bitmap captures,
+private/headless displays, physical audio disabled, no Wine/Windows runtime claim.
+Update API/config/profile table/counts, SkyPix conformance and permanent native
+accounting; commit complete verified change without pushing.
+
+Implementation complete: native fonts/store/assets, independent SkyPix engines,
+configuration/session/transfers and manager/bindings/callers. Final verification
+and commit are recorded below.
+
+=== Approved reference revision: JR-Comm and Kickstart variants
+
+On 2026-11-05 the user supplied `~/SkyPix/docs/SKYPIX_PROTOCOL.adoc` and
+`SKYPIX_ALGORITHMS.adoc`, then selected "Follow JR-Comm in both variants".
+They supersede ANSI.TXT wherever the executed JR-Comm/ROM evidence differs.
+Graphics offers SkyPix (Kick 1.3) and SkyPix (Kick 3.1); the latter also covers
+the tested Kick 2.04 rendering. Both use JR-Comm's commands and compiled Pearl 8
+as default/reset/missing-font fallback. Sound and interactive gadgets stay out.
+
+Preserve the verified line tie rule, fixed-width ellipse recurrences (32/64-bit),
+1.3 final proportional overhang clipping, native mono/proportional placement,
+JR-Comm palette/reset/pen rules, mode-1 flood regardless of the transmitted mode,
+Y+1 brush capture, outline-plus-flood filled ellipses, 50-Hz delays above two ticks,
+command 17 palette reset, and no special graphics action for command 99. Brush
+geometry comes from BMHD, not command 16's dimensions. Cached files avoid a
+transfer and emit the verified CAN/backspace/CR response. The JR-Comm decoder
+requires preceding CMAP and expands ByteRun1 0x80 as a 129-byte repeat. Retain
+bounds checks and deterministic recovery rather than original memory overruns or
+stale missing arguments. Add both variants to configuration, bindings, UI and
+independent reference-vector/session tests. No unversioned SkyPix alias is needed
+for an unreleased implementation.
+
+Native fonts, transactions and the independent parser/renderer are implemented.
+The offline scrollback gap is fixed by capturing the actual session geometry.
+The canvas displays at 4:3, adding a status row at the same pixel scale. The
+settings transaction merges canonical Graphics and removes legacy RIP, including
+unchanged aliases, defaults and concurrent edits. SkyPix publishes both blink
+phase planes identically. Focused tests reproduced the missing-save and stale
+blink-plane defects before their fixes; entry/default persistence and conflicts,
+all eight drawing pens and default/custom font planes now pass.
+
+
+=== Completed verification and accounting
+
+Independent SkyPix Kick 1.3/3.1 and native Amiga font management are complete.
+The 139-test Clang/Botan regression pass is green, including ANSI/RIP CP437 and
+UTF-8, Wren host/menu/picker/SFTP, transfer shutdown, locked BBS mutations,
+independent ROM/font/parser expectations and real bitmap application sessions.
+GCC/OpenSSL and ASan/UBSan/OpenSSL core/new suites pass, including focused reruns
+for Graphics persistence and identical blink phase planes. The no-crypto,
+no-unifont configuration passes its seven focused tests. MinGW x86/x86_64 full
+cross-builds are clean; no Windows execution or MSVC validation is claimed.
+Headless fixtures clear desktop variables and disable physical audio.
+
+Final font-store review added a failing copy-change test: validate the staged
+bitmap bytes before publishing them, rather than reading a source that could
+change before copying. Native, GCC, sanitizer and minimal font/transaction/manager
+reruns pass; malformed copied data cannot replace the existing valid family.
+Compiled font provenance/licenses and independent golden vectors are retained;
+the existing emoji catalog check passes without emoji-data changes.
+
+Permanent accounting now records 82 public headers, 127 explicit exclusions,
+2,508 native items and 160 assessments; every matrix row matches the ledger.
+The profile-field table covers all 51 keys/57 members and the documentation
+finding is resolved. The original 51 topics have 19 resolved and 32 open;
+this additional feature does not close unrelated scope findings. Retain this
+temporary record and skill for the remaining Plan-mode chunks.

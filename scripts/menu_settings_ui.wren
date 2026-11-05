@@ -44,6 +44,7 @@ class SettingsMenu {
     ]
     if (!connected) rows.add([2, "Current Screen Mode"])
     rows.add([3, "Font Management"])
+    if (!connected) rows.add([10, "Amiga Font Management"])
     rows.add([4, "Program Settings"])
     rows.add([5, "Themes"])
     rows.add([6, "File Locations"])
@@ -94,6 +95,10 @@ class SettingsMenu {
     }
     if (picked == 3) {
       if (!Host.safeMode) fonts_(app)
+      return false
+    }
+    if (picked == 10 && !connected) {
+      amigaFonts_(app)
       return false
     }
     if (picked == 4) return program_(app, connected)
@@ -1217,6 +1222,56 @@ class SettingsMenu {
         }
         return changed
       }
+    }
+  }
+
+  static amigaFonts_(app) {
+    var selected = 0
+    var view = ChoiceViewState.new()
+    while (true) {
+      var families = Menu.amigaFonts
+      if (families is Error) {
+        Alert.show(app, "Amiga Fonts", families.message)
+        return
+      }
+      var rows = []
+      for (i in 0...families.count) {
+        var family = families[i]
+        var sizes = family.sizes.join(", ")
+        rows.add([i, "%(family.name) [%(family.source)] %(sizes)"])
+      }
+      rows.add([-1, "Install a font family..."])
+      var commands = {}
+      commands[Key.insert] = ["insert", true]
+      commands[Key.delete] = ["delete", false]
+      var picked = MenuUi.commandChoice(app, "Amiga Font Management", rows,
+          selected, "Install an Amiga .font descriptor and its bitmap strikes. " +
+          "Installed strikes override the same bundled name and size. " +
+          "Removing a family restores bundled strikes. SkyPix uses exact sizes; " +
+          "unavailable sizes use Pearl 8.", commands, Fn.new {|result|
+        var command = result[0]
+        var index = result[1]
+        selected = index
+        if (command == "insert" || (command == "select" && index == -1)) {
+          var installed = Menu.installAmigaFont()
+          if (installed is Error) Alert.show(app, "Amiga Fonts", installed.message)
+        } else if (index >= 0) {
+          var family = families[index]
+          if (command == "delete") {
+            if (family.installedSizes.count == 0 && family.source == "bundled") {
+              Alert.show(app, "Amiga Fonts", "Bundled fonts cannot be removed.")
+            } else if (Confirm.show(app, "Remove installed %(family.name)?")) {
+              var error = Menu.removeAmigaFont(family)
+              if (error != null) Alert.show(app, "Amiga Fonts", error.message)
+            }
+          } else {
+            var detail = "%(family.name)\nSource: %(family.source)\nSizes: %(family.sizes.join(", "))\nInstalled sizes: %(family.installedSizes.join(", "))"
+            if (family.error != null) detail = detail + "\n" + family.error.message
+            Alert.show(app, "Amiga Fonts", detail)
+          }
+        }
+      }, view)
+      if (picked == null) return
     }
   }
 

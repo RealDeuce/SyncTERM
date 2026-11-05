@@ -51,7 +51,7 @@ int main(void)
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	struct st_cterm_config config = {.emulation = ST_CTERM_ANSI_BBS,
 	    .encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_CP437,
-	    .rip_version = ST_CTERM_RIP_3, .rip_directory = RIP_TRANSFER_TEST_DIRECTORY,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_3, .rip_directory = RIP_TRANSFER_TEST_DIRECTORY,
 	    .fonts = fonts, .console = console, .output = output, .output_context = &capture,
 	    .rip_transfer = request, .rip_transfer_context = &capture};
 	CHECK(st_cterm_create(&terminal, &config) == 0);

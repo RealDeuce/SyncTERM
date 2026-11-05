@@ -451,7 +451,7 @@ class BbsEditor {
       "termName": p.termName,
       "font": p.font,
       "music": p.music,
-      "rip": p.rip,
+      "graphics": p.graphics,
       "comment": p.comment,
       "bpsRate": p.bpsRate,
       "noStatus": p.noStatus,
@@ -926,9 +926,13 @@ class BbsEditor {
         "SyncTERM's `ESC [ |` form uses a legal private extension."
   }
 
-  static ripHelp_() {
-    return "# RIP Version\n\nRIP v1 selects its EGA, CP437, and RIPterm " +
-        "preset. RIP v3 works with ANSI screen modes."
+  static graphicsHelp_() {
+    return "# Graphics\n\nNone uses ordinary terminal emulation. RIP v1 " +
+        "selects its EGA, CP437 and RIPterm preset. RIP v3 uses ANSI screen " +
+        "modes. SkyPix uses a separate 640x200, Latin-1 Amiga renderer with " +
+        "Pearl 8 as its default font. Kick 1.3 and Kick 3.1 select the " +
+        "original Amiga rendering differences; tested Kick 2.04 matches 3.1. " +
+        "SkyPix preserves the inactive screen, encoding and font preferences."
   }
 
   static logFileHelp_() {
@@ -1055,7 +1059,7 @@ class BbsEditor {
       d["screenMode"] = familyMode_(family)
       if (family == 0) d["noStatus"] = false
     }
-    if (family != 0 || d["rip"] == 1) d["rip"] = 0
+    if (family != 0 || d["graphics"] == 1) d["graphics"] = 0
     if (family != 0) {
       selectFont_(d, fixedFont_(d["screenMode"], encoding))
     } else {
@@ -1074,7 +1078,7 @@ class BbsEditor {
         selectFont_(d, 0)
         d["noStatus"] = false
       }
-      if (d["rip"] == 1 && mode != 5) d["rip"] = 0
+      if (d["graphics"] == 1 && mode != 5) d["graphics"] = 0
       return
     }
     if (family == 1 && encodingFamily_(d["encoding"]) != 1) {
@@ -1087,7 +1091,7 @@ class BbsEditor {
       d["encoding"] = 28
     }
     selectFont_(d, fixedFont_(mode, d["encoding"]))
-    d["rip"] = 0
+    d["graphics"] = 0
     if (family == 1 || family == 2) d["noStatus"] = true
   }
 
@@ -1113,12 +1117,12 @@ class BbsEditor {
       }
     }
     d["font"] = name
-    if (d["rip"] == 1 && index != 45) d["rip"] = 0
-    if (family_(d["screenMode"]) != 0) d["rip"] = 0
+    if (d["graphics"] == 1 && index != 45) d["graphics"] = 0
+    if (family_(d["screenMode"]) != 0) d["graphics"] = 0
   }
 
-  static changeRip_(d, version) {
-    d["rip"] = version
+  static changeGraphics_(d, version) {
+    d["graphics"] = version
     if (version == 1) {
       d["screenMode"] = 5
       d["encoding"] = 0
@@ -1355,24 +1359,17 @@ class BbsEditor {
            [TLSVersion.tls12, "TLS 1.2 (compatibility)"]]))
     }
 
+    if (d["graphics"] >= 3) {
+      rows.add(row_("Screen Mode", "SkyPix 640x200 (80x25)", Fn.new {}))
+      rows.add(row_("Encoding", "ISO-8859-1", Fn.new {}))
+      rows.add(row_("Font", "Amiga fonts (Pearl 8 default)", Fn.new {}))
+    } else {
     rows.add(row_("Screen Mode", Menu.screenModes[d["screenMode"]],
         Fn.new {
       var value = MenuUi.choice(app, "Screen Mode", Menu.screenModes,
           d["screenMode"], screenModeHelp_())
       if (value != null) changeScreen_(d, value)
     }))
-    if (ssh_(d["connType"]) || telnet_(d["connType"]) ||
-        d["connType"] == 1 || d["connType"] == 2 ||
-        d["connType"] == 10) {
-      rows.add(row_("Terminal Type",
-          d["termName"].count == 0 ? "<Automatic>" : d["termName"],
-          Fn.new {
-        var value = MenuUi.promptBytes(app, "Terminal Type", "Terminal Type",
-            d["termName"], 31, false, terminalTypeHelp_())
-        if (value != null) d["termName"] = value
-      }))
-    }
-    rows.add(boolRow_(d, "lfExpand", "LF Expand"))
     rows.add(row_("Encoding", MenuUi.rowName(Menu.encodings, d["encoding"]),
         Fn.new {
       var value = MenuUi.choice(app, "Encoding", Menu.encodings,
@@ -1387,16 +1384,29 @@ class BbsEditor {
           fontHelp_())
       if (value != null) changeFont_(d, value)
     }))
-    if (ansi_(d["screenMode"])) {
-      rows.add(choiceRow_(app, d, "music", "ANSI Music", Menu.musicModes))
-      rows.add(row_("RIP", MenuUi.rowName(Menu.ripModes, d["rip"]),
+    }
+    if (ssh_(d["connType"]) || telnet_(d["connType"]) ||
+        d["connType"] == 1 || d["connType"] == 2 ||
+        d["connType"] == 10) {
+      rows.add(row_("Terminal Type",
+          d["termName"].count == 0 ? "<Automatic>" : d["termName"],
           Fn.new {
-        var value = MenuUi.choice(app, "RIP", Menu.ripModes, d["rip"],
-            ripHelp_())
-        if (value != null) changeRip_(d, value)
+        var value = MenuUi.promptBytes(app, "Terminal Type", "Terminal Type",
+            d["termName"], 31, false, terminalTypeHelp_())
+        if (value != null) d["termName"] = value
       }))
-      rows.add(boolRow_(d, "forceLcf", "Force LCF Mode"))
-      rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))
+    }
+    rows.add(boolRow_(d, "lfExpand", "LF Expand"))
+      rows.add(row_("Graphics", MenuUi.rowName(Menu.graphicsModes, d["graphics"]),
+          Fn.new {
+        var value = MenuUi.choice(app, "Graphics", Menu.graphicsModes, d["graphics"],
+            graphicsHelp_())
+        if (value != null) changeGraphics_(d, value)
+      }))
+    if (ansi_(d["screenMode"]) || d["graphics"] >= 3) {
+      if (d["graphics"] < 3) rows.add(choiceRow_(app, d, "music", "ANSI Music", Menu.musicModes))
+      if (d["graphics"] < 3) rows.add(boolRow_(d, "forceLcf", "Force LCF Mode"))
+      if (d["graphics"] < 3) rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))
     } else if (d["screenMode"] == 19) {
       rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))
     }
@@ -1514,7 +1524,7 @@ class BbsEditor {
     p.font = d["font"]
     p.encoding = d["encoding"]
     p.music = d["music"]
-    p.rip = d["rip"]
+    p.graphics = d["graphics"]
     p.comment = d["comment"]
     p.bpsRate = d["bpsRate"]
     p.noStatus = d["noStatus"]

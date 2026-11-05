@@ -398,7 +398,7 @@ test_zero_width_text(void)
 		.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP437,
 		.quiet = true, .capture = capture_input,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.input_filter = filter_input, .input_filter_active = input_filter_active,
 		.input_filter_context = &captured,
 		.capture_active = input_filter_active, .capture_context = &captured,

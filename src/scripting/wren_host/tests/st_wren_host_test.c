@@ -3869,7 +3869,7 @@ static int exercise_rip_transfer(st_wren_host_t *host, st_console_t *console)
 		bool binary = st_connection_binary_mode(connection);
 		const struct st_term_config term_config = {.console = console, .connection = connection,
 		    .fonts = fonts, .encoding = mode == 5 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
-		    .codepage = ST_CODEPAGE_CP437, .hide_status = true, .rip_version = ST_CTERM_RIP_3,
+		    .codepage = ST_CODEPAGE_CP437, .hide_status = true, .graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
 		    .rip_directory = cache, .rip_transfer = rip_transfer_request, .rip_transfer_context = &connected,
 		    .wire_filter = auto_transfer_filter, .wire_filter_context = &connected,
 		    .event_hook = rip_transfer_event, .event_hook_context = &connected,
@@ -4428,7 +4428,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 		.fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_UTF8,
-		.rip_version = ST_CTERM_RIP_1,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		.codepage = ST_CODEPAGE_CP437,
 		.scrollback_lines = 2,
 		.quiet = true,
@@ -4688,7 +4688,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	connected = NULL;
 	st_cterm_destroy(&cterm);
 	terminal_config.encoding = ST_CTERM_ENCODING_CODEPAGE;
-	terminal_config.rip_version = ST_CTERM_RIP_OFF;
+	terminal_config.graphics_mode = ST_CTERM_GRAPHICS_OFF;
 	CHECK(st_cterm_create(&cterm, &terminal_config) == 0);
 	connected_config.cterm = cterm;
 	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
@@ -5200,7 +5200,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "b.profile.password = \"password\"\n"
 	    "b.profile.syspass = \"system\"\n"
 	    "b.profile.music = 0\n"
-	    "b.profile.rip = 0\n"
+	    "b.profile.graphics = 0\n"
 	    "b.profile.comment = \"comment\"\n"
 	    "b.profile.addressFamily = 0\n"
 	    "b.profile.termName = \"ansi\"\n"
@@ -5328,7 +5328,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "}\n"
 	    "if (Menu.encodings.count < 20 || Menu.fontsForEncoding(255).count != Menu.fontsCatalog.count) Fiber.abort(\"encodings\")\n"
 	    "if (Menu.fontsForEncoding(12).count < 2 || Menu.fontEncoding(\"Codepage 850 Multilingual Latin I\") != 12) Fiber.abort(\"font encoding\")\n"
-	    "var linked = {\"screenMode\": 1, \"encoding\": 0, \"font\": Menu.fontsCatalog[0][1], \"rip\": 0, \"noStatus\": false}\n"
+	    "var linked = {\"screenMode\": 1, \"encoding\": 0, \"font\": Menu.fontsCatalog[0][1], \"graphics\": 0, \"noStatus\": false}\n"
 	    "BbsEditor.changeEncoding_(linked, 24)\n"
 	    "if (linked[\"screenMode\"] != 17 || linked[\"font\"] != Menu.fontsCatalog[32][1]) Fiber.abort(\"PETSCII upper\")\n"
 	    "BbsEditor.changeFont_(linked, Menu.fontsCatalog[35][1])\n"
@@ -5337,16 +5337,16 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "if (linked[\"screenMode\"] != 1 || linked[\"font\"] != Menu.fontsCatalog[0][1]) Fiber.abort(\"UTF-8 switch\")\n"
 	    "BbsEditor.changeFont_(linked, Menu.fontsCatalog[44][1])\n"
 	    "if (linked[\"screenMode\"] != 1 || linked[\"encoding\"] != 255) Fiber.abort(\"UTF-8 font\")\n"
-	    "BbsEditor.changeRip_(linked, 1)\n"
+	    "BbsEditor.changeGraphics_(linked, 1)\n"
 	    "if (linked[\"screenMode\"] != 5 || linked[\"encoding\"] != 0 || linked[\"font\"] != Menu.fontsCatalog[45][1]) Fiber.abort(\"RIP v1\")\n"
 	    "BbsEditor.changeScreen_(linked, 25)\n"
-	    "if (linked[\"rip\"] != 0 || linked[\"encoding\"] != 26 || linked[\"font\"] != Menu.fontsCatalog[43][1]) Fiber.abort(\"Prestel\")\n"
+	    "if (linked[\"graphics\"] != 0 || linked[\"encoding\"] != 26 || linked[\"font\"] != Menu.fontsCatalog[43][1]) Fiber.abort(\"Prestel\")\n"
 	    "for (defaults in [false, true]) {\n"
 	    "  var bbs = defaults ? Menu.defaults : Menu.entries[0]\n"
 	    "  for (encoding in [0, 12, 255]) {\n"
 	    "    var draft = BbsEditor.draft_(bbs)\n"
 	    "    draft[\"screenMode\"] = 1\n"
-	    "    draft[\"rip\"] = 0\n"
+	    "    draft[\"graphics\"] = 0\n"
 	    "    draft[\"encoding\"] = encoding\n"
 	    "    var choices = Menu.fontsForEncoding(encoding)\n"
 	    "    draft[\"font\"] = choices[0][1]\n"
@@ -5390,6 +5390,25 @@ exercise_menu_contract(st_wren_host_t *public_host)
 		    host->last_error);
 		return -1;
 	}
+	CHECK(wrenInterpret(host->vm, "amiga_font_contract",
+	    "import \"syncterm_menu\" for Menu, MenuError, AmigaFontFamily\n"
+	    "import \"syncterm\" for GraphicsMode\n"
+	    "if (GraphicsMode.skypix13 != 3 || GraphicsMode.skypix31 != 4 || Menu.graphicsModes.count != 5) Fiber.abort(\"graphics modes\")\n"
+	    "var catalog = Menu.amigaFonts\n"
+	    "if (catalog.count != 11) Fiber.abort(\"compiled Amiga families\")\n"
+	    "var strikes = 0\n"
+	    "for (family in catalog) {\n"
+	    "  if (!(family is AmigaFontFamily) || family.source != \"bundled\" || family.error != null || family.installedSizes.count != 0) Fiber.abort(\"Amiga family metadata\")\n"
+	    "  var sizes = family.sizes\n"
+	    "  strikes = strikes + sizes.count\n"
+	    "  sizes.clear()\n"
+	    "  if (family.sizes.count == 0) Fiber.abort(\"mutable family metadata\")\n"
+	    "}\n"
+	    "if (strikes != 39 || !(Menu.removeAmigaFont(catalog[0]) is MenuError)) Fiber.abort(\"immutable bundled fonts\")\n"
+	    "var mutate = Fiber.new { catalog[0].name = \"modified\" }\n"
+	    "mutate.try()\n"
+	    "if (mutate.error == null) Fiber.abort(\"writable Amiga metadata\")\n"
+	    ) == WREN_RESULT_SUCCESS);
 	CHECK(host->bbs_model.count != 0);
 	size_t key_size;
 	CHECK(st_wren_bbs_model_search_key(&host->bbs_model,

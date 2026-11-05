@@ -1,0 +1,304 @@
+{
+  "upstream": "https://github.com/mkrueger/icy_tools",
+  "commit": "b568f6a087b7ececb28d0b45edd38f70a6bf692d",
+  "fonts": [
+    {
+      "file": "amiga-ks13-topaz-08.yaff",
+      "name": "Topaz.font",
+      "height": 8,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/amiga-ks13-topaz-08.yaff",
+      "sha256": "e31c74514643b4f43b587f858a105cb12c7bd577e9352272c9646798c55a6080"
+    },
+    {
+      "file": "amiga-ks13-topaz-09.yaff",
+      "name": "Topaz.font",
+      "height": 9,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/amiga-ks13-topaz-09.yaff",
+      "sha256": "8a18e0beb414d310530af824cccea330b1168218a9aef4632d6334302198721b"
+    },
+    {
+      "file": "workbench-3.1_Topaz_8x11.yaff",
+      "name": "Topaz.font",
+      "height": 11,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Topaz_8x11.yaff",
+      "sha256": "493bbd37e446fe94336ebca5b43ed27975c3b5aa9e8001181a05a5b590729d15"
+    },
+    {
+      "file": "workbench-3.1_Diamond_12.yaff",
+      "name": "Diamond.font",
+      "height": 12,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Diamond_12.yaff",
+      "sha256": "d1a405bd2a9ea8108b740f4f4a6c0e48acf40f2de458ae4271fc9b841a593928",
+      "baseline": 9,
+      "native_metrics_source": {
+        "path": "JR-Comm/Fonts/diamond/12",
+        "sha256": "1572bb445bc844edae72db1ab441dd3241f96a7713a80dffec4aa3616cfa349f"
+      }
+    },
+    {
+      "file": "workbench-3.1_Diamond_20.yaff",
+      "name": "Diamond.font",
+      "height": 20,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Diamond_20.yaff",
+      "sha256": "a9f01751c7dafeb0062331ec1d599c337ca957af79b8e803e840526ad2ba27de",
+      "baseline": 14,
+      "native_metrics_source": {
+        "path": "JR-Comm/Fonts/diamond/20",
+        "sha256": "96117752c5be1e3bf80921b88937c0374d658970a5d5ce08517f2f9a6c8e1356"
+      }
+    },
+    {
+      "file": "workbench-3.1_Emerald_17.yaff",
+      "name": "Emerald.font",
+      "height": 17,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Emerald_17.yaff",
+      "sha256": "21b56d9d0e8e630d07cae393ce22464a965f09c51e9015232a22fce2d19ca7df"
+    },
+    {
+      "file": "workbench-3.1_Emerald_20.yaff",
+      "name": "Emerald.font",
+      "height": 20,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Emerald_20.yaff",
+      "sha256": "82c5b58435b5fea1392bf3c059564637d85f500f5e16acc5a6e2b6dccbc60df8"
+    },
+    {
+      "file": "pearl_08.yaff",
+      "name": "pearl.font",
+      "height": 8,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/pearl_08.yaff",
+      "sha256": "1e811f7a738a313bd3411cff6688ab3a3bcdd7605ea0b9ab42d8164bb55f602f"
+    },
+    {
+      "file": "workbench-3.1_Garnet_9.yaff",
+      "name": "Garnet.font",
+      "height": 9,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Garnet_9.yaff",
+      "sha256": "23fa2dda8310162dbbef5833a759f348b48e3826073766146c231af1deacbfd4"
+    },
+    {
+      "file": "workbench-3.1_Garnet_16.yaff",
+      "name": "Garnet.font",
+      "height": 16,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Garnet_16.yaff",
+      "sha256": "d85503df6b7fedb126537b8af9fd545e84d645fb08a1bf3122f85987ab1f113c"
+    },
+    {
+      "file": "workbench-3.1_Helvetica_9.yaff",
+      "name": "Helvetica.font",
+      "height": 9,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_9.yaff",
+      "sha256": "ea1d1d3cb160da7d15de5ffc576a7d9b8b280ec74fce13cf311aafe8743c2578"
+    },
+    {
+      "file": "workbench-3.1_Helvetica_11.yaff",
+      "name": "Helvetica.font",
+      "height": 11,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_11.yaff",
+      "sha256": "2e3beb27944eb629481ec220675cc87a710f3831ecd8659dd32b83691c25e3ec"
+    },
+    {
+      "file": "workbench-3.1_Helvetica_13.yaff",
+      "name": "Helvetica.font",
+      "height": 13,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_13.yaff",
+      "sha256": "10cdc632733cda2c573e922f16ee62c54b7ac928c28fa95cb1ce97eee72bcd61"
+    },
+    {
+      "file": "workbench-3.1_Helvetica_15.yaff",
+      "name": "Helvetica.font",
+      "height": 15,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_15.yaff",
+      "sha256": "1585f2cb1010d1ad79301e1089b2d5c714f8a8a2df230ad051fbe6d71226ea7e"
+    },
+    {
+      "file": "workbench-3.1_Helvetica_18.yaff",
+      "name": "Helvetica.font",
+      "height": 18,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_18.yaff",
+      "sha256": "0893e4622d13adafcb3ef1353803a18b875bc2418949525404e5740014f4b1e7"
+    },
+    {
+      "file": "workbench-3.1_Helvetica_24.yaff",
+      "name": "Helvetica.font",
+      "height": 24,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_24.yaff",
+      "sha256": "4212d64f39f86735d0462c76dad252cbf1590420b131273618b5931bdb6d942e"
+    },
+    {
+      "file": "workbench-3.1_Opal_9.yaff",
+      "name": "Opal.font",
+      "height": 9,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Opal_9.yaff",
+      "sha256": "699fc59e93f52ae0d653737aa57bb31f05c6807db751655f09af4fdb44325d78"
+    },
+    {
+      "file": "workbench-3.1_Opal_12.yaff",
+      "name": "Opal.font",
+      "height": 12,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Opal_12.yaff",
+      "sha256": "38c3be9ba2586ca6aecb4d2968c15c24ee1ff087337d165d6ed219c52c0a050c"
+    },
+    {
+      "file": "workbench-3.1_Ruby_8.yaff",
+      "name": "Ruby.font",
+      "height": 8,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Ruby_8.yaff",
+      "sha256": "cbd0a9240b38390ab13a5f3eb9425e29cc8683d94be3a938ba64f09320a34972",
+      "baseline": 6,
+      "native_metrics_source": {
+        "path": "JR-Comm/Fonts/ruby/8",
+        "sha256": "0c9089b23053ed90825764aed06169c5ac954f24ae05006c4ca506cb291babba"
+      }
+    },
+    {
+      "file": "workbench-3.1_Ruby_12.yaff",
+      "name": "Ruby.font",
+      "height": 12,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Ruby_12.yaff",
+      "sha256": "02e33adfd1b3a9f9518fe4d44502dec54873030149ea595e5c92bb42c473b115",
+      "baseline": 9,
+      "native_metrics_source": {
+        "path": "JR-Comm/Fonts/ruby/12",
+        "sha256": "8671443695d12e9dbb158b6cceea5d3535e023fce1183fa4bd00709baf0153d2"
+      }
+    },
+    {
+      "file": "workbench-3.1_Ruby_15.yaff",
+      "name": "Ruby.font",
+      "height": 15,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Ruby_15.yaff",
+      "sha256": "1eb450bf0e7e6a2d7028dde8c12bc19691947ab4597e3fac134d54561552e7da",
+      "baseline": 11,
+      "native_metrics_source": {
+        "path": "JR-Comm/Fonts/ruby/15",
+        "sha256": "6bb77923a53e714f0f13a02f4cdea85aa3138b6a688f407da925fb63121c797f"
+      }
+    },
+    {
+      "file": "workbench-3.1_Sapphire_14.yaff",
+      "name": "Sapphire.font",
+      "height": 14,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Sapphire_14.yaff",
+      "sha256": "df9b684fce66128a0ef15354dc3ba66e49834847ca0f0e9b1facabdb2cb888ae"
+    },
+    {
+      "file": "workbench-1.0_Sapphire_15.yaff",
+      "name": "Sapphire.font",
+      "height": 15,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-1.0/Sapphire_15.yaff",
+      "sha256": "e6de8627fa972f715effd83e99c3e12adb74df7311db792328238dc8e7ddd878"
+    },
+    {
+      "file": "workbench-1.0_Sapphire_18.yaff",
+      "name": "Sapphire.font",
+      "height": 18,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-1.0/Sapphire_18.yaff",
+      "sha256": "6e3796b322400dd965d0d4a5f17ace88390982a57d512f75cd184030eea885c1"
+    },
+    {
+      "file": "workbench-3.1_Sapphire_19.yaff",
+      "name": "Sapphire.font",
+      "height": 19,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Sapphire_19.yaff",
+      "sha256": "bb3e1202d2a822df5d1b8d21cf670b9c3d6b3ba64ca1b27a8f0392d0c7ca4b4e"
+    },
+    {
+      "file": "workbench-3.1_Times_11.yaff",
+      "name": "Times.font",
+      "height": 11,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_11.yaff",
+      "sha256": "f42c55aba1720ee6ac41a7570b84f662c729fb268fe1eadc08fa765345bf3fe2"
+    },
+    {
+      "file": "workbench-3.1_Times_13.yaff",
+      "name": "Times.font",
+      "height": 13,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_13.yaff",
+      "sha256": "3fda16fd3a2838a5e966a8c2e8918855a239a9fbc36c885c14489023867bf3fe"
+    },
+    {
+      "file": "workbench-3.1_Times_15.yaff",
+      "name": "Times.font",
+      "height": 15,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_15.yaff",
+      "sha256": "2acccd1cd07af607f8bb0d5dbb02b7e77d0d9ecf1a0ffece1a220d592257a4a4"
+    },
+    {
+      "file": "workbench-3.1_Times_18.yaff",
+      "name": "Times.font",
+      "height": 18,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_18.yaff",
+      "sha256": "3cd79ff1659542bddf4db1d32bf6ff6cc230eb20ec6f8f70a6d35ca47f756f6e"
+    },
+    {
+      "file": "workbench-3.1_Times_24.yaff",
+      "name": "Times.font",
+      "height": 24,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_24.yaff",
+      "sha256": "1a4484c8f56b18fc96f18399ba04522586e02ce68ad38e67756c917bbddf1f9c"
+    },
+    {
+      "file": "workbench-3.1_Times_30.yaff",
+      "name": "Times.font",
+      "height": 30,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_30.yaff",
+      "sha256": "642f705bd915f2e7b2c897e3f31e3343f61feb791224d1d4d11d1dcc05be3575"
+    },
+    {
+      "file": "workbench-3.1_Times_36.yaff",
+      "name": "Times.font",
+      "height": 36,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_36.yaff",
+      "sha256": "a0f6c60cf8770136177fc583108df35edbfd1c874ce3047b465e93c1b2a67781"
+    },
+    {
+      "file": "workbench-3.1_Courier_11.yaff",
+      "name": "Courier.font",
+      "height": 11,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Courier_11.yaff",
+      "sha256": "378d1f36a47c07edce4108758e0cf28fb814f7c4c4678975bc1a9079b1a487aa"
+    },
+    {
+      "file": "workbench-3.1_Courier_13.yaff",
+      "name": "Courier.font",
+      "height": 13,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Courier_13.yaff",
+      "sha256": "697c70875b0ba5fd730c66e008a425ddf3308fd1a9158f02265d611b9a12b06b"
+    },
+    {
+      "file": "workbench-3.1_Courier_15.yaff",
+      "name": "Courier.font",
+      "height": 15,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Courier_15.yaff",
+      "sha256": "d242dba8fc26997ef382b3bbde7aab75aadc4a37587012e89d8d01088a8d356c"
+    },
+    {
+      "file": "workbench-3.1_Courier_18.yaff",
+      "name": "Courier.font",
+      "height": 18,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Courier_18.yaff",
+      "sha256": "c3ee611d465306c723947d2097ae9e491b04e2b0a9ab61b897785a1425957a7e"
+    },
+    {
+      "file": "workbench-3.1_Courier_24.yaff",
+      "name": "Courier.font",
+      "height": 24,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Courier_24.yaff",
+      "sha256": "3a014d59cf37446895302f7e71b759536751e4c565c8cb8a7aae47ad5cc9963a"
+    },
+    {
+      "file": "workbench-3.1_Courier_30.yaff",
+      "name": "Courier.font",
+      "height": 30,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Courier_30.yaff",
+      "sha256": "eeae2da1ebe9dd5078113790566721739e55059379babf2bd24177a1dc3d5134"
+    },
+    {
+      "file": "workbench-3.1_Courier_36.yaff",
+      "name": "Courier.font",
+      "height": 36,
+      "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Courier_36.yaff",
+      "sha256": "628bd58811b00b753eae76bcbe2e8b6e9829acba1b0d7ec7845399912f9121cc"
+    }
+  ]
+}

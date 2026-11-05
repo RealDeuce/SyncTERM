@@ -369,3 +369,5 @@ int main(void)
 	endif()
 	add_test(NAME wren_picker_contract COMMAND st_wren_picker_test)
 endif()
+
+target_link_libraries(st_wren_host PRIVATE st_amiga_font)

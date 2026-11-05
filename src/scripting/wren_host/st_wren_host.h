@@ -136,6 +136,9 @@ int st_wren_host_set_screen_mode(st_wren_host_t *host,
 	enum st_screen_mode selected);
 int st_wren_host_get_screen_mode(const st_wren_host_t *host,
 	enum st_screen_mode *result);
+/* Capture the actual session grid for detached history presentation. */
+int st_wren_host_capture_history_mode(st_wren_host_t *host);
+int st_wren_host_begin_skypix_session(st_wren_host_t *host, bool hide_status);
 /* Bracket the entire connection attempt, including dialogs and teardown.
  * Begin saves the menu's current mode/geometry before applying selected;
  * CURRENT keeps that mode. Nested begins are rejected. End clears the
@@ -164,6 +167,8 @@ int st_wren_connected_interpret(st_wren_connected_t *connected,
 	const char *module, const char *source);
 int st_wren_connected_shell_closed(st_wren_connected_t *connected);
 /* Synchronous CTerm owner callback; never enters the Wren VM. */
+int st_wren_connected_skypix_transfer(st_wren_connected_t *connected, unsigned mode,
+	unsigned width, unsigned height, const uint8_t *name, size_t size);
 int st_wren_connected_rip_transfer(st_wren_connected_t *connected,
 	const struct st_cterm_rip_transfer_request *request);
 bool st_wren_connected_auxiliary_active(const st_wren_connected_t *connected);

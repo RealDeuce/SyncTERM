@@ -1,5 +1,11 @@
 # Terminal conformance coverage
 
+SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
+in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
+both variants with status on/off, Latin-1, fixed geometry, native Amiga fonts,
+transfers and delay/reset/disconnect recovery. It is separate from the ANSI
+CP437/UTF-8 inventory below and from the historical RIP captures.
+
 `src/tests/st_terminal_conformance_test.py` runs the normal application through
 its control bitmap backend and a private loopback Raw connection, in CP437 and
 UTF-8. Each group is a separate CTest `syncterm_conformance_<group>_<encoding>`.

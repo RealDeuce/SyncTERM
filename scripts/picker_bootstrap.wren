@@ -9,7 +9,21 @@ class PickerBootstrap {
   static console() { WrenConsole.run("file_picker") }
 
   static run(picker, request) {
-    var fiber = Fiber.new { picker.run(request) }
+    var fiber = Fiber.new {
+      if (request.amigaReplacement_) {
+        import "menu_ui" for MenuUi
+        var accepted = MenuUi.confirmStandalone("Replace Amiga font family",
+            "Replace all installed strikes in " +
+            "%(request.initialPath)? Bundled fonts remain available.")
+        if (accepted) {
+          request.acceptAmigaReplacement_()
+        } else {
+          request.cancel()
+        }
+      } else {
+        picker.run(request)
+      }
+    }
     fiber.try()
     if (fiber.error == null) return
     System.print("File picker failed: %(fiber.error)")

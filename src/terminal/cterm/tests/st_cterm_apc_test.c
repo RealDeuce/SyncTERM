@@ -47,7 +47,7 @@ unknown(void *context, const char *text, size_t size)
 }
 
 static void
-open_fixture_with(struct fixture *fixture, const char *directory, enum st_cterm_rip_version rip)
+open_fixture_with(struct fixture *fixture, const char *directory, enum st_cterm_graphics_mode rip)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
@@ -57,7 +57,7 @@ open_fixture_with(struct fixture *fixture, const char *directory, enum st_cterm_
 		.console = fixture->console, .fonts = fixture->fonts,
 		.emulation = ST_CTERM_ANSI_BBS, .encoding = ST_CTERM_ENCODING_UTF8,
 		.codepage = ST_CODEPAGE_CP437, .quiet = true,
-		.apc_directory = directory, .application_version = "APC test", .rip_version = rip,
+		.apc_directory = directory, .application_version = "APC test", .graphics_mode = rip,
 		.output = response, .output_context = &fixture->output,
 		.apc = unknown, .apc_context = &fixture->output,
 	};
@@ -67,7 +67,7 @@ open_fixture_with(struct fixture *fixture, const char *directory, enum st_cterm_
 static void
 open_fixture(struct fixture *fixture)
 {
-	open_fixture_with(fixture, ST_APC_TEST_DIRECTORY, ST_CTERM_RIP_OFF);
+	open_fixture_with(fixture, ST_APC_TEST_DIRECTORY, ST_CTERM_GRAPHICS_OFF);
 }
 
 static void
@@ -147,18 +147,18 @@ check_configuration(void)
 {
 	struct fixture fixture = {0};
 	/* Existing callback-only consumers are not opted into cache access. */
-	open_fixture_with(&fixture, NULL, ST_CTERM_RIP_OFF);
+	open_fixture_with(&fixture, NULL, ST_CTERM_GRAPHICS_OFF);
 	apc(&fixture, "SyncTERM:VER");
 	CHECK(fixture.terminal->apc == NULL && fixture.output.unknown == 1 && fixture.output.size == 0);
 	close_fixture(&fixture);
 	fixture = (struct fixture){0};
 	/* A regular file cannot serve as the cache root. Reference cache
 	 * failure consumes even queries and unknown APCs, without a callback. */
-	open_fixture_with(&fixture, ST_APC_TEST_DIRECTORY "/apc-test.dat", ST_CTERM_RIP_OFF);
+	open_fixture_with(&fixture, ST_APC_TEST_DIRECTORY "/apc-test.dat", ST_CTERM_GRAPHICS_OFF);
 	apc(&fixture, "SyncTERM:VER"); apc(&fixture, "vendor");
 	CHECK(fixture.output.unknown == 0 && fixture.output.size == 0);
 	close_fixture(&fixture);
-	const enum st_cterm_rip_version versions[] = {ST_CTERM_RIP_1, ST_CTERM_RIP_3};
+	const enum st_cterm_graphics_mode versions[] = {ST_CTERM_GRAPHICS_RIP_1, ST_CTERM_GRAPHICS_RIP_3};
 	for (size_t i = 0; i < sizeof(versions) / sizeof(versions[0]); ++i) {
 		fixture = (struct fixture){0};
 		open_fixture_with(&fixture, ST_APC_TEST_DIRECTORY, versions[i]);

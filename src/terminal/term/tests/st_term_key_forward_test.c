@@ -75,7 +75,7 @@ main(void)
 			.screen_mode = ST_SCREEN_MODE_80X25, .hide_status = true,
 			.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 			.codepage = ST_CODEPAGE_CP437,
-			.rip_version = rip ? ST_CTERM_RIP_1 : ST_CTERM_RIP_OFF,
+			.graphics_mode = rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
 			.event_hook = observe_event, .event_hook_context = &hook_calls,
 		};
 		CHECK(st_term_session_create(&session, &config) == 0);

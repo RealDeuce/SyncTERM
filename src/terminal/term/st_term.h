@@ -49,8 +49,11 @@ struct st_term_config {
 	/* Remote wire encoding. RIP sessions translate to/from UTF-8 at this
 	 * boundary; CTerm and its RIP parser always receive UTF-8. */
 	enum st_cterm_encoding encoding;
-	enum st_cterm_rip_version rip_version;
+	enum st_cterm_graphics_mode graphics_mode;
 	const char *rip_directory;
+	const char *amiga_font_directory;
+	st_cterm_skypix_transfer_callback_t skypix_transfer;
+	void *skypix_transfer_context;
 	const char *apc_directory;
 	const char *application_version;
 	enum st_codepage codepage;
@@ -101,10 +104,11 @@ struct st_term_config {
 int st_term_connect_profile(st_connection_t **result,
 	const struct st_profile *profile, st_console_t *console,
 	const struct st_connection_hooks *hooks, struct st_connection_error *error);
-/* The profile's explicit encoding determines the wire boundary. */
+/* The profile's explicit encoding determines the wire boundary except for
+ * SkyPix's fixed Latin-1 mode. */
 enum st_cterm_encoding st_term_profile_encoding(
 	const struct st_profile *profile);
-enum st_cterm_rip_version st_term_profile_rip_version(
+enum st_cterm_graphics_mode st_term_profile_graphics_mode(
 	const struct st_profile *profile);
 int st_term_session_create(st_term_session_t **result,
 	const struct st_term_config *config);

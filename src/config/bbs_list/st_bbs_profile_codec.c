@@ -41,7 +41,7 @@ static const char *log_levels[] = {
 static const char *address_families[] = {
 	"PerDNS", "IPv4", "IPv6", "HappyEyeballs", NULL
 };
-static const char *rip_versions[] = { "Off", "RIPv1", "RIPv3", NULL };
+static const char *graphics_modes[] = { "Off", "RIPv1", "RIPv3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)", NULL };
 static const char *parities[] = { "None", "Even", "Odd", NULL };
 static const char *tls_versions[] = { "Unknown", "TLS1.2", "TLS1.3", NULL };
 
@@ -142,8 +142,9 @@ st_bbs_decode_profile(struct st_profile *profile,
 	    "ScreenMode", ENUM_NAMES(screen_modes), ST_SCREEN_MODE_CURRENT);
 	profile->hide_status = ini_section_get_bool(section, "NoStatus", false);
 	profile->hide_popups = ini_section_get_bool(section, "HidePopups", false);
-	profile->rip_version = (int)ini_section_get_enum_names(section, "RIP",
-	    ENUM_NAMES(rip_versions), ST_RIP_VERSION_NONE);
+	profile->graphics_mode = (int)ini_section_get_enum_names(section,
+	    ini_section_has_key(section, "Graphics") ? "Graphics" : "RIP",
+	    ENUM_NAMES(graphics_modes), ST_GRAPHICS_NONE);
 	profile->force_lcf = ini_section_get_bool(section, "ForceLCF", false);
 	profile->yellow_is_yellow = ini_section_get_bool(section,
 	    "YellowIsYellow", false);
@@ -292,8 +293,9 @@ st_bbs_encode_profile(ini_section_t *section,
 	    &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "HidePopups", profile->hide_popups,
 	    &ini_default_style));
-	ENCODE(ini_section_set_enum_names(section, "RIP", ENUM_NAMES(rip_versions),
-	    (size_t)profile->rip_version, &ini_default_style));
+	(void)ini_section_remove_key(section, "RIP");
+	ENCODE(ini_section_set_enum_names(section, "Graphics", ENUM_NAMES(graphics_modes),
+	    (size_t)profile->graphics_mode, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "ForceLCF", profile->force_lcf,
 	    &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "YellowIsYellow",

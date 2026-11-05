@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BSD-2-Clause */
 
 #include "cterm_text.h"
+#include "cterm_skypix.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_input.h"
@@ -183,6 +184,9 @@ present(void *context, const struct st_unicode_presentation_event *event)
 		if (cterm->screen.provisional_drawn && cterm->screen.missing_glyph)
 			log_missing(cterm, event);
 		cterm->screen.provisional_drawn = false;
+		if (cterm->skypix_engine != NULL) {
+			bool handled; return cterm_skypix_present(cterm->skypix_engine,event,&handled);
+		}
 		return 0;
 	}
 	if (event->kind == ST_UNICODE_PRESENTATION_BEGIN) {
@@ -202,6 +206,10 @@ present(void *context, const struct st_unicode_presentation_event *event)
 		status = remember(cterm, event->bytes, event->size);
 		if (status != 0)
 			return status;
+	}
+	if (cterm->skypix_engine != NULL) {
+		bool handled; status = cterm_skypix_present(cterm->skypix_engine,event,&handled);
+		if (status != 0 || handled) return status;
 	}
 	if (event->kind == ST_UNICODE_PRESENTATION_REVISE && cterm->screen.provisional_discarded)
 		return 0;

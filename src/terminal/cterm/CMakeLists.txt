@@ -86,6 +86,10 @@ add_library(st_cterm STATIC
 	cterm_dec.c
 	cterm_ecma48.c
 	cterm_render.c
+	cterm_skypix_walkers.c
+	cterm_skypix.c
+	cterm_skypix_parser.c
+	cterm_skypix_ilbm.c
 	cterm_text.c
 	cterm_petscii.c
 	cterm_prestel.c
@@ -104,7 +108,7 @@ add_library(st_cterm STATIC
 target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
 	st_audio st_base64 st_time st_utf8 st_unicode_text)
-target_link_libraries(st_cterm PRIVATE st_fonts syncterm_threads
+target_link_libraries(st_cterm PRIVATE st_amiga_font st_fonts syncterm_threads
 	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_string_util syncterm_filesystem
 	syncterm_path syncterm_ini)
@@ -410,4 +414,30 @@ if(BUILD_TESTING)
 			COMMAND Python3::Interpreter
 				"${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compare_legacy_rip_live.py")
 	endif()
+endif()
+
+if(BUILD_TESTING)
+	add_executable(st_cterm_skypix_test tests/st_cterm_skypix_test.c)
+	target_link_libraries(st_cterm_skypix_test PRIVATE st_cterm st_amiga_font st_fonts)
+	set_target_properties(st_cterm_skypix_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	add_test(NAME cterm_skypix COMMAND st_cterm_skypix_test)
+endif()
+
+if(BUILD_TESTING)
+	add_executable(st_skypix_vector_probe tests/st_skypix_vector_probe.c cterm_skypix_walkers.c)
+	target_include_directories(st_skypix_vector_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	target_link_libraries(st_skypix_vector_probe PRIVATE st_amiga_font)
+	set_target_properties(st_skypix_vector_probe PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	add_test(NAME skypix_rom_vectors COMMAND Python3::Interpreter
+		${CMAKE_CURRENT_SOURCE_DIR}/tests/test_skypix_vectors.py $<TARGET_FILE:st_skypix_vector_probe>)
+endif()
+
+if(BUILD_TESTING)
+	foreach(_test IN ITEMS st_cterm_skypix_test st_skypix_vector_probe)
+		if(MSVC)
+			target_compile_options(${_test} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+		else()
+			target_compile_options(${_test} PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+		endif()
+	endforeach()
 endif()
