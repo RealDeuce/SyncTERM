@@ -8,6 +8,7 @@
 #ifndef ST_FONT_CATALOG_H_
 #define ST_FONT_CATALOG_H_
 
+#include "st_amiga_font.h"
 #include "st_codepage.h"
 #include "st_console.h"
 
@@ -41,6 +42,10 @@ struct st_font_load_error {
  * own copied/static bitmap lifetime independently of the catalog.
  */
 int st_font_catalog_create(st_font_catalog_t **result, st_console_t *console);
+/* Register a native Amiga strike for the console's cell geometry. Glyph
+ * positions use the chosen byte encoding; native raster metrics stay separate. */
+int st_font_catalog_load_amiga(st_font_catalog_t *catalog, uint8_t selector,
+	const st_amiga_font_t *font, enum st_codepage codepage);
 void st_font_catalog_destroy(st_font_catalog_t *catalog);
 
 /*

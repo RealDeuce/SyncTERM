@@ -27,7 +27,7 @@ main(void)
 	uint16_t palette_mapping[16];
 	static const uint32_t palette[] = {0x123456, 0x789abc, 0xdef012};
 
-	CHECK(st_screen_mode_count() == ST_SCREEN_MODE_ATARIST_80X25_MONO + 1U);
+	CHECK(st_screen_mode_count() == ST_SCREEN_MODE_AMIGA_640X200 + 1U);
 	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
 		mode = st_screen_mode_at(i);
 		CHECK(mode != NULL);

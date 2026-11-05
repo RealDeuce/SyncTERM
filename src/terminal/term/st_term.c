@@ -89,7 +89,7 @@ profile_emulation(enum st_screen_mode mode)
 enum st_cterm_encoding
 st_term_profile_encoding(const struct st_profile *profile)
 {
-	return profile != NULL && profile->graphics_mode < ST_GRAPHICS_SKYPIX_13
+	return profile != NULL
 	    && profile->encoding == ST_PROFILE_ENCODING_UTF8
 	    ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE;
 }
@@ -225,9 +225,10 @@ st_term_connect_profile(st_connection_t **result,
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_profile effective;
 	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
+		/* Native font metrics determine the actual text grid. Advertise
+		 * that console geometry, retaining the selected wire encoding. */
 		effective = *profile;
-		effective.screen_mode = ST_SCREEN_MODE_80X25;
-		effective.encoding = ST_CODEPAGE_ISO_8859_1;
+		effective.screen_mode = ST_SCREEN_MODE_CURRENT;
 		profile = &effective;
 	}
 	if (st_console_size(console, &geometry.columns, &geometry.rows) != 0)
@@ -291,15 +292,6 @@ st_term_session_create(st_term_session_t **result,
 	session = calloc(1, sizeof(*session));
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	struct st_term_config effective = *config;
-	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) {
-		effective.encoding = ST_CTERM_ENCODING_CODEPAGE;
-		effective.codepage = ST_CODEPAGE_ISO_8859_1;
-		effective.screen_mode = ST_SCREEN_MODE_80X25;
-		effective.palette = NULL; effective.palette_size = 0;
-		effective.expand_lf = false; effective.force_lcf = false;
-		config = &effective;
-	}
 	session->config = *config;
 	if (config->throttle_supported)
 		session->throttle_bps = config->initial_throttle_bps;
@@ -325,6 +317,8 @@ st_term_session_create(st_term_session_t **result,
 		.graphics_mode = config->graphics_mode,
 		.rip_directory = config->rip_directory,
 		.amiga_font_directory = config->amiga_font_directory,
+		.amiga_font = config->amiga_font,
+		.skypix_width = config->skypix_width, .skypix_height = config->skypix_height,
 		.skypix_transfer = config->skypix_transfer,
 		.skypix_transfer_context = config->skypix_transfer_context,
 		.apc_directory = config->apc_directory,

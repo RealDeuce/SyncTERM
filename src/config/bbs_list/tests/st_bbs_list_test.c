@@ -96,6 +96,8 @@ check_complete_profile_roundtrip(void)
 			source.music = ST_PROFILE_MUSIC_ALL;
 			source.address_family = ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
 			source.graphics_mode = ST_GRAPHICS_RIP_3;
+			source.amiga_font_size = 12;
+			(void)strcpy(source.amiga_font, "Ruby.font");
 			source.flow_control = ST_PROFILE_FLOW_NONE;
 			source.tls_psk_version = ST_TLS_VERSION_1_2;
 			source.tls_version_floor = ST_TLS_VERSION_1_2;
@@ -118,7 +120,7 @@ check_complete_profile_roundtrip(void)
 		NUMBER(added); NUMBER(connected); NUMBER(calls); NUMBER(bps_rate);
 		NUMBER(sort_order); NUMBER(connection_type); NUMBER(source); NUMBER(identifier);
 		NUMBER(screen_mode); NUMBER(encoding); NUMBER(transfer_log_level); NUMBER(protocol_log_level); NUMBER(cterm_log_level);
-		NUMBER(music); NUMBER(address_family); NUMBER(graphics_mode); NUMBER(flow_control);
+		NUMBER(amiga_font_size); NUMBER(music); NUMBER(address_family); NUMBER(graphics_mode); NUMBER(flow_control);
 		NUMBER(tls_psk_version); NUMBER(tls_version_floor); NUMBER(parity);
 		NUMBER(palette_size); NUMBER(port); NUMBER(stop_bits); NUMBER(data_bits);
 		NUMBER(ssh_fingerprint_size); NUMBER(hide_status); NUMBER(append_log); NUMBER(hide_popups);
@@ -128,7 +130,7 @@ check_complete_profile_roundtrip(void)
 #undef NUMBER
 #define STRING(member) CHECK(strcmp(result.member, source.member) == 0)
 		STRING(name); STRING(address); STRING(username); STRING(password); STRING(system_password);
-		STRING(font); STRING(ghost_program); STRING(comment); STRING(wren_scripts);
+		STRING(font); STRING(amiga_font); STRING(ghost_program); STRING(comment); STRING(wren_scripts);
 		STRING(tls_psk_identity); STRING(tls_psk); STRING(terminal_name);
 #undef STRING
 #define PATH(member) CHECK(strcmp(result.member == NULL ? "" : result.member, \

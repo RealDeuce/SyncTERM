@@ -28,6 +28,7 @@ struct st_amiga_family {
 const st_amiga_font_t *st_amiga_font_builtin(const char *name, unsigned height);
 size_t st_amiga_font_builtin_count(void);
 const char *st_amiga_font_builtin_name(size_t index, unsigned *height);
+unsigned st_amiga_font_width(const st_amiga_font_t *font);
 unsigned st_amiga_font_height(const st_amiga_font_t *font);
 unsigned st_amiga_font_baseline(const st_amiga_font_t *font);
 const struct st_amiga_glyph *st_amiga_font_glyph(const st_amiga_font_t *font, uint8_t ch);

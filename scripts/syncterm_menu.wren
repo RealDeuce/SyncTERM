@@ -118,6 +118,7 @@ class Menu {
   foreign static fontEncoding(name)
   foreign static logLevels
   foreign static screenModes
+  foreign static canvasModes
   // Each build-dependent pair is [numeric value, display name].
   foreign static outputModes
   foreign static cursorStyles

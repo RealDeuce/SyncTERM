@@ -107,11 +107,16 @@ and `reject_blank` flag. It returns zero with a NULL `*result` to cancel, or
 zero with a `malloc`-owned string to accept; a nonzero result reports an error.
 `rip_prompt_context` is passed to that callback unchanged.
 
-SkyPix requires ANSI-BBS, an 80x25 logical terminal and a 640x200 bitmap
-canvas. The status row is outside the canvas. Both variants follow JR-Comm;
-Kick 1.3/3.1 select rendering arithmetic and proportional overhang. Creation
-forces Latin-1, native Pearl 8, and the SkyPix palette. Session construction
-preserves inactive profile preferences while applying this effective mode.
+SkyPix requires ANSI-BBS and a bitmap canvas. Both variants follow JR-Comm;
+Kick 1.3/3.1 select rendering arithmetic and proportional overhang. Session setup
+honours profile ScreenMode and Encoding. The selected Amiga strike determines
+the cell geometry; the optional status row is outside the canvas. The application
+initially presets 640x200 at 4:3, Latin-1 and Pearl 8 when SkyPix is selected.
+`amiga_font` borrows the initial/reset native strike through destruction; NULL
+uses compiled Pearl 8. `skypix_width`/`skypix_height` delimit the exact canvas
+within the terminal's pixel extent (zero uses that axis's full terminal extent,
+excluding status). Both axes must fit signed 16-bit coordinates and the canvas
+is limited to four million pixels. Logical resize cannot change the canvas.
 `amiga_font_directory` is a borrowed catalog path through destruction.
 `skypix_transfer` receives the mode, request dimensions and borrowed Latin-1
 filename bytes. Return zero for a completed cache hit, `IO_ERROR_IN_PROGRESS`
@@ -312,8 +317,8 @@ Caller owns the connection.
 Shell children receive `MM_CHARSET` set to the profile's encoding name.
 
 | st_term_profile_encoding(profile)
-| Returns UTF8 for a non-SkyPix profile explicitly configured for UTF-8 and
-CODEPAGE otherwise (including NULL and either SkyPix variant). Use this result for the matching session config.
+| Returns UTF8 for a profile explicitly configured for UTF-8 and
+CODEPAGE otherwise (including NULL). Use this result for the matching session config.
 
 | st_term_profile_graphics_mode(profile)
 | Maps profile Graphics values to the matching RIP or SkyPix CTerm mode. Returns

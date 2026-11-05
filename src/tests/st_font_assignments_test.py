@@ -16,10 +16,10 @@ class AssignmentTest {
     if (__a is Error || __b is Error) Fiber.abort("font fixture load")
     var result = CTerm.setFont(__a, CTermFontMask.all)
     if (result != null) Fiber.abort(result)
-    Screen.videoFlags.altChars = true
-    Screen.videoFlags.blinkAltChars = true
-    Screen.videoFlags.noBright = true
-    Screen.videoFlags.noBlink = true
+    Screen.checked_(Screen.videoFlags.setAltChars(true))
+    Screen.checked_(Screen.videoFlags.setBlinkAltChars(true))
+    Screen.checked_(Screen.videoFlags.setNoBright(true))
+    Screen.checked_(Screen.videoFlags.setNoBlink(true))
     __stage = 0
     Conn.sendBytes("FONT-READY\\n")
   }

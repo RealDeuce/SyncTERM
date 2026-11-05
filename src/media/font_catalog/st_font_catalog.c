@@ -96,13 +96,104 @@ st_font_catalog_create(st_font_catalog_t **result, st_console_t *console)
 			return status;
 		}
 	}
+	if (!catalog->valid[0] && width != 0 && height != 0) {
+		/* The console scales registered rasters to its cell dimensions.
+		 * Keep system CP437 available for UI even with native Amiga metrics. */
+		uint32_t source_height = height <= 8 ? 8 : height <= 14 ? 14 : height <= 16 ? 16 : 20;
+		uint32_t source_width = source_height == 20 ? 12 : 8;
+		if (!st_builtin_font_get(0, source_width, source_height, &font)) {
+			free(catalog);
+			return IO_ERROR_NOT_SUPPORTED;
+		}
+		int status = st_console_register_static_font(console, &font, &catalog->identifiers[0]);
+		if (status != 0) {
+			free(catalog);
+			return status;
+		}
+		catalog->valid[0] = true;
+		catalog->codepages[0] = ST_CODEPAGE_CP437;
+		catalog->selector_by_identifier[catalog->identifiers[0]] = 0;
+		catalog->identifier_valid[catalog->identifiers[0]] = true;
+	}
 	if (!catalog->valid[0]) {
+		/* Text backends retain their Unicode presentation registration. */
 		catalog->identifiers[0] = 0;
 		catalog->valid[0] = true;
 		catalog->selector_by_identifier[0] = 0;
 		catalog->identifier_valid[0] = true;
 	}
 	*result = catalog;
+	return 0;
+}
+
+int st_font_catalog_load_amiga(st_font_catalog_t *catalog, uint8_t selector,
+							   const st_amiga_font_t *font, enum st_codepage codepage)
+{
+	uint32_t width, height;
+	if (catalog == NULL || font == NULL || codepage < ST_CODEPAGE_CP437 ||
+		codepage >= ST_CODEPAGE_COUNT ||
+		st_console_cell_pixel_size(catalog->console, &width, &height) != 0 || width == 0 ||
+		height == 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	size_t stride = ((size_t)width + 7) / 8;
+	if (stride > SIZE_MAX / height / 256)
+		return IO_ERROR_OUT_OF_RANGE;
+	size_t size = stride * height * 256;
+	uint8_t *bitmap = calloc(size, 1);
+	if (bitmap == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	struct st_console_font_mapping mapping[256];
+	size_t mapping_count = 0;
+	for (unsigned c = 0; c < 256; ++c) {
+		const struct st_amiga_glyph *glyph = st_amiga_font_glyph(font, (uint8_t)c);
+		uint32_t scalar = st_codepage_to_unicode(codepage, (uint8_t)c, true);
+		size_t at = 0;
+		while (at < mapping_count && mapping[at].codepoint < scalar)
+			++at;
+		if (at == mapping_count || mapping[at].codepoint != scalar) {
+			memmove(mapping + at + 1, mapping + at, (mapping_count - at) * sizeof(*mapping));
+			mapping[at] = (struct st_console_font_mapping){scalar, c};
+			++mapping_count;
+		}
+		for (unsigned y = 0; y < glyph->height; ++y) {
+			/* Fixed cells place the native baseline at its declared offset.
+			 * Pixel-positioned SkyPix text applies its separate RastPort baseline. */
+			int dy = (int)y + glyph->top -
+					 ((int)st_amiga_font_height(font) - (int)st_amiga_font_baseline(font) - 1);
+			if (dy < 0 || (unsigned)dy >= height)
+				continue;
+			for (unsigned x = 0; x < glyph->width; ++x) {
+				int dx = (int)x + glyph->bearing;
+				unsigned bit = glyph->bit_offset + x;
+				if (dx >= 0 && (unsigned)dx < width &&
+					(glyph->bits[(size_t)y * glyph->stride + bit / 8] & (0x80u >> (bit % 8))))
+					bitmap[((size_t)c * height + (unsigned)dy) * stride + (unsigned)dx / 8] |=
+						(uint8_t)(0x80u >> ((unsigned)dx % 8));
+			}
+		}
+	}
+	struct st_console_font console_font = {.bitmap = bitmap,
+										   .bitmap_size = size,
+										   .width = width,
+										   .height = height,
+										   .row_stride = stride,
+										   .glyph_stride = stride * height,
+										   .glyph_count = 256,
+										   .mapping = mapping,
+										   .mapping_count = mapping_count,
+										   .fallback_glyph = '?'};
+	uint16_t identifier;
+	int status = st_console_register_font_copy(catalog->console, &console_font, &identifier);
+	free(bitmap);
+	if (status != 0)
+		return status;
+	if (catalog->valid[selector])
+		catalog->identifier_valid[catalog->identifiers[selector]] = false;
+	catalog->identifiers[selector] = identifier;
+	catalog->valid[selector] = true;
+	catalog->codepages[selector] = codepage;
+	catalog->selector_by_identifier[identifier] = selector;
+	catalog->identifier_valid[identifier] = true;
 	return 0;
 }
 

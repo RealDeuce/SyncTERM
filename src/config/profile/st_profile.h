@@ -82,6 +82,7 @@ enum st_screen_mode {
 	ST_SCREEN_MODE_ATARIST_40X25,
 	ST_SCREEN_MODE_ATARIST_80X25,
 	ST_SCREEN_MODE_ATARIST_80X25_MONO,
+	ST_SCREEN_MODE_AMIGA_640X200,
 };
 
 enum st_address_family {
@@ -168,6 +169,8 @@ struct st_profile {
 	int music;
 	int address_family;
 	int graphics_mode;
+	uint16_t amiga_font_size;
+	char amiga_font[256];
 	int flow_control;
 	int tls_psk_version;
 	int tls_version_floor;

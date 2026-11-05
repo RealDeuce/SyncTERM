@@ -97,6 +97,8 @@ struct cterminal {
 	struct cterm_render_state screen;
 	struct cterm_rip_engine *rip_engine;
 	struct cterm_skypix *skypix_engine;
+	/* Explicit cursor placement can matter even within the same text cell. */
+	uint64_t cursor_position_changes;
 	enum st_cterm_graphics_mode graphics_mode;
 	st_cterm_skypix_transfer_callback_t skypix_transfer;
 	void *skypix_transfer_context;

@@ -4437,7 +4437,8 @@ push_style(WrenVM *vm, int list_slot, const struct st_theme_style *style)
 	wrenSetSlotNewList(vm, 2);
 	wrenSetSlotString(vm, 3, style->role);
 	wrenInsertInList(vm, 2, -1, 3);
-	push_optional_number(vm, 3, style->font);
+	/* Application themes always use the system CP437 font. */
+	push_optional_number(vm, 3, style->font < 0 ? style->font : 0);
 	wrenInsertInList(vm, 2, -1, 3);
 	push_optional_number(vm, 3, style->legacy_attr);
 	wrenInsertInList(vm, 2, -1, 3);

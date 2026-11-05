@@ -274,9 +274,10 @@ cterm_render_set_position(struct cterminal *cterm, int x, int y)
 	if (!render_succeeded(cterm,
 	    st_console_get_window(cterm->screen.console, &window)))
 		return;
-	(void)render_succeeded(cterm, st_console_set_position(
+	if (render_succeeded(cterm, st_console_set_position(
 	    cterm->screen.console, window.x + (uint32_t)x - 1,
-	    window.y + (uint32_t)y - 1));
+	    window.y + (uint32_t)y - 1)))
+		++cterm->cursor_position_changes;
 }
 
 int

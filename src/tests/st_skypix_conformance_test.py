@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "testing"))
-from syncterm_fixture import fixture,write_script
+from syncterm_fixture import fixture,write_script,click_text
 
 
 def run(executable, reports, hide_status, kick):
@@ -24,7 +24,7 @@ def run(executable, reports, hide_status, kick):
         entries = ("[SkyPix]\nConnectionType=Raw\nAddress=127.0.0.1\n"
                    f"Port={listener.getsockname()[1]}\nGraphics=SkyPix (Kick {kick})\n"
                    f"NoStatus={str(hide_status).lower()}\nHidePopups=false\n"
-                   "Encoding=UTF-8\nFont=Codepage 437 English\nScreenMode=80x28\n")
+                   "Encoding=ISO-8859-1\nAmigaFont=Pearl.font\nAmigaFontSize=8\nScreenMode=Amiga640x200\n")
         def prepare(root):
             write_script(root,"zzz_skypix_fixture",'''import "syncterm" for Hook, Key, CTerm, Conn, Error
 Hook.onKey(Key.f10) {|event|
@@ -78,12 +78,20 @@ Hook.onKey(Key.f10) {|event|
                     value = frame.primary[(y + frame.metadata["pixel_top"]) * frame.metadata["plane_width"] + x]
                     return (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
                 # Pearl/8 A: literal source rows from the pinned bitmap.
-                expected = (0,0x10,0x38,0x6c,0xc6,0xfe,0xc6,0xc6)
+                expected = (0x10,0x38,0x6c,0xc6,0xfe,0xc6,0xc6,0)
                 for y, row in enumerate(expected):
                     for x in range(8):
                         assert pixel(frame, x, y) == (0xdddddd if row & (0x80 >> x) else 0), (x,y,pixel(frame,x,y))
                         index=(y+frame.metadata["pixel_top"])*frame.metadata["plane_width"]+x
                         assert frame.primary[index]==frame.alternate[index],(x,y)
+                frame=exchange(b"\x1b[2J\x1b[Hgpy")
+                descenders=((0,0,0x7e,0xc6,0xc6,0x7e,0x06,0x7c),
+                            (0,0,0xfc,0xc6,0xc6,0xfc,0xc0,0xc0),
+                            (0,0,0xc3,0x66,0x3c,0x18,0x30,0x60))
+                for g,rows in enumerate(descenders):
+                    for y,row in enumerate(rows):
+                        for x in range(8):
+                            assert pixel(frame,g*8+x,y)==(0xdddddd if row&(0x80>>x) else 0),(g,x,y)
                 frame = exchange(b"\x1b[15;3!\x1b[4;10;20;14;24!\x1b[6;10;19;5;5!\x1b[7;0;0;30;20;5;5;192;255!")
                 assert pixel(frame,10,20)==0xff0000 and pixel(frame,34,24)==0xff0000 and pixel(frame,35,24)==0
                 # Both phase planes must carry the same SkyPix scene, for
@@ -198,8 +206,148 @@ Hook.onKey(Key.f10) {|event|
             for key in ("columns","rows","cell_width","cell_height"):
                 assert restored.metadata[key]==original.metadata[key],key
             saved=(root/"syncterm.lst").read_text()
-            assert f"Graphics=SkyPix (Kick {kick})" in saved and "Encoding=UTF-8" in saved and "ScreenMode=80x28" in saved
+            assert f"Graphics=SkyPix (Kick {kick})" in saved and "Encoding=ISO-8859-1" in saved and "ScreenMode=Amiga640x200" in saved
             assert not (root/"fonts"/"amiga").exists()
+
+def run_preferences(executable, reports, encoding, height=8):
+    # Independent synthetic native font: one named character has a left-edge
+    # stroke, every other byte uses the right-edge fallback stroke.
+    code = 0x82 if encoding == "CP437" else 0xe9
+    def prepare(root):
+        image=bytearray(256)
+        def word(at,n):struct.pack_into(">H",image,at,n)
+        def long(at,n):struct.pack_into(">I",image,at,n)
+        for at,n in ((0,1011),(8,1),(20,55),(24,1001),(28,55),(252,1010)):long(at,n)
+        for at,n in ((18,0x0f80),(78,8),(82,8),(84,7),(96,2),(190,8),(192,8),(194,8)):word(32+at,n)
+        image[32+90:32+92]=bytes((code,code))
+        long(32+92,160);long(32+98,188)
+        image[32+160:32+176]=bytes((0x80,0x01))*8
+        package=root/"fonts"/"amiga"/"bytetest.font"
+        (package/"ByteTest").mkdir(parents=True)
+        (package/"ByteTest"/"8").write_bytes(image)
+        descriptor=bytearray(264)
+        struct.pack_into(">HH",descriptor,0,0x0f00,1)
+        descriptor[4:15]=b"ByteTest/8\0"
+        struct.pack_into(">H",descriptor,260,8)
+        (package/"family.font").write_bytes(descriptor)
+        (package/"name").write_text("ByteTest.font")
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1",0));listener.listen(1);listener.settimeout(15)
+        family="ByteTest.font" if height==8 else "Ruby.font"
+        entries=("[Preferences]\nConnectionType=Raw\nAddress=127.0.0.1\n"
+                 f"Port={listener.getsockname()[1]}\nGraphics=SkyPix (Kick 3.1)\n"
+                 f"Encoding={encoding}\nAmigaFont={family}\nAmigaFontSize={height}\n"
+                 "ScreenMode=132x25\nNoStatus=false\n")
+        with fixture(executable,entries=entries,prepare=prepare,settings="AudioModes=0\n",reports=reports) as (client,root):
+            client.wait_text("Preferences");client.key("enter")
+            with listener.accept()[0] as peer:
+                peer.settimeout(10)
+                client.wait_for(lambda s: s.application.get("connected") == 1)
+                def read(n):
+                    data=b""
+                    while len(data)<n:
+                        part=peer.recv(n-len(data));assert part;data+=part
+                    return data
+                def frame(data):
+                    peer.sendall(data+b"\x1b[5n")
+                    assert read(4)==b"\x1b[0n"
+                    return client.capture()
+                data=b"\x1b[2J\x1b[H"+(b"\x82" if encoding=="CP437" else "é".encode())
+                first=frame(data)
+                expected_width=8 if height==8 else 15
+                assert first.metadata["cell_width"]==expected_width and first.metadata["cell_height"]==height,first.metadata
+                assert 0 <= first.metadata["cursor_start"] <= first.metadata["cursor_end"] < first.metadata["cursor_range"],first.metadata
+                assert first.metadata["columns"]==(1056+expected_width-1)//expected_width
+                assert first.metadata["rows"]==(400+height-1)//height+1
+                assert first.application["cterm.encoding"]==(1 if encoding=="CP437" else 0)
+                if encoding=="CP437": assert first.application["cterm.codepage"]==0
+                if height==8:
+                    assert first.lines[0].startswith("é"),first.lines[:2]
+                    stride=first.metadata["plane_width"];top=first.metadata["pixel_top"]
+                    for y in range(8):
+                        assert first.primary[(top+y)*stride]==514
+                        assert first.primary[(top+y)*stride+7]==512
+                if height==12:
+                    # Literal Ruby/12 e-acute strike rows, including its first
+                    # accent row. A baseline offset must not shift this down.
+                    expected=(0x0e,0x18,0,0x7e,0xc3,0xff,0xc0,0xc1,0x7e,0,0,0)
+                    for y,row in enumerate(expected):
+                        for x in range(8):
+                            index=(first.metadata["pixel_top"]+y)*first.metadata["plane_width"]+x
+                            assert (first.primary[index]!=512)==bool(row&(0x80>>x)),(x,y)
+                # The selected resolution governs clipping beyond the former
+                # 640x200 limit, including the final pixel and brush copy.
+                edge=frame(b"\x1b[15;3!\x1b[1;1055;399!\x1b[6;1055;398;1;1!\x1b[7;0;0;1054;399;1;1;192;255!")
+                stride=edge.metadata["plane_width"];top=edge.metadata["pixel_top"]
+                assert edge.primary[(top+399)*stride+1055]==515
+                assert edge.primary[(top+399)*stride+1054]==515
+                # Remote changes and reset return to the configured native
+                # font, not Pearl. Compare independent synthetic glyph rows.
+                reset=frame(b"\x1b[10;8!Topaz.font!\x1b[10;0!\x1b[2J\x1b[H"+(b"\x82" if encoding=="CP437" else "é".encode()))
+                if height==8:
+                    for y in range(8):
+                        assert reset.primary[(top+y)*stride]==515
+                        assert reset.primary[(top+y)*stride+7]==512
+                for y in range(height):
+                    for x in range(expected_width):
+                        index=(top+y)*stride+x
+                        assert (reset.primary[index]!=512)==(first.primary[index]!=512),(encoding,height,x,y)
+                assert reset.metadata["cell_width"]==expected_width
+                # System UI must never use the synthetic/native connection
+                # font: verify status, online menu and transfer protocol picker.
+                shown=client.wait_for(lambda s: "Preferences" in s.lines[-1])
+                status_x=shown.lines[-1].index("Preferences")
+                system_font=shown.cells[(shown.metadata["rows"]-1)*shown.metadata["columns"]+status_x].font
+                assert system_font != shown.cells[0].font
+                assert shown.cells[(shown.metadata["rows"]-1)*shown.metadata["columns"]+status_x].glyph == ord("P")
+                client.command_key(44)
+                menu=client.wait_text("SyncTERM Online Menu")
+                row=next(y for y,line in enumerate(menu.lines) if "ANSI Music Control" in line)
+                column=menu.lines[row].index("ANSI Music Control")
+                cell=menu.cells[row*menu.metadata["columns"]+column]
+                assert cell.font==system_font and cell.glyph==ord("A")
+                # Literal CP437 English A rows, from the pinned system fonts.
+                # The console scales its 8x14 strike to Ruby's 15x12 cells.
+                expected=(0x30,0x78,0xcc,0xcc,0xfc,0xcc,0xcc,0) if height==8 else (0,0,0x10,0x38,0x6c,0xc6,0xc6,0xfe,0xc6,0xc6,0xc6,0,0,0)
+                background=(cell.background if cell.background&0x80000000 else menu.palette[cell.background])&0xffffff
+                for y in range(height):
+                    for x in range(expected_width):
+                        index=(menu.metadata["pixel_top"]+row*height+y)*menu.metadata["plane_width"]+column*expected_width+x
+                        colour=menu.primary[index]
+                        colour=(colour if colour&0x80000000 else menu.palette[colour])&0xffffff
+                        assert (colour!=background)==bool(expected[y*len(expected)//height]&(0x80>>(x*8//expected_width))),(encoding,height,x,y)
+                click_text(client,menu,"Download")
+                dialog=client.wait_text("Download Protocol")
+                row=next(y for y,line in enumerate(dialog.lines) if "Download Protocol" in line)
+                column=dialog.lines[row].index("Download Protocol")
+                cell=dialog.cells[row*dialog.metadata["columns"]+column]
+                assert cell.font==system_font and cell.glyph==ord("D")
+                client.key("escape")
+                restored=frame(b"")
+                assert "Download Protocol" not in restored.text
+                assert restored.metadata["cell_width"]==expected_width
+                peer.shutdown(socket.SHUT_RDWR)
+
+def run_editor_preferences(executable,reports):
+    entries="[Editor]\nConnectionType=Raw\nAddress=example.invalid\nGraphics=SkyPix (Kick 3.1)\n"
+    with fixture(executable,entries=entries,settings="AudioModes=0\n",reports=reports) as (client,root):
+        client.wait_text("Editor");client.key("f2")
+        screen=client.wait_text("Pearl.font 8")
+        click_text(client,screen,"Font")
+        client.wait_text("Amiga Font")
+        client.text("f",2)
+        client.wait_text("Find");client.text("Ruby.font 12");client.key("enter");client.key("enter")
+        screen=client.wait_text("Ruby.font 12")
+        click_text(client,screen,"Encoding")
+        client.wait_text("Enter Select");client.key("end");client.wait_text("UTF-8");client.key("enter")
+        screen=client.wait_text("Ruby.font 12")
+        click_text(client,screen,"Screen Mode")
+        client.wait_text("Enter Select");client.key("end");client.wait_text("Amiga 640x200");client.key("enter")
+        client.wait_text("Ruby.font 12");client.key("escape")
+        client.wait_text("Directory: Name")
+        saved=(root/"syncterm.lst").read_text()
+        assert "AmigaFont=Ruby.font" in saved and "AmigaFontSize=12" in saved,saved
+        assert "Encoding=UTF-8" in saved and "ScreenMode=Amiga640x200" in saved,saved
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser()
@@ -208,3 +356,8 @@ if __name__=="__main__":
     args=parser.parse_args()
     for kick in ("1.3","3.1"):
         for hide in (False,True): run(args.executable,args.reports,hide,kick)
+
+    run_preferences(args.executable,args.reports,"CP437")
+    run_preferences(args.executable,args.reports,"UTF-8")
+    run_preferences(args.executable,args.reports,"UTF-8",12)
+    run_editor_preferences(args.executable,args.reports)

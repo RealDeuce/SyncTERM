@@ -2143,9 +2143,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		terminal->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 	terminal->status_display_type = config->status_line ? 1 : 0;
 	terminal->api_reserved_rows = rows - terminal_rows - status_rows;
-	terminal->wire_encoding = config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13
-	    ? ST_CTERM_ENCODING_CODEPAGE : config->encoding;
-	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) terminal->screen.codepage = ST_CODEPAGE_ISO_8859_1;
+	terminal->wire_encoding = config->encoding;
 	terminal->api_input_filter = config->input_filter;
 	terminal->api_input_filter_active = config->input_filter_active;
 	terminal->api_input_filter_context = config->input_filter_context;
@@ -2269,7 +2267,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		}
 	}
 	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) {
-		status = cterm_skypix_create(terminal, config->amiga_font_directory);
+		status = cterm_skypix_create(terminal, config);
 		if (status != 0) { st_cterm_destroy(&terminal); return status; }
 	}
 	*result = terminal;
@@ -2828,7 +2826,7 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
-	if (terminal->skypix_engine != NULL && (columns != 80 || terminal_rows != 25))
+	if (terminal->skypix_engine != NULL && (columns != (uint32_t)terminal->width || terminal_rows != (uint32_t)terminal->height))
 		return IO_ERROR_NOT_SUPPORTED;
 	/* Geometry commits the old placement, but is not end-of-input for
 	 * the UTF-8 decoder or the RIP command parser. */
@@ -3234,8 +3232,6 @@ st_cterm_set_encoding(st_cterm_t *terminal, enum st_cterm_encoding encoding,
 	    || (encoding == ST_CTERM_ENCODING_UTF8
 	    && !utf8_supported((enum st_cterm_emulation)terminal->emulation)))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (terminal->skypix_engine != NULL && (encoding != ST_CTERM_ENCODING_CODEPAGE
-	    || codepage != ST_CODEPAGE_ISO_8859_1)) return IO_ERROR_NOT_SUPPORTED;
 	status = st_cterm_finish(terminal);
 	if (status != 0)
 		return status;

@@ -173,7 +173,7 @@ A built-in style field has three possible states:
 Built-in glyph fields support *Default* and *Explicit*.  CP437 values are
 selected from a 16 by 16 grid of all byte values.  ASCII fallbacks are
 selected from a 16 by 6 grid containing space through tilde.  The raw CP437
-grid always uses font slot 0 so a draft style's font cannot change the
+grid always uses system CP437 (slot 0), independently of the connection font, for the
 meaning of the cells.  Arrow and page keys wrap through each grid; Enter or
 double click accepts and Escape cancels.  Custom style and glyph definitions
 are stored in full and can be removed.  Metadata edits the global `Name`,
@@ -244,7 +244,8 @@ A `[Style:role]` section may contain these fields:
 
 | `Font`
 | `0`..`255`
-| Conio font slot.
+| Stored font slot. Application UI always renders with system CP437; this field
+  is retained in theme documents but does not select an application UI font.
 
 | `LegacyAttr`
 | `0`..`255`

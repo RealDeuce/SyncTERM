@@ -99,3 +99,16 @@ if (true) {
     if (Menu.saveDefaults() != null || Menu.load(null) != null || Menu.defaults.graphics != mode) Fiber.abort("default graphics persistence")
   }
 }
+
+if (true) {
+  import "syncterm_menu" for Menu
+  var entry = Menu.entries[0]
+  entry.profile.graphics = 3
+  entry.profile.screenMode = 3
+  entry.profile.encoding = 255
+  entry.profile.amigaFont = "Ruby.font"
+  entry.profile.amigaFontSize = 12
+  if (entry.save() != null || Menu.load(null) != null) Fiber.abort("SkyPix preferences save")
+  var profile = Menu.entries[0].profile
+  if (profile.screenMode != 3 || profile.encoding != 255 || profile.amigaFont != "Ruby.font" || profile.amigaFontSize != 12) Fiber.abort("SkyPix preferences reload")
+}

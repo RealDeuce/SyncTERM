@@ -155,9 +155,9 @@
     },
     {
       "path": "src/config/profile/st_profile.h",
-      "sha256": "031f97d33dc5fafa84c733b4df6baebfdda133b33ba83a903b09fd2648f5d951",
+      "sha256": "a68bcd842acbaef37ff290723056005421b2d4bd79acb7efc4886e439e019edd",
       "status": "reviewed",
-      "symbol_count": 159
+      "symbol_count": 162
     },
     {
       "path": "src/config/settings/st_settings.h",
@@ -203,9 +203,9 @@
     },
     {
       "path": "src/media/amiga_font/st_amiga_font.h",
-      "sha256": "38a5f1f117ee45d26a83e5c2e0228c7173b8396e0b589ffdf3159230aea947ce",
+      "sha256": "6424b10e3d0c687ef221e4430e4169b7ec16dfd699fd531b40b1c92aeb27d466",
       "status": "reviewed",
-      "symbol_count": 25
+      "symbol_count": 26
     },
     {
       "path": "src/media/amiga_font/st_amiga_fonts.h",
@@ -245,9 +245,9 @@
     },
     {
       "path": "src/media/font_catalog/st_font_catalog.h",
-      "sha256": "60cd38d079918b709d20d4e85bc89dd48007042869c6f0dd462f5b76f2ee26c7",
+      "sha256": "ffccf0c09a51e77bc9f8b67b9a15835e772a2eb66b8bcbcf4f1254448a2fa11c",
       "status": "reviewed",
-      "symbol_count": 20
+      "symbol_count": 21
     },
     {
       "path": "src/media/fonts/st_builtin_fonts.h",
@@ -353,7 +353,7 @@
     },
     {
       "path": "src/scripting/wren_host/st_wren_host.h",
-      "sha256": "a6903dd1ea5e752a31e49cf91dae73e770c305a7a0f3337aa5f10410165fcc14",
+      "sha256": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
       "status": "reviewed",
       "symbol_count": 70
     },
@@ -407,9 +407,9 @@
     },
     {
       "path": "src/terminal/cterm/st_cterm.h",
-      "sha256": "22c510e04331949521b991128e996efd7dc3ef4c5b618b8298abfcc991f1c601",
+      "sha256": "4f9a2b7adbf3345db21a74d30633b520ba56955d4b96700e71d11ae7fdef97ca",
       "status": "reviewed",
-      "symbol_count": 174
+      "symbol_count": 177
     },
     {
       "path": "src/terminal/hyperlink/st_hyperlink.h",
@@ -437,9 +437,9 @@
     },
     {
       "path": "src/terminal/term/st_term.h",
-      "sha256": "cecc82b69d691b93e618409864a257da5b8dcb591efd0bb115c0b9fde1cb84fd",
+      "sha256": "537c1af2e49b5798153e882d3ef9626d277104c0af1240685d849478f61d5543",
       "status": "reviewed",
-      "symbol_count": 88
+      "symbol_count": 91
     },
     {
       "path": "src/text/codepage/st_codepage.h",
@@ -980,7 +980,7 @@
     "profile.fields": {
       "status": "covered",
       "wren": "Profile + DirectoryEntry + Session and enum namespaces",
-      "reason": "Editable connection configuration is Profile; persistent name/id/added/connected/calls/sortOrder belongs to DirectoryEntry, whose source exposes the detailed native list origin. Runtime connection state belongs to Session. The native two-value profile source is captured as Session.entrySource using BBSListType; no Profile.source getter exists. Palette length and fingerprint length come from script value lengths. Typed encoding/script setters replace native persistence parsers; defaults intentionally have no scripts. Fixed buffer capacities are validation limits, not separate values to allocate. Profile.graphics/GraphicsMode replaces rip/RipVersion and selects None, RIP v1/v3 or independent SkyPix Kick 1.3/3.1; legacy numeric 0..2 remain stable. Graphics persists canonically; RIP is read only if Graphics is absent and removed on save.",
+      "reason": "Editable connection configuration is Profile; persistent name/id/added/connected/calls/sortOrder belongs to DirectoryEntry, whose source exposes the detailed native list origin. Runtime connection state belongs to Session. The native two-value profile source is captured as Session.entrySource using BBSListType; no Profile.source getter exists. Palette length and fingerprint length come from script value lengths. Typed encoding/script setters replace native persistence parsers; defaults intentionally have no scripts. Fixed buffer capacities are validation limits, not separate values to allocate. Profile.graphics/GraphicsMode replaces rip/RipVersion and selects None, RIP v1/v3 or independent SkyPix Kick 1.3/3.1; legacy numeric 0..2 remain stable. Graphics persists canonically; RIP is read only if Graphics is absent and removed on save. ScreenMode and Encoding configure the SkyPix connection; AmigaFont/AmigaFontSize choose its exact initial/reset native strike. Menu.canvasModes describes the pixel canvas; the native font derives the text grid. Selecting SkyPix supplies editable Amiga640x200/Latin-1 defaults. Ordinary Profile.font is retained for other graphics modes.",
       "vm": "menu and connected; persistence/menu enumeration only in menu",
       "evidence": [
         {
@@ -2167,7 +2167,7 @@
     "fonts.catalog": {
       "status": "covered",
       "wren": "Font.count/name/available/codepage/codepageOf/codepageFor/load; Screen.font and CTerm.font/setFont",
-      "reason": "Script selectors adapt console-owned native registrations. Connected contexts use actual terminal identifiers/mappings, including remote variants; menu/picker catalogs retain their own registrations. Availability, extent and direct mapping queries reflect registration state. Allocation/free and raw pointer ownership stay native.",
+      "reason": "Script selectors adapt console-owned native registrations. Connected contexts retain the system CP437 registration for selector zero and use actual terminal identifiers/mappings for other selectors, including remote variants; menu/picker catalogs retain their own registrations. Availability, extent and direct mapping queries reflect registration state. Allocation/free and raw pointer ownership stay native.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -2210,7 +2210,7 @@
     "fonts.catalog-owner": {
       "status": "host-owned",
       "wren": "VM font catalog and console registry",
-      "reason": "Create/destroy and raw console/identifier conversion implement native font ownership. Script selectors are translated by the VM catalog, not raw reusable native pointers.",
+      "reason": "Create/destroy and raw console/identifier conversion implement native font ownership. Script selectors are translated by the VM catalog, not raw reusable native pointers. Native Amiga registration copies into fixed console cells using the selected glyph codepage and preserves bitmap rows below the declared baseline. UI CP437 remains separately registered, with console scaling at nonstandard native cell sizes and Unicode presentation retained on text backends.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -2671,7 +2671,7 @@
     "cterm.state": {
       "status": "covered",
       "wren": "CTerm / ExtAttr / LastColumnFlag / Scrollback / Font / Screen / GraphicsMode",
-      "reason": "Every st_cterm_state scalar and nested ExtAttr/last-column state has a script getter, including palette override, margins, alternate fonts and ring metadata. Protocol emulation/encoding/graphics/PETSCII variant are configured by Profile/screen mode. CTerm.write accepts UTF-8 host text, active receive input is processed by the native terminal owner. Local key injection, doorway/music/mouse policy, screenshot and font selection have typed operations. Native lifecycle/config callbacks and several direct operations are separately assessed. Font assignments are the live CTerm.font view and the masked setFont operation; script-output Screen.font remains independent. CTerm.graphicsMode reports the selected engine; skypix is true for either selected SkyPix variant. SkyPix fixes effective Latin-1/80x25/640x200 without overwriting inactive profile preferences.",
+      "reason": "Every st_cterm_state scalar and nested ExtAttr/last-column state has a script getter, including palette override, margins, alternate fonts and ring metadata. Protocol emulation/encoding/graphics/PETSCII variant are configured by Profile/screen mode. CTerm.write accepts UTF-8 host text, active receive input is processed by the native terminal owner. Local key injection, doorway/music/mouse policy, screenshot and font selection have typed operations. Native lifecycle/config callbacks and several direct operations are separately assessed. Font assignments are the live CTerm.font view and the masked setFont operation; script-output Screen.font remains independent. CTerm.graphicsMode reports the selected engine; skypix is true for either selected SkyPix variant. SkyPix honours the chosen canvas and wire encoding, with its configured native Amiga strike supplying cell geometry. A separate optional status row and complete-cell padding preserve the canvas pixel aspect. Wren system CP437/UI registrations remain independent of terminal slot zero.",
       "vm": "connected",
       "evidence": [
         {
@@ -2691,7 +2691,7 @@
     "cterm.owner": {
       "status": "host-owned",
       "wren": "active terminal parser owner",
-      "reason": "Create/destroy/config service pointers, raw wire writes/decoder feed, poll/finish/disconnect, resize/origin notifications, RIP/SkyPix receive framing, monotonic input holds and native Amiga catalog paths and event routing belong to the active term session. Scripts use CTerm/Screen/Hook/Transfer on that parser rather than independently writing a borrowed decoder or holding output/input/log callback contexts. Screen-mode/Profile policy supplies config values; quiet is a host audio choice. This does not claim a standalone script terminal-emulator constructor.",
+      "reason": "Create/destroy/config service pointers, raw wire writes/decoder feed, poll/finish/disconnect, resize/origin notifications, RIP/SkyPix receive framing, monotonic input holds and native Amiga catalog paths and event routing belong to the active term session. Scripts use CTerm/Screen/Hook/Transfer on that parser rather than independently writing a borrowed decoder or holding output/input/log callback contexts. Screen-mode/Profile policy supplies config values; quiet is a host audio choice. This does not claim a standalone script terminal-emulator constructor. The native configured default strike is borrowed through terminal destruction; exact canvas extents bound graphics independently of complete-cell padding and status. These are fed by Profile and the selected canvas, not raw script pointers.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -2902,7 +2902,7 @@
     "term.owner": {
       "status": "host-owned",
       "wren": "one active native term session",
-      "reason": "Native session/config ownership, CTerm borrowing, run/pump/disconnect, terminal/transfer/RIP/SkyPix reservations and raw transport/filter/capture contexts belong to the application. Scripts use Conn/Session leases/CTerm/Transfer/Hook/Capture; independent parser pumps, raw borrowed buffers and callback pointers would compete with that owner. Profiles/screen modes supply initial emulation/encoding/fonts/palette/status/graphics/throttle policy. Native encoded-text storage is translated into owned script send Operations.",
+      "reason": "Native session/config ownership, CTerm borrowing, run/pump/disconnect, terminal/transfer/RIP/SkyPix reservations and raw transport/filter/capture contexts belong to the application. Scripts use Conn/Session leases/CTerm/Transfer/Hook/Capture; independent parser pumps, raw borrowed buffers and callback pointers would compete with that owner. Profiles/screen modes supply initial emulation/encoding/fonts/palette/status/graphics/throttle policy. Native encoded-text storage is translated into owned script send Operations. The application owns the configured Amiga strike through teardown and forwards borrowed strike/exact-canvas values to CTerm. Connection negotiation advertises the resulting console grid while retaining the selected wire encoding.",
       "vm": "connected",
       "evidence": [
         {
@@ -3475,7 +3475,7 @@
     "fonts.amiga-renderer": {
       "status": "host-owned",
       "wren": "selected SkyPix engine and menu family importer",
-      "reason": "Native HUNK/descriptor decoding, confined relative bitmap paths, glyph bits/stride/offset, signed raster metrics, baseline and font lifetime belong to the SkyPix renderer and validated importer. Remote font commands select exact installed/bundled strikes with Pearl fallback. Loaded fonts own input bytes and survive package replacement/removal. Scripts manage families via Menu; this does not expose native pointers or claim resolution of the broader existing font-raster-model finding.",
+      "reason": "Native HUNK/descriptor decoding, confined relative bitmap paths, glyph bits/stride/offset, signed raster metrics, baseline, nominal width and font lifetime belong to the SkyPix renderer and validated importer. Remote font commands select exact installed/bundled strikes with configured-default fallback. Initial lookup defaults to Pearl 8. The configured strike determines initial/reset text and native cell geometry; fixed cells retain descenders and proportional default home accounts for its baseline. Updated JR-Comm position probes independently establish nominal-width BS/HT, independent CR/LF and inert VT; further ANSI, receive-buffer-wrap, scrolling and hardware-cursor gaps are recorded in the conformance inventory. Loaded fonts own input bytes and survive package replacement/removal. Scripts manage families via Menu; this does not expose native pointers or claim resolution of the broader existing font-raster-model finding.",
       "vm": "native owner; menu family workflow and connected terminal protocol",
       "evidence": [
         {
@@ -3516,7 +3516,7 @@
   "documentation_findings": [
     {
       "id": "profile-field-table",
-      "reason": "Resolved during the approved SkyPix integration: the field table now records 51 canonical keys and all 57 profile members, including CTermLogLevel -> Profile.ctermLogLevel, canonical Graphics/legacy RIP rules, and distinct DirectoryEntry.source versus Session.entrySource provenance.",
+      "reason": "Resolved during the approved SkyPix integration: the field table now records 53 canonical keys and all 59 profile members, including AmigaFont/AmigaFontSize and CTermLogLevel -> Profile.ctermLogLevel, canonical Graphics/legacy RIP rules, and distinct DirectoryEntry.source versus Session.entrySource provenance.",
       "evidence": [
         {
           "path": "src/config/profile/st_profile.h",
@@ -3528,7 +3528,7 @@
         },
         {
           "path": "docs/api/bbs-entry-fields.adoc",
-          "anchor": "51 canonical keys and 57 profile members"
+          "anchor": "53 canonical keys and 59 profile members"
         }
       ],
       "status": "resolved"
@@ -4085,7 +4085,7 @@
     {
       "path": "scripts/menu_bbs_editor.wren",
       "anchor": "ctermLogLevel",
-      "aspect": "typed profile editor"
+      "aspect": "Editable SkyPix canvas, encoding and native Amiga family/size; ordinary font choices outside SkyPix"
     },
     {
       "path": "scripts/sftp_app.wren",
@@ -4135,7 +4135,7 @@
     {
       "path": "scripts/menu_bbs_editor.wren",
       "anchor": "var error = b is Profile ? Menu.saveDefaults() : b.save()",
-      "aspect": "Entry/default editor consumes null/MenuError and displays the captured reason."
+      "aspect": "Editable SkyPix canvas, encoding and native Amiga family/size; ordinary font choices outside SkyPix"
     },
     {
       "path": "scripts/menu_sort_profiles.wren",
@@ -4205,7 +4205,7 @@
     {
       "path": "scripts/menu_bbs_editor.wren",
       "anchor": "graphicsHelp_",
-      "aspect": "Independent graphics selection and effective SkyPix profile display"
+      "aspect": "Editable SkyPix canvas, encoding and native Amiga family/size; ordinary font choices outside SkyPix"
     }
   ],
   "test_evidence": [
@@ -4672,6 +4672,16 @@
       "path": "docs/SKYPIX_CONFORMANCE.md",
       "anchor": "Reference provenance",
       "aspect": "Supported subset, independent sources, coherent captures and explicit verification limits"
+    },
+    {
+      "path": "src/media/font_catalog/tests/st_font_catalog_test.c",
+      "anchor": "check_amiga_descenders",
+      "aspect": "Literal Pearl g/p/y fixed-cell rows retain all descenders"
+    },
+    {
+      "path": "src/tests/st_font_assignments_test.py",
+      "anchor": "Screen.videoFlags.setAltChars",
+      "aspect": "Independent CP437/UTF-8 connection font assignment regressions using the current checked video-flag API"
     }
   ],
   "dispatch_evidence": [
@@ -4683,16 +4693,16 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "44f82a11eedf04057016df5b5d8cac6d81b7814d9ef0a21aaefdd2501bc186a2",
-    "docs/api/bbs-entry-fields.adoc": "5d52b7b4eb51645dd8c9b558a892746e1f64d8f1536f6c79949c5b06e320c2ac",
-    "scripts/auto/connected/font_pick.wren": "4443712542fd08d6d897216dbbfab7ef8aae28edff525d7523b80501293ba0c5",
+    "docs/Wren.adoc": "083b6aa2be7503cd35ece0fc5162a8ec04036a84517123e9d04d96123134c857",
+    "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
+    "scripts/auto/connected/font_pick.wren": "b7c7176c36e9ec274425e4ea3bd14f37ce9991e6fe19078a83ec614e6978422b",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
-    "scripts/menu_bbs_editor.wren": "c672a79b8050dbd5c480c7fe2a89bc9a7b1e83a5b5571ec48a071e760c9816c5",
+    "scripts/menu_bbs_editor.wren": "d7439a3116e2e4f33f6001ea1979c87d4c1b04c9974140b046b538e317133216",
     "scripts/menu_settings_ui.wren": "af16c21b1b858f943c4d2b4a9a550216a9a2a6af58710aef7392a7516f830794",
     "scripts/sftp_app.wren": "768e459dd484d4bf094edb61cd85b2ed58ecaca47475b4a6887e14e628fe12f0",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "5ecef1858e80ef5d9878f9085a3d28afcfb1aeac332a4be9758931bb6e9cc485",
-    "scripts/syncterm_menu.wren": "bd4640a094859bd893cdce3f6d1f5e3e13dde98ec27c64484ca90353d560a772",
+    "scripts/syncterm.wren": "5cc83e3b09a7102069dc3495c5be2e8be2b687862b1660873fb5a86987033f8a",
+    "scripts/syncterm_menu.wren": "f913fdf0071d6e5a62df2675ff2609d0178602246826899d407dbbd04dbcdfe1",
     "scripts/syncterm_picker.wren": "06b539737eb1a35dbfa10417c9310be744246fa666262c0e0c791507fd918077",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
     "scripts/transfer_pick.wren": "aa529f7bfc8e0d9e086f9a42fd829f7414fb67fbcc99644bef38eb235a9f8ed5",
@@ -4725,7 +4735,7 @@
     "src/config/ini/ini.h": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
     "src/config/list_crypto/st_list_crypto.c": "e53d183461012142e5f9d2d417030efe55bc42469944747b414b9907b516dd67",
     "src/config/list_crypto/st_list_crypto.h": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
-    "src/config/profile/st_profile.h": "031f97d33dc5fafa84c733b4df6baebfdda133b33ba83a903b09fd2648f5d951",
+    "src/config/profile/st_profile.h": "a68bcd842acbaef37ff290723056005421b2d4bd79acb7efc4886e439e019edd",
     "src/config/settings/st_settings.h": "e0ddcfd779c94a58d90c3e23b8dbb01db49e2dd169cb8654a2c5813ada2e3110",
     "src/config/theme/st_theme.h": "bf76e31f18f57312850d26e81e4ba25e3c36b2fa30e24497609dc52d0f25cbfc",
     "src/io/file_lock/st_file_lock.h": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
@@ -4740,7 +4750,7 @@
     "src/media/console/console_text.c": "6c8165e4473a5053282ba81c533aba06f5975a16668b46181540a14d457a73b9",
     "src/media/console/st_console.h": "3239009229fed51f9aecb50d127dd97dbf268dd1ac6c8cf90f309435bac6dbd6",
     "src/media/console/tests/st_console_test.c": "079574a176e535180cfaae5d94eaa8e1795638c015950079758bccdbba0ada22",
-    "src/media/font_catalog/st_font_catalog.h": "60cd38d079918b709d20d4e85bc89dd48007042869c6f0dd462f5b76f2ee26c7",
+    "src/media/font_catalog/st_font_catalog.h": "ffccf0c09a51e77bc9f8b67b9a15835e772a2eb66b8bcbcf4f1254448a2fa11c",
     "src/media/fonts/st_builtin_fonts.h": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
     "src/media/fonts/st_emoji_fonts.h": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
     "src/media/fonts/st_presentation_font.h": "c39d49aaa44cedb1a78d95f0c0c47a36756b1706d5733f8e9d63aaf6318ea41b",
@@ -4759,15 +4769,15 @@
     "src/net/transfer/st_transfer.h": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
-    "src/scripting/wren_host/st_wren_host.h": "a6903dd1ea5e752a31e49cf91dae73e770c305a7a0f3337aa5f10410165fcc14",
+    "src/scripting/wren_host/st_wren_host.h": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
     "src/scripting/wren_host/tests/st_wren_host_test.c": "a4f73ae1f7662e1aff9edabc36d33fd19d47a0a87f1425e2143cdae0e37d317f",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "9ce240c1d75632c40452fc6f46db4aab88923f2c8d062f80e50c5c917724d6f4",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
-    "src/scripting/wren_host/wren_bind_core.c": "326e34b8e00ad130f1409f91c762aee07b84e7fd75df4dc8772bcdfa144e0089",
+    "src/scripting/wren_host/wren_bind_core.c": "5640f29421956df2523a317c68fa4fc5913194304521bf6b54e28bf6ec4b8d81",
     "src/scripting/wren_host/wren_bind_fs.c": "a6a43847fcc78584be2269bb83331661cc7d01332d542b2828948e8d36dbfcf0",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "ed6518dbd4ba3f7599e1ff73661e2165b2e168da9297189ca73364a2b1b3b6de",
+    "src/scripting/wren_host/wren_bind_menu.c": "49ebf10522b1f98e9f56fb5f81f5172b7ae52d79623a49bed5c69463d5a5e19c",
     "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
     "src/scripting/wren_host/wren_bind_session.c": "30706ca789c10a8ae1b8323cf41563cd7be967a9f8377639854c641034fdb837",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4776,7 +4786,7 @@
     "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
     "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
     "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
-    "src/scripting/wren_host/wren_host.c": "fe31b68f6ac7b1acd16c4d11b84cb64c0b852851b1840842558ed4da121bf1b0",
+    "src/scripting/wren_host/wren_host.c": "2efe1de609986fa1a273c10e65f814051241d23554ddee6e9e5a8cf19aa3af66",
     "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
     "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
     "src/scripting/wren_host/wren_picker.c": "fac1ff062b8bcc9a31c808694865fc584261093b2a8d23e9a70026f1f43c13a7",
@@ -4796,17 +4806,17 @@
     "src/st_libretro_input.h": "5f8b2eea549b6ab14b9b2f6cbc427aa189cad353f6a0edab49b21ce364b7dcd7",
     "src/st_syncterm_icon.h": "db9a42ed07712ff11469c9a4378df4669cab199da882051b6529cdf933a18c78",
     "src/st_terminfo.h": "852d5c5f13d3d8f21aa0903d990cad1ab152ab6bb292a614bf12eb0a79f8ffeb",
-    "src/syncterm.c": "723b1c994d92de267fb2e2fc82f6392026a57b95ea25d402e009ef379963e585",
+    "src/syncterm.c": "6ee37374d985cf98dab11b24bce633cbc47c770f3c1c5b9d11a38d01761611cc",
     "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
     "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
-    "src/terminal/cterm/st_cterm.c": "6ae807a7b7fc8a31152244b6db7c2ab5d6b101fa4f8a1f32644c8efb8d70588f",
-    "src/terminal/cterm/st_cterm.h": "22c510e04331949521b991128e996efd7dc3ef4c5b618b8298abfcc991f1c601",
+    "src/terminal/cterm/st_cterm.c": "941ef0731dc86cc4090eea80238b5ab8fca730f6b4efbd56d10b869cd96a4029",
+    "src/terminal/cterm/st_cterm.h": "4f9a2b7adbf3345db21a74d30633b520ba56955d4b96700e71d11ae7fdef97ca",
     "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
     "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
     "src/terminal/screen_mode/st_screen_mode.h": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
     "src/terminal/session_history/st_session_history.h": "1cc8e4d057da9d087fa25814770c5003d2e51fe07dfda953c98c289e3feb19f2",
-    "src/terminal/term/st_term.c": "13c8b8ee2d316444dc5d066720e66d62961b8cebfaeb0253267e7c467757e7b0",
-    "src/terminal/term/st_term.h": "cecc82b69d691b93e618409864a257da5b8dcb591efd0bb115c0b9fde1cb84fd",
+    "src/terminal/term/st_term.c": "add4e2ade1c2366f9cb7286edeabd96cba9160ff69d1f92a09f57bea3a1630d4",
+    "src/terminal/term/st_term.h": "537c1af2e49b5798153e882d3ef9626d277104c0af1240685d849478f61d5543",
     "src/text/codepage/st_codepage.h": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
     "src/text/emoji/st_emoji_catalog.h": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
     "src/text/emoji/st_emoji_locale.h": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
@@ -4817,28 +4827,28 @@
     "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
     "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
     "scripts/menu_settings_ui_test.wren": "fc72b3412fe2d6b866cc3c3895e66129a0e109feb81fa9976e854411e89656c2",
-    "src/media/font_catalog/st_font_catalog.c": "4117712e3679625ff3f9368b9c5c8b048030617c071d8912978918593da38f47",
-    "src/terminal/cterm/cterm_render.c": "a85fe4eca38edfda019e5fda09fae203122b8796b68d9c0ac7f3b0b09c388cdf",
-    "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
+    "src/media/font_catalog/st_font_catalog.c": "6937c6662ba69882149081b4b915d17587bc3b841011653444f8d7746cc1cb67",
+    "src/terminal/cterm/cterm_render.c": "40ab3d15b551d1c28dd4e1a3fe7c25d1aaf9e7f67cf8b88a149c5d4e5b9e2757",
+    "src/tests/st_font_assignments_test.py": "8c3e0c87a366a3950a6073f668cbf6c166fd6580104e562b7d05d73234e94c57",
     "src/terminal/cterm/tests/st_cterm_test.c": "9f76724f229823077b8178e62e9ff8cb9b46c37a1e0a0528fdf315b8cb69255a",
-    "src/config/bbs_list/st_bbs_store.c": "d1999b433b2acca779faa82c441b1b690c5db65f2d4b6fba1fd04628fe6cffc1",
+    "src/config/bbs_list/st_bbs_store.c": "ff65237cac82c55d34b20a69061dcf0284e13653f20d629531209547f43131bc",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "1708e49b34d9df915e4b2afd0f227b5947d401cd1c967691a49503dbe74a827d",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
-    "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128",
+    "src/config/settings/st_settings_store.c": "e6b30e1d048a70f240974ca3407ee7012c37285340f7308d5f27dd0a616787af",
     "src/tests/st_emoji_picker_test.py": "94caf4154b2876fe021e7547dd2291e5c632d7ad280d8651091498c17ffb0e8e",
     "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
     "src/config/theme/tests/st_theme_test.c": "6bcc194d2af6fd9ea60b998eb673a81f12feb4225a0e6ee8ef032d87c5546f4b",
     "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
-    "scripts/menu_theme_editor.wren": "2baba9465446077aa3dfae52889f52d721bb6b5b2cc81bd0fc7b1bf909e9e40a",
+    "scripts/menu_theme_editor.wren": "2d7f6aca6c9a4229700b4cd774cffc84af94e2324dd3192a041e5ef576e40f09",
     "scripts/ui_demo.wren": "885059ec0b92c72e5fb97cc8a1a09e936718bbd1ed3722b3a2802f548a6d00ed",
     "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "5e9b49fbd6c675bf2e71761bd06992fa543390c6fd973a185bb11da5ec57f6d4",
     "src/tests/st_migrated_control_test.py": "312c3e7dd5c01f8f43298011300529084fe92a809bc3cd57c9b5b99ed6b9fda3",
-    "src/config/bbs_list/tests/st_bbs_list_test.c": "4745e9fef7e14f6820d280950123a2d1cc0d7bd0a45ef832f675ca7624cd1a55",
-    "src/config/bbs_list/st_bbs_profile_codec.c": "5bee0184f6bac06ff61636977619f6446a23893cadffb8b58a1322f0e4cef3d1",
+    "src/config/bbs_list/tests/st_bbs_list_test.c": "601dc461ca3c9916176d8af3983b3de203f786c8247460635a31e194090efca1",
+    "src/config/bbs_list/st_bbs_profile_codec.c": "6a8d73eb02423760c4fa65ceadb19d81db9831335861a545234f309c0a5c4498",
     "scripts/menu_ui.wren": "57232e460e4eec3bd090f28dad29eec09f897ea7f56666ac43646c365aba04f4",
     "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
     "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
@@ -4867,7 +4877,7 @@
     "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
     "src/media/pixels/tests/st_pixels_test.c": "2b6af7f5a1af22b8421ee2cf67e1c9c5eb49aaeae89cb35618cad799baece37d",
     "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b",
-    "docs/TERMINAL_CONFORMANCE.md": "532cd8b9313c532d01a46ff16ebd541b4fd38bf3a74e8f691685db04cf6a2c53",
+    "docs/TERMINAL_CONFORMANCE.md": "327f66758ae31b9e651acfd5f7735e485f378469de81a4c1a08a268f12393830",
     "docs/RIP154_CONFORMANCE.md": "aef32fc22d53972bae5acfdceea9830ad2795eac8b64b3e7d1232cb01a2e648e",
     "src/tests/terminal_conformance.json": "a7a4f8f14d5ee131a8dffabb7d51be052c3c19f410d6d1b38e2a99e78742cca7",
     "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "b37d726ee4c89ce0b278839dd5659abba1c82cb9a237a12d7f666c80774d63f6",
@@ -4878,33 +4888,36 @@
     "src/scripting/wren_host/tests/st_wren_digest_test.c": "026702e03fb1f3ae6a16a2e18554a9710bef2994cf9ccf100dd3ec0ffd1bf780",
     "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c": "6b73edbc7e051b958d663b3591f5db99062887dcf0252abcc856cc27089fe03f",
     "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c": "abb97ac4e4679e174f7374dd0afee96f1efb1914b82d13ac1e8b413863fa6a0e",
-    "src/terminal/cterm/tests/st_cterm_skypix_test.c": "73a6bbc11219a473f76607e25fad235d3ed680f0e806fa66b5eabae887046fed",
+    "src/terminal/cterm/tests/st_cterm_skypix_test.c": "b70d2d8ed308eb21590ef308434d0a374fe4917297aa3cab1341c5a7d469f774",
     "src/terminal/cterm/tests/test_skypix_vectors.py": "c78418a402197a251bd43b8e1f5274c4df04b02a8c233a4b21422fda9ad78684",
-    "src/tests/st_skypix_conformance_test.py": "fa5f903f0e5ea241ca1a8041b3afe56d8bf21495f0d4d44329033f855fa5d57e",
+    "src/tests/st_skypix_conformance_test.py": "c74da396228ffc122c8408e85f34273e3ba40e624d0bb8eadd3712b35054f682",
     "src/tests/st_amiga_font_manager_test.py": "428ec499a711893f78b3ed71243e198d74c89cfaf2966b6906fb4dca6bf0112f",
     "src/media/amiga_font/st_amiga_fonts.h": "a89688cc13b0aaf2ac43404475193c4235eed3932d38e81fa661f66d73a025bd",
-    "src/media/amiga_font/st_amiga_font.h": "38a5f1f117ee45d26a83e5c2e0228c7173b8396e0b589ffdf3159230aea947ce",
-    "src/media/amiga_font/st_amiga_font.c": "502c679b5dfca505cf01597f24a78246dad1f635926157c808c3c586e1f9e537",
-    "src/terminal/cterm/cterm_skypix.c": "2fe7729f59dfd15018f076de85777af582f6b23dc9089e2735c5440a227029ee",
+    "src/media/amiga_font/st_amiga_font.h": "6424b10e3d0c687ef221e4430e4169b7ec16dfd699fd531b40b1c92aeb27d466",
+    "src/media/amiga_font/st_amiga_font.c": "400f70fa84626c90dd815901b9a831501850ebbc5dc0e1ac50e4a86a3623501a",
+    "src/terminal/cterm/cterm_skypix.c": "709270269905f6c694126e5d14809bdcde1535ea65a2da0a8542ddf86a322483",
     "src/media/amiga_font/st_amiga_fonts.c": "c4c5f6bbf65a319651f9f13c004bed1d3eb12da4942126a82df25552e3d24b85",
     "src/media/amiga_font/tests/st_amiga_font_fault_test.c": "64892edfd9982fa28be9d4eaeeb5cbb9f6fd611acfecd32d0722b29ab744ad8d",
-    "src/tests/wren/bbs_setters.wren": "461b484a929c590b34d212801fb465ff963f10fe0e0c2968d0de6dc172891ce2",
+    "src/tests/wren/bbs_setters.wren": "96c94c02234c93bdd4ac027610a2ed25c32bdeb28b1736f243b1d5b378665db2",
     "src/terminal/cterm/tests/data/skypix/golden-vectors.json": "a7ba8d85c74ac60000cd104399413e88a2360fd5368224d7f63e998cd8fd638d",
-    "src/media/amiga_font/data/manifest.json": "395bddf733b71048ded8334a739d307963c0abb164aac793ee1899b8bf5e48be",
-    "docs/SKYPIX_CONFORMANCE.md": "f4657d7badcf0b3f722bbd4e80556a5b233cc3b93c2d809f3d4022afe8a62c13"
+    "src/media/amiga_font/data/manifest.json": "56069510f2d0bd964c4967700653e585fc5f6de118585624dbd852c55525ee11",
+    "docs/SKYPIX_CONFORMANCE.md": "1d61fba0bb43d0fbb8f1adfcaa41291f14cbc0f30ec042ec4c4d907bab8def20",
+    "src/media/font_catalog/tests/st_font_catalog_test.c": "3199a4ff7144ad988626e7133cc97c6313137a48ef6fd2d95c1e51dc1e4e85b2"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
     "compiler": "Clang 19.1.7",
     "cmake_build": "build-wren-input Debug; ST_CONSOLE_TEST=ON",
-    "tests_passed": 139,
+    "tests_passed": 157,
     "test_names": [
       "amiga_font",
       "amiga_font_transactions",
       "app_session_mode",
+      "app_startup",
       "bbs_cache_safety",
       "bbs_failures",
       "bbs_list",
+      "connection",
       "cterm",
       "cterm_apc",
       "cterm_apc_audio",
@@ -4923,9 +4936,22 @@
       "cterm_skypix",
       "cterm_stream_consistency",
       "cterm_text",
+      "font_catalog",
       "fonts",
       "screen_mode",
+      "settings",
+      "settings_failures",
+      "settings_store",
       "skypix_rom_vectors",
+      "st_console_ansi",
+      "st_console_ncurses",
+      "st_console_ncurses_capture",
+      "st_console_ncurses_cp437",
+      "st_console_ncurses_cp437_c_locale",
+      "st_console_ncurses_direct",
+      "st_console_ncurses_direct_cp437",
+      "st_console_ncurses_opaque",
+      "st_console_ncurses_rgb",
       "syncterm_amiga_font_manager",
       "syncterm_behavior_autoload",
       "syncterm_behavior_bbs_setters",
@@ -4996,6 +5022,8 @@
       "syncterm_conformance_queries_UTF-8",
       "syncterm_conformance_recovery_CP437",
       "syncterm_conformance_recovery_UTF-8",
+      "syncterm_font_assignments_CP437",
+      "syncterm_font_assignments_UTF-8",
       "syncterm_rip154_buttons_CP437",
       "syncterm_rip154_buttons_UTF-8",
       "syncterm_rip154_ellipses_CP437",
@@ -5011,6 +5039,7 @@
       "term_key_forward",
       "term_rip_encoding_consistency",
       "term_rip_v110a_wire",
+      "theme",
       "transfer",
       "transfer_interop_xymodem",
       "transfer_interop_zmodem",
@@ -5039,7 +5068,7 @@
       "wren_settings_runtime",
       "wren_sftp_live"
     ],
-    "limitations": "Native FreeBSD/headless verification; MinGW builds are cross-compilation only. No MSVC, Windows runtime, physical Amiga, audible sound or native graphical-backend claim. Focused staged-font validation reruns follow the complete 139-test pass."
+    "limitations": "Native FreeBSD/headless verification, including ANSI/curses fixtures. MinGW x86/x86_64 builds are cross-compilation only. No MSVC, Windows runtime, physical Amiga, audible sound or native graphical-backend claim. New reference text-position/buffering/hardware-cursor gaps are documented separately."
   },
   "follow_up_reviews": [
     {
@@ -5964,6 +5993,183 @@
       "regressions": "Tests first reproduced edited Graphics being omitted from the locked merge and unequal primary/alternate SkyPix planes. Fixes cover entries/defaults, concurrent edits/conflicts, canonical Graphics migration and identical graphics/default/custom text planes for all eight pens. Aspect checks cover connect/disconnect/scrollback, both variants and status choices. Copy-change fault injection reproduced malformed package publication; validation now checks staged bytes before any live-package rename and retains the prior valid family on failure.",
       "evidence_review": "Reviewed public declarations, native glyph metrics/ownership, staged transactions/cleanup, parser/raster/delay/session and transfer/cache/mailbox boundaries, menu/picker VM isolation, bundled consumers, independent vectors and coherent pixel assertions, and API docs. Refreshed only changed/new reviewed evidence.",
       "accounting": "82 public headers, 127 exclusions, 2508 items, 160 assessments; all 82 matrix rows independently match ledger counts/dispositions. Original 51 topics retain 19 resolved/32 open; separate profile-field-table documentation discrepancy resolved. Temporary burndown records/skill retained."
+    },
+    {
+      "topic": "skypix-preferences-descenders-system-ui",
+      "status": "implemented",
+      "approval": "User selected configuring the SkyPix connection from editable Screen Mode/Encoding/Font, rejected locked Pearl 8, reported clipped descenders, required system CP437 for all UI and supplied updated text rendering research.",
+      "scope": "ScreenMode canvas/aspect and Encoding wire preferences are honoured; AmigaFont/AmigaFontSize select initial/reset native strike. New Amiga640x200 preset. Native nominal width and baseline retained; fixed-cell descenders and proportional default home corrected. Native-font CR/LF independent, BS/HT use nominal width and VT is inert. Application UI keeps system CP437 independent of terminal slot zero/remote fonts; nonstandard cells scale system strike, text backends retain Unicode presentation. Theme documents preserve Font data but application rendering/editor use system CP437. Updated research gaps for eight-pixel ANSI positioning, receive-buffer wrapping, font-change margin scrolling and hardware-sprite cursor are recorded without claiming coverage.",
+      "tests_passed": [
+        "amiga_font",
+        "amiga_font_transactions",
+        "app_session_mode",
+        "app_startup",
+        "bbs_cache_safety",
+        "bbs_failures",
+        "bbs_list",
+        "connection",
+        "cterm",
+        "cterm_apc",
+        "cterm_apc_audio",
+        "cterm_keyboard",
+        "cterm_rip_assets",
+        "cterm_rip_engine",
+        "cterm_rip_icon_file",
+        "cterm_rip_live",
+        "cterm_rip_oracle",
+        "cterm_rip_parser",
+        "cterm_rip_raster",
+        "cterm_rip_transfer",
+        "cterm_rip_unicode_text",
+        "cterm_rip_v110a_live",
+        "cterm_rip_variables",
+        "cterm_skypix",
+        "cterm_stream_consistency",
+        "cterm_text",
+        "font_catalog",
+        "fonts",
+        "screen_mode",
+        "settings",
+        "settings_failures",
+        "settings_store",
+        "skypix_rom_vectors",
+        "st_console_ansi",
+        "st_console_ncurses",
+        "st_console_ncurses_capture",
+        "st_console_ncurses_cp437",
+        "st_console_ncurses_cp437_c_locale",
+        "st_console_ncurses_direct",
+        "st_console_ncurses_direct_cp437",
+        "st_console_ncurses_opaque",
+        "st_console_ncurses_rgb",
+        "syncterm_amiga_font_manager",
+        "syncterm_behavior_autoload",
+        "syncterm_behavior_bbs_setters",
+        "syncterm_behavior_button",
+        "syncterm_behavior_capture_cp437",
+        "syncterm_behavior_capture_utf8",
+        "syncterm_behavior_checkbox",
+        "syncterm_behavior_color",
+        "syncterm_behavior_console",
+        "syncterm_behavior_cterm_reset_cp437",
+        "syncterm_behavior_cterm_reset_utf8",
+        "syncterm_behavior_date",
+        "syncterm_behavior_draw",
+        "syncterm_behavior_emoji",
+        "syncterm_behavior_entry_editor",
+        "syncterm_behavior_form",
+        "syncterm_behavior_graphics_cp437",
+        "syncterm_behavior_graphics_utf8",
+        "syncterm_behavior_help",
+        "syncterm_behavior_input",
+        "syncterm_behavior_list",
+        "syncterm_behavior_logview",
+        "syncterm_behavior_main_menu_address",
+        "syncterm_behavior_menu",
+        "syncterm_behavior_menu_error",
+        "syncterm_behavior_menu_exit",
+        "syncterm_behavior_menu_position",
+        "syncterm_behavior_menu_shortcuts",
+        "syncterm_behavior_menubar",
+        "syncterm_behavior_palette",
+        "syncterm_behavior_picker",
+        "syncterm_behavior_pixels",
+        "syncterm_behavior_popup",
+        "syncterm_behavior_profile",
+        "syncterm_behavior_progress",
+        "syncterm_behavior_radio",
+        "syncterm_behavior_recovery",
+        "syncterm_behavior_recovery_close",
+        "syncterm_behavior_rendering_cp437",
+        "syncterm_behavior_rendering_utf8",
+        "syncterm_behavior_scrollback_cp437",
+        "syncterm_behavior_scrollback_utf8",
+        "syncterm_behavior_session_modes",
+        "syncterm_behavior_settings",
+        "syncterm_behavior_settings_ui",
+        "syncterm_behavior_spinbox",
+        "syncterm_behavior_status_cp437",
+        "syncterm_behavior_status_utf8",
+        "syncterm_behavior_statusbar",
+        "syncterm_behavior_style",
+        "syncterm_behavior_terminal_cp437",
+        "syncterm_behavior_terminal_utf8",
+        "syncterm_behavior_web_list",
+        "syncterm_behavior_widget",
+        "syncterm_conformance_attributes_CP437",
+        "syncterm_conformance_attributes_UTF-8",
+        "syncterm_conformance_editing_CP437",
+        "syncterm_conformance_editing_UTF-8",
+        "syncterm_conformance_extensions_CP437",
+        "syncterm_conformance_extensions_UTF-8",
+        "syncterm_conformance_keyboard_CP437",
+        "syncterm_conformance_keyboard_UTF-8",
+        "syncterm_conformance_margins_CP437",
+        "syncterm_conformance_margins_UTF-8",
+        "syncterm_conformance_movement_CP437",
+        "syncterm_conformance_movement_UTF-8",
+        "syncterm_conformance_queries_CP437",
+        "syncterm_conformance_queries_UTF-8",
+        "syncterm_conformance_recovery_CP437",
+        "syncterm_conformance_recovery_UTF-8",
+        "syncterm_font_assignments_CP437",
+        "syncterm_font_assignments_UTF-8",
+        "syncterm_rip154_buttons_CP437",
+        "syncterm_rip154_buttons_UTF-8",
+        "syncterm_rip154_ellipses_CP437",
+        "syncterm_rip154_ellipses_UTF-8",
+        "syncterm_rip154_interaction_CP437",
+        "syncterm_rip154_interaction_UTF-8",
+        "syncterm_rip154_raster_CP437",
+        "syncterm_rip154_raster_UTF-8",
+        "syncterm_rip154_wire_CP437",
+        "syncterm_rip154_wire_UTF-8",
+        "syncterm_skypix_conformance",
+        "term",
+        "term_key_forward",
+        "term_rip_encoding_consistency",
+        "term_rip_v110a_wire",
+        "theme",
+        "transfer",
+        "transfer_interop_xymodem",
+        "transfer_interop_zmodem",
+        "transfer_peer_shutdown",
+        "wren_cell-colours",
+        "wren_console_synthetic",
+        "wren_core-helpers",
+        "wren_digest",
+        "wren_directory_metadata",
+        "wren_directory_read_error",
+        "wren_draw_synthetic",
+        "wren_help_synthetic",
+        "wren_host",
+        "wren_input_synthetic",
+        "wren_logview_synthetic",
+        "wren_menu_contract",
+        "wren_menu_synthetic",
+        "wren_picker_contract",
+        "wren_popup_synthetic",
+        "wren_progress_synthetic",
+        "wren_screen-mode",
+        "wren_script-catalog",
+        "wren_settings-reload",
+        "wren_settings-save-failure",
+        "wren_settings-stale",
+        "wren_settings_runtime",
+        "wren_sftp_live"
+      ],
+      "verification": {
+        "native": "Clang Debug/Botan full CMake build; 145 regression CTests passed (114.93s). Ten additional theme/ANSI/curses backend checks and both independent CP437/UTF-8 font-assignment tests passed, for 157 unique passing tests. Assignment fixture repaired to use checked setAltChars/setBlinkAltChars/setNoBright/setNoBlink APIs.",
+        "gcc": "GCC Debug/OpenSSL configured and full build passed; thirteen focused native/API/application tests passed (21.02s).",
+        "sanitizers": "Clang ASan/UBSan/OpenSSL configured and full build passed; same thirteen tests passed (59.89s). Unsupported FreeBSD leak detection disabled, existing C++ vptr exclusion retained.",
+        "capability_absent": "CRYPTO_BACKEND=none and Unifont disabled configured/full build passed; same thirteen tests passed (20.73s).",
+        "windows": "MinGW x86 and x86_64 configured/full cross-builds passed, including DLL, launchers and test targets. No runtime execution or Wine; MSVC unavailable locally.",
+        "data": "Emoji catalog --check passed. Existing independent ROM vectors retained; font width metadata records original native-file hashes. New literal Pearl g/p/y, Ruby/12 e-acute and CP437 A rasters are independent expected pixels, with coherent reply-fenced captures.",
+        "warnings": "No compiler warnings or sanitizer reports in final exercised configurations."
+      },
+      "regressions": "New tests first failed at truncated descender rows, shifted Ruby accent and CR advancing Y; fixes preserve bitmap baselines and nominal control metrics. Real entry editor saves Ruby/12, UTF-8 and Amiga640x200. Synthetic installed byte font checks CP437 C1 positions and UTF-8 mapping; canvas edge/brush beyond old 640x200 limit, default restore, cursor validity and system CP437 status/Alt+Z/download dialog isolation are covered. ANSI/curses Unicode and wide-cell expectations remained unchanged after retaining text-backend presentation registrations.",
+      "evidence_review": "Reviewed changed public declarations, profile/locked merge persistence, menu fields and catalogs, native font metadata/lifetimes, fixed-cell raster conversion, default/pixel text anchors and controls, exact canvas clipping/aspect, terminal/session forwarding and native/VM system font separation. Read updated supplied rendering sections and preserved explicit remaining compatibility limits.",
+      "accounting": "82 public headers, 127 exclusions, 2519 items, 160 assessments; all 82 matrix rows match. Original 51 topics retain 19 resolved and 32 open. Profile-field table remains resolved with 53 keys/59 members. Temporary burndown documents/skill retained."
     }
   ]
 }

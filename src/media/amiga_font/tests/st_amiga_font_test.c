@@ -77,7 +77,8 @@ int main(int argc, char **argv)
 	be16(h + 200, 65534);
 	st_amiga_font_t *font = NULL;
 	CHECK(st_amiga_font_decode(&font, image, sizeof(image)) == 0);
-	CHECK(st_amiga_font_height(font) == 3 && st_amiga_font_baseline(font) == 2);
+	CHECK(st_amiga_font_width(font) == 8 && st_amiga_font_height(font) == 3 &&
+		  st_amiga_font_baseline(font) == 2);
 	const struct st_amiga_glyph *g = st_amiga_font_glyph(font, 'A');
 	CHECK(g->width == 9 && g->height == 3 && g->bearing == -2 && g->advance == 3);
 	CHECK(g->stride == 2 && g->bits[0] == 0x80 && g->bits[1] == 0x80);

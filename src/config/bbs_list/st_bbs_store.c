@@ -26,7 +26,7 @@ static const char *profile_keys[] = {
 	"ScreenMode", "NoStatus", "DownloadPath", "UploadPath", "LogFile",
 	"TransferLogLevel", "ProtocolLogLevel", "CTermLogLevel", "AppendLogFile", "BPSRate",
 	"ANSIMusic", "AddressFamily", "Font", "Encoding", "HidePopups", "Graphics", "Comment",
-	"WrenScripts", "ForceLCF", "YellowIsYellow", "TerminalType", "LFExpand",
+	"AmigaFont", "AmigaFontSize", "WrenScripts", "ForceLCF", "YellowIsYellow", "TerminalType", "LFExpand",
 	"TelnetBrokenTextmode", "TelnetDeferNegotiate", "TLSTrustWebPKI",
 	"TLSTrustedCertificate", "TLSClientCertificate", "TLSClientKey",
 	"TLSPSKIdentity", "TLSPSK", "TLSPSKVersion", "TLSVersionFloor",

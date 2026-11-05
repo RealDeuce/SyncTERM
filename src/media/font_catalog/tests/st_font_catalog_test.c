@@ -22,6 +22,45 @@
 	} \
 } while (0)
 
+static int check_amiga_descenders(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 4, .rows = 1, .cell_width = 8, .cell_height = 8};
+	st_console_t *console = NULL;
+	st_font_catalog_t *catalog = NULL;
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&catalog, console) == 0);
+	CHECK(st_font_catalog_load_amiga(catalog, 0, st_amiga_font_builtin("pearl.font", 8),
+									 ST_CODEPAGE_ISO_8859_1) == 0);
+	uint16_t identifier;
+	CHECK(st_font_catalog_identifier(catalog, 0, &identifier));
+	struct st_console_style style = {.font = identifier,
+									 .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
+									 .background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0)};
+	CHECK(st_console_set_style(console, &style) == 0);
+	CHECK(st_console_write_utf8(console, "gpy", 3) == 0);
+	struct st_pixel_buffer *pixels = NULL;
+	const struct st_console_rect area = {0, 0, 24, 8};
+	CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
+	/* Literal rows from the pinned Pearl/8 input, including its final
+	 * descender rows. No expected raster is generated with the renderer. */
+	static const uint8_t expected[3][8] = {
+		{0, 0, 0x7e, 0xc6, 0xc6, 0x7e, 0x06, 0x7c},
+		{0, 0, 0xfc, 0xc6, 0xc6, 0xfc, 0xc0, 0xc0},
+		{0, 0, 0xc3, 0x66, 0x3c, 0x18, 0x30, 0x60},
+	};
+	for (unsigned g = 0; g < 3; ++g)
+		for (unsigned y = 0; y < 8; ++y)
+			for (unsigned x = 0; x < 8; ++x)
+				CHECK(pixels->primary[y * 24 + g * 8 + x] ==
+					  ((expected[g][y] & (0x80u >> x)) ? style.foreground : style.background));
+	st_pixel_buffer_destroy(pixels);
+	st_font_catalog_destroy(catalog);
+	st_console_destroy(console);
+	return 0;
+}
+
 static int
 check_small_font_tofu(uint32_t height)
 {
@@ -104,6 +143,7 @@ check_small_font_tofu(uint32_t height)
 int
 main(void)
 {
+	CHECK(check_amiga_descenders()==0);
 	CHECK(check_small_font_tofu(8) == 0);
 	CHECK(check_small_font_tofu(14) == 0);
 	CHECK(check_small_font_tofu(16) == 0);

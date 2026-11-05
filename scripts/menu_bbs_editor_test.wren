@@ -20,6 +20,7 @@ class MenuTest {
     testDelete_()
     testEditorClear_()
     testDiscovery_()
+    testSkyPixSettings_()
     return [__pass, __fail]
   }
 
@@ -33,6 +34,7 @@ class MenuTest {
     testDelete_()
     testEditorClear_()
     testDiscovery_()
+    testSkyPixSettings_()
     testDefaultsRejectScripts_()
     testEditorScripts_()
     testPersistence_()
@@ -63,6 +65,19 @@ class MenuTest {
   static pane_(scripts, changes) {
     return ScriptListPane.new(FakeApp.new(), scripts,
         Fn.new { changes[0] = changes[0] + 1 })
+  }
+
+  static testSkyPixSettings_() {
+    for (variant in [3, 4]) {
+      var d = {"graphics": variant, "screenMode": 0, "encoding": 0, "amigaFont": "Ruby.font", "amigaFontSize": 12}
+      d["graphics"] = variant
+      BbsEditor.changeScreen_(d, 3)
+      BbsEditor.changeEncoding_(d, 255)
+      check_(d["graphics"] == variant && d["screenMode"] == 3 && d["encoding"] == 255,
+          "SkyPix screen and encoding remain configurable")
+      check_(d["amigaFont"] == "Ruby.font" && d["amigaFontSize"] == 12,
+          "SkyPix font survives independent screen and encoding edits")
+    }
   }
 
   static testMoveCommit_() {

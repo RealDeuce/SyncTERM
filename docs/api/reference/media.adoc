@@ -5,8 +5,9 @@
 
 `st_amiga_font.h` supplies immutable compiled strikes and owned decoded HUNK
 bitmap fonts. `st_amiga_font_glyph` returns borrowed native bitmap/stride/bit
-position and signed bearing/advance/top metrics; it does not convert to fixed
-console cells. Compiled values have static lifetime; `st_amiga_font_release`
+position and signed bearing/advance/top metrics. `st_amiga_font_width` returns
+the native nominal cell width, independently of height and glyph advance. The
+decoder does not convert to fixed console cells. Compiled values have static lifetime; `st_amiga_font_release`
 also accepts them. Decoded fonts own their file bytes and survive replacement
 or removal of the package from which they were loaded. Decode outputs remain
 unchanged on failure. Family descriptor decoding retains every referenced
@@ -24,9 +25,20 @@ fallback; lookup can return a usable compiled fallback together with the actual
 error for missing/corrupt installed data. No neighbouring size is stretched.
 
 The persistent menu host owns consent, replacement confirmation and stale
-snapshot checks. The terminal owns selected fonts; scripts receive immutable
+snapshot checks. The application retains the configured default strike until
+terminal destruction;
+remote selections own their decoded strikes. Scripts receive immutable
 family metadata through the menu API rather than native bitmap pointers.
 See link:../../SKYPIX_CONFORMANCE.md[SkyPix conformance] for sources and tests.
+
+`st_font_catalog_load_amiga` borrows an immutable native strike for the call,
+registers a copied fixed-cell raster, and associates its byte positions with the
+supplied codepage. Failure preserves the prior selector. Conversion subtracts
+the native top-to-baseline adjustment for ordinary fixed cells, preserving the
+bottom bitmap rows; pixel-positioned SkyPix text applies its separate RastPort
+baseline. The catalog's system CP437 entry remains available at arbitrary cell
+sizes through console scaling. Application UI keeps that registration separate
+from terminal slot zero and remote replacements.
 
 ==== Audio mixer
 

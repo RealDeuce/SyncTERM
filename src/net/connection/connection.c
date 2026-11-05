@@ -802,6 +802,7 @@ st_connection_profile_geometry(const struct st_profile *profile,
 		[ST_SCREEN_MODE_ATARIST_40X25] = {40, 25},
 		[ST_SCREEN_MODE_ATARIST_80X25] = {80, 25},
 		[ST_SCREEN_MODE_ATARIST_80X25_MONO] = {80, 25},
+		[ST_SCREEN_MODE_AMIGA_640X200] = {80, 25},
 	};
 	int mode;
 

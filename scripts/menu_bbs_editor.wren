@@ -1,5 +1,5 @@
 import "syncterm" for ConnType, FilePickerOptions, Host, Key, KeyEvent, Mod,
-    MouseEvent, TLSVersion, Profile
+    MouseEvent, TLSVersion, Profile, Error, Text
 import "syncterm_menu" for Menu, DirectoryEntry
 import "menu_ui" for ChoiceViewState, MenuUi
 import "ui_app" for App
@@ -450,6 +450,8 @@ class BbsEditor {
       "encoding": p.encoding,
       "termName": p.termName,
       "font": p.font,
+      "amigaFont": p.amigaFont,
+      "amigaFontSize": p.amigaFontSize,
       "music": p.music,
       "graphics": p.graphics,
       "comment": p.comment,
@@ -929,10 +931,10 @@ class BbsEditor {
   static graphicsHelp_() {
     return "# Graphics\n\nNone uses ordinary terminal emulation. RIP v1 " +
         "selects its EGA, CP437 and RIPterm preset. RIP v3 uses ANSI screen " +
-        "modes. SkyPix uses a separate 640x200, Latin-1 Amiga renderer with " +
-        "Pearl 8 as its default font. Kick 1.3 and Kick 3.1 select the " +
+        "modes. SkyPix uses the selected canvas, encoding and Amiga font. " +
+        "Its initial preset is 640x200, Latin-1 and Pearl 8. Kick 1.3 and Kick 3.1 select the " +
         "original Amiga rendering differences; tested Kick 2.04 matches 3.1. " +
-        "SkyPix preserves the inactive screen, encoding and font preferences."
+        "SkyPix font choices come from Amiga Font Management."
   }
 
   static logFileHelp_() {
@@ -1053,6 +1055,10 @@ class BbsEditor {
 
   static changeEncoding_(d, encoding) {
     if (encoding == d["encoding"]) return
+    if (d["graphics"] >= 3) {
+      d["encoding"] = encoding
+      return
+    }
     d["encoding"] = encoding
     var family = encodingFamily_(encoding)
     if (family_(d["screenMode"]) != family) {
@@ -1069,6 +1075,10 @@ class BbsEditor {
   }
 
   static changeScreen_(d, mode) {
+    if (d["graphics"] >= 3) {
+      d["screenMode"] = mode
+      return
+    }
     var old = d["screenMode"]
     var family = family_(mode)
     d["screenMode"] = mode
@@ -1122,7 +1132,12 @@ class BbsEditor {
   }
 
   static changeGraphics_(d, version) {
+    var wasSkyPix = d["graphics"] >= 3
     d["graphics"] = version
+    if (version >= 3 && !wasSkyPix) {
+      d["screenMode"] = 30
+      d["encoding"] = 17
+    }
     if (version == 1) {
       d["screenMode"] = 5
       d["encoding"] = 0
@@ -1132,6 +1147,34 @@ class BbsEditor {
       d["encoding"] = 0
       selectFont_(d, 0)
     }
+  }
+
+  static amigaFontRow_(app, d) {
+    return row_("Font", "%(d["amigaFont"]) %(d["amigaFontSize"])", Fn.new {
+      var families = Menu.amigaFonts
+      if (families is Error) {
+        Alert.show(app, "Amiga Fonts", families.message)
+        return
+      }
+      var choices = []
+      var strikes = []
+      var current = 0
+      for (family in families) {
+        for (height in family.sizes) {
+          if (Text.caselessKey(family.name) == Text.caselessKey(d["amigaFont"]) && height == d["amigaFontSize"]) current = strikes.count
+          choices.add([strikes.count, "%(family.name) %(height)"])
+          strikes.add([family.name, height])
+        }
+      }
+      var value = MenuUi.choice(app, "Amiga Font", choices, current,
+          "# Amiga Font\n\nChoose the initial and reset font for this BBS. " +
+          "Install or remove families in Program Settings, Amiga Font Management. " +
+          "The encoding is selected separately; bitmap font files do not identify a codepage.")
+      if (value != null) {
+        d["amigaFont"] = strikes[value][0]
+        d["amigaFontSize"] = strikes[value][1]
+      }
+    })
   }
 
   static editColor_(app, color, defaultColor, colors, entry) {
@@ -1359,31 +1402,31 @@ class BbsEditor {
            [TLSVersion.tls12, "TLS 1.2 (compatibility)"]]))
     }
 
-    if (d["graphics"] >= 3) {
-      rows.add(row_("Screen Mode", "SkyPix 640x200 (80x25)", Fn.new {}))
-      rows.add(row_("Encoding", "ISO-8859-1", Fn.new {}))
-      rows.add(row_("Font", "Amiga fonts (Pearl 8 default)", Fn.new {}))
-    } else {
-    rows.add(row_("Screen Mode", Menu.screenModes[d["screenMode"]],
+    var screenChoices = d["graphics"] >= 3 ? Menu.canvasModes : Menu.screenModes
+    var screenName = d["graphics"] >= 3 ? MenuUi.rowName(screenChoices, d["screenMode"]) : Menu.screenModes[d["screenMode"]]
+    rows.add(row_("Screen Mode", screenName,
         Fn.new {
-      var value = MenuUi.choice(app, "Screen Mode", Menu.screenModes,
-          d["screenMode"], screenModeHelp_())
+      var value = MenuUi.choice(app, "Screen Mode", screenChoices,
+          d["screenMode"], d["graphics"] >= 3 ? "# SkyPix Canvas\n\nChoose the canvas resolution and aspect. The character grid follows the selected Amiga font size. The status row stays outside the canvas." : screenModeHelp_())
       if (value != null) changeScreen_(d, value)
     }))
     rows.add(row_("Encoding", MenuUi.rowName(Menu.encodings, d["encoding"]),
         Fn.new {
       var value = MenuUi.choice(app, "Encoding", Menu.encodings,
-          d["encoding"], encodingHelp_())
+          d["encoding"], d["graphics"] >= 3 ? "# SkyPix Encoding\n\nChoose the BBS text encoding. Amiga bitmap fonts have byte-indexed glyphs and no encoding tag. With UTF-8 input the Amiga glyph mapping defaults to Latin-1." : encodingHelp_())
       if (value != null) changeEncoding_(d, value)
     }))
-    var fontChoices = Menu.fontsForEncoding(d["encoding"]).map {|row|
-      return [row[1], row[1]]
-    }.toList
-    rows.add(row_("Font", d["font"], Fn.new {
-      var value = MenuUi.choice(app, "Font", fontChoices, d["font"],
-          fontHelp_())
-      if (value != null) changeFont_(d, value)
-    }))
+    if (d["graphics"] >= 3) {
+      rows.add(amigaFontRow_(app, d))
+    } else {
+      var fontChoices = Menu.fontsForEncoding(d["encoding"]).map {|row|
+        return [row[1], row[1]]
+      }.toList
+      rows.add(row_("Font", d["font"], Fn.new {
+        var value = MenuUi.choice(app, "Font", fontChoices, d["font"],
+            fontHelp_())
+        if (value != null) changeFont_(d, value)
+      }))
     }
     if (ssh_(d["connType"]) || telnet_(d["connType"]) ||
         d["connType"] == 1 || d["connType"] == 2 ||
@@ -1522,6 +1565,8 @@ class BbsEditor {
     p.screenMode = d["screenMode"]
     p.termName = d["termName"]
     p.font = d["font"]
+    p.amigaFont = d["amigaFont"]
+    p.amigaFontSize = d["amigaFontSize"]
     p.encoding = d["encoding"]
     p.music = d["music"]
     p.graphics = d["graphics"]

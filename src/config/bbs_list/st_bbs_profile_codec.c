@@ -28,7 +28,7 @@ static const char *screen_modes[] = {
 	"132x30", "132x34", "132x43", "132x50", "132x60", "C64",
 	"C128-40col", "C128-80col", "Atari", "Atari-XEP80", "Custom",
 	"EGA80x25", "VGA80x25", "Prestel", "BBCMicro7", "AtariST40x25",
-	"AtariST80x25", "AtariST80x25Mono", NULL
+	"AtariST80x25", "AtariST80x25Mono", "Amiga640x200", NULL
 };
 
 static const char *flow_controls[] = {
@@ -145,6 +145,8 @@ st_bbs_decode_profile(struct st_profile *profile,
 	profile->graphics_mode = (int)ini_section_get_enum_names(section,
 	    ini_section_has_key(section, "Graphics") ? "Graphics" : "RIP",
 	    ENUM_NAMES(graphics_modes), ST_GRAPHICS_NONE);
+	copy_fixed(profile->amiga_font, sizeof(profile->amiga_font), section, "AmigaFont", "Pearl.font");
+	profile->amiga_font_size = (uint16_t)bounded_int(section, "AmigaFontSize", 8, 1, UINT16_MAX);
 	profile->force_lcf = ini_section_get_bool(section, "ForceLCF", false);
 	profile->yellow_is_yellow = ini_section_get_bool(section,
 	    "YellowIsYellow", false);
@@ -296,6 +298,8 @@ st_bbs_encode_profile(ini_section_t *section,
 	(void)ini_section_remove_key(section, "RIP");
 	ENCODE(ini_section_set_enum_names(section, "Graphics", ENUM_NAMES(graphics_modes),
 	    (size_t)profile->graphics_mode, &ini_default_style));
+	ENCODE(ini_section_set_string(section, "AmigaFont", profile->amiga_font, &ini_default_style));
+	ENCODE(ini_section_set_uint64(section, "AmigaFontSize", profile->amiga_font_size, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "ForceLCF", profile->force_lcf,
 	    &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "YellowIsYellow",

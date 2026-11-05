@@ -3578,6 +3578,14 @@ Slots 46+ hold configured or remotely supplied fonts.  `Font.count`
 reports the current catalog extent; use `Font.available(i)` to determine
 whether a catalog slot has a bitmap for the active cell dimensions.
 
+Application UI uses system CP437, independently of the connection's font.
+`Font.cp437English` remains the system font for Wren drawing even when SkyPix
+or a remote command replaces terminal slot zero. The status bar, online menu,
+file picker and transfer dialogs use it; built-in/loaded theme snapshots resolve
+explicit font choices to system CP437. The console scales a system strike when
+the connection's native cell dimensions have no exact system strike. Text
+backends retain Unicode presentation and use their external terminal's font.
+
 The `Font` class itself only exposes named constants for the most
 useful slots; every slot is reachable numerically through
 `Screen.font[i]` regardless.  The full built-in table follows.
@@ -4459,7 +4467,7 @@ updating another entry's statistics.
   `tlsPsk`, `tlsPskVersion`, `tlsVersionFloor`, `ghostProgram`
 
 | Presentation
-| `music`, `graphics`, `termName`, `screenMode`, `font`, `encoding`,
+| `music`, `graphics`, `termName`, `screenMode`, `font`, `amigaFont`, `amigaFontSize`, `encoding`,
   `palette`, `noStatus`, `hidePopups`, `yellowIsYellow`, `forceLcf`, `lfExpand`
 
 | Files and logging
@@ -5035,9 +5043,12 @@ existing file unchanged.
 
 Program Settings includes an Amiga Fonts manager. User-installed families live
 under `fonts/amiga/` beside the active `syncterm.ini`; the 11 bundled families
-(39 strikes) are compiled into SyncTERM and are not copied there. SkyPix font
+(39 strikes) are compiled into SyncTERM and are not copied there. The per-BBS SkyPix Font
+choice stores `Profile.amigaFont` (family name, default `Pearl.font`) and
+`Profile.amigaFontSize` (exact strike height, 1..65535, default 8). Initial
 selection tries an exact installed name/height, an exact bundled strike, then
-Pearl 8; it does not stretch a neighbouring size. A selected font remains valid
+Pearl 8; it does not stretch a neighbouring size. Reset restores that configured
+initial strike. Unavailable remote font requests also fall back to it. A selected font remains valid
 if its installed package is subsequently replaced or removed. Catalog queries
 and management are menu-only; connected scripts cannot import this interface.
 
@@ -5047,6 +5058,10 @@ duplicate platform-dependent enum tables:
 [options="header",cols="2m,4"]
 |===
 | Menu member | Result
+
+| `canvasModes`
+| `[ScreenMode, displayName]` rows describing pixel canvases/aspects for the
+  SkyPix editor; text columns/rows derive from the selected Amiga strike.
 
 | `screenModes`, `cursorStyles`, `scalingModes`
 | Lists of display names indexed by the corresponding numeric setting.
@@ -5640,6 +5655,7 @@ Standard modes encode their dimensions in the name (e.g. `c80x25` =
 | `atariSt40x25`      | 27   | Atari ST 40×25 (low-res color).
 | `atariSt80x25`      | 28   | Atari ST 80×25 (medium-res color).
 | `atariSt80x25Mono`  | 29   | Atari ST 80×25 monochrome (high-res).
+| `amiga640x200`      | 30   | Amiga 640×200 pixel canvas, displayed at 4:3.
 |===
 
 ==== AddressFamily
@@ -5688,10 +5704,17 @@ character).
 SkyPix is selected before connecting, independently of RIP. Both variants use
 JR-Comm command behaviour, Pearl 8 by default, native Amiga font metrics and
 50 Hz delays; their rendering differences concern ellipse arithmetic and final
-proportional-glyph overhang. Effective geometry is 80x25 at 8x8 (640x200), displayed at 4:3, with a
-separate status row when enabled, and the wire character set is Latin-1. Stored
-ANSI geometry, font, palette and encoding preferences are preserved. Runtime
-encoding changes cannot switch a SkyPix session to another character set.
+proportional-glyph overhang. Selecting SkyPix initially presets
+`ScreenMode.amiga640x200` (4:3) and Latin-1. Screen Mode selects the pixel canvas,
+Encoding selects the wire encoding, and Font selects an installed or bundled
+Amiga family/height for initial text and reset. These choices remain editable.
+The text grid rounds up to complete cells using the strike's native nominal
+width/height; graphics clip to the exact chosen canvas. An optional separate
+status row uses the same pixel scale. Ordinary `Profile.font` remains available
+for other graphics modes. Classic Amiga fonts are byte-indexed and carry no
+charset tag; codepage connections use that codepage's glyph positions, and
+UTF-8 text uses Latin-1 glyph mapping. C1 positions may contain glyphs even when
+a selected terminal decoding mode interprets those bytes as controls.
 `CTerm.skypix` reports the selected graphics engine, rather than inferring it
 from a remote command. RIP sessions do not interpret SkyPix commands.
 

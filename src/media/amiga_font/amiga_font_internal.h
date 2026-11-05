@@ -4,7 +4,7 @@
 #define ST_AMIGA_FONT_INTERNAL_H_
 #include "st_amiga_font.h"
 struct st_amiga_font {
-	unsigned height, baseline;
+	unsigned width, height, baseline;
 	struct st_amiga_glyph glyphs[256];
 	uint8_t *storage;
 };

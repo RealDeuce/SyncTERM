@@ -239,6 +239,7 @@ test_legacy_mode_geometry(void)
 		uint32_t pixels_x, pixels_y, aspect_x, aspect_y;
 	} expected[] = {
 		{ST_SCREEN_MODE_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 4, 3},
+		{ST_SCREEN_MODE_AMIGA_640X200, 80, 25, 7, 7, 8, 8, 640, 200, 4, 3},
 		{ST_SCREEN_MODE_LCD_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 8, 5},
 		{ST_SCREEN_MODE_132X37, 132, 37, 14, 15, 8, 16, 1056, 592, 16, 9},
 		{ST_SCREEN_MODE_132X52, 132, 52, 14, 15, 8, 16, 1056, 832, 5, 4},

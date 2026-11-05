@@ -118,6 +118,8 @@ st_profile_init(struct st_profile *profile)
 		profile->protocol_log_level = ST_PROFILE_LOG_ERROR;
 		profile->cterm_log_level = ST_PROFILE_LOG_ERROR;
 		profile->music = ST_PROFILE_MUSIC_BANSI;
+		profile->amiga_font_size = 8;
+		(void)strlcpy(profile->amiga_font, "Pearl.font", sizeof(profile->amiga_font));
 		profile->tls_trust_web_pki = true;
 		profile->tls_psk_version = ST_TLS_VERSION_1_3;
 		profile->append_log = true;

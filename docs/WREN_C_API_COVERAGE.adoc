@@ -22,7 +22,7 @@ limitations; it does not authorize implementing every omitted C facility.
 
 == Result and how to read this report
 
-The review covers 82 project-owned public headers, 2,508 named native items,
+The review covers 82 project-owned public headers, 2,519 named native items,
 and 127 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
 broader API-scope decisions, plus one stale documentation finding. Nineteen topics
@@ -174,7 +174,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/config/consent_token/st_consent_token.h[config/consent_token/st_consent_token.h] | 0 | 0 | 0 | 4 | 0 | +consent.signer+
 | link:../src/config/ini/ini.h[config/ini/ini.h] | 0 | 0 | 58 | 0 | 0 | +config.ini+
 | link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 24 | 9 | 0 | 0 | 0 | +list.crypto+, +list.crypto.metadata+
-| link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 155 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
+| link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 158 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
 | link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 86 | 1 | 6 | 12 | 0 | +settings.disk-reload+, +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.recent-result+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
 | link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 115 | 0 | 0 | 7 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
 | link:../src/io/file_lock/st_file_lock.h[io/file_lock/st_file_lock.h] | 0 | 0 | 0 | 2 | 0 | +files.transaction-lock+
@@ -182,14 +182,14 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/io/filesystem/filesystem.h[io/filesystem/filesystem.h] | 14 | 4 | 3 | 2 | 0 | +files.grants+, +files.link-metadata+, +files.mkdir-internal+, +files.rename-copy+, +files.truncate+
 | link:../src/io/path/path.h[io/path/path.h] | 0 | 10 | 0 | 0 | 0 | +paths.picker+
 | link:../src/io/serial/serial.h[io/serial/serial.h] | 12 | 0 | 8 | 5 | 0 | +serial.connection+, +serial.lines+, +serial.transport-owner+
-| link:../src/media/amiga_font/st_amiga_font.h[media/amiga_font/st_amiga_font.h] | 2 | 0 | 0 | 23 | 0 | +fonts.amiga-packages+, +fonts.amiga-renderer+
+| link:../src/media/amiga_font/st_amiga_font.h[media/amiga_font/st_amiga_font.h] | 2 | 0 | 0 | 24 | 0 | +fonts.amiga-packages+, +fonts.amiga-renderer+
 | link:../src/media/amiga_font/st_amiga_fonts.h[media/amiga_font/st_amiga_fonts.h] | 13 | 0 | 0 | 4 | 0 | +fonts.amiga-packages+, +fonts.amiga-store-owner+
 | link:../src/media/audio/audio.h[media/audio/audio.h] | 12 | 0 | 32 | 6 | 0 | +audio.backends+, +audio.engine-owner+, +audio.playback+
 | link:../src/media/audio/st_audio_runtime.h[media/audio/st_audio_runtime.h] | 0 | 0 | 0 | 8 | 0 | +audio.runtime+
 | link:../src/media/audio_file/st_audio_file.h[media/audio_file/st_audio_file.h] | 0 | 0 | 5 | 0 | 0 | +audio.decode+
 | link:../src/media/audio_mixer/audio_mixer.h[media/audio_mixer/audio_mixer.h] | 0 | 0 | 0 | 23 | 0 | +audio.mixer+
 | link:../src/media/console/st_console.h[media/console/st_console.h] | 209 | 62 | 24 | 75 | 0 | +console.capabilities+, +console.cells+, +console.clipboard-url-caps+, +console.display-controls+, +console.focus-held+, +console.immutable-expand+, +console.input-events+, +console.operation-status+, +console.operations+, +console.owner+, +console.rich-font+, +console.style-bits+
-| link:../src/media/font_catalog/st_font_catalog.h[media/font_catalog/st_font_catalog.h] | 15 | 0 | 0 | 5 | 0 | +fonts.catalog+, +fonts.catalog-owner+, +fonts.codepage-loading+, +fonts.load-errors+
+| link:../src/media/font_catalog/st_font_catalog.h[media/font_catalog/st_font_catalog.h] | 15 | 0 | 0 | 6 | 0 | +fonts.catalog+, +fonts.catalog-owner+, +fonts.codepage-loading+, +fonts.load-errors+
 | link:../src/media/fonts/st_builtin_fonts.h[media/fonts/st_builtin_fonts.h] | 4 | 0 | 1 | 1 | 0 | +fonts.builtin+, +fonts.raster-owner+, +fonts.vertical-compatibility+
 | link:../src/media/fonts/st_emoji_fonts.h[media/fonts/st_emoji_fonts.h] | 0 | 0 | 0 | 3 | 0 | +fonts.st_emoji_fonts+
 | link:../src/media/fonts/st_presentation_font.h[media/fonts/st_presentation_font.h] | 0 | 0 | 0 | 4 | 0 | +fonts.st_presentation_font+
@@ -216,12 +216,12 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/st_syncterm_icon.h[st_syncterm_icon.h] | 0 | 0 | 0 | 1 | 0 | +application.st_syncterm_icon+
 | link:../src/st_terminfo.h[st_terminfo.h] | 0 | 0 | 0 | 1 | 0 | +application.st_terminfo+
 | link:../src/syncterm_types.h[syncterm_types.h] | 0 | 0 | 0 | 0 | 0 | (no named declarations)
-| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 90 | 1 | 1 | 82 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
+| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 90 | 1 | 1 | 85 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
 | link:../src/terminal/hyperlink/st_hyperlink.h[terminal/hyperlink/st_hyperlink.h] | 5 | 0 | 0 | 8 | 0 | +hyperlinks.gc-owner+, +hyperlinks.registry+
 | link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 9 | 0 | +ooii.mode+, +ooii.protocol+
 | link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
 | link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 7 | 0 | +history.clear+, +history.owner+
-| link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 71 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+
+| link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 74 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+
 | link:../src/text/codepage/st_codepage.h[text/codepage/st_codepage.h] | 0 | 35 | 0 | 0 | 0 | +text.codepages+
 | link:../src/text/emoji/st_emoji_catalog.h[text/emoji/st_emoji_catalog.h] | 6 | 0 | 0 | 0 | 0 | +emoji.catalog+
 | link:../src/text/emoji/st_emoji_locale.h[text/emoji/st_emoji_locale.h] | 6 | 0 | 0 | 0 | 0 | +emoji.locale+
@@ -1119,8 +1119,9 @@ Evidence: link:../src/net/webget/st_webget.h[src/net/webget/st_webget.h:41]; lin
 [[profile-field-table]]
 === Profile field-count table (resolved)
 
-The approved SkyPix integration corrected the table to 51 canonical keys and
-57 profile members, including CTermLogLevel -> Profile.ctermLogLevel. It also
+The approved SkyPix integration and configurable-font follow-up corrected the
+table to 53 canonical keys and 59 profile members, including
+CTermLogLevel -> Profile.ctermLogLevel and AmigaFont/AmigaFontSize. It also
 records canonical Graphics/legacy RIP fallback and distinguishes the detailed
 DirectoryEntry.source from the two-value Session.entrySource classification.
 The binding already existed; this resolves stale coverage documentation.
@@ -1441,13 +1442,17 @@ remains partial even though SkyPix now consumes the native receive mailbox.
 
 Both variants follow the user's JR-Comm reference revision, including Pearl 8,
 50-Hz nonblocking delays, separate assets and the Kickstart rendering differences.
-SkyPix fixes the logical 640x200 Latin-1 canvas while preserving inactive profile
-preferences; it displays at 4:3 with the optional status row at the same pixel
-scale. Font imports validate complete confined families before publication;
+The user-directed follow-up makes ScreenMode and Encoding configure the SkyPix
+connection, with AmigaFont/AmigaFontSize selecting its initial/reset native strike.
+Selecting SkyPix presets an editable 640x200, 4:3, Latin-1 canvas. Text geometry
+rounds up to native cells while graphics clip to the exact selected canvas;
+the optional status row has the same pixel scale. Fixed-cell conversion retains
+Amiga descenders. System CP437 stays separate for all application UI, including
+status, online menus, file pickers and transfer dialogs. Font imports validate complete confined families before publication;
 loaded font data and immutable metadata survive package replacement/removal.
 See link:SKYPIX_CONFORMANCE.md[reference provenance and test inventory].
 
-The accounting now includes 82 public headers, 127 explicit exclusions, 2,508
+The accounting now includes 82 public headers, 127 explicit exclusions, 2,519
 native items and 160 assessments. The original topic denominator stays 51;
 19 are resolved and 32 remain open. The separate profile-field-table
 documentation finding is resolved. Temporary Wren burndown records/skills stay

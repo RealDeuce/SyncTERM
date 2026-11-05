@@ -67,7 +67,7 @@ def compile_font(entry, directory, index):
                     except ValueError: continue
                     if code < 256: mapping[code] = value
     text = f'static const uint8_t bits_{index}[] = {{'+','.join(map(str,data or [0]))+'};\n'
-    text += f'static const struct st_amiga_font font_{index} = {{.height={entry["height"]}, .baseline={max(0,baseline)}, .glyphs={{\n'
+    text += f'static const struct st_amiga_font font_{index} = {{.width={entry.get("cell_width",width)}, .height={entry["height"]}, .baseline={max(0,baseline)}, .glyphs={{\n'
     for off,stride,w,h,b,a,t in mapping:
         text+=f'{{bits_{index}+{off},{stride},{w},{h},{b},{a},{t},0}},\n'
     return text+'}};\n'

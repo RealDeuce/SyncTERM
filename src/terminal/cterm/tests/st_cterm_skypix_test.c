@@ -115,7 +115,8 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(st_cterm_resize(t, 80, geometry.rows) == 0);
 	CHECK(t->width == 80 && t->height == 25);
 	CHECK(st_cterm_set_encoding(t, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_ISO_8859_1)
-		== IO_ERROR_NOT_SUPPORTED);
+		== 0);
+	CHECK(st_cterm_set_encoding(t, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
 	uint32_t palette[16];
 	CHECK(st_console_get_palette(console, 512, palette, 16) == 0);
 	CHECK(palette[1] == 0x1111ff && palette[3] == 0xff0000);
@@ -189,6 +190,21 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(st_console_get_pixels(&pixels, console, &overhang, false) == 0);
 	CHECK(pixels->primary[0] == 514 && pixels->primary[8] == 514);
 	st_pixel_buffer_destroy(pixels);
+	/* JR-Comm position probes: CR/LF are independent and BS/HT use
+	 * nominal Diamond/20 width, never the last proportional advance. */
+	feed(t, "\x1b[19;100;40!\x1b[10;20!Diamond.font!i\r");
+	CHECK(st_cterm_finish(t) == 0);
+	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == 40);
+	feed(t, "\n");
+	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == 60);
+	feed(t, "\x1b[19;0;40!i\b");
+	CHECK(t->skypix_engine->x == -16 && t->skypix_engine->y == 40);
+	feed(t, "\b");
+	CHECK(t->skypix_engine->x == -16);
+	feed(t, "\x1b[19;100;40!\t");
+	CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 40);
+	feed(t, "\v");
+	CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 40);
 	feed(t, "\x1b[19;13;51!\x1b[10;0!B\rC\nD");
 	CHECK(st_cterm_finish(t) == 0);
 	CHECK(t->skypix_engine->x == 16 && t->skypix_engine->y == 59);

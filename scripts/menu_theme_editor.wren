@@ -206,7 +206,7 @@ class ThemeGlyphPicker {
     pane.helpText = mode == "cp437" ?
         "# CP437 Character\n\nSelect one of the 256 raw CP437 character " +
         "codes. The grid is rendered with the CP437 font regardless of the " +
-        "font selected by the draft theme." :
+        "connection font." :
         "# ASCII Character\n\nSelect one of the 95 printable ASCII " +
         "characters, from space through tilde."
     pane.focused = true
@@ -706,7 +706,7 @@ class ThemeInspector is Widget {
     }
     var source = row[1] ? "built-in role" : "custom role"
     return [row[0], source, "",
-        fieldLine_("Font", 0, 0), originLine_(0),
+        "Font: System CP437", "",
         fieldLine_("Legacy", 1, 2), originLine_(1),
         fieldLine_("Foreground", 2, 6), originLine_(2),
         fieldLine_("Background", 3, 6), originLine_(3)]
@@ -1314,7 +1314,7 @@ class ThemeEditor {
       return "# Style Cascade\n\nSelect a style role first."
     }
     var text = "# %(model.selectedName)\n\n"
-    for (field in 0..3) {
+    for (field in 1..3) {
       text = text + "## %(styleFieldLabel_(field))\n\n"
       for (entry in model.styleCascade(model.selectedName, field)) {
         var marker = entry[3] ? "**winner**" : "considered"
@@ -1366,7 +1366,7 @@ class ThemeEditor {
     while (true) {
       var row = model.selectedRow
       if (row == null) return
-      var fields = model.colorMode == "rgb" ? [0, 2, 3] : [0, 1]
+      var fields = model.colorMode == "rgb" ? [2, 3] : [1]
       var rows = []
       for (field in fields) {
         rows.add([field, "%(styleFieldLabel_(field)): " +
@@ -1389,10 +1389,7 @@ class ThemeEditor {
       var value = row[3 + field]
       if (pickedMode == 2) {
         var resolved = model.styleField(row[0], field)[0]
-        if (field == 0) {
-          value = MenuUi.integer(app, "Font", "Font Slot", resolved,
-              0, 255)
-        } else if (field == 1) {
+        if (field == 1) {
           value = editLegacy_(app, resolved)
         } else {
           value = ThemeColorDialog.choose(app, styleFieldLabel_(field),

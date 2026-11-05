@@ -13,8 +13,9 @@ class FontApp {
       Screen.checked_(Screen.modalRun(Fn.new {
         if (CTerm.skypix) {
           Alert.runStandalone(App.new(),
-              "SkyPix selects Amiga fonts remotely. Install or remove families " +
-              "through Amiga Font Management in the main menu.")
+              "Choose this BBS's initial Amiga font in entry configuration. " +
+              "Install or remove families through Amiga Font Management. " +
+              "Remote SkyPix commands can change fonts during the connection.")
           return
         }
         if (!Screen.checked_(ScreenSupports.fontSelection)) {

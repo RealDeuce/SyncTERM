@@ -47,6 +47,7 @@ const char *st_amiga_font_builtin_name(size_t i, unsigned *height)
 		*height = st_amiga_builtins[i].font->height;
 	return st_amiga_builtins[i].name;
 }
+unsigned st_amiga_font_width(const st_amiga_font_t *font) { return font->width; }
 unsigned st_amiga_font_height(const st_amiga_font_t *font) { return font->height; }
 unsigned st_amiga_font_baseline(const st_amiga_font_t *font) { return font->baseline; }
 const struct st_amiga_glyph *st_amiga_font_glyph(const st_amiga_font_t *font, uint8_t ch)
@@ -197,7 +198,8 @@ int st_amiga_font_decode(st_amiga_font_t **result, const void *bytes, size_t siz
 	font->height = u16(h + 78);
 	font->baseline = u16(h + 84);
 	unsigned first = h[90], last = h[91], nominal = u16(h + 82), modulo = u16(h + 96);
-	if (!font->height || font->baseline >= font->height || first > last || !modulo)
+	font->width = nominal;
+	if (!font->width || !font->height || font->baseline >= font->height || first > last || !modulo)
 		goto done;
 	size_t glyphs = last - first + 2;
 	const uint8_t *bits = font_pointer(hunks, count, targets, 0, (size_t)modulo * font->height);

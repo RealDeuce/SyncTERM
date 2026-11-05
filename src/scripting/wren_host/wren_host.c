@@ -361,32 +361,65 @@ st_wren_host_begin_session_mode(st_wren_host_t *host,
 	return status;
 }
 
-int
-st_wren_host_begin_skypix_session(st_wren_host_t *host, bool hide_status)
+static uint64_t aspect_gcd(uint64_t a, uint64_t b)
 {
+	while (b != 0) {
+		uint64_t next = a % b;
+		a = b;
+		b = next;
+	}
+	return a;
+}
+int st_wren_host_begin_skypix_session(st_wren_host_t *host,
+									  const struct st_screen_mode_descriptor *canvas,
+									  bool hide_status, const st_amiga_font_t *font)
+{
+	if (canvas == NULL || font == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	uint32_t width = canvas->console.pixel_width, height = canvas->console.pixel_height;
+	uint32_t cw = st_amiga_font_width(font), ch = st_amiga_font_height(font);
+	if (width == 0 || height == 0 || width > INT16_MAX || height > INT16_MAX || cw == 0 ||
+		ch == 0 || cw > width || ch > height || (uint64_t)width * height > 4 * 1024 * 1024)
+		return IO_ERROR_OUT_OF_RANGE;
 	int status = st_wren_host_begin_session_mode(host, ST_SCREEN_MODE_CURRENT);
-	if (status != 0) return status;
-	struct st_screen_mode_descriptor mode = *st_screen_mode_get(ST_SCREEN_MODE_80X25);
-	mode.console.columns = 80;
-	mode.console.rows = hide_status ? 25 : 26;
-	mode.console.cell_width = 8;
-	mode.console.cell_height = 8;
-	mode.console.pixel_width = 640;
-	mode.console.pixel_height = hide_status ? 200 : 208;
-	/* These are display proportions, not pixel proportions. Keep the
-	 * 640x200 canvas at 4:3 and give the extra status row the same scale. */
-	mode.console.aspect_width = 4 * 25;
-	mode.console.aspect_height = 3 * mode.console.rows;
+	if (status != 0)
+		return status;
+	struct st_screen_mode_descriptor mode = *canvas;
+	mode.console.cell_width = cw;
+	mode.console.cell_height = ch;
+	mode.console.default_cursor = (struct st_console_custom_cursor){
+		.start = ch - 1, .end = ch - 1, .range = ch, .blink = true};
+	mode.console.columns = (width + cw - 1) / cw;
+	mode.console.rows = (height + ch - 1) / ch + (hide_status ? 0 : 1);
+	mode.console.pixel_width = mode.console.columns * cw;
+	mode.console.pixel_height = mode.console.rows * ch;
+	/* Preserve the selected canvas aspect while giving padding and the
+	 * separate status row the same pixel scale. */
+	if (mode.console.aspect_width != 0 && mode.console.aspect_height != 0) {
+		uint64_t a = (uint64_t)mode.console.pixel_width * height * mode.console.aspect_width;
+		uint64_t b = (uint64_t)mode.console.pixel_height * width * mode.console.aspect_height;
+		uint64_t divisor = aspect_gcd(a, b);
+		a /= divisor;
+		b /= divisor;
+		if (a > UINT32_MAX || b > UINT32_MAX)
+			status = IO_ERROR_OUT_OF_RANGE;
+		else {
+			mode.console.aspect_width = (uint32_t)a;
+			mode.console.aspect_height = (uint32_t)b;
+		}
+	}
 	mode.font_selector = 0;
-	status = install_mode_state(&host->menu, &mode, true);
+	if (status == 0)
+		status = install_mode_state(&host->menu, &mode, true);
 	if (status == 0 && host->picker.console != host->menu.console)
 		status = install_mode_state(&host->picker, &mode, true);
-	else if (status == 0) host->picker.fonts = host->menu.fonts;
+	else if (status == 0)
+		host->picker.fonts = host->menu.fonts;
 	if (status == 0) {
 		host->current_mode = mode;
-		host->current_screen_mode = ST_SCREEN_MODE_80X25;
-	}
-	else (void)st_wren_host_end_session_mode(host);
+		host->current_screen_mode = mode.mode;
+	} else
+		(void)st_wren_host_end_session_mode(host);
 	return status;
 }
 
@@ -475,7 +508,7 @@ st_wren_font_metadata(struct st_wren_context *context, uint16_t selector,
 {
 	if (selector > UINT8_MAX)
 		return false;
-	if (context->cterm != NULL)
+	if (context->cterm != NULL && selector != 0)
 		return st_cterm_font_info(context->cterm, (uint8_t)selector,
 		    identifier, codepage);
 	if (!context->fonts.catalog_valid[selector])
@@ -497,6 +530,8 @@ st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 uint16_t
 st_wren_font_selector(struct st_wren_context *context, uint16_t identifier)
 {
+	if (context->fonts.catalog_valid[0] && context->fonts.catalog[0] == identifier)
+		return 0;
 	if (context->cterm != NULL) {
 		for (size_t i = 0; i <= UINT8_MAX; ++i) {
 			uint16_t actual;
@@ -585,6 +620,14 @@ st_wren_context_load_fonts(struct st_wren_context *context)
 	if (context == NULL || context->console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (context->cterm != NULL) {
+		/* Slot zero is the system CP437 font for UI, independently of the
+		 * connection font (including remote replacement of terminal slot zero). */
+		if (context->console != context->host->menu.console) {
+			status = load_builtin_fonts(context);
+			if (status != 0)
+				return status;
+		}
+		uint16_t system_font = context->fonts.catalog[0];
 		/* Keep script-output assignments independent; import the terminal's
 		 * actual registrations rather than registering another CP437 copy. */
 		memset(context->fonts.catalog_valid, 0, sizeof(context->fonts.catalog_valid));
@@ -599,6 +642,10 @@ st_wren_context_load_fonts(struct st_wren_context *context)
 			context->fonts.codepages[i] = codepage;
 			context->fonts.selector_by_identifier[identifier] = (uint16_t)i;
 		}
+		context->fonts.catalog[0] = system_font;
+		context->fonts.catalog_valid[0] = true;
+		context->fonts.codepages[0] = ST_CODEPAGE_CP437;
+		context->fonts.selector_by_identifier[system_font] = 0;
 		return 0;
 	}
 
@@ -1835,7 +1882,7 @@ st_wren_host_create(st_wren_host_t **result,
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	host->current_screen_mode = st_settings.startup_mode >= ST_SCREEN_MODE_CURRENT
-	    && st_settings.startup_mode <= ST_SCREEN_MODE_ATARIST_80X25_MONO
+	    && st_settings.startup_mode <= ST_SCREEN_MODE_AMIGA_640X200
 	    ? (enum st_screen_mode)st_settings.startup_mode
 	    : ST_SCREEN_MODE_CURRENT;
 	st_profile_init(&host->selected);

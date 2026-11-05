@@ -1,7 +1,7 @@
 [[bbs-entry-fields]]
 === BBS entry field coverage
 
-The INI codec covers 51 canonical keys and 57 profile members. `bbs_list`
+The INI codec covers 53 canonical keys and 59 profile members. `bbs_list`
 tests default and non-default encode/decode values for every persisted member,
 including full-width BPS/call counters, optional paths, palettes and fingerprints.
 Six metadata/derived members below are not additional INI keys.
@@ -31,7 +31,9 @@ Six metadata/derived members below are not additional INI keys.
 | bps_rate | BPSRate | bpsRate | Serial speed or terminal receive pacing; full uint32 range
 | music | ANSIMusic | music | Initial CTerm mode before scripts/input; reset restores BANSI
 | address_family | AddressFamily | addressFamily | Network resolver/connect policy
-| font | Font | font | Session font catalog selection, independent of transport
+| font | Font | font | Session font catalog selection outside SkyPix, independent of transport
+| amiga_font | AmigaFont | amigaFont | Initial/reset SkyPix Amiga family, default Pearl.font
+| amiga_font_size | AmigaFontSize | amigaFontSize | Exact native strike height, default 8
 | encoding | Encoding | encoding | Terminal Unicode boundary; ConPTY UTF-8/codepage bridge
 | hide_popups | HidePopups | hidePopups | Connection progress/error/disconnect UI
 | graphics_mode | Graphics | graphics | Independent RIP or SkyPix parser/canvas selection
@@ -79,11 +81,15 @@ limited to 1023 serialized bytes. Reserved menu/bootstrap module names are
 rejected. Invalid stored lists are ignored; invalid Wren assignments leave the
 previous list intact. Names have no `.wren` suffix.
 
-SkyPix uses an effective 640x200, 80x25, Latin-1 session with native Amiga
-fonts. Stored ScreenMode, Font, Encoding and Palette preferences remain available
-when another graphics mode is selected. `NoStatus` reserves a separate row when
-false; it never changes the SkyPix canvas. The Graphics selector offers Off,
-RIP v1, RIP v3, SkyPix (Kick 1.3) and SkyPix (Kick 3.1).
+SkyPix uses ScreenMode as its pixel canvas and Encoding as its wire encoding.
+Selecting SkyPix initially chooses Amiga640x200 (4:3) and Latin-1; both remain
+editable. AmigaFont/AmigaFontSize select an installed or bundled native strike
+for initial text and reset. The text grid rounds the canvas up to complete cells
+using the strike's nominal width/height; graphics clip to the chosen canvas.
+`NoStatus=false` adds a separate row at the same pixel scale. Ordinary Font
+preferences remain available for other graphics modes. Application UI uses the
+system CP437 font, independently of the connection's font. The Graphics selector
+offers Off, RIP v1, RIP v3, SkyPix (Kick 1.3) and SkyPix (Kick 3.1).
 
 `Graphics` is canonical. Legacy `RIP` is read only when Graphics is absent;
 saving removes RIP after writing Graphics.

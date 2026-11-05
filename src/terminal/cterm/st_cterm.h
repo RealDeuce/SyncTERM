@@ -11,6 +11,7 @@
 #include "st_audio_runtime.h"
 #include "st_codepage.h"
 #include "st_console.h"
+#include "st_amiga_font.h"
 #include "st_font_catalog.h"
 #include "st_hyperlink.h"
 
@@ -125,12 +126,16 @@ struct st_cterm_config {
 	st_hyperlink_registry_t *hyperlinks;
 	enum st_cterm_emulation emulation;
 	enum st_cterm_encoding encoding;
-	/* RIP requires ANSI-BBS and at least 640x350 pixels. SkyPix requires
-	 * ANSI-BBS, an 80x25 terminal and a 640x200 canvas; input is Latin-1. */
+	/* Graphics require ANSI-BBS and a bitmap console. RIP needs at least
+	 * 640x350 pixels; SkyPix uses the selected canvas and wire encoding. */
 	enum st_cterm_graphics_mode graphics_mode;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
 	const char *rip_directory;
 	const char *amiga_font_directory;
+	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */
+	const st_amiga_font_t *amiga_font;
+	/* Zero uses the terminal grid extent, excluding the status row. */
+	uint32_t skypix_width, skypix_height;
 	st_cterm_skypix_transfer_callback_t skypix_transfer;
 	void *skypix_transfer_context;
 	/* Enables built-in SyncTERM APC commands independently of RIP. Both

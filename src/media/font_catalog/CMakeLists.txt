@@ -3,7 +3,7 @@
 
 add_library(st_font_catalog STATIC st_font_catalog.c)
 target_include_directories(st_font_catalog PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_font_catalog PUBLIC st_console st_codepage
+target_link_libraries(st_font_catalog PUBLIC st_console st_codepage st_amiga_font
 	PRIVATE st_fonts syncterm_filesystem syncterm_io_error)
 set_target_properties(st_font_catalog PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

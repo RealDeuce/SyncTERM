@@ -4,6 +4,7 @@
 #define CTERM_SKYPIX_H_
 #include "cterm_skypix_parser.h"
 #include "st_amiga_font.h"
+#include "st_codepage.h"
 #include "st_console.h"
 #include "st_pixels.h"
 #include "st_unicode_text.h"
@@ -12,7 +13,10 @@ struct cterminal;
 struct cterm_skypix {
 	struct cterminal *terminal;
 	struct cterm_skypix_parser parser;
-	const st_amiga_font_t *font;
+	const st_amiga_font_t *font, *default_data;
+	uint32_t width, height, cell_width, cell_height;
+	enum st_codepage font_codepage;
+	bool native_default;
 	const char *font_directory;
 	struct st_pixel_buffer *brush, *undo;
 	struct st_console_rect undo_rect, pending_rect, undo_pending_rect;
@@ -24,7 +28,8 @@ struct cterm_skypix {
 	uint16_t default_font;
 	char warned[1024];
 };
-int cterm_skypix_create(struct cterminal *, const char *);
+struct st_cterm_config;
+int cterm_skypix_create(struct cterminal *, const struct st_cterm_config *);
 void cterm_skypix_destroy(struct cterm_skypix *);
 int cterm_skypix_feed(struct cterm_skypix *, const uint8_t *, size_t, size_t *);
 int cterm_skypix_finish(struct cterm_skypix *);

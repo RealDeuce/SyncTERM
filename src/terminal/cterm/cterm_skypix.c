@@ -8,6 +8,7 @@
 #include "cterm_text.h"
 #include "io_error.h"
 #include "st_amiga_fonts.h"
+#include "st_font_catalog.h"
 #include "st_time.h"
 #include "st_utf8.h"
 #include <limits.h>
@@ -30,7 +31,7 @@ static int palette(struct cterm_skypix *s, const unsigned *values)
 }
 static int pixels(struct cterm_skypix *s, struct st_pixel_buffer **buffer)
 {
-	const struct st_console_rect rect = {0, 0, 640, 200};
+	const struct st_console_rect rect = {0, 0, s->width, s->height};
 	return st_console_get_pixels(buffer, s->terminal->screen.console, &rect, false);
 }
 static int publish(struct cterm_skypix *s, const struct st_pixel_buffer *buffer, int x, int y)
@@ -76,30 +77,31 @@ static void plot(void *context, int x, int y)
 }
 static int flood(struct st_pixel_buffer *b, unsigned mode, int x, int y, unsigned fg, unsigned bg)
 {
-	if (x < 0 || x >= 640 || y < 0 || y >= 200 || mode > 1)
+	unsigned w = b->width, h = b->height;
+	if (x < 0 || x >= (int)w || y < 0 || y >= (int)h || mode > 1)
 		return 0;
 	fg += CTERM_SKYPIX_PALETTE_FIRST;
 	bg += CTERM_SKYPIX_PALETTE_FIRST;
-	uint32_t original = b->primary[y * 640 + x];
+	uint32_t original = b->primary[(size_t)y * w + (unsigned)x];
 	if ((mode == 1 && original == fg) || (mode == 0 && original == bg))
 		return 0;
 	/* A visited plane is essential in boundary mode when the new colour
 	 * already occurs inside the area. Each canvas point is enqueued once. */
-	uint8_t *visited = calloc(640 * 200, 1);
-	unsigned *queue = malloc(640 * 200 * sizeof(*queue));
+	uint8_t *visited = calloc((size_t)w * h, 1);
+	unsigned *queue = malloc((size_t)w * h * sizeof(*queue));
 	if (visited == NULL || queue == NULL) {
 		free(visited);
 		free(queue);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	size_t head = 0, tail = 0;
-	queue[tail++] = (unsigned)(y * 640 + x);
-	visited[y * 640 + x] = 1;
+	queue[tail++] = (unsigned)((size_t)y * w + (unsigned)x);
+	visited[(size_t)y * w + (unsigned)x] = 1;
 	while (head < tail) {
 		unsigned p = queue[head++];
 		b->primary[p] = fg;
-		unsigned adjacent[4] = {p % 640 ? p - 1 : p, p % 640 < 639 ? p + 1 : p,
-								p >= 640 ? p - 640 : p, p < 640 * 199 ? p + 640 : p};
+		unsigned adjacent[4] = {p % w ? p - 1 : p, p % w < w - 1 ? p + 1 : p, p >= w ? p - w : p,
+								p < w * (h - 1) ? p + w : p};
 		for (unsigned i = 0; i < 4; ++i) {
 			unsigned q = adjacent[i];
 			if (!visited[q] && (mode == 1 ? b->primary[q] == original : b->primary[q] != bg)) {
@@ -112,23 +114,32 @@ static int flood(struct st_pixel_buffer *b, unsigned mode, int x, int y, unsigne
 	free(visited);
 	return 0;
 }
+/* State Y is the JR-Comm logical anchor (baseline - H + 1). A normal
+ * home places the strike at row zero; command 19 supplies the anchor itself. */
+static int font_descent(const st_amiga_font_t *font)
+{
+	return (int)st_amiga_font_height(font) - (int)st_amiga_font_baseline(font) - 1;
+}
 static void sync_cursor(struct cterm_skypix *s)
 {
-	if (!s->custom && !s->positioned) {
-		s->x = (s->terminal->xpos - 1) * 8;
-		s->y = (s->terminal->ypos - 1) * 8;
+	if (!s->custom && !s->positioned && !s->native_default) {
+		s->x = (s->terminal->xpos - 1) * (int)s->cell_width;
+		s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->default_data);
 	}
 }
 int cterm_skypix_reset_font(struct cterm_skypix *s)
 {
 	sync_cursor(s);
-	st_amiga_font_release(s->font);
-	s->font = st_amiga_font_builtin("pearl.font", 8);
+	if (s->font != s->default_data)
+		st_amiga_font_release(s->font);
+	s->font = s->default_data;
 	s->custom = false;
-	if ((s->x & 7) == 0 && (s->y & 7) == 0 && s->x >= 0 && s->x < 640 && s->y >= 0 && s->y < 200) {
+	int top = s->y + font_descent(s->default_data);
+	if (s->x % (int)s->cell_width == 0 && top % (int)s->cell_height == 0 && s->x >= 0 &&
+		s->x < (int)s->width && top >= 0 && top < (int)s->height) {
 		s->positioned = false;
-		s->terminal->xpos = s->x / 8 + 1;
-		s->terminal->ypos = s->y / 8 + 1;
+		s->terminal->xpos = s->x / (int)s->cell_width + 1;
+		s->terminal->ypos = top / (int)s->cell_height + 1;
 	}
 	s->terminal->cursor = CTERM_CURSOR_UNDERLINE;
 	cterm_render_set_cursor(s->terminal, s->terminal->cursor);
@@ -149,7 +160,7 @@ static void warn_font(struct cterm_skypix *s, const char *name, unsigned height,
 	if ((size_t)n >= sizeof(s->warned) - used)
 		return;
 	cterm_log(s->terminal, ST_CTERM_LOG_WARNING,
-			  "SkyPix font %s/%u unavailable (%d); using compiled fallback", name, height, error);
+			  "SkyPix font %s/%u unavailable (%d); using configured default", name, height, error);
 	memcpy(s->warned + used, key, (size_t)n + 1);
 }
 static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *bytes, size_t size)
@@ -174,11 +185,16 @@ static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *byte
 	const st_amiga_font_t *font = NULL;
 	int status = st_amiga_fonts_lookup(&font, s->font_directory, name, height);
 	if (font == NULL)
-		return status;
-	if (status != 0)
+		font = s->default_data;
+	if (status != 0) {
 		warn_font(s, name, height, status);
+		if (font != s->default_data)
+			st_amiga_font_release(font);
+		font = s->default_data;
+	}
 	sync_cursor(s);
-	st_amiga_font_release(s->font);
+	if (s->font != s->default_data)
+		st_amiga_font_release(s->font);
 	s->font = font;
 	s->custom = true;
 	s->positioned = true;
@@ -295,7 +311,7 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 		break;
 	case 4:
 		if (v[1] <= v[3] && v[2] <= v[4])
-			for (int y = v[2] < 0 ? 0 : v[2]; y <= v[4] && y < 200; ++y)
+			for (int y = v[2] < 0 ? 0 : v[2]; y <= v[4] && y < (int)s->height; ++y)
 				span(b, v[1], v[3], y, fg);
 		break;
 	case 5:
@@ -307,15 +323,16 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 		break;
 	}
 	case 6: {
-		if (p[1] >= 640 || p[2] >= 199 || p[3] == 0 || p[4] == 0 || p[3] > 640 - p[1] ||
-			p[4] > 199 - p[2])
+		if (p[1] >= s->width || p[2] >= s->height - 1 || p[3] == 0 || p[4] == 0 ||
+			p[3] > s->width - p[1] || p[4] > s->height - 1 - p[2])
 			break;
 		struct st_pixel_buffer *brush = NULL;
 		status = st_pixel_buffer_create(&brush, p[3], p[4], false);
 		if (status == 0) {
 			for (unsigned y = 0; y < p[4]; ++y)
 				memcpy(brush->primary + (size_t)y * p[3],
-					   b->primary + (size_t)(y + p[2] + 1) * 640 + p[1], p[3] * sizeof(uint32_t));
+					   b->primary + (size_t)(y + p[2] + 1) * s->width + p[1],
+					   p[3] * sizeof(uint32_t));
 			st_pixel_buffer_destroy(s->brush);
 			s->brush = brush;
 			s->brush_depth = 3;
@@ -325,10 +342,11 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 	case 7:
 		if (s->brush == NULL || p[7] > 255 || p[8] > 255)
 			break;
-		for (unsigned y = 0; y < p[6] && y + p[4] < 200 && y + p[2] < s->brush->height; ++y)
-			for (unsigned x = 0; x < p[5] && x + p[3] < 640 && x + p[1] < s->brush->width; ++x) {
+		for (unsigned y = 0; y < p[6] && y + p[4] < s->height && y + p[2] < s->brush->height; ++y)
+			for (unsigned x = 0; x < p[5] && x + p[3] < s->width && x + p[1] < s->brush->width;
+				 ++x) {
 				uint32_t src = s->brush->primary[(size_t)(y + p[2]) * s->brush->width + x + p[1]];
-				uint32_t *dst = &b->primary[(size_t)(y + p[4]) * 640 + x + p[3]], value = *dst;
+				uint32_t *dst = &b->primary[(size_t)(y + p[4]) * s->width + x + p[3]], value = *dst;
 				for (unsigned plane = 0;
 					 plane < s->brush_depth && plane < (s->colours == 8 ? 3u : 4u); ++plane) {
 					unsigned mask = 1u << plane,
@@ -350,6 +368,7 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 	struct cterm_skypix *s = context;
 	size_t used;
 	int x = s->terminal->xpos, y = s->terminal->ypos;
+	uint64_t placements = s->terminal->cursor_position_changes;
 	if (size != 0 && (bytes[0] < 32 || bytes[0] == 127)) {
 		int boundary = cterm_text_boundary(s->terminal);
 		if (boundary != 0)
@@ -358,10 +377,11 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 	}
 	s->presented = false;
 	int status = cterm_input_write(s->terminal, bytes, size, &used, CTERM_INPUT_WIRE);
-	if (!s->presented && (s->custom || s->positioned) &&
-		(x != s->terminal->xpos || y != s->terminal->ypos)) {
-		s->x = (s->terminal->xpos - 1) * 8;
-		s->y = (s->terminal->ypos - 1) * 8;
+	if (!s->presented && (s->custom || s->positioned || s->native_default) &&
+		(x != s->terminal->xpos || y != s->terminal->ypos ||
+		 placements != s->terminal->cursor_position_changes)) {
+		s->x = (s->terminal->xpos - 1) * (int)s->cell_width;
+		s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->default_data);
 	}
 	return status;
 }
@@ -403,64 +423,62 @@ int cterm_skypix_reset(struct cterm_skypix *s)
 	s->receiving = false;
 	s->colours = 8;
 	text_boundary(s);
-	s->x = s->y = s->pen_x = s->pen_y = 0;
+	s->x = s->pen_x = s->pen_y = 0;
+	s->y = -font_descent(s->default_data);
 	s->positioned = false;
 	st_pixel_buffer_destroy(s->brush);
 	s->brush = NULL;
 	st_pixel_buffer_destroy(s->undo);
 	s->undo = NULL;
-	st_amiga_font_release(s->font);
-	s->font = st_amiga_font_builtin("pearl.font", 8);
+	if (s->font != s->default_data)
+		st_amiga_font_release(s->font);
+	s->font = s->default_data;
 	s->custom = false;
 	s->terminal->attr = 2;
 	s->terminal->screen.default_attribute = 2;
 	cterm_render_attribute_colours(s->terminal, 2, &s->terminal->fg_color, &s->terminal->bg_color);
 	return palette(s, NULL);
 }
-int cterm_skypix_create(struct cterminal *t, const char *fonts)
+int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
 {
-	uint32_t width, height;
+	uint32_t width, height, cw, ch;
 	int status = st_console_pixel_size(t->screen.console, &width, &height);
+	if (status == 0)
+		status = st_console_cell_pixel_size(t->screen.console, &cw, &ch);
 	if (status != 0)
 		return status;
-	if (width != 640 || height < 200 || t->width != 80 || t->height != 25)
+	uint32_t canvas_width =
+		config->skypix_width == 0 ? (uint32_t)t->width * cw : config->skypix_width;
+	uint32_t canvas_height =
+		config->skypix_height == 0 ? (uint32_t)t->height * ch : config->skypix_height;
+	if (canvas_width == 0 || canvas_height == 0 || canvas_width > width || canvas_height > height ||
+		canvas_width > (uint32_t)t->width * cw || canvas_height > (uint32_t)t->height * ch ||
+		canvas_width > INT16_MAX || canvas_height > INT16_MAX ||
+		(uint64_t)canvas_width * canvas_height > 4 * 1024 * 1024)
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct cterm_skypix *s = calloc(1, sizeof(*s));
 	if (s == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	s->terminal = t;
-	s->font_directory = fonts;
-	uint8_t bitmap[256 * 8];
-	struct st_console_font_mapping mapping[256];
-	const st_amiga_font_t *font = st_amiga_font_builtin("pearl.font", 8);
-	memset(bitmap, 0, sizeof(bitmap));
-	for (unsigned c = 0; c < 256; ++c) {
-		const struct st_amiga_glyph glyph = *st_amiga_font_glyph(font, (uint8_t)c);
-		for (unsigned y = 0; y < glyph.height; ++y)
-			for (unsigned x = 0; x < 8 && x < glyph.width; ++x) {
-				unsigned bit = x + glyph.bit_offset;
-				int row = (int)y + glyph.top;
-				if (row >= 0 && row < 8 &&
-					(glyph.bits[(size_t)y * glyph.stride + bit / 8] & (0x80u >> (bit % 8))))
-					bitmap[c * 8 + (unsigned)row] |= (uint8_t)(0x80u >> x);
-			}
-		mapping[c] = (struct st_console_font_mapping){c, c};
-	}
-	const struct st_console_font console_font = {.bitmap = bitmap,
-												 .bitmap_size = sizeof(bitmap),
-												 .width = 8,
-												 .height = 8,
-												 .glyph_count = 256,
-												 .row_stride = 1,
-												 .glyph_stride = 8,
-												 .mapping = mapping,
-												 .mapping_count = 256,
-												 .fallback_glyph = '?'};
-	status = st_console_register_font_copy(t->screen.console, &console_font, &s->default_font);
+	s->font_directory = config->amiga_font_directory;
+	s->width = canvas_width;
+	s->height = canvas_height;
+	s->cell_width = cw;
+	s->cell_height = ch;
+	s->default_data =
+		config->amiga_font == NULL ? st_amiga_font_builtin("pearl.font", 8) : config->amiga_font;
+	s->font_codepage =
+		config->encoding == ST_CTERM_ENCODING_UTF8 ? ST_CODEPAGE_ISO_8859_1 : config->codepage;
+	for (unsigned c = 0; c < 256; ++c)
+		if (st_amiga_font_glyph(s->default_data, (uint8_t)c)->advance != (int)cw)
+			s->native_default = true;
+	status = st_font_catalog_load_amiga(config->fonts, 0, s->default_data, s->font_codepage);
+	if (status == 0 && !st_font_catalog_identifier(config->fonts, 0, &s->default_font))
+		status = IO_ERROR_NOT_FOUND;
 	if (status == 0) {
 		t->screen.font_identifiers[0] = s->default_font;
 		t->screen.font_valid[0] = true;
-		t->screen.font_codepages[0] = ST_CODEPAGE_ISO_8859_1;
+		t->screen.font_codepages[0] = s->font_codepage;
 		for (unsigned i = 0; i < 4; ++i)
 			t->altfont[i] = 0;
 		for (unsigned i = 0; i < 5; ++i)
@@ -484,7 +502,8 @@ void cterm_skypix_destroy(struct cterm_skypix *s)
 {
 	if (s == NULL)
 		return;
-	st_amiga_font_release(s->font);
+	if (s->font != s->default_data)
+		st_amiga_font_release(s->font);
 	st_pixel_buffer_destroy(s->brush);
 	st_pixel_buffer_destroy(s->undo);
 	text_boundary(s);
@@ -492,28 +511,49 @@ void cterm_skypix_destroy(struct cterm_skypix *s)
 }
 static void cursor_bookkeeping(struct cterm_skypix *s)
 {
-	s->terminal->xpos = s->x < 0 ? 1 : s->x >= 640 ? 80 : s->x / 8 + 1;
-	s->terminal->ypos = s->y < 0 ? 1 : s->y >= 200 ? 25 : s->y / 8 + 1;
+	int top = s->y + font_descent(s->default_data);
+	s->terminal->xpos = s->x < 0 ? 1 : s->x >= (int)s->width ? s->terminal->width
+		: s->x / (int)s->cell_width + 1;
+	s->terminal->ypos = top < 0 ? 1 : top >= (int)s->height ? s->terminal->height
+		: top / (int)s->cell_height + 1;
+}
+static void line_feed(struct cterm_skypix *s)
+{
+	s->y = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font)));
+	if (s->terminal->lf_expand)
+		s->x = 0;
+	int top = s->y + font_descent(s->default_data);
+	if (!s->custom && top >= (int)s->height && top < (int)(s->height + s->cell_height)) {
+		cterm_scrollup(s->terminal);
+		s->y -= (int)s->cell_height;
+	}
 }
 bool cterm_skypix_control(struct cterm_skypix *s, uint8_t byte)
 {
-	if (!s->custom && !s->positioned)
+	if (!s->custom && !s->positioned && !s->native_default)
 		return false;
 	if (byte == '\r') {
 		s->x = 0;
-		if (s->custom)
-			s->y = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font)));
 	} else if (byte == '\n') {
-		if (!s->custom) {
-			s->y = cterm_skypix_word((unsigned)(s->y + 8));
-			if (s->y >= 200 && s->y < 208) {
-				cterm_scrollup(s->terminal);
-				s->y -= 8;
-			}
-		}
-	} else if (byte == '\b' && !s->custom)
-		s->x = s->x >= 8 ? s->x - 8 : 0;
-	else
+		line_feed(s);
+	} else if (byte == '\b') {
+		if (s->x > 0)
+			s->x = cterm_skypix_word((unsigned)(s->x - (int)st_amiga_font_width(s->font)));
+	} else if (byte == '\t') {
+		int width = (int)st_amiga_font_width(s->font);
+		int stop = width * 8;
+		int right = ((int)s->width / width - 1) * width;
+		int next = (s->x / stop + 1) * stop;
+		if (next > right) {
+			s->x = 0;
+			line_feed(s);
+		} else
+			s->x = cterm_skypix_word((unsigned)next);
+	} else if (byte == '\f') {
+		cterm_clearscreen(s->terminal, s->terminal->attr);
+		s->x = 0;
+		s->y = -font_descent(s->font);
+	} else if (byte != '\v')
 		return false;
 	cursor_bookkeeping(s);
 	s->presented = true;
@@ -522,7 +562,7 @@ bool cterm_skypix_control(struct cterm_skypix *s, uint8_t byte)
 int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_presentation_event *event,
 						 bool *handled)
 {
-	*handled = s->custom || s->positioned;
+	*handled = s->custom || s->positioned || s->native_default;
 	if (!*handled)
 		return 0;
 	if (event->kind == ST_UNICODE_PRESENTATION_COMMIT) {
@@ -540,7 +580,7 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 		s->y = s->undo_y;
 		if (s->undo_pending != NULL && s->pending != NULL) {
 			for (unsigned y = 0; y < s->undo_rect.height; ++y)
-				memcpy(s->pending + (size_t)(s->undo_rect.y + y) * 640 + s->undo_rect.x,
+				memcpy(s->pending + (size_t)(s->undo_rect.y + y) * s->width + s->undo_rect.x,
 					   s->undo_pending + (size_t)y * s->undo_rect.width, s->undo_rect.width);
 			s->pending_rect = s->undo_pending_rect;
 		}
@@ -549,20 +589,21 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	s->undo = NULL;
 	free(s->undo_pending);
 	s->undo_pending = NULL;
-	if (!s->custom && s->x == 640 && s->y >= 0 && s->y < 200) {
+	if (!s->custom && s->x >= (int)s->width && s->y + font_descent(s->default_data) >= 0 &&
+		s->y + font_descent(s->default_data) < (int)s->height) {
 		s->x = 0;
-		s->y += 8;
-		if (s->y >= 200) {
+		s->y += (int)s->cell_height;
+		if (s->y + font_descent(s->default_data) >= (int)s->height) {
 			cterm_scrollup(s->terminal);
-			s->y -= 8;
+			s->y -= (int)s->cell_height;
 		}
 	}
 	uint32_t codepoint;
 	size_t consumed;
 	uint8_t character = '?';
 	if (st_utf8_decode_one(&codepoint, &consumed, event->bytes, event->size) == 0 &&
-		consumed == event->size && codepoint <= 255)
-		character = (uint8_t)codepoint;
+		consumed == event->size)
+		(void)st_codepage_from_unicode(&character, s->font_codepage, codepoint);
 	const struct st_amiga_glyph glyph = *st_amiga_font_glyph(s->font, character);
 	int next = cterm_skypix_word((unsigned)(s->x + glyph.advance));
 	bool legacy = s->kick13 && s->custom;
@@ -576,7 +617,7 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	}
 	if (legacy && (s->pending != NULL || right > next)) {
 		if (s->pending == NULL) {
-			s->pending = calloc(640 * 200, 1);
+			s->pending = calloc((size_t)s->width * s->height, 1);
 			if (s->pending == NULL)
 				return IO_ERROR_OUT_OF_MEMORY;
 		}
@@ -595,10 +636,10 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 		left = 0;
 	if (top < 0)
 		top = 0;
-	if (right > 640)
-		right = 640;
-	if (bottom > 200)
-		bottom = 200;
+	if (right > (int)s->width)
+		right = (int)s->width;
+	if (bottom > (int)s->height)
+		bottom = (int)s->height;
 	s->undo_x = s->x;
 	s->undo_y = s->y;
 	if (right > left && bottom > top) {
@@ -614,7 +655,7 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 				return IO_ERROR_OUT_OF_MEMORY;
 			for (unsigned y = 0; y < area.height; ++y)
 				memcpy(s->undo_pending + (size_t)y * area.width,
-					   s->pending + (size_t)(area.y + y) * 640 + area.x, area.width);
+					   s->pending + (size_t)(area.y + y) * s->width + area.x, area.width);
 			s->undo_pending_rect = s->pending_rect;
 		}
 		struct st_pixel_buffer *image = NULL;
@@ -629,7 +670,7 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 		if (legacy && s->pending != NULL)
 			for (int py = top; py < bottom; ++py)
 				for (int px = left; px < right && px < next; ++px) {
-					size_t index = (size_t)py * 640 + (unsigned)px;
+					size_t index = (size_t)py * s->width + (unsigned)px;
 					if (s->pending[index]) {
 						point(image, px - left, py - top, fg);
 						s->pending[index] = 0;
@@ -644,16 +685,16 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 				unsigned bit = x + glyph.bit_offset;
 				if (glyph.bits[(size_t)y * glyph.stride + bit / 8] & (0x80u >> (bit % 8))) {
 					if (legacy && px >= next)
-						s->pending[(size_t)py * 640 + (unsigned)px] = 1;
+						s->pending[(size_t)py * s->width + (unsigned)px] = 1;
 					else
 						point(image, px - left, py - top, fg);
 				}
 			}
 		if (legacy && s->pending != NULL) {
-			int min_x = 640, min_y = 200, max_x = -1, max_y = -1;
+			int min_x = (int)s->width, min_y = (int)s->height, max_x = -1, max_y = -1;
 			for (int py = top; py < bottom; ++py)
 				for (int px = left; px < right; ++px)
-					if (s->pending[(size_t)py * 640 + (unsigned)px]) {
+					if (s->pending[(size_t)py * s->width + (unsigned)px]) {
 						if (px < min_x)
 							min_x = px;
 						if (px > max_x)

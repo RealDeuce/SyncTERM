@@ -101,6 +101,9 @@ static const uint32_t palette_values[][16] = {
 	}
 
 static const struct st_screen_mode_descriptor modes[] = {
+	MODE(ST_SCREEN_MODE_AMIGA_640X200, "Amiga 640x200", "Amiga640x200",
+	    PC_CONFIG(80, 25, 7, 7, 8, 640, 200, 4, 3),
+	    ST_SCREEN_PALETTE_COLOUR, 16, 7, 0),
 	MODE(ST_SCREEN_MODE_CURRENT, "Current", "Current",
 	    PC_CONFIG(80, 25, 14, 15, 16, 640, 400, 4, 3),
 	    ST_SCREEN_PALETTE_COLOUR, 16, 7, 0),

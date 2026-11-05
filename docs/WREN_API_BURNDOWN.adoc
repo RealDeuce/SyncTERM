@@ -1490,3 +1490,47 @@ The profile-field table covers all 51 keys/57 members and the documentation
 finding is resolved. The original 51 topics have 19 resolved and 32 open;
 this additional feature does not close unrelated scope findings. Retain this
 temporary record and skill for the remaining Plan-mode chunks.
+
+
+== User-directed SkyPix preferences, font rendering and system UI follow-up
+
+The user selected configuring the SkyPix connection from the entry's Screen
+Mode, Encoding and Font choices, explicitly rejected locking Pearl 8, reported
+truncated descenders, and required system CP437 for status, Alt+Z, transfer
+and other application UI. This follow-up changes those approved behaviours;
+it does not close another original Wren finding or retire the temporary skill.
+
+ScreenMode selects the canvas/aspect, Encoding the wire boundary, and new
+AmigaFont/AmigaFontSize fields select the exact initial/reset strike. Selecting
+SkyPix supplies editable Amiga640x200/Latin-1 defaults. Native nominal width
+and height derive a complete-cell grid; graphics clip to the exact canvas.
+Borrowed native default data survives through terminal teardown. Fixed-cell
+conversion retains descenders and proportional default home retains its first
+strike row. The UI's CP437 registration is independent of the native terminal
+slot, including remote changes. Unusual Amiga cell sizes scale a system strike;
+ANSI/curses retain their Unicode presentation output. Theme font fields remain
+round-trippable native document data, while application theme rendering and the
+shipped editor use system CP437.
+
+The updated user-supplied rendering research also established nominal-width
+BS/HT, independent CR/LF and inert VT. Focused tests reproduced incorrect CR
+advance and a shifted Ruby/12 accent before their fixes. Literal Pearl g/p/y
+rows reproduced the descender loss. Literal CP437 A pixels and font identity
+checks exercise status, Alt+Z and transfer protocol dialogs with an independent
+synthetic connection font and Ruby/12; the actual entry editor persists the
+three preferences. The conformance document records the further eight-pixel
+ANSI positioning, receive-buffer wrapping, margin-scrolling and hardware-cursor
+gaps exposed by that research without claiming those are implemented.
+
+Verification complete: Clang Debug/Botan full CMake build and 145 regression
+CTests passed (114.93s). Ten theme/ANSI/curses checks and both independent
+CP437/UTF-8 font-assignment fixtures also passed: 157 distinct tests. GCC
+Debug/OpenSSL, Clang ASan/UBSan/OpenSSL and no-crypto/no-Unifont full builds
+and thirteen focused tests each passed. MinGW x86/x86_64 full cross-builds
+passed; no Windows execution, Wine or local MSVC validation. Emoji catalog
+check passed; no new compiler warnings or sanitizer reports were observed.
+
+Accounting is 82 headers, 127 exclusions, 2,519 native items and 160 assessments;
+all matrix rows match. The profile table covers 53 canonical keys/59 members.
+The original 51-topic denominator remains 19 resolved/32 open, and the temporary
+burndown records and skill remain for those outstanding topics.

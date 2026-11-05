@@ -10,3 +10,8 @@ JR-Comm disk-font metadata supplied with the JR-Comm analysis. Their original
 native paths and SHA-256 identities are recorded per strike in the manifest.
 No ROM or executable bytes are compiled into the application. The bitmap input
 hashes continue to identify the unmodified upstream YAFF files.
+
+Nominal cell widths are retained from native disk-font metadata where those
+reference files are available, with per-strike source hashes in the manifest.
+Other compiled strikes use the YAFF cell size or bounding width. Glyph kerning
+and advances remain independent of this nominal grid width.

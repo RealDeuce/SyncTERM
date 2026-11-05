@@ -1378,6 +1378,10 @@ foreign class Profile {
   foreign screenMode=(value)
   foreign bpsRate
   foreign bpsRate=(value)
+  foreign amigaFont
+  foreign amigaFont=(value)
+  foreign amigaFontSize
+  foreign amigaFontSize=(value)
   foreign font
   foreign encoding
   foreign encoding=(value)
@@ -1512,6 +1516,7 @@ class ScreenMode {
   static atariSt40x25   { 27 }
   static atariSt80x25   { 28 }
   static atariSt80x25Mono { 29 }
+  static amiga640x200    { 30 }
 }
 class AddressFamily {
   static unspec { 0 }

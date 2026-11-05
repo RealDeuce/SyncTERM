@@ -52,6 +52,9 @@ struct st_term_config {
 	enum st_cterm_graphics_mode graphics_mode;
 	const char *rip_directory;
 	const char *amiga_font_directory;
+	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */
+	const st_amiga_font_t *amiga_font;
+	uint32_t skypix_width, skypix_height;
 	st_cterm_skypix_transfer_callback_t skypix_transfer;
 	void *skypix_transfer_context;
 	const char *apc_directory;
@@ -104,8 +107,7 @@ struct st_term_config {
 int st_term_connect_profile(st_connection_t **result,
 	const struct st_profile *profile, st_console_t *console,
 	const struct st_connection_hooks *hooks, struct st_connection_error *error);
-/* The profile's explicit encoding determines the wire boundary except for
- * SkyPix's fixed Latin-1 mode. */
+/* The profile's explicit encoding determines the wire boundary. */
 enum st_cterm_encoding st_term_profile_encoding(
 	const struct st_profile *profile);
 enum st_cterm_graphics_mode st_term_profile_graphics_mode(

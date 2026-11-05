@@ -7,7 +7,12 @@
       "name": "Topaz.font",
       "height": 8,
       "source": "crates/icy_engine/data/fonts/Amiga/original/amiga-ks13-topaz-08.yaff",
-      "sha256": "e31c74514643b4f43b587f858a105cb12c7bd577e9352272c9646798c55a6080"
+      "sha256": "e31c74514643b4f43b587f858a105cb12c7bd577e9352272c9646798c55a6080",
+      "cell_width": 8,
+      "cell_width_source": {
+        "path": "JR-Comm/Fonts/topaz/8",
+        "sha256": "ef882dac22fd8a48885196d7ab31e87e1825e3ef824f104f64880429f3c5839a"
+      }
     },
     {
       "file": "amiga-ks13-topaz-09.yaff",
@@ -21,7 +26,12 @@
       "name": "Topaz.font",
       "height": 11,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Topaz_8x11.yaff",
-      "sha256": "493bbd37e446fe94336ebca5b43ed27975c3b5aa9e8001181a05a5b590729d15"
+      "sha256": "493bbd37e446fe94336ebca5b43ed27975c3b5aa9e8001181a05a5b590729d15",
+      "cell_width": 8,
+      "cell_width_source": {
+        "path": "JR-Comm/Fonts/topaz/11",
+        "sha256": "718c9839f19f9c9971415e8482ee0ebf8dd24c5d5af9ad6029fa12f424eab53c"
+      }
     },
     {
       "file": "workbench-3.1_Diamond_12.yaff",
@@ -31,6 +41,11 @@
       "sha256": "d1a405bd2a9ea8108b740f4f4a6c0e48acf40f2de458ae4271fc9b841a593928",
       "baseline": 9,
       "native_metrics_source": {
+        "path": "JR-Comm/Fonts/diamond/12",
+        "sha256": "1572bb445bc844edae72db1ab441dd3241f96a7713a80dffec4aa3616cfa349f"
+      },
+      "cell_width": 15,
+      "cell_width_source": {
         "path": "JR-Comm/Fonts/diamond/12",
         "sha256": "1572bb445bc844edae72db1ab441dd3241f96a7713a80dffec4aa3616cfa349f"
       }
@@ -43,6 +58,11 @@
       "sha256": "a9f01751c7dafeb0062331ec1d599c337ca957af79b8e803e840526ad2ba27de",
       "baseline": 14,
       "native_metrics_source": {
+        "path": "JR-Comm/Fonts/diamond/20",
+        "sha256": "96117752c5be1e3bf80921b88937c0374d658970a5d5ce08517f2f9a6c8e1356"
+      },
+      "cell_width": 20,
+      "cell_width_source": {
         "path": "JR-Comm/Fonts/diamond/20",
         "sha256": "96117752c5be1e3bf80921b88937c0374d658970a5d5ce08517f2f9a6c8e1356"
       }
@@ -148,6 +168,11 @@
       "native_metrics_source": {
         "path": "JR-Comm/Fonts/ruby/8",
         "sha256": "0c9089b23053ed90825764aed06169c5ac954f24ae05006c4ca506cb291babba"
+      },
+      "cell_width": 15,
+      "cell_width_source": {
+        "path": "JR-Comm/Fonts/ruby/8",
+        "sha256": "0c9089b23053ed90825764aed06169c5ac954f24ae05006c4ca506cb291babba"
       }
     },
     {
@@ -160,6 +185,11 @@
       "native_metrics_source": {
         "path": "JR-Comm/Fonts/ruby/12",
         "sha256": "8671443695d12e9dbb158b6cceea5d3535e023fce1183fa4bd00709baf0153d2"
+      },
+      "cell_width": 15,
+      "cell_width_source": {
+        "path": "JR-Comm/Fonts/ruby/12",
+        "sha256": "8671443695d12e9dbb158b6cceea5d3535e023fce1183fa4bd00709baf0153d2"
       }
     },
     {
@@ -170,6 +200,11 @@
       "sha256": "1eb450bf0e7e6a2d7028dde8c12bc19691947ab4597e3fac134d54561552e7da",
       "baseline": 11,
       "native_metrics_source": {
+        "path": "JR-Comm/Fonts/ruby/15",
+        "sha256": "6bb77923a53e714f0f13a02f4cdea85aa3138b6a688f407da925fb63121c797f"
+      },
+      "cell_width": 20,
+      "cell_width_source": {
         "path": "JR-Comm/Fonts/ruby/15",
         "sha256": "6bb77923a53e714f0f13a02f4cdea85aa3138b6a688f407da925fb63121c797f"
       }
