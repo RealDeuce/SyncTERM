@@ -7,6 +7,28 @@ import "menu_theme_editor" for ThemeAtlas, ThemeEditor, ThemeEditorModel,
     ThemeCodepointPicker, ThemeGlyphGrid, ThemeInspector, ThemeWidgetPreviewContent,
     ThemeWidgetPreviewPane
 
+// UI fixture with the named cloud-catalog interface.
+class CloudThemeFixture {
+  construct new(package, name, author, description, version, cached, update, error) {
+    _package = package
+    _name = name
+    _author = author
+    _description = description
+    _version = version
+    _cached = cached
+    _update = update
+    _error = error
+  }
+  package { _package }
+  name { _name }
+  author { _author }
+  description { _description }
+  version { _version }
+  cached { _cached }
+  updateAvailable { _update }
+  error { _error }
+}
+
 class FakeThemeDocument {
   construct new() {
     _styles = [
@@ -53,6 +75,15 @@ class MenuTest {
     var total = __pass + __fail
     System.print("=== menu_theme_editor: %(total) tests, %(__pass) pass, " +
         "%(__fail) fail ===")
+    return [__pass, __fail]
+  }
+
+  static runCloudCatalogAudit() {
+    __pass = 0
+    __fail = 0
+    testThemeBrowserPartition_()
+    testThemeSelectionIdentity_()
+    testThemeComment_()
     return [__pass, __fail]
   }
 
@@ -218,15 +249,15 @@ class MenuTest {
       ["local.ini", "Local", null, null, null, null]
     ]
     var cloud = [
-      ["official/cached", "Cached", null, null, null, true, false, null],
-      ["official/online", "Online", null, null, null, false, false, null]
+      CloudThemeFixture.new("official/cached", "Cached", null, null, null, true, false, null),
+      CloudThemeFixture.new("official/online", "Online", null, null, null, false, false, null)
     ]
     var installed = SettingsMenu.installedThemeEntries_(local, cloud)
     var online = SettingsMenu.onlineThemeEntries_(cloud)
     check_(installed.count == 3 && installed[0][0] == "classic" &&
            installed[1][0] == "file:local.ini" &&
            installed[2][0] == "package:official/cached" &&
-           online.count == 1 && online[0][0] == "official/online",
+           online.count == 1 && online[0].package == "official/online",
            "Theme browsers partition cached and online-only packages")
   }
 

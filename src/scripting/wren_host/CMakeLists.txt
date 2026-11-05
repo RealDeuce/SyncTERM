@@ -157,7 +157,7 @@ if(BUILD_TESTING)
 		${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 	target_link_libraries(st_wren_settings_menu_test PRIVATE st_wren_host
 		st_wren_vm st_bbs_list st_settings st_fonts st_session_history st_audio st_theme
-		syncterm_filesystem)
+		st_crypto syncterm_filesystem)
 	target_compile_definitions(st_wren_settings_menu_test PRIVATE
 		ST_WREN_SETTINGS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/settings-menu-test"
 		ST_WREN_SETTINGS_SOURCE_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/../../..")

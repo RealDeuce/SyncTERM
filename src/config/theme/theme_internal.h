@@ -41,6 +41,7 @@ struct st_theme_manager {
 	size_t catalog_count;
 	struct st_cloud_theme_entry *cloud_catalog;
 	size_t cloud_catalog_count;
+	uint64_t cloud_catalog_generation;
 	uint64_t generation;
 	struct st_settings classic_settings;
 };

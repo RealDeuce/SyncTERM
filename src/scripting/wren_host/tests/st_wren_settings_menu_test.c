@@ -12,9 +12,12 @@
 #include "st_audio_runtime.h"
 #include "st_builtin_fonts.h"
 #include "st_bbs_list.h"
+#include "st_digest.h"
+#include "st_crypto.h"
 #include "st_presentation_font.h"
 #include "st_session_history.h"
 #include "st_theme.h"
+#include "theme_internal.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -190,6 +193,124 @@ test_entry_provenance(struct st_wren_host *host, struct st_app_paths *paths,
 	write_text(paths->cached_system_list, "");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
 	interpret(host, "bbs_provenance", "if (Menu.load(null) != null) Fiber.abort(\"restore provenance fixture\")\n");
+}
+
+static void
+test_cloud_theme_views(struct st_wren_host *host)
+{
+	char directory[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+	char manifest[sizeof(directory) + 32], path[sizeof(directory) + 32];
+	char warning[256], source[16384];
+	CHECK(snprintf(directory, sizeof(directory), "%s/themes/official",
+	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(directory));
+	CHECK(snprintf(manifest, sizeof(manifest), "%s/manifest.lst", directory) < (int)sizeof(manifest));
+	CHECK(snprintf(path, sizeof(path), "%s/blue.ini", directory) < (int)sizeof(path));
+	CHECK(fs_create_directories(directory) == 0);
+	write_text(path, "Name=Cloud Theme\n[Style:frame]\nForeground=0x654321\n");
+	write_text(manifest, "Repository=official\n[Theme:blue]\nName=Cloud Theme\n"
+	    "Author=Jose\xcc\x81\nDescription=Blue skies\nVersion=1\n"
+	    "URI=https://example.invalid/blue.ini\n"
+	    "SHA256=1891D225F61EF1AAA8DF82E47F540561A4829FB5CC62535A34B1454F9BB0BFD5\n");
+	CHECK(st_theme_cloud_refresh(host->themes, false, "", warning, sizeof(warning)) == 0);
+	FILE *stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY
+	    "/src/scripting/wren_host/tests/cloud_theme_views.wren", "rb");
+	CHECK(stream != NULL);
+	size_t size = fread(source, 1, sizeof(source) - 1, stream);
+	CHECK(!ferror(stream) && feof(stream) && fclose(stream) == 0);
+	source[size] = '\0';
+	interpret(host, "cloud_theme_views", source);
+	unsigned char digest[32];
+	bool verify_hash = st_digest(ST_DIGEST_SHA256, "", 0, digest, sizeof(digest)) == ST_CRYPTO_OK;
+	interpret(host, "cloud_theme_views", verify_hash
+	    ? "CloudThemeTest.run(true)\n" : "CloudThemeTest.run(false)\n");
+	uint64_t generation = st_theme_cloud_generation(host->themes);
+	struct st_cloud_theme_entry *native = &host->themes->cloud_catalog[0];
+	char *original_author = native->author;
+	char decomposed[] = "Jose\xcc\x81", malformed[] = "\xff";
+	native->author = decomposed;
+	interpret(host, "cloud_theme_views",
+	    "if (CloudThemeTest.blue.author != \"Jos\\u00e9\") Fiber.abort(\"cloud NFC conversion\")\n");
+	CHECK(strcmp(native->author, "Jose\xcc\x81") == 0);
+	native->author = malformed;
+	interpret(host, "cloud_theme_views",
+	    "var invalid = CloudThemeTest.blue.author\n"
+	    "if (!(invalid is MenuError) || invalid.code != IOErr.invalidEncoding || invalid.nativeCode != IOErr.invalidEncoding) Fiber.abort(\"cloud malformed text result\")\n");
+	native->author = original_author;
+	native->error = decomposed;
+	interpret(host, "cloud_theme_views",
+	    "if (CloudThemeTest.blue.error != \"Jos\\u00e9\") Fiber.abort(\"live cloud diagnostic\")\n");
+	native->error = NULL;
+	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
+	interpret(host, "cloud_theme_views",
+	    "var lazy = Menu.cloudThemes\n"
+	    "if (!(lazy[0] is CloudThemeEntry) || !lazy[0].cached) Fiber.abort(\"eager cloud conversion\")\n"
+	    "var failure = lazy[0].name\n"
+	    "if (!(failure is MenuError) || failure.code != IOErr.outOfMemory || failure.nativeCode != IOErr.outOfMemory) Fiber.abort(\"cloud allocation result\")\n");
+	interpret(host, "cloud_theme_views",
+	    "var errorApp = CloudErrorApp.new()\n"
+	    "SettingsMenu.themes_(errorApp, null)\n"
+	    "if (errorApp.alerts != 1) Fiber.abort(\"installed catalog error handling\")\n");
+	native->cached = false;
+	st_wren_test_theme_warning = "";
+	interpret(host, "cloud_theme_views",
+	    "SettingsMenu.cloudThemes_(errorApp, null)\n"
+	    "if (errorApp.alerts != 2) Fiber.abort(\"online catalog error handling\")\n");
+	st_wren_test_theme_warning = NULL;
+	native->cached = true;
+	st_wren_test_diagnostic_copy_status = 0;
+	interpret(host, "cloud_theme_views",
+	    "if (Menu.deleteCloudTheme(\"official/blue\") != null || CloudThemeTest.blue.cached || CloudThemeTest.blue.updateAvailable || CloudThemeTest.blue.error != null) Fiber.abort(\"cloud deletion invalidated live state\")\n");
+	write_text(path, "Name=Cloud Theme\n[Style:frame]\nForeground=0x654321\n");
+	if (verify_hash) interpret(host, "cloud_theme_views",
+	    "if (Menu.cacheCloudTheme(\"official/blue\") != null || !CloudThemeTest.blue.cached) Fiber.abort(\"cloud cache invalidated live state\")\n");
+	CHECK(st_theme_cloud_generation(host->themes) == generation);
+	char backup[sizeof(manifest) + 16];
+	CHECK(snprintf(backup, sizeof(backup), "%s.backup", manifest) < (int)sizeof(backup));
+	CHECK(fs_rename(manifest, backup) == 0);
+	CHECK(st_theme_cloud_refresh(host->themes, false, "", warning, sizeof(warning)) != 0);
+	CHECK(st_theme_cloud_generation(host->themes) == generation);
+	interpret(host, "cloud_theme_views", "CloudThemeTest.retained_()\n");
+	CHECK(fs_rename(backup, manifest) == 0);
+	CHECK(st_theme_cloud_refresh(host->themes, false, "official/missing", warning, sizeof(warning)) == 0);
+	CHECK(st_theme_cloud_generation(host->themes) == ++generation);
+	interpret(host, "cloud_theme_views",
+	    "CloudThemeTest.replaced_()\n"
+	    "var missing = CloudThemeTest.named_(\"official/missing\")\n"
+	    "if (missing.sourceUri != null || missing.expectedSha256 != null || missing.author != null || missing.version != null || missing.description != null || missing.cached || missing.error == null) Fiber.abort(\"cloud placeholder metadata\")\n");
+	st_wren_test_theme_refresh_cached = true;
+	st_wren_test_theme_warning = "cached manifest retained";
+	interpret(host, "cloud_theme_views",
+	    "if (Menu.refreshCloudThemes() != \"cached manifest retained\") Fiber.abort(\"cloud warning fixture\")\n"
+	    "CloudThemeTest.replaced_()\n"
+	    "if (!(Fiber.new { missing.cached }.try() is String)) Fiber.abort(\"removed placeholder view revived\")\n");
+	st_wren_test_theme_warning = NULL;
+	st_wren_test_theme_refresh_cached = false;
+	CHECK(st_theme_cloud_generation(host->themes) == ++generation);
+	CHECK(wrenInterpret(host->picker_vm, "no_cloud_view",
+	    "import \"syncterm_menu\" for CloudThemeEntry\n") != WREN_RESULT_SUCCESS);
+	struct st_profile profile;
+	st_profile_init(&profile);
+	const struct st_wren_connected_config config = {
+	    .host = host, .console = host->config.console, .profile = &profile};
+	st_wren_connected_t *connected = NULL;
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "no_cloud_view",
+	    "import \"syncterm_menu\" for CloudThemeEntry\n") != 0);
+	st_wren_connected_destroy(connected);
+	st_profile_dispose(&profile);
+	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/scripts/menu_theme_editor_test.wren", "rb");
+	CHECK(stream != NULL);
+	size = fread(source, 1, sizeof(source) - 1, stream);
+	CHECK(!ferror(stream) && feof(stream) && fclose(stream) == 0);
+	source[size] = '\0';
+	interpret(host, "menu_theme_editor_test", source);
+	interpret(host, "cloud_helper_audit",
+	    "import \"menu_theme_editor_test\" for MenuTest\n"
+	    "var result = MenuTest.runCloudCatalogAudit()\n"
+	    "if (result[0] != 3 || result[1] != 0) Fiber.abort(\"cloud helper audit\")\n");
+	write_text(manifest, "Repository=official\n");
+	CHECK(st_theme_cloud_refresh(host->themes, false, "", warning, sizeof(warning)) == 0);
+	CHECK(fs_remove_file(path) == 0 && fs_remove_file(manifest) == 0);
 }
 
 static void
@@ -1113,6 +1234,7 @@ main(void)
 	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n");
 	test_transfer_timeout_settings(host);
 	test_entry_provenance(host, &paths, personal);
+	test_cloud_theme_views(host);
 	test_load_results(host, &paths, personal, console);
 	interpret(host, "theme_result_regression",
 	    "import \"syncterm\" for IOErr\n"

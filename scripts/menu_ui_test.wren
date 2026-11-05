@@ -8,6 +8,28 @@ import "syncterm_menu" for Menu
 import "syncterm" for Key, KeyEvent
 import "ui_style" for Style, Theme
 
+// UI fixture with the named cloud-catalog interface.
+class CloudThemeFixture {
+  construct new(package, name, author, description, version, cached, update, error) {
+    _package = package
+    _name = name
+    _author = author
+    _description = description
+    _version = version
+    _cached = cached
+    _update = update
+    _error = error
+  }
+  package { _package }
+  name { _name }
+  author { _author }
+  description { _description }
+  version { _version }
+  cached { _cached }
+  updateAvailable { _update }
+  error { _error }
+}
+
 class MenuUiTest {
   static run() {
     __pass = 0
@@ -69,8 +91,8 @@ class MenuUiTest {
   static testThemeIdentityAndLabels_() {
     var local = [["", "Same", null, null, null, null],
         ["local.ini", "Same", null, null, null, null]]
-    var cloud = [["cached", "Same", null, null, null, true, true, null],
-        ["online", "Other", null, null, null, false, false, null]]
+    var cloud = [CloudThemeFixture.new("cached", "Same", null, null, null, true, true, null),
+        CloudThemeFixture.new("online", "Other", null, null, null, false, false, null)]
     var entries = SettingsMenu.installedThemeEntries_(local, cloud)
     var rows = SettingsMenu.themeRows_(entries)
     check_(entries.count == 3 && rows[0][0] == "classic" &&
@@ -79,7 +101,7 @@ class MenuUiTest {
         rows[2][1] == "[Update] Same (cached)",
         "theme catalog preserves identity and disambiguates duplicate names")
     var online = SettingsMenu.onlineThemeEntries_(cloud)
-    check_(online.count == 1 && online[0][0] == "online",
+    check_(online.count == 1 && online[0].package == "online",
         "online catalog excludes already cached packages")
   }
 

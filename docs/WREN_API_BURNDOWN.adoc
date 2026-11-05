@@ -1049,3 +1049,87 @@ follow-up review now reflect both macro rows. Public inventory is unchanged:
 topics. Coverage and diff checks pass. Thirty-six topics and the separate
 documentation finding remain open. Preserve this temporary record and skill;
 clipboard/URL operations, UI behavior and the paused Wayland work are unchanged.
+
+== Approved chunk 14: typed cloud-theme provenance views (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-04.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Finding: `theme-origin` / `themes.cloud-origin`.
+
+Replace Menu.cloudThemes positional rows with menu-only, read-only
+CloudThemeEntry views: package, name, author, description, version, sourceUri,
+expectedSha256, cached, updateAvailable and error. The user chose live views
+and native hexadecimal expected-hash text. Text getters validate UTF-8/NFC only
+on access, return native text/null or MenuError for conversion failure, and
+preserve hash spelling/case. error remains native diagnostic text. No public
+constructors, setters or indexing compatibility. Preserve Menu.themes, parsed
+theme ownership through copyCloudTheme, filesystem authority and native policies.
+
+Handles retain context, index and catalog generation without metadata copies,
+borrowed strings or parsed-theme pointers. Add native st_theme_cloud_generation:
+uint64_t, zero initially/for null, advanced once when a replacement catalog is
+installed. Keep displayed-theme generation separate. Replacement (including a
+successful refresh with warning) invalidates old views; pre-commit failures do
+not. In-place cache/selection/deletion state changes stay visible. Validate
+generation before dereferencing. Stale reads abort; captured Strings remain
+independent. Getters perform no downloads, cache checks or file reads.
+
+Migrate bundled callers/fixtures to named fields, preserving labels, help,
+controls, actions and refresh/reacquisition points. Add no provenance display.
+Handle text-conversion MenuError through existing theme-error alerts and stop
+the affected list/action without starting another operation.
+
+Acceptance: all fields/optional metadata/placeholders, exact hashes and Unicode,
+malformed/native allocation failures, read-only/no-indexing, no eager conversion,
+live flags/errors, displayed-generation independence, successful/warning/failed
+refresh and direct native refresh, stale non-revival, captured Strings, VM
+isolation and GC/teardown. Use cached fixtures without external network calls;
+execute migrated helper checks through active menu/settings tests.
+
+Verify CMake application and theme, Wren host/menu/settings/picker/menu-synthetic,
+affected menu/settings behavior and Modern UI directory/settings/web-list tests;
+focused ASan/UBSan ownership, GCC application/host checks and both MinGW
+application/host/theme-test cross-builds, without Windows execution or Wine.
+Update authoritative docs, assessment/report/matrix/evidence/follow-up; add the
+native accessor ledger row under owner lifetime, refresh changed header/lines,
+preserve existing rows/exclusions, and run coverage/diff checks. Commit without
+pushing. Retain the temporary record and skill for other open work.
+
+=== Completed verification
+
+The regression first failed at missing CloudThemeEntry. Native cached fixtures
+now verify named fields/optional placeholders, exact uppercase expected hash,
+lazy Unicode normalization without native mutation, malformed/allocation status
+fidelity, read-only/no-index/no-constructor, live state/diagnostics, displayed-theme
+generation independence, failed/direct/warning refresh, stale non-revival,
+independent captured Strings, menu-only isolation, GC and teardown. Both real
+browser list builders stop with the existing alert on metadata conversion error.
+Three migrated browser partition/identity/comment helper assertions run through
+the active settings-runtime test; the full dormant editor suite is not claimed.
+
+FreeBSD Clang Debug CMake application/host/settings/picker/theme builds completed;
+all twelve planned CTests passed: theme, wren_settings_runtime, wren_host,
+wren_menu_contract, wren_picker_contract, wren_menu_synthetic,
+syncterm_behavior_menu, syncterm_behavior_settings,
+syncterm_behavior_settings_ui, modern_ui_directory, modern_ui_settings and
+modern_ui_web_list. Rebuilt embedded scripts were checked before these tests.
+GCC Debug application/host builds and theme/host/menu/settings-runtime tests
+passed. Clang ASan/UBSan builds and theme/host/menu/settings-runtime/picker tests
+passed; unsupported FreeBSD leak detection is disabled and the existing C++
+vptr exclusion is unchanged. Minimal CryptoNone/UnifontOff application/host/
+settings builds and settings-runtime passed, avoiding unavailable digest-dependent
+fixture operations and any external fetch. Both MinGW x86/x86_64 application/
+DLL/launcher, host-test and theme-test targets cross-built without Windows
+execution or Wine. No compiler diagnostics or sanitizer errors in final builds;
+GNUmake emitted environmental generated-dependency clock-skew notices. Headless
+fixtures disable physical audio; no interactive display or external network used.
+
+API docs, assessments, report/matrix/source locations, reviewed evidence and the
+follow-up review describe the completed contract. Exactly one native accessor
+row was added under owner lifetime; all 121 prior theme-header declarations/types
+and all exclusions are preserved. The inventory is 80 public headers,
+122 exclusions, 2,449 native items, 157 assessments and 51 original topics.
+Thirty-five topics and the separate documentation finding remain open.
+Coverage and diff checks pass.
+Preserve this temporary record and skill for their next Plan-mode phase.

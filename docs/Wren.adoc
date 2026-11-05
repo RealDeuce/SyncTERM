@@ -5102,10 +5102,43 @@ while MenuError reports the deletion failure and the completed Classic selection
 packages whose SHA-256 changed. It returns null for clean native success, a
 String for native success with a warning, or MenuError for native failure. A
 warning may accompany a usable cached manifest. The binding does not invent a
-numeric reason for warning text whose underlying status C has already discarded.  `Menu.cloudThemes` then returns rows
-`[package, name, author, description, version, cached, updateAvailable,
-error]`.  Optional metadata and `error` are `null` when
-absent.
+numeric reason for warning text whose underlying status C has already discarded.
+`Menu.cloudThemes` returns a fresh List of read-only `CloudThemeEntry` live
+views in the menu VM. They have no public constructor, setters or positional
+indexing. Local `Menu.themes` rows keep their existing interface.
+
+[options="header",cols="2m,4"]
+|===
+| Property | Meaning
+| package, name, author, description, version
+| Native package identity and descriptive metadata. Optional fields are null
+  when absent.
+| sourceUri
+| The source URI from the manifest, or null when unavailable.
+| expectedSha256
+| The expected SHA-256 hexadecimal manifest text, preserving its spelling and
+  case. It is not a freshly computed cached-file digest. Null when unavailable.
+| cached, updateAvailable
+| Live native cache-state Bools; reading them does not inspect files or download.
+| error
+| Native catalog diagnostic text, or null. It does not manufacture a numeric
+  status for a diagnostic whose underlying native reason is unavailable.
+|===
+
+Text fields create Wren Strings only on access, validating UTF-8 and normalizing
+to NFC. A conversion failure returns MenuError with the actual status in code
+and nativeCode. This also applies to reading the diagnostic text in `error`.
+A selected package absent from the manifest can have null sourceUri and
+expectedSha256. Metadata views retain no borrowed strings or parsed-theme
+pointers and grant no file or network authority.
+
+Successful replacement of the native cloud catalog makes old views stale,
+including refreshes returning a warning. A failed refresh before replacement
+preserves them. Stale field reads abort; reacquire through Menu.cloudThemes.
+In-place cache, selection and deletion updates remain visible without replacing
+the view. Changes to the displayed theme alone do not invalidate catalog views.
+Captured Strings remain independent after updates or replacement. Property reads
+perform no downloads, cache checks or file reads.
 
 `Menu.previewCloudTheme(package)` previews a validated cached package and
 returns null/MenuError. `Menu.cacheCloudTheme(package)` downloads
@@ -5123,10 +5156,10 @@ selected package first commits and saves Classic Theme. If deleting the cache
 file then fails, Classic remains selected and saved; MenuError describes that
 completed step and preserves the deletion failure.  Both deletion operations are unavailable in safe mode.
 
-The shipped Themes browser combines `Menu.themes` with cached rows from
+The shipped Themes browser combines `Menu.themes` with cached entries from
 `Menu.cloudThemes`, using distinct identities for Classic, local files, and
 packages when tracking its selection.  Its Online Themes browser displays
-only `Menu.cloudThemes` rows whose `cached` member is `false`.  Downloading a
+only `Menu.cloudThemes` entries whose `cached` member is `false`.  Downloading a
 package therefore moves it from the online-only browser to the main Themes
 browser.  Both browsers publish the highlighted row's description through
 the main menu's comment callback and reserve the comment row when sizing

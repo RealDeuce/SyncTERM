@@ -32,6 +32,7 @@ int st_wren_test_theme_open_status;
 int st_wren_test_theme_copy_status;
 int st_wren_test_theme_refresh_status;
 const char *st_wren_test_theme_warning;
+bool st_wren_test_theme_refresh_cached;
 int st_wren_test_theme_activate_status;
 int st_wren_test_theme_save_result;
 int st_wren_test_theme_restore_status;
@@ -80,6 +81,12 @@ static int
 test_theme_refresh(struct st_theme_manager *manager, bool fetch,
 	const char *selected, char *warning, size_t size)
 {
+	if (st_wren_test_theme_refresh_cached) {
+		int status = st_theme_cloud_refresh(manager, false, selected, warning, size);
+		if (status == 0 && st_wren_test_theme_warning != NULL)
+			(void)snprintf(warning, size, "%s", st_wren_test_theme_warning);
+		return status;
+	}
 	if (st_wren_test_theme_warning != NULL) {
 		(void)snprintf(warning, size, "%s", st_wren_test_theme_warning);
 		return st_wren_test_theme_refresh_status;

@@ -785,71 +785,72 @@ src/config/theme/st_theme.h	function:st_theme_select	112	int (struct st_theme_ma
 src/config/theme/st_theme.h	function:st_theme_delete	114	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
 src/config/theme/st_theme.h	function:st_theme_cloud_refresh	117	int (struct st_theme_manager *, _Bool, const char *, char *, size_t)	themes.operation-status
 src/config/theme/st_theme.h	function:st_theme_cloud_count	119	size_t (const struct st_theme_manager *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_cloud_at	120	const struct st_cloud_theme_entry *(const struct st_theme_manager *, size_t)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_valid_package	122	_Bool (const char *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_cloud_cache	123	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_cloud_preview	125	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_cloud_select	127	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_cloud_delete	129	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_cloud_copy_document	131	int (struct st_theme_document **, struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_valid_filename	135	_Bool (const char *)	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_STYLE_FONT	138	st_theme_style_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_STYLE_LEGACY_ATTR	139	st_theme_style_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_STYLE_FOREGROUND	140	st_theme_style_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_STYLE_BACKGROUND	141	st_theme_style_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_STYLE_FIELD_COUNT	142	st_theme_style_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_METADATA_NAME	146	st_theme_metadata_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_METADATA_AUTHOR	147	st_theme_metadata_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_METADATA_DESCRIPTION	148	st_theme_metadata_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_METADATA_VERSION	149	st_theme_metadata_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_METADATA_FIELD_COUNT	150	st_theme_metadata_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_CP437	154	st_theme_glyph_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_ASCII	155	st_theme_glyph_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_CODEPOINT	156	st_theme_glyph_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_FIELD_COUNT	157	st_theme_glyph_field	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_VALUE_DEFAULT	161	st_theme_value_mode	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_VALUE_INHERIT	162	st_theme_value_mode	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_VALUE_EXPLICIT	163	st_theme_value_mode	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_OK	167	st_theme_document_error	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_INVALID	168	st_theme_document_error	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_CONFLICT	169	st_theme_document_error	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_EXISTS	170	st_theme_document_error	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_READ_ONLY	171	st_theme_document_error	themes.documents
-src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_IO	172	st_theme_document_error	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_style.role	176	const char *	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_style.builtin	177	_Bool	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_style.present	178	unsigned int	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_style.values	179	int[4]	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_glyph.name	183	const char *	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_glyph.builtin	184	_Bool	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_glyph.present	185	unsigned int	themes.documents
-src/config/theme/st_theme.h	field:st_theme_document_glyph.values	186	uint32_t[3]	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_create	190	int (struct st_theme_document **, struct st_theme_manager *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_open	192	int (struct st_theme_document **, struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_copy_path	195	int (struct st_theme_document **, struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_free	198	void (struct st_theme_document **)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_filename	199	const char *(const struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_metadata	200	const char *(const struct st_theme_document *, unsigned int)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_set_metadata	202	int (struct st_theme_document *, unsigned int, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_style_count	204	size_t (const struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_style_at	205	_Bool (const struct st_theme_document *, size_t, struct st_theme_document_style *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_set_style	207	int (struct st_theme_document *, const char *, unsigned int, enum st_theme_value_mode, int, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_add_style	210	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_remove_style	212	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_glyph_count	214	size_t (const struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_glyph_at	215	_Bool (const struct st_theme_document *, size_t, struct st_theme_document_glyph *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_set_glyph	217	int (struct st_theme_document *, const char *, unsigned int, enum st_theme_value_mode, uint32_t, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_add_glyph	220	int (struct st_theme_document *, const char *, int, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_remove_glyph	222	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_preview	224	const struct st_theme *(const struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_dirty	226	_Bool (const struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_can_undo	227	_Bool (const struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_can_redo	228	_Bool (const struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_undo	229	_Bool (struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_redo	230	_Bool (struct st_theme_document *)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_import	231	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
-src/config/theme/st_theme.h	function:st_theme_document_save	238	enum st_theme_document_error (struct st_theme_document *, const char *, _Bool, char *, size_t)	themes.documents
-src/config/theme/st_theme.h	function:st_theme_document_activate	247	int (struct st_theme_document *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_cloud_generation	122	uint64_t (const struct st_theme_manager *)	themes.manager-lifetime
+src/config/theme/st_theme.h	function:st_theme_cloud_at	123	const struct st_cloud_theme_entry *(const struct st_theme_manager *, size_t)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_valid_package	125	_Bool (const char *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_cloud_cache	126	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_cloud_preview	128	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_cloud_select	130	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_cloud_delete	132	int (struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_cloud_copy_document	134	int (struct st_theme_document **, struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_valid_filename	138	_Bool (const char *)	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_STYLE_FONT	141	st_theme_style_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_STYLE_LEGACY_ATTR	142	st_theme_style_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_STYLE_FOREGROUND	143	st_theme_style_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_STYLE_BACKGROUND	144	st_theme_style_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_STYLE_FIELD_COUNT	145	st_theme_style_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_METADATA_NAME	149	st_theme_metadata_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_METADATA_AUTHOR	150	st_theme_metadata_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_METADATA_DESCRIPTION	151	st_theme_metadata_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_METADATA_VERSION	152	st_theme_metadata_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_METADATA_FIELD_COUNT	153	st_theme_metadata_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_CP437	157	st_theme_glyph_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_ASCII	158	st_theme_glyph_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_CODEPOINT	159	st_theme_glyph_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_GLYPH_FIELD_COUNT	160	st_theme_glyph_field	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_VALUE_DEFAULT	164	st_theme_value_mode	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_VALUE_INHERIT	165	st_theme_value_mode	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_VALUE_EXPLICIT	166	st_theme_value_mode	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_OK	170	st_theme_document_error	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_INVALID	171	st_theme_document_error	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_CONFLICT	172	st_theme_document_error	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_EXISTS	173	st_theme_document_error	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_READ_ONLY	174	st_theme_document_error	themes.documents
+src/config/theme/st_theme.h	enum:ST_THEME_DOCUMENT_IO	175	st_theme_document_error	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_style.role	179	const char *	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_style.builtin	180	_Bool	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_style.present	181	unsigned int	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_style.values	182	int[4]	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_glyph.name	186	const char *	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_glyph.builtin	187	_Bool	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_glyph.present	188	unsigned int	themes.documents
+src/config/theme/st_theme.h	field:st_theme_document_glyph.values	189	uint32_t[3]	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_create	193	int (struct st_theme_document **, struct st_theme_manager *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_open	195	int (struct st_theme_document **, struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_copy_path	198	int (struct st_theme_document **, struct st_theme_manager *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_free	201	void (struct st_theme_document **)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_filename	202	const char *(const struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_metadata	203	const char *(const struct st_theme_document *, unsigned int)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_set_metadata	205	int (struct st_theme_document *, unsigned int, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_style_count	207	size_t (const struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_style_at	208	_Bool (const struct st_theme_document *, size_t, struct st_theme_document_style *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_set_style	210	int (struct st_theme_document *, const char *, unsigned int, enum st_theme_value_mode, int, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_add_style	213	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_remove_style	215	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_glyph_count	217	size_t (const struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_glyph_at	218	_Bool (const struct st_theme_document *, size_t, struct st_theme_document_glyph *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_set_glyph	220	int (struct st_theme_document *, const char *, unsigned int, enum st_theme_value_mode, uint32_t, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_add_glyph	223	int (struct st_theme_document *, const char *, int, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_remove_glyph	225	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_preview	227	const struct st_theme *(const struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_dirty	229	_Bool (const struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_can_undo	230	_Bool (const struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_can_redo	231	_Bool (const struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_undo	232	_Bool (struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_redo	233	_Bool (struct st_theme_document *)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_import	234	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
+src/config/theme/st_theme.h	function:st_theme_document_save	241	enum st_theme_document_error (struct st_theme_document *, const char *, _Bool, char *, size_t)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_activate	250	int (struct st_theme_document *, char *, size_t)	themes.operation-status
 src/io/file_lock/st_file_lock.h	function:st_file_lock_acquire	20	int (st_file_lock_t **, const char *, _Bool)	files.transaction-lock
 src/io/file_lock/st_file_lock.h	function:st_file_lock_release	22	void (st_file_lock_t *)	files.transaction-lock
 src/io/file_map/file_map.h	function:file_map_open	25	int (file_map_t **, const char *)	files.mapping

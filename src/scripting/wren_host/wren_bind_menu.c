@@ -47,6 +47,7 @@ enum menu_foreign_kind {
 	MENU_FOREIGN_ENCRYPTION_INFO,
 	MENU_FOREIGN_ERROR,
 	MENU_FOREIGN_LOAD_DIAGNOSTIC,
+	MENU_FOREIGN_CLOUD_THEME_ENTRY,
 };
 
 struct menu_foreign_header {
@@ -98,6 +99,13 @@ struct foreign_load_diagnostic {
 	int status;
 	char *source_name;
 	char *section_name;
+};
+
+struct foreign_cloud_theme_entry {
+	struct menu_foreign_header header;
+	struct st_wren_context *context;
+	uint64_t generation;
+	size_t index;
 };
 
 struct binding {
@@ -2595,36 +2603,74 @@ static void
 fn_menu_cloud_themes(WrenVM *vm)
 {
 	struct st_theme_manager *themes = st_wren_host_from_vm(vm)->themes;
+	uint64_t generation = st_theme_cloud_generation(themes);
 
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
+	wrenGetVariable(vm, "syncterm_menu", "CloudThemeEntry", 2);
 	for (size_t i = 0; i < st_theme_cloud_count(themes); ++i) {
-		const struct st_cloud_theme_entry *entry = st_theme_cloud_at(themes, i);
-		const char *const values[] = {
-			entry->package, entry->name, entry->author,
-			entry->description, entry->version,
+		struct foreign_cloud_theme_entry *view = wrenSetSlotNewForeign(vm,
+		    1, 2, sizeof(*view));
+		*view = (struct foreign_cloud_theme_entry){
+		    .header.kind = MENU_FOREIGN_CLOUD_THEME_ENTRY,
+		    .context = st_wren_context_from_vm(vm),
+		    .generation = generation, .index = i,
 		};
-
-		wrenSetSlotNewList(vm, 1);
-		for (size_t field = 0; field < sizeof(values) / sizeof(values[0]);
-		    ++field) {
-			if (values[field] == NULL)
-				wrenSetSlotNull(vm, 2);
-			else
-				wrenSetSlotString(vm, 2, values[field]);
-			wrenInsertInList(vm, 1, -1, 2);
-		}
-		wrenSetSlotBool(vm, 2, entry->cached);
-		wrenInsertInList(vm, 1, -1, 2);
-		wrenSetSlotBool(vm, 2, entry->update_available);
-		wrenInsertInList(vm, 1, -1, 2);
-		if (entry->error == NULL)
-			wrenSetSlotNull(vm, 2);
-		else
-			wrenSetSlotString(vm, 2, entry->error);
-		wrenInsertInList(vm, 1, -1, 2);
 		wrenInsertInList(vm, 0, -1, 1);
 	}
+}
+
+static const struct st_cloud_theme_entry *
+cloud_theme_entry_value(WrenVM *vm)
+{
+	struct foreign_cloud_theme_entry *view = st_wren_foreign_require(vm, 0,
+	    "syncterm_menu", "CloudThemeEntry");
+	if (view == NULL) return NULL;
+	if (view->header.kind != MENU_FOREIGN_CLOUD_THEME_ENTRY) {
+		st_wren_abort(vm, "expected CloudThemeEntry");
+		return NULL;
+	}
+	struct st_theme_manager *themes = st_wren_host_from_vm(vm)->themes;
+	if (view->context != st_wren_context_from_vm(vm)
+	    || view->generation != st_theme_cloud_generation(themes)
+	    || view->index >= st_theme_cloud_count(themes)) {
+		st_wren_abort(vm, "CloudThemeEntry: stale view; reacquire it from Menu.cloudThemes");
+		return NULL;
+	}
+	return st_theme_cloud_at(themes, view->index);
+}
+
+#define CLOUD_TEXT_GETTER(name, field) \
+	static void fn_cloud_theme_##name(WrenVM *vm) \
+	{ \
+		const struct st_cloud_theme_entry *entry = cloud_theme_entry_value(vm); \
+		char *text = NULL; \
+		if (entry == NULL) return; \
+		int status = copy_diagnostic_name(&text, entry->field); \
+		if (status != 0) menu_error(vm, status, status, "The cloud theme metadata could not be converted."); \
+		else if (text == NULL) wrenSetSlotNull(vm, 0); \
+		else wrenSetSlotString(vm, 0, text); \
+		free(text); \
+	}
+CLOUD_TEXT_GETTER(package, package)
+CLOUD_TEXT_GETTER(name, name)
+CLOUD_TEXT_GETTER(author, author)
+CLOUD_TEXT_GETTER(description, description)
+CLOUD_TEXT_GETTER(version, version)
+CLOUD_TEXT_GETTER(source_uri, uri)
+CLOUD_TEXT_GETTER(expected_sha256, sha256)
+CLOUD_TEXT_GETTER(error, error)
+#undef CLOUD_TEXT_GETTER
+
+static void fn_cloud_theme_cached(WrenVM *vm)
+{
+	const struct st_cloud_theme_entry *entry = cloud_theme_entry_value(vm);
+	if (entry != NULL) wrenSetSlotBool(vm, 0, entry->cached);
+}
+static void fn_cloud_theme_update_available(WrenVM *vm)
+{
+	const struct st_cloud_theme_entry *entry = cloud_theme_entry_value(vm);
+	if (entry != NULL) wrenSetSlotBool(vm, 0, entry->update_available);
 }
 
 static void
@@ -4872,6 +4918,16 @@ static const struct binding bindings[] = {
 	{"Menu", true, "openThemeDocument(_)", fn_menu_open_theme_document},
 	{"Menu", true, "refreshCloudThemes()", fn_menu_refresh_cloud_themes},
 	{"Menu", true, "cloudThemes", fn_menu_cloud_themes},
+	{"CloudThemeEntry", false, "package", fn_cloud_theme_package},
+	{"CloudThemeEntry", false, "name", fn_cloud_theme_name},
+	{"CloudThemeEntry", false, "author", fn_cloud_theme_author},
+	{"CloudThemeEntry", false, "description", fn_cloud_theme_description},
+	{"CloudThemeEntry", false, "version", fn_cloud_theme_version},
+	{"CloudThemeEntry", false, "sourceUri", fn_cloud_theme_source_uri},
+	{"CloudThemeEntry", false, "expectedSha256", fn_cloud_theme_expected_sha256},
+	{"CloudThemeEntry", false, "cached", fn_cloud_theme_cached},
+	{"CloudThemeEntry", false, "updateAvailable", fn_cloud_theme_update_available},
+	{"CloudThemeEntry", false, "error", fn_cloud_theme_error},
 	{"Menu", true, "previewCloudTheme(_)", fn_menu_preview_cloud_theme},
 	{"Menu", true, "selectCloudTheme(_)", fn_menu_select_cloud_theme},
 	{"Menu", true, "deleteCloudTheme(_)", fn_menu_delete_cloud_theme},
@@ -5083,6 +5139,7 @@ st_wren_menu_bind_class(const char *class_name)
 	    && strcmp(class_name, "ListEncryptionInfo") != 0
 	    && strcmp(class_name, "MenuFont") != 0
 	    && strcmp(class_name, "ThemeDocument") != 0
+	    && strcmp(class_name, "CloudThemeEntry") != 0
 	    && strcmp(class_name, "Settings") != 0
 	    && strcmp(class_name, "DirectoryEntry") != 0)
 		methods = (WrenForeignClassMethods){NULL, NULL};

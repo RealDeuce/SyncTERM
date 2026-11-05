@@ -168,9 +168,9 @@
     },
     {
       "path": "src/config/theme/st_theme.h",
-      "sha256": "1ecec3fe820f7401c648b290e823bedfaf843c37a1fda134d5dd7f05b152c4ed",
+      "sha256": "bf76e31f18f57312850d26e81e4ba25e3c36b2fa30e24497609dc52d0f25cbfc",
       "status": "reviewed",
-      "symbol_count": 121
+      "symbol_count": 122
     },
     {
       "path": "src/io/file_lock/st_file_lock.h",
@@ -1237,7 +1237,7 @@
     "themes.documents": {
       "status": "covered",
       "wren": "Host.themeData/defaultThemeData/themeGeneration; Menu local/cloud themes; ThemeDocument save/activate",
-      "reason": "Theme metadata/styles/glyphs become script values, with List counts and present/mode information in document rows. ThemeDocument provides create/open/metadata/CRUD/preview/undo/redo/import/save/dirty and reports document conflicts through its operation results. Local/cloud catalogs expose validation errors and selection/cache/delete workflows; parsed cloud content is obtainable through copyCloudTheme and themeData rather than a borrowed C pointer. Save and activation are separate: activate copies the resolved clean selected-local document into manager ownership with no file reread or selection change; the enum/save/error contracts are separately covered by themes.operation-status.",
+      "reason": "Theme metadata/styles/glyphs become script values, with List counts and present/mode information in document rows. ThemeDocument provides create/open/metadata/CRUD/preview/undo/redo/import/save/dirty and reports document conflicts through its operation results. Local catalog rows and typed live cloud catalog entries expose metadata, validation errors and selection/cache/delete workflows; parsed cloud content is obtainable through copyCloudTheme and themeData rather than a borrowed C pointer. Save and activation are separate: activate copies the resolved clean selected-local document into manager ownership with no file reread or selection change; the enum/save/error contracts are separately covered by themes.operation-status.",
       "vm": "menu editing; core VMs for active/default theme data",
       "evidence": [
         {
@@ -1255,9 +1255,9 @@
       ]
     },
     "themes.cloud-origin": {
-      "status": "partial",
-      "wren": "Menu.cloudThemes",
-      "reason": "Catalog rows omit the native source URI and expected SHA-256. Downloads and verification remain host-owned, but scripts cannot inspect or display that provenance. Parsed theme ownership is separately represented by copyCloudTheme rather than missing because a pointer is absent.",
+      "status": "covered",
+      "wren": "Menu.cloudThemes: read-only CloudThemeEntry.sourceUri/expectedSha256",
+      "reason": "CloudThemeEntry exposes native source URI and expected SHA-256 hexadecimal text lazily, preserving manifest hash spelling/case. All text getters validate UTF-8/NFC only on access and return null/String or MenuError with the actual conversion status. Native diagnostic error text stays data. Context/index/catalog-generation handles retain no metadata copies, borrowed strings or parsed-theme pointer: replacement invalidates, pre-commit failure preserves, and in-place flags/errors remain live. Downloads/verification remain host-owned; copyCloudTheme represents parsed-document ownership. No constructor, setters, positional alias, file/network authority or non-menu access.",
       "vm": "menu",
       "evidence": [
         {
@@ -1267,15 +1267,27 @@
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
           "anchor": "fn_menu_cloud_themes"
+        },
+        {
+          "path": "src/config/theme/st_theme_cloud.c",
+          "anchor": "++manager->cloud_catalog_generation"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "cloud_theme_entry_value"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class CloudThemeEntry"
         }
       ],
       "finding": "theme-origin",
-      "decision": "mapping-gap"
+      "decision": "resolved"
     },
     "themes.manager-lifetime": {
       "status": "host-owned",
       "wren": "application theme manager; transactional Settings preparation",
-      "reason": "Manager create/free, prepare/install/free and raw cache refresh policy coordinate the one active theme and rollback. Scripts preview/select/edit through that owner; they cannot install a separate manager into a VM. Narrow document activation retains an independent manager-owned copy; it does not grant a general theme installer or another manager owner.",
+      "reason": "Manager create/free, prepare/install/free and raw cache refresh policy coordinate the one active theme and rollback. Scripts preview/select/edit through that owner; they cannot install a separate manager into a VM. Narrow document activation retains an independent manager-owned copy; it does not grant a general theme installer or another manager owner. The native cloud catalog generation is a separate host-owned lifetime token used to reject stale CloudThemeEntry views before dereferencing. It is not a script numeric counter or another manager owner.",
       "vm": "menu",
       "evidence": [
         {
@@ -1285,6 +1297,18 @@
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
           "anchor": "struct prepared_settings"
+        },
+        {
+          "path": "src/config/theme/st_theme.h",
+          "anchor": "st_theme_cloud_generation"
+        },
+        {
+          "path": "src/config/theme/theme_internal.h",
+          "anchor": "uint64_t cloud_catalog_generation"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "view->generation != st_theme_cloud_generation(themes)"
         }
       ]
     },
@@ -4027,6 +4051,11 @@
       "path": "addons/modern_ui/scripts/modern_ui.wren",
       "anchor": "entry.source == BBSListSource.personal",
       "aspect": "Preserves existing Personal/Shared labels and edit/delete behavior while migrating the removed type getter."
+    },
+    {
+      "path": "scripts/menu_settings_ui.wren",
+      "anchor": "static cloudThemeComment_(entry)",
+      "aspect": "Named cloud metadata access preserves installed/online labels, help, comments, actions and reacquisition points. Conversion MenuError uses existing alerts and stops the affected list/action; source/hash are not displayed."
     }
   ],
   "test_evidence": [
@@ -4333,6 +4362,31 @@
       "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
       "anchor": "struct capability_probe",
       "aspect": "Real controlled headless backend capability callbacks exercise neither/either/both flags and live/direct/namespace access in all three VMs; operation counters stay zero, setters are rejected and exact known/unknown native failures remain ScreenError."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/cloud_theme_views.wren",
+      "anchor": "class CloudThemeTest",
+      "aspect": "Typed lazy metadata, exact uppercase expected hash, NFC, read-only/no-index/no-constructor, displayed-generation independence, stale/captured-String lifetime and reacquisition."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_cloud_theme_views",
+      "aspect": "Real cached native catalogs: malformed text/allocation result fidelity and lazy factory, live diagnostic/cache/delete flags, failed/direct/warning replacement, null placeholders, menu-only isolation, teardown and existing alert paths. CryptoNone fixture avoids unavailable digest-dependent operations and external fetches."
+    },
+    {
+      "path": "src/config/theme/tests/st_theme_test.c",
+      "anchor": "borrowed_cloud",
+      "aspect": "Native initial/NULL catalog generation, replacement advance, pre-commit failure preserves generation/borrowed entry, displayed-theme preview/cancel independence."
+    },
+    {
+      "path": "scripts/menu_theme_editor_test.wren",
+      "anchor": "static runCloudCatalogAudit()",
+      "aspect": "Three migrated browser partition/identity/comment helper checks are actually executed by the active settings runtime test; this is not a claim that the dormant full editor suite runs."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c",
+      "anchor": "if (st_wren_test_theme_refresh_cached)",
+      "aspect": "Private control performs real cached catalog replacement through the binding and injects a success warning without network I/O."
     }
   ],
   "dispatch_evidence": [
@@ -4344,16 +4398,16 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "e7fda90478bf7e2d56937cd17691823c39db4b6775fb1def807610ed7a574ec7",
+    "docs/Wren.adoc": "ed92b86b2e34bcd818035c531e24a6edc323a80b1f4c4e86ff0f00dff2e0462d",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
-    "scripts/menu_settings_ui.wren": "411afe4f8321cd0421f74e37d56018f5dbab0211a6beed4deb0c0d763701f212",
+    "scripts/menu_settings_ui.wren": "8013ad36d8079e2484b86820c23cbf8fa17b0979d27452e8592fd935c65fa7f1",
     "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
     "scripts/syncterm.wren": "3f3ff89ab6b064993d9b0d62c71ee669efea0c78017db5d32d683ee104349038",
-    "scripts/syncterm_menu.wren": "d0c9a9f6e7c4e4085cb4aa119edd82132e169ce47be7ea370638b28aaba91b4a",
+    "scripts/syncterm_menu.wren": "e534e5ba67f5f7cbb8f5b2874b039b155383525e005fca7d531830c6c9a28579",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
     "scripts/transfer_pick.wren": "2fc84a3f03cbf6e71bf9c78304cb56558c70413857c0fa82ea1cc775b340ecfb",
@@ -4388,7 +4442,7 @@
     "src/config/list_crypto/st_list_crypto.h": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
     "src/config/profile/st_profile.h": "34e597b3ff46d9c5592740d5d2017006af4f6fe95cbd0aa885ff42b9815b7a51",
     "src/config/settings/st_settings.h": "e0ddcfd779c94a58d90c3e23b8dbb01db49e2dd169cb8654a2c5813ada2e3110",
-    "src/config/theme/st_theme.h": "1ecec3fe820f7401c648b290e823bedfaf843c37a1fda134d5dd7f05b152c4ed",
+    "src/config/theme/st_theme.h": "bf76e31f18f57312850d26e81e4ba25e3c36b2fa30e24497609dc52d0f25cbfc",
     "src/io/file_lock/st_file_lock.h": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
     "src/io/file_map/file_map.h": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
     "src/io/filesystem/filesystem.h": "0352952dd72d0999380f6460216b95e9359b07c3f1bdd52fbfad7a9418f60fed",
@@ -4422,13 +4476,13 @@
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
     "src/scripting/wren_host/tests/st_wren_host_test.c": "6aad0abf2d83429eaf00ad9741cd237548874702238e5bee9e39ee5a52a2f834",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "a50fd5d40c9d233a73d452f28119d405e08ae121d10569ff7df59bfacc7db588",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "9ce240c1d75632c40452fc6f46db4aab88923f2c8d062f80e50c5c917724d6f4",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
     "src/scripting/wren_host/wren_bind_core.c": "326e34b8e00ad130f1409f91c762aee07b84e7fd75df4dc8772bcdfa144e0089",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "aecca1e57094631baaccb6a593dfdb4972612186908c173678209a912e001de9",
+    "src/scripting/wren_host/wren_bind_menu.c": "a0c5077fb77672c02f3f8332097aa4043f21a3f7621f8db4bf719da9fe318e05",
     "src/scripting/wren_host/wren_bind_pixels.c": "5db1826dd3fde89f981f54d3aee2748277369a94e6e63998f2fe76b1d33026ae",
     "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4484,12 +4538,12 @@
     "src/terminal/cterm/tests/st_cterm_test.c": "127e93eb972f5a2392ddb9a53ecde2728fe2da5238db01471681341936f3c070",
     "src/config/bbs_list/st_bbs_store.c": "658bd23d37454bb4a47400d5a763948a4e8a2c70ac41aab1be7f988218a243ba",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
-    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "9a7f110f8beb56c3fdc3080254f272db5db5b414c759c79492e82ef70cfeea64",
+    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "1708e49b34d9df915e4b2afd0f227b5947d401cd1c967691a49503dbe74a827d",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
     "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128",
     "src/tests/st_emoji_picker_test.py": "94caf4154b2876fe021e7547dd2291e5c632d7ad280d8651091498c17ffb0e8e",
     "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
-    "src/config/theme/tests/st_theme_test.c": "288623be326d2607534c894302b66993faac4ee75bf1117968e3350ce951d48e",
+    "src/config/theme/tests/st_theme_test.c": "6bcc194d2af6fd9ea60b998eb673a81f12feb4225a0e6ee8ef032d87c5546f4b",
     "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
     "scripts/menu_theme_editor.wren": "2baba9465446077aa3dfae52889f52d721bb6b5b2cc81bd0fc7b1bf909e9e40a",
     "scripts/ui_demo.wren": "885059ec0b92c72e5fb97cc8a1a09e936718bbd1ed3722b3a2802f548a6d00ed",
@@ -4517,7 +4571,12 @@
     "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
     "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
     "src/scripting/wren_host/wren_bbs_model.h": "abe9afb6c1fa09ae794f6f1454ae702d104c9de743fb6e999cc4ac4841cf293d",
-    "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc"
+    "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc",
+    "src/config/theme/st_theme_cloud.c": "81e112989eacf40cf3f63c7412a48f04a8bab722be95a5eae3213b32a7f75c24",
+    "src/config/theme/theme_internal.h": "bec641bc70123f40fe9da989db4fe59f58cfc5defb1b25825642669d4cc6fc80",
+    "src/scripting/wren_host/tests/cloud_theme_views.wren": "91cff4cd288e16792bac6397125e0f7056d295c11803bf72f07ca4b810e68610",
+    "scripts/menu_theme_editor_test.wren": "6639f43ed266defd6eeee4c1e35d82c858e2c4f1e5fca7ef20915317c7d4128b",
+    "src/scripting/wren_host/CMakeLists.txt": "52f738b2549d35715f9749d243764c129f7cb41debfc51469bbbd1acb8ea0eae"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -5209,6 +5268,37 @@
       },
       "evidence_review": "Reviewed the two SUPPORT_GETTER instantiations/dispatch rows, foreign declarations, documentation and focused test additions. All existing anchors and unrelated mappings on changed evidence files remain valid; report source locations were reconciled.",
       "accounting": "80 public headers, 122 exclusions, 2448 native items, 157 assessments and 51 original topics are unchanged. Two macro rows move from Partial to Covered without native declaration or inventory changes. Thirty-six topics and the separate profile-field-table documentation finding remain open."
+    },
+    {
+      "topic": "theme-origin",
+      "status": "resolved",
+      "approval": "The complete Plan-mode chunk 14 revision 1 was approved with Implement the plan in Default mode. The user selected live catalog views and native hexadecimal expected-hash text.",
+      "scope": "Menu-only read-only CloudThemeEntry replaces positional cloud rows with ten named lazy metadata/live-state getters. Native catalog replacement generation validates handles independently of displayed theme state. No eager metadata copies, raw borrowed pointers, I/O on getters, authority/policy changes or positional compatibility adapter. Local catalog rows and parsed-document ownership remain unchanged; bundled consumers preserve existing presentation/actions and handle conversion errors through existing alerts.",
+      "tests_passed": [
+        "theme",
+        "wren_settings_runtime",
+        "wren_host",
+        "wren_menu_contract",
+        "wren_picker_contract",
+        "wren_menu_synthetic",
+        "syncterm_behavior_menu",
+        "syncterm_behavior_settings",
+        "syncterm_behavior_settings_ui",
+        "modern_ui_directory",
+        "modern_ui_settings",
+        "modern_ui_web_list"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang Debug CMake application/host/settings/picker/theme builds completed. All twelve listed CTests passed using the rebuilt embedded UI modules.",
+        "gcc": "GCC Debug application/host builds completed; theme, wren_host, wren_menu_contract and wren_settings_runtime passed.",
+        "sanitizers": "Clang ASan/UBSan application/host/settings/picker/theme builds completed; theme, wren_host, wren_menu_contract, wren_settings_runtime and wren_picker_contract passed. FreeBSD leak detection unsupported and disabled; existing C++ vptr exclusion unchanged.",
+        "provider_absent": "Minimal CryptoNone/UnifontOff application/host/settings build completed; wren_settings_runtime passed. The cloud fixture verifies metadata without a digest provider and skips unavailable preview/cache success operations rather than fetching.",
+        "windows": "Both MinGW x86/x86_64 application/DLL/launcher, host-test and theme-test targets cross-built. No Windows runtime execution or Wine.",
+        "regressions": "The regression first failed at missing CloudThemeEntry. Real cached fixtures cover all fields, uppercase native hash, lazy/no-native-mutation NFC, malformed/OOM status, live flags/diagnostics, pre-commit failure, direct and warning replacements, placeholders, stale non-revival, retained Strings, read-only/isolation and teardown. Existing error alerts stop both list builders. Three migrated helper assertions are executed through settings runtime; the full dormant editor suite is not claimed.",
+        "warnings": "No compiler diagnostics or sanitizer errors in final builds. GNUmake emitted environmental generated-dependency future-timestamp/clock-skew notices. Headless fixtures disable physical audio; no interactive display or external network used."
+      },
+      "evidence_review": "Reviewed native catalog installation/accessor and owner payload, checked dispatch/getter validation and text-error behavior, migrated consumer/mock branches, active regressions, CMake test dependency and authoritative docs. Reconciled source locations and refreshed only reviewed changed evidence; preserved prior reviews and exclusions.",
+      "accounting": "80 public headers, 122 exclusions, 2449 native items, 157 assessments and 51 original topics. Exactly one native accessor row added under themes.manager-lifetime; existing declarations/types/rows retained, theme header locations updated. Both provenance fields move from Partial to Covered. Sixteen topics resolved; thirty-five topics and the separate profile-field-table documentation finding remain open."
     }
   ]
 }

@@ -129,9 +129,12 @@ class SettingsMenu {
           entry[5], kind, source, false])
     }
     for (entry in cloudEntries) {
-      if (!entry[5]) continue
-      entries.add(["package:%(entry[0])", entry[1], entry[2], entry[3],
-          entry[4], entry[7], "package", entry[0], entry[6]])
+      if (!entry.cached) continue
+      var fields = [entry.package, entry.name, entry.author, entry.description,
+          entry.version, entry.error]
+      for (value in fields) if (value is MenuError) return value
+      entries.add(["package:%(fields[0])", fields[1], fields[2], fields[3],
+          fields[4], fields[5], "package", fields[0], entry.updateAvailable])
     }
     return entries
   }
@@ -139,7 +142,7 @@ class SettingsMenu {
   static onlineThemeEntries_(cloudEntries) {
     var entries = []
     for (entry in cloudEntries) {
-      if (!entry[5]) entries.add(entry)
+      if (!entry.cached) entries.add(entry)
     }
     return entries
   }
@@ -242,6 +245,12 @@ class SettingsMenu {
         return
       }
       var entries = installedThemeEntries_(localEntries, Menu.cloudThemes)
+      if (entries is MenuError) {
+        Menu.cancelThemePreview()
+        app.theme = Theme.current
+        Alert.show(app, "Themes", entries.message)
+        return
+      }
       var rows = themeRows_(entries)
       var current = selectedThemeIdentity_(Menu.selectedThemeFile,
           Menu.selectedThemePackage)
@@ -366,24 +375,37 @@ class SettingsMenu {
 
   static cloudThemeEntry_(entries, package) {
     for (entry in entries) {
-      if (entry[0] == package) return entry
+      var id = entry.package
+      if (id is MenuError) return id
+      if (id == package) return entry
     }
     return null
   }
 
   static cloudThemeRows_(entries) {
     var counts = {}
+    var values = []
     for (entry in entries) {
-      counts[entry[1]] = counts.containsKey(entry[1]) ? counts[entry[1]] + 1 : 1
+      var row = [entry.package, entry.name, entry.error]
+      for (value in row) if (value is MenuError) return value
+      values.add(row)
+      counts[row[1]] = counts.containsKey(row[1]) ? counts[row[1]] + 1 : 1
     }
     var rows = []
-    for (entry in entries) {
-      var label = entry[1]
-      if (counts[label] > 1) label = "%(label) (%(entry[0]))"
-      if (entry[7] != null) label = "[Unavailable] %(label)"
-      rows.add([entry[0], label])
+    for (row in values) {
+      var label = row[1]
+      if (counts[label] > 1) label = "%(label) (%(row[0]))"
+      if (row[2] != null) label = "[Unavailable] %(label)"
+      rows.add([row[0], label])
     }
     return rows
+  }
+
+  static cloudThemeComment_(entry) {
+    if (entry is MenuError) return entry
+    if (entry == null) return ""
+    var description = entry.description
+    return description == null ? "" : description
   }
 
   static cloudThemeHelp_(entry) {
@@ -391,12 +413,16 @@ class SettingsMenu {
         "highlighted theme. F2 opens it as a new local theme document. " +
         "F5 refreshes the manifest and updates downloaded themes.\n\n" +
         "## Highlighted Theme\n\n"
+    if (entry is MenuError) return entry
     if (entry == null) return text + "The selected package is unavailable."
-    text = text + "Name\n:  %(entry[1])\nPackage\n:  `%(entry[0])`\n"
-    if (entry[2] != null) text = text + "Author\n:  %(entry[2])\n"
-    if (entry[4] != null) text = text + "Version\n:  %(entry[4])\n"
-    if (entry[3] != null) text = text + "\n%(entry[3])\n"
-    if (entry[7] != null) text = text + "\nError\n:  %(entry[7])\n"
+    var fields = [entry.package, entry.name, entry.author, entry.description,
+        entry.version, entry.error]
+    for (value in fields) if (value is MenuError) return value
+    text = text + "Name\n:  %(fields[1])\nPackage\n:  `%(fields[0])`\n"
+    if (fields[2] != null) text = text + "Author\n:  %(fields[2])\n"
+    if (fields[4] != null) text = text + "Version\n:  %(fields[4])\n"
+    if (fields[3] != null) text = text + "\n%(fields[3])\n"
+    if (fields[5] != null) text = text + "\nError\n:  %(fields[5])\n"
     return text + "\nEnter\n:  Download and select\nF2\n:  Create " +
         "an editable local copy\nF5\n:  Check for updates\nEsc\n:  Return to local themes"
   }
@@ -416,16 +442,36 @@ class SettingsMenu {
       var entries = onlineThemeEntries_(Menu.cloudThemes)
       if (entries.count == 0) return
       var rows = cloudThemeRows_(entries)
+      if (rows is MenuError) {
+        Menu.cancelThemePreview()
+        app.theme = Theme.current
+        Alert.show(app, "Online Themes", rows.message)
+        return
+      }
       var commands = {}
       commands[Key.f2] = ["copy", false]
       commands[Key.f5] = ["refresh", true]
       var result = MenuUi.browserCommandChoice(app, "Online Themes", rows,
           Menu.selectedThemePackage, Fn.new {|package|
-            cloudThemeHelp_(cloudThemeEntry_(entries, package))
+            var help = cloudThemeHelp_(cloudThemeEntry_(entries, package))
+            if (help is MenuError) {
+              Alert.show(app, "Online Themes", help.message)
+              return ""
+            }
+            return help
           }, Fn.new {|package|
             var entry = cloudThemeEntry_(entries, package)
-            if (onComment != null) onComment.call(themeComment_(entry))
-            if (entry == null || !entry[5] || entry[6] || entry[7] != null) {
+            var comment = cloudThemeComment_(entry)
+            var error = entry == null || entry is MenuError ? null : entry.error
+            if (comment is MenuError || error is MenuError) {
+              var failure = comment is MenuError ? comment : error
+              Menu.cancelThemePreview()
+              app.theme = Theme.current
+              Alert.show(app, "Online Themes", failure.message)
+              return
+            }
+            if (onComment != null) onComment.call(comment)
+            if (entry == null || !entry.cached || entry.updateAvailable || error != null) {
               Menu.cancelThemePreview()
             } else {
               var error = Menu.previewCloudTheme(package)

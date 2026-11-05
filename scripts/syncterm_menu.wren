@@ -26,6 +26,20 @@ foreign class BBSLoadDiagnostic {
   foreign error
 }
 
+// Read-only live catalog views. Refresh replacement invalidates old handles.
+foreign class CloudThemeEntry {
+  foreign package
+  foreign name
+  foreign author
+  foreign description
+  foreign version
+  foreign sourceUri
+  foreign expectedSha256
+  foreign cached
+  foreign updateAvailable
+  foreign error
+}
+
 class Menu {
   // Transactionally replace the in-memory directory.  On failure the
   // previous generation remains active. Returns null/MenuError; password may be null.
@@ -121,8 +135,8 @@ class Menu {
   foreign static deleteTheme(filename)
   foreign static newThemeDocument()
   foreign static openThemeDocument(filename)
-  // Cloud rows are [package, name, author, description, version,
-  // cached, updateAvailable, error].
+  // Cloud catalog entries are read-only CloudThemeEntry live views.
+  // Reacquire them after refresh replaces the catalog.
   foreign static refreshCloudThemes()
   foreign static cloudThemes
   foreign static previewCloudTheme(package)

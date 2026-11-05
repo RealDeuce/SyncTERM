@@ -31,6 +31,7 @@ extern int st_wren_test_theme_open_status;
 extern int st_wren_test_theme_copy_status;
 extern int st_wren_test_theme_refresh_status;
 extern const char *st_wren_test_theme_warning;
+extern bool st_wren_test_theme_refresh_cached;
 extern int st_wren_test_theme_activate_status;
 extern int st_wren_test_theme_save_result;
 extern int st_wren_test_theme_restore_status;

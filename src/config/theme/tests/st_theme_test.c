@@ -566,7 +566,19 @@ main(void)
 	CHECK(write_text(saved, "Name=Externally changed\n") == 0);
 	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
 	    == ST_THEME_DOCUMENT_CONFLICT);
+	CHECK(st_theme_cloud_generation(NULL) == 0 && st_theme_cloud_generation(manager) == 0);
 	CHECK(st_theme_cloud_refresh(manager, false, "", error, sizeof(error)) == 0);
+	uint64_t cloud_generation = st_theme_cloud_generation(manager);
+	CHECK(cloud_generation == 1);
+	const struct st_cloud_theme_entry *borrowed_cloud = st_theme_cloud_at(manager, 0);
+	char manifest_backup[sizeof(manifest) + 16];
+	CHECK(snprintf(manifest_backup, sizeof(manifest_backup), "%s.missing-test", manifest)
+	    < (int)sizeof(manifest_backup));
+	CHECK(fs_rename(manifest, manifest_backup) == 0);
+	CHECK(st_theme_cloud_refresh(manager, false, "", error, sizeof(error)) != 0);
+	CHECK(st_theme_cloud_generation(manager) == cloud_generation
+	    && st_theme_cloud_at(manager, 0) == borrowed_cloud);
+	CHECK(fs_rename(manifest_backup, manifest) == 0);
 	CHECK(st_theme_cloud_count(manager) == 1);
 	CHECK(st_theme_cloud_at(manager, 0)->cached);
 	CHECK(st_theme_cloud_preview(manager, "official/blue", error,
@@ -575,6 +587,7 @@ main(void)
 	    == 0x654321);
 	st_theme_cancel_preview(manager);
 	st_theme_document_free(&document);
+	CHECK(st_theme_cloud_generation(manager) == cloud_generation);
 	CHECK(st_theme_cloud_copy_document(&document, manager,
 	    "official/blue", error, sizeof(error)) == 0);
 	CHECK(strcmp(st_theme_document_metadata(document,

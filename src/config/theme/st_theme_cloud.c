@@ -554,6 +554,7 @@ st_theme_cloud_refresh(struct st_theme_manager *manager, bool fetch,
 	if (status != 0)
 		goto finished;
 	st_theme_cloud_dispose(manager);
+	++manager->cloud_catalog_generation;
 	manager->cloud_catalog = entries;
 	manager->cloud_catalog_count = count;
 	entries = NULL;
@@ -595,6 +596,12 @@ size_t
 st_theme_cloud_count(const struct st_theme_manager *manager)
 {
 	return manager == NULL ? 0 : manager->cloud_catalog_count;
+}
+
+uint64_t
+st_theme_cloud_generation(const struct st_theme_manager *manager)
+{
+	return manager == NULL ? 0 : manager->cloud_catalog_generation;
 }
 
 const struct st_cloud_theme_entry *
