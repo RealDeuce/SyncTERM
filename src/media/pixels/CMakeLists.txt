@@ -31,7 +31,7 @@ if(BUILD_TESTING)
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/time"
 			"${CMAKE_CURRENT_BINARY_DIR}/time")
 	endif()
-	add_executable(st_pixels_test tests/st_pixels_test.c)
+	add_executable(st_pixels_test tests/st_pixels_test.c tests/st_pixels_test_impl.c)
 	target_link_libraries(st_pixels_test PRIVATE st_pixels)
 	set_target_properties(st_pixels_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

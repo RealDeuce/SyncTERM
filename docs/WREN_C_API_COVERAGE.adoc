@@ -4,7 +4,8 @@ Status: accounting complete against commit da27a6e (2026-11-02).
 Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+, +theme-operation-results+,
 +transfer-result+, +transfer-protocol-selection+, +settings-transfer-timeouts+,
-+bbs-provenance+, +clipboard-url-capabilities+ and +theme-origin+ are resolved.
++bbs-provenance+, +clipboard-url-capabilities+, +theme-origin+ and
++pixel-offscreen-blit+ are resolved.
 CTerm and Screen result fidelity are resolved by their approved chunks,
 completing +console-operation-results+.
 Selected BBS/Settings mutation results, Menu.load and emoji recording now
@@ -24,21 +25,22 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,449 named native items,
 and 122 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Sixteen topics
+broader API-scope decisions, plus one stale documentation finding. Seventeen topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
 portable I/O error symbols, BBS diagnostics, model-operation results, theme
 operation results, transfer results, explicit XMODEM-G selection, the
 intentional cache-status omission, console operation results, transfer timeout
-Settings bindings, entry provenance, clipboard/URL capability queries and cloud
-theme provenance) are resolved. The remaining 35 topics retain their recorded
-open subclaims; the documentation finding also remains open. The numbers follow the inventory;
+Settings bindings, entry provenance, clipboard/URL capability queries, cloud
+theme provenance and offscreen pixel compositing) are resolved. The remaining
+34 topics retain their recorded open subclaims; the documentation finding also
+remains open. The numbers follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
 Important concrete results include loss of SFTP listing metadata (now resolved),
 BBS provenance and diagnostics (both now resolved); primary mutation
 failure details (now preserved
 for the selected BBS/Settings actions); and custom-font codepage choices (now resolved);
-missing offscreen pixel compositing; and a transfer upload path API that bypassed
+offscreen pixel compositing (now exposed); and a transfer upload path API that bypassed
 the File-grant abstraction (now resolved below). Other omissions, such as general
 audio, HTTP, INI,
 cryptographic and Unicode utility APIs, require a scope decision rather than an
@@ -191,7 +193,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/media/fonts/st_presentation_font.h[media/fonts/st_presentation_font.h] | 0 | 0 | 0 | 4 | 0 | +fonts.st_presentation_font+
 | link:../src/media/fonts/st_unicode_fonts.h[media/fonts/st_unicode_fonts.h] | 0 | 0 | 0 | 2 | 0 | +fonts.st_unicode_fonts+
 | link:../src/media/pixel_image/st_pixel_image.h[media/pixel_image/st_pixel_image.h] | 5 | 0 | 0 | 2 | 0 | +pixels.cterm-decode+, +pixels.decode+
-| link:../src/media/pixels/st_pixels.h[media/pixels/st_pixels.h] | 37 | 1 | 0 | 11 | 0 | +pixels.display-scaler+, +pixels.offscreen-blit+, +pixels.values+
+| link:../src/media/pixels/st_pixels.h[media/pixels/st_pixels.h] | 38 | 0 | 0 | 11 | 0 | +pixels.display-scaler+, +pixels.offscreen-blit+, +pixels.values+
 | link:../src/net/connection/connection_shell_codec.h[net/connection/connection_shell_codec.h] | 0 | 0 | 0 | 16 | 0 | +transport.connection_shell_codec+
 | link:../src/net/connection/connection_stream.h[net/connection/connection_stream.h] | 0 | 0 | 0 | 18 | 0 | +transport.connection_stream+
 | link:../src/net/connection/connection_tcp.h[net/connection/connection_tcp.h] | 0 | 0 | 0 | 1 | 0 | +transport.connection_tcp+
@@ -332,7 +334,7 @@ Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_l
 
 Native public style flags include underline, bold, reverse, conceal, double-height and teletext presentation controls. Wren exposes bright/blink, legacy colour attributes and readonly pixelGraphics, but no complete flag inspection/editing interface. Opaque Surface copy preserves them; that is not script control. Dirty/reserved and renderer-resolved flags remain host bookkeeping.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:58]; link:../scripts/syncterm.wren[scripts/syncterm.wren:877].
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:58]; link:../scripts/syncterm.wren[scripts/syncterm.wren:885].
 
 [[finding-clipboard-url-capabilities]]
 === Clipboard and URL capability queries (resolved)
@@ -363,7 +365,7 @@ Evidence: link:../src/media/console/st_console.h[native capability bits]; link:.
 
 Structured native setup error code/phase/native_error/has_native_error/detail/presented and progress-state enum are not queryable as a script connection-attempt result. Host prompts/logs cover user-facing setup but do not preserve a machine-readable result for Menu.connect selection. ConnError is a different active-send error contract.
 
-Evidence: link:../src/net/connection/st_connection.h[src/net/connection/st_connection.h:106]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1165].
+Evidence: link:../src/net/connection/st_connection.h[src/net/connection/st_connection.h:106]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1173].
 
 [[finding-console-operation-results]]
 === Drawing and state operations preserve native error distinctions
@@ -430,7 +432,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_session.c[write/key/error bi
 
 No dedicated script operation invokes st_cterm_reset_terminal or returns its native reset status. That function finishes pending input, resets parser state and rebuilds the RIP engine. CTerm.write can submit protocol reset sequences through the current parser, but does not expose this complete host reset transaction or its failure result.
 
-Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:2666]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1293].
+Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:2666]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1301].
 
 [[finding-digest-algorithms]]
 === File hashing omits SHA-2 and generic digest input
@@ -451,7 +453,7 @@ is removed without an alias; FileError remains the filesystem error type.
 MenuError separately preserves generic native statuses rather than inventing
 a portable meaning for legacy -1. errno/Windows translators remain host mechanisms.
 
-Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1612].
+Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1620].
 
 [[finding-files-link-kind]]
 === Filesystem kind metadata is limited by the grant abstraction
@@ -460,7 +462,7 @@ Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36];
 
 Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:881].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:884].
 
 [[finding-font-codepage]]
 === Custom-font mappings and reporting — resolved
@@ -494,7 +496,7 @@ singular altFont alias were removed. Screen.font remains independent, and direct
 scripts can select loaded fonts without a picker. The picker retains load-only
 registration and normal-assignment selection.
 
-Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:4194]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
+Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:4197]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
 
 [[finding-list-encryption-information]]
 === List encryption reporting resolved; writer and result scope remains open
@@ -590,16 +592,37 @@ The remaining subclaims are resolved in approved chunk 6:
 All included subclaims of this shared finding are now resolved. Entry provenance,
 web progress, theme provenance and console result contracts remain separate findings.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5011]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1059].
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5011]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1062].
 
 [[finding-pixel-offscreen-blit]]
-=== Pixel buffers cannot use the native offscreen compositor
+=== Offscreen pixel compositing (resolved)
 
-+pixels.offscreen-blit+ (partial; same VM as the owning API). Wren: Screen.blitPixels.
++pixels.offscreen-blit+ (covered; all script VMs). Wren:
+PixelBuffer.blit(source, descriptor) / blit(source, mask, descriptor), alongside
+the existing Screen.blitPixels.
 
-Native st_pixel_buffer_blit can composite into another PixelBuffer with clipping/mask/flips/scaling/alternate plane. Wren only exports screen-destination blit; PixelBuffer itself has no corresponding operation. Pixel-by-pixel script code is not a built-in native-equivalent operation.
+Resolved in approved chunk 15. The receiver is the destination, and actual
+foreign classes are checked before payload access. Existing PixelBlit choices
+map directly to st_pixel_buffer_blit: source rectangle/remainder, signed clipped
+destination, mask origin, flips and independent integer nearest-neighbour scales.
+Default extents are resolved in a temporary descriptor. Native palette/RGB words
+and both blink phases are preserved without palette conversion or alpha blending.
 
-Evidence: link:../src/media/pixels/st_pixels.h[src/media/pixels/st_pixels.h:114]; link:../scripts/syncterm.wren[scripts/syncterm.wren:188].
+Success returns null. Recoverable failure returns immutable PixelError is Error,
+with exact native integer code, owned message and toString, without a public
+constructor or setters. Invalid source/mask regions return outOfRange consistently
+with screen blits; wrong argument types and a null explicit mask abort. An empty
+destination retains native invalidArgument. Errors own no resource references.
+
+No screen-capability check or I/O occurs. Native self-blits allocate a source
+snapshot; distinct-buffer blits allocate only for a missing alternate plane.
+Alternate creation still precedes clipping/masked drawing, even when no pixel
+is painted. Actual allocation-failure tests verify unchanged pixels/ownership
+and cleanup. Ordinary native ownership/GC handles buffers, masks and descriptors;
+calls retain no arguments. Native algorithms, existing screen/other pixel results
+and UI workflows are unchanged. The display scaler remains host-owned.
+
+Evidence: link:../src/media/pixels/st_pixels.h[native blit contract]; link:../src/media/pixels/st_pixels.c[native validation and allocation order]; link:../src/scripting/wren_host/wren_bind_pixels.c[PixelBuffer.blit and PixelError]; link:../scripts/pixel_vm_test.wren[shared offscreen contract and application composition]; link:../src/media/pixels/tests/st_pixels_test.c[native failure regressions].
 
 [[finding-settings-transfer-timeouts]]
 === Transfer timeout Settings bindings (resolved)
@@ -645,7 +668,7 @@ SFTPEntry.size/mtime getters and dispatch entries are removed without aliases;
 the bundled browser captures stat once per row. Queue persistence and upload
 grants are unchanged.
 
-Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2174]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2182]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
 
 [[finding-theme-operation-results]]
 === Theme operation results (resolved)
@@ -714,7 +737,7 @@ Evidence: link:../src/config/theme/st_theme.h[cloud catalog contract]; link:../s
 
 Negotiated version/cipher, full certificate count/subject/issuer/validity/SHA-256 fingerprint/PEM and the last TLS error are not exposed for connected inspection. Profile.tlsVersionFloor is saved policy, not negotiated state; host certificate prompts are not a query API. This omission does not authorize script trust replacement.
 
-Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:118]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1422].
+Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:118]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1430].
 
 [[finding-transfer-protocol-selection]]
 === Explicit XMODEM-G selection (resolved)
@@ -785,19 +808,19 @@ link:../src/scripting/wren_host/tests/st_wren_host_test.c[upload/queue regressio
 
 Wren can select allowed audio backends through Settings.audioModes and trigger terminal-protocol music/OOII sound, but cannot directly synthesize tones/waves, beep, submit PCM, create streams, choose volume/ramp/fade/crossfade/loop, drain/clear or inspect stream idle/volume. Native functional audio availability is therefore not full script audio coverage. Whether a general playback API belongs in scope remains a policy decision.
 
-Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:143]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:112]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1261].
+Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:143]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:112]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1269].
 
 +audio.decode+ (unmapped; all script VMs). Wren: no generic audio-file decode API.
 
 Terminal protocols can consume sounds internally, but no script format availability query or granted-file/byte decoding to PCM is exposed. Native stream/memory inputs are not mapped by the absence of an AudioFile object.
 
-Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1816].
+Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1824].
 
 +cterm.audio-fx+ (partial; same VM as the owning API). Wren: protocol-driven OOII/CTerm sound only.
 
 Native play_fx_u8 accepts PCM effects directly; Wren has no direct script PCM submission. Terminal protocol music is not arbitrary playback coverage.
 
-Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:207]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1271].
+Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:207]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1279].
 
 [[finding-clock-precision-results]]
 === Clock precision and native error results
@@ -815,7 +838,7 @@ Evidence: link:../src/base/time/st_time.h[src/base/time/st_time.h:21]; link:../s
 
 All native codepage choices and byte-to-scalar decoding are represented. Encoding uses the current session and capability helper encodes_, not a general public encodeByte(codepage, scalar) operation. Native broken_vertical metadata has no script query. Native count/name are available through the Menu encodings catalog; enum COUNT is a native sentinel, not another encoding.
 
-Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:771]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:3083]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:104].
+Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:779]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:3083]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:104].
 
 [[finding-console-display-policy]]
 === Live console/display policies
@@ -833,7 +856,7 @@ Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:
 
 The native live set_encoding operation has no script setter. Reading active state or editing the profile for future initialization is not the same capability.
 
-Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:306]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1254].
+Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:306]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1262].
 
 [[finding-files-rename-copy]]
 === Granted rename and native file-copy semantics
@@ -842,7 +865,7 @@ Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:30
 
 No granted rename or native copy-file operation exists. Read/write/delete cannot promise atomic rename or the native copy mode/mtime behavior.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:63]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1542].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:63]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1550].
 
 [[finding-files-truncate]]
 === Explicit file truncation
@@ -851,7 +874,7 @@ Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:
 
 The binding offers reads/writes/seek and size inspection, but no explicit truncation to a chosen length. Creating/replacing a file is not equivalent to truncating an existing granted stream at an arbitrary length.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1572].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1580].
 
 [[finding-font-compatibility-metadata]]
 === Font broken-vertical compatibility metadata
@@ -860,7 +883,7 @@ Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:
 
 No public query reports the native broken-vertical font compatibility bit. Menu filters/name/codepage do not convey that specific metadata.
 
-Evidence: link:../src/media/fonts/st_builtin_fonts.h[src/media/fonts/st_builtin_fonts.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1025].
+Evidence: link:../src/media/fonts/st_builtin_fonts.h[src/media/fonts/st_builtin_fonts.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1033].
 
 [[finding-font-raster-model]]
 === Rich raster/font descriptors from script data
@@ -869,7 +892,7 @@ Evidence: link:../src/media/fonts/st_builtin_fonts.h[src/media/fonts/st_builtin_
 
 The native font descriptor can register arbitrary bitmap widths/glyph counts/strides, wide rasters, scalar and cluster mappings, coloured glyphs and fallback/decode-error glyphs. Wren only loads supported legacy font files; it cannot construct these descriptors from script data. Native mappings used by Cell text/rendering are not a general script font-builder API.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:175]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1049].
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:175]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1057].
 
 [[finding-generic-ini]]
 === General INI document manipulation
@@ -887,7 +910,7 @@ Evidence: link:../src/config/ini/ini.h[src/config/ini/ini.h:65]; link:../scripts
 
 Native history.clear has no explicit script action to discard retained history. Changing capacity or overwriting screen rows is not an equivalent clear operation. Whether scripts should control retained history is a scope decision.
 
-Evidence: link:../src/terminal/session_history/st_session_history.h[src/terminal/session_history/st_session_history.h:31]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1019].
+Evidence: link:../src/terminal/session_history/st_session_history.h[src/terminal/session_history/st_session_history.h:31]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1027].
 
 [[finding-input-focus-held]]
 === Focus events and current held-key state
@@ -896,7 +919,7 @@ Evidence: link:../src/terminal/session_history/st_session_history.h[src/terminal
 
 Native focus state and physical-key held bitmap/query are not available to scripts. Tracking edges locally does not reconstruct initial held state or focus-loss recovery. Host/terminal handling does not constitute a public query/event API.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:732]; link:../scripts/syncterm.wren[scripts/syncterm.wren:604].
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:732]; link:../scripts/syncterm.wren[scripts/syncterm.wren:612].
 
 [[finding-path-utilities]]
 === Pure path helpers outside the picker workflow
@@ -914,7 +937,7 @@ Evidence: link:../src/io/path/path.h[src/io/path/path.h:36]; link:../scripts/syn
 
 Native DTR/RTS setters, modem CTS/DSR/RING/DCD query and DTR_DSR flow choice have no script counterpart. General device ownership remains host-controlled; whether active-connection line controls should be exposed is a separate scope decision.
 
-Evidence: link:../src/io/serial/serial.h[src/io/serial/serial.h:75]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1526].
+Evidence: link:../src/io/serial/serial.h[src/io/serial/serial.h:75]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1534].
 
 [[finding-session-lifecycle-information]]
 === Session termination cause and auxiliary liveness
@@ -959,7 +982,7 @@ Evidence: link:../src/text/unicode_text/st_unicode_text.h[src/text/unicode_text/
 
 Native maximum TLS version, handshake timeout and independent PSK compatibility policy are not script-configurable. Native diagnostic records retain status/provider_status/fatal/provider/message/level; script protocol logs flatten these and do not expose the structured record. Existing supported profile policy maps the remaining ordinary options; raw callback context/pointers remain host mechanisms.
 
-Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:86]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1392].
+Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:86]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1400].
 
 [[finding-transfer-receive-stream]]
 === Generic transfer receive events and policies
@@ -1001,7 +1024,7 @@ Evidence: link:../src/base/base64/st_base64.h[src/base/base64/st_base64.h:19]; l
 
 File digests return raw bytes; no general byte-to-hex / hex-to-byte codec or digit decoder is exported.
 
-Evidence: link:../src/base/hex/st_hex.h[src/base/hex/st_hex.h:32]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1588].
+Evidence: link:../src/base/hex/st_hex.h[src/base/hex/st_hex.h:32]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1596].
 
 [[finding-utility-conversion]]
 === Strict native value parsing and formatting
@@ -1016,7 +1039,7 @@ Evidence: link:../src/base/string_util/string_util.h[src/base/string_util/string
 
 Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.
 
-Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2130].
+Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2138].
 
 [[finding-utility-crypto]]
 === General cryptographic primitives and strong random bytes
@@ -1055,7 +1078,7 @@ Evidence: link:../src/net/webget/st_webget.h[src/net/webget/st_webget.h:41]; lin
 
 docs/api/bbs-entry-fields.adoc claims 50 persisted keys / 56 members but st_profile.h has 57 members, including cterm_log_level. The table omits CTermLogLevel -> Profile.ctermLogLevel, which is declared and bound. This is stale coverage documentation, not a missing binding.
 
-Evidence: link:../src/config/profile/st_profile.h[src/config/profile/st_profile.h:165]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1394]; link:../docs/api/bbs-entry-fields.adoc[docs/api/bbs-entry-fields.adoc:4].
+Evidence: link:../src/config/profile/st_profile.h[src/config/profile/st_profile.h:165]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1402]; link:../docs/api/bbs-entry-fields.adoc[docs/api/bbs-entry-fields.adoc:4].
 
 == Confirmed equivalents and intentional ownership
 
@@ -1256,6 +1279,33 @@ The native inventory adds exactly one owner-lifetime accessor, retaining all
 existing declarations/types and exclusions: 80 public headers, 122 exclusions,
 2,449 native items, 157 assessments and 51 original topics. Sixteen topics are
 resolved; 35 topics and the separate documentation finding remain open.
+
+The approved offscreen-compositing follow-up passed +st_pixels+, +wren_host+,
++wren_menu_contract+, +wren_picker_contract+ and +syncterm_behavior_pixels+ on
+FreeBSD Clang Debug after final application/host/picker/native pixel builds.
+GCC Debug and Clang ASan/UBSan application/host/picker/native pixel builds and
+all four focused native/host/menu/picker tests passed. Unsupported FreeBSD leak
+detection is disabled and the existing C++ vptr exclusion is unchanged. Both
+MinGW application/DLL/launcher, host-test, picker-test and native pixel-test
+targets cross-built; no Windows execution or Wine. No compiler diagnostics or
+sanitizer errors in final builds; GNUmake emitted environmental generated-file
+clock-skew notices. Headless fixtures disable physical audio.
+
+The regression first failed at missing PixelError. The shared offscreen contract
+runs in all three VMs with zero capability queries, even when that query would
+report unavailable support. Independent expected pixels verify all clipping
+edges, masks/origins/flips/asymmetric scaling, subregions/remainders, native colour
+identity, both planes and overlapping self-blits. Tests retain masked/clipped
+plane creation, empty/invalid region results, descriptor/input state, actual-class
+rejections, immutable errors and GC/teardown. Both overloads preserve exact known/
+unknown native codes. A private compile of the real native implementation fails
+alternate creation and each self-copy allocation, verifies unchanged state and
+cleanup, and counts zero allocations for repeated distinct-buffer blits. The
+application draws an offscreen composition and checks its screen capture. No
+native algorithm, existing screen/other pixel result, authority or UI change.
+The inventory is unchanged at 80 headers, 122 exclusions, 2,449 items and
+157 assessments. Seventeen original topics are resolved; 34 topics and the
+separate documentation finding remain open.
 
 == Rechecking and future edits
 

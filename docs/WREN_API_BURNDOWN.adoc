@@ -1133,3 +1133,78 @@ and all exclusions are preserved. The inventory is 80 public headers,
 Thirty-five topics and the separate documentation finding remain open.
 Coverage and diff checks pass.
 Preserve this temporary record and skill for their next Plan-mode phase.
+
+== Approved chunk 15: offscreen pixel compositing (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-04.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Finding: `pixel-offscreen-blit` / `pixels.offscreen-blit`.
+
+Add PixelBuffer.blit(source, descriptor) and blit(source, mask, descriptor) in
+menu, picker and connected VMs. The user selected a separate PixelError result:
+null on success, immutable PixelError is Error with exact native code, message
+and toString on failure; no public constructors/setters. Actual foreign-class
+validation precedes payload access. Wrong types (including null mask in the
+masked overload) abort; invalid source/mask regions return outOfRange consistently
+with Screen. Resolve zero extents in a temporary descriptor without mutating it.
+
+Call the existing native buffer blit directly. Preserve clipping, masks/origins,
+flips, asymmetric integer scaling, palette/RGB identity, both blink planes and
+self-blit snapshot behavior. Distinct buffers require no staging copy; self-blits
+allocate a snapshot. Native alternate-plane creation can occur even when clipping
+or the mask prevents writes. Native failures leave pixels/plane ownership intact.
+No retained references or external authority, threads, Unicode changes, native
+algorithm changes, existing screen/other pixel result changes or UI migrations.
+
+Acceptance: independent expected pixels for all modes and overlaps, descriptor
+reuse/boundaries, empty/invalid regions, read-only error lifetime and all VMs,
+wrong foreign types, GC/teardown. Add regressions first. Test native allocation
+failures through a private failing-allocator build and exact known/unknown native
+codes through private binding return controls. Exercise the shared offscreen
+contract and an actual offscreen composition drawn through the existing screen API.
+
+Configure/build CMake application and tests; run st_pixels, wren_host,
+wren_menu_contract, wren_picker_contract and syncterm_behavior_pixels. GCC and
+ASan/UBSan focused native/host checks; both MinGW application/host/picker/native
+pixel-test cross-builds, without Windows execution or Wine. Headless fixtures
+clear desktop environment and disable physical audio. Update docs, assessment,
+report/matrix, reviewed evidence and follow-up; preserve all 80 headers,
+122 exclusions, 2,449 native items and 157 assessments. Run coverage/diff checks,
+commit without pushing, retain temporary record/skill. Closure leaves 34 topics
+plus the documentation finding open.
+
+=== Completed verification
+
+The new regression first failed at missing PixelError. The shared offscreen
+contract now runs in menu, picker and connected VMs without querying console
+capabilities, including an unavailable-capability return boundary. Independent
+literal pixel expectations cover source remainders/explicit regions, all clipping
+edges, offsets/masks/flips/asymmetric scaling, native palette/RGB identity, both
+blink planes, overlapping self-blits, masked/clipped alternate creation and empty/
+invalid regions. Descriptor/source/mask state, class misuse, immutable errors and
+owned results through GC/teardown are verified. Both overloads preserve known and
+unknown negative/positive native statuses. Private compilation of real native
+code fails alternate creation and each of three clone allocations, checking
+unchanged pixels/ownership and cleanup; repeated distinct-buffer blits allocate
+nothing. The application fixture draws an offscreen composition and checks its
+real screen capture through the existing screen API.
+
+FreeBSD Clang Debug CMake application/host/picker/native pixel targets configured
+and built; all five planned CTests passed: st_pixels, wren_host,
+wren_menu_contract, wren_picker_contract and syncterm_behavior_pixels. GCC Debug
+and Clang ASan/UBSan application/host/picker/native pixel targets configured and
+built; all four focused native/host/menu/picker CTests passed on each. Unsupported
+FreeBSD leak detection remains disabled and the existing C++ vptr exclusion is
+unchanged. Both MinGW x86/x86_64 application/DLL/launcher, host-test, picker-test
+and native pixel-test targets configured and cross-built, without Windows
+execution or Wine. No compiler diagnostics or sanitizer errors in final builds;
+GNUmake emitted environmental generated-dependency clock-skew notices. Headless
+fixtures clear desktop environment and disable physical audio.
+
+The API manual, assessments, report/matrix, reviewed evidence/source locations
+and follow-up review describe the completed contract. Native inventory remains
+80 headers, 122 exclusions, 2,449 items and 157 assessments. Seventeen of the
+51 original topics are resolved; 34 topics plus the documentation finding remain
+open. Coverage and diff checks pass. Retain this temporary record and skill for
+the next actual Plan-mode phase.

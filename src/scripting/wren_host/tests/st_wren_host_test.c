@@ -132,6 +132,9 @@ static const char foreign_type_contract[] =
 	"    rejects(Fn.new { Screen.blitPixels(bad, blit) }, \"PixelBuffer\")\n"
 	"    rejects(Fn.new { Screen.blitPixels(pixels, bad, blit) }, \"PixelMask\")\n"
 	"    rejects(Fn.new { Screen.blitPixels(pixels, bad) }, \"PixelBlit\")\n"
+	"    rejects(Fn.new { pixels.blit(bad, blit) }, \"PixelBuffer\")\n"
+	"    rejects(Fn.new { pixels.blit(pixels, bad, blit) }, \"PixelMask\")\n"
+	"    rejects(Fn.new { pixels.blit(pixels, bad) }, \"PixelBlit\")\n"
 	"    rejects(Fn.new { Input.ungetKey_(bad) }, \"KeyEvent\")\n"
 	"    rejects(Fn.new { Input.ungetPhysicalKey_(bad) }, \"PhysicalKeyEvent\")\n"
 	"    rejects(Fn.new { Input.ungetMouse_(bad) }, \"MouseEvent\")\n"
@@ -6802,6 +6805,76 @@ capability_interpret(WrenVM *vm, st_wren_connected_t *connected,
 	    : wrenInterpret(vm, "clipboard_url_capabilities", source) == WREN_RESULT_SUCCESS;
 }
 
+static bool
+pixel_blit_interpret(WrenVM *vm, st_wren_connected_t *connected,
+	const char *source)
+{
+	return connected != NULL
+	    ? st_wren_connected_interpret(connected, "pixel_blit_contract", source) == 0
+	    : wrenInterpret(vm, "pixel_blit_contract", source) == WREN_RESULT_SUCCESS;
+}
+
+static int
+exercise_pixel_blit_vm(WrenVM *vm, st_wren_connected_t *connected)
+{
+	const char *source =
+	    "import \"pixel_vm_test\" for PixelVmTest\n"
+	    "var result = PixelVmTest.runOffscreen()\n"
+	    "if (result[0] < 30 || result[1] != 0) Fiber.abort(\"offscreen tests did not run\")\n";
+	/* Pure buffer operations must not query or require a pixel backend. */
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){
+	    .name = "st_console_capabilities", .status = IO_ERROR_NOT_SUPPORTED};
+	bool passed = pixel_blit_interpret(vm, connected, source);
+	size_t calls = st_wren_test_screen_fault.calls;
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+	CHECK(passed && calls == 0);
+	CHECK(pixel_blit_interpret(vm, connected,
+	    "import \"syncterm\" for PixelBuffer, PixelMask, PixelBlit, PixelError, Error, ScreenError\n"
+	    "var errors = []\nvar src = PixelBuffer.new(2, 1, 3)\n"
+	    "src.fillAlternate(4)\nvar dst = PixelBuffer.new(2, 1, 9)\n"
+	    "var op = PixelBlit.new()\nvar mask = PixelMask.new(2, 1, true)\n"));
+	const int statuses[] = {IO_ERROR_OUT_OF_MEMORY, IO_ERROR_OUT_OF_RANGE,
+	    IO_ERROR_INVALID_ARGUMENT, -271828, 271828};
+	for (size_t i = 0; i < sizeof(statuses) / sizeof(statuses[0]); ++i) {
+		st_wren_test_screen_fault = (struct st_wren_screen_fault){
+		    .name = "st_pixel_buffer_blit", .status = statuses[i]};
+		char script[1024];
+		(void)snprintf(script, sizeof(script),
+		    "for (e in [dst.blit(src, op), dst.blit(src, mask, op)]) {\n"
+		    "  if (!(e is PixelError) || !(e is Error) || e is ScreenError || e.code != %d) Fiber.abort(\"lost native pixel result\")\n"
+		    "  errors.add(e)\n}\n"
+		    "if (dst.hasAlternate || dst[0] != 9 || src[0] != 3 || src.alternateAt(0) != 4 || op.sourceWidth != 0) Fiber.abort(\"failed blit changed state\")\n",
+		    statuses[i]);
+		passed = pixel_blit_interpret(vm, connected, script);
+		calls = st_wren_test_screen_fault.calls;
+		st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+		CHECK(passed && calls == 2);
+	}
+	CHECK(pixel_blit_interpret(vm, connected,
+	    "src = null\ndst = null\nop = null\nmask = null\nSystem.gc()\n"
+	    "for (e in errors) {\n"
+	    "  if (!e.message.contains(\"PixelBuffer.blit\") || !e.toString.startsWith(\"PixelError\")) Fiber.abort(\"pixel error lifetime\")\n"
+	    "}\n"));
+	return 0;
+}
+
+static int
+exercise_pixel_blit_contract(struct st_wren_host *host)
+{
+	CHECK(exercise_pixel_blit_vm(host->vm, NULL) == 0);
+	CHECK(exercise_pixel_blit_vm(host->picker_vm, NULL) == 0);
+	struct st_profile profile;
+	st_profile_init(&profile);
+	const struct st_wren_connected_config config = {
+	    .host = host, .console = host->config.console, .profile = &profile};
+	st_wren_connected_t *connected = NULL;
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(exercise_pixel_blit_vm(NULL, connected) == 0);
+	st_wren_connected_destroy(connected);
+	st_profile_dispose(&profile);
+	return 0;
+}
+
 static int
 exercise_clipboard_url_capabilities(WrenVM *vm,
 	st_wren_connected_t *connected, st_console_t *console)
@@ -8948,6 +9021,7 @@ main(int argc, char **argv)
 	CHECK(exercise_screen_update_contract(host, console) == 0);
 	CHECK(exercise_zero_width_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
+	CHECK(exercise_pixel_blit_contract(host) == 0);
 	CHECK(exercise_screen_results(host) == 0);
 	CHECK(exercise_screen_failure_boundaries(host) == 0);
 	CHECK(exercise_screen_cleanup_results(host) == 0);

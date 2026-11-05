@@ -2043,7 +2043,7 @@
     "pixels.values": {
       "status": "covered",
       "wren": "PixelBuffer / PixelMask / PixelBlit / PixelColor and Screen pixel methods",
-      "reason": "Owned primary/alternate planes, dimension/count, pixel/mask read-write/fill/clone, RGB conversion, integer scale/flip/source/destination/mask descriptor choices have Wren equivalents. VM finalizers own buffers and masks. The screen is the only exported blit destination; offscreen compositing and display resampling are assessed separately.",
+      "reason": "Owned primary/alternate planes, dimension/count, pixel/mask read-write/fill/clone, RGB conversion, integer scale/flip/source/destination/mask descriptor choices have Wren equivalents. VM finalizers own buffers and masks. Screen and buffer-to-buffer blit destinations are exposed; offscreen result/ownership behavior and host-owned display resampling are assessed separately.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -2061,22 +2061,34 @@
       ]
     },
     "pixels.offscreen-blit": {
-      "status": "partial",
-      "wren": "Screen.blitPixels",
-      "reason": "Native st_pixel_buffer_blit can composite into another PixelBuffer with clipping/mask/flips/scaling/alternate plane. Wren only exports screen-destination blit; PixelBuffer itself has no corresponding operation. Pixel-by-pixel script code is not a built-in native-equivalent operation.",
-      "vm": "same VM as the owning API",
+      "status": "covered",
+      "wren": "PixelBuffer.blit(source, descriptor) / blit(source, mask, descriptor); Screen.blitPixels",
+      "reason": "The destination PixelBuffer directly invokes native offscreen compositing using existing PixelBlit/PixelMask choices and checked actual foreign classes. Temporary default extents preserve the descriptor; masks, clipping, flips, asymmetric scaling, native colour identity and both blink phases retain native semantics. null/immutable PixelError preserves exact native codes (including unknown values) and owned diagnostics; wrong types abort and invalid source/mask regions return outOfRange consistently with Screen. No console capability queries, argument retention or new authority. Native self-copy and alternate-plane allocations are preserved, including plane creation without pixel writes; actual failure tests verify unchanged destination state. Display resampling remains host-owned.",
+      "vm": "all script VMs",
       "evidence": [
         {
           "path": "src/media/pixels/st_pixels.h",
           "anchor": "st_pixel_buffer_blit"
         },
         {
+          "path": "src/media/pixels/st_pixels.c",
+          "anchor": "if (destination == source)"
+        },
+        {
           "path": "scripts/syncterm.wren",
-          "anchor": "foreign static blitPixels"
+          "anchor": "foreign blit(source, mask, descriptor)"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_pixels.c",
+          "anchor": "fn_pixel_buffer_blit"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_pixels.c",
+          "anchor": "struct wren_pixel_error"
         }
       ],
       "finding": "pixel-offscreen-blit",
-      "decision": "mapping-gap"
+      "decision": "resolved"
     },
     "pixels.display-scaler": {
       "status": "host-owned",
@@ -4387,6 +4399,31 @@
       "path": "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c",
       "anchor": "if (st_wren_test_theme_refresh_cached)",
       "aspect": "Private control performs real cached catalog replacement through the binding and injects a success warning without network I/O."
+    },
+    {
+      "path": "scripts/pixel_vm_test.wren",
+      "anchor": "static runOffscreen()",
+      "aspect": "Independent expected pixels for source subregions, all clipping edges, flips/mask origins/asymmetric scaling, native colour words/both phases, overlapping self-blits, unchanged source/mask/descriptor, empty/invalid regions, immutable errors, argument misuse and owned results through GC. The application fixture also draws an offscreen composition and checks its real screen capture."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_pixel_blit_vm",
+      "aspect": "Shared contract executes in menu, picker and connected VMs without querying capabilities. Both overloads preserve known/unknown native integer results, unchanged input/destination state and owned diagnostics through GC. Crafted foreign-payload probes reject wrong actual classes."
+    },
+    {
+      "path": "src/media/pixels/tests/st_pixels_test.c",
+      "anchor": "st_pixels_test_fail_allocation",
+      "aspect": "Actual native alternate-plane failure and each of three self-copy allocations leave pixels/ownership unchanged; successful self-copy cleanup and allocation-free repeated distinct-buffer blits are verified."
+    },
+    {
+      "path": "src/media/pixels/tests/st_pixels_test_impl.c",
+      "anchor": "#include \"../st_pixels.c\"",
+      "aspect": "Test-only compilation of the real implementation with failing malloc/calloc; no production fault hooks or alternate algorithm."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c",
+      "anchor": "test_pixel_buffer_blit",
+      "aspect": "Private host-test native return-boundary control preserves exact known/unknown blit status mapping; production bindings call native blit directly."
     }
   ],
   "dispatch_evidence": [
@@ -4398,7 +4435,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "ed92b86b2e34bcd818035c531e24a6edc323a80b1f4c4e86ff0f00dff2e0462d",
+    "docs/Wren.adoc": "c361033efd0aba8452a2f99540864711afae525f37e1acfecc3c07b87a08a23e",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
@@ -4406,7 +4443,7 @@
     "scripts/menu_settings_ui.wren": "8013ad36d8079e2484b86820c23cbf8fa17b0979d27452e8592fd935c65fa7f1",
     "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "3f3ff89ab6b064993d9b0d62c71ee669efea0c78017db5d32d683ee104349038",
+    "scripts/syncterm.wren": "9b481fa8380cc69baf93c13e5a4e819c7fa076c9d9eba2dc4ce8cebcfc5f6b42",
     "scripts/syncterm_menu.wren": "e534e5ba67f5f7cbb8f5b2874b039b155383525e005fca7d531830c6c9a28579",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
@@ -4475,7 +4512,7 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "6aad0abf2d83429eaf00ad9741cd237548874702238e5bee9e39ee5a52a2f834",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "eae54acc61f40b1b0d3eb877ff1c3269cbf6514844d56709a984f01adefcc081",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "9ce240c1d75632c40452fc6f46db4aab88923f2c8d062f80e50c5c917724d6f4",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
@@ -4483,7 +4520,7 @@
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "a0c5077fb77672c02f3f8332097aa4043f21a3f7621f8db4bf719da9fe318e05",
-    "src/scripting/wren_host/wren_bind_pixels.c": "5db1826dd3fde89f981f54d3aee2748277369a94e6e63998f2fe76b1d33026ae",
+    "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
     "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
     "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
@@ -4566,7 +4603,7 @@
     "addons/modern_ui/tests/test_frontend.py": "0bd615d0d6a0236a9f4ab8cd099962b9fd97dd186362cc33741fd3b9d6b564fb",
     "scripts/menu_scrollback.wren": "1eae33aa4ab1cf8b093b345b62d73c6719b1266434ae294ea8101de3fea2a6d1",
     "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
-    "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1bd351be328d3ee7a8bf2f37f9c82fa663496b5089fd5108b6a15a5ce6a6b8e6",
+    "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1daa1b6ac6180b49ab96a811c3571af23eb8a3109d14a026578efcdd8b7621cd",
     "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c": "fca707a2f0be87c2af9ee73477c71203e403c047689aff1b83b880a1e5e83a2f",
     "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
     "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
@@ -4576,7 +4613,12 @@
     "src/config/theme/theme_internal.h": "bec641bc70123f40fe9da989db4fe59f58cfc5defb1b25825642669d4cc6fc80",
     "src/scripting/wren_host/tests/cloud_theme_views.wren": "91cff4cd288e16792bac6397125e0f7056d295c11803bf72f07ca4b810e68610",
     "scripts/menu_theme_editor_test.wren": "6639f43ed266defd6eeee4c1e35d82c858e2c4f1e5fca7ef20915317c7d4128b",
-    "src/scripting/wren_host/CMakeLists.txt": "52f738b2549d35715f9749d243764c129f7cb41debfc51469bbbd1acb8ea0eae"
+    "src/scripting/wren_host/CMakeLists.txt": "52f738b2549d35715f9749d243764c129f7cb41debfc51469bbbd1acb8ea0eae",
+    "scripts/pixel_vm_test.wren": "61dee1425b2a5ec67afb96dc04a27f1e20dad6243a149cd67eab514d2541f2cf",
+    "src/media/pixels/st_pixels.c": "6df928627439e4a983f8444e744fb9aa0279ce1ed5cd0b4f95f1bf8c86715940",
+    "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
+    "src/media/pixels/tests/st_pixels_test.c": "2b6af7f5a1af22b8421ee2cf67e1c9c5eb49aaeae89cb35618cad799baece37d",
+    "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -5299,6 +5341,29 @@
       },
       "evidence_review": "Reviewed native catalog installation/accessor and owner payload, checked dispatch/getter validation and text-error behavior, migrated consumer/mock branches, active regressions, CMake test dependency and authoritative docs. Reconciled source locations and refreshed only reviewed changed evidence; preserved prior reviews and exclusions.",
       "accounting": "80 public headers, 122 exclusions, 2449 native items, 157 assessments and 51 original topics. Exactly one native accessor row added under themes.manager-lifetime; existing declarations/types/rows retained, theme header locations updated. Both provenance fields move from Partial to Covered. Sixteen topics resolved; thirty-five topics and the separate profile-field-table documentation finding remain open."
+    },
+    {
+      "topic": "pixel-offscreen-blit",
+      "status": "resolved",
+      "approval": "The complete Plan-mode chunk 15 revision 1 was approved with Implement the plan after returning to Default mode. The user selected a separate PixelError result rather than ScreenError or fiber aborts for native failures.",
+      "scope": "Add PixelBuffer.blit(source, descriptor) and blit(source, mask, descriptor) in all three VMs. Return null/immutable PixelError with exact native code and owned message/toString. Actual class checks precede payload access; programmer misuse aborts, invalid source/mask regions return outOfRange. Preserve all existing native compositing, clipping, mask/flip/scale, colour/plane and self-copy allocation semantics. No native algorithm, other pixel/screen results, UI, Unicode or authority changes.",
+      "tests_passed": [
+        "st_pixels",
+        "wren_host",
+        "wren_menu_contract",
+        "wren_picker_contract",
+        "syncterm_behavior_pixels"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang Debug CMake application/host/picker/native pixel targets configured and built. All five listed CTests passed after the final rebuilt embedded test module.",
+        "gcc": "GCC Debug application/host/picker/native pixel targets configured and built; st_pixels, wren_host, wren_menu_contract and wren_picker_contract passed.",
+        "sanitizers": "Clang ASan/UBSan application/host/picker/native pixel targets configured and built; st_pixels, wren_host, wren_menu_contract and wren_picker_contract passed. Unsupported FreeBSD leak detection disabled; existing C++ vptr exclusion unchanged.",
+        "windows": "Both MinGW x86/x86_64 application/DLL/launcher, host-test, picker-test and native pixel-test targets configured and cross-built. No Windows execution or Wine.",
+        "regressions": "The regression first failed at the missing PixelError class. Independent literal pixel expectations now cover source remainders/explicit regions, all clipping edges, mask offsets/flips/asymmetric scaling, native palette/RGB identity, both phases, overlapping self-blits, fully masked/clipped plane creation, empty/invalid regions, descriptor reuse/misuse and error ownership. The shared contract runs in all three VMs with zero capability queries despite an injected unavailable-capability boundary. Both overloads retain exact known/unknown negative/positive statuses. A private compile of real native code fails alternate allocation and all three self-copy allocations, verifying unchanged destination state and cleanup; repeated distinct-buffer blits allocate nothing. The real application draws the composed offscreen buffer and verifies screen capture.",
+        "warnings": "No compiler diagnostics or sanitizer errors in final exercised builds. GNUmake emitted environmental generated-dependency clock-skew notices. Headless fixtures clear desktop environment and disable physical audio; no interactive display was used."
+      },
+      "evidence_review": "Reviewed complete binding/error payload, dispatch, unchanged native validation/allocation order, checked descriptor conversion and actual-class boundaries, shared VM/application assertions, private return/allocation controls, CMake test isolation and authoritative docs. Refreshed only reviewed changed evidence and added explicit source/test evidence; reconciled report source locations.",
+      "accounting": "Native inventory unchanged: 80 public headers, 122 exclusions, 2449 native items and 157 assessments. One existing native blit row moves from Partial to Covered; display scaler remains Host-owned. All 51 original finding topics and prior reviews retained; seventeen topics resolved, thirty-four topics and the separate documentation finding remain open."
     }
   ]
 }

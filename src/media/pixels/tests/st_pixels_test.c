@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -17,6 +18,9 @@
 		exit(EXIT_FAILURE); \
 	} \
 } while (false)
+
+extern size_t st_pixels_test_fail_allocation;
+extern size_t st_pixels_test_allocations;
 
 static size_t
 position(const struct st_pixel_buffer *buffer, uint32_t x, uint32_t y)
@@ -109,6 +113,41 @@ main(void)
 	blit.width = 3;
 	CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit)
 	    == IO_ERROR_OUT_OF_RANGE);
+
+	/* Alternate-plane allocation fails before publication or pixel changes. */
+	blit.width = 2;
+	st_pixel_buffer_remove_alternate(destination);
+	uint32_t saved_pixels[16];
+	memcpy(saved_pixels, destination->primary, sizeof(saved_pixels));
+	uint32_t *saved_primary = destination->primary;
+	st_pixels_test_allocations = 0;
+	st_pixels_test_fail_allocation = 1;
+	CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit) == IO_ERROR_OUT_OF_MEMORY);
+	CHECK(destination->alternate == NULL && destination->primary == saved_primary
+	    && memcmp(destination->primary, saved_pixels, sizeof(saved_pixels)) == 0);
+	CHECK(st_pixels_test_allocations == 1);
+	st_pixels_test_fail_allocation = 0;
+	/* A self-blit snapshots both planes. Fail each real clone allocation. */
+	for (size_t allocation = 1; allocation <= 3; ++allocation) {
+		st_pixels_test_allocations = 0;
+		st_pixels_test_fail_allocation = allocation;
+		CHECK(st_pixel_buffer_blit(source, source, NULL, &blit) == IO_ERROR_OUT_OF_MEMORY);
+		for (size_t i = 0; i < 4; ++i)
+			CHECK(source->primary[i] == i + 1 && source->alternate[i] == i + 11);
+		CHECK(st_pixels_test_allocations == allocation);
+	}
+	st_pixels_test_fail_allocation = 0;
+	st_pixels_test_allocations = 0;
+	CHECK(st_pixel_buffer_blit(source, source, NULL, &blit) == 0);
+	CHECK(st_pixels_test_allocations == 3 && source->primary[0] == 4
+	    && source->alternate[0] == 14);
+	/* Ordinary distinct-buffer blits without a missing plane allocate nothing. */
+	st_pixels_test_allocations = 0;
+	CHECK(st_pixel_buffer_blit(destination, copy, NULL, &blit) == 0);
+	CHECK(st_pixels_test_allocations == 1); /* First destination alternate plane. */
+	st_pixels_test_allocations = 0;
+	CHECK(st_pixel_buffer_blit(destination, copy, NULL, &blit) == 0);
+	CHECK(st_pixels_test_allocations == 0);
 
 	st_pixel_mask_destroy(mask);
 	st_rgb_buffer_destroy(rgb);

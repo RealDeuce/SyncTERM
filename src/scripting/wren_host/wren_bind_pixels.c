@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +23,7 @@
 #define PIXEL_BUFFER_MAGIC UINT32_C(0x50425546)
 #define PIXEL_MASK_MAGIC UINT32_C(0x504d4153)
 #define PIXEL_BLIT_MAGIC UINT32_C(0x50424c54)
+#define PIXEL_ERROR_MAGIC UINT32_C(0x50455252)
 
 struct wren_pixel_buffer {
 	uint32_t magic;
@@ -36,6 +38,12 @@ struct wren_pixel_mask {
 struct wren_pixel_blit {
 	uint32_t magic;
 	struct st_pixel_blit blit;
+};
+
+struct wren_pixel_error {
+	uint32_t magic;
+	int code;
+	char message[192];
 };
 
 struct pixel_binding {
@@ -214,6 +222,71 @@ slot_pixel_blit(WrenVM *vm, int slot, const char *message)
 		return NULL;
 	}
 	return blit;
+}
+
+static void
+pixel_result(WrenVM *vm, int status, const char *operation)
+{
+	if (status == 0) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "PixelError", 1);
+	struct wren_pixel_error *error = wrenSetSlotNewForeign(vm, 0, 1,
+	    sizeof(*error));
+	error->magic = PIXEL_ERROR_MAGIC;
+	error->code = status;
+	const char *reason = status == IO_ERROR_OUT_OF_MEMORY ? "Out of memory"
+	    : status == IO_ERROR_OUT_OF_RANGE ? "Out of range"
+	    : status == IO_ERROR_INVALID_ARGUMENT ? "Invalid argument"
+	    : "Native operation failed";
+	(void)snprintf(error->message, sizeof(error->message), "%s: %s (%d)",
+	    operation, reason, status);
+}
+
+static void
+pixel_error_allocate(WrenVM *vm)
+{
+	st_wren_abort(vm, "PixelError has no public constructor");
+}
+
+static struct wren_pixel_error *
+pixel_error(WrenVM *vm)
+{
+	struct wren_pixel_error *error = st_wren_foreign_require(vm, 0,
+	    "syncterm", "PixelError");
+	if (error == NULL) return NULL;
+	if (error->magic != PIXEL_ERROR_MAGIC) {
+		st_wren_abort(vm, "invalid PixelError receiver");
+		return NULL;
+	}
+	return error;
+}
+
+static void
+fn_pixel_error_code(WrenVM *vm)
+{
+	struct wren_pixel_error *error = pixel_error(vm);
+	if (error != NULL) wrenSetSlotDouble(vm, 0, error->code);
+}
+
+static void
+fn_pixel_error_message(WrenVM *vm)
+{
+	struct wren_pixel_error *error = pixel_error(vm);
+	if (error != NULL) wrenSetSlotString(vm, 0, error->message);
+}
+
+static void
+fn_pixel_error_to_string(WrenVM *vm)
+{
+	struct wren_pixel_error *error = pixel_error(vm);
+	char text[224];
+	if (error == NULL) return;
+	(void)snprintf(text, sizeof(text), "PixelError(%d): %s",
+	    error->code, error->message);
+	wrenSetSlotString(vm, 0, text);
 }
 
 static struct wren_pixel_buffer *
@@ -1373,10 +1446,60 @@ fn_screen_blit_pixels(WrenVM *vm)
 	    source->pixels, mask == NULL ? NULL : mask->mask, &blit), "Screen.blitPixels");
 }
 
+static void
+fn_pixel_buffer_blit(WrenVM *vm)
+{
+	struct st_pixel_buffer *destination = pixel_buffer(vm);
+	struct wren_pixel_buffer *source;
+	struct wren_pixel_mask *mask = NULL;
+	struct wren_pixel_blit *descriptor;
+	struct st_pixel_blit blit;
+	int descriptor_slot = 2;
+
+	if (destination == NULL) return;
+	source = slot_pixel_buffer(vm, 1,
+	    "PixelBuffer.blit: source must be a PixelBuffer");
+	if (source == NULL) return;
+	if (wrenGetSlotCount(vm) == 4) {
+		mask = slot_pixel_mask(vm, 2,
+		    "PixelBuffer.blit: mask must be a PixelMask");
+		if (mask == NULL) return;
+		descriptor_slot = 3;
+	}
+	descriptor = slot_pixel_blit(vm, descriptor_slot,
+	    "PixelBuffer.blit: descriptor must be a PixelBlit");
+	if (descriptor == NULL) return;
+	blit = descriptor->blit;
+	if (blit.source_x > source->pixels->width
+	    || blit.source_y > source->pixels->height) {
+		pixel_result(vm, IO_ERROR_OUT_OF_RANGE, "PixelBuffer.blit source/mask region");
+		return;
+	}
+	if (blit.width == 0)
+		blit.width = source->pixels->width - blit.source_x;
+	if (blit.height == 0)
+		blit.height = source->pixels->height - blit.source_y;
+	if (blit.width == 0 || blit.height == 0
+	    || blit.width > source->pixels->width - blit.source_x
+	    || blit.height > source->pixels->height - blit.source_y
+	    || (mask != NULL && (blit.mask_x >= mask->mask->width
+	    || blit.mask_y >= mask->mask->height
+	    || blit.width > mask->mask->width - blit.mask_x
+	    || blit.height > mask->mask->height - blit.mask_y))) {
+		pixel_result(vm, IO_ERROR_OUT_OF_RANGE, "PixelBuffer.blit source/mask region");
+		return;
+	}
+	pixel_result(vm, st_pixel_buffer_blit(destination, source->pixels,
+	    mask == NULL ? NULL : mask->mask, &blit), "PixelBuffer.blit");
+}
+
 #define BIND(class_name_, static_, signature_, method_) \
 	{class_name_, static_, signature_, method_}
 
 static const struct pixel_binding bindings[] = {
+	BIND("PixelError", false, "code", fn_pixel_error_code),
+	BIND("PixelError", false, "message", fn_pixel_error_message),
+	BIND("PixelError", false, "toString", fn_pixel_error_to_string),
 	BIND("PixelColor", true, "rgb(_)", fn_pixel_colour_rgb),
 	BIND("PixelColor", true, "palette(_)", fn_pixel_colour_palette),
 	BIND("PixelColor", true, "isRgb(_)", fn_pixel_colour_is_rgb),
@@ -1406,6 +1529,8 @@ static const struct pixel_binding bindings[] = {
 	    fn_pixel_buffer_set_pixel),
 	BIND("PixelBuffer", false, "fill(_)", fn_pixel_buffer_fill),
 	BIND("PixelBuffer", false, "clone()", fn_pixel_buffer_clone),
+	BIND("PixelBuffer", false, "blit(_,_)", fn_pixel_buffer_blit),
+	BIND("PixelBuffer", false, "blit(_,_,_)", fn_pixel_buffer_blit),
 	BIND("PixelBuffer", false, "rgb24", fn_pixel_buffer_rgb24),
 	BIND("PixelBuffer", false, "hasAlternate",
 	    fn_pixel_buffer_has_alternate),
@@ -1482,7 +1607,9 @@ st_wren_pixel_bind_class(const char *class_name)
 {
 	WrenForeignClassMethods methods = {NULL, NULL};
 
-	if (strcmp(class_name, "PixelBuffer") == 0) {
+	if (strcmp(class_name, "PixelError") == 0)
+		methods.allocate = pixel_error_allocate;
+	else if (strcmp(class_name, "PixelBuffer") == 0) {
 		methods.allocate = pixel_buffer_allocate;
 		methods.finalize = pixel_buffer_finalize;
 	}

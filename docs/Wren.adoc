@@ -2710,6 +2710,11 @@ the native array directly.
 | Copy the buffer and both blink-phase planes.  Returns `null` on allocation
   failure.
 
+| `blit(source, descriptor)`, `blit(source, mask, descriptor)`
+| Composite another PixelBuffer into this buffer, using PixelBlit and an
+  optional PixelMask. Returns null on success or PixelError. Available in all
+  three VMs independently of Screen.supports.pixels.
+
 | `PixelBuffer.fromRgb24(width, height, bytes)`,
   `PixelBuffer.fromRgb24(width, height, bytes, alternateBytes)`
 | Import packed RGB bytes in `R,G,B` order.  Each string must contain exactly
@@ -2759,6 +2764,42 @@ primary plane.
 Capture and clone preserve ciolib's primary and alternate planes exactly.
 RGB24 export is a conversion and resolves palette references at export time;
 use native indexing when palette identity must survive a round trip.
+
+Buffer blits use the existing descriptor's source rectangle, signed destination
+origin, mask origin, flips and independent integer scaling. Zero source extents
+mean the remainder, resolved on each call without changing the descriptor.
+The destination is clipped; masks control transparency and there is no alpha
+blending. Native palette words and tagged RGB values are copied without palette
+resolution. Source, mask and descriptor remain unchanged, except that a self-blit
+also changes its source because source and destination are the same object.
+
+Both blink planes are preserved. A source alternate plane causes the destination
+to acquire one, initially copying its whole primary plane; unpainted pixels keep
+those values. Without a source alternate plane, primary pixels supply both
+destination phases. Native plane creation happens before clipping/mask drawing,
+so a blit that paints no pixels can still create a plane or fail its allocation.
+Overlapping self-blits use a temporary snapshot of both source planes.
+Other distinct-buffer blits allocate only when a destination alternate plane is
+needed. No screen, file or network operation is performed, and no arguments are
+retained after the synchronous call.
+
+Wrong argument types abort the calling fiber. The masked overload requires a
+PixelMask; use the two-argument overload rather than null for an unmasked blit.
+Invalid source/mask regions, including empty source regions, return PixelError
+with IOErr.outOfRange. An empty destination returns the native
+IOErr.invalidArgument. Native allocation/validation failures preserve their
+actual code. Returned errors leave destination pixels and plane ownership
+unchanged.
+
+==== PixelError [[pixel-error]]
+
+Immutable `PixelError is Error` values expose `code`, `message` and `toString`,
+with no public constructor or setters. `code` retains the actual native integer
+status, including unrecognized values; binding-rejected source/mask regions use
+IOErr.outOfRange. The owned message identifies the operation and reason. Errors
+retain no buffer, mask, descriptor or console resources and survive later calls
+and garbage collection independently. This result type applies to PixelBuffer.blit;
+other existing pixel operations retain their documented result contracts.
 
 ==== PixelMask [[pixelmask]]
 
@@ -2825,7 +2866,7 @@ no mirroring.
 
 Descriptor setters reject wrong types, fractional values, out-of-range
 coordinates, and zero scale by aborting the calling fiber.  Reusing a
-descriptor does not retain a source, mask, or screen reference.
+descriptor does not retain a source, mask, or destination reference.
 
 ==== Pixel screen operations [[pixel-screen]]
 

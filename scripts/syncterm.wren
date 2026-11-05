@@ -284,6 +284,12 @@ class PixelColor {
   foreign static toRgb(value)
 }
 
+foreign class PixelError is Error {
+  foreign code
+  foreign message
+  foreign toString
+}
+
 foreign class PixelBuffer is Sequence {
   construct new(width, height) {}
   construct new(width, height, fill) {}
@@ -303,6 +309,8 @@ foreign class PixelBuffer is Sequence {
   foreign setPixel(x, y, color)
   foreign fill(color)
   foreign clone()
+  foreign blit(source, descriptor)
+  foreign blit(source, mask, descriptor)
   foreign rgb24
   foreign hasAlternate
   foreign alternateAt(index)
