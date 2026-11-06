@@ -1060,6 +1060,9 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 			status = st_console_pixel_size(console, &canvas.console.pixel_width,
 										   &canvas.console.pixel_height);
 			if (status == 0)
+				status = st_console_cell_pixel_size(console, &canvas.console.cell_width,
+					&canvas.console.cell_height);
+			if (status == 0)
 				status = st_console_get_aspect_ratio(console, &canvas.console.aspect_width,
 													 &canvas.console.aspect_height);
 			if (status != 0)

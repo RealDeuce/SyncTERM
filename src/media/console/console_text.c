@@ -149,6 +149,10 @@ st_console_set_cursor(st_console_t *console, bool visible,
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	if (console->pixel_cursor.enabled) {
+		console->pixel_cursor.enabled = false;
+		console->changed = true;
+	}
 	cursor = console->default_cursor;
 	cursor.visible = visible;
 	if (shape == ST_CONSOLE_CURSOR_BLOCK) {
@@ -204,6 +208,10 @@ st_console_set_default_cursor(st_console_t *console,
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	if (console->pixel_cursor.enabled) {
+		console->pixel_cursor.enabled = false;
+		console->changed = true;
+	}
 	console->default_cursor = *cursor;
 	console->custom_cursor = *cursor;
 	console->cursor_visible = cursor->visible;
@@ -245,6 +253,10 @@ st_console_set_custom_cursor(st_console_t *console,
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	if (console->pixel_cursor.enabled) {
+		console->pixel_cursor.enabled = false;
+		console->changed = true;
+	}
 	if (!console->cursor_custom
 	    || console->custom_cursor.start != cursor->start
 	    || console->custom_cursor.end != cursor->end
@@ -1401,4 +1413,41 @@ st_console_delete_lines(st_console_t *console, uint32_t count,
 	uint32_t codepoint)
 {
 	return change_lines(console, count, codepoint, false);
+}
+
+int
+st_console_set_pixel_cursor(st_console_t *console,
+	const struct st_console_pixel_cursor *cursor)
+{
+	if (console == NULL || cursor == NULL ||
+		(!ST_CONSOLE_COLOR_IS_RGB(cursor->colour) && cursor->colour > UINT16_MAX))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	int status = 0;
+	if (cursor->enabled && console->pixels == NULL)
+		status = IO_ERROR_NOT_SUPPORTED;
+	else if (console->pixel_cursor.enabled != cursor->enabled ||
+		console->pixel_cursor.visible != cursor->visible ||
+		console->pixel_cursor.colour != cursor->colour ||
+		!st_console_rects_equal(&console->pixel_cursor.rectangle, &cursor->rectangle)) {
+		console->pixel_cursor = *cursor;
+		console->changed = true;
+		status = st_console_finish_change_locked(console);
+	}
+	(void)st_rwlock_unlock(&console->state_lock);
+	return status;
+}
+
+int
+st_console_get_pixel_cursor(st_console_t *console,
+	struct st_console_pixel_cursor *cursor)
+{
+	if (console == NULL || cursor == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	*cursor = console->pixel_cursor;
+	(void)st_rwlock_unlock(&console->state_lock);
+	return 0;
 }

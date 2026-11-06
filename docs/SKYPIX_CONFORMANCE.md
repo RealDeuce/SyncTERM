@@ -7,18 +7,20 @@ overhang rules. It does not select a different wire protocol.
 
 Selecting SkyPix chooses the 640x200, 4:3 canvas and Latin-1 as initial
 preferences. Screen Mode, Encoding and Font remain editable and configure the
-connection. Screen Mode selects pixel geometry/aspect; the installed or bundled
-Amiga strike supplies nominal cell width/height. The text grid rounds up to
-complete cells, with graphics clipped to the exact selected canvas. The optional
-status row is outside the canvas and uses the same pixel scale. Ordinary Font
-preferences remain available outside SkyPix. Disconnected scrollback retains
+connection. Screen Mode selects pixel geometry/aspect and the system cell grid;
+the Amiga strike supplies independent native text metrics. In 640x200 the UI
+uses 80x25 cells of 8x8 pixels, including with Diamond 20. Graphics and native
+text are clipped to the exact selected canvas. The optional status row is
+outside the canvas, one system-cell high, and uses the same pixel scale.
+Ordinary Font preferences remain available outside SkyPix. Disconnected scrollback retains
 connected geometry; returning to the directory restores its geometry.
 
 Application UI, including status, online menu, file picker and transfer dialogs,
 uses system CP437 rather than the connection's Amiga font. Exact system strikes
-are used at their supported sizes; other cell dimensions scale a system strike
-through the console renderer. Fixed-cell conversion preserves the entire Amiga
-bitmap, including rows below the baseline. Pixel-positioned JR-Comm text retains
+are used at the screen mode's supported cell sizes; unusual screen-mode cell
+dimensions scale a system strike. Selecting an Amiga font does not change those
+dimensions or scale application UI. Fixed-cell conversion preserves the entire
+Amiga bitmap, including rows below the baseline. Pixel-positioned JR-Comm text retains
 its separate native baseline convention. Classic bitmap fonts carry byte indexes,
 including C1 glyph positions, without a charset tag; the selected codepage maps
 bytes to glyphs, while UTF-8 text uses Latin-1 glyph mapping. Remote SkyPix palette
@@ -55,8 +57,8 @@ corrections are retained in `src/media/amiga_font/data/`. The 39 strikes in 11
 families come from IcyTerm commit
 `b568f6a087b7ececb28d0b45edd38f70a6bf692d` and compile into build-tree C data.
 
-The 2026-11-05 rendering update also supplies 33 position-probe checks and
-45 cursor-probe checks under `~/SkyPix/disassembly/`, driven by the original
+The 2026-11-05 rendering update also supplies 41 position-probe checks,
+45 cursor-probe checks and 12 ROM cursor placement checks under `~/SkyPix/disassembly/`, driven by the original
 JR-Comm instructions. They distinguish nominal BS/HT width from proportional
 advance, normal CR/LF, font-height anchors, ANSI's eight-pixel positioning and
 receive-buffer-dependent wrapping. These recorded-call probes do not rasterize
@@ -70,6 +72,7 @@ full-screen scrolling or establish physical sprite/timer behaviour.
 | Lines and ellipses | Directed line ties and signed-word arithmetic; Kick 1.3 32-bit versus Kick 3.1 64-bit ellipse recurrences; ordered ROM point vectors. Work is bounded for hostile overflow cycles outside the checked reference domain. |
 | Pens and fills | RGB4 palette, initial eight colours, point/line/rectangle/ellipse/flood operations and brush minterms. Command 3 uses flood mode 1 regardless of its mode argument; command 13 outlines then performs boundary flood. Command 17 resets pens/palette without changing depth. |
 | Font position controls | Native default home uses its baseline, retaining the complete strike. Command 19 uses its logical pixel anchor. Native-font CR retains Y; LF adds current height; BS subtracts nominal width without a zero clamp; HT uses eight nominal widths; VT is inert. Diamond/20 position-probe regressions and literal Ruby/12 accent rows are independent expectations. |
+| Cursor | Separate RGB overlay, one scanline at baseline+1; X-2 with two-pixel quantization and nominal-width masks (8 pixels for width 8, otherwise 16) on the normal HIRES canvas. Negative/off-canvas portions clip without clamping the logical position. Clear/home, proportional advances, command 19 and font changes refresh it; brush/history captures exclude it. Native tests inject 185 ms callbacks for phase, hide/show and steady mode; refresh does not restart the timer. Palette loads do not recolour the captured cursor RGB. UI snapshots and CustomCursor preservation retain it. |
 | Fonts and text | Configured initial/reset Amiga strike (Pearl 8 by default); exact installed strike, exact compiled strike, then configured default for unavailable remote requests. Initial unavailable preferences fall back to Pearl 8; no strike stretching. Native baseline, signed kerning/spacing, monospaced centring and proportional advances. Font selection, including fallback, uses JAM1; reset uses JAM2. Kick 1.3 clips final overhang, which subsequent text can reveal; Kick 3.1 retains it. |
 | Brush capture | Command 6 captures starting at Y+1. Copy uses source plane depth and does not clear unrelated destination planes. |
 | ILBM | Raw and JR-Comm ByteRun1, including 0x80 repeating 129 bytes; CMAP required before BODY but not applied. Dimensions come from BMHD, not the transfer request. One to four planes and a four-million-pixel decoded limit. Mask planes are unsupported. |
@@ -89,11 +92,12 @@ The updated JR-Comm research describes behaviour beyond this checked subset:
 ANSI movement in eight-pixel steps with non-eight-pixel fonts, the exact
 receive-buffer forecast/count wrapping rule, and native font ascent/descent
 handling for full-screen margin scrolling after remote font changes. The
-current terminal still uses its normal cell grid for ANSI positioning and
-ordinary wrapping. It does not reproduce the Amiga hardware sprite's
-quantized position, two width masks, separate colour or 185 ms timer callback
-state machine; it uses the host console cursor. These are compatibility gaps,
-not behaviours established by the existing glyph/vector tests.
+current terminal still uses its screen-mode cell grid for ANSI positioning and
+ordinary wrapping. The software cursor implements the documented normal HIRES
+mapping, masks, colour isolation and a requested 185 ms phase interval; it is
+not an Amiga DMA/Copper/timer.device implementation. Other hardware display
+mappings and exact VBLANK/task scheduling remain outside these tests. Local UI
+selects its ordinary cell cursor and snapshots restore the terminal overlay.
 
 Graphics history uses the shared optional pixel-strip path, including text
 rendered through native Amiga fonts. Remote-font line feeds scroll enough host
@@ -116,9 +120,9 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | `amiga_font` | HUNK relocation, zero-offset references, metrics, bit rasters, malformed input, descriptors and confined paths; compiled catalog, package lifecycle and retained loaded fonts. |
 | `font_catalog` | Literal Pearl g/p/y rows retain descenders in fixed console cells. |
 | `amiga_font_transactions` | Injected rename/rollback failures and secondary cleanup failures before/after the package publication boundary. |
-| `cterm_skypix` | Parser splits, command/state/pixel expectations, both variants, status geometry, resets, delays, proportional overhang and native ILBM decoding. |
+| `cterm_skypix` | Parser splits, command/state/pixel expectations, both variants, status geometry, resets, delays, proportional overhang, native ILBM decoding and literal Diamond cursor positions/timer transitions. |
 | `skypix_rom_vectors` | Independent ordered point sets/hashes and Diamond 20 text for the retained ROM vectors. |
-| `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, selected canvas geometry and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
+| `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, selected canvas geometry and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; both variants with Diamond 20 in CP437/UTF-8, proportional cursor movement and unscaled 8x8 menu rasters; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
 | `syncterm_graphics_scrollback` | Shared ANSI/RIP/SkyPix image history, both phases, palette changes, composition/overlays, remote Pearl descenders, status choices and disconnected/offline viewing. |
 | `syncterm_amiga_font_manager` | Real picker cancellation, install, replacement confirmation, stale snapshots, metadata, removal and malformed family rejection. |
 | `bbs_list`, `wren_menu_contract` | All Graphics values, legacy RIP fallback/canonical save, locked merge/default persistence and conflicts, menu catalogs, constants and immutable family metadata. |

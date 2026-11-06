@@ -524,6 +524,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 		};
 	}
 	console->custom_cursor = console->default_cursor;
+	console->pixel_cursor.enabled = false;
 	if (configured_default_cursor) {
 		console->cursor_visible = console->default_cursor.visible;
 		console->cursor_shape = console->default_cursor.start == 0
@@ -1995,6 +1996,7 @@ st_console_reconfigure(st_console_t *console,
 		};
 	}
 	console->custom_cursor = console->default_cursor;
+	console->pixel_cursor.enabled = false;
 	console->cursor_visible = console->default_cursor.visible;
 	console->cursor_shape = console->default_cursor.start == 0
 	    && console->default_cursor.end >= console->default_cursor.range - 1
@@ -3230,6 +3232,7 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 	snapshot->cursor_shape = console->cursor_shape;
 	snapshot->cursor_custom = console->cursor_custom;
 	snapshot->custom_cursor = console->custom_cursor;
+	snapshot->pixel_cursor = console->pixel_cursor;
 	snapshot->blink_mode = console->blink_mode;
 	snapshot->video_flags = console->video_flags;
 	snapshot->blocky_scaling = console->blocky_scaling;
@@ -3305,6 +3308,7 @@ st_console_snapshot_restore(st_console_t *console,
 	console->cursor_shape = snapshot->cursor_shape;
 	console->cursor_custom = snapshot->cursor_custom;
 	console->custom_cursor = snapshot->custom_cursor;
+	console->pixel_cursor = snapshot->pixel_cursor;
 	console->blink_mode = snapshot->blink_mode;
 	console->video_flags = snapshot->video_flags;
 	console->blocky_scaling = snapshot->blocky_scaling;

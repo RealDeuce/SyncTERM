@@ -24,7 +24,9 @@ struct cterm_skypix {
 	int x, y, pen_x, pen_y, undo_x, undo_y;
 	unsigned colours, brush_depth;
 	bool custom, positioned, receiving, kick13, presented;
-	uint64_t delay_until;
+	uint64_t delay_until, cursor_deadline;
+	uint32_t cursor_colour;
+	bool cursor_on, cursor_hidden, cursor_blink;
 	uint16_t default_font;
 	char warned[1024];
 };
@@ -37,6 +39,9 @@ int cterm_skypix_reset(struct cterm_skypix *);
 int cterm_skypix_reset_font(struct cterm_skypix *);
 int cterm_skypix_reset_style(struct cterm_skypix *);
 bool cterm_skypix_paused(void *);
+void cterm_skypix_cursor_mode(struct cterm_skypix *, bool hidden, bool blink);
+void cterm_skypix_home(struct cterm_skypix *);
+int cterm_skypix_poll(struct cterm_skypix *, uint64_t now);
 int cterm_skypix_present(struct cterm_skypix *, const struct st_unicode_presentation_event *,
 						 bool *);
 bool cterm_skypix_control(struct cterm_skypix *, uint8_t);

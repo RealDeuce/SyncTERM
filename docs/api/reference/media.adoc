@@ -573,6 +573,10 @@ int st_console_set_custom_cursor(st_console_t *console,
 	const struct st_console_custom_cursor *cursor);
 int st_console_get_custom_cursor(st_console_t *console,
 	struct st_console_custom_cursor *cursor);
+int st_console_set_pixel_cursor(st_console_t *console,
+	const struct st_console_pixel_cursor *cursor);
+int st_console_get_pixel_cursor(st_console_t *console,
+	struct st_console_pixel_cursor *cursor);
 int st_console_set_blink_mode(st_console_t *console,
 	enum st_console_blink_mode mode);
 int st_console_get_blink_mode(st_console_t *console,
@@ -860,6 +864,14 @@ Returns zero or `IO_ERROR_*`; a text-only console returns
 
 | st_console_set_custom_cursor(console, cursor), st_console_get_custom_cursor(console, cursor)
 | Set/query custom bitmap cursor data where capability permits it.
+
+| st_console_set_pixel_cursor(console, cursor), st_console_get_pixel_cursor(console, cursor)
+| Set/query a native bitmap cursor overlay: `rectangle` (pixel coordinates,
+clipped to the surface), `colour` (RGB-tagged or palette index), `enabled`
+(select overlay instead of cell cursor), and `visible` (current phase).
+The caller owns timing; no raster/cell changes occur. Enabling on a text-only
+console returns `IO_ERROR_NOT_SUPPORTED`. Standard cursor setters disable it;
+console snapshots retain and restore it. Inputs are borrowed, outputs copied.
 
 | st_console_set_blink_mode(console, mode), st_console_get_blink_mode(console, mode)
 | Select/query text and cursor blink policy.

@@ -208,8 +208,9 @@ Conn.sendText("RESET-READY")
             assert frame.application["cterm.encoding"] == (1 if encoding == "CP437" and rip == "Off" else 0)
             # Reset from onInput runs within native input dispatch, including RIP.
             send(b"\x1b[4;5HXQ\x1b[6n")
-            receive(peer, b"RESET-HOOK", root / "wire.bin")
-            receive(peer, b"\x1b[1;2R", root / "wire.bin")
+            # Both replies may arrive in one recv; validate their order
+            # together rather than discarding a coalesced cursor reply.
+            receive(peer, b"RESET-HOOK\x1b[1;2R", root / "wire.bin")
             frame = client.wait_for(lambda f: f.lines[0].startswith("QEEP"))
             assert frame.application["cterm.x"] == 2 and frame.application["cterm.y"] == 1
             if rip != "Off":

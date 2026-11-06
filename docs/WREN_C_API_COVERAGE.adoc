@@ -22,7 +22,7 @@ limitations; it does not authorize implementing every omitted C facility.
 
 == Result and how to read this report
 
-The review covers 82 project-owned public headers, 2,524 named native items,
+The review covers 82 project-owned public headers, 2,534 named native items,
 and 127 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
 broader API-scope decisions, plus one stale documentation finding. Nineteen topics
@@ -188,7 +188,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/media/audio/st_audio_runtime.h[media/audio/st_audio_runtime.h] | 0 | 0 | 0 | 8 | 0 | +audio.runtime+
 | link:../src/media/audio_file/st_audio_file.h[media/audio_file/st_audio_file.h] | 0 | 0 | 5 | 0 | 0 | +audio.decode+
 | link:../src/media/audio_mixer/audio_mixer.h[media/audio_mixer/audio_mixer.h] | 0 | 0 | 0 | 23 | 0 | +audio.mixer+
-| link:../src/media/console/st_console.h[media/console/st_console.h] | 209 | 62 | 24 | 75 | 0 | +console.capabilities+, +console.cells+, +console.clipboard-url-caps+, +console.display-controls+, +console.focus-held+, +console.immutable-expand+, +console.input-events+, +console.operation-status+, +console.operations+, +console.owner+, +console.rich-font+, +console.style-bits+
+| link:../src/media/console/st_console.h[media/console/st_console.h] | 209 | 62 | 24 | 85 | 0 | +console.capabilities+, +console.cells+, +console.clipboard-url-caps+, +console.display-controls+, +console.focus-held+, +console.immutable-expand+, +console.input-events+, +console.operation-status+, +console.operations+, +console.owner+, +console.rich-font+, +console.style-bits+
 | link:../src/media/font_catalog/st_font_catalog.h[media/font_catalog/st_font_catalog.h] | 15 | 0 | 0 | 6 | 0 | +fonts.catalog+, +fonts.catalog-owner+, +fonts.codepage-loading+, +fonts.load-errors+
 | link:../src/media/fonts/st_builtin_fonts.h[media/fonts/st_builtin_fonts.h] | 4 | 0 | 1 | 1 | 0 | +fonts.builtin+, +fonts.raster-owner+, +fonts.vertical-compatibility+
 | link:../src/media/fonts/st_emoji_fonts.h[media/fonts/st_emoji_fonts.h] | 0 | 0 | 0 | 3 | 0 | +fonts.st_emoji_fonts+
@@ -1476,3 +1476,22 @@ paired Menu.prepareOfflineScrollback/finishOfflineScrollback orchestration.
 The accounting is 82 public headers, 127 exclusions, 2,524 items and 160
 assessments. Original finding dispositions remain 19 resolved and 32 open;
 this feature does not close an unrelated original topic.
+
+
+== SkyPix native cursor and system UI grid correction
+
+Diamond 20 exposed coupling between the configured native font and the
+application's cell grid. The screen mode now supplies system cell geometry
+(8x8 CP437 at 640x200), independently of native Amiga strike metrics. Native
+cursor refresh uses a separately composed pixel overlay, proportional X,
+baseline+1, X-2 quantization, width-dependent mask, captured RGB and terminal
+callback phase. Raster captures, brushes and graphics scrollback exclude it.
+Explicit ANSI positioning is distinguished from renderer cursor restoration.
+
+Screen snapshots and unchanged CustomCursor snapshots retain this terminal
+state opaquely; staged field edits/presets select the ordinary UI cell cursor.
+The two native overlay set/get operations and eight data items belong to
++console.owner+ as terminal-renderer mechanisms, rather than claiming new
+script cursor construction/editing features. Accounting is 82 public headers,
+127 exclusions, 2,534 items and 160 assessments. The original 51 topics remain
+19 resolved/32 open; temporary burndown records and skill remain.

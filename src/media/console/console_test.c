@@ -273,6 +273,7 @@ int st_console_test_capture(st_console_display_t *display, struct st_console_tes
 	capture->cell_width = console->cell_width; capture->cell_height = console->cell_height;
 	capture->pixel_top = console->pixel_top;
 	capture->cursor_x = console->cursor_x; capture->cursor_y = console->cursor_y;
+	capture->pixel_cursor = console->pixel_cursor;
 	capture->cursor_custom = console->cursor_custom;
 	capture->cursor_visible = console->cursor_visible; capture->cursor_shape = console->cursor_shape;
 	capture->cursor = console->cursor_custom ? console->custom_cursor : console->default_cursor;

@@ -13,6 +13,7 @@
 #include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
 #include "st_session_history.h"
+#include "st_time.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_file_query.h"
 #include "cterm_rip_fonts.h"
@@ -2626,6 +2627,12 @@ st_cterm_poll(st_cterm_t *terminal)
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_apc_poll(terminal);
+	if (terminal->skypix_engine != NULL) {
+		uint64_t now;
+		int status = st_time_monotonic_ms(&now);
+		if (status != 0) return status;
+		return cterm_skypix_poll(terminal->skypix_engine, now);
+	}
 	return 0;
 }
 

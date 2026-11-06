@@ -48,6 +48,90 @@ record_upload(void *context, const struct st_rgb_buffer *pixels,
 }
 
 static void
+test_pixel_cursor_overlay(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {.columns = 4, .rows = 2,
+		.cell_width = 8, .cell_height = 8, .scaling_mode = ST_CONSOLE_SCALING_EXTERNAL};
+	st_console_t *console = NULL;
+	struct st_console_bitmap_presenter *presenter = NULL;
+	struct st_console_bitmap_frame frame;
+	struct st_pixel_buffer *base = NULL, *copy = NULL;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	static const uint8_t blank_font[256 * 8] = {0};
+	const struct st_console_font font = {.bitmap = blank_font,
+		.bitmap_size = sizeof(blank_font), .glyph_count = 256,
+		.width = 8, .height = 8, .row_stride = 1, .glyph_stride = 8};
+	uint16_t identifier;
+	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
+	const struct st_console_style style = {.font = identifier,
+		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
+		.background = ST_CONSOLE_COLOR_RGB_TAG};
+	CHECK(st_console_set_style(console, &style) == 0);
+	CHECK(st_pixel_buffer_create(&base, 32, 16, true) == 0);
+	CHECK(st_pixel_buffer_fill(base, ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3),
+		ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6)) == 0);
+	const struct st_pixel_blit blit = {.width = 32, .height = 16, .scale_x = 1, .scale_y = 1};
+	CHECK(st_console_clear_window(console, ' ') == 0);
+	CHECK(st_console_present(console) == 0);
+	CHECK(st_console_begin_update(console) == 0);
+	/* Clearing identical blank cells leaves a pending glyph invalidation.
+	 * New explicit pixels must supersede it, even when another text row
+	 * later causes the raster cache to be revisited. */
+	CHECK(st_console_clear_window(console, ' ') == 0);
+	CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
+	struct st_console_cell status = *st_console_cell_at(console, 4);
+	status.flags &= ~ST_CONSOLE_CELL_PIXEL_GRAPHICS;
+	status.background = ST_CONSOLE_COLOR_RGB_VALUE(8, 9, 10);
+	const struct st_console_rect row = {0, 1, 1, 1};
+	CHECK(st_console_write_cells(console, &row, &status, 1) == 0);
+	CHECK(st_console_end_update(console) == 0);
+	const struct st_console_rect before_status = {0, 0, 32, 8};
+	CHECK(st_console_get_pixels(&copy, console, &before_status, false) == 0);
+	CHECK(copy->primary[0] == ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3));
+	CHECK(copy->alternate[0] == ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6));
+	st_pixel_buffer_destroy(copy);
+	copy = NULL;
+	CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
+	struct st_console_pixel_cursor cursor = {.rectangle = {2, 7, 16, 1},
+		.colour = ST_CONSOLE_COLOR_RGB_VALUE(250, 20, 30), .enabled = true, .visible = true};
+	CHECK(st_console_set_pixel_cursor(NULL, &cursor) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_set_pixel_cursor(console, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_set_pixel_cursor(console, &cursor) == 0);
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 32, 16, 0, NULL, NULL, &frame) == 0);
+	for (uint32_t y = 0; y < 16; ++y)
+		for (uint32_t x = 0; x < 32; ++x)
+			CHECK(frame.pixels->pixels[y * 32 + x] ==
+				(y == 7 && x >= 2 && x < 18 ? UINT32_C(0xfa141e) : UINT32_C(0x010203)));
+	const struct st_console_rect whole = {0, 0, 32, 16};
+	CHECK(st_console_get_pixels(&copy, console, &whole, false) == 0);
+	CHECK(copy->primary[7 * 32 + 2] == ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3));
+	CHECK(copy->alternate[7 * 32 + 2] == ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6));
+	st_pixel_buffer_destroy(copy);
+	st_console_snapshot_t *snapshot = NULL;
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && !cursor.enabled);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.enabled);
+	cursor.rectangle.x = 30;
+	cursor.rectangle.y = 15;
+	CHECK(st_console_set_pixel_cursor(console, &cursor) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 32, 16, 1, NULL, NULL, &frame) == 0);
+	CHECK(frame.pixels->pixels[15 * 32 + 30] == UINT32_C(0xfa141e));
+	CHECK(frame.pixels->pixels[7 * 32 + 2] == UINT32_C(0x010203));
+	cursor.visible = false;
+	CHECK(st_console_set_pixel_cursor(console, &cursor) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 32, 16, 2, NULL, NULL, &frame) == 0);
+	CHECK(frame.pixels->pixels[15 * 32 + 30] == UINT32_C(0x010203));
+	st_console_snapshot_destroy(snapshot);
+	st_console_bitmap_presenter_destroy(presenter);
+	st_pixel_buffer_destroy(base);
+	st_console_destroy(console);
+}
+
+static void
 test_upload_retry(void)
 {
 	const struct st_console_display_config display = {
@@ -963,6 +1047,7 @@ main(void)
 	test_wide_glyph_cursor();
 	test_vga_ninth_column();
 	test_upload_retry();
+	test_pixel_cursor_overlay();
 	test_pixel_raster_cache();
 	return 0;
 }

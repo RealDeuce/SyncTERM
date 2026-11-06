@@ -377,7 +377,7 @@ int st_wren_host_begin_skypix_session(st_wren_host_t *host,
 	if (canvas == NULL || font == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	uint32_t width = canvas->console.pixel_width, height = canvas->console.pixel_height;
-	uint32_t cw = st_amiga_font_width(font), ch = st_amiga_font_height(font);
+	uint32_t cw = canvas->console.cell_width, ch = canvas->console.cell_height;
 	if (width == 0 || height == 0 || width > INT16_MAX || height > INT16_MAX || cw == 0 ||
 		ch == 0 || cw > width || ch > height || (uint64_t)width * height > 4 * 1024 * 1024)
 		return IO_ERROR_OUT_OF_RANGE;

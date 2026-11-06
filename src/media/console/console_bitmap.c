@@ -50,6 +50,7 @@ struct st_console_bitmap_presenter {
 	enum st_console_scaling_mode scaling_mode;
 	bool software_scaling_only;
 	struct st_console_custom_cursor custom_cursor;
+	bool pixel_cursor_enabled;
 	bool cursor_custom;
 	bool cursor_visible;
 	bool cursor_composed;
@@ -772,13 +773,28 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	presenter->aspect_width = console->aspect_width;
 	presenter->aspect_height = console->aspect_height;
 	presenter->initialized = true;
-	presenter->cursor_rectangle = cursor_rectangle(presenter);
-	presenter->cursor_composed = (presenter->cursor_custom
-	    ? presenter->custom_cursor.visible : presenter->cursor_visible)
-	    && presenter->cursor_x < presenter->columns
-	    && presenter->cursor_y < presenter->rows
-	    && presenter->cursor_rectangle.width != 0
-	    && presenter->cursor_rectangle.height != 0;
+	presenter->pixel_cursor_enabled = console->pixel_cursor.enabled;
+	if (presenter->pixel_cursor_enabled) {
+		struct st_console_rect r = console->pixel_cursor.rectangle;
+		uint32_t width = console->pixels->width, height = console->pixels->height;
+		if (r.x >= width || r.y >= height)
+			r = (struct st_console_rect){0};
+		else {
+			if (r.width > width - r.x) r.width = width - r.x;
+			if (r.height > height - r.y) r.height = height - r.y;
+		}
+		presenter->cursor_rectangle = r;
+		presenter->cursor_colour = console->pixel_cursor.colour;
+		presenter->cursor_composed = console->pixel_cursor.visible && r.width != 0 && r.height != 0;
+	} else {
+		presenter->cursor_rectangle = cursor_rectangle(presenter);
+		presenter->cursor_composed = (presenter->cursor_custom
+			? presenter->custom_cursor.visible : presenter->cursor_visible)
+			&& presenter->cursor_x < presenter->columns
+			&& presenter->cursor_y < presenter->rows
+			&& presenter->cursor_rectangle.width != 0
+			&& presenter->cursor_rectangle.height != 0;
+	}
 	*cursor_changed = old_cursor_composed != presenter->cursor_composed
 	    || ((old_cursor_composed || presenter->cursor_composed)
 	    && (!st_console_rects_equal(&old_cursor,
@@ -1027,7 +1043,7 @@ st_console_bitmap_presenter_frame(
 	if (!presenter->planes_differ)
 		alternate = false;
 	use_cursor = presenter->cursor_composed;
-	if (use_cursor && (!presenter->cursor_custom
+	if (use_cursor && !presenter->pixel_cursor_enabled && (!presenter->cursor_custom
 	    || presenter->custom_cursor.blink))
 		use_cursor = cursor_phase;
 	identity = (uint8_t)(alternate ? BITMAP_ALTERNATE : BITMAP_PRIMARY);

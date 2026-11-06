@@ -3,7 +3,7 @@
   "width": 640,
   "height": 350,
   "pixel_format": "top-down row-major RGB, one byte per six-bit DAC channel, zlib",
-  "supplemental": [{"id": "graphics-scrollback", "test": "syncterm_graphics_scrollback", "scope": "Shared optional RGB pixel strips preserve both blink planes through live/ring/disconnected history, palette changes and Surface composition; ANSI CP437/UTF-8, RIP v1/v3 with RIP_PIXEL, SkyPix native font text, status on/off. Literal fixture expectations; historical reference captures unchanged."}],
+  "supplemental": [{"id": "graphics-scrollback", "test": "syncterm_graphics_scrollback / st_console_bitmap", "scope": "Shared optional RGB pixel strips preserve both blink planes through live/ring/disconnected history, palette changes and Surface composition; ANSI CP437/UTF-8, RIP v1/v3 with RIP_PIXEL, SkyPix native font text, status on/off. Literal fixture expectations; native clear/draw/status checks preserve both pixel planes after an identical-cell clear. Historical reference captures unchanged."}],
   "cases": [
     {
       "id": "test01_ellipses",

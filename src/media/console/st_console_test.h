@@ -30,6 +30,7 @@ struct st_console_test_capture {
 	uint32_t columns, rows, cell_width, cell_height, pixel_top;
 	uint32_t cursor_x, cursor_y, cursor_shape, blink_mode, video_flags;
 	struct st_console_custom_cursor cursor;
+	struct st_console_pixel_cursor pixel_cursor;
 	bool cursor_visible, cursor_custom, fullscreen, pointer_visible;
 	uint32_t pointer_shape, output_width, output_height;
 	struct st_console_rect destination;

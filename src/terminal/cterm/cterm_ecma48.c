@@ -125,6 +125,7 @@ cterm_handle_cha(struct cterminal *cterm, int *speed)
 void
 cterm_handle_cup(struct cterminal *cterm, int *speed)
 {
+	++cterm->cursor_position_changes;
 	int row, col;
 	(void)speed;
 	cterm_clear_lcf(cterm);

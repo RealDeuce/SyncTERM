@@ -220,6 +220,15 @@ struct st_console_custom_cursor {
 	bool blink;
 };
 
+/* A separately composed bitmap cursor. It never changes cells or raster
+ * capture. Standard cursor setters disable it; snapshots retain it. */
+struct st_console_pixel_cursor {
+	struct st_console_rect rectangle;
+	uint32_t colour;
+	bool enabled;
+	bool visible;
+};
+
 enum st_console_blink_mode {
 	ST_CONSOLE_BLINK_PC,
 	ST_CONSOLE_BLINK_PRESTEL,
@@ -574,6 +583,10 @@ int st_console_set_custom_cursor(st_console_t *console,
 	const struct st_console_custom_cursor *cursor);
 int st_console_get_custom_cursor(st_console_t *console,
 	struct st_console_custom_cursor *cursor);
+int st_console_set_pixel_cursor(st_console_t *console,
+	const struct st_console_pixel_cursor *cursor);
+int st_console_get_pixel_cursor(st_console_t *console,
+	struct st_console_pixel_cursor *cursor);
 int st_console_set_blink_mode(st_console_t *console,
 	enum st_console_blink_mode mode);
 int st_console_get_blink_mode(st_console_t *console,

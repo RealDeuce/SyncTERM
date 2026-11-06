@@ -1570,3 +1570,43 @@ Accounting now includes five new row-capture/resize/disposal/copy functions:
 82 headers, 127 exclusions, 2,524 native items and 160 assessments. All 82
 matrix rows reconcile. The original 51 topics remain 19 resolved/32 open;
 the temporary burndown records and skill remain for outstanding work.
+
+
+== User-directed Diamond 20 cursor and UI correction
+
+The user reported a stuck cursor and UI scaled by the connection's Amiga font,
+and supplied updated JR-Comm cursor specifications. Screen-mode geometry now
+owns the system UI grid independently of the native strike. A separate cursor
+overlay implements the normal HIRES placement/width rule, clipped to the canvas,
+with captured colour and terminal-owned blink callbacks. Clear/home, font
+changes and proportional advances refresh it without changing raster history.
+Renderer position restoration no longer masquerades as an ANSI positioning
+command. Screen/CustomCursor cleanup snapshots retain the overlay; edits and
+presets select the normal UI cursor. No Amiga DMA/Copper or VBLANK timing claim.
+
+The independent Diamond i/W probe positions, native callback transitions,
+raw-capture exclusion, overlay clipping, unscaled CP437 UI, CP437/UTF-8,
+both variants/status choices, dialog cleanup and disconnected history are
+covered by focused native/control-bitmap tests. Native graphical tests use
+private Xvfb with inherited desktop variables cleared.
+
+The larger-canvas sanitizer fixture also exposed stale redraw metadata after
+clearing an already blank screen. A subsequent status-row update could erase
+new graphics. Explicit pixel writes now supersede that pending text redraw.
+The focused native clear/draw/status sequence fails on the original code and
+passes with both phase planes retained. An unrelated reset fixture's two
+coalesced replies are now checked together, preserving its byte expectations.
+
+Verification complete: Clang/Botan full build and 149 distinct passing
+regression CTests across the broad suite and focused reruns. Native X11
+checks were rerun on private Xvfb; the compositor-free native Wayland test
+was skipped. GCC/OpenSSL, ASan/UBSan/OpenSSL and no-crypto/no-Unifont full
+builds and seven focused tests each passed across final runs. Six additional
+larger-canvas sanitizer repetitions passed after fixing the cache fault.
+FreeBSD leak detection is unsupported and disabled; the existing C++ vptr
+exclusion remains. MinGW x86/x86_64 full cross-builds passed; no Windows
+execution, Wine or local MSVC validation. No final warnings/sanitizer reports.
+
+Inventory/checker and all 82 matrix rows reconcile: 82 headers, 127 exclusions,
+2,534 native items and 160 assessments. The original 51 topics remain
+19 resolved/32 open; the temporary records and skill remain.

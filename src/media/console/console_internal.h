@@ -114,6 +114,7 @@ struct st_console_snapshot {
 	enum st_console_cursor_shape cursor_shape;
 	bool cursor_custom;
 	struct st_console_custom_cursor custom_cursor;
+	struct st_console_pixel_cursor pixel_cursor;
 	enum st_console_blink_mode blink_mode;
 	uint32_t video_flags;
 	bool blocky_scaling;
@@ -165,6 +166,7 @@ struct st_console {
 	bool cursor_custom;
 	struct st_console_custom_cursor default_cursor;
 	struct st_console_custom_cursor custom_cursor;
+	struct st_console_pixel_cursor pixel_cursor;
 	enum st_console_blink_mode blink_mode;
 	uint32_t video_flags;
 	enum st_console_scaling_mode scaling_mode;

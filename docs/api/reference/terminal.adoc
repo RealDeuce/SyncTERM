@@ -207,8 +207,10 @@ Safe to call again without duplicating the command or error.
 | On the terminal owner thread, checks armed audio channels and sends one
 idle report after an observed running-to-stopped transition. Idle-at-arm is
 not immediate completion. Call repeatedly even with no incoming bytes; it
-does not finish input or block for playback. Returns zero for a live terminal,
-`IO_ERROR_INVALID_ARGUMENT` for NULL. Serialize with writes, reset, resize,
+does not finish input or block for playback. SkyPix also advances its
+monotonic 185 ms software cursor callback, without restarting phase on text
+refresh. Returns zero on success, `IO_ERROR_INVALID_ARGUMENT` for NULL, or
+the actual native clock/cursor error. Serialize with writes, reset, resize,
 and destruction; callbacks run synchronously and must not reenter CTerm.
 
 | st_cterm_prepare_disconnect(terminal)

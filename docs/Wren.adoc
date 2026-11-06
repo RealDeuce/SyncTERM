@@ -2522,7 +2522,7 @@ The class supports two usage modes:
 * *Static* (live state): static getters read the cursor and explicit static methods update it
   immediately. `Screen.cursor.setBlink(false)` hides the blink
   on the next refresh.  Each live setter method under the hood does a full
-  read-modify-write of the renderer's cursor state — so a single
+  read-modify-write of the renderer's cell cursor state — so a single
   static write IS atomic for that one field, but a chain of static
   writes is NOT atomic across fields.  The renderer can paint
   between them, briefly showing intermediate states.  For
@@ -2561,6 +2561,13 @@ Pre-defined snapshots:
 | `CustomCursor.none`
 | Hidden cursor (legacy code 0).
 |===
+
+A `CustomCursor.current` snapshot also retains a terminal-owned pixel cursor
+opaquely, so applying an unchanged snapshot or using `CustomCursor.preserve`
+restores it. Editing a cursor field or applying a preset selects the ordinary
+cell cursor. SkyPix's native cursor position/colour/timer is owned by the
+terminal; it is not a bitmap drawing operation and is excluded from pixel
+captures and scrollback rasters.
 
 ==== Screen.videoFlags — `VideoFlags`
 
@@ -3589,8 +3596,10 @@ Application UI uses system CP437, independently of the connection's font.
 `Font.cp437English` remains the system font for Wren drawing even when SkyPix
 or a remote command replaces terminal slot zero. The status bar, online menu,
 file picker and transfer dialogs use it; built-in/loaded theme snapshots resolve
-explicit font choices to system CP437. The console scales a system strike when
-the connection's native cell dimensions have no exact system strike. Text
+explicit font choices to system CP437. SkyPix keeps the screen mode's system
+cell grid independent of the Amiga strike: at 640x200 UI uses 8x8 CP437 even
+with Diamond 20. The console scales a system strike only when the chosen
+screen-mode cell dimensions have no exact system strike. Text
 backends retain Unicode presentation and use their external terminal's font.
 
 The `Font` class itself only exposes named constants for the most

@@ -952,8 +952,10 @@ mark_pixel_cells(st_console_t *console, int64_t left, int64_t top,
 
 			st_console_cell_at(console, index)->flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS
 			    | ST_CONSOLE_CELL_DIRTY;
-			st_console_drawn_at(console, index)->flags
-			    |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
+			/* This raster write supersedes pending text invalidation,
+			 * including a clear whose blank cells compared unchanged. */
+			*st_console_drawn_at(console, index) = *st_console_cell_at(console, index);
+			st_console_drawn_at(console, index)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 		}
 	}
 	console->changed = true;

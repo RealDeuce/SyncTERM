@@ -191,6 +191,43 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(st_console_get_pixels(&pixels, console, &overhang, false) == 0);
 	CHECK(pixels->primary[0] == 514 && pixels->primary[8] == 514);
 	st_pixel_buffer_destroy(pixels);
+	/* Updated independent cursor probes: Diamond's underline follows its
+	 * baseline and proportional advance, with two-pixel sprite quantization. */
+	feed(t, "\x1b[10;20!Diamond.font!\f");
+	CHECK(st_cterm_finish(t) == 0);
+	struct st_console_pixel_cursor cursor;
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0);
+	CHECK(cursor.enabled && cursor.visible && cursor.rectangle.x == 0 &&
+		cursor.rectangle.y == 15 && cursor.rectangle.width == 14 && cursor.rectangle.height == 1);
+	uint32_t cursor_colour = cursor.colour;
+	feed(t, "i\x1b[5n");
+	CHECK(st_cterm_finish(t) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.x == 2);
+	feed(t, "W");
+	CHECK(st_cterm_finish(t) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.x == 22);
+	t->skypix_engine->cursor_deadline = 1000;
+	CHECK(cterm_skypix_poll(t->skypix_engine, 999) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible);
+	CHECK(cterm_skypix_poll(t->skypix_engine, 1000) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && !cursor.visible);
+	feed(t, "\x1b[19;101;40!");
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible &&
+		cursor.rectangle.x == 98 && cursor.rectangle.y == 60 && cursor.rectangle.width == 16);
+	CHECK(t->skypix_engine->cursor_deadline == 1185);
+	cterm_skypix_cursor_mode(t->skypix_engine, true, true);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && !cursor.visible);
+	cterm_skypix_cursor_mode(t->skypix_engine, false, true);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && !cursor.visible);
+	CHECK(cterm_skypix_poll(t->skypix_engine, 1185) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible);
+	cterm_skypix_cursor_mode(t->skypix_engine, false, false);
+	CHECK(cterm_skypix_poll(t->skypix_engine, 1370) == 0);
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible);
+	feed(t, "\x1b[11;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0!");
+	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.colour == cursor_colour);
+	feed(t, "\x1b[12!\x1b[10;0!");
+	t->skypix_engine->cursor_deadline = 0;
 	/* JR-Comm position probes: CR/LF are independent and BS/HT use
 	 * nominal Diamond/20 width, never the last proportional advance. */
 	feed(t, "\x1b[19;100;40!\x1b[10;20!Diamond.font!i\r");

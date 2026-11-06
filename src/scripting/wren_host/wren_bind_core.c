@@ -152,6 +152,7 @@ struct foreign_claim_handle {
 struct foreign_cursor {
 	struct foreign_header header;
 	struct st_console_custom_cursor cursor;
+	struct st_console_pixel_cursor pixel_cursor;
 };
 
 struct foreign_video_flags {
@@ -933,12 +934,16 @@ allocate_cursor(WrenVM *vm)
 	struct st_console_custom_cursor value;
 	if (!st_wren_screen_status(vm, st_console_get_custom_cursor(st_wren_context_from_vm(vm)->console,
 	    &value), "CustomCursor.current")) return;
+	struct st_console_pixel_cursor pixels;
+	if (!st_wren_screen_status(vm, st_console_get_pixel_cursor(st_wren_context_from_vm(vm)->console,
+		&pixels), "CustomCursor.current pixels")) return;
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "CustomCursor", 1);
 	struct foreign_cursor *cursor = wrenSetSlotNewForeign(vm, 0, 1,
 	    sizeof(*cursor));
 	cursor->header.kind = FOREIGN_CURSOR;
 	cursor->cursor = value;
+	cursor->pixel_cursor = pixels;
 }
 
 static void
@@ -4404,6 +4409,7 @@ fn_cursor_preset(WrenVM *vm)
 	    sizeof(*cursor));
 	cursor->header.kind = FOREIGN_CURSOR;
 	cursor->cursor = value;
+	cursor->pixel_cursor = (struct st_console_pixel_cursor){0};
 	if (preset != 2) {
 		cursor->cursor.start = 0;
 		cursor->cursor.end = cursor->cursor.range - 1;
@@ -4429,8 +4435,10 @@ cursor_value(WrenVM *vm)
 	{ \
 		struct foreign_cursor *cursor = cursor_value(vm); \
 		int64_t value; \
-		if (cursor != NULL && slot_integer(vm, 1, 0, UINT32_MAX, &value)) \
+		if (cursor != NULL && slot_integer(vm, 1, 0, UINT32_MAX, &value)) { \
 			cursor->cursor.field = (uint32_t)value; \
+			cursor->pixel_cursor.enabled = false; \
+		} \
 	}
 
 #define CURSOR_BOOL(name, field) \
@@ -4444,8 +4452,10 @@ cursor_value(WrenVM *vm)
 	{ \
 		struct foreign_cursor *cursor = cursor_value(vm); \
 		bool value; \
-		if (cursor != NULL && slot_boolean(vm, 1, &value)) \
+		if (cursor != NULL && slot_boolean(vm, 1, &value)) { \
 			cursor->cursor.field = value; \
+			cursor->pixel_cursor.enabled = false; \
+		} \
 	}
 
 CURSOR_NUMBER(start, start)
@@ -4520,9 +4530,18 @@ static void
 fn_cursor_apply(WrenVM *vm)
 {
 	struct foreign_cursor *cursor = cursor_value(vm);
-	if (cursor != NULL)
-		st_wren_screen_result(vm, st_console_set_custom_cursor(st_wren_context_from_vm(vm)->console,
-		    &cursor->cursor), "CustomCursor.apply");
+	if (cursor != NULL) {
+		st_console_t *console = st_wren_context_from_vm(vm)->console;
+		int status = st_console_begin_update(console);
+		if (status == 0) {
+			status = st_console_set_custom_cursor(console, &cursor->cursor);
+			if (status == 0 && cursor->pixel_cursor.enabled)
+				status = st_console_set_pixel_cursor(console, &cursor->pixel_cursor);
+			int ended = st_console_end_update(console);
+			if (status == 0) status = ended;
+		}
+		st_wren_screen_result(vm, status, "CustomCursor.apply");
+	}
 }
 
 static struct foreign_video_flags *

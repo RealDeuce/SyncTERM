@@ -254,18 +254,18 @@ def run_preferences(executable, reports, encoding, height=8):
                     return client.capture()
                 data=b"\x1b[2J\x1b[H"+(b"\x82" if encoding=="CP437" else "é".encode())
                 first=frame(data)
-                expected_width=8 if height==8 else 15
-                assert first.metadata["cell_width"]==expected_width and first.metadata["cell_height"]==height,first.metadata
+                expected_width=8
+                ui_height=16
+                assert first.metadata["cell_width"]==expected_width and first.metadata["cell_height"]==ui_height,first.metadata
                 assert 0 <= first.metadata["cursor_start"] <= first.metadata["cursor_end"] < first.metadata["cursor_range"],first.metadata
                 assert first.metadata["columns"]==(1056+expected_width-1)//expected_width
-                assert first.metadata["rows"]==(400+height-1)//height+1
+                assert first.metadata["rows"]==26
                 assert first.application["cterm.encoding"]==(1 if encoding=="CP437" else 0)
                 if encoding=="CP437": assert first.application["cterm.codepage"]==0
                 if height==8:
-                    assert first.lines[0].startswith("é"),first.lines[:2]
                     stride=first.metadata["plane_width"];top=first.metadata["pixel_top"]
                     for y in range(8):
-                        assert first.primary[(top+y)*stride]==514
+                        assert first.primary[(top+y)*stride]==514,(encoding,height,y,[hex(v) for v in first.primary[(top+y)*stride:(top+y)*stride+8]])
                         assert first.primary[(top+y)*stride+7]==512
                 if height==12:
                     # Literal Ruby/12 e-acute strike rows, including its first
@@ -279,7 +279,7 @@ def run_preferences(executable, reports, encoding, height=8):
                 # 640x200 limit, including the final pixel and brush copy.
                 edge=frame(b"\x1b[15;3!\x1b[1;1055;399!\x1b[6;1055;398;1;1!\x1b[7;0;0;1054;399;1;1;192;255!")
                 stride=edge.metadata["plane_width"];top=edge.metadata["pixel_top"]
-                assert edge.primary[(top+399)*stride+1055]==515
+                assert edge.primary[(top+399)*stride+1055]==515,(top,stride,edge.metadata,[hex(v) for v in edge.primary[(top+399)*stride+1050:(top+399)*stride+1056]])
                 assert edge.primary[(top+399)*stride+1054]==515
                 # Remote changes and reset return to the configured native
                 # font, not Pearl. Compare independent synthetic glyph rows.
@@ -306,16 +306,15 @@ def run_preferences(executable, reports, encoding, height=8):
                 column=menu.lines[row].index("ANSI Music Control")
                 cell=menu.cells[row*menu.metadata["columns"]+column]
                 assert cell.font==system_font and cell.glyph==ord("A")
-                # Literal CP437 English A rows, from the pinned system fonts.
-                # The console scales its 8x14 strike to Ruby's 15x12 cells.
-                expected=(0x30,0x78,0xcc,0xcc,0xfc,0xcc,0xcc,0) if height==8 else (0,0,0x10,0x38,0x6c,0xc6,0xc6,0xfe,0xc6,0xc6,0xc6,0,0,0)
+                # Literal CP437 English 8x16 A, independent of Amiga metrics.
+                expected=(0,0,0x10,0x38,0x6c,0xc6,0xc6,0xfe,0xc6,0xc6,0xc6,0xc6,0,0,0,0)
                 background=(cell.background if cell.background&0x80000000 else menu.palette[cell.background])&0xffffff
-                for y in range(height):
+                for y in range(ui_height):
                     for x in range(expected_width):
-                        index=(menu.metadata["pixel_top"]+row*height+y)*menu.metadata["plane_width"]+column*expected_width+x
+                        index=(menu.metadata["pixel_top"]+row*ui_height+y)*menu.metadata["plane_width"]+column*expected_width+x
                         colour=menu.primary[index]
                         colour=(colour if colour&0x80000000 else menu.palette[colour])&0xffffff
-                        assert (colour!=background)==bool(expected[y*len(expected)//height]&(0x80>>(x*8//expected_width))),(encoding,height,x,y)
+                        assert (colour!=background)==bool(expected[y]&(0x80>>(x*8//expected_width))),(encoding,height,x,y)
                 click_text(client,menu,"Download")
                 dialog=client.wait_text("Download Protocol")
                 row=next(y for y,line in enumerate(dialog.lines) if "Download Protocol" in line)
@@ -327,6 +326,79 @@ def run_preferences(executable, reports, encoding, height=8):
                 assert "Download Protocol" not in restored.text
                 assert restored.metadata["cell_width"]==expected_width
                 peer.shutdown(socket.SHUT_RDWR)
+
+def run_diamond(executable, reports, kick, encoding, hide_status):
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1",0));listener.listen(1);listener.settimeout(15)
+        entries=("[Diamond Cursor]\nConnectionType=Raw\nAddress=127.0.0.1\n"
+                 f"Port={listener.getsockname()[1]}\nGraphics=SkyPix (Kick {kick})\n"
+                 f"Encoding={encoding}\nAmigaFont=Diamond.font\nAmigaFontSize=20\n"
+                 f"ScreenMode=Amiga640x200\nNoStatus={str(hide_status).lower()}\nHidePopups=false\n")
+        def prepare(root):
+            write_script(root,"zzz_diamond_cursor",'''import "syncterm" for CustomCursor, Screen, Hook, Key, Conn
+Hook.onKey(Key.f8) {|event|
+  CustomCursor.preserve(Fn.new { Screen.checked_(Screen.cursor.setVisible(false)) })
+  Conn.sendBytes("CURSOR-RESTORED")
+  return true
+}
+''',"connected")
+        with fixture(executable,entries=entries,settings="AudioModes=0\nScrollBackLines=100\n",
+                     prepare=prepare,reports=reports,quiet=False) as (client,root):
+            client.wait_text("Diamond Cursor");client.key("enter")
+            with listener.accept()[0] as peer:
+                peer.settimeout(10)
+                client.wait_for(lambda s:s.application.get("connected")==1)
+                def frame(data):
+                    peer.sendall(data+b"\x1b[5n")
+                    reply=b""
+                    while len(reply)<4:
+                        part=peer.recv(4-len(reply));assert part;reply+=part
+                    assert reply==b"\x1b[0n",reply
+                    return client.capture()
+                def cursor(shown,x,y,width):
+                    m=shown.metadata
+                    assert (m["cell_width"],m["cell_height"],m["columns"],m["rows"])==(8,8,80,25 if hide_status else 26),m
+                    assert m["pixel_cursor_enabled"]==1,m
+                    assert (m["pixel_cursor_x"],m["pixel_cursor_y"],m["pixel_cursor_width"],m["pixel_cursor_height"])==(x,y,width,1),m
+                # Literal JR-Comm position-probe expectations: baseline 14,
+                # i advances four pixels, W advances twenty; sprite X-2.
+                cursor(frame(b"\x1b[2J\x1b[H"),0,15,14)
+                cursor(frame(b"i"),2,15,16)
+                cursor(frame(b"W"),22,15,16)
+                client.key("f8")
+                reply=b""
+                while len(reply)<15:
+                    part=peer.recv(15-len(reply));assert part;reply+=part
+                assert reply==b"CURSOR-RESTORED",reply
+                cursor(client.capture(),22,15,16)
+                cursor(frame(b"\n"),22,35,16)
+                cursor(frame(b"\r"),0,35,14)
+                cursor(frame(b"\x1b[19;101;40!"),98,60,16)
+                cursor(frame(b"\x1b[10;8!Pearl.font!"),98,48,8)
+                cursor(frame(b"\x1b[10;20!Diamond.font!\f"),0,15,14)
+                client.command_key(44)
+                menu=client.wait_text("SyncTERM Online Menu")
+                assert menu.metadata["cell_width"]==8 and menu.metadata["cell_height"]==8,menu.metadata
+                row=next(y for y,line in enumerate(menu.lines) if "ANSI Music Control" in line)
+                column=menu.lines[row].index("ANSI Music Control")
+                cell=menu.cells[row*80+column]
+                expected=(0x30,0x78,0xcc,0xcc,0xfc,0xcc,0xcc,0)
+                bg=(cell.background if cell.background&0x80000000 else menu.palette[cell.background])&0xffffff
+                for y,bits in enumerate(expected):
+                    for x in range(8):
+                        value=menu.primary[(row*8+y)*menu.metadata["plane_width"]+column*8+x]
+                        value=(value if value&0x80000000 else menu.palette[value])&0xffffff
+                        assert (value!=bg)==bool(bits&(0x80>>x)),(kick,encoding,x,y)
+                assert menu.metadata["pixel_cursor_enabled"]==0
+                client.key("escape")
+                cursor(frame(b""),0,15,14)
+                peer.shutdown(socket.SHUT_RDWR)
+                notice=client.wait_text("Disconnected: Enter exits, F1 details")
+                assert notice.metadata["cell_height"]==8
+                client.command_key(48);client.wait_text("Scrollback")
+                client.key("escape");client.wait_text("Disconnected: Enter exits, F1 details")
+                client.key("enter");client.wait_text("Directory: Name")
+                assert b"[wren" not in client.stderr,bytes(client.stderr)
 
 def run_editor_preferences(executable,reports):
     entries="[Editor]\nConnectionType=Raw\nAddress=example.invalid\nGraphics=SkyPix (Kick 3.1)\n"
@@ -360,4 +432,8 @@ if __name__=="__main__":
     run_preferences(args.executable,args.reports,"CP437")
     run_preferences(args.executable,args.reports,"UTF-8")
     run_preferences(args.executable,args.reports,"UTF-8",12)
+    for kick in ("1.3","3.1"):
+        for encoding in ("CP437","UTF-8"):
+            for hide in (False,True):
+                run_diamond(args.executable,args.reports,kick,encoding,hide)
     run_editor_preferences(args.executable,args.reports)

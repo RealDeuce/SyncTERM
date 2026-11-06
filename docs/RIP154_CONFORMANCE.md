@@ -35,6 +35,8 @@ through the shared graphics-history implementation: actual RIP_PIXEL output,
 both blink planes, Surface composition, scrolling, palette changes and retained
 disconnected/offline history, with status on/off. These literal expectations
 are separate from the historical DOS captures and do not change their provenance.
+The native bitmap clear/draw/status regression also protects explicit RIP pixel
+rasters from a stale pending text redraw; no RIP wire semantics are changed.
 
 ## Historical reference captures
 

@@ -9,6 +9,7 @@
 #include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
+#include "cterm_skypix.h"
 
 #include "io_error.h"
 #include "st_base64.h"
@@ -274,10 +275,9 @@ cterm_render_set_position(struct cterminal *cterm, int x, int y)
 	if (!render_succeeded(cterm,
 	    st_console_get_window(cterm->screen.console, &window)))
 		return;
-	if (render_succeeded(cterm, st_console_set_position(
+	(void)render_succeeded(cterm, st_console_set_position(
 	    cterm->screen.console, window.x + (uint32_t)x - 1,
-	    window.y + (uint32_t)y - 1)))
-		++cterm->cursor_position_changes;
+	    window.y + (uint32_t)y - 1));
 }
 
 int
@@ -366,6 +366,14 @@ cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 {
 	struct st_console_custom_cursor custom;
 
+	if (cterm->skypix_engine != NULL) {
+		if (!render_succeeded(cterm,
+			st_console_get_default_cursor(cterm->screen.console, &custom)))
+			return;
+		bool blink = cterm->cursor_style == 0 ? custom.blink : (cterm->cursor_style & 1) != 0;
+		cterm_skypix_cursor_mode(cterm->skypix_engine, cursor == CTERM_CURSOR_HIDDEN, blink);
+		return;
+	}
 	if (!render_succeeded(cterm,
 	    st_console_get_default_cursor(cterm->screen.console, &custom)))
 		return;

@@ -4,7 +4,13 @@ SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
 both variants with status on/off, Latin-1/CP437/UTF-8, configurable pixel canvases,
 native Amiga fonts and complete descenders, system-font UI isolation,
-transfers and delay/reset/disconnect recovery. It is separate from the ANSI
+transfers and delay/reset/disconnect recovery. Diamond 20 cases check independent
+cursor-probe coordinates, mask clipping and proportional advances in both
+variants/encodings, plus literal 8x8 CP437 UI at 640x200. Native compositor tests
+verify cursor overlay pixels, capture exclusion, clipping and snapshot cleanup.
+An identical-cell clear followed by explicit graphics and a status-row update
+must retain literal primary/alternate raster colours;
+native SkyPix tests inject deterministic blink callbacks. It is separate from the ANSI
 CP437/UTF-8 inventory below and from the historical RIP captures.
 
 `syncterm_graphics_scrollback` checks the shared history path in ordinary ANSI,

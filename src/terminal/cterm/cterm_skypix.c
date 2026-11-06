@@ -16,6 +16,67 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+static void cursor_bookkeeping(struct cterm_skypix *s);
+
+/* The sprite is an overlay, never part of a brush or history raster. These
+ * are the documented low-resolution-sprite coordinates on a HIRES canvas. */
+static int publish_cursor(struct cterm_skypix *s)
+{
+	int x = cterm_skypix_word((unsigned)(s->x - 2));
+	x = x >= 0 ? x / 2 * 2 : -((-x + 1) / 2 * 2);
+	int y = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font) - 1)) + 1;
+	int right = x + (st_amiga_font_width(s->font) == 8 ? 8 : 16);
+	if (x < 0) x = 0;
+	if (right > (int)s->width) right = (int)s->width;
+	struct st_console_pixel_cursor cursor = {.enabled = true,
+		.visible = s->cursor_on, .colour = s->cursor_colour};
+	if (x < right && y >= 0 && y < (int)s->height)
+		cursor.rectangle = (struct st_console_rect){(uint32_t)x, (uint32_t)y,
+			(uint32_t)(right - x), 1};
+	return st_console_set_pixel_cursor(s->terminal->screen.console, &cursor);
+}
+
+static void refresh_cursor(struct cterm_skypix *s)
+{
+	s->cursor_on = true;
+	cterm_render_record_error(s->terminal, publish_cursor(s));
+}
+
+void cterm_skypix_cursor_mode(struct cterm_skypix *s, bool hidden, bool blink)
+{
+	if (hidden && !s->cursor_hidden)
+		s->cursor_on = false;
+	s->cursor_hidden = hidden;
+	s->cursor_blink = blink;
+	cterm_render_record_error(s->terminal, publish_cursor(s));
+}
+
+int cterm_skypix_poll(struct cterm_skypix *s, uint64_t now)
+{
+	if (s->cursor_deadline == 0) {
+		s->cursor_deadline = now + 185;
+		return 0;
+	}
+	if (now < s->cursor_deadline)
+		return 0;
+	s->cursor_deadline = now + 185;
+	/* UI cursor setters select the cell cursor. Do not draw over a modal
+	 * screen; its snapshot restores the sprite when that scope unwinds. */
+	struct st_console_pixel_cursor cursor;
+	int status = st_console_get_pixel_cursor(s->terminal->screen.console, &cursor);
+	if (status != 0 || !cursor.enabled)
+		return status;
+	s->cursor_on = s->cursor_hidden ? false : !s->cursor_blink || !s->cursor_on;
+	return publish_cursor(s);
+}
+
+void cterm_skypix_home(struct cterm_skypix *s)
+{
+	s->x = 0;
+	s->y = (int)st_amiga_font_baseline(s->font) - (int)st_amiga_font_height(s->font) + 1;
+	cursor_bookkeeping(s);
+}
 static int palette(struct cterm_skypix *s, const unsigned *values)
 {
 	static const unsigned defaults[16] = {0,   287, 3549, 3840, 241, 943,  4082, 3086,
@@ -141,8 +202,8 @@ int cterm_skypix_reset_font(struct cterm_skypix *s)
 		s->terminal->xpos = s->x / (int)s->cell_width + 1;
 		s->terminal->ypos = top / (int)s->cell_height + 1;
 	}
-	s->terminal->cursor = CTERM_CURSOR_UNDERLINE;
 	cterm_render_set_cursor(s->terminal, s->terminal->cursor);
+	refresh_cursor(s);
 	return 0;
 }
 int cterm_skypix_reset_style(struct cterm_skypix *s)
@@ -198,8 +259,8 @@ static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *byte
 	s->font = font;
 	s->custom = true;
 	s->positioned = true;
-	s->terminal->cursor = s->custom ? CTERM_CURSOR_HIDDEN : CTERM_CURSOR_UNDERLINE;
 	cterm_render_set_cursor(s->terminal, s->terminal->cursor);
+	refresh_cursor(s);
 	return 0;
 }
 static void text_boundary(struct cterm_skypix *s)
@@ -260,6 +321,7 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 		s->x = v[1];
 		s->y = v[2];
 		s->positioned = true;
+		cursor_bookkeeping(s);
 		return 0;
 	}
 	if (op == 8 && count == 3) {
@@ -381,7 +443,13 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 		(x != s->terminal->xpos || y != s->terminal->ypos ||
 		 placements != s->terminal->cursor_position_changes)) {
 		s->x = (s->terminal->xpos - 1) * (int)s->cell_width;
-		s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->default_data);
+		s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->font);
+		refresh_cursor(s);
+	} else if (!s->custom && !s->positioned && !s->native_default &&
+		(x != s->terminal->xpos || y != s->terminal->ypos ||
+		 placements != s->terminal->cursor_position_changes)) {
+		sync_cursor(s);
+		refresh_cursor(s);
 	}
 	return status;
 }
@@ -437,7 +505,17 @@ int cterm_skypix_reset(struct cterm_skypix *s)
 	s->terminal->attr = 2;
 	s->terminal->screen.default_attribute = 2;
 	cterm_render_attribute_colours(s->terminal, 2, &s->terminal->fg_color, &s->terminal->bg_color);
-	return palette(s, NULL);
+	int status = palette(s, NULL);
+	uint32_t colour;
+	if (status == 0)
+		status = st_console_get_palette(s->terminal->screen.console, CTERM_SKYPIX_PALETTE_FIRST + 2, &colour, 1);
+	if (status == 0) {
+		s->cursor_colour = ST_CONSOLE_COLOR_RGB_TAG | colour;
+		s->cursor_hidden = false;
+		s->cursor_blink = true;
+		refresh_cursor(s);
+	}
+	return status;
 }
 int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
 {
@@ -469,6 +547,8 @@ int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *confi
 		config->amiga_font == NULL ? st_amiga_font_builtin("pearl.font", 8) : config->amiga_font;
 	s->font_codepage =
 		config->encoding == ST_CTERM_ENCODING_UTF8 ? ST_CODEPAGE_ISO_8859_1 : config->codepage;
+	s->native_default = st_amiga_font_width(s->default_data) != cw ||
+		st_amiga_font_height(s->default_data) != ch;
 	for (unsigned c = 0; c < 256; ++c)
 		if (st_amiga_font_glyph(s->default_data, (uint8_t)c)->advance != (int)cw)
 			s->native_default = true;
@@ -507,6 +587,8 @@ void cterm_skypix_destroy(struct cterm_skypix *s)
 	st_pixel_buffer_destroy(s->brush);
 	st_pixel_buffer_destroy(s->undo);
 	text_boundary(s);
+	const struct st_console_pixel_cursor cursor = {0};
+	(void)st_console_set_pixel_cursor(s->terminal->screen.console, &cursor);
 	free(s);
 }
 static void cursor_bookkeeping(struct cterm_skypix *s)
@@ -516,6 +598,8 @@ static void cursor_bookkeeping(struct cterm_skypix *s)
 		: s->x / (int)s->cell_width + 1;
 	s->terminal->ypos = top < 0 ? 1 : top >= (int)s->height ? s->terminal->height
 		: top / (int)s->cell_height + 1;
+	cterm_render_set_position(s->terminal, s->terminal->xpos, s->terminal->ypos);
+	refresh_cursor(s);
 }
 static void line_feed(struct cterm_skypix *s)
 {

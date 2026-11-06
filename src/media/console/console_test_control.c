@@ -107,6 +107,10 @@ static void encode_capture(struct test_bytes *b, const struct st_console_test_ca
 	N("cursor_x", c->cursor_x); N("cursor_y", c->cursor_y); N("cursor_visible", c->cursor_visible);
 	N("cursor_custom", c->cursor_custom);
 	N("cursor_shape", c->cursor_shape); N("cursor_start", c->cursor.start); N("cursor_end", c->cursor.end);
+	N("pixel_cursor_enabled", c->pixel_cursor.enabled); N("pixel_cursor_visible", c->pixel_cursor.visible);
+	N("pixel_cursor_x", c->pixel_cursor.rectangle.x); N("pixel_cursor_y", c->pixel_cursor.rectangle.y);
+	N("pixel_cursor_width", c->pixel_cursor.rectangle.width); N("pixel_cursor_height", c->pixel_cursor.rectangle.height);
+	N("pixel_cursor_colour", c->pixel_cursor.colour);
 	N("cursor_range", c->cursor.range); N("cursor_blink", c->cursor.blink);
 	N("blink_mode", c->blink_mode); N("video_flags", c->video_flags); N("fullscreen", c->fullscreen);
 	N("pointer_visible", c->pointer_visible); N("pointer_shape", c->pointer_shape);

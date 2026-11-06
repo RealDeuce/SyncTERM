@@ -936,6 +936,7 @@ cterm_set_bgattr(struct cterminal *cterm, unsigned char colour)
 void
 cterm_set_position(struct cterminal *cterm, int x, int y)
 {
+	++cterm->cursor_position_changes;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &x, &y);
 	cterm_render_set_position(cterm, x, y);
 	ABS_XY(&cterm->xpos, &cterm->ypos);
@@ -1317,6 +1318,8 @@ cterm_clearscreen(struct cterminal *cterm, char attr)
 		cterm_line_to_scrollback(cterm, cterm->y + i);
 	cterm_render_clear_window(cterm);
 	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
+	if (cterm->skypix_engine != NULL)
+		cterm_skypix_home(cterm->skypix_engine);
 }
 
 /*
