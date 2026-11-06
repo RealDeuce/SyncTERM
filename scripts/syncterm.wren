@@ -808,7 +808,10 @@ class Codepage {
   static atariSt      { 28 }
 
   foreign static encodes_(text)
+  foreign static encodeByte(codepage, scalar)
+  foreign static brokenVertical(codepage)
   foreign static decodeByte(codepage, byte)
+  foreign static decodeByte(codepage, byte, graphicControls)
 }
 class REPL {
   static eval(src) { eval("syncterm", src) }
@@ -1052,6 +1055,7 @@ class Font {
   foreign static name(i)
   foreign static count
   foreign static available(i)
+  foreign static builtinBrokenVertical(selector)
   foreign static codepage
   foreign static codepageOf(i)
   foreign static codepageFor(selector)

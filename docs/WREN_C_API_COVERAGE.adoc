@@ -5,7 +5,8 @@ Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+, +theme-operation-results+,
 +transfer-result+, +transfer-protocol-selection+, +settings-transfer-timeouts+,
 +bbs-provenance+, +clipboard-url-capabilities+, +theme-origin+,
-+pixel-offscreen-blit+, +cterm-reset-contract+ and +digest-algorithms+ are resolved.
++pixel-offscreen-blit+, +cterm-reset-contract+, +digest-algorithms+,
++codepage-utility+ and +font-compatibility-metadata+ are resolved.
 CTerm and Screen result fidelity are resolved by their approved chunks,
 completing +console-operation-results+.
 Selected BBS/Settings mutation results, Menu.load and emoji recording now
@@ -25,14 +26,15 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 82 project-owned public headers, 2,534 named native items,
 and 127 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Nineteen topics
+broader API-scope decisions, plus one stale documentation finding. Twenty-one topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
 portable I/O error symbols, BBS diagnostics, model-operation results, theme
 operation results, transfer results, explicit XMODEM-G selection, the
 intentional cache-status omission, console operation results, transfer timeout
 Settings bindings, entry provenance, clipboard/URL capability queries, cloud
-theme provenance, offscreen pixel compositing, direct terminal reset and digest
-coverage) are resolved. The remaining 32 topics retain their recorded open subclaims;
+theme provenance, offscreen pixel compositing, direct terminal reset, digest
+coverage, explicit codepage conversions and built-in font compatibility metadata)
+are resolved. The remaining 30 topics retain their recorded open subclaims;
 the separate profile-field-table documentation finding is resolved. The numbers follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
@@ -190,7 +192,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/media/audio_mixer/audio_mixer.h[media/audio_mixer/audio_mixer.h] | 0 | 0 | 0 | 23 | 0 | +audio.mixer+
 | link:../src/media/console/st_console.h[media/console/st_console.h] | 209 | 62 | 24 | 85 | 0 | +console.capabilities+, +console.cells+, +console.clipboard-url-caps+, +console.display-controls+, +console.focus-held+, +console.immutable-expand+, +console.input-events+, +console.operation-status+, +console.operations+, +console.owner+, +console.rich-font+, +console.style-bits+
 | link:../src/media/font_catalog/st_font_catalog.h[media/font_catalog/st_font_catalog.h] | 15 | 0 | 0 | 6 | 0 | +fonts.catalog+, +fonts.catalog-owner+, +fonts.codepage-loading+, +fonts.load-errors+
-| link:../src/media/fonts/st_builtin_fonts.h[media/fonts/st_builtin_fonts.h] | 4 | 0 | 1 | 1 | 0 | +fonts.builtin+, +fonts.raster-owner+, +fonts.vertical-compatibility+
+| link:../src/media/fonts/st_builtin_fonts.h[media/fonts/st_builtin_fonts.h] | 5 | 0 | 0 | 1 | 0 | +fonts.builtin+, +fonts.raster-owner+, +fonts.vertical-compatibility+
 | link:../src/media/fonts/st_emoji_fonts.h[media/fonts/st_emoji_fonts.h] | 0 | 0 | 0 | 3 | 0 | +fonts.st_emoji_fonts+
 | link:../src/media/fonts/st_presentation_font.h[media/fonts/st_presentation_font.h] | 0 | 0 | 0 | 4 | 0 | +fonts.st_presentation_font+
 | link:../src/media/fonts/st_unicode_fonts.h[media/fonts/st_unicode_fonts.h] | 0 | 0 | 0 | 2 | 0 | +fonts.st_unicode_fonts+
@@ -222,7 +224,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
 | link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 11 | 0 | +history.clear+, +history.owner+
 | link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 74 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+
-| link:../src/text/codepage/st_codepage.h[text/codepage/st_codepage.h] | 0 | 35 | 0 | 0 | 0 | +text.codepages+
+| link:../src/text/codepage/st_codepage.h[text/codepage/st_codepage.h] | 35 | 0 | 0 | 0 | 0 | +text.codepages+
 | link:../src/text/emoji/st_emoji_catalog.h[text/emoji/st_emoji_catalog.h] | 6 | 0 | 0 | 0 | 0 | +emoji.catalog+
 | link:../src/text/emoji/st_emoji_locale.h[text/emoji/st_emoji_locale.h] | 6 | 0 | 0 | 0 | 0 | +emoji.locale+
 | link:../src/text/unicode_compare/st_unicode_compare.h[text/unicode_compare/st_unicode_compare.h] | 10 | 4 | 0 | 0 | 0 | +text.compare-utilities+, +text.comparison+
@@ -871,13 +873,26 @@ The usable clocks exist, but Timer.now uses the native millisecond source and re
 Evidence: link:../src/base/time/st_time.h[src/base/time/st_time.h:21]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:4618]; link:../src/scripting/wren_vm/vm/wren_core.c[src/scripting/wren_vm/vm/wren_core.c:1202].
 
 [[finding-codepage-utility]]
-=== General codepage encoding and compatibility metadata
+=== General codepage encoding and compatibility metadata (resolved)
 
-+text.codepages+ (partial; all script VMs). Wren: Codepage constants/decodeByte; Font.codepage/codepageOf; Menu.encodings; semantic Conn sends.
++text.codepages+ (covered; all script VMs). Wren: Codepage constants,
+encodeByte, decodeByte and brokenVertical; Font mapping queries; Menu.encodings.
 
-All native codepage choices and byte-to-scalar decoding are represented. Encoding uses the current session and capability helper encodes_, not a general public encodeByte(codepage, scalar) operation. Native broken_vertical metadata has no script query. Native count/name are available through the Menu encodings catalog; enum COUNT is a native sentinel, not another encoding.
+The approved chunk 18 adds explicit scalar-Number encoding to byte Number/null,
+preserving native aliases without String decoding, normalization or replacement.
+Invalid codepages/scalars abort before effects; an unmappable valid scalar
+returns null. Codepage.brokenVertical exposes the native compatibility Bool.
+Review found an additional omitted decoder mode: the three-argument decodeByte
+now selects native control/display semantics with a strict Bool, while the
+two-argument form retains graphical decoding. NUL remains a byte in the returned
+Unicode String. These synchronous, stateless operations are available in every
+VM and independent of selected fonts, terminal encoding, raster availability
+and locale. No native algorithms or existing encodes_ behavior changed.
+Native count/name remain represented through the menu encodings catalog;
+COUNT remains a native sentinel. No general transcoder or live font metadata
+service is implied.
 
-Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:779]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:3083]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:116].
+Evidence: link:../scripts/syncterm.wren[Codepage declarations]; link:../src/scripting/wren_host/wren_bind_core.c[explicit native conversion dispatch]; link:../scripts/syncterm_menu.wren[menu encodings catalog]; link:../src/scripting/wren_host/tests/codepage.wren[independent conversion/validation vectors]; link:../src/scripting/wren_host/tests/st_wren_codepage_test.c[all-VM native table parity and replacement isolation].
 
 [[finding-console-display-policy]]
 === Live console/display policies
@@ -916,13 +931,19 @@ The binding offers reads/writes/seek and size inspection, but no explicit trunca
 Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1605].
 
 [[finding-font-compatibility-metadata]]
-=== Font broken-vertical compatibility metadata
+=== Font broken-vertical compatibility metadata (resolved)
 
-+fonts.vertical-compatibility+ (unmapped; same VM as the owning API). Wren: none.
++fonts.vertical-compatibility+ (covered; all script VMs).
+Wren: Font.builtinBrokenVertical(selector).
 
-No public query reports the native broken-vertical font compatibility bit. Menu filters/name/codepage do not convey that specific metadata.
+The user selected an explicitly static built-in query. Selectors 0..45 return
+the native catalog flag regardless of bitmap availability, session selection or
+raster replacement. Custom selectors (including actual downloaded fonts) and
+invalid types/numbers abort. No live raster inference or resource ownership is
+introduced. Documentation corrects the old box-drawing-gap explanation: the
+compatibility bit concerns the broken-bar display glyph at byte 0x7C.
 
-Evidence: link:../src/media/fonts/st_builtin_fonts.h[src/media/fonts/st_builtin_fonts.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1033].
+Evidence: link:../src/media/fonts/st_builtin_fonts.h[native built-in compatibility query]; link:../scripts/syncterm.wren[Font.builtinBrokenVertical declaration]; link:../src/scripting/wren_host/tests/st_wren_codepage_test.c[all built-in flags and replacement independence]; link:Wren.adoc[authoritative metadata contract].
 
 [[finding-font-raster-model]]
 === Rich raster/font descriptors from script data
@@ -1513,3 +1534,34 @@ and 160 assessments remain accounted for. Existing +cterm.state+,
 +cterm.owner+ and +term.controls+ mappings describe the new engine behaviour.
 Original finding dispositions remain 19 resolved/32 open; this direct feature
 request does not close an unrelated original topic.
+
+== Approved codepage conversion and built-in font metadata
+
+Chunk 18 resolves +codepage-utility+ and +font-compatibility-metadata+ using
+the native scalar encoder, both decoder modes, the codepage compatibility flag
+and an explicitly static built-in font query. The initial missing encodeByte
+regression was reproduced. Native algorithms, declarations, existing graphical
+decoder callers and selected-font encodes_ behavior are preserved.
+
+Independent vectors and all-table boundary comparisons run in menu, picker and
+connected VMs, with both codepage and UTF-8 terminal configurations. Tests cover
+NUL, aliases, supplementary scalars, invalid types/ranges/Bool values, every
+built-in flag, deliberately unavailable built-ins, a replacement Amiga raster
+and an actual downloaded dynamic font. Custom selectors remain invalid for the
+static built-in query even when their raster is loaded.
+
+Clang configured/built the application/libretro module and affected tests;
+the six planned CTests passed (40.11s). GCC, no-crypto/no-Unifont and ASan/UBSan
+configurations passed the three focused conversion/font tests (2.10s, 2.16s and
+8.59s). The final expanded wren_codepage fixture passed again on all four
+configurations (2.18s, 2.00s, 2.27s and 8.55s). Both MinGW application/DLL and
+affected test targets cross-built, including the final fixture, without Windows
+execution, MSVC or Wine. Build logs contain no warnings or errors. Leak detection
+is unsupported on FreeBSD and disabled; the existing C++ vptr exclusion remains.
+Fixtures use headless consoles, cleared desktop variables and no physical audio.
+
+All 82 public headers, 127 exclusions, 2,534 native items and 160 assessments
+remain accounted for, with no native declaration/TSV changes. The original 51
+topics now have 21 resolved and 30 open; the separate documentation finding is
+resolved. Matrix reconciliation, coverage and diff checks pass. Retain the
+temporary approved-plan record and skill for remaining Plan-mode chunks.

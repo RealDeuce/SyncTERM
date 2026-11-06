@@ -3,6 +3,84 @@
 Permanent accounting: link:WREN_C_API_COVERAGE.adoc[coverage report] and
 link:api/wren-c-api-assessments.json[assessment ledger].
 
+== Approved chunk 18: codepage conversion and built-in font metadata (revision 1)
+
+Approval: the user approved the complete Plan-mode revision 1 with "Implement
+the plan." Implementation began in Default mode on 2026-11-06.
+Phase: chunk complete; the next chunk requires a new actual Plan-mode phase.
+Resolve +codepage-utility+ / +text.codepages+ and
++font-compatibility-metadata+ / +fonts.vertical-compatibility+.
+
+All additions are synchronous static methods in menu, picker and connected VMs.
+Codepage.encodeByte(codepage, scalar) accepts a valid codepage and integer scalar
+0..0x10FFFF excluding surrogates, returning byte Number 0..255 or null when
+unmappable. The user selected scalar Numbers, with no String decoding or NFC.
+Preserve native alias selection without replacement. Codepage.brokenVertical
+(codepage) returns the native Bool. Font.builtinBrokenVertical(selector) accepts
+only built-in selectors 0..45 and reports static metadata independently of loaded
+or replaced rasters; the user explicitly selected the built-in query.
+
+The user selected Codepage.decodeByte(codepage, byte, graphicControls) to expose
+both native modes, with a strict Bool and byte 0..255. Return the native scalar
+as a Unicode String, including NUL. Retain two-argument graphical decoding.
+Wrong types, fractional/nonfinite values, invalid enums/ranges and surrogates
+abort before effects. No resources, authority, retained arguments, new errors,
+availability guards or native failure conditions. Preserve encodes_, existing
+assignments/encoding and callers. No native algorithm/interface changes.
+
+Correct the manual: broken vertical concerns byte 0x7C's broken-bar display
+glyph, not box-drawing gaps. Codepage catalog names/count remain represented
+through the menu catalog. Live raster metadata, whole-string transcoding,
+font construction and terminal behavior changes are excluded.
+
+Acceptance: add focused wren_codepage CTest and independent CP1251/CP437,
+control/display, pipe/broken-bar, NUL, supplementary/unmappable and invalid-input
+expectations before implementation. Exercise all three VMs, all 29 codepages,
+all bytes in both modes, native alias behavior and every built-in flag. Check
+unavailable fonts, rejected custom selectors, runtime replacements and selected
+font/session-encoding independence; retain existing decoder/encodes_ regressions.
+Do not assume encode/decode are inverses.
+
+Configure/build with CMake; native Clang runs wren_codepage, codepage, fonts,
+wren_host, wren_menu_contract and wren_picker_contract. Focused conversion tests
+also run with GCC, ASan/UBSan and minimal configuration. Cross-build application
+and affected tests with MinGW x86/x86_64; no Windows execution or Wine. Use
+headless fixtures with no physical audio or user display.
+
+Update authoritative docs, both assessments/report/matrix, reviewed evidence
+and follow-up, including the newly identified decoding-mode subclaim. Native
+declarations and TSV stay unchanged. Run coverage/diff checks and commit the
+verified change without pushing. Closure leaves 30 topics open; the separate
+documentation finding is already resolved. Retain this document and skill.
+
+=== Completed verification for chunk 18
+
+The new regression failed first at the missing encodeByte API. Independent
+vectors and strict invalid-input checks now pass in menu, picker and connected
+VMs; connected checks use both legacy and UTF-8 terminal configurations. Every
+native codepage/byte pair is checked in both decoding modes, with native alias
+results checked separately from invertibility. Every built-in flag matches C.
+Explicitly omitted built-ins retain static metadata; a replacement Amiga raster
+and downloaded dynamic font do not change or widen the built-in query.
+
+Native Clang CMake configured/built the application/libretro module and all
+affected test targets; six planned CTests passed (40.11s). GCC, minimal no-crypto/
+no-Unifont and Clang ASan/UBSan configurations built the same targets and passed
+the three focused tests (2.10s, 2.16s and 8.59s). After expanding explicit
+unavailable-font and scalar-boundary tests, final wren_codepage passed again
+on all four configurations (2.18s, 2.00s, 2.27s and 8.55s). FreeBSD does not
+support LeakSanitizer; detect_leaks=0 and the existing C++ vptr exclusion remain.
+Both MinGW architectures cross-built application/DLL and affected test targets,
+including the final expanded fixture. No Windows/MSVC execution or Wine.
+All fixtures are headless with inherited desktop variables cleared and no
+physical audio runtime. All final build logs have no warnings or errors.
+
+API docs, report/matrix, both assessments and reviewed evidence/follow-up are
+reconciled. Native declarations and TSV are unchanged: 82 public headers,
+127 exclusions, 2,534 native items, 160 assessments and 51 original topics.
+All matrix rows and the 21 resolved/30 open dispositions agree independently.
+The coverage checker and diff checks pass. Remaining work for this chunk: none.
+
 == Approved chunk 17: digest coverage (revision 1)
 
 Approval: the user approved the complete Plan-mode revision 1 with "Implement

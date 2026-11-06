@@ -3299,19 +3299,62 @@ font_codepage(struct st_wren_context *context, uint16_t selector)
 }
 
 static void
-fn_codepage_decode_byte(WrenVM *vm)
+fn_codepage_encode_byte(WrenVM *vm)
+{
+	int64_t codepage;
+	int64_t scalar;
+	uint8_t byte;
+
+	if (!slot_integer(vm, 1, 0, ST_CODEPAGE_COUNT - 1, &codepage)
+	    || !slot_integer(vm, 2, 0, 0x10ffff, &scalar))
+		return;
+	if (scalar >= 0xd800 && scalar <= 0xdfff) {
+		st_wren_abort(vm, "Codepage.encodeByte expects a Unicode scalar");
+		return;
+	}
+	if (st_codepage_from_unicode(&byte, (enum st_codepage)codepage, (uint32_t)scalar))
+		wrenSetSlotDouble(vm, 0, byte);
+	else
+		wrenSetSlotNull(vm, 0);
+}
+
+static void
+fn_codepage_broken_vertical(WrenVM *vm)
+{
+	int64_t codepage;
+
+	if (slot_integer(vm, 1, 0, ST_CODEPAGE_COUNT - 1, &codepage))
+		wrenSetSlotBool(vm, 0, st_codepage_broken_vertical((enum st_codepage)codepage));
+}
+
+static void
+codepage_decode_byte(WrenVM *vm, bool explicit_graphics)
 {
 	int64_t codepage;
 	int64_t byte;
+	bool graphic_controls = true;
 	char text[4];
 	ptrdiff_t size;
 
 	if (!slot_integer(vm, 1, 0, ST_CODEPAGE_COUNT - 1, &codepage)
-	    || !slot_integer(vm, 2, 0, UINT8_MAX, &byte))
+	    || !slot_integer(vm, 2, 0, UINT8_MAX, &byte)
+	    || (explicit_graphics && !slot_boolean(vm, 3, &graphic_controls)))
 		return;
 	size = st_utf8_encode_one(text, sizeof(text), st_codepage_to_unicode(
-	    (enum st_codepage)codepage, (uint8_t)byte, true));
+	    (enum st_codepage)codepage, (uint8_t)byte, graphic_controls));
 	wrenSetSlotBytes(vm, 0, text, (size_t)size);
+}
+
+static void fn_codepage_decode_byte(WrenVM *vm) { codepage_decode_byte(vm, false); }
+static void fn_codepage_decode_byte_graphics(WrenVM *vm) { codepage_decode_byte(vm, true); }
+
+static void
+fn_font_builtin_broken_vertical(WrenVM *vm)
+{
+	int64_t selector;
+
+	if (slot_integer(vm, 1, 0, ST_BUILTIN_FONT_COUNT - 1, &selector))
+		wrenSetSlotBool(vm, 0, st_builtin_font_broken_vertical((size_t)selector));
 }
 
 static void
@@ -5383,10 +5426,14 @@ static const struct binding bindings[] = {
 	{"ScreenFonts", true, "[_]", fn_screen_font_get},
 	{"ScreenFonts", true, "[_]=(_)", fn_screen_font_set},
 	{"Codepage", true, "encodes_(_)", fn_codepage_encodes},
+	{"Codepage", true, "encodeByte(_,_)", fn_codepage_encode_byte},
+	{"Codepage", true, "brokenVertical(_)", fn_codepage_broken_vertical},
 	{"Codepage", true, "decodeByte(_,_)", fn_codepage_decode_byte},
+	{"Codepage", true, "decodeByte(_,_,_)", fn_codepage_decode_byte_graphics},
 	{"Font", true, "name(_)", fn_font_name},
 	{"Font", true, "count", fn_font_count},
 	{"Font", true, "available(_)", fn_font_available},
+	{"Font", true, "builtinBrokenVertical(_)", fn_font_builtin_broken_vertical},
 	{"Font", true, "codepage", fn_font_codepage},
 	{"Font", true, "codepageOf(_)", fn_font_codepage_of},
 	{"Font", true, "load(_)", fn_font_load},

@@ -149,6 +149,28 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_wren_codepage_test tests/st_wren_codepage_test.c)
+	target_include_directories(st_wren_codepage_test PRIVATE
+		$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>)
+	target_link_libraries(st_wren_codepage_test PRIVATE st_wren_host st_wren_vm
+		st_codepage st_fonts st_font_catalog st_amiga_font syncterm_filesystem)
+	target_compile_definitions(st_wren_codepage_test PRIVATE
+		ST_WREN_CODEPAGE_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/codepage-test"
+		ST_WREN_CODEPAGE_TEST_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/tests/codepage.wren")
+	syncterm_target_atomics(st_wren_codepage_test)
+	set_target_properties(st_wren_codepage_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_definitions(st_wren_codepage_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+		target_compile_options(st_wren_codepage_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_wren_codepage_test PRIVATE
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME wren_codepage COMMAND st_wren_codepage_test)
+	set_tests_properties(wren_codepage PROPERTIES ENVIRONMENT_MODIFICATION
+		"DISPLAY=unset:;WAYLAND_DISPLAY=unset:;XAUTHORITY=unset:;XDG_RUNTIME_DIR=unset:")
+
 	add_executable(st_wren_digest_test tests/st_wren_digest_test.c
 		tests/st_wren_digest_fs_test_bindings.c tests/st_wren_digest_test_bindings.c)
 	target_include_directories(st_wren_digest_test PRIVATE

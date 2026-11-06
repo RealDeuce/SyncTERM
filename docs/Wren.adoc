@@ -3284,6 +3284,17 @@ these values describe explicit conversions at a legacy byte boundary.
 whether the codepage of the selected primary font (`Screen.font[0]`) can
 encode it. It returns false when that font is unavailable.  It does not consult the process locale.
 
+`Codepage.encodeByte(codepage, scalar)` explicitly encodes one Unicode scalar
+using the chosen legacy codepage. The scalar is an integer Number from 0 through
+`0x10FFFF`, excluding surrogates (`0xD800` through `0xDFFF`), rather than a String.
+Return a byte Number from 0 through 255, or `null` when that scalar is unmappable.
+Native aliases choose the first mapping in the legacy table. There is no
+normalization, replacement character or dependency on the selected font,
+connection encoding or locale. For example,
+`Codepage.encodeByte(Codepage.cp1251, 0x0410)` returns `0xC0`.
+Wrong types, nonfinite/fractional Numbers, invalid codepages and invalid scalars
+abort the calling Fiber.
+
 `Codepage.decodeByte(codepage, byte)` explicitly decodes one legacy display
 byte to a Unicode String. The codepage must be one of the constants below
 and the byte an integer from 0 through 255. It uses graphical character
@@ -3293,10 +3304,23 @@ fiber. The result is independent of the selected font, connection encoding,
 locale, and output mode. For example, a CP437 character picker can assign
 `cell.ch = Codepage.decodeByte(Codepage.cp437, value)`.
 
-A `_b` suffix on a codepage name means "broken vertical" — the
-font variant draws box-drawing pipe characters with one-pixel gaps
-between rows.  The base codepage and its `_b` variant cover the same
-character set; only the box-drawing glyph shapes differ.
+`Codepage.decodeByte(codepage, byte, graphicControls)` adds a strict Bool choice
+of native decoding mode. `true` matches the two-argument display form; `false`
+selects semantic control meanings. For CP437, byte 1 then returns U+0001 rather
+than `☺`, byte `0x7F` returns DEL rather than `⌂`, and byte `0x7C` returns `|`
+rather than `¦`. The native tables determine the remaining mappings; byte 0
+can return a one-byte NUL String. Invalid arguments abort the calling Fiber.
+Encoding and decoding are not promised to be inverse operations for every table.
+
+`Codepage.brokenVertical(codepage)` returns the native compatibility Bool for a
+valid Codepage constant. It describes the broken-bar display glyph at byte
+`0x7C`, not gaps in box-drawing lines. A `_b` suffix identifies an explicit
+broken-vertical variant; some other codepages, including CP437, also have the
+flag. A false flag does not imply that an arbitrary loaded raster has an
+unbroken bar. Invalid arguments abort the calling Fiber.
+
+These conversion and metadata methods are synchronous and available in all
+three VMs. They retain no inputs and grant no file or terminal authority.
 
 [options="header",cols="2,1,4"]
 |===
@@ -3683,6 +3707,12 @@ distinguishes bundled font variants that use the same codepage encoding.
 | `Font.available(i)` | `true` if slot `i` has actually been loaded
                        (the user can configure SyncTERM to omit some
                        built-ins).
+| `Font.builtinBrokenVertical(selector)` | Native static broken-vertical
+  compatibility flag of a built-in selector (0 through 45). Available in all
+  three VMs, even if its bitmap is unavailable. This describes the bundled
+  catalog entry independently of configured, downloaded or session raster
+  replacements; it does not inspect a live font. Custom selectors, wrong types
+  and nonfinite/fractional/out-of-range Numbers abort the calling Fiber.
 | `Font.codepage` | Actual mapping of the font selected in `Screen.font[0]`,
   or `null` if its bitmap is unavailable.
 | `Font.codepageOf(i)` | Actual mapping of the font selected in script-output
