@@ -660,12 +660,12 @@ cterm_cterm_handle_font_dcs(struct cterminal *cterm)
 	char *p, *p2;
 	int decoded;
 	size_t size;
+	unsigned long slot;
 
-	cterm->font_slot = strtoul(cterm->strbuf + 11, &p, 10);
-	if (cterm->font_slot < CTERM_FIRST_DYNAMIC_FONT)
+	slot = strtoul(cterm->strbuf + 11, &p, 10);
+	if (slot < CTERM_FIRST_DYNAMIC_FONT || slot > 255)
 		return;
-	if (cterm->font_slot > 255)
-		return;
+	cterm->font_slot = (int)slot;
 	if (p && *p == ':') {
 		p++;
 		decoded = cterm_render_base64_decode(cterm->fontbuf,
@@ -932,6 +932,26 @@ static const unsigned note_frequency[]={	/* Hz*1000 */
 	,7902200
 };
 
+/* Consume every decimal digit without a temporary buffer or narrowing an
+ * out-of-range strtoul result. The caller's normal range clamp still applies.
+ * Leave the cursor on the last digit for play_music's shared loop increment. */
+static int
+music_number(char **cursor)
+{
+	int value = 0;
+	char *p = *cursor;
+
+	while (ascii_is_digit((unsigned char)p[1])) {
+		int digit = *++p - '0';
+		if (value > (INT_MAX - digit) / 10)
+			value = INT_MAX;
+		else
+			value = value * 10 + digit;
+	}
+	*cursor = p;
+	return value;
+}
+
 /* ---- ANSI music: streaming via xp_audio mixer ----
  * Each MML note is rendered via xptone_makewave into a small buffer and
  * appended to a per-terminal audio stream. The mixer drains the stream at
@@ -946,7 +966,6 @@ static void play_music(struct cterminal *cterm)
 	int		offset;
 	char	note;
 	int		notelen;
-	char	numbuf[10];
 	int		dotted;
 	int		notenum;
 	int		had_foreground = 0;
@@ -1029,46 +1048,26 @@ static void play_music(struct cterminal *cterm)
 				}
 				break;
 			case 'T':						/* Tempo */
-				out=numbuf;
-				while(ascii_is_digit((unsigned char)*(p+1)))
-					*(out++)=*(++p);
-				*out=0;
-				cterm->tempo=strtoul(numbuf,NULL,10);
+				cterm->tempo=music_number(&p);
 				if(cterm->tempo>255)
 					cterm->tempo=255;
 				if(cterm->tempo<32)
 					cterm->tempo=32;
 				break;
 			case 'O':						/* Octave */
-				out=numbuf;
-				while(ascii_is_digit((unsigned char)*(p+1)))
-					*(out++)=*(++p);
-				*out=0;
-				cterm->octave=strtoul(numbuf,NULL,10);
+				cterm->octave=music_number(&p);
 				if(cterm->octave>6)
 					cterm->octave=6;
 				break;
 			case 'L':
-				out=numbuf;
-				while(ascii_is_digit((unsigned char)*(p+1)))
-					*(out++)=*(++p);
-				*out=0;
-				cterm->notelen=strtoul(numbuf,NULL,10);
+				cterm->notelen=music_number(&p);
 				if(cterm->notelen<1)
 					cterm->notelen=1;
 				if(cterm->notelen>64)
 					cterm->notelen=64;
 				break;
 			case 'N':						/* Note by number */
-				if(ascii_is_digit((unsigned char)*(p+1))) {
-					out=numbuf;
-					while(ascii_is_digit((unsigned char)*(p+1))) {
-						*(out++)=*(p+1);
-						p++;
-					}
-					*out=0;
-					notenum=strtoul(numbuf,NULL,10);
-				}
+				notenum=music_number(&p);
 				if(notenum==0) {
 					notenum=-1;
 					offset=1;
@@ -1104,13 +1103,7 @@ static void play_music(struct cterminal *cterm)
 						i=1;
 					}
 					if(ascii_is_digit((unsigned char)*(p+1))) {
-						out=numbuf;
-						while(ascii_is_digit((unsigned char)*(p+1))) {
-							*(out++)=*(p+1);
-							p++;
-						}
-						*out=0;
-						notelen=strtoul(numbuf,NULL,10);
+						notelen=music_number(&p);
 						i=1;
 					}
 				}
@@ -1129,7 +1122,12 @@ static void play_music(struct cterminal *cterm)
 						notenum+=(int)(out-octave); /* Index in the 12-note octave. */
 					}
 				}
-				notenum+=offset;
+				/* A saturated numbered note plus a sharp must stay silent
+				 * rather than overflowing back into the playable range. */
+				if (offset > 0 && notenum > INT_MAX - offset)
+					notenum = INT_MAX;
+				else
+					notenum += offset;
 				{
 					int      duration_ms;
 					int      pause_ms;

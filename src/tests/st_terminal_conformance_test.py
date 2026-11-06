@@ -376,6 +376,13 @@ def extensions(t):
         t.check(name, b"A" + ESC + introducer + b"ignored text" + ST + b"B", (3, 1), ((1, 1, "AB"),))
     for name, number, move in (("DECINVM", 1, b"1B5B313B3148"), ("DECDMAC", 2, b"1B5B333B3348")):
         t.check(name, ESC + f"P{number};0;1!z".encode() + move + ST + cup(10, 10) + f"\x1b[{number}*z".encode(), (1, 1) if number == 1 else (3, 3))
+    for name, parameters in (("NumericMacroSlot", b"4294967296;0;1"),
+                             ("NumericMacroDelete", b"0;4294967296;1"),
+                             ("NumericMacroEncoding", b"0;0;4294967297")):
+        # Oversized fields must not wrap into a valid definition of macro 0.
+        t.check(name, ESC + b"P0;0;1!z1B5B333B3348" + ST
+                + ESC + b"P" + parameters + b"!z1B5B393B3948" + ST
+                + ESC + b"[0*z", (3, 3))
     # Audio execution/audibility has separate mixer tests. These assertions only
     # cover sequence consumption and return to normal terminal parsing.
     t.check("BEL", b"A\aB", (3, 1), ((1, 1, "AB"),))

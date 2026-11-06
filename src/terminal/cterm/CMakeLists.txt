@@ -168,6 +168,18 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_apc_audio_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME cterm_apc_audio COMMAND st_cterm_apc_audio_test)
+	add_executable(st_cterm_numeric_test tests/st_cterm_numeric_test.c)
+	target_link_libraries(st_cterm_numeric_test PRIVATE st_cterm)
+	set_target_properties(st_cterm_numeric_test PROPERTIES C_STANDARD 17
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_definitions(st_cterm_numeric_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+		target_compile_options(st_cterm_numeric_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_numeric_test PRIVATE
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_numeric COMMAND st_cterm_numeric_test)
 	add_executable(st_cterm_benchmark tests/st_cterm_benchmark.c)
 	target_link_libraries(st_cterm_benchmark PRIVATE st_cterm st_time)
 	set_target_properties(st_cterm_benchmark PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}

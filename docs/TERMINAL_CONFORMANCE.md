@@ -119,6 +119,15 @@ Every case must recover known cells, margins and cursor coordinates and answer a
 query. TCP write boundaries are not parser chunk boundaries: the existing
 `cterm_text` C tests retain exhaustive split/bytewise decoder coverage.
 
+`cterm_numeric` uses a pull-only audio runtime to check long ANSI music
+parameters without opening a physical device. It covers leading zeroes,
+values beyond signed/unsigned integer ranges, all five numeric fields,
+clamping, silent out-of-range notes, exact frame counts, split capture,
+invalid capture and reset recovery in CP437 and UTF-8. Font DCS and macro
+parameters are checked before narrowing; the control-bitmap `extensions`
+group additionally verifies that oversized macro fields cannot replace an
+existing macro, using exact cursor positions in both encodings.
+
 `syncterm_emoji_aspect` checks the independent grinning-face ink extents in
 square-pixel and 6:5 tall-pixel colour banks at 8, 14, and 16 pixels high,
 using a single control capture for related cells, both pixel planes and cursor

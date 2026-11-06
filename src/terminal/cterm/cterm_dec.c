@@ -2146,21 +2146,21 @@ void cterm_parse_macro_intro(struct cterminal *cterm)
 		cterm->macro_del = MACRO_DELETE_OLD;
 		cterm->macro_encoding = MACRO_ENCODING_ASCII;
 		res = strtoul(cterm->strbuf, &p, 10);
-		if (res != ULONG_MAX)
-			cterm->macro_num = res;
+		if (res <= 63)
+			cterm->macro_num = (int)res;
 		if (*p == ';') {
 			p++;
 			res = strtoul(p, &p, 10);
-			if (res != ULONG_MAX)
-				cterm->macro_del = res;
+			if (res <= 1)
+				cterm->macro_del = (int)res;
 			else
 				cterm->macro_del = -1;
 		}
 		if (*p == ';') {
 			p++;
 			res = strtoul(p, &p, 10);
-			if (res != ULONG_MAX)
-				cterm->macro_encoding = res;
+			if (res <= 1)
+				cterm->macro_encoding = (int)res;
 			else
 				cterm->macro_encoding = -1;
 		}
