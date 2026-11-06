@@ -1,0 +1,527 @@
+= MIDI Playback and ANSI Music Rendering Design
+:toc: left
+:toclevels: 3
+:sectnums:
+
+Design and research date: 2026-11-06.
+
+Status: future implementation. This document records the intended behavior,
+researched platform APIs, and remaining implementation decisions. The MIDI
+backends and ANSI-to-MIDI renderer described here are not implemented by this
+document.
+
+== Requirements and scope
+
+SyncTERM should play MIDI using the user's configured system facilities,
+loading existing third-party libraries at runtime. An explicit user preference
+takes precedence over automatic backend selection. Missing optional libraries
+must not prevent SyncTERM from starting or connecting to a BBS.
+
+The intended software fallback is FluidSynth for sampled instruments, followed
+by libADLMIDI for OPL3 FM synthesis. Native macOS and Windows synthesizers add
+useful platform-specific choices before those portable fallbacks.
+
+Audio produced inside SyncTERM must use the existing ANSI music channel,
+channel 0. MIDI playback may also use a destination that produces audio outside
+SyncTERM's mixer. Passing through the mixer is not a requirement.
+
+ANSI music should be translatable to MIDI during playback, sharing the
+existing music parser with the current tone renderer. Keep the current sound
+available; making MIDI the default ANSI music renderer is a separate policy
+decision.
+
+This design does not select a new terminal escape sequence, file-transfer
+mechanism, or scripting API for delivering MIDI data. The initial MIDI input
+format and entry points still need to be specified. ANSI translation can feed
+MIDI events directly without a Standard MIDI File parser.
+
+== Backend selection
+
+=== Intended fallback order
+
+[cols="1,4",options="header"]
+|===
+| Environment | Selection order
+
+| POSIX with ALSA sequencer support
+| Explicitly configured ALSA destination, then usable internal FluidSynth,
+then usable internal libADLMIDI.
+
+| macOS
+| Explicitly configured CoreMIDI destination, otherwise Apple's DLS synth,
+then internal FluidSynth, then internal libADLMIDI.
+
+| Windows, including MSVC and MinGW builds
+| Explicitly configured WinMM destination, otherwise an identified Microsoft
+GM software synth, then internal FluidSynth, then internal libADLMIDI.
+|===
+
+These are fallback attempts, not a pipeline through every library. A successful
+backend handles playback. Explicit backend choices override the table; an
+explicit destination failure should be reported rather than silently changing
+the selected instrument unless the user enabled fallback for that choice.
+Automatic attempts may proceed to the next backend when initialization fails.
+Switching destinations partway through a song needs a separate recovery policy.
+
+Only consider backends available in the build and usable at runtime. Systems
+without ALSA can still use the portable internal synths. ALSA is a capability,
+not a Linux-only source selection rule. macOS-specific APIs remain narrow
+implementations within the project's POSIX family.
+
+=== External destinations require configuration
+
+A discoverable MIDI port is not evidence that it is the preferred playback
+instrument, that it supports General MIDI, or that its audio is audible.
+Hardware ports therefore require an explicit destination selection. Apply the
+same rule to an already-running software synth reached through a MIDI port.
+Do not automatically choose the first destination returned by enumeration.
+
+ALSA exposes `SND_SEQ_PORT_TYPE_MIDI_GM`, `MIDI_GM2`, `MIDI_GS`, and `MIDI_XG`
+declarations. These are useful hints, not tests of the complete setup. An
+interface connected to an external instrument may know nothing about that
+instrument. Missing declarations mean unknown support, not lack of support.
+
+Legacy MIDI Identity Request/Reply can identify a responding model, but does
+not enumerate or verify the complete GM sound set. GM System On changes an
+instrument's mode; it is not a capability inquiry. MIDI-CI offers profile
+discovery on supporting devices, including a GM2 Function Block profile.
+That profile is distinct from the single-channel profile and is not a
+baseline requirement for this implementation.
+
+Expose advertised support, user-confirmed support, and unknown support without
+presenting any of them as proof of working speakers or current instrument state.
+The Windows `MIDI_MAPPER` destination likewise requires a deliberate routing
+choice; its presence does not establish GM coverage.
+
+Save destination identities that can survive enumeration changes. Resolve
+them again when opening playback; do not persist an ALSA client number or a
+WinMM enumeration index as the sole identity. Handle duplicate names and a
+previously selected destination disappearing explicitly.
+
+== POSIX MIDI routing through ALSA
+
+Runtime-load the required sequencer functions from `libasound`. Enumerate
+destinations, open the configured destination, and send timed MIDI events.
+An ALSA PCM audio backend is independent of this sequencer backend.
+
+An existing FluidSynth service, TiMidity service, or another MIDI receiver can
+be selected through its ALSA port. In that case, the receiving process owns
+its instruments and audio output. SyncTERM does not also create an internal
+synth for that playback.
+
+There is no universal ALSA default GM destination. The `default` sequencer
+device identifies access to the sequencer service, not a particular synth.
+`ALSA_OUTPUT_PORTS` is honored by tools such as `aplaymidi` and `pmidi`; it is
+not a system-wide routing setting that all MIDI applications inherit.
+Whether SyncTERM should honor that environment variable as an explicit route
+is an implementation policy decision.
+
+=== FreeBSD compatibility
+
+FreeBSD's `alsa-seq-server` provides a userspace ALSA sequencer through
+`/dev/snd/seq`, using the `cuse` kernel module. Both the sending application
+and a software synth built with ALSA MIDI support can connect to it.
+Installing `alsa-lib` alone does not establish a running MIDI service.
+
+[literal]
+....
+MIDI events: application -> libasound -> alsa-seq-server -> FluidSynth
+Audio:      FluidSynth -> selected audio backend -> sound device
+....
+
+`alsa-seq-server` routes MIDI; it neither starts FluidSynth nor chooses it
+as a default synthesizer. FluidSynth registers its own receiving port when
+started with the ALSA sequencer MIDI driver.
+
+The following setup was inspected on a FreeBSD desktop during this research.
+It is an example for configuring the external service, not configuration that
+SyncTERM should install or modify automatically.
+
+As root, enable and start the installed sequencer service:
+
+[source,sh]
+----
+sysrc alsa_seq_server_enable=YES
+service alsa_seq_server start
+----
+
+The installed service script loads `cuse`. In the user's `~/.fluidsynth`, put:
+
+[source,text]
+----
+set audio.driver alsa
+set audio.alsa.device default
+set midi.driver alsa_seq
+set midi.portname FluidSynth
+set midi.autoconnect 1
+----
+
+These are FluidSynth settings. They do not launch either process.
+`midi.autoconnect` asks FluidSynth to connect MIDI sources; applications may
+still need to select its destination explicitly.
+
+The inspected ALSA PCM configuration sends `default` through the OSS plugin to
+FreeBSD's `/dev/dsp`. Other installations may map it differently. PulseAudio
+is another possible FluidSynth audio output, not a requirement for ALSA MIDI.
+
+For Xfce login startup, create `~/.config/autostart/fluidsynth.desktop`:
+
+[source,ini]
+----
+[Desktop Entry]
+Type=Application
+Name=FluidSynth
+Exec=/usr/local/bin/fluidsynth -is
+Terminal=false
+----
+
+Xfce launches this asynchronously; daemonizing or adding a shell `&` is
+unnecessary. In the inspected FluidSynth 2.6.1, `-i` alone disables the shell
+and exits after initialization when there is no player to wait for. `-is`
+also starts the command server and keeps the process running. This enables
+FluidSynth's TCP command interface as well as its MIDI input; it is not merely
+a backgrounding flag. Recheck that behavior when updating the example.
+
+To launch a newly created entry immediately from Xfce's application finder,
+use `gio launch` with the absolute path to the desktop file. Future logins
+start enabled autostart entries automatically.
+
+=== Manual verification with ALSA utilities
+
+With `aconnect` and `aplaymidi` installed:
+
+[source,sh]
+----
+aconnect -l
+aplaymidi -l
+aplaymidi -p FluidSynth:0 /path/to/test.mid
+----
+
+Use the actual client name and port shown by enumeration. Numeric addresses
+such as `1:0` are temporary. Listing a port establishes discovery; hearing a
+known test sequence additionally checks synthesis and audio output.
+
+For tools that honor it, `ALSA_OUTPUT_PORTS=FluidSynth:0` supplies a default.
+For example, a tcsh user can put the following in `~/.tcshrc`:
+
+[source,tcsh]
+----
+setenv ALSA_OUTPUT_PORTS FluidSynth:0
+----
+
+That affects processes inheriting the environment from that shell; it does not
+configure every application launched by the desktop.
+
+== Internal software synthesis
+
+=== FluidSynth
+
+Use FluidSynth's public C API and render PCM to memory. Feed the resulting
+audio into the ANSI music stream. Do not create a separate physical audio
+driver for this internal backend. An installed library is only usable after
+a synth and appropriate instruments initialize successfully.
+
+Default SoundFont discovery has supported APIs:
+
+. Create settings with `new_fluid_settings()`.
+. Read `synth.default-soundfont` with `fluid_settings_dupstr()` or the
+  appropriate public string-settings API.
+. Attempt `fluid_synth_sfload()` and check its result. A nonempty path does
+  not prove the file exists, is readable, or contains the required instruments.
+
+The initial setting is the build-time default selected by upstream or the
+packager. It is not the configuration of a separately running FluidSynth
+process. The executable loads a default bank; creating a library synth does
+not by itself duplicate that executable startup behavior.
+
+FluidSynth also provides `fluid_get_sysconf()`, `fluid_get_userconf()`, and
+`fluid_source()` through a command handler. They locate and interpret its own
+configuration files without a project-local parser. Configuration loading is
+explicit for library clients; a new settings object does not read those files
+automatically. FluidSynth 2.5.0 changed the CLI's configuration precedence to
+load system configuration followed by user configuration. Earlier versions
+prefer an existing user configuration instead of processing both.
+
+If inheriting FluidSynth configuration, account for both `load` commands and
+settings that specify a default bank. Check `fluid_synth_sfcount()` before
+loading a fallback bank. Loading some SoundFont is not proof that it has all
+GM melodic and percussion presets; define the required coverage check.
+
+The precise inheritance policy remains open. The internal backend needs to
+preserve SyncTERM's sample format, sample rate, rendering ownership, and music
+channel controls. FluidSynth configuration is a command file and may affect
+more than instrument selection. Define supported startup phases and settings
+before adopting the CLI's complete configuration behavior. Settings explicitly
+selected in SyncTERM need documented precedence.
+
+=== libADLMIDI
+
+Use the public C interface in `adlmidi.h` to send events and render OPL3 PCM.
+Require a usable installed shared library and a usable embedded or selected
+instrument bank. Preserve the user's choice of OPL sound; do not rank FM versus
+sampled instruments as an objective quality comparison.
+
+libADLMIDI includes the MIDI voice allocation and instrument mapping that a
+bare chip core lacks. Nuked-OPL3 and ymfm are possible emulation cores, not
+drop-in MIDI playback backends on their own. Let the installed libADLMIDI
+provide its supported emulators rather than adding a second chip-host layer.
+
+FluidSynth and libADLMIDI are the initial portable backends. RtMidi and
+PortMidi abstract MIDI transport and do not supply a synth. TinySoundFont is
+useful for embedding a small renderer, but does not advance the initial goal
+of using existing installed synth libraries. WildMIDI is another possible
+file-playback backend; adding it is outside the initial implementation.
+
+== Native macOS support
+
+CoreMIDI supplies external and virtual destination enumeration and MIDI event
+delivery. A configured CoreMIDI endpoint plays the same role as a configured
+ALSA destination. CoreMIDI enumeration itself does not instantiate Apple's
+GM synth.
+
+For automatic native synthesis, instantiate Apple's AudioToolbox
+`DLSMusicDevice` Audio Unit, identified by `kAudioUnitSubType_DLSSynth`.
+Apple documents GM support and basic GS extensions, and macOS supplies a
+default sound bank. Use the C Audio Unit interfaces for events and rendering;
+an Objective-C MIDI-file player is not required for this design.
+
+Render the unit into the ANSI music stream when integrating its PCM with
+SyncTERM. Verify component creation, initialization, the bank, event handling,
+and rendering on supported macOS releases before enabling automatic selection.
+Keep CoreMIDI and AudioToolbox acquisition behind small native interfaces.
+Determine system-framework linkage or runtime resolution during implementation;
+do not assume the current shared-library filename helper loads frameworks.
+
+== Native Windows support
+
+The initial native API is WinMM, available through `winmm.dll` with a C ABI.
+Runtime-resolve the required functions:
+
+* `midiOutGetNumDevs()` and `midiOutGetDevCapsW()` for enumeration.
+* `midiOutOpen()` for a chosen destination.
+* `midiOutShortMsg()` for ordinary channel messages.
+* The prepare/send/unprepare long-message interfaces for SysEx, with buffer
+  ownership retained until completion.
+* Reset and close operations needed to cancel output and release resources.
+
+Windows exposes Microsoft GS Wavetable Synth as a built-in GM destination.
+Identify the known system synth and successfully open it before treating it
+as an automatic candidate. Generic `MOD_SWSYNTH` capability identifies a
+software synth, not complete GM coverage. Define robust identification using
+documented device information; avoid relying solely on a display-name string.
+
+WinMM sends events to a destination that owns audio playback. Its synthesized
+PCM is not returned to SyncTERM's mixer. This is allowed by the requirements;
+the destination's audio-device selection and latency may differ from
+SyncTERM's ordinary audio backend.
+
+Windows MIDI Services is a future additional backend. At the research date,
+Microsoft documents WinMM compatibility, while its replacement GM synth is a
+developer preview with a planned 2027 release. Recheck rollout and API/runtime
+requirements before implementing it. Do not require that new runtime for the
+initial WinMM backend or introduce DirectMusic as another baseline.
+
+== Shared ownership, scheduling, and channel behavior
+
+Keep selection policy, timed events, and cancellation separate from platform
+delivery. The conceptual boundary is accepted MIDI events plus timestamps,
+with a PCM renderer or an external destination behind it. Choose the smallest
+component and public interface needed by actual callers; exact directory and
+API names remain implementation work.
+
+The application/session owns playback resources. If a worker is needed, use
+`st_threads.h`, document queue ownership and each mutex/condition predicate,
+and define who requests stop and joins it. Keep queues and variable-sized
+messages bounded. Use a monotonic timeline and absolute deadlines so repeated
+relative waits do not accumulate drift. Preserve event ordering at equal
+timestamps, including Note Off before a repeated Note On when required.
+
+Disconnect, reset, cancellation, mute, and backend failure must not leave
+active notes or pending output behind. Release only the notes, channels, and
+resources owned by this playback where destinations are shared; do not reset
+unrelated clients' instruments. Define initial controller/program state so
+reuse does not inherit stale state from a previous song.
+MIDI 1.0 messages do not isolate two senders using the same channel and pitch;
+reserve channels or document exclusive use where that isolation is needed.
+
+SyncTERM's ANSI music channel 0 is a logical audio stream, not MIDI channel 1
+or MIDI percussion channel 10. A MIDI song may use several or all MIDI
+channels while its combined PCM still occupies one SyncTERM music stream.
+
+For internal rendering, reuse the current music stream and its volume,
+clear, drain, busy, and completion behavior. Match the stream's audio format
+and account for its existing gain without applying attenuation twice.
+Coordinate MIDI generation with stream clear/fade operations so a worker
+cannot refill a stream after a stop has been acknowledged.
+
+For external output, retain a logical music playback state and implement the
+controls the backend can support through event cancellation and owned MIDI
+controllers. Exact stereo gain/fade equivalence is not guaranteed. Define
+completion as scheduled event completion where that is all the API reports;
+do not claim that a completed send proves the instrument's release tail or
+physical audio has finished. Channel queries and waits must reflect the
+selected backend rather than a nonexistent PCM stream.
+
+Respect quiet/mute and disabled audio policy before opening either an internal
+synth or an external destination. A frontend that requires ownership of all
+audio, such as a libretro host, may further constrain usable backends; ordinary
+desktop playback does not require routing everything through the mixer.
+
+== ANSI music to MIDI
+
+The existing `play_music()` in `src/terminal/cterm/cterm_cterm.c` parses the
+music language and immediately generates waveform buffers. Extract its
+accepted note/timing results so both the existing renderer and the MIDI
+backend consume the same interpretation.
+
+[cols="2,4",options="header"]
+|===
+| ANSI input | MIDI interpretation
+| Notes, numbered notes, octaves, sharps/flats | Resolved pitch and Note On
+| Tempo, default/per-note lengths, dot | Event timing and total duration
+| Normal, staccato, legato | Note Off timing within the duration
+| Pause | Time advancement without a sounding note
+| Foreground/background | Completion wait or continued terminal processing
+|===
+
+Retain current capture and validation semantics. Music is accumulated until
+the terminating SO byte; an invalid byte discards the captured string. Do not
+emit early MIDI side effects for a string that the current parser would
+reject. Translation can then proceed during playback without writing a
+temporary `.mid` file or detecting pitch from PCM.
+
+The current implementation uses a gap of one eighth of the note duration for
+normal articulation, one quarter for staccato, and no gap for legato. Preserve
+the existing integer-duration behavior unless a separately reviewed change
+deliberately improves timing. Legato does not inherently request overlapping
+polyphony or a synth-specific portamento mode.
+
+Pitch compatibility needs independent fixtures. The documented octave 0
+starts near 65.406 Hz, corresponding to MIDI note 36; octave names cannot
+be copied directly into a MIDI numbering formula.
+There are also current implementation/documentation discrepancies: letter
+notes add one before indexing the frequency table, numbered notes use direct
+indices, and the playback range check is narrower than the table. Record the
+actual behavior and intended compatibility before normalizing it; do not
+silently fix or transpose it while introducing another renderer.
+
+ANSI music contains no instrument selection. Provide a user-selected melodic
+GM instrument and a defined velocity; keep it off MIDI's percussion channel.
+The default instrument and whether to share a synth instance with MIDI-file
+playback remain decisions. Do not let one playback change another's program,
+controllers, or notes accidentally.
+
+The conversion is small compared with the backend and lifecycle work.
+Foreground/background waits, bounded scheduling, cancellation, and independent
+tests are the main integration costs.
+
+== Runtime loading and build integration
+
+Reuse `src/base/dynamic_library/` and the function-table pattern in the current
+audio backends. Build-time headers/probes establish that an adapter can be
+compiled; runtime loading, symbol/version validation, and initialization
+establish whether it can be used on the user's machine.
+
+Resolve each adapter's required symbols as a unit. Validate the supported ABI;
+the current loader's search through older library major versions does not make
+those versions automatically compatible. Treat optional symbols separately
+and report why an otherwise present backend is unusable.
+
+Follow the existing loader lifetime contract: reject tentative handles when
+required symbols are missing, but keep successfully resolved libraries mapped
+for process lifetime. Destroy synth instances, ports, callbacks, and workers
+without unloading code that may still be referenced by library-owned state.
+
+Use target-based CMake, C17, generated capability results, and compile/link
+probes that work when cross-compiling. Probe the full declaration context
+needed for each adapter. Keep third-party synth libraries runtime-optional;
+their presence on the build machine must not create accidental hard runtime
+dependencies. Internal component functions remain internal to the Windows DLL.
+
+== Implementation sequence and verification
+
+. Specify the initial MIDI input contract, settings scope, explicit-failure
+  policy, and stable destination identity rules.
+. Add the event/playback boundary and a recording backend for deterministic
+  scheduling, cancellation, and failure tests.
+. Implement configured ALSA destinations and internal FluidSynth, including
+  default bank discovery. Add libADLMIDI as the portable FM fallback.
+. Add the native CoreMIDI/Apple synth and WinMM backends, tested on their
+  respective systems.
+. Extract ANSI note interpretation with baseline expected events/times, then
+  add selectable MIDI rendering and channel-control integration.
+
+For each implementation chunk, configure/build through the top-level CMake
+project and run focused CTest coverage. Include:
+
+* Present/absent libraries, missing symbols, incompatible ABI, initialization
+  failure, missing/invalid banks, and backend fallback before playback.
+* Destination disappearance, duplicate identities, connection failure, SysEx
+  completion, queue limits, stop during a wait, and destruction during output.
+* Independent ANSI expected pitches/times for notes, accidentals, numbered
+  notes, octave boundaries, pauses, dots, tempo/length limits, articulation,
+  repeated notes, foreground/background changes, and state across strings.
+* Split input, invalid/unterminated strings, reset/recovery, CP437 and UTF-8
+  terminal contexts, and completion/control replies for music channel 0.
+* PCM rendering and channel-volume/flush/drain behavior without physical audio,
+  plus separate manual checks for native destinations and audible playback.
+
+Keep headless tests physically silent, including any new external MIDI path;
+`AudioModes=0` must not accidentally permit MIDI to bypass that intent.
+Use private Xvfb if graphical tests are necessary. Never use the user's
+display or Wine. Windows cross-compilation is build evidence, not native
+runtime evidence. Update `docs/TERMINAL_CONFORMANCE.md` and
+`src/tests/terminal_conformance.json` with the actual terminal behavior covered.
+
+=== Evidence collected during design
+
+On the inspected FreeBSD host, `alsa-seq-server` 1.1.0_2 exposed `/dev/snd/seq`,
+and FluidSynth 2.6.1 was built with ALSA MIDI support. A temporary library synth
+received a four-note sequence through the running ALSA sequencer and produced
+nonzero PCM in memory without opening a physical audio device. A separate CLI
+check confirmed `fluidsynth -is` remained running with audio directed to
+`/dev/null`. High-priority-thread warnings occurred without preventing those
+checks from succeeding.
+
+The user's persistent FluidSynth process was subsequently visible through
+`aconnect -l` and `aplaymidi -l`. A four-note Standard MIDI File was supplied
+for manual audible testing; that listing and file do not establish that the
+user heard the result. PortMidi successfully enumerated the synth in the
+diagnostic, while the installed MAME's `-listmidi` reported no ports, so MAME
+enumeration was not treated as authoritative.
+
+No macOS or Windows runtime was exercised. No SyncTERM MIDI backend, ANSI
+translation, or full GM-bank coverage was tested by these probes. Temporary
+diagnostic files are not project dependencies or permanent regression fixtures.
+
+== References
+
+These primary references were consulted during the design discussion. Check
+current API availability and deployment requirements before implementation.
+
+* https://www.alsa-project.org/alsa-doc/alsa-lib/seq.html[ALSA sequencer interface]
+  and https://www.alsa-project.org/alsa-doc/alsa-lib/group___seq_port.html[port metadata].
+* https://github.com/hselasky/alsa-seq-server[FreeBSD ALSA sequencer server];
+  installed `alsa-seq-server(8)`, its rc script, `aplaymidi(1)`, and local
+  FreeBSD port definitions were also inspected.
+* https://www.fluidsynth.org/api/settings_synth.html[FluidSynth synth settings],
+  https://www.fluidsynth.org/api/group__settings.html[settings API],
+  https://www.fluidsynth.org/api/group__soundfont__management.html[SoundFont management],
+  https://www.fluidsynth.org/api/group__audio__rendering.html[PCM rendering], and
+  https://www.fluidsynth.org/wiki/FluidSynth-configuration-files/[configuration loading].
+  Startup behavior was checked against the local upstream 2.6.1 source archive.
+* https://github.com/Wohlstand/libADLMIDI[libADLMIDI].
+* https://developer.apple.com/documentation/audiotoolbox/kaudiounitsubtype_dlssynth?language=objc[Apple DLS synth]
+  and https://developer.apple.com/library/archive/documentation/MusicAudio/Conceptual/CoreAudioOverview/SystemAudioUnits/SystemAudioUnits.html[system Audio Units].
+* https://learn.microsoft.com/en-us/windows/win32/api/mmeapi/nf-mmeapi-midioutopen[WinMM output API],
+  https://learn.microsoft.com/en-us/windows/win32/api/mmeapi/ns-mmeapi-midioutcaps[device capabilities], and
+  https://learn.microsoft.com/en-us/windows/apps/develop/media-authoring-processing/midi#using-the-built-in-windows-general-midi-synth[Microsoft GM synth].
+* https://microsoft.github.io/MIDI/kb/api-back-compat/[Windows MIDI Services compatibility and GM synth rollout].
+* https://midi.org/midi-1-0-universal-system-exclusive-messages[Universal MIDI SysEx]
+  and https://midi.org/profiles[MIDI-CI profiles].
+* https://docs.xfce.org/xfce/xfce4-session/preferences#application_autostart[Xfce application autostart].
+
+Repository integration points: `src/terminal/cterm/cterm_cterm.c`,
+`src/terminal/cterm/cterm_apc_audio.c`, `src/media/audio/`,
+`src/media/audio_mixer/`, and `src/base/dynamic_library/`.
+The current ANSI music language is documented in link:cterm.adoc[CTerm].
