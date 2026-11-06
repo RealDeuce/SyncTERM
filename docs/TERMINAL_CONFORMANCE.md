@@ -40,6 +40,14 @@ capture; source expectations are fixture colours and pinned glyph rows.
 Native CTerm/history tests cover optional text-only storage, ring wrap, resize,
 capacity trimming, terminal reset, invalid requests and destruction.
 
+`syncterm_skypix_scrolling` checks exact Diamond/20 bitmap scrolling and a stable
+bottom cursor using literal colour stripes in both variants/encodings/status
+choices. Partial history strips join the next scroll without a gap at the live
+boundary, including in disconnected and directory views. Native tests check
+both phases, palette changes while a strip is pending, ring wrap and capacity
+limits, reset, detached snapshots, an off-grid 19-pixel overshoot, ordinary cell
+scrolling after a fractional move, and Ruby/12's unscrolled canvas padding.
+
 `src/tests/st_terminal_conformance_test.py` runs the normal application through
 its control bitmap backend and a private loopback Raw connection, in CP437 and
 UTF-8. Each group is a separate CTest `syncterm_conformance_<group>_<encoding>`.

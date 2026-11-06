@@ -300,6 +300,12 @@ void cterm_adjust_currpos(struct cterminal *cterm, int xadj, int yadj, int scrol
 void cterm_apply_window(struct cterminal *cterm);
 void cterm_set_position(struct cterminal *cterm, int x, int y);
 void cterm_scrollup(struct cterminal *cterm);
+int cterm_history_append_pixels(struct cterminal *, const struct st_pixel_buffer *,
+	const struct st_console_cell *, uint32_t cell_height);
+size_t cterm_history_rows(const struct cterminal *);
+void cterm_history_copy_cells(const struct cterminal *, size_t row,
+	struct st_console_cell *, size_t columns);
+int cterm_history_copy_pixels(const struct cterminal *, size_t row, struct st_pixel_buffer **);
 void cterm_scrolldown(struct cterminal *cterm);
 void cterm_clear_line(struct cterminal *cterm);
 void cterm_clear2bol(struct cterminal *cterm);

@@ -2675,7 +2675,7 @@
     "cterm.state": {
       "status": "covered",
       "wren": "CTerm / ExtAttr / LastColumnFlag / Scrollback / Font / Screen / GraphicsMode",
-      "reason": "Every st_cterm_state scalar and nested ExtAttr/last-column state has a script getter, including palette override, margins, alternate fonts and ring metadata. Protocol emulation/encoding/graphics/PETSCII variant are configured by Profile/screen mode. CTerm.write accepts UTF-8 host text, active receive input is processed by the native terminal owner. Local key injection, doorway/music/mouse policy, screenshot and font selection have typed operations. Native lifecycle/config callbacks and several direct operations are separately assessed. Font assignments are the live CTerm.font view and the masked setFont operation; script-output Screen.font remains independent. CTerm.graphicsMode reports the selected engine; skypix is true for either selected SkyPix variant. SkyPix honours the chosen canvas and wire encoding, with its configured native Amiga strike supplying cell geometry. A separate optional status row and complete-cell padding preserve the canvas pixel aspect. Wren system CP437/UI registrations remain independent of terminal slot zero. Shared scrollback snapshots retain optional captured graphics, including native SkyPix text and RIP pixels. Scrollback row copies and detached Menu history preserve those rasters as owned Surfaces; the existing Screen pixel-capture workflow can inspect presented pixels. Terminal reset preserves the ring, and row capture precedes scroll/clear. Raster ownership/regridding mechanisms are implemented by the shared native history owner. SkyPix reports effective mouseMode 2 without a host enable/gadget command, so the existing status M and local gate apply. Its controller-1 pixel format supersedes ANSI tracking requests and mouseSgrPixels reports false for this engine.",
+      "reason": "Every st_cterm_state scalar and nested ExtAttr/last-column state has a script getter, including palette override, margins, alternate fonts and ring metadata. Protocol emulation/encoding/graphics/PETSCII variant are configured by Profile/screen mode. CTerm.write accepts UTF-8 host text, active receive input is processed by the native terminal owner. Local key injection, doorway/music/mouse policy, screenshot and font selection have typed operations. Native lifecycle/config callbacks and several direct operations are separately assessed. Font assignments are the live CTerm.font view and the masked setFont operation; script-output Screen.font remains independent. CTerm.graphicsMode reports the selected engine; skypix is true for either selected SkyPix variant. SkyPix honours the chosen canvas and wire encoding, with its configured native Amiga strike supplying text metrics while screen-mode cells retain system UI geometry. A separate optional status row and complete-cell padding preserve the canvas pixel aspect. Wren system CP437/UI registrations remain independent of terminal slot zero. Shared scrollback snapshots retain optional captured graphics, including native SkyPix text and RIP pixels. Scrollback row copies and detached Menu history preserve those rasters as owned Surfaces; the existing Screen pixel-capture workflow can inspect presented pixels. Terminal reset preserves the ring, and row capture precedes scroll/clear. Raster ownership/regridding mechanisms are implemented by the shared native history owner. SkyPix reports effective mouseMode 2 without a host enable/gadget command, so the existing status M and local gate apply. Its controller-1 pixel format supersedes ANSI tracking requests and mouseSgrPixels reports false for this engine.",
       "vm": "connected",
       "evidence": [
         {
@@ -2695,7 +2695,7 @@
     "cterm.owner": {
       "status": "host-owned",
       "wren": "active terminal parser owner",
-      "reason": "Create/destroy/config service pointers, raw wire writes/decoder feed, poll/finish/disconnect, resize/origin notifications, RIP/SkyPix receive framing, monotonic input holds and native Amiga catalog paths and event routing belong to the active term session. Scripts use CTerm/Screen/Hook/Transfer on that parser rather than independently writing a borrowed decoder or holding output/input/log callback contexts. Screen-mode/Profile policy supplies config values; quiet is a host audio choice. This does not claim a standalone script terminal-emulator constructor. The native configured default strike is borrowed through terminal destruction; exact canvas extents bound graphics independently of complete-cell padding and status. These are fed by Profile and the selected canvas, not raw script pointers. The native ring owns optional RGB pixel strips, released on overwrite/destruction and transactionally copied/regridded with history resize. The shared path applies to all graphics-capable emulations. SkyPix remote-font LF now scrolls host row strips, with off-canvas positions bounded to avoid empty capture loops. SkyPix cursor refresh uses native proportional position and baseline independently of the screen-mode system grid. The terminal owns its clipped sprite overlay, captured RGB and monotonic 185 ms callbacks; generic rendering position bookkeeping no longer masquerades as an ANSI positioning command. Native SkyPix mouse dispatch uses the common synchronized button state, emits exact zero-based canvas coordinates on a new left press only, and excludes status/padding or unavailable pixels. It does not approximate cell positions or fall through to XTerm/RIP encoding. Reports retain ST_CTERM_OUTPUT_USER origin. Native SkyPix font wrapping retains JR-Comm nominal forecasts/counts across input splits and individual glyph commits, flushing at controls/commands/explicit text boundaries. Native EL uses current-font ascent/descent and pixel X; JAM2 blank backgrounds span the font height. These are native parser/raster policies, with no new script methods or Wren-language semantics. Native SkyPix command 22 retains bounded per-terminal five-word gadget records and uses the existing foreground rectangle fill; full reset clears the records. Raw controller-1 reporting remains independent of those definitions, with no new script object, command execution or controller-2 activation.",
+      "reason": "Create/destroy/config service pointers, raw wire writes/decoder feed, poll/finish/disconnect, resize/origin notifications, RIP/SkyPix receive framing, monotonic input holds and native Amiga catalog paths and event routing belong to the active term session. Scripts use CTerm/Screen/Hook/Transfer on that parser rather than independently writing a borrowed decoder or holding output/input/log callback contexts. Screen-mode/Profile policy supplies config values; quiet is a host audio choice. This does not claim a standalone script terminal-emulator constructor. The native configured default strike is borrowed through terminal destruction; exact canvas extents bound graphics independently of complete-cell padding and status. These are fed by Profile and the selected canvas, not raw script pointers. The native ring owns optional RGB pixel strips, released on overwrite/destruction and transactionally copied/regridded with history resize. The shared path applies to all graphics-capable emulations. SkyPix native-font LF scrolls exact pixel distances, with off-canvas positions bounded to avoid empty capture loops. The history owner merges incomplete RGB strips across scrolls and preserves them through reset and detached snapshots; queries align at the live boundary without rotating storage. SkyPix cursor refresh uses native proportional position and baseline independently of the screen-mode system grid. The terminal owns its clipped sprite overlay, captured RGB and monotonic 185 ms callbacks; generic rendering position bookkeeping no longer masquerades as an ANSI positioning command. Native SkyPix mouse dispatch uses the common synchronized button state, emits exact zero-based canvas coordinates on a new left press only, and excludes status/padding or unavailable pixels. It does not approximate cell positions or fall through to XTerm/RIP encoding. Reports retain ST_CTERM_OUTPUT_USER origin. Native SkyPix font wrapping retains JR-Comm nominal forecasts/counts across input splits and individual glyph commits, flushing at controls/commands/explicit text boundaries. Native EL uses current-font ascent/descent and pixel X; JAM2 blank backgrounds span the font height. These are native parser/raster policies, with no new script methods or Wren-language semantics. Native SkyPix command 22 retains bounded per-terminal five-word gadget records and uses the existing foreground rectangle fill; full reset clears the records. Raw controller-1 reporting remains independent of those definitions, with no new script object, command execution or controller-2 activation.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -4745,6 +4745,16 @@
       "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
       "anchor": "static void gadget_tests",
       "aspect": "JR-Comm command-22 five-word storage in all 20 slots, every input split, inclusive fills in both planes, signed clipping/numeric wrapping, invalid arity/range preservation, clear/font/palette retention and full-reset cleanup; no acknowledgments."
+    },
+    {
+      "path": "src/tests/st_skypix_scrolling_test.py",
+      "anchor": "def run",
+      "aspect": "Reply-fenced literal four-pixel stripes, exact Diamond/20 bottom scrolling, pending-strip joins in live/disconnected/directory viewers, both variants/encodings/status choices; independent fixture colours, no emulator-generated expected raster."
+    },
+    {
+      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
+      "anchor": "static void pixel_scroll_test",
+      "aspect": "Both phases and RGB palette freezing across partial-strip merges, zero/one-row capacity, ring wrap, reset and detached snapshots, exact 19-pixel overshoot, later ordinary cell scroll and bottom auto-wrap, Ruby/12 unscrolled padding and retained old Pearl rasters after selecting Diamond."
     }
   ],
   "dispatch_evidence": [
@@ -4756,7 +4766,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "2ced3183589d5a7d0d2583e868cae0599242e7dc17061d2d603336ea0c0b1f40",
+    "docs/Wren.adoc": "1c33ec7153deee7a7e347f179bac3ada8ea61555b41ff85e1b4f4ea29ba75b3d",
     "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
     "scripts/auto/connected/font_pick.wren": "b7c7176c36e9ec274425e4ea3bd14f37ce9991e6fe19078a83ec614e6978422b",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
@@ -4872,7 +4882,7 @@
     "src/syncterm.c": "ed87e1da0815154577bd825f50eec29ae562397cad0a9ff357d7061cf4bab2e8",
     "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
     "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
-    "src/terminal/cterm/st_cterm.c": "0d4119b6d4f51eb2ed547232acb8c326d07d7b986ebe87987c78f210defea0c2",
+    "src/terminal/cterm/st_cterm.c": "fd7712fe7f6b053b607a48adc6c916da7740fa47bfa157957299e0d48ba7d7e3",
     "src/terminal/cterm/st_cterm.h": "21d1b59dc397c4a4d23e64da8f378aad905737d3037299aba3d75abdb8496d9c",
     "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
     "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
@@ -4940,43 +4950,44 @@
     "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
     "src/media/pixels/tests/st_pixels_test.c": "2b6af7f5a1af22b8421ee2cf67e1c9c5eb49aaeae89cb35618cad799baece37d",
     "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b",
-    "docs/TERMINAL_CONFORMANCE.md": "1a5307a5e883e65929432412db2a1f3a1dce1a3de67830a2dc1b3b013d8ff8cd",
+    "docs/TERMINAL_CONFORMANCE.md": "d5dfbfb3650e3820291845a0e570797abb87affc647adae6d832f93ff8e09499",
     "docs/RIP154_CONFORMANCE.md": "01659bbb9abc6b9151f825622c6415271d0a06f56133fe035dd1df73318adb10",
-    "src/tests/terminal_conformance.json": "720e1a0a3a8f8cc39de265a3531f9191ebf6bfab7de73657410996a62ebcbac9",
+    "src/tests/terminal_conformance.json": "ac0d7971022533a7b55d2161c14ce8fd3bb83ca9380ad241d30ed92dd5a1dc52",
     "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "b37d726ee4c89ce0b278839dd5659abba1c82cb9a237a12d7f666c80774d63f6",
-    "src/CMakeLists.txt": "fa82115f3e5943430c8072f40fc591bea7ffa4e3351250e986c77028999c5833",
+    "src/CMakeLists.txt": "3540f6c70b1586e975d7797c48e843f7e819ab834a4b83f1c4b28318ffa81ce3",
     "src/scripting/wren_host/wren_bind_digest.c": "53078c4038d0a189807e4f83fa3a800cf1ee50f3fdcf20a7b729c433f6bdb21b",
     "src/scripting/wren_host/wren_host_internal.h": "9f72e50fd89e71498246fc7937daa51b7c001253c0c0df24ef21019b4d441c74",
     "src/scripting/wren_host/tests/digest.wren": "c26b19fbf723271a49ec37345eee08a84c902c77e0f9aabafa6affd8dfe90a55",
     "src/scripting/wren_host/tests/st_wren_digest_test.c": "026702e03fb1f3ae6a16a2e18554a9710bef2994cf9ccf100dd3ec0ffd1bf780",
     "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c": "6b73edbc7e051b958d663b3591f5db99062887dcf0252abcc856cc27089fe03f",
     "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c": "abb97ac4e4679e174f7374dd0afee96f1efb1914b82d13ac1e8b413863fa6a0e",
-    "src/terminal/cterm/tests/st_cterm_skypix_test.c": "cd0d1da546eb26da2dfdf68dcb8e27b51057712470a9150b997953e046486d6f",
+    "src/terminal/cterm/tests/st_cterm_skypix_test.c": "99787b534d6c4116b0d9c4e5c1ed81546f8a15f0d0205e0098b7adb1cf216fe8",
     "src/terminal/cterm/tests/test_skypix_vectors.py": "c78418a402197a251bd43b8e1f5274c4df04b02a8c233a4b21422fda9ad78684",
     "src/tests/st_skypix_conformance_test.py": "358f0e8b568000542fe286f8e6f4c9e5ea44a110d95e612cdbe1f491ae8543f0",
     "src/tests/st_amiga_font_manager_test.py": "428ec499a711893f78b3ed71243e198d74c89cfaf2966b6906fb4dca6bf0112f",
     "src/media/amiga_font/st_amiga_fonts.h": "a89688cc13b0aaf2ac43404475193c4235eed3932d38e81fa661f66d73a025bd",
     "src/media/amiga_font/st_amiga_font.h": "6424b10e3d0c687ef221e4430e4169b7ec16dfd699fd531b40b1c92aeb27d466",
     "src/media/amiga_font/st_amiga_font.c": "400f70fa84626c90dd815901b9a831501850ebbc5dc0e1ac50e4a86a3623501a",
-    "src/terminal/cterm/cterm_skypix.c": "9d8a7222491ebed0dab596e33987aacb1cc6767b379c1bac55bcf1b14198a271",
+    "src/terminal/cterm/cterm_skypix.c": "da3fb602236b7d363b50010b0935e13d7688b480d1694b7982921ececa2f979e",
     "src/media/amiga_font/st_amiga_fonts.c": "c4c5f6bbf65a319651f9f13c004bed1d3eb12da4942126a82df25552e3d24b85",
     "src/media/amiga_font/tests/st_amiga_font_fault_test.c": "64892edfd9982fa28be9d4eaeeb5cbb9f6fd611acfecd32d0722b29ab744ad8d",
     "src/tests/wren/bbs_setters.wren": "96c94c02234c93bdd4ac027610a2ed25c32bdeb28b1736f243b1d5b378665db2",
     "src/terminal/cterm/tests/data/skypix/golden-vectors.json": "a7ba8d85c74ac60000cd104399413e88a2360fd5368224d7f63e998cd8fd638d",
     "src/media/amiga_font/data/manifest.json": "56069510f2d0bd964c4967700653e585fc5f6de118585624dbd852c55525ee11",
-    "docs/SKYPIX_CONFORMANCE.md": "343c698d80c7c581663ee0cd49b5216b13ee14a32efe515637bd69056da62f7d",
+    "docs/SKYPIX_CONFORMANCE.md": "8a337f949f91c34760c6df2535f6abe6451c3756e51715d48e9a443a018025b9",
     "src/media/font_catalog/tests/st_font_catalog_test.c": "3199a4ff7144ad988626e7133cc97c6313137a48ef6fd2d95c1e51dc1e4e85b2",
     "src/tests/st_graphics_scrollback_test.py": "e6dfed81c4f9b110446efcc37203bc1066d3389dd693eafa4b43abfec6457201",
     "src/terminal/session_history/tests/st_session_history_test.c": "f138b20be30fa4f448187b49bcd975f8985954803c405921996d110b74ed4ace",
     "src/media/console/tests/console_bitmap_test.c": "5137e530ffd1c7e2f5b277be82e74d7ec60023cd2b0c8004779ba47f4fc66fa7",
     "src/media/console/console_pixels.c": "c27623769b3849f0377dc817c61331a5f813a9d711d5e1af091740cd4b63e50e",
-    "src/tests/st_skypix_mouse_test.py": "8853a506f6a51c4fafaff67d541879a599566ff2022a2ac7a15140a11a0bb103"
+    "src/tests/st_skypix_mouse_test.py": "8853a506f6a51c4fafaff67d541879a599566ff2022a2ac7a15140a11a0bb103",
+    "src/tests/st_skypix_scrolling_test.py": "e52697663552fc200179e325a4e186b017c3e357b780f595e6d06c561dd58a75"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
     "compiler": "Clang 19.1.7",
     "cmake_build": "build-wren-input Debug; ST_CONSOLE_TEST=ON",
-    "tests_passed": 69,
+    "tests_passed": 72,
     "test_names": [
       "amiga_font",
       "amiga_font_transactions",
@@ -4998,6 +5009,7 @@
       "cterm_skypix",
       "cterm_stream_consistency",
       "cterm_text",
+      "session_history",
       "st_console_bitmap",
       "st_console_sdl",
       "st_console_wayland_internal",
@@ -5016,10 +5028,12 @@
       "syncterm_behavior_status_cp437",
       "syncterm_behavior_status_utf8",
       "syncterm_behavior_statusbar",
+      "syncterm_graphics_scrollback",
       "syncterm_rip154_interaction_CP437",
       "syncterm_rip154_interaction_UTF-8",
       "syncterm_skypix_conformance",
       "syncterm_skypix_mouse",
+      "syncterm_skypix_scrolling",
       "term",
       "term_key_forward",
       "term_rip_encoding_consistency",
@@ -6618,6 +6632,23 @@
         "sanitizers": "Clang ASan/UBSan full CMake build and all three focused tests passed (93.00s). ASAN_OPTIONS=detect_leaks=0 because LeakSanitizer is unavailable on FreeBSD; existing C++ vptr exclusion retained.",
         "cross": "MinGW x86/x86_64 full CMake cross-builds completed. No Windows runtime, Wine or MSVC tests.",
         "diagnostics": "No compiler warnings or errors in the six builds. Native gmake emitted existing clock-skew warnings for generated compiler_depend.make timestamps milliseconds in the future; GCC, sanitizer, minimal and both cross-build logs were clean."
+      }
+    },
+    {
+      "topic": "skypix-pixel-scrolling",
+      "status": "resolved",
+      "approval": "User reported Diamond/20 bottom-line wobble and requested exact pixel scrolling with an unfinished strip retained and merged on the next scroll.",
+      "scope": "Full-screen native-font LF uses current nominal rows/ascent/descent, exact H-pixel bottom scroll or off-grid overshoot, and stable bottom positioning. History owns a pending RGB prefix, merges it with later native or ordinary cell scrolls, and presents capacity-bounded rows aligned at the live boundary without mutating the ring. Both phases and retiring colours survive reset and detached snapshots. Aligned moves retain cell text; fractional moves use pixels with blank cell metadata. No new public declarations, script methods, language changes or unrelated finding closures. Metadata movement/clearing and bitmap restoration share a balanced, nestable display-update scope, including error cleanup.",
+      "provenance": "Supplied JR-Comm protocol LF/font geometry rules and H17:0ba6-0bfa, H17:2264-2408. Independent literal stripe colours, pinned Pearl glyph rows and Diamond/20/Ruby/12 metrics; headless control captures fence related state and pixels together.",
+      "limitations": "Custom ANSI scrolling-margin mapping and remaining ANSI positioning differences are still outside this change. SkyPix retains RGB alongside retiring aligned cell rows to support subsequent fractional joins; other emulations keep optional text-only history. Windows cross-builds only; no native Windows/MSVC, Wine, Amiga hardware, native Wayland compositor or audible-device testing.",
+      "verification": {
+        "native": "Clang Debug/Botan full CMake build and final 72 regression CTests passed (116.22s), including old and new graphics history fixtures, Wren viewers, CTerm/term/history, SkyPix, RIP and native backend checks. X11 used private Xvfb after clearing inherited desktop variables; headless fixtures disable physical audio.",
+        "gcc": "GCC Debug/OpenSSL full CMake build and six focused CTests passed (48.20s). Final batched-scroll native/application tests passed again (21.29s).",
+        "minimal": "No-crypto/no-Unifont full CMake build and six focused tests passed (49.02s). Final batched-scroll native/application tests passed again (21.23s).",
+        "sanitizers": "Clang ASan/UBSan full CMake build and six focused CTests passed (165.60s), including shared graphics history. Final updated native/application scrolling tests passed (75.26s), covering nested display updates and bottom auto-wrap. LeakSanitizer unavailable on FreeBSD: ASAN_OPTIONS=detect_leaks=0; existing C++ vptr exclusion retained.",
+        "cross": "MinGW 32-bit/64-bit full CMake cross-builds completed with the final source and expanded fixtures. No Windows runtime, Wine or MSVC testing.",
+        "diagnostics": "All six final full-build logs contain no warnings or errors. Earlier incremental native builds emitted pre-existing generated-dependency timestamps milliseconds in the future; final complete builds were clean.",
+        "accounting": "Public inventory and original finding dispositions unchanged: 82 headers, 127 explicit exclusions, 2534 native items, 160 assessments, 51 original finding topics. Evidence hashes and test provenance refreshed."
       }
     }
   ]

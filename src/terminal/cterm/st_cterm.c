@@ -3300,7 +3300,8 @@ st_cterm_copy_history(st_cterm_t *terminal,
 	    || terminal->width <= 0 || terminal->height <= 0
 	    || terminal->backfilled < 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	line_count = (size_t)terminal->backfilled + (size_t)terminal->height;
+	size_t history_rows = cterm_history_rows(terminal);
+	line_count = history_rows + (size_t)terminal->height;
 	if ((size_t)terminal->width > SIZE_MAX / line_count
 	    || (size_t)terminal->width * line_count > SIZE_MAX / sizeof(*copy))
 		return IO_ERROR_OUT_OF_RANGE;
@@ -3308,15 +3309,9 @@ st_cterm_copy_history(st_cterm_t *terminal,
 	copy = malloc(cell_count * sizeof(*copy));
 	if (copy == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	for (int line = 0; line < terminal->backfilled; ++line) {
-		int source = terminal->backstart + line;
-
-		if (source >= terminal->backlines)
-			source -= terminal->backlines;
-		memcpy(copy + (size_t)line * terminal->width,
-		    terminal->scrollback + (size_t)source * terminal->backwidth,
-		    (size_t)terminal->width * sizeof(*copy));
-	}
+	for (size_t line = 0; line < history_rows; ++line)
+		cterm_history_copy_cells(terminal, line, copy + line * terminal->width,
+			(size_t)terminal->width);
 	visible = (struct st_console_rect){
 		.x = (uint32_t)(terminal->x - 1),
 		.y = (uint32_t)(terminal->y - 1),
@@ -3324,7 +3319,7 @@ st_cterm_copy_history(st_cterm_t *terminal,
 		.height = (uint32_t)terminal->height,
 	};
 	status = st_console_read_cells(terminal->screen.console, &visible,
-	    copy + (size_t)terminal->backfilled * terminal->width,
+	    copy + history_rows * terminal->width,
 	    (size_t)terminal->width);
 	if (status != 0) {
 		free(copy);
@@ -3341,23 +3336,18 @@ st_cterm_copy_history_pixels(st_cterm_t *terminal, size_t row, struct st_pixel_b
 {
 	if (terminal == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (row >= (size_t)terminal->backfilled + (size_t)terminal->height)
+	size_t history_rows = cterm_history_rows(terminal);
+	if (row >= history_rows + (size_t)terminal->height)
 		return IO_ERROR_OUT_OF_RANGE;
-	if (row < (size_t)terminal->backfilled) {
-		size_t physical = ((size_t)terminal->backstart + row) % (size_t)terminal->backlines;
-		if (terminal->backpixels == NULL || terminal->backpixels[physical] == NULL) {
-			*result = NULL;
-			return 0;
-		}
-		return st_pixel_buffer_clone(result, terminal->backpixels[physical]);
-	}
+	if (row < history_rows)
+		return cterm_history_copy_pixels(terminal, row, result);
 	struct st_console_cell *cells = malloc((size_t)terminal->width * sizeof(*cells));
 	if (cells == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	uint32_t cw, ch;
 	int status = st_console_cell_pixel_size(terminal->screen.console, &cw, &ch);
 	struct st_console_rect region = {(uint32_t)(terminal->x - 1),
-		(uint32_t)(terminal->y - 1) + (uint32_t)(row - (size_t)terminal->backfilled),
+		(uint32_t)(terminal->y - 1) + (uint32_t)(row - history_rows),
 		(uint32_t)terminal->width, 1};
 	if (status == 0)
 		status = st_console_read_cells(terminal->screen.console, &region, cells, region.width);
@@ -3381,8 +3371,7 @@ st_cterm_scrollback_size(const st_cterm_t *terminal,
 		return IO_ERROR_INVALID_ARGUMENT;
 	*columns = terminal->scrollback != NULL && terminal->backwidth > 0
 	    ? (uint32_t)terminal->backwidth : 0;
-	*rows = terminal->scrollback != NULL && terminal->backfilled > 0
-	    ? (size_t)terminal->backfilled : 0;
+	*rows = terminal->scrollback != NULL ? cterm_history_rows(terminal) : 0;
 	return 0;
 }
 
@@ -3402,10 +3391,10 @@ st_cterm_copy_scrollback_rows(const st_cterm_t *terminal,
 	    || terminal->backwidth < 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->scrollback == NULL || terminal->backlines == 0
-	    || terminal->backwidth == 0 || source_row >= (size_t)terminal->backfilled
+	    || terminal->backwidth == 0 || source_row >= cterm_history_rows(terminal)
 	    || destination_row >= destination_rows || row_count == 0)
 		return 0;
-	available = (size_t)terminal->backfilled - source_row;
+	available = cterm_history_rows(terminal) - source_row;
 	if (row_count > available)
 		row_count = available;
 	available = destination_rows - destination_row;
@@ -3416,12 +3405,8 @@ st_cterm_copy_scrollback_rows(const st_cterm_t *terminal,
 	if (columns == 0)
 		return 0;
 	for (size_t row = 0; row < row_count; ++row) {
-		size_t physical = ((size_t)terminal->backstart + source_row + row)
-		    % (size_t)terminal->backlines;
-
-		memcpy(destination + (destination_row + row) * destination_columns,
-		    terminal->scrollback + physical * terminal->backwidth,
-		    columns * sizeof(*destination));
+		cterm_history_copy_cells(terminal, source_row + row,
+			destination + (destination_row + row) * destination_columns, columns);
 	}
 	return (int)row_count;
 }

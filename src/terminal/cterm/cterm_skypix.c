@@ -9,6 +9,7 @@
 #include "io_error.h"
 #include "st_amiga_fonts.h"
 #include "st_font_catalog.h"
+#include "st_session_history.h"
 #include "st_time.h"
 #include "st_utf8.h"
 #include <limits.h>
@@ -615,23 +616,102 @@ static void cursor_bookkeeping(struct cterm_skypix *s)
 	cterm_render_set_position(s->terminal, s->terminal->xpos, s->terminal->ypos);
 	refresh_cursor(s);
 }
+static int scroll_pixels(struct cterm_skypix *s, uint32_t distance, uint32_t height)
+{
+	struct st_pixel_buffer *image = NULL, *retired = NULL;
+	struct st_console_cell *cells = NULL;
+	struct st_console_cell fill;
+	const struct st_console_rect grid = {0, 0, (uint32_t)s->terminal->width * s->cell_width,
+		(uint32_t)s->terminal->height * s->cell_height};
+	bool aligned = distance % s->cell_height == 0 && height % s->cell_height == 0 &&
+		s->width % s->cell_width == 0;
+	bool updating = false;
+	int status = st_console_get_pixels(&image, s->terminal->screen.console, &grid, false);
+	if (status == 0)
+		status = cterm_render_make_current_cell(s->terminal, &fill, ' ', 0);
+	if (status == 0) {
+		status = st_console_begin_update(s->terminal->screen.console);
+		updating = status == 0;
+	}
+	if (status == 0 && s->terminal->scrollback != NULL) {
+		if (aligned) {
+			const struct st_console_rect rows = {0, 0, (uint32_t)s->terminal->width,
+				distance / s->cell_height};
+			cells = malloc((size_t)rows.width * rows.height * sizeof(*cells));
+			status = cells == NULL ? IO_ERROR_OUT_OF_MEMORY :
+				st_console_read_cells(s->terminal->screen.console, &rows, cells, rows.width);
+		}
+		const struct st_console_cell graphics = {.flags = ST_CONSOLE_CELL_PIXEL_GRAPHICS};
+		const struct st_console_rect strip = {0, 0,
+			(uint32_t)s->terminal->width * s->cell_width, distance};
+		if (status == 0)
+			status = st_history_capture_pixels(&retired, s->terminal->screen.console, &graphics, 1, &strip);
+		if (status == 0)
+			status = cterm_history_append_pixels(s->terminal, retired, cells, s->cell_height);
+	}
+	if (status == 0) {
+		if (aligned && distance < height) {
+			const struct st_console_rect source = {0, distance / s->cell_height,
+				s->width / s->cell_width, (height - distance) / s->cell_height};
+			status = st_console_move_cells_clear(s->terminal->screen.console, &source, 0, 0, &fill);
+		} else {
+			const struct st_console_rect affected = {0, 0,
+				(s->width + s->cell_width - 1) / s->cell_width,
+				(height + s->cell_height - 1) / s->cell_height};
+			status = st_console_fill(s->terminal->screen.console, &affected, &fill);
+		}
+	}
+	if (status == 0) {
+		for (uint32_t y = 0; y < height - distance; ++y) {
+			size_t to = (size_t)y * image->width, from = (size_t)(y + distance) * image->width;
+			memmove(image->primary + to, image->primary + from, s->width * sizeof(uint32_t));
+			if (image->alternate != NULL)
+				memmove(image->alternate + to, image->alternate + from, s->width * sizeof(uint32_t));
+		}
+		uint32_t bg = CTERM_SKYPIX_PALETTE_FIRST + ((s->terminal->attr >> 4 & 15) & (s->colours - 1));
+		for (uint32_t y = height - distance; y < height; ++y)
+			for (uint32_t x = 0; x < s->width; ++x) {
+				size_t at = (size_t)y * image->width + x;
+				image->primary[at] = bg;
+				if (image->alternate != NULL) image->alternate[at] = bg;
+			}
+		const struct st_pixel_blit blit = {.width = image->width, .height = image->height,
+			.scale_x = 1, .scale_y = 1};
+		/* Scrolling retains both phases, including pixels drawn by other
+		 * console users; unlike a new SkyPix primitive it must not flatten them. */
+		status = st_console_blit_pixels(s->terminal->screen.console, image, NULL, &blit);
+	}
+	if (updating) {
+		int finished = st_console_end_update(s->terminal->screen.console);
+		if (status == 0) status = finished;
+	}
+	st_pixel_buffer_destroy(retired);
+	st_pixel_buffer_destroy(image);
+	free(cells);
+	return status;
+}
 static void line_feed(struct cterm_skypix *s)
 {
 	int previous_top = s->y + font_descent(s->font);
+	int previous_y = s->y;
+	int height = (int)st_amiga_font_height(s->font);
 	s->y = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font)));
 	if (s->terminal->lf_expand)
 		s->x = 0;
-	int top = s->y + font_descent(s->font);
 	/* Out-of-canvas pixel positioning must not trigger thousands of
 	 * empty row captures from one LF. Only scroll text leaving the canvas. */
 	if (previous_top < 0 || previous_top >= (int)s->height)
 		return;
-	/* The history ring stores console-row strips. Keep the current native
-	 * strike on the canvas, including after a remote font selection. */
-	while (top >= 0 && top + (int)st_amiga_font_height(s->font) > (int)s->height) {
-		cterm_scrollup(s->terminal);
-		s->y -= (int)s->cell_height;
-		top -= (int)s->cell_height;
+	int rows = (int)s->height / height;
+	if (rows == 0) return;
+	int bottom = (rows - 1) * height - font_descent(s->font);
+	int distance = previous_y >= bottom ? height : s->y > bottom ? s->y - bottom : 0;
+	if (distance != 0) {
+		/* JR-Comm clamps to the current font's last nominal baseline.
+		 * A normal bottom-row LF scrolls H pixels, never whole UI cells. */
+		int status = scroll_pixels(s, (uint32_t)distance, (uint32_t)(rows * height));
+		cterm_render_record_error(s->terminal, status);
+		if (status == 0) s->y = bottom;
 	}
 }
 

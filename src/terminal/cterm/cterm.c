@@ -1164,6 +1164,168 @@ cterm_scrolldown(struct cterminal *cterm)
 	cterm_render_set_position(cterm, x, y);
 }
 
+static int
+history_store_row(struct cterminal *cterm, const struct st_console_cell *cells,
+	struct st_pixel_buffer *pixels, size_t width)
+{
+	if (pixels != NULL && cterm->backpixels == NULL) {
+		cterm->backpixels = calloc((size_t)cterm->backlines, sizeof(*cterm->backpixels));
+		if (cterm->backpixels == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+	}
+	struct st_console_cell *destination = cterm->scrollback +
+		(size_t)cterm->backpos * cterm->backwidth;
+	memcpy(destination, cells, width * sizeof(*cells));
+	if (width < (size_t)cterm->backwidth)
+		memset(destination + width, 0, ((size_t)cterm->backwidth - width) * sizeof(*cells));
+	if (cterm->backpixels != NULL) {
+		st_pixel_buffer_destroy(cterm->backpixels[cterm->backpos]);
+		cterm->backpixels[cterm->backpos] = pixels;
+	}
+	if (cterm->backfilled == cterm->backlines)
+		cterm->backstart = (cterm->backstart + 1) % cterm->backlines;
+	else
+		++cterm->backfilled;
+	cterm->backpos = (cterm->backpos + 1) % cterm->backlines;
+	return 0;
+}
+
+int
+cterm_history_append_pixels(struct cterminal *cterm, const struct st_pixel_buffer *strip,
+	const struct st_console_cell *cells, uint32_t cell_height)
+{
+	if (cterm->scrollback == NULL)
+		return 0;
+	uint32_t old_rows = cterm->backpartial_rows;
+	size_t total = (size_t)old_rows + strip->height;
+	size_t full = total / cell_height;
+	uint32_t remainder = (uint32_t)(total % cell_height);
+	size_t count = full + (remainder != 0);
+	struct st_pixel_buffer **prepared = calloc(count, sizeof(*prepared));
+	struct st_pixel_buffer **table = NULL;
+	struct st_console_cell *blank = NULL;
+	struct st_console_cell fill = {0};
+	int status = prepared == NULL ? IO_ERROR_OUT_OF_MEMORY
+		: cterm_render_make_current_cell(cterm, &fill, ' ', 0);
+	fill.flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
+	fill.hyperlink = 0;
+	if (status == 0 && (cells == NULL || old_rows != 0)) {
+		blank = malloc((size_t)cterm->backwidth * sizeof(*blank));
+		if (blank == NULL)
+			status = IO_ERROR_OUT_OF_MEMORY;
+		else
+			for (int x = 0; x < cterm->backwidth; ++x) blank[x] = fill;
+	}
+	bool alternate = strip->alternate != NULL ||
+		(cterm->backpartial != NULL && cterm->backpartial->alternate != NULL);
+	for (size_t row = 0; row < count && status == 0; ++row) {
+		status = st_pixel_buffer_create(&prepared[row], strip->width, cell_height, alternate);
+		if (status == 0)
+			status = st_pixel_buffer_fill(prepared[row], ST_PIXEL_COLOR_RGB_TAG, ST_PIXEL_COLOR_RGB_TAG);
+	}
+	if (status == 0 && full != 0 && cterm->backpixels == NULL) {
+		table = calloc((size_t)cterm->backlines, sizeof(*table));
+		if (table == NULL) status = IO_ERROR_OUT_OF_MEMORY;
+	}
+	/* Prepare every row before publishing anything: allocation failure must
+	 * leave both the ring and its pending RGB prefix intact. */
+	if (status == 0) {
+		for (size_t y = 0; y < total; ++y) {
+			const struct st_pixel_buffer *source = y < old_rows ? cterm->backpartial : strip;
+			size_t from = (y < old_rows ? y : y - old_rows) * strip->width;
+			struct st_pixel_buffer *target = prepared[y / cell_height];
+			size_t to = y % cell_height * strip->width;
+			memcpy(target->primary + to, source->primary + from, strip->width * sizeof(uint32_t));
+			if (alternate)
+				memcpy(target->alternate + to, (source->alternate == NULL ? source->primary : source->alternate) + from,
+					strip->width * sizeof(uint32_t));
+		}
+		if (table != NULL) {
+			cterm->backpixels = table;
+			table = NULL;
+		}
+		for (size_t row = 0; row < full; ++row) {
+			(void)history_store_row(cterm, blank == NULL ? cells + row * cterm->backwidth : blank, prepared[row],
+				(size_t)cterm->backwidth);
+			prepared[row] = NULL;
+		}
+		st_pixel_buffer_destroy(cterm->backpartial);
+		cterm->backpartial = remainder == 0 ? NULL : prepared[full];
+		if (remainder != 0) prepared[full] = NULL;
+		cterm->backpartial_rows = remainder;
+		cterm->backpartial_cell = fill;
+	}
+	st_history_free_pixels(prepared, count);
+	free(table);
+	free(blank);
+	return status;
+}
+
+size_t
+cterm_history_rows(const struct cterminal *cterm)
+{
+	size_t rows = (size_t)cterm->backfilled + (cterm->backpartial_rows != 0);
+	return rows > (size_t)cterm->backlines ? (size_t)cterm->backlines : rows;
+}
+
+void
+cterm_history_copy_cells(const struct cterminal *cterm, size_t row,
+	struct st_console_cell *destination, size_t columns)
+{
+	if (cterm->backpartial_rows != 0) {
+		for (size_t x = 0; x < columns; ++x) destination[x] = cterm->backpartial_cell;
+	} else {
+		size_t physical = ((size_t)cterm->backstart + row) % (size_t)cterm->backlines;
+		memcpy(destination, cterm->scrollback + physical * cterm->backwidth,
+			columns * sizeof(*destination));
+	}
+}
+
+int
+cterm_history_copy_pixels(const struct cterminal *cterm, size_t row, struct st_pixel_buffer **result)
+{
+	if (cterm->backpartial_rows == 0) {
+		size_t physical = ((size_t)cterm->backstart + row) % (size_t)cterm->backlines;
+		if (cterm->backpixels == NULL || cterm->backpixels[physical] == NULL) {
+			*result = NULL;
+			return 0;
+		}
+		return st_pixel_buffer_clone(result, cterm->backpixels[physical]);
+	}
+	const struct st_pixel_buffer *partial = cterm->backpartial;
+	struct st_pixel_buffer *copy = NULL;
+	int status = st_pixel_buffer_create(&copy, partial->width, partial->height, true);
+	if (status != 0) return status;
+	st_pixel_buffer_fill(copy, ST_PIXEL_COLOR_RGB_TAG, ST_PIXEL_COLOR_RGB_TAG);
+	size_t skipped = (size_t)cterm->backfilled + 1 - cterm_history_rows(cterm);
+	size_t first = (row + skipped) * partial->height;
+	size_t pad = partial->height - cterm->backpartial_rows;
+	size_t complete = (size_t)cterm->backfilled * partial->height;
+	/* Align at the live boundary. Any padding belongs at the oldest end,
+	 * never between a pending strip and the current screen. */
+	for (size_t y = 0; y < partial->height; ++y) {
+		if (first + y < pad) continue;
+		size_t at = first + y - pad;
+		const struct st_pixel_buffer *source = partial;
+		size_t sy;
+		if (at < complete) {
+			size_t physical = ((size_t)cterm->backstart + at / partial->height) % (size_t)cterm->backlines;
+			source = cterm->backpixels[physical];
+			sy = at % partial->height;
+		} else
+			sy = at - complete;
+		memcpy(copy->primary + y * copy->width, source->primary + sy * source->width,
+			copy->width * sizeof(uint32_t));
+		memcpy(copy->alternate + y * copy->width,
+			(source->alternate == NULL ? source->primary : source->alternate) + sy * source->width,
+			copy->width * sizeof(uint32_t));
+	}
+	if (memcmp(copy->primary, copy->alternate, (size_t)copy->width * copy->height * sizeof(uint32_t)) == 0)
+		st_pixel_buffer_remove_alternate(copy);
+	*result = copy;
+	return 0;
+}
+
 static void
 cterm_line_to_scrollback(struct cterminal *cterm, int row)
 {
@@ -1183,31 +1345,19 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 	if (status == 0) {
 		const struct st_console_rect region = {
 			(uint32_t)(cterm->x - 1) * cw, (uint32_t)(row - 1) * ch, (uint32_t)width * cw, ch};
+		uint32_t flags = cells[0].flags;
+		if (cterm->skypix_engine != NULL) cells[0].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 		status = st_history_capture_pixels(&pixels, cterm->screen.console, cells,
 			(uint32_t)width, &region);
-	}
-	if (status == 0 && pixels != NULL && cterm->backpixels == NULL) {
-		cterm->backpixels = calloc((size_t)cterm->backlines, sizeof(*cterm->backpixels));
-		if (cterm->backpixels == NULL)
-			status = IO_ERROR_OUT_OF_MEMORY;
+		cells[0].flags = flags;
 	}
 	if (status == 0) {
-		struct st_console_cell *destination = cterm->scrollback +
-			(size_t)cterm->backpos * cterm->backwidth;
-		memcpy(destination, cells, (size_t)width * sizeof(*cells));
-		if (width < cterm->backwidth)
-			memset(destination + width, 0, (size_t)(cterm->backwidth - width) * sizeof(*cells));
-		if (cterm->backpixels != NULL) {
-			st_pixel_buffer_destroy(cterm->backpixels[cterm->backpos]);
-			cterm->backpixels[cterm->backpos] = pixels;
-			pixels = NULL;
+		if (cterm->skypix_engine != NULL)
+			status = cterm_history_append_pixels(cterm, pixels, cells, ch);
+		else {
+			status = history_store_row(cterm, cells, pixels, (size_t)width);
+			if (status == 0) pixels = NULL;
 		}
-		/* Publish only after both cells and pixels were captured successfully. */
-		if (cterm->backfilled == cterm->backlines)
-			cterm->backstart = (cterm->backstart + 1) % cterm->backlines;
-		else
-			++cterm->backfilled;
-		cterm->backpos = (cterm->backpos + 1) % cterm->backlines;
 	}
 	cterm_render_record_error(cterm, status);
 	st_pixel_buffer_destroy(pixels);
@@ -2412,6 +2562,7 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 
 	if(cterm) {
 		st_history_free_pixels(cterm->backpixels, (size_t)cterm->backlines);
+		st_pixel_buffer_destroy(cterm->backpartial);
 		cterm_text_destroy(cterm);
 		cterm_apc_destroy(cterm);
 		cterm_closelog(cterm);

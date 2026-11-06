@@ -257,6 +257,12 @@ Captured strips freeze RGB colours and both phases; destroy the result with
 st_pixel_buffer_destroy. Rows are captured before scrolling or clearing and
 released on ring overwrite/destruction. Regridding crops/pads columns and
 samples pixels within the new cell geometry. Terminal reset retains history.
+SkyPix pixel scrolling keeps an unfinished RGB strip until subsequent scrolling
+completes it. Snapshot and row-copy APIs include those pixels, aligned at the
+live boundary and bounded by the configured history capacity; only the oldest
+row may need leading padding. Reads do not publish the unfinished strip or
+rotate the physical ring. Fractional row views carry raster data with blank
+cell metadata; aligned cell text remains available.
 
 | st_cterm_handle_key(terminal, key_code, modifiers)
 | Encodes one normalized key according to active terminal modes. `modifiers`

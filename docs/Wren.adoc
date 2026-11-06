@@ -3561,6 +3561,13 @@ a cell through `surf.rows[y][x]` mutates the underlying Surface.
 Read-only logical access to the active cterm scrollback ring.  The ring stays
 in its native wrapped representation: these methods do not append rows,
 rotate storage, or change `CTerm.scrollbackStart` / `scrollbackPos`.
+SkyPix pixel scrolling can leave an unfinished strip between complete rows
+and the live screen. Reads compose it into rows aligned at the live boundary,
+within the configured capacity; any padding belongs only at the oldest end.
+Pixel colours and both phases were captured when they left the screen, so a
+later palette change does not recolour the pending strip. Row copies do not
+flush it. Aligned cell text is preserved; a fractional row view carries pixels
+with blank cell metadata rather than stale text at the wrong position.
 
 [options="header",cols="2,3"]
 |===

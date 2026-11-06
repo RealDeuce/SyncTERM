@@ -500,6 +500,185 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 }
+static uint32_t stripe_colour(int y, bool alternate, unsigned frozen_before)
+{
+	if (y < 0)
+		return ST_PIXEL_COLOR_RGB_TAG;
+	if (!alternate && y >= 16 && y < 24)
+		return ST_PIXEL_COLOR_RGB_TAG | ((unsigned)y < frozen_before ? 0xff0000 : 0x0000ff);
+	return ST_PIXEL_COLOR_RGB_TAG | (alternate ? 0x020005 : 0x010003) | (uint32_t)y << 8;
+}
+static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode graphics,
+	bool utf8, unsigned capacity, unsigned first_distance, unsigned font_height)
+{
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *t = NULL;
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 80, .rows = status_line ? 26 : 25,
+		.cell_width = 8, .cell_height = 8, .wrap = true};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {.console = console, .fonts = fonts,
+		.emulation = ST_CTERM_ANSI_BBS, .encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+		.codepage = ST_CODEPAGE_CP437, .graphics_mode = graphics, .status_line = status_line,
+		.amiga_font = st_amiga_font_builtin(font_height == 20 ? "Diamond.font" : "Ruby.font", font_height),
+		.scrollback_lines = capacity, .quiet = true};
+	CHECK(st_cterm_create(&t, &config) == 0);
+	CHECK(t->backfilled == 0);
+	for (unsigned i = 0; i < (font_height == 20 ? 9u : 15u); ++i)
+		feed(t, "\r\n");
+	if (first_distance == 19)
+		feed(t, "\x1b[19;0;174!"); /* One pixel above the last nominal baseline. */
+	struct st_pixel_buffer *scene = NULL;
+	CHECK(st_pixel_buffer_create(&scene, 640, 200, true) == 0);
+	for (unsigned y = 0; y < 200; ++y)
+		for (unsigned x = 0; x < 640; ++x) {
+			scene->primary[y * 640 + x] = x == 0 && y >= 16 && y < 24 ? 200
+				: ST_PIXEL_COLOR_RGB_TAG | 0x010003 | y << 8;
+			scene->alternate[y * 640 + x] = ST_PIXEL_COLOR_RGB_TAG | 0x020005 | y << 8;
+		}
+	uint32_t red = 0xff0000, blue = 0x0000ff;
+	CHECK(st_console_set_palette(console, 200, &red, 1) == 0);
+	const struct st_pixel_blit blit = {.width = 640, .height = 200, .scale_x = 1, .scale_y = 1};
+	CHECK(st_console_blit_pixels(console, scene, NULL, &blit) == 0);
+	st_pixel_buffer_destroy(scene);
+	if (status_line)
+		CHECK(st_console_set_pixel(console, 1, 201, ST_PIXEL_COLOR_RGB_TAG | 0x123456) == 0);
+	st_session_history_t *detached = NULL;
+	CHECK(st_session_history_create(&detached, 100) == 0);
+	size_t detached_row = 0;
+	for (unsigned scroll = 1; scroll <= 4; ++scroll) {
+		unsigned retired = first_distance + (scroll - 1) * font_height;
+		CHECK(st_console_begin_update(console) == 0);
+		feed(t, "\r\n");
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(st_console_end_update(console) == 0);
+		struct st_console_pixel_cursor cursor;
+		CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.y == (font_height == 20 ? 195u : 190u));
+		if (scroll == 1)
+			CHECK(st_console_set_palette(console, 200, &blue, 1) == 0);
+		uint32_t columns;
+		size_t rows;
+		CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0);
+		size_t expected_rows = (retired + 7) / 8;
+		if (expected_rows > capacity) expected_rows = capacity;
+		if (rows != expected_rows)
+			fprintf(stderr, "capacity=%u scroll=%u rows=%zu expected=%zu physical=%d pending=%u\n",
+				capacity, scroll, rows, expected_rows, t->backfilled, t->backpartial_rows);
+		CHECK(rows == expected_rows);
+		int start = t->backstart, position = t->backpos;
+		for (size_t row = 0; row < rows; ++row) {
+			struct st_pixel_buffer *image = NULL;
+			CHECK(st_cterm_copy_history_pixels(t, row, &image) == 0 && image != NULL);
+			CHECK(image->width == 640 && image->height == 8);
+			for (unsigned y = 0; y < 8; ++y) {
+				int original = (int)retired - (int)rows * 8 + (int)row * 8 + (int)y;
+				CHECK(image->primary[y * 640] == stripe_colour(original, false, first_distance));
+				CHECK(image->alternate != NULL && image->alternate[y * 640] == stripe_colour(original, true, first_distance));
+			}
+			st_pixel_buffer_destroy(image);
+		}
+		CHECK(t->backstart == start && t->backpos == position);
+		struct st_console_cell *cells = NULL;
+		size_t all_rows;
+		CHECK(st_cterm_copy_history(t, &cells, &columns, &all_rows) == 0 && all_rows == rows + 25);
+		if (scroll == 1 && rows != 0) {
+			struct st_pixel_buffer **images = calloc(all_rows, sizeof(*images));
+			CHECK(images != NULL);
+			for (size_t row = 0; row < all_rows; ++row)
+				CHECK(st_cterm_copy_history_pixels(t, row, &images[row]) == 0);
+			CHECK(st_session_history_publish(detached, cells, columns, all_rows,
+				ST_SCREEN_MODE_AMIGA_640X200, status_line, images) == 0);
+			detached_row = rows - 1;
+			/* Reset retains history, including an unfinished pixel strip. */
+			CHECK(st_cterm_reset_terminal(t) == 0);
+			feed(t, font_height == 20 ? "\x1b[19;0;175!" : "\x1b[19;0;178!");
+		}
+		free(cells);
+		const struct st_console_rect live = {0, 0, 1, 1};
+		struct st_pixel_buffer *image = NULL;
+		CHECK(st_console_get_pixels(&image, console, &live, false) == 0);
+		uint32_t live_colour = image->primary[0];
+		if (!ST_PIXEL_COLOR_IS_RGB(live_colour)) {
+			uint32_t rgb;
+			CHECK(st_console_get_palette(console, live_colour, &rgb, 1) == 0);
+			live_colour = ST_PIXEL_COLOR_RGB_TAG | rgb;
+		}
+		CHECK(live_colour == stripe_colour((int)retired, false, first_distance));
+		CHECK(image->alternate[0] == stripe_colour((int)retired, true, first_distance));
+		st_pixel_buffer_destroy(image);
+		if (font_height == 12) {
+			/* Ruby/12 uses 192 of the 200 canvas rows; the eight-pixel
+			 * remainder below its last nominal row must not scroll. */
+			const struct st_console_rect padding = {0, 195, 1, 1};
+			image = NULL;
+			CHECK(st_console_get_pixels(&image, console, &padding, false) == 0);
+			CHECK(image->primary[0] == stripe_colour(195, false, first_distance));
+			CHECK(image->alternate[0] == stripe_colour(195, true, first_distance));
+			st_pixel_buffer_destroy(image);
+		}
+		if (status_line) {
+			const struct st_console_rect status_pixel = {1, 201, 1, 1};
+			image = NULL;
+			CHECK(st_console_get_pixels(&image, console, &status_pixel, false) == 0);
+			CHECK(image->primary[0] == (ST_PIXEL_COLOR_RGB_TAG | 0x123456));
+			st_pixel_buffer_destroy(image);
+		}
+	}
+	if (capacity != 0) {
+		struct st_pixel_buffer *image = NULL;
+		CHECK(st_session_history_copy_pixels(detached, detached_row, &image) == 0 && image != NULL);
+		for (unsigned y = 0; y < 8; ++y) {
+			CHECK(image->primary[y * 640] == stripe_colour((int)first_distance - 8 + (int)y, false, first_distance));
+			CHECK(image->alternate[y * 640] == stripe_colour((int)first_distance - 8 + (int)y, true, first_distance));
+		}
+		st_pixel_buffer_destroy(image);
+	}
+	st_session_history_destroy(detached);
+	if (!status_line && capacity != 0) {
+		/* A later ordinary eight-pixel cell scroll must merge the same
+		 * pending prefix, rather than lose it or publish a padded gap. */
+		CHECK(st_cterm_prepare_disconnect(t) == 0);
+		uint32_t columns;
+		size_t rows;
+		CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0 && rows > 0);
+		struct st_pixel_buffer *image = NULL;
+		CHECK(st_cterm_copy_history_pixels(t, rows - 1, &image) == 0 && image != NULL);
+		for (unsigned y = 0; y < 8; ++y) {
+			int original = (int)(first_distance + 3 * font_height) + (int)y;
+			CHECK(image->primary[y * 640] == stripe_colour(original, false, first_distance));
+			CHECK(image->alternate[y * 640] == stripe_colour(original, true, first_distance));
+		}
+		st_pixel_buffer_destroy(image);
+	}
+	if (font_height == 20 && capacity == 50) {
+		/* The nominal-count wrap path uses the same exact pixel LF at
+		 * the bottom, including when a partial strip is already pending. */
+		char narrow[34];
+		memset(narrow, 'i', 33);
+		narrow[33] = 0;
+		feed(t, narrow);
+		CHECK(st_cterm_finish(t) == 0);
+		struct st_console_pixel_cursor cursor;
+		CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.y == 195);
+		uint32_t columns;
+		size_t rows;
+		CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0 && rows > 0);
+		struct st_pixel_buffer *image = NULL;
+		CHECK(st_cterm_copy_history_pixels(t, rows - 1, &image) == 0 && image != NULL);
+		for (unsigned y = 0; y < 8; ++y) {
+			int original = (int)first_distance + 60 + (status_line ? 0 : 8) + 20 - 8 + (int)y;
+			CHECK(image->primary[y * 640] == stripe_colour(original, false, first_distance));
+			CHECK(image->alternate[y * 640] == stripe_colour(original, true, first_distance));
+		}
+		st_pixel_buffer_destroy(image);
+	}
+	CHECK(st_cterm_reset_terminal(t) == 0);
+	st_cterm_destroy(&t);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
 static void graphics_history_test(void)
 {
 	st_console_t *console = NULL;
@@ -531,12 +710,45 @@ static void graphics_history_test(void)
 	int position = terminal->backpos;
 	feed(terminal, "\x1b[19;0;32700!\n");
 	CHECK(terminal->backpos == position);
+	/* A later fractional font must be able to join older grid text without
+	 * rerendering it using the newly selected font or palette. */
+	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	for (unsigned row = 0; row < 25; ++row) feed(terminal, "A\r\n");
+	struct st_console_cell text_row[80];
+	CHECK(st_cterm_copy_scrollback_rows(terminal, text_row, 80, 1, 2, 1, 0) == 1);
+	char text[8];
+	size_t required;
+	CHECK(st_console_font_glyph_text(console, text_row[0].glyph_font, text_row[0].glyph,
+		text, sizeof(text), &required) == 0 && required == 1 && text[0] == 'A');
+	feed(terminal, "\x1b[10;20!Diamond.font!\n");
+	const unsigned pearl[] = {0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0};
+	for (size_t row = 0; row < 3; ++row) {
+		pixels = NULL;
+		CHECK(st_cterm_copy_history_pixels(terminal, row, &pixels) == 0 && pixels != NULL);
+		for (unsigned y = 0; y < 8; ++y)
+			for (unsigned x = 0; x < 8; ++x) {
+				uint32_t expected = ST_PIXEL_COLOR_RGB_TAG |
+					(pearl[(4 + y) % 8] & (0x80u >> x) ? 0xdddddd : 0);
+				CHECK(pixels->primary[y * pixels->width + x] == expected);
+			}
+		st_pixel_buffer_destroy(pixels);
+	}
 	st_cterm_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 }
 int main(void)
 {
+	for (unsigned graphics = ST_CTERM_GRAPHICS_SKYPIX_13; graphics <= ST_CTERM_GRAPHICS_SKYPIX_31; ++graphics)
+		for (unsigned status = 0; status < 2; ++status)
+			for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
+				pixel_scroll_test(status, graphics, utf8, 0, 20, 20);
+				pixel_scroll_test(status, graphics, utf8, 1, 20, 20);
+				pixel_scroll_test(status, graphics, utf8, 3, 20, 20);
+				pixel_scroll_test(status, graphics, utf8, 50, 20, 20);
+				pixel_scroll_test(status, graphics, utf8, 50, 19, 20);
+				pixel_scroll_test(status, graphics, utf8, 3, 12, 12);
+			}
 	graphics_history_test();
 	parser_tests();
 	engine_tests(false, ST_CTERM_GRAPHICS_SKYPIX_13);

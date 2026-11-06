@@ -73,6 +73,7 @@ full-screen scrolling or establish physical sprite/timer behaviour.
 | Pens and fills | RGB4 palette, initial eight colours, point/line/rectangle/ellipse/flood operations and brush minterms. Command 3 uses flood mode 1 regardless of its mode argument; command 13 outlines then performs boundary flood. Command 17 resets pens/palette without changing depth. |
 | Font position controls | Native default home uses its baseline, retaining the complete strike. Command 19 uses its logical pixel anchor. Native-font CR retains Y; LF adds current height; BS subtracts nominal width without a zero clamp; HT uses eight nominal widths; VT is inert. Diamond/20 position-probe regressions and literal Ruby/12 accent rows are independent expectations. |
 | Native-font wrapping | JR-Comm's nominal forecast and pending-character count, rather than actual glyph fit. Diamond/20 wraps an uninterrupted 33-i run after 32, permits 32 W characters from X=100 to reach X=740, and distinguishes a buffered 40-W run from a flush after every character. Wrap-off uses the nominal last-column origin; forecasts use signed-word arithmetic. Controls, commands and explicit text finish flush the count; input splits and individual glyph commits do not. Both variants and CP437/UTF-8 are checked. |
+| Native-font scrolling | With full-screen margins, LF advances by the current height and clamps at the last nominal baseline, using current ascent/descent. At the bottom Diamond/20 scrolls exactly 20 pixels and its underline stays at Y=195 on a 640x200 canvas. An off-grid overshoot scrolls the exact excess. Ruby/12 scrolls its 192-pixel text region and preserves the eight unused canvas rows. Cell-aligned moves retain cell text; fractional moves retain raster data without stale cell text. Status and canvas padding are preserved. Native two-phase stripe tests and reply-fenced application captures cover both variants/encodings/status choices. Reference: JR-Comm `H17:0ba6–0bfa`, `H17:2264–2408`. |
 | Native-font erasure | ANSI EL0/1/2 use raw pixel X and the current font's ascent/descent, preserving position. The independent reference is `H16:11a0–11ca`, `H17:1c08–1dce` and geometry at `H17:0ba6–0bd0`: EL0 clears X to the canvas edge; EL1 clears through X+nominal-width-1; EL2 clears the whole strike row. Native tests check literal rectangle boundaries and both pixel planes; application tests check tcsh's BS CSI K sequence with Diamond/20. JAM2 spaces paint the full font-height background even when the compiled empty glyph has a one-row mask; named-font JAM1 spaces preserve pixels. Full proportional JAM2 horizontal-extent equivalence to Amiga ROMs remains unclaimed. |
 | Cursor | Separate RGB overlay, one scanline at baseline+1; X-2 with two-pixel quantization and nominal-width masks (8 pixels for width 8, otherwise 16) on the normal HIRES canvas. Negative/off-canvas portions clip without clamping the logical position. Clear/home, proportional advances, command 19 and font changes refresh it; brush/history captures exclude it. Native tests inject 185 ms callbacks for phase, hide/show and steady mode; refresh does not restart the timer. Palette loads do not recolour the captured cursor RGB. UI snapshots and CustomCursor preservation retain it. |
 | Fonts and text | Configured initial/reset Amiga strike (Pearl 8 by default); exact installed strike, exact compiled strike, then configured default for unavailable remote requests. Initial unavailable preferences fall back to Pearl 8; no strike stretching. Native baseline, signed kerning/spacing, monospaced centring and proportional advances. Font selection, including fallback, uses JAM1; reset uses JAM2. Kick 1.3 clips final overhang, which subsequent text can reveal; Kick 3.1 retains it. |
@@ -96,9 +97,9 @@ memory corruption.
 ## Remaining text compatibility gaps
 
 The updated JR-Comm research describes behaviour beyond this checked subset:
-ANSI movement in eight-pixel steps with non-eight-pixel fonts and native font
-ascent/descent handling for full-screen margin scrolling after remote font
-changes. ANSI positioning still uses the screen-mode cell grid. The ordinary
+ANSI movement in eight-pixel steps with non-eight-pixel fonts and mapping
+custom ANSI scrolling margins into the native pixel model. ANSI positioning
+still uses the screen-mode cell grid. The ordinary
 cell path for a fixed, grid-aligned default font retains cell-based wrapping;
 the native-font path uses the forecast/count rule above. Glyphs are painted
 eagerly; these tests establish semantic flush boundaries, not an Amiga serial
@@ -108,13 +109,23 @@ not an Amiga DMA/Copper/timer.device implementation. Other hardware display
 mappings and exact VBLANK/task scheduling remain outside these tests. Local UI
 selects its ordinary cell cursor and snapshots restore the terminal overlay.
 
-Graphics history uses the shared optional pixel-strip path, including text
-rendered through native Amiga fonts. Remote-font line feeds scroll enough host
-cell strips to keep the current strike inside the canvas. This preserves the
-rendered image; it does not claim the exact JR-Comm ascent/descent margin rule
-listed above. Both blink planes and captured colours survive viewing and
-reopening history after disconnect. Pixel-only text retains its raster rather
-than acquiring invented character-cell content.
+Graphics history uses the shared pixel-strip path. SkyPix retires RGB strips
+at the exact scroll distance, merging any unfinished strip on the next scroll.
+A 20-pixel move produces two eight-pixel rows and keeps four pixels pending;
+the next 20-pixel move completes three rows. Both phases and colours are frozen
+when pixels leave the canvas. SkyPix also captures RGB alongside aligned cell
+rows so a later font change can join them without rerendering old text with a
+different font or palette. Other emulations retain their optional text-only
+history path.
+
+History reads include the pending pixels within the configured row capacity,
+aligned at the live boundary; any padding is confined to the oldest row.
+Queries do not flush the pending strip or rotate the physical ring. Reset
+retains it with the rest of history; destruction releases it. Native tests
+cover palette changes, both phases, ring wrap, zero/one-row capacity, reset,
+detached snapshots and subsequent ordinary cell scrolling. Application tests
+check live, disconnected and directory history before and after a merge.
+Pixel-only text retains its raster without invented character-cell content.
 
 ## Test inventory
 
@@ -133,6 +144,7 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | `skypix_rom_vectors` | Independent ordered point sets/hashes and Diamond 20 text for the retained ROM vectors. |
 | `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, selected canvas geometry and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; both variants with Diamond 20 in CP437/UTF-8, proportional cursor movement and unscaled 8x8 menu rasters; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
 | `syncterm_skypix_mouse` | Exact documented click bytes, zero-origin/sub-cell precision and scaled drawable mapping; no report on releases/motion/other buttons/status/local UI; bright/dim M and both toggle routes, disabled-release recovery, local wheel scrollback and reset; both variants/encodings/status choices. |
+| `syncterm_skypix_scrolling` | Literal four-pixel colour stripes through exact Diamond/20 scrolls, stable bottom cursor, partial-strip joins, live/disconnected/detached viewers, both variants/encodings/status choices. Expected pixels come from fixture rectangles, not emulator captures. |
 | `syncterm_graphics_scrollback` | Shared ANSI/RIP/SkyPix image history, both phases, palette changes, composition/overlays, remote Pearl descenders, status choices and disconnected/offline viewing. |
 | `syncterm_amiga_font_manager` | Real picker cancellation, install, replacement confirmation, stale snapshots, metadata, removal and malformed family rejection. |
 | `bbs_list`, `wren_menu_contract` | All Graphics values, legacy RIP fallback/canonical save, locked merge/default persistence and conflicts, menu catalogs, constants and immutable family metadata. |
