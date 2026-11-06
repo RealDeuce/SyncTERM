@@ -23,7 +23,11 @@ native zero-based pixels at sub-cell positions and scaled drawable mapping,
 with both variants/encodings/status choices. It checks bright/dim M, the
 Alt/Command-O and online-menu gates, disabled button-state recovery, UI/status
 exclusion, reset, and local wheel scrollback. Native tests cover invalid/missing
-pixel coordinates, boundaries and ANSI mouse requests during SkyPix.
+pixel coordinates, boundaries and ANSI mouse requests during SkyPix. Command-22
+gadget definitions check inclusive foreground fills, replacement without erasing
+old pixels, endpoint slots, invalid definitions and unchanged controller-1 clicks
+inside/outside the rectangle. Native tests also check retained five-word records,
+all input splits, clipping, numeric wrapping and full-reset cleanup.
 
 `syncterm_graphics_scrollback` checks the shared history path in ordinary ANSI,
 RIP v1/v3 and both SkyPix variants, with status on/off and CP437/UTF-8 where

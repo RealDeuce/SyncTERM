@@ -98,6 +98,38 @@ def run(executable, reports, kick, encoding, status):
                 mouse(100, 100, 4)
                 mouse(100, 100, 0)
                 exchange()
+                # Command 22 only retains a record and paints an inclusive
+                # foreground rectangle. Defining it sends no acknowledgment;
+                # inside/outside clicks still report raw controller-1 pixels.
+                shown = exchange(b'\x1b[15;3!\x1b[22;1;19;310;140;320;146!')
+                def pixel(s, x, y, alternate=False):
+                    m = s.metadata
+                    plane = s.alternate if alternate else s.primary
+                    value = plane[(y+m['pixel_top'])*m['plane_width']+x]
+                    return (value if value & 0x80000000 else s.palette[value]) & 0xffffff
+                for y in range(139,148):
+                    for x in range(309,322):
+                        expected = 0xff0000 if 310<=x<=320 and 140<=y<=146 else 0
+                        assert pixel(shown,x,y)==expected,(kick,encoding,x,y)
+                        assert pixel(shown,x,y,True)==expected,(kick,encoding,x,y,'alternate')
+                mouse(317,143,1)
+                assert read_to(b'!') == b'\x1b[21;1;317;143!'
+                mouse(317,143,0)
+                mouse(101,99,1)
+                assert read_to(b'!') == b'\x1b[21;1;101;99!'
+                mouse(101,99,0)
+                shown = exchange(b'\x1b[15;4!\x1b[22;1;0;12;20;14;22!'
+                                 b'\x1b[22;20;65535;639;199;639;199!'
+                                 b'\x1b[22;0;1;10;20;14;24!\x1b[22;21;1;10;20;14;24!')
+                assert pixel(shown,317,143)==0xff0000
+                for y in range(19,24):
+                    for x in range(11,16):
+                        expected = 0x00ff11 if 12<=x<=14 and 20<=y<=22 else 0
+                        assert pixel(shown,x,y)==expected,(kick,encoding,x,y)
+                        assert pixel(shown,x,y,True)==expected,(kick,encoding,x,y,'alternate')
+                assert pixel(shown,639,199)==0x00ff11
+                probe(False)
+                indicator(False)
                 # Toggle while left is held; its disabled release must still
                 # synchronize button state for the next enabled press.
                 mouse(17, 19, 1)

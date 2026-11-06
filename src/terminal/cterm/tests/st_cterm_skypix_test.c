@@ -255,6 +255,75 @@ static void mouse_tests(st_cterm_t *terminal)
 	terminal->api_output = saved;
 	terminal->api_output_context = saved_context;
 }
+static void gadget_tests(st_cterm_t *t)
+{
+	struct mouse_output output = {0};
+	st_cterm_output_callback_t saved = t->api_output;
+	void *saved_context = t->api_output_context;
+	t->api_output = mouse_capture;
+	t->api_output_context = &output;
+	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
+		CHECK(st_cterm_set_encoding(t, utf8 ? ST_CTERM_ENCODING_UTF8
+			: ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437) == 0);
+		const char definition[] = "\x1b[22;1;65535;10;20;14;24!";
+		for (size_t split = 0; split <= strlen(definition); ++split) {
+			feed(t, "\f\x1b[15;3!");
+			size_t used;
+			CHECK(st_cterm_write(t, definition, split, &used) == 0 && used == split);
+			CHECK(st_cterm_write(t, definition + split, strlen(definition) - split, &used) == 0
+				&& used == strlen(definition) - split);
+			struct st_pixel_buffer *image = NULL;
+			const struct st_console_rect area = {9, 19, 7, 7};
+			CHECK(st_console_get_pixels(&image, t->screen.console, &area, false) == 0);
+			for (unsigned y = 0; y < 7; ++y)
+				for (unsigned x = 0; x < 7; ++x) {
+					unsigned expected = x >= 1 && x <= 5 && y >= 1 && y <= 5 ? 515 : 512;
+					CHECK(image->primary[y * 7 + x] == expected);
+					CHECK(image->alternate[y * 7 + x] == expected);
+				}
+			st_pixel_buffer_destroy(image);
+			const uint16_t expected[] = {65535, 10, 20, 14, 24};
+			CHECK(memcmp(t->skypix_engine->gadgets[0], expected, sizeof(expected)) == 0);
+		}
+		/* Both range endpoints are usable; every slot owns five wire words.
+		 * Replacing a record paints anew, without erasing its old pixels. */
+		for (unsigned slot = 1; slot <= 20; ++slot) {
+			char definition[80];
+			snprintf(definition, sizeof(definition), "\x1b[22;%u;%u;30;40;30;40!", slot, 100 + slot);
+			feed(t, definition);
+			CHECK(t->skypix_engine->gadgets[slot - 1][0] == 100 + slot);
+		}
+		uint16_t records[20][5];
+		memcpy(records, t->skypix_engine->gadgets, sizeof(records));
+		feed(t, "\x1b[15;4!\x1b[22;0;1;10;20;14;24!\x1b[22;21;1;10;20;14;24!"
+			"\x1b[22;65535;1;10;20;14;24!\x1b[22;1;1;10;20;14!"
+			"\x1b[22;1;1;10;20;14;24;99!");
+		CHECK(memcmp(records, t->skypix_engine->gadgets, sizeof(records)) == 0);
+		const struct st_console_rect retained = {10, 20, 1, 1};
+		struct st_pixel_buffer *image = NULL;
+		CHECK(st_console_get_pixels(&image, t->screen.console, &retained, false) == 0);
+		CHECK(image->primary[0] == 515 && image->alternate[0] == 515);
+		st_pixel_buffer_destroy(image);
+		image = NULL;
+		feed(t, "\x1b[15;3!\x1b[22;20;65537;65535;199;0;201!");
+		const uint16_t clipped[] = {1, 65535, 199, 0, 201};
+		CHECK(memcmp(t->skypix_engine->gadgets[19], clipped, sizeof(clipped)) == 0);
+		const struct st_console_rect bottom = {0, 198, 2, 2};
+		CHECK(st_console_get_pixels(&image, t->screen.console, &bottom, false) == 0);
+		CHECK(image->primary[0] == 512 && image->primary[2] == 515 && image->primary[3] == 512);
+		st_pixel_buffer_destroy(image);
+		/* Clear/font/palette changes do not discard retained records. */
+		feed(t, "\f\x1b[10;0!\x1b[12!");
+		CHECK(memcmp(t->skypix_engine->gadgets[19], clipped, sizeof(clipped)) == 0);
+		CHECK(output.size == 0);
+		CHECK(st_cterm_reset_terminal(t) == 0);
+		const uint16_t empty[20][5] = {{0}};
+		CHECK(memcmp(t->skypix_engine->gadgets, empty, sizeof(empty)) == 0);
+	}
+	CHECK(st_cterm_set_encoding(t, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
+	t->api_output = saved;
+	t->api_output_context = saved_context;
+}
 static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 {
 	st_console_t *console = NULL;
@@ -286,6 +355,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(st_cterm_state(t, &state) == 0 && state.skypix && state.graphics_mode == graphics);
 	CHECK(t->rip_engine == NULL && t->skypix_engine != NULL);
 	mouse_tests(t);
+	gadget_tests(t);
 	CHECK(st_cterm_resize(t, 100, geometry.rows) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows + 1) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows) == 0);

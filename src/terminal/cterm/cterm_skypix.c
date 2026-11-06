@@ -286,8 +286,20 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 	int v[17];
 	for (size_t i = 0; i < count; ++i)
 		v[i] = cterm_skypix_word(p[i]);
-	if (op == 0 || op == 9 || op == 21 || op == 22)
+	if (op == 0 || op == 9 || op == 21)
 		return 0;
+	if (op == 22) {
+		if (count != 7 || p[1] == 0 || p[1] > CTERM_SKYPIX_GADGET_COUNT)
+			return 0;
+		/* JR-Comm retains five wire words, then uses ordinary RectFill.
+		 * Click reporting does not look up or execute these records. */
+		for (size_t i = 0; i < 5; ++i)
+			s->gadgets[p[1] - 1][i] = (uint16_t)p[i + 2];
+		for (size_t i = 1; i <= 4; ++i)
+			v[i] = v[i + 2];
+		op = 4;
+		count = 5;
+	}
 	if (op == 10 && count == 2)
 		return set_font(s, p[1], text, size);
 	if (op == 11 && count == 17) {
@@ -488,6 +500,7 @@ int cterm_skypix_finish(struct cterm_skypix *s)
 int cterm_skypix_reset(struct cterm_skypix *s)
 {
 	memset(&s->parser, 0, sizeof(s->parser));
+	memset(s->gadgets, 0, sizeof(s->gadgets));
 	s->delay_until = 0;
 	s->receiving = false;
 	s->colours = 8;

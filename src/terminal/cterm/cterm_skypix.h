@@ -8,7 +8,7 @@
 #include "st_console.h"
 #include "st_pixels.h"
 #include "st_unicode_text.h"
-enum { CTERM_SKYPIX_PALETTE_FIRST = 512 };
+enum { CTERM_SKYPIX_PALETTE_FIRST = 512, CTERM_SKYPIX_GADGET_COUNT = 20 };
 struct cterminal;
 struct cterm_skypix {
 	struct cterminal *terminal;
@@ -30,6 +30,7 @@ struct cterm_skypix {
 	uint32_t cursor_colour;
 	bool cursor_on, cursor_hidden, cursor_blink;
 	uint16_t default_font;
+	uint16_t gadgets[CTERM_SKYPIX_GADGET_COUNT][5];
 	char warned[1024];
 };
 struct st_cterm_config;

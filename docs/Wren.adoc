@@ -5752,8 +5752,10 @@ from a remote command. RIP sessions do not interpret SkyPix commands.
 
 SkyPix brush and general-file downloads use CRC XMODEM and the active BBS's
 `skypix` cache subdirectory. Completed files are reused; partial or invalid
-brush downloads are discarded. They do not use RIP asset framing. Sound and
-interactive gadget commands remain unsupported. See
+brush downloads are discarded. They do not use RIP asset framing. Gadget command
+22 retains the definition in slot 1–20 and draws its foreground rectangle;
+clicks still report raw controller-1 pixel coordinates. Sound, controller-2 menu
+reports and local execution of stored gadget commands remain unsupported. See
 link:SKYPIX_CONFORMANCE.md[SkyPix conformance] for the precise supported subset.
 
 ==== Parity
