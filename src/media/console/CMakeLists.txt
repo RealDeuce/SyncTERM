@@ -235,6 +235,15 @@ int main(void)
 if(ST_CONSOLE_HAVE_CURSES_H)
 	syncterm_check_c17_source([=[
 #include <curses.h>
+int main(void)
+{
+	void (*set_timeout)(WINDOW *, int) = wtimeout;
+	set_timeout((WINDOW *)0, 10);
+	return 0;
+}
+]=] ST_CONSOLE_HAVE_CURSES_TIMEOUT)
+	syncterm_check_c17_source([=[
+#include <curses.h>
 #include <wchar.h>
 int main(void)
 {
@@ -255,6 +264,7 @@ int main(void)
 }
 ]=] ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR)
 else()
+	set(ST_CONSOLE_HAVE_CURSES_TIMEOUT 0)
 	set(ST_CONSOLE_HAVE_CURSES_WIDE 0)
 	set(ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR 0)
 endif()

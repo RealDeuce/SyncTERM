@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if ST_CONSOLE_HAVE_CURSES_H
+#if ST_CONSOLE_HAVE_CURSES_H && ST_CONSOLE_HAVE_CURSES_TIMEOUT
 	#include <curses.h>
 	/* X/Open curses uses short here. ncurses exposes macros for builds with
 	 * different parameter types; other implementations need not define them. */
@@ -51,7 +51,7 @@ struct curses_api {
 	int (*call_noecho)(void);
 	int (*call_nonl)(void);
 	int (*call_keypad)(WINDOW *, bool);
-	int (*call_nodelay)(WINDOW *, bool);
+	void (*call_timeout)(WINDOW *, int);
 	int (*call_scrollok)(WINDOW *, bool);
 	int (*call_cursor)(int);
 	bool (*call_has_colors)(void);
@@ -104,7 +104,7 @@ typedef int (*curses_call_raw_fn)(void);
 typedef int (*curses_call_noecho_fn)(void);
 typedef int (*curses_call_nonl_fn)(void);
 typedef int (*curses_call_keypad_fn)(WINDOW *, bool);
-typedef int (*curses_call_nodelay_fn)(WINDOW *, bool);
+typedef void (*curses_call_timeout_fn)(WINDOW *, int);
 typedef int (*curses_call_scrollok_fn)(WINDOW *, bool);
 typedef int (*curses_call_cursor_fn)(int);
 typedef bool (*curses_call_has_colors_fn)(void);
@@ -218,7 +218,7 @@ replace_window(struct curses_state *state, uint32_t columns, uint32_t rows)
 	if (window == NULL)
 		return IO_ERROR_OUT_OF_RANGE;
 	(void)state->api.call_keypad(window, true);
-	(void)state->api.call_nodelay(window, true);
+	state->api.call_timeout(window, 10);
 	(void)state->api.call_scrollok(window, false);
 	(void)state->api.call_erase(window);
 	(void)state->api.call_delwin(state->window);
@@ -1717,7 +1717,7 @@ load_required_api(struct curses_state *state)
 	    && LOAD_REQUIRED(state, call_noecho, "noecho")
 	    && LOAD_REQUIRED(state, call_nonl, "nonl")
 	    && LOAD_REQUIRED(state, call_keypad, "keypad")
-	    && LOAD_REQUIRED(state, call_nodelay, "nodelay")
+	    && LOAD_REQUIRED(state, call_timeout, "wtimeout")
 	    && LOAD_REQUIRED(state, call_scrollok, "scrollok")
 	    && LOAD_REQUIRED(state, call_cursor, "curs_set")
 	    && LOAD_REQUIRED(state, call_has_colors, "has_colors")
@@ -2026,7 +2026,9 @@ curses_init_inner(void *argument)
 		return IO_ERROR_NOT_SUPPORTED;
 	}
 	(void)state->api.call_keypad(state->window, true);
-	(void)state->api.call_nodelay(state->window, true);
+	/* A positive read timeout enables keypad-prefix expiry on curses
+	 * implementations whose nodelay mode retains a lone Escape forever. */
+	state->api.call_timeout(state->window, 10);
 	(void)state->api.call_scrollok(state->window, false);
 	state->colours = state->api.call_has_colors()
 	    && state->api.call_start_color() != ERR;

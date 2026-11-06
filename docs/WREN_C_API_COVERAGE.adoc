@@ -1565,3 +1565,39 @@ remain accounted for, with no native declaration/TSV changes. The original 51
 topics now have 21 resolved and 30 open; the separate documentation finding is
 resolved. Matrix reconciliation, coverage and diff checks pass. Retain the
 temporary approved-plan record and skill for remaining Plan-mode chunks.
+
+== CI regression follow-up: font generation, settings geometry and curses Escape
+
+Pipeline 12890 and the affected jobs in 12893 exposed UTF-8 font input read
+through Windows' CP1252 default, and a sixth Modern UI settings-category row
+drawn below the screen. The generator now selects UTF-8/LF explicitly. A forced
+CP1252/ASCII and Windows-newline regression covers every pinned font. Settings
+spacing fits all ten/eleven categories above the status bar at 80x25 and 72x24,
+including opening and returning from Amiga Font Management.
+
+NetBSD's curses jobs in 12890 also stalled on isolated Escape. Its
+https://github.com/NetBSD/src/blob/trunk/lib/libcurses/getch.c[keypad input code]
+uses +inkey(0, 0)+ for nodelay reads, retaining an unfinished prefix without
+expiry. A positive bounded +wtimeout+ enables native prefix expiry instead.
+The backend requires the declaration and dynamically loaded symbol, and applies
+the timeout to replacement windows too. Native PTY tests require standalone
+Escape without a following byte, a complete arrow sequence and Escape after
+resize; the existing real menu shortcut tests remain unchanged.
+
+FreeBSD Clang's complete CMake build and 321 scheduled CTests completed with
+320 passes, one native Wayland compositor skip and zero failures (292.71s).
+X11 used private Xvfb with inherited desktop variables cleared. The 22 focused
+font/Modern UI/curses/shortcut tests passed with Clang (16.55s), GCC (15.73s),
+minimal no-crypto/no-Unifont (16.24s), and ASan/UBSan (35.78s). FreeBSD leak
+detection remains disabled and the existing C++ vptr exclusion is unchanged.
+A forced absent-timeout build passed the headless console test and correctly
+skipped unavailable curses. Both MinGW architectures cross-built the application,
+DLL, launchers and Amiga font tests. Final generated font bytes match all six
+builds. No compiler warnings or sanitizer errors were introduced.
+
+Windows/MSVC and NetBSD runtime confirmation requires CI; neither was executed
+locally, and no Wine or audible-device verification is claimed. These fixes add
+no public native or Wren API and close no additional original finding. Inventory
+and dispositions remain 82 headers, 127 exclusions, 2,534 items, 160 assessments,
+21 resolved/30 open topics and the resolved separate documentation finding.
+Only affected, reviewed evidence was refreshed; coverage and diff checks pass.

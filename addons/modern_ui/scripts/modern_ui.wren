@@ -223,11 +223,15 @@ class ModernDirectory {
       widget.focusable = !_settingsPage
     }
     _list.focusable = !_settingsPage && _visible.count > 0
+    var columns = _contentW >= 48 ? 2 : 1
+    var rows = (_categories.count / columns).ceil
+    var top = h >= 25 ? 6 : 5
+    // Keep the final category above the status row as categories are added.
+    var pitch = ((h - top - 3) / (rows - 1).max(1)).floor.min(4)
     for (i in 0..._categories.count) {
-      var columns = _contentW >= 48 ? 2 : 1
       var width = ((_contentW - (columns - 1) * 2) / columns).floor
       _categories[i].bounds = Rect.new(_contentX + (i % columns) * (width + 2),
-          (h >= 25 ? 6 : 5) + (i / columns).floor * 4, width, 3)
+          top + (i / columns).floor * pitch, width, 3)
       _categories[i].visible = _settingsPage
       _categories[i].focusable = _settingsPage
     }

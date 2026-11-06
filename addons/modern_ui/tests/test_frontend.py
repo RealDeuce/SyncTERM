@@ -41,7 +41,7 @@ def capabilities(client):
 def settings_categories(client):
     _, encryption = capabilities(client)
     labels = ['Web Lists', 'Connection Defaults', 'Current Screen Mode',
-              'Font Management', 'Program Settings', 'Themes', 'File Locations',
+              'Font Management', 'Amiga Font Management', 'Program Settings', 'Themes', 'File Locations',
               'Build Options', 'Licenses']
     if encryption:
         labels.append('List Encryption')
@@ -290,20 +290,25 @@ def settings(executable, reports):
         click_text(client, frame, 'Settings')
         labels = settings_categories(client)
         last = len(labels) - 1
+        pitch = 3 if len(labels) > 10 else 4
         def painted_settings(frame):
             m = frame.metadata
-            corner = ((5 + last // 2 * 4) * m['cell_height'] * m['plane_width']
+            corner = ((5 + last // 2 * pitch) * m['cell_height'] * m['plane_width']
                       + (19 + last % 2 * 30) * m['cell_width'])
             return 'Choose a settings category' in frame.text and frame.primary[corner] == 0x80f1f5f9
         frame = client.wait_for(painted_settings)
         for index, label in enumerate(labels):
             assert label in frame.text
             row, col = divmod(index, 2)
-            button_geometry(frame, (20 + col * 30, 6 + row * 4, 28, 3),
+            button_geometry(frame, (20 + col * 30, 6 + row * pitch, 28, 3),
                             0xffffff if index == 0 else 0x2563eb)
         assert ('List Encryption' in frame.text) == ('List Encryption' in labels)
         reports.mkdir(parents=True, exist_ok=True)
         frame.save_image(reports / 'settings.ppm')
+        click_text(client, frame, 'Amiga Font Management')
+        frame = client.wait_text('Install a font family...')
+        client.key('escape')
+        frame = client.wait_text('Choose a settings category')
         click_text(client, frame, 'Program Settings')
         frame = client.wait_text('Prompt to Save')
         click_text(client, frame, 'Prompt to Save')
@@ -415,19 +420,21 @@ def recovery(executable, reports):
             click_text(client, frame, 'Settings')
             labels = settings_categories(client)
             last = len(labels) - 1
+            pitch = 3 if len(labels) > 10 else 4
             def painted(frame):
                 m = frame.metadata
-                corner = ((4 + last // 2 * 4) * m['cell_height'] * m['plane_width']
+                corner = ((4 + last // 2 * pitch) * m['cell_height'] * m['plane_width']
                           + (19 + last % 2 * 26) * m['cell_width'])
                 return 'Choose a settings category' in frame.lines[23] and frame.primary[corner] == 0x80f1f5f9
             frame = client.wait_for(painted)
             for index, label in enumerate(labels):
                 assert label in frame.text
                 row, col = divmod(index, 2)
-                button_geometry(frame, (20 + col * 26, 5 + row * 4, 24, 3),
+                button_geometry(frame, (20 + col * 26, 5 + row * pitch, 24, 3),
                                 0xffffff if index == 0 else 0x2563eb)
-            assert 'Licenses' in frame.lines[21]
-            assert ('List Encryption' in frame.lines[21]) == ('List Encryption' in labels)
+            # The final row remains fully above the status bar in either build.
+            final_label_row = 5 + last // 2 * pitch
+            assert final_label_row < 23 and labels[-1] in frame.lines[final_label_row]
 
 
 def web_list(executable, reports):

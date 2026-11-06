@@ -4477,12 +4477,12 @@
     {
       "path": "src/media/console/tests/st_console_ncurses_test.c",
       "anchor": "shortcuts[] = {6, 19, 4, 7, 17}",
-      "aspect": "Native curses PTY Control-letter identities in normal and CP437/C-locale configurations."
+      "aspect": "Native curses PTY Control-letter identities, standalone Escape expiry without a following byte, complete arrow sequences and Escape after resize/window replacement, in normal and CP437/C-locale configurations; shutdown joins after bounded reads."
     },
     {
       "path": "addons/modern_ui/tests/test_frontend.py",
       "anchor": "def directory(executable, reports):",
-      "aspect": "Installed external frontend with runtime Unifont/encryption capability probes; exact nine/ten-category geometry, width-matched ASCII wrapping without Unifont, retained supported Unicode/emoji coverage, persistence, recovery and web lists."
+      "aspect": "Installed external frontend with runtime Unifont/encryption capability probes; exact ten/eleven-category geometry above the status row, including opening/returning from Amiga Font Management; width-matched ASCII wrapping without Unifont, retained Unicode/emoji coverage, persistence, minimum-size recovery and web lists."
     },
     {
       "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
@@ -4787,6 +4787,11 @@
       "path": "src/scripting/wren_host/tests/st_wren_codepage_test.c",
       "anchor": "for (int cp = 0; cp < ST_CODEPAGE_COUNT; ++cp)",
       "aspect": "All 29 native codepage tables, both byte modes, all built-in flags, unavailable/replaced fonts, connected codepage/UTF-8 contexts and lifecycle cleanup"
+    },
+    {
+      "path": "src/media/amiga_font/tests/test_generate_fonts.py",
+      "anchor": "def test_legacy_text_defaults(self):",
+      "aspect": "Build all pinned font sources under forced CP1252/ASCII text defaults and Windows newline conversion; explicit UTF-8/LF generation is deterministic."
     }
   ],
   "dispatch_evidence": [
@@ -4960,10 +4965,10 @@
     "src/tests/st_menu_shortcuts_pty_test.py": "2900099be520a9f72c9de4df327415135995a4aa6a6552aa9eaa06c5badda49e",
     "src/media/console/tests/st_console_x11_test.c": "ce4616c2fe61664c496a297936b79cefba9a280aae1672a78ad9b90573d40a51",
     "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
-    "src/media/console/tests/st_console_ncurses_test.c": "41034f149b7ca1bae54a5479c0e199335f5b28ae8f43aff578c525df0611028e",
+    "src/media/console/tests/st_console_ncurses_test.c": "5c8420712738fbc2188191f0538b071246b09086ad1d409e130d4b8af85b9336",
     "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
-    "addons/modern_ui/scripts/modern_ui.wren": "3e0d8fc40a912bcca7293755474db6745036a7a418ec91a72eaf99ae972c8611",
-    "addons/modern_ui/tests/test_frontend.py": "0bd615d0d6a0236a9f4ab8cd099962b9fd97dd186362cc33741fd3b9d6b564fb",
+    "addons/modern_ui/scripts/modern_ui.wren": "775b847aff32d0d32e351519f0991738db0883085b2f949954fac59251feb670",
+    "addons/modern_ui/tests/test_frontend.py": "69c066524d11fa21a9880bd83c1c4e7cd46d29dbc3ecf5c47a3b9aab858c3153",
     "scripts/menu_scrollback.wren": "e6f4d278a863a7d6217a84d5fb48245f780ed61c89deaecbea87ef91e33923da",
     "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
     "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1daa1b6ac6180b49ab96a811c3571af23eb8a3109d14a026578efcdd8b7621cd",
@@ -5015,7 +5020,12 @@
     "src/tests/st_skypix_mouse_test.py": "8853a506f6a51c4fafaff67d541879a599566ff2022a2ac7a15140a11a0bb103",
     "src/tests/st_skypix_scrolling_test.py": "e52697663552fc200179e325a4e186b017c3e357b780f595e6d06c561dd58a75",
     "src/scripting/wren_host/tests/codepage.wren": "f84ab8430338bbc958570e3bfac9f3cd39d5c5b72308545ddc5d5637485da559",
-    "src/scripting/wren_host/tests/st_wren_codepage_test.c": "4e853c8355821fc9319269323531b21d367426c9b804ae920449fb6943244a04"
+    "src/scripting/wren_host/tests/st_wren_codepage_test.c": "4e853c8355821fc9319269323531b21d367426c9b804ae920449fb6943244a04",
+    "src/media/amiga_font/tests/test_generate_fonts.py": "94f79b10ef41dc2952490228afffca139d5ade1bbfbb5d35cf9c823259774e46",
+    "src/media/amiga_font/generate_fonts.py": "809e43b4d728e16d1677c0fdb1b043efe0f6c0a46abd6c5d7851dfca426fe62b",
+    "src/media/console/console_ncurses.c": "8325c060e22f6e22df5a4d7661df3f836993921036d6f8ccaf17774aeb03661a",
+    "src/media/console/console_config.h.in": "28ae120b9bcee1e97f87baa58981b6430c5307d04d9adfee8c510684c950ef60",
+    "src/media/console/CMakeLists.txt": "b8fc7dbb900fb3221ac69cf9d2906c40d01bbd4eb9429cb6824eba8737f16fb6"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -6641,6 +6651,50 @@
         "cross": "MinGW x86/x86_64 application/DLL and affected tests configured/cross-built, including final expanded fixture. No Windows runtime, MSVC or Wine.",
         "diagnostics": "All final build logs have no warnings or errors. Headless fixtures clear DISPLAY, WAYLAND_DISPLAY, XAUTHORITY and XDG_RUNTIME_DIR.",
         "accounting": "82 headers, 127 exclusions, 2534 items, 160 assessments, 51 topics unchanged. Both findings resolved; 21 topics resolved/30 open; separate documentation finding resolved. Only reviewed affected evidence hashes refreshed."
+      }
+    },
+    {
+      "topic": "ci-12890-12893-regressions",
+      "status": "resolved",
+      "request": "User requested fixing the red CI pipeline after chunk 18.",
+      "scope": "Fix explicit UTF-8 input and UTF-8/LF output in the pinned Amiga font generator; fit all ten/eleven Modern UI settings categories above the status row; use bounded positive curses wtimeout so incomplete keypad prefixes expire, including after window replacement. No public C/Wren API changes, native inventory changes or additional original finding closures.",
+      "evidence": "Windows jobs fail with CP1252 UnicodeDecodeError at font source byte 0x81; Modern UI settings/recovery/web-list failures reproduce locally. NetBSD 12890 curses menu jobs stall at lone Escape; NetBSD getch.c revision 1.79 uses inkey(0,0) for nodelay keypad input, disabling prefix expiry. Positive timeout uses native expiry; no OS-specific branch is added.",
+      "source": "https://github.com/NetBSD/src/blob/trunk/lib/libcurses/getch.c",
+      "tests_passed": [
+        "amiga_font",
+        "amiga_font_generator",
+        "amiga_font_transactions",
+        "modern_ui_connection",
+        "modern_ui_directory",
+        "modern_ui_installer",
+        "modern_ui_recovery",
+        "modern_ui_settings",
+        "modern_ui_web_list",
+        "st_console_ncurses",
+        "st_console_ncurses_capture",
+        "st_console_ncurses_cp437",
+        "st_console_ncurses_cp437_c_locale",
+        "st_console_ncurses_direct",
+        "st_console_ncurses_direct_cp437",
+        "st_console_ncurses_opaque",
+        "st_console_ncurses_rgb",
+        "syncterm_menu_shortcuts_pty_a",
+        "syncterm_menu_shortcuts_pty_ac",
+        "syncterm_menu_shortcuts_pty_c",
+        "syncterm_menu_shortcuts_pty_f",
+        "syncterm_menu_shortcuts_pty_i"
+      ],
+      "verification": {
+        "native_full": "FreeBSD Clang complete CMake build; 321 scheduled CTests, 320 passed, st_console_wayland skipped (no native compositor), zero failures, 292.71s. X11 used private Xvfb after clearing inherited desktop variables.",
+        "native_focused": "Clang Debug 22 focused font/Modern UI/curses/shortcut tests passed (16.55s). Native PTY checks include lone Escape before/after resize, arrow sequences and shutdown; real menu shortcut tests unchanged.",
+        "gcc": "GCC application and affected targets configured/built; all 22 focused tests passed (15.73s).",
+        "minimal": "No-crypto/no-Unifont application and affected targets configured/built; all 22 focused tests passed (16.24s), including ten-category settings layouts.",
+        "sanitizers": "Clang ASan/UBSan application and affected targets configured/built; all 22 focused tests passed (35.78s). FreeBSD leak detection unsupported and disabled; existing C++ vptr exclusion retained.",
+        "absent_capability": "Native forced ST_CONSOLE_HAVE_CURSES_TIMEOUT=0 configured/built console and curses test targets. Headless console passed and unavailable curses skipped (0.31s).",
+        "cross": "MinGW x86/x86_64 application/DLL/both launchers and Amiga font tests configured/cross-built. Final generated font source matches all six configurations, SHA-256 8dfd9346ca1924e08d27e98314f6f7b2c6295e8c6201ecb360e33220e168b5ea.",
+        "generator": "New forced CP1252/ASCII regression failed at the original UTF-8 decoding boundary before the fix; final UTF-8/LF generator passes with both legacy encodings and Windows newline defaults. Uses existing Path.open API without a new Python minimum.",
+        "diagnostics": "Final native, GCC, sanitizer, minimal, absent-capability and cross-build logs contain no compiler warnings or errors.",
+        "limitations": "No local native NetBSD, Windows/MSVC, Wine, native Wayland compositor or audible-device run. Remote CI confirmation requires publishing the fix; no push is authorized."
       }
     }
   ]

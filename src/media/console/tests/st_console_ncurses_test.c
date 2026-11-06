@@ -387,6 +387,24 @@ child_test(int report, bool cp437)
 		}
 	}
 	child_result(report, 'h');
+	/* Escape must complete without another byte arriving to disambiguate it.
+	 * Nonblocking keypad reads do not guarantee that on every curses. */
+	deadline_after(&deadline, 5);
+	status = st_console_event_timedwait(console, &event, &deadline);
+	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
+	    || event.data.key.code != 27 || event.data.key.modifiers != 0) {
+		child_result(report, 'X');
+		_exit(1);
+	}
+	child_result(report, 'e');
+	deadline_after(&deadline, 5);
+	status = st_console_event_timedwait(console, &event, &deadline);
+	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
+	    || event.data.key.code != ST_CONSOLE_KEY_UP) {
+		child_result(report, 'U');
+		_exit(1);
+	}
+	child_result(report, 'u');
 	{
 		const char text[] = "REPAINT";
 		const struct st_console_rect rectangle = {0, 1, 7, 1};
@@ -434,7 +452,15 @@ child_test(int report, bool cp437)
 	do {
 		status = st_console_event_timedwait(console, &event, &deadline);
 	} while (status == 0 && event.type != ST_CONSOLE_EVENT_KEY_CODE);
-	if (status != 0 || event.data.key.code != 13) {
+	if (status != 0 || event.data.key.code != 27) {
+		child_result(report, 'X');
+		_exit(1);
+	}
+	child_result(report, 'e');
+	deadline_after(&deadline, 5);
+	status = st_console_event_timedwait(console, &event, &deadline);
+	if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
+	    || event.data.key.code != 13) {
 		child_result(report, 'I');
 		_exit(1);
 	}
@@ -589,6 +615,11 @@ main(int argc, char **argv)
 	    || write(master, "\006\023\004\007\021", 5) != 5
 	    || wait_report(report[0], master, 'h') != 0)
 		goto failed;
+	if (write(master, "\033", 1) != 1
+	    || wait_report(report[0], master, 'e') != 0
+	    || write(master, "\033OA", 3) != 3
+	    || wait_report(report[0], master, 'u') != 0)
+		goto failed;
 	if (wait_report(report[0], master, 'O') != 0)
 		goto failed;
 	if ((!direct_colour
@@ -616,6 +647,8 @@ main(int argc, char **argv)
 	    || wait_report(report[0], master, 'Z') != 0)
 		goto failed;
 	if (!wait_for_output(master, "REPAINT", 4096, 5000)
+	    || write(master, "\033", 1) != 1
+	    || wait_report(report[0], master, 'e') != 0
 	    || write(master, "\r", 1) != 1
 	    || wait_report(report[0], master, 'F') != 0)
 		goto failed;

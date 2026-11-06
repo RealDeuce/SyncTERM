@@ -14,7 +14,7 @@ def read_font(path):
         if labels:
             glyphs.append((labels, rows, props))
         labels, rows, props = [], [], {}
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding='utf-8').splitlines():
         if not line or line.lstrip().startswith('#'):
             continue
         if not line[0].isspace():
@@ -74,11 +74,12 @@ def compile_font(entry, directory, index):
 
 def main():
     manifest, output = map(Path, sys.argv[1:])
-    fonts=json.loads(manifest.read_text())['fonts']
+    fonts=json.loads(manifest.read_text(encoding='utf-8'))['fonts']
     text='/* Generated from pinned bitmap sources; do not edit. */\n#include "amiga_font_internal.h"\n'
     for index, entry in enumerate(fonts): text+=compile_font(entry, manifest.parent, index)
     text+='const struct st_amiga_builtin st_amiga_builtins[] = {\n'
     for index, entry in enumerate(fonts): text+='{'+json.dumps(entry['name'])+f', &font_{index}'+'},\n'
     text+='};\nconst size_t st_amiga_builtins_count = sizeof(st_amiga_builtins)/sizeof(st_amiga_builtins[0]);\n'
-    output.write_text(text)
+    with output.open('w', encoding='utf-8', newline='\n') as stream:
+        stream.write(text)
 if __name__=='__main__': main()

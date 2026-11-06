@@ -39,6 +39,8 @@ else()
 	target_compile_options(st_amiga_font PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 if(BUILD_TESTING)
+	add_test(NAME amiga_font_generator COMMAND Python3::Interpreter
+		"${CMAKE_CURRENT_SOURCE_DIR}/tests/test_generate_fonts.py")
 	add_executable(st_amiga_font_test tests/st_amiga_font_test.c)
 	target_link_libraries(st_amiga_font_test PRIVATE st_amiga_font syncterm_io_error syncterm_filesystem syncterm_path)
 	target_compile_definitions(st_amiga_font_test PRIVATE ST_AMIGA_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/test")
