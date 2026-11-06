@@ -6,6 +6,7 @@
 #include "st_builtin_fonts.h"
 #include "st_cterm.h"
 #include "st_session_history.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -81,6 +82,88 @@ static void feed(st_cterm_t *t, const char *text)
 	size_t used;
 	CHECK(st_cterm_write(t, text, strlen(text), &used) == 0 && used == strlen(text));
 }
+struct mouse_output {
+	uint8_t bytes[128];
+	size_t size;
+	enum st_cterm_output_origin origin;
+};
+static void mouse_capture(void *context, enum st_cterm_output_origin origin,
+	const uint8_t *bytes, size_t size)
+{
+	struct mouse_output *output = context;
+	CHECK(size <= sizeof(output->bytes) - output->size);
+	memcpy(output->bytes + output->size, bytes, size);
+	output->size += size;
+	output->origin = origin;
+}
+static void mouse_tests(st_cterm_t *terminal)
+{
+	struct mouse_output output = {0};
+	st_cterm_output_callback_t saved = terminal->api_output;
+	void *saved_context = terminal->api_output_context;
+	terminal->api_output = mouse_capture;
+	terminal->api_output_context = &output;
+	CHECK(st_cterm_mouse_mode(terminal) == 2);
+	struct st_console_event event = {.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {.x = 39, .y = 17, .pixel_x = 317, .pixel_y = 143,
+			.action = ST_CONSOLE_MOUSE_BUTTON, .buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT}};
+	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
+		CHECK(st_cterm_set_encoding(terminal, utf8 ? ST_CTERM_ENCODING_UTF8 :
+			ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
+		/* No enable/gadget command. ANSI mouse modes must not change
+		 * SkyPix's unsolicited, raw-pixel controller-1 report. */
+		feed(terminal, "\x1b[?1000h\x1b[?1006h\x1b[?1016h");
+		CHECK(st_cterm_mouse_mode(terminal) == 2 && !st_cterm_mouse_sgr_pixels(terminal));
+		st_cterm_sync_mouse_buttons(terminal, 0);
+		output.size = 0;
+		CHECK(st_cterm_handle_mouse(terminal, &event));
+		const char report[] = "\x1b[21;1;317;143!";
+		CHECK(output.origin == ST_CTERM_OUTPUT_USER && output.size == sizeof(report) - 1 &&
+			memcmp(output.bytes, report, output.size) == 0);
+		output.size = 0;
+		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		event.data.mouse.action = ST_CONSOLE_MOUSE_MOVE;
+		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		event.data.mouse.action = ST_CONSOLE_MOUSE_WHEEL;
+		event.data.mouse.wheel_y = 1;
+		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		event.data.mouse.action = ST_CONSOLE_MOUSE_BUTTON;
+		event.data.mouse.buttons = 0;
+		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		for (uint32_t button = ST_CONSOLE_MOUSE_BUTTON_MIDDLE;
+			button <= ST_CONSOLE_MOUSE_BUTTON_RIGHT; button <<= 1) {
+			event.data.mouse.buttons = button;
+			CHECK(!st_cterm_handle_mouse(terminal, &event));
+		}
+		CHECK(output.size == 0);
+		event.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
+		const int32_t positions[][2] = {{-1, 143}, {317, -1}, {640, 143}, {317, 200}};
+		for (size_t i = 0; i < sizeof(positions) / sizeof(positions[0]); ++i) {
+			st_cterm_sync_mouse_buttons(terminal, 0);
+			event.data.mouse.pixel_x = positions[i][0];
+			event.data.mouse.pixel_y = positions[i][1];
+			CHECK(!st_cterm_handle_mouse(terminal, &event) && output.size == 0);
+		}
+		st_cterm_sync_mouse_buttons(terminal, 0);
+		event.data.mouse.pixel_x = 0;
+		event.data.mouse.pixel_y = 0;
+		CHECK(st_cterm_handle_mouse(terminal, &event));
+		CHECK(output.size == 11 && memcmp(output.bytes, "\x1b[21;1;0;0!", 11) == 0);
+		st_cterm_sync_mouse_buttons(terminal, 0);
+		output.size = 0;
+		event.data.mouse.pixel_x = 639;
+		event.data.mouse.pixel_y = 199;
+		CHECK(st_cterm_handle_mouse(terminal, &event));
+		CHECK(output.size == sizeof(report) - 1 && memcmp(output.bytes, "\x1b[21;1;639;199!", output.size) == 0);
+		event.data.mouse.pixel_x = 317;
+		event.data.mouse.pixel_y = 143;
+		feed(terminal, "\x1b[?1000l\x1b[?1006l\x1b[?1016l");
+	}
+	CHECK(st_cterm_reset_terminal(terminal) == 0 && st_cterm_mouse_mode(terminal) == 2);
+	CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
+	terminal->api_output = saved;
+	terminal->api_output_context = saved_context;
+}
 static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 {
 	st_console_t *console = NULL;
@@ -111,6 +194,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	struct st_cterm_state state;
 	CHECK(st_cterm_state(t, &state) == 0 && state.skypix && state.graphics_mode == graphics);
 	CHECK(t->rip_engine == NULL && t->skypix_engine != NULL);
+	mouse_tests(t);
 	CHECK(st_cterm_resize(t, 100, geometry.rows) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows + 1) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows) == 0);

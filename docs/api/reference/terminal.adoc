@@ -175,6 +175,8 @@ bool st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint);
 bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);
 bool st_cterm_handle_physical_keys(st_cterm_t *terminal,
     const struct st_console_event *events, size_t count);
+int st_cterm_mouse_mode(const st_cterm_t *terminal);
+bool st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal);
 bool st_cterm_handle_mouse(st_cterm_t *terminal,
     const struct st_console_event *event);
 bool st_cterm_handle_focus(st_cterm_t *terminal, bool focused);
@@ -273,11 +275,24 @@ must still be sent by the caller through the session's text-output path.
 | Requires every counted event to be PHYSICAL_KEY.  Updates key-event mode and
 returns whether CTerm handled the batch.  The event array is borrowed.
 
+| st_cterm_mouse_mode(terminal), st_cterm_mouse_sgr_pixels(terminal)
+| Effective protocol: 0 off, 1 RIP, 2 SkyPix, 9 X10, 1000/1002/1003 XTerm.
+SkyPix is always available in its selected emulation. Its own wire format
+supersedes ANSI tracking requests and the SGR-pixels getter returns false.
+
 | st_cterm_handle_mouse(terminal, event)
 | Requires one MOUSE event.  Applies DEC 9/1000/1002/1003 and encoding modes
 1005/1006/1015/1016. With RIP enabled, it also handles mouse regions,
 buttons, and click queries in the RIP pixel canvas. Returns true when the
 event is consumed or a report, RIP command, or alternate-scroll key emits.
+SkyPix instead emits the ASCII user-lane report `ESC[21;1;x;y!` on a new left
+press inside its exact pixel canvas; no newline or cell-coordinate fallback.
+Releases, motion, wheels and other buttons do not emit SkyPix reports.
+The session's mouse-disabled gate and local UI consumption precede dispatch.
+
+| st_cterm_sync_mouse_buttons(terminal, buttons)
+| Retain current button state for a locally consumed or disabled event without
+reporting; prevents a suppressed release from losing the next enabled press.
 
 | st_cterm_handle_focus(terminal, focused)
 | Emits DEC focus-in/out only while mode 1004 is enabled; return reports emit.

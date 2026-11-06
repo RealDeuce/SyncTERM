@@ -28,6 +28,7 @@
 #include "st_threads.h"
 
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -3222,6 +3223,8 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 
 	if (terminal == NULL)
 		return 0;
+	if (terminal->skypix_engine != NULL)
+		return 2;
 	if (terminal->rip_engine != NULL
 	    && (terminal->rip_engine->mouse_fields != NULL
 	    || terminal->rip_engine->text_click != NULL
@@ -3238,7 +3241,7 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 bool
 st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal)
 {
-	return terminal != NULL
+	return terminal != NULL && terminal->skypix_engine == NULL
 	    && (terminal->api_mouse_modes & MOUSE_SGR_PIXELS) != 0;
 }
 
@@ -3994,6 +3997,24 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 	modes = terminal->api_mouse_modes;
 	changed = terminal->api_mouse_buttons ^ event->data.mouse.buttons;
 	terminal->api_mouse_buttons = event->data.mouse.buttons;
+	if (terminal->skypix_engine != NULL) {
+		const struct cterm_skypix *sky = terminal->skypix_engine;
+		/* JR-Comm reports SELECTDOWN in raw canvas pixels, independent
+		 * of host tracking modes or gadget definitions. Never approximate
+		 * an unavailable pixel position with a font-dependent cell. */
+		if (event->data.mouse.action != ST_CONSOLE_MOUSE_BUTTON ||
+			(changed & event->data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0 ||
+			event->data.mouse.pixel_x < 0 || event->data.mouse.pixel_y < 0 ||
+			(uint32_t)event->data.mouse.pixel_x >= sky->width ||
+			(uint32_t)event->data.mouse.pixel_y >= sky->height)
+			return false;
+		length = snprintf(sequence, sizeof(sequence), "\x1b[21;1;%" PRId32 ";%" PRId32 "!",
+			event->data.mouse.pixel_x, event->data.mouse.pixel_y);
+		if (length <= 0 || (size_t)length >= sizeof(sequence))
+			return false;
+		emit_user(sequence, (size_t)length, terminal);
+		return true;
+	}
 	if (rip_handle_mouse(terminal, event, changed))
 		return true;
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) {

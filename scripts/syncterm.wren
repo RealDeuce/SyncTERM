@@ -1284,6 +1284,7 @@ class CTerm {
   // Select 0 (off) through Host.maxOOIIMode. Integers are clamped, and
   // changing modes discards a partial command. Audio opens lazily for SFX.
   foreign static ooiiMode=(n)
+  // Effective protocol: 0 off, 1 RIP, 2 SkyPix, 9 X10, 1000/1002/1003 XTerm.
   foreign static mouseMode
   foreign static mouseSgrPixels
   foreign static mouseDisabled

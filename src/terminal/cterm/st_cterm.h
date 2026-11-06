@@ -322,6 +322,7 @@ void st_cterm_set_doorway_mode(st_cterm_t *terminal, bool enabled);
 int st_cterm_music_mode(const st_cterm_t *terminal);
 void st_cterm_set_music_mode(st_cterm_t *terminal, int mode);
 bool st_cterm_atascii_inverse(const st_cterm_t *terminal);
+/* Effective protocol: 0 off, 1 RIP, 2 SkyPix, 9 X10, 1000/1002/1003 XTerm. */
 int st_cterm_mouse_mode(const st_cterm_t *terminal);
 bool st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal);
 bool st_cterm_bracketed_paste(const st_cterm_t *terminal);
@@ -365,7 +366,7 @@ bool st_cterm_handle_physical_keys(st_cterm_t *terminal,
 	const struct st_console_event *events, size_t count);
 bool st_cterm_handle_mouse(st_cterm_t *terminal,
 	const struct st_console_event *event);
-/* A local selection consumed a button event before CTerm could see it. */
+/* Synchronize a locally handled or disabled button event without reporting. */
 void st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons);
 bool st_cterm_handle_focus(st_cterm_t *terminal, bool focused);
 

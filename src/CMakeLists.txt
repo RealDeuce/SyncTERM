@@ -171,6 +171,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_graphics_scrollback PROPERTIES
 				TIMEOUT 180 LABELS "terminal;conformance;graphics;scrollback")
+			add_test(NAME syncterm_skypix_mouse
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_mouse_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_skypix_mouse PROPERTIES
+				TIMEOUT 180 LABELS "terminal;conformance;skypix;mouse")
 			add_test(NAME syncterm_skypix_conformance
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_conformance_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

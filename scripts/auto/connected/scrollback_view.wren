@@ -125,7 +125,7 @@ class ScrollbackView {
 
 Hook.onMouse(Mouse.wheelUpPress) {|event|
   var mode = CTerm.mouseMode
-  if (mode == 0 || mode == 1 || mode == 9) {
+  if (mode == 0 || mode == 1 || mode == 2 || mode == 9) {
     ScrollbackView.run()
     return true
   }

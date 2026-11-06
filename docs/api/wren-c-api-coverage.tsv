@@ -2201,23 +2201,23 @@ src/terminal/cterm/st_cterm.h	function:st_cterm_set_doorway_mode	321	void (st_ct
 src/terminal/cterm/st_cterm.h	function:st_cterm_music_mode	322	int (const st_cterm_t *)	cterm.state
 src/terminal/cterm/st_cterm.h	function:st_cterm_set_music_mode	323	void (st_cterm_t *, int)	cterm.state
 src/terminal/cterm/st_cterm.h	function:st_cterm_atascii_inverse	324	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_mode	325	int (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_sgr_pixels	326	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_bracketed_paste	327	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_encoding	328	int (st_cterm_t *, enum st_cterm_encoding, enum st_codepage)	cterm.encoding-control
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history	336	int (st_cterm_t *, struct st_console_cell **, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history_pixels	340	int (st_cterm_t *, size_t, struct st_pixel_buffer **)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	344	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	346	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	353	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	358	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	360	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	362	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	363	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	364	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	366	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	369	void (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	370	bool (st_cterm_t *, bool)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_mode	326	int (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_sgr_pixels	327	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_bracketed_paste	328	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_encoding	329	int (st_cterm_t *, enum st_cterm_encoding, enum st_codepage)	cterm.encoding-control
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history	337	int (st_cterm_t *, struct st_console_cell **, uint32_t *, size_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history_pixels	341	int (st_cterm_t *, size_t, struct st_pixel_buffer **)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	345	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	347	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	354	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	359	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	361	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	363	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	364	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	365	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	367	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	370	void (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	371	bool (st_cterm_t *, bool)	cterm.owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_mark_fn	17	int (*)(void *, uint16_t)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_root_fn	18	int (*)(void *, st_hyperlink_mark_fn, void *)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	field:st_hyperlink.uri	22	char *	hyperlinks.registry

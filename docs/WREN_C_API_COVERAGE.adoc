@@ -1495,3 +1495,21 @@ The two native overlay set/get operations and eight data items belong to
 script cursor construction/editing features. Accounting is 82 public headers,
 127 exclusions, 2,534 items and 160 assessments. The original 51 topics remain
 19 resolved/32 open; temporary burndown records and skill remain.
+
+
+== User-directed SkyPix mouse reporting
+
+The native effective mouse protocol now distinguishes SkyPix as mode 2. It
+uses the verified JR-Comm controller-1 format on left-button down, independent
+of a host enable command or gadget definition. Native zero-based pixels are
+reported exactly; cell-only coordinates, status/padding, other buttons,
+movement and release do not report. SkyPix does not fall through to RIP or
+XTerm mouse formatting. The existing session gate, Alt/Command-O, online-menu
+choice and bright/dim M apply. Locally consumed/disabled events retain button
+synchronization; the local wheel-up scrollback action includes mode 2.
+
+No native declaration was added: all 82 headers, 127 exclusions, 2,534 items
+and 160 assessments remain accounted for. Existing +cterm.state+,
++cterm.owner+ and +term.controls+ mappings describe the new engine behaviour.
+Original finding dispositions remain 19 resolved/32 open; this direct feature
+request does not close an unrelated original topic.

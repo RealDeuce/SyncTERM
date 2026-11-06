@@ -13,6 +13,13 @@ must retain literal primary/alternate raster colours;
 native SkyPix tests inject deterministic blink callbacks. It is separate from the ANSI
 CP437/UTF-8 inventory below and from the historical RIP captures.
 
+`syncterm_skypix_mouse` checks the documented literal controller-1 bytes,
+native zero-based pixels at sub-cell positions and scaled drawable mapping,
+with both variants/encodings/status choices. It checks bright/dim M, the
+Alt/Command-O and online-menu gates, disabled button-state recovery, UI/status
+exclusion, reset, and local wheel scrollback. Native tests cover invalid/missing
+pixel coordinates, boundaries and ANSI mouse requests during SkyPix.
+
 `syncterm_graphics_scrollback` checks the shared history path in ordinary ANSI,
 RIP v1/v3 and both SkyPix variants, with status on/off and CP437/UTF-8 where
 applicable. Literal coloured rectangles and two blink planes survive live

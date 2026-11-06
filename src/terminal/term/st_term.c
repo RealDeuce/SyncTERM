@@ -962,6 +962,8 @@ handle_event(st_term_session_t *session,
 	case ST_CONSOLE_EVENT_MOUSE:
 		if (!session->mouse_disabled)
 			(void)st_cterm_handle_mouse(session->cterm, event);
+		else
+			st_cterm_sync_mouse_buttons(session->cterm, event->data.mouse.buttons);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_FOCUS:
 		(void)st_cterm_handle_focus(session->cterm,

@@ -1610,3 +1610,33 @@ execution, Wine or local MSVC validation. No final warnings/sanitizer reports.
 Inventory/checker and all 82 matrix rows reconcile: 82 headers, 127 exclusions,
 2,534 native items and 160 assessments. The original 51 topics remain
 19 resolved/32 open; the temporary records and skill remain.
+
+
+== User-directed SkyPix mouse support
+
+The user supplied newly discovered JR-Comm mouse reporting and requested the
+existing M indicator/local toggle. SkyPix's effective mouse mode is now 2;
+native left-button-down events emit exact ASCII ESC[21;1;x;y! reports with
+zero-based canvas pixels. No host enable/gadget definition, cell-coordinate
+approximation or XTerm/RIP fallback. Other buttons, motion, release, local UI
+and status/padding do not report. Alt/Command-O and the online-menu mouse
+choice use the existing gate and bright/dim status M. Disabled releases still
+synchronize buttons; wheel-up opens local scrollback.
+
+Focused native tests and a separate control-bitmap fixture cover exact bytes,
+both variants/encodings/status choices, scaled drawable coordinates, invalid
+pixels and edges, ANSI-mode precedence, both toggles, local UI exclusion,
+button recovery and reset. Gadget/controller-2 activation remains unimplemented.
+
+Verification complete: Clang/Botan full build and 67 regression CTests passed
+(106.59s), including private-Xvfb X11 and SDL/internal-Wayland backend checks.
+Final native mouse/parser rerun passed. GCC/OpenSSL, ASan/UBSan/OpenSSL and
+no-crypto/no-Unifont full builds and five focused tests each passed across
+final runs. The modal fixture waits for cleanup before sending its probe key.
+FreeBSD leak detection is unsupported and disabled; the existing C++ vptr
+exclusion remains. MinGW x86/x86_64 full cross-builds passed; no Windows
+runtime, Wine, MSVC or physical Amiga validation. Final builds were clean.
+
+All 82 matrix rows and frozen evidence reconcile: 82 headers, 127 exclusions,
+2,534 native items and 160 assessments. Original dispositions remain
+19 resolved/32 open; temporary records and skill remain.
