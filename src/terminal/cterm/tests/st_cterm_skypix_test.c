@@ -82,6 +82,97 @@ static void feed(st_cterm_t *t, const char *text)
 	size_t used;
 	CHECK(st_cterm_write(t, text, strlen(text), &used) == 0 && used == strlen(text));
 }
+static void wrapping_tests(st_cterm_t *t)
+{
+	/* Literal results from JR-Comm's Diamond/20 position probes. Write
+	 * splits are not flushes; controls and explicit finish are flushes. */
+	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
+		CHECK(st_cterm_set_encoding(t, utf8 ? ST_CTERM_ENCODING_UTF8
+			: ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437) == 0);
+		feed(t, "\x1b[10;20!Diamond.font!\x1b[?7h");
+		char run[41];
+		memset(run, 'i', 33);
+		run[33] = 0;
+		for (size_t split = 0; split <= 33; ++split) {
+			feed(t, "\f");
+			size_t used;
+			CHECK(st_cterm_write(t, run, split, &used) == 0 && used == split);
+			CHECK(st_cterm_write(t, run + split, 33 - split, &used) == 0 && used == 33 - split);
+			CHECK(st_cterm_finish(t) == 0);
+			CHECK(t->skypix_engine->x == 4 && t->skypix_engine->y == 15);
+		}
+		memset(run, 'W', 40);
+		run[32] = 0;
+		feed(t, "\f\x1b[19;100;40!");
+		feed(t, run);
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(t->skypix_engine->x == 740 && t->skypix_engine->y == 40);
+		run[32] = 'W';
+		run[40] = 0;
+		feed(t, "\f\x1b[19;0;40!");
+		feed(t, run);
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 60);
+		feed(t, "\f\x1b[19;0;40!");
+		for (unsigned i = 0; i < 40; ++i) {
+			feed(t, "W");
+			CHECK(st_cterm_finish(t) == 0);
+		}
+		CHECK(t->skypix_engine->x == 800 && t->skypix_engine->y == 40);
+		feed(t, "\f\x1b[19;0;40!\x1b[?7l");
+		run[33] = 0;
+		feed(t, run);
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(t->skypix_engine->x == 640 && t->skypix_engine->y == 40);
+		feed(t, "\x1b[?7h\f\x1b[19;32760;40!");
+		feed(t, run);
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(t->skypix_engine->x == -32116 && t->skypix_engine->y == 40);
+		/* Controls start a new forecast from the actual proportional X. */
+		feed(t, "\f");
+		memset(run, 'i', 32);
+		run[32] = 0;
+		feed(t, run);
+		feed(t, "\ri\nW");
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(t->skypix_engine->x == 24 && t->skypix_engine->y == 15);
+		if (utf8) {
+			/* Revising the final grapheme must not count as another
+			 * pending character or apply its wrap decision twice. */
+			feed(t, "\f");
+			feed(t, run);
+			feed(t, "\xcc\x81i");
+			CHECK(st_cterm_finish(t) == 0);
+			CHECK(t->skypix_engine->x == 4 && t->skypix_engine->y == 15);
+		}
+		/* H16:11a0 and H17:1c08/1ce0 erase a native-font strike at
+		 * baseline-ascent through baseline+descent, preserving position. */
+		for (unsigned mode = 0; mode <= 3; ++mode) {
+			feed(t, "\f\x1b[15;3!\x1b[18;0!\x1b[4;0;40;639;70!\x1b[19;100;40!");
+			char erase[16];
+			snprintf(erase, sizeof(erase), "\x1b[%uK", mode);
+			feed(t, erase);
+			CHECK(st_cterm_finish(t) == 0);
+			CHECK(t->skypix_engine->x == 100 && t->skypix_engine->y == 40);
+			struct st_pixel_buffer *pixels = NULL;
+			const struct st_console_rect rect = {0, 40, 640, 31};
+			CHECK(st_console_get_pixels(&pixels, t->screen.console, &rect, false) == 0);
+			for (unsigned y = 0; y < 31; ++y)
+				for (unsigned x = 0; x < 640; ++x) {
+					bool cleared = y >= 5 && y < 25 && (mode == 2 ||
+						(mode == 0 && x >= 100) || (mode == 1 && x < 120));
+					unsigned expected = cleared ? 512 : 515;
+					if (pixels->primary[y * 640 + x] != expected)
+						fprintf(stderr, "EL%u (%u,%u): %u, expected %u\n", mode, x, y + 40,
+							pixels->primary[y * 640 + x], expected);
+					CHECK(pixels->primary[y * 640 + x] == expected);
+					CHECK(pixels->alternate[y * 640 + x] == expected);
+				}
+			st_pixel_buffer_destroy(pixels);
+		}
+	}
+	CHECK(st_cterm_reset_terminal(t) == 0);
+}
 struct mouse_output {
 	uint8_t bytes[128];
 	size_t size;
@@ -332,6 +423,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(t->skypix_engine->x == 16 && t->skypix_engine->y == 59);
 	CHECK(st_cterm_finish(t) == 0);
 	uint32_t width, height;
+	wrapping_tests(t);
 	CHECK(st_console_pixel_size(console, &width, &height) == 0 && width == 640 &&
 		  height == (status_line ? 208u : 200u));
 	st_cterm_destroy(&t);

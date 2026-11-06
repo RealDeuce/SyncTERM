@@ -22,6 +22,8 @@ struct cterm_skypix {
 	struct st_console_rect undo_rect, pending_rect, undo_pending_rect;
 	uint8_t *pending, *undo_pending;
 	int x, y, pen_x, pen_y, undo_x, undo_y;
+	int text_forecast;
+	size_t text_count;
 	unsigned colours, brush_depth;
 	bool custom, positioned, receiving, kick13, presented;
 	uint64_t delay_until, cursor_deadline;
@@ -45,5 +47,6 @@ int cterm_skypix_poll(struct cterm_skypix *, uint64_t now);
 int cterm_skypix_present(struct cterm_skypix *, const struct st_unicode_presentation_event *,
 						 bool *);
 bool cterm_skypix_control(struct cterm_skypix *, uint8_t);
+bool cterm_skypix_erase_line(struct cterm_skypix *, unsigned);
 int cterm_skypix_receive(struct cterm_skypix *, const void *, size_t);
 #endif

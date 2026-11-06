@@ -360,6 +360,51 @@ Hook.onKey(Key.f8) {|event|
                     assert (m["cell_width"],m["cell_height"],m["columns"],m["rows"])==(8,8,80,25 if hide_status else 26),m
                     assert m["pixel_cursor_enabled"]==1,m
                     assert (m["pixel_cursor_x"],m["pixel_cursor_y"],m["pixel_cursor_width"],m["pixel_cursor_height"])==(x,y,width,1),m
+                def wrapped_narrow(shown):
+                    cursor(shown,2,35,16)
+                    # Literal Diamond/20 'i' strike, extracted from the native
+                    # file (SHA-256 96117752c5be1e3bf80921b88937c0374d658970a5d5ce08517f2f9a6c8e1356).
+                    # Width 3, advance 4, baseline 14: 32 glyphs on row one,
+                    # one on row two, despite ample unused canvas width.
+                    rows=(7,7,0,0,0,0,7,7,7,7,7,7,7,7,0,0,0,0,0,0)
+                    m=shown.metadata
+                    for y in range(40):
+                        for x in range(132):
+                            count=32 if y<20 else 1
+                            ink=x//4<count and x%4<3 and bool(rows[y%20]&(4>>(x%4)))
+                            index=(y+m["pixel_top"])*m["plane_width"]+x
+                            for plane in (shown.primary,shown.alternate):
+                                value=plane[index]
+                                value=(value if value&0x80000000 else shown.palette[value])&0xffffff
+                                assert value==(0xdddddd if ink else 0),(kick,encoding,x,y,value)
+                def backspace_space(shown, transparent):
+                    cursor(shown,6,15,16)
+                    # Literal W strike from the same native file. BS moves
+                    # twenty pixels; the blank space advances nine. JAM1
+                    # preserves it; our JAM2 background spans the full strike
+                    # height, rather than only one eight-pixel console row.
+                    rows=(460551,)*12+(462606,522744,0,0,0,0,0,0)
+                    m=shown.metadata
+                    for y,bits in enumerate(rows):
+                        for x in range(20):
+                            ink=x<19 and bool(bits&(1<<(18-x))) and (transparent or x>=9)
+                            index=(y+m["pixel_top"])*m["plane_width"]+x
+                            for plane in (shown.primary,shown.alternate):
+                                value=plane[index]
+                                value=(value if value&0x80000000 else shown.palette[value])&0xffffff
+                                assert value==(0xdddddd if ink else 0),(kick,encoding,transparent,x,y,value)
+                def tcsh_erase(shown):
+                    cursor(shown,0,15,14)
+                    m=shown.metadata
+                    # A clean tcsh PTY with TERM=ansi emits BS CSI K for
+                    # deletion. JR-Comm H17:1ce0 uses the whole font height.
+                    for y in range(20):
+                        for x in range(20):
+                            index=(y+m["pixel_top"])*m["plane_width"]+x
+                            for plane in (shown.primary,shown.alternate):
+                                value=plane[index]
+                                value=(value if value&0x80000000 else shown.palette[value])&0xffffff
+                                assert value==0,(kick,encoding,x,y,value)
                 # Literal JR-Comm position-probe expectations: baseline 14,
                 # i advances four pixels, W advances twenty; sprite X-2.
                 cursor(frame(b"\x1b[2J\x1b[H"),0,15,14)
@@ -373,9 +418,24 @@ Hook.onKey(Key.f8) {|event|
                 cursor(client.capture(),22,15,16)
                 cursor(frame(b"\n"),22,35,16)
                 cursor(frame(b"\r"),0,35,14)
+                backspace_space(frame(b"\fW\b "),False)
+                tcsh_erase(frame(b"\fW\b\x1b[K"))
                 cursor(frame(b"\x1b[19;101;40!"),98,60,16)
                 cursor(frame(b"\x1b[10;8!Pearl.font!"),98,48,8)
                 cursor(frame(b"\x1b[10;20!Diamond.font!\f"),0,15,14)
+                backspace_space(frame(b"W\b "),True)
+                tcsh_erase(frame(b"\fW\b\x1b[K"))
+                wrapped_narrow(frame(b"\f"+b"i"*33))
+                cursor(frame(b"\f"+b"W"*40),158,35,16)
+                cursor(frame(b"\f\x1b[?7l"+b"W"*33),638,15,2)
+                # A query flushes the run: the next byte starts a fresh
+                # nominal count from actual X=128, rather than wrapping.
+                cursor(frame(b"\x1b[?7h\f"+b"i"*32),126,15,16)
+                cursor(frame(b"i"),130,15,16)
+                # RIS restores the configured Diamond default, so this also
+                # exercises the initial/reset font rather than command 10.
+                wrapped_narrow(frame(b"\x1bc\f"+b"i"*33))
+                cursor(frame(b"\f"),0,15,14)
                 client.command_key(44)
                 menu=client.wait_text("SyncTERM Online Menu")
                 assert menu.metadata["cell_width"]==8 and menu.metadata["cell_height"]==8,menu.metadata

@@ -72,6 +72,8 @@ full-screen scrolling or establish physical sprite/timer behaviour.
 | Lines and ellipses | Directed line ties and signed-word arithmetic; Kick 1.3 32-bit versus Kick 3.1 64-bit ellipse recurrences; ordered ROM point vectors. Work is bounded for hostile overflow cycles outside the checked reference domain. |
 | Pens and fills | RGB4 palette, initial eight colours, point/line/rectangle/ellipse/flood operations and brush minterms. Command 3 uses flood mode 1 regardless of its mode argument; command 13 outlines then performs boundary flood. Command 17 resets pens/palette without changing depth. |
 | Font position controls | Native default home uses its baseline, retaining the complete strike. Command 19 uses its logical pixel anchor. Native-font CR retains Y; LF adds current height; BS subtracts nominal width without a zero clamp; HT uses eight nominal widths; VT is inert. Diamond/20 position-probe regressions and literal Ruby/12 accent rows are independent expectations. |
+| Native-font wrapping | JR-Comm's nominal forecast and pending-character count, rather than actual glyph fit. Diamond/20 wraps an uninterrupted 33-i run after 32, permits 32 W characters from X=100 to reach X=740, and distinguishes a buffered 40-W run from a flush after every character. Wrap-off uses the nominal last-column origin; forecasts use signed-word arithmetic. Controls, commands and explicit text finish flush the count; input splits and individual glyph commits do not. Both variants and CP437/UTF-8 are checked. |
+| Native-font erasure | ANSI EL0/1/2 use raw pixel X and the current font's ascent/descent, preserving position. The independent reference is `H16:11a0–11ca`, `H17:1c08–1dce` and geometry at `H17:0ba6–0bd0`: EL0 clears X to the canvas edge; EL1 clears through X+nominal-width-1; EL2 clears the whole strike row. Native tests check literal rectangle boundaries and both pixel planes; application tests check tcsh's BS CSI K sequence with Diamond/20. JAM2 spaces paint the full font-height background even when the compiled empty glyph has a one-row mask; named-font JAM1 spaces preserve pixels. Full proportional JAM2 horizontal-extent equivalence to Amiga ROMs remains unclaimed. |
 | Cursor | Separate RGB overlay, one scanline at baseline+1; X-2 with two-pixel quantization and nominal-width masks (8 pixels for width 8, otherwise 16) on the normal HIRES canvas. Negative/off-canvas portions clip without clamping the logical position. Clear/home, proportional advances, command 19 and font changes refresh it; brush/history captures exclude it. Native tests inject 185 ms callbacks for phase, hide/show and steady mode; refresh does not restart the timer. Palette loads do not recolour the captured cursor RGB. UI snapshots and CustomCursor preservation retain it. |
 | Fonts and text | Configured initial/reset Amiga strike (Pearl 8 by default); exact installed strike, exact compiled strike, then configured default for unavailable remote requests. Initial unavailable preferences fall back to Pearl 8; no strike stretching. Native baseline, signed kerning/spacing, monospaced centring and proportional advances. Font selection, including fallback, uses JAM1; reset uses JAM2. Kick 1.3 clips final overhang, which subsequent text can reveal; Kick 3.1 retains it. |
 | Mouse | Left-button-down sends the literal `ESC[21;1;x;y!` with native zero-based canvas pixels and no newline; independent of gadgets or host enable commands. Releases, other buttons, motion, status/padding and UI-handled events do not report. Local Alt/Command-O and the online menu gate forwarding; the normal status bar shows bright/dim M. Disabled events retain button synchronization; wheel-up opens local scrollback. Both variants/encodings/status choices and drawable scaling have independent application tests. |
@@ -92,11 +94,13 @@ memory corruption.
 ## Remaining text compatibility gaps
 
 The updated JR-Comm research describes behaviour beyond this checked subset:
-ANSI movement in eight-pixel steps with non-eight-pixel fonts, the exact
-receive-buffer forecast/count wrapping rule, and native font ascent/descent
-handling for full-screen margin scrolling after remote font changes. The
-current terminal still uses its screen-mode cell grid for ANSI positioning and
-ordinary wrapping. The software cursor implements the documented normal HIRES
+ANSI movement in eight-pixel steps with non-eight-pixel fonts and native font
+ascent/descent handling for full-screen margin scrolling after remote font
+changes. ANSI positioning still uses the screen-mode cell grid. The ordinary
+cell path for a fixed, grid-aligned default font retains cell-based wrapping;
+the native-font path uses the forecast/count rule above. Glyphs are painted
+eagerly; these tests establish semantic flush boundaries, not an Amiga serial
+arrival schedule. The software cursor implements the documented normal HIRES
 mapping, masks, colour isolation and a requested 185 ms phase interval; it is
 not an Amiga DMA/Copper/timer.device implementation. Other hardware display
 mappings and exact VBLANK/task scheduling remain outside these tests. Local UI

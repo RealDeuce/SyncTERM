@@ -265,6 +265,7 @@ static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *byte
 }
 static void text_boundary(struct cterm_skypix *s)
 {
+	s->text_count = 0;
 	free(s->pending);
 	s->pending = NULL;
 	free(s->undo_pending);
@@ -652,6 +653,38 @@ bool cterm_skypix_control(struct cterm_skypix *s, uint8_t byte)
 	s->presented = true;
 	return true;
 }
+bool cterm_skypix_erase_line(struct cterm_skypix *s, unsigned mode)
+{
+	if (!s->custom && !s->positioned && !s->native_default)
+		return false;
+	if (mode > 2)
+		return true;
+	/* H17:1c08/1ce0 use raw X, nominal width for EL1's inclusive end,
+	 * and the current font's ascent/descent for the vertical extent. */
+	int left = mode == 0 ? s->x : 0;
+	int right = mode == 1 ? s->x + (int)st_amiga_font_width(s->font) : (int)s->width;
+	int top = s->y + font_descent(s->font);
+	int bottom = top + (int)st_amiga_font_height(s->font);
+	if (left < 0) left = 0;
+	if (right > (int)s->width) right = (int)s->width;
+	if (top < 0) top = 0;
+	if (bottom > (int)s->height) bottom = (int)s->height;
+	text_boundary(s);
+	s->presented = true;
+	if (left >= right || top >= bottom)
+		return true;
+	struct st_pixel_buffer *image = NULL;
+	int status = st_pixel_buffer_create(&image, (uint32_t)(right - left),
+		(uint32_t)(bottom - top), false);
+	unsigned bg = CTERM_SKYPIX_PALETTE_FIRST + ((s->terminal->attr >> 4 & 15) & (s->colours - 1));
+	if (status == 0)
+		status = st_pixel_buffer_fill(image, bg, bg);
+	if (status == 0)
+		status = publish(s, image, left, top);
+	st_pixel_buffer_destroy(image);
+	cterm_render_record_error(s->terminal, status);
+	return true;
+}
 int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_presentation_event *event,
 						 bool *handled)
 {
@@ -682,14 +715,26 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	s->undo = NULL;
 	free(s->undo_pending);
 	s->undo_pending = NULL;
-	if (!s->custom && s->x >= (int)s->width && s->y + font_descent(s->default_data) >= 0 &&
-		s->y + font_descent(s->default_data) < (int)s->height) {
-		s->x = 0;
-		s->y += (int)s->cell_height;
-		if (s->y + font_descent(s->default_data) >= (int)s->height) {
-			cterm_scrollup(s->terminal);
-			s->y -= (int)s->cell_height;
+	if (event->kind != ST_UNICODE_PRESENTATION_REVISE) {
+		int width = (int)st_amiga_font_width(s->font);
+		size_t columns = s->width / (unsigned)width;
+		int right = cterm_skypix_word((unsigned)(((int)columns - 1) * width));
+		if (s->text_count == 0)
+			s->text_forecast = s->x;
+		/* JR-Comm forecasts nominal advances, but bypasses the right
+		 * limit for the first C pending characters. Painting eagerly must
+		 * not turn a glyph commit or an input split into a receive flush. */
+		if (s->text_count >= columns && s->text_forecast > right) {
+			if (s->terminal->extattr & CTERM_EXTATTR_AUTOWRAP) {
+				s->x = 0;
+				line_feed(s);
+			} else
+				s->x = right;
+			s->text_count = 0;
+			s->text_forecast = s->x;
 		}
+		++s->text_count;
+		s->text_forecast = cterm_skypix_word((unsigned)(s->text_forecast + width));
 	}
 	uint32_t codepoint;
 	size_t consumed;
@@ -703,10 +748,18 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	int left = s->x + glyph.bearing, top = s->y + glyph.top;
 	int right = left + (int)glyph.width, bottom = top + (int)glyph.height;
 	if (!s->custom) {
+		/* Compiled blank glyphs can have a one-row, zero-width mask.
+		 * JAM2 paints the font strike's background, not just that mask. */
+		int strike_top = s->y + font_descent(s->font);
+		int strike_bottom = strike_top + (int)st_amiga_font_height(s->font);
 		if (left > s->x)
 			left = s->x;
 		if (right < s->x + glyph.advance)
 			right = s->x + glyph.advance;
+		if (top > strike_top)
+			top = strike_top;
+		if (bottom < strike_bottom)
+			bottom = strike_bottom;
 	}
 	if (legacy && (s->pending != NULL || right > next)) {
 		if (s->pending == NULL) {

@@ -314,6 +314,9 @@ cterm_handle_el(struct cterminal *cterm, int *speed)	/* CSI K */
 	(void)speed;
 	cterm_clear_lcf(cterm);
 	cterm_seq_default(cterm, 0, 0);
+	if (cterm->skypix_engine != NULL &&
+		cterm_skypix_erase_line(cterm->skypix_engine, cterm->seq_param_int[0]))
+		return;
 	switch (cterm->seq_param_int[0]) {
 		case 0:
 			cterm_render_clear_line(cterm);
