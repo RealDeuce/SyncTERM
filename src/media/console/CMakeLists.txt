@@ -248,10 +248,8 @@ int main(void)
 int main(void)
 {
 	WINDOW *window = 0;
-	wint_t value = 0;
-	int (*get_wide)(WINDOW *, wint_t *) = wget_wch;
 	int (*add_wide)(WINDOW *, const wchar_t *, int) = waddnwstr;
-	return get_wide(window, &value) + add_wide(window, L"", 0);
+	return add_wide(window, L"", 0);
 }
 ]=] ST_CONSOLE_HAVE_CURSES_WIDE)
 	syncterm_check_c17_source([=[

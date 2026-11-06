@@ -150,10 +150,10 @@ static const char foreign_type_contract[] =
 static int
 write_file(const char *path, const char *contents)
 {
-	FILE *stream = fopen(path, "wb");
+	FILE *stream = NULL;
 	size_t length = strlen(contents);
 
-	if (stream == NULL)
+	if (fs_open(&stream, path, "wb") != 0)
 		return -1;
 	if (fwrite(contents, 1, length, stream) != length) {
 		fclose(stream);
@@ -1245,6 +1245,9 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 	CHECK(snprintf(traversal, sizeof(traversal), "%s/../upload-outside.txt", root) < (int)sizeof(traversal));
 	CHECK(fs_create_directories(nested) == 0);
 	CHECK(write_file(local, payload) == 0 && write_file(child, payload) == 0 && write_file(unicode, payload) == 0);
+	/* Verify the UTF-8 fixture pathname before testing upload authority. */
+	struct fs_info unicode_info;
+	CHECK(fs_get_info(&unicode_info, unicode) == 0 && unicode_info.kind == FS_ENTRY_FILE);
 	CHECK(write_file(outside, payload) == 0 && write_file(sibling, payload) == 0);
 	CHECK(st_bbs_list_cache_path(&cache, host->bbs_list, "Alpha") == 0);
 	CHECK(fs_create_directories(cache) == 0);

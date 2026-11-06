@@ -405,6 +405,40 @@ child_test(int report, bool cp437)
 		_exit(1);
 	}
 	child_result(report, 'u');
+	if (!cp437) {
+		/* The first byte arrives alone, across idle reads. Text conversion
+		 * must preserve Unicode scalars, including decomposed input. */
+		static const uint32_t scalars[] = {0x00e9, 0x03a9, 0x4e2d, 0x1f642, 'e', 0x0301};
+		(void)timespec_get(&deadline, TIME_UTC);
+		deadline.tv_nsec += 50000000L;
+		if (deadline.tv_nsec >= 1000000000L) {
+			++deadline.tv_sec;
+			deadline.tv_nsec -= 1000000000L;
+		}
+		if (st_console_event_timedwait(console, &event, &deadline) != IO_ERROR_TIMED_OUT) {
+			child_result(report, 'M');
+			_exit(1);
+		}
+		child_result(report, 'p');
+		for (size_t i = 0; i < sizeof(scalars) / sizeof(scalars[0]); ++i) {
+			deadline_after(&deadline, 5);
+			status = st_console_event_timedwait(console, &event, &deadline);
+			if (status != 0 || event.type != ST_CONSOLE_EVENT_TEXT
+			    || event.data.text.codepoint != scalars[i]) {
+				child_result(report, 'M');
+				_exit(1);
+			}
+		}
+		child_result(report, 't');
+		deadline_after(&deadline, 5);
+		status = st_console_event_timedwait(console, &event, &deadline);
+		if (status != 0 || event.type != ST_CONSOLE_EVENT_TEXT
+		    || event.data.text.codepoint != 'Z') {
+			child_result(report, 'M');
+			_exit(1);
+		}
+		child_result(report, 'r');
+	}
 	{
 		const char text[] = "REPAINT";
 		const struct st_console_rect rectangle = {0, 1, 7, 1};
@@ -463,6 +497,19 @@ child_test(int report, bool cp437)
 	    || event.data.key.code != 13) {
 		child_result(report, 'I');
 		_exit(1);
+	}
+	if (!cp437) {
+		/* Teardown must also join an idle worker with an unfinished scalar. */
+		(void)timespec_get(&deadline, TIME_UTC);
+		deadline.tv_nsec += 50000000L;
+		if (deadline.tv_nsec >= 1000000000L) {
+			++deadline.tv_sec;
+			deadline.tv_nsec -= 1000000000L;
+		}
+		if (st_console_event_timedwait(console, &event, &deadline) != IO_ERROR_TIMED_OUT) {
+			child_result(report, 'M');
+			_exit(1);
+		}
 	}
 	st_console_destroy(console);
 	st_console_display_destroy(display);
@@ -620,6 +667,16 @@ main(int argc, char **argv)
 	    || write(master, "\033OA", 3) != 3
 	    || wait_report(report[0], master, 'u') != 0)
 		goto failed;
+	if (!cp437) {
+		static const char continuation[] = "\xa9\xce\xa9\xe4\xb8\xad\xf0\x9f\x99\x82" "e\xcc\x81";
+		if (write(master, "\xc3", 1) != 1
+		    || wait_report(report[0], master, 'p') != 0
+		    || write(master, continuation, sizeof(continuation) - 1) != (ssize_t)sizeof(continuation) - 1
+		    || wait_report(report[0], master, 't') != 0
+		    || write(master, "\xffZ", 2) != 2
+		    || wait_report(report[0], master, 'r') != 0)
+			goto failed;
+	}
 	if (wait_report(report[0], master, 'O') != 0)
 		goto failed;
 	if ((!direct_colour
@@ -649,7 +706,7 @@ main(int argc, char **argv)
 	if (!wait_for_output(master, "REPAINT", 4096, 5000)
 	    || write(master, "\033", 1) != 1
 	    || wait_report(report[0], master, 'e') != 0
-	    || write(master, "\r", 1) != 1
+	    || write(master, cp437 ? "\r" : "\r\xc3", cp437 ? 1 : 2) != (cp437 ? 1 : 2)
 	    || wait_report(report[0], master, 'F') != 0)
 		goto failed;
 	(void)close(report[0]);

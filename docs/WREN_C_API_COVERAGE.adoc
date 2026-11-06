@@ -1601,3 +1601,42 @@ no public native or Wren API and close no additional original finding. Inventory
 and dispositions remain 82 headers, 127 exclusions, 2,534 items, 160 assessments,
 21 resolved/30 open topics and the resolved separate documentation finding.
 Only affected, reviewed evidence was refreshed; coverage and diff checks pass.
+
+=== Pipeline 12894: wide curses input and Windows test fixture follow-up
+
+The earlier timeout change fixes NetBSD's byte-input variants, but pipeline
+12894 shows a separate wide-reader defect: in
+https://github.com/NetBSD/src/blob/trunk/lib/libcurses/get_wch.c[get_wch.c]
+(revision 1.28), the +c == ERR+ return precedes prefix-timeout backout.
+Unicode/ASCII presentation now uses the working byte keypad reader too, with
+worker-owned +mbrtowc+ state in the existing input locale. Incomplete text
+survives idle reads; invalid conversion resets its state, and named keys remain
+separate. CP437 keeps explicit byte decoding. Wide glyph output remains
+available independently, without loading or probing the unused +wget_wch+ API.
+
+Independent PTY vectors cover split UTF-8, accented/Greek/CJK/supplementary
+scalars, decomposed input, invalid-byte recovery, Escape/arrow decoding,
+resize and shutdown with an unfinished scalar. The split-input check failed
+against the previous native implementation before the fix. All eight curses
+tests pass with wide output both present and explicitly absent.
+
+Windows x64's upload-consent failure comes from the test fixture creating its
+UTF-8 filename with ANSI +fopen+. The helper now uses +fs_open+, and verifies
+the Unicode pathname before exercising uploads. Production grants, root/link
+validation, NFC policy and upload code are unchanged; the existing successful
+uploads and rejected path/grant cases still run through the foreign boundary.
+
+The 15 focused curses, real-menu shortcut and Wren host/menu tests pass on
+FreeBSD Clang (39.55s), GCC (43.54s), minimal no-crypto/no-Unifont (39.53s), and
+ASan/UBSan (111.44s). After adding invalid-byte recovery and pending-scalar
+shutdown checks, the final eight curses tests pass again in those four builds
+and a forced no-wide-output build (4.43s, 4.43s, 4.40s, 4.44s and 4.32s).
+Both MinGW architectures cross-build application/DLL/launchers and the Wren
+host test. Build logs have no warnings or errors. Fixtures clear inherited
+desktop variables and use private PTYs/headless consoles; no physical audio.
+FreeBSD leak detection remains disabled; the existing C++ vptr exclusion is
+unchanged. No local Windows/MSVC or NetBSD runtime execution is claimed.
+
+This follow-up adds no public declarations or finding closures. Native inventory,
+21 resolved/30 open topics and the resolved documentation finding are unchanged.
+Only reviewed evidence hashes are refreshed; coverage and diff checks pass.

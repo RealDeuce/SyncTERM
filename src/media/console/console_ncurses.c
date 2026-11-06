@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #if ST_CONSOLE_HAVE_CURSES_H && ST_CONSOLE_HAVE_CURSES_TIMEOUT
 	#include <curses.h>
@@ -29,9 +30,6 @@
 	#endif
 	#ifndef NCURSES_PAIRS_T
 		#define NCURSES_PAIRS_T short
-	#endif
-	#if ST_CONSOLE_HAVE_CURSES_WIDE
-		#include <wchar.h>
 	#endif
 
 struct curses_api {
@@ -84,7 +82,6 @@ struct curses_api {
 #endif
 #if ST_CONSOLE_HAVE_CURSES_WIDE
 	int (*call_add_wide)(WINDOW *, const wchar_t *, int);
-	int (*call_get_wide)(WINDOW *, wint_t *);
 #endif
 };
 
@@ -138,7 +135,6 @@ typedef int (*curses_call_getmouse_fn)(MEVENT *);
 #endif
 #if ST_CONSOLE_HAVE_CURSES_WIDE
 typedef int (*curses_call_add_wide_fn)(WINDOW *, const wchar_t *, int);
-typedef int (*curses_call_get_wide_fn)(WINDOW *, wint_t *);
 #endif
 
 struct curses_state {
@@ -1395,6 +1391,7 @@ curses_input_inner(void *argument)
 	struct curses_state *state = argument;
 	st_console_display_t *display = state->display;
 	const struct timespec idle = {0, 10000000};
+	mbstate_t text_state = {0};
 
 	while (!atomic_load_explicit(&state->stop, memory_order_acquire)) {
 		struct st_console_event event = {0};
@@ -1410,48 +1407,40 @@ curses_input_inner(void *argument)
 
 		if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
 			break;
-#if ST_CONSOLE_HAVE_CURSES_WIDE
-		if (state->wide && state->presentation != ST_CONSOLE_TEXT_CP437) {
-			wint_t wide_value = 0;
-
-			value = state->api.call_get_wide(state->window, &wide_value);
-			if (value == OK
-			    && st_unicode_scalar_valid((uint32_t)wide_value)) {
-				if (wide_value < 0x20 || wide_value == 0x7f) {
-					have_key = true;
-					key_value = (int)wide_value;
-				}
-				else {
-					have_text = true;
-					text_value = (uint32_t)wide_value;
-				}
-			}
-			else if (value == KEY_CODE_YES) {
+		/* Keep keypad-prefix expiry in wgetch: some wide-input APIs return
+		 * ERR on timeout before releasing a buffered Escape. Convert text
+		 * separately in this worker's existing locale, retaining split bytes. */
+		value = state->api.call_getch(state->window);
+		if (value >= 0 && value <= UCHAR_MAX) {
+			if (value < 0x20 || value == 0x7f) {
 				have_key = true;
-				key_value = (int)wide_value;
+				key_value = value;
 			}
-		}
-		else
-#endif
-		{
-			value = state->api.call_getch(state->window);
-			if ((value >= 0x20 && value < 0x7f)
-			    || (state->presentation == ST_CONSOLE_TEXT_CP437
-			    && value >= 0x80 && value <= 0xff)) {
+			else if (state->presentation == ST_CONSOLE_TEXT_CP437) {
 				have_text = true;
-				text_value = state->presentation == ST_CONSOLE_TEXT_CP437
-				    ? st_codepage_to_unicode(ST_CODEPAGE_CP437,
-				    (uint8_t)value, true) : (uint32_t)value;
+				text_value = st_codepage_to_unicode(ST_CODEPAGE_CP437,
+				    (uint8_t)value, true);
 			}
-			else if (value >= 0 && value <= 0x7f) {
-				have_key = true;
-				key_value = value;
-			}
-			else if (value != ERR) {
-				have_key = true;
-				key_value = value;
+			else {
+				char byte = (char)(unsigned char)value;
+				wchar_t scalar;
+				size_t converted = mbrtowc(&scalar, &byte, 1, &text_state);
+
+				if (converted == (size_t)-1)
+					memset(&text_state, 0, sizeof(text_state));
+				else if (converted != (size_t)-2
+				    && st_unicode_scalar_valid((uint32_t)scalar)) {
+					have_text = true;
+					text_value = (uint32_t)scalar;
+				}
 			}
 		}
+		else if (value != ERR) {
+			have_key = true;
+			key_value = value;
+		}
+		if (have_key)
+			memset(&text_state, 0, sizeof(text_state));
 		if (have_text) {
 			event.type = ST_CONSOLE_EVENT_TEXT;
 			event.data.text.codepoint = text_value;
@@ -1962,8 +1951,7 @@ curses_init_inner(void *argument)
 	    "init_extended_color");
 #endif
 #if ST_CONSOLE_HAVE_CURSES_WIDE
-	state->wide = LOAD_REQUIRED(state, call_add_wide, "waddnwstr")
-	    && LOAD_REQUIRED(state, call_get_wide, "wget_wch");
+	state->wide = LOAD_REQUIRED(state, call_add_wide, "waddnwstr");
 #endif
 	state->screen = state->api.call_newterm(NULL, stdout, stdin);
 	if (state->screen == NULL) {

@@ -4477,7 +4477,7 @@
     {
       "path": "src/media/console/tests/st_console_ncurses_test.c",
       "anchor": "shortcuts[] = {6, 19, 4, 7, 17}",
-      "aspect": "Native curses PTY Control-letter identities, standalone Escape expiry without a following byte, complete arrow sequences and Escape after resize/window replacement, in normal and CP437/C-locale configurations; shutdown joins after bounded reads."
+      "aspect": "Native curses PTY Control-letter identities, standalone Escape expiry, complete arrow sequences, split UTF-8 scalar/decomposed text, invalid-byte recovery, resize/window replacement and worker shutdown with an unfinished scalar; normal, CP437/C-locale and absent-wide-output configurations."
     },
     {
       "path": "addons/modern_ui/tests/test_frontend.py",
@@ -4792,6 +4792,11 @@
       "path": "src/media/amiga_font/tests/test_generate_fonts.py",
       "anchor": "def test_legacy_text_defaults(self):",
       "aspect": "Build all pinned font sources under forced CP1252/ASCII text defaults and Windows newline conversion; explicit UTF-8/LF generation is deterministic."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "fs_get_info(&unicode_info, unicode)",
+      "aspect": "UTF-8-aware fixture creation and explicit Unicode pathname existence before the unchanged upload grant/root/link validation matrix; avoids ANSI fopen creating a different Windows filename."
     }
   ],
   "dispatch_evidence": [
@@ -4880,7 +4885,7 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "3a08cfe4335f7167842f8259369bd592aa599ff0556bcef82a6eb2bd27255b6b",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "1cadff50a9216fc10937d95c5353d3dc65090df3745fb24079971eabfa275372",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "9ce240c1d75632c40452fc6f46db4aab88923f2c8d062f80e50c5c917724d6f4",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
@@ -4965,7 +4970,7 @@
     "src/tests/st_menu_shortcuts_pty_test.py": "2900099be520a9f72c9de4df327415135995a4aa6a6552aa9eaa06c5badda49e",
     "src/media/console/tests/st_console_x11_test.c": "ce4616c2fe61664c496a297936b79cefba9a280aae1672a78ad9b90573d40a51",
     "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
-    "src/media/console/tests/st_console_ncurses_test.c": "5c8420712738fbc2188191f0538b071246b09086ad1d409e130d4b8af85b9336",
+    "src/media/console/tests/st_console_ncurses_test.c": "a67df4169c00c06f7333aad4402e3f29cb0d72aa088a7aec1306690ba04265e4",
     "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
     "addons/modern_ui/scripts/modern_ui.wren": "775b847aff32d0d32e351519f0991738db0883085b2f949954fac59251feb670",
     "addons/modern_ui/tests/test_frontend.py": "69c066524d11fa21a9880bd83c1c4e7cd46d29dbc3ecf5c47a3b9aab858c3153",
@@ -5023,9 +5028,9 @@
     "src/scripting/wren_host/tests/st_wren_codepage_test.c": "4e853c8355821fc9319269323531b21d367426c9b804ae920449fb6943244a04",
     "src/media/amiga_font/tests/test_generate_fonts.py": "94f79b10ef41dc2952490228afffca139d5ade1bbfbb5d35cf9c823259774e46",
     "src/media/amiga_font/generate_fonts.py": "809e43b4d728e16d1677c0fdb1b043efe0f6c0a46abd6c5d7851dfca426fe62b",
-    "src/media/console/console_ncurses.c": "8325c060e22f6e22df5a4d7661df3f836993921036d6f8ccaf17774aeb03661a",
+    "src/media/console/console_ncurses.c": "1d04310a77af932929f0eb80739eb14f1d003ebe2a4677fafe637b7ffbd33726",
     "src/media/console/console_config.h.in": "28ae120b9bcee1e97f87baa58981b6430c5307d04d9adfee8c510684c950ef60",
-    "src/media/console/CMakeLists.txt": "b8fc7dbb900fb3221ac69cf9d2906c40d01bbd4eb9429cb6824eba8737f16fb6"
+    "src/media/console/CMakeLists.txt": "549b9116dcdf4e0672d1bd4cc53cbf20ac3ed265ecb557cb1c7433827aa1ebaf"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -6695,6 +6700,41 @@
         "generator": "New forced CP1252/ASCII regression failed at the original UTF-8 decoding boundary before the fix; final UTF-8/LF generator passes with both legacy encodings and Windows newline defaults. Uses existing Path.open API without a new Python minimum.",
         "diagnostics": "Final native, GCC, sanitizer, minimal, absent-capability and cross-build logs contain no compiler warnings or errors.",
         "limitations": "No local native NetBSD, Windows/MSVC, Wine, native Wayland compositor or audible-device run. Remote CI confirmation requires publishing the fix; no push is authorized."
+      }
+    },
+    {
+      "topic": "ci-12894-wide-curses-and-upload-fixture",
+      "status": "resolved",
+      "request": "User reported remaining failures after pushing 696d897.",
+      "scope": "Use byte keypad reads for all curses input with worker-owned locale-aware mbrtowc state for Unicode/ASCII presentation; CP437 retains explicit byte mapping. Wide output remains independent, and the unused wide input binding/probe is removed. The Windows host-test fixture uses fs_open for UTF-8 paths and checks Unicode file existence before unchanged upload tests. No public C/Wren APIs, authority changes or original finding closures.",
+      "evidence": "12894 NetBSD Unicode/ASCII curses and PTY menu jobs still fail while byte/CP437 variants pass. NetBSD get_wch.c revision 1.28 returns on c==ERR before prefix expiry. The new split-input vector also fails on the previous FreeBSD implementation before the fix. Windows MSVC x64 (OpenSSL) fails the upload-consent matrix; its ANSI fopen fixture creates the wrong Unicode filename. x86 without crypto bypasses that matrix.",
+      "source": "https://github.com/NetBSD/src/blob/trunk/lib/libcurses/get_wch.c",
+      "tests_passed": [
+        "st_console_ncurses",
+        "st_console_ncurses_capture",
+        "st_console_ncurses_cp437",
+        "st_console_ncurses_cp437_c_locale",
+        "st_console_ncurses_direct",
+        "st_console_ncurses_direct_cp437",
+        "st_console_ncurses_opaque",
+        "st_console_ncurses_rgb",
+        "syncterm_menu_shortcuts_pty_a",
+        "syncterm_menu_shortcuts_pty_ac",
+        "syncterm_menu_shortcuts_pty_c",
+        "syncterm_menu_shortcuts_pty_f",
+        "syncterm_menu_shortcuts_pty_i",
+        "wren_host",
+        "wren_menu_contract"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang configured/built application, native curses and Wren host targets; all 15 focused tests passed (39.55s).",
+        "gcc": "GCC configured/built the same targets; all 15 focused tests passed (43.54s).",
+        "minimal": "No-crypto/no-Unifont configured/built the same targets; all 15 focused tests passed (39.53s). Upload-consent provider absence retains its existing skip policy.",
+        "sanitizers": "ASan/UBSan configured/built the same targets; all 15 focused tests passed (111.44s). FreeBSD leak detection unsupported and disabled; existing C++ vptr exclusion retained.",
+        "final_curses": "Expanded invalid-byte recovery and unfinished-scalar shutdown tests: all eight curses tests pass on Clang/GCC/minimal/ASan and forced absent-wide-output builds (4.43s/4.43s/4.40s/4.44s/4.32s). Includes real native text/control/key input, resize and teardown.",
+        "cross": "MinGW x86/x86_64 configured/cross-built application/DLL/both launchers and Wren host test, including the UTF-8 fixture helper. No Windows execution or Wine.",
+        "diagnostics": "Final build logs contain no warnings/errors; headless/private-PTY tests clear inherited desktop variables and create no physical audio runtime.",
+        "limitations": "Native NetBSD and Windows/MSVC runtime confirmation requires CI. Full 321-test native verification from the preceding CI fix remains historical; this follow-up runs the 15 focused tests and expanded native curses checks, not a repeated complete suite."
       }
     }
   ]
