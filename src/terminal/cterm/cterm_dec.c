@@ -30,7 +30,9 @@
  */
 
 #include <limits.h>
+#include <stdbool.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -1376,23 +1378,72 @@ sixel_numeric_command_terminated(const char *p, const char *end, bool finish, bo
 	return finish;
 }
 
-static void
-sixel_set_mask_range(struct st_pixel_mask *mask, int start, int count)
+/* Consume the entire decimal token, clamping before any narrowing or
+ * arithmetic. A sign is a sixel command byte, not part of a parameter. */
+static int
+sixel_number(char **cursor, int maximum)
 {
-	int end;
-	int byte;
-	int edge_bits;
+	char *p = *cursor;
+	int value = 0;
 
-	if (count <= 0)
+	while (*p >= '0' && *p <= '9') {
+		int digit = *p++ - '0';
+		if (value > maximum / 10
+		    || (value == maximum / 10 && digit > maximum % 10))
+			value = maximum;
+		else
+			value = value * 10 + digit;
+	}
+	*cursor = p;
+	return value;
+}
+
+/* Return only the visible portion, without multiplying an untrusted extent. */
+static int
+sixel_scaled_extent(int value, int scale, int available)
+{
+	if (value <= 0 || scale <= 0 || available <= 0)
+		return 0;
+	return value > available / scale ? available : value * scale;
+}
+
+void
+cterm_dec_sixel_cancel(struct cterminal *cterm)
+{
+	if (cterm->sixel == SIXEL_STARTED) {
+		(void)cterm_render_set_hold_update(cterm, cterm->sx_hold_update);
+		cterm->cursor = cterm->sx_orig_cursor;
+		cterm_render_set_cursor(cterm, cterm->cursor);
+	}
+	st_pixel_buffer_destroy(cterm->sx_pixels);
+	st_pixel_mask_destroy(cterm->sx_mask);
+	cterm->sx_pixels = NULL;
+	cterm->sx_mask = NULL;
+	cterm->sixel = SIXEL_INACTIVE;
+}
+
+static void
+sixel_set_mask_range(struct st_pixel_mask *mask, size_t start, size_t count)
+{
+	size_t end;
+	size_t byte;
+	unsigned first_bits;
+	unsigned last_bits;
+
+	if (count == 0)
 		return;
 
-	end = start + count;
+	end = start + count - 1;
 	byte = start / 8;
-	if (end / 8 > byte)
-		memset(&mask->bits[byte], 0xff, end / 8 - byte);
-	edge_bits = end % 8;
-	if (edge_bits)
-		mask->bits[end / 8] |= 0xff << (8 - edge_bits);
+	first_bits = 0xffu >> (start % 8);
+	last_bits = 0xffu << (7 - end % 8);
+	if (end / 8 == byte)
+		mask->bits[byte] |= (uint8_t)(first_bits & last_bits);
+	else {
+		mask->bits[byte] |= (uint8_t)first_bits;
+		memset(&mask->bits[byte + 1], 0xff, end / 8 - byte - 1);
+		mask->bits[end / 8] |= (uint8_t)last_bits;
+	}
 }
 
 static void
@@ -1402,25 +1453,27 @@ sixel_init_current_line(struct cterminal *cterm)
 	int fill_width;
 	int i;
 	int j;
-	int row_pos;
+	size_t row_pos;
 
 	if (cterm->sx_pixels == NULL || cterm->sx_mask == NULL || cterm->sx_mask->bits == NULL)
 		return;
 
-	memset(cterm->sx_mask->bits, 0, (cterm->sx_mask->width * cterm->sx_mask->height + 7) / 8);
+	/* The mask constructor checked this product and the rounding addition. */
+	memset(cterm->sx_mask->bits, 0,
+	    ((size_t)cterm->sx_mask->width * cterm->sx_mask->height + 7) / 8);
 
-	if (cterm->sx_trans || cterm->sx_width <= 0 || cterm->sx_height <= 0)
+	if (cterm->sx_trans || cterm->sx_width <= 0 || cterm->sx_height <= 0
+	    || cterm->sx_left < 0 || (uint32_t)cterm->sx_left >= cterm->sx_pixels->width)
 		return;
 
 	fill_height = cterm->sx_height > 6 ? 6 : cterm->sx_height;
-	fill_width = cterm->sx_width * cterm->sx_ih;
-	if (fill_width > (int)cterm->sx_pixels->width - cterm->sx_left)
-		fill_width = (int)cterm->sx_pixels->width - cterm->sx_left;
+	fill_width = sixel_scaled_extent(cterm->sx_width, cterm->sx_ih,
+	    (int)cterm->sx_pixels->width - cterm->sx_left);
 	if (fill_width <= 0)
 		return;
 
 	for (i = 0; i < fill_height * cterm->sx_iv; i++) {
-		row_pos = i * cterm->sx_pixels->width + cterm->sx_left;
+		row_pos = (size_t)i * cterm->sx_pixels->width + cterm->sx_left;
 		for (j = 0; j < fill_width; j++) {
 			cterm->sx_pixels->primary[row_pos + j] = cterm->sx_bg;
 		}
@@ -1457,19 +1510,37 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 	char *p = cterm->strbuf;
 	char *end;
 	int i, j, k;
-	int pos;
+	size_t pos;
 	uint32_t screen_width;
 	uint32_t screen_height;
 	uint32_t cell_width;
 	uint32_t cell_height;
 	int palette_offset = 0;
+	int max_w, max_h;
+	int64_t background_y;
 
 	if (st_console_cell_pixel_size(cterm->screen.console, &cell_width,
 	    &cell_height) != 0 || cell_width == 0 || cell_height == 0)
-		return;
+		goto cancel;
 	if (st_console_size(cterm->screen.console, &screen_width,
 	    &screen_height) != 0)
-		return;
+		goto cancel;
+	if (screen_width == 0 || screen_height == 0
+	    || screen_width > INT_MAX / cell_width
+	    || screen_height > INT_MAX / cell_height
+	    || cterm->x < 1 || cterm->y < 1 || cterm->width < 1 || cterm->height < 1
+	    || (uint32_t)cterm->x > screen_width || (uint32_t)cterm->y > screen_height
+	    || (uint32_t)cterm->width > screen_width - (uint32_t)cterm->x + 1
+	    || (uint32_t)cterm->height > screen_height - (uint32_t)cterm->y + 1)
+		goto cancel;
+	max_w = (int)(screen_width * cell_width);
+	max_h = (int)(screen_height * cell_height);
+	/* Row coordinates remain signed ints; the allocated row may contain
+	 * all six vertically expanded pixels. */
+	if (cterm->sx_iv < 1 || cterm->sx_iv > INT_MAX / 6
+	    || cterm->sx_ih < 1 || cterm->sx_ih > max_w
+	    || (cterm->sx_pixels != NULL && cterm->sx_pixels->width != (uint32_t)max_w))
+		goto cancel;
 
 	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
 		palette_offset = 16;
@@ -1493,63 +1564,35 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 
 			cterm->sx_pixels_sent = 1;
 			if (cterm->sx_pixels == NULL) {
-				cterm->sx_pixels = malloc(sizeof(struct st_pixel_buffer));
-				if (cterm->sx_pixels != NULL) {
-					cterm->sx_pixels->primary = malloc(sizeof(cterm->sx_pixels->primary[0]) * cterm->sx_iv * (int)(screen_width * cell_width) * 6);
-					if (cterm->sx_pixels->primary != NULL) {
-						cterm->sx_pixels->alternate = NULL;
-						cterm->sx_pixels->width = (int)(screen_width * cell_width);
-						cterm->sx_pixels->height = cterm->sx_iv * 6;
-						cterm->sx_mask = malloc(sizeof(struct st_pixel_mask));
-						if (cterm->sx_mask != NULL) {
-							cterm->sx_mask->width = cterm->sx_pixels->width;
-							cterm->sx_mask->height = cterm->sx_pixels->height;
-							cterm->sx_mask->bits = malloc((cterm->sx_iv * 6 * (int)(screen_width * cell_width) + 7)/8);
-							if (cterm->sx_mask->bits != NULL)
-								memset(cterm->sx_mask->bits, 0, (cterm->sx_iv * 6 * (int)(screen_width * cell_width) + 7)/8);
-							else {
-								CTERM_FREE_AND_CLEAR(cterm->sx_mask);
-								free(cterm->sx_pixels->primary);
-								CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
-							}
-						}
-						else {
-							free(cterm->sx_pixels->primary);
-							CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
-						}
-					}
-					else {
-						CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
-					}
+				if (st_pixel_buffer_create(&cterm->sx_pixels, (uint32_t)max_w,
+				    (uint32_t)(cterm->sx_iv * 6), false) != 0
+				    || st_pixel_mask_create(&cterm->sx_mask, (uint32_t)max_w,
+				    (uint32_t)(cterm->sx_iv * 6)) != 0) {
+					cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate sixel data");
+					goto cancel;
 				}
+				sixel_init_current_line(cterm);
 			}
-			if (cterm->sx_pixels == NULL) {
-				cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate sixel data");
-				return;
-			}
-			/* sx_pixels->width is uint32_t; the sum of our int coords
-			 * can't be negative in well-formed sixel data, but casting
-			 * to uint32_t makes any out-of-band negative wrap to a huge
-			 * value that fails the <= check (safer than using the
-			 * negative as a pixel index). */
-			if (cterm->sx_x == cterm->sx_left && cterm->sx_height && cterm->sx_width && cterm->sx_first_pass && (uint32_t)(cterm->sx_x + cterm->sx_ih) <= cterm->sx_pixels->width) {
+			/* Subtract before adding coordinates so an offscreen column
+			 * can never wrap into the allocated row. */
+			if (cterm->sx_x == cterm->sx_left && cterm->sx_height && cterm->sx_width && cterm->sx_first_pass && !cterm->sx_trans && cterm->sx_x >= 0 && cterm->sx_x <= max_w - cterm->sx_ih) {
 				/* Fill in the background of the line */
 				for (i = 0; i < (cterm->sx_height > 6 ? 6 : cterm->sx_height); i++) {
 					for (j = 0; j < cterm->sx_iv; j++) {
 						for (k = 0; k < cterm->sx_ih; k++) {
-							pos = i * cterm->sx_iv * cterm->sx_pixels->width + j * cterm->sx_pixels->width + cterm->sx_x + k;
+							pos = (size_t)(i * cterm->sx_iv + j) * cterm->sx_pixels->width + cterm->sx_x + k;
 							cterm->sx_pixels->primary[pos] = cterm->sx_bg;
 							cterm->sx_mask->bits[pos/8] |= (0x80 >> (pos % 8));
 						}
 					}
 				}
 			}
-			if (cterm->sx_x + cterm->sx_ih <= (int)(screen_width * cell_width)) {
+			if (cterm->sx_x >= 0 && cterm->sx_x <= max_w - cterm->sx_ih) {
 				for (i=0; i<6; i++) {
 					if (data & (1<<i)) {
 						for (j = 0; j < cterm->sx_iv; j++) {
 							for (k = 0; k < cterm->sx_ih; k++) {
-								pos = i * cterm->sx_iv * cterm->sx_pixels->width + j * cterm->sx_pixels->width + cterm->sx_x + k;
+								pos = (size_t)(i * cterm->sx_iv + j) * cterm->sx_pixels->width + cterm->sx_x + k;
 								cterm->sx_pixels->primary[pos] = cterm->sx_fg;
 								cterm->sx_mask->bits[pos/8] |= (0x80 >> (pos % 8));
 							}
@@ -1559,7 +1602,7 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 						if (cterm->sx_first_pass && !cterm->sx_trans) {
 							for (j = 0; j < cterm->sx_iv; j++) {
 								for (k = 0; k < cterm->sx_ih; k++) {
-									pos = i * cterm->sx_iv * cterm->sx_pixels->width + j * cterm->sx_pixels->width + cterm->sx_x + k;
+									pos = (size_t)(i * cterm->sx_iv + j) * cterm->sx_pixels->width + cterm->sx_x + k;
 									cterm->sx_pixels->primary[pos] = cterm->sx_bg;
 									cterm->sx_mask->bits[pos/8] |= (0x80 >> (pos % 8));
 								}
@@ -1568,7 +1611,7 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 						else {
 							for (j = 0; j < cterm->sx_iv; j++) {
 								for (k = 0; k < cterm->sx_ih; k++) {
-									pos = i * cterm->sx_iv * cterm->sx_pixels->width + j * cterm->sx_pixels->width + cterm->sx_x + k;
+									pos = (size_t)(i * cterm->sx_iv + j) * cterm->sx_pixels->width + cterm->sx_x + k;
 									if (cterm->sx_first_pass)
 										cterm->sx_mask->bits[pos/8] &= ~(0x80 >> (pos % 8));
 								}
@@ -1580,7 +1623,12 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 					cterm->sx_row_max_x = cterm->sx_x + cterm->sx_ih - 1;
 			}
 
-			cterm->sx_x+=cterm->sx_ih;
+			/* Once offscreen, further columns have no visible effect until
+			 * CR/newline. Keep a bounded sentinel instead of wrapping. */
+			if (cterm->sx_x <= max_w - cterm->sx_ih)
+				cterm->sx_x += cterm->sx_ih;
+			else
+				cterm->sx_x = max_w;
 			if (cterm->sx_repeat)
 				cterm->sx_repeat--;
 			if (!cterm->sx_repeat)
@@ -1592,36 +1640,26 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 					if (!sixel_numeric_command_terminated(p, end, finish, true))
 						goto keep_tail;
 					if (!cterm->sx_pixels_sent) {
-						/* Parse through strtoul (which rejects `-`), then
-						 * narrow to int. The clamp block below caps each
-						 * value to screen dimensions, so the narrowing is
-						 * semantically safe. */
 						p++;
-						cterm->sx_iv = (int)strtoul(p, &p, 10);
+						cterm->sx_iv = sixel_number(&p, max_h < INT_MAX / 6 ? max_h : INT_MAX / 6);
 						cterm->sx_height = cterm->sx_width = 0;
 						if (*p == ';') {
 							p++;
-							cterm->sx_ih = (int)strtoul(p, &p, 10);
+							cterm->sx_ih = sixel_number(&p, max_w);
 						}
 						if (*p == ';') {
 							p++;
-							cterm->sx_width = (int)strtoul(p, &p, 10);
+							cterm->sx_width = sixel_number(&p, INT_MAX);
 						}
 						if (*p == ';') {
 							p++;
-							cterm->sx_height = (int)strtoul(p, &p, 10);
+							cterm->sx_height = sixel_number(&p, INT_MAX);
 						}
 						{
-							int max_w = (int)(screen_width * cell_width);
-							int max_h = (int)(screen_height * cell_height);
 							if (cterm->sx_iv < 1)
 								cterm->sx_iv = 1;
-							if (cterm->sx_iv > max_h)
-								cterm->sx_iv = max_h;
 							if (cterm->sx_ih < 1)
 								cterm->sx_ih = 1;
-							if (cterm->sx_ih > max_w)
-								cterm->sx_ih = max_w;
 						}
 						sixel_init_current_line(cterm);
 					}
@@ -1634,45 +1672,42 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 					p++;
 					if (!*p)
 						break;
-					/* Parse wide, clamp, narrow. sx_repeat is int. */
-					cterm->sx_repeat = (int)strtoul(p, &p, 10);
-					if (cterm->sx_repeat > 0x7fff || cterm->sx_repeat < 0)
-						cterm->sx_repeat = 0x7fff;
+					cterm->sx_repeat = sixel_number(&p, 0x7fff);
 					break;
 				case '#':	// Colour Introducer
+				{
+					int colour;
+					bool valid;
 					if (!sixel_numeric_command_terminated(p, end, finish, true))
 						goto keep_tail;
 					p++;
 					if (!*p)
 						break;
-					cterm->sx_fg = strtoul(p, &p, 10) + CTERM_PALETTE_SIZE + palette_offset;
+					colour = sixel_number(&p, INT_MAX);
+					valid = colour <= UINT16_MAX - CTERM_PALETTE_SIZE - palette_offset;
+					if (valid)
+						cterm->sx_fg = (uint32_t)(colour + CTERM_PALETTE_SIZE + palette_offset);
 					/* Do we want to redefine it while we're here? */
 					if (*p == ';') {
-						unsigned long t,r,g,b;
+						int t,r,g,b;
 
 						p++;
 						r=g=b=0;
-						t = strtoul(p, &p, 10);
+						t = sixel_number(&p, INT_MAX);
 						if (*p == ';') {
 							p++;
-							r = strtoul(p, &p, 10);
+							r = sixel_number(&p, 100);
 						}
 						if (*p == ';') {
 							p++;
-							g = strtoul(p, &p, 10);
+							g = sixel_number(&p, 100);
 						}
 						if (*p == ';') {
 							p++;
-							b = strtoul(p, &p, 10);
+							b = sixel_number(&p, 100);
 						}
-						if (t == 2) {	// Only support RGB
-							/* Sixel RGB components are percentages 0-100;
-							 * clamp defensively then scale into the 16-bit
-							 * palette range. The clamp also makes the
-							 * final (uint16_t) cast guaranteed safe. */
-							if (r > 100) r = 100;
-							if (g > 100) g = 100;
-							if (b > 100) b = 100;
+						if (valid && t == 2) {	// Only support RGB
+							/* Parsed percentages are already capped to 100. */
 							cterm_setpalette(cterm, cterm->sx_fg,
 							    (uint16_t)(UINT16_MAX * r / 100),
 							    (uint16_t)(UINT16_MAX * g / 100),
@@ -1680,6 +1715,7 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 						}
 					}
 					break;
+				}
 				case '$':	// Graphics Carriage Return
 					cterm->sx_x = cterm->sx_left;
 					cterm->sx_first_pass = 0;
@@ -1688,23 +1724,28 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 				case '-':	// Graphics New Line
 					{
 						int max_row = TERM_MAXY;
+						int64_t next_y = (int64_t)cterm->sx_y + 6 * cterm->sx_iv;
+						int64_t bottom;
 						cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &max_row, NULL);
+						bottom = ((int64_t)cterm->y + max_row - 1) * cell_height;
 						sixel_present_current_line(cterm);
-						cterm->sx_row_max_x = 0;
+						cterm->sx_row_max_x = -1;
 
-						if ((!(cterm->extattr & CTERM_EXTATTR_SXSCROLL)) && (((cterm->sx_y + 6 * cterm->sx_iv) + 6*cterm->sx_iv - 1) >= (cterm->y + max_row - 1) * (int)cell_height)) {
+						if ((!(cterm->extattr & CTERM_EXTATTR_SXSCROLL)) && (next_y + 6 * cterm->sx_iv - 1 >= bottom)) {
 							p++;
 							break;
 						}
 
 						cterm->sx_x = cterm->sx_left;
-						cterm->sx_y += 6*cterm->sx_iv;
 						if (cterm->sx_height)
 							cterm->sx_height -= cterm->sx_height > 6 ? 6 : cterm->sx_height;
-						while ((cterm->sx_y + 6 * cterm->sx_iv - 1) >= (cterm->y + max_row - 1) * (int)cell_height) {
+						while (next_y + 6 * cterm->sx_iv - 1 >= bottom) {
 							cterm_cond_scrollup(cterm);
-							cterm->sx_y -= cell_height;
+							next_y -= cell_height;
 						}
+						if (next_y < INT_MIN || next_y > INT_MAX)
+							goto cancel;
+						cterm->sx_y = (int)next_y;
 						cterm->sx_first_pass = 1;
 						sixel_init_current_line(cterm);
 						p++;
@@ -1729,69 +1770,58 @@ keep_tail:
 	return;
 
 all_done:
-	if (cterm->sx_row_max_x) {
-		sixel_present_current_line(cterm);
-	}
-
-	(void)cterm_render_set_hold_update(cterm, cterm->sx_hold_update);
+	sixel_present_current_line(cterm);
 
 	/* Finish off the background */
 	cterm->sx_x = cterm->sx_left;
-	cterm->sx_y += 6 * cterm->sx_iv;
-	if (cterm->sx_height)
-		cterm->sx_height -= cterm->sx_height > 6 ? 6 : cterm->sx_height;
+	background_y = cterm->sx_y;
+	if (cterm->sx_pixels_sent) {
+		background_y += 6 * cterm->sx_iv;
+		if (cterm->sx_height)
+			cterm->sx_height -= cterm->sx_height > 6 ? 6 : cterm->sx_height;
+	}
+	if (!cterm->sx_trans && cterm->sx_width > 0 && cterm->sx_height > 0
+	    && cterm->sx_left >= 0 && cterm->sx_left < max_w
+	    && background_y >= 0 && background_y < max_h) {
+		struct st_pixel_buffer *pixels = NULL;
+		int width = sixel_scaled_extent(cterm->sx_width, cterm->sx_ih,
+		    max_w - cterm->sx_left);
+		int height = sixel_scaled_extent(cterm->sx_height, cterm->sx_iv,
+		    max_h - (int)background_y);
+		const struct st_pixel_blit blit = {
+			.width = (uint32_t)width, .height = (uint32_t)height,
+			.destination_x = cterm->sx_left, .destination_y = (int32_t)background_y,
+			.scale_x = 1, .scale_y = 1,
+		};
 
-	if (cterm->sx_height && cterm->sx_width) {
-		struct st_pixel_buffer px;
-
-		px.primary = malloc(sizeof(px.primary[0])*cterm->sx_width*cterm->sx_height*cterm->sx_iv*cterm->sx_ih);
-		if (px.primary) {
-			struct st_pixel_blit blit;
-
-			px.alternate = NULL;
-			px.height = cterm->sx_height;
-			px.width = cterm->sx_width;
-			for (i = 0; i<cterm->sx_height*cterm->sx_iv; i++) {
-				for (j = 0; j < cterm->sx_width*cterm->sx_ih; j++)
-					px.primary[i*cterm->sx_width*cterm->sx_ih + j] = cterm->sx_bg;
-			}
-			blit = (struct st_pixel_blit){
-				.width = (uint32_t)cterm->sx_width,
-				.height = (uint32_t)cterm->sx_height,
-				.destination_x = cterm->sx_x,
-				.destination_y = cterm->sx_y,
-				.scale_x = 1,
-				.scale_y = 1,
-			};
-			cterm_render_blit_pixels(cterm, &px, NULL, &blit);
-			free(px.primary);
+		/* Both storage and renderer metadata describe the same clipped,
+		 * expanded rectangle, never the remote's unbounded dimensions. */
+		if (st_pixel_buffer_create(&pixels, (uint32_t)width, (uint32_t)height, false) == 0) {
+			(void)st_pixel_buffer_fill(pixels, cterm->sx_bg, cterm->sx_bg);
+			cterm_render_blit_pixels(cterm, pixels, NULL, &blit);
+			st_pixel_buffer_destroy(pixels);
 		}
-		else {
+		else
 			cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate sixel data");
-		}
 	}
 
 	if (cterm->extattr & CTERM_EXTATTR_SXSCROLL) {
+		int64_t cursor_y = ((int64_t)cterm->sx_y + 6 * cterm->sx_iv - 1)
+		    / cell_height + 1 - (cterm->y - 1);
 		cterm->sx_x = cterm->sx_x / cell_width + 1;
 		cterm->sx_x -= (cterm->x - 1);
 
-		cterm->sx_y = (cterm->sx_y - 1) / cell_height + 1;
-		cterm->sx_y -= (cterm->y - 1);
+		if (cursor_y < TERM_MINY) cursor_y = TERM_MINY;
+		if (cursor_y > TERM_MAXY) cursor_y = TERM_MAXY;
+		cterm->sx_y = (int)cursor_y;
 
 		cterm_set_position(cterm, cterm->sx_x, cterm->sx_y);
 	}
 	else {
 		cterm_set_position(cterm, cterm->sx_start_x, cterm->sx_start_y);
 	}
-	cterm->cursor = cterm->sx_orig_cursor;
-	cterm_render_set_cursor(cterm, cterm->cursor);
-	cterm->sixel = SIXEL_INACTIVE;
-	if (cterm->sx_pixels)
-		CTERM_FREE_AND_CLEAR(cterm->sx_pixels->primary);
-	if (cterm->sx_mask)
-		CTERM_FREE_AND_CLEAR(cterm->sx_mask->bits);
-	CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
-	CTERM_FREE_AND_CLEAR(cterm->sx_mask);
+cancel:
+	cterm_dec_sixel_cancel(cterm);
 }
 
 static int
@@ -2038,7 +2068,7 @@ void cterm_parse_sixel_intro(struct cterminal *cterm)
 		return;
 
 	if (cterm->strbuf[i] == 'q') {
-		int ratio, hgrid;
+		int ratio;
 		uint32_t cell_width;
 		uint32_t cell_height;
 		char *p;
@@ -2047,14 +2077,16 @@ void cterm_parse_sixel_intro(struct cterminal *cterm)
 		cterm->sx_repeat = 0;
 		cterm->sx_pixels_sent = 0;
 		cterm->sx_first_pass = 1;
+		cterm->sx_row_max_x = -1;
 		cterm->sx_height = 0;
 		cterm->sx_width = 0;
+		cterm->sx_orig_cursor = cterm->cursor;
 		cterm->sx_hold_update = cterm_render_hold_update(cterm);
 		(void)cterm_render_set_hold_update(cterm, 0);
 
 		if (st_console_cell_pixel_size(cterm->screen.console, &cell_width,
 		    &cell_height) != 0 || cell_width == 0 || cell_height == 0) {
-			cterm->sixel = SIXEL_INACTIVE;
+			cterm_dec_sixel_cancel(cterm);
 			return;
 		}
 		cterm_render_attribute_colours(cterm, cterm->attr, &cterm->sx_fg,
@@ -2073,15 +2105,12 @@ void cterm_parse_sixel_intro(struct cterminal *cterm)
 		cterm_render_set_cursor(cterm, cterm->cursor);
 		cterm_set_position(cterm, TERM_MINX, TERM_MINY);
 		(void)cterm_render_set_hold_update(cterm, 1);
-		cterm->sx_trans = hgrid = 0;
-		ratio = strtoul(cterm->strbuf, &p, 10);
+		cterm->sx_trans = 0;
+		p = cterm->strbuf;
+		ratio = sixel_number(&p, INT_MAX);
 		if (*p == ';') {
 			p++;
-			cterm->sx_trans = (int)strtoul(p, &p, 10);
-		}
-		if (*p == ';') {
-			p++;
-			hgrid = strtoul(p, &p, 10);
+			cterm->sx_trans = sixel_number(&p, INT_MAX);
 		}
 		switch (ratio) {
 			default:

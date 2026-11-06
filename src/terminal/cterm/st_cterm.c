@@ -9,6 +9,7 @@
 
 #include "cterm.h"
 #include "cterm_apc.h"
+#include "cterm_dec.h"
 #include "cterm_internal.h"
 #include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
@@ -2883,6 +2884,11 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 		free(scrollback);
 		st_history_free_pixels(history_pixels, (size_t)terminal->backlines);
 		return status;
+	}
+	if (columns != (uint32_t)terminal->width || terminal_rows != (uint32_t)terminal->height) {
+		cterm_dec_sixel_cancel(terminal);
+		if (terminal->status_sub != NULL)
+			cterm_dec_sixel_cancel(terminal->status_sub);
 	}
 	old_scrollback = terminal->scrollback;
 	terminal->scrollback = scrollback;

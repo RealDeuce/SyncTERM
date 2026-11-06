@@ -128,6 +128,18 @@ parameters are checked before narrowing; the control-bitmap `extensions`
 group additionally verifies that oversized macro fields cannot replace an
 existing macro, using exact cursor positions in both encodings.
 
+`cterm_sixel` checks literal expanded pixel rectangles, opaque/transparent
+backgrounds, background-only images, single-pixel output, every input split
+and bytewise input in CP437 and UTF-8. Oversized dimensions, repeats and
+palette selectors exercise saturation before narrowing, clipped background
+storage, the last palette entry, zero pixel sizes, and tall rows that scroll
+above the viewport. Cancellation, a replacement string, viewport changes,
+reset and destruction cover partial-image ownership and cursor restoration;
+unchanged geometry and failed resize requests retain the pending image.
+The control-bitmap `extensions` group checks both pixel planes and cursor
+coordinates from one reply-fenced capture for normal and oversized sixel
+sequences; these fixtures do not open physical audio devices.
+
 `syncterm_emoji_aspect` checks the independent grinning-face ink extents in
 square-pixel and 6:5 tall-pixel colour banks at 8, 14, and 16 pixels high,
 using a single control capture for related cells, both pixel planes and cursor

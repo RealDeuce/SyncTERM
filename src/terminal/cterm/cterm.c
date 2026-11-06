@@ -1989,6 +1989,7 @@ const size_t cterm_ansi_dispatch_len = SEQ_ARRAY_SIZE(cterm_ansi_dispatch);
 void
 cterm_reset(struct cterminal *cterm)
 {
+	cterm_dec_sixel_cancel(cterm);
 	/* Retained history and all three ring indices are session state;
 	 * resetting only the write position corrupts its chronological order. */
 	cterm_text_forget(cterm);
@@ -2087,10 +2088,8 @@ cterm_reset(struct cterminal *cterm)
 	cterm->sx_start_x = 0;
 	cterm->sx_start_y = 0;
 	cterm->sx_row_max_x = 0;
-	CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
 	cterm->sx_width = 0;
 	cterm->sx_height = 0;
-	CTERM_FREE_AND_CLEAR(cterm->sx_mask);
 	cterm_render_set_hyperlink(cterm, 0);
 	for (i = 0; i < (int)(sizeof(cterm->macros)
 	    / sizeof(cterm->macros[0])); i++) {
@@ -2561,6 +2560,7 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 	(void)free_fonts;
 
 	if(cterm) {
+		cterm_dec_sixel_cancel(cterm);
 		st_history_free_pixels(cterm->backpixels, (size_t)cterm->backlines);
 		st_pixel_buffer_destroy(cterm->backpartial);
 		cterm_text_destroy(cterm);
@@ -2580,8 +2580,6 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 		CTERM_FREE_AND_CLEAR(cterm->vtabs);
 		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
-		CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
-		CTERM_FREE_AND_CLEAR(cterm->sx_mask);
 		for (i = 0; i < (int)(sizeof(cterm->macros)
 		    / sizeof(cterm->macros[0])); i++) {
 			CTERM_FREE_AND_CLEAR(cterm->macros[i]);

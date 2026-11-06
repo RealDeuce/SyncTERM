@@ -2445,10 +2445,13 @@ The least significant bit is the topmost pixel.
 |Raster Attributes
 |p1 indicates the vertical size in pixels of each sixel. +
 	p2 indicates the horizontal size in pixels. +
-	p3 and p4 define the height and width (in sixels)
-	respectively of a block to fill with the background
+	p3 and p4 define the width and height, respectively,
+	of a block to fill with the background
 	colour.  This block may not extend past the current
-	bottom of the screen.  If any pixel data characters
+	bottom of the screen. SyncTERM expands this block by
+	p2 horizontally and p1 vertically, and clips it to
+	the visible screen. Transparent mode leaves the background
+	untouched. If any pixel data characters
 	proceed this command, it is ignored.
 
 |`#`
@@ -2483,6 +2486,17 @@ The least significant bit is the topmost pixel.
 |===
 
 SOURCE: <<VT330340,[VT330/340]>>
+
+SyncTERM caps repeat counts at 32767 and clamps raster pixel sizes to at least
+one and at most the corresponding screen dimension (also limiting a six-pixel
+row to the signed coordinate range). Long decimal parameters saturate before
+conversion; they never wrap to a smaller value. Background storage is bounded
+by the visible screen, regardless of the declared block dimensions. Colour
+selectors outside the available 16-bit palette range are ignored, including
+any associated palette definition. Cancelling a partial image, resetting the
+terminal, or replacing its command string releases the image storage and
+restores the cursor and update state. A successful terminal geometry change
+also discards an unfinished image; completed rows remain on screen.
 
 === `DCS $ q pt ST` Request Status String (`DECRQSS`)
 `pt` is the intermediate and/or final characters of a control

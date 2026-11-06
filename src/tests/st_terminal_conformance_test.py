@@ -371,6 +371,33 @@ def queries(t):
     t.exchange(ESC + b"[17;1;1;1;1;1*y", f"\x1bP17!~{crc:04X}\x1b\\".encode())
 
 
+def sixel_bounds(t):
+    cases = (
+        ("SixelScaledBackground", b'7;0q"2;3;4;9#0;2;100;0;0!2~', (6, 12), (12, 18)),
+        ("SixelTransparent", b'7;1q"2;3;4;9#0;2;100;0;0!2~', (6, 12), (0, 0)),
+        ("SixelBackgroundOnly", b'7;0q"2;3;4;9', (0, 0), (12, 18)),
+        ("SixelOnePixel", b'7;1q#0;2;100;0;0@', (1, 1), (0, 0)),
+        ("SixelPaletteOverflow", b'7;1q#0;2;100;0;0#4294967296;2;0;0;100@', (1, 1), (0, 0)),
+        ("SixelRepeatOverflow", b'7;1q#0;2;100;0;0!18446744073709551616~', (640, 6), (0, 0)),
+        ("SixelRasterOverflow", b'7;0q"1;2;2147483647;2147483647#0;2;100;0;0~~-?', (4, 6), (640, 400)),
+    )
+    for name, payload, red, background in cases:
+        # Known background and palette-defined sixel red are independent
+        # expectations. Fence once, then inspect both planes and cursor.
+        prefix = ESC + b"[?25l" + ESC + b"[?80h" + ESC + b"[48;2;18;52;86m" + ESC + b"[2J" + ESC + b"[40m"
+        frame = t.check(name, prefix + ESC + b"P" + payload + ST, (1, 1))
+        m = frame.metadata
+        for plane in (frame.primary, frame.alternate):
+            for y in range(400):
+                for x in range(640):
+                    expected = (0xff0000 if x < red[0] and y < red[1] else
+                                0 if x < background[0] and y < background[1] else 0x123456)
+                    value = plane[(m["pixel_top"] + y) * m["plane_width"] + x]
+                    actual = (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
+                    assert actual == expected, (name, x, y, actual, expected)
+    t.check("SixelEmptyCursor", ESC + b"[?80l" + ESC + b"P2q" + ST, (1, 2))
+
+
 def extensions(t):
     for name, introducer in (("APC", b"_"), ("DCS", b"P"), ("PM", b"^"), ("OSC", b"]"), ("SOS", b"X")):
         t.check(name, b"A" + ESC + introducer + b"ignored text" + ST + b"B", (3, 1), ((1, 1, "AB"),))
@@ -383,6 +410,7 @@ def extensions(t):
         t.check(name, ESC + b"P0;0;1!z1B5B333B3348" + ST
                 + ESC + b"P" + parameters + b"!z1B5B393B3948" + ST
                 + ESC + b"[0*z", (3, 3))
+    sixel_bounds(t)
     # Audio execution/audibility has separate mixer tests. These assertions only
     # cover sequence consumption and return to normal terminal parsing.
     t.check("BEL", b"A\aB", (3, 1), ((1, 1, "AB"),))

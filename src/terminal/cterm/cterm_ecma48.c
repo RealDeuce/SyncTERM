@@ -731,6 +731,7 @@ cterm_handle_ris(struct cterminal *cterm, int *speed)	/* ESC c — Reset to Init
 static void
 cterm_string_alloc(struct cterminal *cterm, int type, cterm_accumulator_fn acc)
 {
+	cterm_dec_sixel_cancel(cterm);
 	cterm->string = type;
 	cterm->accumulator = acc;
 	CTERM_FREE_AND_CLEAR(cterm->strbuf);
@@ -875,11 +876,11 @@ cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
 		}
 		/* Malformed byte mid-string: abandon the string, let the caller
 		 * re-dispatch this byte through the normal path. */
+		cterm_dec_sixel_cancel(cterm);
 		cterm->string = 0;
 		cterm->accumulator = NULL;
 		CTERM_FREE_AND_CLEAR(cterm->strbuf);
 		cterm->strbuflen = cterm->strbufsize = 0;
-		cterm->sixel = SIXEL_INACTIVE;
 		return false;
 	}
 
@@ -891,12 +892,14 @@ cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
 		char *p;
 		cterm->strbufsize *= 2;
 		if (cterm->strbufsize > 1024 * 1024 * 512) {
+			cterm_dec_sixel_cancel(cterm);
 			CTERM_FREE_AND_CLEAR(cterm->strbuf);
 			cterm->strbuflen = cterm->strbufsize = 0;
 			return true;
 		}
 		p = realloc(cterm->strbuf, cterm->strbufsize);
 		if (p == NULL) {
+			cterm_dec_sixel_cancel(cterm);
 			CTERM_FREE_AND_CLEAR(cterm->strbuf);
 			cterm->strbuflen = cterm->strbufsize = 0;
 			return true;

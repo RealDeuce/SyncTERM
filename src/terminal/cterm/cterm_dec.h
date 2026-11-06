@@ -52,6 +52,8 @@ void cterm_handle_decsasd(struct cterminal *cterm, int *speed);
 void cterm_dec_dcs_begin(struct cterminal *cterm);
 void cterm_dec_dcs_byte(struct cterminal *cterm);
 void cterm_dec_dcs_finish(struct cterminal *cterm);
+/* Discard an unfinished sixel row and restore its cursor/update state. */
+void cterm_dec_sixel_cancel(struct cterminal *cterm);
 
 /* Middle of the SGR cascade.  No DEC-owned parameters yet — this
  * simply tail-calls cterm_ecma48_apply_sgr — but the slot exists so
