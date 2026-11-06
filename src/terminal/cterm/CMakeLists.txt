@@ -107,7 +107,7 @@ add_library(st_cterm STATIC
 	cterm_vt52.c)
 target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
-	st_audio st_base64 st_time st_utf8 st_unicode_text)
+	st_audio st_base64 st_time st_utf8 st_unicode_text st_session_history)
 target_link_libraries(st_cterm PRIVATE st_amiga_font st_fonts syncterm_threads
 	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_string_util syncterm_filesystem

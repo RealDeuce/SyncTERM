@@ -808,7 +808,16 @@ int st_session_history_set_capacity(st_session_history_t *, size_t);
 size_t st_session_history_capacity(st_session_history_t *);
 int st_session_history_publish(st_session_history_t *,
     const struct st_console_cell *cells, uint32_t width, size_t lines,
-    enum st_screen_mode mode, bool has_status);
+    enum st_screen_mode mode, bool has_status, struct st_pixel_buffer **pixels);
+int st_session_history_copy_pixels(st_session_history_t *, size_t row,
+    struct st_pixel_buffer **result);
+int st_history_capture_pixels(struct st_pixel_buffer **result,
+    st_console_t *, const struct st_console_cell *, uint32_t columns,
+    const struct st_console_rect *pixels);
+void st_history_free_pixels(struct st_pixel_buffer **pixels, size_t lines);
+int st_history_resize_pixels(struct st_pixel_buffer **result,
+    const struct st_pixel_buffer *source, uint32_t source_columns,
+    uint32_t columns, uint32_t cell_width, uint32_t cell_height);
 void st_session_history_clear(st_session_history_t *);
 int st_session_history_copy(st_session_history_t *,
     struct st_console_cell **cells, uint32_t *width, size_t *lines,
@@ -866,8 +875,26 @@ reclaiming entries. All status functions return zero/negative `IO_ERROR_*`.
 | st_session_history_set_capacity(history, line_capacity), st_session_history_capacity(history)
 | Resize/query retained line capacity; shrinking keeps newest lines.
 
-| st_session_history_publish(history, cells, width, lines, mode, has_status)
-| Copies the newest lines and associated mode/status metadata.
+| st_session_history_publish(history, cells, width, lines, mode, has_status, pixels)
+| Copies the newest cells and mode/status metadata. On success takes the
+optional owned per-line pixel-pointer array, including discarded prefix rows;
+failure leaves all inputs owned by the caller. Text-only snapshots pass NULL.
+
+| st_session_history_copy_pixels(history, row, result)
+| Clones only the selected row's optional RGB pixel strip under the history
+mutex. Returns NULL for a text row; output is unchanged on failure.
+
+| st_history_capture_pixels(result, console, cells, columns, pixels)
+| Captures a row rectangle only when its cells contain pixel graphics. Freezes
+palette entries as RGB in both blink planes and omits a duplicate alternate.
+A text-only row succeeds with NULL without requiring a pixel backend.
+
+| st_history_resize_pixels(result, source, source_columns, columns, cell_width, cell_height)
+| Returns an owned row with nearest-neighbour sampling within retained columns;
+added columns are black. Source is borrowed and output unchanged on failure.
+
+| st_history_free_pixels(pixels, lines)
+| Destroys every optional row buffer and the owned pointer array; NULL is valid.
 
 | st_session_history_clear(history)
 | Drops the published snapshot while retaining configured capacity.

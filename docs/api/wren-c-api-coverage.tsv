@@ -2196,17 +2196,18 @@ src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_sgr_pixels	326	bool (const
 src/terminal/cterm/st_cterm.h	function:st_cterm_bracketed_paste	327	bool (const st_cterm_t *)	cterm.state
 src/terminal/cterm/st_cterm.h	function:st_cterm_set_encoding	328	int (st_cterm_t *, enum st_cterm_encoding, enum st_codepage)	cterm.encoding-control
 src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history	336	int (st_cterm_t *, struct st_console_cell **, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	340	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	342	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	349	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	354	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	356	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	358	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	359	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	360	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	362	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	365	void (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	366	bool (st_cterm_t *, bool)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history_pixels	340	int (st_cterm_t *, size_t, struct st_pixel_buffer **)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	344	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	346	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	353	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	358	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	360	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	362	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	363	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	364	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	366	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	369	void (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	370	bool (st_cterm_t *, bool)	cterm.owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_mark_fn	17	int (*)(void *, uint16_t)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_root_fn	18	int (*)(void *, st_hyperlink_mark_fn, void *)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	field:st_hyperlink.uri	22	char *	hyperlinks.registry
@@ -2257,14 +2258,18 @@ src/terminal/screen_mode/st_screen_mode.h	function:st_screen_mode_custom	45	int 
 src/terminal/screen_mode/st_screen_mode.h	function:st_screen_mode_console_palette	49	void (const struct st_screen_mode_descriptor *, uint32_t *)	screen.modes
 src/terminal/screen_mode/st_screen_mode.h	function:st_screen_mode_palette_mapping	52	void (const struct st_screen_mode_descriptor *, uint16_t *)	screen.modes
 src/terminal/screen_mode/st_screen_mode.h	function:st_screen_mode_profile_palette	55	void (const struct st_screen_mode_descriptor *, const uint32_t *, size_t, uint32_t *)	screen.modes
-src/terminal/session_history/st_session_history.h	function:st_session_history_create	20	int (st_session_history_t **, size_t)	history.owner
-src/terminal/session_history/st_session_history.h	function:st_session_history_destroy	22	void (st_session_history_t *)	history.owner
-src/terminal/session_history/st_session_history.h	function:st_session_history_set_capacity	23	int (st_session_history_t *, size_t)	history.owner
-src/terminal/session_history/st_session_history.h	function:st_session_history_capacity	25	size_t (st_session_history_t *)	history.owner
-src/terminal/session_history/st_session_history.h	function:st_session_history_publish	28	int (st_session_history_t *, const struct st_console_cell *, uint32_t, size_t, enum st_screen_mode, _Bool)	history.owner
-src/terminal/session_history/st_session_history.h	function:st_session_history_clear	31	void (st_session_history_t *)	history.clear
-src/terminal/session_history/st_session_history.h	function:st_session_history_copy	34	int (st_session_history_t *, struct st_console_cell **, uint32_t *, size_t *, enum st_screen_mode *, _Bool *)	history.owner
-src/terminal/session_history/st_session_history.h	function:st_session_history_info	37	int (st_session_history_t *, uint32_t *, size_t *, enum st_screen_mode *, _Bool *)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_history_capture_pixels	23	int (struct st_pixel_buffer **, st_console_t *, const struct st_console_cell *, uint32_t, const struct st_console_rect *)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_history_free_pixels	26	void (struct st_pixel_buffer **, size_t)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_history_resize_pixels	29	int (struct st_pixel_buffer **, const struct st_pixel_buffer *, uint32_t, uint32_t, uint32_t, uint32_t)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_create	33	int (st_session_history_t **, size_t)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_destroy	35	void (st_session_history_t *)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_set_capacity	36	int (st_session_history_t *, size_t)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_capacity	38	size_t (st_session_history_t *)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_publish	43	int (st_session_history_t *, const struct st_console_cell *, uint32_t, size_t, enum st_screen_mode, _Bool, struct st_pixel_buffer **)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_clear	46	void (st_session_history_t *)	history.clear
+src/terminal/session_history/st_session_history.h	function:st_session_history_copy	49	int (st_session_history_t *, struct st_console_cell **, uint32_t *, size_t *, enum st_screen_mode *, _Bool *)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_info	52	int (st_session_history_t *, uint32_t *, size_t *, enum st_screen_mode *, _Bool *)	history.owner
+src/terminal/session_history/st_session_history.h	function:st_session_history_copy_pixels	55	int (st_session_history_t *, size_t, struct st_pixel_buffer **)	history.owner
 src/terminal/term/st_term.h	function:st_term_session_set_auxiliary_active	23	void (st_term_session_t *, bool)	term.controls
 src/terminal/term/st_term.h	function:st_term_session_inspect_transfer	26	bool (st_term_session_t *, struct st_transfer_inspection *, bool *)	term.controls
 src/terminal/term/st_term.h	enum:ST_TERM_RETURN_TO_PICKER	30	st_term_disposition	term.owner

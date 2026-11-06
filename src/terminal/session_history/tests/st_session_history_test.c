@@ -3,6 +3,7 @@
  */
 
 #include "st_session_history.h"
+#include "io_error.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,12 +26,25 @@ main(void)
 	size_t lines;
 	enum st_screen_mode mode;
 	bool status;
+	struct st_pixel_buffer **pixels = calloc(4, sizeof(*pixels));
+	struct st_pixel_buffer *image = NULL;
+	CHECK(pixels != NULL);
+	CHECK(st_pixel_buffer_create(&pixels[1], 16, 8, true) == 0);
+	CHECK(st_pixel_buffer_fill(pixels[1], ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0),
+	    ST_PIXEL_COLOR_RGB_VALUE(0, 255, 0)) == 0);
 
 	for (size_t i = 0; i < 8; ++i)
 		source[i].glyph = (uint32_t)('A' + i);
 	CHECK(st_session_history_create(&history, 3) == 0);
 	CHECK(st_session_history_publish(history, source, 2, 4,
-	    ST_SCREEN_MODE_C64, true) == 0);
+	    ST_SCREEN_MODE_C64, true, pixels) == 0);
+	CHECK(st_session_history_copy_pixels(history, 0, &image) == 0);
+	CHECK(image != NULL && image->width == 16 && image->height == 8);
+	CHECK(image->primary[0] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
+	CHECK(image->alternate[0] == ST_PIXEL_COLOR_RGB_VALUE(0, 255, 0));
+	st_pixel_buffer_destroy(image);
+	image = NULL;
+	CHECK(st_session_history_copy_pixels(history, 1, &image) == 0 && image == NULL);
 	CHECK(st_session_history_copy(history, &copy, &width, &lines, &mode,
 	    &status) == 0);
 	CHECK(width == 2 && lines == 3 && mode == ST_SCREEN_MODE_C64 && status);
@@ -41,7 +55,27 @@ main(void)
 	CHECK(st_session_history_copy(history, &copy, &width, &lines, &mode,
 	    &status) == 0);
 	CHECK(lines == 2 && copy[0].glyph == 'E');
+	CHECK(st_session_history_copy_pixels(history, 0, &image) == 0 && image == NULL);
+	CHECK(st_session_history_copy_pixels(history, 2, &image) == IO_ERROR_OUT_OF_RANGE);
 	free(copy);
+	struct st_pixel_buffer *scaled = NULL;
+	CHECK(st_pixel_buffer_create(&image, 4, 2, true) == 0);
+	image->primary[0] = 1;
+	image->primary[1] = 2;
+	image->primary[2] = 3;
+	image->primary[3] = 4;
+	image->alternate[0] = 5;
+	CHECK(st_history_resize_pixels(&scaled, image, 2, 3, 4, 4) == 0);
+	CHECK(scaled->width == 12 && scaled->height == 4);
+	CHECK(scaled->primary[0] == 1 && scaled->primary[1] == 1 && scaled->primary[2] == 2);
+	CHECK(scaled->primary[4] == 3 && scaled->primary[6] == 4);
+	CHECK(scaled->primary[8] == ST_PIXEL_COLOR_RGB_TAG && scaled->alternate[0] == 5);
+	st_pixel_buffer_destroy(scaled);
+	scaled = NULL;
+	CHECK(st_history_resize_pixels(&scaled, image, 0, 3, 4, 4) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(scaled == NULL);
+	st_pixel_buffer_destroy(image);
+	image = NULL;
 	st_session_history_clear(history);
 	CHECK(st_session_history_copy(history, &copy, &width, &lines, &mode,
 	    &status) != 0);

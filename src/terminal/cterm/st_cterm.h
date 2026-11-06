@@ -335,6 +335,10 @@ int st_cterm_set_encoding(st_cterm_t *terminal,
  */
 int st_cterm_copy_history(st_cterm_t *terminal,
 	struct st_console_cell **cells, uint32_t *columns, size_t *rows);
+/* Clone one chronological history/live row's optional RGB pixel strip.
+ * A text-only row returns NULL; output is unchanged on failure. */
+int st_cterm_copy_history_pixels(st_cterm_t *terminal, size_t row,
+	struct st_pixel_buffer **result);
 
 /* Logical, oldest-first access to the retained scrollback ring only. */
 int st_cterm_scrollback_size(const st_cterm_t *terminal,

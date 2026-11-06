@@ -207,7 +207,7 @@ class OfflineScrollbackView {
   }
 
   static show_(app, standalone) {
-    var source = Menu.offlineScrollback
+    var source = Screen.checked_(Menu.offlineScrollback)
     if (source == null) return
     var savedScreen = Screen.checked_(Screen.save())
     var savedMouse = Input.mouseEvents
@@ -256,6 +256,7 @@ class OfflineScrollbackView {
       Screen.cleanup_([
         Fn.new { Screen.optional_(Menu.setHyperlinkHover(0)) },
         Fn.new { Input.mouseEvents = savedMouse },
+        Fn.new { Screen.checked_(Menu.finishOfflineScrollback()) },
         Fn.new { Screen.checked_(Screen.restore(savedScreen)) }
       ])
     })

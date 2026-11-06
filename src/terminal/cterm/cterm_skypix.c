@@ -519,15 +519,24 @@ static void cursor_bookkeeping(struct cterm_skypix *s)
 }
 static void line_feed(struct cterm_skypix *s)
 {
+	int previous_top = s->y + font_descent(s->font);
 	s->y = cterm_skypix_word((unsigned)(s->y + (int)st_amiga_font_height(s->font)));
 	if (s->terminal->lf_expand)
 		s->x = 0;
-	int top = s->y + font_descent(s->default_data);
-	if (!s->custom && top >= (int)s->height && top < (int)(s->height + s->cell_height)) {
+	int top = s->y + font_descent(s->font);
+	/* Out-of-canvas pixel positioning must not trigger thousands of
+	 * empty row captures from one LF. Only scroll text leaving the canvas. */
+	if (previous_top < 0 || previous_top >= (int)s->height)
+		return;
+	/* The history ring stores console-row strips. Keep the current native
+	 * strike on the canvas, including after a remote font selection. */
+	while (top >= 0 && top + (int)st_amiga_font_height(s->font) > (int)s->height) {
 		cterm_scrollup(s->terminal);
 		s->y -= (int)s->cell_height;
+		top -= (int)s->cell_height;
 	}
 }
+
 bool cterm_skypix_control(struct cterm_skypix *s, uint8_t byte)
 {
 	if (!s->custom && !s->positioned && !s->native_default)

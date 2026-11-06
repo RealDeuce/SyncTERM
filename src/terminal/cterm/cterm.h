@@ -170,6 +170,7 @@ struct cterminal {
 	int					right_margin;
 	int					quiet;			// No sounds are made
 	struct st_console_cell	*scrollback;
+	struct st_pixel_buffer **backpixels; /* Optional, owned pixel strip per ring slot. */
 	int					backfilled;		// Number of lines copied into scrollback
 	int					backlines;		// Number of lines in scrollback
 	int					backwidth;		// Number of columns in scrollback

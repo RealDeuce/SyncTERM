@@ -30,6 +30,12 @@ reconstruction with persisted-variable reload and safe teardown after a prompt
 failure. These checks concern `st_cterm_reset_terminal`, not changes to RIP's
 protocol reset commands or the historical graphics captures inventoried below.
 
+The supplemental `syncterm_graphics_scrollback` fixture exercises RIP v1/v3
+through the shared graphics-history implementation: actual RIP_PIXEL output,
+both blink planes, Surface composition, scrolling, palette changes and retained
+disconnected/offline history, with status on/off. These literal expectations
+are separate from the historical DOS captures and do not change their provenance.
+
 ## Historical reference captures
 
 `src/tests/rip154/captures.json` inventories 26 independent DOSBox RIPterm 1.54

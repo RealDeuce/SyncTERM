@@ -7,6 +7,17 @@ native Amiga fonts and complete descenders, system-font UI isolation,
 transfers and delay/reset/disconnect recovery. It is separate from the ANSI
 CP437/UTF-8 inventory below and from the historical RIP captures.
 
+`syncterm_graphics_scrollback` checks the shared history path in ordinary ANSI,
+RIP v1/v3 and both SkyPix variants, with status on/off and CP437/UTF-8 where
+applicable. Literal coloured rectangles and two blink planes survive live
+viewing, scrolling, palette changes, disconnect and reopening from the directory.
+The RIP cases include an actual RIP_PIXEL command; SkyPix includes native Pearl
+g/p/y text after remote font selection. Clipped/overlapping Surface copies and
+text overlays retain their expected pixels. Input replies fence one coherent
+capture; source expectations are fixture colours and pinned glyph rows.
+Native CTerm/history tests cover optional text-only storage, ring wrap, resize,
+capacity trimming, terminal reset, invalid requests and destruction.
+
 `src/tests/st_terminal_conformance_test.py` runs the normal application through
 its control bitmap backend and a private loopback Raw connection, in CP437 and
 UTF-8. Each group is a separate CTest `syncterm_conformance_<group>_<encoding>`.

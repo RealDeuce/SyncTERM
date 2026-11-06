@@ -39,6 +39,7 @@
 
 #include "cterm.h"
 #include "cterm_skypix.h"
+#include "st_session_history.h"
 #include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_ecma48.h"
@@ -1165,33 +1166,52 @@ cterm_scrolldown(struct cterminal *cterm)
 static void
 cterm_line_to_scrollback(struct cterminal *cterm, int row)
 {
-	if(cterm->scrollback!=NULL) {
-		int getw;
-
-		getw = cterm->backwidth;
-		if (getw > cterm->width)
-			getw = cterm->width;
-		if (!cterm_render_read_cells(cterm, cterm->x, row,
-		    cterm->x + getw - 1, row,
-		    cterm->scrollback + cterm->backpos * cterm->backwidth))
-			return;
-		if (getw < cterm->backwidth) {
-			memset(cterm->scrollback + cterm->backpos * cterm->backwidth + getw,
-			    0, sizeof(*cterm->scrollback) * (cterm->backwidth - getw));
-		}
-		/* Publish only successfully captured rows; failed reads must not
-		 * make an old ring slot appear to be newly received output. */
-		cterm->backfilled++;
-		if (cterm->backfilled > cterm->backlines) {
-			cterm->backfilled--;
-			cterm->backstart++;
-			if (cterm->backstart == cterm->backlines)
-				cterm->backstart = 0;
-		}
-		cterm->backpos++;
-		if (cterm->backpos == cterm->backlines)
-			cterm->backpos = 0;
+	if (cterm->scrollback == NULL)
+		return;
+	int width = cterm->backwidth < cterm->width ? cterm->backwidth : cterm->width;
+	struct st_console_cell local[256];
+	struct st_console_cell *cells = width <= 256 ? local : malloc((size_t)width * sizeof(*cells));
+	struct st_pixel_buffer *pixels = NULL;
+	int status = cells == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
+	uint32_t cw, ch;
+	if (status == 0 && !cterm_render_read_cells(cterm, cterm->x, row,
+		cterm->x + width - 1, row, cells))
+		status = IO_ERROR_IO;
+	if (status == 0)
+		status = st_console_cell_pixel_size(cterm->screen.console, &cw, &ch);
+	if (status == 0) {
+		const struct st_console_rect region = {
+			(uint32_t)(cterm->x - 1) * cw, (uint32_t)(row - 1) * ch, (uint32_t)width * cw, ch};
+		status = st_history_capture_pixels(&pixels, cterm->screen.console, cells,
+			(uint32_t)width, &region);
 	}
+	if (status == 0 && pixels != NULL && cterm->backpixels == NULL) {
+		cterm->backpixels = calloc((size_t)cterm->backlines, sizeof(*cterm->backpixels));
+		if (cterm->backpixels == NULL)
+			status = IO_ERROR_OUT_OF_MEMORY;
+	}
+	if (status == 0) {
+		struct st_console_cell *destination = cterm->scrollback +
+			(size_t)cterm->backpos * cterm->backwidth;
+		memcpy(destination, cells, (size_t)width * sizeof(*cells));
+		if (width < cterm->backwidth)
+			memset(destination + width, 0, (size_t)(cterm->backwidth - width) * sizeof(*cells));
+		if (cterm->backpixels != NULL) {
+			st_pixel_buffer_destroy(cterm->backpixels[cterm->backpos]);
+			cterm->backpixels[cterm->backpos] = pixels;
+			pixels = NULL;
+		}
+		/* Publish only after both cells and pixels were captured successfully. */
+		if (cterm->backfilled == cterm->backlines)
+			cterm->backstart = (cterm->backstart + 1) % cterm->backlines;
+		else
+			++cterm->backfilled;
+		cterm->backpos = (cterm->backpos + 1) % cterm->backlines;
+	}
+	cterm_render_record_error(cterm, status);
+	st_pixel_buffer_destroy(pixels);
+	if (cells != local)
+		free(cells);
 }
 
 void
@@ -2388,6 +2408,7 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 	(void)free_fonts;
 
 	if(cterm) {
+		st_history_free_pixels(cterm->backpixels, (size_t)cterm->backlines);
 		cterm_text_destroy(cterm);
 		cterm_apc_destroy(cterm);
 		cterm_closelog(cterm);

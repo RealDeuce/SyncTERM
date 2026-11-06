@@ -3396,8 +3396,10 @@ hyperlink, and repairs overwritten wide pairs.
 
 | `pixelGraphics`
 | Read-only.  `true` when pixel drawing has marked this text cell as containing
-  raster data.  Capture the pixel planes separately with
-  `Screen.readPixels`; it is not contained in a `Cell` or `Surface`.
+  raster data. A captured Surface retains optional row rasters separately
+  from its cells. `Cell` itself carries only the flag; use Surface rectangle
+  copies to preserve the image. Assigning `Cell.ch` or filling text cells
+  replaces their captured pixels.
 
 | `fgPalette`, `bgPalette`
 | Foreground / background palette indices.
@@ -3439,9 +3441,13 @@ subscript, `count`, and the standard sequence helpers (`each`,
 without switching to 2D indexing.  Linear order is row-major:
 `buf[y * width + x]`.
 
-`Screen.readRect` returns a Surface sized to the requested rect;
-`Screen.putRect` blits a Surface to the screen as a single atomic
-blit. The
+`Screen.readRect` returns a Surface sized to the requested rect, with optional
+pixel strips for rows containing graphics. Captured strips retain RGB colours
+and both blink phases; plain-text rows allocate no pixel storage. Rectangle
+copies, including clipped and overlapping self-copies, preserve those strips.
+Glyph edits and text fills replace the affected cells' raster content; style
+edits do not recolour captured pixels. `Screen.putRect` restores cells and
+pixel-marked regions in one presentation batch, so UI overlays remain visible. The
 UI library uses Surfaces as per-widget backbuffers and composites
 them into a screen-sized backbuffer Surface that's blitted once
 per frame.
@@ -3563,9 +3569,10 @@ rotate storage, or change `CTerm.scrollbackStart` / `scrollbackPos`.
 | Copy whole logical history rows, oldest-first, into an owned
   <<surface,`Surface`>>.  Source and destination row ranges are clipped;
   the return value is the number of rows copied.  Physical ring wrap is
-  translated per row without allocating memory or changing the ring.  Work
-  and memory usage therefore depend on the requested viewport, not the
-  configured scrollback capacity.
+  translated per row without changing the ring. Optional captured pixel strips
+  are copied only for requested rows and survive subsequent ring overwrite.
+  Native cell/pixel-copy failures return ScreenError; check the result before use. Work and image memory depend
+  on the requested viewport, rather than the configured scrollback capacity.
 |===
 
 === Font [[font]]
@@ -4533,14 +4540,23 @@ available in a connected VM.
 | Return a detached `Surface` copy of the most recently completed
   session's linear scrollback, or `null` when none exists.  The copy
   is safe to retain across later connections; it does not borrow the
-  process buffer which the next session may resize or replace.
+  process buffer which the next session may resize or replace. Optional graphic
+  row strips retain their captured colours and both blink planes. A pixel-copy
+  failure returns ScreenError.
 
 | Menu.prepareOfflineScrollback()
 | Select the completed session's text mode, restore its mode-specific fonts
   and palette, and draw the terminal background.  Returns `false` when no
   scrollback exists, `true` on preparation success, or `ScreenError` on an
   operational failure.  This changes global
-  conio state; bracket it with `Screen.save()` and `Screen.restore()`.
+  console state. Save the screen first, then call `finishOfflineScrollback()`
+  before restoring that screen, including on errors or cancellation.
+
+| Menu.finishOfflineScrollback()
+| Restore the original menu geometry after preparing detached history; returns
+  null or ScreenError. It is idempotent and leaves an enclosing disconnected
+  session's mode bracket intact. The shipped viewer pairs this with preparation
+  through its cleanup scope.
 
 | Menu.offlineScrollbackHasStatus
 | Return whether the completed session's terminal layout reserves a status

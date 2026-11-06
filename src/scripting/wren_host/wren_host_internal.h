@@ -293,6 +293,7 @@ struct st_wren_host {
 	bool history_mode_valid;
 	enum st_screen_mode menu_mode_identity;
 	bool session_mode_active;
+	bool offline_history_mode_active;
 	struct st_wren_context menu;
 	struct st_wren_context picker;
 	struct st_profile selected;
@@ -316,6 +317,10 @@ void st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
 void st_wren_log_dispose(WrenVM *vm);
 void st_wren_push_surface_take(WrenVM *vm, struct st_console_cell *cells,
 	uint32_t width, uint32_t height);
+/* Always consumes pixels, including on failure. source_columns describes
+ * the captured strip before clipping/padding to the destination Surface. */
+int st_wren_surface_take_row_pixels(WrenVM *vm, int slot, uint32_t row,
+	uint32_t source_columns, struct st_pixel_buffer *pixels);
 bool st_wren_surface_reset(WrenVM *vm, int slot,
 	const struct st_console_cell *blank, uint32_t width, uint32_t height);
 const struct st_console_cell *st_wren_surface_cells(WrenVM *vm, int slot,

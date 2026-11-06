@@ -167,6 +167,8 @@ int st_cterm_set_encoding(st_cterm_t *terminal,
     enum st_cterm_encoding encoding, enum st_codepage codepage);
 int st_cterm_copy_history(st_cterm_t *terminal,
     struct st_console_cell **cells, uint32_t *columns, size_t *rows);
+int st_cterm_copy_history_pixels(st_cterm_t *terminal, size_t row,
+    struct st_pixel_buffer **result);
 bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
     uint32_t modifiers);
 bool st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint);
@@ -243,6 +245,14 @@ codepage, or UTF-8 with a fixed byte-table emulation.
 | st_cterm_copy_history(terminal, cells, columns, rows)
 | Allocates a row-major chronological snapshot: staged ring lines then visible
 terminal rows.  All outputs are unchanged on failure; caller frees `*cells`.
+
+| st_cterm_copy_history_pixels(terminal, row, result)
+| Clones the optional captured raster for one chronological ring/live row.
+Text-only rows return NULL; invalid rows fail without changing the output.
+Captured strips freeze RGB colours and both phases; destroy the result with
+st_pixel_buffer_destroy. Rows are captured before scrolling or clearing and
+released on ring overwrite/destruction. Regridding crops/pads columns and
+samples pixels within the new cell geometry. Terminal reset retains history.
 
 | st_cterm_handle_key(terminal, key_code, modifiers)
 | Encodes one normalized key according to active terminal modes. `modifiers`

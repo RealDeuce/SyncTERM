@@ -85,8 +85,8 @@ class ScrollbackView {
     var height = live.height
     var width = viewport.width
     if (top < historyHeight) {
-      copied = Scrollback.copyRowsTo(viewport, top,
-          (historyHeight - top).min(height), 0)
+      copied = Screen.checked_(Scrollback.copyRowsTo(viewport, top,
+          (historyHeight - top).min(height), 0))
     }
     if (copied < height) {
       var liveRow = top + copied - historyHeight

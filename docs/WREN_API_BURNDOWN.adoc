@@ -1534,3 +1534,39 @@ Accounting is 82 headers, 127 exclusions, 2,519 native items and 160 assessments
 all matrix rows match. The profile table covers 53 canonical keys/59 members.
 The original 51-topic denominator remains 19 resolved/32 open, and the temporary
 burndown records and skill remain for those outstanding topics.
+
+
+== Approved shared graphics scrollback follow-up
+
+The user approved retaining optional pixel strips beside history lines and
+explicitly required this beyond SkyPix. The shared implementation captures
+rows before scrolling/clearing, retains RGB colours and both blink planes,
+and frees buffers on ring replacement, trimming, clearing and destruction.
+Text-only rows avoid pixel allocation. Resize retains chronological order and
+regrids captured pixels. Detached history takes ownership of requested row
+copies; readers needing only cells do not copy images.
+
+Surface capture/composition carries the row rasters through both viewers;
+glyph edits and fills expose the ordinary UI font over captured graphics.
+An explicit finishOfflineScrollback pair restores the prior menu geometry
+before Screen.restore, including cancellation/errors. Remote SkyPix font
+line feeds now scroll their images into the shared history. Exact JR-Comm
+margin/cursor/buffering gaps remain recorded separately.
+
+Independent native and application tests cover literal two-phase colours,
+palette changes, actual RIP pixels, native Pearl descenders, ANSI/RIP/SkyPix,
+CP437/UTF-8, status choices, live and detached viewers, rectangle composition,
+ring wrap, resize, trimming, reset preservation, invalid requests and teardown.
+
+Verification complete: Clang Debug/Botan full build and 148 regression CTests
+passed (163.46s), plus ten theme/ANSI/curses checks: 158 distinct tests.
+Eleven focused tests also passed with GCC/OpenSSL, Clang ASan/UBSan/OpenSSL,
+and no crypto/no Unifont, as well as the primary native configuration.
+FreeBSD leak detection is unsupported and disabled; the existing C++ vptr
+exclusion remains. MinGW x86/x86_64 full cross-builds passed; no Windows
+runtime, Wine or local MSVC verification. No new warnings or sanitizer reports.
+
+Accounting now includes five new row-capture/resize/disposal/copy functions:
+82 headers, 127 exclusions, 2,524 native items and 160 assessments. All 82
+matrix rows reconcile. The original 51 topics remain 19 resolved/32 open;
+the temporary burndown records and skill remain for outstanding work.

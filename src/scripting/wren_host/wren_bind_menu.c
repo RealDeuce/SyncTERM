@@ -1485,6 +1485,18 @@ fn_menu_offline_scrollback(WrenVM *vm)
 	(void)mode;
 	(void)has_status;
 	st_wren_push_surface_take(vm, cells, width, (uint32_t)lines);
+	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN)
+		return;
+	for (size_t row = 0; row < lines; ++row) {
+		struct st_pixel_buffer *pixels = NULL;
+		int status = st_session_history_copy_pixels(host->config.session_history, row, &pixels);
+		if (status == 0)
+			status = st_wren_surface_take_row_pixels(vm, 0, (uint32_t)row, width, pixels);
+		if (status != 0) {
+			st_wren_screen_result(vm, status, "Menu.offlineScrollback pixels");
+			return;
+		}
+	}
 }
 
 static bool
@@ -1509,11 +1521,31 @@ fn_menu_prepare_offline_scrollback(WrenVM *vm)
 
 	(void)has_status;
 	if (success) {
-		int status = host->history_mode_valid ? st_wren_host_prepare_history_mode(host)
-		    : mode == ST_SCREEN_MODE_CURRENT ? 0 : st_wren_host_set_screen_mode(host, mode);
+		int status = 0;
+		if (!host->session_mode_active) {
+			status = st_wren_host_begin_session_mode(host, ST_SCREEN_MODE_CURRENT);
+			if (status == 0)
+				host->offline_history_mode_active = true;
+		}
+		if (status == 0)
+			status = host->history_mode_valid ? st_wren_host_prepare_history_mode(host)
+				: mode == ST_SCREEN_MODE_CURRENT ? 0 : st_wren_host_set_screen_mode(host, mode);
 		if (!st_wren_screen_status(vm, status, "Menu.prepareOfflineScrollback")) return;
 	}
 	wrenSetSlotBool(vm, 0, success);
+}
+
+static void
+fn_menu_finish_offline_scrollback(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	int status = 0;
+	if (host->offline_history_mode_active) {
+		status = st_wren_host_end_session_mode(host);
+		if (status == 0)
+			host->offline_history_mode_active = false;
+	}
+	st_wren_screen_result(vm, status, "Menu.finishOfflineScrollback");
 }
 
 static void
@@ -5061,6 +5093,7 @@ static const struct binding bindings[] = {
 	{"BBSLoadDiagnostic", false, "error", fn_load_diagnostic_error},
 	{"Menu", true, "quickConnect(_)", fn_menu_quick_connect},
 	{"Menu", true, "offlineScrollback", fn_menu_offline_scrollback},
+	{"Menu", true, "finishOfflineScrollback()", fn_menu_finish_offline_scrollback},
 	{"Menu", true, "prepareOfflineScrollback()",
 	    fn_menu_prepare_offline_scrollback},
 	{"Menu", true, "offlineScrollbackHasStatus",

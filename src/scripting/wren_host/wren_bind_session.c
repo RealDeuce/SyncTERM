@@ -756,10 +756,27 @@ fn_scrollback_copy_rows(WrenVM *vm)
 	copied = st_cterm_copy_scrollback_rows(
 	    st_wren_context_from_vm(vm)->cterm, cells, width, height,
 	    (size_t)source, (size_t)count, (size_t)destination);
-	if (copied < 0)
-		st_wren_abort(vm, "Scrollback.copyRowsTo failed");
-	else
-		wrenSetSlotDouble(vm, 0, copied);
+	if (copied < 0) {
+		st_wren_screen_result(vm, copied, "Scrollback.copyRowsTo");
+		return;
+	}
+	uint32_t history_width = 0;
+	size_t history_rows;
+	(void)st_cterm_scrollback_size(st_wren_context_from_vm(vm)->cterm,
+		&history_width, &history_rows);
+	for (int row = 0; row < copied; ++row) {
+		struct st_pixel_buffer *pixels = NULL;
+		int status = st_cterm_copy_history_pixels(st_wren_context_from_vm(vm)->cterm,
+			(size_t)source + (size_t)row, &pixels);
+		if (status == 0)
+			status = st_wren_surface_take_row_pixels(vm, 1,
+				(uint32_t)destination + (uint32_t)row, history_width, pixels);
+		if (status != 0) {
+			st_wren_screen_result(vm, status, "Scrollback.copyRowsTo pixels");
+			return;
+		}
+	}
+	wrenSetSlotDouble(vm, 0, copied);
 }
 
 static void

@@ -95,6 +95,14 @@ quantized position, two width masks, separate colour or 185 ms timer callback
 state machine; it uses the host console cursor. These are compatibility gaps,
 not behaviours established by the existing glyph/vector tests.
 
+Graphics history uses the shared optional pixel-strip path, including text
+rendered through native Amiga fonts. Remote-font line feeds scroll enough host
+cell strips to keep the current strike inside the canvas. This preserves the
+rendered image; it does not claim the exact JR-Comm ascent/descent margin rule
+listed above. Both blink planes and captured colours survive viewing and
+reopening history after disconnect. Pixel-only text retains its raster rather
+than acquiring invented character-cell content.
+
 ## Test inventory
 
 Enable `ST_CONSOLE_TEST`, configure/build with CMake, then run:
@@ -111,6 +119,7 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | `cterm_skypix` | Parser splits, command/state/pixel expectations, both variants, status geometry, resets, delays, proportional overhang and native ILBM decoding. |
 | `skypix_rom_vectors` | Independent ordered point sets/hashes and Diamond 20 text for the retained ROM vectors. |
 | `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, selected canvas geometry and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
+| `syncterm_graphics_scrollback` | Shared ANSI/RIP/SkyPix image history, both phases, palette changes, composition/overlays, remote Pearl descenders, status choices and disconnected/offline viewing. |
 | `syncterm_amiga_font_manager` | Real picker cancellation, install, replacement confirmation, stale snapshots, metadata, removal and malformed family rejection. |
 | `bbs_list`, `wren_menu_contract` | All Graphics values, legacy RIP fallback/canonical save, locked merge/default persistence and conflicts, menu catalogs, constants and immutable family metadata. |
 

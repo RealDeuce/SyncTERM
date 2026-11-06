@@ -902,7 +902,9 @@ foreign class Cell {
   foreign eqContent(other)
   foreign toString
 }
-// Surface owns a w×h grid of vmem_cells.  Inherits Sequence so the
+// Surface owns a w×h cell grid and optional captured graphic row strips.
+// Rectangle copies retain both pixel phases; glyph edits replace their pixels.
+// Inherits Sequence so the
 // linear `[i]` subscript, `count`, and the standard iteration helpers
 // (each, where, map, all, any, reduce, join, take, skip, toList, …)
 // all work off the iterate/iteratorValue protocol below - handy for
@@ -1021,7 +1023,8 @@ class SurfaceCols is Sequence {
 }
 
 // Scrollback - read-only logical access to cterm's process-wide
-// scrollback ring.  copyRowsTo copies only the requested logical rows
+// scrollback ring. copyRowsTo copies only the requested logical rows and
+// their optional captured pixel strips
 // into an ordinary owned Surface, translating across the physical ring
 // wrap without rotating or otherwise changing the ring.
 class Scrollback {

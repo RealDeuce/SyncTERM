@@ -4,6 +4,7 @@
  */
 
 #include "st_cterm.h"
+#include "st_session_history.h"
 #include "cterm.h"
 #include "cterm_dec.h"
 
@@ -526,9 +527,67 @@ test_status_display_routing(void)
 	}
 }
 
+static void
+test_graphics_history(void)
+{
+	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
+		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config geometry = {
+			.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16, .wrap = true};
+		st_console_t *console = NULL;
+		st_font_catalog_t *fonts = NULL;
+		st_cterm_t *terminal = NULL;
+		CHECK(st_console_create(&console, &display, &geometry) == 0);
+		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		const struct st_cterm_config config = {.console = console, .fonts = fonts,
+			.emulation = ST_CTERM_ANSI_BBS, .codepage = ST_CODEPAGE_CP437,
+			.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+			.scrollback_lines = 2};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		feed(terminal, "X", 1);
+		CHECK(st_cterm_finish(terminal) == 0);
+		struct st_pixel_buffer *mark = NULL;
+		CHECK(st_pixel_buffer_create(&mark, 8, 16, true) == 0);
+		CHECK(st_pixel_buffer_fill(mark, 1, 2) == 0);
+		uint32_t colours[] = {0xff0000, 0x00ff00};
+		CHECK(st_console_set_palette(console, 1, colours, 2) == 0);
+		const struct st_pixel_blit at = {.width = 8, .height = 16,
+			.destination_x = 16, .destination_y = 0, .scale_x = 1, .scale_y = 1};
+		CHECK(st_console_blit_pixels(console, mark, NULL, &at) == 0);
+		feed(terminal, "\x1b[4;1H\n", 7);
+		struct st_pixel_buffer *copy = NULL;
+		CHECK(st_cterm_copy_history_pixels(terminal, 0, &copy) == 0 && copy != NULL);
+		CHECK(copy->primary[16] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
+		CHECK(copy->alternate[16] == ST_PIXEL_COLOR_RGB_VALUE(0, 255, 0));
+		st_pixel_buffer_destroy(copy);
+		colours[0] = 0x0000ff;
+		CHECK(st_console_set_palette(console, 1, colours, 1) == 0);
+		CHECK(st_cterm_copy_history_pixels(terminal, 0, &copy) == 0);
+		CHECK(copy->primary[16] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
+		st_pixel_buffer_destroy(copy);
+		CHECK(st_cterm_reset_terminal(terminal) == 0);
+		CHECK(st_cterm_resize(terminal, 0, 4) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_cterm_copy_history_pixels(terminal, 0, &copy) == 0);
+		CHECK(copy != NULL && copy->primary[16] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
+		st_pixel_buffer_destroy(copy);
+		CHECK(st_cterm_resize(terminal, 24, 4) == 0);
+		CHECK(st_cterm_copy_history_pixels(terminal, 0, &copy) == 0);
+		CHECK(copy != NULL && copy->width == 192 && copy->height == 16);
+		CHECK(copy->primary[16] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
+		st_pixel_buffer_destroy(copy);
+		feed(terminal, "\x1b[4;1H\n\n", 8);
+		CHECK(st_cterm_copy_history_pixels(terminal, 0, &copy) == 0 && copy == NULL);
+		st_pixel_buffer_destroy(mark);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
+	}
+}
+
 int
 main(void)
 {
+	test_graphics_history();
 	test_status_display_routing();
 	test_direct_reset();
 	test_lf_expand();

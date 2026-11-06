@@ -20,6 +20,7 @@
 #include "st_cterm.h"
 #include "st_ooii.h"
 #include "st_settings.h"
+#include "st_session_history.h"
 #include "st_theme.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
@@ -65,6 +66,8 @@ struct surface_storage {
 	uint32_t width;
 	uint32_t height;
 	struct st_console_cell *cells;
+	struct st_pixel_buffer **pixels;
+	uint32_t pixel_cell_width, pixel_cell_height;
 	struct st_wren_host *host;
 	struct surface_storage *previous;
 	struct surface_storage *next;
@@ -204,6 +207,7 @@ struct binding {
 	WrenForeignMethodFn method;
 };
 
+static void surface_drop_empty_pixels(struct surface_storage *storage, uint32_t row);
 static enum st_codepage font_codepage(struct st_wren_context *context, uint16_t selector);
 
 static struct st_wren_input_record
@@ -392,6 +396,7 @@ storage_release(struct surface_storage *storage)
 		if (storage->next != NULL)
 			storage->next->previous = storage->previous;
 		free(storage->cells);
+		st_history_free_pixels(storage->pixels, storage->height);
 		free(storage);
 	}
 }
@@ -524,6 +529,8 @@ st_wren_surface_reset(WrenVM *vm, int slot,
 		return false;
 	for (size_t i = 0; i < storage->count; ++i)
 		storage->cells[i] = *blank;
+	st_history_free_pixels(storage->pixels, storage->height);
+	storage->pixels = NULL;
 	return true;
 }
 
@@ -640,7 +647,7 @@ set_cell_cluster(WrenVM *vm, struct foreign_cell *foreign, const char *text,
 	    && foreign->index % foreign->storage->width + 1
 	    < foreign->storage->width;
 
-	value.flags &= ~ST_CONSOLE_CELL_CONTINUATION;
+	value.flags &= ~(ST_CONSOLE_CELL_CONTINUATION | ST_CONSOLE_CELL_PIXEL_GRAPHICS);
 	if (st_console_font_lookup_cluster(console, value.font, text, text_size,
 	    diagnostic ? 1 : columns, &value.glyph_font, &value.glyph) != 0) {
 		return;
@@ -666,6 +673,7 @@ set_cell_cluster(WrenVM *vm, struct foreign_cell *foreign, const char *text,
 		value.flags |= ST_CONSOLE_CELL_CONTINUATION;
 		foreign->storage->cells[foreign->index + 1] = value;
 	}
+	surface_drop_empty_pixels(foreign->storage, (uint32_t)(foreign->index / foreign->storage->width));
 }
 
 static uint8_t
@@ -2330,6 +2338,160 @@ fn_screen_restore(WrenVM *vm)
 	st_wren_screen_result(vm, status, "Screen.restore");
 }
 
+/* A row raster is owned by its Surface. Cell flags decide which parts still
+ * belong to that raster after text/UI edits, so overlays need no pixel mask. */
+static void
+surface_drop_empty_pixels(struct surface_storage *storage, uint32_t row)
+{
+	if (storage->pixels == NULL || storage->pixels[row] == NULL)
+		return;
+	for (uint32_t x = 0; x < storage->width; ++x)
+		if ((storage->cells[(size_t)row * storage->width + x].flags &
+			ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0)
+			return;
+	st_pixel_buffer_destroy(storage->pixels[row]);
+	storage->pixels[row] = NULL;
+}
+
+int
+st_wren_surface_take_row_pixels(WrenVM *vm, int slot, uint32_t row,
+	uint32_t source_columns, struct st_pixel_buffer *pixels)
+{
+	struct foreign_surface *surface = (struct foreign_surface *)foreign_kind(vm, slot, FOREIGN_SURFACE);
+	int status = 0;
+	if (surface == NULL || row >= surface->storage->height)
+		status = IO_ERROR_INVALID_ARGUMENT;
+	else {
+		struct surface_storage *storage = surface->storage;
+		if (pixels != NULL) {
+			if (source_columns == 0 || pixels->width % source_columns != 0 ||
+				pixels->width / source_columns == 0)
+				status = IO_ERROR_INVALID_ARGUMENT;
+			else {
+				if (storage->pixel_cell_width == 0) {
+					storage->pixel_cell_width = pixels->width / source_columns;
+					storage->pixel_cell_height = pixels->height;
+				}
+				if ((uint64_t)storage->width * storage->pixel_cell_width != pixels->width ||
+					pixels->height != storage->pixel_cell_height || source_columns != storage->width) {
+					struct st_pixel_buffer *resized = NULL;
+					status = st_history_resize_pixels(&resized, pixels, source_columns,
+						storage->width, storage->pixel_cell_width, storage->pixel_cell_height);
+					if (status == 0) {
+						st_pixel_buffer_destroy(pixels);
+						pixels = resized;
+					}
+				}
+				if (status == 0 && storage->pixels == NULL) {
+					storage->pixels = calloc(storage->height, sizeof(*storage->pixels));
+					if (storage->pixels == NULL)
+						status = IO_ERROR_OUT_OF_MEMORY;
+				}
+			}
+		}
+		if (status == 0 && storage->pixels != NULL) {
+			st_pixel_buffer_destroy(storage->pixels[row]);
+			storage->pixels[row] = pixels;
+			pixels = NULL;
+		}
+	}
+	st_pixel_buffer_destroy(pixels);
+	return status;
+}
+
+static int
+surface_copy_pixel_row(struct surface_storage *destination, uint32_t dx, uint32_t dy,
+	const struct surface_storage *source, uint32_t sx, uint32_t sy, uint32_t columns)
+{
+	if (source->pixels == NULL || source->pixels[sy] == NULL)
+		return 0;
+	bool graphics = false;
+	for (uint32_t x = 0; x < columns; ++x)
+		graphics |= (source->cells[(size_t)sy * source->width + sx + x].flags &
+			ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0;
+	if (!graphics)
+		return 0;
+	if (destination->pixel_cell_width == 0) {
+		destination->pixel_cell_width = source->pixel_cell_width;
+		destination->pixel_cell_height = source->pixel_cell_height;
+	}
+	if (destination->pixels == NULL) {
+		destination->pixels = calloc(destination->height, sizeof(*destination->pixels));
+		if (destination->pixels == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+	}
+	struct st_pixel_buffer *converted = NULL;
+	const struct st_pixel_buffer *pixels = source->pixels[sy];
+	int status = 0;
+	if (source->pixel_cell_width != destination->pixel_cell_width ||
+		source->pixel_cell_height != destination->pixel_cell_height) {
+		status = st_history_resize_pixels(&converted, pixels, source->width, source->width,
+			destination->pixel_cell_width, destination->pixel_cell_height);
+		pixels = converted;
+	}
+	if (status == 0 && destination->pixels[dy] == NULL) {
+		if (destination->width > UINT32_MAX / destination->pixel_cell_width)
+			status = IO_ERROR_OUT_OF_RANGE;
+		else
+			status = st_pixel_buffer_create(&destination->pixels[dy],
+				destination->width * destination->pixel_cell_width,
+				destination->pixel_cell_height, pixels->alternate != NULL);
+	}
+	if (status == 0) {
+		const struct st_pixel_blit blit = {.source_x = sx * destination->pixel_cell_width,
+			.width = columns * destination->pixel_cell_width,
+			.height = destination->pixel_cell_height,
+			.destination_x = (int32_t)(dx * destination->pixel_cell_width),
+			.scale_x = 1, .scale_y = 1};
+		status = st_pixel_buffer_blit(destination->pixels[dy], pixels, NULL, &blit);
+	}
+	st_pixel_buffer_destroy(converted);
+	return status;
+}
+
+static int
+surface_draw_pixels(st_console_t *console, const struct surface_storage *storage,
+	const struct st_console_rect *source, const struct st_console_rect *destination)
+{
+	if (storage->pixels == NULL)
+		return 0;
+	uint32_t cw, ch;
+	int status = st_console_cell_pixel_size(console, &cw, &ch);
+	if (status != 0 || cw == 0 || ch == 0)
+		return status;
+	for (uint32_t y = 0; y < source->height && status == 0; ++y) {
+		const struct st_pixel_buffer *pixels = storage->pixels[source->y + y];
+		struct st_pixel_buffer *converted = NULL;
+		if (pixels == NULL)
+			continue;
+		if (cw != storage->pixel_cell_width || ch != storage->pixel_cell_height) {
+			status = st_history_resize_pixels(&converted, pixels, storage->width,
+				storage->width, cw, ch);
+			if (status != 0)
+				break;
+			pixels = converted;
+		}
+		for (uint32_t x = 0; x < source->width && status == 0;) {
+			if ((storage->cells[(size_t)(source->y + y) * storage->width + source->x + x].flags &
+				ST_CONSOLE_CELL_PIXEL_GRAPHICS) == 0) {
+				++x;
+				continue;
+			}
+			uint32_t first = x++;
+			while (x < source->width && (storage->cells[(size_t)(source->y + y) * storage->width +
+				source->x + x].flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0)
+				++x;
+			const struct st_pixel_blit blit = {.source_x = (source->x + first) * cw,
+				.width = (x - first) * cw, .height = ch,
+				.destination_x = (int32_t)((destination->x + first) * cw),
+				.destination_y = (int32_t)((destination->y + y) * ch), .scale_x = 1, .scale_y = 1};
+			status = st_console_blit_pixels(console, pixels, NULL, &blit);
+		}
+		st_pixel_buffer_destroy(converted);
+	}
+	return status;
+}
+
 static bool
 read_rect_arguments(WrenVM *vm, int first, struct st_console_rect *rect)
 {
@@ -2392,6 +2554,32 @@ fn_screen_read_rect(WrenVM *vm)
 	}
 	if (!st_wren_screen_status(vm, st_console_read_cells(console, &rect, storage->cells,
 	    rect.width), "Screen.readRect")) {
+		storage_release(storage);
+		return;
+	}
+	uint32_t cw, ch;
+	int status = st_console_cell_pixel_size(console, &cw, &ch);
+	for (uint32_t row = 0; status == 0 && row < rect.height; ++row) {
+		struct st_pixel_buffer *pixels = NULL;
+		const struct st_console_rect region = {rect.x * cw, (rect.y + row) * ch, rect.width * cw, ch};
+		status = st_history_capture_pixels(&pixels, console,
+			storage->cells + (size_t)row * rect.width, rect.width, &region);
+		if (status == 0 && pixels != NULL) {
+			if (storage->pixels == NULL) {
+				storage->pixels = calloc(rect.height, sizeof(*storage->pixels));
+				if (storage->pixels == NULL)
+					status = IO_ERROR_OUT_OF_MEMORY;
+			}
+			if (status == 0) {
+				storage->pixel_cell_width = cw;
+				storage->pixel_cell_height = ch;
+				storage->pixels[row] = pixels;
+				pixels = NULL;
+			}
+		}
+		st_pixel_buffer_destroy(pixels);
+	}
+	if (!st_wren_screen_status(vm, status, "Screen.readRect pixels")) {
 		storage_release(storage);
 		return;
 	}
@@ -2490,9 +2678,19 @@ screen_put_rect(WrenVM *vm, bool partial)
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	st_wren_screen_result(vm, st_console_write_complete_cells(st_wren_context_from_vm(vm)->console, &destination,
-	    &surface->storage->cells[(size_t)source_rect.y
-	    * surface->storage->width + source_rect.x], surface->storage->width), "Screen.putRect");
+	st_console_t *console = st_wren_context_from_vm(vm)->console;
+	int status = st_console_begin_update(console);
+	if (status == 0) {
+		status = st_console_write_complete_cells(console, &destination,
+			&surface->storage->cells[(size_t)source_rect.y * surface->storage->width + source_rect.x],
+			surface->storage->width);
+		if (status == 0)
+			status = surface_draw_pixels(console, surface->storage, &source_rect, &destination);
+		int finished = st_console_end_update(console);
+		if (status == 0)
+			status = finished;
+	}
+	st_wren_screen_result(vm, status, "Screen.putRect");
 }
 
 static void fn_screen_put_rect(WrenVM *vm) { screen_put_rect(vm, false); }
@@ -3596,6 +3794,13 @@ surface_copy(WrenVM *vm, bool partial)
 		    && (destination->storage->cells[destination_last + 1].flags
 		    & ST_CONSOLE_CELL_CONTINUATION) != 0;
 
+		int status = surface_copy_pixel_row(destination->storage, destination_rect.x,
+			destination_rect.y + row, source->storage, source_rect.x, source_rect.y + row,
+			source_rect.width);
+		if (status != 0) {
+			st_wren_abort(vm, "Surface.putRect could not copy pixel storage");
+			return;
+		}
 		memmove(&destination->storage->cells[
 		    destination_index],
 		    &source->storage->cells[source_index],
@@ -3614,6 +3819,7 @@ surface_copy(WrenVM *vm, bool partial)
 		if (clipped_right)
 			destination->storage->cells[destination_last] =
 			    clipped_blank(vm, &source_last_cell);
+		surface_drop_empty_pixels(destination->storage, destination_rect.y + row);
 	}
 }
 
@@ -3663,10 +3869,12 @@ fn_surface_fill(WrenVM *vm)
 		right = surface->storage->width;
 	if (bottom > surface->storage->height)
 		bottom = surface->storage->height;
+	struct st_console_cell fill = *cell;
+	fill.flags &= ~ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 	for (int64_t y = top; y < bottom; ++y) {
 		for (int64_t x = left; x < right; ++x)
-			surface->storage->cells[(size_t)y * surface->storage->width
-			    + (size_t)x] = *cell;
+			surface->storage->cells[(size_t)y * surface->storage->width + (size_t)x] = fill;
+		surface_drop_empty_pixels(surface->storage, (uint32_t)y);
 	}
 }
 

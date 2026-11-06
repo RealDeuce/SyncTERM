@@ -12,6 +12,7 @@
 #include "cterm_internal.h"
 #include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
+#include "st_session_history.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_file_query.h"
 #include "cterm_rip_fonts.h"
@@ -70,7 +71,8 @@ static void status_display_changed(struct cterminal *terminal,
     int old_type, int new_type, void *context);
 static void input_cleanup(st_cterm_t *owner);
 static int resize_scrollback(st_cterm_t *terminal, uint32_t columns,
-    struct st_console_cell **result);
+    uint32_t cell_width, uint32_t cell_height, struct st_console_cell **result,
+    struct st_pixel_buffer ***pixel_result);
 static void resize_parser_geometry(st_cterm_t *terminal, int columns,
     int rows, int cursor_x, int cursor_y);
 
@@ -84,6 +86,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 	struct st_console_custom_cursor cursor;
 	struct st_console_cell *scrollback = NULL;
 	struct st_console_cell *old_scrollback;
+	struct st_pixel_buffer **history_pixels = NULL;
 	const uint8_t *bitmap;
 	size_t bitmap_size;
 	uint32_t cell_width, cell_height, columns, rows, old_width, old_height;
@@ -166,7 +169,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 	if (columns != old_width || rows != old_height
 	    || cell_width != old_cell_width || cell_height != old_cell_height) {
 		if (terminal->backlines != 0) {
-			status = resize_scrollback(terminal, columns, &scrollback);
+			status = resize_scrollback(terminal, columns, cell_width, cell_height, &scrollback, &history_pixels);
 			if (status != 0)
 				return status;
 		}
@@ -175,10 +178,13 @@ rip_text_font(st_cterm_t *terminal, int style)
 		    cell_height);
 		if (status != 0) {
 			free(scrollback);
+			st_history_free_pixels(history_pixels, (size_t)terminal->backlines);
 			return status;
 		}
 		old_scrollback = terminal->scrollback;
 		terminal->scrollback = scrollback;
+		st_history_free_pixels(terminal->backpixels, (size_t)terminal->backlines);
+		terminal->backpixels = history_pixels;
 		terminal->backwidth = (int)columns;
 		terminal->backstart = 0;
 		terminal->backpos = terminal->backfilled == terminal->backlines
@@ -2739,34 +2745,42 @@ st_cterm_reset_terminal(st_cterm_t *terminal)
 
 static int
 resize_scrollback(st_cterm_t *terminal, uint32_t columns,
-	struct st_console_cell **result)
+	uint32_t cell_width, uint32_t cell_height, struct st_console_cell **result,
+	struct st_pixel_buffer ***pixel_result)
 {
-	struct st_console_cell *resized;
-	size_t count;
-	size_t copy_columns;
-
 	if (terminal->backlines == 0)
 		return 0;
-	if ((size_t)columns > SIZE_MAX / (size_t)terminal->backlines
-	    || (size_t)columns * (size_t)terminal->backlines
-	    > SIZE_MAX / sizeof(*resized))
+	if ((size_t)columns > SIZE_MAX / (size_t)terminal->backlines ||
+		(size_t)columns * (size_t)terminal->backlines > SIZE_MAX / sizeof(**result))
 		return IO_ERROR_OUT_OF_RANGE;
-	count = (size_t)columns * (size_t)terminal->backlines;
-	resized = calloc(count, sizeof(*resized));
-	if (resized == NULL)
+	struct st_console_cell *resized = calloc((size_t)columns * terminal->backlines,
+		sizeof(*resized));
+	struct st_pixel_buffer **pixels = terminal->backpixels == NULL ? NULL :
+		calloc((size_t)terminal->backlines, sizeof(*pixels));
+	if (resized == NULL || (terminal->backpixels != NULL && pixels == NULL)) {
+		free(resized);
+		free(pixels);
 		return IO_ERROR_OUT_OF_MEMORY;
-	copy_columns = columns < (uint32_t)terminal->backwidth
-	    ? columns : (size_t)terminal->backwidth;
+	}
+	size_t copy_columns = columns < (uint32_t)terminal->backwidth
+		? columns : (size_t)terminal->backwidth;
 	for (int line = 0; line < terminal->backfilled; ++line) {
-		int source = terminal->backstart + line;
-
-		if (source >= terminal->backlines)
-			source -= terminal->backlines;
+		int source = (terminal->backstart + line) % terminal->backlines;
 		memcpy(resized + (size_t)line * columns,
-		    terminal->scrollback + (size_t)source * terminal->backwidth,
-		    copy_columns * sizeof(*resized));
+			terminal->scrollback + (size_t)source * terminal->backwidth,
+			copy_columns * sizeof(*resized));
+		if (pixels != NULL && terminal->backpixels[source] != NULL) {
+			int status = st_history_resize_pixels(&pixels[line], terminal->backpixels[source],
+				(uint32_t)terminal->backwidth, columns, cell_width, cell_height);
+			if (status != 0) {
+				free(resized);
+				st_history_free_pixels(pixels, (size_t)terminal->backlines);
+				return status;
+			}
+		}
 	}
 	*result = resized;
+	*pixel_result = pixels;
 	return 0;
 }
 
@@ -2811,6 +2825,8 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 {
 	struct st_console_cell *scrollback = NULL;
 	struct st_console_cell *old_scrollback;
+	struct st_pixel_buffer **history_pixels = NULL;
+	uint32_t cell_width, cell_height;
 	uint32_t status_rows;
 	uint32_t terminal_rows;
 	int cursor_x;
@@ -2840,8 +2856,11 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 		status = cterm_render_take_error(terminal->status_sub);
 	if (status != 0)
 		return status;
+	status = st_console_cell_pixel_size(terminal->screen.console, &cell_width, &cell_height);
+	if (status != 0)
+		return status;
 	if (terminal->backlines != 0) {
-		status = resize_scrollback(terminal, columns, &scrollback);
+		status = resize_scrollback(terminal, columns, cell_width, cell_height, &scrollback, &history_pixels);
 		if (status != 0)
 			return status;
 	}
@@ -2854,10 +2873,13 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	status = st_console_resize(terminal->screen.console, columns, rows);
 	if (status != 0) {
 		free(scrollback);
+		st_history_free_pixels(history_pixels, (size_t)terminal->backlines);
 		return status;
 	}
 	old_scrollback = terminal->scrollback;
 	terminal->scrollback = scrollback;
+	st_history_free_pixels(terminal->backpixels, (size_t)terminal->backlines);
+	terminal->backpixels = history_pixels;
 	terminal->backwidth = (int)columns;
 	terminal->backstart = 0;
 	terminal->backpos = terminal->backfilled == terminal->backlines
@@ -3302,6 +3324,43 @@ st_cterm_copy_history(st_cterm_t *terminal,
 	*columns = (uint32_t)terminal->width;
 	*rows = line_count;
 	return 0;
+}
+
+int
+st_cterm_copy_history_pixels(st_cterm_t *terminal, size_t row, struct st_pixel_buffer **result)
+{
+	if (terminal == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (row >= (size_t)terminal->backfilled + (size_t)terminal->height)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (row < (size_t)terminal->backfilled) {
+		size_t physical = ((size_t)terminal->backstart + row) % (size_t)terminal->backlines;
+		if (terminal->backpixels == NULL || terminal->backpixels[physical] == NULL) {
+			*result = NULL;
+			return 0;
+		}
+		return st_pixel_buffer_clone(result, terminal->backpixels[physical]);
+	}
+	struct st_console_cell *cells = malloc((size_t)terminal->width * sizeof(*cells));
+	if (cells == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	uint32_t cw, ch;
+	int status = st_console_cell_pixel_size(terminal->screen.console, &cw, &ch);
+	struct st_console_rect region = {(uint32_t)(terminal->x - 1),
+		(uint32_t)(terminal->y - 1) + (uint32_t)(row - (size_t)terminal->backfilled),
+		(uint32_t)terminal->width, 1};
+	if (status == 0)
+		status = st_console_read_cells(terminal->screen.console, &region, cells, region.width);
+	if (status == 0) {
+		region.x *= cw;
+		region.y *= ch;
+		region.width *= cw;
+		region.height = ch;
+		status = st_history_capture_pixels(result, terminal->screen.console, cells,
+			(uint32_t)terminal->width, &region);
+	}
+	free(cells);
+	return status;
 }
 
 int

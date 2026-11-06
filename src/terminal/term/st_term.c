@@ -386,20 +386,38 @@ static void
 publish_history(st_term_session_t *session)
 {
 	struct st_console_cell *cells = NULL;
+	struct st_pixel_buffer **pixels = NULL;
 	uint32_t columns;
-	size_t rows;
+	size_t rows = 0;
 
 	if (session->config.history == NULL || session->history_finalized)
 		return;
-	/* Freeze the completed session before a disconnected notice or viewer
-	 * can draw on its console. Do not capture those UI overlays at destroy. */
+	/* Freeze the session before disconnected UI can draw on its console. */
 	session->history_finalized = true;
 	st_session_history_clear(session->config.history);
-	if (st_cterm_copy_history(session->cterm, &cells, &columns, &rows) == 0
-	    && rows <= UINT32_MAX)
-		(void)st_session_history_publish(session->config.history, cells,
-		    columns, (uint32_t)rows, session->config.screen_mode,
-		    !session->config.hide_status);
+	int status = st_cterm_copy_history(session->cterm, &cells, &columns, &rows);
+	for (size_t row = 0; status == 0 && row < rows; ++row) {
+		bool graphics = false;
+		for (uint32_t x = 0; x < columns; ++x)
+			graphics |= (cells[row * columns + x].flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0;
+		if (!graphics)
+			continue;
+		if (pixels == NULL) {
+			pixels = calloc(rows, sizeof(*pixels));
+			if (pixels == NULL) {
+				status = IO_ERROR_OUT_OF_MEMORY;
+				break;
+			}
+		}
+		status = st_cterm_copy_history_pixels(session->cterm, row, &pixels[row]);
+	}
+	if (status == 0 && rows <= UINT32_MAX) {
+		status = st_session_history_publish(session->config.history, cells, columns, rows,
+			session->config.screen_mode, !session->config.hide_status, pixels);
+		if (status == 0)
+			pixels = NULL;
+	}
+	st_history_free_pixels(pixels, rows);
 	free(cells);
 }
 

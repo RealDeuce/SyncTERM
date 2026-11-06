@@ -4729,7 +4729,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    &saved_history, &saved_columns, &saved_rows, &saved_mode, &saved_status) == 0);
 	CHECK(st_cterm_copy_history(cterm, &codepage_history, &width, &codepage_rows) == 0);
 	CHECK(st_session_history_publish(menu_host->config.session_history,
-	    codepage_history, width, codepage_rows, ST_SCREEN_MODE_80X25, false) == 0);
+	    codepage_history, width, codepage_rows, ST_SCREEN_MODE_80X25, false, NULL) == 0);
 	CHECK(wrenInterpret(menu_host->vm, "offline_scrollback_codepage",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"menu_scrollback\" for OfflineScrollbackCanvas\n"
@@ -4742,7 +4742,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    "if (viewer.draw().cellAt(0, 1).ch != \"é\") Fiber.abort(\"CP437 offline oldest\")\n")
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_session_history_publish(menu_host->config.session_history,
-	    saved_history, saved_columns, saved_rows, saved_mode, saved_status) == 0);
+	    saved_history, saved_columns, saved_rows, saved_mode, saved_status, NULL) == 0);
 	free(codepage_history);
 	free(saved_history);
 	st_wren_connected_destroy(connected);
@@ -5493,10 +5493,13 @@ exercise_session_history_contract(st_wren_host_t *public_host)
 	    "var history = Menu.offlineScrollback\n"
 	    "if (history == null || history.width != 2 || history.height != 2) Fiber.abort(\"history surface\")\n"
 	    "if (history.cellAt(0, 0).ch != \"A\" || history.cellAt(1, 1).ch != \"D\") Fiber.abort(\"history contents\")\n"
-	    "if (!Menu.offlineScrollbackHasStatus || !Menu.prepareOfflineScrollback()) Fiber.abort(\"history metadata\")\n";
+	    "if (!Menu.offlineScrollbackHasStatus || !Menu.prepareOfflineScrollback()) Fiber.abort(\"history metadata\")\n"
+	    "if (Menu.finishOfflineScrollback() != null) Fiber.abort(\"history finish\")\n";
 
-	return wrenInterpret(host->vm, "session_history_contract", source)
-	    == WREN_RESULT_SUCCESS ? 0 : -1;
+	if (wrenInterpret(host->vm, "session_history_contract", source) != WREN_RESULT_SUCCESS
+	    || host->session_mode_active)
+		return -1;
+	return 0;
 }
 
 static int
@@ -8975,7 +8978,7 @@ main(int argc, char **argv)
 	history_cells[0].hyperlink = history_hyperlink;
 	CHECK(st_audio_runtime_create(&audio_runtime, 0) == 0);
 	CHECK(st_session_history_publish(session_history, history_cells, 2, 2,
-	    ST_SCREEN_MODE_CURRENT, true) == 0);
+	    ST_SCREEN_MODE_CURRENT, true, NULL) == 0);
 	host_config = (struct st_wren_host_config){
 		.console = console,
 		.paths = &paths,

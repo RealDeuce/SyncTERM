@@ -22,7 +22,7 @@ limitations; it does not authorize implementing every omitted C facility.
 
 == Result and how to read this report
 
-The review covers 82 project-owned public headers, 2,519 named native items,
+The review covers 82 project-owned public headers, 2,524 named native items,
 and 127 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
 broader API-scope decisions, plus one stale documentation finding. Nineteen topics
@@ -216,11 +216,11 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/st_syncterm_icon.h[st_syncterm_icon.h] | 0 | 0 | 0 | 1 | 0 | +application.st_syncterm_icon+
 | link:../src/st_terminfo.h[st_terminfo.h] | 0 | 0 | 0 | 1 | 0 | +application.st_terminfo+
 | link:../src/syncterm_types.h[syncterm_types.h] | 0 | 0 | 0 | 0 | 0 | (no named declarations)
-| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 90 | 1 | 1 | 85 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
+| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 91 | 1 | 1 | 85 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
 | link:../src/terminal/hyperlink/st_hyperlink.h[terminal/hyperlink/st_hyperlink.h] | 5 | 0 | 0 | 8 | 0 | +hyperlinks.gc-owner+, +hyperlinks.registry+
 | link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 9 | 0 | +ooii.mode+, +ooii.protocol+
 | link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
-| link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 7 | 0 | +history.clear+, +history.owner+
+| link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 11 | 0 | +history.clear+, +history.owner+
 | link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 74 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+
 | link:../src/text/codepage/st_codepage.h[text/codepage/st_codepage.h] | 0 | 35 | 0 | 0 | 0 | +text.codepages+
 | link:../src/text/emoji/st_emoji_catalog.h[text/emoji/st_emoji_catalog.h] | 6 | 0 | 0 | 0 | 0 | +emoji.catalog+
@@ -1457,3 +1457,22 @@ native items and 160 assessments. The original topic denominator stays 51;
 19 are resolved and 32 remain open. The separate profile-field-table
 documentation finding is resolved. Temporary Wren burndown records/skills stay
 in place for the remaining topics.
+
+
+== Approved shared graphics scrollback
+
+The user-directed follow-up preserves optional pixel strips beside native
+history rows for every graphics-capable emulation, rather than treating SkyPix
+as a special case. Captured RGB colours and both blink phases survive ring
+wrap, resize, capacity trimming, Surface rectangle composition and detached
+session history. Plain-text rows retain compact cell storage. Glyph edits and
+text fills replace their raster cells so UI overlays still render normally.
+SkyPix remote-font line feeds now enter the shared scrolling/capture path.
+The offline viewer restores the actual menu geometry before its saved screen.
+
+Five new native helpers/getters remain under +history.owner+ and +cterm.state+;
+script equivalents are existing Scrollback row copies and owned Surfaces, with
+paired Menu.prepareOfflineScrollback/finishOfflineScrollback orchestration.
+The accounting is 82 public headers, 127 exclusions, 2,524 items and 160
+assessments. Original finding dispositions remain 19 resolved and 32 open;
+this feature does not close an unrelated original topic.

@@ -166,6 +166,11 @@ if(BUILD_TESTING)
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_amiga_font_manager_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_amiga_font_manager PROPERTIES TIMEOUT 60)
+			add_test(NAME syncterm_graphics_scrollback
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_graphics_scrollback_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_graphics_scrollback PROPERTIES
+				TIMEOUT 180 LABELS "terminal;conformance;graphics;scrollback")
 			add_test(NAME syncterm_skypix_conformance
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_conformance_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

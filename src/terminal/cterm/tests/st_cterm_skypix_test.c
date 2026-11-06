@@ -5,6 +5,7 @@
 #include "io_error.h"
 #include "st_builtin_fonts.h"
 #include "st_cterm.h"
+#include "st_session_history.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -216,8 +217,44 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 }
+static void graphics_history_test(void)
+{
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *terminal = NULL;
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 8, .wrap = true};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {.console = console, .fonts = fonts,
+		.emulation = ST_CTERM_ANSI_BBS, .encoding = ST_CTERM_ENCODING_CODEPAGE,
+		.codepage = ST_CODEPAGE_ISO_8859_1, .graphics_mode = ST_CTERM_GRAPHICS_SKYPIX_31,
+		.scrollback_lines = 3};
+	CHECK(st_cterm_create(&terminal, &config) == 0);
+	feed(terminal, "\x1b[10;8!Pearl.font!\x1b[H");
+	for (unsigned row = 0; row < 30; ++row)
+		feed(terminal, "A\r\n");
+	uint32_t columns;
+	size_t lines;
+	CHECK(st_cterm_scrollback_size(terminal, &columns, &lines) == 0 && lines == 3);
+	struct st_pixel_buffer *pixels = NULL;
+	CHECK(st_cterm_copy_history_pixels(terminal, 0, &pixels) == 0 && pixels != NULL);
+	CHECK(pixels->width == 640 && pixels->height == 8);
+	/* Pearl A, first source row 0x10. Historical pixels are RGB snapshots. */
+	CHECK(pixels->primary[3] == ST_PIXEL_COLOR_RGB_VALUE(221, 221, 221));
+	CHECK(pixels->primary[0] == ST_PIXEL_COLOR_RGB_VALUE(0, 0, 0));
+	st_pixel_buffer_destroy(pixels);
+	int position = terminal->backpos;
+	feed(terminal, "\x1b[19;0;32700!\n");
+	CHECK(terminal->backpos == position);
+	st_cterm_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
 int main(void)
 {
+	graphics_history_test();
 	parser_tests();
 	engine_tests(false, ST_CTERM_GRAPHICS_SKYPIX_13);
 	engine_tests(true, ST_CTERM_GRAPHICS_SKYPIX_13);

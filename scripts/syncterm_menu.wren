@@ -58,6 +58,7 @@ class Menu {
   // A detached Surface snapshot, or null when no completed session exists.
   foreign static offlineScrollback
   foreign static prepareOfflineScrollback()
+  foreign static finishOfflineScrollback()
   foreign static offlineScrollbackHasStatus
   foreign static openUrl(url)
   foreign static openHyperlink(id)
