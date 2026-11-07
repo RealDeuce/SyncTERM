@@ -3,8 +3,33 @@
 #include <math.h>
 #include <stdlib.h>
 
-/* Match the steady AC RMS of the ANSI synth voice, A440, velocity/CC7 100, to the
- * existing classic ANSI waveform. Discard attack and release. This is one
+/* ITU-R BS.1770 K-weighting, bilinear-mapped to the PCM format's 44.1 kHz:
+ * the head-response shelf followed by the RLB high-pass. These are two
+ * independent filter states per channel, not a playback equalizer. */
+_Static_assert(AUDIO_SAMPLE_RATE == 44100U, "Update K-weighting coefficients for the PCM rate");
+struct weighting { double state[AUDIO_CHANNELS][2][2]; };
+static double weighted(struct weighting *filter, size_t channel, double sample)
+{
+	static const double b[2][3] = {
+		{1.5308412300503478, -2.6509799951547297, 1.1690790799215870},
+		{1.0, -2.0, 1.0},
+	};
+	static const double a[2][2] = {
+		{-1.6636551132560204, 0.7125954280732254},
+		{-1.9891696736297960, 0.9891990357870393},
+	};
+	for (size_t stage = 0; stage < 2; ++stage) {
+		double *state = filter->state[channel][stage];
+		double output = b[stage][0] * sample + state[0];
+		state[0] = b[stage][1] * sample - a[stage][0] * output + state[1];
+		state[1] = b[stage][2] * sample - a[stage][1] * output;
+		sample = output;
+	}
+	return sample;
+}
+
+/* Match the weighted level of the ANSI synth voice, A440, velocity/CC7 100,
+ * to the existing beep/ANSI waveform. Discard attack and release. This is one
  * fixed source gain for the renderer, never normalization of playing music.
  * Probe samples are discarded here and never enter an output stream. */
 int st_midi_sink_calibrate(struct st_midi_sink *sink)
@@ -15,13 +40,16 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 	if (tone == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	int status = audio_generate_tone(tone, duration, 440,
 	    AUDIO_WAVE_SINE_SAW_HARM, true);
-	double reference = 0, signal = 0;
-	double reference_sum[AUDIO_CHANNELS] = {0}, signal_sum[AUDIO_CHANNELS] = {0};
+	double reference = 0, signal = 0, signal_ac = 0;
+	double signal_sum[AUDIO_CHANNELS] = {0};
+	struct weighting reference_filter = {0}, signal_filter = {0};
 	size_t first = AUDIO_SAMPLE_RATE / 2, last = first + AUDIO_SAMPLE_RATE;
 	if (status == 0) {
-		for (size_t i = first * AUDIO_CHANNELS; i < last * AUDIO_CHANNELS; ++i) {
-			reference += (double)tone[i] * tone[i];
-			reference_sum[i % AUDIO_CHANNELS] += tone[i];
+		/* Warm the filters before the measurement window. The high-pass
+		 * rejects the classic waveform's large DC offset. */
+		for (size_t i = 0; i < last * AUDIO_CHANNELS; ++i) {
+			double value = weighted(&reference_filter, i % AUDIO_CHANNELS, tone[i]);
+			if (i >= first * AUDIO_CHANNELS) reference += value * value;
 		}
 		status = st_midi_sink_start(sink);
 	}
@@ -35,11 +63,14 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 		status = sink->render(sink->state, frames, count);
 		if (status != 0) break;
 		for (size_t i = 0; i < count; ++i) {
-			if (at + i < first || at + i >= last) continue;
 			for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) {
-				double value = frames[i * AUDIO_CHANNELS + ch];
-				signal += value * value;
-				signal_sum[ch] += value;
+				double sample = frames[i * AUDIO_CHANNELS + ch];
+				double value = weighted(&signal_filter, ch, sample);
+				if (at + i >= first && at + i < last) {
+					signal += value * value;
+					signal_ac += sample * sample;
+					signal_sum[ch] += sample;
+				}
 			}
 		}
 		at += count;
@@ -59,15 +90,12 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 	}
 	if (status == 0) status = st_midi_sink_start(sink);
 	if (status == 0) status = st_midi_sink_ansi(sink);
-	/* DC inflated the classic reference power by 5.4 dB. Exclude each
-	 * channel's own mean on both sides; bias is not audible tone power. */
-	for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) {
-		reference -= reference_sum[ch] * reference_sum[ch] / (last - first);
-		signal -= signal_sum[ch] * signal_sum[ch] / (last - first);
-	}
+	/* Keep the silence/noise floor in unweighted, DC-free PCM units. */
+	for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch)
+		signal_ac -= signal_sum[ch] * signal_sum[ch] / (last - first);
 	/* A bank without an audible reference remains usable. Do not amplify dither
 	 * or reject partial banks. The upper bound also limits noise gain. */
-	if (status == 0 && signal > (double)AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * 16) {
+	if (status == 0 && signal > 0 && signal_ac > (double)AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * 16) {
 		double gain = 10.0 * log10(reference / signal);
 		if (gain > 48) gain = 48;
 		if (gain < -48) gain = -48;

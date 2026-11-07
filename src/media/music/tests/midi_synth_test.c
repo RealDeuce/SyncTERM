@@ -4,11 +4,12 @@
 #include "st_threads.h"
 #include "st_time.h"
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 /* Consume the actual player/mixer path without opening an audio device.
  * The player takes ownership of the supplied sink, including on errors. */
-static int capture(struct st_midi_sink *sink, double *rms, double dc[AUDIO_CHANNELS], int *peak)
+static int capture(struct st_midi_sink *sink, double *rms, double dc[AUDIO_CHANNELS], int *peak, FILE *dump)
 {
 	st_audio_runtime_t *runtime;
 	int status = st_audio_runtime_create_pull(&runtime);
@@ -44,6 +45,15 @@ static int capture(struct st_midi_sink *sink, double *rms, double dc[AUDIO_CHANN
 		int16_t frames[1024 * AUDIO_CHANNELS];
 		status = st_audio_runtime_pull(runtime, frames, count);
 		if (status != 0) break;
+		if (dump != NULL) {
+			uint8_t bytes[1024 * AUDIO_FRAME_SIZE];
+			for (size_t i = 0; i < count * AUDIO_CHANNELS; ++i) {
+				uint16_t value = (uint16_t)frames[i];
+				bytes[i * 2] = (uint8_t)value;
+				bytes[i * 2 + 1] = (uint8_t)(value >> 8);
+			}
+			if (fwrite(bytes, AUDIO_FRAME_SIZE, count, dump) != count) { status = IO_ERROR_IO; break; }
+		}
 		for (size_t i = 0; i < count * AUDIO_CHANNELS; ++i) {
 			if (abs(frames[i]) > *peak) *peak = abs(frames[i]);
 			size_t position = at + i / AUDIO_CHANNELS;
@@ -151,8 +161,9 @@ static int effects(struct st_midi_sink *sink)
 }
 int main(int argc, char **argv)
 {
-	if (argc != 2 && (argc != 3 || (strcmp(argv[2], "--levels") != 0 && strcmp(argv[2], "--envelope") != 0 && strcmp(argv[2], "--effects") != 0))) return 2;
-	bool levels = argc == 3 && strcmp(argv[2], "--levels") == 0;
+	if (argc < 2 || argc > 4) return 2;
+	bool levels = argc >= 3 && strcmp(argv[2], "--levels") == 0;
+	if ((argc == 4 && !levels) || (argc == 3 && !levels && strcmp(argv[2], "--envelope") != 0 && strcmp(argv[2], "--effects") != 0)) return 2;
 	enum st_midi_backend bit = strcmp(argv[1], "fluid") == 0 ? ST_MIDI_FLUIDSYNTH
 	    : strcmp(argv[1], "adl") == 0 ? ST_MIDI_ADLMIDI : ST_MIDI_APPLE;
 	struct st_midi_sink sink;
@@ -164,11 +175,26 @@ int main(int argc, char **argv)
 		st_midi_sink_close(&sink); return status;
 	}
 	if (levels) {
+		FILE *midi_dump = NULL, *classic_dump = NULL;
+		if (argc == 4) {
+			char path[32768];
+			int length = snprintf(path, sizeof(path), "%s-midi.s16", argv[3]);
+			if (length >= 0 && (size_t)length < sizeof(path)) midi_dump = fopen(path, "wb");
+			length = snprintf(path, sizeof(path), "%s-classic.s16", argv[3]);
+			if (length >= 0 && (size_t)length < sizeof(path)) classic_dump = fopen(path, "wb");
+			if (midi_dump == NULL || classic_dump == NULL) {
+				if (midi_dump != NULL) fclose(midi_dump);
+				if (classic_dump != NULL) fclose(classic_dump);
+				st_midi_sink_close(&sink); return 1;
+			}
+		}
 		float gain = sink.pcm_gain_db;
 		double synth_rms, classic_rms, synth_dc[AUDIO_CHANNELS], classic_dc[AUDIO_CHANNELS]; int synth_peak, classic_peak;
-		status = capture(&sink, &synth_rms, synth_dc, &synth_peak);
+		status = capture(&sink, &synth_rms, synth_dc, &synth_peak, midi_dump);
 		struct st_midi_sink classic = {0};
-		if (status == 0) status = capture(&classic, &classic_rms, classic_dc, &classic_peak);
+		if (status == 0) status = capture(&classic, &classic_rms, classic_dc, &classic_peak, classic_dump);
+		if (midi_dump != NULL && fclose(midi_dump) != 0) status = IO_ERROR_IO;
+		if (classic_dump != NULL && fclose(classic_dump) != 0) status = IO_ERROR_IO;
 		if (status == 0 && synth_rms > 0 && classic_rms > 0) {
 			printf("source gain %.3f dB; mixed ANSI synth AC RMS %.3f, peak %d; classic AC RMS %.3f, peak %d; difference %+.3f dB\n",
 			    gain, synth_rms, synth_peak, classic_rms, classic_peak, 20.0 * log10(synth_rms / classic_rms));

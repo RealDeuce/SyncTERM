@@ -400,13 +400,16 @@ MIDI's `music_parse`, `music_decode`, `music_calibrate` and `music_player` tests
 independently check all 84 ANSI pitches, existing articulation/frame rounding, SMF0/1/RMID,
 tempo/running status/SMPTE, split SysEx, FIFO limits, internal PCM bounds,
 external channel-zero gain/fade/wait/cancellation and runtime shutdown. The
-calibration tests check a sustained AC reference, separate channel DC offsets,
+calibration tests check independent K-weighted sine references, separate
+channel DC offsets,
 DC-only silence, silent/error paths and state
 restoration using the actual ANSI synth voice. Literal program messages and
 file/ANSI transitions check voice selection without changing MIDI-file
 instruments. PCM player captures check fixed source calibration with unchanged
 channel gains, wide mixing before clipping and fade/recovery behavior. Final
-PCM level comparisons exclude DC independently in each stereo channel.
+PCM power diagnostics exclude DC independently in each stereo channel.
+Optional final-output captures support independent loudness comparisons;
+unweighted RMS is not used to claim equal perceived loudness.
 Manually selected synth checks compare onset and sustained levels across
 eight pitches and verify dry ANSI/file-effect restoration where supported.
 They render into discarded buffers or the pull-only mixer without devices.
