@@ -262,7 +262,9 @@ post_physical(struct quartz_state *state, NSEvent *source, bool pressed)
 			.evdev = key,
 			.modifiers = event_modifiers(source.modifierFlags),
 			.pressed = pressed,
-			.repeat = pressed && source.isARepeat,
+			/* FlagsChanged events do not support isARepeat. */
+			.repeat = pressed && source.type == NSEventTypeKeyDown
+			    && source.isARepeat,
 		},
 	};
 	return st_console_display_post_key_event(state->console_display, &event);

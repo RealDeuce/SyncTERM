@@ -908,6 +908,18 @@ if(BUILD_TESTING)
 			SKIP_RETURN_CODE 77 TIMEOUT 20)
 	endif()
 	if(ST_CONSOLE_HAVE_QUARTZ)
+		add_executable(st_console_quartz_input_test
+			tests/st_console_quartz_input_test.m)
+		target_include_directories(st_console_quartz_input_test PRIVATE
+			$<TARGET_PROPERTY:st_console,INCLUDE_DIRECTORIES>)
+		target_link_libraries(st_console_quartz_input_test PRIVATE st_console)
+		set_target_properties(st_console_quartz_input_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO
+			OBJC_STANDARD ${SYNCTERM_C_STANDARD} OBJC_STANDARD_REQUIRED YES OBJC_EXTENSIONS NO)
+		st_console_warnings(st_console_quartz_input_test)
+		add_test(NAME st_console_quartz_input COMMAND st_console_quartz_input_test)
+		set_tests_properties(st_console_quartz_input PROPERTIES TIMEOUT 20)
+
 		add_executable(st_console_quartz_test
 			tests/st_console_quartz_test.c)
 		target_link_libraries(st_console_quartz_test PRIVATE
