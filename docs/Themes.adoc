@@ -166,6 +166,8 @@ supplied it.  Cascade shows every role considered for all four fields,
 including absent and inherited entries and the winning source.  Enter or a
 double click edits the selected definition; Insert creates a custom
 definition and Delete removes one.
+Up and Down wrap at the ends of the atlas.  Page Up and Page Down stop at
+the first or last definition and never wrap.
 
 A built-in style field has three possible states:
 
@@ -179,8 +181,10 @@ Built-in glyph fields support *Default* and *Explicit*.  CP437 values are
 selected from a 16 by 16 grid of all byte values.  ASCII fallbacks are
 selected from a 16 by 6 grid containing space through tilde.  The raw CP437
 grid always uses system CP437 (slot 0), independently of the connection font, for the
-meaning of the cells.  Arrow and page keys wrap through each grid; Enter or
-double click accepts and Escape cancels.  Custom style and glyph definitions
+meaning of the cells.  Arrow keys wrap through each grid.  Page Up and Page
+Down keep the current column and stop at its first or last available row;
+they never wrap.  Enter or double click accepts and Escape cancels.
+Custom style and glyph definitions
 are stored in full and can be removed.  Metadata edits the global `Name`,
 `Author`, `Description`, and `Version` values.
 

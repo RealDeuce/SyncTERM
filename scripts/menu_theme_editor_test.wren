@@ -63,7 +63,10 @@ class MenuTest {
     testGridGeometry_()
     testGridDecodesCp437_()
     testGridKeyboardWrap_()
+    testGridPageNavigation_()
     testGridMouseSelection_()
+    testAtlasPageNavigation_()
+    testAtlasBoundaryNavigation_()
     testCascadeTrace_()
     testCodepointInput_()
     testCodepointDisplay_()
@@ -84,6 +87,16 @@ class MenuTest {
     testThemeBrowserPartition_()
     testThemeSelectionIdentity_()
     testThemeComment_()
+    return [__pass, __fail]
+  }
+
+  static runNavigationTests() {
+    __pass = 0
+    __fail = 0
+    testGridKeyboardWrap_()
+    testGridPageNavigation_()
+    testAtlasPageNavigation_()
+    testAtlasBoundaryNavigation_()
     return [__pass, __fail]
   }
 
@@ -167,7 +180,90 @@ class MenuTest {
            "ThemeGlyphGrid: click selects and double click accepts")
   }
 
+  static testGridPageNavigation_() {
+    for (mode in ["cp437", "ascii"]) {
+      var bottom = mode == "cp437" ? 0xfe : 0x6f
+      var top = mode == "cp437" ? 0x0e : 0x2f
+      var grid = ThemeGlyphGrid.new(mode, bottom - 16)
+      grid.handle(KeyEvent.new(Key.pageDown))
+      check_(grid.selected == bottom, "ThemeGlyphGrid: %(mode) page reaches last row in column")
+      grid.handle(KeyEvent.new(Key.pageDown))
+      check_(grid.selected == bottom, "ThemeGlyphGrid: %(mode) Page Down never wraps")
+      grid.selected = top + 16
+      grid.handle(KeyEvent.new(Key.pageUp))
+      check_(grid.selected == top, "ThemeGlyphGrid: %(mode) page reaches first row in column")
+      grid.handle(KeyEvent.new(Key.pageUp))
+      check_(grid.selected == top, "ThemeGlyphGrid: %(mode) Page Up never wraps")
+    }
+  }
+
   static model_() { ThemeEditorModel.new(FakeThemeDocument.new()) }
+
+  static testAtlasPageNavigation_() {
+    var model = model_()
+    var atlas = ThemeAtlas.new(model, Fn.new {}, Fn.new {})
+    atlas.bounds = Rect.new(0, 0, 40, 4)
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    check_(model.selectedIndex == 3, "ThemeAtlas: Page Down advances a page")
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    check_(model.selectedIndex == 4, "ThemeAtlas: Page Down stops at the last item")
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    check_(model.selectedIndex == 4, "ThemeAtlas: Page Down stays at the last item")
+
+    atlas.handle(KeyEvent.new(Key.end))
+    atlas.handle(KeyEvent.new(Key.pageUp))
+    check_(model.selectedIndex == 1, "ThemeAtlas: Page Up retreats a page")
+    atlas.handle(KeyEvent.new(Key.pageUp))
+    check_(model.selectedIndex == 0, "ThemeAtlas: Page Up stops at the first item")
+    atlas.handle(KeyEvent.new(Key.pageUp))
+    check_(model.selectedIndex == 0, "ThemeAtlas: Page Up stays at the first item")
+
+    atlas.bounds = Rect.new(0, 0, 40, 10)
+    model.select(1)
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    check_(model.selectedIndex == 4, "ThemeAtlas: oversized page reaches the last item")
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    check_(model.selectedIndex == 4, "ThemeAtlas: oversized page stays at the last item")
+    model.select(3)
+    atlas.handle(KeyEvent.new(Key.pageUp))
+    check_(model.selectedIndex == 0, "ThemeAtlas: oversized page reaches the first item")
+    atlas.handle(KeyEvent.new(Key.pageUp))
+    check_(model.selectedIndex == 0, "ThemeAtlas: oversized page stays at the first item")
+
+    atlas.bounds = Rect.new(0, 0, 40, 4)
+    model.select(3)
+    atlas.handle(MouseEvent.new(Mouse.wheelDown, 39, 1, 39, 1))
+    check_(model.selectedIndex == 4, "ThemeAtlas: scrollbar wheel reaches the last item")
+    atlas.handle(MouseEvent.new(Mouse.wheelDown, 39, 1, 39, 1))
+    check_(model.selectedIndex == 4, "ThemeAtlas: scrollbar wheel does not wrap down")
+    model.select(1)
+    atlas.handle(MouseEvent.new(Mouse.wheelUp, 39, 1, 39, 1))
+    check_(model.selectedIndex == 0, "ThemeAtlas: scrollbar wheel reaches the first item")
+    atlas.handle(MouseEvent.new(Mouse.wheelUp, 39, 1, 39, 1))
+    check_(model.selectedIndex == 0, "ThemeAtlas: scrollbar wheel does not wrap up")
+  }
+
+  static testAtlasBoundaryNavigation_() {
+    var model = model_()
+    var atlas = ThemeAtlas.new(model, Fn.new {}, Fn.new {})
+    atlas.bounds = Rect.new(0, 0, 40, 4)
+    atlas.handle(KeyEvent.new(Key.up))
+    check_(model.selectedIndex == 4, "ThemeAtlas: Up wraps at the first item")
+    atlas.handle(KeyEvent.new(Key.down))
+    check_(model.selectedIndex == 0, "ThemeAtlas: Down wraps at the last item")
+    model.select(1)
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    check_(model.selectedIndex == 4, "ThemeAtlas: exact page reaches the last item")
+
+    atlas.bounds = Rect.new(0, 0, 40, 1)
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    check_(model.selectedIndex == 4, "ThemeAtlas: zero-distance page does not wrap")
+    model.mode = "glyphs"
+    atlas.bounds = Rect.new(0, 0, 40, 4)
+    atlas.handle(KeyEvent.new(Key.pageDown))
+    atlas.handle(KeyEvent.new(Key.pageUp))
+    check_(model.selectedIndex == 0, "ThemeAtlas: single-item list stays selected")
+  }
 
   static testCascadeTrace_() {
     var model = model_()

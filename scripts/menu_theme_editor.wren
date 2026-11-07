@@ -59,10 +59,17 @@ class ThemeGlyphGrid is Widget {
         count) % count)
   }
 
-  moveVertical_(delta) {
+  moveVertical_(delta, wrap) {
     var offset = _selected - _minimum
     var column = offset % columns
     var row = (offset / columns).floor
+    if (!wrap) {
+      // A partial final row may not contain this column.
+      var lastRow = ((_maximum - _minimum - column) / columns).floor
+      row = (row + delta).max(0).min(lastRow)
+      selected = _minimum + row * columns + column
+      return
+    }
     var direction = delta < 0 ? -1 : 1
     var remaining = delta.abs
     while (remaining > 0) {
@@ -123,10 +130,10 @@ class ThemeGlyphGrid is Widget {
     var code = event.shortcut_
     if (code == Key.left) moveHorizontal_(-1)
     if (code == Key.right) moveHorizontal_(1)
-    if (code == Key.up) moveVertical_(-1)
-    if (code == Key.down) moveVertical_(1)
-    if (code == Key.pageUp) moveVertical_(-rows.min(4))
-    if (code == Key.pageDown) moveVertical_(rows.min(4))
+    if (code == Key.up) moveVertical_(-1, true)
+    if (code == Key.down) moveVertical_(1, true)
+    if (code == Key.pageUp) moveVertical_(-rows.min(4), false)
+    if (code == Key.pageDown) moveVertical_(rows.min(4), false)
     if (code == Key.home) selected = _minimum
     if (code == Key.end) selected = _maximum
     if (code == Key.enter || event.codepoint == 0x20) activate_()
@@ -142,11 +149,11 @@ class ThemeGlyphGrid is Widget {
       return false
     }
     if (event.event == Mouse.wheelUp) {
-      moveVertical_(-event.wheelY.abs.max(1))
+      moveVertical_(-event.wheelY.abs.max(1), true)
       return true
     }
     if (event.event == Mouse.wheelDown) {
-      moveVertical_(event.wheelY.abs.max(1))
+      moveVertical_(event.wheelY.abs.max(1), true)
       return true
     }
     if (event.event != Mouse.button1Click &&
@@ -362,12 +369,12 @@ class ThemeEditorModel {
     return false
   }
 
-  move(delta) {
+  move(delta, wrap) {
     var i = selectedIndex
     if (i == null) i = 0
     var count = rows.count
     if (count == 0) return
-    select(((i + delta) % count + count) % count)
+    select(wrap ? ((i + delta) % count + count) % count : i + delta)
   }
 
   refresh() {
@@ -600,10 +607,10 @@ class ThemeAtlas is Widget {
 
   handleKey_(event) {
     var code = event.shortcut_
-    if (code == Key.up) _model.move(-1)
-    if (code == Key.down) _model.move(1)
-    if (code == Key.pageUp) _model.move(-viewport_ + 1)
-    if (code == Key.pageDown) _model.move(viewport_ - 1)
+    if (code == Key.up) _model.move(-1, true)
+    if (code == Key.down) _model.move(1, true)
+    if (code == Key.pageUp) _model.move(-viewport_ + 1, false)
+    if (code == Key.pageDown) _model.move(viewport_ - 1, false)
     if (code == Key.home) _model.select(0)
     if (code == Key.end) _model.select(count_ - 1)
     if (code == Key.enter) _onEdit.call()
@@ -624,13 +631,13 @@ class ThemeAtlas is Widget {
     var overScroll = count_ > bounds.h && event.startX == bounds.right
     if (event.event == Mouse.wheelUp) {
       _model.move((overScroll ? -viewport_ + 1 : -1) *
-          event.wheelY.abs.max(1))
+          event.wheelY.abs.max(1), !overScroll)
       ensureVisible_()
       return true
     }
     if (event.event == Mouse.wheelDown) {
       _model.move((overScroll ? viewport_ - 1 : 1) *
-          event.wheelY.abs.max(1))
+          event.wheelY.abs.max(1), !overScroll)
       ensureVisible_()
       return true
     }

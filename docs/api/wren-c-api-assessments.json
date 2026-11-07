@@ -4937,6 +4937,16 @@
       "path": "src/tests/st_terminal_conformance_test.py",
       "anchor": "(\"CTSV\", b\"_SyncTERM:VER\"",
       "aspect": "Actual bitmap application CTSV wire replies restricted to the requested command-string byte ranges in both CP437 and UTF-8, fenced before a coherent capture."
+    },
+    {
+      "path": "scripts/menu_theme_editor_test.wren",
+      "anchor": "static runNavigationTests()",
+      "aspect": "Active settings runtime exercises atlas paging to and at both boundaries, oversized/exact/zero-distance pages, scrollbar wheel pages, single-item lists, arrow wrapping and CP437/partial-ASCII glyph-grid paging without wrapping."
+    },
+    {
+      "path": "scripts/ui_list_test.wren",
+      "anchor": "static testPageDownClampsAtBottom_()",
+      "aspect": "Real application list suite verifies page overshoot reaches the final item and stays there; symmetric first-item assertions retain the shared ListView clamping contract."
     }
   ],
   "dispatch_evidence": [
@@ -4953,7 +4963,7 @@
     "docs/RIP154_CONFORMANCE.md": "01659bbb9abc6b9151f825622c6415271d0a06f56133fe035dd1df73318adb10",
     "docs/SKYPIX_CONFORMANCE.md": "8a337f949f91c34760c6df2535f6abe6451c3756e51715d48e9a443a018025b9",
     "docs/TERMINAL_CONFORMANCE.md": "2ff58b87a06565c7bf3ab3fd0e698a53d81f6fdf100b2a04b3aa11be321ed70b",
-    "docs/Themes.adoc": "04e09bf265087138eb9eb7a0ed6a4f050e5f467e6dffeb9cfc87b8d6aa6befce",
+    "docs/Themes.adoc": "04547f254e993b9f480311fb71343edd7c9c67f7a17677d995fb7ed618a1b462",
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
     "docs/Wren.adoc": "198274447bc6e326c63373f9e373a3a2010dedee504f7df536a827696e8b25fa",
     "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
@@ -4965,8 +4975,8 @@
     "scripts/menu_settings_ui.wren": "7502b742a0a3a2bc813040965a98395c750cc16256762cf45fd10343eac6a17c",
     "scripts/menu_settings_ui_test.wren": "a2ea0e6d281903617bbe84285b109c5a3a361b444dd18e1205dfa468326dc01c",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
-    "scripts/menu_theme_editor.wren": "2d7f6aca6c9a4229700b4cd774cffc84af94e2324dd3192a041e5ef576e40f09",
-    "scripts/menu_theme_editor_test.wren": "6639f43ed266defd6eeee4c1e35d82c858e2c4f1e5fca7ef20915317c7d4128b",
+    "scripts/menu_theme_editor.wren": "cea2c9d2960f1df6fd24f1d829d0eec90839592bdefc1af6300eafe4e15aeb14",
+    "scripts/menu_theme_editor_test.wren": "8921e9d5a3c3ed83f889929d0c0a78c00b655ca07ba210f69093b4e8f5508e64",
     "scripts/menu_ui.wren": "57232e460e4eec3bd090f28dad29eec09f897ea7f56666ac43646c365aba04f4",
     "scripts/pixel_vm_test.wren": "61dee1425b2a5ec67afb96dc04a27f1e20dad6243a149cd67eab514d2541f2cf",
     "scripts/sftp_app.wren": "768e459dd484d4bf094edb61cd85b2ed58ecaca47475b4a6887e14e628fe12f0",
@@ -5098,7 +5108,7 @@
     "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
     "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "5e9b49fbd6c675bf2e71761bd06992fa543390c6fd973a185bb11da5ec57f6d4",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "103dca4d08ec6fa59a36ecbc06c496213120fc0ee62a7c4b36aa6fdc581beb24",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "eab14eecb4333b9090706c27ddaddab30b339982aba071ea6b945aa8e7ac5cb1",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
     "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
@@ -5183,7 +5193,8 @@
     "src/scripting/wren_host/tests/st_wren_file_truncate_test.c": "41f5b81fe0ecddc43b390caceaab4c32751bc84826ce1ef35bda37bff96ff395",
     "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c": "6e7538e6ddcbf8f2de3a8255037c59134826eec81cd24f39ed2ffb65b11b690f",
     "src/terminal/cterm/tests/st_cterm_apc_test.c": "f892dc486252d8d0d4fb7782c50caf7cc7949c11a7b9f74398583bcca564dd5a",
-    "src/tests/st_terminal_conformance_test.py": "6dd793df69d6333e9e3497a936b3496c69c27ae737734efd0a771f26f375ce84"
+    "src/tests/st_terminal_conformance_test.py": "6dd793df69d6333e9e3497a936b3496c69c27ae737734efd0a771f26f375ce84",
+    "scripts/ui_list_test.wren": "16e0c5c8e8b24ffc582cdd74ac3fea8e31a5e475a63a6136cc6d711584020324"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -6977,6 +6988,20 @@
         "warnings": "No compiler diagnostics in the exercised builds."
       },
       "accounting": "Reviewed the changed native header contract, native APC dispatch/MD5 evidence, new byte tests and tightened conformance assertions/inventories. Updated only reviewed changed/new evidence and the comment-only public-header digest. Native TSV signatures/lines/counts and all 83 matrix rows are unchanged: 2575 items, 132 exclusions, 161 assessments, 23 resolved/28 open original topics."
+    },
+    {
+      "topic": "theme-editor-page-navigation",
+      "status": "resolved",
+      "request": "Page Up and Page Down must never wrap; arrow keys should wrap.",
+      "scope": "Theme atlas and CP437/ASCII glyph grids clamp page keys. Atlas scrollbar wheel pages also clamp. Existing arrow/ordinary wheel wrapping is preserved. Shared ListView and emoji picker already clamp page movement; no native or Wren host API change.",
+      "tests_passed": [
+        "wren_settings_runtime",
+        "syncterm_behavior_list",
+        "syncterm_behavior_settings_ui",
+        "syncterm_behavior_emoji"
+      ],
+      "verification": "FreeBSD Clang Debug CMake application and settings test targets built without compiler diagnostics. New atlas regression failed against the old implementation before the fix. Focused settings runtime and control bitmap application fixtures passed; desktop environment cleared, audio/MIDI disabled and temporary/report paths confined to the build tree. No native display or Windows execution.",
+      "accounting": "Reviewed changed theme navigation, active test harness, expected navigation results and theme documentation; refreshed only those evidence hashes and added the shared list regression evidence. Native inventory and original topic dispositions unchanged."
     }
   ]
 }

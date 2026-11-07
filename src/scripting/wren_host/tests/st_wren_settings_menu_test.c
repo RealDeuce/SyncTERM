@@ -332,6 +332,10 @@ test_cloud_theme_views(struct st_wren_host *host)
 	    "import \"menu_theme_editor_test\" for MenuTest\n"
 	    "var result = MenuTest.runCloudCatalogAudit()\n"
 	    "if (result[0] != 3 || result[1] != 0) Fiber.abort(\"cloud helper audit\")\n");
+	interpret(host, "theme_navigation",
+	    "import \"menu_theme_editor_test\" for MenuTest\n"
+	    "var navigation = MenuTest.runNavigationTests()\n"
+	    "if (navigation[0] == 0 || navigation[1] != 0) Fiber.abort(\"theme navigation\")\n");
 	write_text(manifest, "Repository=official\n");
 	CHECK(st_theme_cloud_refresh(host->themes, false, "", warning, sizeof(warning)) == 0);
 	CHECK(fs_remove_file(path) == 0 && fs_remove_file(manifest) == 0);

@@ -289,6 +289,9 @@ class UiListTest {
   static testPageUpClampsAtTop_() {
     var l = makeList_(20)
     l.bounds = Rect.new(1, 1, 10, 5)
+    l.selected = 2
+    l.pageUp()
+    check_(l.selected == 0, "ListView.pageUp reaches the first item before clamping")
     l.pageUp()
     check_(l.selected == 0, "ListView.pageUp at top clamps to 0")
   }
@@ -296,7 +299,9 @@ class UiListTest {
   static testPageDownClampsAtBottom_() {
     var l = makeList_(7)
     l.bounds = Rect.new(1, 1, 10, 5)
-    l.end()
+    l.selected = 4
+    l.pageDown()
+    check_(l.selected == 6, "ListView.pageDown reaches the last item before clamping")
     l.pageDown()
     check_(l.selected == 6, "ListView.pageDown at bottom clamps to count-1")
   }
