@@ -214,7 +214,10 @@ static int advance(struct playback *p, uint64_t target, int pitch, uint64_t tone
 		else if (pitch >= 0 && tone != NULL) memcpy(frames, tone + (size_t)(p->rendered - tone_start) * AUDIO_CHANNELS, count * AUDIO_FRAME_SIZE);
 		st_mutex_lock(&m->mutex);
 		if (m->stopping || m->generation != m->working_generation) result = IO_ERROR_CANCELLED;
-		if (result == 0) result = audio_stream_append_take(*m->pcm, frames, count, NULL);
+		struct audio_buffer_options options = AUDIO_BUFFER_OPTIONS_INIT;
+		if (m->sink.render != NULL)
+			options.volume_left_db = options.volume_right_db = m->sink.pcm_gain_db;
+		if (result == 0) result = audio_stream_append_take(*m->pcm, frames, count, &options);
 		st_mutex_unlock(&m->mutex);
 		if (result != 0) { free(frames); return result; }
 		p->rendered += count;

@@ -119,7 +119,15 @@ int st_midi_fluid_open(struct st_midi_sink *sink)
 	if (api.fluid_synth_sfcount(f->synth) == 0) { close_synth(f); return IO_ERROR_NOT_FOUND; }
 	(void)api.fluid_synth_get_program(f->synth, 0, &f->sf, &f->bank, &f->preset);
 	sink->state = f; sink->send = send_message; sink->render = render; sink->close = close_synth; sink->ansi = ansi;
-	return 0;
+	/* Calibrate at the library's default gain, then restore the user's gain.
+	 * Otherwise calibration would cancel an explicit synth.gain setting. */
+	double configured = api.fluid_synth_get_gain(f->synth), baseline;
+	if (api.fluid_settings_getnum_default(f->settings, "synth.gain", &baseline) != FLUID_OK)
+		return IO_ERROR_IO;
+	(void)api.fluid_settings_setnum(f->settings, "synth.gain", baseline);
+	int status = st_midi_sink_calibrate(sink);
+	(void)api.fluid_settings_setnum(f->settings, "synth.gain", configured);
+	return status;
 }
 #else
 int st_midi_fluid_open(struct st_midi_sink *sink) { (void)sink; return IO_ERROR_NOT_SUPPORTED; }

@@ -68,6 +68,26 @@ newly accepted work survives in the next piece. Destruction wakes and joins
 the worker before releasing the backend, stream, queue and synchronization.
 
 Internal output is 44100 Hz signed-16 stereo through the existing mixer.
+Software MIDI renderers establish a fixed source gain on initialization by
+rendering a sustained GM oboe (program 68, A440, velocity and CC7 100,
+centered pan) into discarded buffers. The middle second of a two-second
+reference is matched by RMS to the existing classic ANSI waveform at A440.
+Probe release/effects buffers are discarded until quiet, with an eight-second
+bound, and the initial ANSI preset is restored. References at or below four
+PCM units RMS retain unity source gain; calibration is bounded to +/-48 dB.
+Partial banks remain usable. FluidSynth calibration uses its library-default
+gain and then restores the configured live gain, so user gain changes still
+have their intended effect.
+
+This source gain accompanies MIDI PCM buffers into the mixer's wide
+accumulator, where it combines with the unchanged channel gain before final
+soft clipping. Do not multiply/clip the signed-16 source before that stage.
+The source gain is constant throughout playback, preserving relative note
+velocities, controllers and instrument levels; it is not per-file or
+per-block normalization. Classic PCM generation, channel defaults, explicit
+volume and fade controls retain their existing levels. Native MIDI outputs
+cannot be measured through the PCM renderer and do not use this calibration.
+
 Rendering uses at most 1024 frames per call and observes the 4096-frame
 outstanding window. Per-request PCM completion markers include backend
 latency, allowing consecutive captures to render without an intervening drain
@@ -144,13 +164,22 @@ or runtime-library probing. Wren settings expose `Settings.midiModes` and
 
 == Verification boundaries
 
-`music_parse`, `music_decode` and `music_player` use literal file/message/note
-expectations, a recording MIDI destination, and pull-only PCM. They exercise
+`music_parse`, `music_decode`, `music_calibrate` and `music_player` use literal
+file/message/note expectations, a recording MIDI destination, and pull-only
+PCM. They exercise
 queue ordering and continuous PCM across capture boundaries, request limits,
 malformed files, split SysEx, SMPTE timing,
 volume/fades, generation cancellation and shutdown without opening devices.
+Calibration tests use an independent classic-tone RMS oracle and sustained
+synthetic references, including silence, bounded noise gain, transport/render
+errors, state restoration and external-output exclusion. Player captures
+verify calibrated source gain, unchanged channel defaults, explicit volume,
+wide mixing before clipping, faded cancellation and subsequent playback.
 `st_midi_synth_test fluid|adl|apple` is a manually selected internal-synthesis
 smoke test; it verifies nonzero PCM and never creates a physical audio output.
+Add `--levels` to render the sustained oboe reference again and print its raw
+RMS, fixed source gain and calibrated RMS. With library-default gain, the
+classic A440 reference is approximately 16927.69 PCM units RMS.
 Native MIDI device/auditory verification is separate from these tests.
 `music_build_modes` builds mock public-ABI archives and a C++ private
 dependency, then checks AUTO/RUNTIME/STATIC/mixed/OFF selection, C-only

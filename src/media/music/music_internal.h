@@ -13,6 +13,8 @@ struct st_midi_sink {
 	void *state;
 	int (*send)(void *, const uint8_t *, size_t);
 	int (*render)(void *, int16_t *, size_t);
+	/* Source calibration is combined with channel gain by the wide mixer. */
+	float pcm_gain_db;
 	int (*gain)(void *, float, float);
 	void (*ansi)(void *);
 	void (*close)(void *);
@@ -37,6 +39,7 @@ int st_midi_sink_open(struct st_midi_sink *sink, enum st_midi_backend kind,
 	bool (*cancelled)(void *), void *context);
 void st_midi_sink_close(struct st_midi_sink *sink);
 int st_midi_sink_start(struct st_midi_sink *sink);
+int st_midi_sink_calibrate(struct st_midi_sink *sink);
 int st_midi_sink_send(struct st_midi_sink *sink, const uint8_t *data, size_t size);
 int st_midi_sink_gain(struct st_midi_sink *sink, float left, float right);
 void st_midi_sink_release(struct st_midi_sink *sink, bool immediate);

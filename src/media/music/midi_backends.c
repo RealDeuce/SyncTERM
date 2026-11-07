@@ -39,6 +39,8 @@ int st_midi_sink_open(struct st_midi_sink *sink, enum st_midi_backend kind,
 	case ST_MIDI_APPLE: status = st_midi_apple_open(sink); break;
 	default: status = IO_ERROR_NOT_SUPPORTED;
 	}
+	/* FluidSynth calibrates before restoring its configured live gain. */
+	if (status == 0 && kind != ST_MIDI_FLUIDSYNTH) status = st_midi_sink_calibrate(sink);
 	if (status != 0) st_midi_sink_close(sink);
 	return status;
 }

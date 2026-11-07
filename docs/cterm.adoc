@@ -3172,6 +3172,12 @@ which sounds outside the PCM mixer. Channel 1 is the foreground-SFX stream
 (RIP / OOII); the BBS can use
 `Flush`, `Volume`, `Wait`, and `Update` on them but cannot `Queue`
 patch audio onto them. Use `QueueMIDI` to queue a MIDI file on channel 0.
+Software MIDI renderers use a sustained-oboe reference to match source RMS
+to the classic ANSI tone. A fixed source gain is combined with channel gain
+in the mixer's wide accumulator before final soft clipping. Channel defaults,
+volume and fades retain their existing meaning; music is not normalized
+per file or during playback. Native MIDI destinations do not use PCM source
+calibration.
 Channels 2..15 are APC-dedicated and lazy-opened at
 -12 dB base level on first use.
 

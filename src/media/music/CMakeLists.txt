@@ -2,7 +2,7 @@
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
 include(MidiBackends.cmake)
 configure_file(music_config.h.in music_config.h @ONLY)
-add_library(st_music STATIC ansi_music.c midi_file.c midi_decode.c music.c
+add_library(st_music STATIC ansi_music.c midi_file.c midi_decode.c midi_calibrate.c music.c
 	midi_backends.c midi_alsa.c midi_fluidsynth.c midi_adlmidi.c midi_winmm.c midi_apple.c)
 target_include_directories(st_music PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
@@ -27,6 +27,10 @@ if(BUILD_TESTING)
 	target_link_libraries(st_midi_decode_test PRIVATE st_music)
 	set_target_properties(st_midi_decode_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	add_test(NAME music_decode COMMAND st_midi_decode_test)
+	add_executable(st_midi_calibrate_test tests/midi_calibrate_test.c)
+	target_link_libraries(st_midi_calibrate_test PRIVATE st_music)
+	set_target_properties(st_midi_calibrate_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	add_test(NAME music_calibrate COMMAND st_midi_calibrate_test)
 	add_executable(st_music_player_test tests/music_player_test.c)
 	target_link_libraries(st_music_player_test PRIVATE st_music syncterm_threads st_time)
 	syncterm_target_atomics(st_music_player_test)

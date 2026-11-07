@@ -121,6 +121,44 @@ static void internal(void)
 	st_music_destroy(m); CHECK(stream == NULL);
 	st_audio_runtime_destroy(runtime); st_mutex_destroy(&r.mutex);
 }
+static void calibrated(void)
+{
+	st_audio_runtime_t *runtime; audio_stream_t *stream = NULL; st_music_t *m;
+	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
+	struct recording r = {0}; CHECK(st_mutex_init(&r.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	struct st_midi_sink sink = {.state = &r, .send = send, .render = render, .pcm_gain_db = 24};
+	CHECK(st_music_create_with_sink(&m, runtime, &stream, &sink) == 0);
+	for (int capture = 0; capture < 2; ++capture) {
+		if (capture != 0) CHECK(st_music_volume(m, -24, -24, 0) == 0);
+		CHECK(st_music_queue_notes(m, note(33, 1024), 1) == 0);
+		uint64_t deadline = now() + 3000000000U;
+		while (audio_stream_buffered_frames(st_music_pcm_stream(m)) < 1024) { CHECK(now() < deadline); delay(); }
+		float left, right;
+		float expected = capture == 0 ? -12 : -24;
+		CHECK(st_music_get_volume(m, &left, &right) == 0 && left == expected && right == expected);
+		CHECK(audio_stream_get_volume(stream, &left, &right) == 0 && left == expected && right == expected);
+		int16_t frames[1024 * AUDIO_CHANNELS];
+		CHECK(st_audio_runtime_pull(runtime, frames, 1024) == 0);
+		/* At the default channel level the boosted signal exceeds int16
+		 * range before the mixer's soft clip. Early saturation would yield
+		 * under 9000 here. Explicit -24 dB cancels the source gain. */
+		for (size_t i = 0; i < sizeof(frames) / sizeof(frames[0]); ++i) {
+			CHECK(frames[i] >= (capture == 0 ? 27000 : 9680));
+			CHECK(frames[i] <= (capture == 0 ? 28000 : 9720));
+		}
+		pull_until_idle(m, runtime);
+	}
+	CHECK(st_music_queue_notes(m, note(33, 8192), 1) == 0);
+	until_on(&r, 3);
+	CHECK(st_music_flush(m, 512) == 0);
+	pull_until_idle(m, runtime);
+	CHECK(audio_stream_is_idle(stream));
+	CHECK(st_music_queue_notes(m, note(33, 128), 1) == 0);
+	pull_until_idle(m, runtime);
+	float left, right;
+	CHECK(audio_stream_get_volume(stream, &left, &right) == 0 && left == -24 && right == -24);
+	st_music_destroy(m); st_audio_runtime_destroy(runtime); st_mutex_destroy(&r.mutex);
+}
 struct waiter { st_music_t *music; atomic_bool entered, done; int status; };
 static int wait_music(void *context)
 {
@@ -195,4 +233,4 @@ static void files(void)
 	CHECK(r.frames == 110378);
 	st_music_destroy(m); st_audio_runtime_destroy(runtime); st_mutex_destroy(&r.mutex);
 }
-int main(void) { internal(); external(); files(); return 0; }
+int main(void) { internal(); calibrated(); external(); files(); return 0; }

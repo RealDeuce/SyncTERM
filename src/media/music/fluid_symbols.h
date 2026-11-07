@@ -4,10 +4,12 @@
 	X(fluid_settings_t *, new_fluid_settings, (void)) \
 	X(void, delete_fluid_settings, (fluid_settings_t *)) \
 	X(int, fluid_settings_setnum, (fluid_settings_t *, const char *, double)) \
+	X(int, fluid_settings_getnum_default, (fluid_settings_t *, const char *, double *)) \
 	X(int, fluid_settings_dupstr, (fluid_settings_t *, const char *, char **)) \
 	X(void, fluid_free, (void *)) \
 	X(fluid_synth_t *, new_fluid_synth, (fluid_settings_t *)) \
 	X(void, delete_fluid_synth, (fluid_synth_t *)) \
+	X(float, fluid_synth_get_gain, (fluid_synth_t *)) \
 	X(fluid_cmd_handler_t *, new_fluid_cmd_handler2, (fluid_settings_t *, fluid_synth_t *, fluid_midi_router_t *, fluid_player_t *)) \
 	X(void, delete_fluid_cmd_handler, (fluid_cmd_handler_t *)) \
 	X(char *, fluid_get_userconf, (char *, int)) \
