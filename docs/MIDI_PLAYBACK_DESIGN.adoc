@@ -76,8 +76,9 @@ Internal output is 44100 Hz signed-16 stereo through the existing mixer.
 Software MIDI renderers establish a fixed source gain on initialization by
 rendering the actual ANSI synth voice (GM Lead 2 sawtooth, program 81, A440,
 velocity and CC7 100, centered pan) into discarded buffers. The middle second
-of a two-second reference is matched by RMS to the existing classic ANSI
-waveform at A440.
+of a two-second reference is matched by AC RMS to the existing classic ANSI
+waveform at A440. Each channel's own mean is excluded from both references;
+the classic waveform's DC bias must not be treated as audible tone power.
 Probe release/effects buffers are discarded until quiet, with an eight-second
 bound, and the ANSI synth voice is restored. References at or below four
 PCM units RMS retain unity source gain; calibration is bounded to +/-48 dB.
@@ -179,7 +180,8 @@ queue ordering and continuous PCM across capture boundaries, request limits,
 malformed files, split SysEx, SMPTE timing,
 volume/fades, generation cancellation and shutdown without opening devices.
 Calibration tests use an independent classic-tone RMS oracle and sustained
-synthetic references, including silence, bounded noise gain, transport/render
+synthetic references, including alternating signals, separate per-channel
+DC offsets, DC-only silence, bounded noise gain, transport/render
 errors, state restoration and external-output exclusion. Player captures
 verify calibrated source gain, unchanged channel defaults, explicit volume,
 wide mixing before clipping, faded cancellation and subsequent playback.
@@ -189,15 +191,19 @@ that ANSI selects its synth voice and files retain their own instruments.
 smoke test; it verifies nonzero PCM and never creates a physical audio output.
 Add `--levels` to compare actual ANSI synth and classic waveform playback
 through the player and pull-only mixer at A440. It reports source gain, final
-PCM RMS, peaks and the level difference. Attack/release are excluded from
-RMS. The pre-mix classic A440 reference is approximately 16927.69 PCM units
-RMS. The test never opens a physical audio device.
-Measured final-PCM differences at library-default gain are -0.04 dB for
-FluidSynth 2.6.2 with FluidR3 GM and -0.10 dB for libADLMIDI 1.6.1
+PCM AC RMS, channel means, raw peaks and the level difference. Attack/release
+and per-channel DC are excluded from RMS; actual PCM samples are unchanged.
+The independent final-output measurement uses Welford central moments rather
+than calibration's sum-of-squares calculation. The pre-mix classic A440
+reference is approximately 9095.19 AC RMS, with a mean of -14276.70 PCM units.
+Including that DC produces total RMS 16927.69 and an erroneous 5.4 dB boost.
+The test never opens a physical audio device.
+Measured final-PCM AC-level differences at library-default gain are +0.09 dB
+for FluidSynth 2.6.2 with FluidR3 GM and +0.04 dB for libADLMIDI 1.6.1
 with embedded bank 0. Renderer modulation can vary the measured sustained
 level between notes; the calibration remains fixed throughout playback.
-`--envelope` compares the 10..100 ms onset RMS with the 0.5..1.5 second
-sustain RMS at MIDI notes 36, 48, 60, 69, 81, 96, 108 and 119. An onset
+`--envelope` compares the 10..100 ms onset AC RMS with the 0.5..1.5 second
+sustain AC RMS at MIDI notes 36, 48, 60, 69, 81, 96, 108 and 119. An onset
 more than 2 dB above sustain fails this manually selected renderer check.
 The previous square preset failed it at note 36 (+3.38 dB); the dry sawtooth
 voice stays below +0.5 dB in the tested FluidR3 GM and ADLMIDI banks.

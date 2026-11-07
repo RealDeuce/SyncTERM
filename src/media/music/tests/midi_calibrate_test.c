@@ -4,7 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
-struct source { int amplitude, tail, program, restored; bool active, probed, fail_send, fail_render; size_t frames, fail_at; };
+struct source { int amplitude, dc[AUDIO_CHANNELS], tail, program, restored; bool active, probed, fail_send, fail_render; size_t frames, fail_at; };
 static int send(void *context, const uint8_t *bytes, size_t size)
 {
 	struct source *s = context;
@@ -24,26 +24,35 @@ static int render(void *context, int16_t *frames, size_t count)
 {
 	struct source *s = context;
 	if (s->fail_render || (s->fail_at != 0 && s->frames >= s->fail_at)) return IO_ERROR_IO;
-	for (size_t i = 0; i < count * AUDIO_CHANNELS; ++i) frames[i] = s->active ? s->amplitude : s->tail;
+	for (size_t i = 0; i < count * AUDIO_CHANNELS; ++i) {
+		int wave = (s->frames + i / AUDIO_CHANNELS) % 2 ? s->amplitude : -s->amplitude;
+		frames[i] = s->active ? wave + s->dc[i % AUDIO_CHANNELS] : s->tail;
+	}
 	s->frames += count;
 	return 0;
 }
-static float calibrate(int amplitude)
+static float biased(int amplitude, int left_dc, int right_dc)
 {
-	struct source source = {.amplitude = amplitude};
+	struct source source = {.amplitude = amplitude, .dc = {left_dc, right_dc}};
 	struct st_midi_sink sink = {.state = &source, .send = send, .render = render};
 	CHECK(st_midi_sink_calibrate(&sink) == 0);
 	CHECK(source.probed && !source.active && source.restored == 1 && source.program == 81);
 	CHECK(source.frames >= 2U * AUDIO_SAMPLE_RATE && source.frames < 3U * AUDIO_SAMPLE_RATE);
 	return sink.pcm_gain_db;
 }
+static float calibrate(int amplitude) { return biased(amplitude, 0, 0); }
 int main(void)
 {
-	/* The independent steady classic A440 oracle is RMS 16927.69 PCM units.
-	 * A 1000-unit reference needs 24.571 dB; doubling it needs 6.021 less. */
+	/* The classic A440 oracle is AC RMS 9095.192, mean -14276.702.
+	 * Including DC gives RMS 16927.692 and an erroneous extra 5.396 dB. */
 	float gain = calibrate(1000);
-	CHECK(fabsf(gain - 24.571f) < 0.02f);
+	CHECK(fabsf(gain - 19.176f) < 0.02f);
 	CHECK(fabsf(gain - calibrate(2000) - 6.0206f) < 0.001f);
+	/* Remove DC independently in each channel: opposite offsets cancel
+	 * in a combined mean, but neither channel's bias is audible signal. */
+	CHECK(fabsf(gain - biased(1000, 5000, -5000)) < 0.001f);
+	CHECK(fabsf(gain - biased(1000, 12000, 7000)) < 0.001f);
+	CHECK(biased(0, 12000, -7000) == 0);
 	CHECK(calibrate(0) == 0 && calibrate(1) == 0 && calibrate(4) == 0);
 	CHECK(calibrate(10) == 48); /* Bound gain for an unusually quiet bank. */
 	struct source source = {.fail_send = true};

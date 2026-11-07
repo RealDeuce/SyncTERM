@@ -8,7 +8,7 @@
 #include <string.h>
 /* Consume the actual player/mixer path without opening an audio device.
  * The player takes ownership of the supplied sink, including on errors. */
-static int capture(struct st_midi_sink *sink, double *rms, int *peak)
+static int capture(struct st_midi_sink *sink, double *rms, double dc[AUDIO_CHANNELS], int *peak)
 {
 	st_audio_runtime_t *runtime;
 	int status = st_audio_runtime_create_pull(&runtime);
@@ -23,7 +23,10 @@ static int capture(struct st_midi_sink *sink, double *rms, int *peak)
 		status = st_music_queue_notes(music, note, 1);
 		if (status != 0) free(note);
 	}
-	double energy = 0; size_t samples = 0;
+	/* Independently measure AC power with Welford's central moments. Do not
+	 * repeat calibration's sum-of-squares implementation here. */
+	double energy[AUDIO_CHANNELS] = {0}; size_t samples[AUDIO_CHANNELS] = {0};
+	for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) dc[ch] = 0;
 	*peak = 0;
 	uint64_t start;
 	if (status == 0) status = st_time_monotonic_ms(&start);
@@ -45,13 +48,20 @@ static int capture(struct st_midi_sink *sink, double *rms, int *peak)
 			if (abs(frames[i]) > *peak) *peak = abs(frames[i]);
 			size_t position = at + i / AUDIO_CHANNELS;
 			if (position >= AUDIO_SAMPLE_RATE / 2 && position < AUDIO_SAMPLE_RATE * 3U / 2) {
-				energy += (double)frames[i] * frames[i]; ++samples;
+				size_t ch = i % AUDIO_CHANNELS;
+				double delta = frames[i] - dc[ch];
+				dc[ch] += delta / ++samples[ch];
+				energy[ch] += delta * (frames[i] - dc[ch]);
 			}
 		}
 		at += count;
 	}
 	if (status == 0) status = st_music_wait(music);
-	if (status == 0) *rms = sqrt(energy / samples);
+	if (status == 0) {
+		double variance = 0;
+		for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) variance += energy[ch] / samples[ch];
+		*rms = sqrt(variance / AUDIO_CHANNELS);
+	}
 	st_music_destroy(music); st_audio_runtime_destroy(runtime);
 	return status;
 }
@@ -67,6 +77,7 @@ static int envelope(struct st_midi_sink *sink)
 		const uint8_t note[] = {0x90, keys[key], 100};
 		if (status == 0) status = st_midi_sink_send(sink, note, sizeof(note));
 		double early = 0, steady = 0; size_t early_count = 0, steady_count = 0;
+		double early_sum[AUDIO_CHANNELS] = {0}, steady_sum[AUDIO_CHANNELS] = {0};
 		int16_t frames[1024 * AUDIO_CHANNELS];
 		for (size_t at = 0; status == 0 && at < 2U * AUDIO_SAMPLE_RATE;) {
 			size_t count = 2U * AUDIO_SAMPLE_RATE - at;
@@ -76,13 +87,22 @@ static int envelope(struct st_midi_sink *sink)
 			for (size_t i = 0; i < count * AUDIO_CHANNELS; ++i) {
 				size_t position = at + i / AUDIO_CHANNELS;
 				double energy = (double)frames[i] * frames[i];
-				if (position >= AUDIO_SAMPLE_RATE / 100 && position < AUDIO_SAMPLE_RATE / 10) { early += energy; ++early_count; }
-				if (position >= AUDIO_SAMPLE_RATE / 2 && position < AUDIO_SAMPLE_RATE * 3U / 2) { steady += energy; ++steady_count; }
+				if (position >= AUDIO_SAMPLE_RATE / 100 && position < AUDIO_SAMPLE_RATE / 10) {
+					early += energy; early_sum[i % AUDIO_CHANNELS] += frames[i]; ++early_count;
+				}
+				if (position >= AUDIO_SAMPLE_RATE / 2 && position < AUDIO_SAMPLE_RATE * 3U / 2) {
+					steady += energy; steady_sum[i % AUDIO_CHANNELS] += frames[i]; ++steady_count;
+				}
 			}
 			at += count;
 		}
 		st_midi_sink_release(sink, true);
-		if (status != 0 || early == 0 || steady == 0) return 1;
+		if (status != 0) return 1;
+		for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) {
+			early -= early_sum[ch] * early_sum[ch] / (early_count / AUDIO_CHANNELS);
+			steady -= steady_sum[ch] * steady_sum[ch] / (steady_count / AUDIO_CHANNELS);
+		}
+		if (early <= 0 || steady <= 0) return 1;
 		double db = 10.0 * log10((early / early_count) / (steady / steady_count));
 		printf("MIDI note %u: 10..100 ms versus sustain %+.3f dB\n", (unsigned)keys[key], db);
 		if (db > 2.0) burst = true;
@@ -145,13 +165,15 @@ int main(int argc, char **argv)
 	}
 	if (levels) {
 		float gain = sink.pcm_gain_db;
-		double synth_rms, classic_rms; int synth_peak, classic_peak;
-		status = capture(&sink, &synth_rms, &synth_peak);
+		double synth_rms, classic_rms, synth_dc[AUDIO_CHANNELS], classic_dc[AUDIO_CHANNELS]; int synth_peak, classic_peak;
+		status = capture(&sink, &synth_rms, synth_dc, &synth_peak);
 		struct st_midi_sink classic = {0};
-		if (status == 0) status = capture(&classic, &classic_rms, &classic_peak);
+		if (status == 0) status = capture(&classic, &classic_rms, classic_dc, &classic_peak);
 		if (status == 0 && synth_rms > 0 && classic_rms > 0) {
-			printf("source gain %.3f dB; mixed ANSI synth RMS %.3f, peak %d; classic RMS %.3f, peak %d; difference %+.3f dB\n",
+			printf("source gain %.3f dB; mixed ANSI synth AC RMS %.3f, peak %d; classic AC RMS %.3f, peak %d; difference %+.3f dB\n",
 			    gain, synth_rms, synth_peak, classic_rms, classic_peak, 20.0 * log10(synth_rms / classic_rms));
+			printf("output DC: synth L/R %.3f/%.3f; classic L/R %.3f/%.3f\n",
+			    synth_dc[0], synth_dc[1], classic_dc[0], classic_dc[1]);
 			return 0;
 		}
 		return 1;

@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-/* Match the steady RMS of the ANSI synth voice, A440, velocity/CC7 100, to the
+/* Match the steady AC RMS of the ANSI synth voice, A440, velocity/CC7 100, to the
  * existing classic ANSI waveform. Discard attack and release. This is one
  * fixed source gain for the renderer, never normalization of playing music.
  * Probe samples are discarded here and never enter an output stream. */
@@ -16,10 +16,13 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 	int status = audio_generate_tone(tone, duration, 440,
 	    AUDIO_WAVE_SINE_SAW_HARM, true);
 	double reference = 0, signal = 0;
+	double reference_sum[AUDIO_CHANNELS] = {0}, signal_sum[AUDIO_CHANNELS] = {0};
 	size_t first = AUDIO_SAMPLE_RATE / 2, last = first + AUDIO_SAMPLE_RATE;
 	if (status == 0) {
-		for (size_t i = first * AUDIO_CHANNELS; i < last * AUDIO_CHANNELS; ++i)
+		for (size_t i = first * AUDIO_CHANNELS; i < last * AUDIO_CHANNELS; ++i) {
 			reference += (double)tone[i] * tone[i];
+			reference_sum[i % AUDIO_CHANNELS] += tone[i];
+		}
 		status = st_midi_sink_start(sink);
 	}
 	free(tone);
@@ -36,6 +39,7 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 			for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) {
 				double value = frames[i * AUDIO_CHANNELS + ch];
 				signal += value * value;
+				signal_sum[ch] += value;
 			}
 		}
 		at += count;
@@ -55,6 +59,12 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 	}
 	if (status == 0) status = st_midi_sink_start(sink);
 	if (status == 0) status = st_midi_sink_ansi(sink);
+	/* DC inflated the classic reference power by 5.4 dB. Exclude each
+	 * channel's own mean on both sides; bias is not audible tone power. */
+	for (size_t ch = 0; ch < AUDIO_CHANNELS; ++ch) {
+		reference -= reference_sum[ch] * reference_sum[ch] / (last - first);
+		signal -= signal_sum[ch] * signal_sum[ch] / (last - first);
+	}
 	/* A bank without an audible reference remains usable. Do not amplify dither
 	 * or reject partial banks. The upper bound also limits noise gain. */
 	if (status == 0 && signal > (double)AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * 16) {
