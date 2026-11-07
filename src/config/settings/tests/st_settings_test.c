@@ -25,11 +25,14 @@ main(void)
 
 	st_settings_init(&source);
 	st_settings_init(&copy);
+	source.audio_output_modes = 2;
+	source.midi_output_modes = 5;
 	source.modem_device = strdup("/dev/ttyS0");
 	strcpy(source.modem_init_string, "ATZ");
 	CHECK(source.modem_device != NULL);
 	CHECK(name_value_list_append(&source.web_downloads, "one", "two"));
 	CHECK(st_settings_copy(&copy, &source));
+	CHECK(copy.audio_output_modes == 2 && copy.midi_output_modes == 5);
 	CHECK(strcmp(copy.modem_device, "/dev/ttyS0") == 0);
 	CHECK(copy.modem_device != source.modem_device);
 	CHECK(name_value_list_count(copy.web_downloads) == 1);

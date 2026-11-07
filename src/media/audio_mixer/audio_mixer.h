@@ -40,6 +40,7 @@ int audio_mixer_stream_append_take(audio_mixer_stream_t *stream,
 int audio_mixer_stream_clear(audio_mixer_stream_t *stream);
 int audio_mixer_stream_drain(audio_mixer_stream_t *stream);
 bool audio_mixer_stream_is_idle(audio_mixer_stream_t *stream);
+size_t audio_mixer_stream_buffered_frames(audio_mixer_stream_t *stream);
 int audio_mixer_stream_set_volume(audio_mixer_stream_t *stream,
     float volume_left_db, float volume_right_db);
 int audio_mixer_stream_ramp_volume(audio_mixer_stream_t *stream,

@@ -73,7 +73,7 @@ def fixture(executable, *, entries="", extra=(), script=None,
     with tempfile.TemporaryDirectory(prefix="syncterm-control-") as directory:
         root = Path(directory)
         (root / "syncterm.ini").write_text(
-            "[SyncTERM]\nConfirmClose=false\nScalingFactor=1\n" + settings, encoding="utf-8")
+            "[SyncTERM]\nConfirmClose=false\nScalingFactor=1\nAudioModes=0\nMidiModes=0\n" + settings, encoding="utf-8")
         (root / "syncterm.lst").write_text(entries, encoding="utf-8")
         (root / "downloads").mkdir()
         if script is not None:

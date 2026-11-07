@@ -395,3 +395,12 @@ columns for all four source attribute combinations, masked changes, untouched
 assignments, retained cells, failed selection and reset recovery in coherent
 captures. Native `cterm` tests cover per-geometry remote mapping metadata and
 restoration; these checks do not claim new remote-font protocol behavior.
+
+MIDI's `music_parse`, `music_decode` and `music_player` tests independently
+check all 84 ANSI pitches, existing articulation/frame rounding, SMF0/1/RMID,
+tempo/running status/SMPTE, split SysEx, FIFO limits, internal PCM bounds,
+external channel-zero gain/fade/wait/cancellation and runtime shutdown. The
+`extensions` control group checks feature 102 with MIDI disabled, rejected
+cache-path recovery and seven-octave ANSI capture recovery in CP437/UTF-8.
+These tests do not claim native MIDI-device or auditory coverage. MIDI and
+PCM masks are both disabled in shared headless application fixtures.

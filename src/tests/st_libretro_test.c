@@ -200,7 +200,7 @@ main(int argc, char **argv)
 	CHECK(fs_create_directories(ST_LIBRETRO_TEST_DIRECTORY "/syncterm") == 0);
 	FILE *file = fopen(ST_LIBRETRO_TEST_DIRECTORY "/syncterm/syncterm.ini", "wb");
 	CHECK(file != NULL);
-	CHECK(fputs("[SyncTERM]\nConfirmClose=false\nOutputMode=4\n[WebLists]\n", file) >= 0);
+	CHECK(fputs("[SyncTERM]\nConfirmClose=false\nOutputMode=4\nAudioModes=0\nMidiModes=0\n[WebLists]\n", file) >= 0);
 	CHECK(fclose(file) == 0);
 	file = fopen(ST_LIBRETRO_TEST_DIRECTORY "/test.lst", "wb");
 	CHECK(file != NULL);

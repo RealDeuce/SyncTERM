@@ -55,7 +55,16 @@ def basic(executable):
         click_text(client, client.capture(), "Build Options")
         click_text(client, client.capture(), "Build Options")
         client.wait_text("SyncTERM Build Options")
+        for columns, rows in ((80, 25), (72, 24)):
+            client.grid_resize(columns, rows)
+            client.key("end")
+            options = client.wait_text("MIDI")
+            for method in ("WinMM", "Apple DLS", "ALSA Sequencer", "FluidSynth", "libADLMIDI"):
+                assert any(method in line for line in options.lines), (method, options.lines)
+        client.grid_resize(80, 25)
         client.key("end")
+        for _ in range(4):
+            client.key("up")
         options = client.wait_text("Testing bitmap backend")
         assert any("Testing bitmap backend" in line and "√" in line for line in options.lines)
         client.key("escape")

@@ -138,6 +138,11 @@ static const struct ini_bit_name audio_modes[] = {
 	{ 1U << 2, "OSS" },
 };
 
+static const struct ini_bit_name midi_modes[] = {
+	{1U << 0, "ALSA"}, {1U << 1, "FluidSynth"}, {1U << 2, "libADLMIDI"},
+	{1U << 3, "WinMM"}, {1U << 4, "AppleDLS"},
+};
+
 struct setting_key {
 	const char *section;
 	const char *key;
@@ -150,6 +155,7 @@ static const struct setting_key known_keys[] = {
 	{ "SyncTERM", "OutputMode" },
 	{ "SyncTERM", "DefaultCursor" },
 	{ "SyncTERM", "AudioModes" },
+	{ "SyncTERM", "MidiModes" },
 	{ "SyncTERM", "ScrollBackLines" },
 	{ "SyncTERM", "TransferSuccessKeypressTimeout" },
 	{ "SyncTERM", "TransferFailureKeypressTimeout" },
@@ -289,6 +295,7 @@ settings_defaults(struct st_settings *value, const char *personal_list)
 	value->startup_mode = 0;
 	value->output_mode = 0;
 	value->audio_output_modes = UINT32_MAX;
+	value->midi_output_modes = UINT32_MAX;
 	value->scrollback_lines = 2000;
 	value->transfer_success_keypress_timeout = 0;
 	value->transfer_failure_keypress_timeout = 60;
@@ -368,6 +375,9 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 		    "AudioModes", audio_modes,
 		    sizeof(audio_modes) / sizeof(audio_modes[0]),
 		    value->audio_output_modes);
+		value->midi_output_modes = (uint32_t)ini_section_get_bitfield(section,
+		    "MidiModes", midi_modes, sizeof(midi_modes) / sizeof(midi_modes[0]),
+		    value->midi_output_modes);
 		value->scrollback_lines = bounded_int(section, "ScrollBackLines", 2000,
 		    0, INT_MAX);
 		value->transfer_success_keypress_timeout = bounded_int(section,
@@ -691,6 +701,9 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	    (size_t)value->default_cursor, &ini_default_style));
 	SET(ini_section_set_bitfield(section, "AudioModes", audio_modes,
 	    sizeof(audio_modes) / sizeof(audio_modes[0]), value->audio_output_modes,
+	    &ini_default_style));
+	SET(ini_section_set_bitfield(section, "MidiModes", midi_modes,
+	    sizeof(midi_modes) / sizeof(midi_modes[0]), value->midi_output_modes,
 	    &ini_default_style));
 #define SET_INT(key, member) SET(ini_section_set_int64(section, key, \
 	    value->member, &ini_default_style))

@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include "cterm_render.h"
 #include "st_cterm.h"
+#include "st_music.h"
 
 /* Maximum CSI parameter count that the unified dispatch parser will
  * record.  Beyond this, the sequence is flagged broken and discarded. */
@@ -251,6 +252,7 @@ struct cterminal {
 	cterm_noteshape_t	noteshape;
 	int					musicfore;
 	audio_stream_t		*music_stream;
+	st_music_t		*music_player;
 	audio_stream_t		*fx_stream;
 	int					backpos; // Position where new lines will be added
 	int					backstart; // First line of scrollback
@@ -484,6 +486,7 @@ struct cterminal *cterm_init(int height, int width, int xpos, int ypos,
 bool cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed);
 int cterm_openlog(struct cterminal *cterm, char *logfile, int logtype);
 void cterm_closelog(struct cterminal *cterm);
+bool cterm_music_ensure(struct cterminal *cterm);
 void cterm_end(struct cterminal *cterm, int free_fonts);
 void cterm_clearscreen(struct cterminal *cterm, char attr);
 void cterm_start(struct cterminal *cterm);

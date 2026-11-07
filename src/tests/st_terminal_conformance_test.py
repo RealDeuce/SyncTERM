@@ -415,6 +415,12 @@ def extensions(t):
     # cover sequence consumption and return to normal terminal parsing.
     t.check("BEL", b"A\aB", (3, 1), ((1, 1, "AB"),))
     t.check("CTSAM", ESC + b"[=0M" + b"AB", (3, 1), ((1, 1, "AB"),))
+    t.check("CTMIDIUnavailable", ESC + b"_SyncTERM:Q;midi" + ST,
+            (1, 1), expected=ESC + b"[=7;102;0n")
+    t.check("CTMIDIQueueRecovery", ESC + b"_SyncTERM:A;QueueMIDI;../../outside.mid" + ST
+            + ESC + b"_SyncTERM:A;Flush;C=0" + ST + b"AB", (3, 1), ((1, 1, "AB"),))
+    t.check("CTANSISevenOctaves", ESC + b"[|MB O0 C N0 O6 B N83 N84\x0e" + b"AB",
+            (3, 1), ((1, 1, "AB"),))
     t.check("BCAM", ESC + b"[N" + b"T255L64C\x0e" + b"AB", (3, 1), ((1, 1, "AB"),))
     t.check("BCDM", ESC + b"[=255h\0\x1b", (2, 1), ((1, 1, "←"),))
     t.check("BCRST", ESC + b"[=255h" + ESC + b"[=255l" + ESC + b"[2;3HX", (4, 2), ((3, 2, "X"),))

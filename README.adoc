@@ -47,8 +47,8 @@ guide], and link:docs/Wren.adoc[the Wren API manual]. Development rules are in
 link:AGENTS.md[AGENTS.md]. Licensing information is in link:LICENSE[LICENSE]
 and the component notices.
 
-Planned MIDI backends, runtime library loading, and ANSI music translation are
-recorded in link:docs/MIDI_PLAYBACK_DESIGN.adoc[the MIDI playback design].
+MIDI backends, runtime/static linkage, and ANSI music translation are
+described in link:docs/MIDI_PLAYBACK_DESIGN.adoc[the MIDI playback design].
 
 == Optional Wren interfaces
 

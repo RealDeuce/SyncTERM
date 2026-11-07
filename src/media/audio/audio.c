@@ -503,10 +503,7 @@ audio_stream_drain(audio_stream_t *stream)
 	status = audio_mixer_stream_drain(stream->mixer_stream);
 	if (status != 0)
 		return status;
-	latency = stream->engine->backend == NULL
-	    || stream->engine->backend->latency_ms == NULL ? 0
-	    : stream->engine->backend->latency_ms(
-	    stream->engine->backend_state);
+	latency = audio_stream_latency_ms(stream);
 	if (latency > 0)
 		sleep_milliseconds(latency);
 	return atomic_load_explicit(&stream->engine->failed,
@@ -527,6 +524,18 @@ audio_stream_set_volume(audio_stream_t *stream, float volume_left_db,
 	return stream == NULL ? IO_ERROR_INVALID_ARGUMENT
 	    : audio_mixer_stream_set_volume(stream->mixer_stream,
 	    volume_left_db, volume_right_db);
+}
+
+size_t audio_stream_buffered_frames(audio_stream_t *stream)
+{
+	return stream == NULL ? 0 : audio_mixer_stream_buffered_frames(stream->mixer_stream);
+}
+
+uint32_t audio_stream_latency_ms(audio_stream_t *stream)
+{
+	return stream == NULL || stream->engine->backend == NULL
+	    || stream->engine->backend->latency_ms == NULL ? 0
+	    : stream->engine->backend->latency_ms(stream->engine->backend_state);
 }
 
 int

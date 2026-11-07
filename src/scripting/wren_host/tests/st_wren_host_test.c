@@ -18,6 +18,7 @@
 #include "st_consent_token.h"
 #include "path.h"
 #include "st_audio_runtime.h"
+#include "st_music.h"
 #include "st_audio_file.h"
 #include "st_pixel_image.h"
 #include "st_list_crypto.h"
@@ -5178,6 +5179,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "s.outputMode = 0\n"
 	    "s.cursorStyle = 1\n"
 	    "s.audioModes = 0\n"
+	    "s.midiModes = 0\n"
 	    "s.scrollbackLines = 100\n"
 	    "s.modemRate = 9600\n"
 	    "s.scalingMode = 1\n"
@@ -5257,6 +5259,11 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var s = Menu.settings\n"
 	    "s.audioModes = 4294967295\n"
+	    "s.midiModes = 4294967295\n"
+	    "if (s.midiModes != 4294967295) Fiber.abort(\"MIDI mask maximum\")\n"
+	    "var badMidi = Fiber.new { s.midiModes = 4294967296 }\n"
+	    "badMidi.try()\n"
+	    "if (badMidi.error == null || s.midiModes != 4294967295) Fiber.abort(\"MIDI mask overflow\")\n"
 	    "s.modemRate = 4294967295\n"
 	    "s.scrollbackLines = 2147483647\n"
 	    "s.frameColor = 16\n"
@@ -5271,6 +5278,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "bad.try()\n"
 	    "if (bad.error == null || s.modemRate != 4294967295) Fiber.abort(\"settings fractional\")\n"
 	    "s.audioModes = 0\n"
+	    "s.midiModes = 0\n"
 	    "s.modemRate = 0\n"
 	    "s.scrollbackLines = 1\n"
 	    "if (s.audioModes != 0 || s.modemRate != 0 || s.scrollbackLines != 1) Fiber.abort(\"settings numeric minima\")\n"
@@ -5899,7 +5907,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "var rows = Menu.buildOptions\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
-	    "if (Menu.buildOptions.count != 32 "
+	    "if (Menu.buildOptions.count != 37 "
 	    "|| !options.containsKey(\"DeuceSSH (SSH)\") "
 	    "|| !options.containsKey(\"OpenSSL (TLS, symmetric ciphers)\") "
 	    "|| !options.containsKey(\"Operation Overkill ][ Terminal\") "
@@ -5964,7 +5972,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	wrenEnsureSlots(host->vm, 3);
 	wrenGetVariable(host->vm, "build_options_contract", "rows", 0);
 	CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_LIST);
-	CHECK(wrenGetListCount(host->vm, 0) == (int)(sizeof(expected) / sizeof(expected[0])));
+	CHECK(wrenGetListCount(host->vm, 0) == (int)(sizeof(expected) / sizeof(expected[0])) + 5);
 	for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
 		wrenGetListElement(host->vm, 0, (int)i, 1);
 		CHECK(wrenGetSlotType(host->vm, 1) == WREN_TYPE_LIST && wrenGetListCount(host->vm, 1) == 3);
@@ -5977,6 +5985,23 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		wrenGetListElement(host->vm, 1, 2, 2);
 		CHECK(wrenGetSlotType(host->vm, 2) == WREN_TYPE_BOOL
 		    && wrenGetSlotBool(host->vm, 2) == expected[i].enabled);
+	}
+	const enum st_midi_backend midi[] = {ST_MIDI_WINMM, ST_MIDI_APPLE, ST_MIDI_ALSA, ST_MIDI_FLUIDSYNTH, ST_MIDI_ADLMIDI};
+	const char *names[] = {"WinMM", "Apple DLS", "ALSA Sequencer", "FluidSynth", "libADLMIDI"};
+	for (size_t i = 0; i < 5; ++i) {
+		enum st_midi_linkage linkage = st_midi_backend_linkage(midi[i]);
+		const char *suffix = linkage == ST_MIDI_RUNTIME ? " (runtime loaded)"
+		    : linkage == ST_MIDI_STATIC ? " (static)" : linkage == ST_MIDI_SYSTEM ? " (system linked)" : "";
+		char label[80];
+		snprintf(label, sizeof(label), "%s%s", names[i], suffix);
+		wrenGetListElement(host->vm, 0, (int)(sizeof(expected) / sizeof(expected[0]) + i), 1);
+		CHECK(wrenGetSlotType(host->vm, 1) == WREN_TYPE_LIST && wrenGetListCount(host->vm, 1) == 3);
+		wrenGetListElement(host->vm, 1, 0, 2);
+		CHECK(strcmp(wrenGetSlotString(host->vm, 2), "MIDI") == 0);
+		wrenGetListElement(host->vm, 1, 1, 2);
+		CHECK(strcmp(wrenGetSlotString(host->vm, 2), label) == 0);
+		wrenGetListElement(host->vm, 1, 2, 2);
+		CHECK(wrenGetSlotBool(host->vm, 2) == (linkage != ST_MIDI_NOT_BUILT));
 	}
 	wrenGetVariable(host->vm, "build_options_contract", "sndfile", 0);
 	CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_BOOL);

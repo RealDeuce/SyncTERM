@@ -18,7 +18,7 @@ channel_stream(struct cterminal *terminal, unsigned channel)
 	audio_engine_t *engine;
 	audio_stream_t **stream;
 
-	if (channel == 0) return terminal->music_stream;
+	if (channel == 0) return st_music_pcm_stream(terminal->music_player);
 	if (channel == 1) return terminal->fx_stream;
 	if (channel >= 16) return NULL;
 	stream = &terminal->apc->channels[channel - 2];
@@ -26,6 +26,14 @@ channel_stream(struct cterminal *terminal, unsigned channel)
 	    && st_audio_runtime_acquire(terminal->screen.audio, &engine) == 0)
 		(void)audio_stream_create(stream, engine, -12.0f, -12.0f);
 	return *stream;
+}
+
+static bool
+channel_busy(struct cterminal *terminal, unsigned channel)
+{
+	if (channel == 0) return st_music_busy(terminal->music_player);
+	audio_stream_t *stream = channel_stream(terminal, channel);
+	return stream != NULL && !audio_stream_is_idle(stream);
 }
 
 static size_t
@@ -210,6 +218,7 @@ flush_channel(struct cterminal *terminal, char *text)
 		else if (p[1] == 'O' && p[2] == '=') fadeout = parse_duration(p + 3, 0, false);
 	}
 	if (channel >= 16) return;
+	if (channel == 0) { (void)st_music_flush(terminal->music_player, fadeout); return; }
 	stream = channel_stream(terminal, (unsigned)channel);
 	if (stream == NULL) return;
 	if (fadeout != 0 && fadeout <= SIZE_MAX / AUDIO_FRAME_SIZE) {
@@ -243,6 +252,14 @@ volume_channel(struct cterminal *terminal, char *text)
 		else if (p[1] == 'T' && p[2] == '=') count = parse_duration(p + 3, 0, false);
 	}
 	if (channel >= 16) return;
+	if (channel == 0) {
+		if ((!have_left && !have_right) || !cterm_music_ensure(terminal)) return;
+		float current_left, current_right;
+		(void)st_music_get_volume(terminal->music_player, &current_left, &current_right);
+		(void)st_music_volume(terminal->music_player, have_left ? left : current_left,
+		    have_right ? right : current_right, count);
+		return;
+	}
 	stream = channel_stream(terminal, (unsigned)channel);
 	if (stream == NULL || (!have_left && !have_right)) return;
 	if (!have_left || !have_right) {
@@ -268,6 +285,12 @@ cterm_apc_audio_dispatch(struct cterminal *terminal, char *text, size_t size)
 	else if (VERB("Load")) load_patch(terminal, arguments, size - length, false);
 	else if (VERB("Synth")) synth_patch(terminal, arguments);
 	else if (VERB("Copy")) copy_patch(terminal, arguments);
+	else if (VERB("QueueMIDI")) {
+		if (*arguments == ';' && cterm_music_ensure(terminal)) {
+			FILE *file = cterm_apc_cache_open(terminal->apc->directory, arguments + 1, false);
+			if (file != NULL && st_music_queue_file(terminal->music_player, file) != 0) fclose(file);
+		}
+	}
 	else if (VERB("Queue")) queue_patch(terminal, arguments);
 	else if (VERB("Flush")) flush_channel(terminal, arguments);
 	else if (VERB("Volume")) volume_channel(terminal, arguments);
@@ -275,7 +298,11 @@ cterm_apc_audio_dispatch(struct cterminal *terminal, char *text, size_t size)
 		for (char *p = arguments; p != NULL && *p == ';'; p = strchr(p + 1, ';'))
 			if (p[1] == 'C' && p[2] == '=') channel = strtoul(p + 3, NULL, 10);
 		if (channel < 16) {
-			if (VERB("Update")) terminal->apc->notify[channel] = true;
+			if (VERB("Update")) {
+				terminal->apc->notify[channel] = true;
+				if (channel == 0 && channel_busy(terminal, 0)) terminal->apc->was_running[0] = true;
+			}
+			else if (channel == 0) (void)st_music_wait(terminal->music_player);
 			else {
 				audio_stream_t *stream = channel_stream(terminal, (unsigned)channel);
 				if (stream != NULL) (void)audio_stream_drain(stream);
@@ -293,7 +320,10 @@ cterm_apc_feature_query(struct cterminal *terminal, const char *text)
 	char reply[80];
 	int count;
 
-	if (strcmp(text, "libsndfile") == 0)
+	if (strcmp(text, "midi") == 0)
+		count = snprintf(reply, sizeof(reply), "\x1b[=7;102;%dn",
+		    cterm_music_ensure(terminal) && st_music_available(terminal->music_player) ? 1 : 0);
+	else if (strcmp(text, "libsndfile") == 0)
 		count = snprintf(reply, sizeof(reply), "\x1b[=7;100;%dn", st_audio_file_available() ? 1 : 0);
 	else if (strncmp(text, "libsndfileFormat;", 17) == 0) {
 		char *end;
@@ -323,16 +353,14 @@ cterm_apc_audio_query(struct cterminal *terminal, int count, const uint64_t *par
 	memcpy(reply, "\x1b[=7", 4);
 	if (count < 2) {
 		for (unsigned i = 0; i < 16; ++i) {
-			audio_stream_t *stream = channel_stream(terminal, i);
-			if (stream != NULL && !audio_stream_is_idle(stream))
+			if (channel_busy(terminal, i))
 				used += (size_t)snprintf(reply + used, sizeof(reply) - used, ";%u;1", i);
 		}
 	}
 	else if (params[1] < 16) {
 		unsigned channel = (unsigned)params[1];
-		audio_stream_t *stream = channel_stream(terminal, channel);
 		used += (size_t)snprintf(reply + used, sizeof(reply) - used, ";%u;%d", channel,
-		    stream != NULL && !audio_stream_is_idle(stream) ? 1 : 0);
+		    channel_busy(terminal, channel) ? 1 : 0);
 	}
 	reply[used++] = 'n';
 	cterm_respond(terminal, reply, used);
@@ -343,12 +371,10 @@ cterm_apc_poll(struct cterminal *terminal)
 {
 	if (terminal->apc == NULL) return;
 	for (unsigned i = 0; i < 16; ++i) {
-		audio_stream_t *stream;
 		bool running;
 
 		if (!terminal->apc->notify[i]) continue;
-		stream = channel_stream(terminal, i);
-		running = stream != NULL && !audio_stream_is_idle(stream);
+		running = channel_busy(terminal, i);
 		if (terminal->apc->was_running[i] && !running) {
 			char reply[32];
 			int size = snprintf(reply, sizeof(reply), "\x1b[=7;%u;0n", i);

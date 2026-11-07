@@ -348,6 +348,7 @@ main(void)
 	static const char initial[] =
 	    "; keep this\n[SyncTERM]\nScrollBackLines=100\nUnknown=preserve\n"
 	    "ListPath=https://example.invalid/system.lst\n"
+	    "AudioModes=0\nMidiModes=ALSA|libADLMIDI\n"
 	    "SortOrder=29,3,1\nActiveSortProfile=Recent\n"
 	    "[WebLists]\nOne=https://example.invalid/one.lst\n"
 	    "[SortProfiles]\nName=29,1\nRecent=29,3,1\n"
@@ -383,6 +384,7 @@ main(void)
 	paths.download_directory = ST_SETTINGS_TEST_DIRECTORY;
 	CHECK(st_settings_load(&paths) == 0);
 	CHECK(st_settings.scrollback_lines == 100);
+	CHECK(st_settings.audio_output_modes == 0 && st_settings.midi_output_modes == 5);
 	CHECK(st_settings.prompt_save);
 	CHECK(st_settings.color_emoji);
 	CHECK(st_settings.download_system_list);

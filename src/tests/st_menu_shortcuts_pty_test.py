@@ -33,7 +33,7 @@ def main():
         env["TERM"] = "xterm-256color"
         config = root / "config" / "syncterm"
         config.mkdir(parents=True)
-        (config / "syncterm.ini").write_text("[SyncTERM]\nAudioModes=0\nConfirmClose=false\n")
+        (config / "syncterm.ini").write_text("[SyncTERM]\nAudioModes=0\nMidiModes=0\nConfirmClose=false\n")
         (config / "syncterm.lst").write_text("[Alpha]\n[Target One]\n[Target Two]\n")
         scripts = root / "data" / "syncterm" / "scripts" / "auto" / "menu"
         scripts.mkdir(parents=True)

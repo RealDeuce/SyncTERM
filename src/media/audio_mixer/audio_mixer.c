@@ -414,6 +414,24 @@ pending_through(const audio_mixer_stream_t *stream, uint64_t target)
 	return false;
 }
 
+size_t audio_mixer_stream_buffered_frames(audio_mixer_stream_t *stream)
+{
+	size_t total = 0;
+	if (stream == NULL) return 0;
+	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return SIZE_MAX;
+	for (struct audio_mixer_buffer *b = stream->head; b != NULL; b = b->next) {
+		size_t left = b->frame_count - b->consumed;
+		if (b->loop || left > SIZE_MAX - total) { total = SIZE_MAX; break; }
+		total += left;
+	}
+	for (struct audio_mixer_buffer *b = stream->retired_head; b != NULL; b = b->next) {
+		if (b->frame_count > SIZE_MAX - total) { total = SIZE_MAX; break; }
+		total += b->frame_count;
+	}
+	(void)st_mutex_unlock(&stream->mutex);
+	return total;
+}
+
 int
 audio_mixer_stream_drain(audio_mixer_stream_t *stream)
 {

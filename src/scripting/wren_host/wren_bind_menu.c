@@ -15,6 +15,7 @@
 #include "st_app_paths.h"
 #include "st_amiga_fonts.h"
 #include "st_audio_runtime.h"
+#include "st_music.h"
 #include "st_audio_file.h"
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
@@ -1852,6 +1853,21 @@ fn_menu_audio_modes(WrenVM *vm)
 	}
 }
 
+static const struct { enum st_midi_backend bit; const char *name; } midi_modes[] = {
+	{ST_MIDI_WINMM, "WinMM"}, {ST_MIDI_APPLE, "Apple DLS"},
+	{ST_MIDI_ALSA, "ALSA Sequencer"}, {ST_MIDI_FLUIDSYNTH, "FluidSynth"},
+	{ST_MIDI_ADLMIDI, "libADLMIDI"},
+};
+static void
+fn_menu_midi_modes(WrenVM *vm)
+{
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < sizeof(midi_modes) / sizeof(midi_modes[0]); ++i)
+		if (st_midi_compiled_backends() & midi_modes[i].bit)
+			push_row(vm, 0, 1, 2, midi_modes[i].bit, midi_modes[i].name);
+}
+
 static void
 push_build_option(WrenVM *vm, const char *category, const char *name,
 	bool enabled)
@@ -1954,6 +1970,14 @@ fn_menu_build_options(WrenVM *vm)
 	push_build_option(vm, "Audio", "Core Audio",
 	    (audio & AUDIO_BACKEND_CORE_AUDIO) != 0);
 	push_build_option(vm, "Audio", "libsndfile", st_audio_file_supported());
+	for (size_t i = 0; i < sizeof(midi_modes) / sizeof(midi_modes[0]); ++i) {
+		enum st_midi_linkage linkage = st_midi_backend_linkage(midi_modes[i].bit);
+		const char *suffix = linkage == ST_MIDI_RUNTIME ? " (runtime loaded)"
+		    : linkage == ST_MIDI_STATIC ? " (static)" : linkage == ST_MIDI_SYSTEM ? " (system linked)" : "";
+		char name[80];
+		(void)snprintf(name, sizeof(name), "%s%s", midi_modes[i].name, suffix);
+		push_build_option(vm, "MIDI", name, linkage != ST_MIDI_NOT_BUILT);
+	}
 }
 
 static void
@@ -4028,6 +4052,7 @@ SETTINGS_NUM_PROPERTY(output_mode, output_mode, int, 0, INT_MAX)
 SETTINGS_NUM_PROPERTY(cursor_style, default_cursor, int, ST_CURSOR_DEFAULT,
     ST_CURSOR_SOLID_BLOCK)
 SETTINGS_NUM_PROPERTY(audio_modes, audio_output_modes, uint32_t, 0, UINT32_MAX)
+SETTINGS_NUM_PROPERTY(midi_modes, midi_output_modes, uint32_t, 0, UINT32_MAX)
 SETTINGS_NUM_PROPERTY(scrollback_lines, scrollback_lines, int, 1, INT_MAX)
 SETTINGS_NUM_PROPERTY(transfer_success_keypress_timeout,
 	transfer_success_keypress_timeout, int, 0, INT_MAX)
@@ -4368,6 +4393,8 @@ install_prepared_settings(struct st_wren_host *host,
 	}
 	st_audio_runtime_set_allowed(host->config.audio_runtime,
 	    st_settings.audio_output_modes);
+	st_audio_runtime_set_midi_allowed(host->config.audio_runtime,
+	    st_settings.midi_output_modes);
 	++host->settings_generation;
 	settings->generation = host->settings_generation;
 	settings->dirty = false;
@@ -5158,6 +5185,7 @@ static const struct binding bindings[] = {
 	{"Menu", true, "outputModes", fn_menu_output_modes},
 	{"Menu", true, "cursorStyles", fn_menu_cursor_styles},
 	{"Menu", true, "audioModes", fn_menu_audio_modes},
+	{"Menu", true, "midiModes", fn_menu_midi_modes},
 	{"Menu", true, "buildOptions", fn_menu_build_options},
 	{"Menu", true, "licenses", fn_menu_licenses},
 	{"Menu", true, "maxPathLength", fn_menu_max_path_length},
@@ -5274,6 +5302,7 @@ static const struct binding bindings[] = {
 	BIND_GETSET("Settings", "outputMode", settings_output_mode),
 	BIND_GETSET("Settings", "cursorStyle", settings_cursor_style),
 	BIND_GETSET("Settings", "audioModes", settings_audio_modes),
+	BIND_GETSET("Settings", "midiModes", settings_midi_modes),
 	BIND_GETSET("Settings", "scrollbackLines", settings_scrollback_lines),
 	BIND_GETSET("Settings", "transferSuccessKeypressTimeout",
 	    settings_transfer_success_keypress_timeout),

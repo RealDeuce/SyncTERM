@@ -4,6 +4,8 @@
  */
 #include "cterm.h"
 
+#include "st_threads.h"
+#include "st_time.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,22 +33,34 @@ music(st_cterm_t *terminal, const char *text)
 }
 
 static void
+consume_silence(st_cterm_t *terminal, st_audio_runtime_t *audio, size_t expected)
+{
+	int16_t frames[1024 * AUDIO_CHANNELS];
+	uint64_t start, now;
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	while (st_music_busy(terminal->music_player)) {
+		audio_stream_t *stream = st_music_pcm_stream(terminal->music_player);
+		size_t pending = audio_stream_buffered_frames(stream);
+		if (pending != 0) {
+			size_t count = pending < 1024 ? pending : 1024;
+			CHECK(count <= expected);
+			CHECK(st_audio_runtime_pull(audio, frames, count) == 0);
+			for (size_t i = 0; i < count * AUDIO_CHANNELS; ++i) CHECK(frames[i] == 0);
+			expected -= count;
+		}
+		CHECK(st_time_monotonic_ms(&now) == 0 && now - start < 5000);
+		const struct timespec pause = {0, 2000000}; st_thread_sleep(&pause, NULL);
+	}
+	CHECK(expected == 0);
+}
+
+static void
 silent_note(st_cterm_t *terminal, st_audio_runtime_t *audio, const char *text)
 {
-	/* At T120/L4, 438 ms of tone plus 62 ms of articulation silence
-	 * becomes 19315 + 2734 frames after the existing per-part rounding. */
-	int16_t frames[22049 * AUDIO_CHANNELS];
-
-	CHECK(audio_stream_clear(terminal->music_stream) == 0);
+	CHECK(st_music_flush(terminal->music_player, 0) == 0);
 	music(terminal, text);
-	CHECK(!audio_stream_is_idle(terminal->music_stream));
-	CHECK(st_audio_runtime_pull(audio, frames, 22048) == 0);
-	CHECK(!audio_stream_is_idle(terminal->music_stream));
-	for (size_t i = 0; i < 22048 * AUDIO_CHANNELS; ++i)
-		CHECK(frames[i] == 0);
-	CHECK(st_audio_runtime_pull(audio, frames, 1) == 0);
-	CHECK(frames[0] == 0 && frames[1] == 0);
-	CHECK(audio_stream_is_idle(terminal->music_stream));
+	/* Independent per-part integer-ms rounding: 438ms + 62ms. */
+	consume_silence(terminal, audio, 22049);
 }
 
 static void
@@ -77,11 +91,7 @@ music_numbers(st_cterm_t *terminal, st_audio_runtime_t *audio)
 
 	/* Huge per-note lengths clamp to 64: 28 ms + 3 ms = 1366 frames. */
 	music(terminal, "MBP18446744073709551616");
-	int16_t frames[1366 * AUDIO_CHANNELS];
-	CHECK(st_audio_runtime_pull(audio, frames, 1365) == 0);
-	CHECK(!audio_stream_is_idle(terminal->music_stream));
-	CHECK(st_audio_runtime_pull(audio, frames, 1) == 0);
-	CHECK(audio_stream_is_idle(terminal->music_stream));
+	consume_silence(terminal, audio, 1366);
 	CHECK(terminal->notelen == 4);
 
 	/* Invalid capture must not apply even a previously captured parameter. */

@@ -185,7 +185,7 @@ main(int argc, char **argv)
 	(void)snprintf(settings_path, sizeof(settings_path), "%s/syncterm.ini", argv[1]);
 	file = fopen(settings_path, "wb");
 	CHECK(file != NULL);
-	CHECK(fputs("[SyncTERM]\nScreenMode=80x25\nConfirmClose=false\nAudioModes=0\n"
+	CHECK(fputs("[SyncTERM]\nScreenMode=80x25\nConfirmClose=false\nAudioModes=0\nMidiModes=0\n"
 	    "ScalingFactor=1\n[Unrelated]\nKeep=this\n", file) >= 0);
 	CHECK(fclose(file) == 0);
 	const struct st_application_host host = {

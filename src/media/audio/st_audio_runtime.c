@@ -13,6 +13,7 @@
 struct st_audio_runtime {
 	audio_engine_t *engine;
 	uint32_t allowed;
+	uint32_t midi_allowed;
 	st_mutex_t mutex;
 	bool pull;
 	bool stopped;
@@ -104,6 +105,38 @@ st_audio_runtime_allowed(st_audio_runtime_t *runtime)
 		(void)st_mutex_unlock(&runtime->mutex);
 	}
 	return allowed;
+}
+
+void
+st_audio_runtime_set_midi_allowed(st_audio_runtime_t *runtime, uint32_t allowed)
+{
+	if (runtime == NULL || st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS) return;
+	runtime->midi_allowed = allowed;
+	(void)st_mutex_unlock(&runtime->mutex);
+}
+uint32_t
+st_audio_runtime_midi_allowed(st_audio_runtime_t *runtime)
+{
+	uint32_t value = 0;
+	if (runtime != NULL && st_mutex_lock(&runtime->mutex) == ST_THREAD_SUCCESS) {
+		value = runtime->midi_allowed;
+		(void)st_mutex_unlock(&runtime->mutex);
+	}
+	return value;
+}
+bool st_audio_runtime_is_pull(st_audio_runtime_t *runtime)
+{
+	/* The frontend kind is immutable after creation. */
+	return runtime != NULL && runtime->pull;
+}
+bool st_audio_runtime_stopped(st_audio_runtime_t *runtime)
+{
+	bool value = false;
+	if (runtime != NULL && st_mutex_lock(&runtime->mutex) == ST_THREAD_SUCCESS) {
+		value = runtime->stopped;
+		(void)st_mutex_unlock(&runtime->mutex);
+	}
+	return value;
 }
 
 int

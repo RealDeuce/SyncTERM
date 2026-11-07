@@ -5060,10 +5060,13 @@ when `Menu.encryptionAvailable` is false.
   local or cached list path after a successful apply or save.  The shipped
   editor limits it to `Menu.maxPathLength`.
 
-| `startupMode`, `outputMode`, `cursorStyle`, `audioModes`,
+| `startupMode`, `outputMode`, `cursorStyle`, `audioModes`, `midiModes`,
   `scalingMode`
 | Catalog-backed display, backend, and audio selections.  `audioModes`
   is a bit field, so the values in `Menu.audioModes` may be combined.
+  `midiModes` independently enables MIDI methods from `Menu.midiModes` and
+  persists as `MidiModes` under `[SyncTERM]`; zero disables MIDI. Its default
+  is all bits enabled. Both masks accept 0 through `UINT32_MAX`.
 
 | `scrollbackLines`, `modemRate`
 | Scrollback capacity is 1 through `INT_MAX`.  Modem DTE rate is 0 through
@@ -5200,11 +5203,18 @@ duplicate platform-dependent enum tables:
 | Build-dependent List of `[bit, displayName]` rows for selectable
   audio backends, in the engine's preference order.
 
+| `midiModes`
+| Build-dependent List of `[bit, displayName]` rows for compiled MIDI methods
+  in playback preference order. Reading this catalog does not open a device
+  or load a MIDI library. There is no Wren MIDI playback or routing API.
+
 | `buildOptions`
 | List of `[category, displayName, enabled]` rows describing this
-  executable's fonts, crypto, terminal, video, and audio build features. `enabled`
+  executable's fonts, crypto, terminal, video, audio and MIDI build features. `enabled`
   reports compiled support without probing runtime libraries or devices.
-  The Video rows include the optional testing bitmap backend.
+  The Video rows include the optional testing bitmap backend. MIDI labels
+  include runtime-loaded, static or system linkage when compiled; each row
+  retains exactly three elements.
   For decoder availability, use `PixelBuffer.jxlSupported` instead.
 
 | `licenses`

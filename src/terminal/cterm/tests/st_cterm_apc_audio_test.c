@@ -168,14 +168,16 @@ main(void)
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
 	audio_engine_t *engine;
+	st_audio_runtime_t *runtime;
 	st_console_t *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t *terminal;
 	CHECK(audio_engine_create_with_backends(&engine, AUDIO_BACKEND_PORTAUDIO, backends, 1) == 0);
+	CHECK(st_audio_runtime_create(&runtime, 0) == 0);
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	const struct st_cterm_config config = {
-		.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
+		.console = console, .fonts = fonts, .audio = runtime, .emulation = ST_CTERM_ANSI_BBS,
 		.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP437,
 		.quiet = true, .apc_directory = ST_APC_TEST_DIRECTORY, .output = response,
 	};
@@ -185,9 +187,11 @@ main(void)
 	CHECK(audio_stream_create(&terminal->apc->channels[0], engine, -12, -12) == 0);
 	CHECK(audio_stream_create(&terminal->music_stream, engine, -12, -12) == 0);
 	CHECK(audio_stream_create(&terminal->fx_stream, engine, -12, -12) == 0);
+	CHECK(st_music_create(&terminal->music_player, runtime, &terminal->music_stream) == 0);
 	check_options(terminal, engine);
 	check_controls(terminal);
 	st_cterm_destroy(&terminal);
+	st_audio_runtime_destroy(runtime);
 	audio_engine_destroy(engine);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);

@@ -1990,6 +1990,7 @@ void
 cterm_reset(struct cterminal *cterm)
 {
 	cterm_dec_sixel_cancel(cterm);
+	(void)st_music_flush(cterm->music_player, 0);
 	/* Retained history and all three ring indices are session state;
 	 * resetting only the write position corrupts its chronological order. */
 	cterm_text_forget(cterm);
@@ -2141,7 +2142,7 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
     const struct st_cterm_config *initial)
 {
 	static bool key_tables_verified = false;
-	char	*revision="$Revision: 1.332 $";
+	char	*revision="$Revision: 1.333 $";
 	char *in;
 	char	*out;
 	struct cterminal *cterm;
@@ -2566,6 +2567,8 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 		cterm_text_destroy(cterm);
 		cterm_apc_destroy(cterm);
 		cterm_closelog(cterm);
+		st_music_destroy(cterm->music_player);
+		cterm->music_player = NULL;
 		if (cterm->music_stream != NULL) {
 			audio_stream_destroy(cterm->music_stream);
 			cterm->music_stream = NULL;

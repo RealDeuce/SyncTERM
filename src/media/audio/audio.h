@@ -121,6 +121,11 @@ int audio_stream_clear(audio_stream_t *stream);
  */
 int audio_stream_drain(audio_stream_t *stream);
 bool audio_stream_is_idle(audio_stream_t *stream);
+/* Frames still queued or awaiting backend acknowledgement. An unterminated
+ * loop reports SIZE_MAX. This does not include device-internal latency. */
+size_t audio_stream_buffered_frames(audio_stream_t *stream);
+/* Current backend-reported latency; zero for pull-only/no-latency backends. */
+uint32_t audio_stream_latency_ms(audio_stream_t *stream);
 int audio_stream_set_volume(audio_stream_t *stream,
 	float volume_left_db, float volume_right_db);
 int audio_stream_ramp_volume(audio_stream_t *stream,

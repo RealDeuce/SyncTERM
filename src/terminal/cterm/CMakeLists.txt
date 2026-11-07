@@ -107,7 +107,7 @@ add_library(st_cterm STATIC
 	cterm_vt52.c)
 target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
-	st_audio st_base64 st_time st_utf8 st_unicode_text st_session_history)
+	st_audio st_music st_base64 st_time st_utf8 st_unicode_text st_session_history)
 target_link_libraries(st_cterm PRIVATE st_amiga_font st_fonts syncterm_threads
 	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_string_util syncterm_filesystem
@@ -168,6 +168,12 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_apc_audio_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME cterm_apc_audio COMMAND st_cterm_apc_audio_test)
+	add_executable(st_cterm_midi_test tests/st_cterm_midi_test.c)
+	target_link_libraries(st_cterm_midi_test PRIVATE st_cterm syncterm_filesystem syncterm_threads st_time)
+	target_compile_definitions(st_cterm_midi_test PRIVATE ST_MIDI_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/midi-cache")
+	set_target_properties(st_cterm_midi_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	add_test(NAME cterm_midi COMMAND st_cterm_midi_test)
+	set_tests_properties(cterm_midi PROPERTIES TIMEOUT 30)
 	add_executable(st_cterm_numeric_test tests/st_cterm_numeric_test.c)
 	target_link_libraries(st_cterm_numeric_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_numeric_test PROPERTIES C_STANDARD 17

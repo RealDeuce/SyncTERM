@@ -1241,6 +1241,17 @@ Allows disabling different output methods.  SyncTERM attempts to
 use them in the order listed in the menu, and the first one to
 succeed is used going forward.
 
+MIDI::
+Enables or disables each compiled MIDI method independently of PCM output.
+There are no SyncTERM routing, instrument or SoundFont settings. On POSIX,
+ALSA uses ALSA_OUTPUT_PORTS (comma-separated destinations) and is skipped
+when it is unset. macOS uses its built-in DLS synth; Windows uses the normal
+MIDI mapper. FluidSynth reads the user's FluidSynth configuration, then its
+default bank if no bank was loaded. libADLMIDI uses its embedded bank.
+ANSI music automatically uses the first usable enabled method, falling back
+to classic tones. Quiet mode suppresses both MIDI and PCM. Build Options has
+a separate MIDI section reporting compiled methods and their linkage.
+
 Scrollback Buffer Lines::
 The maximum number of lines to keep in the
 scrollback.  Once this number is reached, the oldest lines are

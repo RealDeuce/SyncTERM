@@ -988,7 +988,7 @@ test_settings_reload_running(struct st_wren_host *host, const char *settings)
 	    < (int)sizeof(backup));
 	CHECK(rename(settings, backup) == 0);
 	CHECK(snprintf(contents, sizeof(contents),
-	    "[SyncTERM]\nAudioModes=0\nConfirmClose=%s\n",
+	    "[SyncTERM]\nAudioModes=0\nMidiModes=0\nConfirmClose=%s\n",
 	    running ? "false" : "true") < (int)sizeof(contents));
 	write_text(settings, contents);
 	bool passed = wrenInterpret(host->vm, "settings_reload_external",
@@ -1194,7 +1194,7 @@ main(void)
 	struct fs_info info;
 	if (fs_get_info(&info, settings) == 0 && info.kind == FS_ENTRY_DIRECTORY)
 		CHECK(fs_remove_directory(settings) == 0);
-	write_text(settings, "[SyncTERM]\nAudioModes=0\n");
+	write_text(settings, "[SyncTERM]\nAudioModes=0\nMidiModes=0\n");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
 	write_text(cached, "");
 	paths.settings_file = settings;
@@ -1282,6 +1282,7 @@ main(void)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var s = Menu.settings\n"
 	    "s.colorEmoji = false\n"
+	    "s.midiModes = 5\n"
 	    "s.scrollbackLines = 123\n"
 	    "s.customRows = 30\n"
 	    "s.customColumns = 100\n"
@@ -1293,7 +1294,9 @@ main(void)
 	CHECK(st_console_get_color_emoji(picker, &color) == 0 && !color);
 	CHECK(st_session_history_capacity(history) == 123);
 	CHECK(st_audio_runtime_allowed(audio) == st_settings.audio_output_modes);
+	CHECK(st_audio_runtime_midi_allowed(audio) == 5);
 	CHECK(st_settings_reload() == 0);
+	CHECK(st_settings.midi_output_modes == 5);
 	CHECK(!st_settings.color_emoji);
 	CHECK(st_settings.scrollback_lines == 123 && st_settings.custom_rows == 30
 	    && st_settings.custom_columns == 100 && st_settings.theme_frame_color == 1);

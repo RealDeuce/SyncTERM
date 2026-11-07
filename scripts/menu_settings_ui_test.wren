@@ -90,6 +90,15 @@ class SettingsMenuTest {
       actions.add(row_("[X] " + Menu.audioModes[0][1]))
       actions.add(cancel_)
     }
+    var midiBefore = Menu.settings.midiModes
+    var midiBit = 0
+    if (Menu.midiModes.count > 0) {
+      midiBit = Menu.midiModes[0][0]
+      actions.add(row_("MIDI"))
+      var mark = (midiBefore & midiBit) != 0 ? "[X] " : "[ ] "
+      actions.add(row_(mark + Menu.midiModes[0][1]))
+      actions.add(cancel_)
+    }
     for (edit in [
       ["Scrollback Buffer Lines", 123],
       ["Modem/Comm Device", "/dev/audit"],
@@ -144,6 +153,7 @@ class SettingsMenuTest {
     check_(s.confirmClose == !confirm && s.promptSave == !promptSave &&
         s.startupMode == 3 && s.outputMode == 0 && s.cursorStyle == 4,
         "program toggles and display choices")
+    check_(s.midiModes == (midiBefore ^ midiBit), "MIDI library mask edit")
     check_(s.audioModes == (audioBefore ^ audioBit) &&
         s.scrollbackLines == 123 && s.modemDevice == "/dev/audit" &&
         s.modemRate == 9600 && s.modemInit == "ATZ" &&

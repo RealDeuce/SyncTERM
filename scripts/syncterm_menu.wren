@@ -124,6 +124,7 @@ class Menu {
   foreign static outputModes
   foreign static cursorStyles
   foreign static audioModes
+  foreign static midiModes
   // [category, display name, enabled] rows for this executable.
   foreign static buildOptions
   // [component name, full notice text] rows embedded in this executable.
@@ -310,6 +311,8 @@ foreign class Settings {
   foreign cursorStyle=(value)
   foreign audioModes
   foreign audioModes=(value)
+  foreign midiModes
+  foreign midiModes=(value)
   foreign scrollbackLines
   foreign scrollbackLines=(value)
   foreign transferSuccessKeypressTimeout

@@ -24,6 +24,12 @@ void st_audio_runtime_destroy(st_audio_runtime_t *runtime);
 void st_audio_runtime_set_allowed(st_audio_runtime_t *runtime,
 	uint32_t allowed_backends);
 uint32_t st_audio_runtime_allowed(st_audio_runtime_t *runtime);
+/* Independent MIDI policy; zero until the application installs its settings.
+ * Stop/pull queries also let non-PCM music obey this runtime's lifetime. */
+void st_audio_runtime_set_midi_allowed(st_audio_runtime_t *runtime, uint32_t allowed);
+uint32_t st_audio_runtime_midi_allowed(st_audio_runtime_t *runtime);
+bool st_audio_runtime_is_pull(st_audio_runtime_t *runtime);
+bool st_audio_runtime_stopped(st_audio_runtime_t *runtime);
 /* Returns a borrowed engine which remains valid until runtime destruction. */
 int st_audio_runtime_acquire(st_audio_runtime_t *runtime,
 	audio_engine_t **result);

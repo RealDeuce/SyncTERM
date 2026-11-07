@@ -1171,6 +1171,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		    status);
 		goto finished;
 	}
+	st_audio_runtime_set_midi_allowed(audio_runtime, st_settings.midi_output_modes);
 	status = st_console_startup_configure(&startup, &st_settings, &command);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: invalid console settings (%d)\n", status);

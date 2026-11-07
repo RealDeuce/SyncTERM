@@ -551,6 +551,14 @@ class SettingsMenu {
     return names.count == 0 ? "<None>" : names.join(", ")
   }
 
+  static midiSummary_(s) {
+    var names = []
+    for (row in Menu.midiModes) {
+      if ((s.midiModes & row[0]) != 0) names.add(row[1])
+    }
+    return names.count == 0 ? "<None>" : names.join(", ")
+  }
+
   static helpItem_(term, description) {
     return "%(term)\n:  %(description)\n"
   }
@@ -566,6 +574,7 @@ class SettingsMenu {
         helpItem_("Video Output Mode", "The video or terminal output implementation") +
         helpItem_("Default Cursor Style", "The cursor's normal appearance") +
         helpItem_("Audio Output Mode", "The audio backends SyncTERM may try") +
+        helpItem_("MIDI", "Enable or disable MIDI libraries independently of PCM output") +
         helpItem_("Scrollback Buffer Lines", "The number of retained scrollback rows") +
         helpItem_("Modem/Comm Device", "The modem communications device") +
         helpItem_("Modem/Comm Rate", "The modem-port DTE rate") +
@@ -838,6 +847,7 @@ class SettingsMenu {
       rows.add([4, settingsLine_("Video Output Mode", MenuUi.rowName(Menu.outputModes, s.outputMode))])
       rows.add([5, settingsLine_("Default Cursor Style", Menu.cursorStyles[s.cursorStyle])])
       rows.add([6, settingsLine_("Audio Output Mode", audioSummary_(s))])
+      rows.add([22, settingsLine_("MIDI", midiSummary_(s))])
       rows.add([7, settingsLine_("Scrollback Buffer Lines", s.scrollbackLines)])
       rows.add([8, settingsLine_("Modem/Comm Device", s.modemDevice)])
       var rate = s.modemRate == 0 ? "Current" : "%(s.modemRate)bps"
@@ -883,6 +893,8 @@ class SettingsMenu {
           if (next != null) s.cursorStyle = next
         } else if (value == 6) {
           if (audio_(app, s)) changed = true
+        } else if (value == 22) {
+          if (midi_(app, s)) changed = true
         } else if (value == 7) {
           var next = MenuUi.integer(app, "Scrollback Lines",
               "Number of retained lines", s.scrollbackLines, 1,
@@ -1072,6 +1084,30 @@ class SettingsMenu {
           s.audioModes = s.audioModes & ~value
         } else {
           s.audioModes = s.audioModes | value
+        }
+        if (applySettings_(app, s)) changed = true
+      }, view)
+      if (bit == null) return changed
+    }
+  }
+
+  static midi_(app, s) {
+    var changed = false
+    var selected = null
+    var view = ChoiceViewState.new()
+    while (true) {
+      var rows = []
+      for (row in Menu.midiModes) {
+        var enabled = (s.midiModes & row[0]) != 0
+        rows.add([row[0], "[%(enabled ? "X" : " ")] %(row[1])"])
+      }
+      var bit = MenuUi.choice(app, "MIDI", rows, selected,
+          "# MIDI\n\nEnable or disable each MIDI library. ANSI music uses the first usable enabled method, with classic tones as its fallback.", Fn.new {|value|
+        selected = value
+        if ((s.midiModes & value) != 0) {
+          s.midiModes = s.midiModes & ~value
+        } else {
+          s.midiModes = s.midiModes | value
         }
         if (applySettings_(app, s)) changed = true
       }, view)

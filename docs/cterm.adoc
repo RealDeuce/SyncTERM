@@ -802,6 +802,9 @@ Graphics APC `FX`, `FY`, `ZX`, and `ZY` arguments and negative
 `DX`/`DY` destination coordinates are available in revision 1.332 and
 later.
 
+MIDI feature queries, `QueueMIDI`, and the complete ANSI note range 0..83
+are available in revision 1.333 and later.
+
 SOURCE: <<ECMA-48>>
 
 === `CSI < Ps c` CTerm Device Attributes (`CTDA`)
@@ -3030,6 +3033,13 @@ defined:
 |===
 |Feature |Meaning
 
+|`midi`
+|Whether an enabled MIDI method can initialize for this session. The reply
+is `CSI = 7 ; 102 ; available n`, with 1 for usable and 0 otherwise.
+This may initialize an internal synth or open the configured native route,
+but does not play notes. Quiet sessions report 0. Build Options separately
+reports compiled support without probing libraries or devices.
+
 |`libsndfile`
 |Runtime-loaded libsndfile for audio file decoding (`APC SyncTERM:A;Load`).
 Under the dynamic (`WITH_SNDFILE`) build mode, the first query also triggers
@@ -3156,11 +3166,13 @@ addressed by slot number 0..255.  Slots are filled by `Load` (decoding
 a file via libsndfile), `Synth` (in-terminal tone generator), or `Copy`
 (duplicating an existing slot).
 
-*Channels* — 16 mixer streams, addressed 0..15.  Channels 0 and 1 alias
-cterm's internal music stream (ANSI/BananANSI/SyncTERM music) and
-foreground-SFX stream (RIP / OOII) respectively; the BBS can use
+*Channels* — 16 logical playback channels, addressed 0..15. Channel 0 is
+cterm's music FIFO (ANSI/BananANSI/SyncTERM and MIDI files), including MIDI
+which sounds outside the PCM mixer. Channel 1 is the foreground-SFX stream
+(RIP / OOII); the BBS can use
 `Flush`, `Volume`, `Wait`, and `Update` on them but cannot `Queue`
-audio onto them.  Channels 2..15 are APC-dedicated and lazy-opened at
+patch audio onto them. Use `QueueMIDI` to queue a MIDI file on channel 0.
+Channels 2..15 are APC-dedicated and lazy-opened at
 -12 dB base level on first use.
 
 A `Queue` moves a slot's buffer into a channel's FIFO, after which the
@@ -3241,6 +3253,29 @@ Generates a waveform into slot `N`.  Shapes: `SIN`, `SAW`, `SQ`,
 
 ==== `APC SyncTERM:A;Copy;S=N;D=M ST` Copy patch (`CTAC`)
 Deep-copies slot `N` into slot `M`.  Source slot is NOT emptied.
+
+==== `APC SyncTERM:A;QueueMIDI;<filename> ST` Queue a MIDI file
+
+Open `<filename>` through the current BBS cache, using the same confined
+filename rules as `Load`. Accept Standard MIDI File formats 0 and 1,
+including RIFF/RMID wrapping, tempo maps, running status, SMPTE timing and
+SysEx. Format 2 and malformed files are ignored. SysEx is forwarded normally.
+No arbitrary local path or new file access authority is introduced.
+
+Accepted files and completed ANSI captures share a FIFO on channel 0;
+queueing never replaces earlier music. Use `Flush;C=0` for replacement.
+The FIFO accepts at most 128 requests. Invalid or full requests are rejected
+without cancelling accepted music. The active parser/message arena is bounded
+to 64 MiB and internal synthesis renders at most 4096 PCM frames ahead.
+Files release sustained notes at their end and allow two seconds for their
+tails; that interval remains busy. ANSI retains its existing articulation.
+
+All channel 0 controls (`Flush`, including its fade, `Volume`, `Wait`, state
+queries and `Update`) address logical music even when no PCM stream exists.
+Internal timing follows PCM consumption; external timing follows a monotonic
+clock. Reset, disconnect and shutdown cancel queued events and silence notes.
+Native destinations without stereo gain use MIDI channel volume/pan controls
+as the stream-volume overlay, with the destination's MIDI gain resolution.
 
 ==== `APC SyncTERM:A;Queue;C=#;S=N;... ST` Queue patch on channel (`CTAQ`)
 Moves slot `N`'s buffer onto channel `C`'s FIFO.  Slot becomes empty.
@@ -3358,7 +3393,7 @@ If the decimal number is greater than 6, it is forced to 6.
 The default octave is 4.
 
 `N###`::
-Plays a single note by number.  Valid values are 0 - 71.  Invalid
+Plays a single note by number.  Valid values are 0 - 83.  Invalid
 values are played as silence.  Note zero is C in octave 0.
 See following section for valid note modifiers.
 
@@ -3406,15 +3441,16 @@ Octave cannot go above six or below zero.
 Move to the next highest octave.
 Octave cannot go above six or below zero.
 
-The lowest playable character is C in octave zero.  The frequencies for the
-six C notes for the seven octaves in rising order are:
-65.406, 130.810, 261.620, 523.250, 1046.500, 2093.000, 4186.000
+Both the classic tone renderer and MIDI use all seven complete octaves,
+C through B. Note 0 is C in octave 0 (MIDI note 36, about 65.406 Hz);
+note 83 is B in octave 6 (MIDI note 119, about 7902.133 Hz).
+Pitch uses equal temperament with A = 440 Hz. Accidentals apply before
+range checking; a final pitch outside 0..83 is a rest.
 
-Purists will note that the lower three octaves are not exactly one half of
-the next higher octave in frequency.  This is due to lost resolution of
-low frequencies.  The notes *sound* correct to me.  If anyone can give me
-an excellent reason to change them (and more correct integer values for all
-notes) I am willing to do that assuming the notes still sound "right".
+ANSI captures automatically use the first usable enabled MIDI method and
+otherwise use classic tones. Both share channel 0 with queued MIDI files.
+Normal/staccato/legato articulation, integer-millisecond timing, dotted notes,
+and foreground/background capture semantics apply to both renderers.
 
 NMOTE: If you are playing some ANSI Music then ask the user if they
 heard it, ALWAYS follow it with an 0x0f 0x0e is the shift lock character which
