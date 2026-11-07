@@ -85,6 +85,13 @@ int st_midi_sink_start(struct st_midi_sink *sink)
 	}
 	return 0;
 }
+int st_midi_sink_ansi(struct st_midi_sink *sink)
+{
+	/* GM Lead 1 (square) sustains short ANSI notes without a piano envelope.
+	 * Select the same bank and voice for playback and source calibration. */
+	const uint8_t synth[] = {0xb0, 0, 0, 0xb0, 32, 0, 0xc0, 80};
+	return st_midi_sink_send(sink, synth, sizeof(synth));
+}
 void st_midi_sink_close(struct st_midi_sink *sink)
 {
 	if (sink->state != NULL && sink->close != NULL) sink->close(sink->state);

@@ -14,12 +14,13 @@ resulting implementation; it supersedes the earlier open research choices.
   preference is a global library enable mask, `MidiModes`, analogous to PCM
   output. Enable compiled methods by default. Use MIDI automatically for ANSI
   when available, and retain classic tones as its fallback.
-* Routing and instruments come from the platform/library configuration:
+* Routing and MIDI-file instruments use the platform/library configuration:
   ALSA_OUTPUT_PORTS (including comma-separated routes), Windows MIDI_MAPPER,
   Apple's built-in DLS synth, FluidSynth user configuration then its default
   bank, and finally libADLMIDI's embedded bank. No destination, renderer,
   instrument, SoundFont or GM-capability preferences are added. CoreMIDI
-  destination selection is outside this implementation.
+  destination selection is outside this implementation. ANSI captures select
+  GM Lead 1 (square), bank 0/program 80 (zero-based), on MIDI channel zero.
 * Queue cached files with `APC SyncTERM:A;QueueMIDI;<filename> ST`; query usable
   playback with `APC SyncTERM:Q;midi ST`, replying `CSI = 7 ; 102 ; available n`.
   Support SMF formats 0/1 and RIFF/RMID, normal channel messages, SysEx,
@@ -69,11 +70,12 @@ the worker before releasing the backend, stream, queue and synchronization.
 
 Internal output is 44100 Hz signed-16 stereo through the existing mixer.
 Software MIDI renderers establish a fixed source gain on initialization by
-rendering a sustained GM oboe (program 68, A440, velocity and CC7 100,
-centered pan) into discarded buffers. The middle second of a two-second
-reference is matched by RMS to the existing classic ANSI waveform at A440.
+rendering the actual ANSI synth voice (GM Lead 1 square, program 80, A440,
+velocity and CC7 100, centered pan) into discarded buffers. The middle second
+of a two-second reference is matched by RMS to the existing classic ANSI
+waveform at A440.
 Probe release/effects buffers are discarded until quiet, with an eight-second
-bound, and the initial ANSI preset is restored. References at or below four
+bound, and the ANSI synth voice is restored. References at or below four
 PCM units RMS retain unity source gain; calibration is bounded to +/-48 dB.
 Partial banks remain usable. FluidSynth calibration uses its library-default
 gain and then restores the configured live gain, so user gain changes still
@@ -110,8 +112,10 @@ Both renderers share the checked ANSI parser and its integer-millisecond
 rounding. Classic notes use equal temperament at A=440 Hz. MIDI uses melodic
 channel zero and note numbers 36..119. File playback may use all sixteen
 channels, percussion, pitch bend, pressure, controllers and SysEx. Returning
-to ANSI restores its default channel state and FluidSynth's configured
-initial program. No instrument-coverage discovery rejects partial banks.
+to ANSI restores its default channel state and explicitly selects GM Lead 1
+(square), bank 0/program 80, before any ANSI Note On. MIDI files reset to
+their ordinary default programs and retain their own Program Changes. No
+instrument-coverage discovery rejects partial banks.
 
 External stream volume uses native stereo gain when available; otherwise it
 combines the logical left/right gains with each MIDI channel's volume/pan.
@@ -175,11 +179,19 @@ synthetic references, including silence, bounded noise gain, transport/render
 errors, state restoration and external-output exclusion. Player captures
 verify calibrated source gain, unchanged channel defaults, explicit volume,
 wide mixing before clipping, faded cancellation and subsequent playback.
+Literal bank/program messages and file-to-ANSI-to-file transitions verify
+that ANSI selects its synth voice and files retain their own instruments.
 `st_midi_synth_test fluid|adl|apple` is a manually selected internal-synthesis
 smoke test; it verifies nonzero PCM and never creates a physical audio output.
-Add `--levels` to render the sustained oboe reference again and print its raw
-RMS, fixed source gain and calibrated RMS. With library-default gain, the
-classic A440 reference is approximately 16927.69 PCM units RMS.
+Add `--levels` to compare actual ANSI synth and classic waveform playback
+through the player and pull-only mixer at A440. It reports source gain, final
+PCM RMS, peaks and the level difference. Attack/release are excluded from
+RMS. The pre-mix classic A440 reference is approximately 16927.69 PCM units
+RMS. The test never opens a physical audio device.
+Measured final-PCM differences at library-default gain are -0.40 dB for
+FluidSynth 2.6.2 with FluidR3 GM and less than 0.01 dB for libADLMIDI 1.6.1
+with embedded bank 0. Renderer modulation can vary the measured sustained
+level between notes; the calibration remains fixed throughout playback.
 Native MIDI device/auditory verification is separate from these tests.
 `music_build_modes` builds mock public-ABI archives and a C++ private
 dependency, then checks AUTO/RUNTIME/STATIC/mixed/OFF selection, C-only

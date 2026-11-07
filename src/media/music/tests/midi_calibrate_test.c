@@ -9,9 +9,12 @@ static int send(void *context, const uint8_t *bytes, size_t size)
 {
 	struct source *s = context;
 	if (s->fail_send) return IO_ERROR_IO;
-	if (size == 2 && bytes[0] == 0xc0) s->program = bytes[1];
+	if (size == 2 && bytes[0] == 0xc0) {
+		s->program = bytes[1];
+		if (s->probed && bytes[1] == 80) { CHECK(!s->active); ++s->restored; }
+	}
 	if (size == 3 && bytes[0] == 0x90) {
-		CHECK(s->program == 68 && bytes[1] == 69 && bytes[2] == 100);
+		CHECK(s->program == 80 && bytes[1] == 69 && bytes[2] == 100);
 		s->active = true; s->probed = true;
 	}
 	if (size == 3 && bytes[0] == 0xb0 && bytes[1] == 120) s->active = false;
@@ -25,17 +28,12 @@ static int render(void *context, int16_t *frames, size_t count)
 	s->frames += count;
 	return 0;
 }
-static void ansi(void *context)
-{
-	struct source *s = context;
-	CHECK(!s->active && s->program == 0); ++s->restored;
-}
 static float calibrate(int amplitude)
 {
 	struct source source = {.amplitude = amplitude};
-	struct st_midi_sink sink = {.state = &source, .send = send, .render = render, .ansi = ansi};
+	struct st_midi_sink sink = {.state = &source, .send = send, .render = render};
 	CHECK(st_midi_sink_calibrate(&sink) == 0);
-	CHECK(source.probed && !source.active && source.restored == 1);
+	CHECK(source.probed && !source.active && source.restored == 1 && source.program == 80);
 	CHECK(source.frames >= 2U * AUDIO_SAMPLE_RATE && source.frames < 3U * AUDIO_SAMPLE_RATE);
 	return sink.pcm_gain_db;
 }
@@ -49,13 +47,13 @@ int main(void)
 	CHECK(calibrate(0) == 0 && calibrate(1) == 0 && calibrate(4) == 0);
 	CHECK(calibrate(10) == 48); /* Bound gain for an unusually quiet bank. */
 	struct source source = {.fail_send = true};
-	struct st_midi_sink sink = {.state = &source, .send = send, .render = render, .ansi = ansi};
+	struct st_midi_sink sink = {.state = &source, .send = send, .render = render};
 	CHECK(st_midi_sink_calibrate(&sink) == IO_ERROR_IO && !source.active && source.restored == 0);
 	source.fail_send = false; source.fail_render = true;
 	CHECK(st_midi_sink_calibrate(&sink) == IO_ERROR_IO && !source.active && source.restored == 0);
-	source.fail_render = false; source.fail_at = 2U * AUDIO_SAMPLE_RATE;
+	source = (struct source){.fail_at = 2U * AUDIO_SAMPLE_RATE};
 	CHECK(st_midi_sink_calibrate(&sink) == IO_ERROR_IO && !source.active && source.restored == 0);
-	source.frames = 0; source.fail_at = 0; source.amplitude = 1000; source.tail = 10;
+	source = (struct source){.amplitude = 1000, .tail = 10};
 	CHECK(st_midi_sink_calibrate(&sink) == 0 && source.restored == 1);
 	CHECK(source.frames >= 10U * AUDIO_SAMPLE_RATE && source.frames < 11U * AUDIO_SAMPLE_RATE);
 	source.frames = 0; sink.render = NULL;

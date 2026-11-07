@@ -12,6 +12,7 @@ struct recording {
 	st_mutex_t mutex;
 	size_t frames, events, on, off, sysex;
 	uint8_t keys[256];
+	uint8_t program[16], note_programs[256];
 	uint64_t positions[256];
 	bool sounding, fail, render_fail;
 	float left, right;
@@ -21,9 +22,10 @@ static int send(void *context, const uint8_t *b, size_t size)
 	struct recording *r = context;
 	st_mutex_lock(&r->mutex);
 	++r->events;
+	if ((b[0] & 0xf0) == 0xc0) r->program[b[0] & 15] = b[1];
 	if (b[0] == 0xf0) { CHECK(size >= 2 && b[size - 1] == 0xf7); ++r->sysex; }
 	if ((b[0] & 0xf0) == 0x90 && b[2]) {
-		CHECK(r->on < 256); r->keys[r->on] = b[1]; r->positions[r->on++] = r->frames; r->sounding = true;
+		CHECK(r->on < 256); r->keys[r->on] = b[1]; r->note_programs[r->on] = r->program[b[0] & 15]; r->positions[r->on++] = r->frames; r->sounding = true;
 	}
 	if ((b[0] & 0xf0) == 0x80 || ((b[0] & 0xf0) == 0x90 && !b[2])) { ++r->off; r->sounding = false; }
 	if ((b[0] & 0xf0) == 0xb0 && (b[1] == 120 || b[1] == 123)) r->sounding = false;
@@ -92,6 +94,7 @@ static void internal(void)
 	for (size_t i = 0; i < sizeof(consecutive) / sizeof(consecutive[0]); ++i) CHECK(consecutive[i] != 0);
 	pull_until_idle(m, runtime);
 	CHECK(r.on == 2 && r.off == 2 && r.keys[0] == 36 && r.keys[1] == 119);
+	CHECK(r.note_programs[0] == 80 && r.note_programs[1] == 80);
 	CHECK(r.positions[0] == 0 && r.positions[1] == 128 && r.frames == 384);
 	CHECK(st_music_queue_notes(m, note(1, AUDIO_SAMPLE_RATE * 10U), 1) == 0);
 	until_on(&r, 3);
@@ -175,6 +178,7 @@ static void external(void)
 	CHECK(st_music_available(m));
 	CHECK(st_music_queue_notes(m, note(33, AUDIO_SAMPLE_RATE * 10U), 1) == 0);
 	until_on(&r, 1); CHECK(stream == NULL && st_music_busy(m));
+	CHECK(r.note_programs[0] == 80);
 	CHECK(st_music_volume(m, -3, -6, 0) == 0);
 	for (int i = 0; i < 10; ++i) delay();
 	st_mutex_lock(&r.mutex); CHECK(r.left == -3 && r.right == -6); st_mutex_unlock(&r.mutex);
@@ -198,10 +202,10 @@ static void external(void)
 	st_mutex_lock(&r.mutex); r.fail = true; st_mutex_unlock(&r.mutex);
 	CHECK(st_music_queue_notes(m, note(34, 4410), 1) == 0);
 	CHECK(st_music_wait(m) == 0 && !st_music_busy(m));
-	CHECK(r.on == 3 && r.off == 2 && !r.sounding);
+	CHECK(r.on == 2 && r.off == 2 && !r.sounding);
 	st_mutex_lock(&r.mutex); r.fail = false; st_mutex_unlock(&r.mutex);
 	CHECK(st_music_queue_notes(m, note(35, AUDIO_SAMPLE_RATE * 10U), 1) == 0);
-	until_on(&r, 4);
+	until_on(&r, 3);
 	st_audio_runtime_stop(runtime);
 	CHECK(st_music_wait(m) == 0); CHECK(!st_music_busy(m));
 	CHECK(st_music_queue_notes(m, rejected = note(0, 1), 1) == IO_ERROR_CANCELLED); free(rejected);
@@ -211,8 +215,8 @@ static void files(void)
 {
 	static const uint8_t song[] = {
 		'M','T','h','d',0,0,0,6,0,0,0,1,0,96,
-		'M','T','r','k',0,0,0,20,
-		0,0xf0,5,0x7e,0x7f,9,1,0xf7,0,0x90,60,100,96,0x80,60,0,0,0xff,0x2f,0,
+		'M','T','r','k',0,0,0,23,
+		0,0xf0,5,0x7e,0x7f,9,1,0xf7,0,0xc0,11,0,0x90,60,100,96,0x80,60,0,0,0xff,0x2f,0,
 	};
 	st_audio_runtime_t *runtime; audio_stream_t *stream = NULL; st_music_t *m;
 	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
@@ -229,8 +233,20 @@ static void files(void)
 	CHECK(fclose(invalid) == 0); /* rejection retains caller ownership */
 	pull_until_idle(m, runtime);
 	CHECK(r.on == 2 && r.off == 2 && r.sysex == 1);
+	CHECK(r.note_programs[0] == 11 && r.note_programs[1] == 80);
 	CHECK(r.keys[0] == 60 && r.keys[1] == 69 && r.positions[1] == 110250);
 	CHECK(r.frames == 110378);
+	/* A file with no Program Change must start at its ordinary GM default,
+	 * without inheriting the preceding ANSI synth voice. */
+	static const uint8_t default_song[] = {
+		'M','T','h','d',0,0,0,6,0,0,0,1,0,96,
+		'M','T','r','k',0,0,0,12,0,0x90,61,100,0,0x80,61,0,0,0xff,0x2f,0,
+	};
+	file = tmpfile(); CHECK(file != NULL);
+	CHECK(fwrite(default_song, 1, sizeof(default_song), file) == sizeof(default_song) && fflush(file) == 0);
+	CHECK(st_music_queue_file(m, file) == 0);
+	pull_until_idle(m, runtime);
+	CHECK(r.on == 3 && r.note_programs[2] == 0);
 	st_music_destroy(m); st_audio_runtime_destroy(runtime); st_mutex_destroy(&r.mutex);
 }
 int main(void) { internal(); calibrated(); external(); files(); return 0; }

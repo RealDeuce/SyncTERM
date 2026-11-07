@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-/* Match the steady RMS of a GM oboe, A440, velocity/CC7 100, to the
+/* Match the steady RMS of the ANSI synth voice, A440, velocity/CC7 100, to the
  * existing classic ANSI waveform. Discard attack and release. This is one
  * fixed source gain for the renderer, never normalization of playing music.
  * Probe samples are discarded here and never enter an output stream. */
@@ -23,8 +23,9 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 		status = st_midi_sink_start(sink);
 	}
 	free(tone);
-	const uint8_t oboe[] = {0xc0, 68, 0x90, 69, 100};
-	if (status == 0) status = st_midi_sink_send(sink, oboe, sizeof(oboe));
+	if (status == 0) status = st_midi_sink_ansi(sink);
+	const uint8_t note[] = {0x90, 69, 100};
+	if (status == 0) status = st_midi_sink_send(sink, note, sizeof(note));
 	int16_t frames[1024 * AUDIO_CHANNELS];
 	for (size_t at = 0; status == 0 && at < duration;) {
 		size_t count = duration - at < 1024 ? duration - at : 1024;
@@ -53,8 +54,8 @@ int st_midi_sink_calibrate(struct st_midi_sink *sink)
 		quiet = silent ? quiet + 1024 : 0;
 	}
 	if (status == 0) status = st_midi_sink_start(sink);
-	if (status == 0 && sink->ansi != NULL) sink->ansi(sink->state);
-	/* A bank without an audible oboe remains usable. Do not amplify dither
+	if (status == 0) status = st_midi_sink_ansi(sink);
+	/* A bank without an audible reference remains usable. Do not amplify dither
 	 * or reject partial banks. The upper bound also limits noise gain. */
 	if (status == 0 && signal > (double)AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * 16) {
 		double gain = 10.0 * log10(reference / signal);

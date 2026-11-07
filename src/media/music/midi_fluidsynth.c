@@ -38,7 +38,7 @@ static void load(void)
 	loaded = true;
 }
 #endif
-struct fluid_state { fluid_settings_t *settings; fluid_synth_t *synth; int sf, bank, preset; };
+struct fluid_state { fluid_settings_t *settings; fluid_synth_t *synth; };
 static int send_message(void *context, const uint8_t *b, size_t size)
 {
 	struct fluid_state *f = context;
@@ -67,11 +67,6 @@ static int render(void *context, int16_t *frames, size_t count)
 	struct fluid_state *f = context;
 	if (count > INT_MAX) return IO_ERROR_OUT_OF_RANGE;
 	return api.fluid_synth_write_s16(f->synth, (int)count, frames, 0, 2, frames, 1, 2) == FLUID_OK ? 0 : IO_ERROR_IO;
-}
-static void ansi(void *context)
-{
-	struct fluid_state *f = context;
-	(void)api.fluid_synth_program_select(f->synth, 0, f->sf, f->bank, f->preset);
 }
 static void close_synth(void *context)
 {
@@ -117,8 +112,7 @@ int st_midi_fluid_open(struct st_midi_sink *sink)
 		api.fluid_free(bank);
 	}
 	if (api.fluid_synth_sfcount(f->synth) == 0) { close_synth(f); return IO_ERROR_NOT_FOUND; }
-	(void)api.fluid_synth_get_program(f->synth, 0, &f->sf, &f->bank, &f->preset);
-	sink->state = f; sink->send = send_message; sink->render = render; sink->close = close_synth; sink->ansi = ansi;
+	sink->state = f; sink->send = send_message; sink->render = render; sink->close = close_synth;
 	/* Calibrate at the library's default gain, then restore the user's gain.
 	 * Otherwise calibration would cancel an explicit synth.gain setting. */
 	double configured = api.fluid_synth_get_gain(f->synth), baseline;

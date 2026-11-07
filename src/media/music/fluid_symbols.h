@@ -24,6 +24,4 @@
 	X(int, fluid_synth_key_pressure, (fluid_synth_t *, int, int, int)) \
 	X(int, fluid_synth_pitch_bend, (fluid_synth_t *, int, int)) \
 	X(int, fluid_synth_sysex, (fluid_synth_t *, const char *, int, char *, int *, int *, int)) \
-	X(int, fluid_synth_write_s16, (fluid_synth_t *, int, void *, int, int, void *, int, int)) \
-	X(int, fluid_synth_get_program, (fluid_synth_t *, int, int *, int *, int *)) \
-	X(int, fluid_synth_program_select, (fluid_synth_t *, int, int, int, int))
+	X(int, fluid_synth_write_s16, (fluid_synth_t *, int, void *, int, int, void *, int, int))

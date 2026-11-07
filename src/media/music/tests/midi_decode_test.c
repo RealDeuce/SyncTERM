@@ -57,5 +57,9 @@ int main(void)
 		size_t at = (ch * 4 + i) * 3;
 		CHECK(log.bytes[at] == (0xb0 | ch) && log.bytes[at + 1] == controls[i] && log.bytes[at + 2] == 0);
 	}
+	memset(&log, 0, sizeof(log));
+	CHECK(st_midi_sink_ansi(&release) == 0);
+	const uint8_t synth[] = {0xb0,0,0,0xb0,32,0,0xc0,80};
+	CHECK(log.messages == 3 && log.size == sizeof(synth) && memcmp(log.bytes, synth, sizeof(synth)) == 0);
 	return 0;
 }

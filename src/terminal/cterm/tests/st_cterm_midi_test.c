@@ -8,13 +8,14 @@
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
-struct recording { st_mutex_t mutex; size_t on, off, closed; uint8_t key; float left, right; };
+struct recording { st_mutex_t mutex; size_t on, off, closed; uint8_t key, program, note_program; float left, right; };
 static char reply[256]; static size_t reply_size;
 static int send(void *context, const uint8_t *b, size_t size)
 {
 	(void)size;
 	struct recording *r = context; st_mutex_lock(&r->mutex);
-	if ((b[0] & 0xf0) == 0x90 && b[2]) { ++r->on; r->key = b[1]; }
+	if (b[0] == 0xc0) r->program = b[1];
+	if ((b[0] & 0xf0) == 0x90 && b[2]) { ++r->on; r->key = b[1]; r->note_program = r->program; }
 	if ((b[0] & 0xf0) == 0x80) ++r->off;
 	st_mutex_unlock(&r->mutex); return 0;
 }
@@ -61,6 +62,7 @@ static void exercise(st_console_t *console, st_font_catalog_t *fonts, bool utf8)
 	feed(t, "\x1b_SyncTERM:Q;midi\x1b\\"); expect("\x1b[=7;102;1n");
 	feed(t, "\x1b_SyncTERM:A;QueueMIDI;fixture.mid\x1b\\");
 	wait_on(&r, 1); CHECK(st_music_busy(t->music_player) && t->music_stream == NULL);
+	CHECK(r.note_program == 0);
 	feed(t, "\x1b_SyncTERM:A;Update;C=0\x1b\\\x1b[=7;0n"); expect("\x1b[=7;0;1n");
 	feed(t, "\x1b_SyncTERM:A;QueueMIDI;../fixture.mid\x1b\\");
 	feed(t, "\x1b_SyncTERM:A;QueueMIDI;syncterm-cache-name.txt\x1b\\");
@@ -76,7 +78,9 @@ static void exercise(st_console_t *console, st_font_catalog_t *fonts, bool utf8)
 	CHECK(st_cterm_poll(t) == 0 && reply_size == 0);
 	feed(t, "\x1b[|MBMLT255L64N0N83\x0e\x1b_SyncTERM:A;Wait;C=0\x1b\\");
 	CHECK(!st_music_busy(t->music_player) && r.on == 3 && r.key == 119);
+	CHECK(r.note_program == 80);
 	feed(t, "\x1b_SyncTERM:A;QueueMIDI;fixture.mid\x1b\\"); wait_on(&r, 4);
+	CHECK(r.note_program == 0);
 	feed(t, "\x1b" "c"); CHECK(!st_music_busy(t->music_player));
 	t->quiet = true;
 	feed(t, "\x1b_SyncTERM:Q;midi\x1b\\"); expect("\x1b[=7;102;0n");

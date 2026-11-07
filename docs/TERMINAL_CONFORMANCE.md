@@ -401,7 +401,9 @@ independently check all 84 ANSI pitches, existing articulation/frame rounding, S
 tempo/running status/SMPTE, split SysEx, FIFO limits, internal PCM bounds,
 external channel-zero gain/fade/wait/cancellation and runtime shutdown. The
 calibration tests check a sustained reference, silent/error paths and state
-restoration. PCM player captures check fixed source calibration with unchanged
+restoration using the actual ANSI synth voice. Literal program messages and
+file/ANSI transitions check voice selection without changing MIDI-file
+instruments. PCM player captures check fixed source calibration with unchanged
 channel gains, wide mixing before clipping and fade/recovery behavior. The
 `extensions` control group checks feature 102 with MIDI disabled, rejected
 cache-path recovery and seven-octave ANSI capture recovery in CP437/UTF-8.

@@ -254,7 +254,7 @@ static int play(struct playback *p, struct request *r)
 	} else {
 		if (m->was_file && m->sink.send != NULL) result = st_midi_sink_start(&m->sink);
 		m->was_file = false;
-		if (m->sink.ansi != NULL) m->sink.ansi(m->sink.state);
+		if (result == 0 && m->sink.send != NULL) result = st_midi_sink_ansi(&m->sink);
 		uint64_t at = 0;
 		for (size_t i = 0; result == 0 && i < r->count; ++i) {
 			struct st_music_note *n = &r->notes[i];
