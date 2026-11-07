@@ -1750,3 +1750,28 @@ diagnostics were introduced; fixtures are headless without physical audio.
 Accounting and all 83 matrix rows agree: 2575 items, 132 exclusions and 161
 assessments, with 23 resolved and 28 open original topics. Native declarations
 and ledger rows remain unchanged. Retain the temporary planning record and skill.
+
+
+=== User-directed CTSV wire version filtering
+
+CTSV previously reused the UTF-8 UI title verbatim; the Greek alpha in the
+current title caused the legacy termtest command-string reader to reject the
+reply. The user specified UTF-8 alpha/beta translation to ASCII a/b, followed
+by stripping every other byte outside 0x08–0x0D and 0x20–0x7E. The native reply
+now applies exactly that policy in bounded stack chunks, leaving the borrowed
+version/UI string unchanged. Empty and null replies retain their framing and
+suppression behavior. No other APC or Wren API changes.
+
+The new literal-byte regression first failed against the verbatim reply. Tests
+now cover all non-NUL bytes, malformed/other UTF-8, long/chunked replies, source
+immutability, both wire encodings and existing input splits. Native APC/CTerm
+and bitmap query CTests passed in CP437/UTF-8; ASan/UBSan APC passed. Actual
+connection replies contain 2.0a and match the legacy reader's grammar while CLI
+-v retains the Greek alpha. The full Synchronet test program was not executed.
+Both MinGW configurations compile the affected CTerm/APC target; no Windows
+runtime/MSVC or Wine claim. Fixtures are headless without physical audio.
+
+Only the native header's contract comment changed; declarations, source lines,
+ledger rows and ownership remain unchanged. Inventory and finding counts remain
+83 public headers, 2575 items, 132 exclusions, 161 assessments and 23 resolved/
+28 open topics. Reviewed evidence digests and conformance inventories are updated.

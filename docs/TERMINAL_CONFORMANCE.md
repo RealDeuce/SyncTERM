@@ -268,7 +268,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `DECRQSS_s` | 1395 | queries | Exact reply; version and optional capability formats validated |
 | `CTSMRR_4` | 1409 | queries | Exact reply; version and optional capability formats validated |
 | `CTSMRR_5` | 1429 | queries | Exact reply; version and optional capability formats validated |
-| `CTSV` | 1439 | queries | Exact reply; version and optional capability formats validated |
+| `CTSV` | 1439 | queries | CP437/UTF-8 wire replies restricted to BS–CR/SP–~; native α/β transliteration, every other byte, malformed input, long/empty/disabled versions and retained split-input framing |
 | `CTQJS` | 1450 | queries | JPEG XL capability reply (not joystick) |
 | `SGR256FG` | 1461 | attributes | Logical RGB cell colours and rendered planes |
 | `SGR256BG` | 1479 | attributes | Logical RGB cell colours and rendered planes |

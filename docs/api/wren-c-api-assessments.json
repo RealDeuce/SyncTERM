@@ -413,7 +413,7 @@
     },
     {
       "path": "src/terminal/cterm/st_cterm.h",
-      "sha256": "21d1b59dc397c4a4d23e64da8f378aad905737d3037299aba3d75abdb8496d9c",
+      "sha256": "80e8a46e0482618e1437d03d73ba9e9bcee3a2d4295498760a22c798dc353a26",
       "status": "reviewed",
       "symbol_count": 178
     },
@@ -4927,6 +4927,16 @@
       "path": "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c",
       "anchor": "test_truncate(FILE *stream, uint64_t size)",
       "aspect": "Test-only interceptions compile the actual filesystem binding; no fault controls or new grant factories in the application."
+    },
+    {
+      "path": "src/terminal/cterm/tests/st_cterm_apc_test.c",
+      "anchor": "check_version(struct fixture *fixture)",
+      "aspect": "CTSV UTF-8 alpha/beta transliteration, literal allowed-byte whitelist over all non-NUL input bytes, malformed/non-Latin input, immutable borrowed version, empty/null and multi-chunk replies in CP437 and UTF-8. Existing input-split/status framing tests retained."
+    },
+    {
+      "path": "src/tests/st_terminal_conformance_test.py",
+      "anchor": "(\"CTSV\", b\"_SyncTERM:VER\"",
+      "aspect": "Actual bitmap application CTSV wire replies restricted to the requested command-string byte ranges in both CP437 and UTF-8, fenced before a coherent capture."
     }
   ],
   "dispatch_evidence": [
@@ -4942,7 +4952,7 @@
     "addons/modern_ui/tests/test_frontend.py": "69c066524d11fa21a9880bd83c1c4e7cd46d29dbc3ecf5c47a3b9aab858c3153",
     "docs/RIP154_CONFORMANCE.md": "01659bbb9abc6b9151f825622c6415271d0a06f56133fe035dd1df73318adb10",
     "docs/SKYPIX_CONFORMANCE.md": "8a337f949f91c34760c6df2535f6abe6451c3756e51715d48e9a443a018025b9",
-    "docs/TERMINAL_CONFORMANCE.md": "80d5c9b23c97749cbfeeebdc8af8b3dafea856c2ef5a1454fb330aba0704e435",
+    "docs/TERMINAL_CONFORMANCE.md": "2ff58b87a06565c7bf3ab3fd0e698a53d81f6fdf100b2a04b3aa11be321ed70b",
     "docs/Themes.adoc": "04e09bf265087138eb9eb7a0ed6a4f050e5f467e6dffeb9cfc87b8d6aa6befce",
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
     "docs/Wren.adoc": "198274447bc6e326c63373f9e373a3a2010dedee504f7df536a827696e8b25fa",
@@ -5130,12 +5140,12 @@
     "src/st_terminfo.h": "852d5c5f13d3d8f21aa0903d990cad1ab152ab6bb292a614bf12eb0a79f8ffeb",
     "src/syncterm.c": "3baafc446718d5d96ffd4bc478759293cf01ef15116310c0c0761a2360893e9f",
     "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
-    "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
+    "src/terminal/cterm/cterm_apc.c": "abcc3d4328a1e044a6f3c55b7caab5f59d1f0759a7c0284393a00dd2a78b187c",
     "src/terminal/cterm/cterm_cterm.c": "a6c46afd3b4ed45984462201ebd74db3ba5e568e910d74d7c0dbcc6eac63720a",
     "src/terminal/cterm/cterm_render.c": "07bab863c7e360b8be8fd752bc49cc9848cd81315c87732f8e61145497fa2d49",
     "src/terminal/cterm/cterm_skypix.c": "da3fb602236b7d363b50010b0935e13d7688b480d1694b7982921ececa2f979e",
     "src/terminal/cterm/st_cterm.c": "bc856e59485035f862b55774545fa42b84b2d9e16248cfd33dfe6821efac1874",
-    "src/terminal/cterm/st_cterm.h": "21d1b59dc397c4a4d23e64da8f378aad905737d3037299aba3d75abdb8496d9c",
+    "src/terminal/cterm/st_cterm.h": "80e8a46e0482618e1437d03d73ba9e9bcee3a2d4295498760a22c798dc353a26",
     "src/terminal/cterm/tests/data/skypix/golden-vectors.json": "a7ba8d85c74ac60000cd104399413e88a2360fd5368224d7f63e998cd8fd638d",
     "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "b37d726ee4c89ce0b278839dd5659abba1c82cb9a237a12d7f666c80774d63f6",
     "src/terminal/cterm/tests/st_cterm_skypix_test.c": "99787b534d6c4116b0d9c4e5c1ed81546f8a15f0d0205e0098b7adb1cf216fe8",
@@ -5158,7 +5168,7 @@
     "src/tests/st_skypix_mouse_test.py": "8853a506f6a51c4fafaff67d541879a599566ff2022a2ac7a15140a11a0bb103",
     "src/tests/st_skypix_scrolling_test.py": "e52697663552fc200179e325a4e186b017c3e357b780f595e6d06c561dd58a75",
     "src/tests/st_test_control_test.py": "847c10f78a5c106a751475944344c31fee80397638b87c6aa745d2930ce1fa52",
-    "src/tests/terminal_conformance.json": "f8775c1dd8c82890c7013a6de977063b3587264b4f90f3ad08d648c7b467432f",
+    "src/tests/terminal_conformance.json": "b33216943e44190e101bf029535ce06c7db35ecd261f9861c996026fe0b44068",
     "src/tests/wren/bbs_setters.wren": "96c94c02234c93bdd4ac027610a2ed25c32bdeb28b1736f243b1d5b378665db2",
     "src/text/codepage/st_codepage.h": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
     "src/text/emoji/st_emoji_catalog.h": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
@@ -5171,7 +5181,9 @@
     "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
     "src/scripting/wren_host/tests/file_truncate.wren": "2f11003983c9c0cb523a45c2c5fa9305d33640990610e6cc02b844d14901dfb6",
     "src/scripting/wren_host/tests/st_wren_file_truncate_test.c": "41f5b81fe0ecddc43b390caceaab4c32751bc84826ce1ef35bda37bff96ff395",
-    "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c": "6e7538e6ddcbf8f2de3a8255037c59134826eec81cd24f39ed2ffb65b11b690f"
+    "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c": "6e7538e6ddcbf8f2de3a8255037c59134826eec81cd24f39ed2ffb65b11b690f",
+    "src/terminal/cterm/tests/st_cterm_apc_test.c": "f892dc486252d8d0d4fb7782c50caf7cc7949c11a7b9f74398583bcca564dd5a",
+    "src/tests/st_terminal_conformance_test.py": "6dd793df69d6333e9e3497a936b3496c69c27ae737734efd0a771f26f375ce84"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -6943,6 +6955,28 @@
       },
       "evidence_review": "Reviewed native POSIX/Windows stream resize contracts, binding/dispatch/declaration, actual grants and buffering helpers, test-only source inclusion and native-boundary controls, independent byte expectations, ownership/lifecycle checks, CMake isolation and authoritative docs. Only reviewed changed/new evidence digests were refreshed; all 83 matrix rows independently match the symbol ledger.",
       "accounting": "83 public headers, 132 exclusions, 2575 native items, 161 assessments and 51 original topics. One existing filesystem row moves Unmapped to Covered; native declarations and TSV rows are unchanged. Twenty-three topics resolved and twenty-eight open; the separate documentation finding remains resolved. Retain temporary skill and approved record."
+    },
+    {
+      "topic": "ctsv-wire-version",
+      "status": "resolved",
+      "request": "Translate alpha to a and beta to b in CTSV, then strip all other bytes outside 0x08-0x0D and 0x20-0x7E.",
+      "scope": "Native CTSV response only: recognize UTF-8 U+03B1/U+03B2 byte pairs before filtering, with bounded stack chunks and no eager copied version. Preserve the borrowed input/UI title, empty/null framing, callback origin and all other APCs. Public config comment and native/API protocol docs describe the filtered reply. Native declaration signatures, source lines, ownership and Wren APIs are unchanged.",
+      "tests_passed": [
+        "cterm_apc",
+        "cterm",
+        "syncterm_conformance_queries_CP437",
+        "syncterm_conformance_queries_UTF-8",
+        "ASan/UBSan cterm_apc"
+      ],
+      "verification": {
+        "regression": "The new independent native version case first failed against the old verbatim response. All non-NUL byte values, malformed/other UTF-8, chunk boundaries, empty/null, source immutability and retained parser split tests now pass in codepage and UTF-8 modes.",
+        "native": "FreeBSD Clang Debug CMake application/APC/CTerm targets configured and built; all four listed native CTests passed (16.84s). Bitmap connection fixtures clear desktop variables, disable physical audio/MIDI, and use build-tree temporary/report paths.",
+        "sanitizers": "Clang ASan/UBSan APC target configured/built; cterm_apc passed (4.40s), with no sanitizer diagnostics. Unsupported FreeBSD leak detection remains disabled; existing C++ vptr exclusion unchanged.",
+        "windows": "Both MinGW x86/x86_64 CMake configurations built the affected CTerm library and APC test executable. No Windows execution, MSVC or Wine.",
+        "wire": "Captured both CP437 and UTF-8 actual application replies with SyncTERM 2.0a and verified every prefix against the existing legacy termtest read_ansi_string regular expression. CLI -v still reports SyncTERM 2.0α. This validates its reader grammar, not execution of the entire Synchronet test program.",
+        "warnings": "No compiler diagnostics in the exercised builds."
+      },
+      "accounting": "Reviewed the changed native header contract, native APC dispatch/MD5 evidence, new byte tests and tightened conformance assertions/inventories. Updated only reviewed changed/new evidence and the comment-only public-header digest. Native TSV signatures/lines/counts and all 83 matrix rows are unchanged: 2575 items, 132 exclusions, 161 assessments, 23 resolved/28 open original topics."
     }
   ]
 }

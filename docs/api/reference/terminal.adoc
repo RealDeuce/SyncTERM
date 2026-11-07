@@ -133,9 +133,10 @@ It is a borrowed UTF-8 per-BBS cache path, valid through destruction; NULL
 leaves APC handling to `apc`/`apc_context`. CTerm creates the directory on use
 and confines remote paths to it, rejecting traversal, links, and platform
 device names. Failure to initialize the cache silently consumes APCs, as in
-v1.10a. `application_version` is a borrowed NUL-terminated string used verbatim
-in `SyncTERM:VER` replies; NULL suppresses that reply. The application must
-supply a protocol-safe string without embedded controls. Recognized built-in
+v1.10a. `application_version` is a borrowed NUL-terminated string. CTSV replies
+translate UTF-8 `α`/`β` to `a`/`b` and remove all other bytes outside
+`0x08`–`0x0D` and `0x20`–`0x7E`; the supplied string remains unchanged.
+NULL suppresses that reply. Recognized built-in
 commands consume the APC; unknown ones reach the existing synchronous `apc`
 callback. All response bytes use `output` with origin `ST_CTERM_OUTPUT_RESPONSE`.
 APC buffers, masks, patches, and dedicated audio streams are terminal-owned;

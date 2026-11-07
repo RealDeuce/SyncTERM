@@ -15,6 +15,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -140,6 +141,67 @@ check_framing(struct fixture *fixture)
 	apc(fixture, "SyncTERM:VER");
 	expect(fixture, "\x1b_SyncTERM:VER;APC test\x1b\\");
 	feed(fixture, "\x1b[0$}\x1b[0$~", 10);
+}
+
+static void
+check_version(struct fixture *fixture)
+{
+	static const struct {const char *source, *expected;} cases[] = {
+		{"SyncTERM 2.0\xce\xb1 Debug", "SyncTERM 2.0a Debug"},
+		{"SyncTERM 2.0\xce\xb2", "SyncTERM 2.0b"},
+		{"\xce\xb1\xce\xb2\xce\xb1\xce\xb2", "abab"},
+		{"\xce\x91\xce\x92\xcf\x80\xf0\x9f\x98\x80", ""},
+		{"A\xce" "B\xce\xce\xb1\xb2\xce", "ABa"},
+		{"A\x01\x07\x1b\\\x1f\x7f\x9c\x9f\xff" "Z", "A\\Z"},
+		{"\b\t\n\v\f\r !~", "\b\t\n\v\f\r !~"},
+		{"", ""},
+	};
+	/* Literal whitelist is independent of the implementation's range tests. */
+	static const char allowed[] = "\b\t\n\v\f\r"
+	    " !\"#$%&'()*+,-./0123456789:;<=>?"
+	    "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
+	    "`abcdefghijklmnopqrstuvwxyz{|}~";
+	const char *original = fixture->terminal->apc->version;
+	for (unsigned mode = 0; mode < 2; ++mode) {
+		CHECK(st_cterm_set_encoding(fixture->terminal,
+		    mode == 0 ? ST_CTERM_ENCODING_CODEPAGE : ST_CTERM_ENCODING_UTF8,
+		    ST_CODEPAGE_CP437) == 0);
+		for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+			char reply[256];
+			fixture->terminal->apc->version = cases[i].source;
+			(void)snprintf(reply, sizeof(reply), "\x1b_SyncTERM:VER;%s\x1b\\", cases[i].expected);
+			apc(fixture, "SyncTERM:VER");
+			expect(fixture, reply);
+			CHECK(strcmp(fixture->terminal->apc->version, cases[i].source) == 0);
+		}
+		/* application_version is a C string: NUL ends it; test every other byte. */
+		for (unsigned byte = 1; byte < 256; ++byte) {
+			char version[] = {(char)byte, 0};
+			char reply[19] = "\x1b_SyncTERM:VER;";
+			size_t length = 15;
+			if (strchr(allowed, (int)byte) != NULL) reply[length++] = (char)byte;
+			reply[length++] = '\x1b'; reply[length++] = '\\'; reply[length] = 0;
+			fixture->terminal->apc->version = version;
+			apc(fixture, "SyncTERM:VER");
+			expect(fixture, reply);
+			CHECK((unsigned char)version[0] == byte);
+		}
+		/* Repeated mappings span response chunks without truncation or mutation. */
+		char version[257 * 8 + 1], reply[15 + 257 * 3 + 2 + 1];
+		for (size_t i = 0; i < 257; ++i) {
+			memcpy(version + i * 8, "x\xce\xb1\xce\xb2\x01\x7f\x80", 8);
+			memcpy(reply + 15 + i * 3, "xab", 3);
+		}
+		version[sizeof(version) - 1] = 0;
+		memcpy(reply, "\x1b_SyncTERM:VER;", 15);
+		memcpy(reply + sizeof(reply) - 3, "\x1b\\", 3);
+		fixture->terminal->apc->version = version;
+		apc(fixture, "SyncTERM:VER"); expect(fixture, reply);
+		CHECK(strlen(version) == sizeof(version) - 1 && (unsigned char)version[1] == 0xce);
+		fixture->terminal->apc->version = NULL;
+		apc(fixture, "SyncTERM:VER"); expect(fixture, "");
+	}
+	fixture->terminal->apc->version = original;
 }
 
 static void
@@ -409,7 +471,7 @@ main(void)
 {
 	struct fixture fixture = {0}, second = {0};
 	open_fixture(&fixture);
-	check_framing(&fixture); check_cache(&fixture);
+	check_framing(&fixture); check_version(&fixture); check_cache(&fixture);
 	check_configuration();
 #if defined(ST_APC_TEST_POSIX)
 	check_cache_links();

@@ -2660,9 +2660,11 @@ only regular files are opened for reading, writing, or checksumming.
 === `APC SyncTERM:VER ST` Get SyncTERM Version (`CTSV`)
 SyncTERM responds with
 an `APC` string of the form `APC SyncTERM:VER;version ST` where
-`version` is the full version string of SyncTERM, either
-`SyncTERM 1.7rc1` for release builds or `SyncTERM 1.7b Debug (Sep 27 2025)`
-for debug builds
+`version` is the version string of SyncTERM, with UTF-8 `α` translated to `a`
+and `β` to `b`. All other bytes outside `0x08`–`0x0D` and `0x20`–`0x7E` are
+removed. For example, `SyncTERM 2.0α Debug (Nov  7 2026)` is reported as
+`SyncTERM 2.0a Debug (Nov  7 2026)`. This filtering applies only to the reply;
+the application's displayed version is unchanged.
 
 === `APC SyncTERM:C;S;Ps1;Ps2 ST` Store file (`CTSFI`)
 Where `Ps1` is a filename and `Ps2` is the base64 encoded

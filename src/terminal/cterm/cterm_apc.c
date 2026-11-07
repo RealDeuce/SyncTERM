@@ -54,6 +54,34 @@ cterm_apc_decode_base64(void **result, size_t *result_size,
 }
 
 static void
+report_version(struct cterminal *terminal)
+{
+	const unsigned char *next = (const unsigned char *)terminal->apc->version;
+	char bytes[128];
+	size_t used = 0;
+
+	if (next == NULL) return;
+	cterm_respond(terminal, "\x1b_SyncTERM:VER;", 15);
+	for (; *next != 0; ++next) {
+		unsigned char ch = *next;
+		/* Keep the borrowed UI version intact; sanitize only this wire reply. */
+		if (ch == 0xce && (next[1] == 0xb1 || next[1] == 0xb2)) {
+			ch = next[1] == 0xb1 ? 'a' : 'b';
+			++next;
+		}
+		if (!((ch >= 0x08 && ch <= 0x0d) || (ch >= 0x20 && ch <= 0x7e)))
+			continue;
+		bytes[used++] = (char)ch;
+		if (used == sizeof(bytes)) {
+			cterm_respond(terminal, bytes, used);
+			used = 0;
+		}
+	}
+	if (used != 0) cterm_respond(terminal, bytes, used);
+	cterm_respond(terminal, "\x1b\\", 2);
+}
+
+static void
 store_file(struct cterminal *terminal, char *text, size_t size)
 {
 	char *separator = strchr(text, ';');
@@ -408,13 +436,7 @@ cterm_apc_dispatch(struct cterminal *terminal, char *text, size_t size)
 		return cterm_apc_audio_dispatch(terminal, text + 11, size - 11);
 	else if (strncmp(text, "SyncTERM:Q;", 11) == 0)
 		return cterm_apc_feature_query(terminal, text + 11);
-	else if (strcmp(text, "SyncTERM:VER") == 0) {
-		if (terminal->apc->version != NULL) {
-			cterm_respond(terminal, "\x1b_SyncTERM:VER;", 15);
-			cterm_respond(terminal, terminal->apc->version, strlen(terminal->apc->version));
-			cterm_respond(terminal, "\x1b\\", 2);
-		}
-	}
+	else if (strcmp(text, "SyncTERM:VER") == 0) report_version(terminal);
 	else return false;
 	return true;
 }

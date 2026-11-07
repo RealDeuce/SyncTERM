@@ -110,7 +110,7 @@
     {"id": "DECRQSS_s", "source_line": 1395, "suite": "queries", "scope": "Exact reply; version and optional capability formats validated"},
     {"id": "CTSMRR_4", "source_line": 1409, "suite": "queries", "scope": "Exact reply; version and optional capability formats validated"},
     {"id": "CTSMRR_5", "source_line": 1429, "suite": "queries", "scope": "Exact reply; version and optional capability formats validated"},
-    {"id": "CTSV", "source_line": 1439, "suite": "queries", "scope": "Exact reply; version and optional capability formats validated"},
+    {"id": "CTSV", "source_line": 1439, "suite": "queries", "scope": "CP437/UTF-8 wire replies restricted to BS–CR/SP–~; native α/β transliteration, every other byte, malformed input, long/empty/disabled versions and retained split-input framing"},
     {"id": "CTQJS", "source_line": 1450, "suite": "queries", "scope": "JPEG XL capability reply (not joystick)"},
     {"id": "SGR256FG", "source_line": 1461, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
     {"id": "SGR256BG", "source_line": 1479, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},

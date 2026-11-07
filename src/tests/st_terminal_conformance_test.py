@@ -339,7 +339,7 @@ def queries(t):
         ("DECSCS", b"[0;1*r" + ESC + b"P$q*r" + ST + ESC + b"[0;0*r", ESC + b"P1$r;1*r" + ST),
         ("FETM", b"[14h" + ESC + b"[14$p" + ESC + b"[14l" + ESC + b"[14$p", ESC + b"[14;1$y" + ESC + b"[14;2$y"),
         ("TTM", b"[16h" + ESC + b"[16$p" + ESC + b"[16l" + ESC + b"[16$p", ESC + b"[16;1$y" + ESC + b"[16;2$y"),
-        ("CTSV", b"_SyncTERM:VER" + ST, re.compile(rb"\x1b_SyncTERM:VER;SyncTERM [^\x1b]+\x1b\\")),
+        ("CTSV", b"_SyncTERM:VER" + ST, re.compile(rb"\x1b_SyncTERM:VER;SyncTERM [\x08-\x0d\x20-\x7e]+\x1b\\")),
         ("CTQJS", b"_SyncTERM:Q;JXL" + ST, re.compile(rb"\x1b\[=1;[01]-n")),
     ):
         t.check(name, ESC + data, expected=expected)

@@ -139,9 +139,9 @@ struct st_cterm_config {
 	st_cterm_skypix_transfer_callback_t skypix_transfer;
 	void *skypix_transfer_context;
 	/* Enables built-in SyncTERM APC commands independently of RIP. Both
-	 * strings are borrowed through destruction. NULL directory retains
-	 * callback-only handling. Version is NUL-terminated and control-free;
-	 * NULL version suppresses the version reply. */
+	 * strings are borrowed through destruction; version is NUL-terminated.
+	 * NULL directory retains callback-only handling. CTSV maps UTF-8 alpha/beta
+	 * to a/b and filters other bytes; NULL version suppresses the reply. */
 	const char *apc_directory;
 	const char *application_version;
 	enum st_codepage codepage;
