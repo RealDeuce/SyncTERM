@@ -1637,6 +1637,7 @@ foreign class File {
   foreign writeBytes(s)
   foreign writeBytes(s, offset)
   foreign write(s)
+  foreign truncate(size)
   foreign readLine()
   foreign writeLine(s)
   foreign offset

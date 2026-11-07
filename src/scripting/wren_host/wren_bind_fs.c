@@ -1041,6 +1041,37 @@ fn_file_write(WrenVM *vm)
 }
 
 static void
+fn_file_truncate(WrenVM *vm)
+{
+	struct st_wren_file *file = checked_file(vm, true, FILE_RIGHT_WRITE);
+	uint64_t size;
+	int64_t position;
+	int status;
+
+	if (file == NULL)
+		return;
+	if (!st_wren_number_u64(vm, 1, &size)) {
+		st_wren_abort(vm, "File.truncate: invalid exact nonnegative integer");
+		return;
+	}
+	if (file->disposition == ST_WREN_PICKER_DISPOSITION_APPEND) {
+		st_wren_abort(vm, "File.truncate: append consent does not grant resize access");
+		return;
+	}
+	/* Synchronize buffered output and discard read-ahead before changing EOF.
+	 * Position before mutation: there is no fallible restore after commit. */
+	position = file_position(vm, file->stream);
+	if (position < 0 || !file_seek(vm, file, position, "File truncate synchronization failed"))
+		return;
+	errno = 0;
+	status = fs_stream_truncate(file->stream, size);
+	if (status != 0)
+		push_error(vm, status, errno, "File truncate failed");
+	else
+		wrenSetSlotNull(vm, 0);
+}
+
+static void
 fn_file_offset(WrenVM *vm)
 {
 	struct st_wren_file *file = checked_file(vm, true, 0);
@@ -1558,6 +1589,7 @@ static const struct fs_binding bindings[] = {
 	{"File", false, "writeBytes(_)", fn_file_write_bytes},
 	{"File", false, "writeBytes(_,_)", fn_file_write_bytes_at},
 	{"File", false, "write(_)", fn_file_write},
+	{"File", false, "truncate(_)", fn_file_truncate},
 	{"File", false, "readLine()", fn_file_read_line},
 	{"File", false, "writeLine(_)", fn_file_write_line},
 	{"File", false, "offset", fn_file_offset},

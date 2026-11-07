@@ -3,6 +3,75 @@
 Permanent accounting: link:WREN_C_API_COVERAGE.adoc[coverage report] and
 link:api/wren-c-api-assessments.json[assessment ledger].
 
+== Approved chunk 20: explicit File resizing (revision 1)
+
+Approval: the user selected File.truncate and approved the complete Plan-mode
+revision 1 with "Implement the plan." Implementation began in Default mode.
+Phase: chunk complete; next chunk requires a new actual Plan-mode phase.
+Scope: +files-truncate+ / +files.truncate+ only.
+
+Add synchronous File.truncate(size) to existing open writable File grants in
+menu and connected VMs, returning null or existing FileError. Reject read-only,
+unopened/closed and append-consent handles before I/O; preserve one-shot
+create/overwrite consent and existing cache-owner/open-stream lifetimes.
+Accept exact nonnegative integer byte lengths through 9007199254740991 with
+native filesystem limits. Invalid values abort before native work. Synchronize
+the stream at its current logical position, then invoke fs_stream_truncate
+once. Shrink/zero-fill extension preserves offsets, including beyond EOF.
+Zero and unchanged lengths still invoke native truncation. Preserve native
+status/errno; preparation failures do not resize. Buffered output may already
+have flushed on failure; no rollback/retry or post-commit verification.
+Keep bytes, native algorithms, existing write methods and picker authority
+unchanged. No new resource owner or asynchronous operation.
+
+Acceptance: focused wren_file_truncate CTest established before implementation,
+with real Wren calls, binary fixtures, zero/shrink/extend/unchanged lengths,
+offsets beyond EOF, input/output buffering, EOF and subsequent I/O. Cover exact
+numeric/type boundaries without effects; read/append/one-shot rights; stale and
+closed grants, GC/teardown. Test-only boundary controls cover position/seek/
+truncate errors, exact results/recovery, one invocation and safe-integer limits
+without huge files. Configure/build application and affected targets; run
+wren_file_truncate, filesystem, wren_host, wren_menu_contract,
+wren_picker_contract and wren_digest. Repeat focused tests with GCC and
+ASan/UBSan; cross-build application and affected tests on both MinGW targets.
+Headless fixtures only, no physical audio/Wine or Windows runtime claims.
+
+Update manual, assessment, report/matrix and reviewed evidence; append a review.
+Native declarations/inventory rows stay unchanged. Closure yields 23 resolved
+and 28 open topics. Run accounting/diff checks and commit without pushing.
+Retain this document and skill. The regression first failed at the missing
+truncate method; initial menu/connected success, failure, authority and lifetime
+checks pass. The complete verification and final accounting review below have
+passed. Remaining work for this chunk: none.
+
+=== Verification for chunk 20
+
+FreeBSD Clang Debug/Botan/Unifont CMake application and affected-target build
+passed; all six planned native CTests passed (393.94s under current load).
+GCC Debug/OpenSSL and Clang ASan/UBSan/OpenSSL application and affected-target
+builds passed. On each, filesystem and wren_file_truncate passed (17.10s / 23.90s),
+followed by wren_digest (15.22s / 21.47s). FreeBSD leak detection remains disabled;
+the existing C++ vptr exclusion is unchanged. No compiler or sanitizer diagnostics
+were observed. Both menu/connected focused fixtures cover raw bytes, buffering,
+authority, exact numeric/native errors, GC and teardown. The controlled maximum
+length tests do not grow huge files. All fixtures are headless without physical
+audio or inherited desktop variables.
+
+Accounting checker and independent comparison of all 83 matrix rows passed:
+83 public headers, 132 exclusions, 2575 items and 161 assessments; 23 topics
+resolved and 28 open. Native declarations/TSV rows are unchanged.
+Both MinGW x86/x86_64 Debug/no-crypto configurations cross-built DLL, both
+launchers and affected tests. Common libraries/application targets passed full
+CMake builds; remaining executables used generated fast targets after their
+shared dependencies were verified. No Windows execution, MSVC or Wine.
+
+Final direct standard-header review rebuilt the new harness and passed resize
+reruns on Clang/GCC/ASan (16.56s / 15.66s / 19.83s). Final accounting checker,
+independent matrix/count review and source review passed. No compiler or
+sanitizer diagnostics were introduced. Native declarations/TSV remain unchanged.
+Remaining work for this chunk: none; commit the complete verified change without
+pushing. Retain this temporary record and skill for the 28 open topics.
+
 == Approved chunk 19: Cell styles and metadata (revision 1)
 
 Approval: the user approved the complete Plan-mode revision 1 with "Implement

@@ -6275,6 +6275,9 @@ return an Operation; the table describes its completed value.
 | `File.read()`
 | Complete file bytes from offset zero, including `""` for an empty file,
   or `FileError`.
+| `File.truncate(size)`
+| `null` after resizing, or `FileError`; existing buffered output may already
+  have flushed when resizing fails.
 | `File.readLine()`
 | A line String (including `""` for a blank line), `null` at EOF, or `FileError`.
 | `Directory.contains(name)`
@@ -6456,6 +6459,20 @@ does not broaden its authority.
 | Replace file contents with `s`.  On an append-consent File, append `s`
   instead so the consent cannot be broadened into overwrite access.
   Returns `null` or `FileError`.
+
+| `File.truncate(size)`
+| Resize an open writable file to an exact nonnegative integer byte length;
+  see <<native-integer-limits>>. Shrinking discards the tail; extending fills
+  the added bytes with zero. Preserve the current offset, even beyond the new
+  EOF. Synchronizes buffered input/output first, so later reads cannot return
+  discarded bytes and buffered writes cannot regrow the truncated tail.
+  Zero and unchanged lengths still perform the native operation.
+  Returns `null` or `FileError` with the native reason and captured errno.
+  Pending writes may already have flushed when resizing fails; there is no
+  rollback or automatic retry. Invalid lengths, closed/unopened handles,
+  read-only grants and append-only consent abort before I/O. Create/overwrite
+  consent permits resizing during its one-shot open lifetime. No new grant
+  or path access is created. For example: `var result = file.truncate(1024)`.
 
 | `File.readLine()`
 | Read from the current offset to the first LF (0x0A) or EOF and

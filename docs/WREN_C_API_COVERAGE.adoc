@@ -6,7 +6,7 @@ Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +transfer-result+, +transfer-protocol-selection+, +settings-transfer-timeouts+,
 +bbs-provenance+, +clipboard-url-capabilities+, +theme-origin+,
 +pixel-offscreen-blit+, +cterm-reset-contract+, +digest-algorithms+,
-+codepage-utility+, +font-compatibility-metadata+ and +cell-style-flags+ are resolved.
++codepage-utility+, +font-compatibility-metadata+, +cell-style-flags+ and +files-truncate+ are resolved.
 CTerm and Screen result fidelity are resolved by their approved chunks,
 completing +console-operation-results+.
 Selected BBS/Settings mutation results, Menu.load and emoji recording now
@@ -26,15 +26,15 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 83 project-owned public headers, 2,575 named native items,
 and 132 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Twenty-two topics
+broader API-scope decisions, plus one stale documentation finding. Twenty-three topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
 portable I/O error symbols, BBS diagnostics, model-operation results, theme
 operation results, transfer results, explicit XMODEM-G selection, the
 intentional cache-status omission, console operation results, transfer timeout
 Settings bindings, entry provenance, clipboard/URL capability queries, cloud
 theme provenance, offscreen pixel compositing, direct terminal reset, digest
-coverage, explicit codepage conversions, built-in font compatibility metadata and Cell styles)
-are resolved. The remaining 29 topics retain their recorded open subclaims;
+coverage, explicit codepage conversions, built-in font compatibility metadata, Cell styles and explicit File resizing)
+are resolved. The remaining 28 topics retain their recorded open subclaims;
 the separate profile-field-table documentation finding is resolved. The numbers follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
@@ -181,7 +181,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 115 | 0 | 0 | 7 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
 | link:../src/io/file_lock/st_file_lock.h[io/file_lock/st_file_lock.h] | 0 | 0 | 0 | 2 | 0 | +files.transaction-lock+
 | link:../src/io/file_map/file_map.h[io/file_map/file_map.h] | 0 | 0 | 0 | 5 | 0 | +files.mapping+
-| link:../src/io/filesystem/filesystem.h[io/filesystem/filesystem.h] | 14 | 4 | 3 | 2 | 0 | +files.grants+, +files.link-metadata+, +files.mkdir-internal+, +files.rename-copy+, +files.truncate+
+| link:../src/io/filesystem/filesystem.h[io/filesystem/filesystem.h] | 15 | 4 | 2 | 2 | 0 | +files.grants+, +files.link-metadata+, +files.mkdir-internal+, +files.rename-copy+, +files.truncate+
 | link:../src/io/path/path.h[io/path/path.h] | 0 | 10 | 0 | 0 | 0 | +paths.picker+
 | link:../src/io/serial/serial.h[io/serial/serial.h] | 12 | 0 | 8 | 5 | 0 | +serial.connection+, +serial.lines+, +serial.transport-owner+
 | link:../src/media/amiga_font/st_amiga_font.h[media/amiga_font/st_amiga_font.h] | 2 | 0 | 0 | 24 | 0 | +fonts.amiga-packages+, +fonts.amiga-renderer+
@@ -512,7 +512,7 @@ is removed without an alias; FileError remains the filesystem error type.
 MenuError separately preserves generic native statuses rather than inventing
 a portable meaning for legacy -1. errno/Windows translators remain host mechanisms.
 
-Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1667].
+Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1668].
 
 [[finding-files-link-kind]]
 === Filesystem kind metadata is limited by the grant abstraction
@@ -727,7 +727,7 @@ SFTPEntry.size/mtime getters and dispatch entries are removed without aliases;
 the bundled browser captures stat once per row. Queue persistence and upload
 grants are unchanged.
 
-Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2229]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2230]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
 
 [[finding-theme-operation-results]]
 === Theme operation results (resolved)
@@ -873,7 +873,7 @@ Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:148]; link:../
 
 Terminal protocols can consume sounds internally, but no script format availability query or granted-file/byte decoding to PCM is exposed. Native stream/memory inputs are not mapped by the absence of an AudioFile object.
 
-Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1871].
+Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1872].
 
 +cterm.audio-fx+ (partial; same VM as the owning API). Wren: protocol-driven OOII/CTerm sound only.
 
@@ -948,13 +948,27 @@ No granted rename or native copy-file operation exists. Read/write/delete cannot
 Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:63]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1581].
 
 [[finding-files-truncate]]
-=== Explicit file truncation
+=== Explicit file truncation (resolved)
 
-+files.truncate+ (unmapped; menu/connected grant owners; no file opening in picker VM). Wren: no explicit File truncate method.
++files.truncate+ (covered; menu/connected grant owners; no file opening in picker
+VM). Wren: +File.truncate(size)+.
 
-The binding offers reads/writes/seek and size inspection, but no explicit truncation to a chosen length. Creating/replacing a file is not equivalent to truncating an existing granted stream at an arbitrary length.
+Approved chunk 20 exposes the existing native resize operation through an open
+writable File. Exact nonnegative byte lengths use the established Number range;
+shrinking/zero-filled extension preserves the logical offset, even beyond EOF.
+Synchronization precedes a single native call, discarding read-ahead and flushing
+pending output. Native failures retain their status and captured errno in
+FileError; prior writes may already have flushed when resizing fails. There is
+no rollback, retry or fallible post-commit check.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1631].
+Closed/unopened, read-only and append-consent grants reject the operation before
+I/O. Create/overwrite consent retains its one-shot open lifetime. Existing cache
+ownership and already-open stream rules are unchanged; no path, picker, transfer
+or token authority is broadened. Invalid numeric/types have no native effects;
+zero and unchanged lengths still call the native operation. Raw bytes, native
+algorithms and existing write methods remain unchanged.
+
+Evidence: link:../src/io/filesystem/filesystem.h[fs_stream_truncate]; link:../src/scripting/wren_host/wren_bind_fs.c[fn_file_truncate]; link:../scripts/syncterm.wren[File declaration]; link:../src/scripting/wren_host/tests/file_truncate.wren[independent byte/stream expectations]; link:../src/scripting/wren_host/tests/st_wren_file_truncate_test.c[native failure, grant and lifetime checks].
 
 [[finding-font-compatibility-metadata]]
 === Font broken-vertical compatibility metadata (resolved)
@@ -1125,7 +1139,7 @@ Evidence: link:../src/base/string_util/string_util.h[src/base/string_util/string
 
 Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.
 
-Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2185].
+Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2186].
 
 [[finding-utility-crypto]]
 === General cryptographic primitives and strong random bytes
@@ -1709,3 +1723,30 @@ two ASan/UBSan tests with no crypto/no Unifont. Both MinGW architectures compile
 the DLL/launchers and affected tests cleanly; no Windows execution or MSVC claim.
 Native declarations and all 83 matrix rows remain unchanged: 2,575 items,
 132 exclusions and 161 assessments, with 22 resolved/29 open original topics.
+
+
+=== Chunk 20: granted File resizing
+
+The approved +File.truncate(size)+ operation resolves +files-truncate+ through
+existing open writable grants, preserving native resize semantics and errors.
+The regression first failed at the missing method. Final independent byte/stream
+expectations and native failure controls cover both menu and connected VMs,
+including buffering/EOF, offsets beyond EOF, zero-filled extension, strict
+validation, one-shot/append/read grants, stale ownership, error GC and teardown.
+A failed resize may follow a successful flush of earlier writes; there is no
+fallible secondary check after successful mutation.
+
+FreeBSD Clang Debug application/affected-target builds and all six planned
+CTests passed. GCC and ASan/UBSan application/affected-target builds and the three
+focused filesystem/resize/digest tests passed; final harness header-review
+rebuilds and resize reruns passed on all three configurations. Unsupported
+FreeBSD leak detection remains disabled and the existing C++ vptr exclusion
+is unchanged. Both MinGW architectures cross-built DLL/both launchers and
+affected test executables; common libraries passed full application builds,
+then the remaining executable targets used CMake-generated fast rules. No
+Windows/MSVC runtime or Wine coverage is claimed. No compiler or sanitizer
+diagnostics were introduced; fixtures are headless without physical audio.
+
+Accounting and all 83 matrix rows agree: 2575 items, 132 exclusions and 161
+assessments, with 23 resolved and 28 open original topics. Native declarations
+and ledger rows remain unchanged. Retain the temporary planning record and skill.

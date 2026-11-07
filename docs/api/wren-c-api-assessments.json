@@ -1419,9 +1419,9 @@
       "decision": "scope-review"
     },
     "files.truncate": {
-      "status": "unmapped",
-      "wren": "no explicit File truncate method",
-      "reason": "The binding offers reads/writes/seek and size inspection, but no explicit truncation to a chosen length. Creating/replacing a file is not equivalent to truncating an existing granted stream at an arbitrary length.",
+      "status": "covered",
+      "wren": "File.truncate(size)",
+      "reason": "An open writable File can synchronously shrink or zero-extend to an exact nonnegative Number length, preserving its logical offset including beyond EOF. Stream synchronization precedes one native truncation; native status and captured errno become existing FileError values. Invalid lengths and closed/read-only/append-consent handles abort before I/O. Create/overwrite one-shot consent and existing cache-owner/open-stream lifetimes remain unchanged. Previously buffered output may already have flushed on failure; no rollback, retry or post-commit verification. No new authority, owner, native algorithm or byte normalization.",
       "vm": "menu/connected grant owners; no file opening in picker VM",
       "evidence": [
         {
@@ -1430,11 +1430,16 @@
         },
         {
           "path": "scripts/syncterm.wren",
-          "anchor": "foreign size"
+          "anchor": "foreign truncate(size)"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_fs.c",
+          "anchor": "fn_file_truncate"
         }
       ],
       "finding": "files-truncate",
-      "decision": "scope-review"
+      "decision": "resolved",
+      "resolution": "Approved chunk 20 revision 1: explicit granted File resizing."
     },
     "files.link-metadata": {
       "status": "partial",
@@ -4907,6 +4912,21 @@
       "path": "src/scripting/wren_host/tests/cloud_theme_views.wren",
       "anchor": "class CloudStartupApp",
       "aspect": "Fresh host opens the shipped Themes browser with the saved package listed/highlighted; real Escape and Enter preserve the package, without an online refresh."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/file_truncate.wren",
+      "anchor": "class TruncateChecks",
+      "aspect": "Independent raw-byte resize, buffering/EOF, offset, invalid-input, consent, error ownership and lifecycle checks through real Wren callers."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_file_truncate_test.c",
+      "anchor": "boundaries(WrenVM *vm)",
+      "aspect": "Menu/connected native-boundary error and exact-length forwarding controls, no-effects validation, successful/failed resize sequencing, GC and teardown."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c",
+      "anchor": "test_truncate(FILE *stream, uint64_t size)",
+      "aspect": "Test-only interceptions compile the actual filesystem binding; no fault controls or new grant factories in the application."
     }
   ],
   "dispatch_evidence": [
@@ -4925,7 +4945,7 @@
     "docs/TERMINAL_CONFORMANCE.md": "80d5c9b23c97749cbfeeebdc8af8b3dafea856c2ef5a1454fb330aba0704e435",
     "docs/Themes.adoc": "04e09bf265087138eb9eb7a0ed6a4f050e5f467e6dffeb9cfc87b8d6aa6befce",
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "1f308e10e521da7be3381bf1376e11b7a948ad3dfd879afd228c315843b930f8",
+    "docs/Wren.adoc": "198274447bc6e326c63373f9e373a3a2010dedee504f7df536a827696e8b25fa",
     "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "scripts/auto/connected/font_pick.wren": "b7c7176c36e9ec274425e4ea3bd14f37ce9991e6fe19078a83ec614e6978422b",
@@ -4941,7 +4961,7 @@
     "scripts/pixel_vm_test.wren": "61dee1425b2a5ec67afb96dc04a27f1e20dad6243a149cd67eab514d2541f2cf",
     "scripts/sftp_app.wren": "768e459dd484d4bf094edb61cd85b2ed58ecaca47475b4a6887e14e628fe12f0",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "700a9532ef293f4ff29b0721ca2a6f8ae938ead9bd0326f194bcd65d8e9c9656",
+    "scripts/syncterm.wren": "49845b6a8e1e1f76fad195b11e67395b415a8482505412e8ee54c44eab33b5ee",
     "scripts/syncterm_menu.wren": "1a0835987132b835703dae839bc5a3a13f49c585f3cdedb170f6daff00d7fbfa",
     "scripts/syncterm_picker.wren": "06b539737eb1a35dbfa10417c9310be744246fa666262c0e0c791507fd918077",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
@@ -5048,7 +5068,7 @@
     "src/net/transfer/st_transfer.h": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
-    "src/scripting/wren_host/CMakeLists.txt": "554678a34d632b3dc43faf9f3a9c320aed0c50b8eff63855e645a65a18ad28ae",
+    "src/scripting/wren_host/CMakeLists.txt": "2f096ee11fc657df4d6a9f3d5dfacf558530592e7ababc5493583060d240dfe3",
     "src/scripting/wren_host/st_wren_host.h": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
     "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc",
     "src/scripting/wren_host/tests/cell_styles.wren": "522a83bc0cc79882d136348d78f72e3f189064014709955f0e61cbdd9777590e",
@@ -5076,7 +5096,7 @@
     "src/scripting/wren_host/wren_bbs_model.h": "abe9afb6c1fa09ae794f6f1454ae702d104c9de743fb6e999cc4ac4841cf293d",
     "src/scripting/wren_host/wren_bind_core.c": "42cbdd9591de20f4c3cf9ac4ac3ff45e6e43113fe797b40655fd1b7003335a25",
     "src/scripting/wren_host/wren_bind_digest.c": "53078c4038d0a189807e4f83fa3a800cf1ee50f3fdcf20a7b729c433f6bdb21b",
-    "src/scripting/wren_host/wren_bind_fs.c": "a6a43847fcc78584be2269bb83331661cc7d01332d542b2828948e8d36dbfcf0",
+    "src/scripting/wren_host/wren_bind_fs.c": "df4f6a0bd90251d97ea788e13070cec5449f0e6dfadf1d0be0bb0777f3303ee4",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "785dfb5b7c7f4db6e8f78ca0465958af09632f115ed14e0755a87aad09f8bb52",
     "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
@@ -5148,7 +5168,10 @@
     "src/text/unicode_normalization/st_unicode_normalization.h": "cac5d848896ff4c278fad91926d02c5c9f07adaaabd39788d4ff5060f778ee53",
     "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
     "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
-    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1"
+    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
+    "src/scripting/wren_host/tests/file_truncate.wren": "2f11003983c9c0cb523a45c2c5fa9305d33640990610e6cc02b844d14901dfb6",
+    "src/scripting/wren_host/tests/st_wren_file_truncate_test.c": "41f5b81fe0ecddc43b390caceaab4c32751bc84826ce1ef35bda37bff96ff395",
+    "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c": "6e7538e6ddcbf8f2de3a8255037c59134826eec81cd24f39ed2ffb65b11b690f"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -6893,6 +6916,33 @@
         "environment": "Headless fixtures clear inherited desktop variables and disable physical PCM/MIDI output. Final build logs contain no compiler warnings."
       },
       "accounting": "Only the reviewed theme header comment and affected implementation/test/documentation evidence change; native declarations, inventory rows, matrix and dispositions remain unchanged: 83 public headers, 132 exclusions, 2575 items, 161 assessments, 22 resolved/29 open original topics. No new burndown scope closure."
+    },
+    {
+      "topic": "files-truncate",
+      "status": "resolved",
+      "approval": "Complete Plan-mode chunk 20 revision 1 approved with Implement the plan after returning to Default mode. User selected explicit File.truncate rather than retaining the omission.",
+      "assessments": [
+        "files.truncate"
+      ],
+      "scope": "Add synchronous File.truncate(size) on open writable menu/connected grants, using exact nonnegative Number lengths and existing FileError. Reject append, read-only, closed/unopened and invalid lengths before I/O. Synchronize the logical position before one native resize; preserve the offset, raw bytes, native statuses/errno and existing grant/stream/consent ownership. No post-commit verification, rollback, automatic retry, path opening, picker authority or native algorithm changes. No existing caller migration or compatibility adapter is needed.",
+      "tests_passed": [
+        "wren_file_truncate",
+        "filesystem",
+        "wren_digest",
+        "wren_host",
+        "wren_menu_contract",
+        "wren_picker_contract"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang Debug/Botan/Unifont application and affected CMake targets built. All six listed CTests passed (393.94s under current load). After final direct standard-header includes in the new harness, its target rebuilt and wren_file_truncate passed again (16.56s).",
+        "gcc": "FreeBSD GCC Debug/OpenSSL application and affected targets built. filesystem and wren_file_truncate passed (17.10s); wren_digest passed (15.22s). Final harness rebuild and focused rerun passed (15.66s).",
+        "sanitizers": "FreeBSD Clang ASan/UBSan/OpenSSL application and affected targets built. filesystem and wren_file_truncate passed (23.90s); wren_digest passed (21.47s). Final harness rebuild and focused rerun passed (19.83s). No sanitizer diagnostics; unsupported FreeBSD leak detection remains disabled and the existing C++ vptr exclusion is unchanged.",
+        "windows": "MinGW x86 and x86_64 Debug/no-crypto configured and cross-built DLL, both launchers and all affected test executables. Application/common libraries passed normal CMake targets; remaining executables compiled/linked with CMake-generated fast targets to avoid repeating completed library dependency scans. No Windows execution, MSVC or Wine.",
+        "regressions": "The initial regression failed because File did not implement truncate(_). Independent raw-byte expectations cover shrink/zero/extension/unchanged lengths, zero-filled extension, read-ahead/EOF, buffered output, offsets beyond EOF and subsequent I/O. Real menu and connected VMs cover invalid inputs before effects, native position/synchronization/resize failures and recovery, exactly one resize/no post-success queries, full-width size forwarding without huge files, preceding writes flushed before a failed resize, read/append/one-shot grants, stale open-stream ownership, immutable owned errors, GC and both VM teardown paths.",
+        "warnings": "Final exercised configurations/builds have no compiler warnings or errors. Headless fixtures clear desktop variables and open no physical audio devices."
+      },
+      "evidence_review": "Reviewed native POSIX/Windows stream resize contracts, binding/dispatch/declaration, actual grants and buffering helpers, test-only source inclusion and native-boundary controls, independent byte expectations, ownership/lifecycle checks, CMake isolation and authoritative docs. Only reviewed changed/new evidence digests were refreshed; all 83 matrix rows independently match the symbol ledger.",
+      "accounting": "83 public headers, 132 exclusions, 2575 native items, 161 assessments and 51 original topics. One existing filesystem row moves Unmapped to Covered; native declarations and TSV rows are unchanged. Twenty-three topics resolved and twenty-eight open; the separate documentation finding remains resolved. Retain temporary skill and approved record."
     }
   ]
 }
