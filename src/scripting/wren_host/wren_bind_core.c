@@ -4140,50 +4140,91 @@ fn_cell_attr_set(WrenVM *vm)
 	set_cell_legacy_attr(cell, (uint8_t)value);
 }
 
+/* Only independent drawing styles are writable. Serial attributes and
+ * glyph/raster/colour-origin state belong to their existing owners. */
+#define CELL_STYLE_FLAGS (ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK \
+    | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BOLD \
+    | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONCEAL)
+
 static void
-fn_cell_bright(WrenVM *vm)
+cell_flag_get(WrenVM *vm, uint32_t flag)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
 
 	if (cell != NULL)
-		wrenSetSlotBool(vm, 0,
-		    (cell->flags & ST_CONSOLE_CELL_BRIGHT) != 0);
+		wrenSetSlotBool(vm, 0, (cell->flags & flag) != 0);
 }
 
 static void
-fn_cell_bright_set(WrenVM *vm)
+cell_flag_set(WrenVM *vm, uint32_t flag)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
+	bool value;
 
-	if (cell == NULL || wrenGetSlotType(vm, 1) != WREN_TYPE_BOOL)
+	if (cell == NULL || !slot_boolean(vm, 1, &value))
 		return;
-	if (wrenGetSlotBool(vm, 1))
-		cell->flags |= ST_CONSOLE_CELL_BRIGHT;
+	if (value)
+		cell->flags |= flag;
 	else
-		cell->flags &= ~ST_CONSOLE_CELL_BRIGHT;
+		cell->flags &= ~flag;
 }
 
+#define CELL_STYLE_PROPERTY(name, flag) \
+static void fn_cell_##name(WrenVM *vm) { cell_flag_get(vm, flag); } \
+static void fn_cell_##name##_set(WrenVM *vm) { cell_flag_set(vm, flag); }
+CELL_STYLE_PROPERTY(bright, ST_CONSOLE_CELL_BRIGHT)
+CELL_STYLE_PROPERTY(blink, ST_CONSOLE_CELL_BLINK)
+CELL_STYLE_PROPERTY(underline, ST_CONSOLE_CELL_UNDERLINE)
+CELL_STYLE_PROPERTY(bold, ST_CONSOLE_CELL_BOLD)
+CELL_STYLE_PROPERTY(reverse, ST_CONSOLE_CELL_REVERSE)
+CELL_STYLE_PROPERTY(conceal, ST_CONSOLE_CELL_CONCEAL)
+#undef CELL_STYLE_PROPERTY
+
+#define CELL_METADATA_PROPERTY(name, flag) \
+static void fn_cell_##name(WrenVM *vm) { cell_flag_get(vm, flag); }
+CELL_METADATA_PROPERTY(teletext, ST_CONSOLE_CELL_SAA5050)
+CELL_METADATA_PROPERTY(double_height, ST_CONSOLE_CELL_DOUBLE_HEIGHT)
+CELL_METADATA_PROPERTY(reveal, ST_CONSOLE_CELL_REVEAL)
+CELL_METADATA_PROPERTY(separated, ST_CONSOLE_CELL_SEPARATED)
+#undef CELL_METADATA_PROPERTY
+
 static void
-fn_cell_blink(WrenVM *vm)
+fn_cell_style_flags(WrenVM *vm)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
 
 	if (cell != NULL)
-		wrenSetSlotBool(vm, 0,
-		    (cell->flags & ST_CONSOLE_CELL_BLINK) != 0);
+		wrenSetSlotDouble(vm, 0, cell->flags & CELL_STYLE_FLAGS);
 }
 
 static void
-fn_cell_blink_set(WrenVM *vm)
+fn_cell_style_flags_set(WrenVM *vm)
+{
+	struct st_console_cell *cell = cell_value(vm, 0);
+	int64_t value;
+
+	if (cell == NULL || !slot_integer(vm, 1, 0, UINT32_MAX, &value))
+		return;
+	if (((uint32_t)value & ~CELL_STYLE_FLAGS) != 0) {
+		st_wren_abort(vm, "Cell.styleFlags contains unsupported bits");
+		return;
+	}
+	cell->flags = (cell->flags & ~CELL_STYLE_FLAGS) | (uint32_t)value;
+}
+
+static void
+fn_cell_teletext_control(WrenVM *vm)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
 
-	if (cell == NULL || wrenGetSlotType(vm, 1) != WREN_TYPE_BOOL)
+	if (cell == NULL)
 		return;
-	if (wrenGetSlotBool(vm, 1))
-		cell->flags |= ST_CONSOLE_CELL_BLINK;
+	uint32_t control = (cell->flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
+	    >> ST_CONSOLE_CELL_SAA5050_CONTROL_SHIFT;
+	if (control == 0)
+		wrenSetSlotNull(vm, 0);
 	else
-		cell->flags &= ~ST_CONSOLE_CELL_BLINK;
+		wrenSetSlotDouble(vm, 0, control);
 }
 
 static void
@@ -5469,6 +5510,21 @@ static const struct binding bindings[] = {
 	{"Cell", false, "bright=(_)", fn_cell_bright_set},
 	{"Cell", false, "blink", fn_cell_blink},
 	{"Cell", false, "blink=(_)", fn_cell_blink_set},
+	{"Cell", false, "styleFlags", fn_cell_style_flags},
+	{"Cell", false, "styleFlags=(_)", fn_cell_style_flags_set},
+	{"Cell", false, "underline", fn_cell_underline},
+	{"Cell", false, "underline=(_)", fn_cell_underline_set},
+	{"Cell", false, "bold", fn_cell_bold},
+	{"Cell", false, "bold=(_)", fn_cell_bold_set},
+	{"Cell", false, "reverse", fn_cell_reverse},
+	{"Cell", false, "reverse=(_)", fn_cell_reverse_set},
+	{"Cell", false, "conceal", fn_cell_conceal},
+	{"Cell", false, "conceal=(_)", fn_cell_conceal_set},
+	{"Cell", false, "teletext", fn_cell_teletext},
+	{"Cell", false, "doubleHeight", fn_cell_double_height},
+	{"Cell", false, "reveal", fn_cell_reveal},
+	{"Cell", false, "separated", fn_cell_separated},
+	{"Cell", false, "teletextControl", fn_cell_teletext_control},
 	{"Cell", false, "pixelGraphics", fn_cell_pixel_graphics},
 	{"Cell", false, "fgPalette", fn_cell_fg_palette},
 	{"Cell", false, "fgPalette=(_)", fn_cell_fg_palette_set},

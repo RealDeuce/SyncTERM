@@ -661,79 +661,80 @@ src/config/settings/st_settings.h	field:st_settings.custom_fonts	63	st_settings_
 src/config/settings/st_settings.h	field:st_settings.scaling_factor	64	double	settings.window-state
 src/config/settings/st_settings.h	field:st_settings.modem_rate	65	uint32_t	settings.model
 src/config/settings/st_settings.h	field:st_settings.audio_output_modes	66	uint32_t	settings.model
-src/config/settings/st_settings.h	field:st_settings.theme_frame_color	71	unsigned int	settings.model
-src/config/settings/st_settings.h	field:st_settings.theme_text_color	72	unsigned int	settings.model
-src/config/settings/st_settings.h	field:st_settings.theme_background_color	73	unsigned int	settings.model
-src/config/settings/st_settings.h	field:st_settings.theme_inverse_color	74	unsigned int	settings.model
-src/config/settings/st_settings.h	field:st_settings.theme_lightbar_color	75	unsigned int	settings.model
-src/config/settings/st_settings.h	field:st_settings.theme_lightbar_background_color	76	unsigned int	settings.model
-src/config/settings/st_settings.h	field:st_settings.confirm_close	77	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.startup_mode	78	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.output_mode	79	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.scrollback_lines	80	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.prompt_save	81	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.transfer_failure_keypress_timeout	82	int	settings.transfer-timeouts
-src/config/settings/st_settings.h	field:st_settings.transfer_success_keypress_timeout	83	int	settings.transfer-timeouts
-src/config/settings/st_settings.h	field:st_settings.custom_columns	84	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.custom_rows	85	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.custom_font_height	86	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.custom_aspect_width	87	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.custom_aspect_height	88	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.window_width	89	int	settings.window-state
-src/config/settings/st_settings.h	field:st_settings.window_height	90	int	settings.window-state
-src/config/settings/st_settings.h	field:st_settings.left_justify	91	int	settings.window-state
-src/config/settings/st_settings.h	field:st_settings.blocky_scaling	92	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.external_scaling	93	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.default_cursor	94	int	settings.model
-src/config/settings/st_settings.h	field:st_settings.modem_init_string	95	char[1024]	settings.model
-src/config/settings/st_settings.h	field:st_settings.modem_dial_string	96	char[1024]	settings.model
-src/config/settings/st_settings.h	field:st_settings.terminal_type	97	char[1024]	settings.model
-src/config/settings/st_settings.h	field:st_settings.key_derivation_iterations	98	char[32]	settings.kdf-legacy
-src/config/settings/st_settings.h	field:st_settings.invert_wheel	99	_Bool	settings.model
-src/config/settings/st_settings.h	field:st_settings.color_emoji	100	_Bool	settings.model
-src/config/settings/st_settings.h	field:st_settings.download_system_list	101	_Bool	settings.model
-src/config/settings/st_settings.h	variable:st_settings	104	struct st_settings	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_init	108	void (struct st_settings *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_dispose	109	void (struct st_settings *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_copy	111	_Bool (struct st_settings *, const struct st_settings *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_load	120	int (const struct st_app_paths *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_reload	122	int (void)	settings.disk-reload
-src/config/settings/st_settings.h	function:st_settings_install	124	void (struct st_settings *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_save_value	126	int (const struct st_settings *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_save	127	int (void)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_persist_scaling_factor	130	int (double)	settings.window-state
-src/config/settings/st_settings.h	function:st_settings_shutdown	131	void (void)	settings.lifecycle
-src/config/settings/st_settings.h	macro:ST_SETTINGS_RECENT_EMOJI_MAX	133	32	settings.model
-src/config/settings/st_settings.h	function:st_settings_recent_emoji_count	134	size_t (void)	settings.model
-src/config/settings/st_settings.h	function:st_settings_recent_emoji_at	135	const char *(size_t)	settings.model
-src/config/settings/st_settings.h	function:st_settings_remember_emoji	137	int (const char *, _Bool)	settings.recent-result
-src/config/settings/st_settings.h	function:st_settings_web_download_count	139	size_t (void)	settings.model
-src/config/settings/st_settings.h	function:st_settings_web_download_at	140	const struct name_value *(size_t)	settings.model
-src/config/settings/st_settings.h	function:st_settings_web_download_set	142	int (size_t, const char *, const char *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_web_download_append	144	int (const char *, const char *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_web_download_remove	145	int (size_t)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_web_download_move	146	int (size_t, size_t)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_sort_profile_count	148	size_t (void)	settings.model
-src/config/settings/st_settings.h	function:st_settings_sort_profile_at	149	const struct name_value *(size_t)	settings.model
-src/config/settings/st_settings.h	function:st_settings_active_sort_profile	150	size_t (void)	settings.model
-src/config/settings/st_settings.h	function:st_settings_sort_profile_select	151	int (size_t)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_sort_profile_add	153	int (size_t, const char *, const char *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_sort_profile_update	155	int (size_t, const char *, const char *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_sort_profile_remove	157	int (size_t)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_font_count	159	size_t (void)	settings.model
-src/config/settings/st_settings.h	function:st_settings_font_at	160	const struct st_settings_font *(size_t)	settings.model
-src/config/settings/st_settings.h	function:st_settings_font_name_valid	162	_Bool (const char *)	settings.model
-src/config/settings/st_settings.h	function:st_settings_font_draft_init	163	void (struct st_settings_font_draft *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_font_draft_dispose	164	void (struct st_settings_font_draft *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_font_draft_open	166	int (struct st_settings_font_draft *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_font_draft_reload	167	int (struct st_settings_font_draft *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_font_draft_save	169	int (struct st_settings_font_draft *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_font_draft_count	170	size_t (const struct st_settings_font_draft *)	settings.model
-src/config/settings/st_settings.h	function:st_settings_font_draft_at	172	const struct st_settings_font *(const struct st_settings_font_draft *, size_t)	settings.model
-src/config/settings/st_settings.h	function:st_settings_font_draft_insert	174	int (struct st_settings_font_draft *, size_t, const char *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_font_draft_rename	176	int (struct st_settings_font_draft *, size_t, const char *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_font_draft_set_path	178	int (struct st_settings_font_draft *, size_t, enum st_settings_font_path, const char *)	settings.result-status
-src/config/settings/st_settings.h	function:st_settings_font_draft_remove	180	int (struct st_settings_font_draft *, size_t)	settings.result-status
+src/config/settings/st_settings.h	field:st_settings.midi_output_modes	67	uint32_t	settings.model
+src/config/settings/st_settings.h	field:st_settings.theme_frame_color	72	unsigned int	settings.model
+src/config/settings/st_settings.h	field:st_settings.theme_text_color	73	unsigned int	settings.model
+src/config/settings/st_settings.h	field:st_settings.theme_background_color	74	unsigned int	settings.model
+src/config/settings/st_settings.h	field:st_settings.theme_inverse_color	75	unsigned int	settings.model
+src/config/settings/st_settings.h	field:st_settings.theme_lightbar_color	76	unsigned int	settings.model
+src/config/settings/st_settings.h	field:st_settings.theme_lightbar_background_color	77	unsigned int	settings.model
+src/config/settings/st_settings.h	field:st_settings.confirm_close	78	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.startup_mode	79	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.output_mode	80	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.scrollback_lines	81	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.prompt_save	82	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.transfer_failure_keypress_timeout	83	int	settings.transfer-timeouts
+src/config/settings/st_settings.h	field:st_settings.transfer_success_keypress_timeout	84	int	settings.transfer-timeouts
+src/config/settings/st_settings.h	field:st_settings.custom_columns	85	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.custom_rows	86	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.custom_font_height	87	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.custom_aspect_width	88	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.custom_aspect_height	89	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.window_width	90	int	settings.window-state
+src/config/settings/st_settings.h	field:st_settings.window_height	91	int	settings.window-state
+src/config/settings/st_settings.h	field:st_settings.left_justify	92	int	settings.window-state
+src/config/settings/st_settings.h	field:st_settings.blocky_scaling	93	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.external_scaling	94	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.default_cursor	95	int	settings.model
+src/config/settings/st_settings.h	field:st_settings.modem_init_string	96	char[1024]	settings.model
+src/config/settings/st_settings.h	field:st_settings.modem_dial_string	97	char[1024]	settings.model
+src/config/settings/st_settings.h	field:st_settings.terminal_type	98	char[1024]	settings.model
+src/config/settings/st_settings.h	field:st_settings.key_derivation_iterations	99	char[32]	settings.kdf-legacy
+src/config/settings/st_settings.h	field:st_settings.invert_wheel	100	_Bool	settings.model
+src/config/settings/st_settings.h	field:st_settings.color_emoji	101	_Bool	settings.model
+src/config/settings/st_settings.h	field:st_settings.download_system_list	102	_Bool	settings.model
+src/config/settings/st_settings.h	variable:st_settings	105	struct st_settings	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_init	109	void (struct st_settings *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_dispose	110	void (struct st_settings *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_copy	112	_Bool (struct st_settings *, const struct st_settings *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_load	121	int (const struct st_app_paths *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_reload	123	int (void)	settings.disk-reload
+src/config/settings/st_settings.h	function:st_settings_install	125	void (struct st_settings *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_save_value	127	int (const struct st_settings *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_save	128	int (void)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_persist_scaling_factor	131	int (double)	settings.window-state
+src/config/settings/st_settings.h	function:st_settings_shutdown	132	void (void)	settings.lifecycle
+src/config/settings/st_settings.h	macro:ST_SETTINGS_RECENT_EMOJI_MAX	134	32	settings.model
+src/config/settings/st_settings.h	function:st_settings_recent_emoji_count	135	size_t (void)	settings.model
+src/config/settings/st_settings.h	function:st_settings_recent_emoji_at	136	const char *(size_t)	settings.model
+src/config/settings/st_settings.h	function:st_settings_remember_emoji	138	int (const char *, _Bool)	settings.recent-result
+src/config/settings/st_settings.h	function:st_settings_web_download_count	140	size_t (void)	settings.model
+src/config/settings/st_settings.h	function:st_settings_web_download_at	141	const struct name_value *(size_t)	settings.model
+src/config/settings/st_settings.h	function:st_settings_web_download_set	143	int (size_t, const char *, const char *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_web_download_append	145	int (const char *, const char *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_web_download_remove	146	int (size_t)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_web_download_move	147	int (size_t, size_t)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_sort_profile_count	149	size_t (void)	settings.model
+src/config/settings/st_settings.h	function:st_settings_sort_profile_at	150	const struct name_value *(size_t)	settings.model
+src/config/settings/st_settings.h	function:st_settings_active_sort_profile	151	size_t (void)	settings.model
+src/config/settings/st_settings.h	function:st_settings_sort_profile_select	152	int (size_t)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_sort_profile_add	154	int (size_t, const char *, const char *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_sort_profile_update	156	int (size_t, const char *, const char *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_sort_profile_remove	158	int (size_t)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_font_count	160	size_t (void)	settings.model
+src/config/settings/st_settings.h	function:st_settings_font_at	161	const struct st_settings_font *(size_t)	settings.model
+src/config/settings/st_settings.h	function:st_settings_font_name_valid	163	_Bool (const char *)	settings.model
+src/config/settings/st_settings.h	function:st_settings_font_draft_init	164	void (struct st_settings_font_draft *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_font_draft_dispose	165	void (struct st_settings_font_draft *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_font_draft_open	167	int (struct st_settings_font_draft *)	settings.lifecycle
+src/config/settings/st_settings.h	function:st_settings_font_draft_reload	168	int (struct st_settings_font_draft *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_font_draft_save	170	int (struct st_settings_font_draft *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_font_draft_count	171	size_t (const struct st_settings_font_draft *)	settings.model
+src/config/settings/st_settings.h	function:st_settings_font_draft_at	173	const struct st_settings_font *(const struct st_settings_font_draft *, size_t)	settings.model
+src/config/settings/st_settings.h	function:st_settings_font_draft_insert	175	int (struct st_settings_font_draft *, size_t, const char *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_font_draft_rename	177	int (struct st_settings_font_draft *, size_t, const char *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_font_draft_set_path	179	int (struct st_settings_font_draft *, size_t, enum st_settings_font_path, const char *)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_font_draft_remove	181	int (struct st_settings_font_draft *, size_t)	settings.result-status
 src/config/theme/st_theme.h	macro:ST_THEME_INHERIT	15	(-1)	themes.documents
 src/config/theme/st_theme.h	field:st_theme_style.role	24	char *	themes.documents
 src/config/theme/st_theme.h	field:st_theme_style.font	25	int	themes.documents
@@ -1007,13 +1008,15 @@ src/media/audio/audio.h	function:audio_stream_append_u8_mono_22050	110	int (audi
 src/media/audio/audio.h	function:audio_stream_clear	113	int (audio_stream_t *)	audio.playback
 src/media/audio/audio.h	function:audio_stream_drain	122	int (audio_stream_t *)	audio.playback
 src/media/audio/audio.h	function:audio_stream_is_idle	123	_Bool (audio_stream_t *)	audio.playback
-src/media/audio/audio.h	function:audio_stream_set_volume	124	int (audio_stream_t *, float, float)	audio.playback
-src/media/audio/audio.h	function:audio_stream_ramp_volume	126	int (audio_stream_t *, float, float, size_t)	audio.playback
-src/media/audio/audio.h	function:audio_stream_get_volume	128	int (audio_stream_t *, float *, float *)	audio.playback
-src/media/audio/audio.h	function:audio_engine_play	135	int (audio_engine_t *, const int16_t *, size_t, const struct audio_buffer_options *)	audio.playback
-src/media/audio/audio.h	function:audio_engine_play_u8_mono_22050	137	int (audio_engine_t *, const uint8_t *, size_t, const struct audio_buffer_options *)	audio.playback
-src/media/audio/audio.h	function:audio_generate_tone	143	int (int16_t *, size_t, double, enum audio_wave_shape, _Bool)	audio.playback
-src/media/audio/audio.h	function:audio_beep	147	int (audio_engine_t *, double, uint32_t)	audio.playback
+src/media/audio/audio.h	function:audio_stream_buffered_frames	126	size_t (audio_stream_t *)	audio.playback
+src/media/audio/audio.h	function:audio_stream_latency_ms	128	uint32_t (audio_stream_t *)	audio.playback
+src/media/audio/audio.h	function:audio_stream_set_volume	129	int (audio_stream_t *, float, float)	audio.playback
+src/media/audio/audio.h	function:audio_stream_ramp_volume	131	int (audio_stream_t *, float, float, size_t)	audio.playback
+src/media/audio/audio.h	function:audio_stream_get_volume	133	int (audio_stream_t *, float *, float *)	audio.playback
+src/media/audio/audio.h	function:audio_engine_play	140	int (audio_engine_t *, const int16_t *, size_t, const struct audio_buffer_options *)	audio.playback
+src/media/audio/audio.h	function:audio_engine_play_u8_mono_22050	142	int (audio_engine_t *, const uint8_t *, size_t, const struct audio_buffer_options *)	audio.playback
+src/media/audio/audio.h	function:audio_generate_tone	148	int (int16_t *, size_t, double, enum audio_wave_shape, _Bool)	audio.playback
+src/media/audio/audio.h	function:audio_beep	152	int (audio_engine_t *, double, uint32_t)	audio.playback
 src/media/audio/st_audio_runtime.h	function:st_audio_runtime_create	16	int (st_audio_runtime_t **, uint32_t)	audio.runtime
 src/media/audio/st_audio_runtime.h	function:st_audio_runtime_create_pull	19	int (st_audio_runtime_t **)	audio.runtime
 src/media/audio/st_audio_runtime.h	function:st_audio_runtime_pull	20	int (st_audio_runtime_t *, int16_t *, size_t)	audio.runtime
@@ -1021,7 +1024,11 @@ src/media/audio/st_audio_runtime.h	function:st_audio_runtime_stop	22	void (st_au
 src/media/audio/st_audio_runtime.h	function:st_audio_runtime_destroy	23	void (st_audio_runtime_t *)	audio.runtime
 src/media/audio/st_audio_runtime.h	function:st_audio_runtime_set_allowed	24	void (st_audio_runtime_t *, uint32_t)	audio.runtime
 src/media/audio/st_audio_runtime.h	function:st_audio_runtime_allowed	26	uint32_t (st_audio_runtime_t *)	audio.runtime
-src/media/audio/st_audio_runtime.h	function:st_audio_runtime_acquire	28	int (st_audio_runtime_t *, audio_engine_t **)	audio.runtime
+src/media/audio/st_audio_runtime.h	function:st_audio_runtime_set_midi_allowed	29	void (st_audio_runtime_t *, uint32_t)	audio.runtime
+src/media/audio/st_audio_runtime.h	function:st_audio_runtime_midi_allowed	30	uint32_t (st_audio_runtime_t *)	audio.runtime
+src/media/audio/st_audio_runtime.h	function:st_audio_runtime_is_pull	31	_Bool (st_audio_runtime_t *)	audio.runtime
+src/media/audio/st_audio_runtime.h	function:st_audio_runtime_stopped	32	_Bool (st_audio_runtime_t *)	audio.runtime
+src/media/audio/st_audio_runtime.h	function:st_audio_runtime_acquire	34	int (st_audio_runtime_t *, audio_engine_t **)	audio.runtime
 src/media/audio_file/st_audio_file.h	function:st_audio_file_supported	14	bool (void)	audio.decode
 src/media/audio_file/st_audio_file.h	function:st_audio_file_available	15	bool (void)	audio.decode
 src/media/audio_file/st_audio_file.h	function:st_audio_file_format_available	17	bool (uint32_t, uint32_t)	audio.decode
@@ -1042,14 +1049,15 @@ src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_append_take	37	i
 src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_clear	40	int (audio_mixer_stream_t *)	audio.mixer
 src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_drain	41	int (audio_mixer_stream_t *)	audio.mixer
 src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_is_idle	42	_Bool (audio_mixer_stream_t *)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_set_volume	43	int (audio_mixer_stream_t *, float, float)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_ramp_volume	45	int (audio_mixer_stream_t *, float, float, size_t)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_get_volume	47	int (audio_mixer_stream_t *, float *, float *)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_pull	51	size_t (audio_mixer_t *, int16_t *, size_t)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_pull_pending	54	size_t (audio_mixer_t *, int16_t *, size_t, uint64_t *)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_acknowledge	56	void (audio_mixer_t *, uint64_t)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_wait_for_data	59	int (audio_mixer_t *)	audio.mixer
-src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stop	60	void (audio_mixer_t *, int)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_buffered_frames	43	size_t (audio_mixer_stream_t *)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_set_volume	44	int (audio_mixer_stream_t *, float, float)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_ramp_volume	46	int (audio_mixer_stream_t *, float, float, size_t)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stream_get_volume	48	int (audio_mixer_stream_t *, float *, float *)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_pull	52	size_t (audio_mixer_t *, int16_t *, size_t)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_pull_pending	55	size_t (audio_mixer_t *, int16_t *, size_t, uint64_t *)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_acknowledge	57	void (audio_mixer_t *, uint64_t)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_wait_for_data	60	int (audio_mixer_t *)	audio.mixer
+src/media/audio_mixer/audio_mixer.h	function:audio_mixer_stop	61	void (audio_mixer_t *, int)	audio.mixer
 src/media/console/st_console.h	macro:ST_CONSOLE_COLOR_RGB_TAG	23	ST_PIXEL_COLOR_RGB_TAG	console.cells
 src/media/console/st_console.h	macro:ST_CONSOLE_COLOR_RGB_VALUE	24	(red, green, blue) ST_PIXEL_COLOR_RGB_VALUE((red), (green), (blue))	console.cells
 src/media/console/st_console.h	macro:ST_CONSOLE_COLOR_IS_RGB	26	(colour) ST_PIXEL_COLOR_IS_RGB(colour)	console.cells
@@ -1466,6 +1474,39 @@ src/media/fonts/st_presentation_font.h	function:st_presentation_font_create_fall
 src/media/fonts/st_presentation_font.h	function:st_presentation_font_destroy	28	void (struct st_presentation_font *)	fonts.st_presentation_font
 src/media/fonts/st_unicode_fonts.h	variable:st_unscii_8_font	13	const struct st_console_font	fonts.st_unicode_fonts
 src/media/fonts/st_unicode_fonts.h	variable:st_unscii_16_font	14	const struct st_console_font	fonts.st_unicode_fonts
+src/media/music/st_music.h	enum:ST_MIDI_ALSA	13	st_midi_backend	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_FLUIDSYNTH	14	st_midi_backend	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_ADLMIDI	15	st_midi_backend	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_WINMM	16	st_midi_backend	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_APPLE	17	st_midi_backend	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_NOT_BUILT	19	st_midi_linkage	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_RUNTIME	19	st_midi_linkage	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_STATIC	19	st_midi_linkage	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_SYSTEM	19	st_midi_linkage	audio.backends
+src/media/music/st_music.h	function:st_midi_compiled_backends	20	uint32_t (void)	audio.backends
+src/media/music/st_music.h	function:st_midi_backend_linkage	21	enum st_midi_linkage (enum st_midi_backend)	audio.backends
+src/media/music/st_music.h	field:st_ansi_music_state.length	24	int	music.session-owner
+src/media/music/st_music.h	field:st_ansi_music_state.octave	24	int	music.session-owner
+src/media/music/st_music.h	field:st_ansi_music_state.shape	24	int	music.session-owner
+src/media/music/st_music.h	field:st_ansi_music_state.tempo	24	int	music.session-owner
+src/media/music/st_music.h	field:st_ansi_music_state.foreground	25	bool	music.session-owner
+src/media/music/st_music.h	field:st_music_note.pitch	29	int	music.session-owner
+src/media/music/st_music.h	field:st_music_note.pause_frames	30	size_t	music.session-owner
+src/media/music/st_music.h	field:st_music_note.sound_frames	30	size_t	music.session-owner
+src/media/music/st_music.h	function:st_ansi_music_init	32	void (struct st_ansi_music_state *)	music.session-owner
+src/media/music/st_music.h	function:st_ansi_music_parse	35	int (const char *, bool, struct st_ansi_music_state *, struct st_music_note **, size_t *, bool *)	music.session-owner
+src/media/music/st_music.h	function:st_music_note_frequency	38	double (int)	music.session-owner
+src/media/music/st_music.h	function:st_music_create	46	int (st_music_t **, st_audio_runtime_t *, audio_stream_t **)	music.session-owner
+src/media/music/st_music.h	function:st_music_destroy	48	void (st_music_t *)	music.session-owner
+src/media/music/st_music.h	function:st_music_available	49	bool (st_music_t *)	audio.playback
+src/media/music/st_music.h	function:st_music_queue_file	52	int (st_music_t *, FILE *)	audio.playback
+src/media/music/st_music.h	function:st_music_queue_notes	53	int (st_music_t *, struct st_music_note *, size_t)	audio.playback
+src/media/music/st_music.h	function:st_music_wait	57	int (st_music_t *)	audio.playback
+src/media/music/st_music.h	function:st_music_busy	58	bool (st_music_t *)	audio.playback
+src/media/music/st_music.h	function:st_music_flush	59	int (st_music_t *, size_t)	audio.playback
+src/media/music/st_music.h	function:st_music_volume	60	int (st_music_t *, float, float, size_t)	audio.playback
+src/media/music/st_music.h	function:st_music_get_volume	62	int (st_music_t *, float *, float *)	audio.playback
+src/media/music/st_music.h	function:st_music_pcm_stream	64	audio_stream_t *(st_music_t *)	music.session-owner
 src/media/pixel_image/st_pixel_image.h	function:st_pixel_image_decode_ppm	18	int (struct st_pixel_buffer **, const void *, size_t)	pixels.decode
 src/media/pixel_image/st_pixel_image.h	function:st_pixel_image_decode_pbm	20	int (struct st_pixel_mask **, const void *, size_t)	pixels.decode
 src/media/pixel_image/st_pixel_image.h	function:st_pixel_image_decode_cterm_ppm	25	int (struct st_pixel_buffer **, const void *, size_t)	pixels.cterm-decode

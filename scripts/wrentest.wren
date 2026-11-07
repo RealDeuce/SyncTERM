@@ -29,7 +29,7 @@
 import "syncterm" for Session, WireLease, ConnError, Hook, Conn, Console, Screen, CTerm, Key, Mod,
     Codepage, ConnType, Emulation, Font, LogSource, LogLevel,
     Parity, BBSListType, ScreenMode, AddressFamily, MusicMode,
-    GraphicsMode, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
+    GraphicsMode, LogMode, StatusDisplay, Color, Cell, CellStyle, Hyperlinks,
     REPL, Input, Wake, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse,
     Cache, Digest, Platform, Text,
     Timer, Operation, WON, FileError, IOErr, WONError, WONErr,
@@ -972,6 +972,13 @@ class WrenTest {
     check_(c.bright == true, "Cell.bright = true round-trips")
     c.blink = false
     check_(c.blink == false, "Cell.blink = false round-trips")
+    c.styleFlags = CellStyle.bold | CellStyle.underline
+    check_(c.bold && c.underline && !c.bright && !c.blink,
+           "Cell.styleFlags replaces only independent styles")
+    c.reverse = true
+    c.conceal = true
+    check_(c.reverse && c.conceal, "Cell drawing style properties")
+    c.styleFlags = 0
     c.fgPalette = 7
     check_(c.fgPalette == 7, "Cell.fgPalette palette write/read")
     c.bgPalette = 0

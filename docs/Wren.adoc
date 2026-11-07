@@ -3425,6 +3425,32 @@ hyperlink, and repairs overwritten wide pairs.
 | `blink`, `blink=(b)`
 | Blink bit.
 
+| `underline`, `bold`, `reverse`, `conceal`
+| Read/write Boolean drawing styles. Underline adds the bottom glyph row;
+  bold thickens the glyph; reverse exchanges foreground/background when drawn;
+  conceal hides the glyph unless its retained reveal flag is set. Bold is
+  independent of the source-bright attribute. All six style setters, including
+  `bright` and `blink`, require Bool; wrong types abort rather than being ignored.
+
+| `styleFlags`, `styleFlags=(mask)`
+| Read or replace the six independent styles together using `CellStyle` bits.
+  The getter returns only these bits. Assignment requires a finite, exact,
+  nonnegative integer containing no other bits; invalid input aborts before
+  mutation. Individual setters change just their own bit. This edits only the
+  addressed stored Cell, preserving colours and their origin markers, glyphs,
+  fonts, hyperlinks, wide-cell structure, captured pixels and serial metadata.
+  It does not update neighbouring cells or the terminal's parsing state.
+
+| `teletext`, `doubleHeight`, `reveal`, `separated`
+| Read-only Booleans reporting retained SAA5050/teletext presentation state:
+  serial-attribute mode, double height, reveal concealed content, and separated
+  mosaics. These are observations, not independent serial-attribute controls.
+
+| `teletextControl`
+| Read-only retained seven-bit source control as a Number, or null when none is
+  recorded. Changing serial attributes requires editing the source stream and
+  reconstructing the affected line or screen; Cell does not provide that operation.
+
 | `pixelGraphics`
 | Read-only.  `true` when pixel drawing has marked this text cell as containing
   raster data. A captured Surface retains optional row rasters separately
@@ -3461,6 +3487,20 @@ foreign object regardless of `==` definitions
 that restriction; that's why we expose this as a named method
 instead.
 |===
+
+==== CellStyle
+
+Named masks for `Cell.styleFlags`, available in all script VMs. `bright` is
+`0x400000`, `blink` is `2`, `underline` is `0x10000`, `bold` is `0x20000`,
+`reverse` is `0x40000`, and `conceal` is `4`. `all` is their union (`0x470006`).
+These native bit values fit Wren's ordinary bitwise operators. Renderer state,
+serial attributes and pixel-graphics ownership are excluded from this mask.
+
+[source,wren]
+----
+cell.bold = true
+cell.styleFlags = CellStyle.bold | CellStyle.underline
+----
 
 === Surface [[surface]]
 

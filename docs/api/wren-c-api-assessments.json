@@ -161,9 +161,9 @@
     },
     {
       "path": "src/config/settings/st_settings.h",
-      "sha256": "e0ddcfd779c94a58d90c3e23b8dbb01db49e2dd169cb8654a2c5813ada2e3110",
+      "sha256": "b90d7d8d2c815af15652c3a7c9ea64950d5605b4cae329bd0fc3c457a38dbb33",
       "status": "reviewed",
-      "symbol_count": 105
+      "symbol_count": 106
     },
     {
       "path": "src/config/theme/st_theme.h",
@@ -215,15 +215,15 @@
     },
     {
       "path": "src/media/audio/audio.h",
-      "sha256": "7a4f4ba7921f622a5754caa159800abfbe83767c6caf1b8189ecd80cca346d3f",
+      "sha256": "d486d6fe3a48cb9db1303630b5fcb4cf5d4d9b5a472ca674a0f386966ca57cc5",
       "status": "reviewed",
-      "symbol_count": 50
+      "symbol_count": 52
     },
     {
       "path": "src/media/audio/st_audio_runtime.h",
-      "sha256": "58175c6ef4f91264126317e74d91eadea3969900a91e0827eb1b8ca6b2fe8b35",
+      "sha256": "405ec23af71fac2341648a6ddf6297e907e5557303457e2aeaa462010d3116dc",
       "status": "reviewed",
-      "symbol_count": 8
+      "symbol_count": 12
     },
     {
       "path": "src/media/audio_file/st_audio_file.h",
@@ -233,9 +233,9 @@
     },
     {
       "path": "src/media/audio_mixer/audio_mixer.h",
-      "sha256": "03ea9950de09875d6d31d61d4e4ac05de133002f7e4a3c983904c4e642b3932a",
+      "sha256": "bbce67c37ac0c4feb67426ad7ef0cd77766efaf5a90b167ebe99e52767635ce8",
       "status": "reviewed",
-      "symbol_count": 23
+      "symbol_count": 24
     },
     {
       "path": "src/media/console/st_console.h",
@@ -272,6 +272,12 @@
       "sha256": "c53a160e4eff5498827e376c538770dd6d63abe4fa5e4e09cfa0bb86ded2e6b4",
       "status": "reviewed",
       "symbol_count": 2
+    },
+    {
+      "path": "src/media/music/st_music.h",
+      "sha256": "48abaec3728a9b3c5fd156a206dcd5150af7108cbf5b2f9c7ccf465ef5b6ba84",
+      "status": "reviewed",
+      "symbol_count": 33
     },
     {
       "path": "src/media/pixel_image/st_pixel_image.h",
@@ -1167,7 +1173,7 @@
     "settings.model": {
       "status": "covered",
       "wren": "Menu.settings / Settings apply/save/reload; Menu webLists/sortProfiles/fonts; Emoji recent entries",
-      "reason": "Editable settings are draft values with validated typed setters. Menu owns web-list/sort-profile/custom-font collections; MenuFont setFile takes a granted File. Native collection count/index becomes List/count; recent emoji uses Emoji accessors. Theme selection is Menu-owned rather than a second raw Settings setter. Scaling modes combine native blocky/external flags. Raw global installation, disposal and startup snapshots remain host mechanisms. Specific omitted settings are classified separately.",
+      "reason": "Editable settings are draft values with validated typed setters. Menu owns web-list/sort-profile/custom-font collections; MenuFont setFile takes a granted File. Native collection count/index becomes List/count; recent emoji uses Emoji accessors. Theme selection is Menu-owned rather than a second raw Settings setter. Scaling modes combine native blocky/external flags. Raw global installation, disposal and startup snapshots remain host mechanisms. Specific omitted settings are classified separately. Settings.midiModes already exposes the independent persisted MIDI enable mask through the same validated snapshot/apply/save contract.",
       "vm": "menu; emoji access in core VMs",
       "evidence": [
         {
@@ -1965,7 +1971,7 @@
     "audio.playback": {
       "status": "unmapped",
       "wren": "no general script audio object",
-      "reason": "Wren can select allowed audio backends through Settings.audioModes and trigger terminal-protocol music/OOII sound, but cannot directly synthesize tones/waves, beep, submit PCM, create streams, choose volume/ramp/fade/crossfade/loop, drain/clear or inspect stream idle/volume. Native functional audio availability is therefore not full script audio coverage. Whether a general playback API belongs in scope remains a policy decision.",
+      "reason": "Wren can select allowed audio backends through Settings.audioModes and trigger terminal-protocol music/OOII sound, but cannot directly synthesize tones/waves, beep, submit PCM, create streams, choose volume/ramp/fade/crossfade/loop, drain/clear or inspect stream idle/volume. Native functional audio availability is therefore not full script audio coverage. Whether a general playback API belongs in scope remains a policy decision. MIDI adds native file/note queues, wait/busy/flush/volume and availability operations, plus buffered-frame/latency inspection, without a general Wren playback API. These remain unmapped under the same open audio-service scope decision.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -1979,6 +1985,10 @@
         {
           "path": "scripts/syncterm.wren",
           "anchor": "foreign static music"
+        },
+        {
+          "path": "src/media/music/st_music.h",
+          "anchor": "st_music_queue_file"
         }
       ],
       "finding": "audio-service",
@@ -2002,8 +2012,8 @@
     },
     "audio.backends": {
       "status": "covered",
-      "wren": "Menu.audioModes / Settings.audioModes / Menu.buildOptions",
-      "reason": "Native compiled/available audio backend choices are exposed in menu configuration and applied by the native audio runtime. PCM frame/sample constants describe an unbound general playback format, separately accounted.",
+      "wren": "Menu.audioModes / Settings.audioModes; Menu.midiModes / Settings.midiModes; Menu.buildOptions",
+      "reason": "Native compiled/available audio backend choices are exposed in menu configuration and applied by the native audio runtime. PCM frame/sample constants describe an unbound general playback format, separately accounted. Independent MIDI backend enable bits and compiled/linkage metadata are already represented through the MIDI catalog, Settings mask and Build Options labels. Catalog/build inspection does not construct a synth or probe physical MIDI availability.",
       "vm": "menu",
       "evidence": [
         {
@@ -2013,13 +2023,21 @@
         {
           "path": "scripts/syncterm_menu.wren",
           "anchor": "foreign audioModes"
+        },
+        {
+          "path": "src/media/music/st_music.h",
+          "anchor": "st_midi_backend_linkage"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_midi_modes"
         }
       ]
     },
     "audio.runtime": {
       "status": "host-owned",
       "wren": "application shared audio permission/device lifetime",
-      "reason": "Runtime create/pull/stop/destroy/acquire and allowed-backend mask coordinate lazy device opening across CTerm/OOII and frontend ownership. Settings.audioModes supplies user policy; scripts do not borrow the audio engine pointer.",
+      "reason": "Runtime create/pull/stop/destroy/acquire and allowed-backend mask coordinate lazy device opening across CTerm/OOII and frontend ownership. Settings.audioModes supplies user policy; scripts do not borrow the audio engine pointer. MIDI policy and stop/pull queries coordinate the same shared runtime lifetime; no script engine pointer or native owner is exposed.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -2053,7 +2071,7 @@
     "audio.mixer": {
       "status": "host-owned",
       "wren": "native shared engine mixer and worker acknowledgement",
-      "reason": "Mixer pull/wait/acknowledge and stream ownership duplicate the lower implementation of audio.h, not an additional script engine. The unbound playback controls/stream behavior are recorded under audio.playback; native mixer pointers, wakeups and ownership transfers stay private.",
+      "reason": "Mixer pull/wait/acknowledge and stream ownership duplicate the lower implementation of audio.h, not an additional script engine. The unbound playback controls/stream behavior are recorded under audio.playback; native mixer pointers, wakeups and ownership transfers stay private. The new buffered-frame count remains the lower native mechanism; general stream inspection is recorded under audio.playback.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -2368,9 +2386,9 @@
     },
     "console.style-bits": {
       "status": "partial",
-      "wren": "Cell bright/blink/legacyAttr/pixelGraphics; Screen.attr",
-      "reason": "Native public style flags include underline, bold, reverse, conceal, double-height and teletext presentation controls. Wren exposes bright/blink, legacy colour attributes and readonly pixelGraphics, but no complete flag inspection/editing interface. Opaque Surface copy preserves them; that is not script control. Dirty/reserved and renderer-resolved flags remain host bookkeeping.",
-      "vm": "same VM as the owning API",
+      "wren": "Cell.styleFlags / CellStyle; bright/blink/underline/bold/reverse/conceal; read-only teletext/doubleHeight/reveal/separated/teletextControl/pixelGraphics",
+      "reason": "All six independent native styles have strict Bool properties and one exact numeric group replacement. The mask excludes serial attributes, raster/glyph state and legacy colour-origin markers and preserves all non-style bits and other fields. All three VMs expose retained teletext presentation/control metadata read-only. The user approved keeping serial-attribute mutation unavailable because it requires source-stream reconstruction, potentially across a whole line or screen. Dirty/reserved and renderer-resolved state remain host-owned; continuation is observed through columns and pixelGraphics stays read-only. Partial truthfully records the intentionally unavailable raw flag mutation, rather than an outstanding requirement. No native interface, parsing or ownership changes.",
+      "vm": "menu, picker and connected; edits affect the addressed stored Cell only",
       "evidence": [
         {
           "path": "src/media/console/st_console.h",
@@ -2379,10 +2397,19 @@
         {
           "path": "scripts/syncterm.wren",
           "anchor": "foreign pixelGraphics"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "CELL_STYLE_FLAGS"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/cell_styles.wren",
+          "anchor": "class CellStyleChecks"
         }
       ],
       "finding": "cell-style-flags",
-      "decision": "mapping-gap"
+      "decision": "expose-styles-retain-serial-ownership",
+      "resolution": "resolved"
     },
     "console.operations": {
       "status": "covered",
@@ -3541,6 +3568,30 @@
           "anchor": "fault_rename"
         }
       ]
+    },
+    "music.session-owner": {
+      "status": "host-owned",
+      "wren": "CTerm terminal-protocol music and application-owned session music lifetime",
+      "reason": "The terminal interprets ANSI captures into owned native state/notes and uses the pitch conversion internally; it creates/destroys the session player and retains its borrowed PCM stream/runtime. These parser/state/lifecycle and diagnostic-pointer mechanisms do not grant an independent script player or worker. The independently useful playback/availability/queue/control operations remain explicitly unmapped in audio.playback, rather than being hidden as lifecycle.",
+      "vm": "host terminal/session owner",
+      "evidence": [
+        {
+          "path": "src/media/music/st_music.h",
+          "anchor": "st_music_create"
+        },
+        {
+          "path": "src/media/music/ansi_music.c",
+          "anchor": "st_ansi_music_parse"
+        },
+        {
+          "path": "src/terminal/cterm/cterm_cterm.c",
+          "anchor": "st_ansi_music_parse"
+        },
+        {
+          "path": "src/media/music/music.c",
+          "anchor": "st_music_destroy"
+        }
+      ]
     }
   },
   "documentation_findings": [
@@ -3691,6 +3742,26 @@
     },
     {
       "path": "src/media/fonts/st_builtin_fonts_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/media/music/adl_symbols.h",
+      "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
+    },
+    {
+      "path": "src/media/music/alsa_symbols.h",
+      "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
+    },
+    {
+      "path": "src/media/music/fluid_symbols.h",
+      "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
+    },
+    {
+      "path": "src/media/music/midi_file.h",
+      "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
+    },
+    {
+      "path": "src/media/music/music_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
@@ -4241,6 +4312,11 @@
       "path": "scripts/menu_scrollback.wren",
       "anchor": "Menu.finishOfflineScrollback()",
       "aspect": "Owned cell/pixel history through offline Surface composition; paired mode preparation/finish cleanup"
+    },
+    {
+      "path": "scripts/syncterm.wren",
+      "anchor": "class CellStyle",
+      "aspect": "Shared Cell declaration and named native drawing-style masks in all VMs."
     }
   ],
   "test_evidence": [
@@ -4797,6 +4873,21 @@
       "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
       "anchor": "fs_get_info(&unicode_info, unicode)",
       "aspect": "UTF-8-aware fixture creation and explicit Unicode pathname existence before the unchanged upload grant/root/link validation matrix; avoids ANSI fopen creating a different Windows filename."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_cell_styles_test.c",
+      "anchor": "exercise(WrenVM",
+      "aspect": "All VMs, native serial metadata, all retained control values, legacy colour markers, hyperlinks, both raster planes and independent literal style pixels."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/cell_styles.wren",
+      "anchor": "for (combination in 0...64)",
+      "aspect": "Every style combination, individual/grouped equivalence, invalid masks/Booleans before mutation, retargeting/GC/copy/wide-cell preservation and read-only metadata."
+    },
+    {
+      "path": "scripts/wrentest.wren",
+      "anchor": "Cell.styleFlags replaces only independent styles",
+      "aspect": "Bundled real-connection Cell smoke assertions for grouped styles and named properties."
     }
   ],
   "dispatch_evidence": [
@@ -4807,22 +4898,40 @@
     }
   ],
   "evidence_files": {
+    "addons/modern_ui/scripts/modern_ui.wren": "775b847aff32d0d32e351519f0991738db0883085b2f949954fac59251feb670",
+    "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
+    "addons/modern_ui/tests/test_frontend.py": "69c066524d11fa21a9880bd83c1c4e7cd46d29dbc3ecf5c47a3b9aab858c3153",
+    "docs/RIP154_CONFORMANCE.md": "01659bbb9abc6b9151f825622c6415271d0a06f56133fe035dd1df73318adb10",
+    "docs/SKYPIX_CONFORMANCE.md": "8a337f949f91c34760c6df2535f6abe6451c3756e51715d48e9a443a018025b9",
+    "docs/TERMINAL_CONFORMANCE.md": "80d5c9b23c97749cbfeeebdc8af8b3dafea856c2ef5a1454fb330aba0704e435",
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "b1d3819c986023b2bc49d06d25bdeaf35c62ad3ed7303038199348bdf26f3586",
+    "docs/Wren.adoc": "4eb4d23d8a48bb61196bc539119d31267c872a1a9ed82fbd52cb6a0f4e227fc1",
     "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
+    "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "scripts/auto/connected/font_pick.wren": "b7c7176c36e9ec274425e4ea3bd14f37ce9991e6fe19078a83ec614e6978422b",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
     "scripts/menu_bbs_editor.wren": "d7439a3116e2e4f33f6001ea1979c87d4c1b04c9974140b046b538e317133216",
-    "scripts/menu_settings_ui.wren": "af16c21b1b858f943c4d2b4a9a550216a9a2a6af58710aef7392a7516f830794",
+    "scripts/menu_scrollback.wren": "e6f4d278a863a7d6217a84d5fb48245f780ed61c89deaecbea87ef91e33923da",
+    "scripts/menu_settings_ui.wren": "7502b742a0a3a2bc813040965a98395c750cc16256762cf45fd10343eac6a17c",
+    "scripts/menu_settings_ui_test.wren": "a2ea0e6d281903617bbe84285b109c5a3a361b444dd18e1205dfa468326dc01c",
+    "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
+    "scripts/menu_theme_editor.wren": "2d7f6aca6c9a4229700b4cd774cffc84af94e2324dd3192a041e5ef576e40f09",
+    "scripts/menu_theme_editor_test.wren": "6639f43ed266defd6eeee4c1e35d82c858e2c4f1e5fca7ef20915317c7d4128b",
+    "scripts/menu_ui.wren": "57232e460e4eec3bd090f28dad29eec09f897ea7f56666ac43646c365aba04f4",
+    "scripts/pixel_vm_test.wren": "61dee1425b2a5ec67afb96dc04a27f1e20dad6243a149cd67eab514d2541f2cf",
     "scripts/sftp_app.wren": "768e459dd484d4bf094edb61cd85b2ed58ecaca47475b4a6887e14e628fe12f0",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "e0b5d520a568b70a8b2bf4e67369c642b47a9276946c80f652096c625fb62931",
-    "scripts/syncterm_menu.wren": "71414d14abdf458fabab35e9bb9d9181444be686dbd933ae96bc22f6b9148a63",
+    "scripts/syncterm.wren": "700a9532ef293f4ff29b0721ca2a6f8ae938ead9bd0326f194bcd65d8e9c9656",
+    "scripts/syncterm_menu.wren": "1a0835987132b835703dae839bc5a3a13f49c585f3cdedb170f6daff00d7fbfa",
     "scripts/syncterm_picker.wren": "06b539737eb1a35dbfa10417c9310be744246fa666262c0e0c791507fd918077",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
     "scripts/transfer_pick.wren": "aa529f7bfc8e0d9e086f9a42fd829f7414fb67fbcc99644bef38eb235a9f8ed5",
     "scripts/ui_app.wren": "29c84e7ceed05bf0e025c1af464bc9d9e85cf4d78ce841abc7615bdc00f93496",
-    "scripts/wrentest.wren": "5d780e2b1baa8f19ef9e39eeb215cd80bc2b62c3e5a4f3c7df9d7f04ae5dacd5",
+    "scripts/ui_demo.wren": "885059ec0b92c72e5fb97cc8a1a09e936718bbd1ed3722b3a2802f548a6d00ed",
+    "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
+    "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
+    "scripts/wrentest.wren": "4b4fd0f5e84de364e0315a17a9bf89f950c2463389db0bc54483be733baa58e7",
+    "src/CMakeLists.txt": "3540f6c70b1586e975d7797c48e843f7e819ab834a4b83f1c4b28318ffa81ce3",
     "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
     "src/base/base64/st_base64.h": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
     "src/base/crypto/st_cipher.h": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
@@ -4846,32 +4955,66 @@
     "src/config/app_paths/st_app_paths.h": "8d98d54d6dc698c911891de1e1122fde0d5bedbef4039ed89ca2e4cb3cfa55a9",
     "src/config/bbs_list/st_bbs_list.c": "0bd566ce145a48b28bfa618801e3d01633c6cc731b0d32c8f3b6a8c83a4e1382",
     "src/config/bbs_list/st_bbs_list.h": "7a6f7843074d74caba9a845d47527a4877f1cd4a0854d9a5b94ae613101614af",
+    "src/config/bbs_list/st_bbs_profile_codec.c": "6a8d73eb02423760c4fa65ceadb19d81db9831335861a545234f309c0a5c4498",
+    "src/config/bbs_list/st_bbs_store.c": "ff65237cac82c55d34b20a69061dcf0284e13653f20d629531209547f43131bc",
+    "src/config/bbs_list/tests/st_bbs_list_test.c": "601dc461ca3c9916176d8af3983b3de203f786c8247460635a31e194090efca1",
     "src/config/consent_token/st_consent_token.h": "17c510324b8e490e9b8e9d22111975ab42e48c0721cfc19bde6a04e041b42ccb",
     "src/config/ini/ini.h": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
     "src/config/list_crypto/st_list_crypto.c": "e53d183461012142e5f9d2d417030efe55bc42469944747b414b9907b516dd67",
     "src/config/list_crypto/st_list_crypto.h": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
     "src/config/profile/st_profile.h": "a68bcd842acbaef37ff290723056005421b2d4bd79acb7efc4886e439e019edd",
-    "src/config/settings/st_settings.h": "e0ddcfd779c94a58d90c3e23b8dbb01db49e2dd169cb8654a2c5813ada2e3110",
+    "src/config/settings/st_settings.h": "b90d7d8d2c815af15652c3a7c9ea64950d5605b4cae329bd0fc3c457a38dbb33",
+    "src/config/settings/st_settings_store.c": "04b9084f40708e67ba6f781c5ff464f8d326125ad6d773c8fd8df62b5bbc23ae",
     "src/config/theme/st_theme.h": "bf76e31f18f57312850d26e81e4ba25e3c36b2fa30e24497609dc52d0f25cbfc",
+    "src/config/theme/st_theme_cloud.c": "81e112989eacf40cf3f63c7412a48f04a8bab722be95a5eae3213b32a7f75c24",
+    "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
+    "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
+    "src/config/theme/tests/st_theme_test.c": "6bcc194d2af6fd9ea60b998eb673a81f12feb4225a0e6ee8ef032d87c5546f4b",
+    "src/config/theme/theme_internal.h": "bec641bc70123f40fe9da989db4fe59f58cfc5defb1b25825642669d4cc6fc80",
     "src/io/file_lock/st_file_lock.h": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
     "src/io/file_map/file_map.h": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
     "src/io/filesystem/filesystem.h": "0352952dd72d0999380f6460216b95e9359b07c3f1bdd52fbfad7a9418f60fed",
     "src/io/path/path.h": "b3b3a2d5ae72bcdf00042701aba27cbb9dc2850b2f9add9f3baa887d797227b2",
     "src/io/serial/serial.h": "c6b8e7262cee2df77b3958a15a3ae43ce35a073e795516c9098baf0d00d814a7",
-    "src/media/audio/audio.h": "7a4f4ba7921f622a5754caa159800abfbe83767c6caf1b8189ecd80cca346d3f",
-    "src/media/audio/st_audio_runtime.h": "58175c6ef4f91264126317e74d91eadea3969900a91e0827eb1b8ca6b2fe8b35",
+    "src/media/amiga_font/data/manifest.json": "56069510f2d0bd964c4967700653e585fc5f6de118585624dbd852c55525ee11",
+    "src/media/amiga_font/generate_fonts.py": "809e43b4d728e16d1677c0fdb1b043efe0f6c0a46abd6c5d7851dfca426fe62b",
+    "src/media/amiga_font/st_amiga_font.c": "400f70fa84626c90dd815901b9a831501850ebbc5dc0e1ac50e4a86a3623501a",
+    "src/media/amiga_font/st_amiga_font.h": "6424b10e3d0c687ef221e4430e4169b7ec16dfd699fd531b40b1c92aeb27d466",
+    "src/media/amiga_font/st_amiga_fonts.c": "c4c5f6bbf65a319651f9f13c004bed1d3eb12da4942126a82df25552e3d24b85",
+    "src/media/amiga_font/st_amiga_fonts.h": "a89688cc13b0aaf2ac43404475193c4235eed3932d38e81fa661f66d73a025bd",
+    "src/media/amiga_font/tests/st_amiga_font_fault_test.c": "64892edfd9982fa28be9d4eaeeb5cbb9f6fd611acfecd32d0722b29ab744ad8d",
+    "src/media/amiga_font/tests/test_generate_fonts.py": "94f79b10ef41dc2952490228afffca139d5ade1bbfbb5d35cf9c823259774e46",
+    "src/media/audio/audio.h": "d486d6fe3a48cb9db1303630b5fcb4cf5d4d9b5a472ca674a0f386966ca57cc5",
+    "src/media/audio/st_audio_runtime.h": "405ec23af71fac2341648a6ddf6297e907e5557303457e2aeaa462010d3116dc",
     "src/media/audio_file/st_audio_file.h": "7236377b7bed90f3875e0872e18090221dd1b84a33f4b66ffbfc7ade448831da",
-    "src/media/audio_mixer/audio_mixer.h": "03ea9950de09875d6d31d61d4e4ac05de133002f7e4a3c983904c4e642b3932a",
+    "src/media/audio_mixer/audio_mixer.h": "bbce67c37ac0c4feb67426ad7ef0cd77766efaf5a90b167ebe99e52767635ce8",
+    "src/media/console/CMakeLists.txt": "549b9116dcdf4e0672d1bd4cc53cbf20ac3ed265ecb557cb1c7433827aa1ebaf",
+    "src/media/console/console_config.h.in": "28ae120b9bcee1e97f87baa58981b6430c5307d04d9adfee8c510684c950ef60",
+    "src/media/console/console_ncurses.c": "1d04310a77af932929f0eb80739eb14f1d003ebe2a4677fafe637b7ffbd33726",
+    "src/media/console/console_pixels.c": "c27623769b3849f0377dc817c61331a5f813a9d711d5e1af091740cd4b63e50e",
     "src/media/console/console_text.c": "b6f7dd2cae086162bb74f90397e299a0a310e34ede02604650db537fe59250ae",
     "src/media/console/st_console.h": "ad6930749fc58330de45c35675dee34d14d09191fb9c91098b1d478c480c8fed",
+    "src/media/console/tests/console_bitmap_test.c": "5137e530ffd1c7e2f5b277be82e74d7ec60023cd2b0c8004779ba47f4fc66fa7",
+    "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
+    "src/media/console/tests/st_console_ncurses_test.c": "a67df4169c00c06f7333aad4402e3f29cb0d72aa088a7aec1306690ba04265e4",
     "src/media/console/tests/st_console_test.c": "079574a176e535180cfaae5d94eaa8e1795638c015950079758bccdbba0ada22",
+    "src/media/console/tests/st_console_x11_test.c": "ce4616c2fe61664c496a297936b79cefba9a280aae1672a78ad9b90573d40a51",
+    "src/media/font_catalog/st_font_catalog.c": "6937c6662ba69882149081b4b915d17587bc3b841011653444f8d7746cc1cb67",
     "src/media/font_catalog/st_font_catalog.h": "ffccf0c09a51e77bc9f8b67b9a15835e772a2eb66b8bcbcf4f1254448a2fa11c",
+    "src/media/font_catalog/tests/st_font_catalog_test.c": "3199a4ff7144ad988626e7133cc97c6313137a48ef6fd2d95c1e51dc1e4e85b2",
     "src/media/fonts/st_builtin_fonts.h": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
     "src/media/fonts/st_emoji_fonts.h": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
     "src/media/fonts/st_presentation_font.h": "c39d49aaa44cedb1a78d95f0c0c47a36756b1706d5733f8e9d63aaf6318ea41b",
     "src/media/fonts/st_unicode_fonts.h": "c53a160e4eff5498827e376c538770dd6d63abe4fa5e4e09cfa0bb86ded2e6b4",
+    "src/media/music/ansi_music.c": "29dcd723e91e307f7efebc8edcae80d1f4fd723b64c7d13a5f724f1654c11d99",
+    "src/media/music/music.c": "ac8f82f719a61a940ae0d2a8562fe5367dc6fc5a910bbb65a414c60aa441ae70",
+    "src/media/music/st_music.h": "48abaec3728a9b3c5fd156a206dcd5150af7108cbf5b2f9c7ccf465ef5b6ba84",
     "src/media/pixel_image/st_pixel_image.h": "19f84636b92b53e8d5ae21eaa86f25c1058789f1db5f111fb78f76c6d645dba3",
+    "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
+    "src/media/pixels/st_pixels.c": "6df928627439e4a983f8444e744fb9aa0279ce1ed5cd0b4f95f1bf8c86715940",
     "src/media/pixels/st_pixels.h": "539f95656dd5b18fbedf3ec8e9dfbe5de6cca8ebbe78a015afcf9a21cc850dd2",
+    "src/media/pixels/tests/st_pixels_test.c": "2b6af7f5a1af22b8421ee2cf67e1c9c5eb49aaeae89cb35618cad799baece37d",
+    "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b",
     "src/net/connection/connection_shell_codec.h": "0adf830aee0f3d54f08fdf41a91c190e720f60cbffb32b0c9bd8381c65c542a5",
     "src/net/connection/connection_ssh.c": "8eea784057e04800c24730ca8c30d1f435055f88c5a1f54891b4a85d6ffd71ce",
     "src/net/connection/connection_stream.h": "c64451fcce7cea40c6977e4a8ecfc22d9aeea253ae9ccc8f3dd31c9464bcc7c8",
@@ -4884,15 +5027,37 @@
     "src/net/transfer/st_transfer.h": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
+    "src/scripting/wren_host/CMakeLists.txt": "554678a34d632b3dc43faf9f3a9c320aed0c50b8eff63855e645a65a18ad28ae",
     "src/scripting/wren_host/st_wren_host.h": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "1cadff50a9216fc10937d95c5353d3dc65090df3745fb24079971eabfa275372",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "9ce240c1d75632c40452fc6f46db4aab88923f2c8d062f80e50c5c917724d6f4",
+    "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc",
+    "src/scripting/wren_host/tests/cell_styles.wren": "522a83bc0cc79882d136348d78f72e3f189064014709955f0e61cbdd9777590e",
+    "src/scripting/wren_host/tests/cloud_theme_views.wren": "91cff4cd288e16792bac6397125e0f7056d295c11803bf72f07ca4b810e68610",
+    "src/scripting/wren_host/tests/codepage.wren": "f84ab8430338bbc958570e3bfac9f3cd39d5c5b72308545ddc5d5637485da559",
+    "src/scripting/wren_host/tests/digest.wren": "c26b19fbf723271a49ec37345eee08a84c902c77e0f9aabafa6affd8dfe90a55",
+    "src/scripting/wren_host/tests/st_wren_cell_styles_test.c": "2cac4032a4f82c424ef46bf8218dc041314775da8e74a686d3788d3e400bfa75",
+    "src/scripting/wren_host/tests/st_wren_codepage_test.c": "4e853c8355821fc9319269323531b21d367426c9b804ae920449fb6943244a04",
+    "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c": "abb97ac4e4679e174f7374dd0afee96f1efb1914b82d13ac1e8b413863fa6a0e",
+    "src/scripting/wren_host/tests/st_wren_digest_test.c": "026702e03fb1f3ae6a16a2e18554a9710bef2994cf9ccf100dd3ec0ffd1bf780",
+    "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c": "6b73edbc7e051b958d663b3591f5db99062887dcf0252abcc856cc27089fe03f",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "10b2e9dcd97bec6d0b2f9fda0087a9b41b3d43b044b7a8b0e49765f9a39b894b",
+    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "1708e49b34d9df915e4b2afd0f227b5947d401cd1c967691a49503dbe74a827d",
+    "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
+    "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c": "fca707a2f0be87c2af9ee73477c71203e403c047689aff1b83b880a1e5e83a2f",
+    "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1daa1b6ac6180b49ab96a811c3571af23eb8a3109d14a026578efcdd8b7621cd",
+    "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
+    "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
+    "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "5e9b49fbd6c675bf2e71761bd06992fa543390c6fd973a185bb11da5ec57f6d4",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "c00bde777615bc6d042ff3fef0b0d174ea939d2679b83ee417ea3c0b66dbaa29",
+    "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
+    "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
-    "src/scripting/wren_host/wren_bind_core.c": "4ef73d43cd7411e03aba4e80e670c6110372d9468ce8ce63abe1ae4edec8977a",
+    "src/scripting/wren_host/wren_bbs_model.h": "abe9afb6c1fa09ae794f6f1454ae702d104c9de743fb6e999cc4ac4841cf293d",
+    "src/scripting/wren_host/wren_bind_core.c": "42cbdd9591de20f4c3cf9ac4ac3ff45e6e43113fe797b40655fd1b7003335a25",
+    "src/scripting/wren_host/wren_bind_digest.c": "53078c4038d0a189807e4f83fa3a800cf1ee50f3fdcf20a7b729c433f6bdb21b",
     "src/scripting/wren_host/wren_bind_fs.c": "a6a43847fcc78584be2269bb83331661cc7d01332d542b2828948e8d36dbfcf0",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "2a180d78b56663b306c1fd4959a50deee56f1a99b91323b082345c21d2a304c3",
+    "src/scripting/wren_host/wren_bind_menu.c": "785dfb5b7c7f4db6e8f78ca0465958af09632f115ed14e0755a87aad09f8bb52",
     "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
     "src/scripting/wren_host/wren_bind_session.c": "26399b7a604e87bd47019ef7d85ad8a179d3783271873f0aabbb866e7ca787bd",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4902,6 +5067,7 @@
     "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
     "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
     "src/scripting/wren_host/wren_host.c": "d9cc593333934ca464a9cccb5ae612a94174ac094b1003c12bba40d5741eaec2",
+    "src/scripting/wren_host/wren_host_internal.h": "9f72e50fd89e71498246fc7937daa51b7c001253c0c0df24ef21019b4d441c74",
     "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
     "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
     "src/scripting/wren_host/wren_picker.c": "fac1ff062b8bcc9a31c808694865fc584261093b2a8d23e9a70026f1f43c13a7",
@@ -4921,17 +5087,38 @@
     "src/st_libretro_input.h": "5f8b2eea549b6ab14b9b2f6cbc427aa189cad353f6a0edab49b21ce364b7dcd7",
     "src/st_syncterm_icon.h": "db9a42ed07712ff11469c9a4378df4669cab199da882051b6529cdf933a18c78",
     "src/st_terminfo.h": "852d5c5f13d3d8f21aa0903d990cad1ab152ab6bb292a614bf12eb0a79f8ffeb",
-    "src/syncterm.c": "ed87e1da0815154577bd825f50eec29ae562397cad0a9ff357d7061cf4bab2e8",
+    "src/syncterm.c": "3baafc446718d5d96ffd4bc478759293cf01ef15116310c0c0761a2360893e9f",
     "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
     "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
-    "src/terminal/cterm/st_cterm.c": "fd7712fe7f6b053b607a48adc6c916da7740fa47bfa157957299e0d48ba7d7e3",
+    "src/terminal/cterm/cterm_cterm.c": "a6c46afd3b4ed45984462201ebd74db3ba5e568e910d74d7c0dbcc6eac63720a",
+    "src/terminal/cterm/cterm_render.c": "07bab863c7e360b8be8fd752bc49cc9848cd81315c87732f8e61145497fa2d49",
+    "src/terminal/cterm/cterm_skypix.c": "da3fb602236b7d363b50010b0935e13d7688b480d1694b7982921ececa2f979e",
+    "src/terminal/cterm/st_cterm.c": "bc856e59485035f862b55774545fa42b84b2d9e16248cfd33dfe6821efac1874",
     "src/terminal/cterm/st_cterm.h": "21d1b59dc397c4a4d23e64da8f378aad905737d3037299aba3d75abdb8496d9c",
+    "src/terminal/cterm/tests/data/skypix/golden-vectors.json": "a7ba8d85c74ac60000cd104399413e88a2360fd5368224d7f63e998cd8fd638d",
+    "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "b37d726ee4c89ce0b278839dd5659abba1c82cb9a237a12d7f666c80774d63f6",
+    "src/terminal/cterm/tests/st_cterm_skypix_test.c": "99787b534d6c4116b0d9c4e5c1ed81546f8a15f0d0205e0098b7adb1cf216fe8",
+    "src/terminal/cterm/tests/st_cterm_test.c": "caf89c93df35559704d5955144264eda19119dc9802607a4986444e72cb0d22b",
+    "src/terminal/cterm/tests/test_skypix_vectors.py": "c78418a402197a251bd43b8e1f5274c4df04b02a8c233a4b21422fda9ad78684",
     "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
     "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
     "src/terminal/screen_mode/st_screen_mode.h": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
     "src/terminal/session_history/st_session_history.h": "d34a5152abb9174219b2dc08f1c296109c4d1040b7e8526ee9fa198ef5133119",
+    "src/terminal/session_history/tests/st_session_history_test.c": "f138b20be30fa4f448187b49bcd975f8985954803c405921996d110b74ed4ace",
     "src/terminal/term/st_term.c": "bdec75fa6dc349074cfd6f93911888685a2e17ce18698a7e522b47156c4b64f4",
     "src/terminal/term/st_term.h": "537c1af2e49b5798153e882d3ef9626d277104c0af1240685d849478f61d5543",
+    "src/tests/st_amiga_font_manager_test.py": "428ec499a711893f78b3ed71243e198d74c89cfaf2966b6906fb4dca6bf0112f",
+    "src/tests/st_emoji_picker_test.py": "94caf4154b2876fe021e7547dd2291e5c632d7ad280d8651091498c17ffb0e8e",
+    "src/tests/st_font_assignments_test.py": "8c3e0c87a366a3950a6073f668cbf6c166fd6580104e562b7d05d73234e94c57",
+    "src/tests/st_graphics_scrollback_test.py": "e6dfed81c4f9b110446efcc37203bc1066d3389dd693eafa4b43abfec6457201",
+    "src/tests/st_menu_shortcuts_pty_test.py": "5c0a4a1e7b00a4080595513ba0f74fa6307b913b5d68964ef7940381fa5d17f9",
+    "src/tests/st_migrated_control_test.py": "6c48a9189227507ec97a9f80427d4abe9ea2967ea2353b8c702a957a299c73b5",
+    "src/tests/st_skypix_conformance_test.py": "358f0e8b568000542fe286f8e6f4c9e5ea44a110d95e612cdbe1f491ae8543f0",
+    "src/tests/st_skypix_mouse_test.py": "8853a506f6a51c4fafaff67d541879a599566ff2022a2ac7a15140a11a0bb103",
+    "src/tests/st_skypix_scrolling_test.py": "e52697663552fc200179e325a4e186b017c3e357b780f595e6d06c561dd58a75",
+    "src/tests/st_test_control_test.py": "847c10f78a5c106a751475944344c31fee80397638b87c6aa745d2930ce1fa52",
+    "src/tests/terminal_conformance.json": "f8775c1dd8c82890c7013a6de977063b3587264b4f90f3ad08d648c7b467432f",
+    "src/tests/wren/bbs_setters.wren": "96c94c02234c93bdd4ac027610a2ed25c32bdeb28b1736f243b1d5b378665db2",
     "src/text/codepage/st_codepage.h": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
     "src/text/emoji/st_emoji_catalog.h": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
     "src/text/emoji/st_emoji_locale.h": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
@@ -4940,97 +5127,7 @@
     "src/text/unicode_normalization/st_unicode_normalization.h": "cac5d848896ff4c278fad91926d02c5c9f07adaaabd39788d4ff5060f778ee53",
     "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
     "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
-    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
-    "scripts/menu_settings_ui_test.wren": "fc72b3412fe2d6b866cc3c3895e66129a0e109feb81fa9976e854411e89656c2",
-    "src/media/font_catalog/st_font_catalog.c": "6937c6662ba69882149081b4b915d17587bc3b841011653444f8d7746cc1cb67",
-    "src/terminal/cterm/cterm_render.c": "07bab863c7e360b8be8fd752bc49cc9848cd81315c87732f8e61145497fa2d49",
-    "src/tests/st_font_assignments_test.py": "8c3e0c87a366a3950a6073f668cbf6c166fd6580104e562b7d05d73234e94c57",
-    "src/terminal/cterm/tests/st_cterm_test.c": "caf89c93df35559704d5955144264eda19119dc9802607a4986444e72cb0d22b",
-    "src/config/bbs_list/st_bbs_store.c": "ff65237cac82c55d34b20a69061dcf0284e13653f20d629531209547f43131bc",
-    "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
-    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "1708e49b34d9df915e4b2afd0f227b5947d401cd1c967691a49503dbe74a827d",
-    "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
-    "src/config/settings/st_settings_store.c": "e6b30e1d048a70f240974ca3407ee7012c37285340f7308d5f27dd0a616787af",
-    "src/tests/st_emoji_picker_test.py": "94caf4154b2876fe021e7547dd2291e5c632d7ad280d8651091498c17ffb0e8e",
-    "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
-    "src/config/theme/tests/st_theme_test.c": "6bcc194d2af6fd9ea60b998eb673a81f12feb4225a0e6ee8ef032d87c5546f4b",
-    "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
-    "scripts/menu_theme_editor.wren": "2d7f6aca6c9a4229700b4cd774cffc84af94e2324dd3192a041e5ef576e40f09",
-    "scripts/ui_demo.wren": "885059ec0b92c72e5fb97cc8a1a09e936718bbd1ed3722b3a2802f548a6d00ed",
-    "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
-    "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
-    "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
-    "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "5e9b49fbd6c675bf2e71761bd06992fa543390c6fd973a185bb11da5ec57f6d4",
-    "src/tests/st_migrated_control_test.py": "6c48a9189227507ec97a9f80427d4abe9ea2967ea2353b8c702a957a299c73b5",
-    "src/config/bbs_list/tests/st_bbs_list_test.c": "601dc461ca3c9916176d8af3983b3de203f786c8247460635a31e194090efca1",
-    "src/config/bbs_list/st_bbs_profile_codec.c": "6a8d73eb02423760c4fa65ceadb19d81db9831335861a545234f309c0a5c4498",
-    "scripts/menu_ui.wren": "57232e460e4eec3bd090f28dad29eec09f897ea7f56666ac43646c365aba04f4",
-    "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
-    "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
-    "src/tests/st_menu_shortcuts_pty_test.py": "2900099be520a9f72c9de4df327415135995a4aa6a6552aa9eaa06c5badda49e",
-    "src/media/console/tests/st_console_x11_test.c": "ce4616c2fe61664c496a297936b79cefba9a280aae1672a78ad9b90573d40a51",
-    "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
-    "src/media/console/tests/st_console_ncurses_test.c": "a67df4169c00c06f7333aad4402e3f29cb0d72aa088a7aec1306690ba04265e4",
-    "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
-    "addons/modern_ui/scripts/modern_ui.wren": "775b847aff32d0d32e351519f0991738db0883085b2f949954fac59251feb670",
-    "addons/modern_ui/tests/test_frontend.py": "69c066524d11fa21a9880bd83c1c4e7cd46d29dbc3ecf5c47a3b9aab858c3153",
-    "scripts/menu_scrollback.wren": "e6f4d278a863a7d6217a84d5fb48245f780ed61c89deaecbea87ef91e33923da",
-    "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
-    "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1daa1b6ac6180b49ab96a811c3571af23eb8a3109d14a026578efcdd8b7621cd",
-    "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c": "fca707a2f0be87c2af9ee73477c71203e403c047689aff1b83b880a1e5e83a2f",
-    "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
-    "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
-    "src/scripting/wren_host/wren_bbs_model.h": "abe9afb6c1fa09ae794f6f1454ae702d104c9de743fb6e999cc4ac4841cf293d",
-    "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc",
-    "src/config/theme/st_theme_cloud.c": "81e112989eacf40cf3f63c7412a48f04a8bab722be95a5eae3213b32a7f75c24",
-    "src/config/theme/theme_internal.h": "bec641bc70123f40fe9da989db4fe59f58cfc5defb1b25825642669d4cc6fc80",
-    "src/scripting/wren_host/tests/cloud_theme_views.wren": "91cff4cd288e16792bac6397125e0f7056d295c11803bf72f07ca4b810e68610",
-    "scripts/menu_theme_editor_test.wren": "6639f43ed266defd6eeee4c1e35d82c858e2c4f1e5fca7ef20915317c7d4128b",
-    "src/scripting/wren_host/CMakeLists.txt": "957ecb21ddc20bde3e2391028f1f32d4be77a68b552a9668dfa2fa8bf0b2c046",
-    "scripts/pixel_vm_test.wren": "61dee1425b2a5ec67afb96dc04a27f1e20dad6243a149cd67eab514d2541f2cf",
-    "src/media/pixels/st_pixels.c": "6df928627439e4a983f8444e744fb9aa0279ce1ed5cd0b4f95f1bf8c86715940",
-    "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
-    "src/media/pixels/tests/st_pixels_test.c": "2b6af7f5a1af22b8421ee2cf67e1c9c5eb49aaeae89cb35618cad799baece37d",
-    "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b",
-    "docs/TERMINAL_CONFORMANCE.md": "d5dfbfb3650e3820291845a0e570797abb87affc647adae6d832f93ff8e09499",
-    "docs/RIP154_CONFORMANCE.md": "01659bbb9abc6b9151f825622c6415271d0a06f56133fe035dd1df73318adb10",
-    "src/tests/terminal_conformance.json": "ac0d7971022533a7b55d2161c14ce8fd3bb83ca9380ad241d30ed92dd5a1dc52",
-    "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "b37d726ee4c89ce0b278839dd5659abba1c82cb9a237a12d7f666c80774d63f6",
-    "src/CMakeLists.txt": "3540f6c70b1586e975d7797c48e843f7e819ab834a4b83f1c4b28318ffa81ce3",
-    "src/scripting/wren_host/wren_bind_digest.c": "53078c4038d0a189807e4f83fa3a800cf1ee50f3fdcf20a7b729c433f6bdb21b",
-    "src/scripting/wren_host/wren_host_internal.h": "9f72e50fd89e71498246fc7937daa51b7c001253c0c0df24ef21019b4d441c74",
-    "src/scripting/wren_host/tests/digest.wren": "c26b19fbf723271a49ec37345eee08a84c902c77e0f9aabafa6affd8dfe90a55",
-    "src/scripting/wren_host/tests/st_wren_digest_test.c": "026702e03fb1f3ae6a16a2e18554a9710bef2994cf9ccf100dd3ec0ffd1bf780",
-    "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c": "6b73edbc7e051b958d663b3591f5db99062887dcf0252abcc856cc27089fe03f",
-    "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c": "abb97ac4e4679e174f7374dd0afee96f1efb1914b82d13ac1e8b413863fa6a0e",
-    "src/terminal/cterm/tests/st_cterm_skypix_test.c": "99787b534d6c4116b0d9c4e5c1ed81546f8a15f0d0205e0098b7adb1cf216fe8",
-    "src/terminal/cterm/tests/test_skypix_vectors.py": "c78418a402197a251bd43b8e1f5274c4df04b02a8c233a4b21422fda9ad78684",
-    "src/tests/st_skypix_conformance_test.py": "358f0e8b568000542fe286f8e6f4c9e5ea44a110d95e612cdbe1f491ae8543f0",
-    "src/tests/st_amiga_font_manager_test.py": "428ec499a711893f78b3ed71243e198d74c89cfaf2966b6906fb4dca6bf0112f",
-    "src/media/amiga_font/st_amiga_fonts.h": "a89688cc13b0aaf2ac43404475193c4235eed3932d38e81fa661f66d73a025bd",
-    "src/media/amiga_font/st_amiga_font.h": "6424b10e3d0c687ef221e4430e4169b7ec16dfd699fd531b40b1c92aeb27d466",
-    "src/media/amiga_font/st_amiga_font.c": "400f70fa84626c90dd815901b9a831501850ebbc5dc0e1ac50e4a86a3623501a",
-    "src/terminal/cterm/cterm_skypix.c": "da3fb602236b7d363b50010b0935e13d7688b480d1694b7982921ececa2f979e",
-    "src/media/amiga_font/st_amiga_fonts.c": "c4c5f6bbf65a319651f9f13c004bed1d3eb12da4942126a82df25552e3d24b85",
-    "src/media/amiga_font/tests/st_amiga_font_fault_test.c": "64892edfd9982fa28be9d4eaeeb5cbb9f6fd611acfecd32d0722b29ab744ad8d",
-    "src/tests/wren/bbs_setters.wren": "96c94c02234c93bdd4ac027610a2ed25c32bdeb28b1736f243b1d5b378665db2",
-    "src/terminal/cterm/tests/data/skypix/golden-vectors.json": "a7ba8d85c74ac60000cd104399413e88a2360fd5368224d7f63e998cd8fd638d",
-    "src/media/amiga_font/data/manifest.json": "56069510f2d0bd964c4967700653e585fc5f6de118585624dbd852c55525ee11",
-    "docs/SKYPIX_CONFORMANCE.md": "8a337f949f91c34760c6df2535f6abe6451c3756e51715d48e9a443a018025b9",
-    "src/media/font_catalog/tests/st_font_catalog_test.c": "3199a4ff7144ad988626e7133cc97c6313137a48ef6fd2d95c1e51dc1e4e85b2",
-    "src/tests/st_graphics_scrollback_test.py": "e6dfed81c4f9b110446efcc37203bc1066d3389dd693eafa4b43abfec6457201",
-    "src/terminal/session_history/tests/st_session_history_test.c": "f138b20be30fa4f448187b49bcd975f8985954803c405921996d110b74ed4ace",
-    "src/media/console/tests/console_bitmap_test.c": "5137e530ffd1c7e2f5b277be82e74d7ec60023cd2b0c8004779ba47f4fc66fa7",
-    "src/media/console/console_pixels.c": "c27623769b3849f0377dc817c61331a5f813a9d711d5e1af091740cd4b63e50e",
-    "src/tests/st_skypix_mouse_test.py": "8853a506f6a51c4fafaff67d541879a599566ff2022a2ac7a15140a11a0bb103",
-    "src/tests/st_skypix_scrolling_test.py": "e52697663552fc200179e325a4e186b017c3e357b780f595e6d06c561dd58a75",
-    "src/scripting/wren_host/tests/codepage.wren": "f84ab8430338bbc958570e3bfac9f3cd39d5c5b72308545ddc5d5637485da559",
-    "src/scripting/wren_host/tests/st_wren_codepage_test.c": "4e853c8355821fc9319269323531b21d367426c9b804ae920449fb6943244a04",
-    "src/media/amiga_font/tests/test_generate_fonts.py": "94f79b10ef41dc2952490228afffca139d5ade1bbfbb5d35cf9c823259774e46",
-    "src/media/amiga_font/generate_fonts.py": "809e43b4d728e16d1677c0fdb1b043efe0f6c0a46abd6c5d7851dfca426fe62b",
-    "src/media/console/console_ncurses.c": "1d04310a77af932929f0eb80739eb14f1d003ebe2a4677fafe637b7ffbd33726",
-    "src/media/console/console_config.h.in": "28ae120b9bcee1e97f87baa58981b6430c5307d04d9adfee8c510684c950ef60",
-    "src/media/console/CMakeLists.txt": "549b9116dcdf4e0672d1bd4cc53cbf20ac3ed265ecb557cb1c7433827aa1ebaf"
+    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -6736,6 +6833,27 @@
         "diagnostics": "Final build logs contain no warnings/errors; headless/private-PTY tests clear inherited desktop variables and create no physical audio runtime.",
         "limitations": "Native NetBSD and Windows/MSVC runtime confirmation requires CI. Full 321-test native verification from the preceding CI fix remains historical; this follow-up runs the 15 focused tests and expanded native curses checks, not a repeated complete suite."
       }
+    },
+    {
+      "topic": "cell-styles-and-midi-inventory",
+      "status": "resolved",
+      "findings": [
+        "cell-style-flags"
+      ],
+      "assessments": [
+        "console.style-bits"
+      ],
+      "approval": "User approved complete Plan-mode chunk 19 revision 1 with \"Implement the plan.\" in Default mode. Explicit choices: style mask plus individual properties without a snapshot; teletext inspection only because serial-attribute editing requires stream reconstruction.",
+      "scope": "Cell.styleFlags / CellStyle expose six independent native drawing flags. New underline/bold/reverse/conceal Bool properties join bright/blink, whose former wrong-type no-ops now abort. Mask validation rejects nonfinite/fractional/negative/unsupported values before mutation; all non-style fields/bits and captured raster data remain intact. Read-only teletext/doubleHeight/reveal/separated/teletextControl expose retained state; absent source control is null. No native API, renderer/parser, ownership or language changes. Partial truthfully retains serial mutation as intentionally unavailable; pixel/glyph/colour bookkeeping remains owned by existing mechanisms.",
+      "tests": "New test first failed at missing CellStyle. Final fixtures cover all 64 style combinations and strict invalid values, per-bit teletext expectations and every seven-bit source control, no partial mutation, valid hyperlinks, legacy colour-origin markers, standalone/Surface/retarget/GC/copy/wide-cell round trips, both captured raster phases and literal independent bold/underline/reverse/conceal pixels. Run in menu, picker and connected CP437/UTF-8 contexts.",
+      "verification": {
+        "native": "FreeBSD Clang Debug/Botan/Unifont: full CMake build; 14 selected Wren/settings/drawing/bitmap/teletext/terminal CTests passed (86.77s). Expanded final wren_cell_styles passed again (0.62s).",
+        "gcc_minimal": "GCC Debug/no crypto/no Unifont: application and affected targets configured/built; all eight focused CTests passed (39.81s). Expanded final wren_cell_styles passed (0.73s).",
+        "sanitizers_minimal": "Clang ASan/UBSan/no crypto/no Unifont: application and affected targets configured/built; all eight focused CTests passed (122.93s). Expanded final wren_cell_styles passed (2.78s). FreeBSD LeakSanitizer unsupported; detect_leaks=0.",
+        "windows": "MinGW x86 and x86_64 application DLL/both launchers and affected host/loader/picker/new Cell test executables cross-built cleanly. No Windows execution, Wine or MSVC validation.",
+        "environment": "All tests headless, inherited desktop variables cleared; no physical audio runtime/device. Final build/configure logs contain no compiler warnings."
+      },
+      "accounting": "Reviewed pre-existing MIDI drift since d546eec: public st_music.h and eight added Settings/audio/runtime/mixer declarations; compiled MIDI enable/linkage metadata is already bound, independent native playback remains unmapped under open audio-service, parser/lifecycle mechanisms have an explicit host-owner assessment. Exact private adapter symbol tables/file iterator and music_internal.h are excluded on reviewed consumers, with no directory-wide music exclusion. Reviewed changed parser/MIDI/settings/caller/test evidence before refreshing digests. Inventory is 83 public headers, 132 exclusions, 2575 native items and 161 assessments; all 83 matrix rows independently reconcile. Original 51 topics now have 22 resolved and 29 open; the separate documentation finding stays resolved."
     }
   ]
 }

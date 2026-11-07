@@ -3,6 +3,75 @@
 Permanent accounting: link:WREN_C_API_COVERAGE.adoc[coverage report] and
 link:api/wren-c-api-assessments.json[assessment ledger].
 
+== Approved chunk 19: Cell styles and metadata (revision 1)
+
+Approval: the user approved the complete Plan-mode revision 1 with "Implement
+the plan." Implementation began in Default mode on 2026-11-07.
+Phase: chunk complete; next chunk requires a new actual Plan-mode phase.
+Scope: +cell-style-flags+ / +console.style-bits+, plus reconciliation of
+pre-existing MIDI accounting drift. General script audio remains open.
+
+The user chose both named properties and grouped numeric assignment, without
+a snapshot object, and approved +Cell.styleFlags+ / +CellStyle+ for bright,
+blink, underline, bold, reverse and conceal. Add the missing Boolean properties;
+all six setters require Bool. Invalid masks (wrong type, nonfinite, fractional,
+negative or containing other bits) abort before mutation. Existing bright/blink
+wrong-type no-ops deliberately become errors. Mask replacement changes only
+these six native bits in the addressed stored Cell. Preserve all other fields,
+captured raster planes, wide-cell structure and existing source-bit meanings.
+
+Add read-only teletext, doubleHeight, reveal and separated Booleans, and
+teletextControl (retained seven-bit source control or null). The user confirmed
+that serial-attribute editing requires stream reconstruction; do not expose
+such mutation or reconstruct surrounding cells. Keep pixelGraphics read-only
+and renderer bookkeeping host-owned. No new allocation, I/O, resource owner or
+error family. Existing Surface views, retargeting, GC and VM boundaries apply.
+
+Acceptance: new +wren_cell_styles+ regressions in menu/picker and connected
+CP437/UTF-8 contexts cover every style combination, strict invalid values and
+no partial mutation, native teletext metadata and rejected setters, colours,
+hyperlinks, wide cells, captured raster planes, standalone/view/retarget/GC,
+copies and screen round trips. Use independent bitmap style expectations.
+Run Wren host/menu/picker, cell-colours, drawing, bitmap and teletext regressions;
+repeat focused tests on GCC, ASan/UBSan and no-crypto/no-Unifont; cross-build
+application and affected tests with both MinGW architectures. Use headless
+fixtures without physical audio or the user's display; no Wine/runtime claims.
+
+Inventory public st_music.h and review private adapter/iterator ownership,
+existing MIDI Settings/catalog bindings and new audio functions. Reconcile
+changed evidence since the last accounting commit only after review. Preserve
+the general audio scope finding and all unrelated decisions. Update API docs,
+assessment/report/matrix/counts/ledger and append a follow-up. Keep Partial
+truthful while recording the approved retained serial-attribute restrictions.
+Run coverage and diff checks, then commit the verified complete chunk without
+pushing. Retain this temporary document and skill for remaining topics.
+
+=== Completed verification for chunk 19
+
+The new regression first failed at missing CellStyle. Final coverage includes
+all 64 combinations, exact numeric/Bool rejection without partial mutation,
+per-bit teletext metadata and every retained seven-bit source control, valid
+hyperlinks, colour-origin flags, wide cells, Surface copies/retargeting/GC and
+both captured raster planes. Literal fixture glyph pixels independently check
+bold, underline, reverse and conceal in all VMs, including connected CP437/UTF-8.
+
+Clang Debug/Botan/Unifont full build and 14 selected Wren/settings/drawing/bitmap/
+teletext/terminal CTests passed (86.77s); expanded final Cell test passed (0.62s).
+GCC Debug/no-crypto/no-Unifont and Clang ASan/UBSan/no-crypto/no-Unifont application
+and affected-target builds passed; eight focused tests each passed (39.81s and
+122.93s), with expanded final Cell reruns passing (0.73s and 2.78s). FreeBSD leak
+detection is unsupported and disabled. MinGW x86/x86_64 DLL/both launchers and
+affected test executables cross-built cleanly; no Windows execution, Wine or
+MSVC validation. Headless fixtures clear desktop variables and open no physical
+audio devices. Final configure/build logs contain no compiler warnings.
+
+MIDI public declarations and exact private-header boundaries are reconciled
+without closing the general audio topic. Current inventory: 83 public headers,
+132 exclusions, 2,575 items and 161 assessments; all matrix rows agree.
+The original 51 topics have 22 resolved and 29 open; the separate documentation
+finding is resolved. Retain this document and temporary skill.
+Remaining work for this chunk: none after final accounting/diff checks and commit.
+
 == Approved chunk 18: codepage conversion and built-in font metadata (revision 1)
 
 Approval: the user approved the complete Plan-mode revision 1 with "Implement

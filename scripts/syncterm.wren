@@ -872,6 +872,17 @@ class REPL {
   foreign static captureClear_()
   foreign static captureCommit_()
 }
+// Independent Cell drawing styles, with the native bit values.
+class CellStyle {
+  static bright { 0x400000 }
+  static blink { 2 }
+  static underline { 0x10000 }
+  static bold { 0x20000 }
+  static reverse { 0x40000 }
+  static conceal { 4 }
+  static all { 0x470006 }
+}
+
 foreign class Cell {
   construct new() {}
   foreign ch
@@ -885,6 +896,21 @@ foreign class Cell {
   foreign bright=(b)
   foreign blink
   foreign blink=(b)
+  foreign styleFlags
+  foreign styleFlags=(mask)
+  foreign underline
+  foreign underline=(b)
+  foreign bold
+  foreign bold=(b)
+  foreign reverse
+  foreign reverse=(b)
+  foreign conceal
+  foreign conceal=(b)
+  foreign teletext
+  foreign doubleHeight
+  foreign reveal
+  foreign separated
+  foreign teletextControl
   foreign pixelGraphics
   foreign fgPalette
   foreign fgPalette=(n)

@@ -44,6 +44,14 @@ def exclusion_reason(path):
         public, reason = owners[path.parent]
         if path.name != public:
             return reason
+    music_private = {
+        Path('src/media/music/adl_symbols.h'),
+        Path('src/media/music/alsa_symbols.h'),
+        Path('src/media/music/fluid_symbols.h'),
+        Path('src/media/music/midi_file.h'),
+    }
+    if path in music_private:
+        return 'Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h.'
     if path.parent == Path('src/media/unifont'):
         return 'Optional native font-pack loader owned by rendering; script rich-font omissions are recorded separately.'
     explicit = {
