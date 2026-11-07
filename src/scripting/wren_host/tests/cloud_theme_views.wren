@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Host, IOErr
+import "syncterm" for Host, IOErr, Key, KeyEvent
 import "syncterm_menu" for Menu, MenuError, CloudThemeEntry
 import "menu_settings_ui" for SettingsMenu
 import "ui_app" for App
 import "ui_popup" for Alert
+import "ui_list" for ListView
 
 class CloudErrorApp is App {
   construct new() {
@@ -19,6 +20,32 @@ class CloudErrorApp is App {
   }
 }
 
+// Exercise the real Themes browser before any online refresh.
+class CloudStartupApp is App {
+  construct new(accept) {
+    super()
+    _accept = accept
+    _seen = false
+  }
+  seen { _seen }
+  modal(pane) {
+    if (pane.title != "Themes") Fiber.abort("unexpected startup theme dialog")
+    pushModal(pane)
+    var list = null
+    for (child in pane.children) if (child is ListView) list = child
+    if (list == null || list.selected == null ||
+        !list.items[list.selected].contains("Cloud Theme")) {
+      Fiber.abort("cached selected theme missing or not highlighted after restart")
+    }
+    _seen = true
+    if (_accept) {
+      list.handle(KeyEvent.new(Key.enter))
+    } else {
+      pane.handle(KeyEvent.new(Key.escape))
+    }
+  }
+}
+
 class CloudThemeTest {
   static check_(ok, message) {
     if (!ok) Fiber.abort(message)
@@ -29,6 +56,21 @@ class CloudThemeTest {
   }
   static stale_(action) {
     check_(Fiber.new { action.call() }.try() is String, "stale cloud view accepted")
+  }
+  static startup_(verifyHash) {
+    var entry = named_("official/blue")
+    check_(entry.cached, "cold-start cache state")
+    var before = Menu.selectedThemePackage
+    var app = CloudStartupApp.new(false)
+    SettingsMenu.themes_(app, null)
+    check_(app.seen && Menu.selectedThemePackage == before,
+        "opening/cancelling Themes changed the selected package")
+    if (verifyHash) {
+      app = CloudStartupApp.new(true)
+      SettingsMenu.themes_(app, null)
+      check_(app.seen && Menu.selectedThemePackage == before,
+          "selected cached theme cannot be retained with Enter")
+    }
   }
   static run(verifyHash) {
     __blue = named_("official/blue")

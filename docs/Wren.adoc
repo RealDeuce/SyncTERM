@@ -5329,6 +5329,10 @@ numeric reason for warning text whose underlying status C has already discarded.
 `Menu.cloudThemes` returns a fresh List of read-only `CloudThemeEntry` live
 views in the menu VM. They have no public constructor, setters or positional
 indexing. Local `Menu.themes` rows keep their existing interface.
+The native catalog is initialized from the cached manifest during startup,
+without fetching the manifest or packages. Downloaded packages are therefore
+available before opening Online Themes. Missing or invalid optional catalog
+metadata does not prevent restoring the previously selected cached theme.
 
 [options="header",cols="2m,4"]
 |===

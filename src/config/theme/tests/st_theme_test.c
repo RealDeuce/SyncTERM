@@ -398,6 +398,44 @@ test_reset_last_override(struct st_theme_manager *manager, const char *path)
 	return 0;
 }
 
+static int
+test_cached_theme_startup(const struct st_app_paths *paths,
+	const struct st_settings *settings, const char *manifest)
+{
+	struct st_settings selected;
+	struct st_theme_manager *manager = NULL;
+	char error[256] = "";
+	st_settings_init(&selected);
+	CHECK(st_settings_copy(&selected, settings));
+	free(selected.theme_package);
+	selected.theme_package = strdup("official/blue");
+	CHECK(selected.theme_package != NULL);
+	CHECK(st_theme_manager_create(&manager, paths, &selected, error, sizeof(error)) == 0);
+	CHECK(strcmp(st_theme_active(manager)->package, "official/blue") == 0);
+	CHECK(st_theme_cloud_count(manager) == 1);
+	const struct st_cloud_theme_entry *entry = st_theme_cloud_at(manager, 0);
+	CHECK(entry != NULL && strcmp(entry->package, "official/blue") == 0
+	    && strcmp(entry->name, "Cloud Theme") == 0 && entry->cached);
+	st_theme_manager_free(&manager);
+	/* Optional catalog metadata must not block restoring a cached selection. */
+	char *backup = NULL;
+	CHECK(path_join_alloc(&backup, paths->system_cache_directory, "manifest-backup.lst") == 0);
+	CHECK(fs_rename(manifest, backup) == 0);
+	CHECK(st_theme_manager_create(&manager, paths, &selected, error, sizeof(error)) == 0);
+	CHECK(strcmp(st_theme_active(manager)->package, "official/blue") == 0);
+	CHECK(st_theme_cloud_count(manager) == 0);
+	st_theme_manager_free(&manager);
+	CHECK(write_text(manifest, "Repository=invalid\n") == 0);
+	CHECK(st_theme_manager_create(&manager, paths, &selected, error, sizeof(error)) == 0);
+	CHECK(strcmp(st_theme_active(manager)->package, "official/blue") == 0);
+	CHECK(st_theme_cloud_count(manager) == 0);
+	st_theme_manager_free(&manager);
+	CHECK(fs_remove_file(manifest) == 0 && fs_rename(backup, manifest) == 0);
+	free(backup);
+	st_settings_dispose(&selected);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -462,6 +500,7 @@ main(void)
 	settings.theme_inverse_color = 8;
 	settings.theme_lightbar_color = 16;
 	settings.theme_lightbar_background_color = 8;
+	CHECK(test_cached_theme_startup(&paths, &settings, manifest) == 0);
 	CHECK(st_theme_manager_create(&manager, &paths, &settings, error,
 	    sizeof(error)) == 0);
 	CHECK(test_failed_document_construction(manager) == 0);
@@ -566,10 +605,10 @@ main(void)
 	CHECK(write_text(saved, "Name=Externally changed\n") == 0);
 	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
 	    == ST_THEME_DOCUMENT_CONFLICT);
-	CHECK(st_theme_cloud_generation(NULL) == 0 && st_theme_cloud_generation(manager) == 0);
+	CHECK(st_theme_cloud_generation(NULL) == 0 && st_theme_cloud_generation(manager) == 1);
 	CHECK(st_theme_cloud_refresh(manager, false, "", error, sizeof(error)) == 0);
 	uint64_t cloud_generation = st_theme_cloud_generation(manager);
-	CHECK(cloud_generation == 1);
+	CHECK(cloud_generation == 2);
 	const struct st_cloud_theme_entry *borrowed_cloud = st_theme_cloud_at(manager, 0);
 	char manifest_backup[sizeof(manifest) + 16];
 	CHECK(snprintf(manifest_backup, sizeof(manifest_backup), "%s.missing-test", manifest)

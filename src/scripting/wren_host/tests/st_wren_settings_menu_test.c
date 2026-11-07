@@ -218,6 +218,30 @@ test_cloud_theme_views(struct st_wren_host *host)
 	size_t size = fread(source, 1, sizeof(source) - 1, stream);
 	CHECK(!ferror(stream) && feof(stream) && fclose(stream) == 0);
 	source[size] = '\0';
+	/* A separate host models a restart with ThemePackage already saved. No
+	 * explicit cloud refresh is allowed before opening the shipped browser. */
+	char *previous_package = st_settings.theme_package;
+	char *previous_file = st_settings.theme_file;
+	st_settings.theme_package = strdup("official/blue");
+	st_settings.theme_file = NULL;
+	CHECK(st_settings.theme_package != NULL);
+	struct st_wren_host_config startup_config = host->config;
+	startup_config.safe_mode = true;
+	st_wren_host_t *startup_host = NULL;
+	CHECK(st_wren_host_create(&startup_host, &startup_config) == 0);
+	CHECK(strcmp(st_theme_active(startup_host->themes)->name, "Cloud Theme") == 0);
+	interpret(startup_host, "cloud_theme_views", source);
+	unsigned char startup_digest[32];
+	bool startup_hash = st_digest(ST_DIGEST_SHA256, "", 0, startup_digest,
+	    sizeof(startup_digest)) == ST_CRYPTO_OK;
+	interpret(startup_host, "cloud_theme_views", startup_hash
+	    ? "CloudThemeTest.startup_(true)\n" : "CloudThemeTest.startup_(false)\n");
+	CHECK(strcmp(st_theme_active(startup_host->themes)->name, "Cloud Theme") == 0);
+	st_wren_host_destroy(startup_host);
+	free(st_settings.theme_package);
+	free(st_settings.theme_file);
+	st_settings.theme_package = previous_package;
+	st_settings.theme_file = previous_file;
 	interpret(host, "cloud_theme_views", source);
 	unsigned char digest[32];
 	bool verify_hash = st_digest(ST_DIGEST_SHA256, "", 0, digest, sizeof(digest)) == ST_CRYPTO_OK;

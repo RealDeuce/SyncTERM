@@ -117,8 +117,8 @@ int st_theme_delete(struct st_theme_manager *manager, const char *filename,
 int st_theme_cloud_refresh(struct st_theme_manager *manager, bool fetch,
 	const char *selected_package, char *warning, size_t warning_size);
 size_t st_theme_cloud_count(const struct st_theme_manager *manager);
-/* Zero initially/for NULL; advances when refresh replaces the borrowed catalog.
- * In-place cache updates preserve the generation. Serialize access with mutations. */
+/* Zero for NULL or before the first successful refresh, including cached startup.
+ * Replacement advances it; in-place updates preserve it. Serialize mutations. */
 uint64_t st_theme_cloud_generation(const struct st_theme_manager *manager);
 const struct st_cloud_theme_entry *st_theme_cloud_at(
 	const struct st_theme_manager *manager, size_t index);

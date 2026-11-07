@@ -955,6 +955,9 @@ st_theme_manager_create(struct st_theme_manager **result,
 		    error_size) == 0)
 			install_theme(manager, selected);
 	}
+	/* Restore the browser's cached packages without a network request. The
+	 * catalog is optional and must not prevent restoring the selected theme. */
+	(void)st_theme_cloud_refresh(manager, false, settings->theme_package, NULL, 0);
 	*result = manager;
 	return 0;
 }

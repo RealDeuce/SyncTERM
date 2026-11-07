@@ -1689,3 +1689,23 @@ All 83 current matrix rows match the 2,575-item ledger and 161 assessments;
 132 headers are explicitly excluded. There are 22 resolved/29 open original
 topics, with the separate profile documentation finding resolved. The temporary
 burndown document and skill remain until all recorded scope decisions are settled.
+
+
+=== Cached online themes after restart
+
+The selected cached package already loaded at startup, but the cloud catalog
+was empty until an online refresh. The existing Themes browser therefore could
+not show or highlight that package. Theme-manager construction now initializes
+the catalog from the saved manifest offline, preserving its optional status and
+the independently restored active selection. Missing/malformed catalog metadata
+does not fail construction. Public C/Wren APIs, getter I/O and view lifetimes
+are unchanged; no startup network fetch or additional script authority is added.
+
+Native and real-Wren cold-start regressions first reproduced the missing entry.
+They now verify the cached package is listed/highlighted and actual Escape/Enter
+retain the selection; missing/malformed manifest cases retain the active theme.
+The workspace application build and five focused native/Wren CTests pass, as do
+two ASan/UBSan tests with no crypto/no Unifont. Both MinGW architectures compile
+the DLL/launchers and affected tests cleanly; no Windows execution or MSVC claim.
+Native declarations and all 83 matrix rows remain unchanged: 2,575 items,
+132 exclusions and 161 assessments, with 22 resolved/29 open original topics.

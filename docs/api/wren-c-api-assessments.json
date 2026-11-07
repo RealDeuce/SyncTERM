@@ -167,7 +167,7 @@
     },
     {
       "path": "src/config/theme/st_theme.h",
-      "sha256": "bf76e31f18f57312850d26e81e4ba25e3c36b2fa30e24497609dc52d0f25cbfc",
+      "sha256": "ac2571459358b88dc2b0f829a77e06b23b169c59ea53f5c8012c20b3df4351f8",
       "status": "reviewed",
       "symbol_count": 122
     },
@@ -1319,7 +1319,7 @@
     "themes.manager-lifetime": {
       "status": "host-owned",
       "wren": "application theme manager; transactional Settings preparation",
-      "reason": "Manager create/free, prepare/install/free and raw cache refresh policy coordinate the one active theme and rollback. Scripts preview/select/edit through that owner; they cannot install a separate manager into a VM. Narrow document activation retains an independent manager-owned copy; it does not grant a general theme installer or another manager owner. The native cloud catalog generation is a separate host-owned lifetime token used to reject stale CloudThemeEntry views before dereferencing. It is not a script numeric counter or another manager owner.",
+      "reason": "Manager create/free, prepare/install/free and raw cache refresh policy coordinate the one active theme and rollback. Scripts preview/select/edit through that owner; they cannot install a separate manager into a VM. Narrow document activation retains an independent manager-owned copy; it does not grant a general theme installer or another manager owner. The native cloud catalog generation is a separate host-owned lifetime token used to reject stale CloudThemeEntry views before dereferencing. It is not a script numeric counter or another manager owner. Construction now initializes the cloud catalog from the saved manifest offline. Missing or malformed optional catalog metadata does not prevent restoring the committed cached selection; getters retain their existing no-I/O/view-lifetime contracts.",
       "vm": "menu",
       "evidence": [
         {
@@ -1341,6 +1341,10 @@
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
           "anchor": "view->generation != st_theme_cloud_generation(themes)"
+        },
+        {
+          "path": "src/config/theme/st_theme.c",
+          "anchor": "st_theme_cloud_refresh(manager, false, settings->theme_package, NULL, 0)"
         }
       ]
     },
@@ -4317,6 +4321,11 @@
       "path": "scripts/syncterm.wren",
       "anchor": "class CellStyle",
       "aspect": "Shared Cell declaration and named native drawing-style masks in all VMs."
+    },
+    {
+      "path": "docs/Themes.adoc",
+      "anchor": "At startup, SyncTERM reads the saved manifest",
+      "aspect": "Offline cached-catalog initialization, selected row and optional metadata versus explicit online update behavior."
     }
   ],
   "test_evidence": [
@@ -4888,6 +4897,16 @@
       "path": "scripts/wrentest.wren",
       "anchor": "Cell.styleFlags replaces only independent styles",
       "aspect": "Bundled real-connection Cell smoke assertions for grouped styles and named properties."
+    },
+    {
+      "path": "src/config/theme/tests/st_theme_test.c",
+      "anchor": "test_cached_theme_startup",
+      "aspect": "Cold-start cached selection and native catalog populated without an explicit refresh; missing/malformed optional manifest preserves the active cached selection."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/cloud_theme_views.wren",
+      "anchor": "class CloudStartupApp",
+      "aspect": "Fresh host opens the shipped Themes browser with the saved package listed/highlighted; real Escape and Enter preserve the package, without an online refresh."
     }
   ],
   "dispatch_evidence": [
@@ -4904,8 +4923,9 @@
     "docs/RIP154_CONFORMANCE.md": "01659bbb9abc6b9151f825622c6415271d0a06f56133fe035dd1df73318adb10",
     "docs/SKYPIX_CONFORMANCE.md": "8a337f949f91c34760c6df2535f6abe6451c3756e51715d48e9a443a018025b9",
     "docs/TERMINAL_CONFORMANCE.md": "80d5c9b23c97749cbfeeebdc8af8b3dafea856c2ef5a1454fb330aba0704e435",
+    "docs/Themes.adoc": "04e09bf265087138eb9eb7a0ed6a4f050e5f467e6dffeb9cfc87b8d6aa6befce",
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "4eb4d23d8a48bb61196bc539119d31267c872a1a9ed82fbd52cb6a0f4e227fc1",
+    "docs/Wren.adoc": "1f308e10e521da7be3381bf1376e11b7a948ad3dfd879afd228c315843b930f8",
     "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "scripts/auto/connected/font_pick.wren": "b7c7176c36e9ec274425e4ea3bd14f37ce9991e6fe19078a83ec614e6978422b",
@@ -4965,11 +4985,12 @@
     "src/config/profile/st_profile.h": "a68bcd842acbaef37ff290723056005421b2d4bd79acb7efc4886e439e019edd",
     "src/config/settings/st_settings.h": "b90d7d8d2c815af15652c3a7c9ea64950d5605b4cae329bd0fc3c457a38dbb33",
     "src/config/settings/st_settings_store.c": "04b9084f40708e67ba6f781c5ff464f8d326125ad6d773c8fd8df62b5bbc23ae",
-    "src/config/theme/st_theme.h": "bf76e31f18f57312850d26e81e4ba25e3c36b2fa30e24497609dc52d0f25cbfc",
+    "src/config/theme/st_theme.c": "ba1e27027c1ee59f242d9992c819601d8678cdd90d44305751a685b5a5536a61",
+    "src/config/theme/st_theme.h": "ac2571459358b88dc2b0f829a77e06b23b169c59ea53f5c8012c20b3df4351f8",
     "src/config/theme/st_theme_cloud.c": "81e112989eacf40cf3f63c7412a48f04a8bab722be95a5eae3213b32a7f75c24",
     "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
     "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
-    "src/config/theme/tests/st_theme_test.c": "6bcc194d2af6fd9ea60b998eb673a81f12feb4225a0e6ee8ef032d87c5546f4b",
+    "src/config/theme/tests/st_theme_test.c": "d74875fdb789bedb5533fdf8e4e7726d7c14cc5c3beaf265e34ff9ce3aca907f",
     "src/config/theme/theme_internal.h": "bec641bc70123f40fe9da989db4fe59f58cfc5defb1b25825642669d4cc6fc80",
     "src/io/file_lock/st_file_lock.h": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
     "src/io/file_map/file_map.h": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
@@ -5031,7 +5052,7 @@
     "src/scripting/wren_host/st_wren_host.h": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
     "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc",
     "src/scripting/wren_host/tests/cell_styles.wren": "522a83bc0cc79882d136348d78f72e3f189064014709955f0e61cbdd9777590e",
-    "src/scripting/wren_host/tests/cloud_theme_views.wren": "91cff4cd288e16792bac6397125e0f7056d295c11803bf72f07ca4b810e68610",
+    "src/scripting/wren_host/tests/cloud_theme_views.wren": "ff01ee69b366034376cf4dc4b925f40ff03f3fd5c8af6dc554b134700a72748a",
     "src/scripting/wren_host/tests/codepage.wren": "f84ab8430338bbc958570e3bfac9f3cd39d5c5b72308545ddc5d5637485da559",
     "src/scripting/wren_host/tests/digest.wren": "c26b19fbf723271a49ec37345eee08a84c902c77e0f9aabafa6affd8dfe90a55",
     "src/scripting/wren_host/tests/st_wren_cell_styles_test.c": "2cac4032a4f82c424ef46bf8218dc041314775da8e74a686d3788d3e400bfa75",
@@ -5047,7 +5068,7 @@
     "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
     "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "5e9b49fbd6c675bf2e71761bd06992fa543390c6fd973a185bb11da5ec57f6d4",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "c00bde777615bc6d042ff3fef0b0d174ea939d2679b83ee417ea3c0b66dbaa29",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "103dca4d08ec6fa59a36ecbc06c496213120fc0ee62a7c4b36aa6fdc581beb24",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
     "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
@@ -6854,6 +6875,24 @@
         "environment": "All tests headless, inherited desktop variables cleared; no physical audio runtime/device. Final build/configure logs contain no compiler warnings."
       },
       "accounting": "Reviewed pre-existing MIDI drift since d546eec: public st_music.h and eight added Settings/audio/runtime/mixer declarations; compiled MIDI enable/linkage metadata is already bound, independent native playback remains unmapped under open audio-service, parser/lifecycle mechanisms have an explicit host-owner assessment. Exact private adapter symbol tables/file iterator and music_internal.h are excluded on reviewed consumers, with no directory-wide music exclusion. Reviewed changed parser/MIDI/settings/caller/test evidence before refreshing digests. Inventory is 83 public headers, 132 exclusions, 2575 native items and 161 assessments; all 83 matrix rows independently reconcile. Original 51 topics now have 22 resolved and 29 open; the separate documentation finding stays resolved."
+    },
+    {
+      "topic": "cached-theme-startup",
+      "status": "resolved",
+      "request": "User reported that cached online themes were absent from Themes, hiding the current selection and making it difficult to keep that theme when reopening the browser.",
+      "assessments": [
+        "themes.manager-lifetime",
+        "themes.cloud-origin"
+      ],
+      "scope": "The browser already merges cached cloud rows and tracks package identities. The manager restored the selected cache file but left its cloud catalog empty until an online refresh. Initialize that catalog offline from the saved manifest after restoring the committed selection. Cache metadata remains optional; no automatic network fetch, script getter I/O, new API, ownership/authority or native result contract is introduced. Document startup and explicit update behavior; adjust the generation comment for initialization during construction.",
+      "tests": "Independent native and real-Wren cold-start regressions failed first with an empty catalog/missing package. The final tests use a freshly constructed host and the shipped Themes browser, checking the selected package is present/highlighted and both Escape and Enter retain it. Native missing/malformed manifest cases preserve the active cached selection. Existing cloud view generation, normalization, failure and lifecycle regressions remain intact.",
+      "verification": {
+        "native": "FreeBSD Clang Debug/Botan: application and relevant tests built from the actual workspace; theme, wren_settings_runtime, wren_host, wren_menu_contract and wren_picker_contract all passed (41.95s). An isolated local checkout also passed the application build and same five tests while workspace I/O was delayed.",
+        "sanitizers_minimal": "Clang ASan/UBSan with no crypto/no Unifont: theme and wren_settings_runtime passed (9.20s) in the local checkout; transferred source files match the tested copies. FreeBSD LeakSanitizer is unsupported and disabled.",
+        "windows": "MinGW x86 and x86_64 application DLL/both launchers and affected native/Wren theme test executables cross-built without warnings. No Windows execution, Wine or MSVC validation.",
+        "environment": "Headless fixtures clear inherited desktop variables and disable physical PCM/MIDI output. Final build logs contain no compiler warnings."
+      },
+      "accounting": "Only the reviewed theme header comment and affected implementation/test/documentation evidence change; native declarations, inventory rows, matrix and dispositions remain unchanged: 83 public headers, 132 exclusions, 2575 items, 161 assessments, 22 resolved/29 open original topics. No new burndown scope closure."
     }
   ]
 }

@@ -71,11 +71,16 @@ does not replace the last accepted copy.  Clearing the system cache removes
 downloaded packages but does not remove `ThemePackage` from `syncterm.ini`.
 SyncTERM falls back to Classic until that package is available again.
 
-Once an online catalog has been used, SyncTERM checks it during startup.
-Packages already present in the cache, including the selected package, are
-updated when their manifest SHA-256 changes.  Entering the Online Themes
-browser also checks for updates.  A network or validation failure retains the
-previous validated package and is shown in the browser.
+At startup, SyncTERM reads the saved manifest and discovers its cached
+packages without contacting the network. They are available in the main Themes
+browser immediately, with the configured package highlighted. Opening and
+cancelling the browser preserves that selection. Missing or invalid optional
+catalog metadata does not prevent restoring a valid cached selected theme.
+
+Entering Online Themes checks for manifest updates. Cached packages whose
+SHA-256 changed are marked for update; selecting one downloads and validates
+the replacement. A network or validation failure retains the previous validated
+package on disk and is shown in the browser.
 
 The official catalog is read from
 `http://syncterm.bbsdev.net/themes/manifest.lst`.  Its contents use INI
