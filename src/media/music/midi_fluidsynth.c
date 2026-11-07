@@ -38,7 +38,7 @@ static void load(void)
 	loaded = true;
 }
 #endif
-struct fluid_state { fluid_settings_t *settings; fluid_synth_t *synth; };
+struct fluid_state { fluid_settings_t *settings; fluid_synth_t *synth; bool ansi; int reverb, chorus; };
 static int send_message(void *context, const uint8_t *b, size_t size)
 {
 	struct fluid_state *f = context;
@@ -67,6 +67,26 @@ static int render(void *context, int16_t *frames, size_t count)
 	struct fluid_state *f = context;
 	if (count > INT_MAX) return IO_ERROR_OUT_OF_RANGE;
 	return api.fluid_synth_write_s16(f->synth, (int)count, frames, 0, 2, frames, 1, 2) == FLUID_OK ? 0 : IO_ERROR_IO;
+}
+static int set_ansi(void *context, bool ansi)
+{
+	struct fluid_state *f = context;
+	if (!ansi && !f->ansi) return 0;
+	if (ansi && !f->ansi) {
+		if (api.fluid_synth_get_cc(f->synth, 0, 91, &f->reverb) != FLUID_OK
+		    || api.fluid_synth_get_cc(f->synth, 0, 93, &f->chorus) != FLUID_OK) return IO_ERROR_IO;
+		f->ansi = true;
+	}
+	/* CC zero alone does not cancel a SoundFont preset's baked-in sends.
+	 * Cancel their full range as channel-local generator offsets as well.
+	 * Keep global effect configuration and other MIDI channels untouched. */
+	int status = 0;
+	if (api.fluid_synth_set_gen(f->synth, 0, GEN_REVERBSEND, ansi ? -1000 : 0) != FLUID_OK) status = IO_ERROR_IO;
+	if (api.fluid_synth_set_gen(f->synth, 0, GEN_CHORUSSEND, ansi ? -1000 : 0) != FLUID_OK) status = IO_ERROR_IO;
+	if (api.fluid_synth_cc(f->synth, 0, 91, ansi ? 0 : f->reverb) != FLUID_OK) status = IO_ERROR_IO;
+	if (api.fluid_synth_cc(f->synth, 0, 93, ansi ? 0 : f->chorus) != FLUID_OK) status = IO_ERROR_IO;
+	if (status == 0 && !ansi) f->ansi = false;
+	return status;
 }
 static void close_synth(void *context)
 {
@@ -113,6 +133,7 @@ int st_midi_fluid_open(struct st_midi_sink *sink)
 	}
 	if (api.fluid_synth_sfcount(f->synth) == 0) { close_synth(f); return IO_ERROR_NOT_FOUND; }
 	sink->state = f; sink->send = send_message; sink->render = render; sink->close = close_synth;
+	sink->set_ansi = set_ansi;
 	/* Calibrate at the library's default gain, then restore the user's gain.
 	 * Otherwise calibration would cancel an explicit synth.gain setting. */
 	double configured = api.fluid_synth_get_gain(f->synth), baseline;

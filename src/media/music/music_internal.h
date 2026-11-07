@@ -16,6 +16,8 @@ struct st_midi_sink {
 	/* Source calibration is combined with channel gain by the wide mixer. */
 	float pcm_gain_db;
 	int (*gain)(void *, float, float);
+	/* Optional renderer setup; false restores file-playback state. */
+	int (*set_ansi)(void *, bool);
 	void (*close)(void *);
 	/* Native send/drain operations consult this when awaiting completion. */
 	bool (*cancelled)(void *);

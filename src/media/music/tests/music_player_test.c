@@ -13,6 +13,7 @@ struct recording {
 	size_t frames, events, on, off, sysex;
 	uint8_t keys[256];
 	uint8_t program[16], note_programs[256];
+	bool ansi, note_ansi[256];
 	uint64_t positions[256];
 	bool sounding, fail, render_fail;
 	float left, right;
@@ -25,7 +26,7 @@ static int send(void *context, const uint8_t *b, size_t size)
 	if ((b[0] & 0xf0) == 0xc0) r->program[b[0] & 15] = b[1];
 	if (b[0] == 0xf0) { CHECK(size >= 2 && b[size - 1] == 0xf7); ++r->sysex; }
 	if ((b[0] & 0xf0) == 0x90 && b[2]) {
-		CHECK(r->on < 256); r->keys[r->on] = b[1]; r->note_programs[r->on] = r->program[b[0] & 15]; r->positions[r->on++] = r->frames; r->sounding = true;
+		CHECK(r->on < 256); r->keys[r->on] = b[1]; r->note_programs[r->on] = r->program[b[0] & 15]; r->note_ansi[r->on] = r->ansi; r->positions[r->on++] = r->frames; r->sounding = true;
 	}
 	if ((b[0] & 0xf0) == 0x80 || ((b[0] & 0xf0) == 0x90 && !b[2])) { ++r->off; r->sounding = false; }
 	if ((b[0] & 0xf0) == 0xb0 && (b[1] == 120 || b[1] == 123)) r->sounding = false;
@@ -47,6 +48,12 @@ static int gain(void *context, float left, float right)
 {
 	struct recording *r = context;
 	st_mutex_lock(&r->mutex); r->left = left; r->right = right; st_mutex_unlock(&r->mutex);
+	return 0;
+}
+static int mode(void *context, bool ansi)
+{
+	struct recording *r = context;
+	st_mutex_lock(&r->mutex); r->ansi = ansi; st_mutex_unlock(&r->mutex);
 	return 0;
 }
 static void delay(void) { const struct timespec d = {0, 2000000}; st_thread_sleep(&d, NULL); }
@@ -80,7 +87,7 @@ static void internal(void)
 	st_audio_runtime_t *runtime; audio_stream_t *stream = NULL; st_music_t *m;
 	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
 	struct recording r = {0}; CHECK(st_mutex_init(&r.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
-	struct st_midi_sink sink = {.state = &r, .send = send, .render = render};
+	struct st_midi_sink sink = {.state = &r, .send = send, .render = render, .set_ansi = mode};
 	CHECK(st_music_create_with_sink(&m, runtime, &stream, &sink) == 0);
 	CHECK(st_music_queue_notes(m, note(0, 128), 1) == 0);
 	CHECK(st_music_queue_notes(m, note(83, 256), 1) == 0);
@@ -94,7 +101,8 @@ static void internal(void)
 	for (size_t i = 0; i < sizeof(consecutive) / sizeof(consecutive[0]); ++i) CHECK(consecutive[i] != 0);
 	pull_until_idle(m, runtime);
 	CHECK(r.on == 2 && r.off == 2 && r.keys[0] == 36 && r.keys[1] == 119);
-	CHECK(r.note_programs[0] == 80 && r.note_programs[1] == 80);
+	CHECK(r.note_programs[0] == 81 && r.note_programs[1] == 81);
+	CHECK(r.note_ansi[0] && r.note_ansi[1]);
 	CHECK(r.positions[0] == 0 && r.positions[1] == 128 && r.frames == 384);
 	CHECK(st_music_queue_notes(m, note(1, AUDIO_SAMPLE_RATE * 10U), 1) == 0);
 	until_on(&r, 3);
@@ -178,7 +186,7 @@ static void external(void)
 	CHECK(st_music_available(m));
 	CHECK(st_music_queue_notes(m, note(33, AUDIO_SAMPLE_RATE * 10U), 1) == 0);
 	until_on(&r, 1); CHECK(stream == NULL && st_music_busy(m));
-	CHECK(r.note_programs[0] == 80);
+	CHECK(r.note_programs[0] == 81);
 	CHECK(st_music_volume(m, -3, -6, 0) == 0);
 	for (int i = 0; i < 10; ++i) delay();
 	st_mutex_lock(&r.mutex); CHECK(r.left == -3 && r.right == -6); st_mutex_unlock(&r.mutex);
@@ -221,7 +229,7 @@ static void files(void)
 	st_audio_runtime_t *runtime; audio_stream_t *stream = NULL; st_music_t *m;
 	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
 	struct recording r = {0}; CHECK(st_mutex_init(&r.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
-	struct st_midi_sink sink = {.state = &r, .send = send, .render = render};
+	struct st_midi_sink sink = {.state = &r, .send = send, .render = render, .set_ansi = mode};
 	CHECK(st_music_create_with_sink(&m, runtime, &stream, &sink) == 0);
 	FILE *file = tmpfile(); CHECK(file != NULL);
 	CHECK(fwrite(song, 1, sizeof(song), file) == sizeof(song) && fflush(file) == 0);
@@ -233,7 +241,8 @@ static void files(void)
 	CHECK(fclose(invalid) == 0); /* rejection retains caller ownership */
 	pull_until_idle(m, runtime);
 	CHECK(r.on == 2 && r.off == 2 && r.sysex == 1);
-	CHECK(r.note_programs[0] == 11 && r.note_programs[1] == 80);
+	CHECK(r.note_programs[0] == 11 && r.note_programs[1] == 81);
+	CHECK(!r.note_ansi[0] && r.note_ansi[1]);
 	CHECK(r.keys[0] == 60 && r.keys[1] == 69 && r.positions[1] == 110250);
 	CHECK(r.frames == 110378);
 	/* A file with no Program Change must start at its ordinary GM default,
@@ -246,7 +255,7 @@ static void files(void)
 	CHECK(fwrite(default_song, 1, sizeof(default_song), file) == sizeof(default_song) && fflush(file) == 0);
 	CHECK(st_music_queue_file(m, file) == 0);
 	pull_until_idle(m, runtime);
-	CHECK(r.on == 3 && r.note_programs[2] == 0);
+	CHECK(r.on == 3 && r.note_programs[2] == 0 && !r.note_ansi[2]);
 	st_music_destroy(m); st_audio_runtime_destroy(runtime); st_mutex_destroy(&r.mutex);
 }
 int main(void) { internal(); calibrated(); external(); files(); return 0; }

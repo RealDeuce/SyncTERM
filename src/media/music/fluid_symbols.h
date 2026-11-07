@@ -19,6 +19,8 @@
 	X(int, fluid_synth_noteon, (fluid_synth_t *, int, int, int)) \
 	X(int, fluid_synth_noteoff, (fluid_synth_t *, int, int)) \
 	X(int, fluid_synth_cc, (fluid_synth_t *, int, int, int)) \
+	X(int, fluid_synth_get_cc, (fluid_synth_t *, int, int, int *)) \
+	X(int, fluid_synth_set_gen, (fluid_synth_t *, int, int, float)) \
 	X(int, fluid_synth_program_change, (fluid_synth_t *, int, int)) \
 	X(int, fluid_synth_channel_pressure, (fluid_synth_t *, int, int)) \
 	X(int, fluid_synth_key_pressure, (fluid_synth_t *, int, int, int)) \

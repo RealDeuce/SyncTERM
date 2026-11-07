@@ -20,7 +20,11 @@ resulting implementation; it supersedes the earlier open research choices.
   bank, and finally libADLMIDI's embedded bank. No destination, renderer,
   instrument, SoundFont or GM-capability preferences are added. CoreMIDI
   destination selection is outside this implementation. ANSI captures select
-  GM Lead 1 (square), bank 0/program 80 (zero-based), on MIDI channel zero.
+  GM Lead 2 (sawtooth), bank 0/program 81 (zero-based), on MIDI channel zero.
+  FluidSynth ANSI playback uses a dry voice: channel-zero chorus/reverb
+  sends, including preset sends, are suppressed while ANSI plays. Saved
+  effect controllers are restored before file playback; global effect
+  configuration and other channels are unaffected.
 * Queue cached files with `APC SyncTERM:A;QueueMIDI;<filename> ST`; query usable
   playback with `APC SyncTERM:Q;midi ST`, replying `CSI = 7 ; 102 ; available n`.
   Support SMF formats 0/1 and RIFF/RMID, normal channel messages, SysEx,
@@ -70,7 +74,7 @@ the worker before releasing the backend, stream, queue and synchronization.
 
 Internal output is 44100 Hz signed-16 stereo through the existing mixer.
 Software MIDI renderers establish a fixed source gain on initialization by
-rendering the actual ANSI synth voice (GM Lead 1 square, program 80, A440,
+rendering the actual ANSI synth voice (GM Lead 2 sawtooth, program 81, A440,
 velocity and CC7 100, centered pan) into discarded buffers. The middle second
 of a two-second reference is matched by RMS to the existing classic ANSI
 waveform at A440.
@@ -112,8 +116,8 @@ Both renderers share the checked ANSI parser and its integer-millisecond
 rounding. Classic notes use equal temperament at A=440 Hz. MIDI uses melodic
 channel zero and note numbers 36..119. File playback may use all sixteen
 channels, percussion, pitch bend, pressure, controllers and SysEx. Returning
-to ANSI restores its default channel state and explicitly selects GM Lead 1
-(square), bank 0/program 80, before any ANSI Note On. MIDI files reset to
+to ANSI restores its default channel state and explicitly selects GM Lead 2
+(sawtooth), bank 0/program 81, before any ANSI Note On. MIDI files reset to
 their ordinary default programs and retain their own Program Changes. No
 instrument-coverage discovery rejects partial banks.
 
@@ -188,10 +192,18 @@ through the player and pull-only mixer at A440. It reports source gain, final
 PCM RMS, peaks and the level difference. Attack/release are excluded from
 RMS. The pre-mix classic A440 reference is approximately 16927.69 PCM units
 RMS. The test never opens a physical audio device.
-Measured final-PCM differences at library-default gain are -0.40 dB for
-FluidSynth 2.6.2 with FluidR3 GM and less than 0.01 dB for libADLMIDI 1.6.1
+Measured final-PCM differences at library-default gain are -0.04 dB for
+FluidSynth 2.6.2 with FluidR3 GM and -0.10 dB for libADLMIDI 1.6.1
 with embedded bank 0. Renderer modulation can vary the measured sustained
 level between notes; the calibration remains fixed throughout playback.
+`--envelope` compares the 10..100 ms onset RMS with the 0.5..1.5 second
+sustain RMS at MIDI notes 36, 48, 60, 69, 81, 96, 108 and 119. An onset
+more than 2 dB above sustain fails this manually selected renderer check.
+The previous square preset failed it at note 36 (+3.38 dB); the dry sawtooth
+voice stays below +0.5 dB in the tested FluidR3 GM and ADLMIDI banks.
+`--effects` checks file/ANSI/file reverb tails and repeated ANSI preparation
+with an enabled-reverb fixture. It verifies dry ANSI output and restoration
+of the file's effects; renderers without an ANSI effect override skip it.
 Native MIDI device/auditory verification is separate from these tests.
 `music_build_modes` builds mock public-ABI archives and a C++ private
 dependency, then checks AUTO/RUNTIME/STATIC/mixed/OFF selection, C-only

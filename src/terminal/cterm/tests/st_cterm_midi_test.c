@@ -78,7 +78,7 @@ static void exercise(st_console_t *console, st_font_catalog_t *fonts, bool utf8)
 	CHECK(st_cterm_poll(t) == 0 && reply_size == 0);
 	feed(t, "\x1b[|MBMLT255L64N0N83\x0e\x1b_SyncTERM:A;Wait;C=0\x1b\\");
 	CHECK(!st_music_busy(t->music_player) && r.on == 3 && r.key == 119);
-	CHECK(r.note_program == 80);
+	CHECK(r.note_program == 81);
 	feed(t, "\x1b_SyncTERM:A;QueueMIDI;fixture.mid\x1b\\"); wait_on(&r, 4);
 	CHECK(r.note_program == 0);
 	feed(t, "\x1b" "c"); CHECK(!st_music_busy(t->music_player));

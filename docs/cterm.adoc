@@ -3172,11 +3172,12 @@ which sounds outside the PCM mixer. Channel 1 is the foreground-SFX stream
 (RIP / OOII); the BBS can use
 `Flush`, `Volume`, `Wait`, and `Update` on them but cannot `Queue`
 patch audio onto them. Use `QueueMIDI` to queue a MIDI file on channel 0.
-ANSI music selects GM Lead 1 (square), bank 0/program 80 (zero-based), on MIDI
+ANSI music selects GM Lead 2 (sawtooth), bank 0/program 81 (zero-based), on MIDI
 channel zero. Software MIDI renderers use this sustained synth voice to match
 source RMS to the classic ANSI tone. MIDI files retain their own instrument
-choices. A fixed source gain is combined with channel gain in the mixer's
-wide accumulator before final soft clipping. Channel defaults,
+choices. FluidSynth's ANSI voice is dry; its saved effect controllers are
+restored before file playback. A fixed source gain is combined with channel
+gain in the mixer's wide accumulator before final soft clipping. Channel defaults,
 volume and fades retain their existing meaning; music is not normalized
 per file or during playback. Native MIDI destinations do not use PCM source
 calibration.

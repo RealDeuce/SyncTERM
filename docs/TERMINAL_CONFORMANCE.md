@@ -404,8 +404,11 @@ calibration tests check a sustained reference, silent/error paths and state
 restoration using the actual ANSI synth voice. Literal program messages and
 file/ANSI transitions check voice selection without changing MIDI-file
 instruments. PCM player captures check fixed source calibration with unchanged
-channel gains, wide mixing before clipping and fade/recovery behavior. The
-`extensions` control group checks feature 102 with MIDI disabled, rejected
+channel gains, wide mixing before clipping and fade/recovery behavior.
+Manually selected synth checks compare onset and sustained levels across
+eight pitches and verify dry ANSI/file-effect restoration where supported.
+They render into discarded buffers or the pull-only mixer without devices.
+The `extensions` control group checks feature 102 with MIDI disabled, rejected
 cache-path recovery and seven-octave ANSI capture recovery in CP437/UTF-8.
 These tests do not claim native MIDI-device or auditory coverage. MIDI and
 PCM masks are both disabled in shared headless application fixtures.

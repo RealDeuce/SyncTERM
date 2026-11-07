@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
-struct log { uint8_t bytes[4096]; size_t size, messages; };
+struct log { uint8_t bytes[4096]; size_t size, messages, modes; bool ansi, fail_mode; };
 static int record(void *context, const uint8_t *b, size_t n)
 {
 	struct log *log = context;
@@ -12,6 +12,13 @@ static int record(void *context, const uint8_t *b, size_t n)
 	memcpy(log->bytes + log->size, b, n); log->size += n; ++log->messages; return 0;
 }
 static int gain(void *context, float left, float right) { (void)context; (void)left; (void)right; return 0; }
+static int mode(void *context, bool ansi)
+{
+	struct log *log = context;
+	++log->modes;
+	if (log->fail_mode) return IO_ERROR_IO;
+	log->ansi = ansi; return 0;
+}
 int main(void)
 {
 	const uint8_t data[] = {0x90,60,100,61,101,0xf8,0xf0,0x7e,0x7f,9,1,0xf7,0x80,60,0};
@@ -58,8 +65,14 @@ int main(void)
 		CHECK(log.bytes[at] == (0xb0 | ch) && log.bytes[at + 1] == controls[i] && log.bytes[at + 2] == 0);
 	}
 	memset(&log, 0, sizeof(log));
+	release.set_ansi = mode;
 	CHECK(st_midi_sink_ansi(&release) == 0);
-	const uint8_t synth[] = {0xb0,0,0,0xb0,32,0,0xc0,80};
+	const uint8_t synth[] = {0xb0,0,0,0xb0,32,0,0xc0,81};
 	CHECK(log.messages == 3 && log.size == sizeof(synth) && memcmp(log.bytes, synth, sizeof(synth)) == 0);
+	CHECK(log.ansi && log.modes == 1);
+	CHECK(st_midi_sink_start(&release) == 0 && !log.ansi && log.modes == 2);
+	log.fail_mode = true;
+	CHECK(st_midi_sink_ansi(&release) == IO_ERROR_IO && !log.ansi && log.modes == 3);
+	CHECK(st_midi_sink_start(&release) == IO_ERROR_IO && !log.ansi && log.modes == 4);
 	return 0;
 }

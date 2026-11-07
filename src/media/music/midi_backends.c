@@ -75,6 +75,10 @@ void st_midi_sink_release(struct st_midi_sink *sink, bool immediate)
 int st_midi_sink_start(struct st_midi_sink *sink)
 {
 	st_midi_sink_release(sink, true);
+	if (sink->set_ansi != NULL) {
+		int status = sink->set_ansi(sink->state, false);
+		if (status != 0) return status;
+	}
 	for (unsigned ch = 0; ch < 16; ++ch) {
 		const uint8_t reset[] = {(uint8_t)(0xb0 | ch), 121, 0,
 		    (uint8_t)(0xb0 | ch), 0, 0, (uint8_t)(0xb0 | ch), 32, 0,
@@ -87,10 +91,12 @@ int st_midi_sink_start(struct st_midi_sink *sink)
 }
 int st_midi_sink_ansi(struct st_midi_sink *sink)
 {
-	/* GM Lead 1 (square) sustains short ANSI notes without a piano envelope.
+	/* Use a sustained sawtooth voice for short ANSI notes.
 	 * Select the same bank and voice for playback and source calibration. */
-	const uint8_t synth[] = {0xb0, 0, 0, 0xb0, 32, 0, 0xc0, 80};
-	return st_midi_sink_send(sink, synth, sizeof(synth));
+	const uint8_t synth[] = {0xb0, 0, 0, 0xb0, 32, 0, 0xc0, 81};
+	int status = st_midi_sink_send(sink, synth, sizeof(synth));
+	if (status == 0 && sink->set_ansi != NULL) status = sink->set_ansi(sink->state, true);
+	return status;
 }
 void st_midi_sink_close(struct st_midi_sink *sink)
 {

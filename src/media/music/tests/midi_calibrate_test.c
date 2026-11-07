@@ -11,10 +11,10 @@ static int send(void *context, const uint8_t *bytes, size_t size)
 	if (s->fail_send) return IO_ERROR_IO;
 	if (size == 2 && bytes[0] == 0xc0) {
 		s->program = bytes[1];
-		if (s->probed && bytes[1] == 80) { CHECK(!s->active); ++s->restored; }
+		if (s->probed && bytes[1] == 81) { CHECK(!s->active); ++s->restored; }
 	}
 	if (size == 3 && bytes[0] == 0x90) {
-		CHECK(s->program == 80 && bytes[1] == 69 && bytes[2] == 100);
+		CHECK(s->program == 81 && bytes[1] == 69 && bytes[2] == 100);
 		s->active = true; s->probed = true;
 	}
 	if (size == 3 && bytes[0] == 0xb0 && bytes[1] == 120) s->active = false;
@@ -33,7 +33,7 @@ static float calibrate(int amplitude)
 	struct source source = {.amplitude = amplitude};
 	struct st_midi_sink sink = {.state = &source, .send = send, .render = render};
 	CHECK(st_midi_sink_calibrate(&sink) == 0);
-	CHECK(source.probed && !source.active && source.restored == 1 && source.program == 80);
+	CHECK(source.probed && !source.active && source.restored == 1 && source.program == 81);
 	CHECK(source.frames >= 2U * AUDIO_SAMPLE_RATE && source.frames < 3U * AUDIO_SAMPLE_RATE);
 	return sink.pcm_gain_db;
 }
