@@ -57,6 +57,18 @@ corrections are retained in `src/media/amiga_font/data/`. The 39 strikes in 11
 families come from IcyTerm commit
 `b568f6a087b7ececb28d0b45edd38f70a6bf692d` and compile into build-tree C data.
 
+The 2026-11-08 RoF capture supplied two sessions with identical public welcome
+artwork, with status enabled and disabled. The retained green/red text cases
+use Times/15's native `tf_XSize=7`, rather than its YAFF bounding width of 14.
+The native strike's identity is pinned in the font manifest. Literal final X/Y
+and complete glyph-mask hashes come from independently decoding that strike;
+the capture supplies input only. Neither the full session nor login data is
+bundled. JR-Comm 1.02a instruction probes also issue `ScrollRaster` between
+the artwork's bottom line, ellipses and copyright text as intervening CR/LF
+controls reach the current font's bottom margin. Those effects are preserved;
+they are not evidence that the ellipse walker itself differs from the ROM.
+SkyTerm and other JR-Comm versions have not been compared with this capture.
+
 The 2026-11-05 rendering update also supplies 41 position-probe checks,
 45 cursor-probe checks and 12 ROM cursor placement checks under `~/SkyPix/disassembly/`, driven by the original
 JR-Comm instructions. They distinguish nominal BS/HT width from proportional
@@ -132,7 +144,7 @@ Pixel-only text retains its raster without invented character-cell content.
 Enable `ST_CONSOLE_TEST`, configure/build with CMake, then run:
 
 ```sh
-ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm_skypix_conformance|syncterm_amiga_font_manager' --output-on-failure
+ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm_skypix|syncterm_amiga_font_manager' --output-on-failure
 ```
 
 | Test | Coverage |
@@ -143,6 +155,7 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | `cterm_skypix` | Parser splits, command/state/pixel expectations, both variants, status geometry, resets, delays, proportional overhang, native ILBM decoding and literal Diamond cursor positions/timer transitions. |
 | `skypix_rom_vectors` | Independent ordered point sets/hashes and Diamond 20 text for the retained ROM vectors. |
 | `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, selected canvas geometry and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; both variants with Diamond 20 in CP437/UTF-8, proportional cursor movement and unscaled 8x8 menu rasters; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
+| `syncterm_skypix_welcome` | RoF's captured Times/15 green/red lines remain at their pixel anchors; independent native-strike hashes check every glyph pixel in both planes, palette and cursor, both variants/encodings/status choices, split input and reset/replay. |
 | `syncterm_skypix_mouse` | Exact documented click bytes, zero-origin/sub-cell precision and scaled drawable mapping; no report on releases/motion/other buttons/status/local UI; bright/dim M and both toggle routes, disabled-release recovery, local wheel scrollback and reset; both variants/encodings/status choices. |
 | `syncterm_skypix_scrolling` | Literal four-pixel colour stripes through exact Diamond/20 scrolls, stable bottom cursor, partial-strip joins, live/disconnected/detached viewers, both variants/encodings/status choices. Expected pixels come from fixture rectangles, not emulator captures. |
 | `syncterm_graphics_scrollback` | Shared ANSI/RIP/SkyPix image history, both phases, palette changes, composition/overlays, remote Pearl descenders, status choices and disconnected/offline viewing. |

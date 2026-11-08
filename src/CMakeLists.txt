@@ -187,6 +187,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_skypix_conformance PROPERTIES
 				TIMEOUT 180 LABELS "terminal;conformance;skypix")
+			add_test(NAME syncterm_skypix_welcome
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_welcome_test.py
+				$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_skypix_welcome PROPERTIES
+				TIMEOUT 90 LABELS "terminal;conformance;skypix")
 			foreach(_group movement editing margins attributes queries extensions keyboard recovery)
 				foreach(_encoding CP437 UTF-8)
 					add_test(NAME syncterm_conformance_${_group}_${_encoding}

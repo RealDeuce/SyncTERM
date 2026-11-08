@@ -256,7 +256,12 @@
       "name": "Times.font",
       "height": 15,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_15.yaff",
-      "sha256": "2acccd1cd07af607f8bb0d5dbb02b7e77d0d9ecf1a0ffece1a220d592257a4a4"
+      "sha256": "2acccd1cd07af607f8bb0d5dbb02b7e77d0d9ecf1a0ffece1a220d592257a4a4",
+      "cell_width": 7,
+      "cell_width_source": {
+        "path": "FS-UAE/Hard Drives/Default/Fonts/times/15",
+        "sha256": "d00caceb09f0ad46052b37ee5409040e56cf3c99125f867bf6ebec4d791a309a"
+      }
     },
     {
       "file": "workbench-3.1_Times_18.yaff",

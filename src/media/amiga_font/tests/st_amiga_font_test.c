@@ -187,5 +187,8 @@ int main(int argc, char **argv)
 	const st_amiga_font_t *courier = st_amiga_font_builtin("Courier.font", 36);
 	CHECK(courier != NULL && st_amiga_font_glyph(courier, 'M')->width > 8);
 	CHECK(st_amiga_font_glyph(courier, 'M')->advance == 22);
+	const st_amiga_font_t *times = st_amiga_font_builtin("Times.font", 15);
+	CHECK(times != NULL && st_amiga_font_width(times) == 7);
+	CHECK(st_amiga_font_height(times) == 15 && st_amiga_font_baseline(times) == 10);
 	return EXIT_SUCCESS;
 }

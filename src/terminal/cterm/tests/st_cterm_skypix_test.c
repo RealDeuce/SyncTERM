@@ -89,6 +89,16 @@ static void wrapping_tests(st_cterm_t *t)
 	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
 		CHECK(st_cterm_set_encoding(t, utf8 ? ST_CTERM_ENCODING_UTF8
 			: ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437) == 0);
+		/* RoF welcome lines from the user's 2026-11-08 capture. Native
+		 * Times/15 declares XSize=7; its 14-pixel bounding box is not the
+		 * nominal advance used by JR-Comm's receive forecast. */
+		feed(t, "\f\x1b[10;15!Times.font!\x1b[19;85;95!"
+			"JoinLink - Messages - Games - Warez - ROF FTN - irc.rofbbs.com");
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(t->skypix_engine->x == 488 && t->skypix_engine->y == 95);
+		feed(t, "\x1b[19;75;127!CommodoreNet 64:500/1  *  DiscipleNet 12:316/1  *  FidoNet 1:154/50");
+		CHECK(st_cterm_finish(t) == 0);
+		CHECK(t->skypix_engine->x == 481 && t->skypix_engine->y == 127);
 		feed(t, "\x1b[10;20!Diamond.font!\x1b[?7h");
 		char run[41];
 		memset(run, 'i', 33);

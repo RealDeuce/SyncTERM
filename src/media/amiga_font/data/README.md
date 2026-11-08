@@ -15,3 +15,10 @@ Nominal cell widths are retained from native disk-font metadata where those
 reference files are available, with per-strike source hashes in the manifest.
 Other compiled strikes use the YAFF cell size or bounding width. Glyph kerning
 and advances remain independent of this nominal grid width.
+
+Times/15's nominal width is pinned to the native Workbench strike retained in
+`FS-UAE/Hard Drives/Default/Fonts/times/15`, with its SHA-256 in the manifest.
+It declares `tf_XSize=7`, while the converted YAFF has a 14-pixel bounding box.
+Using that bounding width for JR-Comm's receive forecast prematurely wraps the
+proportional text on Reign of Fire's welcome screen. The bitmap and individual
+glyph advances are unchanged.

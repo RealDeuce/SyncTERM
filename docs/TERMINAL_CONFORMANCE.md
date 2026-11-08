@@ -11,6 +11,10 @@ checks nominal forecast/count boundaries, explicit flushes, disabled wrap and
 signed-word overflow. Literal Diamond i/W rasters check both planes after
 wrapping, BS-space in JAM1/JAM2 and tcsh's BS CSI K deletion sequence; native
 tests check all erase-line modes against the current font's ascent/descent.
+`syncterm_skypix_welcome` checks the captured RoF Times/15 green/red lines
+against independent native-strike pixel-mask hashes, with both variants,
+CP437/UTF-8, status choices and reset/replay. Times/15 uses its native seven-pixel
+nominal width for wrapping, independently of its proportional glyph bitmaps.
 Native compositor tests
 verify cursor overlay pixels, capture exclusion, clipping and snapshot cleanup.
 An identical-cell clear followed by explicit graphics and a status-row update
