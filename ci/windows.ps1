@@ -100,6 +100,22 @@ Remove-Item Env:DISPLAY, Env:WAYLAND_DISPLAY -ErrorAction SilentlyContinue
 & $cmake -P (Join-Path $PSScriptRoot 'run.cmake')
 $buildResult = $LASTEXITCODE
 if ($buildResult -ne 0 -and $Compiler -eq 'mingw') {
+    $failedTests = Join-Path $env:CI_BUILD_DIR 'Testing/Temporary/LastTestsFailed.log'
+    $testLog = Join-Path $reports 'test.log'
+    $pixelTest = Join-Path $env:CI_BUILD_DIR 'src/media/pixel_image/st_pixel_image_test.exe'
+    $debugger = Join-Path $compilerBin 'gdb.exe'
+    if ((Test-Path -LiteralPath $testLog) -and (Test-Path -LiteralPath $failedTests) -and
+        (Select-String -LiteralPath $failedTests -Pattern '^[0-9]+:pixel_image$' -Quiet) -and
+        (Test-Path -LiteralPath $pixelTest) -and (Test-Path -LiteralPath $debugger)) {
+        # Run on the native runner: an access violation otherwise leaves
+        # only CTest's SEGFAULT label, with no indication of the fault site.
+        $backtrace = Join-Path $reports 'pixel-image-backtrace.txt'
+        if (Test-Path -LiteralPath $backtrace) { Clear-Content -LiteralPath $backtrace }
+        $null = Save-NativeDiagnostic $backtrace $debugger @(
+            '--batch', '--nx', '-ex', 'set pagination off', '-ex', 'run',
+            '-ex', 'thread apply all bt full', '-ex', 'info registers',
+            '-ex', 'x/12i $pc', '-ex', 'info sharedlibrary', '--args', $pixelTest)
+    }
     $commands = Join-Path $env:CI_BUILD_DIR 'compile_commands.json'
     if (Test-Path -LiteralPath $commands) {
         Copy-Item -LiteralPath $commands -Destination $reports
