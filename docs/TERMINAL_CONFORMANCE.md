@@ -35,6 +35,14 @@ must retain literal primary/alternate raster colours;
 native SkyPix tests inject deterministic blink callbacks. It is separate from the ANSI
 CP437/UTF-8 inventory below and from the historical RIP captures.
 
+`syncterm_skypix_cache` checks command-16 types 2/3 as opaque cache uploads
+in both variants, CP437/UTF-8 and status choices. Literal SOH/STX packets test
+CRC retry and duplicate protection, LF/NUL/high bytes and padding, shared cache
+hits across types 2/3/20, filename confinement, unsupported modes, cancellation,
+disconnect cleanup and following terminal input. Reply-fenced captures check the
+retained brush and palette together in both pixel planes. Audio decoding and
+playback remain unsupported; the fixture disables physical audio.
+
 `syncterm_skypix_mouse` checks the documented literal controller-1 bytes,
 native zero-based pixels at sub-cell positions and scaled drawable mapping,
 with both variants/encodings/status choices. It checks bright/dim M, the

@@ -182,6 +182,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_skypix_scrolling PROPERTIES
 				TIMEOUT 180 LABELS "terminal;conformance;skypix;scrollback")
+			add_test(NAME syncterm_skypix_cache
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_cache_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_skypix_cache PROPERTIES
+				TIMEOUT 180 LABELS "terminal;conformance;skypix;transfer")
 			add_test(NAME syncterm_skypix_conformance
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_conformance_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

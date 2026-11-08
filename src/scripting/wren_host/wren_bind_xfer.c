@@ -274,7 +274,8 @@ int st_wren_transfer_skypix_request(struct st_wren_context *context, unsigned mo
 	(void)width;
 	(void)height;
 	if (context == NULL || context->profile == NULL || context->host->config.paths == NULL ||
-		!st_wren_transfer_detect_enabled(context) || (mode != 1 && mode != 20) || size == 0 ||
+		!st_wren_transfer_detect_enabled(context) ||
+		(mode != 1 && mode != 2 && mode != 3 && mode != 20) || size == 0 ||
 		size > 255)
 		return IO_ERROR_NOT_SUPPORTED;
 	struct st_wren_transfer *s = state(context);

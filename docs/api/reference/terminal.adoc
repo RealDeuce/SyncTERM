@@ -122,11 +122,13 @@ excluding status). Both axes must fit signed 16-bit coordinates and the canvas
 is limited to four million pixels. Logical resize cannot change the canvas.
 `amiga_font_directory` is a borrowed catalog path through destruction.
 `skypix_transfer` receives the mode, request dimensions and borrowed Latin-1
-filename bytes. Return zero for a completed cache hit, `IO_ERROR_IN_PROGRESS`
+filename bytes. The application accepts modes 1/2/3/20 in the same per-BBS
+`skypix` directory; sound modes 2/3 are cached as opaque files without loading
+or playback. Return zero for a completed cache hit, `IO_ERROR_IN_PROGRESS`
 for an owned asynchronous transfer, or another error to decline. The owner
-completes a brush with `st_cterm_skypix_receive`; NULL/zero ends a failed or
-cancelled receive while retaining the previous brush. `st_cterm_input_paused`
-reports a pending monotonic delay or asset hold; session dispatch continues
+completes a brush with `st_cterm_skypix_receive`; NULL/zero ends an opaque-file,
+failed or cancelled receive while retaining the previous brush.
+`st_cterm_input_paused` reports a pending monotonic delay or asset hold; session dispatch continues
 local input and transfer processing. Brush input uses standard ByteRun1, retains
 its RGB4-quantized CMAP and applies supplied palette entries on first blit,
 promoting display depth when needed. Reset and EOF cancel delay holds.

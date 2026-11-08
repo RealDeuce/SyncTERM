@@ -5852,12 +5852,16 @@ a selected terminal decoding mode interprets those bytes as controls.
 `CTerm.skypix` reports the selected graphics engine, rather than inferring it
 from a remote command. RIP sessions do not interpret SkyPix commands.
 
-SkyPix brush and general-file downloads use CRC XMODEM and the active BBS's
-`skypix` cache subdirectory. Completed files are reused; partial or invalid
-brush downloads are discarded. They do not use RIP asset framing. Gadget command
+SkyPix command-16 transfers accept IFF brushes (type 1), IFF sound (type 2),
+FutureSound samples (type 3), and general files (type 20). All use CRC XMODEM
+and the active BBS's shared `skypix` cache subdirectory, matching SkyTERM's
+single BRU: destination. Completed files are reused; partial or invalid
+brush downloads are discarded. Types 2, 3 and 20 cache opaque bytes, including
+XMODEM padding, without decoding audio or replacing the current brush.
+They do not use RIP asset framing. Gadget command
 22 retains the definition in slot 1–20 and draws its foreground rectangle;
-clicks still report raw controller-1 pixel coordinates. Sound, controller-2 menu
-reports and local execution of stored gadget commands remain unsupported. See
+clicks still report raw controller-1 pixel coordinates. Sample loading/playback,
+controller-2 menu reports and local execution of stored gadget commands remain unsupported. See
 link:SKYPIX_CONFORMANCE.md[SkyPix conformance] for the precise supported subset.
 
 ==== Parity

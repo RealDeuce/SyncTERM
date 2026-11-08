@@ -200,7 +200,7 @@ Hook.onKey(Key.f10) {|event|
                 client.wait_for(lambda s: s.application.get("transfer.active") == 0 and s.application.get("transfer.reserved") == 0)
                 exchange(b"")
                 assert not list(root.rglob("cancel.bin")) and not list(root.rglob("*.part"))
-                send(b"\x1b[16;2;0;0!sound.iff!")
+                send(b"\x1b[16;4;0;0!unsupported.bin!")
                 assert read(2)==b"\x18\x18"
                 frame=exchange(b"\x1bc\x1b[2J\x1b[HEND")
                 assert frame.lines[0].startswith("END")
