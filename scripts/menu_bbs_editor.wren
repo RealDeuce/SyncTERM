@@ -1407,7 +1407,7 @@ class BbsEditor {
     rows.add(row_("Screen Mode", screenName,
         Fn.new {
       var value = MenuUi.choice(app, "Screen Mode", screenChoices,
-          d["screenMode"], d["graphics"] >= 3 ? "# SkyPix Canvas\n\nChoose the canvas resolution and aspect. The character grid follows the selected Amiga font size. The status row stays outside the canvas." : screenModeHelp_())
+          d["screenMode"], d["graphics"] >= 3 ? "# SkyPix Canvas\n\nChoose the screen mode, including its resolution, aspect ratio and system cell grid. The Amiga font supplies text metrics independently. Status uses the last row inside the mode." : screenModeHelp_())
       if (value != null) changeScreen_(d, value)
     }))
     rows.add(row_("Encoding", MenuUi.rowName(Menu.encodings, d["encoding"]),

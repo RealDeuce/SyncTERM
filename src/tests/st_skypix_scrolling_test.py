@@ -14,6 +14,8 @@ COLOURS = (0, 0x0000ff, 0xffffff, 0xff0000, 0x00ff00, 0xffff00, 0x00ffff, 0xff00
 
 def run(executable, reports, kick, encoding, status):
     print(kick, encoding, 'status', status, flush=True)
+    canvas_height = 192 if status else 200
+    text_height = canvas_height // 20 * 20
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
         listener.listen(1)
@@ -47,7 +49,7 @@ def run(executable, reports, kick, encoding, status):
                     return (value if value & 0x80000000 else s.palette[value]) & 0xffffff
 
                 def expected(y):
-                    return COLOURS[(y//4) % 7 + 1] if 0 <= y < 200 else 0
+                    return COLOURS[(y//4) % 7 + 1] if 0 <= y < text_height else 0
 
                 def check(s, start):
                     assert (s.metadata['columns'], s.metadata['cell_width'], s.metadata['cell_height']) == (80, 8, 8)
@@ -55,23 +57,32 @@ def run(executable, reports, kick, encoding, status):
                         for alternate in (False, True):
                             assert pixel(s, y, alternate) == expected(start+y), (kick, encoding, status, start, y, alternate)
 
+                def check_live(s, start):
+                    check(s,start)
+                    for y in range(160,canvas_height):
+                        # Fractional-font padding is not part of the text
+                        # region and must retain its original stripe pixels.
+                        colour=expected(start+y) if y<text_height else COLOURS[(y//4)%7+1]
+                        for alternate in (False,True):
+                            assert pixel(s,y,alternate)==colour,(kick,encoding,status,start,y,alternate)
+
                 def painted(start):
                     s = client.wait_for(lambda s: all(pixel(s, y) == expected(start+y) for y in range(16)))
                     check(s, start)
                     return s
 
-                # Nine ordinary LFs reach Diamond's last baseline. Neither
-                # drawing the stripe nor history-row height changes that Y.
-                initial = frame(b'\r\n'*9)
-                assert initial.metadata['pixel_cursor_y'] == 195
+                # Whole 20-pixel text rows determine the last baseline;
+                # unused pixels above status remain outside the scroll area.
+                initial = frame(b'\r\n'*(text_height//20-1))
+                assert initial.metadata['pixel_cursor_y'] == text_height-5
                 palette = b'\x1b[11;0;15;4095;3840;240;4080;255;3855;0;0;0;0;0;0;0;0!'
                 stripe = b''.join(f'\x1b[15;{(y//4)%7+1}!\x1b[4;80;{y};87;{y+3}!'.encode()
-                                  for y in range(0, 200, 4))
-                check(frame(palette+stripe), 0)
+                                  for y in range(0, canvas_height, 4))
+                check_live(frame(palette+stripe), 0)
                 for scroll in range(1, 4):
                     live = frame(b'\r\n')
-                    assert live.metadata['pixel_cursor_y'] == 195, live.metadata
-                    check(live, scroll*20)
+                    assert live.metadata['pixel_cursor_y'] == text_height-5, live.metadata
+                    check_live(live, scroll*20)
                     client.command_key(48)
                     client.wait_text('Scrollback')
                     painted(scroll*20)
@@ -80,7 +91,7 @@ def run(executable, reports, kick, encoding, status):
                     # including the four pending pixels on odd scrolls.
                     painted(scroll*20-8)
                     client.key('escape')
-                    check(frame(), scroll*20)
+                    check_live(frame(), scroll*20)
                 peer.shutdown(socket.SHUT_RDWR)
                 client.wait_text('Disconnected: Enter exits, F1 details')
                 # The session publishes its retained screen before making
@@ -97,8 +108,8 @@ def run(executable, reports, kick, encoding, status):
             client.wait_text('Directory: Name')
             client.command_key(48)
             client.wait_text('Scrollback')
-            # The menu's ordinary 26-row viewport includes one additional
-            # source row when the saved session has a separate status row.
+            # The offline viewer uses all 25 mode rows; the connected
+            # viewport excludes status and has only 24 when status is on.
             offline_retired = retired - (8 if status else 0)
             painted(offline_retired)
             client.key('up')

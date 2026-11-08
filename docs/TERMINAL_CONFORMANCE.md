@@ -8,7 +8,11 @@ transfers and delay/reset/disconnect recovery. Diamond 20 cases check independen
 cursor-probe coordinates, mask clipping and proportional advances in both
 variants/encodings on Amiga 640x200 and 640x400, plus literal 8x8 CP437 UI in
 both modes. The 400-line cases check native glyph rows below Y=199, exact
-canvas clipping, aspect ratio, reset and directory geometry restoration.
+canvas/status clipping, aspect ratio, reset and directory geometry restoration.
+Status reserves a row inside the selected mode without changing resolution,
+aspect or system grid: 640x200 remains 80x25, 640x400 remains 80x50. Current,
+Custom and non-Amiga modes (including 80x43's six padding pixels) have literal
+mode-table geometry/boundary expectations in both variants and status choices.
 Native-font wrapping
 checks actual advances, exact-edge cases, explicit flushes, disabled wrap,
 widened boundary comparisons and Unicode revision without a second wrap.

@@ -5842,8 +5842,9 @@ provides more vertical space. Screen Mode selects the pixel canvas,
 Encoding selects the wire encoding, and Font selects an installed or bundled
 Amiga family/height for initial text and reset. These choices remain editable.
 The system cell grid comes from the screen mode, independently of the native
-Amiga text metrics; graphics clip to the exact chosen canvas. An optional separate
-status row uses the same pixel scale. Ordinary `Profile.font` remains available
+Amiga text metrics; graphics clip to the drawable area. The optional status row
+uses the last system-cell row inside the selected mode; resolution and aspect
+ratio remain unchanged. Ordinary `Profile.font` remains available
 for other graphics modes. Classic Amiga fonts are byte-indexed and carry no
 charset tag; codepage connections use that codepage's glyph positions, and
 UTF-8 text uses Latin-1 glyph mapping. C1 positions may contain glyphs even when

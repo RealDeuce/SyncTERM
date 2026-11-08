@@ -361,68 +361,6 @@ st_wren_host_begin_session_mode(st_wren_host_t *host,
 	return status;
 }
 
-static uint64_t aspect_gcd(uint64_t a, uint64_t b)
-{
-	while (b != 0) {
-		uint64_t next = a % b;
-		a = b;
-		b = next;
-	}
-	return a;
-}
-int st_wren_host_begin_skypix_session(st_wren_host_t *host,
-									  const struct st_screen_mode_descriptor *canvas,
-									  bool hide_status, const st_amiga_font_t *font)
-{
-	if (canvas == NULL || font == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	uint32_t width = canvas->console.pixel_width, height = canvas->console.pixel_height;
-	uint32_t cw = canvas->console.cell_width, ch = canvas->console.cell_height;
-	if (width == 0 || height == 0 || width > INT16_MAX || height > INT16_MAX || cw == 0 ||
-		ch == 0 || cw > width || ch > height || (uint64_t)width * height > 4 * 1024 * 1024)
-		return IO_ERROR_OUT_OF_RANGE;
-	int status = st_wren_host_begin_session_mode(host, ST_SCREEN_MODE_CURRENT);
-	if (status != 0)
-		return status;
-	struct st_screen_mode_descriptor mode = *canvas;
-	mode.console.cell_width = cw;
-	mode.console.cell_height = ch;
-	mode.console.default_cursor = (struct st_console_custom_cursor){
-		.start = ch - 1, .end = ch - 1, .range = ch, .blink = true};
-	mode.console.columns = (width + cw - 1) / cw;
-	mode.console.rows = (height + ch - 1) / ch + (hide_status ? 0 : 1);
-	mode.console.pixel_width = mode.console.columns * cw;
-	mode.console.pixel_height = mode.console.rows * ch;
-	/* Preserve the selected canvas aspect while giving padding and the
-	 * separate status row the same pixel scale. */
-	if (mode.console.aspect_width != 0 && mode.console.aspect_height != 0) {
-		uint64_t a = (uint64_t)mode.console.pixel_width * height * mode.console.aspect_width;
-		uint64_t b = (uint64_t)mode.console.pixel_height * width * mode.console.aspect_height;
-		uint64_t divisor = aspect_gcd(a, b);
-		a /= divisor;
-		b /= divisor;
-		if (a > UINT32_MAX || b > UINT32_MAX)
-			status = IO_ERROR_OUT_OF_RANGE;
-		else {
-			mode.console.aspect_width = (uint32_t)a;
-			mode.console.aspect_height = (uint32_t)b;
-		}
-	}
-	mode.font_selector = 0;
-	if (status == 0)
-		status = install_mode_state(&host->menu, &mode, true);
-	if (status == 0 && host->picker.console != host->menu.console)
-		status = install_mode_state(&host->picker, &mode, true);
-	else if (status == 0)
-		host->picker.fonts = host->menu.fonts;
-	if (status == 0) {
-		host->current_mode = mode;
-		host->current_screen_mode = mode.mode;
-	} else
-		(void)st_wren_host_end_session_mode(host);
-	return status;
-}
-
 int
 st_wren_host_capture_history_mode(st_wren_host_t *host)
 {

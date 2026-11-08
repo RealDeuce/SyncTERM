@@ -20,6 +20,7 @@ Hook.onKey(Key.f8) {|event|
 
 def run(executable, reports, kick, encoding, status):
     print(kick, encoding, 'status', status, flush=True)
+    bottom = 192 if status else 200
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
         listener.listen(1)
@@ -119,15 +120,15 @@ def run(executable, reports, kick, encoding, status):
                 assert read_to(b'!') == b'\x1b[21;1;101;99!'
                 mouse(101,99,0)
                 shown = exchange(b'\x1b[15;4!\x1b[22;1;0;12;20;14;22!'
-                                 b'\x1b[22;20;65535;639;199;639;199!'
-                                 b'\x1b[22;0;1;10;20;14;24!\x1b[22;21;1;10;20;14;24!')
+                                 + f'\x1b[22;20;65535;639;{bottom-1};639;{bottom-1}!'.encode()
+                                 + b'\x1b[22;0;1;10;20;14;24!\x1b[22;21;1;10;20;14;24!')
                 assert pixel(shown,317,143)==0xff0000
                 for y in range(19,24):
                     for x in range(11,16):
                         expected = 0x00ff11 if 12<=x<=14 and 20<=y<=22 else 0
                         assert pixel(shown,x,y)==expected,(kick,encoding,x,y)
                         assert pixel(shown,x,y,True)==expected,(kick,encoding,x,y,'alternate')
-                assert pixel(shown,639,199)==0x00ff11
+                assert pixel(shown,639,bottom-1)==0x00ff11
                 probe(False)
                 indicator(False)
                 # Toggle while left is held; its disabled release must still
@@ -153,8 +154,8 @@ def run(executable, reports, kick, encoding, status):
                 assert read_to(b'!') == b'\x1b[21;1;317;143!'
                 mouse(317, 143, 0)
                 if status:
-                    mouse(10, 201, 1)
-                    mouse(10, 201, 0)
+                    mouse(10, 192, 1)
+                    mouse(10, 192, 0)
                 exchange()
                 client.command_key(44)  # Alt/Command-Z
                 menu = client.wait_text('SyncTERM Online Menu')

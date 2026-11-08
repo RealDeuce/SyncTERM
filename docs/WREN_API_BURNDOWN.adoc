@@ -1600,7 +1600,9 @@ Contract: one per-BBS Graphics selector (None/RIP v1/RIP v3/SkyPix), separate
 protocol implementations and state; replace rip/RipVersion/ripModes APIs with
 graphics/GraphicsMode/graphicsModes, preserve legacy numeric 0-2 and add 3.
 Read legacy RIP only if Graphics absent; write Graphics and remove RIP.
-SkyPix uses logical 640x200, 80x25, Latin-1, status outside canvas; retain geometry
+SkyPix initially used logical 640x200, 80x25, Latin-1 and status outside the
+canvas. The November 8 correction reserves status within the selected mode,
+preserving its resolution/aspect ratio; retain geometry
 through disconnect/scrollback and preserve inactive ANSI preferences. Expose
 CTerm.graphicsMode and selected-SkyPix CTerm.skypix.
 
@@ -1673,7 +1675,9 @@ for an unreleased implementation.
 
 Native fonts, transactions and the independent parser/renderer are implemented.
 The offline scrollback gap is fixed by capturing the actual session geometry.
-The canvas displays at 4:3, adding a status row at the same pixel scale. The
+The original implementation added a status row at the canvas pixel scale.
+The November 8 correction removes that expansion: status consumes the last
+system-cell row within the selected mode and its resolution/aspect stay fixed. The
 settings transaction merges canonical Graphics and removes legacy RIP, including
 unchanged aliases, defaults and concurrent edits. SkyPix publishes both blink
 phase planes identically. Focused tests reproduced the missing-save and stale

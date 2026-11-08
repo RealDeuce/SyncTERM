@@ -112,7 +112,8 @@ protocol recorded in link:../../SKYPIX_CONFORMANCE.md[SkyPix conformance];
 Kick 1.3/3.1 select rendering arithmetic and per-character proportional overhang.
 Session setup honours profile ScreenMode and Encoding. The screen mode supplies
 the system cell grid; the Amiga strike supplies independent native text metrics.
-The optional status row is outside the canvas. The application
+The optional status row occupies the last system-cell row inside the mode,
+reducing its drawable area without changing resolution or aspect ratio. The application
 initially presets 640x200 at 4:3, Latin-1 and Pearl 8 when SkyPix is selected.
 `amiga_font` borrows the initial/reset native strike through destruction; NULL
 uses compiled Pearl 8. `skypix_width`/`skypix_height` delimit the exact canvas

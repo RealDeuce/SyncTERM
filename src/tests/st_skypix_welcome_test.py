@@ -64,7 +64,7 @@ def run(executable, reports, kick, encoding, status):
                     frame = client.capture()
                     m = frame.metadata
                     assert (m['columns'], m['cell_width'], m['cell_height']) == (80, 8, 8), m
-                    assert m['rows'] == (26 if status else 25), m
+                    assert m['rows'] == 25, m
                     # JR-Comm's HIRES sprite snaps X-2 to an even pixel;
                     # the one-row mask begins one pixel below the baseline.
                     assert (m['pixel_cursor_x'], m['pixel_cursor_y']) == (478, 142), m

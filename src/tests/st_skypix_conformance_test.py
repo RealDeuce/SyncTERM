@@ -59,11 +59,11 @@ Hook.onKey(Key.f10) {|event|
                     return client.capture()
                 frame = exchange(b"\x1b[2J\x1b[H" + b"A\xe9")
                 m = frame.metadata
-                assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (80, 25 if hide_status else 26, 8, 8), m
+                assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (80, 25, 8, 8), m
                 def check_aspect(snapshot):
-                    # The canvas is 4:3; an optional extra status row has the
-                    # same 12:5 pixel-height correction as the 200 canvas rows.
-                    expected_width,expected_height=100,75 if hide_status else 78
+                    # Status consumes space inside the fixed 4:3 mode.
+                    assert (snapshot.metadata["plane_width"],snapshot.metadata["plane_height"]) == (640,200)
+                    expected_width,expected_height=4,3
                     meta=snapshot.metadata
                     assert abs(meta["destination_width"]*expected_height-meta["destination_height"]*expected_width)<=expected_width,meta
                 check_aspect(frame)
@@ -73,7 +73,7 @@ Hook.onKey(Key.f10) {|event|
                 # another text grid; drawable scaling is a separate concern.
                 client.grid_resize(100,30)
                 resized=exchange(b"")
-                assert (resized.metadata["columns"],resized.metadata["rows"],resized.metadata["cell_height"]) == (80,25 if hide_status else 26,8)
+                assert (resized.metadata["columns"],resized.metadata["rows"],resized.metadata["cell_height"]) == (80,25,8)
                 def pixel(frame, x, y):
                     value = frame.primary[(y + frame.metadata["pixel_top"]) * frame.metadata["plane_width"] + x]
                     return (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
@@ -212,7 +212,7 @@ Hook.onKey(Key.f10) {|event|
                 notice=client.wait_text("Disconnected: Enter exits, F1 details")
                 assert time.monotonic()-start<2
                 check_aspect(notice)
-                assert (notice.metadata["columns"], notice.metadata["rows"], notice.metadata["cell_height"]) == (80,25 if hide_status else 26,8)
+                assert (notice.metadata["columns"], notice.metadata["rows"], notice.metadata["cell_height"]) == (80,25,8)
                 client.command_key(48)
                 viewer=client.wait_text("Scrollback")
                 check_aspect(viewer)
@@ -277,7 +277,7 @@ def run_preferences(executable, reports, encoding, height=8):
                 assert first.metadata["cell_width"]==expected_width and first.metadata["cell_height"]==ui_height,first.metadata
                 assert 0 <= first.metadata["cursor_start"] <= first.metadata["cursor_end"] < first.metadata["cursor_range"],first.metadata
                 assert first.metadata["columns"]==(1056+expected_width-1)//expected_width
-                assert first.metadata["rows"]==26
+                assert first.metadata["rows"]==25
                 assert first.application["cterm.encoding"]==(1 if encoding=="CP437" else 0)
                 if encoding=="CP437": assert first.application["cterm.codepage"]==0
                 if height==8:
@@ -293,12 +293,13 @@ def run_preferences(executable, reports, encoding, height=8):
                         for x in range(8):
                             index=(first.metadata["pixel_top"]+y)*first.metadata["plane_width"]+x
                             assert (first.primary[index]!=512)==bool(row&(0x80>>x)),(x,y)
-                # The selected resolution governs clipping beyond the former
-                # 640x200 limit, including the final pixel and brush copy.
-                edge=frame(b"\x1b[15;3!\x1b[1;1055;399!\x1b[6;1055;398;1;1!\x1b[7;0;0;1054;399;1;1;192;255!")
+                # The mode stays 1056x400; its 16-pixel status row starts
+                # at Y=384. Check the final drawable pixel and brush copy.
+                assert (first.metadata["plane_width"],first.metadata["plane_height"]) == (1056,400)
+                edge=frame(b"\x1b[15;3!\x1b[1;1055;383!\x1b[6;1055;382;1;1!\x1b[7;0;0;1054;383;1;1;192;255!")
                 stride=edge.metadata["plane_width"];top=edge.metadata["pixel_top"]
-                assert edge.primary[(top+399)*stride+1055]==515,(top,stride,edge.metadata,[hex(v) for v in edge.primary[(top+399)*stride+1050:(top+399)*stride+1056]])
-                assert edge.primary[(top+399)*stride+1054]==515
+                assert edge.primary[(top+383)*stride+1055]==515,(top,stride,edge.metadata,[hex(v) for v in edge.primary[(top+383)*stride+1050:(top+383)*stride+1056]])
+                assert edge.primary[(top+383)*stride+1054]==515
                 # Remote changes and reset return to the configured native
                 # font, not Pearl. Compare independent synthetic glyph rows.
                 reset=frame(b"\x1b[10;8!Topaz.font!\x1b[10;0!\x1b[2J\x1b[H"+(b"\x82" if encoding=="CP437" else "é".encode()))
@@ -375,11 +376,9 @@ Hook.onKey(Key.f8) {|event|
                     return client.capture()
                 def cursor(shown,x,y,width):
                     m=shown.metadata
-                    assert (m["cell_width"],m["cell_height"],m["columns"],m["rows"])==(8,8,80,canvas_height//8+(not hide_status)),m
-                    assert (m["plane_width"],m["plane_height"])==(640,canvas_height+(0 if hide_status else 8)),m
-                    # Status adds one row at the canvas's pixel aspect.
-                    height=canvas_height+(0 if hide_status else 8)
-                    assert abs(m["destination_width"]*3*height-m["destination_height"]*4*canvas_height)<=4*canvas_height,m
+                    assert (m["cell_width"],m["cell_height"],m["columns"],m["rows"])==(8,8,80,canvas_height//8),m
+                    assert (m["plane_width"],m["plane_height"])==(640,canvas_height),m
+                    assert abs(m["destination_width"]*3-m["destination_height"]*4)<=4,m
                     assert m["pixel_cursor_enabled"]==1,m
                     assert (m["pixel_cursor_x"],m["pixel_cursor_y"],m["pixel_cursor_width"],m["pixel_cursor_height"])==(x,y,width,1),m
                 def wrapped_narrow(shown):
@@ -476,14 +475,15 @@ Hook.onKey(Key.f8) {|event|
                 if canvas_height==400:
                     # Literal canvas boundaries: two red pixels on each of
                     # the last two rows, with off-canvas points clipped.
-                    shown=frame(b"\f\x1b[15;3!\x1b[4;638;398;641;401!\x1b[1;10;400!\x1b[1;640;10!")
+                    bottom=canvas_height-(0 if hide_status else 8)
+                    shown=frame(f"\f\x1b[15;3!\x1b[4;638;{bottom-2};641;{bottom+1}!\x1b[1;10;{bottom}!\x1b[1;640;10!".encode())
                     m=shown.metadata
-                    for y in (10,198,199,200,397,398,399):
+                    for y in (10,198,199,200,bottom-3,bottom-2,bottom-1):
                         for x in (10,637,638,639):
                             for plane in (shown.primary,shown.alternate):
                                 value=plane[(y+m["pixel_top"])*m["plane_width"]+x]
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
-                                assert value==(0xff0000 if x>=638 and y>=398 else 0),(kick,encoding,hide_status,x,y,value)
+                                assert value==(0xff0000 if x>=638 and y>=bottom-2 else 0),(kick,encoding,hide_status,x,y,value)
                     # Diamond i keeps its literal 20-pixel strike below the
                     # 200-line boundary. Command 19 puts baseline at Y+19;
                     # the native baseline 14 puts the strike's top at Y+5.
@@ -506,6 +506,53 @@ Hook.onKey(Key.f8) {|event|
                 for key in ("columns","rows","cell_width","cell_height","plane_width","plane_height"):
                     assert restored.metadata[key]==original.metadata[key],key
                 assert b"[wren" not in client.stderr,bytes(client.stderr)
+
+def run_mode_geometry(executable, reports, kick, hide_status, selected):
+    # Independent mode-table expectations, including CURRENT and CUSTOM.
+    custom=selected=="Custom"
+    columns,rows,cw,ch,width,height,aw,ah=(91,27,8,8,728,216,5,4) if custom else (80,28,8,14,640,392,4,3)
+    if selected=="80x43":
+        columns,rows,cw,ch,width,height,aw,ah=80,43,8,8,640,350,4,3
+    bottom=rows*ch-(0 if hide_status else ch)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1",0));listener.listen(1);listener.settimeout(15)
+        entries=("[Mode geometry]\nConnectionType=Raw\nAddress=127.0.0.1\n"
+                 f"Port={listener.getsockname()[1]}\nGraphics=SkyPix (Kick {kick})\n"
+                 f"ScreenMode={selected}\nNoStatus={str(hide_status).lower()}\n"
+                 "AmigaFont=Diamond.font\nAmigaFontSize=20\n")
+        settings=("AudioModes=0\nScreenMode=80x28\nCustomColumns=91\nCustomRows=27\n"
+                  "CustomFontHeight=8\nCustomAspectWidth=5\nCustomAspectHeight=4\n")
+        with fixture(executable,entries=entries,settings=settings,reports=reports) as (client,root):
+            original=client.wait_text("Mode geometry");client.key("enter")
+            with listener.accept()[0] as peer:
+                peer.settimeout(10)
+                client.wait_for(lambda s:s.application.get("connected")==1)
+                def frame(data):
+                    peer.sendall(data+b"\x1b[5n")
+                    reply=b""
+                    while len(reply)<4:
+                        part=peer.recv(4-len(reply));assert part;reply+=part
+                    assert reply==b"\x1b[0n",reply
+                    shown=client.capture();m=shown.metadata
+                    assert (m["columns"],m["rows"],m["cell_width"],m["cell_height"])==(columns,rows,cw,ch),m
+                    assert (m["plane_width"],m["plane_height"])==(width,height),m
+                    assert abs(m["destination_width"]*ah-m["destination_height"]*aw)<=aw,m
+                    return shown
+                shown=frame(f"\f\x1b[15;3!\x1b[4;{width-2};{bottom-2};{width+1};{bottom+1}!\x1b[1;10;{bottom}!".encode())
+                for plane in (shown.primary,shown.alternate):
+                    top=shown.metadata["pixel_top"]
+                    for y in (bottom-3,bottom-2,bottom-1):
+                        for x in (10,width-3,width-2,width-1):
+                            assert plane[(top+y)*width+x]==(515 if y>=bottom-2 and x>=width-2 else 512),(selected,hide_status,x,y)
+                    if not hide_status:
+                        assert all(not 512<=value<528 for value in plane[(top+bottom)*width:(top+height)*width]),selected
+                frame(b"\x1bc")
+                peer.shutdown(socket.SHUT_RDWR)
+            restored=client.wait_text("Directory: Name")
+            for key in ("columns","rows","cell_width","cell_height","plane_width","plane_height"):
+                assert restored.metadata[key]==original.metadata[key],(selected,key)
+            assert b"[wren" not in client.stderr,bytes(client.stderr)
+
 
 def run_editor_preferences(executable,reports):
     entries="[Editor]\nConnectionType=Raw\nAddress=example.invalid\nGraphics=SkyPix (Kick 3.1)\n"
@@ -544,4 +591,8 @@ if __name__=="__main__":
             for hide in (False,True):
                 for height in (200,400):
                     run_diamond(args.executable,args.reports,kick,encoding,hide,height)
+    for kick in ("1.3","3.1"):
+        for hide in (False,True):
+            for mode in ("80x28","80x43","Current","Custom"):
+                run_mode_geometry(args.executable,args.reports,kick,hide,mode)
     run_editor_preferences(args.executable,args.reports)

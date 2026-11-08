@@ -773,7 +773,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	const struct st_app_paths *paths,
 	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
 	st_session_history_t *history, enum st_term_disposition *disposition,
-	const st_amiga_font_t *amiga_font, uint32_t canvas_width, uint32_t canvas_height)
+	const st_amiga_font_t *amiga_font)
 {
 	const struct st_screen_mode_descriptor *mode;
 	enum st_screen_mode session_mode
@@ -870,7 +870,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.graphics_mode = st_term_profile_graphics_mode(profile),
 		.rip_directory = cache_directory,
 		.amiga_font_directory = amiga_font_directory,
-		.amiga_font = amiga_font, .skypix_width = canvas_width, .skypix_height = canvas_height,
+		.amiga_font = amiga_font,
 		.skypix_transfer = run_wren_skypix_transfer,
 		.skypix_transfer_context = &connected,
 		.rip_transfer = run_wren_rip_transfer,
@@ -1038,38 +1038,8 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 						st_session_history_t *history, enum st_term_disposition *disposition)
 {
 	const st_amiga_font_t *font = NULL;
-	uint32_t canvas_width = 0, canvas_height = 0;
 	int status;
 	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
-		struct st_screen_mode_descriptor canvas;
-		if (profile->screen_mode == ST_SCREEN_MODE_CUSTOM) {
-			status = st_screen_mode_custom(
-				&canvas, (uint32_t)st_settings.custom_columns, (uint32_t)st_settings.custom_rows,
-				(uint32_t)st_settings.custom_font_height, (uint32_t)st_settings.custom_aspect_width,
-				(uint32_t)st_settings.custom_aspect_height);
-			if (status != 0)
-				return status;
-		} else {
-			const struct st_screen_mode_descriptor *selected =
-				st_screen_mode_get((enum st_screen_mode)profile->screen_mode);
-			if (selected == NULL)
-				return IO_ERROR_INVALID_ARGUMENT;
-			canvas = *selected;
-		}
-		if (profile->screen_mode == ST_SCREEN_MODE_CURRENT) {
-			status = st_console_pixel_size(console, &canvas.console.pixel_width,
-										   &canvas.console.pixel_height);
-			if (status == 0)
-				status = st_console_cell_pixel_size(console, &canvas.console.cell_width,
-					&canvas.console.cell_height);
-			if (status == 0)
-				status = st_console_get_aspect_ratio(console, &canvas.console.aspect_width,
-													 &canvas.console.aspect_height);
-			if (status != 0)
-				return status;
-		}
-		canvas_width = canvas.console.pixel_width;
-		canvas_height = canvas.console.pixel_height;
 		char *directory = NULL;
 		status = st_amiga_fonts_directory(&directory, paths->settings_file);
 		if (status == 0)
@@ -1081,14 +1051,13 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 		if (status != 0)
 			fprintf(stderr, "SyncTERM: Amiga default font unavailable (%d); using fallback\n",
 					status);
-		status = st_wren_host_begin_skypix_session(host, &canvas, profile->hide_status, font);
-	} else
-		status = st_wren_host_begin_session_mode(host, (enum st_screen_mode)profile->screen_mode);
+	}
+	status = st_wren_host_begin_session_mode(host, (enum st_screen_mode)profile->screen_mode);
 	int restore_status;
 
 	if (status == 0)
 		status = run_session(host, display, console, profile, paths, audio, hyperlinks, history,
-							 disposition, font, canvas_width, canvas_height);
+							 disposition, font);
 	/* Restore after disconnect notices and CTerm destruction, even when
 	 * connection setup failed or the session requested application exit. */
 	restore_status = st_wren_host_end_session_mode(host);

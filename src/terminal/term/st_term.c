@@ -225,8 +225,8 @@ st_term_connect_profile(st_connection_t **result,
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_profile effective;
 	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
-		/* Native font metrics determine the actual text grid. Advertise
-		 * that console geometry, retaining the selected wire encoding. */
+		/* Advertise the active mode's system grid. Native Amiga text
+		 * metrics are independent of that grid and the wire encoding. */
 		effective = *profile;
 		effective.screen_mode = ST_SCREEN_MODE_CURRENT;
 		profile = &effective;

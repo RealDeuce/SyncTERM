@@ -138,12 +138,6 @@ int st_wren_host_get_screen_mode(const st_wren_host_t *host,
 	enum st_screen_mode *result);
 /* Capture the actual session grid for detached history presentation. */
 int st_wren_host_capture_history_mode(st_wren_host_t *host);
-struct st_screen_mode_descriptor;
-/* Apply canvas proportions and a native font cell grid, with a separate
- * optional status row. Canvas/font are borrowed for this call only. */
-int st_wren_host_begin_skypix_session(st_wren_host_t *host,
-	const struct st_screen_mode_descriptor *canvas, bool hide_status,
-	const st_amiga_font_t *font);
 /* Bracket the entire connection attempt, including dialogs and teardown.
  * Begin saves the menu's current mode/geometry before applying selected;
  * CURRENT keeps that mode. Nested begins are rejected. End clears the
