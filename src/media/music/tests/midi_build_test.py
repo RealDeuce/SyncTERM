@@ -96,13 +96,19 @@ int midi_fixture(void) {
 }
 ''')
     (consumer / "CMakeLists.txt").write_text(f'''cmake_minimum_required(VERSION 3.22)
-project(MidiConsumer LANGUAGES C)
+project(MidiConsumer LANGUAGES C CXX)
 # Exercise the POSIX routing policy with mock headers on any native host.
+set(fixture_native_apple "${{APPLE}}")
+set(fixture_native_windows "${{WIN32}}")
 set(APPLE FALSE)
 set(WIN32 FALSE)
 set(SYNCTERM_C_STANDARD 17)
 include("{(source / '../../../cmake/SynctermCheckC17Source.cmake').resolve().as_posix()}")
 include("{(source / 'MidiBackends.cmake').as_posix()}")
+# Restore the host platform before generating native compiler/linker rules.
+# Leaving APPLE false removes the SDK search needed to link libSystem.
+set(APPLE "${{fixture_native_apple}}")
+set(WIN32 "${{fixture_native_windows}}")
 configure_file("{(source / 'music_config.h.in').as_posix()}" music_config.h @ONLY)
 if(DEFINED ARCHIVE_TEST_PATH)
     syncterm_is_static_archive("${{ARCHIVE_TEST_PATH}}" valid)

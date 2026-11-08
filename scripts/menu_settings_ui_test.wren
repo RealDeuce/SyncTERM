@@ -87,7 +87,8 @@ class SettingsMenuTest {
     if (Menu.audioModes.count > 0) {
       audioBit = Menu.audioModes[0][0]
       actions.add(row_("Audio Output Mode"))
-      actions.add(row_("[X] " + Menu.audioModes[0][1]))
+      var mark = (audioBefore & audioBit) != 0 ? "[X] " : "[ ] "
+      actions.add(row_(mark + Menu.audioModes[0][1]))
       actions.add(cancel_)
     }
     var midiBefore = Menu.settings.midiModes

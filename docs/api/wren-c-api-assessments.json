@@ -4983,7 +4983,7 @@
     "scripts/menu_bbs_editor.wren": "d7439a3116e2e4f33f6001ea1979c87d4c1b04c9974140b046b538e317133216",
     "scripts/menu_scrollback.wren": "e6f4d278a863a7d6217a84d5fb48245f780ed61c89deaecbea87ef91e33923da",
     "scripts/menu_settings_ui.wren": "7502b742a0a3a2bc813040965a98395c750cc16256762cf45fd10343eac6a17c",
-    "scripts/menu_settings_ui_test.wren": "a2ea0e6d281903617bbe84285b109c5a3a361b444dd18e1205dfa468326dc01c",
+    "scripts/menu_settings_ui_test.wren": "b4afae539d951f05034cf3faa036162c1a6df8451499392bac9f7ccaaa157f1b",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
     "scripts/menu_theme_editor.wren": "cea2c9d2960f1df6fd24f1d829d0eec90839592bdefc1af6300eafe4e15aeb14",
     "scripts/menu_theme_editor_test.wren": "8921e9d5a3c3ed83f889929d0c0a78c00b655ca07ba210f69093b4e8f5508e64",
@@ -5232,7 +5232,7 @@
     "docs/Dependencies.adoc": "0e36c83311b0a3b82200cb4750ca2aa6a185918139fd56004a74cf5fc74d90b9",
     "src/media/audio_file/tests/st_audio_file_test.c": "31b2b5d4f212412a5e829fb1471b489785afa642a6a97b5289bbbfb405f37d23",
     "src/media/music/MidiBackends.cmake": "e6d73965c3741603c6ee76519b614ae3504092b0532d90283440f40bb4f7df10",
-    "src/media/music/tests/midi_build_test.py": "30400f028a6af01fefdcd9602378e273a3d77fd4d36bb68d44bfae731f664668",
+    "src/media/music/tests/midi_build_test.py": "0d3e4aa3c1d622c8dc3d7859635e3c67adacef0b3463c9157c726bc997534c5a",
     "src/net/tls/CMakeLists.txt": "ad304634274966044b78ee100cda2610d7222f0b90adae0cf089bae813874968",
     "src/net/connection/CMakeLists.txt": "dd53182ab24911200e5b67669565e9bae70f5b6282e9231d2fe5ce17bf0db293",
     "tools/audit/wren_c_api_coverage.py": "b1ae1a70425b95369def0064668fab516fe5b1a724e1e3cb1d3917cc1aec5325",
@@ -7090,6 +7090,19 @@
       ],
       "verification": "FreeBSD Clang Debug application and the 22 selected checks pass in aggregate: 20 pass initially, while MIDI build modes and Wren settings hit execution limits under the reported system load and pass with identical commands/assertions on rerun (119s/3s). The final six-check pinned Botan application/crypto/list/TLS/SSH integration run has execution deadlines disabled and passes. Linked console suite passes 46 tests under private Xvfb; native Wayland execution is skipped without a compositor. Pinned static decoder/codec/image, crypto and MIDI fixtures and linked PCM checks pass; PipeWire loads matching client modules and stops its loop without a server/device. GCC application/Wren/audio-file checks and five CI-driver checks pass. Full MinGW64 application and separate pinned Botan crypto executable cross-link; app imports OS/compiler-runtime DLLs, with no decoder DLL dependency. No Windows execution/Wine, native macOS/Linux validation, auditory/device coverage or pinned FluidSynth SoundFont rendering is claimed. Platform and recipe coverage limits are recorded in docs/DEPENDENCY_BUILD_PLAN.adoc.",
       "accounting": "The only new native item is ST_MIDI_SHARED, assessed as audio.backends and represented by the shared MIDI Build Options label. No native declarations were removed or changed, and Wren language/runtime semantics are unchanged. Reviewed resolver/recipes, provider ownership, direct/runtime loader tables, selected SDK headers, generated inventory, independent fixtures, cache/download races and flag reconfiguration; refreshed only this change's reviewed evidence. The inventory checker passes: 83 public headers, 132 exclusions, 2576 native items, 161 assessments and 51 original topics; original dispositions remain 23 resolved/28 open."
+    },
+    {
+      "topic": "ci-settings-midi-fixtures",
+      "status": "resolved",
+      "scope": "Pipeline 12903: every failed job aborted the settings suite because it assumed the first audio backend was enabled, despite the headless fixture setting AudioModes=0. Derive the checked mark from the actual mask and retain the existing XOR/post-apply assertions. The macOS MIDI fixture also left APPLE false during generation and lost native SDK/libSystem link rules; initialize the native C/C++ toolchains, simulate POSIX policy during backend resolution, then restore native platform variables before target generation.",
+      "tests_passed": [
+        "syncterm_behavior_settings",
+        "syncterm_behavior_settings_ui",
+        "music_build_modes",
+        "wren_settings_runtime"
+      ],
+      "verification": "Read all failed job traces and each saved startup diagnostic from pipeline 12903. Reproduced the PortAudio checked-row startup failure locally before the change; the same complete application fixture passes afterward. Reconfigured and built the FreeBSD Clang application and settings-host target. All four focused CTest checks pass with local execution deadlines disabled, including the full MIDI installed/runtime/static/shared/mixed/negative/archive matrix. Native macOS and Windows execution are unavailable locally; the SDK-link correction still needs confirmation in the next native macOS pipeline. No push performed.",
+      "accounting": "Only test-fixture expectations/setup and their reviewed evidence hashes change. Production behavior, public declarations, ledger symbols and original finding dispositions are unchanged: 83 headers, 132 exclusions, 2576 native items, 161 assessments and 51 original topics (23 resolved/28 open)."
     }
   ]
 }
