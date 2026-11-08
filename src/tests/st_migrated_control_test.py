@@ -631,7 +631,7 @@ import "syncterm" for Key, Host, WON, Mod
 import "main_menu" for MainMenu
 MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture position", Fn.new {|app, connected|
   var list = app.root.children[1].children[0]
-  Host.print("MENU-POSITION " + WON.serialize([connected, list.selectedItem, list.selected, list.scrollTop]))
+  Host.print("MENU-POSITION " + WON.serialize([connected, list.selectedItem, list.selected, list.scrollTop, list.bounds.h]))
 })
 ''', "menu")
         with fixture(executable, entries=entries(), prepare=prepare, reports=reports) as (client, root):
@@ -661,23 +661,46 @@ MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture position", Fn.new {
             assert position() == before
             visit(lambda peer: (root / "syncterm.lst").write_text(entries(omitted=0), encoding="utf-8"))
             shifted = position()
-            assert shifted[1:] == ["Entry 27", 26, before[3]]
+            assert shifted[1:4] == ["Entry 27", 26, before[3]]
             def connected_directory(peer):
                 (root / "syncterm.lst").write_text(entries(), encoding="utf-8")
                 client.command_key(18)
                 client.wait_text("Directory: Name")
+                assert position() == [True, *before[1:]]
+                client.key("end")
+                client.key("escape")
+                client.wait_text("POSITION-SESSION")
+                client.command_key(18)
+                client.wait_text("Directory: Name")
+                # Each visit starts from the offline bookmark, even after
+                # browsing elsewhere during the previous connected visit.
+                assert position() == [True, *before[1:]]
                 client.key("down")
                 assert position()[0] is True
                 client.key("escape")
                 client.wait_text("POSITION-SESSION")
             visit(connected_directory)
             assert position() == before
+            def shifted_connected_directory(peer):
+                # Move the connected entry outside the offline viewport.
+                added = "".join(f"[Added {i:02d}]\n" for i in range(40))
+                (root / "syncterm.lst").write_text(added + entries(), encoding="utf-8")
+                client.command_key(18)
+                client.wait_text("Directory: Name")
+                current = position()
+                assert current[:3] == [True, "Entry 27", 67]
+                assert current[3] == min(67 - current[4] // 2, 81 - current[4])
+                client.key("escape")
+                client.wait_text("POSITION-SESSION")
+                (root / "syncterm.lst").write_text(entries(), encoding="utf-8")
+            visit(shifted_connected_directory)
+            assert position() == before
             visit(lambda peer: (root / "syncterm.lst").write_text(entries(omitted=27), encoding="utf-8"))
             removed = position()
-            assert removed[1:] == ["Entry 28", 27, before[3]]
+            assert removed[1:4] == ["Entry 28", 27, before[3]]
             visit(lambda peer: (root / "syncterm.lst").write_text(entries(3), encoding="utf-8"))
             clamped = position()
-            assert clamped[2:] == [3, 0]
+            assert clamped[2:4] == [3, 0]
 
 
 def menu_shortcuts(executable, reports):

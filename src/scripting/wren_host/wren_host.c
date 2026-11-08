@@ -2053,13 +2053,17 @@ st_wren_host_run_menu(st_wren_host_t *host, struct st_profile *selected,
 }
 
 int
-st_wren_host_run_connected_menu(struct st_wren_host *host)
+st_wren_host_run_connected_menu(struct st_wren_host *host,
+	const char *current)
 {
 	if (host == NULL || host->vm == NULL || host->run_menu == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	wrenEnsureSlots(host->vm, 3);
 	wrenSetSlotHandle(host->vm, 0, host->main_menu);
-	wrenSetSlotNull(host->vm, 1);
+	if (current != NULL && current[0] != '\0')
+		wrenSetSlotString(host->vm, 1, current);
+	else
+		wrenSetSlotNull(host->vm, 1);
 	wrenSetSlotBool(host->vm, 2, true);
 	return wrenCall(host->vm, host->run_menu) == WREN_RESULT_SUCCESS
 	    ? 0 : IO_ERROR_INVALID_FORMAT;

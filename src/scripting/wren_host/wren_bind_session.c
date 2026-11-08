@@ -1330,8 +1330,10 @@ static void fn_cterm_throttle_down(WrenVM *vm)
 static void
 fn_host_edit_bbs_list(WrenVM *vm)
 {
-	if (st_wren_host_run_connected_menu(
-	    st_wren_context_from_vm(vm)->host) != 0)
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+
+	if (st_wren_host_run_connected_menu(context->host,
+	    context->profile == NULL ? NULL : context->profile->name) != 0)
 		st_wren_abort(vm, "Host.editBBSList failed");
 }
 

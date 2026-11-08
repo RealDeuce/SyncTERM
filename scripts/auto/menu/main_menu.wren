@@ -307,6 +307,7 @@ class MainMenuEventApp is App {
 class MainMenuApp {
   construct new(current, connected) {
     var view = MainMenu.view_(connected)
+    if (connected && MainMenu.view_(false) != null) view = MainMenu.view_(false)
     _app = MainMenuEventApp.new(Fn.new { _consoleIndicator.refresh() })
     _connected = connected
     _current = current
@@ -318,6 +319,7 @@ class MainMenuApp {
     _confirmingExit = false
     _commentReturn = null
     _restoreScrollTop = view == null ? null : view[2]
+    _centerCurrent = false
     _settingRows = SettingsMenu.rows(_connected)
 
     _backdrop = ClassicBackdrop.new()
@@ -421,6 +423,8 @@ class MainMenuApp {
     if (preferred == null && view != null) preferred = view[0]
     var fallback = view == null || view[1] == null ? 0 : view[1]
     refresh_(preferred, fallback)
+    _centerCurrent = connected && view == null && _selected != null &&
+        _selected.name == current
   }
 
   view_ {
@@ -663,11 +667,19 @@ class MainMenuApp {
     }
     _list.bounds = _directory.innerBounds
     _settingsList.bounds = _settings.innerBounds
+    if (_centerCurrent) {
+      _list.scrollTop = _list.selected - (_list.bounds.h / 2).floor
+      _centerCurrent = false
+    }
     // Restore only after layout gives scrollTop a real viewport to clamp to.
     // A reordered or shortened directory must still leave selection visible.
     if (_restoreScrollTop != null) {
       _list.scrollTop = _restoreScrollTop
-      _list.ensureVisible_()
+      if (_connected) {
+        _list.centerSelectedIfHidden_()
+      } else {
+        _list.ensureVisible_()
+      }
       _restoreScrollTop = null
     }
   }
@@ -1122,8 +1134,8 @@ class MainMenu {
   static password=(value) { __password = value }
 
   // Keep only owned names and numeric view state, never generation-bound BBS
-  // handles across prepare(). Connected editing must not replace the offline
-  // bookmark used when returning from a connection or failed dial attempt.
+  // handles across prepare(). Connected editing starts from the offline
+  // bookmark without replacing it when returning from a connection.
   static view_(connected) { connected ? __connectedView : __offlineView }
 
   static rememberView_(connected, view) {

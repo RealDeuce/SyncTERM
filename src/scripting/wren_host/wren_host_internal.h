@@ -303,7 +303,8 @@ struct st_wren_host {
 
 struct st_wren_host *st_wren_host_from_vm(WrenVM *vm);
 struct st_wren_context *st_wren_context_from_vm(WrenVM *vm);
-int st_wren_host_run_connected_menu(struct st_wren_host *host);
+int st_wren_host_run_connected_menu(struct st_wren_host *host,
+	const char *current);
 /* Class checks do not allocate, grow slots, or inspect the foreign payload. */
 bool st_wren_foreign_is(WrenVM *vm, int slot, const char *module_name,
 	const char *class_name);

@@ -928,6 +928,10 @@ The currently embedded scripts are:
   list commands occupy the bottom two rows.  The host calls
   `MainMenu.run(currentName, connected)` whenever the application is
   offline or Alt+E enters the directory over a connected session.  The
+  connected form highlights the active entry and reuses the offline
+  directory's scroll position, centering the entry if it is outside that
+  viewport or no offline position exists. Browsing the connected directory
+  preserves the offline bookmark used when the session ends. The
   controller binds Ctrl+&#96; to the menu VM's REPL in graphical and
   native-console backends, and Ctrl+Q in ANSI and ncurses modes.  It
   displays that VM's unread-log indicator in the top-right corner.  The
