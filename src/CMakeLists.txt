@@ -3,6 +3,8 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermTestRunner.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMApplication LANGUAGES C)
 	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
@@ -333,7 +335,7 @@ if(BUILD_TESTING)
 			endforeach()
 		endif()
 	endif()
-	add_executable(st_app_startup_test tests/st_app_startup_test.c)
+	syncterm_add_test_case(st_host_tests st_app_startup_test tests/st_app_startup_test.c)
 	target_link_libraries(st_app_startup_test PRIVATE st_app_startup)
 	set_target_properties(st_app_startup_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -344,25 +346,25 @@ if(BUILD_TESTING)
 		target_compile_options(st_app_startup_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME app_startup COMMAND st_app_startup_test)
+	add_test(NAME app_startup COMMAND st_host_tests st_app_startup_test)
 	if(TARGET st_console_x11_test)
 		find_package(X11 REQUIRED)
-		add_executable(st_app_scaling_test tests/st_app_scaling_test.c)
+		syncterm_add_test_case(st_host_tests st_app_scaling_test ARGS tests/st_app_scaling_test.c)
 		target_link_libraries(st_app_scaling_test PRIVATE st_application
 			X11::X11 syncterm_ini syncterm_filesystem syncterm_threads)
 		set_target_properties(st_app_scaling_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_app_scaling_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
-		add_test(NAME app_scaling COMMAND st_app_scaling_test
+		add_test(NAME app_scaling COMMAND st_host_tests st_app_scaling_test
 			${CMAKE_CURRENT_BINARY_DIR}/scaling-test)
 		set_tests_properties(app_scaling PROPERTIES TIMEOUT 30
 			SKIP_RETURN_CODE 77 RESOURCE_LOCK x11_display)
 	endif()
 	if(NOT WIN32)
-		add_executable(st_app_session_mode_test
-			tests/st_app_session_mode_test.c st_syncterm_icon.c st_terminfo.c)
-		target_link_libraries(st_app_session_mode_test PRIVATE st_wren_host
+		syncterm_add_test_case(st_host_tests st_app_session_mode_test
+			tests/st_app_session_mode_test.c)
+		target_link_libraries(st_app_session_mode_test PRIVATE st_application st_wren_host
 			st_settings st_app_startup st_audio st_fonts st_font_catalog st_term st_amiga_font
 			st_session_history st_hyperlink st_bbs_list st_time syncterm_threads syncterm_path
 			syncterm_filesystem syncterm_value_convert)
@@ -376,10 +378,10 @@ if(BUILD_TESTING)
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_app_session_mode_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
-		add_test(NAME app_session_mode COMMAND st_app_session_mode_test)
+		add_test(NAME app_session_mode COMMAND st_host_tests st_app_session_mode_test)
 		set_tests_properties(app_session_mode PROPERTIES TIMEOUT 60)
 	endif()
-	add_executable(st_command_line_empty_backend_test
+	syncterm_add_test_case(st_host_tests st_command_line_empty_backend_test
 		tests/st_command_line_empty_backend_test.c)
 	target_link_libraries(st_command_line_empty_backend_test PRIVATE
 		st_app_startup)
@@ -393,7 +395,7 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME command_line_empty_backend
-		COMMAND st_command_line_empty_backend_test)
+		COMMAND st_host_tests st_command_line_empty_backend_test)
 endif()
 
 target_link_libraries(st_application PRIVATE st_amiga_font)

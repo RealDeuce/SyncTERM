@@ -40,7 +40,7 @@ write_script(const char *path, const char *source)
 }
 
 int
-main(int argc, char **argv)
+st_wren_loader_audit_test_main(int argc, char **argv)
 {
 	char menu[1024], picker[1024], script[1100];
 	struct st_app_paths paths = {0};

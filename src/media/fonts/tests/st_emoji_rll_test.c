@@ -217,7 +217,7 @@ benchmark(const struct st_console_font *raw, const struct st_console_font *packe
 }
 
 int
-main(int argc, char **argv)
+st_emoji_rll_test_main(int argc, char **argv)
 {
 	bool profile = argc == 2 && strcmp(argv[1], "--benchmark") == 0;
 	CHECK(argc == 1 || profile);

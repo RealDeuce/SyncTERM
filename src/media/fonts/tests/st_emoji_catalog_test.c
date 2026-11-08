@@ -22,7 +22,7 @@ covered(const struct st_console_font *font, const char *text)
 	return false;
 }
 
-int main(void)
+int st_emoji_catalog_test_main(void)
 {
 	CHECK(st_emoji_entry_count > 3000);
 	const struct st_console_font *fonts[] = {&st_emoji_8_font, &st_emoji_14_font, &st_emoji_16_font};

@@ -1,5 +1,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 cmake_minimum_required(VERSION 3.22)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermTestRunner.cmake")
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STEmojiCatalog LANGUAGES C)
 	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCStandard.cmake")
@@ -32,7 +34,7 @@ if(BUILD_TESTING)
 		add_test(NAME emoji_locales_generator COMMAND ${Python3_EXECUTABLE}
 			${CMAKE_CURRENT_SOURCE_DIR}/tests/test_locales.py)
 	endif()
-	add_executable(st_emoji_locale_test tests/st_emoji_locale_test.c)
+	syncterm_add_test_case(st_terminal_tests st_emoji_locale_test tests/st_emoji_locale_test.c)
 	target_link_libraries(st_emoji_locale_test PRIVATE st_emoji_catalog st_unicode_compare syncterm_io_error)
 	set_target_properties(st_emoji_locale_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
@@ -40,5 +42,5 @@ if(BUILD_TESTING)
 	else()
 		target_compile_options(st_emoji_locale_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
 	endif()
-	add_test(NAME emoji_locales COMMAND st_emoji_locale_test)
+	add_test(NAME emoji_locales COMMAND st_terminal_tests st_emoji_locale_test)
 endif()

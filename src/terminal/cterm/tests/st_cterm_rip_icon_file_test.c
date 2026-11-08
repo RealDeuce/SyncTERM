@@ -19,7 +19,7 @@
 } while (0)
 
 int
-main(void)
+st_cterm_rip_icon_file_test_main(void)
 {
 	/* Four one-pixel planes in BGI's high-to-low storage order. */
 	static const uint8_t tiny[] = {0, 0, 0, 0, 0x80, 0x80, 0, 0};

@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Stephen Hurd
 # SPDX-License-Identifier: BSD-2-Clause
 
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermTestRunner.cmake")
+
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
 
 if(WIN32)
@@ -128,7 +130,8 @@ endif()
 
 if(BUILD_TESTING)
 	option(ST_CTERM_TEST_EXTERNAL_ASSETS "Use optional external RIP test assets" ON)
-	add_executable(st_cterm_apc_replay tests/st_cterm_apc_replay.c)
+	# These replay/inventory tools are built explicitly for external comparisons.
+	add_executable(st_cterm_apc_replay EXCLUDE_FROM_ALL tests/st_cterm_apc_replay.c)
 	target_link_libraries(st_cterm_apc_replay PRIVATE st_cterm)
 	set_target_properties(st_cterm_apc_replay PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -138,7 +141,7 @@ if(BUILD_TESTING)
 	else()
 		target_compile_options(st_cterm_apc_replay PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_executable(st_cterm_apc_test tests/st_cterm_apc_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_apc_test tests/st_cterm_apc_test.c)
 	target_link_libraries(st_cterm_apc_test PRIVATE st_cterm st_audio_file st_pixel_image st_md5
 		syncterm_filesystem)
 	target_compile_definitions(st_cterm_apc_test PRIVATE
@@ -155,8 +158,8 @@ if(BUILD_TESTING)
 	else()
 		target_compile_options(st_cterm_apc_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_apc COMMAND st_cterm_apc_test)
-	add_executable(st_cterm_apc_audio_test tests/st_cterm_apc_audio_test.c)
+	add_test(NAME cterm_apc COMMAND st_terminal_tests st_cterm_apc_test)
+	syncterm_add_test_case(st_terminal_tests st_cterm_apc_audio_test tests/st_cterm_apc_audio_test.c)
 	target_link_libraries(st_cterm_apc_audio_test PRIVATE st_cterm)
 	target_compile_definitions(st_cterm_apc_audio_test PRIVATE
 		ST_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-audio-test-cache")
@@ -168,7 +171,7 @@ if(BUILD_TESTING)
 	else()
 		target_compile_options(st_cterm_apc_audio_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_apc_audio COMMAND st_cterm_apc_audio_test)
+	add_test(NAME cterm_apc_audio COMMAND st_terminal_tests st_cterm_apc_audio_test)
 	add_executable(st_cterm_skypix_audio_test tests/st_cterm_skypix_audio_test.c
 		tests/st_cterm_skypix_audio_test_bindings.c)
 	target_link_libraries(st_cterm_skypix_audio_test PRIVATE st_cterm st_fonts)
@@ -182,13 +185,13 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_skypix_audio COMMAND st_cterm_skypix_audio_test)
 	set_tests_properties(cterm_skypix_audio PROPERTIES TIMEOUT 30)
-	add_executable(st_cterm_midi_test tests/st_cterm_midi_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_midi_test tests/st_cterm_midi_test.c)
 	target_link_libraries(st_cterm_midi_test PRIVATE st_cterm syncterm_filesystem syncterm_threads st_time)
 	target_compile_definitions(st_cterm_midi_test PRIVATE ST_MIDI_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/midi-cache")
 	set_target_properties(st_cterm_midi_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	add_test(NAME cterm_midi COMMAND st_cterm_midi_test)
+	add_test(NAME cterm_midi COMMAND st_terminal_tests st_cterm_midi_test)
 	set_tests_properties(cterm_midi PROPERTIES TIMEOUT 30)
-	add_executable(st_cterm_numeric_test tests/st_cterm_numeric_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_numeric_test tests/st_cterm_numeric_test.c)
 	target_link_libraries(st_cterm_numeric_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_numeric_test PROPERTIES C_STANDARD 17
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -199,8 +202,8 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_numeric_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_numeric COMMAND st_cterm_numeric_test)
-	add_executable(st_cterm_sixel_test tests/st_cterm_sixel_test.c)
+	add_test(NAME cterm_numeric COMMAND st_terminal_tests st_cterm_numeric_test)
+	syncterm_add_test_case(st_terminal_tests st_cterm_sixel_test tests/st_cterm_sixel_test.c)
 	target_link_libraries(st_cterm_sixel_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_sixel_test PROPERTIES C_STANDARD 17
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -211,8 +214,8 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_sixel_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_sixel COMMAND st_cterm_sixel_test)
-	add_executable(st_cterm_benchmark tests/st_cterm_benchmark.c)
+	add_test(NAME cterm_sixel COMMAND st_terminal_tests st_cterm_sixel_test)
+	syncterm_add_test_case(st_terminal_tests st_cterm_benchmark ARGS tests/st_cterm_benchmark.c)
 	target_link_libraries(st_cterm_benchmark PRIVATE st_cterm st_time)
 	set_target_properties(st_cterm_benchmark PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -223,9 +226,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_benchmark PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_stream_consistency COMMAND st_cterm_benchmark 100)
+	add_test(NAME cterm_stream_consistency COMMAND st_terminal_tests st_cterm_benchmark 100)
 
-	add_executable(st_cterm_rip_icon_file_test
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_icon_file_test
 		tests/st_cterm_rip_icon_file_test.c)
 	target_link_libraries(st_cterm_rip_icon_file_test PRIVATE st_cterm)
 	# The external RIP assets are optional test inputs, not a configuration
@@ -243,8 +246,8 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_rip_icon_file_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_icon_file COMMAND st_cterm_rip_icon_file_test)
-	add_executable(st_cterm_rip_transfer_test tests/st_cterm_rip_transfer_test.c)
+	add_test(NAME cterm_rip_icon_file COMMAND st_terminal_tests st_cterm_rip_icon_file_test)
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_transfer_test tests/st_cterm_rip_transfer_test.c)
 	target_link_libraries(st_cterm_rip_transfer_test PRIVATE st_cterm syncterm_filesystem)
 	target_compile_definitions(st_cterm_rip_transfer_test PRIVATE
 		RIP_TRANSFER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/rip-transfer-test")
@@ -256,13 +259,13 @@ if(BUILD_TESTING)
 	else()
 		target_compile_options(st_cterm_rip_transfer_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_transfer COMMAND st_cterm_rip_transfer_test)
+	add_test(NAME cterm_rip_transfer COMMAND st_terminal_tests st_cterm_rip_transfer_test)
 	if(NOT WIN32)
 		target_compile_definitions(st_cterm_rip_transfer_test PRIVATE
 			ST_RIP_TRANSFER_TEST_POSIX=1 ${_st_cterm_apc_definitions})
 	endif()
 
-	add_executable(st_cterm_rip_assets_test
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_assets_test
 		tests/st_cterm_rip_assets_test.c)
 	target_link_libraries(st_cterm_rip_assets_test PRIVATE st_cterm
 		syncterm_filesystem syncterm_path)
@@ -281,9 +284,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_rip_assets_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_assets COMMAND st_cterm_rip_assets_test)
+	add_test(NAME cterm_rip_assets COMMAND st_terminal_tests st_cterm_rip_assets_test)
 
-	add_executable(st_cterm_test tests/st_cterm_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_test tests/st_cterm_test.c)
 	target_link_libraries(st_cterm_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -294,8 +297,8 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm COMMAND st_cterm_test)
-	add_executable(st_cterm_text_test tests/st_cterm_text_test.c)
+	add_test(NAME cterm COMMAND st_terminal_tests st_cterm_test)
+	syncterm_add_test_case(st_terminal_tests st_cterm_text_test tests/st_cterm_text_test.c)
 	target_link_libraries(st_cterm_text_test PRIVATE st_cterm st_fonts)
 	set_target_properties(st_cterm_text_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -306,8 +309,8 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_text_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_text COMMAND st_cterm_text_test)
-	add_executable(st_cterm_keyboard_test tests/st_cterm_keyboard_test.c)
+	add_test(NAME cterm_text COMMAND st_terminal_tests st_cterm_text_test)
+	syncterm_add_test_case(st_terminal_tests st_cterm_keyboard_test tests/st_cterm_keyboard_test.c)
 	target_link_libraries(st_cterm_keyboard_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_keyboard_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -318,9 +321,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_keyboard_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_keyboard COMMAND st_cterm_keyboard_test)
+	add_test(NAME cterm_keyboard COMMAND st_terminal_tests st_cterm_keyboard_test)
 
-	add_executable(st_cterm_rip_parser_test tests/st_cterm_rip_parser_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_parser_test tests/st_cterm_rip_parser_test.c)
 	target_link_libraries(st_cterm_rip_parser_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_parser_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -331,9 +334,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_rip_parser_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_parser COMMAND st_cterm_rip_parser_test)
+	add_test(NAME cterm_rip_parser COMMAND st_terminal_tests st_cterm_rip_parser_test)
 
-	add_executable(st_cterm_rip_engine_test tests/st_cterm_rip_engine_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_engine_test tests/st_cterm_rip_engine_test.c)
 	target_link_libraries(st_cterm_rip_engine_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_engine_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -344,9 +347,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_rip_engine_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_engine COMMAND st_cterm_rip_engine_test)
+	add_test(NAME cterm_rip_engine COMMAND st_terminal_tests st_cterm_rip_engine_test)
 
-	add_executable(st_cterm_rip_raster_test tests/st_cterm_rip_raster_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_raster_test tests/st_cterm_rip_raster_test.c)
 	target_link_libraries(st_cterm_rip_raster_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_raster_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -357,9 +360,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_rip_raster_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_raster COMMAND st_cterm_rip_raster_test)
+	add_test(NAME cterm_rip_raster COMMAND st_terminal_tests st_cterm_rip_raster_test)
 
-	add_executable(st_cterm_rip_live_test tests/st_cterm_rip_live_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_live_test tests/st_cterm_rip_live_test.c)
 	target_link_libraries(st_cterm_rip_live_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_live_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -370,9 +373,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_rip_live_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_live COMMAND st_cterm_rip_live_test)
+	add_test(NAME cterm_rip_live COMMAND st_terminal_tests st_cterm_rip_live_test)
 
-	add_executable(st_cterm_rip_variables_test
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_variables_test
 		tests/st_cterm_rip_variables_test.c)
 	target_link_libraries(st_cterm_rip_variables_test PRIVATE st_cterm
 		syncterm_filesystem syncterm_ini syncterm_path)
@@ -387,9 +390,9 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_rip_variables_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME cterm_rip_variables COMMAND st_cterm_rip_variables_test)
+	add_test(NAME cterm_rip_variables COMMAND st_terminal_tests st_cterm_rip_variables_test)
 
-	add_executable(st_cterm_rip_unicode_text_test
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_unicode_text_test
 		tests/st_cterm_rip_unicode_text_test.c)
 	target_link_libraries(st_cterm_rip_unicode_text_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_unicode_text_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
@@ -402,13 +405,13 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME cterm_rip_unicode_text
-		COMMAND st_cterm_rip_unicode_text_test)
+		COMMAND st_terminal_tests st_cterm_rip_unicode_text_test)
 
 	# A local v1.10a capture can verify the external corpus input without
 	# adding either the RIP file or its derived frame to this source tree.
 	if(ST_CTERM_TEST_EXTERNAL_ASSETS AND EXISTS "/synchronet/tmp/ripterm/rips/gl-morfr.rip"
 		AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/v110a_gl_morfr_expected.h")
-		add_executable(st_cterm_rip_v110a_live_test
+		syncterm_add_test_case(st_terminal_tests st_cterm_rip_v110a_live_test
 			tests/st_cterm_rip_v110a_live_test.c)
 		target_link_libraries(st_cterm_rip_v110a_live_test PRIVATE st_cterm)
 		target_compile_definitions(st_cterm_rip_v110a_live_test PRIVATE
@@ -423,10 +426,10 @@ if(BUILD_TESTING)
 				-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 		endif()
 		add_test(NAME cterm_rip_v110a_live
-			COMMAND st_cterm_rip_v110a_live_test)
+			COMMAND st_terminal_tests st_cterm_rip_v110a_live_test)
 	endif()
 
-	add_executable(st_cterm_rip_corpus_inventory
+	add_executable(st_cterm_rip_corpus_inventory EXCLUDE_FROM_ALL
 		tests/st_cterm_rip_corpus_inventory.c)
 	target_link_libraries(st_cterm_rip_corpus_inventory PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_corpus_inventory PROPERTIES
@@ -439,7 +442,7 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 
-	add_executable(st_cterm_rip_corpus_replay
+	add_executable(st_cterm_rip_corpus_replay EXCLUDE_FROM_ALL
 		tests/st_cterm_rip_corpus_replay.c)
 	target_link_libraries(st_cterm_rip_corpus_replay PRIVATE st_term)
 	set_target_properties(st_cterm_rip_corpus_replay PROPERTIES
@@ -461,14 +464,14 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
-	add_executable(st_cterm_skypix_test tests/st_cterm_skypix_test.c)
+	syncterm_add_test_case(st_terminal_tests st_cterm_skypix_test tests/st_cterm_skypix_test.c)
 	target_link_libraries(st_cterm_skypix_test PRIVATE st_cterm st_amiga_font st_fonts)
 	set_target_properties(st_cterm_skypix_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	add_test(NAME cterm_skypix COMMAND st_cterm_skypix_test)
-	add_executable(st_cterm_skypix_cursor_test tests/st_cterm_skypix_cursor_test.c)
+	add_test(NAME cterm_skypix COMMAND st_terminal_tests st_cterm_skypix_test)
+	syncterm_add_test_case(st_terminal_tests st_cterm_skypix_cursor_test tests/st_cterm_skypix_cursor_test.c)
 	target_link_libraries(st_cterm_skypix_cursor_test PRIVATE st_cterm st_amiga_font st_fonts)
 	set_target_properties(st_cterm_skypix_cursor_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	add_test(NAME cterm_skypix_cursor COMMAND st_cterm_skypix_cursor_test)
+	add_test(NAME cterm_skypix_cursor COMMAND st_terminal_tests st_cterm_skypix_cursor_test)
 	if(MSVC)
 		target_compile_options(st_cterm_skypix_cursor_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()

@@ -95,7 +95,7 @@ pixel(st_console_t *console, uint32_t x, uint32_t y,
 }
 
 int
-main(void)
+st_cterm_rip_assets_test_main(void)
 {
 	struct response_capture response = {0};
 	const struct st_console_display_config display = {

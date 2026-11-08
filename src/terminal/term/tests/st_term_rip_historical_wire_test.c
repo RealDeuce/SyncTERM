@@ -93,7 +93,7 @@ check_pixels(st_console_t *console)
 }
 
 int
-main(void)
+st_term_rip_historical_wire_test_main(void)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,

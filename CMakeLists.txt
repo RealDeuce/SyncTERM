@@ -140,6 +140,9 @@ add_subdirectory(addons/modern_ui)
 
 syncterm_print_configuration()
 if(BUILD_TESTING)
+	add_test(NAME build_test_runner COMMAND "${CMAKE_COMMAND}"
+		"-DTEST_ROOT=${PROJECT_BINARY_DIR}/test-runner-check"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_runner.cmake")
 	add_test(NAME build_configuration_summary COMMAND "${CMAKE_COMMAND}"
 		"-DBUILD_DIR=${PROJECT_BINARY_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/build_features.cmake")
 	add_test(NAME dependency_policy COMMAND "${CMAKE_COMMAND}"

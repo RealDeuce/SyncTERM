@@ -585,7 +585,7 @@ test_graphics_history(void)
 }
 
 int
-main(void)
+st_cterm_test_main(void)
 {
 	test_graphics_history();
 	test_status_display_routing();

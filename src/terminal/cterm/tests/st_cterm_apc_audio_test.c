@@ -162,7 +162,7 @@ check_controls(st_cterm_t *terminal)
 }
 
 int
-main(void)
+st_cterm_apc_audio_test_main(void)
 {
 	const struct audio_backend_descriptor *backends[] = {&backend};
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};

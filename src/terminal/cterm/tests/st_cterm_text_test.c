@@ -1087,7 +1087,7 @@ test_diagnostics(void)
 }
 
 int
-main(void)
+st_cterm_text_test_main(void)
 {
 	test_default_tabstops();
 	test_tabstop_insertion();

@@ -133,7 +133,7 @@ read_values(const char *path, const char *name, const char *expected)
 }
 
 int
-main(void)
+st_cterm_rip_variables_test_main(void)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,

@@ -29,7 +29,7 @@ feed(st_cterm_t *terminal, const char *wire)
 }
 
 int
-main(void)
+st_cterm_rip_unicode_text_test_main(void)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,

@@ -90,7 +90,7 @@ run(enum st_cterm_encoding encoding, bool status, size_t chunk, size_t lines)
 }
 
 int
-main(int argc, char **argv)
+st_cterm_benchmark_main(int argc, char **argv)
 {
 	size_t lines = 2000;
 	if (argc == 2) {

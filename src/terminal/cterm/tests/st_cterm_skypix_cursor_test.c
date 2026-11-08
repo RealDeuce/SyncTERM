@@ -206,7 +206,7 @@ static void widths(enum st_cterm_graphics_mode mode, const char *name,
 	st_console_destroy(console);
 }
 
-int main(void)
+int st_cterm_skypix_cursor_test_main(void)
 {
 	for (int kick = 0; kick < 2; ++kick) {
 		for (int utf8 = 0; utf8 < 2; ++utf8)

@@ -19,7 +19,7 @@
 } while (false)
 
 int
-main(void)
+st_fonts_test_main(void)
 {
 	static const enum st_codepage codepages[ST_BUILTIN_FONT_COUNT] = {
 		ST_CODEPAGE_CP437, ST_CODEPAGE_CP1251, ST_CODEPAGE_KOI8_R,

@@ -141,7 +141,7 @@ check_small_font_tofu(uint32_t height)
 }
 
 int
-main(void)
+st_font_catalog_test_main(void)
 {
 	CHECK(check_amiga_descenders()==0);
 	CHECK(check_small_font_tofu(8) == 0);

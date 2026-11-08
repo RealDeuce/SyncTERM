@@ -9,7 +9,7 @@
 #include <string.h>
 
 int
-main(void)
+st_command_line_empty_backend_test_main(void)
 {
 	char *option = malloc(3);
 	char program[] = "syncterm";

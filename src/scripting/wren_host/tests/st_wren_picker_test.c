@@ -74,7 +74,7 @@ write_startup_probe(const char *path)
 }
 
 int
-main(void)
+st_wren_picker_test_main(void)
 {
 	char personal[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char shared[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];

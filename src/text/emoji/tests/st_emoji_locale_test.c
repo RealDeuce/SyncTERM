@@ -183,7 +183,7 @@ test_blocks(void)
 }
 
 int
-main(void)
+st_emoji_locale_test_main(void)
 {
 	CHECK(test_blocks() == 0);
 	CHECK(test_names() == 0);

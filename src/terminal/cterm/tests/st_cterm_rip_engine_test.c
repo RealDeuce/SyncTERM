@@ -77,7 +77,7 @@ at_column(void *context)
 }
 
 int
-main(void)
+st_cterm_rip_engine_test_main(void)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,

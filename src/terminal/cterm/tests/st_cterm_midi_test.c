@@ -90,7 +90,7 @@ static void exercise(st_console_t *console, st_font_catalog_t *fonts, bool utf8)
 	st_cterm_destroy(&t); CHECK(r.closed == 1);
 	st_audio_runtime_destroy(runtime); st_mutex_destroy(&r.mutex);
 }
-int main(void)
+int st_cterm_midi_test_main(void)
 {
 	static const uint8_t song[] = {'M','T','h','d',0,0,0,6,0,0,0,1,0,96,
 	    'M','T','r','k',0,0,0,13,0,0x90,60,100,0x87,0x40,0x80,60,0,0,0xff,0x2f,0};

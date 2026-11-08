@@ -86,7 +86,7 @@ exercise(WrenVM *vm, st_wren_connected_t *connected, const char *source)
 }
 
 int
-main(void)
+st_wren_codepage_test_main(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {

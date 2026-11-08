@@ -205,7 +205,7 @@ check_reveal_pixels(void)
 }
 
 int
-main(void)
+st_cterm_keyboard_test_main(void)
 {
 	check_mappings();
 	check_reveal_pixels();

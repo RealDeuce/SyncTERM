@@ -283,7 +283,7 @@ check_color_rebasing(void)
 }
 
 int
-main(void)
+st_emoji_test_main(void)
 {
 	check_color_rebasing();
 	check_native_monochrome(&st_unscii_8_font);

@@ -980,7 +980,7 @@ static void graphics_history_test(void)
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 }
-int main(void)
+int st_cterm_skypix_test_main(void)
 {
 	for (unsigned graphics = ST_CTERM_GRAPHICS_SKYPIX_13; graphics <= ST_CTERM_GRAPHICS_SKYPIX_31; ++graphics)
 		for (unsigned status = 0; status < 2; ++status)

@@ -3,6 +3,8 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermTestRunner.cmake")
+
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermAtomics.cmake")
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -152,7 +154,7 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	add_executable(st_wren_codepage_test tests/st_wren_codepage_test.c)
+	syncterm_add_test_case(st_host_tests st_wren_codepage_test tests/st_wren_codepage_test.c)
 	target_include_directories(st_wren_codepage_test PRIVATE
 		$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>)
 	target_link_libraries(st_wren_codepage_test PRIVATE st_wren_host st_wren_vm
@@ -170,10 +172,10 @@ if(BUILD_TESTING)
 		target_compile_options(st_wren_codepage_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME wren_codepage COMMAND st_wren_codepage_test)
+	add_test(NAME wren_codepage COMMAND st_host_tests st_wren_codepage_test)
 	set_tests_properties(wren_codepage PROPERTIES ENVIRONMENT_MODIFICATION
 		"DISPLAY=unset:;WAYLAND_DISPLAY=unset:;XAUTHORITY=unset:;XDG_RUNTIME_DIR=unset:")
-	add_executable(st_wren_cell_styles_test tests/st_wren_cell_styles_test.c)
+	syncterm_add_test_case(st_host_tests st_wren_cell_styles_test tests/st_wren_cell_styles_test.c)
 	target_include_directories(st_wren_cell_styles_test PRIVATE
 		$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>)
 	target_link_libraries(st_wren_cell_styles_test PRIVATE st_wren_host st_wren_vm
@@ -191,7 +193,7 @@ if(BUILD_TESTING)
 		target_compile_options(st_wren_cell_styles_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME wren_cell_styles COMMAND st_wren_cell_styles_test)
+	add_test(NAME wren_cell_styles COMMAND st_host_tests st_wren_cell_styles_test)
 	set_tests_properties(wren_cell_styles PROPERTIES ENVIRONMENT_MODIFICATION
 		"DISPLAY=unset:;WAYLAND_DISPLAY=unset:;XAUTHORITY=unset:;XDG_RUNTIME_DIR=unset:")
 
@@ -357,7 +359,7 @@ int main(void)
 		set_tests_properties(wren_sftp_live wren_host PROPERTIES RESOURCE_LOCK wren_host_files TIMEOUT 600)
 	endif()
 
-	add_executable(st_wren_loader_audit_test
+	syncterm_add_test_case(st_host_tests st_wren_loader_audit_test ARGS
 		tests/st_wren_loader_audit_test.c)
 	target_link_libraries(st_wren_loader_audit_test PRIVATE st_wren_host
 		st_wren_vm st_bbs_list st_fonts st_settings syncterm_filesystem)
@@ -379,7 +381,7 @@ int main(void)
 		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-${_case}")
 		file(MAKE_DIRECTORY "${_directory}")
 		add_test(NAME "wren_${_case}"
-			COMMAND st_wren_loader_audit_test "${_directory}" "${_case}")
+			COMMAND st_host_tests st_wren_loader_audit_test "${_directory}" "${_case}")
 	endforeach()
 	foreach(_suite draw input logview popup help progress menu console)
 		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/synthetic-${_suite}")
@@ -390,7 +392,7 @@ int main(void)
 			set(_case "${_suite}-suite")
 		endif()
 		add_test(NAME "wren_${_suite}_synthetic"
-			COMMAND st_wren_loader_audit_test "${_directory}" "${_case}")
+			COMMAND st_host_tests st_wren_loader_audit_test "${_directory}" "${_case}")
 		set_tests_properties("wren_${_suite}_synthetic" PROPERTIES
 			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../.." TIMEOUT 30)
 	endforeach()
@@ -426,7 +428,7 @@ int main(void)
 			COMMAND st_wren_directory_metadata_test "${_directory}")
 	endif()
 
-	add_executable(st_wren_picker_test tests/st_wren_picker_test.c)
+	syncterm_add_test_case(st_host_tests st_wren_picker_test tests/st_wren_picker_test.c)
 	target_link_libraries(st_wren_picker_test PRIVATE st_wren_host
 		st_wren_vm st_bbs_list st_settings syncterm_filesystem)
 	target_compile_definitions(st_wren_picker_test PRIVATE
@@ -441,7 +443,7 @@ int main(void)
 		target_compile_options(st_wren_picker_test PRIVATE
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
-	add_test(NAME wren_picker_contract COMMAND st_wren_picker_test)
+	add_test(NAME wren_picker_contract COMMAND st_host_tests st_wren_picker_test)
 endif()
 
 target_link_libraries(st_wren_host PRIVATE st_amiga_font)

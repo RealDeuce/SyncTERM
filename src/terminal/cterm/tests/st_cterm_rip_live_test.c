@@ -471,7 +471,7 @@ test_v110a_flood(const char *stream, bool patterned)
 }
 
 int
-main(void)
+st_cterm_rip_live_test_main(void)
 {
 	CHECK(test_rip_deferred_wrap(ST_CTERM_ENCODING_CODEPAGE) == 0);
 	CHECK(test_rip_deferred_wrap(ST_CTERM_ENCODING_UTF8) == 0);

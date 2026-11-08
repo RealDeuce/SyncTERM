@@ -207,7 +207,7 @@ done:
 }
 
 int
-main(int argc, char **argv)
+st_term_rip_encoding_consistency_main(int argc, char **argv)
 {
 	size_t mismatches = 0, errors = 0;
 	int files = argc < 2 ? 1 : argc - 1;

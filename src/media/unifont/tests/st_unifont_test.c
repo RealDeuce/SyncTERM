@@ -32,7 +32,7 @@ glyph_bitmap(const struct st_console_font *font, uint32_t glyph)
 }
 
 int
-main(void)
+st_unifont_test_main(void)
 {
 	static const uint8_t armenian_small_et[] = {
 		0x00, 0x00, 0x00, 0x40, 0x40, 0x78, 0x40, 0x40,

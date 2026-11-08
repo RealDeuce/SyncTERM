@@ -1097,7 +1097,7 @@ test_shell_rip_cp437_boundary(void)
 #endif
 
 int
-main(void)
+st_term_test_main(void)
 {
 	CHECK(test_paste_preparation() == 0);
 	const struct st_console_display_config display = {

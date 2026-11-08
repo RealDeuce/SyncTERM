@@ -510,7 +510,7 @@ test_offset_viewport_line_clipping(void)
 }
 
 int
-main(void)
+st_cterm_rip_raster_test_main(void)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,

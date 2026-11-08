@@ -38,7 +38,7 @@ static int feed(st_cterm_t *terminal, const char *wire)
 	}
 	return 0;
 }
-int main(void)
+int st_cterm_rip_transfer_test_main(void)
 {
 	st_console_t *console = NULL;
 	st_font_catalog_t *fonts = NULL;

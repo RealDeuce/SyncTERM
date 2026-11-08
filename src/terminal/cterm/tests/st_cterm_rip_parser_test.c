@@ -532,7 +532,7 @@ test_v154_dispatch_vectors(void)
 }
 
 int
-main(void)
+st_cterm_rip_parser_test_main(void)
 {
 	if (test_v154_dispatch_vectors() != 0
 	    || test_split_and_ebc() != 0 || test_ansi_and_bol() != 0

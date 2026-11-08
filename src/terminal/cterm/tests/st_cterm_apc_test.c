@@ -467,7 +467,7 @@ check_reference_pcm(struct fixture *fixture)
 }
 
 int
-main(void)
+st_cterm_apc_test_main(void)
 {
 	struct fixture fixture = {0}, second = {0};
 	open_fixture(&fixture);

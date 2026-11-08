@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define main st_test_application_main
+/* The private helper copy must not replace the runner's production entry. */
+#define st_application_run st_test_session_application_run
 #include "../syncterm.c"
-#undef main
+#undef st_application_run
 
 #include "filesystem.h"
 
@@ -196,7 +197,7 @@ check_mode(st_wren_host_t *host, st_console_t *console,
 }
 
 int
-main(void)
+st_app_session_mode_test_main(void)
 {
 	struct st_app_paths paths = {
 		.settings_file = ST_APP_SESSION_TEST_DIRECTORY "/settings.ini",

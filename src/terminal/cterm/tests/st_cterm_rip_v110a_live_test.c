@@ -36,7 +36,7 @@ base36(char digit)
 }
 
 int
-main(void)
+st_cterm_rip_v110a_live_test_main(void)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,

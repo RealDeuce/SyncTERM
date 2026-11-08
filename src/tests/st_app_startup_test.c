@@ -313,7 +313,7 @@ test_mode_geometry(void)
 }
 
 int
-main(void)
+st_app_startup_test_main(void)
 {
 	if (test_command_line() != 0)
 		return 1;

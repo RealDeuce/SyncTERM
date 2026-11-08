@@ -36,6 +36,20 @@ without making them fatal.
 beside the component which uses them; inspect its `CMakeLists.txt` before
 enabling one.
 
+Terminal, font, and emoji cases share the `st_terminal_tests` executable;
+compatible Wren host and application cases share `st_host_tests`. CTest keeps
+the individual case names, arguments, fixtures, and skip conditions, and starts
+a separate process for each case. Cases with link-time failure injection keep
+their own executables so their replacements cannot affect other tests.
+For example, run `ctest --test-dir build -R '^cterm_text$'`, or invoke
+`build/tests/st_terminal_tests st_cterm_text_test` directly. Multi-configuration
+generators place the runners below `build/tests/<configuration>/`.
+
+The external comparison tools `st_cterm_apc_replay`,
+`st_cterm_rip_corpus_inventory`, and `st_cterm_rip_corpus_replay` are built
+explicitly with `cmake --build build --target <tool>`; the default test build
+does not need them.
+
 Configuration ends with a grouped summary of every item in the application's
 Build Options screen. The same report is saved as
 `syncterm-configuration.txt` in the build directory and included in CI's

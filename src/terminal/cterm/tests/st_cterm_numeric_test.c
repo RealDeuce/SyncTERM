@@ -126,7 +126,7 @@ font_and_macro_numbers(st_cterm_t *terminal)
 }
 
 int
-main(void)
+st_cterm_numeric_test_main(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};

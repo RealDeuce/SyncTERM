@@ -138,7 +138,7 @@ exercise(WrenVM *vm, st_wren_connected_t *connected, st_console_t *console,
 }
 
 int
-main(void)
+st_wren_cell_styles_test_main(void)
 {
 	static const uint8_t bitmap[256 * 16] = {
 		['A' * 16] = 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,

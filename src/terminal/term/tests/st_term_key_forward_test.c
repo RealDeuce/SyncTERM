@@ -42,7 +42,7 @@ expect_output(struct st_connection *connection, const char *bytes, size_t size)
 }
 
 int
-main(void)
+st_term_key_forward_test_main(void)
 {
 	static const struct st_connection_transport_ops operations = {0};
 	struct st_connection connection = {.operations = &operations};

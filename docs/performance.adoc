@@ -9,9 +9,9 @@ running build or attach profilers to their live session:
 [source,sh]
 ----
 cmake -S . -B build-perf -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCRYPTO_BACKEND=OpenSSL
-cmake --build build-perf --target st_console_benchmark st_cterm_benchmark st_console_x11_pixels_test
+cmake --build build-perf --target st_console_benchmark st_terminal_tests st_console_x11_pixels_test
 build-perf/src/media/console/st_console_benchmark
-build-perf/src/terminal/cterm/st_cterm_benchmark 500
+build-perf/tests/st_terminal_tests st_cterm_benchmark 500
 build-perf/src/media/console/st_console_x11_pixels_test --benchmark
 ----
 
@@ -117,7 +117,7 @@ Callgrind can inspect the owned headless benchmark without privileged tracing:
 
 [source,sh]
 ----
-valgrind --tool=callgrind --callgrind-out-file=/tmp/st-perf.callgrind build-perf/src/terminal/cterm/st_cterm_benchmark 64
+valgrind --tool=callgrind --callgrind-out-file=/tmp/st-perf.callgrind build-perf/tests/st_terminal_tests st_cterm_benchmark 64
 callgrind_annotate --auto=no --inclusive=yes /tmp/st-perf.callgrind
 ----
 

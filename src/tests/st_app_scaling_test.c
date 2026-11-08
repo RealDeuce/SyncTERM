@@ -169,7 +169,7 @@ application_release(void *context)
 }
 
 int
-main(int argc, char **argv)
+st_app_scaling_test_main(int argc, char **argv)
 {
 	struct scaling_test test = {.result = 1};
 	char *arguments[] = {"syncterm", "-iX"};
