@@ -95,7 +95,14 @@ choices. Partial history strips join the next scroll without a gap at the live
 boundary, including in disconnected and directory views. Native tests check
 both phases, palette changes while a strip is pending, ring wrap and capacity
 limits, reset, detached snapshots, an off-grid 19-pixel overshoot, ordinary cell
-scrolling after a fractional move, and Ruby/12's unscrolled canvas padding.
+scrolling after a fractional move, and exposed background through Ruby/12's
+font-row remainder. The raster scroll reaches the drawable bottom, independently
+of how many whole font rows fit; status and mode padding outside that drawable
+area remain intact. Literal box outlines crossing the old font-row boundary
+stay continuous through Times/15, Ruby/8 and grid-aligned Pearl/8 scrolls on
+640x200/640x400 in both variants/encodings/status choices. Expected full-scene
+pixels follow SkyTERM's documented ordinary ScrollRaster copy rule. The RoF
+login screenshot/capture motivated this test but is not an expected raster.
 
 `src/tests/st_terminal_conformance_test.py` runs the normal application through
 its control bitmap backend and a private loopback Raw connection, in CP437 and

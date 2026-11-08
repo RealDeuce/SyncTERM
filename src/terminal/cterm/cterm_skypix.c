@@ -720,8 +720,12 @@ static void cursor_bookkeeping(struct cterm_skypix *s)
 	cterm_render_set_position(s->terminal, s->terminal->xpos, s->terminal->ypos);
 	refresh_cursor(s);
 }
-static int scroll_pixels(struct cterm_skypix *s, uint32_t distance, uint32_t height)
+static int scroll_pixels(struct cterm_skypix *s, uint32_t distance)
 {
+	/* Font rows bound the text anchor, not the raster. SkyTERM scrolls to
+	 * the drawable bottom; leaving a font-height remainder stationary tears
+	 * graphics when a later, shorter font scrolls that remainder into view. */
+	uint32_t height = s->height;
 	struct st_pixel_buffer *image = NULL, *retired = NULL;
 	struct st_console_cell *cells = NULL;
 	struct st_console_cell fill;
@@ -813,7 +817,7 @@ static void line_feed(struct cterm_skypix *s)
 	if (distance != 0) {
 		/* JR-Comm clamps to the current font's last nominal baseline.
 		 * A normal bottom-row LF scrolls H pixels, never whole UI cells. */
-		int status = scroll_pixels(s, (uint32_t)distance, (uint32_t)(rows * height));
+		int status = scroll_pixels(s, (uint32_t)distance);
 		cterm_render_record_error(s->terminal, status);
 		if (status == 0) s->y = bottom;
 	}

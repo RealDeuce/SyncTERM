@@ -869,13 +869,13 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		CHECK(image->alternate[0] == stripe_colour((int)retired, true, first_distance));
 		st_pixel_buffer_destroy(image);
 		if (font_height == 12) {
-			/* Ruby/12 uses 192 of the 200 canvas rows; the eight-pixel
-			 * remainder below its last nominal row must not scroll. */
+			/* The font's last nominal row does not shorten the raster scroll.
+			 * SkyTERM scrolls through the drawable bottom, exposing background. */
 			const struct st_console_rect padding = {0, 195, 1, 1};
 			image = NULL;
 			CHECK(st_console_get_pixels(&image, console, &padding, false) == 0);
-			CHECK(image->primary[0] == stripe_colour(195, false, first_distance));
-			CHECK(image->alternate[0] == stripe_colour(195, true, first_distance));
+			CHECK(image->primary[0] == 512);
+			CHECK(image->alternate[0] == 512);
 			st_pixel_buffer_destroy(image);
 		}
 		if (status_line) {
