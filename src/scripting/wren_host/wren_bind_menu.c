@@ -2945,7 +2945,7 @@ fn_menu_set_screen_mode(WrenVM *vm)
 	int64_t mode;
 
 	if (!slot_integer(vm, 1, ST_SCREEN_MODE_80X25,
-	    ST_SCREEN_MODE_AMIGA_640X200, &mode))
+	    ST_SCREEN_MODE_AMIGA_640X400, &mode))
 		return;
 	st_wren_screen_result(vm, st_wren_host_set_screen_mode(host,
 	    (enum st_screen_mode)mode), "Menu.setScreenMode");
@@ -3497,7 +3497,7 @@ fn_menu_palette_defaults(WrenVM *vm)
 	int64_t mode;
 
 	if (!slot_integer(vm, 1, ST_SCREEN_MODE_CURRENT,
-	    ST_SCREEN_MODE_AMIGA_640X200, &mode))
+	    ST_SCREEN_MODE_AMIGA_640X400, &mode))
 		return;
 	if (mode == ST_SCREEN_MODE_CURRENT)
 		mode = host->current_screen_mode;
@@ -3976,7 +3976,7 @@ SETTINGS_FIXED_PROPERTY(shell_term, terminal_type)
 SETTINGS_OWNED_PROPERTY(tls_client_cert, tls_client_certificate)
 SETTINGS_OWNED_PROPERTY(tls_client_key, tls_client_key)
 SETTINGS_NUM_PROPERTY(startup_mode, startup_mode, int, ST_SCREEN_MODE_CURRENT,
-    ST_SCREEN_MODE_AMIGA_640X200)
+    ST_SCREEN_MODE_AMIGA_640X400)
 SETTINGS_NUM_PROPERTY(output_mode, output_mode, int, 0, INT_MAX)
 SETTINGS_NUM_PROPERTY(cursor_style, default_cursor, int, ST_CURSOR_DEFAULT,
     ST_CURSOR_SOLID_BLOCK)
@@ -4559,7 +4559,7 @@ BBS_NUM_PROPERTY(amigaFontSize, amiga_font_size, uint16_t, 1, UINT16_MAX)
 BBS_NUM_PROPERTY(address_family, address_family, int,
     ST_ADDRESS_FAMILY_UNSPECIFIED, ST_ADDRESS_FAMILY_HAPPY_EYEBALLS)
 BBS_NUM_PROPERTY(screen_mode, screen_mode, int, ST_SCREEN_MODE_CURRENT,
-    ST_SCREEN_MODE_AMIGA_640X200)
+    ST_SCREEN_MODE_AMIGA_640X400)
 BBS_NUM_PROPERTY(bps_rate, bps_rate, uint32_t, 0, UINT32_MAX)
 BBS_NUM_PROPERTY(xfer_log_level, transfer_log_level, int,
     ST_PROFILE_LOG_EMERGENCY, ST_PROFILE_LOG_DEBUG)

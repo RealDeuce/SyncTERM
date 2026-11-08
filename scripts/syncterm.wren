@@ -1551,6 +1551,7 @@ class ScreenMode {
   static atariSt80x25   { 28 }
   static atariSt80x25Mono { 29 }
   static amiga640x200    { 30 }
+  static amiga640x400    { 31 }
 }
 class AddressFamily {
   static unspec { 0 }

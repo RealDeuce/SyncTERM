@@ -327,13 +327,13 @@ def run_preferences(executable, reports, encoding, height=8):
                 assert restored.metadata["cell_width"]==expected_width
                 peer.shutdown(socket.SHUT_RDWR)
 
-def run_diamond(executable, reports, kick, encoding, hide_status):
+def run_diamond(executable, reports, kick, encoding, hide_status, canvas_height=200):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1",0));listener.listen(1);listener.settimeout(15)
         entries=("[Diamond Cursor]\nConnectionType=Raw\nAddress=127.0.0.1\n"
                  f"Port={listener.getsockname()[1]}\nGraphics=SkyPix (Kick {kick})\n"
                  f"Encoding={encoding}\nAmigaFont=Diamond.font\nAmigaFontSize=20\n"
-                 f"ScreenMode=Amiga640x200\nNoStatus={str(hide_status).lower()}\nHidePopups=false\n")
+                 f"ScreenMode=Amiga640x{canvas_height}\nNoStatus={str(hide_status).lower()}\nHidePopups=false\n")
         def prepare(root):
             write_script(root,"zzz_diamond_cursor",'''import "syncterm" for CustomCursor, Screen, Hook, Key, Conn
 Hook.onKey(Key.f8) {|event|
@@ -344,7 +344,7 @@ Hook.onKey(Key.f8) {|event|
 ''',"connected")
         with fixture(executable,entries=entries,settings="AudioModes=0\nScrollBackLines=100\n",
                      prepare=prepare,reports=reports,quiet=False) as (client,root):
-            client.wait_text("Diamond Cursor");client.key("enter")
+            original=client.wait_text("Diamond Cursor");client.key("enter")
             with listener.accept()[0] as peer:
                 peer.settimeout(10)
                 client.wait_for(lambda s:s.application.get("connected")==1)
@@ -357,7 +357,11 @@ Hook.onKey(Key.f8) {|event|
                     return client.capture()
                 def cursor(shown,x,y,width):
                     m=shown.metadata
-                    assert (m["cell_width"],m["cell_height"],m["columns"],m["rows"])==(8,8,80,25 if hide_status else 26),m
+                    assert (m["cell_width"],m["cell_height"],m["columns"],m["rows"])==(8,8,80,canvas_height//8+(not hide_status)),m
+                    assert (m["plane_width"],m["plane_height"])==(640,canvas_height+(0 if hide_status else 8)),m
+                    # Status adds one row at the canvas's pixel aspect.
+                    height=canvas_height+(0 if hide_status else 8)
+                    assert abs(m["destination_width"]*3*height-m["destination_height"]*4*canvas_height)<=4*canvas_height,m
                     assert m["pixel_cursor_enabled"]==1,m
                     assert (m["pixel_cursor_x"],m["pixel_cursor_y"],m["pixel_cursor_width"],m["pixel_cursor_height"])==(x,y,width,1),m
                 def wrapped_narrow(shown):
@@ -452,12 +456,38 @@ Hook.onKey(Key.f8) {|event|
                 assert menu.metadata["pixel_cursor_enabled"]==0
                 client.key("escape")
                 cursor(frame(b""),0,15,14)
+                if canvas_height==400:
+                    # Literal canvas boundaries: two red pixels on each of
+                    # the last two rows, with off-canvas points clipped.
+                    shown=frame(b"\f\x1b[15;3!\x1b[4;638;398;641;401!\x1b[1;10;400!\x1b[1;640;10!")
+                    m=shown.metadata
+                    for y in (10,198,199,200,397,398,399):
+                        for x in (10,637,638,639):
+                            for plane in (shown.primary,shown.alternate):
+                                value=plane[(y+m["pixel_top"])*m["plane_width"]+x]
+                                value=(value if value&0x80000000 else shown.palette[value])&0xffffff
+                                assert value==(0xff0000 if x>=638 and y>=398 else 0),(kick,encoding,hide_status,x,y,value)
+                    # Diamond i keeps its literal 20-pixel strike below the
+                    # 200-line boundary. Command 19 puts baseline at Y+19;
+                    # the native baseline 14 puts the strike's top at Y+5.
+                    shown=frame(b"\x1b[15;2!\x1b[19;100;240!i")
+                    cursor(shown,102,260,16)
+                    rows=(7,7,0,0,0,0,7,7,7,7,7,7,7,7,0,0,0,0,0,0)
+                    for y,bits in enumerate(rows):
+                        for x in range(4):
+                            for plane in (shown.primary,shown.alternate):
+                                value=plane[(245+y+shown.metadata["pixel_top"])*shown.metadata["plane_width"]+100+x]
+                                value=(value if value&0x80000000 else shown.palette[value])&0xffffff
+                                assert value==(0xdddddd if x<3 and bits&(4>>x) else 0),(kick,encoding,x,y,value)
+                    cursor(frame(b"\x1bc"),0,15,14)
                 peer.shutdown(socket.SHUT_RDWR)
                 notice=client.wait_text("Disconnected: Enter exits, F1 details")
                 assert notice.metadata["cell_height"]==8
                 client.command_key(48);client.wait_text("Scrollback")
                 client.key("escape");client.wait_text("Disconnected: Enter exits, F1 details")
-                client.key("enter");client.wait_text("Directory: Name")
+                client.key("enter");restored=client.wait_text("Directory: Name")
+                for key in ("columns","rows","cell_width","cell_height","plane_width","plane_height"):
+                    assert restored.metadata[key]==original.metadata[key],key
                 assert b"[wren" not in client.stderr,bytes(client.stderr)
 
 def run_editor_preferences(executable,reports):
@@ -474,12 +504,12 @@ def run_editor_preferences(executable,reports):
         client.wait_text("Enter Select");client.key("end");client.wait_text("UTF-8");client.key("enter")
         screen=client.wait_text("Ruby.font 12")
         click_text(client,screen,"Screen Mode")
-        client.wait_text("Enter Select");client.key("end");client.wait_text("Amiga 640x200");client.key("enter")
+        client.wait_text("Enter Select");client.key("end");client.wait_text("Amiga 640x400");client.key("enter")
         client.wait_text("Ruby.font 12");client.key("escape")
         client.wait_text("Directory: Name")
         saved=(root/"syncterm.lst").read_text()
         assert "AmigaFont=Ruby.font" in saved and "AmigaFontSize=12" in saved,saved
-        assert "Encoding=UTF-8" in saved and "ScreenMode=Amiga640x200" in saved,saved
+        assert "Encoding=UTF-8" in saved and "ScreenMode=Amiga640x400" in saved,saved
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser()
@@ -495,5 +525,6 @@ if __name__=="__main__":
     for kick in ("1.3","3.1"):
         for encoding in ("CP437","UTF-8"):
             for hide in (False,True):
-                run_diamond(args.executable,args.reports,kick,encoding,hide)
+                for height in (200,400):
+                    run_diamond(args.executable,args.reports,kick,encoding,hide,height)
     run_editor_preferences(args.executable,args.reports)

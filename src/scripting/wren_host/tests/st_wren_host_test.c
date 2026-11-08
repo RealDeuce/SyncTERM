@@ -5384,6 +5384,19 @@ exercise_menu_contract(st_wren_host_t *public_host)
 		fprintf(stderr, "menu contract failed: %s\n", host->last_error);
 		return -1;
 	}
+	CHECK(wrenInterpret(host->vm, "amiga_mode_contract",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"syncterm\" for ScreenMode\n"
+	    "if (ScreenMode.amiga640x200 != 30 || ScreenMode.amiga640x400 != 31) Fiber.abort(\"Amiga mode constants\")\n"
+	    "if (Menu.screenModes[31] != \"Amiga 640x400\" || Menu.canvasModes[31][0] != 31 || Menu.canvasModes[31][1] != \"640x400 (Amiga 640x400)\") Fiber.abort(\"Amiga mode catalogs\")\n"
+	    "if (Menu.setScreenMode(ScreenMode.amiga640x400) != null || Menu.currentScreenMode != 31 || Menu.paletteDefaults(31)[0] != 16 || Menu.setScreenMode(1) != null) Fiber.abort(\"Amiga mode selection\")\n"
+	    "var s = Menu.settings\n"
+	    "s.startupMode = ScreenMode.amiga640x400\n"
+	    "if (s.startupMode != 31) Fiber.abort(\"Amiga startup mode\")\n"
+	    "var profile = Menu.entries[0].profile\n"
+	    "profile.screenMode = ScreenMode.amiga640x400\n"
+	    "if (profile.screenMode != 31) Fiber.abort(\"Amiga profile mode\")\n"
+	    "profile.screenMode = 1\n") == WREN_RESULT_SUCCESS);
 	if (wrenInterpret(host->vm, "menu_encryption_contract", encryption_source)
 	    != WREN_RESULT_SUCCESS) {
 		fprintf(stderr, "encryption contract failed: %s\n", host->last_error);

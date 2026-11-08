@@ -521,6 +521,13 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 	CHECK(saved->encoding == ST_PROFILE_ENCODING_UTF8);
 	CHECK(strcmp(saved->font, "Codepage 437 English") == 0);
 	CHECK(saved->screen_mode == ST_SCREEN_MODE_80X50 && saved->hide_status);
+	profile.screen_mode = ST_SCREEN_MODE_AMIGA_640X400;
+	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	CHECK(st_bbs_list_find(first, "EncodingEntry")->profile->screen_mode
+	    == ST_SCREEN_MODE_AMIGA_640X400);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(
+	    first->personal_document, "EncodingEntry"), "ScreenMode"), "Amiga640x400") == 0);
 
 	/* A stale writer changing another field preserves the remote encoding. */
 	CHECK(st_bbs_list_open(&second, &paths, NULL, 0) == 0);

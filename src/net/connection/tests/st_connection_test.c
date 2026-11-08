@@ -1761,6 +1761,17 @@ int
 main(int argc, char **argv)
 {
 	const char *fixture = NULL;
+	struct st_profile profile;
+	struct st_screen_geometry geometry;
+	st_profile_init(&profile);
+	profile.screen_mode = ST_SCREEN_MODE_AMIGA_640X400;
+	profile.hide_status = true;
+	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
+	CHECK(geometry.columns == 80 && geometry.rows == 50);
+	profile.hide_status = false;
+	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
+	CHECK(geometry.columns == 80 && geometry.rows == 49);
+	st_profile_dispose(&profile);
 	if (argc == 2 && strcmp(argv[1], "--atomic-output") == 0)
 		return test_atomic_output();
 	if (argc == 2 && strcmp(argv[1], "--auxiliary-close") == 0)

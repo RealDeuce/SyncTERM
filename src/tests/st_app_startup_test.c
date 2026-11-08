@@ -228,10 +228,11 @@ test_console_startup(void)
 }
 
 static int
-test_legacy_mode_geometry(void)
+test_mode_geometry(void)
 {
-	/* Expected geometry from legacy conio/vidmodes.c, not the new table.
-	 * CURRENT and CUSTOM are policies rather than fixed legacy modes.
+	/* Legacy geometry from conio/vidmodes.c; Amiga presets use their native
+	 * canvas dimensions and an 8x8 UI grid. Expectations are independent of
+	 * the descriptor table. CURRENT and CUSTOM are policies, not fixed modes.
 	 */
 	static const struct {
 		int mode;
@@ -240,6 +241,7 @@ test_legacy_mode_geometry(void)
 	} expected[] = {
 		{ST_SCREEN_MODE_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 4, 3},
 		{ST_SCREEN_MODE_AMIGA_640X200, 80, 25, 7, 7, 8, 8, 640, 200, 4, 3},
+		{ST_SCREEN_MODE_AMIGA_640X400, 80, 50, 7, 7, 8, 8, 640, 400, 4, 3},
 		{ST_SCREEN_MODE_LCD_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 8, 5},
 		{ST_SCREEN_MODE_132X37, 132, 37, 14, 15, 8, 16, 1056, 592, 16, 9},
 		{ST_SCREEN_MODE_132X52, 132, 52, 14, 15, 8, 16, 1056, 832, 5, 4},
@@ -317,7 +319,7 @@ main(void)
 		return 1;
 	if (test_application_state() != 0)
 		return 1;
-	if (test_legacy_mode_geometry() != 0)
+	if (test_mode_geometry() != 0)
 		return 1;
 	return test_console_startup();
 }

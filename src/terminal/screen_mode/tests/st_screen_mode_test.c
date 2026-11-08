@@ -27,7 +27,9 @@ main(void)
 	uint16_t palette_mapping[16];
 	static const uint32_t palette[] = {0x123456, 0x789abc, 0xdef012};
 
-	CHECK(st_screen_mode_count() == ST_SCREEN_MODE_AMIGA_640X200 + 1U);
+	CHECK(ST_SCREEN_MODE_AMIGA_640X200 == 30);
+	CHECK(ST_SCREEN_MODE_AMIGA_640X400 == 31);
+	CHECK(st_screen_mode_count() == ST_SCREEN_MODE_AMIGA_640X400 + 1U);
 	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
 		mode = st_screen_mode_at(i);
 		CHECK(mode != NULL);
@@ -52,6 +54,20 @@ main(void)
 	}
 	CHECK(st_screen_mode_at(st_screen_mode_count()) == NULL);
 	CHECK(st_screen_mode_get((enum st_screen_mode)-1) == NULL);
+	mode = st_screen_mode_get(ST_SCREEN_MODE_AMIGA_640X400);
+	CHECK(strcmp(mode->name, "Amiga 640x400") == 0);
+	CHECK(strcmp(mode->ini_name, "Amiga640x400") == 0);
+	CHECK(mode->console.columns == 80 && mode->console.rows == 50);
+	CHECK(mode->console.cell_width == 8 && mode->console.cell_height == 8);
+	CHECK(mode->console.pixel_width == 640 && mode->console.pixel_height == 400);
+	CHECK(mode->console.aspect_width == 4 && mode->console.aspect_height == 3);
+	CHECK(mode->console.default_cursor.start == 7
+	    && mode->console.default_cursor.end == 7
+	    && mode->console.default_cursor.range == 8
+	    && mode->console.default_cursor.visible && mode->console.default_cursor.blink);
+	CHECK(mode->console.blink_mode == ST_CONSOLE_BLINK_PC && mode->console.video_flags == 0);
+	CHECK(mode->font_selector == 0 && mode->default_attribute == 7);
+	CHECK(mode->palette == ST_SCREEN_PALETTE_COLOUR && mode->palette_count == 16);
 
 	mode = st_screen_mode_get(ST_SCREEN_MODE_ATARI_XEP80);
 	CHECK(mode->console.columns == 80 && mode->console.rows == 25);

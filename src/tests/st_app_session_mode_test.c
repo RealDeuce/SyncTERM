@@ -214,7 +214,7 @@ main(void)
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_screen_mode_descriptor *mode
-	    = st_screen_mode_get(ST_SCREEN_MODE_80X25);
+	    = st_screen_mode_get(ST_SCREEN_MODE_AMIGA_640X400);
 	st_console_display_t *display = NULL;
 	st_console_t *console = NULL, *picker = NULL;
 	st_wren_host_t *host = NULL;
@@ -230,7 +230,7 @@ main(void)
 	CHECK(fs_create_directories(ST_APP_SESSION_TEST_DIRECTORY) == 0);
 	file = fopen(paths.settings_file, "wb");
 	CHECK(file != NULL);
-	CHECK(fputs("[SyncTERM]\nScreenMode=80x25\n", file) >= 0);
+	CHECK(fputs("[SyncTERM]\nScreenMode=Amiga640x400\n", file) >= 0);
 	CHECK(fclose(file) == 0);
 	file = fopen(paths.personal_list, "wb");
 	CHECK(file != NULL);
@@ -240,7 +240,7 @@ main(void)
 	CHECK(st_console_display_create(&display, &display_config) == 0);
 	CHECK(st_console_create_on_display(&console, display, &mode->console) == 0);
 	CHECK(st_console_create_on_display(&picker, display, &mode->console) == 0);
-	CHECK(st_builtin_font_get(0, 8, 16, &font));
+	CHECK(st_builtin_font_get(0, 8, 8, &font));
 	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
 	CHECK(identifier == 0);
 	CHECK(st_console_register_static_font(picker, &font, &identifier) == 0);
@@ -253,6 +253,7 @@ main(void)
 		.hyperlinks = hyperlinks,
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_AMIGA_640X400, 80, 50, 8) == 0);
 	CHECK(st_wren_host_begin_session_mode(NULL, ST_SCREEN_MODE_80X25)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_wren_host_end_session_mode(NULL) == IO_ERROR_INVALID_ARGUMENT);

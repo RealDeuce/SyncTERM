@@ -9,7 +9,12 @@ Selecting SkyPix chooses the 640x200, 4:3 canvas and Latin-1 as initial
 preferences. Screen Mode, Encoding and Font remain editable and configure the
 connection. Screen Mode selects pixel geometry/aspect and the system cell grid;
 the Amiga strike supplies independent native text metrics. In 640x200 the UI
-uses 80x25 cells of 8x8 pixels, including with Diamond 20. Graphics and native
+uses 80x25 cells of 8x8 pixels, including with Diamond 20. The optional
+**Amiga 640x400** mode uses a 4:3 canvas and 80x50 system cells of 8x8 pixels.
+Native Amiga strikes keep the same pixel metrics in either mode, with more
+vertical space in the 400-line canvas. Each Amiga preset has its own descriptor
+and saved mode identity, including the system font selector, cursor and palette
+policy. The 200-line mode remains the initial SkyPix preference. Graphics and native
 text are clipped to the exact selected canvas. The optional status row is
 outside the canvas, one system-cell high, and uses the same pixel scale.
 Ordinary Font preferences remain available outside SkyPix. Disconnected scrollback retains
@@ -154,7 +159,7 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | `amiga_font_transactions` | Injected rename/rollback failures and secondary cleanup failures before/after the package publication boundary. |
 | `cterm_skypix` | Parser splits, command/state/pixel expectations, both variants, status geometry, resets, delays, proportional overhang, native ILBM decoding and literal Diamond cursor positions/timer transitions. |
 | `skypix_rom_vectors` | Independent ordered point sets/hashes and Diamond 20 text for the retained ROM vectors. |
-| `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, selected canvas geometry and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; both variants with Diamond 20 in CP437/UTF-8, proportional cursor movement and unscaled 8x8 menu rasters; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
+| `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, selected canvas geometry and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; both variants with Diamond 20 in CP437/UTF-8 on Amiga 640x200/640x400, proportional cursor movement and unscaled 8x8 menu rasters; literal native glyph rows below Y=199 and exact 400-line clipping; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
 | `syncterm_skypix_welcome` | RoF's captured Times/15 green/red lines remain at their pixel anchors; independent native-strike hashes check every glyph pixel in both planes, palette and cursor, both variants/encodings/status choices, split input and reset/replay. |
 | `syncterm_skypix_mouse` | Exact documented click bytes, zero-origin/sub-cell precision and scaled drawable mapping; no report on releases/motion/other buttons/status/local UI; bright/dim M and both toggle routes, disabled-release recovery, local wheel scrollback and reset; both variants/encodings/status choices. |
 | `syncterm_skypix_scrolling` | Literal four-pixel colour stripes through exact Diamond/20 scrolls, stable bottom cursor, partial-strip joins, live/disconnected/detached viewers, both variants/encodings/status choices. Expected pixels come from fixture rectangles, not emulator captures. |

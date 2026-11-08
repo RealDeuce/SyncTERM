@@ -83,9 +83,10 @@ previous list intact. Names have no `.wren` suffix.
 
 SkyPix uses ScreenMode as its pixel canvas and Encoding as its wire encoding.
 Selecting SkyPix initially chooses Amiga640x200 (4:3) and Latin-1; both remain
-editable. AmigaFont/AmigaFontSize select an installed or bundled native strike
-for initial text and reset. The text grid rounds the canvas up to complete cells
-using the strike's nominal width/height; graphics clip to the chosen canvas.
+editable. Amiga640x400 supplies a taller 4:3 canvas with an 80×50 system grid
+of 8×8 cells. AmigaFont/AmigaFontSize select an installed or bundled native strike
+for initial text and reset, with unchanged pixel metrics in either Amiga mode.
+The system cell grid is independent of the strike; graphics clip to the chosen canvas.
 `NoStatus=false` adds a separate row at the same pixel scale. Ordinary Font
 preferences remain available for other graphics modes. Application UI uses the
 system CP437 font, independently of the connection's font. The Graphics selector

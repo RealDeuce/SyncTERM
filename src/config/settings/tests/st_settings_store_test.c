@@ -349,6 +349,7 @@ main(void)
 	    "; keep this\n[SyncTERM]\nScrollBackLines=100\nUnknown=preserve\n"
 	    "ListPath=https://example.invalid/system.lst\n"
 	    "AudioModes=0\nMidiModes=ALSA|libADLMIDI\n"
+	    "ScreenMode=Amiga640x400\n"
 	    "SortOrder=29,3,1\nActiveSortProfile=Recent\n"
 	    "[WebLists]\nOne=https://example.invalid/one.lst\n"
 	    "[SortProfiles]\nName=29,1\nRecent=29,3,1\n"
@@ -384,6 +385,7 @@ main(void)
 	paths.download_directory = ST_SETTINGS_TEST_DIRECTORY;
 	CHECK(st_settings_load(&paths) == 0);
 	CHECK(st_settings.scrollback_lines == 100);
+	CHECK(st_settings.startup_mode == 31);
 	CHECK(st_settings.audio_output_modes == 0 && st_settings.midi_output_modes == 5);
 	CHECK(st_settings.prompt_save);
 	CHECK(st_settings.color_emoji);
@@ -446,6 +448,8 @@ main(void)
 	CHECK(fclose(stream) == 0);
 	CHECK(ini_section_get_int64(ini_document_find_section(document,
 	    "SyncTERM"), "ScrollBackLines", 0) == 200);
+	CHECK(strcmp(ini_section_get_string(ini_document_find_section(document,
+	    "SyncTERM"), "ScreenMode", ""), "Amiga640x400") == 0);
 	CHECK(ini_section_get_int64(ini_document_find_section(document,
 	    "SyncTERM"), "OutputMode", 0) == 4);
 	CHECK(ini_section_get_double(ini_document_find_section(document,

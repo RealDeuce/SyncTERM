@@ -5783,6 +5783,7 @@ Standard modes encode their dimensions in the name (e.g. `c80x25` =
 | `atariSt80x25`      | 28   | Atari ST 80×25 (medium-res color).
 | `atariSt80x25Mono`  | 29   | Atari ST 80×25 monochrome (high-res).
 | `amiga640x200`      | 30   | Amiga 640×200 pixel canvas, displayed at 4:3.
+| `amiga640x400`      | 31   | Amiga 640×400 pixel canvas, displayed at 4:3.
 |===
 
 ==== AddressFamily
@@ -5832,11 +5833,14 @@ SkyPix is selected before connecting, independently of RIP. Both variants use
 JR-Comm command behaviour, Pearl 8 by default, native Amiga font metrics and
 50 Hz delays; their rendering differences concern ellipse arithmetic and final
 proportional-glyph overhang. Selecting SkyPix initially presets
-`ScreenMode.amiga640x200` (4:3) and Latin-1. Screen Mode selects the pixel canvas,
+`ScreenMode.amiga640x200` (4:3) and Latin-1. `ScreenMode.amiga640x400` is also
+available at 4:3, with an 80×50 system grid of 8×8 cells. Native Amiga font
+strikes retain their pixel dimensions in either mode; the 400-line canvas
+provides more vertical space. Screen Mode selects the pixel canvas,
 Encoding selects the wire encoding, and Font selects an installed or bundled
 Amiga family/height for initial text and reset. These choices remain editable.
-The text grid rounds up to complete cells using the strike's native nominal
-width/height; graphics clip to the exact chosen canvas. An optional separate
+The system cell grid comes from the screen mode, independently of the native
+Amiga text metrics; graphics clip to the exact chosen canvas. An optional separate
 status row uses the same pixel scale. Ordinary `Profile.font` remains available
 for other graphics modes. Classic Amiga fonts are byte-indexed and carry no
 charset tag; codepage connections use that codepage's glyph positions, and

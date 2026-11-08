@@ -6,7 +6,10 @@ both variants with status on/off, Latin-1/CP437/UTF-8, configurable pixel canvas
 native Amiga fonts and complete descenders, system-font UI isolation,
 transfers and delay/reset/disconnect recovery. Diamond 20 cases check independent
 cursor-probe coordinates, mask clipping and proportional advances in both
-variants/encodings, plus literal 8x8 CP437 UI at 640x200. Native-font wrapping
+variants/encodings on Amiga 640x200 and 640x400, plus literal 8x8 CP437 UI in
+both modes. The 400-line cases check native glyph rows below Y=199, exact
+canvas clipping, aspect ratio, reset and directory geometry restoration.
+Native-font wrapping
 checks nominal forecast/count boundaries, explicit flushes, disabled wrap and
 signed-word overflow. Literal Diamond i/W rasters check both planes after
 wrapping, BS-space in JAM1/JAM2 and tcsh's BS CSI K deletion sequence; native
