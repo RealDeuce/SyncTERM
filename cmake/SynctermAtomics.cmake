@@ -4,6 +4,27 @@
 include_guard(GLOBAL)
 include("${CMAKE_CURRENT_LIST_DIR}/SynctermCheckC17Source.cmake")
 
+function(syncterm_source_atomics target)
+	get_property(_options TARGET ${target} PROPERTY SYNCTERM_C_ATOMIC_OPTIONS)
+	get_property(_sources TARGET ${target} PROPERTY SOURCES)
+	get_property(_source_dir TARGET ${target} PROPERTY SOURCE_DIR)
+	foreach(_source IN LISTS _sources)
+		if(_source MATCHES "^\\$<TARGET_OBJECTS:")
+			# Object-library sources receive options on their owning target.
+			continue()
+		endif()
+		if(NOT IS_ABSOLUTE "${_source}")
+			set(_source "${_source_dir}/${_source}")
+		endif()
+		foreach(_option IN LISTS _options)
+			# Source properties are shared by targets in this directory.
+			set_property(SOURCE "${_source}" TARGET_DIRECTORY ${target}
+				APPEND PROPERTY COMPILE_OPTIONS
+				"$<$<STREQUAL:$<TARGET_PROPERTY:NAME>,${target}>:${_option}>")
+		endforeach()
+	endforeach()
+endfunction()
+
 function(syncterm_target_atomics target)
 	if(NOT TARGET syncterm_c_atomics)
 		set(_source [=[
@@ -53,4 +74,16 @@ int main(void)
 		endforeach()
 	endif()
 	target_link_libraries(${target} PRIVATE syncterm_c_atomics)
+	if(CMAKE_GENERATOR MATCHES "^Visual Studio ")
+		# VS evaluates target-wide C-only options using the linker language,
+		# which can be CXX even for a C target with C++ dependencies. Source
+		# options use the actual compilation language. Defer until all later
+		# target_sources() calls in this directory have completed.
+		get_property(_options TARGET syncterm_c_atomics PROPERTY INTERFACE_COMPILE_OPTIONS)
+		if(_options)
+			set_property(TARGET ${target} PROPERTY SYNCTERM_C_ATOMIC_OPTIONS "${_options}")
+			cmake_language(EVAL CODE
+				"cmake_language(DEFER CALL syncterm_source_atomics [==[${target}]==])")
+		endif()
+	endif()
 endfunction()
