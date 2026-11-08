@@ -16,7 +16,8 @@ int cterm_skypix_receive(struct cterm_skypix *s, const void *bytes, size_t size)
 		return 0;
 	const uint8_t *input = bytes, *header = NULL, *body = NULL;
 	size_t body_size = 0;
-	bool cmap = false;
+	const uint8_t *cmap = NULL;
+	size_t cmap_size = 0;
 	if (input == NULL || size < 12 || memcmp(input, "FORM", 4) != 0 ||
 		memcmp(input + 8, "ILBM", 4) != 0)
 		return IO_ERROR_INVALID_FORMAT;
@@ -36,12 +37,13 @@ int cterm_skypix_receive(struct cterm_skypix *s, const void *bytes, size_t size)
 			header = input + offset + 8;
 		}
 		if (memcmp(input + offset, "CMAP", 4) == 0) {
-			if (length == 0 || length % 3 != 0 || length > 48)
+			if (cmap != NULL || body != NULL || length == 0 || length % 3 != 0 || length > 48)
 				return IO_ERROR_INVALID_FORMAT;
-			cmap = true;
+			cmap = input + offset + 8;
+			cmap_size = length / 3;
 		}
 		if (memcmp(input + offset, "BODY", 4) == 0) {
-			if (!cmap || body != NULL)
+			if (cmap == NULL || body != NULL)
 				return IO_ERROR_INVALID_FORMAT;
 			body = input + offset + 8;
 			body_size = length;
@@ -82,6 +84,7 @@ int cterm_skypix_receive(struct cterm_skypix *s, const void *bytes, size_t size)
 					row[(size_t)plane * stride + used++] = (uint8_t)control;
 					continue;
 				}
+				if (control == 128) continue;
 				size_t count = control < 128 ? control + 1 : 257 - control;
 				if (count > stride - used || (control < 128 ? count : 1) > body_size - offset) {
 					status = IO_ERROR_INVALID_FORMAT;
@@ -110,6 +113,12 @@ int cterm_skypix_receive(struct cterm_skypix *s, const void *bytes, size_t size)
 		st_pixel_buffer_destroy(s->brush);
 		s->brush = brush;
 		s->brush_depth = planes;
+		for (size_t i = 0; i < cmap_size; ++i)
+			s->brush_palette[i] = ((uint32_t)(cmap[i * 3] >> 4) * 17 << 16)
+				| ((uint32_t)(cmap[i * 3 + 1] >> 4) * 17 << 8)
+				| ((uint32_t)(cmap[i * 3 + 2] >> 4) * 17);
+		s->brush_palette_size = cmap_size;
+		s->brush_palette_pending = true;
 	} else
 		st_pixel_buffer_destroy(brush);
 	return status;

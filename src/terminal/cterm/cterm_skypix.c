@@ -81,7 +81,7 @@ void cterm_skypix_home(struct cterm_skypix *s)
 static int palette(struct cterm_skypix *s, const unsigned *values)
 {
 	static const unsigned defaults[16] = {0,   287, 3549, 3840, 241, 943,  4082, 3086,
-										  182, 221, 175,  123,	15,	 1807, 2829, 2824};
+										  182, 221, 175,  124,	15,	 1807, 3086, 3080};
 	uint32_t rgb[16];
 	if (values == NULL)
 		values = defaults;
@@ -89,7 +89,24 @@ static int palette(struct cterm_skypix *s, const unsigned *values)
 		rgb[i] = ((values[i] >> 8 & 15) * 17 << 16) | ((values[i] >> 4 & 15) * 17 << 8) |
 				 (values[i] & 15) * 17;
 	return st_console_set_palette(s->terminal->screen.console, CTERM_SKYPIX_PALETTE_FIRST, rgb,
-								  s->colours);
+								  16);
+}
+static void set_pen(struct cterm_skypix *s, unsigned colour, bool background)
+{
+	struct cterminal *t = s->terminal;
+	background ^= t->negative;
+	/* Generic ANSI setters preserve the intensity/blink bits. Native
+	 * SkyPix pens instead own the complete four-bit palette index. */
+	if (background) {
+		t->attr = (uint8_t)((t->attr & 15) | ((colour & 15) << 4));
+		free(t->bg_tc_str);
+		t->bg_tc_str = NULL;
+	} else {
+		t->attr = (uint8_t)((t->attr & 240) | (colour & 15));
+		free(t->fg_tc_str);
+		t->fg_tc_str = NULL;
+	}
+	cterm_render_attribute_colours(t, t->attr, &t->fg_color, &t->bg_color);
 }
 static int pixels(struct cterm_skypix *s, struct st_pixel_buffer **buffer)
 {
@@ -111,6 +128,73 @@ static int publish(struct cterm_skypix *s, const struct st_pixel_buffer *buffer,
 	struct st_pixel_buffer image = *buffer;
 	image.alternate = NULL;
 	return st_console_blit_pixels(s->terminal->screen.console, &image, NULL, &blit);
+}
+static uint32_t depth_colour(uint32_t colour, unsigned mask)
+{
+	return colour >= CTERM_SKYPIX_PALETTE_FIRST && colour < CTERM_SKYPIX_PALETTE_FIRST + 16
+		? CTERM_SKYPIX_PALETTE_FIRST + ((colour - CTERM_SKYPIX_PALETTE_FIRST) & mask) : colour;
+}
+static int select_depth(struct cterm_skypix *s, unsigned colours)
+{
+	if (colours < s->colours) {
+		/* Preserve both phases and everything outside the exact canvas,
+		 * including UI/status and partial-cell padding. Discarded plane bits
+		 * must not reappear when the display is expanded again. */
+		struct st_pixel_buffer *image = NULL;
+		uint32_t width, height;
+		int status = st_console_pixel_size(s->terminal->screen.console, &width, &height);
+		const struct st_console_rect cell_row = {0, 0,
+			(s->width + s->cell_width - 1) / s->cell_width, 1};
+		struct st_console_cell *cells = malloc((size_t)cell_row.width * sizeof(*cells));
+		if (cells == NULL) return IO_ERROR_OUT_OF_MEMORY;
+		if (status == 0) {
+			const struct st_console_rect full = {0, 0, width, height};
+			status = st_console_get_pixels(&image, s->terminal->screen.console, &full, false);
+		}
+		bool updating = false;
+		if (status == 0) {
+			status = st_console_begin_update(s->terminal->screen.console);
+			updating = status == 0;
+		}
+		for (uint32_t y = 0; status == 0 && y < (s->height + s->cell_height - 1) / s->cell_height; ++y) {
+			struct st_console_rect row = cell_row;
+			row.y = y;
+			status = st_console_read_cells(s->terminal->screen.console, &row, cells, row.width);
+			bool changed = false;
+			for (uint32_t x = 0; status == 0 && x < row.width; ++x) {
+				uint32_t fg = depth_colour(cells[x].foreground, colours - 1);
+				uint32_t bg = depth_colour(cells[x].background, colours - 1);
+				changed |= fg != cells[x].foreground || bg != cells[x].background;
+				cells[x].foreground = fg;
+				cells[x].background = bg;
+			}
+			if (status == 0 && changed)
+				status = st_console_write_complete_cells(s->terminal->screen.console, &row, cells, row.width);
+		}
+		if (status == 0) {
+			for (uint32_t y = 0; y < s->height; ++y)
+				for (uint32_t x = 0; x < s->width; ++x) {
+					size_t at = (size_t)y * image->width + x;
+					image->primary[at] = depth_colour(image->primary[at], colours - 1);
+					if (image->alternate != NULL)
+						image->alternate[at] = depth_colour(image->alternate[at], colours - 1);
+				}
+			const struct st_pixel_blit blit = {.width = image->width, .height = image->height,
+				.scale_x = 1, .scale_y = 1};
+			status = st_console_blit_pixels(s->terminal->screen.console, image, NULL, &blit);
+		}
+		if (updating) {
+			int finished = st_console_end_update(s->terminal->screen.console);
+			if (status == 0) status = finished;
+		}
+		free(cells);
+		st_pixel_buffer_destroy(image);
+		if (status != 0) return status;
+	}
+	s->colours = colours;
+	cterm_render_attribute_colours(s->terminal, s->terminal->attr,
+		&s->terminal->fg_color, &s->terminal->bg_color);
+	return 0;
 }
 static void point(struct st_pixel_buffer *b, int x, int y, unsigned colour)
 {
@@ -264,15 +348,6 @@ static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *byte
 	refresh_cursor(s);
 	return 0;
 }
-static void text_boundary(struct cterm_skypix *s)
-{
-	s->text_count = 0;
-	free(s->pending);
-	s->pending = NULL;
-	free(s->undo_pending);
-	s->undo_pending = NULL;
-	s->pending_rect = (struct st_console_rect){0};
-}
 static int command(void *context, const unsigned *p, size_t count, const uint8_t *text, size_t size)
 {
 	struct cterm_skypix *s = context;
@@ -281,7 +356,6 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 	struct st_pixel_buffer *b = NULL;
 	if (status != 0)
 		return status;
-	text_boundary(s);
 	unsigned fg = (t->attr & 15) & (s->colours - 1), bg = (t->attr >> 4 & 15) & (s->colours - 1);
 	unsigned op = p[0];
 	int v[17];
@@ -309,13 +383,18 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 				return 0;
 		return palette(s, p + 1);
 	}
+	if (op == 17 && count == 2) {
+		if (p[1] != 1 && p[1] != 2) return 0;
+		status = select_depth(s, p[1] == 1 ? 8 : 16);
+		if (status != 0) return status;
+	}
 	if ((op == 12 && count == 1) || (op == 17 && count == 2)) {
-		cterm_set_fgattr(t, 2);
-		cterm_set_bgattr(t, 0);
+		set_pen(s, 2, false);
+		set_pen(s, 0, true);
 		return palette(s, NULL);
 	}
 	if (op == 14 && count == 2) {
-		if (p[1] <= 2)
+		if (p[1] == 0)
 			return 0;
 		uint64_t now;
 		status = st_time_monotonic_ms(&now);
@@ -324,11 +403,11 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 		return status;
 	}
 	if (op == 15 && count == 2) {
-		cterm_set_fgattr(t, (unsigned char)p[1]);
+		set_pen(s, p[1], false);
 		return 0;
 	}
 	if (op == 18 && count == 2) {
-		cterm_set_bgattr(t, (unsigned char)p[1]);
+		set_pen(s, p[1], true);
 		return 0;
 	}
 	if (op == 19 && count == 3) {
@@ -368,6 +447,16 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 	if (!((op == 1 || op == 2) && count == 3) && !(op == 3 && count == 4) &&
 		!((op == 4 || op == 5 || op == 6 || op == 13) && count == 5) && !(op == 7 && count == 9))
 		return 0;
+	if (op == 7 && s->brush != NULL && p[7] <= 255 && p[8] <= 255) {
+		bool promote = s->brush_depth > (s->colours == 8 ? 3u : 4u);
+		if (promote) status = select_depth(s, 16);
+		if (status == 0 && (promote || s->brush_palette_pending)) {
+			status = st_console_set_palette(t->screen.console, CTERM_SKYPIX_PALETTE_FIRST,
+				s->brush_palette, s->brush_palette_size);
+			if (status == 0) s->brush_palette_pending = false;
+		}
+		if (status != 0) return status;
+	}
 	status = pixels(s, &b);
 	if (status != 0)
 		return status;
@@ -404,6 +493,9 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 			break;
 		struct st_pixel_buffer *brush = NULL;
 		status = st_pixel_buffer_create(&brush, p[3], p[4], false);
+		uint32_t colours[16];
+		if (status == 0)
+			status = st_console_get_palette(t->screen.console, CTERM_SKYPIX_PALETTE_FIRST, colours, 16);
 		if (status == 0) {
 			for (unsigned y = 0; y < p[4]; ++y)
 				memcpy(brush->primary + (size_t)y * p[3],
@@ -411,8 +503,11 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 					   p[3] * sizeof(uint32_t));
 			st_pixel_buffer_destroy(s->brush);
 			s->brush = brush;
-			s->brush_depth = 3;
-		}
+			s->brush_depth = s->colours == 8 ? 3 : 4;
+			memcpy(s->brush_palette, colours, sizeof(colours));
+			s->brush_palette_size = 16;
+			s->brush_palette_pending = true;
+		} else st_pixel_buffer_destroy(brush);
 		break;
 	}
 	case 7:
@@ -449,8 +544,7 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 		int boundary = cterm_text_boundary(s->terminal);
 		if (boundary != 0)
 			return boundary;
-		text_boundary(s);
-	}
+		}
 	s->presented = false;
 	int status = cterm_input_write(s->terminal, bytes, size, &used, CTERM_INPUT_WIRE);
 	if (!s->presented && (s->custom || s->positioned || s->native_default) &&
@@ -504,13 +598,16 @@ int cterm_skypix_reset(struct cterm_skypix *s)
 	memset(s->gadgets, 0, sizeof(s->gadgets));
 	s->delay_until = 0;
 	s->receiving = false;
-	s->colours = 8;
-	text_boundary(s);
+	int status = select_depth(s, 8);
+	if (status != 0) return status;
 	s->x = s->pen_x = s->pen_y = 0;
 	s->y = -font_descent(s->default_data);
 	s->positioned = false;
 	st_pixel_buffer_destroy(s->brush);
 	s->brush = NULL;
+	s->brush_depth = 0;
+	s->brush_palette_size = 0;
+	s->brush_palette_pending = false;
 	st_pixel_buffer_destroy(s->undo);
 	s->undo = NULL;
 	if (s->font != s->default_data)
@@ -520,7 +617,7 @@ int cterm_skypix_reset(struct cterm_skypix *s)
 	s->terminal->attr = 2;
 	s->terminal->screen.default_attribute = 2;
 	cterm_render_attribute_colours(s->terminal, 2, &s->terminal->fg_color, &s->terminal->bg_color);
-	int status = palette(s, NULL);
+	status = palette(s, NULL);
 	uint32_t colour;
 	if (status == 0)
 		status = st_console_get_palette(s->terminal->screen.console, CTERM_SKYPIX_PALETTE_FIRST + 2, &colour, 1);
@@ -601,7 +698,6 @@ void cterm_skypix_destroy(struct cterm_skypix *s)
 		st_amiga_font_release(s->font);
 	st_pixel_buffer_destroy(s->brush);
 	st_pixel_buffer_destroy(s->undo);
-	text_boundary(s);
 	const struct st_console_pixel_cursor cursor = {0};
 	(void)st_console_set_pixel_cursor(s->terminal->screen.console, &cursor);
 	free(s);
@@ -762,7 +858,6 @@ bool cterm_skypix_erase_line(struct cterm_skypix *s, unsigned mode)
 	if (right > (int)s->width) right = (int)s->width;
 	if (top < 0) top = 0;
 	if (bottom > (int)s->height) bottom = (int)s->height;
-	text_boundary(s);
 	s->presented = true;
 	if (left >= right || top >= bottom)
 		return true;
@@ -787,8 +882,6 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	if (event->kind == ST_UNICODE_PRESENTATION_COMMIT) {
 		st_pixel_buffer_destroy(s->undo);
 		s->undo = NULL;
-		free(s->undo_pending);
-		s->undo_pending = NULL;
 		return 0;
 	}
 	if (event->kind == ST_UNICODE_PRESENTATION_REVISE && s->undo != NULL) {
@@ -797,38 +890,9 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 			return status;
 		s->x = s->undo_x;
 		s->y = s->undo_y;
-		if (s->undo_pending != NULL && s->pending != NULL) {
-			for (unsigned y = 0; y < s->undo_rect.height; ++y)
-				memcpy(s->pending + (size_t)(s->undo_rect.y + y) * s->width + s->undo_rect.x,
-					   s->undo_pending + (size_t)y * s->undo_rect.width, s->undo_rect.width);
-			s->pending_rect = s->undo_pending_rect;
-		}
 	}
 	st_pixel_buffer_destroy(s->undo);
 	s->undo = NULL;
-	free(s->undo_pending);
-	s->undo_pending = NULL;
-	if (event->kind != ST_UNICODE_PRESENTATION_REVISE) {
-		int width = (int)st_amiga_font_width(s->font);
-		size_t columns = s->width / (unsigned)width;
-		int right = cterm_skypix_word((unsigned)(((int)columns - 1) * width));
-		if (s->text_count == 0)
-			s->text_forecast = s->x;
-		/* JR-Comm forecasts nominal advances, but bypasses the right
-		 * limit for the first C pending characters. Painting eagerly must
-		 * not turn a glyph commit or an input split into a receive flush. */
-		if (s->text_count >= columns && s->text_forecast > right) {
-			if (s->terminal->extattr & CTERM_EXTATTR_AUTOWRAP) {
-				s->x = 0;
-				line_feed(s);
-			} else
-				s->x = right;
-			s->text_count = 0;
-			s->text_forecast = s->x;
-		}
-		++s->text_count;
-		s->text_forecast = cterm_skypix_word((unsigned)(s->text_forecast + width));
-	}
 	uint32_t codepoint;
 	size_t consumed;
 	uint8_t character = '?';
@@ -836,122 +900,66 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 		consumed == event->size)
 		(void)st_codepage_from_unicode(&character, s->font_codepage, codepoint);
 	const struct st_amiga_glyph glyph = *st_amiga_font_glyph(s->font, character);
+	/* Measure before storing a signed-word advance. An input split, flush,
+	 * or Unicode revision must not introduce a second wrap/history move. */
+	if (event->kind != ST_UNICODE_PRESENTATION_REVISE &&
+		(int64_t)s->x + glyph.advance > s->width) {
+		if (s->terminal->extattr & CTERM_EXTATTR_AUTOWRAP) {
+			s->x = 0;
+			line_feed(s);
+		} else {
+			int width = (int)st_amiga_font_width(s->font);
+			s->x = ((int)s->width / width - 1) * width;
+		}
+	}
 	int next = cterm_skypix_word((unsigned)(s->x + glyph.advance));
-	bool legacy = s->kick13 && s->custom;
 	int left = s->x + glyph.bearing, top = s->y + glyph.top;
 	int right = left + (int)glyph.width, bottom = top + (int)glyph.height;
 	if (!s->custom) {
-		/* Compiled blank glyphs can have a one-row, zero-width mask.
-		 * JAM2 paints the font strike's background, not just that mask. */
+		/* JAM2 paints the complete strike even for a compact blank mask. */
 		int strike_top = s->y + font_descent(s->font);
 		int strike_bottom = strike_top + (int)st_amiga_font_height(s->font);
-		if (left > s->x)
-			left = s->x;
-		if (right < s->x + glyph.advance)
-			right = s->x + glyph.advance;
-		if (top > strike_top)
-			top = strike_top;
-		if (bottom < strike_bottom)
-			bottom = strike_bottom;
+		if (left > s->x) left = s->x;
+		if (right < s->x + glyph.advance) right = s->x + glyph.advance;
+		if (top > strike_top) top = strike_top;
+		if (bottom < strike_bottom) bottom = strike_bottom;
 	}
-	if (legacy && (s->pending != NULL || right > next)) {
-		if (s->pending == NULL) {
-			s->pending = calloc((size_t)s->width * s->height, 1);
-			if (s->pending == NULL)
-				return IO_ERROR_OUT_OF_MEMORY;
-		}
-		if (s->pending_rect.width != 0) {
-			if (left > (int)s->pending_rect.x)
-				left = (int)s->pending_rect.x;
-			if (top > (int)s->pending_rect.y)
-				top = (int)s->pending_rect.y;
-			if (right < (int)(s->pending_rect.x + s->pending_rect.width))
-				right = (int)(s->pending_rect.x + s->pending_rect.width);
-			if (bottom < (int)(s->pending_rect.y + s->pending_rect.height))
-				bottom = (int)(s->pending_rect.y + s->pending_rect.height);
-		}
-	}
-	if (left < 0)
-		left = 0;
-	if (top < 0)
-		top = 0;
-	if (right > (int)s->width)
-		right = (int)s->width;
-	if (bottom > (int)s->height)
-		bottom = (int)s->height;
+	if (left < 0) left = 0;
+	if (top < 0) top = 0;
+	if (right > (int)s->width) right = (int)s->width;
+	if (bottom > (int)s->height) bottom = (int)s->height;
 	s->undo_x = s->x;
 	s->undo_y = s->y;
 	if (right > left && bottom > top) {
 		struct st_console_rect area = {(uint32_t)left, (uint32_t)top, (uint32_t)(right - left),
-									   (uint32_t)(bottom - top)};
+			(uint32_t)(bottom - top)};
 		int status = st_console_get_pixels(&s->undo, s->terminal->screen.console, &area, false);
-		if (status != 0)
-			return status;
+		if (status != 0) return status;
 		s->undo_rect = area;
-		if (legacy && s->pending != NULL) {
-			s->undo_pending = malloc((size_t)area.width * area.height);
-			if (s->undo_pending == NULL)
-				return IO_ERROR_OUT_OF_MEMORY;
-			for (unsigned y = 0; y < area.height; ++y)
-				memcpy(s->undo_pending + (size_t)y * area.width,
-					   s->pending + (size_t)(area.y + y) * s->width + area.x, area.width);
-			s->undo_pending_rect = s->pending_rect;
-		}
 		struct st_pixel_buffer *image = NULL;
 		status = st_pixel_buffer_clone(&image, s->undo);
-		if (status != 0)
-			return status;
+		if (status != 0) return status;
 		unsigned fg = (s->terminal->attr & 15) & (s->colours - 1),
-				 bg = (s->terminal->attr >> 4 & 15) & (s->colours - 1);
+			bg = (s->terminal->attr >> 4 & 15) & (s->colours - 1);
 		if (!s->custom)
 			st_pixel_buffer_fill(image, CTERM_SKYPIX_PALETTE_FIRST + bg,
-								 CTERM_SKYPIX_PALETTE_FIRST + bg);
-		if (legacy && s->pending != NULL)
-			for (int py = top; py < bottom; ++py)
-				for (int px = left; px < right && px < next; ++px) {
-					size_t index = (size_t)py * s->width + (unsigned)px;
-					if (s->pending[index]) {
-						point(image, px - left, py - top, fg);
-						s->pending[index] = 0;
-					}
-				}
+				CTERM_SKYPIX_PALETTE_FIRST + bg);
 		for (int py = top; py < bottom; ++py)
 			for (int px = left; px < right; ++px) {
 				int gx = px - s->x - glyph.bearing, gy = py - s->y - glyph.top;
 				if (gx < 0 || gy < 0 || (unsigned)gx >= glyph.width || (unsigned)gy >= glyph.height)
 					continue;
-				unsigned x = (unsigned)gx, y = (unsigned)gy;
-				unsigned bit = x + glyph.bit_offset;
-				if (glyph.bits[(size_t)y * glyph.stride + bit / 8] & (0x80u >> (bit % 8))) {
-					if (legacy && px >= next)
-						s->pending[(size_t)py * s->width + (unsigned)px] = 1;
-					else
+				unsigned bit = (unsigned)gx + glyph.bit_offset;
+				if (glyph.bits[(size_t)gy * glyph.stride + bit / 8] & (0x80u >> (bit % 8))) {
+					/* Each byte is its own native Text call. Kick 1.3's
+					 * clipped overhang cannot be recovered by a later byte. */
+					if (!s->kick13 || px < next)
 						point(image, px - left, py - top, fg);
 				}
 			}
-		if (legacy && s->pending != NULL) {
-			int min_x = (int)s->width, min_y = (int)s->height, max_x = -1, max_y = -1;
-			for (int py = top; py < bottom; ++py)
-				for (int px = left; px < right; ++px)
-					if (s->pending[(size_t)py * s->width + (unsigned)px]) {
-						if (px < min_x)
-							min_x = px;
-						if (px > max_x)
-							max_x = px;
-						if (py < min_y)
-							min_y = py;
-						if (py > max_y)
-							max_y = py;
-					}
-			s->pending_rect = max_x < 0 ? (struct st_console_rect){0}
-										: (struct st_console_rect){(uint32_t)min_x, (uint32_t)min_y,
-																   (uint32_t)(max_x - min_x + 1),
-																   (uint32_t)(max_y - min_y + 1)};
-		}
 		status = publish(s, image, left, top);
 		st_pixel_buffer_destroy(image);
-		if (status != 0)
-			return status;
+		if (status != 0) return status;
 	}
 	s->x = next;
 	s->presented = true;

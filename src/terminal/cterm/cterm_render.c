@@ -106,10 +106,15 @@ cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute,
 	unsigned fg = attribute & 15U;
 	unsigned bg = (attribute >> 4) & 15U;
 
-	if ((flags & ST_CONSOLE_VIDEO_NO_BRIGHT) != 0)
-		fg &= 7U;
-	if ((flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) == 0)
-		bg &= 7U;
+	if (cterm->skypix_engine != NULL) {
+		fg &= cterm->skypix_engine->colours - 1;
+		bg &= cterm->skypix_engine->colours - 1;
+	} else {
+		if ((flags & ST_CONSOLE_VIDEO_NO_BRIGHT) != 0)
+			fg &= 7U;
+		if ((flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) == 0)
+			bg &= 7U;
+	}
 	if (foreground != NULL)
 		*foreground = cterm->screen.mode_palette[fg];
 	if (background != NULL)

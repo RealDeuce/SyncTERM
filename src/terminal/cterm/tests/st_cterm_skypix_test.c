@@ -6,6 +6,7 @@
 #include "st_builtin_fonts.h"
 #include "st_cterm.h"
 #include "st_session_history.h"
+#include "st_time.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,10 +83,98 @@ static void feed(st_cterm_t *t, const char *text)
 	size_t used;
 	CHECK(st_cterm_write(t, text, strlen(text), &used) == 0 && used == strlen(text));
 }
+static void depth_tests(st_cterm_t *t)
+{
+	/* ANSI.TXT / SkyTERM RGB4 defaults, independent of the renderer. */
+	static const uint32_t expected[16] = {0x000000, 0x1111ff, 0xdddddd, 0xff0000,
+		0x00ff11, 0x33aaff, 0xffff22, 0xcc00ee, 0x00bb66, 0x00dddd, 0x00aaff,
+		0x0077cc, 0x0000ff, 0x7700ff, 0xcc00ee, 0xcc0088};
+	const char mode[] = "\x1b[17;2!";
+	for (size_t split = 0; split <= strlen(mode); ++split) {
+		CHECK(st_cterm_reset_terminal(t) == 0);
+		size_t used;
+		CHECK(st_cterm_write(t, mode, split, &used) == 0 && used == split);
+		CHECK(st_cterm_write(t, mode + split, strlen(mode) - split, &used) == 0);
+		CHECK(t->skypix_engine->colours == 16 && t->attr == 2);
+	}
+	uint32_t colours[16];
+	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0);
+	CHECK(memcmp(colours, expected, sizeof(expected)) == 0);
+	for (unsigned pen = 0; pen < 16; ++pen) {
+		char wire[64];
+		snprintf(wire, sizeof(wire), "\x1b[15;%u!\x1b[1;%u;20!", pen, pen);
+		feed(t, wire);
+	}
+	struct st_pixel_buffer *pixels = NULL;
+	const struct st_console_rect row = {0, 20, 16, 1};
+	CHECK(st_console_get_pixels(&pixels, t->screen.console, &row, false) == 0);
+	for (unsigned pen = 0; pen < 16; ++pen) {
+		CHECK(pixels->primary[pen] == 512 + pen);
+		CHECK(pixels->alternate[pen] == 512 + pen);
+	}
+	st_pixel_buffer_destroy(pixels);
+	feed(t, "\x1b[H\x1b[15;15!\x1b[18;14!A");
+	struct st_pixel_buffer *phases = NULL;
+	CHECK(st_pixel_buffer_create(&phases, 1, 1, true) == 0);
+	phases->primary[0] = 527; phases->alternate[0] = 526;
+	const struct st_pixel_blit blit = {.destination_x = 200, .destination_y = 30,
+		.width = 1, .height = 1, .scale_x = 1, .scale_y = 1};
+	CHECK(st_console_blit_pixels(t->screen.console, phases, NULL, &blit) == 0);
+	st_pixel_buffer_destroy(phases);
+	uint32_t plane_width, plane_height;
+	CHECK(st_console_pixel_size(t->screen.console, &plane_width, &plane_height) == 0);
+	bool status_line = t->skypix_engine->height < plane_height;
+	if (status_line)
+		CHECK(st_console_set_pixel(t->screen.console, 1, (int)t->skypix_engine->height,
+			ST_PIXEL_COLOR_RGB_TAG | 0x123456) == 0);
+	/* Palette reset/SGR/default-font reset retain the selected depth. */
+	feed(t, "\x1b[12!\x1b[0m\x1b[10;0!\x1b[19;100;40!\x1b[15;13!\x1b[18;9!");
+	CHECK(t->skypix_engine->colours == 16);
+	int x = t->skypix_engine->x, y = t->skypix_engine->y;
+	uint8_t attr = t->attr;
+	feed(t, "\x1b[99!\x1b[99;0!\x1b[99;1!\x1b[17;0!\x1b[17;3!");
+	CHECK(t->skypix_engine->colours == 16 && t->attr == attr);
+	CHECK(t->skypix_engine->x == x && t->skypix_engine->y == y);
+	feed(t, "\x1b[17;1!");
+	CHECK(t->skypix_engine->colours == 8 && t->attr == 2);
+	struct st_console_cell cell;
+	const struct st_console_rect first_cell = {0, 0, 1, 1}, phase_pixel = {200, 30, 1, 1};
+	CHECK(st_console_read_cells(t->screen.console, &first_cell, &cell, 1) == 0);
+	CHECK(cell.foreground == 519 && cell.background == 518);
+	CHECK(st_console_get_pixels(&pixels, t->screen.console, &phase_pixel, false) == 0);
+	CHECK(pixels->primary[0] == 519 && pixels->alternate[0] == 518);
+	st_pixel_buffer_destroy(pixels);
+	if (status_line) {
+		const struct st_console_rect status_pixel = {1, t->skypix_engine->height, 1, 1};
+		CHECK(st_console_get_pixels(&pixels, t->screen.console, &status_pixel, false) == 0);
+		CHECK(pixels->primary[0] == (ST_PIXEL_COLOR_RGB_TAG | 0x123456));
+		st_pixel_buffer_destroy(pixels);
+	}
+	/* Removing a plane discards bits in existing graphics permanently. */
+	CHECK(st_console_get_pixels(&pixels, t->screen.console, &row, false) == 0);
+	for (unsigned pen = 0; pen < 16; ++pen)
+		CHECK(pixels->primary[pen] == 512 + (pen & 7));
+	st_pixel_buffer_destroy(pixels);
+	feed(t, "\x1b[17;2!");
+	CHECK(st_console_get_pixels(&pixels, t->screen.console, &row, false) == 0);
+	for (unsigned pen = 0; pen < 16; ++pen)
+		CHECK(pixels->primary[pen] == 512 + (pen & 7));
+	st_pixel_buffer_destroy(pixels);
+	feed(t, "\x1b[17;1!\x1b[11;0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15!");
+	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0);
+	for (unsigned pen = 0; pen < 16; ++pen)
+		CHECK(colours[pen] == pen * 17);
+	feed(t, "\x1b[17;2!\x1b[15;15!\x1b[1;40;20!");
+	CHECK(st_cterm_reset_terminal(t) == 0 && t->skypix_engine->colours == 8);
+	const struct st_console_rect reset_pixel = {40, 20, 1, 1};
+	CHECK(st_console_get_pixels(&pixels, t->screen.console, &reset_pixel, false) == 0);
+	CHECK(pixels->primary[0] == 519 && pixels->alternate[0] == 519);
+	st_pixel_buffer_destroy(pixels);
+}
 static void wrapping_tests(st_cterm_t *t)
 {
-	/* Literal results from JR-Comm's Diamond/20 position probes. Write
-	 * splits are not flushes; controls and explicit finish are flushes. */
+	/* Native Diamond/20 advances with the selected measured-wrap policy.
+	 * Writes, explicit flushes and Unicode revisions must agree. */
 	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
 		CHECK(st_cterm_set_encoding(t, utf8 ? ST_CTERM_ENCODING_UTF8
 			: ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437) == 0);
@@ -109,14 +198,14 @@ static void wrapping_tests(st_cterm_t *t)
 			CHECK(st_cterm_write(t, run, split, &used) == 0 && used == split);
 			CHECK(st_cterm_write(t, run + split, 33 - split, &used) == 0 && used == 33 - split);
 			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 4 && t->skypix_engine->y == 15);
+		CHECK(t->skypix_engine->x == 132 && t->skypix_engine->y == -5);
 		}
 		memset(run, 'W', 40);
 		run[32] = 0;
 		feed(t, "\f\x1b[19;100;40!");
 		feed(t, run);
 		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 740 && t->skypix_engine->y == 40);
+		CHECK(t->skypix_engine->x == 100 && t->skypix_engine->y == 60);
 		run[32] = 'W';
 		run[40] = 0;
 		feed(t, "\f\x1b[19;0;40!");
@@ -128,7 +217,7 @@ static void wrapping_tests(st_cterm_t *t)
 			feed(t, "W");
 			CHECK(st_cterm_finish(t) == 0);
 		}
-		CHECK(t->skypix_engine->x == 800 && t->skypix_engine->y == 40);
+		CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 60);
 		feed(t, "\f\x1b[19;0;40!\x1b[?7l");
 		run[33] = 0;
 		feed(t, run);
@@ -137,8 +226,8 @@ static void wrapping_tests(st_cterm_t *t)
 		feed(t, "\x1b[?7h\f\x1b[19;32760;40!");
 		feed(t, run);
 		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == -32116 && t->skypix_engine->y == 40);
-		/* Controls start a new forecast from the actual proportional X. */
+		CHECK(t->skypix_engine->x == 20 && t->skypix_engine->y == 80);
+		/* Controls preserve independent CR and LF positioning. */
 		feed(t, "\f");
 		memset(run, 'i', 32);
 		run[32] = 0;
@@ -147,13 +236,16 @@ static void wrapping_tests(st_cterm_t *t)
 		CHECK(st_cterm_finish(t) == 0);
 		CHECK(t->skypix_engine->x == 24 && t->skypix_engine->y == 15);
 		if (utf8) {
-			/* Revising the final grapheme must not count as another
-			 * pending character or apply its wrap decision twice. */
+			/* Native i advances four pixels; composed acute-i advances
+			 * eight. Revising the last glyph replaces its prior advance. */
 			feed(t, "\f");
 			feed(t, run);
 			feed(t, "\xcc\x81i");
 			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 4 && t->skypix_engine->y == 15);
+			CHECK(t->skypix_engine->x == 136 && t->skypix_engine->y == -5);
+			feed(t, "\f\x1b[19;636;40!i\xcc\x81i");
+			CHECK(st_cterm_finish(t) == 0);
+			CHECK(t->skypix_engine->x == 4 && t->skypix_engine->y == 60);
 		}
 		/* H16:11a0 and H17:1c08/1ce0 erase a native-font strike at
 		 * baseline-ascent through baseline+descent, preserving position. */
@@ -182,6 +274,94 @@ static void wrapping_tests(st_cterm_t *t)
 		}
 	}
 	CHECK(st_cterm_reset_terminal(t) == 0);
+}
+static void put_be32(uint8_t *out, size_t value)
+{
+	for (unsigned i = 0; i < 4; ++i) out[i] = (uint8_t)(value >> (24 - i * 8));
+}
+static size_t test_ilbm(uint8_t *data, unsigned width, unsigned depth, unsigned compression,
+	const uint8_t *body, size_t body_size)
+{
+	size_t size = 62 + body_size + (body_size & 1);
+	memset(data, 0, size);
+	memcpy(data, "FORM", 4); put_be32(data + 4, size - 8);
+	memcpy(data + 8, "ILBMBMHD", 8); put_be32(data + 16, 20);
+	data[20] = (uint8_t)(width >> 8); data[21] = (uint8_t)width;
+	data[23] = 1; data[28] = (uint8_t)depth; data[30] = (uint8_t)compression;
+	memcpy(data + 40, "CMAP", 4); put_be32(data + 44, 6);
+	const uint8_t colours[] = {0x12, 0x34, 0x56, 0xab, 0xcd, 0xef};
+	memcpy(data + 48, colours, 6);
+	memcpy(data + 54, "BODY", 4); put_be32(data + 58, body_size);
+	memcpy(data + 62, body, body_size);
+	return size;
+}
+static void brush_tests(st_cterm_t *t)
+{
+	uint8_t data[256], literal[129];
+	literal[0] = 127; memset(literal + 1, 0xff, 128);
+	size_t size = test_ilbm(data, 1024, 1, 1, literal, sizeof(literal));
+	CHECK(st_cterm_skypix_receive(t, data, size) == 0);
+	for (unsigned x = 0; x < 1024; ++x) CHECK(t->skypix_engine->brush->primary[x] == 1);
+	const uint8_t repeat[] = {128, 129, 0xff}; /* no-op, repeat 128 */
+	size = test_ilbm(data, 1024, 1, 1, repeat, sizeof(repeat));
+	CHECK(st_cterm_skypix_receive(t, data, size) == 0);
+	for (unsigned x = 0; x < 1024; ++x) CHECK(t->skypix_engine->brush->primary[x] == 1);
+	const uint8_t planar[] = {0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0};
+	size = test_ilbm(data, 2, 4, 0, planar, sizeof(planar));
+	uint32_t preserved = 0x123456, colours[16];
+	CHECK(st_console_set_palette(t->screen.console, 516, &preserved, 1) == 0);
+	CHECK(st_cterm_skypix_receive(t, data, size) == 0);
+	CHECK(t->skypix_engine->colours == 8 && t->skypix_engine->brush_depth == 4);
+	CHECK(t->skypix_engine->brush_palette_pending);
+	CHECK(t->skypix_engine->brush_palette_size == 2);
+	CHECK(t->skypix_engine->brush_palette[0] == 0x113355 && t->skypix_engine->brush_palette[1] == 0xaaccee);
+	struct st_pixel_buffer *pending = t->skypix_engine->brush;
+	CHECK(st_cterm_skypix_receive(t, "invalid", 7) == IO_ERROR_INVALID_FORMAT);
+	CHECK(t->skypix_engine->brush == pending && t->skypix_engine->brush_palette_pending
+		&& t->skypix_engine->brush_palette_size == 2);
+	feed(t, "\x1b[7;0;0;100;100;2;1;192;255!");
+	CHECK(t->skypix_engine->colours == 16 && !t->skypix_engine->brush_palette_pending);
+	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0);
+	CHECK(colours[0] == 0x113355 && colours[1] == 0xaaccee && colours[4] == preserved);
+	struct st_pixel_buffer *pixels = NULL;
+	const struct st_console_rect row = {100, 100, 2, 1};
+	CHECK(st_console_get_pixels(&pixels, t->screen.console, &row, false) == 0);
+	CHECK(pixels->primary[0] == 527 && pixels->primary[1] == 512);
+	st_pixel_buffer_destroy(pixels);
+	preserved = 0x224466;
+	CHECK(st_console_set_palette(t->screen.console, 512, &preserved, 1) == 0);
+	feed(t, "\x1b[7;0;0;102;100;2;1;192;255!");
+	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0 && colours[0] == preserved);
+	/* A captured four-plane brush owns the palette it was captured with. */
+	feed(t, "\x1b[6;100;99;2;1!");
+	CHECK(t->skypix_engine->brush_depth == 4 && t->skypix_engine->brush_palette_pending);
+	CHECK(t->skypix_engine->brush_palette[0] == preserved);
+	feed(t, "\x1b[17;1!\x1b[7;0;0;104;100;2;1;192;255!");
+	CHECK(t->skypix_engine->colours == 16 && !t->skypix_engine->brush_palette_pending);
+	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0 && colours[0] == preserved);
+	struct st_pixel_buffer *saved = t->skypix_engine->brush;
+	const uint8_t malformed[] = {128, 129};
+	size = test_ilbm(data, 1024, 1, 1, malformed, sizeof(malformed));
+	CHECK(st_cterm_skypix_receive(t, data, size) == IO_ERROR_INVALID_FORMAT);
+	CHECK(t->skypix_engine->brush == saved && t->skypix_engine->brush_depth == 4);
+	CHECK(t->skypix_engine->brush_palette[0] == preserved && !t->skypix_engine->brush_palette_pending);
+	CHECK(st_cterm_skypix_receive(t, NULL, 0) == 0 && t->skypix_engine->brush == saved);
+	CHECK(st_cterm_reset_terminal(t) == 0);
+}
+static void short_delay_tests(st_cterm_t *t)
+{
+	for (unsigned ticks = 0; ticks < 3; ++ticks) {
+		char wire[16];
+		snprintf(wire, sizeof(wire), "\x1b[14;%u!", ticks);
+		uint64_t before, after;
+		CHECK(st_time_monotonic_ms(&before) == 0);
+		feed(t, wire);
+		CHECK(st_time_monotonic_ms(&after) == 0);
+		if (ticks == 0) CHECK(t->skypix_engine->delay_until == 0);
+		else CHECK(t->skypix_engine->delay_until >= before + ticks * 20
+			&& t->skypix_engine->delay_until <= after + ticks * 20);
+		CHECK(st_cterm_reset_terminal(t) == 0);
+	}
 }
 struct mouse_output {
 	uint8_t bytes[128];
@@ -366,6 +546,9 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(t->rip_engine == NULL && t->skypix_engine != NULL);
 	mouse_tests(t);
 	gadget_tests(t);
+	depth_tests(t);
+	brush_tests(t);
+	short_delay_tests(t);
 	CHECK(st_cterm_resize(t, 100, geometry.rows) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows + 1) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows) == 0);
@@ -387,11 +570,11 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 		  pixels->primary[15 * 640 + 14] == 512);
 	CHECK(pixels->primary[20 * 640 + 20] == 517 && pixels->primary[24 * 640 + 24] == 515);
 	st_pixel_buffer_destroy(pixels);
-	/* JR-Comm's 0x80 packet repeats 129 bytes; the brush can exceed the
-	 * viewport, and only matching source/destination planes participate. */
-	uint8_t ilbm[80] = {0};
+	/* Standard ByteRun1 no-op, 128 literals and a 16-byte repeat. The
+	 * brush can exceed the viewport; only matching planes participate. */
+	uint8_t ilbm[194] = {0};
 	memcpy(ilbm, "FORM", 4);
-	ilbm[7] = 72;
+	ilbm[7] = 186;
 	memcpy(ilbm + 8, "ILBMBMHD", 8);
 	ilbm[19] = 20;
 	ilbm[20] = 4;
@@ -402,10 +585,12 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	memcpy(ilbm + 40, "CMAP", 4);
 	ilbm[47] = 6;
 	memcpy(ilbm + 54, "BODY", 4);
-	ilbm[61] = 18;
+	ilbm[61] = 132;
 	ilbm[62] = 128;
-	ilbm[63] = 0x55;
-	ilbm[64] = 14;
+	ilbm[63] = 127;
+	memset(ilbm + 64, 0x55, 128);
+	ilbm[192] = 241;
+	ilbm[193] = 0x55;
 	CHECK(st_cterm_skypix_receive(t, ilbm, sizeof(ilbm)) == 0);
 	CHECK(t->skypix_engine->brush->width == 1152 && t->skypix_engine->brush_depth == 1);
 	CHECK(t->skypix_engine->brush->primary[0] == 0 && t->skypix_engine->brush->primary[1] == 1);
@@ -444,7 +629,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	feed(t, " ");
 	CHECK(st_cterm_finish(t) == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &overhang, false) == 0);
-	CHECK(pixels->primary[0] == 514 && pixels->primary[8] == 514);
+	CHECK(pixels->primary[0] == ink && pixels->primary[8] == ink);
 	st_pixel_buffer_destroy(pixels);
 	/* Updated independent cursor probes: Diamond's underline follows its
 	 * baseline and proportional advance, with two-pixel sprite quantization. */
@@ -536,6 +721,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		.scrollback_lines = capacity, .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
 	CHECK(t->backfilled == 0);
+	feed(t, "\x1b[17;2!\x1b[99;0!"); /* Neither command disables normal scrolling. */
 	for (unsigned i = 0; i < (font_height == 20 ? 9u : 15u); ++i)
 		feed(t, "\r\n");
 	if (first_distance == 19)
@@ -663,11 +849,11 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		st_pixel_buffer_destroy(image);
 	}
 	if (font_height == 20 && capacity == 50) {
-		/* The nominal-count wrap path uses the same exact pixel LF at
+		/* Measured wrapping uses the same exact pixel LF at
 		 * the bottom, including when a partial strip is already pending. */
-		char narrow[34];
-		memset(narrow, 'i', 33);
-		narrow[33] = 0;
+		char narrow[162];
+		memset(narrow, 'i', 161);
+		narrow[161] = 0;
 		feed(t, narrow);
 		CHECK(st_cterm_finish(t) == 0);
 		struct st_console_pixel_cursor cursor;

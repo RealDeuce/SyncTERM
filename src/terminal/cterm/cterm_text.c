@@ -250,8 +250,6 @@ cterm_text_boundary(struct cterminal *cterm)
 	status = cterm->screen.unicode == NULL ? 0
 	    : st_unicode_presentation_boundary(cterm->screen.unicode);
 	--cterm->input_depth;
-	if (status == 0 && cterm->skypix_engine != NULL)
-		cterm->skypix_engine->text_count = 0;
 	return status;
 }
 
@@ -263,8 +261,6 @@ cterm_text_commit(struct cterminal *cterm)
 	status = cterm->screen.unicode == NULL ? 0
 	    : st_unicode_presentation_commit(cterm->screen.unicode);
 	--cterm->input_depth;
-	if (status == 0 && cterm->skypix_engine != NULL)
-		cterm->skypix_engine->text_count = 0;
 	return status;
 }
 

@@ -115,6 +115,24 @@ Hook.onKey(Key.f10) {|event|
                 # pixels must occur beyond the first glyph's 8-pixel cell.
                 frame = exchange(b"\x1b[19;100;50!\x1b[10;19!Sapphire.font!RR\x1b[10;0!")
                 assert any(pixel(frame,x,y) for y in range(50,75) for x in range(116,132))
+                # Documented RGB4 defaults and the actual 8/16-colour
+                # transition, independent of IcyTerm or captured images.
+                defaults=(0,0x1111ff,0xdddddd,0xff0000,0x00ff11,0x33aaff,0xffff22,0xcc00ee,
+                          0x00bb66,0x00dddd,0x00aaff,0x0077cc,0x0000ff,0x7700ff,0xcc00ee,0xcc0088)
+                wire=b"\x1bc\x1b[17;2!\x1b[15;13!\x1b[18;9!A"
+                wire+=b''.join(f"\x1b[15;{pen}!\x1b[4;{pen*8};100;{pen*8+7};107!".encode() for pen in range(16))
+                frame=exchange(wire)
+                assert tuple(frame.palette[512:528])==defaults
+                assert (frame.cells[0].foreground,frame.cells[0].background)==(525,521)
+                for pen in range(16):
+                    for plane in (frame.primary,frame.alternate):
+                        assert plane[(100+frame.metadata["pixel_top"])*frame.metadata["plane_width"]+pen*8]==512+pen
+                frame=exchange(b"\x1b[12!\x1b[0m\x1b[10;0!\x1b[15;13!\x1b[1;200;100!")
+                assert pixel(frame,200,100)==0x7700ff
+                frame=exchange(b"\x1b[17;1!\x1b[17;2!")
+                for pen in range(16):
+                    assert pixel(frame,pen*8,100)==defaults[pen&7]
+                exchange(b"\x1bc")
                 start=time.monotonic()
                 frame=exchange(b"\x1b[14;12!\x1b[15;4!\x1b[1;50;20!")
                 assert time.monotonic()-start >= 0.18 and pixel(frame,50,20)==0x00ff11
@@ -151,11 +169,11 @@ Hook.onKey(Key.f10) {|event|
                     assert reply==b"\x06",reply
                 download(brush)
                 frame=exchange(b"\x1b[7;0;0;60;20;2;1;192;255!")
-                assert pixel(frame,60,20)==0x0000ff and pixel(frame,61,20)==0
+                assert pixel(frame,60,20)==0xffffff and pixel(frame,61,20)==0
                 send(b"\x1b[16;1;999;888!brush.iff!")
                 assert read(21)==b"\x18"*10+b"\x08"*10+b"\r"
                 frame=exchange(b"\x1b[7;0;0;62;20;2;1;192;255!")
-                assert pixel(frame,62,20)==0x0000ff
+                assert pixel(frame,62,20)==0xffffff
                 # General files retain leading LF bytes and publish only a
                 # completed transfer. Cancellation and malformed brushes leave
                 # no visible cache entry or partial file, and preserve the brush.
@@ -170,7 +188,7 @@ Hook.onKey(Key.f10) {|event|
                 assert read(1)==b"C"
                 download(b"not an ILBM")
                 frame=exchange(b"\x1b[7;0;0;64;20;2;1;192;255!")
-                assert pixel(frame,64,20)==0x0000ff
+                assert pixel(frame,64,20)==0xffffff
                 assert not list(root.rglob("invalid.iff"))
                 send(b"\x1b[16;20;0;0!cancel.bin!")
                 assert read(1)==b"C"
@@ -365,16 +383,16 @@ Hook.onKey(Key.f8) {|event|
                     assert m["pixel_cursor_enabled"]==1,m
                     assert (m["pixel_cursor_x"],m["pixel_cursor_y"],m["pixel_cursor_width"],m["pixel_cursor_height"])==(x,y,width,1),m
                 def wrapped_narrow(shown):
-                    cursor(shown,2,35,16)
+                    cursor(shown,130,15,16)
                     # Literal Diamond/20 'i' strike, extracted from the native
                     # file (SHA-256 96117752c5be1e3bf80921b88937c0374d658970a5d5ce08517f2f9a6c8e1356).
-                    # Width 3, advance 4, baseline 14: 32 glyphs on row one,
-                    # one on row two, despite ample unused canvas width.
+                    # Width 3, advance 4, baseline 14: all 33 glyphs fit
+                    # on row one using actual advances.
                     rows=(7,7,0,0,0,0,7,7,7,7,7,7,7,7,0,0,0,0,0,0)
                     m=shown.metadata
                     for y in range(40):
                         for x in range(132):
-                            count=32 if y<20 else 1
+                            count=33 if y<20 else 0
                             ink=x//4<count and x%4<3 and bool(rows[y%20]&(4>>(x%4)))
                             index=(y+m["pixel_top"])*m["plane_width"]+x
                             for plane in (shown.primary,shown.alternate):
@@ -432,8 +450,7 @@ Hook.onKey(Key.f8) {|event|
                 wrapped_narrow(frame(b"\f"+b"i"*33))
                 cursor(frame(b"\f"+b"W"*40),158,35,16)
                 cursor(frame(b"\f\x1b[?7l"+b"W"*33),638,15,2)
-                # A query flushes the run: the next byte starts a fresh
-                # nominal count from actual X=128, rather than wrapping.
+                # Query flushes and network splits do not alter wrapping.
                 cursor(frame(b"\x1b[?7h\f"+b"i"*32),126,15,16)
                 cursor(frame(b"i"),130,15,16)
                 # RIS restores the configured Diamond default, so this also

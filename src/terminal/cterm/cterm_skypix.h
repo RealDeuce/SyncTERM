@@ -19,12 +19,12 @@ struct cterm_skypix {
 	bool native_default;
 	const char *font_directory;
 	struct st_pixel_buffer *brush, *undo;
-	struct st_console_rect undo_rect, pending_rect, undo_pending_rect;
-	uint8_t *pending, *undo_pending;
+	struct st_console_rect undo_rect;
 	int x, y, pen_x, pen_y, undo_x, undo_y;
-	int text_forecast;
-	size_t text_count;
 	unsigned colours, brush_depth;
+	uint32_t brush_palette[16];
+	size_t brush_palette_size;
+	bool brush_palette_pending;
 	bool custom, positioned, receiving, kick13, presented;
 	uint64_t delay_until, cursor_deadline;
 	uint32_t cursor_colour;

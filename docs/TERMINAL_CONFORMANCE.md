@@ -10,14 +10,20 @@ variants/encodings on Amiga 640x200 and 640x400, plus literal 8x8 CP437 UI in
 both modes. The 400-line cases check native glyph rows below Y=199, exact
 canvas clipping, aspect ratio, reset and directory geometry restoration.
 Native-font wrapping
-checks nominal forecast/count boundaries, explicit flushes, disabled wrap and
-signed-word overflow. Literal Diamond i/W rasters check both planes after
+checks actual advances, exact-edge cases, explicit flushes, disabled wrap,
+widened boundary comparisons and Unicode revision without a second wrap.
+Depth tests cover all sixteen pens, four-bit text foreground/background,
+reset/reduction/expansion and both pixel planes. Brush tests cover palette
+ownership, first-blit application, depth promotion and standard ByteRun1
+no-op/128-byte boundaries without weakening transfer error recovery. Literal Diamond i/W rasters check both planes after
 wrapping, BS-space in JAM1/JAM2 and tcsh's BS CSI K deletion sequence; native
 tests check all erase-line modes against the current font's ascent/descent.
-`syncterm_skypix_welcome` checks the captured RoF Times/15 green/red lines
+`syncterm_skypix_welcome` checks the captured RoF Times/15 network lines
 against independent native-strike pixel-mask hashes, with both variants,
 CP437/UTF-8, status choices and reset/replay. Times/15 uses its native seven-pixel
-nominal width for wrapping, independently of its proportional glyph bitmaps.
+nominal width for BS/tabs and wrap-off positioning; wrapping itself uses
+actual advances. The Kick 1.3 first-line expectation is independently revised
+for per-character ROM clipping; the 3.1 mask and final positions remain intact.
 Native compositor tests
 verify cursor overlay pixels, capture exclusion, clipping and snapshot cleanup.
 An identical-cell clear followed by explicit graphics and a status-row update

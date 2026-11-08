@@ -15,12 +15,17 @@ from syncterm_fixture import fixture
 # Expected masks come from amiga_font.py's load_font/text_mask on the native
 # FS-UAE Fonts/times/15, SHA256 d00caceb09f0ad46052b37ee5409040e56cf3c99125f867bf6ebec4d791a309a.
 # Baseline = command-19 Y + 15 - 1. Hash input: one byte per pixel, row-major
-# 640x200, 1 for a glyph bit and 0 otherwise. Both ROM clipping variants agree.
+# 640x200, 1 for a glyph bit and 0 otherwise. Each byte is a separate Text
+# call: Kick 1.3 clips its trailing overhang; Kick 3.1 retains it.
+# The per-byte first-line hashes were also checked by executing Text in the
+# pinned 1.3 and 3.1 ROMs via ~/SkyPix/tools/rom_graphics.py. Pens 4 and 11
+# and the sixteen-colour request below are the captured wire values.
 LINES = (
     (4, 85, 95, 'JoinLink - Messages - Games - Warez - ROF FTN - irc.rofbbs.com',
-     'b050d0d47125ee9a3c51fb4c1c9b365bbfb7676e7ab4b50d197f67df692174e3'),
-    (3, 75, 127, 'CommodoreNet 64:500/1  *  DiscipleNet 12:316/1  *  FidoNet 1:154/50',
-     'c8277130050e195aefa2eaaa0f39d4c00e4f956d6a4b08028a2a96a913a5986c'),
+     ('4ee6aa59a25a1e0b3eea6cdd9052f85cf3ba93225ce5bcd9d8f8be7b7c29e7e4',
+      'b050d0d47125ee9a3c51fb4c1c9b365bbfb7676e7ab4b50d197f67df692174e3')),
+    (11, 75, 127, 'CommodoreNet 64:500/1  *  DiscipleNet 12:316/1  *  FidoNet 1:154/50',
+     ('c8277130050e195aefa2eaaa0f39d4c00e4f956d6a4b08028a2a96a913a5986c',)*2),
 )
 
 
@@ -41,13 +46,13 @@ def run(executable, reports, kick, encoding, status):
                 peer.settimeout(10)
                 client.wait_for(lambda s: s.application.get('connected') == 1)
                 # Reset and replay twice so a font reset and parser recovery
-                # cannot retain a stale forecast or affect subsequent artwork.
+                # cannot retain stale glyph revision state or affect artwork.
                 for repeat in range(2):
-                    wire = b'\x1bc\x1b[10;15!Times.font!\x1b[?25l'
+                    wire = b'\x1bc\x1b[17;2!\x1b[10;15!Times.font!\x1b[?25l'
                     wire += b''.join(f'\x1b[15;{pen}!\x1b[19;{x};{y}!{text}'.encode('ascii')
-                                     for pen, x, y, text, digest in LINES)
+                                     for pen, x, y, text, digests in LINES)
                     (root / 'wire.bin').write_bytes(wire)
-                    # Split inside a printable run, preserving forecast state.
+                    # Split inside a printable run; placement must not change.
                     peer.sendall(wire[:91])
                     peer.sendall(wire[91:] + b'\x1b[5n')
                     reply = b''
@@ -63,13 +68,14 @@ def run(executable, reports, kick, encoding, status):
                     # JR-Comm's HIRES sprite snaps X-2 to an even pixel;
                     # the one-row mask begins one pixel below the baseline.
                     assert (m['pixel_cursor_x'], m['pixel_cursor_y']) == (478, 142), m
-                    for pen, x, y, text, digest in LINES:
+                    for pen, x, y, text, digests in LINES:
+                        digest = digests[0 if kick == '1.3' else 1]
                         for plane in (frame.primary, frame.alternate):
                             mask = bytes(plane[(py + m['pixel_top']) * m['plane_width'] + px] == 512 + pen
                                          for py in range(200) for px in range(640))
                             actual = hashlib.sha256(mask).hexdigest()
                             assert actual == digest, (kick, encoding, status, repeat, pen, actual)
-                        assert frame.palette[512 + pen] == (0x00ff11 if pen == 4 else 0xff0000)
+                        assert frame.palette[512 + pen] == (0x00ff11 if pen == 4 else 0x0077cc)
                 peer.shutdown(socket.SHUT_RDWR)
                 client.wait_text('Disconnected: Enter exits, F1 details')
                 client.key('enter')
