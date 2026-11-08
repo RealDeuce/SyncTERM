@@ -1,5 +1,5 @@
 import "syncterm" for Cleanup_, CustomCursor, Screen, Surface, Input, Key, KeyEvent,
-    PhysicalKeyEvent, Mod, Host
+    PhysicalKeyEvent, Mod
 import "menu_scrollback" for OfflineScrollbackView
 import "menu_ui" for MenuUi
 import "ui_app" for App
@@ -38,7 +38,7 @@ class MenuHostUI {
   }
 
   static disconnected(title, details) {
-    var notice = "Disconnected: Enter exits, F1 details, %(Host.altKeyShort)-B scrollback"
+    var notice = "Disconnected: Enter exits, F1 details"
     while (true) {
       var size = Screen.checked_(Screen.size)
       var width = (size[0] - 1).max(0).min(notice.count)
