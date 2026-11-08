@@ -232,6 +232,8 @@ present(void *context, const struct st_unicode_presentation_event *event)
 		cterm->screen.provisional_drawn = false;
 	}
 	status = place(cterm, event, event->kind != ST_UNICODE_PRESENTATION_DECODE_ERROR);
+	if (status == 0 && cterm->skypix_engine != NULL)
+		status = cterm_skypix_present_cell(cterm->skypix_engine);
 	return status;
 }
 

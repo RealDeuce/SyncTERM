@@ -141,14 +141,14 @@ def run(executable, reports, kick, encoding, status):
                 # Whole 20-pixel text rows determine the last baseline, while
                 # the raster scroll uses the entire drawable area.
                 initial = frame(b'\r\n'*(text_height//20-1))
-                assert initial.metadata['pixel_cursor_y'] == text_height-5
+                assert initial.metadata['cursor_y'] == (text_height-20)//8
                 palette = b'\x1b[11;0;15;4095;3840;240;4080;255;3855;0;0;0;0;0;0;0;0!'
                 stripe = b''.join(f'\x1b[15;{(y//4)%7+1}!\x1b[4;80;{y};87;{y+3}!'.encode()
                                   for y in range(0, canvas_height, 4))
                 check_live(frame(palette+stripe), 0)
                 for scroll in range(1, 4):
                     live = frame(b'\r\n')
-                    assert live.metadata['pixel_cursor_y'] == text_height-5, live.metadata
+                    assert live.metadata['cursor_y'] == (text_height-20)//8, live.metadata
                     check_live(live, scroll*20)
                     client.command_key(48)
                     client.wait_text('Scrollback')

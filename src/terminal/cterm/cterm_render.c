@@ -372,11 +372,7 @@ cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 	struct st_console_custom_cursor custom;
 
 	if (cterm->skypix_engine != NULL) {
-		if (!render_succeeded(cterm,
-			st_console_get_default_cursor(cterm->screen.console, &custom)))
-			return;
-		bool blink = cterm->cursor_style == 0 ? custom.blink : (cterm->cursor_style & 1) != 0;
-		cterm_skypix_cursor_mode(cterm->skypix_engine, cursor == CTERM_CURSOR_HIDDEN, blink);
+		cterm_skypix_cursor_mode(cterm->skypix_engine, cursor == CTERM_CURSOR_HIDDEN);
 		return;
 	}
 	if (!render_succeeded(cterm,

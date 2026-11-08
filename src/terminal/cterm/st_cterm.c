@@ -2704,6 +2704,10 @@ int
 st_cterm_prepare_disconnect(st_cterm_t *terminal)
 {
 	int status = st_cterm_finish(terminal);
+	if (status == 0 && terminal->skypix_engine != NULL) {
+		cterm_skypix_cursor_mode(terminal->skypix_engine, true);
+		status = cterm_render_take_error(terminal);
+	}
 	if (status != 0 || terminal->status_display_type != 0) return status;
 	/* The local notice needs a new row, even if the host left a smaller
 	 * scroll region. Keep the terminal dimensions and host margins intact. */

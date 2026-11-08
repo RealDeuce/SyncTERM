@@ -65,9 +65,10 @@ def run(executable, reports, kick, encoding, status):
                     m = frame.metadata
                     assert (m['columns'], m['cell_width'], m['cell_height']) == (80, 8, 8), m
                     assert m['rows'] == 25, m
-                    # JR-Comm's HIRES sprite snaps X-2 to an even pixel;
-                    # the one-row mask begins one pixel below the baseline.
-                    assert (m['pixel_cursor_x'], m['pixel_cursor_y']) == (478, 142), m
+                    # Named-font output has no bitmap cursor or overlay. The
+                    # logical terminal position still tracks the pixel anchor.
+                    assert m['pixel_cursor_enabled'] == 0, m
+                    assert (m['cursor_x'], m['cursor_y']) == (60, 16), m
                     for pen, x, y, text, digests in LINES:
                         digest = digests[0 if kick == '1.3' else 1]
                         for plane in (frame.primary, frame.alternate):

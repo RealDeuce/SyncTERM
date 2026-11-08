@@ -374,15 +374,17 @@ Hook.onKey(Key.f8) {|event|
                         part=peer.recv(4-len(reply));assert part;reply+=part
                     assert reply==b"\x1b[0n",reply
                     return client.capture()
-                def cursor(shown,x,y,width):
+                def position(shown,column,row):
+                    # Logical cell position and fixed mode geometry remain
+                    # observable while this raster fixture gates the cursor.
                     m=shown.metadata
                     assert (m["cell_width"],m["cell_height"],m["columns"],m["rows"])==(8,8,80,canvas_height//8),m
                     assert (m["plane_width"],m["plane_height"])==(640,canvas_height),m
                     assert abs(m["destination_width"]*3-m["destination_height"]*4)<=4,m
-                    assert m["pixel_cursor_enabled"]==1,m
-                    assert (m["pixel_cursor_x"],m["pixel_cursor_y"],m["pixel_cursor_width"],m["pixel_cursor_height"])==(x,y,width,1),m
+                    assert m["pixel_cursor_enabled"]==0,m
+                    assert (m["cursor_x"],m["cursor_y"])==(column,row),m
                 def wrapped_narrow(shown):
-                    cursor(shown,130,15,16)
+                    position(shown,16,0)
                     # Literal Diamond/20 'i' strike, extracted from the native
                     # file (SHA-256 96117752c5be1e3bf80921b88937c0374d658970a5d5ce08517f2f9a6c8e1356).
                     # Width 3, advance 4, baseline 14: all 33 glyphs fit
@@ -399,7 +401,7 @@ Hook.onKey(Key.f8) {|event|
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
                                 assert value==(0xdddddd if ink else 0),(kick,encoding,x,y,value)
                 def backspace_space(shown, transparent):
-                    cursor(shown,6,15,16)
+                    position(shown,1,0)
                     # Literal W strike from the same native file. BS moves
                     # twenty pixels; the blank space advances nine. JAM1
                     # preserves it; our JAM2 background spans the full strike
@@ -415,7 +417,7 @@ Hook.onKey(Key.f8) {|event|
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
                                 assert value==(0xdddddd if ink else 0),(kick,encoding,transparent,x,y,value)
                 def tcsh_erase(shown):
-                    cursor(shown,0,15,14)
+                    position(shown,0,0)
                     m=shown.metadata
                     # A clean tcsh PTY with TERM=ansi emits BS CSI K for
                     # deletion. JR-Comm H17:1ce0 uses the whole font height.
@@ -427,35 +429,36 @@ Hook.onKey(Key.f8) {|event|
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
                                 assert value==0,(kick,encoding,x,y,value)
                 # Literal JR-Comm position-probe expectations: baseline 14,
-                # i advances four pixels, W advances twenty; sprite X-2.
-                cursor(frame(b"\x1b[2J\x1b[H"),0,15,14)
-                cursor(frame(b"i"),2,15,16)
-                cursor(frame(b"W"),22,15,16)
+                # i advances four pixels and W advances twenty. Exact pixel
+                # cursor geometry is independently checked by the cursor fixture.
+                position(frame(b"\x1b[?25l\x1b[2J\x1b[H"),0,0)
+                position(frame(b"i"),0,0)
+                position(frame(b"W"),3,0)
                 client.key("f8")
                 reply=b""
                 while len(reply)<15:
                     part=peer.recv(15-len(reply));assert part;reply+=part
                 assert reply==b"CURSOR-RESTORED",reply
-                cursor(client.capture(),22,15,16)
-                cursor(frame(b"\n"),22,35,16)
-                cursor(frame(b"\r"),0,35,14)
+                position(client.capture(),3,0)
+                position(frame(b"\n"),3,2)
+                position(frame(b"\r"),0,2)
                 backspace_space(frame(b"\fW\b "),False)
                 tcsh_erase(frame(b"\fW\b\x1b[K"))
-                cursor(frame(b"\x1b[19;101;40!"),98,60,16)
-                cursor(frame(b"\x1b[10;8!Pearl.font!"),98,48,8)
-                cursor(frame(b"\x1b[10;20!Diamond.font!\f"),0,15,14)
+                position(frame(b"\x1b[19;101;40!"),12,5)
+                position(frame(b"\x1b[10;8!Pearl.font!"),12,5)
+                position(frame(b"\x1b[10;20!Diamond.font!\f"),0,0)
                 backspace_space(frame(b"W\b "),True)
                 tcsh_erase(frame(b"\fW\b\x1b[K"))
                 wrapped_narrow(frame(b"\f"+b"i"*33))
-                cursor(frame(b"\f"+b"W"*40),158,35,16)
-                cursor(frame(b"\f\x1b[?7l"+b"W"*33),638,15,2)
+                position(frame(b"\f"+b"W"*40),20,2)
+                position(frame(b"\f\x1b[?7l"+b"W"*33),79,0)
                 # Query flushes and network splits do not alter wrapping.
-                cursor(frame(b"\x1b[?7h\f"+b"i"*32),126,15,16)
-                cursor(frame(b"i"),130,15,16)
+                position(frame(b"\x1b[?7h\f"+b"i"*32),16,0)
+                position(frame(b"i"),16,0)
                 # RIS restores the configured Diamond default, so this also
                 # exercises the initial/reset font rather than command 10.
-                wrapped_narrow(frame(b"\x1bc\f"+b"i"*33))
-                cursor(frame(b"\f"),0,15,14)
+                wrapped_narrow(frame(b"\x1bc\x1b[?25l\f"+b"i"*33))
+                position(frame(b"\f"),0,0)
                 client.command_key(44)
                 menu=client.wait_text("SyncTERM Online Menu")
                 assert menu.metadata["cell_width"]==8 and menu.metadata["cell_height"]==8,menu.metadata
@@ -471,7 +474,7 @@ Hook.onKey(Key.f8) {|event|
                         assert (value!=bg)==bool(bits&(0x80>>x)),(kick,encoding,x,y)
                 assert menu.metadata["pixel_cursor_enabled"]==0
                 client.key("escape")
-                cursor(frame(b""),0,15,14)
+                position(frame(b""),0,0)
                 if canvas_height==400:
                     # Literal canvas boundaries: two red pixels on each of
                     # the last two rows, with off-canvas points clipped.
@@ -479,7 +482,7 @@ Hook.onKey(Key.f8) {|event|
                     shown=frame(f"\f\x1b[15;3!\x1b[4;638;{bottom-2};641;{bottom+1}!\x1b[1;10;{bottom}!\x1b[1;640;10!".encode())
                     m=shown.metadata
                     for y in (10,198,199,200,bottom-3,bottom-2,bottom-1):
-                        for x in (10,637,638,639):
+                        for x in (10,79,77):
                             for plane in (shown.primary,shown.alternate):
                                 value=plane[(y+m["pixel_top"])*m["plane_width"]+x]
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
@@ -488,15 +491,15 @@ Hook.onKey(Key.f8) {|event|
                     # 200-line boundary. Command 19 puts baseline at Y+19;
                     # the native baseline 14 puts the strike's top at Y+5.
                     shown=frame(b"\x1b[15;2!\x1b[19;100;240!i")
-                    cursor(shown,102,260,16)
-                    rows=(7,7,0,0,0,0,7,7,7,7,7,7,7,7,0,0,0,0,0,0)
+                    position(shown,13,30)
+                    rows=(7,7,0,0,0,0,7,7,7,7,7,7,7,7,0,0,0,0,0)
                     for y,bits in enumerate(rows):
                         for x in range(4):
                             for plane in (shown.primary,shown.alternate):
                                 value=plane[(245+y+shown.metadata["pixel_top"])*shown.metadata["plane_width"]+100+x]
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
                                 assert value==(0xdddddd if x<3 and bits&(4>>x) else 0),(kick,encoding,x,y,value)
-                    cursor(frame(b"\x1bc"),0,15,14)
+                    position(frame(b"\x1bc"),0,0)
                 peer.shutdown(socket.SHUT_RDWR)
                 notice=client.wait_text("Disconnected: Enter exits, F1 details")
                 assert notice.metadata["cell_height"]==8

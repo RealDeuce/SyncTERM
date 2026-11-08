@@ -18,6 +18,7 @@ struct cterm_skypix_sink {
 	int (*text)(void *, const uint8_t *, size_t);
 	int (*command)(void *, const unsigned *, size_t, const uint8_t *, size_t);
 	bool (*paused)(void *);
+	int (*begin_command)(void *);
 };
 int cterm_skypix_parser_feed(struct cterm_skypix_parser *, const struct cterm_skypix_sink *,
 							 const uint8_t *, size_t, size_t *);

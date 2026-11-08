@@ -79,12 +79,14 @@ int cterm_skypix_parser_feed(struct cterm_skypix_parser *p, const struct cterm_s
 		}
 		if (c == '!') {
 			bool valid = !p->invalid && parameters(p);
+			if (s->begin_command != NULL)
+				status = s->begin_command(s->context);
 			unsigned command = valid ? p->parameters[0] : 0;
 			bool string = valid && (command == 16 ||
 									(command == 10 && p->count == 2 && p->parameters[1] != 0));
 			p->length = 0;
 			p->state = string ? STRING : PLAIN;
-			if (valid && !string)
+			if (status == 0 && valid && !string)
 				status = s->command(s->context, p->parameters, p->count, NULL, 0);
 		} else if (c == 0x1b) {
 			status = emit(p, s);

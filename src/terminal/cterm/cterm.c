@@ -1149,6 +1149,14 @@ cterm_clrblk(struct cterminal *cterm, int sx, int sy, int ex, int ey)
 void
 cterm_scrolldown(struct cterminal *cterm)
 {
+	if (cterm->skypix_engine != NULL) {
+		int status = cterm_skypix_hide_cursor(cterm->skypix_engine);
+		if (status != 0) {
+			cterm_render_record_error(cterm, status);
+			return;
+		}
+	}
+
 	int minx = TERM_MINX;
 	int miny = TERM_MINY;
 	int maxx = TERM_MAXX;
@@ -1368,6 +1376,14 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 void
 cterm_scrollup(struct cterminal *cterm)
 {
+	if (cterm->skypix_engine != NULL) {
+		int status = cterm_skypix_hide_cursor(cterm->skypix_engine);
+		if (status != 0) {
+			cterm_render_record_error(cterm, status);
+			return;
+		}
+	}
+
 	int minx = TERM_MINX;
 	int miny = TERM_MINY;
 	int maxx = TERM_MAXX;
@@ -1458,6 +1474,14 @@ cterm_clear2bol(struct cterminal * cterm)
 void
 cterm_clearscreen(struct cterminal *cterm, char attr)
 {
+	if (cterm->skypix_engine != NULL) {
+		int status = cterm_skypix_hide_cursor(cterm->skypix_engine);
+		if (status != 0) {
+			cterm_render_record_error(cterm, status);
+			return;
+		}
+	}
+
 	(void)attr;
 	if(!cterm->started)
 		cterm_start(cterm);

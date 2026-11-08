@@ -57,7 +57,7 @@ static void parser_tests(void)
 	for (size_t split = 0; split <= boundary; ++split) {
 		struct cterm_skypix_parser parser = {0};
 		struct parser_result r = {0};
-		struct cterm_skypix_sink s = {&r, plain, parsed, paused};
+		struct cterm_skypix_sink s = {.context = &r, .text = plain, .command = parsed, .paused = paused};
 		size_t used;
 		CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)wire, split, &used) == 0 &&
 			  used == split);
@@ -70,7 +70,7 @@ static void parser_tests(void)
 	}
 	struct cterm_skypix_parser parser = {0};
 	struct parser_result r = {0};
-	struct cterm_skypix_sink s = {&r, plain, parsed, paused};
+	struct cterm_skypix_sink s = {.context = &r, .text = plain, .command = parsed, .paused = paused};
 	size_t used;
 	const char malformed[] = "\x1b[1;999999999999999999999!\x1b[15;2!\x1b]x\x1b[15;4!\aZ";
 	CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)malformed, strlen(malformed),
@@ -83,6 +83,14 @@ static void feed(st_cterm_t *t, const char *text)
 	size_t used;
 	CHECK(st_cterm_write(t, text, strlen(text), &used) == 0 && used == strlen(text));
 }
+/* Raster/position fixtures exclude cursor pixels explicitly. Cursor behaviour
+ * is independently checked by st_cterm_skypix_cursor_test. */
+static int reset_without_cursor(st_cterm_t *t)
+{
+	int status = st_cterm_reset_terminal(t);
+	if (status == 0) feed(t, "\x1b[?25l");
+	return status;
+}
 static void depth_tests(st_cterm_t *t)
 {
 	/* ANSI.TXT / SkyTERM RGB4 defaults, independent of the renderer. */
@@ -91,7 +99,7 @@ static void depth_tests(st_cterm_t *t)
 		0x0077cc, 0x0000ff, 0x7700ff, 0xcc00ee, 0xcc0088};
 	const char mode[] = "\x1b[17;2!";
 	for (size_t split = 0; split <= strlen(mode); ++split) {
-		CHECK(st_cterm_reset_terminal(t) == 0);
+		CHECK(reset_without_cursor(t) == 0);
 		size_t used;
 		CHECK(st_cterm_write(t, mode, split, &used) == 0 && used == split);
 		CHECK(st_cterm_write(t, mode + split, strlen(mode) - split, &used) == 0);
@@ -165,7 +173,7 @@ static void depth_tests(st_cterm_t *t)
 	for (unsigned pen = 0; pen < 16; ++pen)
 		CHECK(colours[pen] == pen * 17);
 	feed(t, "\x1b[17;2!\x1b[15;15!\x1b[1;40;20!");
-	CHECK(st_cterm_reset_terminal(t) == 0 && t->skypix_engine->colours == 8);
+	CHECK(reset_without_cursor(t) == 0 && t->skypix_engine->colours == 8);
 	const struct st_console_rect reset_pixel = {40, 20, 1, 1};
 	CHECK(st_console_get_pixels(&pixels, t->screen.console, &reset_pixel, false) == 0);
 	CHECK(pixels->primary[0] == 519 && pixels->alternate[0] == 519);
@@ -273,7 +281,7 @@ static void wrapping_tests(st_cterm_t *t)
 			st_pixel_buffer_destroy(pixels);
 		}
 	}
-	CHECK(st_cterm_reset_terminal(t) == 0);
+	CHECK(reset_without_cursor(t) == 0);
 }
 static void put_be32(uint8_t *out, size_t value)
 {
@@ -346,7 +354,7 @@ static void brush_tests(st_cterm_t *t)
 	CHECK(t->skypix_engine->brush == saved && t->skypix_engine->brush_depth == 4);
 	CHECK(t->skypix_engine->brush_palette[0] == preserved && !t->skypix_engine->brush_palette_pending);
 	CHECK(st_cterm_skypix_receive(t, NULL, 0) == 0 && t->skypix_engine->brush == saved);
-	CHECK(st_cterm_reset_terminal(t) == 0);
+	CHECK(reset_without_cursor(t) == 0);
 }
 static void short_delay_tests(st_cterm_t *t)
 {
@@ -360,7 +368,7 @@ static void short_delay_tests(st_cterm_t *t)
 		if (ticks == 0) CHECK(t->skypix_engine->delay_until == 0);
 		else CHECK(t->skypix_engine->delay_until >= before + ticks * 20
 			&& t->skypix_engine->delay_until <= after + ticks * 20);
-		CHECK(st_cterm_reset_terminal(t) == 0);
+		CHECK(reset_without_cursor(t) == 0);
 	}
 }
 struct mouse_output {
@@ -440,7 +448,7 @@ static void mouse_tests(st_cterm_t *terminal)
 		event.data.mouse.pixel_y = 143;
 		feed(terminal, "\x1b[?1000l\x1b[?1006l\x1b[?1016l");
 	}
-	CHECK(st_cterm_reset_terminal(terminal) == 0 && st_cterm_mouse_mode(terminal) == 2);
+	CHECK(reset_without_cursor(terminal) == 0 && st_cterm_mouse_mode(terminal) == 2);
 	CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
 	terminal->api_output = saved;
 	terminal->api_output_context = saved_context;
@@ -506,7 +514,7 @@ static void gadget_tests(st_cterm_t *t)
 		feed(t, "\f\x1b[10;0!\x1b[12!");
 		CHECK(memcmp(t->skypix_engine->gadgets[19], clipped, sizeof(clipped)) == 0);
 		CHECK(output.size == 0);
-		CHECK(st_cterm_reset_terminal(t) == 0);
+		CHECK(reset_without_cursor(t) == 0);
 		const uint16_t empty[20][5] = {{0}};
 		CHECK(memcmp(t->skypix_engine->gadgets, empty, sizeof(empty)) == 0);
 	}
@@ -548,7 +556,7 @@ static void report_ordering_tests(st_cterm_t *t)
 	for (unsigned y = 0; y < 200; ++y) for (unsigned x = 0; x < 640; ++x)
 		expected[(size_t)y * 640 + x] = report_pixel(x, y);
 	for (size_t split = 0; split <= length + 1; ++split) {
-		CHECK(st_cterm_reset_terminal(t) == 0);
+		CHECK(reset_without_cursor(t) == 0);
 		size_t used;
 		if (split <= length) {
 			CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
@@ -604,6 +612,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 										   .scrollback_lines = 5,
 										   .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
+	feed(t, "\x1b[?25l");
 	struct st_cterm_state state;
 	CHECK(st_cterm_state(t, &state) == 0 && state.skypix && state.graphics_mode == graphics);
 	CHECK(t->rip_engine == NULL && t->skypix_engine != NULL);
@@ -682,7 +691,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	size_t used;
 	CHECK(st_cterm_write(t, delay, strlen(delay), &used) == 0 && used == 8 &&
 		  st_cterm_input_paused(t));
-	CHECK(st_cterm_reset_terminal(t) == 0 && !st_cterm_input_paused(t));
+	CHECK(reset_without_cursor(t) == 0 && !st_cterm_input_paused(t));
 	feed(t, "\x1b[2J\x1b[H\x1b[19;16;21!\x1b[10;20!Diamond.font!<");
 	CHECK(st_cterm_finish(t) == 0);
 	const struct st_console_rect overhang = {26, 29, 1, 9};
@@ -695,43 +704,17 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(st_console_get_pixels(&pixels, console, &overhang, false) == 0);
 	CHECK(pixels->primary[0] == ink && pixels->primary[8] == ink);
 	st_pixel_buffer_destroy(pixels);
-	/* Updated independent cursor probes: Diamond's underline follows its
-	 * baseline and proportional advance, with two-pixel sprite quantization. */
+	/* Text-position probes remain independent of cursor presentation. Named
+	 * fonts disable SkyTERM's bitmap cursor; its primitive has a focused test. */
 	feed(t, "\x1b[10;20!Diamond.font!\f");
-	CHECK(st_cterm_finish(t) == 0);
-	struct st_console_pixel_cursor cursor;
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0);
-	CHECK(cursor.enabled && cursor.visible && cursor.rectangle.x == 0 &&
-		cursor.rectangle.y == 15 && cursor.rectangle.width == 14 && cursor.rectangle.height == 1);
-	uint32_t cursor_colour = cursor.colour;
-	feed(t, "i\x1b[5n");
-	CHECK(st_cterm_finish(t) == 0);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.x == 2);
+	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == -5);
+	feed(t, "i");
+	CHECK(st_cterm_finish(t) == 0 && t->skypix_engine->x == 4);
 	feed(t, "W");
-	CHECK(st_cterm_finish(t) == 0);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.x == 22);
-	t->skypix_engine->cursor_deadline = 1000;
-	CHECK(cterm_skypix_poll(t->skypix_engine, 999) == 0);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible);
-	CHECK(cterm_skypix_poll(t->skypix_engine, 1000) == 0);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && !cursor.visible);
+	CHECK(st_cterm_finish(t) == 0 && t->skypix_engine->x == 24);
 	feed(t, "\x1b[19;101;40!");
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible &&
-		cursor.rectangle.x == 98 && cursor.rectangle.y == 60 && cursor.rectangle.width == 16);
-	CHECK(t->skypix_engine->cursor_deadline == 1185);
-	cterm_skypix_cursor_mode(t->skypix_engine, true, true);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && !cursor.visible);
-	cterm_skypix_cursor_mode(t->skypix_engine, false, true);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && !cursor.visible);
-	CHECK(cterm_skypix_poll(t->skypix_engine, 1185) == 0);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible);
-	cterm_skypix_cursor_mode(t->skypix_engine, false, false);
-	CHECK(cterm_skypix_poll(t->skypix_engine, 1370) == 0);
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.visible);
-	feed(t, "\x1b[11;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0!");
-	CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.colour == cursor_colour);
+	CHECK(t->skypix_engine->x == 101 && t->skypix_engine->y == 40);
 	feed(t, "\x1b[12!\x1b[10;0!");
-	t->skypix_engine->cursor_deadline = 0;
 	/* JR-Comm position probes: CR/LF are independent and BS/HT use
 	 * nominal Diamond/20 width, never the last proportional advance. */
 	feed(t, "\x1b[19;100;40!\x1b[10;20!Diamond.font!i\r");
@@ -784,6 +767,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		.amiga_font = st_amiga_font_builtin(font_height == 20 ? "Diamond.font" : "Ruby.font", font_height),
 		.scrollback_lines = capacity, .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
+	feed(t, "\x1b[?25l");
 	CHECK(t->backfilled == 0);
 	feed(t, "\x1b[17;2!\x1b[99;0!"); /* Neither command disables normal scrolling. */
 	for (unsigned i = 0; i < (font_height == 20 ? 9u : 15u); ++i)
@@ -814,8 +798,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		feed(t, "\r\n");
 		CHECK(st_cterm_finish(t) == 0);
 		CHECK(st_console_end_update(console) == 0);
-		struct st_console_pixel_cursor cursor;
-		CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.y == (font_height == 20 ? 195u : 190u));
+		CHECK(t->skypix_engine->y + (int)font_height == (font_height == 20 ? 195 : 190));
 		if (scroll == 1)
 			CHECK(st_console_set_palette(console, 200, &blue, 1) == 0);
 		uint32_t columns;
@@ -852,7 +835,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 				ST_SCREEN_MODE_AMIGA_640X200, status_line, images) == 0);
 			detached_row = rows - 1;
 			/* Reset retains history, including an unfinished pixel strip. */
-			CHECK(st_cterm_reset_terminal(t) == 0);
+			CHECK(reset_without_cursor(t) == 0);
 			feed(t, font_height == 20 ? "\x1b[19;0;175!" : "\x1b[19;0;178!");
 		}
 		free(cells);
@@ -920,8 +903,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		narrow[161] = 0;
 		feed(t, narrow);
 		CHECK(st_cterm_finish(t) == 0);
-		struct st_console_pixel_cursor cursor;
-		CHECK(st_console_get_pixel_cursor(console, &cursor) == 0 && cursor.rectangle.y == 195);
+		CHECK(t->skypix_engine->y + 20 == 195);
 		uint32_t columns;
 		size_t rows;
 		CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0 && rows > 0);
@@ -934,7 +916,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		}
 		st_pixel_buffer_destroy(image);
 	}
-	CHECK(st_cterm_reset_terminal(t) == 0);
+	CHECK(reset_without_cursor(t) == 0);
 	st_cterm_destroy(&t);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
@@ -954,6 +936,7 @@ static void graphics_history_test(void)
 		.codepage = ST_CODEPAGE_ISO_8859_1, .graphics_mode = ST_CTERM_GRAPHICS_SKYPIX_31,
 		.scrollback_lines = 3};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
+	feed(terminal, "\x1b[?25l");
 	feed(terminal, "\x1b[10;8!Pearl.font!\x1b[H");
 	for (unsigned row = 0; row < 30; ++row)
 		feed(terminal, "A\r\n");
@@ -972,7 +955,7 @@ static void graphics_history_test(void)
 	CHECK(terminal->backpos == position);
 	/* A later fractional font must be able to join older grid text without
 	 * rerendering it using the newly selected font or palette. */
-	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	CHECK(reset_without_cursor(terminal) == 0);
 	for (unsigned row = 0; row < 25; ++row) feed(terminal, "A\r\n");
 	struct st_console_cell text_row[80];
 	CHECK(st_cterm_copy_scrollback_rows(terminal, text_row, 80, 1, 2, 1, 0) == 1);

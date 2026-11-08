@@ -4750,9 +4750,9 @@
       "aspect": "Literal RGB cursor overlay, clipping, raw phase exclusion, standard-cursor handoff and snapshot restoration; identical-cell clear followed by graphics and independent status-row invalidation retains literal pixels in both planes"
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
-      "anchor": "cursor_deadline = 1000",
-      "aspect": "Independent Diamond 20 cursor positions, width mask/quantization, callback phase, hide/show, steady mode and palette isolation"
+      "path": "src/terminal/cterm/tests/st_cterm_skypix_cursor_test.c",
+      "anchor": "static void widths",
+      "aspect": "SkyTERM cursor shape and colours with clean visible-cursor ownership: exact nominal widths/baseline, two-phase saved-background restoration, clipping, first-bang command entry, font/reset transitions, no idle phase, palette/depth and split input/UTF-8 revision; brushes and retired scrollback reject stale cursor pixels. Replaces the former JR-Comm sprite/phase expectations."
     },
     {
       "path": "src/tests/st_skypix_mouse_test.py",
@@ -4787,7 +4787,7 @@
     {
       "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
       "anchor": "static void pixel_scroll_test",
-      "aspect": "Both phases and RGB palette freezing across partial-strip merges, zero/one-row capacity, ring wrap, reset and detached snapshots, exact 19-pixel overshoot, later ordinary cell scroll and bottom auto-wrap, Ruby/12 unscrolled padding and retained old Pearl rasters after selecting Diamond."
+      "aspect": "Both phases and RGB palette freezing across partial-strip merges, zero/one-row capacity, ring wrap, reset and detached snapshots, exact 19-pixel overshoot, later ordinary cell scroll and bottom auto-wrap, full drawable raster extent through the Ruby/12 font-row remainder and retained old Pearl rasters after selecting Diamond."
     },
     {
       "path": "src/scripting/wren_host/tests/codepage.wren",

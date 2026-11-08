@@ -32,8 +32,24 @@ Native compositor tests
 verify cursor overlay pixels, capture exclusion, clipping and snapshot cleanup.
 An identical-cell clear followed by explicit graphics and a status-row update
 must retain literal primary/alternate raster colours;
-native SkyPix tests inject deterministic blink callbacks. It is separate from the ANSI
+native SkyPix cursor tests check idle stability and clean background restoration.
+This is separate from the ANSI
 CP437/UTF-8 inventory below and from the historical RIP captures.
+
+SkyPix cursor rendering follows SkyTERM: exact nominal width at the text
+baseline, complementing active native plane bits with no idle blinking or
+separate overlay. `cterm_skypix_cursor` checks widths 8/9/20, clipping,
+exact background restoration, the command-entry effect at the first bang,
+unknown/rejected commands, font/reset transitions, Unicode revision, brushes
+and absence of cursor ghosts in brushes and retired scrollback. Unlike SkyTERM,
+the implementation tracks its actual live underline separately from its enable
+flag, removing it before mutation and movement. `syncterm_skypix_cursor` checks complete literal scenes
+in both planes, palette/state and menu snapshot restoration across both
+variants, CP437/UTF-8, status choices and 640x200/640x400. Old position/raster
+fixtures now gate cursor operations explicitly and observe logical positions
+instead of relying on JR-Comm overlay metadata. The selected text geometry,
+separate CR/LF and broader ANSI support remain as documented in the SkyPix
+reconciliation table.
 
 `syncterm_skypix_cache` checks command-16 types 2/3 as opaque cache uploads
 in both variants, CP437/UTF-8 and status choices. Literal SOH/STX packets test
