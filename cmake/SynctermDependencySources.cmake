@@ -95,6 +95,10 @@ function(syncterm_dependency_source name mode requested_libraries)
 			set(configurations Release)
 		endif()
 	endif()
+	set(binary_root "${CMAKE_BINARY_DIR}/dependencies/build/${lower}-${version}")
+	set(build_target st_build_${lower})
+	set(build_deps)
+	set(build_products)
 	foreach(config IN LISTS configurations)
 		set(prefix "${CMAKE_BINARY_DIR}/dependencies/${lower}-${version}/${config}")
 		set_property(TARGET ${target} PROPERTY ST_DEP_PREFIX_${config} "${prefix}")
@@ -108,9 +112,9 @@ function(syncterm_dependency_source name mode requested_libraries)
 				list(APPEND dep_prefixes "${dep_prefix}")
 			endif()
 		endforeach()
-		set(binary "${CMAKE_BINARY_DIR}/dependencies/build/${lower}-${version}/${config}")
-		set(config_file "${binary}/settings.cmake")
-		file(MAKE_DIRECTORY "${binary}" "${prefix}/include" "${prefix}/syncterm")
+		set(binary "${binary_root}/work/${config}")
+		set(config_file "${binary_root}/settings/${config}.cmake")
+		file(MAKE_DIRECTORY "${binary}" "${binary_root}/settings" "${prefix}/include" "${prefix}/syncterm")
 		if(include_suffix)
 			file(MAKE_DIRECTORY "${prefix}/include/${include_suffix}")
 		endif()
@@ -158,47 +162,18 @@ function(syncterm_dependency_source name mode requested_libraries)
 				list(APPEND products "${product}${static_suffix}")
 			endif()
 		endforeach()
-		set(build_target st_build_${lower}_${config})
-		set(build_deps)
+		foreach(product IN LISTS products)
+			if(CMAKE_CONFIGURATION_TYPES)
+				list(APPEND build_products "$<$<CONFIG:${config}>:${product}>")
+			else()
+				list(APPEND build_products "${product}")
+			endif()
+		endforeach()
 		foreach(dep_target IN LISTS dep_targets)
 			get_property(dep_builds TARGET ${dep_target} PROPERTY ST_DEP_BUILD_TARGETS_${config})
 			list(APPEND build_deps ${dep_builds})
 		endforeach()
 		set_property(TARGET ${target} PROPERTY ST_DEP_BUILD_TARGETS_${config} "${build_target}")
-		ExternalProject_Add(${build_target}
-			DOWNLOAD_COMMAND "${CMAKE_COMMAND}" "-DSOURCE_URL=${source_url}" "-DSHA256=${sha256}"
-				"-DCACHE_FILE=${SYNCTERM_DEPENDENCY_CACHE}/${lock_name}-${version}.tar"
-				"-DDOWNLOADS=${SYNCTERM_DEPENDENCY_DOWNLOADS}" "-DDESTINATION=<SOURCE_DIR>"
-				-P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Fetch.cmake"
-			PREFIX "${binary}/external" SOURCE_DIR "${binary}/source"
-			BINARY_DIR "${binary}/work" INSTALL_DIR "${prefix}"
-			PATCH_COMMAND "${CMAKE_COMMAND}" "-DSOURCE=<SOURCE_DIR>" "-DNAME=${name}" "-DMODE=${mode}"
-				"-DHAVE_ECHRNG=${ST_DEP_PIPEWIRE_HAVE_ECHRNG}"
-				"-DHAVE_EBADFD=${ST_DEP_PIPEWIRE_HAVE_EBADFD}"
-				-P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake"
-			CONFIGURE_COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${config_file}" "-DSOURCE=<SOURCE_DIR>"
-				"-DWORK=<BINARY_DIR>" -DSTEP=configure -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
-			BUILD_COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${config_file}" "-DSOURCE=<SOURCE_DIR>"
-				"-DWORK=<BINARY_DIR>" -DSTEP=build -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
-			INSTALL_COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${config_file}" "-DSOURCE=<SOURCE_DIR>"
-				"-DWORK=<BINARY_DIR>" -DSTEP=install -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
-			BUILD_BYPRODUCTS ${products} DEPENDS ${build_deps}
-			LOG_DOWNLOAD ON LOG_CONFIGURE ON LOG_BUILD ON LOG_INSTALL ON
-			LOG_OUTPUT_ON_FAILURE ON EXCLUDE_FROM_ALL TRUE)
-		ExternalProject_Add_Step(${build_target} configuration_inputs
-			COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES patch DEPENDERS configure
-			DEPENDS "${config_file}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
-				"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Recipes.cmake"
-				"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake"
-				"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/lock.json")
-		ExternalProject_Add_Step(${build_target} patch_inputs
-			COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES update DEPENDERS patch
-			INDEPENDENT TRUE
-			DEPENDS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake")
-		ExternalProject_Add_Step(${build_target} fetch_inputs
-			COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES mkdir DEPENDERS download
-			INDEPENDENT TRUE
-			DEPENDS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Fetch.cmake")
 		set(include_dirs "${prefix}/include")
 		if(include_suffix)
 			list(PREPEND include_dirs "${prefix}/include/${include_suffix}")
@@ -246,6 +221,51 @@ function(syncterm_dependency_source name mode requested_libraries)
 			target_link_libraries(${target} INTERFACE ${config_target})
 		endif()
 	endforeach()
+	# One build target follows the generator's active configuration. Separate
+	# per-config utility targets can order compilation after the wrong install.
+	if(CMAKE_CONFIGURATION_TYPES)
+		set(active_config "$<CONFIG>")
+	else()
+		list(GET configurations 0 active_config)
+	endif()
+	set(active_settings "${binary_root}/settings/${active_config}.cmake")
+	set(active_source "${binary_root}/source/${active_config}")
+	set(active_work "${binary_root}/work/${active_config}")
+	list(REMOVE_DUPLICATES build_deps)
+	ExternalProject_Add(${build_target}
+		DOWNLOAD_COMMAND "${CMAKE_COMMAND}" "-DSOURCE_URL=${source_url}" "-DSHA256=${sha256}"
+			"-DCACHE_FILE=${SYNCTERM_DEPENDENCY_CACHE}/${lock_name}-${version}.tar"
+			"-DDOWNLOADS=${SYNCTERM_DEPENDENCY_DOWNLOADS}" "-DDESTINATION=${active_source}"
+			-P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Fetch.cmake"
+		PREFIX "${binary_root}/external" SOURCE_DIR "${binary_root}/source"
+		BINARY_DIR "${binary_root}/work" INSTALL_DIR "${CMAKE_BINARY_DIR}/dependencies/${lower}-${version}"
+		PATCH_COMMAND "${CMAKE_COMMAND}" "-DSOURCE=${active_source}" "-DNAME=${name}" "-DMODE=${mode}"
+			"-DHAVE_ECHRNG=${ST_DEP_PIPEWIRE_HAVE_ECHRNG}"
+			"-DHAVE_EBADFD=${ST_DEP_PIPEWIRE_HAVE_EBADFD}"
+			-P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake"
+		CONFIGURE_COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${active_settings}" "-DSOURCE=${active_source}"
+			"-DWORK=${active_work}" -DSTEP=configure -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
+		BUILD_COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${active_settings}" "-DSOURCE=${active_source}"
+			"-DWORK=${active_work}" -DSTEP=build -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
+		INSTALL_COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${active_settings}" "-DSOURCE=${active_source}"
+			"-DWORK=${active_work}" -DSTEP=install -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
+		BUILD_BYPRODUCTS ${build_products} DEPENDS ${build_deps}
+		LOG_DOWNLOAD ON LOG_CONFIGURE ON LOG_BUILD ON LOG_INSTALL ON
+		LOG_OUTPUT_ON_FAILURE ON EXCLUDE_FROM_ALL TRUE)
+	ExternalProject_Add_Step(${build_target} configuration_inputs
+		COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES patch DEPENDERS configure
+		DEPENDS "${active_settings}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
+			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Recipes.cmake"
+			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake"
+			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/lock.json")
+	ExternalProject_Add_Step(${build_target} patch_inputs
+		COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES update DEPENDERS patch
+		INDEPENDENT TRUE
+		DEPENDS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake")
+	ExternalProject_Add_Step(${build_target} fetch_inputs
+		COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES mkdir DEPENDERS download
+		INDEPENDENT TRUE
+		DEPENDS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Fetch.cmake")
 	set_target_properties(${target} PROPERTIES ST_DEP_LINKAGE "${mode}"
 		ST_DEP_SOURCE BUNDLED ST_DEP_VERSION "${version}" ST_DEP_PATH "${prefix}"
 		ST_DEP_INCLUDE "${include_dirs}" ST_DEP_PREFIX "${prefix}" ST_DEP_PENDING TRUE

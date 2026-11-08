@@ -100,7 +100,13 @@ that exact pinned source archive, with the same mandatory hash verification.
 It is not a path to a compiled `.a` or `.lib` file.
 
 Sources, generated headers, toolchain settings, build logs and staged products
-stay under the build tree. Upstream build tools must be installed on the host:
+stay under the build tree. Multi-configuration generators build dependency
+sources for the requested configuration before compiling their consumers;
+source, work and staging directories remain separate for each configuration.
+CMake install steps publish changed contents even when file sizes and
+timestamps match. Dependency find modules also search the normalized library
+names, and versioned shared-library filenames are retained for the loader.
+Upstream build tools must be installed on the host:
 CMake and a native build tool for CMake recipes; Python and Ninja or make for
 Botan (MSVC requires Ninja, including the copy bundled with Visual Studio);
 Perl and make for OpenSSL; make for Autotools recipes; Meson and Ninja for Meson

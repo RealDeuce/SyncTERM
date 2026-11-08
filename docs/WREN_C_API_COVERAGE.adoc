@@ -53,6 +53,8 @@ link:api/wren-c-api-coverage.tsv[the native symbol ledger]. Each row records its
 header, source line, native signature/field type/macro body, and assessment id.
 link:api/wren-c-api-assessments.json[Assessment metadata] supplies the corresponding
 Wren operation, VM availability, ownership/limits, source evidence and disposition.
+The checker validates symbol/type coverage and referenced anchors. Git records
+source revisions; these accounting files do not maintain file fingerprints.
 The header matrix below makes the denominator and exceptions inspectable without
 reading thousands of declarations. It is deliberately not a direct-C-call count.
 

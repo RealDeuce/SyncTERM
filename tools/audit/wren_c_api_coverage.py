@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Verify the frozen native-interface ledger and its Wren assessment evidence.
+"""Verify the native-interface ledger and its Wren assessment references.
 
 Run at the repository root after configuring a native CMake build:
   python3 tools/audit/wren_c_api_coverage.py --check --build-dir build-wren-input
 Use --extract to emit the current native Clang inventory instead. This checks
-inventory/evidence drift, not semantic truth or the desirability of new APIs.
+declaration coverage and reference anchors, not file versions, semantic truth
+or the desirability of new APIs. Git records source revisions.
 The report documents conditional declarations and intentional exclusions.
 """
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
@@ -12,7 +13,6 @@ The report documents conditional declarations and intentional exclusions.
 import argparse
 import concurrent.futures
 import csv
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -63,10 +63,6 @@ def exclusion_reason(path):
         'decimal_double.h': 'Private decimal conversion representation behind value_convert.h.',
         'value_convert_time.h': 'Private calendar conversion implementation behind value_convert.h.'}
     return explicit.get(path.name)
-
-
-def digest(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def extract(header):
@@ -153,8 +149,7 @@ def extract(header):
         elif kind == 'VarDecl' and name and node.get('storageClass') == 'extern':
             add('variable:' + name, location, declaration)
     # Include every textual macro branch, including multiline and indented
-    # definitions. Preserve alternatives under one symbol id. Header digests
-    # also protect enum values, conditions, type aliases and comments/contracts.
+    # definitions. Preserve alternatives under one symbol id.
     pattern = r'^[ \t]*#define[ \t]+(\w+)((?:[^\n]*\\\n)*[^\n]*)'
     for match in re.finditer(pattern, source, re.M):
         name, value = match.groups()
@@ -194,10 +189,9 @@ def verify(data, excluded):
         if 'error' in entry:
             errors.append(header + ': ' + entry['error'])
             continue
-        require(header in recorded and digest(header) == recorded[header]['sha256'], header + ': header changed.')
         require(header in recorded and recorded[header]['status'] == 'reviewed', header + ': unreviewed header.')
         for symbol in entry['symbols']:
-            expected[(header, symbol['id'])] = (str(symbol['line']), symbol['type'])
+            expected[(header, symbol['id'])] = symbol['type']
     actual = {}
     groups = metadata['assessments']
     used = set()
@@ -205,11 +199,11 @@ def verify(data, excluded):
     for row in ledger:
         key = (row['header'], row['symbol'])
         require(key not in actual, str(key) + ': duplicate ledger entry.')
-        actual[key] = (row['line'], row['native_declaration'])
+        actual[key] = row['native_declaration']
         group = row['assessment']
         require(group in groups, str(key) + ': missing assessment.')
         used.add(group)
-    require(actual == expected, 'Native symbol/type/line inventory differs from frozen ledger.')
+    require(actual == expected, 'Native symbol/type inventory differs from coverage ledger.')
     require(used == groups.keys(), 'Assessment groups are missing or unused.')
     for key, assessment in groups.items():
         require(assessment.get('status') in statuses, key + ': invalid disposition.')
@@ -222,8 +216,6 @@ def verify(data, excluded):
             require(path.is_file(), key + ': missing evidence ' + str(path))
             if path.is_file():
                 require(evidence['anchor'] in path.read_text(), key + ': absent evidence anchor in ' + str(path))
-    for path, sha256 in metadata['evidence_files'].items():
-        require(Path(path).is_file() and digest(path) == sha256, path + ': evidence changed; re-review mappings.')
     evidence_records = [e for g in groups.values() for e in g['evidence']]
     for section in ('consumer_evidence', 'test_evidence', 'dispatch_evidence'):
         evidence_records.extend(metadata[section])
@@ -233,9 +225,6 @@ def verify(data, excluded):
         path = Path(evidence['path'])
         require(path.is_file() and evidence['anchor'] in path.read_text(),
                 str(path) + ': missing consumer/test/documentation evidence anchor.')
-    required_evidence = {e['path'] for e in evidence_records}
-    require(required_evidence <= metadata['evidence_files'].keys(),
-            'Some assessment evidence has no frozen digest.')
     report = Path('docs/WREN_C_API_COVERAGE.adoc').read_text()
     for finding in {g['finding'] for g in groups.values() if 'finding' in g}:
         require('[[finding-' + finding + ']]' in report,

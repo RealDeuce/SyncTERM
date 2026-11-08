@@ -147,6 +147,9 @@ if(BUILD_TESTING)
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_policy.cmake")
 	find_package(Python3 QUIET COMPONENTS Interpreter)
 	if(Python3_Interpreter_FOUND)
+		add_test(NAME wren_api_accounting_checks COMMAND "${Python3_EXECUTABLE}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/test_wren_c_api_coverage.py"
+			"${PROJECT_BINARY_DIR}/wren-api-check-tests")
 		add_test(NAME dependency_sources COMMAND "${Python3_EXECUTABLE}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_sources.py"
 			"${CMAKE_COMMAND}" "${PROJECT_BINARY_DIR}/dependency-source-tests")

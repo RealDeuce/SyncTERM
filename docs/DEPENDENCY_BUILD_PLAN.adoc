@@ -74,12 +74,17 @@ invalid selections, reconfiguration, concurrent cold downloads, offline cache
 and local archives, corrupt hashes, and adding/removing compiler definitions
 without losing prerequisite headers. They also check Unicode archive names
 under a C locale, Windows search-path separators and Botan's make fallback.
+Follow-up fixtures cover identical-size/timestamp installation changes,
+configuration-specific generated-header ordering, normalized prerequisite
+names, versioned shared-library aliases and rejection of a static archive for
+SHARED, plus Windows archive response files and object-path budgets.
 Native-SDK selection fixtures use
 host-built libraries to check policy; they do not emulate a macOS ABI.
 
 Native Linux execution, including mixed linkage, passed in pipeline 12907.
-Follow-up dependency-build corrections for macOS, OpenBSD and Windows still
-need native CI confirmation; universal macOS builds also remain unverified.
+The macOS job passed in pipeline 12909. Further dependency-lifecycle corrections
+for Linux, Windows and OpenBSD need another native CI run; universal macOS
+builds also remain unverified.
 No Windows target is executed under Wine.
 Not every pinned recipe or possible linkage combination has native execution
 coverage. The configuration report and dependency paths are retained with CI
@@ -89,6 +94,10 @@ The complete MinGW64 application cross-links with the pinned static audio and
 image decoder stack. Import inspection finds OS and compiler-runtime DLLs, with
 no decoder DLL dependency. Pinned Botan's crypto test executable also
 cross-links separately. These Windows binaries are not executed locally.
+The follow-up MinGW checks also build the pinned Botan SHA-256 subset in a
+directory containing spaces, using the patched archive response rule, and
+compile/install pinned mpg123 with bounded object paths. Their archives are
+inspected locally; no Windows execution is claimed.
 
 The final native selection covers 22 checks. Twenty pass in the original CTest
 run; MIDI build modes and Wren settings initially hit their normal execution

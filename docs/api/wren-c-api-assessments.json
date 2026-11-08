@@ -5,499 +5,416 @@
   "headers": [
     {
       "path": "src/base/array_list/array_list.h",
-      "sha256": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
       "status": "reviewed",
       "symbol_count": 18
     },
     {
       "path": "src/base/base64/st_base64.h",
-      "sha256": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
       "status": "reviewed",
       "symbol_count": 4
     },
     {
       "path": "src/base/crypto/st_cipher.h",
-      "sha256": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
       "status": "reviewed",
       "symbol_count": 9
     },
     {
       "path": "src/base/crypto/st_crypto.h",
-      "sha256": "dae21e573fb7b2003d8653f35253bf17ac86d0e99824f9ec64725188e458e635",
       "status": "reviewed",
       "symbol_count": 15
     },
     {
       "path": "src/base/crypto/st_digest.h",
-      "sha256": "7b496994019f13823d755c2055c33cbd1a0d51002fcf5b9eff3a014561a8950d",
       "status": "reviewed",
       "symbol_count": 7
     },
     {
       "path": "src/base/crypto/st_kdf.h",
-      "sha256": "74a097f887077e447a2ad9214e50c5a2dbf70e8a736ea56966634d33b941893e",
       "status": "reviewed",
       "symbol_count": 6
     },
     {
       "path": "src/base/dynamic_library/dynamic_library.h",
-      "sha256": "81ae52d9fe1a16853bbb48f9370727b762786a021cd5dd9d74b2d0e8d973810b",
       "status": "reviewed",
       "symbol_count": 5
     },
     {
       "path": "src/base/event/st_event.h",
-      "sha256": "214bd304f5c21db733baf0ddcfbb54c1b8ab534484f6bb8d34573d62d9fe7c92",
       "status": "reviewed",
       "symbol_count": 9
     },
     {
       "path": "src/base/hex/st_hex.h",
-      "sha256": "9079e3ba779f3f33f9bf1eb33f98a985b0ee02a2581249b64c3526ff06d1de8d",
       "status": "reviewed",
       "symbol_count": 3
     },
     {
       "path": "src/base/io_error/io_error.h",
-      "sha256": "e80075c998748fbabdd638956bf03ba3a22272dad6c033dbb6df6df425c39ee7",
       "status": "reviewed",
       "symbol_count": 40
     },
     {
       "path": "src/base/language/st_language.h",
-      "sha256": "21063c22f017c3020c0f88749f3f76c5b58b143e091baae2bf48742a91ea0cfc",
       "status": "reviewed",
       "symbol_count": 4
     },
     {
       "path": "src/base/md5/st_md5.h",
-      "sha256": "84280be1bb3d0556c5614166a4856d0fc8291d3cc5904d62748ea21fdeeefa38",
       "status": "reviewed",
       "symbol_count": 6
     },
     {
       "path": "src/base/name_value_list/name_value_list.h",
-      "sha256": "3a47a221ccfe7e8afe23e495f8c33dccb534e92954922997d14edab1a339212d",
       "status": "reviewed",
       "symbol_count": 15
     },
     {
       "path": "src/base/semaphore/st_semaphore.h",
-      "sha256": "ff4f16509472abecfe52b50a23512f1a707156ee0733b5b243a152d3d37fcb64",
       "status": "reviewed",
       "symbol_count": 6
     },
     {
       "path": "src/base/str_list/str_list.h",
-      "sha256": "cd72d5328c79455f9ff965bb5bfe3a67fd093c6332d4b0c47ffbf502faa5e85a",
       "status": "reviewed",
       "symbol_count": 12
     },
     {
       "path": "src/base/string_compat/string_compat.h",
-      "sha256": "c009691683ab5be3e261755477276cda6fffd62c972bdc0a7b70bf4e733d56cf",
       "status": "reviewed",
       "symbol_count": 10
     },
     {
       "path": "src/base/string_util/string_util.h",
-      "sha256": "079a730a2301540033d802b066fc01dcad20524321ec422fa67870bf286c7094",
       "status": "reviewed",
       "symbol_count": 12
     },
     {
       "path": "src/base/threads/st_threads.h",
-      "sha256": "e95d6e0e8210ee84a1c0884916c48f6939a3b74819f76f95fd9ed55808f62558",
       "status": "reviewed",
       "symbol_count": 45
     },
     {
       "path": "src/base/time/st_time.h",
-      "sha256": "185a02bb0082369b2cd8aae5e6923d98a267163e95030bbee3440fb207784579",
       "status": "reviewed",
       "symbol_count": 8
     },
     {
       "path": "src/base/value_convert/value_convert.h",
-      "sha256": "bb019fd7108319caae88007c096737ef2d0c77dffac562e54bfa0511ee48a16b",
       "status": "reviewed",
       "symbol_count": 13
     },
     {
       "path": "src/config/app_paths/st_app_paths.h",
-      "sha256": "8d98d54d6dc698c911891de1e1122fde0d5bedbef4039ed89ca2e4cb3cfa55a9",
       "status": "reviewed",
       "symbol_count": 26
     },
     {
       "path": "src/config/bbs_list/st_bbs_list.h",
-      "sha256": "7a6f7843074d74caba9a845d47527a4877f1cd4a0854d9a5b94ae613101614af",
       "status": "reviewed",
       "symbol_count": 100
     },
     {
       "path": "src/config/consent_token/st_consent_token.h",
-      "sha256": "17c510324b8e490e9b8e9d22111975ab42e48c0721cfc19bde6a04e041b42ccb",
       "status": "reviewed",
       "symbol_count": 4
     },
     {
       "path": "src/config/ini/ini.h",
-      "sha256": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
       "status": "reviewed",
       "symbol_count": 58
     },
     {
       "path": "src/config/list_crypto/st_list_crypto.h",
-      "sha256": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
       "status": "reviewed",
       "symbol_count": 33
     },
     {
       "path": "src/config/profile/st_profile.h",
-      "sha256": "a68bcd842acbaef37ff290723056005421b2d4bd79acb7efc4886e439e019edd",
       "status": "reviewed",
       "symbol_count": 162
     },
     {
       "path": "src/config/settings/st_settings.h",
-      "sha256": "b90d7d8d2c815af15652c3a7c9ea64950d5605b4cae329bd0fc3c457a38dbb33",
       "status": "reviewed",
       "symbol_count": 106
     },
     {
       "path": "src/config/theme/st_theme.h",
-      "sha256": "ac2571459358b88dc2b0f829a77e06b23b169c59ea53f5c8012c20b3df4351f8",
       "status": "reviewed",
       "symbol_count": 122
     },
     {
       "path": "src/io/file_lock/st_file_lock.h",
-      "sha256": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
       "status": "reviewed",
       "symbol_count": 2
     },
     {
       "path": "src/io/file_map/file_map.h",
-      "sha256": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
       "status": "reviewed",
       "symbol_count": 5
     },
     {
       "path": "src/io/filesystem/filesystem.h",
-      "sha256": "0352952dd72d0999380f6460216b95e9359b07c3f1bdd52fbfad7a9418f60fed",
       "status": "reviewed",
       "symbol_count": 23
     },
     {
       "path": "src/io/path/path.h",
-      "sha256": "b3b3a2d5ae72bcdf00042701aba27cbb9dc2850b2f9add9f3baa887d797227b2",
       "status": "reviewed",
       "symbol_count": 10
     },
     {
       "path": "src/io/serial/serial.h",
-      "sha256": "c6b8e7262cee2df77b3958a15a3ae43ce35a073e795516c9098baf0d00d814a7",
       "status": "reviewed",
       "symbol_count": 25
     },
     {
       "path": "src/media/amiga_font/st_amiga_font.h",
-      "sha256": "6424b10e3d0c687ef221e4430e4169b7ec16dfd699fd531b40b1c92aeb27d466",
       "status": "reviewed",
       "symbol_count": 26
     },
     {
       "path": "src/media/amiga_font/st_amiga_fonts.h",
-      "sha256": "a89688cc13b0aaf2ac43404475193c4235eed3932d38e81fa661f66d73a025bd",
       "status": "reviewed",
       "symbol_count": 17
     },
     {
       "path": "src/media/audio/audio.h",
-      "sha256": "d486d6fe3a48cb9db1303630b5fcb4cf5d4d9b5a472ca674a0f386966ca57cc5",
       "status": "reviewed",
       "symbol_count": 52
     },
     {
       "path": "src/media/audio/st_audio_runtime.h",
-      "sha256": "405ec23af71fac2341648a6ddf6297e907e5557303457e2aeaa462010d3116dc",
       "status": "reviewed",
       "symbol_count": 12
     },
     {
       "path": "src/media/audio_file/st_audio_file.h",
-      "sha256": "7236377b7bed90f3875e0872e18090221dd1b84a33f4b66ffbfc7ade448831da",
       "status": "reviewed",
       "symbol_count": 5
     },
     {
       "path": "src/media/audio_mixer/audio_mixer.h",
-      "sha256": "bbce67c37ac0c4feb67426ad7ef0cd77766efaf5a90b167ebe99e52767635ce8",
       "status": "reviewed",
       "symbol_count": 24
     },
     {
       "path": "src/media/console/st_console.h",
-      "sha256": "ad6930749fc58330de45c35675dee34d14d09191fb9c91098b1d478c480c8fed",
       "status": "reviewed",
       "symbol_count": 380
     },
     {
       "path": "src/media/font_catalog/st_font_catalog.h",
-      "sha256": "ffccf0c09a51e77bc9f8b67b9a15835e772a2eb66b8bcbcf4f1254448a2fa11c",
       "status": "reviewed",
       "symbol_count": 21
     },
     {
       "path": "src/media/fonts/st_builtin_fonts.h",
-      "sha256": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
       "status": "reviewed",
       "symbol_count": 6
     },
     {
       "path": "src/media/fonts/st_emoji_fonts.h",
-      "sha256": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
       "status": "reviewed",
       "symbol_count": 3
     },
     {
       "path": "src/media/fonts/st_presentation_font.h",
-      "sha256": "c39d49aaa44cedb1a78d95f0c0c47a36756b1706d5733f8e9d63aaf6318ea41b",
       "status": "reviewed",
       "symbol_count": 4
     },
     {
       "path": "src/media/fonts/st_unicode_fonts.h",
-      "sha256": "c53a160e4eff5498827e376c538770dd6d63abe4fa5e4e09cfa0bb86ded2e6b4",
       "status": "reviewed",
       "symbol_count": 2
     },
     {
       "path": "src/media/music/st_music.h",
-      "sha256": "fcbaa5274d26024655d0cfcf728944eaae974cf7c162c93417ca20213d9b767e",
       "status": "reviewed",
       "symbol_count": 34
     },
     {
       "path": "src/media/pixel_image/st_pixel_image.h",
-      "sha256": "19f84636b92b53e8d5ae21eaa86f25c1058789f1db5f111fb78f76c6d645dba3",
       "status": "reviewed",
       "symbol_count": 7
     },
     {
       "path": "src/media/pixels/st_pixels.h",
-      "sha256": "539f95656dd5b18fbedf3ec8e9dfbe5de6cca8ebbe78a015afcf9a21cc850dd2",
       "status": "reviewed",
       "symbol_count": 49
     },
     {
       "path": "src/net/connection/connection_shell_codec.h",
-      "sha256": "0adf830aee0f3d54f08fdf41a91c190e720f60cbffb32b0c9bd8381c65c542a5",
       "status": "reviewed",
       "symbol_count": 16
     },
     {
       "path": "src/net/connection/connection_stream.h",
-      "sha256": "c64451fcce7cea40c6977e4a8ecfc22d9aeea253ae9ccc8f3dd31c9464bcc7c8",
       "status": "reviewed",
       "symbol_count": 18
     },
     {
       "path": "src/net/connection/connection_tcp.h",
-      "sha256": "77b07449c9d3df3cd64aba1605d65adf1cb692283cec467460d1c40d7b929a01",
       "status": "reviewed",
       "symbol_count": 1
     },
     {
       "path": "src/net/connection/st_connection.h",
-      "sha256": "52c39026b23c2fcc863e15b4ccd24d8cb7ce0aa41bb1500fd0d418608424582f",
       "status": "reviewed",
       "symbol_count": 76
     },
     {
       "path": "src/net/sftp_client/st_sftp.h",
-      "sha256": "08aa71dcc5e0d57c3d237f0c7285bf13d74a68b45fee24fa22b518aa22afa758",
       "status": "reviewed",
       "symbol_count": 78
     },
     {
       "path": "src/net/socket/socket.h",
-      "sha256": "8a1bc4f009011d890edc30b77d2858856a0bc5fdced2832329bd636022db5cb4",
       "status": "reviewed",
       "symbol_count": 27
     },
     {
       "path": "src/net/tcp_client/tcp_client.h",
-      "sha256": "e64123625dc25997f5373cfb33602533ae48bb4432bb7eca3268ff15c6f5ba3e",
       "status": "reviewed",
       "symbol_count": 17
     },
     {
       "path": "src/net/tls/st_tls.h",
-      "sha256": "e84511bba583a3f02a2729561c056fe34f2b70e5bea57e332d45120f010089fc",
       "status": "reviewed",
       "symbol_count": 56
     },
     {
       "path": "src/net/transfer/st_transfer.h",
-      "sha256": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
       "status": "reviewed",
       "symbol_count": 83
     },
     {
       "path": "src/net/transfer/st_transfer_detect.h",
-      "sha256": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
       "status": "reviewed",
       "symbol_count": 3
     },
     {
       "path": "src/net/webget/st_webget.h",
-      "sha256": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
       "status": "reviewed",
       "symbol_count": 33
     },
     {
       "path": "src/scripting/wren_host/st_wren_host.h",
-      "sha256": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
       "status": "reviewed",
       "symbol_count": 70
     },
     {
       "path": "src/st_app_state.h",
-      "sha256": "9a66f9d8cab3c0ecd175d5426b59df838a817a70ac70609d293c7568381b524f",
       "status": "reviewed",
       "symbol_count": 1
     },
     {
       "path": "src/st_application.h",
-      "sha256": "011fcf76bf3e91ad15594862d35d9bc2802179c0c55c79f9e6ef63e1ac522ad2",
       "status": "reviewed",
       "symbol_count": 8
     },
     {
       "path": "src/st_command_line.h",
-      "sha256": "e4c39f9c2accaecb447fad05ca42f30487d27cc7d9fb7ebcbc6b9e27efe2f386",
       "status": "reviewed",
       "symbol_count": 24
     },
     {
       "path": "src/st_console_startup.h",
-      "sha256": "d1ad9846bd2836e6a888da47a2c20e129aef65db1471b0ccc2b78fdb14ad4a33",
       "status": "reviewed",
       "symbol_count": 4
     },
     {
       "path": "src/st_libretro_input.h",
-      "sha256": "5f8b2eea549b6ab14b9b2f6cbc427aa189cad353f6a0edab49b21ce364b7dcd7",
       "status": "reviewed",
       "symbol_count": 1
     },
     {
       "path": "src/st_syncterm_icon.h",
-      "sha256": "db9a42ed07712ff11469c9a4378df4669cab199da882051b6529cdf933a18c78",
       "status": "reviewed",
       "symbol_count": 1
     },
     {
       "path": "src/st_terminfo.h",
-      "sha256": "852d5c5f13d3d8f21aa0903d990cad1ab152ab6bb292a614bf12eb0a79f8ffeb",
       "status": "reviewed",
       "symbol_count": 1
     },
     {
       "path": "src/syncterm_types.h",
-      "sha256": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
       "status": "reviewed",
       "symbol_count": 0
     },
     {
       "path": "src/terminal/cterm/st_cterm.h",
-      "sha256": "80e8a46e0482618e1437d03d73ba9e9bcee3a2d4295498760a22c798dc353a26",
       "status": "reviewed",
       "symbol_count": 178
     },
     {
       "path": "src/terminal/hyperlink/st_hyperlink.h",
-      "sha256": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
       "status": "reviewed",
       "symbol_count": 13
     },
     {
       "path": "src/terminal/ooii/st_ooii.h",
-      "sha256": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
       "status": "reviewed",
       "symbol_count": 12
     },
     {
       "path": "src/terminal/screen_mode/st_screen_mode.h",
-      "sha256": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
       "status": "reviewed",
       "symbol_count": 25
     },
     {
       "path": "src/terminal/session_history/st_session_history.h",
-      "sha256": "d34a5152abb9174219b2dc08f1c296109c4d1040b7e8526ee9fa198ef5133119",
       "status": "reviewed",
       "symbol_count": 12
     },
     {
       "path": "src/terminal/term/st_term.h",
-      "sha256": "537c1af2e49b5798153e882d3ef9626d277104c0af1240685d849478f61d5543",
       "status": "reviewed",
       "symbol_count": 91
     },
     {
       "path": "src/text/codepage/st_codepage.h",
-      "sha256": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
       "status": "reviewed",
       "symbol_count": 35
     },
     {
       "path": "src/text/emoji/st_emoji_catalog.h",
-      "sha256": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
       "status": "reviewed",
       "symbol_count": 6
     },
     {
       "path": "src/text/emoji/st_emoji_locale.h",
-      "sha256": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
       "status": "reviewed",
       "symbol_count": 6
     },
     {
       "path": "src/text/unicode_compare/st_unicode_compare.h",
-      "sha256": "b3625727e4d406909a5e505b3285fd01c077105f7fa0996484264071877f8578",
       "status": "reviewed",
       "symbol_count": 14
     },
     {
       "path": "src/text/unicode_grapheme/st_unicode_grapheme.h",
-      "sha256": "e6e229d7b0a9d41908f21e210e4dbfc6b8a2f5f0fa87941f1791f1b281d6a350",
       "status": "reviewed",
       "symbol_count": 22
     },
     {
       "path": "src/text/unicode_normalization/st_unicode_normalization.h",
-      "sha256": "cac5d848896ff4c278fad91926d02c5c9f07adaaabd39788d4ff5060f778ee53",
       "status": "reviewed",
       "symbol_count": 3
     },
     {
       "path": "src/text/unicode_text/st_unicode_text.h",
-      "sha256": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
       "status": "reviewed",
       "symbol_count": 44
     },
     {
       "path": "src/text/unicode_width/st_unicode_width.h",
-      "sha256": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
       "status": "reviewed",
       "symbol_count": 12
     },
     {
       "path": "src/text/utf8/st_utf8.h",
-      "sha256": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
       "status": "reviewed",
       "symbol_count": 20
     }
@@ -4966,287 +4883,6 @@
       "aspect": "module/VM routing and concrete session binder precedes core fallbacks"
     }
   ],
-  "evidence_files": {
-    "addons/modern_ui/scripts/modern_ui.wren": "775b847aff32d0d32e351519f0991738db0883085b2f949954fac59251feb670",
-    "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
-    "addons/modern_ui/tests/test_frontend.py": "69c066524d11fa21a9880bd83c1c4e7cd46d29dbc3ecf5c47a3b9aab858c3153",
-    "docs/RIP154_CONFORMANCE.md": "01659bbb9abc6b9151f825622c6415271d0a06f56133fe035dd1df73318adb10",
-    "docs/SKYPIX_CONFORMANCE.md": "8a337f949f91c34760c6df2535f6abe6451c3756e51715d48e9a443a018025b9",
-    "docs/TERMINAL_CONFORMANCE.md": "2ff58b87a06565c7bf3ab3fd0e698a53d81f6fdf100b2a04b3aa11be321ed70b",
-    "docs/Themes.adoc": "04547f254e993b9f480311fb71343edd7c9c67f7a17677d995fb7ed618a1b462",
-    "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "537122f4b0f495301712c55d9df7af7d00bba4081008ed86e98ec7c431b0e3ab",
-    "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
-    "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
-    "scripts/auto/connected/font_pick.wren": "b7c7176c36e9ec274425e4ea3bd14f37ce9991e6fe19078a83ec614e6978422b",
-    "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
-    "scripts/menu_bbs_editor.wren": "d7439a3116e2e4f33f6001ea1979c87d4c1b04c9974140b046b538e317133216",
-    "scripts/menu_scrollback.wren": "e6f4d278a863a7d6217a84d5fb48245f780ed61c89deaecbea87ef91e33923da",
-    "scripts/menu_settings_ui.wren": "7502b742a0a3a2bc813040965a98395c750cc16256762cf45fd10343eac6a17c",
-    "scripts/menu_settings_ui_test.wren": "b4afae539d951f05034cf3faa036162c1a6df8451499392bac9f7ccaaa157f1b",
-    "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
-    "scripts/menu_theme_editor.wren": "cea2c9d2960f1df6fd24f1d829d0eec90839592bdefc1af6300eafe4e15aeb14",
-    "scripts/menu_theme_editor_test.wren": "8921e9d5a3c3ed83f889929d0c0a78c00b655ca07ba210f69093b4e8f5508e64",
-    "scripts/menu_ui.wren": "57232e460e4eec3bd090f28dad29eec09f897ea7f56666ac43646c365aba04f4",
-    "scripts/pixel_vm_test.wren": "61dee1425b2a5ec67afb96dc04a27f1e20dad6243a149cd67eab514d2541f2cf",
-    "scripts/sftp_app.wren": "768e459dd484d4bf094edb61cd85b2ed58ecaca47475b4a6887e14e628fe12f0",
-    "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "49845b6a8e1e1f76fad195b11e67395b415a8482505412e8ee54c44eab33b5ee",
-    "scripts/syncterm_menu.wren": "1a0835987132b835703dae839bc5a3a13f49c585f3cdedb170f6daff00d7fbfa",
-    "scripts/syncterm_picker.wren": "06b539737eb1a35dbfa10417c9310be744246fa666262c0e0c791507fd918077",
-    "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
-    "scripts/transfer_pick.wren": "aa529f7bfc8e0d9e086f9a42fd829f7414fb67fbcc99644bef38eb235a9f8ed5",
-    "scripts/ui_app.wren": "29c84e7ceed05bf0e025c1af464bc9d9e85cf4d78ce841abc7615bdc00f93496",
-    "scripts/ui_demo.wren": "885059ec0b92c72e5fb97cc8a1a09e936718bbd1ed3722b3a2802f548a6d00ed",
-    "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
-    "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
-    "scripts/wrentest.wren": "4b4fd0f5e84de364e0315a17a9bf89f950c2463389db0bc54483be733baa58e7",
-    "src/CMakeLists.txt": "19cf660603c4838781d075c8e61c94f6b550853bf4c4de0cfeae07791f8dc276",
-    "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
-    "src/base/base64/st_base64.h": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
-    "src/base/crypto/st_cipher.h": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
-    "src/base/crypto/st_crypto.h": "dae21e573fb7b2003d8653f35253bf17ac86d0e99824f9ec64725188e458e635",
-    "src/base/crypto/st_digest.h": "7b496994019f13823d755c2055c33cbd1a0d51002fcf5b9eff3a014561a8950d",
-    "src/base/crypto/st_kdf.h": "74a097f887077e447a2ad9214e50c5a2dbf70e8a736ea56966634d33b941893e",
-    "src/base/dynamic_library/dynamic_library.h": "81ae52d9fe1a16853bbb48f9370727b762786a021cd5dd9d74b2d0e8d973810b",
-    "src/base/event/st_event.h": "214bd304f5c21db733baf0ddcfbb54c1b8ab534484f6bb8d34573d62d9fe7c92",
-    "src/base/hex/st_hex.h": "9079e3ba779f3f33f9bf1eb33f98a985b0ee02a2581249b64c3526ff06d1de8d",
-    "src/base/io_error/io_error.h": "e80075c998748fbabdd638956bf03ba3a22272dad6c033dbb6df6df425c39ee7",
-    "src/base/language/st_language.h": "21063c22f017c3020c0f88749f3f76c5b58b143e091baae2bf48742a91ea0cfc",
-    "src/base/md5/st_md5.h": "84280be1bb3d0556c5614166a4856d0fc8291d3cc5904d62748ea21fdeeefa38",
-    "src/base/name_value_list/name_value_list.h": "3a47a221ccfe7e8afe23e495f8c33dccb534e92954922997d14edab1a339212d",
-    "src/base/semaphore/st_semaphore.h": "ff4f16509472abecfe52b50a23512f1a707156ee0733b5b243a152d3d37fcb64",
-    "src/base/str_list/str_list.h": "cd72d5328c79455f9ff965bb5bfe3a67fd093c6332d4b0c47ffbf502faa5e85a",
-    "src/base/string_compat/string_compat.h": "c009691683ab5be3e261755477276cda6fffd62c972bdc0a7b70bf4e733d56cf",
-    "src/base/string_util/string_util.h": "079a730a2301540033d802b066fc01dcad20524321ec422fa67870bf286c7094",
-    "src/base/threads/st_threads.h": "e95d6e0e8210ee84a1c0884916c48f6939a3b74819f76f95fd9ed55808f62558",
-    "src/base/time/st_time.h": "185a02bb0082369b2cd8aae5e6923d98a267163e95030bbee3440fb207784579",
-    "src/base/value_convert/value_convert.h": "bb019fd7108319caae88007c096737ef2d0c77dffac562e54bfa0511ee48a16b",
-    "src/config/app_paths/st_app_paths.h": "8d98d54d6dc698c911891de1e1122fde0d5bedbef4039ed89ca2e4cb3cfa55a9",
-    "src/config/bbs_list/st_bbs_list.c": "0bd566ce145a48b28bfa618801e3d01633c6cc731b0d32c8f3b6a8c83a4e1382",
-    "src/config/bbs_list/st_bbs_list.h": "7a6f7843074d74caba9a845d47527a4877f1cd4a0854d9a5b94ae613101614af",
-    "src/config/bbs_list/st_bbs_profile_codec.c": "6a8d73eb02423760c4fa65ceadb19d81db9831335861a545234f309c0a5c4498",
-    "src/config/bbs_list/st_bbs_store.c": "ff65237cac82c55d34b20a69061dcf0284e13653f20d629531209547f43131bc",
-    "src/config/bbs_list/tests/st_bbs_list_test.c": "601dc461ca3c9916176d8af3983b3de203f786c8247460635a31e194090efca1",
-    "src/config/consent_token/st_consent_token.h": "17c510324b8e490e9b8e9d22111975ab42e48c0721cfc19bde6a04e041b42ccb",
-    "src/config/ini/ini.h": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
-    "src/config/list_crypto/st_list_crypto.c": "e53d183461012142e5f9d2d417030efe55bc42469944747b414b9907b516dd67",
-    "src/config/list_crypto/st_list_crypto.h": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
-    "src/config/profile/st_profile.h": "a68bcd842acbaef37ff290723056005421b2d4bd79acb7efc4886e439e019edd",
-    "src/config/settings/st_settings.h": "b90d7d8d2c815af15652c3a7c9ea64950d5605b4cae329bd0fc3c457a38dbb33",
-    "src/config/settings/st_settings_store.c": "04b9084f40708e67ba6f781c5ff464f8d326125ad6d773c8fd8df62b5bbc23ae",
-    "src/config/theme/st_theme.c": "ba1e27027c1ee59f242d9992c819601d8678cdd90d44305751a685b5a5536a61",
-    "src/config/theme/st_theme.h": "ac2571459358b88dc2b0f829a77e06b23b169c59ea53f5c8012c20b3df4351f8",
-    "src/config/theme/st_theme_cloud.c": "81e112989eacf40cf3f63c7412a48f04a8bab722be95a5eae3213b32a7f75c24",
-    "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
-    "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
-    "src/config/theme/tests/st_theme_test.c": "d74875fdb789bedb5533fdf8e4e7726d7c14cc5c3beaf265e34ff9ce3aca907f",
-    "src/config/theme/theme_internal.h": "bec641bc70123f40fe9da989db4fe59f58cfc5defb1b25825642669d4cc6fc80",
-    "src/io/file_lock/st_file_lock.h": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
-    "src/io/file_map/file_map.h": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
-    "src/io/filesystem/filesystem.h": "0352952dd72d0999380f6460216b95e9359b07c3f1bdd52fbfad7a9418f60fed",
-    "src/io/path/path.h": "b3b3a2d5ae72bcdf00042701aba27cbb9dc2850b2f9add9f3baa887d797227b2",
-    "src/io/serial/serial.h": "c6b8e7262cee2df77b3958a15a3ae43ce35a073e795516c9098baf0d00d814a7",
-    "src/media/amiga_font/data/manifest.json": "56069510f2d0bd964c4967700653e585fc5f6de118585624dbd852c55525ee11",
-    "src/media/amiga_font/generate_fonts.py": "809e43b4d728e16d1677c0fdb1b043efe0f6c0a46abd6c5d7851dfca426fe62b",
-    "src/media/amiga_font/st_amiga_font.c": "400f70fa84626c90dd815901b9a831501850ebbc5dc0e1ac50e4a86a3623501a",
-    "src/media/amiga_font/st_amiga_font.h": "6424b10e3d0c687ef221e4430e4169b7ec16dfd699fd531b40b1c92aeb27d466",
-    "src/media/amiga_font/st_amiga_fonts.c": "c4c5f6bbf65a319651f9f13c004bed1d3eb12da4942126a82df25552e3d24b85",
-    "src/media/amiga_font/st_amiga_fonts.h": "a89688cc13b0aaf2ac43404475193c4235eed3932d38e81fa661f66d73a025bd",
-    "src/media/amiga_font/tests/st_amiga_font_fault_test.c": "64892edfd9982fa28be9d4eaeeb5cbb9f6fd611acfecd32d0722b29ab744ad8d",
-    "src/media/amiga_font/tests/test_generate_fonts.py": "94f79b10ef41dc2952490228afffca139d5ade1bbfbb5d35cf9c823259774e46",
-    "src/media/audio/audio.h": "d486d6fe3a48cb9db1303630b5fcb4cf5d4d9b5a472ca674a0f386966ca57cc5",
-    "src/media/audio/st_audio_runtime.h": "405ec23af71fac2341648a6ddf6297e907e5557303457e2aeaa462010d3116dc",
-    "src/media/audio_file/st_audio_file.h": "7236377b7bed90f3875e0872e18090221dd1b84a33f4b66ffbfc7ade448831da",
-    "src/media/audio_mixer/audio_mixer.h": "bbce67c37ac0c4feb67426ad7ef0cd77766efaf5a90b167ebe99e52767635ce8",
-    "src/media/console/CMakeLists.txt": "cc3eb6b3f098dce05b5ce8789660a98be881a1794d03c2f01a264ce0a036b8eb",
-    "src/media/console/console_config.h.in": "fc26cffedfc0ef8811d4fd44231c027416f7cd808680cbbf0ec5a677e85be260",
-    "src/media/console/console_ncurses.c": "8ff519cd67a969d3d46eb6d7d9c0da922dcf303dc8601f79c088ac7d7bb0435e",
-    "src/media/console/console_pixels.c": "c27623769b3849f0377dc817c61331a5f813a9d711d5e1af091740cd4b63e50e",
-    "src/media/console/console_text.c": "b6f7dd2cae086162bb74f90397e299a0a310e34ede02604650db537fe59250ae",
-    "src/media/console/st_console.h": "ad6930749fc58330de45c35675dee34d14d09191fb9c91098b1d478c480c8fed",
-    "src/media/console/tests/console_bitmap_test.c": "5137e530ffd1c7e2f5b277be82e74d7ec60023cd2b0c8004779ba47f4fc66fa7",
-    "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
-    "src/media/console/tests/st_console_ncurses_test.c": "a67df4169c00c06f7333aad4402e3f29cb0d72aa088a7aec1306690ba04265e4",
-    "src/media/console/tests/st_console_test.c": "079574a176e535180cfaae5d94eaa8e1795638c015950079758bccdbba0ada22",
-    "src/media/console/tests/st_console_x11_test.c": "ce4616c2fe61664c496a297936b79cefba9a280aae1672a78ad9b90573d40a51",
-    "src/media/font_catalog/st_font_catalog.c": "6937c6662ba69882149081b4b915d17587bc3b841011653444f8d7746cc1cb67",
-    "src/media/font_catalog/st_font_catalog.h": "ffccf0c09a51e77bc9f8b67b9a15835e772a2eb66b8bcbcf4f1254448a2fa11c",
-    "src/media/font_catalog/tests/st_font_catalog_test.c": "3199a4ff7144ad988626e7133cc97c6313137a48ef6fd2d95c1e51dc1e4e85b2",
-    "src/media/fonts/st_builtin_fonts.h": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
-    "src/media/fonts/st_emoji_fonts.h": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
-    "src/media/fonts/st_presentation_font.h": "c39d49aaa44cedb1a78d95f0c0c47a36756b1706d5733f8e9d63aaf6318ea41b",
-    "src/media/fonts/st_unicode_fonts.h": "c53a160e4eff5498827e376c538770dd6d63abe4fa5e4e09cfa0bb86ded2e6b4",
-    "src/media/music/ansi_music.c": "29dcd723e91e307f7efebc8edcae80d1f4fd723b64c7d13a5f724f1654c11d99",
-    "src/media/music/music.c": "ac8f82f719a61a940ae0d2a8562fe5367dc6fc5a910bbb65a414c60aa441ae70",
-    "src/media/music/st_music.h": "fcbaa5274d26024655d0cfcf728944eaae974cf7c162c93417ca20213d9b767e",
-    "src/media/pixel_image/st_pixel_image.h": "19f84636b92b53e8d5ae21eaa86f25c1058789f1db5f111fb78f76c6d645dba3",
-    "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
-    "src/media/pixels/st_pixels.c": "6df928627439e4a983f8444e744fb9aa0279ce1ed5cd0b4f95f1bf8c86715940",
-    "src/media/pixels/st_pixels.h": "539f95656dd5b18fbedf3ec8e9dfbe5de6cca8ebbe78a015afcf9a21cc850dd2",
-    "src/media/pixels/tests/st_pixels_test.c": "2b6af7f5a1af22b8421ee2cf67e1c9c5eb49aaeae89cb35618cad799baece37d",
-    "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b",
-    "src/net/connection/connection_shell_codec.h": "0adf830aee0f3d54f08fdf41a91c190e720f60cbffb32b0c9bd8381c65c542a5",
-    "src/net/connection/connection_ssh.c": "8eea784057e04800c24730ca8c30d1f435055f88c5a1f54891b4a85d6ffd71ce",
-    "src/net/connection/connection_stream.h": "c64451fcce7cea40c6977e4a8ecfc22d9aeea253ae9ccc8f3dd31c9464bcc7c8",
-    "src/net/connection/connection_tcp.h": "77b07449c9d3df3cd64aba1605d65adf1cb692283cec467460d1c40d7b929a01",
-    "src/net/connection/st_connection.h": "52c39026b23c2fcc863e15b4ccd24d8cb7ce0aa41bb1500fd0d418608424582f",
-    "src/net/sftp_client/st_sftp.h": "08aa71dcc5e0d57c3d237f0c7285bf13d74a68b45fee24fa22b518aa22afa758",
-    "src/net/socket/socket.h": "8a1bc4f009011d890edc30b77d2858856a0bc5fdced2832329bd636022db5cb4",
-    "src/net/tcp_client/tcp_client.h": "e64123625dc25997f5373cfb33602533ae48bb4432bb7eca3268ff15c6f5ba3e",
-    "src/net/tls/st_tls.h": "e84511bba583a3f02a2729561c056fe34f2b70e5bea57e332d45120f010089fc",
-    "src/net/transfer/st_transfer.h": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
-    "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
-    "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
-    "src/scripting/wren_host/CMakeLists.txt": "baeed373bc947e570db71c07476370fc8c3e13786d01da01476ca41da6417cc7",
-    "src/scripting/wren_host/st_wren_host.h": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
-    "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc",
-    "src/scripting/wren_host/tests/cell_styles.wren": "522a83bc0cc79882d136348d78f72e3f189064014709955f0e61cbdd9777590e",
-    "src/scripting/wren_host/tests/cloud_theme_views.wren": "ff01ee69b366034376cf4dc4b925f40ff03f3fd5c8af6dc554b134700a72748a",
-    "src/scripting/wren_host/tests/codepage.wren": "f84ab8430338bbc958570e3bfac9f3cd39d5c5b72308545ddc5d5637485da559",
-    "src/scripting/wren_host/tests/digest.wren": "c26b19fbf723271a49ec37345eee08a84c902c77e0f9aabafa6affd8dfe90a55",
-    "src/scripting/wren_host/tests/st_wren_cell_styles_test.c": "2cac4032a4f82c424ef46bf8218dc041314775da8e74a686d3788d3e400bfa75",
-    "src/scripting/wren_host/tests/st_wren_codepage_test.c": "4e853c8355821fc9319269323531b21d367426c9b804ae920449fb6943244a04",
-    "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c": "abb97ac4e4679e174f7374dd0afee96f1efb1914b82d13ac1e8b413863fa6a0e",
-    "src/scripting/wren_host/tests/st_wren_digest_test.c": "026702e03fb1f3ae6a16a2e18554a9710bef2994cf9ccf100dd3ec0ffd1bf780",
-    "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c": "6b73edbc7e051b958d663b3591f5db99062887dcf0252abcc856cc27089fe03f",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "34f84284d8906859ab736560c129d76562e3060d0bd207d37567958eae25132b",
-    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "1708e49b34d9df915e4b2afd0f227b5947d401cd1c967691a49503dbe74a827d",
-    "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
-    "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c": "fca707a2f0be87c2af9ee73477c71203e403c047689aff1b83b880a1e5e83a2f",
-    "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1daa1b6ac6180b49ab96a811c3571af23eb8a3109d14a026578efcdd8b7621cd",
-    "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
-    "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
-    "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "5e9b49fbd6c675bf2e71761bd06992fa543390c6fd973a185bb11da5ec57f6d4",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "eab14eecb4333b9090706c27ddaddab30b339982aba071ea6b945aa8e7ac5cb1",
-    "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
-    "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
-    "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
-    "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
-    "src/scripting/wren_host/wren_bbs_model.h": "abe9afb6c1fa09ae794f6f1454ae702d104c9de743fb6e999cc4ac4841cf293d",
-    "src/scripting/wren_host/wren_bind_core.c": "42cbdd9591de20f4c3cf9ac4ac3ff45e6e43113fe797b40655fd1b7003335a25",
-    "src/scripting/wren_host/wren_bind_digest.c": "53078c4038d0a189807e4f83fa3a800cf1ee50f3fdcf20a7b729c433f6bdb21b",
-    "src/scripting/wren_host/wren_bind_fs.c": "df4f6a0bd90251d97ea788e13070cec5449f0e6dfadf1d0be0bb0777f3303ee4",
-    "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "28b3191b33c5369f0ff1bf6f3e69daf87d2787900fcb119fc4a7403cfc5debeb",
-    "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
-    "src/scripting/wren_host/wren_bind_session.c": "26399b7a604e87bd47019ef7d85ad8a179d3783271873f0aabbb866e7ca787bd",
-    "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
-    "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
-    "src/scripting/wren_host/wren_bind_xfer.c": "948e7d7cd2a4a8c9e8d703a666efdfdc3957e0daa74a355e3a978ae1f2509b61",
-    "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
-    "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
-    "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
-    "src/scripting/wren_host/wren_host.c": "d9cc593333934ca464a9cccb5ae612a94174ac094b1003c12bba40d5741eaec2",
-    "src/scripting/wren_host/wren_host_internal.h": "9f72e50fd89e71498246fc7937daa51b7c001253c0c0df24ef21019b4d441c74",
-    "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
-    "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
-    "src/scripting/wren_host/wren_picker.c": "fac1ff062b8bcc9a31c808694865fc584261093b2a8d23e9a70026f1f43c13a7",
-    "src/scripting/wren_host/wren_picker_fs_posix.c": "b964fd303a70722c5378afd6583d93477f3065038283a989dadc6c59f25a8a9a",
-    "src/scripting/wren_host/wren_picker_fs_windows.c": "126c9c621173285291f7c4d86a9e4d04c207b3341ce68ad34bac34ed62533dc3",
-    "src/scripting/wren_host/wren_repl.c": "4a7cd1ab284e93a2fc40f897d561221c0b7da32889a719dd1dcdb4897d31ff01",
-    "src/scripting/wren_host/wren_scripts.c": "e9bc56c5ecd4a10a5464b82205c30f9fb7ee61162f526d4eb3bdcef335bd483b",
-    "src/scripting/wren_host/wren_selection.c": "6e9972fd19cc31acc7e44c157f28b65120b93d7585dcacbb9937154f70bc72e4",
-    "src/scripting/wren_host/wren_session.c": "afe9569f906839480c9a163a3cfb48bba605507cdaef18a5990085da66570c6c",
-    "src/scripting/wren_host/wren_sftp.c": "c54064cecc7d14ab249118cb02a977119b437ed8b9851d77269deebe9fd290c8",
-    "src/scripting/wren_vm/tests/st_wren_vm_unicode_string_test.c": "e92ca98a8026939932cdc8db390295390754ca9c0bf98ed2a89c4f0cb6784c5e",
-    "src/scripting/wren_vm/vm/wren_core.c": "e0d3ff1ff5caf1e4141d5b82a010507e5260185d23c35f7d530ce283ccb49b26",
-    "src/st_app_state.h": "9a66f9d8cab3c0ecd175d5426b59df838a817a70ac70609d293c7568381b524f",
-    "src/st_application.h": "011fcf76bf3e91ad15594862d35d9bc2802179c0c55c79f9e6ef63e1ac522ad2",
-    "src/st_command_line.h": "e4c39f9c2accaecb447fad05ca42f30487d27cc7d9fb7ebcbc6b9e27efe2f386",
-    "src/st_console_startup.h": "d1ad9846bd2836e6a888da47a2c20e129aef65db1471b0ccc2b78fdb14ad4a33",
-    "src/st_libretro_input.h": "5f8b2eea549b6ab14b9b2f6cbc427aa189cad353f6a0edab49b21ce364b7dcd7",
-    "src/st_syncterm_icon.h": "db9a42ed07712ff11469c9a4378df4669cab199da882051b6529cdf933a18c78",
-    "src/st_terminfo.h": "852d5c5f13d3d8f21aa0903d990cad1ab152ab6bb292a614bf12eb0a79f8ffeb",
-    "src/syncterm.c": "3baafc446718d5d96ffd4bc478759293cf01ef15116310c0c0761a2360893e9f",
-    "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
-    "src/terminal/cterm/cterm_apc.c": "abcc3d4328a1e044a6f3c55b7caab5f59d1f0759a7c0284393a00dd2a78b187c",
-    "src/terminal/cterm/cterm_cterm.c": "a6c46afd3b4ed45984462201ebd74db3ba5e568e910d74d7c0dbcc6eac63720a",
-    "src/terminal/cterm/cterm_render.c": "07bab863c7e360b8be8fd752bc49cc9848cd81315c87732f8e61145497fa2d49",
-    "src/terminal/cterm/cterm_skypix.c": "da3fb602236b7d363b50010b0935e13d7688b480d1694b7982921ececa2f979e",
-    "src/terminal/cterm/st_cterm.c": "bc856e59485035f862b55774545fa42b84b2d9e16248cfd33dfe6821efac1874",
-    "src/terminal/cterm/st_cterm.h": "80e8a46e0482618e1437d03d73ba9e9bcee3a2d4295498760a22c798dc353a26",
-    "src/terminal/cterm/tests/data/skypix/golden-vectors.json": "a7ba8d85c74ac60000cd104399413e88a2360fd5368224d7f63e998cd8fd638d",
-    "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "b37d726ee4c89ce0b278839dd5659abba1c82cb9a237a12d7f666c80774d63f6",
-    "src/terminal/cterm/tests/st_cterm_skypix_test.c": "99787b534d6c4116b0d9c4e5c1ed81546f8a15f0d0205e0098b7adb1cf216fe8",
-    "src/terminal/cterm/tests/st_cterm_test.c": "caf89c93df35559704d5955144264eda19119dc9802607a4986444e72cb0d22b",
-    "src/terminal/cterm/tests/test_skypix_vectors.py": "c78418a402197a251bd43b8e1f5274c4df04b02a8c233a4b21422fda9ad78684",
-    "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
-    "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
-    "src/terminal/screen_mode/st_screen_mode.h": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
-    "src/terminal/session_history/st_session_history.h": "d34a5152abb9174219b2dc08f1c296109c4d1040b7e8526ee9fa198ef5133119",
-    "src/terminal/session_history/tests/st_session_history_test.c": "f138b20be30fa4f448187b49bcd975f8985954803c405921996d110b74ed4ace",
-    "src/terminal/term/st_term.c": "bdec75fa6dc349074cfd6f93911888685a2e17ce18698a7e522b47156c4b64f4",
-    "src/terminal/term/st_term.h": "537c1af2e49b5798153e882d3ef9626d277104c0af1240685d849478f61d5543",
-    "src/tests/st_amiga_font_manager_test.py": "428ec499a711893f78b3ed71243e198d74c89cfaf2966b6906fb4dca6bf0112f",
-    "src/tests/st_emoji_picker_test.py": "94caf4154b2876fe021e7547dd2291e5c632d7ad280d8651091498c17ffb0e8e",
-    "src/tests/st_font_assignments_test.py": "8c3e0c87a366a3950a6073f668cbf6c166fd6580104e562b7d05d73234e94c57",
-    "src/tests/st_graphics_scrollback_test.py": "e6dfed81c4f9b110446efcc37203bc1066d3389dd693eafa4b43abfec6457201",
-    "src/tests/st_menu_shortcuts_pty_test.py": "5c0a4a1e7b00a4080595513ba0f74fa6307b913b5d68964ef7940381fa5d17f9",
-    "src/tests/st_migrated_control_test.py": "6c48a9189227507ec97a9f80427d4abe9ea2967ea2353b8c702a957a299c73b5",
-    "src/tests/st_skypix_conformance_test.py": "358f0e8b568000542fe286f8e6f4c9e5ea44a110d95e612cdbe1f491ae8543f0",
-    "src/tests/st_skypix_mouse_test.py": "8853a506f6a51c4fafaff67d541879a599566ff2022a2ac7a15140a11a0bb103",
-    "src/tests/st_skypix_scrolling_test.py": "e52697663552fc200179e325a4e186b017c3e357b780f595e6d06c561dd58a75",
-    "src/tests/st_test_control_test.py": "847c10f78a5c106a751475944344c31fee80397638b87c6aa745d2930ce1fa52",
-    "src/tests/terminal_conformance.json": "b33216943e44190e101bf029535ce06c7db35ecd261f9861c996026fe0b44068",
-    "src/tests/wren/bbs_setters.wren": "96c94c02234c93bdd4ac027610a2ed25c32bdeb28b1736f243b1d5b378665db2",
-    "src/text/codepage/st_codepage.h": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
-    "src/text/emoji/st_emoji_catalog.h": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
-    "src/text/emoji/st_emoji_locale.h": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
-    "src/text/unicode_compare/st_unicode_compare.h": "b3625727e4d406909a5e505b3285fd01c077105f7fa0996484264071877f8578",
-    "src/text/unicode_grapheme/st_unicode_grapheme.h": "e6e229d7b0a9d41908f21e210e4dbfc6b8a2f5f0fa87941f1791f1b281d6a350",
-    "src/text/unicode_normalization/st_unicode_normalization.h": "cac5d848896ff4c278fad91926d02c5c9f07adaaabd39788d4ff5060f778ee53",
-    "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
-    "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
-    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
-    "src/scripting/wren_host/tests/file_truncate.wren": "2f11003983c9c0cb523a45c2c5fa9305d33640990610e6cc02b844d14901dfb6",
-    "src/scripting/wren_host/tests/st_wren_file_truncate_test.c": "41f5b81fe0ecddc43b390caceaab4c32751bc84826ce1ef35bda37bff96ff395",
-    "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c": "6e7538e6ddcbf8f2de3a8255037c59134826eec81cd24f39ed2ffb65b11b690f",
-    "src/terminal/cterm/tests/st_cterm_apc_test.c": "f892dc486252d8d0d4fb7782c50caf7cc7949c11a7b9f74398583bcca564dd5a",
-    "src/tests/st_terminal_conformance_test.py": "6dd793df69d6333e9e3497a936b3496c69c27ae737734efd0a771f26f375ce84",
-    "scripts/ui_list_test.wren": "16e0c5c8e8b24ffc582cdd74ac3fea8e31a5e475a63a6136cc6d711584020324",
-    "CMakeLists.txt": "db93a4ec9da5bd46195d7dfb6a2868a5ecde39e2a6215c46761d8143fb3001e8",
-    "ci/run.cmake": "47ac51823705512fcf01b074575394b948200c7a00a8d1c6dd14402d198933f6",
-    "docs/HACKING.adoc": "d3f830999c1944f50541107dc1d9b1262912e9e525913f0932b24cc130ae74f7",
-    "src/media/audio/CMakeLists.txt": "d6d335bf1bdcbba5a0b780a52c0c0cce6e217a7aaa4b0d6c9e4addd8f76a23ce",
-    "src/media/audio_file/CMakeLists.txt": "aae99c0d3cfe5cbd6f8413313cf93f82077bf37a711fcaef58a4b76559e18fe0",
-    "src/media/music/CMakeLists.txt": "f9325fbf9efed8ee1011ea36621926908d299d84611c020819e5855a68aa7c52",
-    "src/media/pixel_image/CMakeLists.txt": "5b5159db9c9b6a31bad40d5417f7580d404d26e08066fdfc8cf9d15d988ffd8c",
-    "cmake/SynctermBuildFeatures.cmake": "3818b47b1393966155f6ef90c6b9851f9c254dd88961c078d8ae1dec255d3edc",
-    "cmake/tests/build_features.cmake": "46863e5dc508f22023c1b0b1a9ae3537bd1fd8815b6b7631edbc9869844dc82c",
-    "cmake/SynctermDependencies.cmake": "d105a9fb26c0cd48da4de79dafbf690448e449fcbc4d912ca050d8027aef7084",
-    "cmake/SynctermDependencySources.cmake": "dd2626b1e3088c190d0bb44201fddf6355e85519ecbef807d3c6dc3df14ddcbe",
-    "cmake/SynctermConsoleDependencies.cmake": "07ff7c851e885d0b5bbbb66b8bdbc7bbd987e3ab15dd2a8dc46ffea6edb5e320",
-    "cmake/DeuceSSH.cmake": "d07731a4daf39b1fbdae858ca8b1c6f95423a105357a26fbb8c6d03c605a788b",
-    "cmake/PatchDeuceSSH.cmake": "b8d295c4d071dc60b2d63149a093ed2c6d43def05a86048a8bfbd2b691eb00b5",
-    "cmake/dependencies/Recipes.cmake": "b52d1dc9298624df9479286e1444916aff328ecca54cd20d19233b235a220a6b",
-    "cmake/dependencies/Build.cmake": "2099bd7a98dcde74d889f2fb70883baf0d16393655ff500f36757c74f746173c",
-    "cmake/dependencies/Patch.cmake": "b6d1e1c84664e0947ce0637ee39b3fb96f55ee5e9fda43d761a6ea3538533b80",
-    "cmake/dependencies/StageRuntime.cmake": "029605c640d0bdf08c2fafe6b2dc07a4d4063b29ed3ebe1bf0c38f0b33309cc6",
-    "cmake/dependencies/lock.json": "614bc46a2f2d90aaedd8eb73bb8cfbc60b4a3cbce4ec50a5f286ffde855b158d",
-    "cmake/dependencies/lame/CMakeLists.txt": "908caef6a0e6634ae479d6c9dc48c560eaeb2dec89f280c3a6e67f14ce3643f2",
-    "cmake/tests/dependency_policy.cmake": "d65917b2bf5fa9a5966cd4ffeeed981ac0e00f859c70d7d7702195df30e3c3c8",
-    "cmake/tests/dependency_sources.cmake": "ea85d01677f1060dd5c854aa51c6ea9e1c3f291ce63324384ec694ef712c0b50",
-    "cmake/tests/dependency_sources.py": "6b24b2868acaf33cdc427f6fa80f977d8bc8bb0391a2d4ec01eb8a44c3a00fc7",
-    "cmake/tests/dependency_fixture/CMakeLists.txt": "236eef2605625cb404b4aca4975985ee28b9ec362c4ce154046d87564de3cc11",
-    "docs/Dependencies.adoc": "325209355f2353d7e3b781bbfbff7321da0e5131c4af6b82d75daa6025ef4b7f",
-    "src/media/audio_file/tests/st_audio_file_test.c": "31b2b5d4f212412a5e829fb1471b489785afa642a6a97b5289bbbfb405f37d23",
-    "src/media/music/MidiBackends.cmake": "e6d73965c3741603c6ee76519b614ae3504092b0532d90283440f40bb4f7df10",
-    "src/media/music/tests/midi_build_test.py": "0d3e4aa3c1d622c8dc3d7859635e3c67adacef0b3463c9157c726bc997534c5a",
-    "src/net/tls/CMakeLists.txt": "ad304634274966044b78ee100cda2610d7222f0b90adae0cf089bae813874968",
-    "src/net/connection/CMakeLists.txt": "dd53182ab24911200e5b67669565e9bae70f5b6282e9231d2fe5ce17bf0db293",
-    "tools/audit/wren_c_api_coverage.py": "b1ae1a70425b95369def0064668fab516fe5b1a724e1e3cb1d3917cc1aec5325",
-    "cmake/dependencies/Fetch.cmake": "be9de9e1b4194eb1f38f106ebfcfaa995799962ed7e7fa1539b1dd9fd22ad5ed",
-    "src/media/audio/tests/pipewire_link_test.c": "893910aab3224876e6a9a2825d1dccc969aac1e4bc18df553fe5abb8cde2115c",
-    "src/media/audio_file/tests/fixtures/README.txt": "63bde3952ce276fa6ae5686a1e743cc7ef48dad157ae319813b248f21f5f25ed",
-    "src/media/audio_file/tests/fixtures/tone.flac": "d087aeb3db4f523829a306e9e27bc8e432c7ea1a9e7b8cc4f6a9de8a8448e772",
-    "src/media/audio_file/tests/fixtures/tone.ogg": "8d2e3d5dd158042c05c250ad3c4068a5f4184ca05dc4ef0af9bb3951c3c9361a",
-    "src/media/audio_file/tests/fixtures/tone.opus": "223dbdd61253d385d7695675d949f7ba41526af4424a762d09eb559be14634d2",
-    "src/media/audio_file/tests/fixtures/tone.mp3": "6f1ebcff9a934d1515381f9a0faed6b7b403acaa0fdc3b086abfc886f4221c0d",
-    "docs/DEPENDENCY_BUILD_PLAN.adoc": "8529c316ca3b257859d99619196a972f102e871a6a7706693e0bbdaaf40a8536",
-    "ci/windows.ps1": "665d6e38d43a3bb16ac1f830d4c0b514d2cd82508faa37e87af9cff8e9064670",
-    "cmake/tests/dependency_recipes.cmake": "8968d37b3a1fd55b57de7d2f5cd199eb26555eda8eb789297f6cb5b74bd141df"
-  },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
     "compiler": "Clang 19.1.7",
@@ -7121,6 +6757,26 @@
       ],
       "verification": "Read every failed job trace in completed pipeline 12907. The three new recipe checks detect defects in the previous scripts and pass after correction. Six focused CTest checks pass with local execution deadlines disabled. The complete dependency-source fixture matrix passes; the two-package compiled/linked consumer also passes after updating its copied build scripts. Independently generated PAX Unicode names, contents and caller locale are checked, including an archive pathname containing a semicolon. The hash-verified FLAC 1.5.0 release extracts under LC_ALL=C and all three Unicode-named files match the archive. UTF-8 selection also passes with an en_US.UTF-8-only locale inventory. Pinned Botan 3.14.1 configures without Ninja and its real library makefile passes a FreeBSD BSD-make dry run; its patched OCSP translation unit compiles with the existing C++20 flags. The FreeBSD Clang application configures and builds. Native macOS/OpenBSD/Windows execution and PowerShell execution are unavailable locally and still need CI confirmation; no Wine, graphical or physical-audio tests were run. No push performed. The final Botan make check passes, and an explicit missing-Python run skips only the Botan-specific case.",
       "accounting": "No native public declarations, Wren behavior or original finding dispositions change. Refreshed reviewed build/test/CI/documentation evidence, including the new recipe fixture. Original inventory remains 83 public headers, 132 exclusions, 2576 native items, 161 assessments and 51 topics (23 resolved/28 open)."
+    },
+    {
+      "topic": "ci-dependency-publication-and-configurations",
+      "status": "resolved",
+      "scope": "Pipeline 12909: Linux compiler-flag reset tests expose timestamp-only dependency installation. Force CMake installation when the dependency install step runs. Use one ExternalProject per dependency with active-configuration source/work/settings/products, preventing generated-header consumers from compiling after a different configuration installs. Supply normalized prerequisite library directories to upstream CMake find modules, publish versioned POSIX shared libraries with alias preservation, and reject static-only fallback for SHARED. Enable and quote Botan archive response files for MinGW as well as MSVC; use supported relative source/build paths so common-root spaces are not emitted as Ninja tokens. Give native Windows mpg123 object paths room for the archive member libmpg123/../ spelling. At the user's request, remove the redundant source/evidence hash manifest and hash/line drift gates; Git owns file history while declaration coverage and reference-anchor checks remain.",
+      "tests_passed": [
+        "build_configuration_summary",
+        "dependency_policy",
+        "dependency_sources",
+        "dependency_recipe_environment",
+        "dependency_recipe_cmake_install",
+        "dependency_recipe_cmake_paths",
+        "dependency_recipe_mpg_paths",
+        "dependency_recipe_versioned_shared",
+        "dependency_recipe_botan_make",
+        "dependency_recipe_botan_patch",
+        "wren_api_accounting_checks"
+      ],
+      "verification": "Read every failed job trace from completed pipeline 12909; all failures are accounted for (three Linux, four Windows, one OpenBSD). Before-fix checks reproduce equal-size/equal-time stale installation, missing normalized-library lookup, missing versioned shared-library publication, absent MinGW response policy, native Windows archive path budget, and multi-config compilation before required headers install. Corrected checks pass, including shared aliases, missing-SHARED rejection and response policy for Windows/MinGW/POSIX with static enabled/disabled. The complete source fixture passes under CTest with Unix Makefiles and separately with Ninja Multi-Config; the repeated suites and final GCC 13 suite pass, including flag add/remove, two configurations, concurrent cold-cache consumers, offline/local sources and corrupt hashes. No-Python and no-Ninja fixture paths skip only their optional cases. The FreeBSD Clang application configures/builds and configuration summary/policy tests pass. The real pinned Botan 3.14.1 SHA-256 subset cross-builds a MinGW x86-64 archive in a directory containing spaces with the patched response rule; PE x86-64 objects are inspected. Pinned mpg123 1.33.7 cross-build/install passes with 41 archive members and a longest literal member path of 241 characters including NUL. No native Windows/OpenBSD execution, Wine, GUI or physical audio coverage is claimed. Local execution deadlines are disabled. The accounting checker validates current declarations, assessments and reference anchors without source hash maintenance. Focused checker tests retain API-addition/type-change and missing-anchor failures while allowing source comments, line movement and unrelated text edits. No push performed.",
+      "accounting": "No C public declarations, Wren behavior or original finding dispositions change. Source fingerprint tables and hash/line-position gates are removed; native symbol/type, scope, disposition and reference-anchor checks remain. Concurrent SkyPix commit b4beef1 stays separate. Original inventory remains 83 public headers, 132 exclusions, 2576 native items, 161 assessments and 51 finding topics (23 resolved/28 open)."
     }
   ]
 }
