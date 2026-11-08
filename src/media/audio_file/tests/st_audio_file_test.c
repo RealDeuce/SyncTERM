@@ -17,6 +17,36 @@ put32(uint8_t *p, uint32_t value)
 }
 
 static int
+check_codec(const char *extension, uint32_t major, uint32_t subtype)
+{
+	char path[1024];
+	int16_t *samples = NULL;
+	size_t frames = 0;
+	double energy = 0;
+	unsigned crossings = 0;
+	CHECK(st_audio_file_format_available(major, subtype));
+	CHECK(snprintf(path, sizeof(path), "%s/tone.%s", ST_AUDIO_FILE_FIXTURES, extension) < (int)sizeof(path));
+	FILE *stream = fopen(path, "rb");
+	CHECK(stream != NULL);
+	CHECK(st_audio_file_decode_stream(&samples, &frames, stream) == 0);
+	CHECK(fclose(stream) == 0);
+	/* Independently encoded 0.1 s, 1 kHz, quarter-scale mono tone. MP3
+	 * decoders may retain encoder padding; inspect the middle 50 ms. */
+	CHECK(frames >= 4000 && frames <= 7000);
+	for (size_t i = 1500; i < 3705; ++i) {
+		CHECK(samples[2 * i] == samples[2 * i + 1]);
+		double value = samples[2 * i] / 32768.0;
+		energy += value * value;
+		if (samples[2 * i] > 0 && samples[2 * (i - 1)] <= 0)
+			++crossings;
+	}
+	CHECK(energy / 2205 > 0.022 && energy / 2205 < 0.04);
+	CHECK(crossings >= 48 && crossings <= 52);
+	free(samples);
+	return 0;
+}
+
+static int
 check_wave(unsigned channels, unsigned rate, const int16_t *samples,
 	size_t count, const int16_t *expected, size_t expected_frames)
 {
@@ -61,7 +91,7 @@ main(int argc, char **argv)
 	CHECK(!st_audio_file_format_available(0, 2));
 	CHECK(!st_audio_file_format_available(UINT32_MAX, 2));
 	if (!st_audio_file_available()) {
-		CHECK(argc == 1 || strcmp(argv[1], "--require-available") != 0);
+		CHECK(argc == 1);
 		CHECK(status == IO_ERROR_NOT_SUPPORTED);
 		CHECK(!st_audio_file_format_available(1, 2));
 		return 0;
@@ -75,5 +105,11 @@ main(int argc, char **argv)
 	const int16_t multi[] = {1,2,3, 4,5,6};
 	const int16_t first_two[] = {1,2,4,5};
 	CHECK(check_wave(3, 44100, multi, 6, first_two, 2) == 0);
+	if (argc > 1 && strcmp(argv[1], "--require-codecs") == 0) {
+		CHECK(check_codec("flac", 0x17, 2) == 0);
+		CHECK(check_codec("ogg", 0x20, 0x60) == 0);
+		CHECK(check_codec("opus", 0x20, 0x64) == 0);
+		CHECK(check_codec("mp3", 0x23, 0x82) == 0);
+	}
 	return 0;
 }

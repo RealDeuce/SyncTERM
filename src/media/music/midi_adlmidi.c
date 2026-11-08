@@ -12,7 +12,7 @@
 #define MEMBER(result, name, args) result (*name) args;
 struct adl_api { ST_ADL_SYMBOLS(MEMBER) };
 #undef MEMBER
-#if ST_MIDI_LINK_ADLMIDI == 2
+#if ST_MIDI_LINK_ADLMIDI == 2 || ST_MIDI_LINK_ADLMIDI == 4
 #define ADDRESS(result, name, args) .name = name,
 static struct adl_api api = { ST_ADL_SYMBOLS(ADDRESS) };
 #undef ADDRESS

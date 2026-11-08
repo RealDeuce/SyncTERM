@@ -87,6 +87,9 @@ add_custom_command(OUTPUT ${_st_wren_embedded}
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/GenerateLicenses.cmake")
 
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermBuildFeatures.cmake")
+syncterm_generate_build_features()
+
 add_library(st_wren_host STATIC
 	wren_host.c
 	wren_foreign.c
@@ -117,7 +120,7 @@ add_library(st_wren_host STATIC
 	${_st_wren_embedded})
 target_include_directories(st_wren_host
 	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-	PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+	PRIVATE ${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/syncterm-generated")
 target_include_directories(st_wren_host SYSTEM PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 target_link_libraries(st_wren_host

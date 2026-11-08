@@ -276,7 +276,10 @@ def main():
     excluded = {str(path): reason for path in paths if (reason := exclusion_reason(path))}
     headers = [str(path) for path in paths if str(path) not in excluded]
     include_dirs = sorted({str(p.parent) for p in paths if not any(x in p.parts for x in {'tests', 'generated', 'private', 'wren_vm', 're1', 'ssh'})})
-    include_dirs += sorted({str(p.parent) for p in build_dir.rglob('*.h')})
+    # Project-generated headers mirror src/. Dependency source/staging trees
+    # must not become global include directories (e.g. a dependency's private
+    # time.h can otherwise shadow the C library header in an unrelated API).
+    include_dirs += sorted({str(p.parent) for p in (build_dir / 'src').rglob('*.h')})
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         data = list(pool.map(extract, headers))
     if args.extract:

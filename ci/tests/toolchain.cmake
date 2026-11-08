@@ -17,6 +17,13 @@ foreach(CI_MINGW_BITS IN ITEMS 32 64)
 	set(ENV{PKG_CONFIG_PATH} "${_host}/lib/pkgconfig")
 	set(ENV{PKG_CONFIG_LIBDIR} "${_host}/lib/pkgconfig")
 	include("${CMAKE_CURRENT_LIST_DIR}/../mingw.cmake")
+	set(_expected_processor i686)
+	if(CI_MINGW_BITS STREQUAL "64")
+		set(_expected_processor x86_64)
+	endif()
+	if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL _expected_processor)
+		message(FATAL_ERROR "MinGW toolchain did not declare its target processor")
+	endif()
 	if(NOT "${_target}" IN_LIST CMAKE_FIND_ROOT_PATH
 	    OR NOT "$ENV{PKG_CONFIG_PATH}" STREQUAL ""
 	    OR PKG_CONFIG_USE_CMAKE_PREFIX_PATH

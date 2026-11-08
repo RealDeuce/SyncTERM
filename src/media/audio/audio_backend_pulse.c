@@ -4,6 +4,7 @@
  */
 
 #include "audio_internal.h"
+#include "audio_config.h"
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -36,31 +37,37 @@ struct pulse_state {
 	pa_simple *stream;
 };
 
+#if ST_DEP_PULSEAUDIO_LINKED
+#define LOAD_PULSE(api, library, member, name) ((api)->member = (name))
+#else
 #define LOAD_PULSE(api, library, member, name) do { \
-	void *st_audio_symbol = dynamic_library_symbol((library), (name)); \
+	void *st_audio_symbol = dynamic_library_symbol((library), #name); \
 	if (st_audio_symbol == NULL) { \
 		(void)dynamic_library_close((library)); \
 		return IO_ERROR_NOT_SUPPORTED; \
 	} \
 	(api)->member = (pulse_ ## member ## _fn)st_audio_symbol; \
 } while (0)
+#endif
 
 static int
 load_pulse(dynamic_library_t **result, struct pulse_api *api)
 {
+	dynamic_library_t *library = NULL;
+#if !ST_DEP_PULSEAUDIO_LINKED
 	static const char *const names[] = {
 		"pulse-simple", "libpulse-simple-0", "libpulse-simple"
 	};
-	dynamic_library_t *library = NULL;
 	int status = dynamic_library_open(&library, names, 3, 0,
 	    DYNAMIC_LIBRARY_LOCAL);
 
 	if (status != 0)
 		return status;
-	LOAD_PULSE(api, library, simple_new, "pa_simple_new");
-	LOAD_PULSE(api, library, simple_free, "pa_simple_free");
-	LOAD_PULSE(api, library, simple_write, "pa_simple_write");
-	LOAD_PULSE(api, library, simple_get_latency, "pa_simple_get_latency");
+#endif
+	LOAD_PULSE(api, library, simple_new, pa_simple_new);
+	LOAD_PULSE(api, library, simple_free, pa_simple_free);
+	LOAD_PULSE(api, library, simple_write, pa_simple_write);
+	LOAD_PULSE(api, library, simple_get_latency, pa_simple_get_latency);
 	*result = library;
 	return 0;
 }

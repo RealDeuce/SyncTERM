@@ -4,8 +4,17 @@
  */
 
 #include "console_internal.h"
+#include "console_config.h"
 #include "console_ansi_system.h"
 #include "console_text_layout.h"
+
+#if ST_DEP_TERMINFO_LINKED
+#include <curses.h>
+#include <term.h>
+#undef columns
+#undef lines
+#undef cursor_visible
+#endif
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -133,9 +142,11 @@ struct ansi_colour_capabilities {
 static struct ansi_colour_capabilities
 terminal_colour_capabilities(void)
 {
+#if !ST_DEP_TERMINFO_LINKED
 	static const char *const names[] = {
 		"ncursesw", "ncurses", "tinfo", "curses",
 	};
+#endif
 	typedef int (*setupterm_fn)(const char *, int, int *);
 	typedef int (*tigetnum_fn)(const char *);
 	typedef int (*tigetflag_fn)(const char *);
@@ -151,6 +162,11 @@ terminal_colour_capabilities(void)
 	    && (ascii_equal_case_insensitive(colorterm, "truecolor")
 	    || ascii_equal_case_insensitive(colorterm, "24bit")))
 		result.direct_colour = true;
+#if ST_DEP_TERMINFO_LINKED
+	call_setupterm = (setupterm_fn)setupterm;
+	call_tigetnum = (tigetnum_fn)tigetnum;
+	call_tigetflag = (tigetflag_fn)tigetflag;
+#else
 	if (dynamic_library_open(&library, names,
 	    sizeof(names) / sizeof(names[0]), 10, DYNAMIC_LIBRARY_LOCAL) != 0)
 		return result;
@@ -159,6 +175,7 @@ terminal_colour_capabilities(void)
 	call_tigetnum = (tigetnum_fn)dynamic_library_symbol(library, "tigetnum");
 	call_tigetflag = (tigetflag_fn)dynamic_library_symbol(library,
 	    "tigetflag");
+#endif
 	if (call_setupterm == NULL || call_tigetnum == NULL) {
 		(void)dynamic_library_close(library);
 		return result;

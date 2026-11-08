@@ -23,7 +23,7 @@ limitations; it does not authorize implementing every omitted C facility.
 
 == Result and how to read this report
 
-The review covers 83 project-owned public headers, 2,575 named native items,
+The review covers 83 project-owned public headers, 2,576 named native items,
 and 132 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
 broader API-scope decisions, plus one stale documentation finding. Twenty-three topics
@@ -196,7 +196,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/media/fonts/st_emoji_fonts.h[media/fonts/st_emoji_fonts.h] | 0 | 0 | 0 | 3 | 0 | +fonts.st_emoji_fonts+
 | link:../src/media/fonts/st_presentation_font.h[media/fonts/st_presentation_font.h] | 0 | 0 | 0 | 4 | 0 | +fonts.st_presentation_font+
 | link:../src/media/fonts/st_unicode_fonts.h[media/fonts/st_unicode_fonts.h] | 0 | 0 | 0 | 2 | 0 | +fonts.st_unicode_fonts+
-| link:../src/media/music/st_music.h[media/music/st_music.h] | 11 | 0 | 8 | 14 | 0 | +audio.backends+, +audio.playback+, +music.session-owner+
+| link:../src/media/music/st_music.h[media/music/st_music.h] | 12 | 0 | 8 | 14 | 0 | +audio.backends+, +audio.playback+, +music.session-owner+
 | link:../src/media/pixel_image/st_pixel_image.h[media/pixel_image/st_pixel_image.h] | 5 | 0 | 0 | 2 | 0 | +pixels.cterm-decode+, +pixels.decode+
 | link:../src/media/pixels/st_pixels.h[media/pixels/st_pixels.h] | 38 | 0 | 0 | 11 | 0 | +pixels.display-scaler+, +pixels.offscreen-blit+, +pixels.values+
 | link:../src/net/connection/connection_shell_codec.h[net/connection/connection_shell_codec.h] | 0 | 0 | 0 | 16 | 0 | +transport.connection_shell_codec+

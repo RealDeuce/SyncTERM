@@ -67,10 +67,12 @@ struct jxl_api {
 };
 
 static st_once_flag_t jxl_once = ST_ONCE_FLAG_INIT;
+#if !ST_DEP_JXL_LINKED
 static dynamic_library_t *jxl_library;
 static dynamic_library_t *jxl_cms_library;
 #if defined(ST_PIXEL_IMAGE_HAVE_JXL_THREADS)
 static dynamic_library_t *jxl_threads_library;
+#endif
 #endif
 static struct jxl_api jxl;
 static bool jxl_available;
@@ -84,6 +86,30 @@ static bool jxl_available;
 static void
 load_jxl(void)
 {
+#if ST_DEP_JXL_LINKED
+	jxl.decoder_create = JxlDecoderCreate;
+	jxl.decoder_destroy = JxlDecoderDestroy;
+	jxl.decoder_subscribe = JxlDecoderSubscribeEvents;
+	jxl.decoder_set_input = JxlDecoderSetInput;
+	jxl.decoder_close_input = JxlDecoderCloseInput;
+	jxl.decoder_process = JxlDecoderProcessInput;
+	jxl.decoder_basic_info = JxlDecoderGetBasicInfo;
+	jxl.decoder_buffer_size = JxlDecoderImageOutBufferSize;
+	jxl.decoder_set_buffer = JxlDecoderSetImageOutBuffer;
+	jxl.decoder_set_cms = JxlDecoderSetCms;
+	jxl.decoder_set_profile = JxlDecoderSetOutputColorProfile;
+	jxl.colour_srgb = JxlColorEncodingSetToSRGB;
+	jxl.default_cms = JxlGetDefaultCms;
+#if defined(ST_PIXEL_IMAGE_HAVE_JXL_THREADS)
+	jxl.decoder_set_runner = JxlDecoderSetParallelRunner;
+	jxl.parallel_runner = JxlResizableParallelRunner;
+	jxl.runner_create = JxlResizableParallelRunnerCreate;
+	jxl.runner_destroy = JxlResizableParallelRunnerDestroy;
+	jxl.runner_set_threads = JxlResizableParallelRunnerSetThreads;
+	jxl.runner_suggest_threads = JxlResizableParallelRunnerSuggestThreads;
+#endif
+	jxl_available = true;
+#else
 	const char *base_names[] = {"jxl"};
 	const char *cms_names[] = {"jxl_cms"};
 
@@ -170,6 +196,7 @@ load_jxl(void)
 failed:
 	(void)dynamic_library_close(jxl_library);
 	jxl_library = NULL;
+#endif
 }
 
 bool

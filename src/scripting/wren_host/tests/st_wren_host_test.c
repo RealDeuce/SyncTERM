@@ -5991,7 +5991,8 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	for (size_t i = 0; i < 5; ++i) {
 		enum st_midi_linkage linkage = st_midi_backend_linkage(midi[i]);
 		const char *suffix = linkage == ST_MIDI_RUNTIME ? " (runtime loaded)"
-		    : linkage == ST_MIDI_STATIC ? " (static)" : linkage == ST_MIDI_SYSTEM ? " (system linked)" : "";
+		    : linkage == ST_MIDI_STATIC ? " (static)" : linkage == ST_MIDI_SYSTEM ? " (system linked)"
+		    : linkage == ST_MIDI_SHARED ? " (shared)" : "";
 		char label[80];
 		snprintf(label, sizeof(label), "%s%s", names[i], suffix);
 		wrenGetListElement(host->vm, 0, (int)(sizeof(expected) / sizeof(expected[0]) + i), 1);

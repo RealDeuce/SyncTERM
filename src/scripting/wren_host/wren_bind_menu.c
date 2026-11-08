@@ -1901,83 +1901,12 @@ fn_menu_licenses(WrenVM *vm)
 static void
 fn_menu_build_options(WrenVM *vm)
 {
-	const char *crypto = st_crypto_provider_name();
-	uint32_t console = st_console_build_features();
-	uint32_t audio = audio_compiled_backends();
-	bool unifont = false;
-
-#ifdef ST_HAVE_UNIFONT
-	unifont = true;
-#endif
-
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
-	push_build_option(vm, "Fonts", "Unifont (SyncTERM Unicode)", unifont);
-	push_build_option(vm, "Fonts", "UNSCII", true);
-	push_build_option(vm, "Fonts", "Noto Emoji", true);
-	push_build_option(vm, "Fonts", "Noto Color Emoji", true);
-	push_build_option(vm, "Crypto", "DeuceSSH (SSH)", strcmp(crypto, "none") != 0);
-	push_build_option(vm, "Crypto",
-	    "OpenSSL (TLS, symmetric ciphers)", strcmp(crypto, "OpenSSL") == 0);
-	push_build_option(vm, "Crypto", "Botan 3 (TLS, symmetric ciphers)",
-	    strcmp(crypto, "Botan") == 0);
-	push_build_option(vm, "Crypto", "Encrypted BBS lists",
-	    st_list_crypto_encryption_available());
-	push_build_option(vm, "Terminal", "Operation Overkill ][ Terminal",
-	    true);
-	push_build_option(vm, "Terminal", "JPEG XL support",
-	    st_pixel_image_jxl_compiled());
-	push_build_option(vm, "Video", "SDL",
-	    (console & ST_CONSOLE_BUILD_SDL) != 0);
-	push_build_option(vm, "Video", "X11 Support",
-	    (console & ST_CONSOLE_BUILD_X11) != 0);
-	push_build_option(vm, "Video", "Xinerama",
-	    (console & ST_CONSOLE_BUILD_XINERAMA) != 0);
-	push_build_option(vm, "Video", "XRandR",
-	    (console & ST_CONSOLE_BUILD_XRANDR) != 0);
-	push_build_option(vm, "Video", "XRender",
-	    (console & ST_CONSOLE_BUILD_XRENDER) != 0);
-	push_build_option(vm, "Video", "GDI",
-	    (console & ST_CONSOLE_BUILD_GDI) != 0);
-	push_build_option(vm, "Video", "Wayland",
-	    (console & ST_CONSOLE_BUILD_WAYLAND) != 0);
-	push_build_option(vm, "Video", "Quartz",
-	    (console & ST_CONSOLE_BUILD_QUARTZ) != 0);
-	push_build_option(vm, "Video", "Win32 Console",
-	    (console & ST_CONSOLE_BUILD_WIN32) != 0);
-	push_build_option(vm, "Video", "ncurses",
-	    (console & ST_CONSOLE_BUILD_NCURSES) != 0);
-	push_build_option(vm, "Video", "ANSI",
-	    (console & ST_CONSOLE_BUILD_ANSI) != 0);
-	push_build_option(vm, "Video", "libretro",
-	    (console & ST_CONSOLE_BUILD_LIBRETRO) != 0);
-	push_build_option(vm, "Video", "Testing bitmap backend",
-	    (console & ST_CONSOLE_BUILD_TEST) != 0);
-	push_build_option(vm, "Audio", "OSS",
-	    (audio & AUDIO_BACKEND_OSS) != 0);
-	push_build_option(vm, "Audio", "SDL",
-	    (audio & AUDIO_BACKEND_SDL) != 0);
-	push_build_option(vm, "Audio", "ALSA",
-	    (audio & AUDIO_BACKEND_ALSA) != 0);
-	push_build_option(vm, "Audio", "WASAPI",
-	    (audio & AUDIO_BACKEND_WASAPI) != 0);
-	push_build_option(vm, "Audio", "PortAudio",
-	    (audio & AUDIO_BACKEND_PORTAUDIO) != 0);
-	push_build_option(vm, "Audio", "PipeWire",
-	    (audio & AUDIO_BACKEND_PIPEWIRE) != 0);
-	push_build_option(vm, "Audio", "PulseAudio",
-	    (audio & AUDIO_BACKEND_PULSE_AUDIO) != 0);
-	push_build_option(vm, "Audio", "Core Audio",
-	    (audio & AUDIO_BACKEND_CORE_AUDIO) != 0);
-	push_build_option(vm, "Audio", "libsndfile", st_audio_file_supported());
-	for (size_t i = 0; i < sizeof(midi_modes) / sizeof(midi_modes[0]); ++i) {
-		enum st_midi_linkage linkage = st_midi_backend_linkage(midi_modes[i].bit);
-		const char *suffix = linkage == ST_MIDI_RUNTIME ? " (runtime loaded)"
-		    : linkage == ST_MIDI_STATIC ? " (static)" : linkage == ST_MIDI_SYSTEM ? " (system linked)" : "";
-		char name[80];
-		(void)snprintf(name, sizeof(name), "%s%s", midi_modes[i].name, suffix);
-		push_build_option(vm, "MIDI", name, linkage != ST_MIDI_NOT_BUILT);
-	}
+#define ST_BUILD_OPTION(category, name, enabled) \
+	push_build_option(vm, category, name, enabled);
+#include "st_build_options.inc"
+#undef ST_BUILD_OPTION
 }
 
 static void

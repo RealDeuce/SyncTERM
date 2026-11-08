@@ -19,4 +19,12 @@
 #cmakedefine01 ST_AUDIO_HAVE_KIOCSOUND
 #cmakedefine01 ST_AUDIO_KIOCSOUND_HEADER_LINUX_KD
 
+
+/* Directly bound third-party APIs (STATIC or SHARED). */
+#cmakedefine01 ST_DEP_ALSA_LINKED
+#cmakedefine01 ST_DEP_PORTAUDIO_LINKED
+#cmakedefine01 ST_DEP_PULSEAUDIO_LINKED
+#cmakedefine01 ST_DEP_PIPEWIRE_LINKED
+#cmakedefine01 ST_DEP_SDL2_LINKED
+
 #endif

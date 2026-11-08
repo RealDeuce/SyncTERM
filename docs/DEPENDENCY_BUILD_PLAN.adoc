@@ -1,0 +1,98 @@
+= Dependency Build Implementation Checklist
+
+This records the approved dependency/linkage/reporting implementation and its
+verification. Implementation and native platform validation are tracked
+separately; cross-compilation is not native execution. Legacy Synchronet
+sources are reference material only.
+
+== Required behavior
+
+* Separate feature enablement, dependency linkage (AUTO/STATIC/SHARED/RUNTIME)
+  and source (AUTO/INSTALLED/BUNDLED), with explicit selections enforced.
+* Default to native backends and static third-party libraries on macOS and
+  Windows. Keep existing shared/runtime defaults elsewhere. Explicit mixed
+  linkage and pinned source builds work on all applicable platforms.
+* Resolve each shared dependency once. SyncTERM crypto, TLS and DeuceSSH use
+  exactly the same provider installation/target.
+* Prefer suitable installed archives, including Homebrew, before pinned
+  builds. Match headers, ABI, architectures, deployment targets and required
+  transitive dependencies. System libraries/frameworks link normally.
+* Download hash-verified pinned sources when needed, with offline/cache/local
+  archive controls. Keep all generated work in the build tree.
+* Preserve v1 libsndfile formats/codecs (FLAC, Ogg/Vorbis, Opus, MP3 with
+  mpg123/LAME), and JPEG XL decoder/CMS/thread functionality.
+* Retain all existing external backends, including curses implementation/ABI
+  distinctions, terminfo, X11 extensions, Wayland/xkbcommon, PCM and MIDI.
+* Report every Build Options item, plus requested/resolved options, linkage,
+  source/version/path, architecture and automatic-disable reasons. Save the
+  report for CI. Runtime-loaded support does not promise runtime availability.
+
+== Implementation chunks
+
+* [x] Shared feature inventory, configure report and Build Options integration.
+* [x] Common dependency policy, archive discovery, validation and source recipes.
+* [x] Single crypto provider and pinned Botan fallback; explicit OpenSSL builds.
+* [x] libsndfile/codecs and JPEG XL direct/static/shared integrations.
+* [x] Optional console/audio/MIDI direct/static/shared integrations and recipes.
+* [x] Platform defaults, architecture/deployment handling, CI and documentation.
+
+== Acceptance
+
+* [x] CMake policy/selection/reconfiguration and installed/bundled/offline tests.
+* [x] Static/shared/runtime/disabled success and error/shutdown verification.
+* [x] Crypto, encrypted-list, TLS and SSH checks with both providers.
+* [x] Independent codec/image fixtures and full feature-inventory coverage.
+* [x] FreeBSD mixed-linkage builds and existing runtime behavior.
+* [ ] Native Linux execution of the mixed-linkage CI job.
+* [ ] macOS native and Windows MSVC/MinGW native verification without developer
+  dependencies; no unintended third-party dynamic dependencies in defaults.
+* [x] MinGW64 application cross-link, project warning checks and updated API
+  accounting evidence.
+
+Commit complete verified chunks; do not push without an explicit request.
+
+== Verification scope
+
+Local checks run on FreeBSD. The Clang Debug application uses the normal
+runtime media backends and one installed shared OpenSSL provider for crypto,
+TLS and DeuceSSH. GCC application, Wren host/settings and audio-file checks
+also passed. Directly linked console tests run under private Xvfb; native
+Wayland execution is skipped because no test compositor is available.
+
+Pinned static libsndfile with all six codec prerequisites passes independent
+FLAC, Vorbis, Opus and MP3 decode/format checks. Pinned static JPEG XL with
+Brotli, Highway and LCMS2 passes image checks. Pinned OpenSSL and Botan crypto
+checks, Botan TLS checks, static/shared/runtime MIDI selection fixtures, and
+the pinned FluidSynth/ADLMIDI music fixtures pass. The pinned PipeWire client
+loads its matching modules and starts/stops its loop without opening a server
+connection or physical audio device. No auditory or native-device coverage is
+claimed; the pinned FluidSynth bank/render path still needs a configured
+SoundFont.
+
+The dependency fixtures exercise installed/static/shared/runtime choices,
+invalid selections, reconfiguration, concurrent cold downloads, offline cache
+and local archives, corrupt hashes, and adding/removing compiler definitions
+without losing prerequisite headers. Native-SDK selection fixtures use
+host-built libraries to check policy; they do not emulate a macOS ABI.
+
+Native macOS (including universal builds), Windows MSVC/MinGW, and Linux
+execution remain platform-CI checks. No Windows target is executed under Wine.
+Not every pinned recipe or possible linkage combination has native execution
+coverage. The configuration report and dependency paths are retained with CI
+artifacts so those results can be assessed against the actual configuration.
+
+The complete MinGW64 application cross-links with the pinned static audio and
+image decoder stack. Import inspection finds OS and compiler-runtime DLLs, with
+no decoder DLL dependency. Pinned Botan's crypto test executable also
+cross-links separately. These Windows binaries are not executed locally.
+
+The final native selection covers 22 checks. Twenty pass in the original CTest
+run; MIDI build modes and Wren settings initially hit their normal execution
+limits under the reported system load. The identical configured commands and
+assertions pass on rerun (119 seconds and 3 seconds) with a larger local
+allowance. The final six-check Botan integration run uses execution deadlines disabled.
+The repository's normal test limits are unchanged.
+
+The full application also builds against the pinned static Botan provider.
+Its configuration inventory, crypto, encrypted-list, TLS, SSH and bulk SSH
+checks all pass. Crypto, TLS and DeuceSSH consume that same provider target.

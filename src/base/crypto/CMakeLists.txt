@@ -58,85 +58,77 @@ set(CRYPTO_BACKEND "" CACHE STRING
 	"Crypto provider: Botan, OpenSSL, none, or empty for auto-detect")
 set_property(CACHE CRYPTO_BACKEND PROPERTY STRINGS "" Botan OpenSSL none)
 
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-	pkg_check_modules(ST_CRYPTO_BOTAN QUIET IMPORTED_TARGET "botan-3>=3.13.0")
-endif()
-find_package(OpenSSL 3.0 QUIET)
-
-if(OpenSSL_FOUND)
-	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
-	set(_st_crypto_saved_required_libraries "${CMAKE_REQUIRED_LIBRARIES}")
-	set(CMAKE_REQUIRED_LIBRARIES OpenSSL::Crypto)
-	syncterm_check_c17_source([=[
-#include <openssl/evp.h>
-int main(void)
-{
-	return EVP_sha256() == 0;
-}
-]=] ST_CRYPTO_OPENSSL_USABLE)
-	set(CMAKE_REQUIRED_LIBRARIES "${_st_crypto_saved_required_libraries}")
-endif()
-
-if(TARGET PkgConfig::ST_CRYPTO_BOTAN
-    AND (CRYPTO_BACKEND STREQUAL "Botan"
-    OR (NOT CRYPTO_BACKEND AND NOT CMAKE_CROSSCOMPILING)))
-	include(CheckLanguage)
-	check_language(CXX)
-	if(CMAKE_CXX_COMPILER)
-		enable_language(CXX)
-		include(CheckCXXSourceCompiles)
-		set(_st_crypto_saved_required_libraries "${CMAKE_REQUIRED_LIBRARIES}")
-		set(_st_crypto_saved_cxx_standard "${CMAKE_CXX_STANDARD}")
-		set(CMAKE_REQUIRED_LIBRARIES PkgConfig::ST_CRYPTO_BOTAN)
-		set(CMAKE_CXX_STANDARD 20)
-		check_cxx_source_compiles([=[
-#include <botan/version.h>
-#include <string>
-int main()
-{
-	std::string version = Botan::version_string();
-	return version.empty();
-}
-]=] ST_CRYPTO_BOTAN_USABLE)
-		set(CMAKE_REQUIRED_LIBRARIES "${_st_crypto_saved_required_libraries}")
-		set(CMAKE_CXX_STANDARD "${_st_crypto_saved_cxx_standard}")
-	endif()
-endif()
-
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermDependencies.cmake")
+syncterm_dependency_options(OPENSSL SHARED)
+syncterm_dependency_options(BOTAN SHARED)
 set(_st_crypto_backend "${CRYPTO_BACKEND}")
-if(NOT _st_crypto_backend)
-	if(ST_CRYPTO_BOTAN_USABLE)
+if(_st_crypto_backend AND NOT _st_crypto_backend MATCHES "^(Botan|OpenSSL|none)$")
+	message(FATAL_ERROR "Unknown CRYPTO_BACKEND '${_st_crypto_backend}'")
+endif()
+if(NOT _st_crypto_backend STREQUAL "none")
+	if(NOT _st_crypto_backend OR _st_crypto_backend STREQUAL "OpenSSL")
+		if(ST_DEP_OPENSSL_MODE STREQUAL "RUNTIME")
+			message(FATAL_ERROR "Crypto providers require STATIC or SHARED linkage")
+		endif()
+		set(required)
+		if(_st_crypto_backend STREQUAL "OpenSSL")
+			set(required REQUIRED)
+		endif()
+		set(openssl_probe [=[
+#include <openssl/opensslv.h>
+#include <openssl/evp.h>
+#include <openssl/core.h>
+#include <openssl/ssl.h>
+#if OPENSSL_VERSION_MAJOR < 3
+#error OpenSSL 3 or newer is required
+#endif
+int main(void) {
+    SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
+    EVP_CIPHER *cipher = EVP_CIPHER_fetch(0, "AES-256-CBC", 0);
+    EVP_CIPHER_free(cipher);
+    SSL_CTX_free(ctx);
+    return 0;
+}
+]=])
+		if(ST_DEP_OPENSSL_MODE STREQUAL "STATIC")
+			# A private legacy provider module would defeat the static build.
+			# This link-only check does not add a private API call to SyncTERM.
+			string(REPLACE "int main(void) {" "extern OSSL_provider_init_fn ossl_legacy_provider_init;\nint main(void) {\n    OSSL_provider_init_fn *volatile builtin_legacy = ossl_legacy_provider_init; (void)builtin_legacy;" openssl_probe "${openssl_probe}")
+		endif()
+		syncterm_dependency(NAME OPENSSL PACKAGE "openssl>=3.0" HEADER openssl/ssl.h
+			LIBRARIES ssl crypto DEFAULT SHARED ${required} PROBE "${openssl_probe}")
+		if(ST_DEP_OPENSSL_TARGET)
+			set(_st_crypto_backend OpenSSL)
+			set(_st_crypto_library "${ST_DEP_OPENSSL_TARGET}")
+		endif()
+	endif()
+	if(NOT _st_crypto_backend OR _st_crypto_backend STREQUAL "Botan")
+		if(ST_DEP_BOTAN_MODE STREQUAL "RUNTIME")
+			message(FATAL_ERROR "Crypto providers require STATIC or SHARED linkage")
+		endif()
+		syncterm_dependency(NAME BOTAN PACKAGE "botan-3>=3.13.0" HEADER botan/version.h
+			LIBRARIES botan-3 DEFAULT SHARED CXX REQUIRED PROBE [=[
+#include <botan/version.h>
+#include <botan/tls_client.h>
+#include <botan/certstor_system.h>
+#include <string>
+#if BOTAN_VERSION_MAJOR != 3 || BOTAN_VERSION_MINOR < 13
+#error Botan 3.13 or newer is required
+#endif
+int main() { return Botan::version_string().empty(); }
+]=])
 		set(_st_crypto_backend Botan)
-	elseif(ST_CRYPTO_OPENSSL_USABLE)
-		set(_st_crypto_backend OpenSSL)
-	else()
-		set(_st_crypto_backend none)
+		set(_st_crypto_library "${ST_DEP_BOTAN_TARGET}")
 	endif()
 endif()
-
 if(_st_crypto_backend STREQUAL "Botan")
-	if(NOT TARGET PkgConfig::ST_CRYPTO_BOTAN)
-		message(FATAL_ERROR "CRYPTO_BACKEND=Botan requires Botan 3.13 or newer")
-	endif()
-	if(NOT ST_CRYPTO_BOTAN_USABLE)
-		message(FATAL_ERROR
-			"CRYPTO_BACKEND=Botan is not usable with the selected C++ toolchain")
-	endif()
 	enable_language(CXX)
 	set(_st_crypto_provider st_crypto_botan.cpp)
-	set(_st_crypto_library PkgConfig::ST_CRYPTO_BOTAN)
 elseif(_st_crypto_backend STREQUAL "OpenSSL")
-	if(NOT ST_CRYPTO_OPENSSL_USABLE)
-		message(FATAL_ERROR "CRYPTO_BACKEND=OpenSSL requires OpenSSL 3.0 or newer")
-	endif()
 	set(_st_crypto_provider st_crypto_openssl.c)
-	set(_st_crypto_library OpenSSL::Crypto)
-elseif(_st_crypto_backend STREQUAL "none")
+else()
 	set(_st_crypto_provider st_crypto_none.c)
 	set(_st_crypto_library)
-else()
-	message(FATAL_ERROR "Unknown CRYPTO_BACKEND '${_st_crypto_backend}'")
 endif()
 
 if(ST_CRYPTO_HAVE_MEMSET_EXPLICIT)
@@ -158,6 +150,7 @@ add_library(st_crypto STATIC st_crypto_common.c ${_st_crypto_provider}
 	${_st_crypto_clear})
 set_property(TARGET st_crypto PROPERTY ST_CRYPTO_PROVIDER
 	"${_st_crypto_backend}")
+set_property(TARGET st_crypto PROPERTY ST_CRYPTO_DEPENDENCY "${_st_crypto_library}")
 target_include_directories(st_crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_crypto PRIVATE ${_st_crypto_library})
 target_compile_definitions(st_crypto PRIVATE ${_st_crypto_definitions})

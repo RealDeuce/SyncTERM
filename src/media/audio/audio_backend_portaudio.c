@@ -4,6 +4,7 @@
  */
 
 #include "audio_internal.h"
+#include "audio_config.h"
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -40,34 +41,40 @@ struct portaudio_state {
 	PaStream *stream;
 };
 
+#if ST_DEP_PORTAUDIO_LINKED
+#define LOAD_PA(api, library, member, name) ((api)->member = (name))
+#else
 #define LOAD_PA(api, library, member, name) do { \
-	void *st_audio_symbol = dynamic_library_symbol((library), (name)); \
+	void *st_audio_symbol = dynamic_library_symbol((library), #name); \
 	if (st_audio_symbol == NULL) { \
 		(void)dynamic_library_close((library)); \
 		return IO_ERROR_NOT_SUPPORTED; \
 	} \
 	(api)->member = (pa_ ## member ## _fn)st_audio_symbol; \
 } while (0)
+#endif
 
 static int
 load_portaudio(dynamic_library_t **result, struct portaudio_api *api)
 {
+	dynamic_library_t *library = NULL;
+#if !ST_DEP_PORTAUDIO_LINKED
 	static const char *const names[] = {
 		"portaudio", "libportaudio-2", "libportaudio"
 	};
-	dynamic_library_t *library = NULL;
 	int status = dynamic_library_open(&library, names, 3, 2,
 	    DYNAMIC_LIBRARY_LOCAL);
 
 	if (status != 0)
 		return status;
-	LOAD_PA(api, library, initialize, "Pa_Initialize");
-	LOAD_PA(api, library, terminate, "Pa_Terminate");
-	LOAD_PA(api, library, open_default_stream, "Pa_OpenDefaultStream");
-	LOAD_PA(api, library, start_stream, "Pa_StartStream");
-	LOAD_PA(api, library, stop_stream, "Pa_StopStream");
-	LOAD_PA(api, library, close_stream, "Pa_CloseStream");
-	LOAD_PA(api, library, get_stream_info, "Pa_GetStreamInfo");
+#endif
+	LOAD_PA(api, library, initialize, Pa_Initialize);
+	LOAD_PA(api, library, terminate, Pa_Terminate);
+	LOAD_PA(api, library, open_default_stream, Pa_OpenDefaultStream);
+	LOAD_PA(api, library, start_stream, Pa_StartStream);
+	LOAD_PA(api, library, stop_stream, Pa_StopStream);
+	LOAD_PA(api, library, close_stream, Pa_CloseStream);
+	LOAD_PA(api, library, get_stream_info, Pa_GetStreamInfo);
 	*result = library;
 	return 0;
 }

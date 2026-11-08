@@ -4,6 +4,7 @@
  */
 
 #include "audio_internal.h"
+#include "audio_config.h"
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -63,39 +64,45 @@ struct pipewire_state {
 	bool loop_started;
 };
 
+#if ST_DEP_PIPEWIRE_LINKED
+#define LOAD_PW(api, library, member, name) ((api)->member = (name))
+#else
 #define LOAD_PW(api, library, member, name) do { \
-	void *st_audio_symbol = dynamic_library_symbol((library), (name)); \
+	void *st_audio_symbol = dynamic_library_symbol((library), #name); \
 	if (st_audio_symbol == NULL) { \
 		(void)dynamic_library_close((library)); \
 		return IO_ERROR_NOT_SUPPORTED; \
 	} \
 	(api)->member = (pw_ ## member ## _fn)st_audio_symbol; \
 } while (0)
+#endif
 
 static int
 load_pipewire(dynamic_library_t **result, struct pipewire_api *api)
 {
-	static const char *const names[] = { "pipewire-0.3" };
 	dynamic_library_t *library = NULL;
+#if !ST_DEP_PIPEWIRE_LINKED
+	static const char *const names[] = { "pipewire-0.3" };
 	int status = dynamic_library_open(&library, names, 1, 0,
 	    DYNAMIC_LIBRARY_LOCAL);
 
 	if (status != 0)
 		return status;
-	LOAD_PW(api, library, init, "pw_init");
-	LOAD_PW(api, library, deinit, "pw_deinit");
-	LOAD_PW(api, library, thread_loop_new, "pw_thread_loop_new");
-	LOAD_PW(api, library, thread_loop_destroy, "pw_thread_loop_destroy");
-	LOAD_PW(api, library, thread_loop_get_loop, "pw_thread_loop_get_loop");
-	LOAD_PW(api, library, thread_loop_start, "pw_thread_loop_start");
-	LOAD_PW(api, library, thread_loop_stop, "pw_thread_loop_stop");
-	LOAD_PW(api, library, stream_new_simple, "pw_stream_new_simple");
-	LOAD_PW(api, library, stream_destroy, "pw_stream_destroy");
-	LOAD_PW(api, library, stream_connect, "pw_stream_connect");
-	LOAD_PW(api, library, stream_disconnect, "pw_stream_disconnect");
+#endif
+	LOAD_PW(api, library, init, pw_init);
+	LOAD_PW(api, library, deinit, pw_deinit);
+	LOAD_PW(api, library, thread_loop_new, pw_thread_loop_new);
+	LOAD_PW(api, library, thread_loop_destroy, pw_thread_loop_destroy);
+	LOAD_PW(api, library, thread_loop_get_loop, pw_thread_loop_get_loop);
+	LOAD_PW(api, library, thread_loop_start, pw_thread_loop_start);
+	LOAD_PW(api, library, thread_loop_stop, pw_thread_loop_stop);
+	LOAD_PW(api, library, stream_new_simple, pw_stream_new_simple);
+	LOAD_PW(api, library, stream_destroy, pw_stream_destroy);
+	LOAD_PW(api, library, stream_connect, pw_stream_connect);
+	LOAD_PW(api, library, stream_disconnect, pw_stream_disconnect);
 	LOAD_PW(api, library, stream_dequeue_buffer,
-	    "pw_stream_dequeue_buffer");
-	LOAD_PW(api, library, stream_queue_buffer, "pw_stream_queue_buffer");
+	    pw_stream_dequeue_buffer);
+	LOAD_PW(api, library, stream_queue_buffer, pw_stream_queue_buffer);
 	*result = library;
 	return 0;
 }

@@ -1483,6 +1483,7 @@ src/media/music/st_music.h	enum:ST_MIDI_NOT_BUILT	19	st_midi_linkage	audio.backe
 src/media/music/st_music.h	enum:ST_MIDI_RUNTIME	19	st_midi_linkage	audio.backends
 src/media/music/st_music.h	enum:ST_MIDI_STATIC	19	st_midi_linkage	audio.backends
 src/media/music/st_music.h	enum:ST_MIDI_SYSTEM	19	st_midi_linkage	audio.backends
+src/media/music/st_music.h	enum:ST_MIDI_SHARED	19	st_midi_linkage	audio.backends
 src/media/music/st_music.h	function:st_midi_compiled_backends	20	uint32_t (void)	audio.backends
 src/media/music/st_music.h	function:st_midi_backend_linkage	21	enum st_midi_linkage (enum st_midi_backend)	audio.backends
 src/media/music/st_music.h	field:st_ansi_music_state.length	24	int	music.session-owner

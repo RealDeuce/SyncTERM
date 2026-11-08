@@ -13,6 +13,41 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
 find_package(PkgConfig QUIET)
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermDependencies.cmake")
+
+function(st_console_dependency name package header libraries default)
+	cmake_parse_arguments(PARSE_ARGV 5 API "REQUIRED" "" "SYMBOLS;HEADERS")
+	syncterm_dependency_options(${name} ${default})
+	set(probe "#include <${header}>\n")
+	foreach(extra IN LISTS API_HEADERS)
+		string(APPEND probe "#include <${extra}>\n")
+	endforeach()
+	string(APPEND probe "int main(void) {\n")
+	set(index 0)
+	foreach(symbol IN LISTS API_SYMBOLS)
+		string(APPEND probe "void (*volatile p${index})(void) = (void (*)(void))${symbol}; (void)p${index};\n")
+		math(EXPR index "${index} + 1")
+	endforeach()
+	string(APPEND probe "return 0; }\n")
+	set(required)
+	if(API_REQUIRED OR NOT ST_DEP_${name}_LINKAGE STREQUAL "AUTO" OR NOT ST_DEP_${name}_SOURCE STREQUAL "AUTO")
+		set(required REQUIRED)
+	endif()
+	set(alternatives)
+	if(name STREQUAL "CURSES" OR name STREQUAL "TERMINFO")
+		set(alternatives ALTERNATIVES)
+	endif()
+	syncterm_dependency(NAME ${name} PACKAGE "${package}" HEADER "${header}"
+		LIBRARIES ${libraries} DEFAULT ${default} ${required} ${alternatives} PROBE "${probe}")
+	set(ST_DEP_${name}_LINKED 0 PARENT_SCOPE)
+	set(ST_DEP_${name}_TARGET "${ST_DEP_${name}_TARGET}" PARENT_SCOPE)
+	if(ST_DEP_${name}_TARGET)
+		set(_st_console_dependencies ${_st_console_dependencies} ${ST_DEP_${name}_TARGET} PARENT_SCOPE)
+		if(NOT ST_DEP_${name}_MODE STREQUAL "RUNTIME")
+			set(ST_DEP_${name}_LINKED 1 PARENT_SCOPE)
+		endif()
+	endif()
+endfunction()
 
 option(ST_CONSOLE_TEST "Build the controllable testing bitmap backend" OFF)
 
@@ -111,26 +146,35 @@ if(NOT ST_CONSOLE_SDL STREQUAL "AUTO" AND NOT ST_CONSOLE_SDL STREQUAL "ON"
 	message(FATAL_ERROR "ST_CONSOLE_SDL must be AUTO, ON, or OFF")
 endif()
 
-set(ST_CONSOLE_HAVE_XKBCOMMON 0)
-if(PkgConfig_FOUND)
-	pkg_check_modules(ST_CONSOLE_XKBCOMMON_PC QUIET xkbcommon)
-endif()
-find_path(ST_CONSOLE_XKBCOMMON_INCLUDE_DIR xkbcommon/xkbcommon.h
-	HINTS ${ST_CONSOLE_XKBCOMMON_PC_INCLUDE_DIRS})
-if(ST_CONSOLE_XKBCOMMON_INCLUDE_DIR)
-	set(ST_CONSOLE_HAVE_XKBCOMMON 1)
-endif()
-
 set(ST_CONSOLE_HAVE_WAYLAND 0)
 set(ST_CONSOLE_HAVE_WAYLAND_ICON 0)
 set(ST_CONSOLE_HAVE_WAYLAND_DECORATION 0)
 set(ST_CONSOLE_WAYLAND_SOURCES)
 set(ST_CONSOLE_WAYLAND_INCLUDE_DIRS)
-if(NOT WIN32 AND NOT ST_CONSOLE_WAYLAND STREQUAL "OFF" AND PkgConfig_FOUND)
-	pkg_check_modules(ST_CONSOLE_WAYLAND_PC QUIET wayland-client)
-	pkg_get_variable(ST_CONSOLE_WAYLAND_DATA wayland-client pkgdatadir)
-	pkg_get_variable(ST_CONSOLE_WAYLAND_PROTOCOL_DATA wayland-protocols
-		pkgdatadir)
+if(NOT WIN32 AND NOT ST_CONSOLE_WAYLAND STREQUAL "OFF"
+    AND NOT (APPLE AND ST_CONSOLE_WAYLAND STREQUAL "AUTO"))
+	set(required)
+	if(ST_CONSOLE_WAYLAND STREQUAL "ON")
+		set(required REQUIRED)
+	endif()
+	st_console_dependency(WAYLAND wayland-client wayland-client.h wayland-client RUNTIME ${required} SYMBOLS
+		wl_proxy_marshal_flags wl_proxy_add_listener wl_proxy_destroy wl_proxy_get_version
+		wl_display_connect wl_display_disconnect wl_display_get_fd wl_display_dispatch
+		wl_display_dispatch_pending wl_display_roundtrip wl_display_flush)
+	st_console_dependency(XKBCOMMON xkbcommon xkbcommon/xkbcommon.h xkbcommon RUNTIME ${required} SYMBOLS
+		xkb_context_new xkb_context_unref xkb_keymap_new_from_string xkb_keymap_unref
+		xkb_state_new xkb_state_unref xkb_state_update_mask xkb_state_key_get_one_sym
+		xkb_state_key_get_utf32 xkb_state_mod_name_is_active)
+	if(PkgConfig_FOUND)
+		pkg_get_variable(_st_wayland_data wayland-client pkgdatadir)
+		pkg_get_variable(_st_protocol_data wayland-protocols pkgdatadir)
+	endif()
+	# These are host build inputs, independently of the target SDK/headers.
+	find_path(ST_CONSOLE_WAYLAND_DATA wayland.xml HINTS ${_st_wayland_data}
+		PATHS /usr/local/share/wayland /usr/share/wayland NO_CMAKE_FIND_ROOT_PATH)
+	find_path(ST_CONSOLE_WAYLAND_PROTOCOL_DATA stable/xdg-shell/xdg-shell.xml
+		HINTS ${_st_protocol_data} PATHS /usr/local/share/wayland-protocols
+		/usr/share/wayland-protocols NO_CMAKE_FIND_ROOT_PATH)
 	find_program(ST_CONSOLE_WAYLAND_SCANNER wayland-scanner)
 	set(_st_wl_xml ${ST_CONSOLE_WAYLAND_DATA}/wayland.xml)
 	set(_st_xdg_xml
@@ -142,10 +186,10 @@ if(NOT WIN32 AND NOT ST_CONSOLE_WAYLAND STREQUAL "OFF" AND PkgConfig_FOUND)
 	set(_st_decoration_xml
 		${ST_CONSOLE_WAYLAND_PROTOCOL_DATA}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml)
 	set(_st_wl_missing)
-	if(NOT ST_CONSOLE_WAYLAND_PC_FOUND OR NOT EXISTS "${_st_wl_xml}")
+	if(NOT ST_DEP_WAYLAND_TARGET OR NOT EXISTS "${_st_wl_xml}")
 		list(APPEND _st_wl_missing "wayland-client development files (including wayland.xml)")
 	endif()
-	if(NOT ST_CONSOLE_XKBCOMMON_INCLUDE_DIR)
+	if(NOT ST_DEP_XKBCOMMON_TARGET)
 		list(APPEND _st_wl_missing "xkbcommon development headers")
 	endif()
 	if(NOT ST_CONSOLE_WAYLAND_SCANNER)
@@ -157,9 +201,6 @@ if(NOT WIN32 AND NOT ST_CONSOLE_WAYLAND STREQUAL "OFF" AND PkgConfig_FOUND)
 	if(NOT _st_wl_missing)
 		set(ST_CONSOLE_HAVE_WAYLAND 1)
 		message(STATUS "Wayland backend: enabled")
-		set(ST_CONSOLE_WAYLAND_INCLUDE_DIRS
-			${ST_CONSOLE_WAYLAND_PC_INCLUDE_DIRS}
-			${ST_CONSOLE_XKBCOMMON_INCLUDE_DIR})
 		set(_st_wl_dir ${CMAKE_CURRENT_BINARY_DIR}/wayland-protocols)
 		set(_st_wl_protocols wayland xdg-shell viewporter)
 		if(EXISTS "${_st_decoration_xml}")
@@ -208,12 +249,6 @@ if(NOT WIN32 AND NOT ST_CONSOLE_WAYLAND STREQUAL "OFF" AND PkgConfig_FOUND)
 	endif()
 	unset(_st_wl_missing)
 	unset(_st_wl_missing_text)
-elseif(NOT WIN32 AND NOT ST_CONSOLE_WAYLAND STREQUAL "OFF")
-	if(ST_CONSOLE_WAYLAND STREQUAL "ON")
-		message(FATAL_ERROR "ST_CONSOLE_WAYLAND=ON requires pkg-config")
-	else()
-		message(STATUS "Wayland backend: disabled; missing build dependency: pkg-config")
-	endif()
 elseif(ST_CONSOLE_WAYLAND STREQUAL "ON")
 	message(FATAL_ERROR "ST_CONSOLE_WAYLAND=ON is unavailable on this target")
 endif()
@@ -232,7 +267,20 @@ int main(void)
 	return 0;
 }
 ]=] ST_CONSOLE_HAVE_CURSES_H)
+set(ST_CONSOLE_CURSES_IMPLEMENTATION unavailable)
 if(ST_CONSOLE_HAVE_CURSES_H)
+	syncterm_check_c17_source([=[
+#include <curses.h>
+#ifndef NCURSES_VERSION
+#error Not ncurses
+#endif
+int main(void) { return 0; }
+]=] ST_CONSOLE_CURSES_IS_NCURSES)
+	if(ST_CONSOLE_CURSES_IS_NCURSES)
+		set(ST_CONSOLE_CURSES_IMPLEMENTATION ncurses)
+	else()
+		set(ST_CONSOLE_CURSES_IMPLEMENTATION non-ncurses)
+	endif()
 	syncterm_check_c17_source([=[
 #include <curses.h>
 int main(void)
@@ -304,9 +352,6 @@ if(NOT ST_CONSOLE_SDL STREQUAL "OFF")
 	endif()
 	if(ST_CONSOLE_SDL_INCLUDE_DIR AND ST_CONSOLE_SDL_HEADERS_USABLE)
 		set(ST_CONSOLE_HAVE_SDL 1)
-	elseif(ST_CONSOLE_SDL STREQUAL "ON")
-		message(FATAL_ERROR
-			"ST_CONSOLE_SDL=ON, but usable SDL2 development headers were not found")
 	endif()
 endif()
 
@@ -334,9 +379,6 @@ if(NOT WIN32 AND NOT ST_CONSOLE_X11 STREQUAL "OFF")
 			list(APPEND ST_CONSOLE_X11_INCLUDE_DIRS
 				${X11_Xinerama_INCLUDE_PATH})
 		endif()
-	elseif(ST_CONSOLE_X11 STREQUAL "ON")
-		message(FATAL_ERROR
-			"ST_CONSOLE_X11=ON, but usable Xlib, Xutil, and XKB headers were not found")
 	endif()
 endif()
 
@@ -438,6 +480,7 @@ int main(void) { return fcntl(1, F_SETNOSIGPIPE, 1); }
 		message(FATAL_ERROR "ST_CONSOLE_TEST requires interruptible binary pipe transport support")
 	endif()
 endif()
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermConsoleDependencies.cmake")
 configure_file(console_config.h.in console_config.h @ONLY)
 
 if(NOT TARGET syncterm_io_error)
@@ -562,6 +605,7 @@ target_include_directories(st_console PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${ST_CONSOLE_SDL_INCLUDE_DIRS}
 		${ST_CONSOLE_X11_INCLUDE_DIRS} ${ST_CONSOLE_WAYLAND_INCLUDE_DIRS}
 		${_st_wl_dir})
+target_link_libraries(st_console PRIVATE ${_st_console_dependencies})
 target_link_libraries(st_console PUBLIC syncterm_io_error syncterm_threads
 	st_pixels PRIVATE syncterm_array_list syncterm_dynamic_library st_utf8
 	st_time st_unicode_width st_unicode_text st_codepage syncterm_string_compat)
@@ -656,6 +700,9 @@ if(BUILD_TESTING)
 		target_include_directories(${_test} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 		target_link_libraries(${_test} PRIVATE st_console
 			syncterm_array_list syncterm_dynamic_library st_utf8 st_codepage)
+		if(ST_DEP_CURSES_TARGET)
+			target_link_libraries(${_test} PRIVATE ${ST_DEP_CURSES_TARGET})
+		endif()
 		if(_variant STREQUAL "opaque")
 			target_compile_definitions(${_test} PRIVATE ST_CONSOLE_TEST_OPAQUE_WINDOW=1)
 		endif()
@@ -836,13 +883,32 @@ if(BUILD_TESTING)
 			SKIP_RETURN_CODE 77
 			TIMEOUT 20)
 	endif()
+	set(_st_console_x11_test_api FALSE)
 	if(ST_CONSOLE_HAVE_X11)
+		# Native event/pixel fixtures call Xlib themselves. Resolve their
+		# direct linkage against the same selected SDK as the console adapter.
+		syncterm_dependency(NAME X11 PACKAGE x11 HEADER X11/Xlib.h LIBRARIES X11
+			DEFAULT RUNTIME LINK_REQUIRED
+			PROBE "#include <X11/Xlib.h>\nint main(void) { Display *(*volatile open_display)(const char *) = XOpenDisplay; return open_display == 0; }")
+		set(_st_console_x11_test_library "${ST_DEP_X11_TARGET}")
+		set(_st_console_xrandr_test_library "")
+		if(ST_CONSOLE_HAVE_XRANDR)
+			syncterm_dependency(NAME XRANDR PACKAGE xrandr HEADER X11/extensions/Xrandr.h
+				LIBRARIES Xrandr DEFAULT RUNTIME LINK_REQUIRED
+				PROBE "#include <X11/extensions/Xrandr.h>\nint main(void) { return XRRQueryExtension(0,0,0); }")
+			set(_st_console_xrandr_test_library "${ST_DEP_XRANDR_TARGET}")
+		endif()
+		if(_st_console_x11_test_library AND (NOT ST_CONSOLE_HAVE_XRANDR OR _st_console_xrandr_test_library))
+			set(_st_console_x11_test_api TRUE)
+		endif()
+	endif()
+	if(_st_console_x11_test_api)
 		add_executable(st_console_x11_pixels_test
 			tests/st_console_x11_pixels_test.c)
 		target_include_directories(st_console_x11_pixels_test PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR})
 		target_link_libraries(st_console_x11_pixels_test PRIVATE st_console
-			X11::X11 st_time)
+			${_st_console_x11_test_library} st_time)
 		set_target_properties(st_console_x11_pixels_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_x11_pixels_test)
@@ -852,9 +918,9 @@ if(BUILD_TESTING)
 			${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
 			${ST_CONSOLE_X11_INCLUDE_DIRS})
 		target_link_libraries(st_console_x11_test PRIVATE st_console
-			X11::X11 syncterm_array_list)
+			${_st_console_x11_test_library} syncterm_array_list)
 		if(ST_CONSOLE_HAVE_XRANDR)
-			target_link_libraries(st_console_x11_test PRIVATE X11::Xrandr)
+			target_link_libraries(st_console_x11_test PRIVATE ${_st_console_xrandr_test_library})
 		endif()
 		syncterm_target_atomics(st_console_x11_test)
 		set_target_properties(st_console_x11_test PROPERTIES
@@ -962,3 +1028,21 @@ if(BUILD_TESTING)
 		set_tests_properties(st_console_ansi_windows PROPERTIES TIMEOUT 20)
 	endif()
 endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermBuildFeatures.cmake")
+syncterm_export_configuration(st_console
+	ST_CONSOLE_TEST
+	ST_CONSOLE_HAVE_SDL
+	ST_CONSOLE_HAVE_X11
+	ST_CONSOLE_HAVE_XINERAMA
+	ST_CONSOLE_HAVE_XRANDR
+	ST_CONSOLE_HAVE_XRENDER
+	ST_CONSOLE_HAVE_GDI
+	ST_CONSOLE_HAVE_WAYLAND
+	ST_CONSOLE_HAVE_QUARTZ
+	ST_CONSOLE_HAVE_WIN32
+	ST_CONSOLE_HAVE_CURSES_H
+	ST_CONSOLE_HAVE_CURSES_TIMEOUT
+	ST_CONSOLE_HAVE_CURSES_WIDE
+	ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
+	ST_CONSOLE_CURSES_IMPLEMENTATION)

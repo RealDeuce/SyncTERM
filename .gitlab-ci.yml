@@ -58,6 +58,8 @@ include:
   - local: .gitlab/ci/posix.yml
     inputs: {name: linux-sanitizers, tag: Linux, cc: gcc, cxx: g++, profile: sanitizers}
   - local: .gitlab/ci/posix.yml
+    inputs: {name: linux-mixed-linkage, tag: Linux, cc: gcc, cxx: g++, profile: mixed-linkage}
+  - local: .gitlab/ci/posix.yml
     inputs: {name: mingw32-cross, tag: FreeBSD, profile: mingw32-cross}
   - local: .gitlab/ci/posix.yml
     inputs: {name: mingw64-cross, tag: FreeBSD, profile: mingw64-cross}

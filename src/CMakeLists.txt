@@ -96,6 +96,7 @@ foreach(_product IN LISTS _st_products)
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 		PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+	syncterm_stage_dependency_runtime(${_product})
 endforeach()
 set(_artifacts "$<TARGET_FILE:syncterm_app>\n$<TARGET_FILE:syncterm_core>\n")
 if(WIN32)

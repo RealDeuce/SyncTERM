@@ -4,6 +4,7 @@
  */
 
 #include "audio_internal.h"
+#include "audio_config.h"
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -40,32 +41,38 @@ struct alsa_state {
 	snd_pcm_t *pcm;
 };
 
+#if ST_DEP_ALSA_LINKED
+#define LOAD_ALSA(api, library, member, name) ((api)->member = (name))
+#else
 #define LOAD_ALSA(api, library, member, name) do { \
-	void *st_audio_symbol = dynamic_library_symbol((library), (name)); \
+	void *st_audio_symbol = dynamic_library_symbol((library), #name); \
 	if (st_audio_symbol == NULL) { \
 		(void)dynamic_library_close((library)); \
 		return IO_ERROR_NOT_SUPPORTED; \
 	} \
 	(api)->member = (alsa_ ## member ## _fn)st_audio_symbol; \
 } while (0)
+#endif
 
 static int
 load_alsa(dynamic_library_t **result, struct alsa_api *api)
 {
-	static const char *const names[] = { "asound" };
 	dynamic_library_t *library = NULL;
+#if !ST_DEP_ALSA_LINKED
+	static const char *const names[] = { "asound" };
 	int status;
 
 	status = dynamic_library_open(&library, names, 1, 2,
 	    DYNAMIC_LIBRARY_LOCAL);
 	if (status != 0)
 		return status;
-	LOAD_ALSA(api, library, pcm_open, "snd_pcm_open");
-	LOAD_ALSA(api, library, pcm_close, "snd_pcm_close");
-	LOAD_ALSA(api, library, pcm_set_params, "snd_pcm_set_params");
-	LOAD_ALSA(api, library, pcm_writei, "snd_pcm_writei");
-	LOAD_ALSA(api, library, pcm_recover, "snd_pcm_recover");
-	LOAD_ALSA(api, library, pcm_delay, "snd_pcm_delay");
+#endif
+	LOAD_ALSA(api, library, pcm_open, snd_pcm_open);
+	LOAD_ALSA(api, library, pcm_close, snd_pcm_close);
+	LOAD_ALSA(api, library, pcm_set_params, snd_pcm_set_params);
+	LOAD_ALSA(api, library, pcm_writei, snd_pcm_writei);
+	LOAD_ALSA(api, library, pcm_recover, snd_pcm_recover);
+	LOAD_ALSA(api, library, pcm_delay, snd_pcm_delay);
 	*result = library;
 	return 0;
 }

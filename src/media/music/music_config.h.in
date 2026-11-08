@@ -1,4 +1,4 @@
-/* Generated adapter linkage: 0 absent, 1 runtime, 2 static, 3 system. */
+/* Generated adapter linkage: 0 absent, 1 runtime, 2 static, 3 system, 4 shared. */
 #ifndef ST_MUSIC_CONFIG_H_
 #define ST_MUSIC_CONFIG_H_
 #define ST_MIDI_LINK_ALSA @ST_MIDI_LINK_ALSA@

@@ -96,7 +96,7 @@ typedef struct xkb_keymap *(*st_xkb_keymap_new_from_string_fn)(
 typedef void (*st_xkb_keymap_unref_fn)(struct xkb_keymap *);
 typedef struct xkb_state *(*st_xkb_state_new_fn)(struct xkb_keymap *);
 typedef void (*st_xkb_state_unref_fn)(struct xkb_state *);
-typedef int (*st_xkb_state_update_mask_fn)(struct xkb_state *,
+typedef enum xkb_state_component (*st_xkb_state_update_mask_fn)(struct xkb_state *,
 	xkb_mod_mask_t, xkb_mod_mask_t, xkb_mod_mask_t, xkb_layout_index_t,
 	xkb_layout_index_t, xkb_layout_index_t);
 typedef xkb_keysym_t (*st_xkb_state_key_get_one_sym_fn)(struct xkb_state *,
@@ -117,7 +117,7 @@ struct xkb_api {
 	void (*keymap_unref)(struct xkb_keymap *);
 	struct xkb_state *(*state_new)(struct xkb_keymap *);
 	void (*state_unref)(struct xkb_state *);
-	int (*state_update_mask)(struct xkb_state *,
+	enum xkb_state_component (*state_update_mask)(struct xkb_state *,
 				 xkb_mod_mask_t,
 				 xkb_mod_mask_t,
 				 xkb_mod_mask_t,
@@ -213,6 +213,18 @@ static uint32_t now_ms(void)
 
 static int load_xkb(struct state *state)
 {
+#if ST_DEP_XKBCOMMON_LINKED
+	state->xkb.context_new = xkb_context_new;
+	state->xkb.context_unref = xkb_context_unref;
+	state->xkb.keymap_new_from_string = xkb_keymap_new_from_string;
+	state->xkb.keymap_unref = xkb_keymap_unref;
+	state->xkb.state_new = xkb_state_new;
+	state->xkb.state_unref = xkb_state_unref;
+	state->xkb.state_update_mask = xkb_state_update_mask;
+	state->xkb.state_key_get_one_sym = xkb_state_key_get_one_sym;
+	state->xkb.state_key_get_utf32 = xkb_state_key_get_utf32;
+	state->xkb.state_mod_name_is_active = xkb_state_mod_name_is_active;
+#else
 	static const char *const names[] = {"xkbcommon"};
 	if (dynamic_library_open(
 		&state->xkb_library, names, 1, 0, DYNAMIC_LIBRARY_LOCAL) != 0)
@@ -235,6 +247,7 @@ static int load_xkb(struct state *state)
 		state->xkb_library = NULL;
 		return IO_ERROR_NOT_SUPPORTED;
 	}
+#endif
 	state->xkb_context = state->xkb.context_new(XKB_CONTEXT_NO_FLAGS);
 	return state->xkb_context == NULL ? IO_ERROR_IO : 0;
 }

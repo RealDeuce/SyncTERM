@@ -36,6 +36,15 @@ without making them fatal.
 beside the component which uses them; inspect its `CMakeLists.txt` before
 enabling one.
 
+Configuration ends with a grouped summary of every item in the application's
+Build Options screen. The same report is saved as
+`syncterm-configuration.txt` in the build directory and included in CI's
+capability report. It distinguishes compiled runtime-loaded support from
+runtime library/device availability. The generated application inventory and
+configuration report share their feature definitions.
+
+include::Dependencies.adoc[leveloffset=+1]
+
 The native Wayland backend needs the `wayland-client` development files,
 `xkbcommon` headers, `wayland-scanner`, and the `wayland-protocols` package
 providing the xdg-shell and viewporter XML files at build time. With
@@ -44,14 +53,15 @@ disables this backend; runtime selection can then fall back to X11. Configure
 with `-DST_CONSOLE_WAYLAND=ON` to require Wayland support and fail with a list
 of missing build dependencies. `syncterm --help` lists the backends compiled
 into the resulting binary. The Wayland and xkbcommon shared libraries are
-loaded at runtime.
+loaded at runtime by default on POSIX targets other than macOS; explicit
+dependency linkage choices are described above.
 
 SSH uses the external https://github.com/RealDeuce/DeuceSSH/[DeuceSSH]
-library. CMake first looks for its installed package, then uses FetchContent
-at a pinned revision. Fetched sources and builds live under the build tree;
+library. CMake uses FetchContent at a pinned revision, against the exact crypto
+provider target already selected for SyncTERM and TLS. Fetched sources and builds live under the build tree;
 no DeuceSSH source is copied into SyncTERM. For an offline source checkout,
-set `FETCHCONTENT_SOURCE_DIR_DEUCESSH` to that checkout. An installed package
-can be selected with `deucessh_DIR` or `CMAKE_PREFIX_PATH`.
+set `FETCHCONTENT_SOURCE_DIR_DEUCESSH` to that checkout. Installed DeuceSSH
+packages are not selected because they do not export provider provenance.
 The SSH backend follows the selected TLS crypto provider; `CRYPTO_BACKEND=none`
 keeps the unencrypted transports available and reports encrypted transports
 as unavailable.

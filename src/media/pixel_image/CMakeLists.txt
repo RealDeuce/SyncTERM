@@ -22,51 +22,53 @@ if(NOT TARGET st_pixels)
 		"${CMAKE_CURRENT_BINARY_DIR}/pixels")
 endif()
 
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermDependencies.cmake")
+syncterm_dependency_options(JXL RUNTIME)
 set(_st_pixel_image_have_jxl FALSE)
 set(_st_pixel_image_have_jxl_threads FALSE)
+set(ST_DEP_JXL_LINKED 0)
 if(NOT _st_pixel_image_jxl STREQUAL "OFF")
-	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
-	find_path(ST_PIXEL_IMAGE_JXL_INCLUDE_DIR jxl/decode.h)
-	if(ST_PIXEL_IMAGE_JXL_INCLUDE_DIR)
-		set(_st_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
-		set(_st_saved_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
-		set(CMAKE_REQUIRED_INCLUDES "${ST_PIXEL_IMAGE_JXL_INCLUDE_DIR}")
-		set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-		syncterm_check_c17_source([=[
+	set(required)
+	if(WIN32 OR APPLE OR _st_pixel_image_jxl STREQUAL "ON" OR NOT ST_DEP_JXL_LINKAGE STREQUAL "AUTO" OR NOT ST_DEP_JXL_SOURCE STREQUAL "AUTO")
+		set(required REQUIRED)
+	endif()
+	set(cxx)
+	if(NOT ST_DEP_JXL_MODE STREQUAL "RUNTIME")
+		set(cxx CXX)
+	endif()
+	syncterm_dependency(NAME JXL PACKAGE libjxl HEADER jxl/decode.h
+		LIBRARIES jxl jxl_cms jxl_threads DEFAULT RUNTIME ${required} ${cxx} PROBE [=[
 #include <jxl/cms.h>
 #include <jxl/decode.h>
 #include <jxl/encode.h>
-int main(void)
-{
-	JxlDecoder *decoder = 0;
-	JxlColorEncoding colour;
-	const JxlCmsInterface *cms = JxlGetDefaultCms();
-	JxlColorEncodingSetToSRGB(&colour, JXL_FALSE);
-	(void)JxlDecoderSetCms(decoder, *cms);
-	(void)JxlDecoderSetOutputColorProfile(decoder, &colour, 0, 0);
-	return JPEGXL_MAJOR_VERSION < 0;
+int main(void) {
+    JxlDecoder *d = JxlDecoderCreate(0);
+    JxlColorEncoding c;
+    JxlColorEncodingSetToSRGB(&c, JXL_FALSE);
+    (void)JxlDecoderSetCms(d, *JxlGetDefaultCms());
+    JxlDecoderDestroy(d);
+    return 0;
 }
-]=] ST_PIXEL_IMAGE_JXL_HEADERS_VALID)
-		syncterm_check_c17_source([=[
-#include <jxl/decode.h>
-#include <jxl/resizable_parallel_runner.h>
-int main(void)
-{
-	JxlParallelRunner runner = JxlResizableParallelRunner;
-	return runner == 0;
-}
-]=] ST_PIXEL_IMAGE_JXL_THREADS_HEADERS_VALID)
-		set(CMAKE_REQUIRED_INCLUDES "${_st_saved_required_includes}")
-		set(CMAKE_TRY_COMPILE_TARGET_TYPE "${_st_saved_try_compile_target_type}")
-	endif()
-	if(ST_PIXEL_IMAGE_JXL_HEADERS_VALID)
+]=])
+	if(ST_DEP_JXL_TARGET)
 		set(_st_pixel_image_have_jxl TRUE)
-		if(ST_PIXEL_IMAGE_JXL_THREADS_HEADERS_VALID)
-			set(_st_pixel_image_have_jxl_threads TRUE)
+		if(NOT ST_DEP_JXL_MODE STREQUAL "RUNTIME")
+			set(ST_DEP_JXL_LINKED 1)
 		endif()
-	elseif(_st_pixel_image_jxl STREQUAL "ON")
-		message(FATAL_ERROR
-			"ST_PIXEL_IMAGE_JXL=ON requires usable libjxl decode and CMS headers")
+		get_property(pending TARGET ${ST_DEP_JXL_TARGET} PROPERTY ST_DEP_PENDING)
+		if(pending)
+			set(_st_pixel_image_have_jxl_threads TRUE)
+		else()
+			get_property(CMAKE_REQUIRED_INCLUDES TARGET ${ST_DEP_JXL_TARGET} PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+			set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+			syncterm_check_c17_source([=[
+#include <jxl/resizable_parallel_runner.h>
+int main(void) { JxlParallelRunner r = JxlResizableParallelRunner; return r == 0; }
+]=] ST_PIXEL_IMAGE_JXL_THREADS_HEADERS_VALID)
+			set(_st_pixel_image_have_jxl_threads "${ST_PIXEL_IMAGE_JXL_THREADS_HEADERS_VALID}")
+			unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
+			unset(CMAKE_REQUIRED_INCLUDES)
+		endif()
 	endif()
 endif()
 
@@ -89,9 +91,8 @@ if(_st_pixel_image_have_jxl)
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/threads"
 			"${CMAKE_CURRENT_BINARY_DIR}/threads")
 	endif()
-	target_include_directories(st_pixel_image SYSTEM PRIVATE
-		${ST_PIXEL_IMAGE_JXL_INCLUDE_DIR})
-	target_compile_definitions(st_pixel_image PRIVATE ST_PIXEL_IMAGE_HAVE_JXL=1)
+	target_link_libraries(st_pixel_image PRIVATE ${ST_DEP_JXL_TARGET})
+	target_compile_definitions(st_pixel_image PRIVATE ST_PIXEL_IMAGE_HAVE_JXL=1 ST_DEP_JXL_LINKED=${ST_DEP_JXL_LINKED})
 	target_link_libraries(st_pixel_image PRIVATE syncterm_dynamic_library
 		syncterm_threads)
 	if(_st_pixel_image_have_jxl_threads)
@@ -124,3 +125,7 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME pixel_image COMMAND st_pixel_image_test)
 endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermBuildFeatures.cmake")
+syncterm_export_configuration(st_pixel_image
+	_st_pixel_image_have_jxl)

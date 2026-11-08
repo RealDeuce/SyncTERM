@@ -712,6 +712,73 @@ initialize_x11_manager(void)
 static int
 load_xlib(struct x11_state *state)
 {
+#if ST_DEP_X11_LINKED
+	state->api.init_threads = XInitThreads;
+	state->api.open_display = XOpenDisplay;
+	state->api.close_display = XCloseDisplay;
+	state->api.default_screen = XDefaultScreen;
+	state->api.root_window = XRootWindow;
+	state->api.default_visual = XDefaultVisual;
+	state->api.default_depth = XDefaultDepth;
+	state->api.black_pixel = XBlackPixel;
+	state->api.connection_number = XConnectionNumber;
+	state->api.create_simple_window = XCreateSimpleWindow;
+	state->api.destroy_window = XDestroyWindow;
+	state->api.map_window = XMapWindow;
+	state->api.resize_window = XResizeWindow;
+	state->api.get_window_attributes = XGetWindowAttributes;
+	state->api.move_window = XMoveWindow;
+	state->api.translate_coordinates = XTranslateCoordinates;
+	state->api.set_wm_normal_hints = XSetWMNormalHints;
+	state->api.select_input = XSelectInput;
+	state->api.create_gc = XCreateGC;
+	state->api.free_gc = XFreeGC;
+	state->api.set_foreground = XSetForeground;
+	state->api.fill_rectangle = XFillRectangle;
+	state->api.create_image = XCreateImage;
+	state->api.put_image = XPutImage;
+	state->api.flush = XFlush;
+	state->api.sync = XSync;
+	state->api.pending = XPending;
+	state->api.next_event = XNextEvent;
+	state->api.peek_event = XPeekEvent;
+	state->api.lookup_keysym = XLookupKeysym;
+	state->api.lookup_string = XLookupString;
+	state->api.set_locale_modifiers = XSetLocaleModifiers;
+	state->api.open_im = XOpenIM;
+	state->api.close_im = XCloseIM;
+	state->api.create_ic = XCreateIC;
+	state->api.destroy_ic = XDestroyIC;
+	state->api.set_ic_focus = XSetICFocus;
+	state->api.unset_ic_focus = XUnsetICFocus;
+	state->api.utf8_lookup_string = Xutf8LookupString;
+	state->api.filter_event = XFilterEvent;
+	state->api.keysym_to_keycode = XKeysymToKeycode;
+	state->api.intern_atom = XInternAtom;
+	state->api.set_wm_protocols = XSetWMProtocols;
+	state->api.set_wm_hints = XSetWMHints;
+	state->api.store_name = XStoreName;
+	state->api.change_property = XChangeProperty;
+	state->api.delete_property = XDeleteProperty;
+	state->api.send_event = XSendEvent;
+	state->api.get_selection_owner = XGetSelectionOwner;
+	state->api.set_selection_owner = XSetSelectionOwner;
+	state->api.convert_selection = XConvertSelection;
+	state->api.get_window_property = XGetWindowProperty;
+	state->api.free_memory = XFree;
+	state->api.create_bitmap_from_data = XCreateBitmapFromData;
+	state->api.create_pixmap_cursor = XCreatePixmapCursor;
+	state->api.create_font_cursor = XCreateFontCursor;
+	state->api.define_cursor = XDefineCursor;
+	state->api.undefine_cursor = XUndefineCursor;
+	state->api.free_cursor = XFreeCursor;
+	state->api.free_pixmap = XFreePixmap;
+	state->api.create_pixmap = XCreatePixmap;
+	state->api.xkb_lookup_keysym = XkbLookupKeySym;
+	state->api.xkb_get_keyboard = XkbGetKeyboard;
+	state->api.xkb_free_keyboard = XkbFreeKeyboard;
+	return 0;
+#else
 	static const char *const names[] = {"X11"};
 	int status = dynamic_library_open(&state->library, names, 1, 6,
 	    DYNAMIC_LIBRARY_LOCAL);
@@ -798,15 +865,24 @@ load_xlib(struct x11_state *state)
 	(void)LOAD_REQUIRED(state, xkb_get_keyboard, "XkbGetKeyboard");
 	(void)LOAD_REQUIRED(state, xkb_free_keyboard, "XkbFreeKeyboard");
 	return 0;
+#endif
 }
 
 #if ST_CONSOLE_HAVE_XRENDER
 static int
 load_xrender(struct x11_state *state)
 {
+	int major, minor;
+#if ST_DEP_XRENDER_LINKED
+	state->api.render_query_version = XRenderQueryVersion;
+	state->api.render_find_visual_format = XRenderFindVisualFormat;
+	state->api.render_create_picture = XRenderCreatePicture;
+	state->api.render_free_picture = XRenderFreePicture;
+	state->api.render_set_transform = XRenderSetPictureTransform;
+	state->api.render_set_filter = XRenderSetPictureFilter;
+	state->api.render_composite = XRenderComposite;
+#else
 	static const char *const names[] = {"Xrender"};
-	int major;
-	int minor;
 
 	if (dynamic_library_open(&state->render_library, names, 1, 1,
 	    DYNAMIC_LIBRARY_LOCAL) != 0)
@@ -827,6 +903,7 @@ load_xrender(struct x11_state *state)
 		return 0;
 	}
 #undef LOAD_RENDER
+#endif
 	if (state->api.render_query_version(state->display, &major, &minor) != 0)
 		state->render_available = true;
 	return 0;
@@ -838,6 +915,10 @@ load_monitor_apis(struct x11_state *state)
 {
 	(void)state;
 #if ST_CONSOLE_HAVE_XRANDR
+#if ST_DEP_XRANDR_LINKED
+	state->xrr_get_monitors = XRRGetMonitors;
+	state->xrr_free_monitors = XRRFreeMonitors;
+#else
 	static const char *const xrandr_names[] = {"Xrandr"};
 
 	if (dynamic_library_open(&state->xrandr_library, xrandr_names, 1, 2,
@@ -857,7 +938,12 @@ load_monitor_apis(struct x11_state *state)
 		}
 	}
 #endif
+#endif
 #if ST_CONSOLE_HAVE_XINERAMA
+#if ST_DEP_XINERAMA_LINKED
+	state->xinerama_is_active = XineramaIsActive;
+	state->xinerama_query_screens = XineramaQueryScreens;
+#else
 	static const char *const xinerama_names[] = {"Xinerama"};
 
 	if (dynamic_library_open(&state->xinerama_library, xinerama_names, 1, 1,
@@ -876,6 +962,7 @@ load_monitor_apis(struct x11_state *state)
 			state->xinerama_query_screens = NULL;
 		}
 	}
+#endif
 #endif
 }
 

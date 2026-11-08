@@ -16,7 +16,7 @@ enum st_midi_backend {
 	ST_MIDI_WINMM = 1U << 3,
 	ST_MIDI_APPLE = 1U << 4,
 };
-enum st_midi_linkage { ST_MIDI_NOT_BUILT, ST_MIDI_RUNTIME, ST_MIDI_STATIC, ST_MIDI_SYSTEM };
+enum st_midi_linkage { ST_MIDI_NOT_BUILT, ST_MIDI_RUNTIME, ST_MIDI_STATIC, ST_MIDI_SYSTEM, ST_MIDI_SHARED };
 uint32_t st_midi_compiled_backends(void);
 enum st_midi_linkage st_midi_backend_linkage(enum st_midi_backend backend);
 

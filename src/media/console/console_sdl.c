@@ -253,6 +253,56 @@ initialize_manager(void)
 static int
 load_sdl(void)
 {
+#if ST_DEP_SDL2_LINKED
+	if (manager.initialized)
+		return 0;
+	manager.api.set_main_ready = SDL_SetMainReady;
+	manager.api.init_subsystem = SDL_InitSubSystem;
+	manager.api.quit_subsystem = SDL_QuitSubSystem;
+	manager.api.quit = SDL_Quit;
+	manager.api.was_init = SDL_WasInit;
+	manager.api.create_window = SDL_CreateWindow;
+	manager.api.destroy_window = SDL_DestroyWindow;
+	manager.api.get_window_id = SDL_GetWindowID;
+	manager.api.get_window_size = SDL_GetWindowSize;
+	manager.api.get_window_display_index = SDL_GetWindowDisplayIndex;
+	manager.api.get_display_bounds = SDL_GetDisplayBounds;
+	manager.api.set_window_position = SDL_SetWindowPosition;
+	manager.api.set_window_title = SDL_SetWindowTitle;
+	manager.api.set_window_size = SDL_SetWindowSize;
+	manager.api.set_window_minimum_size = SDL_SetWindowMinimumSize;
+	manager.api.restore_window = SDL_RestoreWindow;
+	manager.api.set_window_fullscreen = SDL_SetWindowFullscreen;
+	manager.api.create_rgb_surface_from = SDL_CreateRGBSurfaceFrom;
+	manager.api.free_surface = SDL_FreeSurface;
+	manager.api.set_window_icon = SDL_SetWindowIcon;
+	manager.api.set_hint = SDL_SetHint;
+	manager.api.create_renderer = SDL_CreateRenderer;
+	manager.api.destroy_renderer = SDL_DestroyRenderer;
+	manager.api.get_renderer_output_size = SDL_GetRendererOutputSize;
+	manager.api.set_render_draw_color = SDL_SetRenderDrawColor;
+	manager.api.render_clear = SDL_RenderClear;
+	manager.api.render_copy = SDL_RenderCopy;
+	manager.api.render_present = SDL_RenderPresent;
+	manager.api.create_texture = SDL_CreateTexture;
+	manager.api.destroy_texture = SDL_DestroyTexture;
+	manager.api.lock_texture = SDL_LockTexture;
+	manager.api.unlock_texture = SDL_UnlockTexture;
+	manager.api.poll_event = SDL_PollEvent;
+	manager.api.get_ticks = SDL_GetTicks;
+	manager.api.show_cursor = SDL_ShowCursor;
+	manager.api.create_system_cursor = SDL_CreateSystemCursor;
+	manager.api.set_cursor = SDL_SetCursor;
+	manager.api.free_cursor = SDL_FreeCursor;
+	manager.api.start_text_input = SDL_StartTextInput;
+	manager.api.stop_text_input = SDL_StopTextInput;
+	manager.api.set_clipboard_text = SDL_SetClipboardText;
+	manager.api.get_clipboard_text = SDL_GetClipboardText;
+	manager.api.free_memory = SDL_free;
+	manager.api.open_url = SDL_OpenURL;
+	manager.api.get_display_usable_bounds = SDL_GetDisplayUsableBounds;
+	manager.api.get_window_borders_size = SDL_GetWindowBordersSize;
+#else
 	static const char *const names[] = {"SDL2", "SDL2-2.0"};
 	int status;
 
@@ -359,6 +409,7 @@ load_sdl(void)
 	manager.api.get_window_borders_size =
 	    (sdl_get_window_borders_size_fn)dynamic_library_symbol(
 	    manager.library, "SDL_GetWindowBordersSize");
+#endif
 	manager.api.set_main_ready();
 	if (manager.api.init_subsystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
 		manager.library = NULL;

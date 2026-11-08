@@ -23,6 +23,15 @@
 
 #if ST_CONSOLE_HAVE_CURSES_H && ST_CONSOLE_HAVE_CURSES_TIMEOUT
 	#include <curses.h>
+#if ST_DEP_CURSES_LINKED
+	#include <term.h>
+	#undef columns
+	#undef lines
+	#undef cursor_visible
+	#undef buttons
+	#undef restore_cursor
+	#undef save_cursor
+#endif
 	/* X/Open curses uses short here. ncurses exposes macros for builds with
 	 * different parameter types; other implementations need not define them. */
 	#ifndef NCURSES_COLOR_T
@@ -226,10 +235,15 @@ replace_window(struct curses_state *state, uint32_t columns, uint32_t rows)
 
 static atomic_flag curses_in_use = ATOMIC_FLAG_INIT;
 
+#if ST_DEP_CURSES_LINKED
+#define LOAD_REQUIRED(state, member, name) ((state)->api.member != NULL)
+#define LOAD_OPTIONAL(state, member, name) ((state)->api.member != NULL)
+#else
 #define LOAD_REQUIRED(state, member, name) \
 	(((state)->api.member = (curses_ ## member ## _fn) \
 	    dynamic_library_symbol((state)->library, (name))) != NULL)
 #define LOAD_OPTIONAL(state, member, name) LOAD_REQUIRED(state, member, name)
+#endif
 
 struct sgr_writer {
 	unsigned char data[8192];
@@ -1690,6 +1704,78 @@ static const struct st_console_backend_ops curses_ops = {
 static bool
 load_required_api(struct curses_state *state)
 {
+#if ST_DEP_CURSES_LINKED
+	state->api.call_newterm = (curses_call_newterm_fn)newterm;
+	state->api.call_delscreen = (curses_call_delscreen_fn)delscreen;
+	state->api.call_endwin = (curses_call_endwin_fn)endwin;
+	state->api.call_newwin = (curses_call_newwin_fn)newwin;
+	state->api.call_delwin = (curses_call_delwin_fn)delwin;
+	state->api.call_getmaxx = (curses_call_getmaxx_fn)getmaxx;
+	state->api.call_getmaxy = (curses_call_getmaxy_fn)getmaxy;
+	state->api.call_move = (curses_call_move_fn)wmove;
+	state->api.call_addch = (curses_call_addch_fn)waddch;
+	state->api.call_refresh = (curses_call_refresh_fn)wrefresh;
+	state->api.call_erase = (curses_call_erase_fn)werase;
+	state->api.call_cbreak = (curses_call_cbreak_fn)cbreak;
+	state->api.call_raw = (curses_call_raw_fn)raw;
+	state->api.call_noecho = (curses_call_noecho_fn)noecho;
+	state->api.call_nonl = (curses_call_nonl_fn)nonl;
+	state->api.call_keypad = (curses_call_keypad_fn)keypad;
+	state->api.call_timeout = (curses_call_timeout_fn)wtimeout;
+	state->api.call_scrollok = (curses_call_scrollok_fn)scrollok;
+	state->api.call_cursor = (curses_call_cursor_fn)curs_set;
+	state->api.call_has_colors = (curses_call_has_colors_fn)has_colors;
+	state->api.call_can_change_color = (curses_call_can_change_color_fn)can_change_color;
+	state->api.call_start_color = (curses_call_start_color_fn)start_color;
+	state->api.call_color_content = (curses_call_color_content_fn)color_content;
+	state->api.call_init_color = (curses_call_init_color_fn)init_color;
+	state->api.call_init_pair = (curses_call_init_pair_fn)init_pair;
+	state->api.call_tigetflag = (curses_call_tigetflag_fn)tigetflag;
+	state->api.call_tigetnum = (curses_call_tigetnum_fn)tigetnum;
+	state->api.call_tigetstr = (curses_call_tigetstr_fn)tigetstr;
+	state->api.call_attributes = (curses_call_attributes_fn)wattr_set;
+	state->api.call_getch = (curses_call_getch_fn)wgetch;
+#if ST_CURSES_HAVE_USE_EXTENDED_NAMES
+	state->api.call_use_extended_names = (curses_call_use_extended_names_fn)use_extended_names;
+#endif
+#if ST_CURSES_HAVE_RESIZETERM
+	state->api.call_resizeterm = (curses_call_resizeterm_fn)resizeterm;
+#endif
+#if ST_CURSES_HAVE_TIPARM
+	state->api.call_tiparm = (curses_call_tiparm_fn)tiparm;
+#endif
+#if ST_CURSES_HAVE_TPUTS
+	state->api.call_tputs = (curses_call_tputs_fn)tputs;
+#endif
+#if ST_CURSES_HAVE_USE_LEGACY_CODING
+	state->api.call_use_legacy_coding = (curses_call_use_legacy_coding_fn)use_legacy_coding;
+#endif
+#if ST_CURSES_HAVE_ALLOC_PAIR
+	state->api.call_alloc_pair = (curses_call_alloc_pair_fn)alloc_pair;
+#endif
+#if ST_CURSES_HAVE_FIND_PAIR
+	state->api.call_find_pair = (curses_call_find_pair_fn)find_pair;
+#endif
+#if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
+	state->api.call_extended_color_content = extended_color_content;
+	state->api.call_init_extended_color = init_extended_color;
+#endif
+#if ST_CONSOLE_HAVE_CURSES_WIDE
+	state->api.call_add_wide = waddnwstr;
+#endif
+#ifdef KEY_MOUSE
+#if ST_CURSES_HAVE_MOUSEMASK
+	state->api.call_mousemask = (curses_call_mousemask_fn)mousemask;
+#endif
+#if ST_CURSES_HAVE_MOUSEINTERVAL
+	state->api.call_mouseinterval = (curses_call_mouseinterval_fn)mouseinterval;
+#endif
+#if ST_CURSES_HAVE_GETMOUSE
+	state->api.call_getmouse = (curses_call_getmouse_fn)getmouse;
+#endif
+#endif
+	return true;
+#else
 	return LOAD_REQUIRED(state, call_newterm, "newterm")
 	    && LOAD_REQUIRED(state, call_delscreen, "delscreen")
 	    && LOAD_REQUIRED(state, call_endwin, "endwin")
@@ -1720,6 +1806,7 @@ load_required_api(struct curses_state *state)
 	    && LOAD_REQUIRED(state, call_tigetstr, "tigetstr")
 	    && LOAD_REQUIRED(state, call_attributes, "wattr_set")
 	    && LOAD_REQUIRED(state, call_getch, "wgetch");
+#endif
 }
 
 static bool
@@ -1903,10 +1990,12 @@ curses_init_inner(void *argument)
 	st_console_t *console = argument;
 	/* Attribute masks and key codes come from the build-time header; a
 	 * different curses implementation need not use the same ABI values. */
+#if !ST_DEP_CURSES_LINKED
 #ifdef NCURSES_VERSION
 	static const char *const names[] = {"ncursesw", "ncurses", "curses"};
 #else
 	static const char *const names[] = {"curses"};
+#endif
 #endif
 	struct curses_state *state;
 	size_t count;
@@ -1930,8 +2019,12 @@ curses_init_inner(void *argument)
 	atomic_init(&state->host_resized, false);
 	state->display = console->display;
 	state->presentation = console->display->config.text_presentation;
+#if ST_DEP_CURSES_LINKED
+	result = 0;
+#else
 	result = dynamic_library_open(&state->library, names,
 	    sizeof(names) / sizeof(names[0]), 10, DYNAMIC_LIBRARY_LOCAL);
+#endif
 	if (result != 0 || !load_required_api(state)) {
 		(void)dynamic_library_close(state->library);
 		free(state);
@@ -2075,12 +2168,14 @@ curses_init_inner(void *argument)
 		state->presentation = ST_CONSOLE_TEXT_ASCII;
 	console->display->backend_ops = &curses_ops;
 #ifdef KEY_MOUSE
+#if !ST_DEP_CURSES_LINKED
 	state->api.call_mousemask = (curses_call_mousemask_fn)
 	    dynamic_library_symbol(state->library, "mousemask");
 	state->api.call_mouseinterval = (curses_call_mouseinterval_fn)
 	    dynamic_library_symbol(state->library, "mouseinterval");
 	state->api.call_getmouse = (curses_call_getmouse_fn)
 	    dynamic_library_symbol(state->library, "getmouse");
+#endif
 	if (state->api.call_mousemask != NULL
 	    && state->api.call_mouseinterval != NULL
 	    && state->api.call_getmouse != NULL) {

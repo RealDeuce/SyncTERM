@@ -1,0 +1,11 @@
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+cmake_minimum_required(VERSION 3.22)
+include("${SETTINGS}")
+foreach(directory IN LISTS runtime_dirs)
+	file(GLOB libraries "${directory}/*.dll" "${directory}/*.DLL")
+	list(REMOVE_DUPLICATES libraries)
+	foreach(library IN LISTS libraries)
+		get_filename_component(name "${library}" NAME)
+		file(COPY_FILE "${library}" "${DESTINATION}/${name}" ONLY_IF_DIFFERENT)
+	endforeach()
+endforeach()

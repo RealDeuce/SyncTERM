@@ -1,0 +1,136 @@
+= Optional libraries and reproducible builds
+
+SyncTERM separates three choices: whether a feature is compiled, how its
+library is linked, and where that library comes from. CMake remains the only
+supported build system. Every configure prints the complete Build Options
+inventory and writes `syncterm-configuration.txt` in the build directory.
+The application and report use the same generated inventory; a runtime-loaded
+feature being compiled does not establish that its library or device is
+available at runtime.
+
+== Policy
+
+macOS and Windows default to native video, PCM and MIDI backends, with static
+third-party decoding and crypto libraries. SDL, PortAudio, FluidSynth and
+libADLMIDI are opt-in there. OS frameworks and system libraries link normally.
+On other platforms, the existing runtime-loaded media backends and shared
+crypto provider remain the defaults. No option makes the whole executable
+static or forces every dependency to use the same linkage.
+
+`CRYPTO_BACKEND` accepts `OpenSSL`, `Botan`, `none`, or an empty automatic
+selection. Automatic selection prefers a usable installed OpenSSL 3, then
+installed Botan 3, then the pinned Botan source build. SyncTERM crypto, TLS
+and the pinned DeuceSSH all consume the same resolved provider target.
+macOS does not supply a supported OpenSSL development installation. Installed
+DeuceSSH packages cannot currently establish provider provenance and are not
+used. Explicit `none` retains the crypto-disabled configuration.
+
+== Feature and library options
+
+Feature switches retain `AUTO`, `ON`, and `OFF`, including `ST_CONSOLE_SDL`,
+`ST_CONSOLE_X11`, `ST_CONSOLE_WAYLAND`, `ST_CONSOLE_CURSES`,
+`ST_CONSOLE_XRENDER`, `ST_CONSOLE_XRANDR`, `ST_CONSOLE_XINERAMA`,
+`ST_AUDIO_ALSA`, `ST_AUDIO_PORTAUDIO`, `ST_AUDIO_PULSE_AUDIO`,
+`ST_AUDIO_PIPEWIRE`, `ST_AUDIO_SDL`, `ST_AUDIO_FILE_SNDFILE`,
+`ST_PIXEL_IMAGE_JXL`, and `ST_MIDI_ALSA`, `ST_MIDI_FLUIDSYNTH`,
+`ST_MIDI_ADLMIDI`. Native backend switches remain available too.
+`ON` requires usable dependencies; `AUTO` may omit an optional backend when
+its development files are absent. The default macOS/Windows decoding and
+crypto features instead arrange the required source fallback.
+
+For each library name below, `ST_DEP_<NAME>_LINKAGE` accepts `AUTO`, `STATIC`,
+`SHARED`, or `RUNTIME`. `RUNTIME` is supported by adapters with runtime loading;
+crypto requires `STATIC` or `SHARED`. `AUTO` follows the platform policy above.
+`ST_DEP_<NAME>_SOURCE` accepts `AUTO`, `INSTALLED`, or `BUNDLED`. `AUTO` first
+checks installed headers and libraries, falling back to pinned sources when
+the feature or dependency is required. `INSTALLED` prevents a source fallback;
+`BUNDLED` always builds the pinned source. Explicit selections are enforced.
+Pinned builds require `STATIC` or `SHARED`; `RUNTIME` uses installed development
+headers and the system loader's library search. A static/shared library can
+require a shared transitive link closure even when SyncTERM's own adapter for
+that prerequisite uses runtime loading; the report records that closure too.
+The old MIDI feature values `STATIC` and `RUNTIME` now belong on the dependency
+linkage option, rather than the feature enablement switch.
+
+Library names are `OPENSSL`, `BOTAN`, `SNDFILE`, `JXL`, `SDL2`, `PORTAUDIO`,
+`ALSA`, `PULSEAUDIO`, `PIPEWIRE`, `FLUIDSYNTH`, `ADLMIDI`, `CURSES`, `TERMINFO`,
+`X11`, `XRENDER`, `XRANDR`, `XINERAMA`, `WAYLAND`, and `XKBCOMMON`.
+Transitive libraries have the same controls: `FLAC`, `OGG`, `VORBIS`, `OPUS`,
+`MPG123`, `LAME`, `BROTLI`, `HIGHWAY`, `LCMS2`, `FFI`, `EXPAT`, `XCB`,
+`XEXT`, `XAU`, `XDMCP`, `XORGPROTO`, `XTRANS`, `PTHREAD_STUBS`, and the
+FluidSynth build-time header dependency `GCEM`.
+Only libraries applicable to the selected backend/platform need to be built.
+Pinned PipeWire supports shared builds with its matching client modules and
+SPA plugins. A static PipeWire core alone cannot replace that modular runtime;
+automatic pinned static builds are rejected. An explicitly installed static
+package must provide its complete module/link contract. This restriction does
+not affect the default runtime-loaded backend.
+
+`ST_DEP_<NAME>_ROOT` chooses a preferred installed prefix.
+`ST_DEP_<NAME>_INCLUDE_DIR` and `ST_DEP_<NAME>_LIBRARIES` specify exact headers
+and a complete library/link closure when package metadata is insufficient.
+An explicit path that fails validation is an error. These installed overrides
+cannot be combined with `SOURCE=BUNDLED`. Static archives are checked as
+archives, including universal Mach-O slices and Windows import-library
+rejection; API compile/link probes check the actual target toolchain.
+Compatible Homebrew prefixes are also considered on native macOS builds.
+Host pkg-config directories are not automatically used for cross-compilation.
+
+For example, keep normal runtime media backends while linking libsndfile
+statically and building just its FLAC dependency from pinned sources:
+
+[source,sh]
+----
+cmake -S . -B build \
+  -DST_DEP_SNDFILE_LINKAGE=STATIC \
+  -DST_DEP_FLAC_LINKAGE=STATIC -DST_DEP_FLAC_SOURCE=BUNDLED
+cmake --build build
+ctest --test-dir build --output-on-failure
+----
+
+== Source builds and offline operation
+
+`cmake/dependencies/lock.json` records immutable source URLs, versions, SHA-256
+hashes, provenance and license identifiers. Downloads are enabled by default.
+`SYNCTERM_DEPENDENCY_DOWNLOADS=OFF` prohibits missing-archive downloads.
+`SYNCTERM_DEPENDENCY_CACHE` selects the archive cache; entries are named
+`<NAME>-<version>.tar` (the archive contents may use any supported compression).
+`ST_DEP_<NAME>_ARCHIVE` supplies a local copy of
+that exact pinned source archive, with the same mandatory hash verification.
+It is not a path to a compiled `.a` or `.lib` file.
+
+Sources, generated headers, toolchain settings, build logs and staged products
+stay under the build tree. Upstream build tools must be installed on the host:
+CMake and a native build tool for CMake recipes; Python and Ninja for Botan;
+Perl and make for OpenSSL; make for Autotools recipes; Meson and Ninja for Meson
+recipes. Wayland additionally needs a host `wayland-scanner` and protocol XML
+development data. Cross-compilation must supply the target toolchain/sysroot;
+the resolver does not execute target programs during configuration.
+`ST_CONSOLE_WAYLAND_DATA`, `ST_CONSOLE_WAYLAND_PROTOCOL_DATA`, and
+`ST_CONSOLE_WAYLAND_SCANNER` can select those host data directories/tool
+independently of installed or pinned target libraries.
+PulseAudio and PipeWire source builds also require the platform's gettext/intl
+development contract (which may be part of libc).
+
+FluidSynth retains its own configuration and SoundFont requirements. The pinned
+library does not download a SoundFont or copy a user's bank; configure its bank
+through FluidSynth's normal configuration. SyncTERM adds no runtime library
+settings beyond the existing enable/disable choices.
+
+Pinned libsndfile includes its built-in formats, FLAC, Ogg/Vorbis, Opus and MP3
+(mpg123 decoding and LAME encoding). Pinned JPEG XL includes the decoder,
+default CMS and threaded runner. Source recipes disable unrelated tools and
+backends. Each prerequisite can independently use installed or pinned,
+static or shared libraries. The compiler, architecture, SDK, deployment target
+and MSVC runtime selection propagate to dependency builds. Universal macOS
+builds stage each architecture separately and combine the resulting libraries.
+Dependency linkage does not make the application fully static: OS libraries
+and compiler runtimes retain the selected toolchain's normal linkage policy.
+
+Upstream notices are staged under each dependency prefix's
+`share/licenses/<NAME>`. Distributors must retain those notices and the
+upstream licensing requirements when packaging static libraries. This source
+machinery is not a change to any dependency's license. The configuration report
+records which installed or pinned versions and paths were selected.
+libADLMIDI includes components and embedded banks under several licenses;
+its staged notices include the upstream component and bank descriptions.

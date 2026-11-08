@@ -275,9 +275,9 @@
     },
     {
       "path": "src/media/music/st_music.h",
-      "sha256": "48abaec3728a9b3c5fd156a206dcd5150af7108cbf5b2f9c7ccf465ef5b6ba84",
+      "sha256": "fcbaa5274d26024655d0cfcf728944eaae974cf7c162c93417ca20213d9b767e",
       "status": "reviewed",
-      "symbol_count": 33
+      "symbol_count": 34
     },
     {
       "path": "src/media/pixel_image/st_pixel_image.h",
@@ -664,8 +664,8 @@
           "anchor": "st_crypto_random"
         },
         {
-          "path": "src/scripting/wren_host/wren_bind_menu.c",
-          "anchor": "st_crypto_provider_name"
+          "path": "cmake/SynctermBuildFeatures.cmake",
+          "anchor": "get_property(crypto TARGET st_crypto PROPERTY ST_CRYPTO_PROVIDER)"
         },
         {
           "path": "src/scripting/wren_host/wren_bind_digest.c",
@@ -682,8 +682,8 @@
       "vm": "menu",
       "evidence": [
         {
-          "path": "src/scripting/wren_host/wren_bind_menu.c",
-          "anchor": "st_crypto_provider_name"
+          "path": "cmake/SynctermBuildFeatures.cmake",
+          "anchor": "get_property(crypto TARGET st_crypto PROPERTY ST_CRYPTO_PROVIDER)"
         }
       ]
     },
@@ -2022,7 +2022,7 @@
     "audio.backends": {
       "status": "covered",
       "wren": "Menu.audioModes / Settings.audioModes; Menu.midiModes / Settings.midiModes; Menu.buildOptions",
-      "reason": "Native compiled/available audio backend choices are exposed in menu configuration and applied by the native audio runtime. PCM frame/sample constants describe an unbound general playback format, separately accounted. Independent MIDI backend enable bits and compiled/linkage metadata are already represented through the MIDI catalog, Settings mask and Build Options labels. Catalog/build inspection does not construct a synth or probe physical MIDI availability.",
+      "reason": "Native compiled/available audio backend choices are exposed in menu configuration and applied by the native audio runtime. PCM frame/sample constants describe an unbound general playback format, separately accounted. Independent MIDI backend enable bits and compiled/linkage metadata are already represented through the MIDI catalog, Settings mask and Build Options labels. Catalog/build inspection does not construct a synth or probe physical MIDI availability. The explicit shared-library linkage enum is represented by the shared MIDI Build Options label; it adds no playback or device capability to Wren.",
       "vm": "menu",
       "evidence": [
         {
@@ -4947,6 +4947,16 @@
       "path": "scripts/ui_list_test.wren",
       "anchor": "static testPageDownClampsAtBottom_()",
       "aspect": "Real application list suite verifies page overshoot reaches the final item and stays there; symmetric first-item assertions retain the shared ListView clamping contract."
+    },
+    {
+      "path": "cmake/tests/build_features.cmake",
+      "anchor": "file(STRINGS",
+      "aspect": "Independent complete Build Options baseline and correspondence of every generated application row to the configure report; actual Wren host contract independently checks the runtime row schema and resolved feature booleans."
+    },
+    {
+      "path": "src/media/audio/tests/pipewire_link_test.c",
+      "anchor": "pw_context_find_factory",
+      "aspect": "Pinned PipeWire client module loading and event-loop shutdown without opening a server connection or audio device"
     }
   ],
   "dispatch_evidence": [
@@ -4965,7 +4975,7 @@
     "docs/TERMINAL_CONFORMANCE.md": "2ff58b87a06565c7bf3ab3fd0e698a53d81f6fdf100b2a04b3aa11be321ed70b",
     "docs/Themes.adoc": "04547f254e993b9f480311fb71343edd7c9c67f7a17677d995fb7ed618a1b462",
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "198274447bc6e326c63373f9e373a3a2010dedee504f7df536a827696e8b25fa",
+    "docs/Wren.adoc": "537122f4b0f495301712c55d9df7af7d00bba4081008ed86e98ec7c431b0e3ab",
     "docs/api/bbs-entry-fields.adoc": "1df70cd04d7418541a8459dec92001272c11bffcc5de3b5ecfd4762c17986f29",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "scripts/auto/connected/font_pick.wren": "b7c7176c36e9ec274425e4ea3bd14f37ce9991e6fe19078a83ec614e6978422b",
@@ -4991,7 +5001,7 @@
     "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
     "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
     "scripts/wrentest.wren": "4b4fd0f5e84de364e0315a17a9bf89f950c2463389db0bc54483be733baa58e7",
-    "src/CMakeLists.txt": "3540f6c70b1586e975d7797c48e843f7e819ab834a4b83f1c4b28318ffa81ce3",
+    "src/CMakeLists.txt": "19cf660603c4838781d075c8e61c94f6b550853bf4c4de0cfeae07791f8dc276",
     "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
     "src/base/base64/st_base64.h": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
     "src/base/crypto/st_cipher.h": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
@@ -5049,9 +5059,9 @@
     "src/media/audio/st_audio_runtime.h": "405ec23af71fac2341648a6ddf6297e907e5557303457e2aeaa462010d3116dc",
     "src/media/audio_file/st_audio_file.h": "7236377b7bed90f3875e0872e18090221dd1b84a33f4b66ffbfc7ade448831da",
     "src/media/audio_mixer/audio_mixer.h": "bbce67c37ac0c4feb67426ad7ef0cd77766efaf5a90b167ebe99e52767635ce8",
-    "src/media/console/CMakeLists.txt": "4c96585e3d5b910b60f2c68972b551f193bf21ce4022239ef89b2b6c41959b75",
-    "src/media/console/console_config.h.in": "28ae120b9bcee1e97f87baa58981b6430c5307d04d9adfee8c510684c950ef60",
-    "src/media/console/console_ncurses.c": "1d04310a77af932929f0eb80739eb14f1d003ebe2a4677fafe637b7ffbd33726",
+    "src/media/console/CMakeLists.txt": "cc3eb6b3f098dce05b5ce8789660a98be881a1794d03c2f01a264ce0a036b8eb",
+    "src/media/console/console_config.h.in": "fc26cffedfc0ef8811d4fd44231c027416f7cd808680cbbf0ec5a677e85be260",
+    "src/media/console/console_ncurses.c": "8ff519cd67a969d3d46eb6d7d9c0da922dcf303dc8601f79c088ac7d7bb0435e",
     "src/media/console/console_pixels.c": "c27623769b3849f0377dc817c61331a5f813a9d711d5e1af091740cd4b63e50e",
     "src/media/console/console_text.c": "b6f7dd2cae086162bb74f90397e299a0a310e34ede02604650db537fe59250ae",
     "src/media/console/st_console.h": "ad6930749fc58330de45c35675dee34d14d09191fb9c91098b1d478c480c8fed",
@@ -5069,7 +5079,7 @@
     "src/media/fonts/st_unicode_fonts.h": "c53a160e4eff5498827e376c538770dd6d63abe4fa5e4e09cfa0bb86ded2e6b4",
     "src/media/music/ansi_music.c": "29dcd723e91e307f7efebc8edcae80d1f4fd723b64c7d13a5f724f1654c11d99",
     "src/media/music/music.c": "ac8f82f719a61a940ae0d2a8562fe5367dc6fc5a910bbb65a414c60aa441ae70",
-    "src/media/music/st_music.h": "48abaec3728a9b3c5fd156a206dcd5150af7108cbf5b2f9c7ccf465ef5b6ba84",
+    "src/media/music/st_music.h": "fcbaa5274d26024655d0cfcf728944eaae974cf7c162c93417ca20213d9b767e",
     "src/media/pixel_image/st_pixel_image.h": "19f84636b92b53e8d5ae21eaa86f25c1058789f1db5f111fb78f76c6d645dba3",
     "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
     "src/media/pixels/st_pixels.c": "6df928627439e4a983f8444e744fb9aa0279ce1ed5cd0b4f95f1bf8c86715940",
@@ -5088,7 +5098,7 @@
     "src/net/transfer/st_transfer.h": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
-    "src/scripting/wren_host/CMakeLists.txt": "2f096ee11fc657df4d6a9f3d5dfacf558530592e7ababc5493583060d240dfe3",
+    "src/scripting/wren_host/CMakeLists.txt": "baeed373bc947e570db71c07476370fc8c3e13786d01da01476ca41da6417cc7",
     "src/scripting/wren_host/st_wren_host.h": "17a81e74c839dff72a496b82d40306175926dbb0023009084ec72fa12b9c7738",
     "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc",
     "src/scripting/wren_host/tests/cell_styles.wren": "522a83bc0cc79882d136348d78f72e3f189064014709955f0e61cbdd9777590e",
@@ -5100,7 +5110,7 @@
     "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c": "abb97ac4e4679e174f7374dd0afee96f1efb1914b82d13ac1e8b413863fa6a0e",
     "src/scripting/wren_host/tests/st_wren_digest_test.c": "026702e03fb1f3ae6a16a2e18554a9710bef2994cf9ccf100dd3ec0ffd1bf780",
     "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c": "6b73edbc7e051b958d663b3591f5db99062887dcf0252abcc856cc27089fe03f",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "10b2e9dcd97bec6d0b2f9fda0087a9b41b3d43b044b7a8b0e49765f9a39b894b",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "34f84284d8906859ab736560c129d76562e3060d0bd207d37567958eae25132b",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "1708e49b34d9df915e4b2afd0f227b5947d401cd1c967691a49503dbe74a827d",
     "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
     "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c": "fca707a2f0be87c2af9ee73477c71203e403c047689aff1b83b880a1e5e83a2f",
@@ -5118,7 +5128,7 @@
     "src/scripting/wren_host/wren_bind_digest.c": "53078c4038d0a189807e4f83fa3a800cf1ee50f3fdcf20a7b729c433f6bdb21b",
     "src/scripting/wren_host/wren_bind_fs.c": "df4f6a0bd90251d97ea788e13070cec5449f0e6dfadf1d0be0bb0777f3303ee4",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "785dfb5b7c7f4db6e8f78ca0465958af09632f115ed14e0755a87aad09f8bb52",
+    "src/scripting/wren_host/wren_bind_menu.c": "28b3191b33c5369f0ff1bf6f3e69daf87d2787900fcb119fc4a7403cfc5debeb",
     "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
     "src/scripting/wren_host/wren_bind_session.c": "26399b7a604e87bd47019ef7d85ad8a179d3783271873f0aabbb866e7ca787bd",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -5194,7 +5204,46 @@
     "src/scripting/wren_host/tests/st_wren_file_truncate_bindings.c": "6e7538e6ddcbf8f2de3a8255037c59134826eec81cd24f39ed2ffb65b11b690f",
     "src/terminal/cterm/tests/st_cterm_apc_test.c": "f892dc486252d8d0d4fb7782c50caf7cc7949c11a7b9f74398583bcca564dd5a",
     "src/tests/st_terminal_conformance_test.py": "6dd793df69d6333e9e3497a936b3496c69c27ae737734efd0a771f26f375ce84",
-    "scripts/ui_list_test.wren": "16e0c5c8e8b24ffc582cdd74ac3fea8e31a5e475a63a6136cc6d711584020324"
+    "scripts/ui_list_test.wren": "16e0c5c8e8b24ffc582cdd74ac3fea8e31a5e475a63a6136cc6d711584020324",
+    "CMakeLists.txt": "db93a4ec9da5bd46195d7dfb6a2868a5ecde39e2a6215c46761d8143fb3001e8",
+    "ci/run.cmake": "47ac51823705512fcf01b074575394b948200c7a00a8d1c6dd14402d198933f6",
+    "docs/HACKING.adoc": "d3f830999c1944f50541107dc1d9b1262912e9e525913f0932b24cc130ae74f7",
+    "src/media/audio/CMakeLists.txt": "d6d335bf1bdcbba5a0b780a52c0c0cce6e217a7aaa4b0d6c9e4addd8f76a23ce",
+    "src/media/audio_file/CMakeLists.txt": "aae99c0d3cfe5cbd6f8413313cf93f82077bf37a711fcaef58a4b76559e18fe0",
+    "src/media/music/CMakeLists.txt": "f9325fbf9efed8ee1011ea36621926908d299d84611c020819e5855a68aa7c52",
+    "src/media/pixel_image/CMakeLists.txt": "5b5159db9c9b6a31bad40d5417f7580d404d26e08066fdfc8cf9d15d988ffd8c",
+    "cmake/SynctermBuildFeatures.cmake": "3818b47b1393966155f6ef90c6b9851f9c254dd88961c078d8ae1dec255d3edc",
+    "cmake/tests/build_features.cmake": "46863e5dc508f22023c1b0b1a9ae3537bd1fd8815b6b7631edbc9869844dc82c",
+    "cmake/SynctermDependencies.cmake": "d105a9fb26c0cd48da4de79dafbf690448e449fcbc4d912ca050d8027aef7084",
+    "cmake/SynctermDependencySources.cmake": "dd2626b1e3088c190d0bb44201fddf6355e85519ecbef807d3c6dc3df14ddcbe",
+    "cmake/SynctermConsoleDependencies.cmake": "07ff7c851e885d0b5bbbb66b8bdbc7bbd987e3ab15dd2a8dc46ffea6edb5e320",
+    "cmake/DeuceSSH.cmake": "d07731a4daf39b1fbdae858ca8b1c6f95423a105357a26fbb8c6d03c605a788b",
+    "cmake/PatchDeuceSSH.cmake": "b8d295c4d071dc60b2d63149a093ed2c6d43def05a86048a8bfbd2b691eb00b5",
+    "cmake/dependencies/Recipes.cmake": "b52d1dc9298624df9479286e1444916aff328ecca54cd20d19233b235a220a6b",
+    "cmake/dependencies/Build.cmake": "8c2f95d15041803a8679cf52da180017d15d2cb28d22c71b2fcbc5863e9b6c5b",
+    "cmake/dependencies/Patch.cmake": "236c1670b6644909e40940d21b28bab4c62b7a01c0e5d6d9eb1e6c86f3834d96",
+    "cmake/dependencies/StageRuntime.cmake": "029605c640d0bdf08c2fafe6b2dc07a4d4063b29ed3ebe1bf0c38f0b33309cc6",
+    "cmake/dependencies/lock.json": "614bc46a2f2d90aaedd8eb73bb8cfbc60b4a3cbce4ec50a5f286ffde855b158d",
+    "cmake/dependencies/lame/CMakeLists.txt": "908caef6a0e6634ae479d6c9dc48c560eaeb2dec89f280c3a6e67f14ce3643f2",
+    "cmake/tests/dependency_policy.cmake": "d65917b2bf5fa9a5966cd4ffeeed981ac0e00f859c70d7d7702195df30e3c3c8",
+    "cmake/tests/dependency_sources.cmake": "65ca002a4e111ed028929539388a0b0e094cd888c45bac4bd27bf945571028f2",
+    "cmake/tests/dependency_sources.py": "48659f1a2c7a4bdff15ba4cbaa638bd30affd52f783efa8deedc6b264d1a97d4",
+    "cmake/tests/dependency_fixture/CMakeLists.txt": "236eef2605625cb404b4aca4975985ee28b9ec362c4ce154046d87564de3cc11",
+    "docs/Dependencies.adoc": "0e36c83311b0a3b82200cb4750ca2aa6a185918139fd56004a74cf5fc74d90b9",
+    "src/media/audio_file/tests/st_audio_file_test.c": "31b2b5d4f212412a5e829fb1471b489785afa642a6a97b5289bbbfb405f37d23",
+    "src/media/music/MidiBackends.cmake": "e6d73965c3741603c6ee76519b614ae3504092b0532d90283440f40bb4f7df10",
+    "src/media/music/tests/midi_build_test.py": "30400f028a6af01fefdcd9602378e273a3d77fd4d36bb68d44bfae731f664668",
+    "src/net/tls/CMakeLists.txt": "ad304634274966044b78ee100cda2610d7222f0b90adae0cf089bae813874968",
+    "src/net/connection/CMakeLists.txt": "dd53182ab24911200e5b67669565e9bae70f5b6282e9231d2fe5ce17bf0db293",
+    "tools/audit/wren_c_api_coverage.py": "b1ae1a70425b95369def0064668fab516fe5b1a724e1e3cb1d3917cc1aec5325",
+    "cmake/dependencies/Fetch.cmake": "d01fc3e66f526071ae6f09c45addf1225f4c97f86ce6103c7c7755bf54df7edc",
+    "src/media/audio/tests/pipewire_link_test.c": "893910aab3224876e6a9a2825d1dccc969aac1e4bc18df553fe5abb8cde2115c",
+    "src/media/audio_file/tests/fixtures/README.txt": "63bde3952ce276fa6ae5686a1e743cc7ef48dad157ae319813b248f21f5f25ed",
+    "src/media/audio_file/tests/fixtures/tone.flac": "d087aeb3db4f523829a306e9e27bc8e432c7ea1a9e7b8cc4f6a9de8a8448e772",
+    "src/media/audio_file/tests/fixtures/tone.ogg": "8d2e3d5dd158042c05c250ad3c4068a5f4184ca05dc4ef0af9bb3951c3c9361a",
+    "src/media/audio_file/tests/fixtures/tone.opus": "223dbdd61253d385d7695675d949f7ba41526af4424a762d09eb559be14634d2",
+    "src/media/audio_file/tests/fixtures/tone.mp3": "6f1ebcff9a934d1515381f9a0faed6b7b403acaa0fdc3b086abfc886f4221c0d",
+    "docs/DEPENDENCY_BUILD_PLAN.adoc": "fb134eed9d97555fa291da0dbb6cb849adaa625c998a4c73c8841639ff12dd68"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -6984,7 +7033,7 @@
         "native": "FreeBSD Clang Debug CMake application/APC/CTerm targets configured and built; all four listed native CTests passed (16.84s). Bitmap connection fixtures clear desktop variables, disable physical audio/MIDI, and use build-tree temporary/report paths.",
         "sanitizers": "Clang ASan/UBSan APC target configured/built; cterm_apc passed (4.40s), with no sanitizer diagnostics. Unsupported FreeBSD leak detection remains disabled; existing C++ vptr exclusion unchanged.",
         "windows": "Both MinGW x86/x86_64 CMake configurations built the affected CTerm library and APC test executable. No Windows execution, MSVC or Wine.",
-        "wire": "Captured both CP437 and UTF-8 actual application replies with SyncTERM 2.0a and verified every prefix against the existing legacy termtest read_ansi_string regular expression. CLI -v still reports SyncTERM 2.0α. This validates its reader grammar, not execution of the entire Synchronet test program.",
+        "wire": "Captured both CP437 and UTF-8 actual application replies with SyncTERM 2.0a and verified every prefix against the existing legacy termtest read_ansi_string regular expression. CLI -v still reports SyncTERM 2.0\u03b1. This validates its reader grammar, not execution of the entire Synchronet test program.",
         "warnings": "No compiler diagnostics in the exercised builds."
       },
       "accounting": "Reviewed the changed native header contract, native APC dispatch/MD5 evidence, new byte tests and tightened conformance assertions/inventories. Updated only reviewed changed/new evidence and the comment-only public-header digest. Native TSV signatures/lines/counts and all 83 matrix rows are unchanged: 2575 items, 132 exclusions, 161 assessments, 23 resolved/28 open original topics."
@@ -7002,6 +7051,45 @@
       ],
       "verification": "FreeBSD Clang Debug CMake application and settings test targets built without compiler diagnostics. New atlas regression failed against the old implementation before the fix. Focused settings runtime and control bitmap application fixtures passed; desktop environment cleared, audio/MIDI disabled and temporary/report paths confined to the build tree. No native display or Windows execution.",
       "accounting": "Reviewed changed theme navigation, active test harness, expected navigation results and theme documentation; refreshed only those evidence hashes and added the shared list regression evidence. Native inventory and original topic dispositions unchanged."
+    },
+    {
+      "topic": "dependency-build-reporting",
+      "status": "resolved",
+      "scope": "Implemented the approved dependency/linkage/pinned-build plan: one per-library resolver, platform defaults, installed/archive validation, independently mixed source and linkage choices, hash-verified pinned recipes with offline/cache controls, and one exact crypto provider target shared by crypto, TLS and DeuceSSH. Native OS libraries link normally; default macOS/Windows builds omit duplicate portable backends. The CMake-generated 37-row configuration/Build Options inventory preserves the Wren row schema, labels, ordering and runtime encrypted-list capability check. Curses ABI/capabilities and Wayland host build inputs are selected independently of pinned target headers.",
+      "tests_passed": [
+        "build_configuration_summary",
+        "dependency_policy",
+        "dependency_sources",
+        "st_crypto",
+        "st_tls_psk",
+        "list_crypto",
+        "music_build_modes",
+        "audio_file",
+        "st_console_ncurses_rgb",
+        "st_console_ncurses_opaque",
+        "st_console_ansi",
+        "st_console_ncurses",
+        "st_console_ncurses_capture",
+        "st_console_ncurses_direct",
+        "st_console_ncurses_cp437",
+        "st_console_ncurses_cp437_c_locale",
+        "st_console_ncurses_direct_cp437",
+        "connection_ssh",
+        "connection_ssh_bulk",
+        "wren_settings_runtime",
+        "wren_host",
+        "syncterm_behavior_settings_ui",
+        "audio_file_codecs",
+        "pixel_image",
+        "st_audio_pipewire_link",
+        "ci_c_standard",
+        "ci_c_capabilities",
+        "ci_driver",
+        "ci_mingw_toolchain",
+        "ci_posix"
+      ],
+      "verification": "FreeBSD Clang Debug application and the 22 selected checks pass in aggregate: 20 pass initially, while MIDI build modes and Wren settings hit execution limits under the reported system load and pass with identical commands/assertions on rerun (119s/3s). The final six-check pinned Botan application/crypto/list/TLS/SSH integration run has execution deadlines disabled and passes. Linked console suite passes 46 tests under private Xvfb; native Wayland execution is skipped without a compositor. Pinned static decoder/codec/image, crypto and MIDI fixtures and linked PCM checks pass; PipeWire loads matching client modules and stops its loop without a server/device. GCC application/Wren/audio-file checks and five CI-driver checks pass. Full MinGW64 application and separate pinned Botan crypto executable cross-link; app imports OS/compiler-runtime DLLs, with no decoder DLL dependency. No Windows execution/Wine, native macOS/Linux validation, auditory/device coverage or pinned FluidSynth SoundFont rendering is claimed. Platform and recipe coverage limits are recorded in docs/DEPENDENCY_BUILD_PLAN.adoc.",
+      "accounting": "The only new native item is ST_MIDI_SHARED, assessed as audio.backends and represented by the shared MIDI Build Options label. No native declarations were removed or changed, and Wren language/runtime semantics are unchanged. Reviewed resolver/recipes, provider ownership, direct/runtime loader tables, selected SDK headers, generated inventory, independent fixtures, cache/download races and flag reconfiguration; refreshed only this change's reviewed evidence. The inventory checker passes: 83 public headers, 132 exclusions, 2576 native items, 161 assessments and 51 original topics; original dispositions remain 23 resolved/28 open."
     }
   ]
 }

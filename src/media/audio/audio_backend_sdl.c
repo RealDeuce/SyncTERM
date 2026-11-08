@@ -4,6 +4,7 @@
  */
 
 #include "audio_internal.h"
+#include "audio_config.h"
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -40,31 +41,37 @@ struct sdl_state {
 	uint32_t latency;
 };
 
+#if ST_DEP_SDL2_LINKED
+#define LOAD_SDL(api, library, member, name) ((api)->member = (name))
+#else
 #define LOAD_SDL(api, library, member, name) do { \
-	void *st_audio_symbol = dynamic_library_symbol((library), (name)); \
+	void *st_audio_symbol = dynamic_library_symbol((library), #name); \
 	if (st_audio_symbol == NULL) { \
 		(void)dynamic_library_close((library)); \
 		return IO_ERROR_NOT_SUPPORTED; \
 	} \
 	(api)->member = (audio_sdl_ ## member ## _fn)st_audio_symbol; \
 } while (0)
+#endif
 
 static int
 load_sdl(dynamic_library_t **result, struct sdl_api *api)
 {
-	static const char *const names[] = { "SDL2", "SDL2-2.0" };
 	dynamic_library_t *library = NULL;
+#if !ST_DEP_SDL2_LINKED
+	static const char *const names[] = { "SDL2", "SDL2-2.0" };
 	int status = dynamic_library_open(&library, names, 2, 0,
 	    DYNAMIC_LIBRARY_LOCAL);
 
 	if (status != 0)
 		return status;
-	LOAD_SDL(api, library, was_init, "SDL_WasInit");
-	LOAD_SDL(api, library, init_subsystem, "SDL_InitSubSystem");
-	LOAD_SDL(api, library, quit_subsystem, "SDL_QuitSubSystem");
-	LOAD_SDL(api, library, open_audio_device, "SDL_OpenAudioDevice");
-	LOAD_SDL(api, library, close_audio_device, "SDL_CloseAudioDevice");
-	LOAD_SDL(api, library, pause_audio_device, "SDL_PauseAudioDevice");
+#endif
+	LOAD_SDL(api, library, was_init, SDL_WasInit);
+	LOAD_SDL(api, library, init_subsystem, SDL_InitSubSystem);
+	LOAD_SDL(api, library, quit_subsystem, SDL_QuitSubSystem);
+	LOAD_SDL(api, library, open_audio_device, SDL_OpenAudioDevice);
+	LOAD_SDL(api, library, close_audio_device, SDL_CloseAudioDevice);
+	LOAD_SDL(api, library, pause_audio_device, SDL_PauseAudioDevice);
 	*result = library;
 	return 0;
 }

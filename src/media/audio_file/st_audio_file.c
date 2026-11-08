@@ -28,6 +28,14 @@ struct sndfile_api {
 	int (*close_file)(SNDFILE *);
 	int (*format_check)(const SF_INFO *);
 };
+#if ST_AUDIO_FILE_SNDFILE_LINKED
+static const struct sndfile_api api = {
+	.open_virtual = sf_open_virtual,
+	.read_frames = sf_readf_short,
+	.close_file = sf_close,
+	.format_check = sf_format_check,
+};
+#else
 static struct sndfile_api api;
 static dynamic_library_t *library;
 static st_once_flag_t load_once = ST_ONCE_FLAG_INIT;
@@ -54,11 +62,17 @@ load_sndfile(void)
 	}
 }
 
+#endif
+
 bool
 st_audio_file_available(void)
 {
+#if ST_AUDIO_FILE_SNDFILE_LINKED
+	return true;
+#else
 	st_call_once(&load_once, load_sndfile);
 	return library != NULL;
+#endif
 }
 
 bool

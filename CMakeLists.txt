@@ -137,3 +137,22 @@ add_subdirectory(src/scripting/re1)
 add_subdirectory(src/scripting/wren_host)
 add_subdirectory(src)
 add_subdirectory(addons/modern_ui)
+
+syncterm_print_configuration()
+if(BUILD_TESTING)
+	add_test(NAME build_configuration_summary COMMAND "${CMAKE_COMMAND}"
+		"-DBUILD_DIR=${PROJECT_BINARY_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/build_features.cmake")
+	add_test(NAME dependency_policy COMMAND "${CMAKE_COMMAND}"
+		"-DTEST_ROOT=${PROJECT_BINARY_DIR}/dependency-policy-tests"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_policy.cmake")
+	find_package(Python3 QUIET COMPONENTS Interpreter)
+	if(Python3_Interpreter_FOUND)
+		add_test(NAME dependency_sources COMMAND "${Python3_EXECUTABLE}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_sources.py"
+			"${CMAKE_COMMAND}" "${PROJECT_BINARY_DIR}/dependency-source-tests")
+	else()
+		add_test(NAME dependency_sources COMMAND "${CMAKE_COMMAND}"
+			"-DTEST_ROOT=${PROJECT_BINARY_DIR}/dependency-source-tests"
+			-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_sources.cmake")
+	endif()
+endif()

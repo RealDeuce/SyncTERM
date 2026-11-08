@@ -1061,7 +1061,7 @@ st_console_build_features(void)
 	result |= ST_CONSOLE_BUILD_TEST;
 #endif
 
-#if ST_CONSOLE_HAVE_CURSES_H
+#if ST_CONSOLE_HAVE_CURSES_H && ST_CONSOLE_HAVE_CURSES_TIMEOUT
 	result |= ST_CONSOLE_BUILD_NCURSES;
 #endif
 #if ST_CONSOLE_HAVE_WIN32

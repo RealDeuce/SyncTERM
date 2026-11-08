@@ -14,7 +14,7 @@
 #define MEMBER(result, name, args) result (*name) args;
 struct alsa_api { ST_ALSA_SYMBOLS(MEMBER) };
 #undef MEMBER
-#if ST_MIDI_LINK_ALSA == 2
+#if ST_MIDI_LINK_ALSA == 2 || ST_MIDI_LINK_ALSA == 4
 #define ADDRESS(result, name, args) .name = name,
 static struct alsa_api api = { ST_ALSA_SYMBOLS(ADDRESS) };
 #undef ADDRESS

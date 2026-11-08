@@ -55,3 +55,11 @@ if(BUILD_TESTING)
 		endif()
 	endif()
 endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermBuildFeatures.cmake")
+syncterm_export_configuration(st_music
+	ST_MIDI_LINK_ALSA
+	ST_MIDI_LINK_FLUIDSYNTH
+	ST_MIDI_LINK_ADLMIDI
+	ST_MIDI_LINK_WINMM
+	ST_MIDI_LINK_APPLE)

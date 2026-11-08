@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "provenance": "Upstream release archives; initial checksums from Homebrew formula metadata or upstream release metadata. ADLMIDI tag archive hash verified locally.",
+  "dependencies": {
+    "BOTAN": {
+      "version": "3.14.1",
+      "url": "https://botan.randombit.net/releases/Botan-3.14.1.tar.xz",
+      "sha256": "5b85cba0f014d344eb8e9919aee0a3bdc31e16acb05816410025be9bee1e0930",
+      "license": "BSD-2-Clause"
+    },
+    "OPENSSL": {
+      "version": "3.5.9",
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+      "sha256": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+      "license": "Apache-2.0"
+    },
+    "SNDFILE": {
+      "version": "1.2.2",
+      "url": "https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz",
+      "sha256": "3799ca9924d3125038880367bf1468e53a1b7e3686a934f098b7e1d286cdb80e",
+      "license": "LGPL-2.1-or-later"
+    },
+    "FLAC": {
+      "version": "1.5.0",
+      "url": "https://ftp.osuosl.org/pub/xiph/releases/flac/flac-1.5.0.tar.xz",
+      "sha256": "f2c1c76592a82ffff8413ba3c4a1299b6c7ab06c734dee03fd88630485c2b920",
+      "license": "BSD-3-Clause AND GPL-2.0-or-later AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND LicenseRef-Homebrew-public-domain AND (GPL-2.0-or-later OR LGPL-2.1-or-later)"
+    },
+    "OGG": {
+      "version": "1.3.6",
+      "url": "https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.6.tar.gz",
+      "sha256": "83e6704730683d004d20e21b8f7f55dcb3383cdf84c0daedf30bde175f774638",
+      "license": "BSD-3-Clause"
+    },
+    "VORBIS": {
+      "version": "1.3.7",
+      "url": "https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.xz",
+      "sha256": "b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b",
+      "license": "BSD-3-Clause"
+    },
+    "OPUS": {
+      "version": "1.6.1",
+      "url": "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.6.1.tar.gz",
+      "sha256": "6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1",
+      "license": "BSD-3-Clause"
+    },
+    "MPG123": {
+      "version": "1.33.7",
+      "url": "https://www.mpg123.de/download/mpg123-1.33.7.tar.bz2",
+      "sha256": "31d0e35a4ca567ec9b5ebda6c3062bb4435d6d3eacd6ef0d95cadd7854dc03ee",
+      "license": "LGPL-2.1-only"
+    },
+    "LAME": {
+      "version": "4.0",
+      "url": "https://downloads.sourceforge.net/project/lame/lame/4.0/lame-4.0.tar.gz",
+      "sha256": "3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb",
+      "license": "LGPL-2.0-or-later"
+    },
+    "JXL": {
+      "version": "0.12.0",
+      "url": "https://github.com/libjxl/libjxl/archive/refs/tags/v0.12.0.tar.gz",
+      "sha256": "03e9be69a30be4011f559da75328b6d7cea8ad921fabfbd551ce10bf45cdc992",
+      "license": "BSD-3-Clause"
+    },
+    "BROTLI": {
+      "version": "1.2.1",
+      "url": "https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz",
+      "sha256": "98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f",
+      "license": "MIT"
+    },
+    "HIGHWAY": {
+      "version": "1.4.0",
+      "url": "https://github.com/google/highway/archive/refs/tags/1.4.0.tar.gz",
+      "sha256": "e72241ac9524bb653ae52ced768b508045d4438726a303f10181a38f764a453c",
+      "license": "Apache-2.0 OR BSD-3-Clause"
+    },
+    "LCMS2": {
+      "version": "2.19.1",
+      "url": "https://downloads.sourceforge.net/project/lcms/lcms/2.19.1/lcms2-2.19.1.tar.gz",
+      "sha256": "bfc54f7bab59fbc921012014a8032e4cba4abd46db47d46b76416a8c0b2815c8",
+      "license": "MIT"
+    },
+    "PORTAUDIO": {
+      "version": "19.7.0",
+      "url": "https://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz",
+      "sha256": "47efbf42c77c19a05d22e627d42873e991ec0c1357219c0d74ce6a2948cb2def",
+      "license": "MIT"
+    },
+    "FLUIDSYNTH": {
+      "version": "2.6.2",
+      "url": "https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.6.2.tar.gz",
+      "sha256": "ca376b42a3c1b186a4c8c248931789a455ac94a89b777394969d678010c2f91f",
+      "license": "LGPL-2.1-or-later"
+    },
+    "ALSA": {
+      "version": "1.2.16.1",
+      "url": "https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.16.1.tar.bz2",
+      "sha256": "f740db7f488255944ffd4428416ee3390a96742856916433df468c281436480e",
+      "license": "LGPL-2.1-or-later AND GPL-2.0-or-later"
+    },
+    "PULSEAUDIO": {
+      "version": "17.0",
+      "url": "https://www.freedesktop.org/software/pulseaudio/releases/pulseaudio-17.0.tar.xz",
+      "sha256": "053794d6671a3e397d849e478a80b82a63cb9d8ca296bd35b73317bb5ceb87b5",
+      "license": "GPL-2.0-or-later AND LGPL-2.1-or-later AND BSD-3-Clause"
+    },
+    "PIPEWIRE": {
+      "version": "1.6.11",
+      "url": "https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/1.6.11/pipewire-1.6.11.tar.gz",
+      "sha256": "f3f70c4af173cc93d05070a9d412efe3ef5889bdf4ac32298e2c0d9ae1350559",
+      "license": "MIT AND GPL-2.0-only AND LGPL-2.1-or-later"
+    },
+    "WAYLAND": {
+      "version": "1.26.0",
+      "url": "https://gitlab.freedesktop.org/wayland/wayland/-/releases/1.26.0/downloads/wayland-1.26.0.tar.xz",
+      "sha256": "64176eaa46e4969903e286f8e5ef8331affc17fdf03ac9b58381d2b23162b7a3",
+      "license": "MIT"
+    },
+    "XKBCOMMON": {
+      "version": "1.13.2",
+      "url": "https://github.com/xkbcommon/libxkbcommon/archive/refs/tags/xkbcommon-1.13.2.tar.gz",
+      "sha256": "acc4d5f7c3cbba5f9f8d08d8bdbeede84ecede46792f47929aa9321873385528",
+      "license": "MIT"
+    },
+    "X11": {
+      "version": "1.8.14",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libX11-1.8.14.tar.gz",
+      "sha256": "ebb8a58549ddde50aa2e742b3b256557f451053d173be8dbfc2e8ac078eee1d6",
+      "license": "MIT"
+    },
+    "XINERAMA": {
+      "version": "1.1.6",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libXinerama-1.1.6.tar.xz",
+      "sha256": "d00fc1599c303dc5cbc122b8068bdc7405d6fcb19060f4597fc51bd3a8be51d7",
+      "license": "MIT"
+    },
+    "XRANDR": {
+      "version": "1.5.5",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libXrandr-1.5.5.tar.xz",
+      "sha256": "72b922c2e765434e9e9f0960148070bd4504b288263e2868a4ccce1b7cf2767a",
+      "license": "MIT"
+    },
+    "XRENDER": {
+      "version": "0.9.13",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libXrender-0.9.13.tar.gz",
+      "sha256": "bf264b683d1e49ff9a6bc03af13baa430a556d943731a2b1ac2439dae4fea205",
+      "license": "MIT"
+    },
+    "NCURSES": {
+      "version": "6.6",
+      "url": "https://invisible-mirror.net/archives/ncurses/ncurses-6.6.tar.gz",
+      "sha256": "355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11",
+      "license": "X11-distribute-modifications-variant"
+    },
+    "FFI": {
+      "version": "3.8.0",
+      "url": "https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz",
+      "sha256": "7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4",
+      "license": "MIT"
+    },
+    "EXPAT": {
+      "version": "2.10.0",
+      "url": "https://github.com/libexpat/libexpat/releases/download/R_2_10_0/expat-2.10.0.tar.xz",
+      "sha256": "c624ba2998fc65df1163a49641ff3f9ab73138b11641d92c86bee0fb01b1bc7f",
+      "license": "MIT"
+    },
+    "XCB": {
+      "version": "1.17.0",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libxcb-1.17.0.tar.xz",
+      "sha256": "599ebf9996710fea71622e6e184f3a8ad5b43d0e5fa8c4e407123c88a59a6d55",
+      "license": "MIT"
+    },
+    "XEXT": {
+      "version": "1.3.7",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libXext-1.3.7.tar.gz",
+      "sha256": "6564608dc3b816b0cfddf0c7ddc62bc579055dd70b2f28113a618df2acb64189",
+      "license": "MIT"
+    },
+    "XFIXES": {
+      "version": "6.0.2",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libXfixes-6.0.2.tar.xz",
+      "sha256": "39f115d72d9c5f8111e4684164d3d68cc1fd21f9b27ff2401b08fddfc0f409ba",
+      "license": "MIT"
+    },
+    "XORGPROTO": {
+      "version": "2026.1",
+      "url": "https://xorg.freedesktop.org/archive/individual/proto/xorgproto-2026.1.tar.gz",
+      "sha256": "7fa90e48cbaca6bc4c99d176e88c5c147ab0ed42358e14a0869ee9c8a610ae7e",
+      "license": "MIT"
+    },
+    "XTRANS": {
+      "version": "1.6.0",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/xtrans-1.6.0.tar.xz",
+      "sha256": "faafea166bf2451a173d9d593352940ec6404145c5d1da5c213423ce4d359e92",
+      "license": "MIT"
+    },
+    "XAU": {
+      "version": "1.0.12",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libXau-1.0.12.tar.xz",
+      "sha256": "74d0e4dfa3d39ad8939e99bda37f5967aba528211076828464d2777d477fc0fb",
+      "license": "MIT"
+    },
+    "XDMCP": {
+      "version": "1.1.5",
+      "url": "https://xorg.freedesktop.org/archive/individual/lib/libXdmcp-1.1.5.tar.xz",
+      "sha256": "d8a5222828c3adab70adf69a5583f1d32eb5ece04304f7f8392b6a353aa2228c",
+      "license": "MIT"
+    },
+    "PTHREAD_STUBS": {
+      "version": "0.5",
+      "url": "https://xcb.freedesktop.org/dist/libpthread-stubs-0.5.tar.xz",
+      "sha256": "59da566decceba7c2a7970a4a03b48d9905f1262ff94410a649224e33d2442bc",
+      "license": "MIT"
+    },
+    "SDL2": {
+      "version": "2.32.10",
+      "url": "https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10.tar.gz",
+      "sha256": "5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165",
+      "license": "Zlib"
+    },
+    "ADLMIDI": {
+      "version": "1.6.2.1",
+      "url": "https://github.com/Wohlstand/libADLMIDI/archive/refs/tags/v1.6.2.1.tar.gz",
+      "sha256": "e01aec7b2bc284476eedab77a8b6e177c5beda2bc2f4545166339badfc0464c5",
+      "license": "GPL-3.0-or-later AND LGPL-2.1-or-later AND GPL-2.0-or-later AND MIT AND BSD-3-Clause AND BSL-1.0 AND LicenseRef-ADLMIDI-banks"
+    },
+    "GCEM": {
+      "version": "012ae73c6d0a2cb09ffe86475f5c6fba3926e200",
+      "url": "https://github.com/kthohr/gcem/archive/012ae73c6d0a2cb09ffe86475f5c6fba3926e200.zip",
+      "sha256": "28159274c54e9640354852e172d10d88eb159f4e7f2fea42edbcd20105ed3526",
+      "license": "Apache-2.0",
+      "provenance": "Pinned FluidSynth cmake_admin/FindGCEM.cmake; upstream kthohr/gcem commit"
+    }
+  }
+}

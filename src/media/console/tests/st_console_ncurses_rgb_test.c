@@ -8,6 +8,11 @@
 
 #include "console_config.h"
 
+/* This fixture installs its own API table and simulates opaque WINDOWs.
+ * Native linked/runtime loader behavior has separate PTY coverage. */
+#undef ST_DEP_CURSES_LINKED
+#define ST_DEP_CURSES_LINKED 0
+
 #if ST_CONSOLE_HAVE_CURSES_H && defined(ST_CONSOLE_TEST_OPAQUE_WINDOW)
 #include <curses.h>
 /* Exercise opaque windows even when the host headers expose their layout. */
