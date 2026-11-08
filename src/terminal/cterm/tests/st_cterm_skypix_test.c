@@ -514,6 +514,69 @@ static void gadget_tests(st_cterm_t *t)
 	t->api_output = saved;
 	t->api_output_context = saved_context;
 }
+static unsigned report_pixel(unsigned x, unsigned y)
+{
+	/* Independent literal rectangle/fill bounds, plus Pearl/8 strike rows. */
+	if (x >= 100 && x <= 550 && y >= 70 && y <= 170)
+		return x == 100 || x == 550 || y == 70 || y == 170 ? 515 : 516;
+	static const uint8_t rows[3][8] = {
+		{0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0},
+		{0xfc, 0xc6, 0xc6, 0xfc, 0xc6, 0xc6, 0xfc, 0},
+		{0xfc, 0xc6, 0xc6, 0xc6, 0xc6, 0xc6, 0xfc, 0}};
+	static const unsigned glyphs[][3] = {
+		{8, 9, 0}, {40, 25, 1}, {72, 41, 0}, {80, 8, 0}, {88, 8, 1}, {96, 8, 2}};
+	for (size_t i = 0; i < sizeof(glyphs) / sizeof(*glyphs); ++i) {
+		unsigned gx = glyphs[i][0], gy = glyphs[i][1];
+		if (x >= gx && x < gx + 8 && y >= gy && y < gy + 8
+			&& (rows[glyphs[i][2]][y - gy] & (128u >> (x - gx)))) return 514;
+	}
+	return 512;
+}
+static void report_ordering_tests(st_cterm_t *t)
+{
+	/* Report 647972f: positioned text, two-bang font strings, reset/editor
+	 * recovery and immediate outline/fill coherence must not depend on input
+	 * segmentation. This is a synthetic fixture, not the missing ACIS capture.
+	 * The legitimate filled area exceeds the report patch's 1/4-screen guard. */
+	const char wire[] = "\f\x1b[15;3!\x1b[8;100;70!\x1b[2;550;70!\x1b[2;550;170!"
+		"\x1b[2;100;170!\x1b[2;100;70!\x1b[15;4!\x1b[3;0;101;71!"
+		"\x1b[15;2!\x1b[10;8!Pearl.font!\x1b[19;8;8!A\x1b[19;40;24!B\x1b[19;72;40!A"
+		"\x1b[10;20!Diamond.font!\x1b[10;0!\x1b[2;11HABC\b\x1b[KD";
+	size_t length = strlen(wire);
+	uint32_t *expected = malloc(640 * 200 * sizeof(*expected));
+	CHECK(expected != NULL);
+	for (unsigned y = 0; y < 200; ++y) for (unsigned x = 0; x < 640; ++x)
+		expected[(size_t)y * 640 + x] = report_pixel(x, y);
+	for (size_t split = 0; split <= length + 1; ++split) {
+		CHECK(st_cterm_reset_terminal(t) == 0);
+		size_t used;
+		if (split <= length) {
+			CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
+			CHECK(st_cterm_write(t, wire + split, length - split, &used) == 0 && used == length - split);
+		} else {
+			for (size_t i = 0; i < length; ++i)
+				CHECK(st_cterm_write(t, wire + i, 1, &used) == 0 && used == 1);
+		}
+		CHECK(st_cterm_finish(t) == 0);
+		struct st_pixel_buffer *pixels = NULL;
+		const struct st_console_rect area = {0, 0, 640, 200};
+		CHECK(st_console_get_pixels(&pixels, t->screen.console, &area, false) == 0);
+		if (memcmp(pixels->primary, expected, 640 * 200 * sizeof(*expected)) != 0
+			|| memcmp(pixels->alternate, expected, 640 * 200 * sizeof(*expected)) != 0) {
+			for (unsigned y = 0; y < 200; ++y) for (unsigned x = 0; x < 640; ++x) {
+				size_t index = (size_t)y * 640 + x;
+				if (pixels->primary[index] != expected[index] || pixels->alternate[index] != expected[index]) {
+					fprintf(stderr, "report split=%zu pixel=%u,%u actual=%u/%u expected=%u\n",
+						split, x, y, pixels->primary[index], pixels->alternate[index], expected[index]);
+					exit(1);
+				}
+			}
+		}
+		st_pixel_buffer_destroy(pixels);
+		CHECK(!t->skypix_engine->custom && t->skypix_engine->font == t->skypix_engine->default_data);
+	}
+	free(expected);
+}
 static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 {
 	st_console_t *console = NULL;
@@ -549,6 +612,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	depth_tests(t);
 	brush_tests(t);
 	short_delay_tests(t);
+	report_ordering_tests(t);
 	CHECK(st_cterm_resize(t, 100, geometry.rows) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows + 1) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows) == 0);

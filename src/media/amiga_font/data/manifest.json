@@ -72,14 +72,28 @@
       "name": "Emerald.font",
       "height": 17,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Emerald_17.yaff",
-      "sha256": "21b56d9d0e8e630d07cae393ce22464a965f09c51e9015232a22fce2d19ca7df"
+      "sha256": "21b56d9d0e8e630d07cae393ce22464a965f09c51e9015232a22fce2d19ca7df",
+      "cell_width": 13,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/emerald/17",
+        "sha256": "6692e19259d170b5a971fa5c6c066e952fbea6d7358c6af5ad33c33472363bea"
+      }
     },
     {
       "file": "workbench-3.1_Emerald_20.yaff",
       "name": "Emerald.font",
       "height": 20,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Emerald_20.yaff",
-      "sha256": "82c5b58435b5fea1392bf3c059564637d85f500f5e16acc5a6e2b6dccbc60df8"
+      "sha256": "82c5b58435b5fea1392bf3c059564637d85f500f5e16acc5a6e2b6dccbc60df8",
+      "cell_width": 13,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/emerald/20",
+        "sha256": "ebb73dbf822d51c80320319aa2ff6e3e41f7a0c9ee7135463c27a1979db4c841"
+      }
     },
     {
       "file": "pearl_08.yaff",
@@ -93,70 +107,140 @@
       "name": "Garnet.font",
       "height": 9,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Garnet_9.yaff",
-      "sha256": "23fa2dda8310162dbbef5833a759f348b48e3826073766146c231af1deacbfd4"
+      "sha256": "23fa2dda8310162dbbef5833a759f348b48e3826073766146c231af1deacbfd4",
+      "cell_width": 10,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/garnet/9",
+        "sha256": "52afebd8c41bae515b0531e292720c768a1860074a667911dc7bcec71c8a526a"
+      }
     },
     {
       "file": "workbench-3.1_Garnet_16.yaff",
       "name": "Garnet.font",
       "height": 16,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Garnet_16.yaff",
-      "sha256": "d85503df6b7fedb126537b8af9fd545e84d645fb08a1bf3122f85987ab1f113c"
+      "sha256": "d85503df6b7fedb126537b8af9fd545e84d645fb08a1bf3122f85987ab1f113c",
+      "cell_width": 10,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/garnet/16",
+        "sha256": "09ecec709ae0835e3eb8f40c98f8e7bdd6e49da9eb28c0f90a40b69085ab0343"
+      }
     },
     {
       "file": "workbench-3.1_Helvetica_9.yaff",
       "name": "Helvetica.font",
       "height": 9,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_9.yaff",
-      "sha256": "ea1d1d3cb160da7d15de5ffc576a7d9b8b280ec74fce13cf311aafe8743c2578"
+      "sha256": "ea1d1d3cb160da7d15de5ffc576a7d9b8b280ec74fce13cf311aafe8743c2578",
+      "cell_width": 5,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/helvetica/9",
+        "sha256": "0abc7dd3a9f0dd910256819e324bac33050cbff7c17afe21f094fedc04bf5ec7"
+      }
     },
     {
       "file": "workbench-3.1_Helvetica_11.yaff",
       "name": "Helvetica.font",
       "height": 11,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_11.yaff",
-      "sha256": "2e3beb27944eb629481ec220675cc87a710f3831ecd8659dd32b83691c25e3ec"
+      "sha256": "2e3beb27944eb629481ec220675cc87a710f3831ecd8659dd32b83691c25e3ec",
+      "cell_width": 6,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/helvetica/11",
+        "sha256": "df7c4df291d6e50e9b7770443a43370f4d06400d2165b64a181b6affe930e879"
+      }
     },
     {
       "file": "workbench-3.1_Helvetica_13.yaff",
       "name": "Helvetica.font",
       "height": 13,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_13.yaff",
-      "sha256": "10cdc632733cda2c573e922f16ee62c54b7ac928c28fa95cb1ce97eee72bcd61"
+      "sha256": "10cdc632733cda2c573e922f16ee62c54b7ac928c28fa95cb1ce97eee72bcd61",
+      "cell_width": 7,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/helvetica/13",
+        "sha256": "2beba17c65047f650082012fd38b4d0040e8048085c1a118818ec67a4a8bfda6"
+      }
     },
     {
       "file": "workbench-3.1_Helvetica_15.yaff",
       "name": "Helvetica.font",
       "height": 15,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_15.yaff",
-      "sha256": "1585f2cb1010d1ad79301e1089b2d5c714f8a8a2df230ad051fbe6d71226ea7e"
+      "sha256": "1585f2cb1010d1ad79301e1089b2d5c714f8a8a2df230ad051fbe6d71226ea7e",
+      "cell_width": 8,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/helvetica/15",
+        "sha256": "409656d4a39f1ad162226711033c23f36b76dc9daa41f3bd4d1b1f6ec729f69a"
+      }
     },
     {
       "file": "workbench-3.1_Helvetica_18.yaff",
       "name": "Helvetica.font",
       "height": 18,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_18.yaff",
-      "sha256": "0893e4622d13adafcb3ef1353803a18b875bc2418949525404e5740014f4b1e7"
+      "sha256": "0893e4622d13adafcb3ef1353803a18b875bc2418949525404e5740014f4b1e7",
+      "cell_width": 10,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/helvetica/18",
+        "sha256": "1860910175a9b7462649c212fe5cca9463c68599191bcf08f22a22b7f03d84b7"
+      }
     },
     {
       "file": "workbench-3.1_Helvetica_24.yaff",
       "name": "Helvetica.font",
       "height": 24,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Helvetica_24.yaff",
-      "sha256": "4212d64f39f86735d0462c76dad252cbf1590420b131273618b5931bdb6d942e"
+      "sha256": "4212d64f39f86735d0462c76dad252cbf1590420b131273618b5931bdb6d942e",
+      "cell_width": 14,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/helvetica/24",
+        "sha256": "b48c43482c185b8e5a521c6c4e5af334d887fe32005718dcc48ccef3a4a4e4f6"
+      }
     },
     {
       "file": "workbench-3.1_Opal_9.yaff",
       "name": "Opal.font",
       "height": 9,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Opal_9.yaff",
-      "sha256": "699fc59e93f52ae0d653737aa57bb31f05c6807db751655f09af4fdb44325d78"
+      "sha256": "699fc59e93f52ae0d653737aa57bb31f05c6807db751655f09af4fdb44325d78",
+      "cell_width": 10,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/opal/9",
+        "sha256": "c28e90ad20b45d4b655397f18a251869fabda2ac3a8783deec52152a559661b3"
+      }
     },
     {
       "file": "workbench-3.1_Opal_12.yaff",
       "name": "Opal.font",
       "height": 12,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Opal_12.yaff",
-      "sha256": "38c3be9ba2586ca6aecb4d2968c15c24ee1ff087337d165d6ed219c52c0a050c"
+      "sha256": "38c3be9ba2586ca6aecb4d2968c15c24ee1ff087337d165d6ed219c52c0a050c",
+      "cell_width": 9,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/opal/12",
+        "sha256": "a4281b12c805dc2642a71fb367fdc7ba6c6c3bd63d364ef23a5491487aa47f9e"
+      }
     },
     {
       "file": "workbench-3.1_Ruby_8.yaff",
@@ -214,7 +298,14 @@
       "name": "Sapphire.font",
       "height": 14,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Sapphire_14.yaff",
-      "sha256": "df9b684fce66128a0ef15354dc3ba66e49834847ca0f0e9b1facabdb2cb888ae"
+      "sha256": "df9b684fce66128a0ef15354dc3ba66e49834847ca0f0e9b1facabdb2cb888ae",
+      "cell_width": 11,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/sapphire/14",
+        "sha256": "fb0915c7b417e8f3590eb6c2c92123d4a30fdadf6fb82b25efd9608a567c14f8"
+      }
     },
     {
       "file": "workbench-1.0_Sapphire_15.yaff",
@@ -235,21 +326,42 @@
       "name": "Sapphire.font",
       "height": 19,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Sapphire_19.yaff",
-      "sha256": "bb3e1202d2a822df5d1b8d21cf670b9c3d6b3ba64ca1b27a8f0392d0c7ca4b4e"
+      "sha256": "bb3e1202d2a822df5d1b8d21cf670b9c3d6b3ba64ca1b27a8f0392d0c7ca4b4e",
+      "cell_width": 12,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/sapphire/19",
+        "sha256": "d527021cffaf3380fb1a945e254f8ae547d16007d0ab85756f4fee9db9bea473"
+      }
     },
     {
       "file": "workbench-3.1_Times_11.yaff",
       "name": "Times.font",
       "height": 11,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_11.yaff",
-      "sha256": "f42c55aba1720ee6ac41a7570b84f662c729fb268fe1eadc08fa765345bf3fe2"
+      "sha256": "f42c55aba1720ee6ac41a7570b84f662c729fb268fe1eadc08fa765345bf3fe2",
+      "cell_width": 5,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/times/11",
+        "sha256": "bae2bee95d507ada6bf5ce3d4d8fc9c0c3e7bb3d9ba130f4413c69a65017aeda"
+      }
     },
     {
       "file": "workbench-3.1_Times_13.yaff",
       "name": "Times.font",
       "height": 13,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_13.yaff",
-      "sha256": "3fda16fd3a2838a5e966a8c2e8918855a239a9fbc36c885c14489023867bf3fe"
+      "sha256": "3fda16fd3a2838a5e966a8c2e8918855a239a9fbc36c885c14489023867bf3fe",
+      "cell_width": 6,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/times/13",
+        "sha256": "1ced6a5e366eaa24f21b1fab404480f7995d10177a0c547a7d8caff3667b881d"
+      }
     },
     {
       "file": "workbench-3.1_Times_15.yaff",
@@ -268,14 +380,28 @@
       "name": "Times.font",
       "height": 18,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_18.yaff",
-      "sha256": "3cd79ff1659542bddf4db1d32bf6ff6cc230eb20ec6f8f70a6d35ca47f756f6e"
+      "sha256": "3cd79ff1659542bddf4db1d32bf6ff6cc230eb20ec6f8f70a6d35ca47f756f6e",
+      "cell_width": 10,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/times/18",
+        "sha256": "887efe79d18cb92bac7b18d804e1e4b7779ab67206be096d60bf551d8baad297"
+      }
     },
     {
       "file": "workbench-3.1_Times_24.yaff",
       "name": "Times.font",
       "height": 24,
       "source": "crates/icy_engine/data/fonts/Amiga/original/workbench-3.1/Times_24.yaff",
-      "sha256": "1a4484c8f56b18fc96f18399ba04522586e02ce68ad38e67756c917bbddf1f9c"
+      "sha256": "1a4484c8f56b18fc96f18399ba04522586e02ce68ad38e67756c917bbddf1f9c",
+      "cell_width": 13,
+      "cell_width_source": {
+        "repository": "https://github.com/SpitfireTN/syncterm-skypix",
+        "commit": "647972fb9789deb5942f471b51a43be85578eafe",
+        "path": "fonts/amiga-font/times/24",
+        "sha256": "056f15489104a4ea55d8ae0511eb3cc5c2350d3eb373f8b76b4a2779075d90fb"
+      }
     },
     {
       "file": "workbench-3.1_Times_30.yaff",

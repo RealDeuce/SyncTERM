@@ -46,6 +46,8 @@ if(BUILD_TESTING)
 	target_compile_definitions(st_amiga_font_test PRIVATE ST_AMIGA_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/test")
 	set_target_properties(st_amiga_font_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	add_test(NAME amiga_font COMMAND st_amiga_font_test)
+	add_test(NAME amiga_font_report COMMAND Python3::Interpreter
+		"${CMAKE_CURRENT_SOURCE_DIR}/tests/test_report_fonts.py" $<TARGET_FILE:st_amiga_font_test>)
 endif()
 
 if(WIN32)

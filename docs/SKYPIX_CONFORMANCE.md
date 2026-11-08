@@ -142,12 +142,12 @@ Amiga 640x400 preset is implemented without changing the 200-line default.
 | Transfers | Command 16 accepts brush mode 1, IFF sound mode 2, FutureSound mode 3 and general-file mode 20 using shared native CRC XMODEM workers with independent SkyPix state. All types share the active BBS's `skypix` directory, matching SkyTERM's BRU: destination; JR-Comm instead uses its configured download directory for mode 20. Modes 2/3/20 preserve cached bytes, including XMODEM padding, without brush replacement. Type 3 also loads signed mono PCM after cache publication or on a cache hit; a failed load leaves the file cached and retains the old sound. Type 2 has no IFF sound decoder. The second filename bang is the exact transfer boundary; no RIP CRLF skipping. Cache hits send ten CAN, ten backspaces and CR. Only completed files publish, after ILBM validation for mode 1. Failure/cancellation discards partial files and preserves the previous brush. Other modes remain declined. |
 | Font manager | Menu-only picker installs complete `.font` families beneath `fonts/amiga/` beside the active INI. All referenced strikes validate before replacement. Removal cannot remove compiled fonts. Selected fonts own their loaded data and survive package replacement/removal. Metadata queries expose errors without eagerly copying unused Wren values. |
 
-Sound playback, sound transfers and colour/outline disk fonts remain unsupported.
+IFF sound decoding and colour/outline disk fonts remain unsupported.
 Raw mouse reports do not depend on gadget definitions. Controller-2 menu reports
 and local execution of stored gadget commands remain unestablished in the supplied
 JR-Comm analysis and are not implemented.
-Unsupported sound-transfer requests are declined with
-the ordinary cancellation response. This implementation deliberately bounds
+Unsupported transfer modes are declined with the ordinary cancellation response.
+This implementation deliberately bounds
 malformed arguments rather than reproducing JR-Comm stale-parameter reads or
 memory corruption.
 
@@ -196,6 +196,7 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | Test | Coverage |
 | --- | --- |
 | `amiga_font` | HUNK relocation, zero-offset references, metrics, bit rasters, malformed input, descriptors and confined paths; compiled catalog, package lifecycle and retained loaded fonts. |
+| `amiga_font_report` | All 38 family/size pairs from the pinned 1.10 report collection; independent native metrics and full byte-glyph ink/advance hashes for 20 matching strikes. Existing alternate versions remain selected. |
 | `font_catalog` | Literal Pearl g/p/y rows retain descenders in fixed console cells. |
 | `amiga_font_transactions` | Injected rename/rollback failures and secondary cleanup failures before/after the package publication boundary. |
 | `cterm_skypix_audio` | Independent native raw vector, literal pre-mixer linear PCM, signed-byte alphabet, quantized periods, varying pull/block sizes and repeat phase; odd/max/truncated/zero/oversized data, allocation/open/backend failures, latency, bounded long-sample playback, channel-1 routing, zero-as-one, parser split/holds, previous-sample retention, reset/EOF/shutdown and active destruction. Pull/fake backends only. |
@@ -203,6 +204,7 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | `skypix_rom_vectors` | Independent ordered point sets/hashes and Diamond 20 text for the retained ROM vectors. |
 | `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, fixed mode resolution/aspect/system grid, status within the selected mode, Current/Custom/non-Amiga geometry and padding, and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; both variants with Diamond 20 in CP437/UTF-8 on Amiga 640x200/640x400, proportional cursor movement and unscaled 8x8 menu rasters; literal native glyph rows below Y=199 and exact mode/status clipping; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |
 | `syncterm_skypix_welcome` | RoF's captured Times/15 network lines remain at their pixel anchors; independent native-strike hashes check every glyph pixel in both planes, palette and cursor, both variants/encodings/status choices, split input and reset/replay. |
+| `syncterm_skypix_report` | Separate SkyPix selection without RIP identification; immediate outline/fill above quarter-screen area, positioned text, two-bang font selection, font reset and BS/EL0 editing. Literal complete-scene pixels in both planes, palette/state, reset/replay and both variants/encodings/status choices. Native `cterm_skypix` adds every input split and bytewise replay. See the [1.10 report review](SKYPIX_110_REPORT.md) for issue mapping, font decisions and manual ACIS provenance. |
 | `syncterm_skypix_cache` | Types 2/3 upload opaque bytes with LF/NUL/high bytes and padding; SOH/STX, bad-CRC retry, duplicate protection, shared-namespace cache hits across types 2/3/20, path rejection, unsupported modes, cancellation/EOF cleanup and terminal-input recovery. Both variants/encodings/status choices; one reply-fenced capture checks retained brush pixels in both planes and unchanged palette. Also covers successful and failed type-3 loads, cached sample replacement, odd lengths, type-2/20 isolation and reset. Physical audio remains disabled, so this fixture verifies muted recovery rather than audible playback. |
 | `syncterm_skypix_mouse` | Exact documented click bytes, zero-origin/sub-cell precision and scaled drawable mapping; no report on releases/motion/other buttons/status/local UI; bright/dim M and both toggle routes, disabled-release recovery, local wheel scrollback and reset; both variants/encodings/status choices. |
 | `syncterm_skypix_scrolling` | Literal four-pixel colour stripes through exact Diamond/20 scrolls, stable bottom cursor, partial-strip joins, live/disconnected/detached viewers, both variants/encodings/status choices. Expected pixels come from fixture rectangles, not emulator captures. |

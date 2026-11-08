@@ -46,6 +46,16 @@ type-2/20 isolation and reset using coherent sample/pixel/palette observations.
 Physical audio is disabled, so application tests claim loading and immediate
 muted-play recovery, not audible output.
 
+The [1.10 SkyPix report review](SKYPIX_110_REPORT.md) maps all six reported
+issues to the current implementation and tests. `syncterm_skypix_report` checks
+RIP identification isolation, immediate outline/fill, positioned text, named
+font framing and reset/editor recovery using literal full-scene expectations.
+It covers both variants, CP437/UTF-8 and status choices with reset/replay;
+native `cterm_skypix` checks every input split and bytewise replay.
+`amiga_font_report` checks all 38 requested font family/size pairs and exact
+native metrics/ink hashes for 20 matching strikes. The user's current ACIS
+screenshot is recorded separately as manual verification, not a pixel golden.
+
 `cterm_skypix_audio` checks the independent signed-PCM vector and literal linear
 interpolation results before the common mixer. Pull/fake backends verify channel-1
 routing, quantized periods, varying buffer sizes, continuous repeat phase,

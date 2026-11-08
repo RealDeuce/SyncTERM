@@ -5,6 +5,8 @@
 #include "path.h"
 #include "st_amiga_font.h"
 #include "st_amiga_fonts.h"
+#include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,8 +27,51 @@ static void be32(uint8_t *p, unsigned x)
 	be16(p, x >> 16);
 	be16(p + 2, x);
 }
+static uint64_t hash_word(uint64_t hash, int value)
+{
+	uint16_t word = (uint16_t)value;
+	hash = (hash ^ (word >> 8)) * UINT64_C(1099511628211);
+	return (hash ^ (word & 255)) * UINT64_C(1099511628211);
+}
+static bool ink(const struct st_amiga_glyph *g, unsigned x, unsigned y)
+{
+	unsigned bit = g->bit_offset + x;
+	return (g->bits[(size_t)y * g->stride + bit / 8] & (128u >> (bit % 8))) != 0;
+}
+static void builtin_inventory(void)
+{
+	for (size_t i = 0; i < st_amiga_font_builtin_count(); ++i) {
+		unsigned height;
+		const char *name = st_amiga_font_builtin_name(i, &height);
+		const st_amiga_font_t *f = st_amiga_font_builtin(name, height);
+		uint64_t hash = UINT64_C(14695981039346656037);
+		hash = hash_word(hash, (int)height);
+		hash = hash_word(hash, (int)st_amiga_font_baseline(f));
+		hash = hash_word(hash, (int)st_amiga_font_width(f));
+		for (unsigned c = 0; c < 256; ++c) {
+			const struct st_amiga_glyph *g = st_amiga_font_glyph(f, (uint8_t)c);
+			int count = 0;
+			for (unsigned y = 0; y < g->height; ++y)
+				for (unsigned x = 0; x < g->width; ++x)
+					if (ink(g, x, y)) ++count;
+			hash = hash_word(hash, g->advance);
+			hash = hash_word(hash, count);
+			for (unsigned y = 0; y < g->height; ++y)
+				for (unsigned x = 0; x < g->width; ++x) if (ink(g, x, y)) {
+					hash = hash_word(hash, g->bearing + (int)x);
+					hash = hash_word(hash, g->top + (int)y);
+				}
+		}
+		printf("%s\t%u\t%u\t%u\t%016" PRIx64 "\n", name, height,
+			st_amiga_font_width(f), st_amiga_font_baseline(f), hash);
+	}
+}
 int main(int argc, char **argv)
 {
+	if (argc == 2 && strcmp(argv[1], "--builtins") == 0) {
+		builtin_inventory();
+		return 0;
+	}
 	if (argc > 1) {
 		for (int i = 1; i < argc; ++i) {
 			st_amiga_font_t *selected = NULL;

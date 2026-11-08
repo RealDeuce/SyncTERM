@@ -22,3 +22,23 @@ It declares `tf_XSize=7`, while the converted YAFF has a 14-pixel bounding box.
 Using that bounding width for JR-Comm's receive forecast prematurely wraps the
 proportional text on Reign of Fire's welcome screen. The bitmap and individual
 glyph advances are unchanged.
+
+The SpitfireTN/syncterm-skypix report collection at commit
+647972fb9789deb5942f471b51a43be85578eafe independently supplies matching native
+strikes for Emerald, Garnet, Helvetica, Opal, Sapphire/14 and /19, Times/11
+through /24, and Topaz/11. All glyph advances and normalized ink positions
+were compared before pinning their nominal widths; 18 converted widths needed
+correction. Source paths and SHA-256 values are retained in the manifest.
+The existing Courier/Times alternate versions and JR-Comm Ruby/Diamond metrics
+remain selected rather than replacing fonts solely to match the report bundle.
+
+report-font-reference.json pins the 38 requested family/size pairs across both
+native and SPF collections. Twenty matching native strikes include expected
+metrics and canonical FNV-1a-64 ink hashes. These were decoded independently
+with SkyPix/tools/amiga_font.py's amitools HUNK relocator, not with SyncTERM.
+For each byte (using the native default glyph outside tf_LoChar..tf_HiChar),
+proportional bearing/advance are tf_CharKern and tf_CharKern+tf_CharSpace;
+monospaced bearing/advance are floor((tf_XSize-glyph_width)/2) and tf_XSize.
+Ink Y is row+tf_YSize-tf_Baseline-1. The JSON specifies the hash word order.
+The C test hashes the compiled catalog independently and the Python test compares
+only the matching variants; other entries assert availability, not equivalence.
