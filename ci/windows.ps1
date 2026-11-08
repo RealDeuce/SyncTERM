@@ -21,7 +21,7 @@ New-Item -ItemType Directory -Force $reports | Out-Null
 $env:MSBUILDDEBUGPATH = Join-Path $reports 'msbuild-debug'
 New-Item -ItemType Directory -Force $env:MSBUILDDEBUGPATH | Out-Null
 
-# CMake bundled with Visual Studio is sufficient; Ninja is optional.
+# Use the host CMake, including Visual Studio's bundle when needed.
 if (-not (Get-Command cmake.exe -ErrorAction SilentlyContinue)) {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path -LiteralPath $vswhere)) { throw 'cmake.exe and vswhere.exe not found' }
@@ -31,6 +31,9 @@ if (-not (Get-Command cmake.exe -ErrorAction SilentlyContinue)) {
     $env:PATH = $cmakeBin + ';' + $env:PATH
 }
 if (-not (Get-Command cmake.exe -ErrorAction SilentlyContinue)) { throw 'cmake.exe not found' }
+# Keep the host CMake and its TLS trust configuration when adding compiler
+# tools to PATH: the MinGW archive also contains a different cmake.exe.
+$cmake = (Get-Command cmake.exe).Source
 
 if ($Compiler -eq 'msvc') {
     $env:CMAKE_GENERATOR = 'Visual Studio 17 2022'
@@ -60,7 +63,7 @@ if ($Compiler -eq 'msvc') {
     New-Item -ItemType Directory -Force $tools | Out-Null
     Push-Location $tools
     try {
-        & cmake.exe -E tar xf $archive
+        & $cmake -E tar xf $archive
         if ($LASTEXITCODE -ne 0) { throw 'MinGW archive extraction failed' }
     } finally {
         Pop-Location
@@ -94,7 +97,7 @@ if ($Compiler -eq 'msvc') {
 
 # Do not inherit an interactive session's display selection.
 Remove-Item Env:DISPLAY, Env:WAYLAND_DISPLAY -ErrorAction SilentlyContinue
-& cmake.exe -P (Join-Path $PSScriptRoot 'run.cmake')
+& $cmake -P (Join-Path $PSScriptRoot 'run.cmake')
 $buildResult = $LASTEXITCODE
 if ($buildResult -ne 0 -and $Compiler -eq 'mingw') {
     $commands = Join-Path $env:CI_BUILD_DIR 'compile_commands.json'

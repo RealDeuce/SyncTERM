@@ -1,8 +1,20 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 cmake_minimum_required(VERSION 3.22)
-# The pinned upstreams hard-code shared client libraries. Honor the selected
-# library type and omit server/tool subdirectories in our client-only builds.
-if(NAME STREQUAL "PULSEAUDIO")
+# Keep pinned sources buildable on supported hosts and honor the selected
+# client-library configuration.
+if(NAME STREQUAL "BOTAN")
+	# Botan 3.14.1 uses std::ranges::equal without its declaring header.
+	# Some standard libraries supply it transitively; MSVC's does not.
+	set(path "${SOURCE}/src/lib/x509/ocsp.cpp")
+	file(READ "${path}" text)
+	if(NOT text MATCHES "#include <algorithm>")
+		if(NOT text MATCHES "#include <botan/ocsp.h>")
+			message(FATAL_ERROR "Pinned Botan OCSP header patch no longer applies")
+		endif()
+		string(REPLACE "#include <botan/ocsp.h>" "#include <botan/ocsp.h>\n#include <algorithm>" text "${text}")
+		file(WRITE "${path}" "${text}")
+	endif()
+elseif(NAME STREQUAL "PULSEAUDIO")
 	foreach(relative src/meson.build src/pulse/meson.build)
 		file(READ "${SOURCE}/${relative}" text)
 		if(MODE STREQUAL "STATIC")

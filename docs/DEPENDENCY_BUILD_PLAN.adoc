@@ -43,7 +43,7 @@ sources are reference material only.
 * [x] Crypto, encrypted-list, TLS and SSH checks with both providers.
 * [x] Independent codec/image fixtures and full feature-inventory coverage.
 * [x] FreeBSD mixed-linkage builds and existing runtime behavior.
-* [ ] Native Linux execution of the mixed-linkage CI job.
+* [x] Native Linux execution of the mixed-linkage CI job (pipeline 12907).
 * [ ] macOS native and Windows MSVC/MinGW native verification without developer
   dependencies; no unintended third-party dynamic dependencies in defaults.
 * [x] MinGW64 application cross-link, project warning checks and updated API
@@ -72,11 +72,15 @@ SoundFont.
 The dependency fixtures exercise installed/static/shared/runtime choices,
 invalid selections, reconfiguration, concurrent cold downloads, offline cache
 and local archives, corrupt hashes, and adding/removing compiler definitions
-without losing prerequisite headers. Native-SDK selection fixtures use
+without losing prerequisite headers. They also check Unicode archive names
+under a C locale, Windows search-path separators and Botan's make fallback.
+Native-SDK selection fixtures use
 host-built libraries to check policy; they do not emulate a macOS ABI.
 
-Native macOS (including universal builds), Windows MSVC/MinGW, and Linux
-execution remain platform-CI checks. No Windows target is executed under Wine.
+Native Linux execution, including mixed linkage, passed in pipeline 12907.
+Follow-up dependency-build corrections for macOS, OpenBSD and Windows still
+need native CI confirmation; universal macOS builds also remain unverified.
+No Windows target is executed under Wine.
 Not every pinned recipe or possible linkage combination has native execution
 coverage. The configuration report and dependency paths are retained with CI
 artifacts so those results can be assessed against the actual configuration.

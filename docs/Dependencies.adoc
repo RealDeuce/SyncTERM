@@ -101,7 +101,8 @@ It is not a path to a compiled `.a` or `.lib` file.
 
 Sources, generated headers, toolchain settings, build logs and staged products
 stay under the build tree. Upstream build tools must be installed on the host:
-CMake and a native build tool for CMake recipes; Python and Ninja for Botan;
+CMake and a native build tool for CMake recipes; Python and Ninja or make for
+Botan (MSVC requires Ninja, including the copy bundled with Visual Studio);
 Perl and make for OpenSSL; make for Autotools recipes; Meson and Ninja for Meson
 recipes. Wayland additionally needs a host `wayland-scanner` and protocol XML
 development data. Cross-compilation must supply the target toolchain/sysroot;

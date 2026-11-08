@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 cmake_minimum_required(VERSION 3.22)
+include("${CMAKE_CURRENT_LIST_DIR}/dependency_recipes.cmake")
 # Use real production recipes/build machinery with two tiny local packages.
 file(MAKE_DIRECTORY "${TEST_ROOT}/package" "${TEST_ROOT}/child" "${TEST_ROOT}/consumer")
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/../" DESTINATION "${TEST_ROOT}/modules")

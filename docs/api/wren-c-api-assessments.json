@@ -5220,30 +5220,32 @@
     "cmake/DeuceSSH.cmake": "d07731a4daf39b1fbdae858ca8b1c6f95423a105357a26fbb8c6d03c605a788b",
     "cmake/PatchDeuceSSH.cmake": "b8d295c4d071dc60b2d63149a093ed2c6d43def05a86048a8bfbd2b691eb00b5",
     "cmake/dependencies/Recipes.cmake": "b52d1dc9298624df9479286e1444916aff328ecca54cd20d19233b235a220a6b",
-    "cmake/dependencies/Build.cmake": "8c2f95d15041803a8679cf52da180017d15d2cb28d22c71b2fcbc5863e9b6c5b",
-    "cmake/dependencies/Patch.cmake": "236c1670b6644909e40940d21b28bab4c62b7a01c0e5d6d9eb1e6c86f3834d96",
+    "cmake/dependencies/Build.cmake": "2099bd7a98dcde74d889f2fb70883baf0d16393655ff500f36757c74f746173c",
+    "cmake/dependencies/Patch.cmake": "b6d1e1c84664e0947ce0637ee39b3fb96f55ee5e9fda43d761a6ea3538533b80",
     "cmake/dependencies/StageRuntime.cmake": "029605c640d0bdf08c2fafe6b2dc07a4d4063b29ed3ebe1bf0c38f0b33309cc6",
     "cmake/dependencies/lock.json": "614bc46a2f2d90aaedd8eb73bb8cfbc60b4a3cbce4ec50a5f286ffde855b158d",
     "cmake/dependencies/lame/CMakeLists.txt": "908caef6a0e6634ae479d6c9dc48c560eaeb2dec89f280c3a6e67f14ce3643f2",
     "cmake/tests/dependency_policy.cmake": "d65917b2bf5fa9a5966cd4ffeeed981ac0e00f859c70d7d7702195df30e3c3c8",
-    "cmake/tests/dependency_sources.cmake": "65ca002a4e111ed028929539388a0b0e094cd888c45bac4bd27bf945571028f2",
-    "cmake/tests/dependency_sources.py": "48659f1a2c7a4bdff15ba4cbaa638bd30affd52f783efa8deedc6b264d1a97d4",
+    "cmake/tests/dependency_sources.cmake": "ea85d01677f1060dd5c854aa51c6ea9e1c3f291ce63324384ec694ef712c0b50",
+    "cmake/tests/dependency_sources.py": "6b24b2868acaf33cdc427f6fa80f977d8bc8bb0391a2d4ec01eb8a44c3a00fc7",
     "cmake/tests/dependency_fixture/CMakeLists.txt": "236eef2605625cb404b4aca4975985ee28b9ec362c4ce154046d87564de3cc11",
-    "docs/Dependencies.adoc": "0e36c83311b0a3b82200cb4750ca2aa6a185918139fd56004a74cf5fc74d90b9",
+    "docs/Dependencies.adoc": "325209355f2353d7e3b781bbfbff7321da0e5131c4af6b82d75daa6025ef4b7f",
     "src/media/audio_file/tests/st_audio_file_test.c": "31b2b5d4f212412a5e829fb1471b489785afa642a6a97b5289bbbfb405f37d23",
     "src/media/music/MidiBackends.cmake": "e6d73965c3741603c6ee76519b614ae3504092b0532d90283440f40bb4f7df10",
     "src/media/music/tests/midi_build_test.py": "0d3e4aa3c1d622c8dc3d7859635e3c67adacef0b3463c9157c726bc997534c5a",
     "src/net/tls/CMakeLists.txt": "ad304634274966044b78ee100cda2610d7222f0b90adae0cf089bae813874968",
     "src/net/connection/CMakeLists.txt": "dd53182ab24911200e5b67669565e9bae70f5b6282e9231d2fe5ce17bf0db293",
     "tools/audit/wren_c_api_coverage.py": "b1ae1a70425b95369def0064668fab516fe5b1a724e1e3cb1d3917cc1aec5325",
-    "cmake/dependencies/Fetch.cmake": "d01fc3e66f526071ae6f09c45addf1225f4c97f86ce6103c7c7755bf54df7edc",
+    "cmake/dependencies/Fetch.cmake": "be9de9e1b4194eb1f38f106ebfcfaa995799962ed7e7fa1539b1dd9fd22ad5ed",
     "src/media/audio/tests/pipewire_link_test.c": "893910aab3224876e6a9a2825d1dccc969aac1e4bc18df553fe5abb8cde2115c",
     "src/media/audio_file/tests/fixtures/README.txt": "63bde3952ce276fa6ae5686a1e743cc7ef48dad157ae319813b248f21f5f25ed",
     "src/media/audio_file/tests/fixtures/tone.flac": "d087aeb3db4f523829a306e9e27bc8e432c7ea1a9e7b8cc4f6a9de8a8448e772",
     "src/media/audio_file/tests/fixtures/tone.ogg": "8d2e3d5dd158042c05c250ad3c4068a5f4184ca05dc4ef0af9bb3951c3c9361a",
     "src/media/audio_file/tests/fixtures/tone.opus": "223dbdd61253d385d7695675d949f7ba41526af4424a762d09eb559be14634d2",
     "src/media/audio_file/tests/fixtures/tone.mp3": "6f1ebcff9a934d1515381f9a0faed6b7b403acaa0fdc3b086abfc886f4221c0d",
-    "docs/DEPENDENCY_BUILD_PLAN.adoc": "fb134eed9d97555fa291da0dbb6cb849adaa625c998a4c73c8841639ff12dd68"
+    "docs/DEPENDENCY_BUILD_PLAN.adoc": "8529c316ca3b257859d99619196a972f102e871a6a7706693e0bbdaaf40a8536",
+    "ci/windows.ps1": "665d6e38d43a3bb16ac1f830d4c0b514d2cd82508faa37e87af9cff8e9064670",
+    "cmake/tests/dependency_recipes.cmake": "8968d37b3a1fd55b57de7d2f5cd199eb26555eda8eb789297f6cb5b74bd141df"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -7103,6 +7105,22 @@
       ],
       "verification": "Read all failed job traces and each saved startup diagnostic from pipeline 12903. Reproduced the PortAudio checked-row startup failure locally before the change; the same complete application fixture passes afterward. Reconfigured and built the FreeBSD Clang application and settings-host target. All four focused CTest checks pass with local execution deadlines disabled, including the full MIDI installed/runtime/static/shared/mixed/negative/archive matrix. Native macOS and Windows execution are unavailable locally; the SDK-link correction still needs confirmation in the next native macOS pipeline. No push performed.",
       "accounting": "Only test-fixture expectations/setup and their reviewed evidence hashes change. Production behavior, public declarations, ledger symbols and original finding dispositions are unchanged: 83 headers, 132 exclusions, 2576 native items, 161 assessments and 51 original topics (23 resolved/28 open)."
+    },
+    {
+      "topic": "ci-native-dependency-builds",
+      "status": "resolved",
+      "scope": "Pipeline 12907: extract POSIX dependency archives in a UTF-8-locale subprocess while preserving the caller locale and native Windows extraction; preserve semicolon-separated Windows search paths through process environment inheritance; add the declaring algorithm header to pinned Botan OCSP; allow Botan to use make when Ninja is unavailable outside MSVC; retain the Windows bootstrap CMake executable when adding MinGW tools to PATH, preserving its working TLS trust configuration.",
+      "tests_passed": [
+        "build_configuration_summary",
+        "dependency_policy",
+        "dependency_sources",
+        "dependency_recipe_environment",
+        "dependency_recipe_botan_make",
+        "dependency_recipe_botan_patch",
+        "dependency_source_unicode"
+      ],
+      "verification": "Read every failed job trace in completed pipeline 12907. The three new recipe checks detect defects in the previous scripts and pass after correction. Six focused CTest checks pass with local execution deadlines disabled. The complete dependency-source fixture matrix passes; the two-package compiled/linked consumer also passes after updating its copied build scripts. Independently generated PAX Unicode names, contents and caller locale are checked, including an archive pathname containing a semicolon. The hash-verified FLAC 1.5.0 release extracts under LC_ALL=C and all three Unicode-named files match the archive. UTF-8 selection also passes with an en_US.UTF-8-only locale inventory. Pinned Botan 3.14.1 configures without Ninja and its real library makefile passes a FreeBSD BSD-make dry run; its patched OCSP translation unit compiles with the existing C++20 flags. The FreeBSD Clang application configures and builds. Native macOS/OpenBSD/Windows execution and PowerShell execution are unavailable locally and still need CI confirmation; no Wine, graphical or physical-audio tests were run. No push performed. The final Botan make check passes, and an explicit missing-Python run skips only the Botan-specific case.",
+      "accounting": "No native public declarations, Wren behavior or original finding dispositions change. Refreshed reviewed build/test/CI/documentation evidence, including the new recipe fixture. Original inventory remains 83 public headers, 132 exclusions, 2576 native items, 161 assessments and 51 topics (23 resolved/28 open)."
     }
   ]
 }
