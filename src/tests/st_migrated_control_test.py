@@ -506,8 +506,8 @@ def scrollback(executable, encoding, reports):
                 newest = client.wait_text("STATUS-TAIL")
                 check_viewer_row(newest)
                 assert "STATUS-TAIL" in newest.lines[-2]
-                client.event(7)
-                client.process.wait(timeout=client.timeout)
+                # Shutdown can close the transport before its event reply.
+                client.close()
                 assert client.process.returncode == 0
 
 
