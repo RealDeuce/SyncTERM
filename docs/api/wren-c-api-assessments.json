@@ -131,7 +131,7 @@
     {
       "path": "src/config/profile/st_profile.h",
       "status": "reviewed",
-      "symbol_count": 162
+      "symbol_count": 163
     },
     {
       "path": "src/config/settings/st_settings.h",
@@ -301,7 +301,7 @@
     {
       "path": "src/scripting/wren_host/st_wren_host.h",
       "status": "reviewed",
-      "symbol_count": 70
+      "symbol_count": 69
     },
     {
       "path": "src/st_app_state.h",
@@ -346,7 +346,7 @@
     {
       "path": "src/terminal/cterm/st_cterm.h",
       "status": "reviewed",
-      "symbol_count": 178
+      "symbol_count": 179
     },
     {
       "path": "src/terminal/hyperlink/st_hyperlink.h",
@@ -2657,7 +2657,7 @@
     "cterm.owner": {
       "status": "host-owned",
       "wren": "active terminal parser owner",
-      "reason": "Create/destroy/config service pointers, raw wire writes/decoder feed, poll/finish/disconnect, resize/origin notifications, RIP/SkyPix receive framing, monotonic input holds and native Amiga catalog paths and event routing belong to the active term session. Scripts use CTerm/Screen/Hook/Transfer on that parser rather than independently writing a borrowed decoder or holding output/input/log callback contexts. Screen-mode/Profile policy supplies config values; quiet is a host audio choice. This does not claim a standalone script terminal-emulator constructor. The native configured default strike is borrowed through terminal destruction; exact canvas extents bound graphics independently of complete-cell padding and status. These are fed by Profile and the selected canvas, not raw script pointers. The native ring owns optional RGB pixel strips, released on overwrite/destruction and transactionally copied/regridded with history resize. The shared path applies to all graphics-capable emulations. SkyPix native-font LF scrolls exact pixel distances, with off-canvas positions bounded to avoid empty capture loops. The history owner merges incomplete RGB strips across scrolls and preserves them through reset and detached snapshots; queries align at the live boundary without rotating storage. SkyPix cursor refresh uses native proportional position and baseline independently of the screen-mode system grid. The terminal owns its clipped sprite overlay, captured RGB and monotonic 185 ms callbacks; generic rendering position bookkeeping no longer masquerades as an ANSI positioning command. Native SkyPix mouse dispatch uses the common synchronized button state, emits exact zero-based canvas coordinates on a new left press only, and excludes status/padding or unavailable pixels. It does not approximate cell positions or fall through to XTerm/RIP encoding. Reports retain ST_CTERM_OUTPUT_USER origin. Native SkyPix wrapping compares each measured glyph advance before drawing and remains independent of input splits and explicit flushes. Native EL uses current-font ascent/descent and pixel X; JAM2 blank backgrounds span the font height. These are native parser/raster policies, with no new script methods or Wren-language semantics. Native SkyPix command 22 retains bounded per-terminal five-word gadget records and uses the existing foreground rectangle fill; full reset clears the records. Raw controller-1 reporting remains independent of those definitions, with no new script object, command execution or controller-2 activation.",
+      "reason": "Create/destroy/config service pointers, raw wire writes/decoder feed, poll/finish/disconnect, resize/origin notifications, RIP/SkyPix receive framing, monotonic input holds and native Amiga catalog paths and event routing belong to the active term session. Scripts use CTerm/Screen/Hook/Transfer on that parser rather than independently writing a borrowed decoder or holding output/input/log callback contexts. Screen-mode/Profile policy supplies config values; quiet is a host audio choice. This does not claim a standalone script terminal-emulator constructor. The native configured default strike is borrowed through terminal destruction; exact canvas extents bound graphics independently of complete-cell padding and status. These are fed by Profile and the selected canvas, not raw script pointers. The native ring owns optional RGB pixel strips, released on overwrite/destruction and transactionally copied/regridded with history resize. The shared path applies to all graphics-capable emulations. SkyPix native-font LF scrolls exact pixel distances, with off-canvas positions bounded to avoid empty capture loops. The history owner merges incomplete RGB strips across scrolls and preserves them through reset and detached snapshots; queries align at the live boundary without rotating storage. SkyPix cursor refresh uses native proportional position and baseline independently of the screen-mode system grid. The terminal owns its clipped sprite overlay, captured RGB and monotonic 185 ms callbacks; generic rendering position bookkeeping no longer masquerades as an ANSI positioning command. Native SkyPix mouse dispatch uses the common synchronized button state, emits exact zero-based canvas coordinates on a new left press only, and excludes status/padding or unavailable pixels. It does not approximate cell positions or fall through to XTerm/RIP encoding. Reports retain ST_CTERM_OUTPUT_USER origin. Native SkyPix wrapping compares each measured glyph advance before drawing and remains independent of input splits and explicit flushes. Native EL uses current-font ascent/descent and pixel X; JAM2 blank backgrounds span the font height. These are native parser/raster policies, with no new script methods or Wren-language semantics. Native SkyPix command 22 retains bounded per-terminal five-word gadget records and uses the existing foreground rectangle fill; full reset clears the records. Raw controller-1 reporting remains independent of those definitions, with no new script object, command execution or controller-2 activation. Type-3 samples use the owner-thread st_cterm_skypix_load_sample boundary; native header validation, owned PCM and bounded linear conversion feed channel 1 while the existing input hold preserves command ordering. This protocol mechanism adds no Wren audio constructor or borrowed sample pointer.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -3924,6 +3924,10 @@
     },
     {
       "path": "src/terminal/cterm/cterm_skypix.h",
+      "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_skypix_audio.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {

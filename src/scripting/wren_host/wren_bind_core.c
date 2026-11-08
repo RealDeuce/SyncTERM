@@ -12,6 +12,7 @@
 #include "st_app_paths.h"
 #include "st_builtin_fonts.h"
 #include "st_console.h"
+#include "st_connection.h"
 #include "st_codepage.h"
 #include "st_emoji_catalog.h"
 #include "st_emoji_locale.h"
@@ -1268,6 +1269,21 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit,
 	}
 	for (;;) {
 		st_console_test_service(host->config.display);
+		struct st_wren_context *poll_context = context->cterm != NULL ? context : host->poll_contexts;
+		st_cterm_t *terminal = poll_context != NULL ? poll_context->cterm : NULL;
+		/* Synchronous UI waits keep the owner from reaching the outer
+		 * terminal pump. Refill audio here without parsing remote input. */
+		bool service = terminal != NULL && st_cterm_input_paused(terminal);
+		if (service) {
+			int poll_status = poll_context->connection != NULL
+			    && !st_connection_is_connected(poll_context->connection)
+			    ? st_cterm_finish(terminal) : st_cterm_poll(terminal);
+			if (poll_status != 0) {
+				st_wren_abort(vm, "terminal polling failed during input wait");
+				return false;
+			}
+		}
+		service = terminal != NULL && st_cterm_input_paused(terminal);
 		if (host->exit_requested && !at_exit) {
 			record = (struct st_wren_input_record){
 				.type = ST_WREN_INPUT_KEY,
@@ -1280,14 +1296,32 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit,
 			make_input_event(vm, 0, &record);
 			return true;
 		}
+		struct timespec service_deadline;
+		const struct timespec *event_deadline = deadline_pointer;
+		bool service_timeout = false;
+		if (wait && service) {
+			status = st_time_utc_deadline_after_ms(&service_deadline, 20);
+			if (status != 0) {
+				st_wren_abort(vm, "input service deadline failed");
+				return false;
+			}
+			if (event_deadline == NULL || service_deadline.tv_sec < event_deadline->tv_sec
+			    || (service_deadline.tv_sec == event_deadline->tv_sec
+			    && service_deadline.tv_nsec < event_deadline->tv_nsec)) {
+				event_deadline = &service_deadline;
+				service_timeout = true;
+			}
+		}
 		if (!wait)
 			status = st_console_event_try(context->console, &event);
-		else if (deadline_pointer == NULL)
+		else if (event_deadline == NULL)
 			status = st_console_event_wait(context->console, &event);
 		else
 			status = st_console_event_timedwait(context->console, &event,
-			    deadline_pointer);
+			    event_deadline);
 		if (status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_TIMED_OUT) {
+			if (service_timeout)
+				continue;
 			wrenSetSlotNull(vm, 0);
 			return false;
 		}

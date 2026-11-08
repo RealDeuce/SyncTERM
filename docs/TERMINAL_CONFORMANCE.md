@@ -40,8 +40,22 @@ in both variants, CP437/UTF-8 and status choices. Literal SOH/STX packets test
 CRC retry and duplicate protection, LF/NUL/high bytes and padding, shared cache
 hits across types 2/3/20, filename confinement, unsupported modes, cancellation,
 disconnect cleanup and following terminal input. Reply-fenced captures check the
-retained brush and palette together in both pixel planes. Audio decoding and
-playback remain unsupported; the fixture disables physical audio.
+retained brush and palette together in both pixel planes. It also checks type-3
+loading after receipt/cache hits, padding, odd lengths, invalid-load retention,
+type-2/20 isolation and reset using coherent sample/pixel/palette observations.
+Physical audio is disabled, so application tests claim loading and immediate
+muted-play recovery, not audible output.
+
+`cterm_skypix_audio` checks the independent signed-PCM vector and literal linear
+interpolation results before the common mixer. Pull/fake backends verify channel-1
+routing, quantized periods, varying buffer sizes, continuous repeat phase,
+zero-as-one, bounded buffering above 131000 source bytes, parser holds, backend
+latency/failure, disabled/unavailable output, allocation failure, previous-sample
+retention, odd/max-length input, reset/EOF/shutdown and active destruction. No
+device is opened and no physical Amiga waveform/filter or audible claim is made.
+The Wren host test additionally drains a long-sample queue, then checks refill
+while connected/menu input waits run with a hidden cursor; caller timeouts and
+borrowed-owner removal on destruction are retained.
 
 `syncterm_skypix_mouse` checks the documented literal controller-1 bytes,
 native zero-based pixels at sub-cell positions and scaled drawable mapping,

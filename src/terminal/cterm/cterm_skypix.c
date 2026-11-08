@@ -55,6 +55,7 @@ void cterm_skypix_cursor_mode(struct cterm_skypix *s, bool hidden, bool blink)
 
 int cterm_skypix_poll(struct cterm_skypix *s, uint64_t now)
 {
+	cterm_skypix_audio_poll(s, now);
 	if (s->cursor_deadline == 0) {
 		s->cursor_deadline = now + 185;
 		return 0;
@@ -361,7 +362,11 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 	int v[17];
 	for (size_t i = 0; i < count; ++i)
 		v[i] = cterm_skypix_word(p[i]);
-	if (op == 0 || op == 9 || op == 21)
+	if (op == 9 && count == 5) {
+		cterm_skypix_audio_play(s, p[4]);
+		return 0;
+	}
+	if (op == 0 || op == 21)
 		return 0;
 	if (op == 22) {
 		if (count != 7 || p[1] == 0 || p[1] > CTERM_SKYPIX_GADGET_COUNT)
@@ -564,7 +569,7 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 bool cterm_skypix_paused(void *context)
 {
 	struct cterm_skypix *s = context;
-	if (s->receiving)
+	if (s->receiving || s->audio.playing)
 		return true;
 	if (s->delay_until == 0)
 		return false;
@@ -588,12 +593,14 @@ int cterm_skypix_feed(struct cterm_skypix *s, const uint8_t *bytes, size_t size,
 }
 int cterm_skypix_finish(struct cterm_skypix *s)
 {
+	cterm_skypix_audio_cancel(s);
 	s->delay_until = 0;
 	struct cterm_skypix_sink callbacks = sink(s);
 	return cterm_skypix_parser_finish(&s->parser, &callbacks);
 }
 int cterm_skypix_reset(struct cterm_skypix *s)
 {
+	cterm_skypix_audio_reset(s);
 	memset(&s->parser, 0, sizeof(s->parser));
 	memset(s->gadgets, 0, sizeof(s->gadgets));
 	s->delay_until = 0;
@@ -694,6 +701,7 @@ void cterm_skypix_destroy(struct cterm_skypix *s)
 {
 	if (s == NULL)
 		return;
+	cterm_skypix_audio_reset(s);
 	if (s->font != s->default_data)
 		st_amiga_font_release(s->font);
 	st_pixel_buffer_destroy(s->brush);

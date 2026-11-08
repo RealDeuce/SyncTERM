@@ -3,6 +3,7 @@
 #ifndef CTERM_SKYPIX_H_
 #define CTERM_SKYPIX_H_
 #include "cterm_skypix_parser.h"
+#include "cterm_skypix_audio.h"
 #include "st_amiga_font.h"
 #include "st_codepage.h"
 #include "st_console.h"
@@ -12,6 +13,7 @@ enum { CTERM_SKYPIX_PALETTE_FIRST = 512, CTERM_SKYPIX_GADGET_COUNT = 20 };
 struct cterminal;
 struct cterm_skypix {
 	struct cterminal *terminal;
+	struct cterm_skypix_audio audio;
 	struct cterm_skypix_parser parser;
 	const st_amiga_font_t *font, *default_data;
 	uint32_t width, height, cell_width, cell_height;

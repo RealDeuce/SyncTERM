@@ -4,6 +4,7 @@
 import argparse
 import binascii
 import socket
+import struct
 import sys
 from pathlib import Path
 
@@ -147,6 +148,61 @@ def run(executable, reports, kick, encoding, status):
                     frame()
                     clean(cancelled)
                     unchanged()
+
+                # Sound loading is separate from successful opaque caching.
+                # No device is opened: the following play commands must not
+                # delay the reply fence, even for zero/large loop counts.
+                assert frame().application['cterm.skypix_sample_size'] == 0
+                playable = struct.pack('>IH', 256, 8000) + bytes(range(256))
+                request(3, b'playable.raw')
+                assert read(1) == b'C'
+                completed['playable.raw'] = upload(playable, 128)
+
+                def sample_state(size, period):
+                    shown = frame(b'\x1b[9;99;40;99;0!\x1b[9;0;0;0;65535!\x1b[15;4!\x1b[1;70;20!')
+                    assert shown.application['cterm.skypix_sample_size'] == size, shown.application
+                    assert shown.application['cterm.skypix_sample_period'] == period
+                    assert shown.application['cterm.skypix_playing'] == 0
+                    m = shown.metadata
+                    for plane in (shown.primary, shown.alternate):
+                        assert plane[(20+m['pixel_top'])*m['plane_width']+70] == 516
+                    unchanged()
+
+                sample_state(256, 447)
+                request(3, b'odd.raw')
+                assert read(1) == b'C'
+                completed['odd.raw'] = upload(struct.pack('>IH', 3, 11025)+b'\x80\x00\x7f', 128)
+                sample_state(3, 324)
+                request(3, b'playable.raw')
+                assert read(len(CACHE_REPLY)) == CACHE_REPLY
+                sample_state(256, 447)
+                # Type 2/20 do not load samples; a malformed cached type 3
+                # retains the old sample without altering the cache reply.
+                for mode, name in ((2, b'odd.raw'), (20, b'odd.raw'), (3, b'sample.raw')):
+                    request(mode, name)
+                    assert read(len(CACHE_REPLY)) == CACHE_REPLY
+                    sample_state(256, 447)
+                request(3, b'bad-header.raw')
+                assert read(1) == b'C'
+                completed['bad-header.raw'] = upload(b'\0'*6, 128)
+                sample_state(256, 447)
+                request(3, b'cancel-loaded.raw')
+                assert read(1) == b'C'
+                peer.sendall(block(1, playable[:128]))
+                assert reply() == b'\x06'
+                peer.sendall(b'\x18\x18')
+                assert reply() + read(15) == b'\x18'*8 + b'\x08'*8
+                idle()
+                sample_state(256, 447)
+                clean('cancel-loaded.raw')
+                frame(b'\x1b[99!\x1b[17;2!')
+                sample_state(256, 447)
+                frame(b'\x1bc')
+                # Reset releases the sample without changing cached files.
+                reset = frame(b'\x1b[9;0;0;0;1!')
+                assert reset.application['cterm.skypix_sample_size'] == 0
+                assert reset.application['cterm.skypix_sample_period'] == 0
+                assert reset.application['cterm.skypix_playing'] == 0
 
                 request(4, b'unsupported.bin')
                 assert read(2) == b'\x18\x18'

@@ -527,108 +527,109 @@ src/config/profile/st_profile.h	enum:ST_SCREEN_MODE_ATARIST_40X25	82	st_screen_m
 src/config/profile/st_profile.h	enum:ST_SCREEN_MODE_ATARIST_80X25	83	st_screen_mode	profile.fields
 src/config/profile/st_profile.h	enum:ST_SCREEN_MODE_ATARIST_80X25_MONO	84	st_screen_mode	profile.fields
 src/config/profile/st_profile.h	enum:ST_SCREEN_MODE_AMIGA_640X200	85	st_screen_mode	profile.fields
-src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_UNSPECIFIED	89	st_address_family	profile.fields
-src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_IPV4	90	st_address_family	profile.fields
-src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_IPV6	91	st_address_family	profile.fields
-src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_HAPPY_EYEBALLS	92	st_address_family	profile.fields
-src/config/profile/st_profile.h	enum:ST_GRAPHICS_NONE	96	st_graphics_mode	profile.fields
-src/config/profile/st_profile.h	enum:ST_GRAPHICS_RIP_1	97	st_graphics_mode	profile.fields
-src/config/profile/st_profile.h	enum:ST_GRAPHICS_RIP_3	98	st_graphics_mode	profile.fields
-src/config/profile/st_profile.h	enum:ST_GRAPHICS_SKYPIX_13	99	st_graphics_mode	profile.fields
-src/config/profile/st_profile.h	enum:ST_GRAPHICS_SKYPIX_31	100	st_graphics_mode	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_PARITY_NONE	104	st_profile_parity	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_PARITY_EVEN	105	st_profile_parity	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_PARITY_ODD	106	st_profile_parity	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_RTS_CTS	110	st_profile_flow_control	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_XON_XOFF	111	st_profile_flow_control	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_RTS_CTS_XON_XOFF	112	st_profile_flow_control	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_NONE	113	st_profile_flow_control	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_EMERGENCY	117	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_ALERT	118	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_CRITICAL	119	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_ERROR	120	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_WARNING	121	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_NOTICE	122	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_INFO	123	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_DEBUG	124	st_profile_log_level	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_MUSIC_SYNCTERM	128	st_profile_music	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_MUSIC_BANSI	129	st_profile_music	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_MUSIC_ALL	130	st_profile_music	profile.fields
-src/config/profile/st_profile.h	enum:ST_PROFILE_ENCODING_UTF8	134	<anonymous>	profile.fields
-src/config/profile/st_profile.h	function:st_profile_encoding_valid	136	_Bool (int)	profile.fields
-src/config/profile/st_profile.h	function:st_profile_encoding_canonical	137	int (int)	profile.fields
-src/config/profile/st_profile.h	function:st_profile_encoding_name	138	const char *(int)	profile.fields
-src/config/profile/st_profile.h	function:st_profile_encoding_parse	139	_Bool (const char *, int *)	profile.fields
-src/config/profile/st_profile.h	enum:ST_TLS_VERSION_UNKNOWN	142	st_tls_version	profile.fields
-src/config/profile/st_profile.h	enum:ST_TLS_VERSION_1_2	143	st_tls_version	profile.fields
-src/config/profile/st_profile.h	enum:ST_TLS_VERSION_1_3	144	st_tls_version	profile.fields
-src/config/profile/st_profile.h	field:st_profile.download_directory	149	char *	profile.fields
-src/config/profile/st_profile.h	field:st_profile.upload_directory	150	char *	profile.fields
-src/config/profile/st_profile.h	field:st_profile.log_path	151	char *	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_trusted_certificate	152	char *	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_client_certificate	153	char *	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_client_key	154	char *	profile.fields
-src/config/profile/st_profile.h	field:st_profile.added	155	time_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.connected	156	time_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.palette	157	uint32_t[16]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.calls	158	uint32_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.bps_rate	159	uint32_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.sort_order	160	int32_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.connection_type	161	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.source	162	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.identifier	163	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.screen_mode	164	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.encoding	165	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.transfer_log_level	166	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.protocol_log_level	167	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.cterm_log_level	168	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.music	169	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.address_family	170	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.graphics_mode	171	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.amiga_font_size	172	uint16_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.amiga_font	173	char[256]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.flow_control	174	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_psk_version	175	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_version_floor	176	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.parity	177	int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.palette_size	178	unsigned int	profile.fields
-src/config/profile/st_profile.h	field:st_profile.port	179	uint16_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.stop_bits	180	uint16_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.data_bits	181	uint16_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.name	182	char[61]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.address	183	char[65]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.username	184	char[31]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.password	185	char[129]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.system_password	186	char[129]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.font	187	char[101]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.ghost_program	188	char[9]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.comment	189	char[1024]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.wren_scripts	190	char[1024]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_psk_identity	191	char[129]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_psk	192	char[257]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.terminal_name	193	char[32]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.ssh_fingerprint	194	uint8_t[32]	profile.fields
-src/config/profile/st_profile.h	field:st_profile.ssh_fingerprint_size	195	uint8_t	profile.fields
-src/config/profile/st_profile.h	field:st_profile.hide_status	196	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.append_log	197	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.hide_popups	198	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.force_lcf	199	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.yellow_is_yellow	200	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.sftp_public_key	201	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.ssh_allow_aes128_cbc	202	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.ssh_accept_early_data	203	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.telnet_no_binary	204	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.defer_telnet_negotiation	205	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.tls_trust_web_pki	206	_Bool	profile.fields
-src/config/profile/st_profile.h	field:st_profile.expand_lf	207	_Bool	profile.fields
-src/config/profile/st_profile.h	function:st_connection_default_port	211	uint16_t (enum st_connection_type)	profile.fields
-src/config/profile/st_profile.h	function:st_profile_init	212	void (struct st_profile *)	profile.ownership
-src/config/profile/st_profile.h	function:st_profile_dispose	213	void (struct st_profile *)	profile.ownership
-src/config/profile/st_profile.h	function:st_profile_copy	215	_Bool (struct st_profile *, const struct st_profile *)	profile.ownership
-src/config/profile/st_profile.h	function:st_profile_ghost_program	218	const char *(const struct st_profile *)	profile.ownership
-src/config/profile/st_profile.h	function:st_profile_script_name_valid	219	_Bool (const char *, size_t)	profile.fields
-src/config/profile/st_profile.h	function:st_profile_scripts_append	222	_Bool (char *, const char *, size_t)	profile.fields
-src/config/profile/st_profile.h	function:st_profile_scripts_parse	224	_Bool (char *, const char *)	profile.fields
+src/config/profile/st_profile.h	enum:ST_SCREEN_MODE_AMIGA_640X400	86	st_screen_mode	profile.fields
+src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_UNSPECIFIED	90	st_address_family	profile.fields
+src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_IPV4	91	st_address_family	profile.fields
+src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_IPV6	92	st_address_family	profile.fields
+src/config/profile/st_profile.h	enum:ST_ADDRESS_FAMILY_HAPPY_EYEBALLS	93	st_address_family	profile.fields
+src/config/profile/st_profile.h	enum:ST_GRAPHICS_NONE	97	st_graphics_mode	profile.fields
+src/config/profile/st_profile.h	enum:ST_GRAPHICS_RIP_1	98	st_graphics_mode	profile.fields
+src/config/profile/st_profile.h	enum:ST_GRAPHICS_RIP_3	99	st_graphics_mode	profile.fields
+src/config/profile/st_profile.h	enum:ST_GRAPHICS_SKYPIX_13	100	st_graphics_mode	profile.fields
+src/config/profile/st_profile.h	enum:ST_GRAPHICS_SKYPIX_31	101	st_graphics_mode	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_PARITY_NONE	105	st_profile_parity	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_PARITY_EVEN	106	st_profile_parity	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_PARITY_ODD	107	st_profile_parity	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_RTS_CTS	111	st_profile_flow_control	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_XON_XOFF	112	st_profile_flow_control	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_RTS_CTS_XON_XOFF	113	st_profile_flow_control	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_FLOW_NONE	114	st_profile_flow_control	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_EMERGENCY	118	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_ALERT	119	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_CRITICAL	120	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_ERROR	121	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_WARNING	122	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_NOTICE	123	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_INFO	124	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_LOG_DEBUG	125	st_profile_log_level	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_MUSIC_SYNCTERM	129	st_profile_music	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_MUSIC_BANSI	130	st_profile_music	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_MUSIC_ALL	131	st_profile_music	profile.fields
+src/config/profile/st_profile.h	enum:ST_PROFILE_ENCODING_UTF8	135	<anonymous>	profile.fields
+src/config/profile/st_profile.h	function:st_profile_encoding_valid	137	_Bool (int)	profile.fields
+src/config/profile/st_profile.h	function:st_profile_encoding_canonical	138	int (int)	profile.fields
+src/config/profile/st_profile.h	function:st_profile_encoding_name	139	const char *(int)	profile.fields
+src/config/profile/st_profile.h	function:st_profile_encoding_parse	140	_Bool (const char *, int *)	profile.fields
+src/config/profile/st_profile.h	enum:ST_TLS_VERSION_UNKNOWN	143	st_tls_version	profile.fields
+src/config/profile/st_profile.h	enum:ST_TLS_VERSION_1_2	144	st_tls_version	profile.fields
+src/config/profile/st_profile.h	enum:ST_TLS_VERSION_1_3	145	st_tls_version	profile.fields
+src/config/profile/st_profile.h	field:st_profile.download_directory	150	char *	profile.fields
+src/config/profile/st_profile.h	field:st_profile.upload_directory	151	char *	profile.fields
+src/config/profile/st_profile.h	field:st_profile.log_path	152	char *	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_trusted_certificate	153	char *	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_client_certificate	154	char *	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_client_key	155	char *	profile.fields
+src/config/profile/st_profile.h	field:st_profile.added	156	time_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.connected	157	time_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.palette	158	uint32_t[16]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.calls	159	uint32_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.bps_rate	160	uint32_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.sort_order	161	int32_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.connection_type	162	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.source	163	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.identifier	164	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.screen_mode	165	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.encoding	166	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.transfer_log_level	167	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.protocol_log_level	168	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.cterm_log_level	169	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.music	170	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.address_family	171	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.graphics_mode	172	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.amiga_font_size	173	uint16_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.amiga_font	174	char[256]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.flow_control	175	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_psk_version	176	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_version_floor	177	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.parity	178	int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.palette_size	179	unsigned int	profile.fields
+src/config/profile/st_profile.h	field:st_profile.port	180	uint16_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.stop_bits	181	uint16_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.data_bits	182	uint16_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.name	183	char[61]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.address	184	char[65]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.username	185	char[31]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.password	186	char[129]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.system_password	187	char[129]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.font	188	char[101]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.ghost_program	189	char[9]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.comment	190	char[1024]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.wren_scripts	191	char[1024]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_psk_identity	192	char[129]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_psk	193	char[257]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.terminal_name	194	char[32]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.ssh_fingerprint	195	uint8_t[32]	profile.fields
+src/config/profile/st_profile.h	field:st_profile.ssh_fingerprint_size	196	uint8_t	profile.fields
+src/config/profile/st_profile.h	field:st_profile.hide_status	197	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.append_log	198	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.hide_popups	199	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.force_lcf	200	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.yellow_is_yellow	201	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.sftp_public_key	202	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.ssh_allow_aes128_cbc	203	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.ssh_accept_early_data	204	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.telnet_no_binary	205	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.defer_telnet_negotiation	206	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.tls_trust_web_pki	207	_Bool	profile.fields
+src/config/profile/st_profile.h	field:st_profile.expand_lf	208	_Bool	profile.fields
+src/config/profile/st_profile.h	function:st_connection_default_port	212	uint16_t (enum st_connection_type)	profile.fields
+src/config/profile/st_profile.h	function:st_profile_init	213	void (struct st_profile *)	profile.ownership
+src/config/profile/st_profile.h	function:st_profile_dispose	214	void (struct st_profile *)	profile.ownership
+src/config/profile/st_profile.h	function:st_profile_copy	216	_Bool (struct st_profile *, const struct st_profile *)	profile.ownership
+src/config/profile/st_profile.h	function:st_profile_ghost_program	219	const char *(const struct st_profile *)	profile.ownership
+src/config/profile/st_profile.h	function:st_profile_script_name_valid	220	_Bool (const char *, size_t)	profile.fields
+src/config/profile/st_profile.h	function:st_profile_scripts_append	223	_Bool (char *, const char *, size_t)	profile.fields
+src/config/profile/st_profile.h	function:st_profile_scripts_parse	225	_Bool (char *, const char *)	profile.fields
 src/config/settings/st_settings.h	macro:ST_SETTINGS_VALUE_MAX	17	1023	settings.model
 src/config/settings/st_settings.h	macro:ST_SETTINGS_KDF_MAX	18	31	settings.model
 src/config/settings/st_settings.h	macro:ST_SETTINGS_CUSTOM_FONT_MAX	19	210	settings.model
@@ -2019,29 +2020,28 @@ src/scripting/wren_host/st_wren_host.h	function:st_wren_host_exit_requested	134	
 src/scripting/wren_host/st_wren_host.h	function:st_wren_host_set_screen_mode	135	int (st_wren_host_t *, enum st_screen_mode)	embedding.owner
 src/scripting/wren_host/st_wren_host.h	function:st_wren_host_get_screen_mode	137	int (const st_wren_host_t *, enum st_screen_mode *)	embedding.owner
 src/scripting/wren_host/st_wren_host.h	function:st_wren_host_capture_history_mode	140	int (st_wren_host_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_host_begin_skypix_session	144	int (st_wren_host_t *, const struct st_screen_mode_descriptor *, bool, const st_amiga_font_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_host_begin_session_mode	153	int (st_wren_host_t *, enum st_screen_mode)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_host_end_session_mode	155	int (st_wren_host_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_host_last_error	156	const char *(const st_wren_host_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_create	160	int (st_wren_connected_t **, const struct st_wren_connected_config *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_destroy	162	void (st_wren_connected_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_pump	163	int (st_wren_connected_t *, uint32_t)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_render_status	166	int (st_wren_connected_t *, bool)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_status_details	170	char *(st_wren_connected_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_interpret	171	int (st_wren_connected_t *, const char *, const char *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_shell_closed	173	int (st_wren_connected_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_skypix_transfer	175	int (st_wren_connected_t *, unsigned int, unsigned int, unsigned int, const uint8_t *, size_t)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_rip_transfer	177	int (st_wren_connected_t *, const struct st_cterm_rip_transfer_request *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_auxiliary_active	179	bool (const st_wren_connected_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_handle_event	180	int (st_wren_connected_t *, const struct st_console_event *, bool *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_filter_wire_byte	182	int (st_wren_connected_t *, uint8_t, bool *, uint8_t *, size_t, size_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_has_wire_hooks	185	bool (const st_wren_connected_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_filter_input_scalar	186	int (st_wren_connected_t *, uint32_t, bool *, char *, size_t, size_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_has_input_hooks	189	bool (const st_wren_connected_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_capture_active	190	bool (const st_wren_connected_t *)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_capture_wire	192	int (st_wren_connected_t *, const uint8_t *, size_t)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_capture_input	194	int (st_wren_connected_t *, const char *, size_t, bool)	embedding.owner
-src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_last_error	196	const char *(const st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_host_begin_session_mode	147	int (st_wren_host_t *, enum st_screen_mode)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_host_end_session_mode	149	int (st_wren_host_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_host_last_error	150	const char *(const st_wren_host_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_create	154	int (st_wren_connected_t **, const struct st_wren_connected_config *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_destroy	156	void (st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_pump	157	int (st_wren_connected_t *, uint32_t)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_render_status	160	int (st_wren_connected_t *, bool)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_status_details	164	char *(st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_interpret	165	int (st_wren_connected_t *, const char *, const char *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_shell_closed	167	int (st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_skypix_transfer	169	int (st_wren_connected_t *, unsigned int, unsigned int, unsigned int, const uint8_t *, size_t)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_rip_transfer	171	int (st_wren_connected_t *, const struct st_cterm_rip_transfer_request *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_auxiliary_active	173	bool (const st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_handle_event	174	int (st_wren_connected_t *, const struct st_console_event *, bool *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_filter_wire_byte	176	int (st_wren_connected_t *, uint8_t, bool *, uint8_t *, size_t, size_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_has_wire_hooks	179	bool (const st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_filter_input_scalar	180	int (st_wren_connected_t *, uint32_t, bool *, char *, size_t, size_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_has_input_hooks	183	bool (const st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_capture_active	184	bool (const st_wren_connected_t *)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_capture_wire	186	int (st_wren_connected_t *, const uint8_t *, size_t)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_capture_input	188	int (st_wren_connected_t *, const char *, size_t, bool)	embedding.owner
+src/scripting/wren_host/st_wren_host.h	function:st_wren_connected_last_error	190	const char *(const st_wren_connected_t *)	embedding.owner
 src/st_app_state.h	function:st_app_should_persist_scaling	15	_Bool (_Bool, _Bool, enum st_screen_mode, enum st_screen_mode)	application.st_app_state
 src/st_application.h	field:st_application_host.console_mode	11	_Bool	application.st_application
 src/st_application.h	field:st_application_host.libretro	12	_Bool	application.st_application
@@ -2182,84 +2182,85 @@ src/terminal/cterm/st_cterm.h	function:st_cterm_finish	225	int (st_cterm_t *)	ct
 src/terminal/cterm/st_cterm.h	function:st_cterm_poll	229	int (st_cterm_t *)	cterm.owner
 src/terminal/cterm/st_cterm.h	function:st_cterm_input_paused	232	bool (st_cterm_t *)	cterm.owner
 src/terminal/cterm/st_cterm.h	function:st_cterm_skypix_receive	234	int (st_cterm_t *, const void *, size_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_prepare_disconnect	238	int (st_cterm_t *)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_reset_terminal	239	int (st_cterm_t *)	cterm.reset
-src/terminal/cterm/st_cterm.h	function:st_cterm_resize	242	int (st_cterm_t *, uint32_t, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_size	243	int (const st_cterm_t *, uint32_t *, uint32_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_origin	245	int (const st_cterm_t *, uint32_t *, uint32_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.x	250	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.y	251	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.top_margin	252	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.bottom_margin	253	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.left_margin	254	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.right_margin	255	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.attr	256	unsigned int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.fg_color	257	uint32_t	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.bg_color	258	uint32_t	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.has_palette_override	259	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.palette_override	260	uint32_t[16]	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.font_slot	261	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.alt_fonts	262	int[4]	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_lines	263	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_width	264	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_pos	265	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_start	266	int	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.emulation	267	enum st_cterm_emulation	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.started	268	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.skypix	269	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.graphics_mode	270	enum st_cterm_graphics_mode	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.auto_wrap	272	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.origin_mode	273	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.sx_scroll	274	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.dec_lrmm	275	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.bracket_paste	276	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.dec_bkm	277	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_mosaic	278	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_double_height	279	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_conceal	280	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_separated	281	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_hold	282	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.alternate_keypad	283	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr	284	struct (unnamed struct at src/terminal/cterm/st_cterm.h:271:2)	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.set	286	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.enabled	287	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.forced	288	bool	cterm.state
-src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag	289	struct (unnamed struct at src/terminal/cterm/st_cterm.h:285:2)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_state	291	int (const st_cterm_t *, struct st_cterm_state *)	cterm.state
-src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_NORMAL	293	st_cterm_font_mask	fonts.assignments
-src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BRIGHT	294	st_cterm_font_mask	fonts.assignments
-src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BLINK	295	st_cterm_font_mask	fonts.assignments
-src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BRIGHT_BLINK	296	st_cterm_font_mask	fonts.assignments
-src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_ALL	297	st_cterm_font_mask	fonts.assignments
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_fonts	301	int (st_cterm_t *, uint8_t, unsigned int)	fonts.assignments
-src/terminal/cterm/st_cterm.h	function:st_cterm_font_info	303	bool (const st_cterm_t *, uint8_t, uint16_t *, enum st_codepage *)	fonts.catalog
-src/terminal/cterm/st_cterm.h	function:st_cterm_register_font	307	int (st_cterm_t *, uint8_t, const char *, enum st_codepage, uint16_t *, struct st_font_load_error *)	cterm.font-result
-src/terminal/cterm/st_cterm.h	function:st_cterm_save_binary	312	int (st_cterm_t *, FILE *, bool, const char *, const char *, int *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_encoding	316	enum st_cterm_encoding (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_codepage	317	enum st_codepage (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_status_display	319	int (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_doorway_mode	320	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_doorway_mode	321	void (st_cterm_t *, bool)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_music_mode	322	int (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_music_mode	323	void (st_cterm_t *, int)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_atascii_inverse	324	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_mode	326	int (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_sgr_pixels	327	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_bracketed_paste	328	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_encoding	329	int (st_cterm_t *, enum st_cterm_encoding, enum st_codepage)	cterm.encoding-control
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history	337	int (st_cterm_t *, struct st_console_cell **, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history_pixels	341	int (st_cterm_t *, size_t, struct st_pixel_buffer **)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	345	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	347	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	354	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	359	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	361	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	363	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	364	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	365	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	367	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	370	void (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	371	bool (st_cterm_t *, bool)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_skypix_load_sample	239	int (st_cterm_t *, const void *, size_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_prepare_disconnect	243	int (st_cterm_t *)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_reset_terminal	244	int (st_cterm_t *)	cterm.reset
+src/terminal/cterm/st_cterm.h	function:st_cterm_resize	247	int (st_cterm_t *, uint32_t, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_size	248	int (const st_cterm_t *, uint32_t *, uint32_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_origin	250	int (const st_cterm_t *, uint32_t *, uint32_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.x	255	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.y	256	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.top_margin	257	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.bottom_margin	258	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.left_margin	259	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.right_margin	260	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.attr	261	unsigned int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.fg_color	262	uint32_t	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.bg_color	263	uint32_t	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.has_palette_override	264	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.palette_override	265	uint32_t[16]	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.font_slot	266	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.alt_fonts	267	int[4]	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_lines	268	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_width	269	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_pos	270	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.scrollback_start	271	int	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.emulation	272	enum st_cterm_emulation	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.started	273	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.skypix	274	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.graphics_mode	275	enum st_cterm_graphics_mode	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.auto_wrap	277	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.origin_mode	278	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.sx_scroll	279	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.dec_lrmm	280	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.bracket_paste	281	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.dec_bkm	282	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_mosaic	283	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_double_height	284	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_conceal	285	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_separated	286	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.prestel_hold	287	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr.alternate_keypad	288	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.ext_attr	289	struct (unnamed struct at src/terminal/cterm/st_cterm.h:276:2)	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.set	291	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.enabled	292	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.forced	293	bool	cterm.state
+src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag	294	struct (unnamed struct at src/terminal/cterm/st_cterm.h:290:2)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_state	296	int (const st_cterm_t *, struct st_cterm_state *)	cterm.state
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_NORMAL	298	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BRIGHT	299	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BLINK	300	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BRIGHT_BLINK	301	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_ALL	302	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_fonts	306	int (st_cterm_t *, uint8_t, unsigned int)	fonts.assignments
+src/terminal/cterm/st_cterm.h	function:st_cterm_font_info	308	bool (const st_cterm_t *, uint8_t, uint16_t *, enum st_codepage *)	fonts.catalog
+src/terminal/cterm/st_cterm.h	function:st_cterm_register_font	312	int (st_cterm_t *, uint8_t, const char *, enum st_codepage, uint16_t *, struct st_font_load_error *)	cterm.font-result
+src/terminal/cterm/st_cterm.h	function:st_cterm_save_binary	317	int (st_cterm_t *, FILE *, bool, const char *, const char *, int *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_encoding	321	enum st_cterm_encoding (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_codepage	322	enum st_codepage (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_status_display	324	int (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_doorway_mode	325	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_doorway_mode	326	void (st_cterm_t *, bool)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_music_mode	327	int (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_music_mode	328	void (st_cterm_t *, int)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_atascii_inverse	329	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_mode	331	int (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_sgr_pixels	332	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_bracketed_paste	333	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_encoding	334	int (st_cterm_t *, enum st_cterm_encoding, enum st_codepage)	cterm.encoding-control
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history	342	int (st_cterm_t *, struct st_console_cell **, uint32_t *, size_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history_pixels	346	int (st_cterm_t *, size_t, struct st_pixel_buffer **)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	350	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	352	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	359	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	364	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	366	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	368	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	369	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	370	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	372	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	375	void (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	376	bool (st_cterm_t *, bool)	cterm.owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_mark_fn	17	int (*)(void *, uint16_t)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_root_fn	18	int (*)(void *, st_hyperlink_mark_fn, void *)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	field:st_hyperlink.uri	22	char *	hyperlinks.registry

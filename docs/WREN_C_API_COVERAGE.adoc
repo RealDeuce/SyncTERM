@@ -23,8 +23,8 @@ limitations; it does not authorize implementing every omitted C facility.
 
 == Result and how to read this report
 
-The review covers 83 project-owned public headers, 2,576 named native items,
-and 132 explicitly excluded implementation/vendor/test headers. Every inventoried
+The review covers 83 project-owned public headers, 2,577 named native items,
+and 133 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
 broader API-scope decisions, plus one stale documentation finding. Twenty-three topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
@@ -178,7 +178,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/config/consent_token/st_consent_token.h[config/consent_token/st_consent_token.h] | 0 | 0 | 0 | 4 | 0 | +consent.signer+
 | link:../src/config/ini/ini.h[config/ini/ini.h] | 0 | 0 | 58 | 0 | 0 | +config.ini+
 | link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 24 | 9 | 0 | 0 | 0 | +list.crypto+, +list.crypto.metadata+
-| link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 158 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
+| link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 159 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
 | link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 87 | 1 | 6 | 12 | 0 | +settings.disk-reload+, +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.recent-result+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
 | link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 115 | 0 | 0 | 7 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
 | link:../src/io/file_lock/st_file_lock.h[io/file_lock/st_file_lock.h] | 0 | 0 | 0 | 2 | 0 | +files.transaction-lock+
@@ -212,7 +212,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/net/transfer/st_transfer.h[net/transfer/st_transfer.h] | 56 | 14 | 0 | 13 | 0 | +transfer.path-authority+, +transfer.receive-policy+, +transfer.result-code+, +transfer.worker-owner+, +transfer.workflow+, +transfer.xmodem-g+
 | link:../src/net/transfer/st_transfer_detect.h[net/transfer/st_transfer_detect.h] | 0 | 0 | 0 | 3 | 0 | +transfer.autodetect+
 | link:../src/net/webget/st_webget.h[net/webget/st_webget.h] | 0 | 33 | 0 | 0 | 0 | +webget.workflow+
-| link:../src/scripting/wren_host/st_wren_host.h[scripting/wren_host/st_wren_host.h] | 0 | 0 | 0 | 70 | 0 | +embedding.owner+
+| link:../src/scripting/wren_host/st_wren_host.h[scripting/wren_host/st_wren_host.h] | 0 | 0 | 0 | 69 | 0 | +embedding.owner+
 | link:../src/st_app_state.h[st_app_state.h] | 0 | 0 | 0 | 1 | 0 | +application.st_app_state+
 | link:../src/st_application.h[st_application.h] | 0 | 0 | 0 | 8 | 0 | +application.st_application+
 | link:../src/st_command_line.h[st_command_line.h] | 0 | 0 | 0 | 24 | 0 | +application.st_command_line+
@@ -221,7 +221,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/st_syncterm_icon.h[st_syncterm_icon.h] | 0 | 0 | 0 | 1 | 0 | +application.st_syncterm_icon+
 | link:../src/st_terminfo.h[st_terminfo.h] | 0 | 0 | 0 | 1 | 0 | +application.st_terminfo+
 | link:../src/syncterm_types.h[syncterm_types.h] | 0 | 0 | 0 | 0 | 0 | (no named declarations)
-| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 91 | 1 | 1 | 85 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
+| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 91 | 1 | 1 | 86 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
 | link:../src/terminal/hyperlink/st_hyperlink.h[terminal/hyperlink/st_hyperlink.h] | 5 | 0 | 0 | 8 | 0 | +hyperlinks.gc-owner+, +hyperlinks.registry+
 | link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 9 | 0 | +ooii.mode+, +ooii.protocol+
 | link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
@@ -1777,3 +1777,12 @@ Only the native header's contract comment changed; declarations, source lines,
 ledger rows and ownership remain unchanged. Inventory and finding counts remain
 83 public headers, 2575 items, 132 exclusions, 161 assessments and 23 resolved/
 28 open topics. Reviewed evidence digests and conformance inventories are updated.
+
+== SkyPix sample playback follow-up
+
+The type-3 load entry point is host-owned under +cterm.owner+. The new private
+audio header is excluded behind that owner. The ledger gains one native item;
+the Amiga 640x400 mode enum and removed SkyPix session helper are also reconciled.
+No Wren API or original finding disposition changes. Channel-1 playback uses
+bounded linear conversion and the existing parser hold, with pull/fake-backend
+PCM tests and control-bitmap cache/loading recovery tests.

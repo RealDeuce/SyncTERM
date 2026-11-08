@@ -896,6 +896,11 @@ cterm_fx_ensure_open(struct cterminal *cterm)
 	return true;
 }
 
+audio_stream_t *cterm_fx_stream(struct cterminal *cterm)
+{
+	return cterm && cterm_fx_ensure_open(cterm) ? cterm->fx_stream : NULL;
+}
+
 bool
 cterm_play_fx(struct cterminal *cterm, const int16_t *frames, size_t nframes)
 {

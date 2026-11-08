@@ -39,6 +39,8 @@
 #include "value_convert_time.h"
 
 #include "st_console_test.h"
+#include "cterm.h"
+#include "cterm_skypix.h"
 
 #include <locale.h>
 #include <stdbool.h>
@@ -67,6 +69,13 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 	FIELD(attr); FIELD(fg_color); FIELD(bg_color); FIELD(font_slot);
 	FIELD(scrollback_lines); FIELD(scrollback_width); FIELD(scrollback_pos); FIELD(scrollback_start);
 	FIELD(emulation); FIELD(started); FIELD(skypix); FIELD(graphics_mode);
+	/* Read-only test-control observations, captured with the scene/state. */
+	const struct cterm_skypix *sky = st_term_session_cterm(owner->session)->skypix_engine;
+	if (sky != NULL) {
+		st_console_test_number(app, "cterm.skypix_sample_size", (int64_t)sky->audio.count);
+		st_console_test_number(app, "cterm.skypix_sample_period", sky->audio.period);
+		st_console_test_number(app, "cterm.skypix_playing", sky->audio.playing);
+	}
 	FIELD(ext_attr.auto_wrap); FIELD(ext_attr.origin_mode); FIELD(ext_attr.sx_scroll); FIELD(ext_attr.dec_lrmm);
 	FIELD(ext_attr.bracket_paste); FIELD(ext_attr.dec_bkm); FIELD(ext_attr.alternate_keypad);
 	FIELD(ext_attr.prestel_mosaic); FIELD(ext_attr.prestel_double_height); FIELD(ext_attr.prestel_conceal);

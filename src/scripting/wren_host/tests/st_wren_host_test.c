@@ -28,6 +28,7 @@
 #include "console_internal.h"
 #include "st_cterm.h"
 #include "cterm.h"
+#include "cterm_skypix.h"
 #include "cterm_rip_engine.h"
 #include "st_pixels.h"
 #include "st_font_catalog.h"
@@ -8678,6 +8679,66 @@ struct ignored_input_poster {
 	st_console_t *console;
 };
 
+static int exercise_skypix_menu_audio(struct st_wren_host *host)
+{
+	st_console_t *console=NULL;
+	st_font_catalog_t *fonts=NULL;
+	st_cterm_t *terminal=NULL;
+	st_audio_runtime_t *runtime=NULL;
+	st_wren_connected_t *connected=NULL;
+	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry={.columns=80,.rows=25,.cell_width=8,.cell_height=8,.wrap=true};
+	CHECK(st_console_create(&console,&display,&geometry)==0);
+	CHECK(st_font_catalog_create(&fonts,console)==0);
+	CHECK(st_audio_runtime_create_pull(&runtime)==0);
+	const struct st_cterm_config config={.console=console,.fonts=fonts,.audio=runtime,
+		.emulation=ST_CTERM_ANSI_BBS,.encoding=ST_CTERM_ENCODING_UTF8,
+		.codepage=ST_CODEPAGE_CP437,.graphics_mode=ST_CTERM_GRAPHICS_SKYPIX_31,.quiet=true};
+	CHECK(st_cterm_create(&terminal,&config)==0);
+	uint8_t *sample=calloc(20006,1);CHECK(sample!=NULL);
+	sample[2]=0x4e;sample[3]=0x20;sample[4]=0x1f;sample[5]=0x40;
+	CHECK(st_cterm_skypix_load_sample(terminal,sample,20006)==0);free(sample);
+	struct st_profile profile;st_profile_init(&profile);
+	const struct st_wren_connected_config wren_config={.host=host,.console=console,.cterm=terminal,.profile=&profile};
+	CHECK(st_wren_connected_create(&connected,&wren_config)==0);
+	st_profile_dispose(&profile);
+	size_t used;
+	CHECK(st_cterm_write(terminal,"\x1b[9;0;0;0;1!",12,&used)==0 && used==12);
+	int16_t frames[4096*2];
+	CHECK(st_audio_runtime_pull(runtime,frames,4096)==0);
+	CHECK(audio_stream_buffered_frames(terminal->fx_stream)==0);
+	const struct st_console_pixel_cursor hidden={0};
+	CHECK(st_console_set_pixel_cursor(console,&hidden)==0);
+	CHECK(st_wren_connected_interpret(connected,"skypix_menu_audio",
+		"import \"syncterm\" for Input\n"
+		"if (Input.next(45) != null) Fiber.abort(\"unexpected input\")\n")==0);
+	CHECK(audio_stream_buffered_frames(terminal->fx_stream)>0);
+	CHECK(audio_stream_buffered_frames(terminal->fx_stream)<=8192);
+	CHECK(st_cterm_input_paused(terminal));
+	CHECK(st_audio_runtime_pull(runtime,frames,4096)==0);
+	CHECK(st_audio_runtime_pull(runtime,frames,4096)==0);
+	CHECK(audio_stream_buffered_frames(terminal->fx_stream)==0);
+	CHECK(wrenInterpret(host->vm,"skypix_menu_owner_audio",
+		"import \"syncterm\" for Input\n"
+		"if (Input.next(45) != null) Fiber.abort(\"unexpected menu input\")\n")==WREN_RESULT_SUCCESS);
+	CHECK(audio_stream_buffered_frames(terminal->fx_stream)>0);
+	CHECK(audio_stream_buffered_frames(terminal->fx_stream)<=8192);
+	struct st_connection ended={0};atomic_init(&ended.connected,false);
+	host->poll_contexts->connection=&ended;
+	CHECK(wrenInterpret(host->vm,"skypix_menu_eof_audio",
+		"import \"syncterm\" for Input\n"
+		"if (Input.next(0) != null) Fiber.abort(\"unexpected EOF input\")\n")==WREN_RESULT_SUCCESS);
+	CHECK(!st_cterm_input_paused(terminal) && audio_stream_buffered_frames(terminal->fx_stream)==0);
+	host->poll_contexts->connection=NULL;
+	st_wren_connected_destroy(connected);
+	CHECK(host->poll_contexts==NULL);
+	st_cterm_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	st_audio_runtime_destroy(runtime);
+	return 0;
+}
+
 static int
 post_ignored_input(void *argument)
 {
@@ -9072,6 +9133,7 @@ main(int argc, char **argv)
 	CHECK(exercise_numeric_encoding_contract(host, console) == 0);
 	CHECK(exercise_claim_wake_contract(host) == 0);
 	CHECK(exercise_input_deadline_contract(host, console) == 0);
+	CHECK(exercise_skypix_menu_audio(host) == 0);
 	CHECK(exercise_repl_contract(host) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "headless_host_capabilities",

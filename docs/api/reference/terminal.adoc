@@ -123,8 +123,9 @@ is limited to four million pixels. Logical resize cannot change the canvas.
 `amiga_font_directory` is a borrowed catalog path through destruction.
 `skypix_transfer` receives the mode, request dimensions and borrowed Latin-1
 filename bytes. The application accepts modes 1/2/3/20 in the same per-BBS
-`skypix` directory; sound modes 2/3 are cached as opaque files without loading
-or playback. Return zero for a completed cache hit, `IO_ERROR_IN_PROGRESS`
+`skypix` directory. Mode 2 remains cache-only; mode 3 also loads a raw sample
+after cache publication or on a cache hit, independently of cache success.
+Return zero for a completed cache hit, `IO_ERROR_IN_PROGRESS`
 for an owned asynchronous transfer, or another error to decline. The owner
 completes a brush with `st_cterm_skypix_receive`; NULL/zero ends an opaque-file,
 failed or cancelled receive while retaining the previous brush.
@@ -134,6 +135,22 @@ its RGB4-quantized CMAP and applies supplied palette entries on first blit,
 promoting display depth when needed. Reset and EOF cancel delay holds.
 `st_cterm_state.graphics_mode` reports the selected engine. Native mode,
 encoding and canvas constraints are checked on creation/resize.
+
+`st_cterm_skypix_load_sample` borrows a byte buffer during an owner-thread call
+and copies the declared type-3 signed mono PCM. Its six-byte header contains a
+big-endian uint32 byte count and uint16 sample rate. Both must be nonzero;
+the declared PCM must fit the supplied buffer and the 4 MiB load limit.
+Trailing bytes are ignored and odd lengths are accepted. Failure retains the
+previous sample; playback in progress returns `IO_ERROR_BUSY`. No file or
+arbitrary-path authority crosses this interface.
+
+Command 9 plays through logical channel 1 with the existing effects gain/pan.
+Only the loop count is used; zero means one play. Linear rate conversion uses
+the original quantized Amiga period and bounded output blocks. The input-paused
+query includes playback and backend-latency completion. Polling drives audio
+independently of cursor visibility; local UI remains responsive. Finish/EOF
+cancels playback, while reset/destruction also release the loaded sample.
+Audio-disabled/unavailable and output-failure paths resume terminal processing.
 
 `apc_directory` enables built-in APC handling independently of `graphics_mode`.
 It is a borrowed UTF-8 per-BBS cache path, valid through destruction; NULL

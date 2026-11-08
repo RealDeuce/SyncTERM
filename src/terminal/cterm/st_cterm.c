@@ -2624,6 +2624,13 @@ st_cterm_skypix_receive(st_cterm_t *terminal, const void *bytes, size_t size)
 }
 
 int
+st_cterm_skypix_load_sample(st_cterm_t *terminal, const void *bytes, size_t size)
+{
+	return terminal == NULL || terminal->skypix_engine == NULL ? IO_ERROR_NOT_SUPPORTED
+		: cterm_skypix_audio_load(terminal->skypix_engine, bytes, size);
+}
+
+int
 st_cterm_poll(st_cterm_t *terminal)
 {
 	if (terminal == NULL)

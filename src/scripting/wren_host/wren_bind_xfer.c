@@ -234,6 +234,44 @@ static int skypix_destination(void *context, const char *directory, const char *
 	*out = strdup(s->skypix_partial);
 	return *out == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
 }
+static void skypix_load_sample(struct st_wren_context *context, const char *path)
+{
+	struct fs_info info;
+	FILE *file = NULL;
+	uint8_t header[6], *bytes = NULL;
+	int status = fs_get_link_info(&info, path);
+	if (status == 0 && (info.kind != FS_ENTRY_FILE || info.size < sizeof(header)))
+		status = IO_ERROR_INVALID_FORMAT;
+	if (status == 0) status = fs_open(&file, path, "rb");
+	if (status == 0 && fread(header, 1, sizeof(header), file) != sizeof(header))
+		status = IO_ERROR_IO;
+	uint32_t count = 0;
+	if (status == 0) {
+		count = (uint32_t)header[0] << 24 | (uint32_t)header[1] << 16 | (uint32_t)header[2] << 8 | header[3];
+		if (count > 4 * 1024 * 1024) status = IO_ERROR_OUT_OF_RANGE;
+		else if (count == 0 || (header[4] == 0 && header[5] == 0) || count > info.size - sizeof(header))
+			status = IO_ERROR_INVALID_FORMAT;
+	}
+	if (status == 0) {
+		bytes = malloc((size_t)count + sizeof(header));
+		if (bytes == NULL) status = IO_ERROR_OUT_OF_MEMORY;
+	}
+	if (status == 0) {
+		memcpy(bytes, header, sizeof(header));
+		if (fread(bytes + sizeof(header), 1, count, file) != count) status = IO_ERROR_IO;
+	}
+	if (file != NULL && fclose(file) != 0 && status == 0) status = IO_ERROR_IO;
+	if (status == 0) status = st_cterm_skypix_load_sample(context->cterm, bytes, (size_t)count + sizeof(header));
+	free(bytes);
+	/* Successful caching does not depend on audio format or allocation.
+	 * A failed load retains the previous sample and never adds wire output. */
+	if (status != 0) {
+		struct st_transfer_log log = {.level = ST_CTERM_LOG_WARNING};
+		snprintf(log.text, sizeof(log.text), "SkyPix sample load failed (%d)", status);
+		log_entry(context, &log);
+	}
+}
+
 static int skypix_cached(struct st_wren_context *context, const char *path, unsigned mode)
 {
 	int status = 0;
@@ -266,6 +304,8 @@ static int skypix_cached(struct st_wren_context *context, const char *path, unsi
 		if (sent != (ssize_t)sizeof(cached))
 			status = sent < 0 ? (int)sent : IO_ERROR_IO;
 	}
+	if (status == 0 && mode == 3)
+		skypix_load_sample(context, path);
 	return status;
 }
 int st_wren_transfer_skypix_request(struct st_wren_context *context, unsigned mode, unsigned width,
@@ -462,6 +502,7 @@ void st_wren_transfer_pump(struct st_wren_context *context)
 					char *live=NULL;
 					status=path_join_alloc(&live,s->skypix_directory,s->skypix_filename);
 					if(status==0) status=fs_rename(s->skypix_partial,live);
+					if (status == 0 && s->skypix_mode == 3) skypix_load_sample(context, live);
 					free(live);
 				}
 			}

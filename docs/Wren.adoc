@@ -5856,13 +5856,33 @@ SkyPix command-16 transfers accept IFF brushes (type 1), IFF sound (type 2),
 FutureSound samples (type 3), and general files (type 20). All use CRC XMODEM
 and the active BBS's shared `skypix` cache subdirectory, matching SkyTERM's
 single BRU: destination. Completed files are reused; partial or invalid
-brush downloads are discarded. Types 2, 3 and 20 cache opaque bytes, including
-XMODEM padding, without decoding audio or replacing the current brush.
+brush downloads are discarded. Types 2, 3 and 20 preserve cached bytes, including
+XMODEM padding, without replacing the current brush. Type 3 also loads the
+sample after receipt or on a cache hit; an unsuccessful load leaves the file
+cached and retains the previous sound. Type 2 has no IFF sound decoder.
 They do not use RIP asset framing. Gadget command
 22 retains the definition in slot 1–20 and draws its foreground rectangle;
-clicks still report raw controller-1 pixel coordinates. Sample loading/playback,
-controller-2 menu reports and local execution of stored gadget commands remain unsupported. See
+clicks still report raw controller-1 pixel coordinates. Controller-2 menu reports
+and local execution of stored gadget commands remain unsupported. See
 link:SKYPIX_CONFORMANCE.md[SkyPix conformance] for the precise supported subset.
+
+Type-3 samples contain a big-endian unsigned 32-bit PCM-byte count and unsigned
+16-bit rate, followed by signed 8-bit mono PCM. The declared payload must be
+present, positive, and no larger than 4 MiB; the rate must be nonzero. Odd
+lengths are accepted and trailing bytes are ignored. Command 9 uses only its
+loop count and plays the entire sample. Zero deliberately means one play;
+the originals instead wait indefinitely for continuous playback.
+
+SkyPix uses the shared effects stream (logical channel 1), independently of
+channel-0 music, with its existing gain/pan. A custom incremental linear
+converter uses the originals' 16-bit period `(3579545 / rate) & 65535` and
+converts its effective rate to 44100-Hz stereo. It does not emulate analog
+filters or artificial gaps at Amiga device-write boundaries. Remote parsing
+waits for playback and backend latency while local UI continues. Synchronous
+connected/menu/picker input waits service pending audio without consuming remote
+input or extending the requested input deadline. Reset/EOF
+cancel playback; reset/destruction release the loaded sample. Disabled or
+unavailable audio skips playback and the wait. There is no new script audio API.
 
 ==== Parity
 

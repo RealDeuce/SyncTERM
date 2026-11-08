@@ -523,6 +523,8 @@ void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
  * ================================================================ */
 bool cterm_play_fx(struct cterminal *cterm, const int16_t *frames,
 	size_t nframes);
+/* Borrow the lazily opened logical channel 1 stream, or NULL. */
+audio_stream_t *cterm_fx_stream(struct cterminal *cterm);
 bool cterm_play_fx_tone(struct cterminal *cterm, double freq,
 	uint32_t duration_ms, uint32_t shape);
 bool cterm_play_fx_u8(struct cterminal *cterm,

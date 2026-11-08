@@ -232,6 +232,11 @@ int st_cterm_poll(st_cterm_t *terminal);
 bool st_cterm_input_paused(st_cterm_t *terminal);
 /* Load a completed native ILBM brush; NULL/zero cancels a pending request. */
 int st_cterm_skypix_receive(st_cterm_t *terminal, const void *bytes, size_t size);
+/* Owner-thread raw type-3 load. Borrows bytes during the call, copies only
+ * the declared signed PCM, and retains the previous sample on failure.
+ * Maximum declared PCM length is 4 MiB; trailing bytes are ignored.
+ * Returns BUSY during playback; reset/destruction releases the owned copy. */
+int st_cterm_skypix_load_sample(st_cterm_t *terminal, const void *bytes, size_t size);
 /* After disconnect only: finish pending output and, without a status row,
  * scroll the whole terminal once to make room for a local notice. Dimensions
  * and status layout remain unchanged; capture completed history beforehand. */

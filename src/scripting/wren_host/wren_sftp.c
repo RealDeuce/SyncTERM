@@ -1721,6 +1721,10 @@ st_wren_connected_create(st_wren_connected_t **result,
 		return status;
 	}
 	*result = connected;
+	if (connected->context.cterm != NULL) {
+		connected->context.poll_next = connected->host->poll_contexts;
+		connected->host->poll_contexts = &connected->context;
+	}
 	return 0;
 }
 
@@ -2160,6 +2164,11 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 {
 	if (connected == NULL)
 		return;
+	struct st_wren_context **poll = &connected->host->poll_contexts;
+	while (*poll != NULL && *poll != &connected->context)
+		poll = &(*poll)->poll_next;
+	if (*poll != NULL)
+		*poll = connected->context.poll_next;
 	connected->shutting_down = true;
 	st_wren_wire_dispose(&connected->context);
 	(void)st_console_set_pointer_shape(connected->context.console,

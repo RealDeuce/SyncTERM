@@ -224,6 +224,7 @@ struct st_wren_context {
 	int (*session_log)(void *context, char **text);
 	void *session_log_context;
 	st_cterm_t *cterm;
+	struct st_wren_context *poll_next;
 	struct st_connection *connection;
 	struct st_wren_transfer *transfer;
 	struct st_term_session *session;
@@ -296,6 +297,9 @@ struct st_wren_host {
 	bool offline_history_mode_active;
 	struct st_wren_context menu;
 	struct st_wren_context picker;
+	/* Borrowed connected owners; menu/picker waits can keep audio fed
+	 * without granting those VMs access to a connected CTerm object. */
+	struct st_wren_context *poll_contexts;
 	struct st_profile selected;
 	struct st_theme_manager *themes;
 	char last_error[512];
