@@ -79,7 +79,7 @@
       "verification": [
         "cmake -S . -B build; cmake --build build --target st_igs_image_test -j 4; CTest igs_image, st_pixels and graphics_protocol_parser passed on native FreeBSD /usr/bin/cc Release."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "3fe002a"
     },
     {
       "id": "igs-state-raster-clock",
@@ -87,6 +87,28 @@
       "tests": [],
       "verification": [],
       "commit": null
+    },
+    {
+      "id": "igs-preansi-input",
+      "status": "complete",
+      "operations": [
+        "experimental CTerm IGS mode at common pre-ANSI/RIP input boundary",
+        "native ST geometry and emulation validation",
+        "ordinary wire input and semantic-input bypass",
+        "reset including input-hook reset, source EOF, disconnect/destruction",
+        "local incomplete-header input deadline"
+      ],
+      "tests": [
+        "cterm_igs_input"
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: full CMake build passed; all 24 CTerm tests passed; term_rip_encoding_consistency, term_key_forward, term_rip_v110a_wire and syncterm_graphics_scrollback passed."
+      ],
+      "commit": "recorded by the next completed step",
+      "limitations": [
+        "No command descriptors registered; all commands/selectors remain pending.",
+        "Application profiles/menus and complete rendering/audio/input interaction are not implemented."
+      ]
     },
     {
       "id": "application-integration",

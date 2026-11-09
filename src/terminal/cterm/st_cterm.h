@@ -49,6 +49,9 @@ enum st_cterm_graphics_mode {
 	ST_CTERM_GRAPHICS_RIP_3 = 2,
 	ST_CTERM_GRAPHICS_SKYPIX_13 = 3,
 	ST_CTERM_GRAPHICS_SKYPIX_31 = 4,
+	/* IGS integration is under development; command coverage is documented
+	 * in docs/IGS_CONFORMANCE.md. Not yet exposed by application profiles. */
+	ST_CTERM_GRAPHICS_IGS_221 = 5,
 };
 
 enum st_cterm_petscii_machine {
@@ -126,7 +129,8 @@ struct st_cterm_config {
 	st_hyperlink_registry_t *hyperlinks;
 	enum st_cterm_emulation emulation;
 	enum st_cterm_encoding encoding;
-	/* Graphics require ANSI-BBS and a bitmap console. RIP needs at least
+	/* Graphics require a bitmap console. RIP/SkyPix require ANSI-BBS; IGS
+	 * requires Atari ST VT52 and native ST geometry. RIP needs at least
 	 * 640x350 pixels; SkyPix uses the selected canvas and wire encoding. */
 	enum st_cterm_graphics_mode graphics_mode;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */

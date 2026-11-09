@@ -18,6 +18,8 @@ The executable coverage ledger is link:../src/tests/igs/conformance.json[conform
 No command is implemented yet. Parser-only tests do not establish command,
 rendering, sound or application support. The X dispatcher remains pending
 until all extended selectors and their dispatch behavior have passed.
+Experimental CTerm IGS input routing is available for native integration
+tests; application profile/menu selection and command handlers remain pending.
 
 == Standalone goal summary
 
@@ -278,4 +280,33 @@ Configured with cmake -S . -B build and built st_igs_image_test using the
 existing native FreeBSD /usr/bin/cc Release configuration. CTest igs_image,
 st_pixels and graphics_protocol_parser all passed. The superseded planar
 surface and separate clock experiments and their tests have been removed.
-Completion commit is recorded by the next completed step.
+Commit: 3fe002a.
+
+=== CTerm pre-ANSI IGS input integration
+
+CTerm selects IGS alongside RIP in st_cterm_write, before its existing base
+input/VT52 path. An experimental ST_CTERM_GRAPHICS_IGS_221 value 5 requires
+Atari ST VT52, pixel capability and native ST geometry. SkyPix checks in CTerm
+now name its two modes explicitly. Profile/menu selection remains pending.
+
+cterm_igs_input verifies ordinary text and VT52 controls through the real
+CTerm path in all three ST geometries, Atari ST byte/UTF-8 input and status
+on/off, with every focused input split and bytewise replay. Graphics-owned
+header bytes resembling VT52/UTF-8 input are consumed before base decoding.
+Semantic replacement input still bypasses graphics. Parser lifecycle checks
+cover reset, reset from an input hook, incomplete-header timeout, disconnect,
+destruction and invalid emulation/geometry. Existing bitmap contents survive
+the first ordinary byte. No command descriptors are registered in this step;
+these tests do not establish IGS command or payload execution.
+
+Partial header acquisition uses a five-second local monotonic deadline after
+input progress. Tests inject local milliseconds; there are no foreign clock
+domains. Reset discards partial grammar and defers parser mutation until an
+active callback returns. Explicit source EOF discards incomplete commands
+without fabricating arguments and flushes held ordinary prefix text.
+
+Configured/built the native Release SyncTERM CMake project. All 24 CTerm
+tests passed, including RIP/SkyPix, and the term RIP encoding/key/wire and
+application graphics-scrollback checks passed. Completion commit is recorded
+by the next completed step. All 47 command and 16 selector entries remain
+pending; full application integration and rendering are not complete.

@@ -1,7 +1,8 @@
 # IGS 2.21 conformance
 
-IGS implementation is in progress. No graphics command or selectable IGS mode
-is supported yet. The [implementation goal](IGS_IMPLEMENTATION.adoc) and
+IGS implementation is in progress. No graphics command or application-selectable
+IGS mode is supported yet. An experimental CTerm input mode is tested natively.
+The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
 
@@ -38,7 +39,8 @@ Required integration tests cover mixed ordinary text/control input, split
 graphics introducers, payloads containing control-looking bytes, and reset/
 disconnect recovery at this boundary, while preserving existing encoding,
 hook/capture and intentional semantic-input bypass behavior. This is an
-integration requirement, not a claim of completed IGS routing.
+integration requirement. Native CTerm routing is covered below; complete
+command execution and application integration remain pending.
 
 ## Framebuffer and image formats
 
@@ -86,6 +88,16 @@ These are image-format tests, not completed `G`/`X11` commands or application
 integration. The earlier planar-surface and separate-clock experiments have
 been removed; local timing integration remains pending.
 
+Native `cterm_igs_input` covers the CTerm insertion point in all ST geometries,
+Atari ST byte/UTF-8 input and status on/off. Every focused split and bytewise
+replay retain ordinary text/VT52 controls and consume graphics headers before
+base decoding. It checks semantic-input bypass, first-text bitmap retention,
+reset including an input-hook reset, source EOF, disconnect/destruction,
+local header deadlines and invalid emulation/geometry. The CTerm enum value 5
+is experimental; profile/menu integration is pending. No command descriptors
+are registered, so this coverage does not claim IGS drawing or raw-payload
+command execution. The generic parser's raw-ownership tests remain separate.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on
@@ -111,3 +123,7 @@ The following parser policies intentionally avoid original reader accidents:
 
 These are parser port policies, not claims that associated IGS commands have
 been completed. Array evaluation and command-specific validation are pending.
+The CTerm adapter recovers from incomplete source EOF by discarding partial
+grammar and logging a diagnostic. Incomplete header input has a five-second
+local timeout after progress; expiry discards the header. An ordinary held G
+prefix alone has no header timeout. No Atari bucket/wrap arithmetic is used.

@@ -91,6 +91,7 @@ enum prestel_prog_states {
 
 struct cterm_rip_engine;
 struct cterm_skypix;
+struct cterm_igs;
 struct cterm_apc_state;
 
 struct cterminal {
@@ -98,6 +99,7 @@ struct cterminal {
 	struct cterm_render_state screen;
 	struct cterm_rip_engine *rip_engine;
 	struct cterm_skypix *skypix_engine;
+	struct cterm_igs *igs_engine;
 	/* Explicit cursor placement can matter even within the same text cell. */
 	/* Explicit terminal positioning, excluding renderer cursor restoration. */
 	uint64_t cursor_position_changes;

@@ -13,6 +13,7 @@
 #include "cterm_internal.h"
 #include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
+#include "cterm_igs.h"
 #include "st_session_history.h"
 #include "st_time.h"
 #include "cterm_rip_asset.h"
@@ -2046,10 +2047,12 @@ initialize_render_state(struct cterm_render_state *screen,
 	else
 		default_palette_mapping(config->emulation, config->petscii_machine,
 		    screen->mode_palette);
-	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) {
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31) {
 		for (unsigned i = 0; i < 16; ++i) screen->mode_palette[i] = (uint16_t)(CTERM_SKYPIX_PALETTE_FIRST+i);
 	}
-	screen->capabilities = config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13
+	screen->capabilities = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
 	    ? capabilities & ~ST_CONSOLE_CAP_EXTENDED_PALETTE : capabilities;
 	screen->wscroll = 1;
 	return 0;
@@ -2076,9 +2079,12 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	    || config->encoding < ST_CTERM_ENCODING_UTF8
 	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE
 	    || config->graphics_mode < ST_CTERM_GRAPHICS_OFF
-	    || config->graphics_mode > ST_CTERM_GRAPHICS_SKYPIX_31
+	    || config->graphics_mode > ST_CTERM_GRAPHICS_IGS_221
 	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF
+	        && config->graphics_mode != ST_CTERM_GRAPHICS_IGS_221
 	        && config->emulation != ST_CTERM_ANSI_BBS)
+	    || (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221
+	        && config->emulation != ST_CTERM_ATARI_ST_VT52)
 	    || config->codepage >= ST_CODEPAGE_COUNT
 	    || (config->encoding == ST_CTERM_ENCODING_UTF8
 	    && !utf8_supported(config->emulation))
@@ -2275,8 +2281,13 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			return status;
 		}
 	}
-	if (config->graphics_mode >= ST_CTERM_GRAPHICS_SKYPIX_13) {
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31) {
 		status = cterm_skypix_create(terminal, config);
+		if (status != 0) { st_cterm_destroy(&terminal); return status; }
+	}
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221) {
+		status = cterm_igs_create(terminal);
 		if (status != 0) { st_cterm_destroy(&terminal); return status; }
 	}
 	*result = terminal;
@@ -2292,6 +2303,8 @@ st_cterm_destroy(st_cterm_t **terminal)
 		return;
 	scrollback = (*terminal)->scrollback;
 	(void)st_cterm_finish(*terminal);
+	cterm_igs_destroy((*terminal)->igs_engine);
+	(*terminal)->igs_engine = NULL;
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
 	cterm_skypix_destroy((*terminal)->skypix_engine);
 	(*terminal)->skypix_engine = NULL;
@@ -2603,6 +2616,8 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->skypix_engine != NULL)
 		return cterm_skypix_feed(terminal->skypix_engine, bytes, size, consumed);
+	if (terminal->igs_engine != NULL)
+		return cterm_igs_feed(terminal->igs_engine, bytes, size, consumed);
 	if (terminal->rip_engine != NULL)
 		return cterm_rip_engine_feed(terminal->rip_engine, bytes,
 		    size, consumed);
@@ -2636,6 +2651,8 @@ st_cterm_poll(st_cterm_t *terminal)
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_apc_poll(terminal);
+	if (terminal->igs_engine != NULL)
+		return cterm_igs_poll(terminal->igs_engine);
 	if (terminal->skypix_engine != NULL) {
 		uint64_t now;
 		int status = st_time_monotonic_ms(&now);
@@ -2686,7 +2703,8 @@ st_cterm_finish(st_cterm_t *terminal)
 
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = terminal->skypix_engine != NULL ? cterm_skypix_finish(terminal->skypix_engine)
+	status = terminal->igs_engine != NULL ? cterm_igs_finish(terminal->igs_engine)
+	    : terminal->skypix_engine != NULL ? cterm_skypix_finish(terminal->skypix_engine)
 	    : terminal->rip_engine == NULL ? 0 : cterm_rip_engine_flush(terminal->rip_engine);
 	if (status == 0)
 		status = cterm_text_boundary(terminal);
@@ -2727,6 +2745,8 @@ st_cterm_prepare_disconnect(st_cterm_t *terminal)
 int
 st_cterm_reset_terminal(st_cterm_t *terminal)
 {
+	if (terminal != NULL)
+		cterm_igs_reset(terminal->igs_engine);
 	int status = st_cterm_finish(terminal);
 
 	if (status != 0)
