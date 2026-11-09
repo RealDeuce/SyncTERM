@@ -4,9 +4,11 @@ IGS 2.21 work is tracked separately in [IGS_CONFORMANCE.md](IGS_CONFORMANCE.md)
 and [IGS_IMPLEMENTATION.adoc](IGS_IMPLEMENTATION.adoc). The shared graphics
 byte-parser foundation has native split-input and raw-ownership coverage;
 native image-format tests check indexed storage and boundary conversions.
-The experimental CTerm input adapter has native ST geometry/encoding/status
-and lifecycle coverage. No IGS commands or application-selectable mode are
-implemented yet.
+The CTerm input adapter has native ST geometry/encoding/status and lifecycle
+coverage. IGS is selectable through profiles, menus and Wren. The first command,
+`I`, has native selector/state/deadline coverage and coherent application bitmap
+checks in all ST modes, Atari ST/UTF-8 and status choices. Other commands,
+including drawing and sound, remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

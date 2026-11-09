@@ -934,7 +934,9 @@ class BbsEditor {
         "modes. SkyPix uses the selected canvas, encoding and Amiga font. " +
         "Its initial preset is 640x200, Latin-1 and Pearl 8. Kick 1.3 and Kick 3.1 select the " +
         "original Amiga rendering differences; tested Kick 2.04 matches 3.1. " +
-        "SkyPix font choices come from Amiga Font Management."
+        "SkyPix font choices come from Amiga Font Management. " +
+        "IGS 2.21 uses Atari ST modes and the Atari ST font. Its initial preset is " +
+        "320x200 and Atari ST encoding. IGS support is under development; see IGS_CONFORMANCE.md."
   }
 
   static logFileHelp_() {
@@ -1053,12 +1055,20 @@ class BbsEditor {
     if (index < fonts.count) d["font"] = fonts[index][1]
   }
 
+  static skyPix_(mode) { mode == 3 || mode == 4 }
+
   static changeEncoding_(d, encoding) {
     if (encoding == d["encoding"]) return
-    if (d["graphics"] >= 3) {
+    if (skyPix_(d["graphics"])) {
       d["encoding"] = encoding
       return
     }
+    if (d["graphics"] == 5 && (encoding == 28 || encoding == 255)) {
+      d["encoding"] = encoding
+      selectFont_(d, 44)
+      return
+    }
+    if (d["graphics"] == 5) d["graphics"] = 0
     d["encoding"] = encoding
     var family = encodingFamily_(encoding)
     if (family_(d["screenMode"]) != family) {
@@ -1075,10 +1085,16 @@ class BbsEditor {
   }
 
   static changeScreen_(d, mode) {
-    if (d["graphics"] >= 3) {
+    if (skyPix_(d["graphics"])) {
       d["screenMode"] = mode
       return
     }
+    if (d["graphics"] == 5 && family_(mode) == 4) {
+      d["screenMode"] = mode
+      selectFont_(d, 44)
+      return
+    }
+    if (d["graphics"] == 5) d["graphics"] = 0
     var old = d["screenMode"]
     var family = family_(mode)
     d["screenMode"] = mode
@@ -1128,17 +1144,21 @@ class BbsEditor {
     }
     d["font"] = name
     if (d["graphics"] == 1 && index != 45) d["graphics"] = 0
-    if (family_(d["screenMode"]) != 0) d["graphics"] = 0
+    if (family_(d["screenMode"]) != 0 && !(d["graphics"] == 5 && index == 44)) d["graphics"] = 0
   }
 
   static changeGraphics_(d, version) {
-    var wasSkyPix = d["graphics"] >= 3
+    var wasSkyPix = skyPix_(d["graphics"])
     d["graphics"] = version
-    if (version >= 3 && !wasSkyPix) {
+    if (skyPix_(version) && !wasSkyPix) {
       d["screenMode"] = 30
       d["encoding"] = 17
     }
-    if (version == 1) {
+    if (version == 5) {
+      d["screenMode"] = 27
+      d["encoding"] = 28
+      selectFont_(d, 44)
+    } else if (version == 1) {
       d["screenMode"] = 5
       d["encoding"] = 0
       selectFont_(d, 45)
@@ -1402,21 +1422,22 @@ class BbsEditor {
            [TLSVersion.tls12, "TLS 1.2 (compatibility)"]]))
     }
 
-    var screenChoices = d["graphics"] >= 3 ? Menu.canvasModes : Menu.screenModes
-    var screenName = d["graphics"] >= 3 ? MenuUi.rowName(screenChoices, d["screenMode"]) : Menu.screenModes[d["screenMode"]]
+    var screenChoices = skyPix_(d["graphics"]) ? Menu.canvasModes : Menu.screenModes
+    if (d["graphics"] == 5) screenChoices = (27..29).map {|m| [m, Menu.screenModes[m]] }.toList
+    var screenName = (skyPix_(d["graphics"]) || d["graphics"] == 5) ? MenuUi.rowName(screenChoices, d["screenMode"]) : Menu.screenModes[d["screenMode"]]
     rows.add(row_("Screen Mode", screenName,
         Fn.new {
       var value = MenuUi.choice(app, "Screen Mode", screenChoices,
-          d["screenMode"], d["graphics"] >= 3 ? "# SkyPix Canvas\n\nChoose the screen mode, including its resolution, aspect ratio and system cell grid. The Amiga font supplies text metrics independently. Status uses the last row inside the mode." : screenModeHelp_())
+          d["screenMode"], skyPix_(d["graphics"]) ? "# SkyPix Canvas\n\nChoose the screen mode, including its resolution, aspect ratio and system cell grid. The Amiga font supplies text metrics independently. Status uses the last row inside the mode." : screenModeHelp_())
       if (value != null) changeScreen_(d, value)
     }))
     rows.add(row_("Encoding", MenuUi.rowName(Menu.encodings, d["encoding"]),
         Fn.new {
       var value = MenuUi.choice(app, "Encoding", Menu.encodings,
-          d["encoding"], d["graphics"] >= 3 ? "# SkyPix Encoding\n\nChoose the BBS text encoding. Amiga bitmap fonts have byte-indexed glyphs and no encoding tag. With UTF-8 input the Amiga glyph mapping defaults to Latin-1." : encodingHelp_())
+          d["encoding"], skyPix_(d["graphics"]) ? "# SkyPix Encoding\n\nChoose the BBS text encoding. Amiga bitmap fonts have byte-indexed glyphs and no encoding tag. With UTF-8 input the Amiga glyph mapping defaults to Latin-1." : encodingHelp_())
       if (value != null) changeEncoding_(d, value)
     }))
-    if (d["graphics"] >= 3) {
+    if (skyPix_(d["graphics"])) {
       rows.add(amigaFontRow_(app, d))
     } else {
       var fontChoices = Menu.fontsForEncoding(d["encoding"]).map {|row|
@@ -1446,7 +1467,7 @@ class BbsEditor {
             graphicsHelp_())
         if (value != null) changeGraphics_(d, value)
       }))
-    if (ansi_(d["screenMode"]) || d["graphics"] >= 3) {
+    if (ansi_(d["screenMode"]) || skyPix_(d["graphics"])) {
       if (d["graphics"] < 3) rows.add(choiceRow_(app, d, "music", "ANSI Music", Menu.musicModes))
       if (d["graphics"] < 3) rows.add(boolRow_(d, "forceLcf", "Force LCF Mode"))
       if (d["graphics"] < 3) rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))

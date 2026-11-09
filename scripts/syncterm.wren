@@ -1570,6 +1570,7 @@ class GraphicsMode {
   static v3   { 2 }
   static skypix13 { 3 }
   static skypix31 { 4 }
+  static igs221 { 5 }
 }
 class Parity {
   static none { 0 }

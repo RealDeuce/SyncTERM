@@ -104,18 +104,33 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: full CMake build passed; all 24 CTerm tests passed; term_rip_encoding_consistency, term_key_forward, term_rip_v110a_wire and syncterm_graphics_scrollback passed."
       ],
-      "commit": "recorded by the next completed step",
+      "commit": "c19dbad",
       "limitations": [
-        "No command descriptors registered; all commands/selectors remain pending.",
-        "Application profiles/menus and complete rendering/audio/input interaction are not implemented."
+        "Input-boundary tests do not establish raw-payload command, drawing or audio conformance."
       ]
     },
     {
       "id": "application-integration",
-      "status": "pending",
-      "tests": [],
-      "verification": [],
-      "commit": null
+      "status": "in-progress",
+      "tests": [
+        "syncterm_igs_init",
+        "bbs_list",
+        "term",
+        "wren_menu_contract",
+        "syncterm_behavior_bbs_setters"
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: full CMake build passed without compiler warnings. Relevant CTerm/parser/image/pixel/profile/BBS-list/term/Wren tests and application IGS, SkyPix report and graphics-scrollback tests passed. IGS application captures cover all three ST modes, Atari ST/UTF-8 and status on/off with audio disabled."
+      ],
+      "commit": null,
+      "operations": [
+        "IGS profile INI codec and editor preset; ST modes and UTF-8 selection; Wren enum and persistence",
+        "Session mapping to ST VT52 with common pre-ANSI IGS/RIP dispatch; explicit SkyPix selection",
+        "Fixed host canvas and I5 colour mode/history/status geometry restoration"
+      ],
+      "limitations": [
+        "Other command handlers, graphics/audio/input integration and final acceptance remain pending."
+      ]
     }
   ],
   "commands": [
@@ -139,16 +154,38 @@
       "phase": "attributes",
       "references": [
         "16-state-timing-commands.adoc",
-        "15-graphics-commands.adoc"
+        "28-native-palette.adoc",
+        "31-native-workstation-lifetime.adoc",
+        "32-native-physical-font-init.adoc",
+        "117-delivery-attribute-reset.adoc",
+        "120-delivery-attribute-capture.adoc",
+        "123-delivery-initial-pattern.adoc"
       ],
       "order": 1,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input"
+      ],
+      "operations": [
+        "I0/I1 captured palette; I0/I2 selective attributes, pattern 0 and G/X14 controls",
+        "I3/I4 literal palettes with native pen/depth/monochrome rules",
+        "I5 saved colour resolution, local sync-unit wait, screen clear and console reset, full clip; saved mono clip only",
+        "Values >5 select I0; negative values are no-ops; ordinary input remains ordered around suspension"
+      ],
+      "tests": [
+        "cterm_igs_init",
+        "syncterm_igs_init"
+      ],
+      "deviations": [
+        "Restore a coherent port-owned initial attribute snapshot, correcting marker-index and stale line-end capture bugs; marker-pen cache stays coherent.",
+        "Restore exact captured host RGB palette values and use saved-depth mapping for unavailable desktop pens, avoiding undefined snapshot data.",
+        "Use a local monotonic sync-unit deadline (initially ceil(1000/60) milliseconds), with no foreign frame clock or interrupt emulation."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: full CMake build passed without compiler warnings. Relevant CTerm/parser/image/pixel/profile/BBS-list/term/Wren tests and application IGS, SkyPix report and graphics-scrollback tests passed. IGS application captures cover all three ST modes, Atari ST/UTF-8 and status on/off with audio disabled."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "R",

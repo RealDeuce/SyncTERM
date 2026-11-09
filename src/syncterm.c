@@ -829,7 +829,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	connection_log_open(&connection_ui);
 	if (mode != NULL)
 		selector = mode->font_selector;
-	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
+	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31) {
 		selector = 0;
 		status = st_font_catalog_create(&fonts, console);
 	}
@@ -863,7 +863,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		if (status != 0)
 			goto finished;
 	}
-	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
+	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31) {
 		status = st_amiga_fonts_directory(&amiga_font_directory, paths->settings_file);
 		if (status != 0) goto finished;
 	}
@@ -1048,7 +1048,7 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 {
 	const st_amiga_font_t *font = NULL;
 	int status;
-	if (profile->graphics_mode >= ST_GRAPHICS_SKYPIX_13) {
+	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31) {
 		char *directory = NULL;
 		status = st_amiga_fonts_directory(&directory, paths->settings_file);
 		if (status == 0)

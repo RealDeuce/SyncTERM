@@ -5827,7 +5827,14 @@ character).
                     extended; **not** bug-compatible with v1.54.
 | `skypix13` | 3 | Practical SkyPix dialect, with Kickstart 1.3 rendering.
 | `skypix31` | 4 | Practical SkyPix dialect, with Kickstart 3.1 rendering.
+| `igs221` | 5 | IGS 2.21, under development; see link:IGS_CONFORMANCE.md[coverage].
 |===
+
+Selecting IGS presets Atari ST 40x25 (320x200), Atari ST encoding and font.
+The ST 80x25 colour and monochrome modes are also available. UTF-8 can be
+selected while retaining ST glyphs. IGS and RIP enter the same pre-ANSI
+receive stage; ordinary bytes continue to the selected base emulation.
+`Profile.graphics` stores this mode and `CTerm.graphicsMode` reports it.
 
 SkyPix is selected before connecting, independently of RIP. Both variants use
 the practical protocol recorded in link:SKYPIX_CONFORMANCE.md[SkyPix conformance],

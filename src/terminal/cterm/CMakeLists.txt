@@ -79,6 +79,7 @@ endif()
 
 add_library(st_cterm STATIC
 	cterm_igs.c
+	cterm_igs_state.c
 	cterm.c
 	cterm_apc.c
 	cterm_apc_audio.c
@@ -113,7 +114,7 @@ target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
 	st_audio st_music st_base64 st_time st_utf8 st_unicode_text st_session_history)
 target_link_libraries(st_cterm PRIVATE st_amiga_font st_fonts syncterm_threads
-	st_graphics_protocol
+	st_graphics_protocol st_igs st_screen_mode
 	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_string_util syncterm_filesystem
 	syncterm_path syncterm_ini)
@@ -132,7 +133,7 @@ endif()
 
 if(BUILD_TESTING)
 	syncterm_add_test_case(st_terminal_tests st_cterm_igs_input_test tests/st_cterm_igs_input_test.c)
-	target_link_libraries(st_cterm_igs_input_test PRIVATE st_cterm st_graphics_protocol)
+	target_link_libraries(st_cterm_igs_input_test PRIVATE st_cterm st_graphics_protocol st_igs)
 	set_target_properties(st_cterm_igs_input_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
@@ -142,6 +143,17 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_igs_input COMMAND st_terminal_tests st_cterm_igs_input_test)
 	set_tests_properties(cterm_igs_input PROPERTIES TIMEOUT 60)
+	syncterm_add_test_case(st_terminal_tests st_cterm_igs_init_test tests/st_cterm_igs_init_test.c)
+	target_link_libraries(st_cterm_igs_init_test PRIVATE st_cterm st_graphics_protocol st_igs)
+	set_target_properties(st_cterm_igs_init_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_igs_init_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_igs_init_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_igs_init COMMAND st_terminal_tests st_cterm_igs_init_test)
+	set_tests_properties(cterm_igs_init PROPERTIES TIMEOUT 60)
 	option(ST_CTERM_TEST_EXTERNAL_ASSETS "Use optional external RIP test assets" ON)
 	# These replay/inventory tools are built explicitly for external comparisons.
 	add_executable(st_cterm_apc_replay EXCLUDE_FROM_ALL tests/st_cterm_apc_replay.c)

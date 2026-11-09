@@ -15,11 +15,12 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-No command is implemented yet. Parser-only tests do not establish command,
-rendering, sound or application support. The X dispatcher remains pending
+The I initialization command is implemented and independently tested natively
+and through the control bitmap application backend. Profile/menu/Wren selection
+is available. Other commands remain pending. Parser-only tests do not establish
+command, rendering or sound support. The X dispatcher remains pending
 until all extended selectors and their dispatch behavior have passed.
-Experimental CTerm IGS input routing is available for native integration
-tests; application profile/menu selection and command handlers remain pending.
+CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
 
 == Standalone goal summary
 
@@ -307,6 +308,42 @@ without fabricating arguments and flushes held ordinary prefix text.
 
 Configured/built the native Release SyncTERM CMake project. All 24 CTerm
 tests passed, including RIP/SkyPix, and the term RIP encoding/key/wire and
-application graphics-scrollback checks passed. Completion commit is recorded
-by the next completed step. All 47 command and 16 selector entries remain
-pending; full application integration and rendering are not complete.
+application graphics-scrollback checks passed. Completion commit: c19dbad.
+At that step all command and selector entries remained pending.
+
+=== I initialization and application selection
+
+I now has a real shared-parser descriptor and an owned graphical-state record.
+Its six selectors implement palette/selected-attribute restoration, literal
+IGS/VDI palettes, control resets and unconditional saved-colour mode restore.
+The latter pauses input at a local sync-unit deadline; monochrome only clips.
+No foreign clock or planar framebuffer is introduced. The port-owned snapshot
+corrects original capture/cache bugs; source pattern 0 and active fill rows are
+distinct. See link:IGS_CONFORMANCE.md[coverage] for selective preservation and
+the explicit palette/snapshot port policies. Source references: 16, 28, 31,
+32, 117, 120 and 123.
+
+Graphics=IGS (2.21), ST_GRAPHICS_IGS_221 and GraphicsMode.igs221 select this
+in-progress mode. The editor presets low resolution, ST encoding and ST font;
+its three ST modes and UTF-8 remain selectable. Explicit SkyPix checks preserve
+the independent grammars and font paths. Host resize does not change the IGS
+canvas. Native mode restore updates console, history and reserved-status
+geometry, while preserving IGS graphical state and palette.
+
+Native cterm_igs_init checks literal palettes, selective attributes, split
+input, negative selector, local deadlines, cancellation and cross-resolution
+restoration. syncterm_igs_init checks real menu/profile/transport integration,
+literal Z rasters and clear/no-clear in both planes, cells/palette/mode in one
+capture, all three ST modes, Atari ST/UTF-8 and status choices. Audio is disabled.
+Profile codec, Wren persistence and graphics regressions accompany this step.
+I's standalone selectors are complete; loops and every other command remain
+separate ledger steps. Full rendering, input/audio and final lifecycle
+acceptance are still pending.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration: full application build without compiler warnings; relevant
+CTerm (ANSI/VT52/RIP/SkyPix), parser/image/pixel, profile/BBS-list, term,
+Wren host/menu/persistence and application IGS/SkyPix-report/graphics-scrollback
+tests passed. IGS acceptance remains scoped to I and the integration above.
+The complete 47+16 inventory and reference paths were checked again; one
+command is complete. Completion commit will be recorded by the next step.

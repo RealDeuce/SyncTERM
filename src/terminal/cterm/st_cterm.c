@@ -16,6 +16,7 @@
 #include "cterm_igs.h"
 #include "st_session_history.h"
 #include "st_time.h"
+#include "st_screen_mode.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_file_query.h"
 #include "cterm_rip_fonts.h"
@@ -2047,6 +2048,19 @@ initialize_render_state(struct cterm_render_state *screen,
 	else
 		default_palette_mapping(config->emulation, config->petscii_machine,
 		    screen->mode_palette);
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221 && config->palette_mapping == NULL) {
+		uint32_t width, height;
+		uint16_t mapping[16];
+		status = st_console_pixel_size(config->console, &width, &height);
+		if (status != 0)
+			return status;
+		enum st_screen_mode native_mode = width == 320 && height == 200
+		    ? ST_SCREEN_MODE_ATARIST_40X25 : width == 640 && height == 200
+		    ? ST_SCREEN_MODE_ATARIST_80X25 : ST_SCREEN_MODE_ATARIST_80X25_MONO;
+		st_screen_mode_palette_mapping(st_screen_mode_get(native_mode), mapping);
+		for (unsigned i = 0; i < 16; ++i)
+			screen->mode_palette[i] = mapping[i];
+	}
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
 	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31) {
 		for (unsigned i = 0; i < 16; ++i) screen->mode_palette[i] = (uint16_t)(CTERM_SKYPIX_PALETTE_FIRST+i);
@@ -2627,8 +2641,8 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 bool
 st_cterm_input_paused(st_cterm_t *terminal)
 {
-	return terminal != NULL && terminal->skypix_engine != NULL
-	    && cterm_skypix_paused(terminal->skypix_engine);
+	return terminal != NULL && (cterm_igs_paused(terminal->igs_engine)
+	    || (terminal->skypix_engine != NULL && cterm_skypix_paused(terminal->skypix_engine)));
 }
 
 int
@@ -2861,6 +2875,75 @@ resize_parser_geometry(st_cterm_t *terminal, int columns, int rows,
 }
 
 int
+cterm_igs_set_resolution(struct cterminal *t, unsigned resolution)
+{
+	if (t == NULL || t->igs_engine == NULL || resolution > 1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct cterm_igs *igs = t->igs_engine;
+	const struct st_screen_mode_descriptor *mode = st_screen_mode_get(resolution == 0
+	    ? ST_SCREEN_MODE_ATARIST_40X25 : ST_SCREEN_MODE_ATARIST_80X25);
+	struct st_console_config config = mode->console;
+	struct st_console_cell *history = NULL;
+	struct st_pixel_buffer **history_pixels = NULL;
+	int status = st_console_get_scaling_mode(t->screen.console, &config.scaling_mode);
+	if (status == 0)
+		status = st_console_get_color_emoji(t->screen.console, &config.color_emoji);
+	if (status == 0 && t->backlines != 0)
+		status = resize_scrollback(t, config.columns, config.cell_width,
+		    config.cell_height, &history, &history_pixels);
+	if (status != 0)
+		return status;
+	status = st_console_reconfigure(t->screen.console, &config);
+	if (status != 0) {
+		free(history);
+		st_history_free_pixels(history_pixels, (size_t)t->backlines);
+		return status;
+	}
+	free(t->scrollback);
+	st_history_free_pixels(t->backpixels, (size_t)t->backlines);
+	t->scrollback = history;
+	t->backpixels = history_pixels;
+	t->backwidth = (int)config.columns;
+	t->backstart = 0;
+	t->backpos = t->backfilled == t->backlines ? 0 : t->backfilled;
+	igs->resolution = resolution;
+	igs->width = config.pixel_width;
+	igs->height = config.pixel_height;
+	unsigned mask = resolution == 0 ? 15 : 3;
+	for (unsigned i = 0; i < 16; ++i)
+		t->screen.mode_palette[i] = CTERM_IGS_PALETTE_FIRST + (i & mask);
+	resize_parser_geometry(t, (int)config.columns,
+	    (int)(config.rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), 1, 1);
+	if (t->status_sub != NULL) {
+		t->status_sub->y = t->y + t->height;
+		resize_parser_geometry(t->status_sub, (int)config.columns, 1, 1, 1);
+	}
+	cterm_text_forget(t);
+	st_unicode_presentation_reset(t->screen.unicode);
+	t->accumulator = t->saved_accumulator = NULL;
+	t->sequence = 0;
+	t->escbuf[0] = 0;
+	t->negative = false;
+	t->attr = 15;
+	CTERM_FREE_AND_CLEAR(t->fg_tc_str);
+	CTERM_FREE_AND_CLEAR(t->bg_tc_str);
+	cterm_render_attribute_colours(t, t->attr, &t->fg_color, &t->bg_color);
+	cterm_render_set_attribute(t, t->attr);
+	cterm_render_set_colours(t, t->fg_color, t->bg_color);
+	if (resolution == 0) t->extattr |= CTERM_EXTATTR_AUTOWRAP;
+	else t->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
+	t->cursor = CTERM_CURSOR_HIDDEN;
+	cterm_apply_window(t);
+	cterm_render_clear_window(t);
+	cterm_set_position(t, 1, 1);
+	cterm_render_set_cursor(t, t->cursor);
+	if (t->api_size_changed != NULL)
+		t->api_size_changed(t->api_size_context, config.columns, (uint32_t)t->height,
+		    config.pixel_width, config.pixel_height);
+	return cterm_render_take_error(t);
+}
+
+int
 st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 {
 	struct st_console_cell *scrollback = NULL;
@@ -2882,7 +2965,8 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
-	if (terminal->skypix_engine != NULL && (columns != (uint32_t)terminal->width || terminal_rows != (uint32_t)terminal->height))
+	if ((terminal->skypix_engine != NULL || terminal->igs_engine != NULL)
+	    && (columns != (uint32_t)terminal->width || terminal_rows != (uint32_t)terminal->height))
 		return IO_ERROR_NOT_SUPPORTED;
 	/* Geometry commits the old placement, but is not end-of-input for
 	 * the UTF-8 decoder or the RIP command parser. */

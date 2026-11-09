@@ -1,7 +1,7 @@
 # IGS 2.21 conformance
 
-IGS implementation is in progress. No graphics command or application-selectable
-IGS mode is supported yet. An experimental CTerm input mode is tested natively.
+IGS implementation is in progress. The application-selectable IGS 2.21 mode
+implements `I`'s six initialization selectors. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -40,7 +40,7 @@ graphics introducers, payloads containing control-looking bytes, and reset/
 disconnect recovery at this boundary, while preserving existing encoding,
 hook/capture and intentional semantic-input bypass behavior. This is an
 integration requirement. Native CTerm routing is covered below; complete
-command execution and application integration remain pending.
+command execution and application integration are tracked separately below.
 
 ## Framebuffer and image formats
 
@@ -86,7 +86,7 @@ results. Images remain indexed; temporary native bytes are used only when
 changing the plane layout or explicitly importing/exporting native data.
 These are image-format tests, not completed `G`/`X11` commands or application
 integration. The earlier planar-surface and separate-clock experiments have
-been removed; local timing integration remains pending.
+been removed. `I5` uses an injected local monotonic deadline.
 
 Native `cterm_igs_input` covers the CTerm insertion point in all ST geometries,
 Atari ST byte/UTF-8 input and status on/off. Every focused split and bytewise
@@ -94,9 +94,47 @@ replay retain ordinary text/VT52 controls and consume graphics headers before
 base decoding. It checks semantic-input bypass, first-text bitmap retention,
 reset including an input-hook reset, source EOF, disconnect/destruction,
 local header deadlines and invalid emulation/geometry. The CTerm enum value 5
-is experimental; profile/menu integration is pending. No command descriptors
-are registered, so this coverage does not claim IGS drawing or raw-payload
-command execution. The generic parser's raw-ownership tests remain separate.
+is also exposed as `Graphics=IGS (2.21)` and Wren `GraphicsMode.igs221`.
+This input test does not claim IGS drawing or raw-payload command execution.
+The generic parser's raw-ownership tests remain separate.
+
+### I: initialization
+
+`I0` restores the captured entry palette and selected graphical attributes;
+`I1` restores only the palette; `I2` restores only those attributes. `I0/I2`
+also clear the G double-copy control and X14 route. They preserve clipping,
+Drawto, scaling, source pattern slots 1..7, active user fill, user line style,
+fill perimeter, text face and alignment. Source pattern 0 is restored
+separately from the active user fill. Text effects become zero and text sizing
+returns through pixel height. `I3/I4` apply the literal IGS/VDI palette tables
+through native pen mappings, colour quantization and monochrome rules.
+Values above five select `I0`; negative values are no-ops.
+
+`I5` always restores a saved colour mode, including an already-current mode.
+After one local sync unit (17 ms at the initial 60 units/second), it clears
+screen indices to physical zero, restores console geometry/home/default
+colours/hidden cursor, selects low wrap or medium no-wrap, and clips to the
+full native screen. A saved monochrome mode only restores clipping. The wait
+leaves trailing input unread until completion; reset, EOF and disconnect
+cancel it. No palette or unrelated graphical-state reset accompanies `I5`.
+
+Native `cterm_igs_init` covers all selectors, literal palettes in three modes,
+selective attribute preservation, array-supplied negative values, every input
+split/bytewise replay, saved/current colour-mode differences, local deadline
+boundaries/configuration/overflow, cancellation, fixed canvas resize rejection
+and status/history geometry. `syncterm_igs_init` uses real profile/menu/transport
+paths with all ST modes, Atari ST and UTF-8, and status on/off. Each checkpoint
+checks literal Z glyph pixels, both planes, cells, palette and mode together.
+It verifies I5 clear/no-clear, following console output, directory geometry
+restoration and the editor's IGS preset/mode/encoding persistence. Fixtures
+disable audio. No drawing, loop execution or sound coverage is implied.
+
+Graphical attributes start from a coherent port-owned workstation snapshot.
+The original marker-type index mismatch, stale line ends and marker-pen cache
+are corrected; I0/I2 restore intended captured values and keep the cache
+coherent. Palette restoration retains the captured host RGB values, including
+custom profile colours. Unavailable desktop pens map safely through its saved
+depth instead of restoring undefined data. These are explicit port policies.
 
 ## Deliberate corrections
 
@@ -122,7 +160,9 @@ The following parser policies intentionally avoid original reader accidents:
 - Partial timed-out strings and invalid EOF never expose stale buffer tails.
 
 These are parser port policies, not claims that associated IGS commands have
-been completed. Array evaluation and command-specific validation are pending.
+been completed. Constant and array values and the initial random ranges can
+be evaluated;
+loop-context operands and command-specific array/math commands remain pending.
 The CTerm adapter recovers from incomplete source EOF by discarding partial
 grammar and logging a diagnostic. Incomplete header input has a five-second
 local timeout after progress; expiry discards the header. An ordinary held G

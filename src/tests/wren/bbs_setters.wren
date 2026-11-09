@@ -91,13 +91,29 @@ if (true) {
 if (true) {
   import "syncterm" for GraphicsMode
   import "syncterm_menu" for Menu
-  for (mode in [GraphicsMode.skypix13, GraphicsMode.skypix31, GraphicsMode.none, GraphicsMode.v1, GraphicsMode.v3]) {
+  for (mode in [GraphicsMode.skypix13, GraphicsMode.skypix31, GraphicsMode.igs221, GraphicsMode.none, GraphicsMode.v1, GraphicsMode.v3]) {
     var entry = Menu.entries[0]
     entry.profile.graphics = mode
     if (entry.save() != null || Menu.load(null) != null || Menu.entries[0].profile.graphics != mode) Fiber.abort("entry graphics persistence")
     Menu.defaults.graphics = mode
     if (Menu.saveDefaults() != null || Menu.load(null) != null || Menu.defaults.graphics != mode) Fiber.abort("default graphics persistence")
   }
+}
+
+if (true) {
+  import "menu_bbs_editor" for BbsEditor
+  var draft = {"graphics": 0, "encoding": 0, "screenMode": 1,
+               "font": "Codepage 437 English", "noStatus": false}
+  BbsEditor.changeGraphics_(draft, 5)
+  if (draft["screenMode"] != 27 || draft["encoding"] != 28 || draft["font"] != "Atari ST") Fiber.abort("IGS preset")
+  BbsEditor.changeScreen_(draft, 29)
+  BbsEditor.changeEncoding_(draft, 255)
+  if (draft["graphics"] != 5 || draft["screenMode"] != 29 || draft["font"] != "Atari ST") Fiber.abort("IGS choices")
+  BbsEditor.changeEncoding_(draft, 0)
+  if (draft["graphics"] != 0 || draft["screenMode"] != 1) Fiber.abort("IGS incompatible encoding")
+  BbsEditor.changeGraphics_(draft, 5)
+  BbsEditor.changeScreen_(draft, 1)
+  if (draft["graphics"] != 0 || draft["screenMode"] != 1) Fiber.abort("IGS incompatible mode")
 }
 
 if (true) {

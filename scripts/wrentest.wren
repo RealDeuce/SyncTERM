@@ -433,7 +433,7 @@ class WrenTest {
   static testGraphicsModeConstants_() {
     check_(GraphicsMode.none == 0 && GraphicsMode.v1 == 1 &&
            GraphicsMode.v3 == 2 && GraphicsMode.skypix13 == 3 &&
-           GraphicsMode.skypix31 == 4,
+           GraphicsMode.skypix31 == 4 && GraphicsMode.igs221 == 5,
            "GraphicsMode constants")
   }
 

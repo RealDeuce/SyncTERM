@@ -1136,6 +1136,8 @@ st_term_test_main(void)
 	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_RIP_1);
 	profile.graphics_mode = ST_GRAPHICS_RIP_3;
 	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_RIP_3);
+	profile.graphics_mode = ST_GRAPHICS_IGS_221;
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_IGS_221);
 	profile.graphics_mode = ST_GRAPHICS_NONE;
 	profile.connection_type = ST_CONNECTION_TELNET;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);

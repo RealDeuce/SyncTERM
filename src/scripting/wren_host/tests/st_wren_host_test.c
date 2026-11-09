@@ -5418,7 +5418,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	CHECK(wrenInterpret(host->vm, "amiga_font_contract",
 	    "import \"syncterm_menu\" for Menu, MenuError, AmigaFontFamily\n"
 	    "import \"syncterm\" for GraphicsMode\n"
-	    "if (GraphicsMode.skypix13 != 3 || GraphicsMode.skypix31 != 4 || Menu.graphicsModes.count != 5) Fiber.abort(\"graphics modes\")\n"
+	    "if (GraphicsMode.skypix13 != 3 || GraphicsMode.skypix31 != 4 || GraphicsMode.igs221 != 5 || Menu.graphicsModes.count != 6) Fiber.abort(\"graphics modes\")\n"
 	    "var catalog = Menu.amigaFonts\n"
 	    "if (catalog.count != 11) Fiber.abort(\"compiled Amiga families\")\n"
 	    "var strikes = 0\n"

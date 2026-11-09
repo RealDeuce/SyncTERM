@@ -50,7 +50,7 @@ enum st_cterm_graphics_mode {
 	ST_CTERM_GRAPHICS_SKYPIX_13 = 3,
 	ST_CTERM_GRAPHICS_SKYPIX_31 = 4,
 	/* IGS integration is under development; command coverage is documented
-	 * in docs/IGS_CONFORMANCE.md. Not yet exposed by application profiles. */
+	 * in docs/IGS_CONFORMANCE.md. */
 	ST_CTERM_GRAPHICS_IGS_221 = 5,
 };
 

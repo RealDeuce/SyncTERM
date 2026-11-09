@@ -15,6 +15,21 @@ static const struct st_graphics_dialect dialect = {
 	.chain_indicator = true, .chain = '>', .number_skip_crlf = true,
 	.number_digits = 4,
 };
+static const struct st_graphics_parameter initialize_parameters[] = {
+	{.kind = ST_GRAPHICS_NUMBER},
+};
+static const struct st_graphics_command commands[] = {
+	{'I', initialize_parameters, 1, NULL},
+};
+
+static void
+cancel_input(struct cterm_igs *igs)
+{
+	st_graphics_parser_cancel(igs->parser);
+	igs->input_deadline = igs->wait_deadline = 0;
+	igs->pending_resolution = -1;
+	igs->reset_pending = false;
+}
 
 static int
 text(void *context, const uint8_t *bytes, size_t size)
@@ -46,11 +61,43 @@ boundary(void *context)
 static int
 command(void *context, const struct st_graphics_command_view *view)
 {
-	/* No command descriptors are registered in this integration foundation.
-	 * Each subsequent command step adds its complete grammar and effects. */
-	(void)context;
-	(void)view;
-	return IO_ERROR_NOT_SUPPORTED;
+	struct cterm_igs *igs = context;
+	const struct st_graphics_operand *operand = &view->arguments[0].operand;
+	int value;
+	if (igs->reset_pending)
+		return IO_ERROR_INTERRUPTED;
+	if (operand->operation != ST_GRAPHICS_VALUE)
+		return IO_ERROR_PROTOCOL;
+	switch (operand->source) {
+	case ST_GRAPHICS_CONSTANT:
+		value = (int)operand->value;
+		break;
+	case ST_GRAPHICS_ARRAY:
+		value = igs->math[operand->value > 127 ? 127 : operand->value];
+		break;
+	case ST_GRAPHICS_RANDOM_R:
+	case ST_GRAPHICS_RANDOM_R2: {
+		unsigned which = operand->source == ST_GRAPHICS_RANDOM_R ? 0 : 1;
+		int lower = igs->random_range[which][0], upper = igs->random_range[which][1];
+		if (lower > upper || upper < 0 || lower > 32767 || upper > 32767)
+			return IO_ERROR_OUT_OF_RANGE;
+		bool found = false;
+		for (unsigned tries = 0; tries < 65536; ++tries) {
+			igs->random_seed = igs->random_seed * UINT32_C(0xbb40e62d) + 1;
+			unsigned raw = (igs->random_seed >> 8) & 0xffffff;
+			unsigned word = raw & 0xffff;
+			value = upper < 256 ? (int)(raw & 255)
+			    : word >= 32768 ? (int)word - 65536 : (int)word;
+			if (value >= lower && value <= upper) { found = true; break; }
+		}
+		if (!found)
+			return IO_ERROR_OUT_OF_RANGE;
+		break;
+	}
+	default:
+		return IO_ERROR_PROTOCOL;
+	}
+	return view->code == 'I' ? cterm_igs_initialize(igs, value) : IO_ERROR_NOT_SUPPORTED;
 }
 
 static void
@@ -98,12 +145,20 @@ cterm_igs_create(struct cterminal *terminal)
 	igs->width = width;
 	igs->height = height;
 	igs->now_ms = st_time_monotonic_ms;
+	igs->sync_wait_hz = 60;
+	igs->pending_resolution = -1;
 	const struct st_graphics_parser_config config = {
 		.dialect = &dialect, .max_arguments = 4096, .max_payload = 65536,
+		.commands = commands, .command_count = sizeof(commands) / sizeof(*commands),
 	};
 	status = st_graphics_parser_create(&igs->parser, &config);
 	if (status != 0) {
 		free(igs);
+		return status;
+	}
+	status = cterm_igs_state_init(igs);
+	if (status != 0) {
+		cterm_igs_destroy(igs);
 		return status;
 	}
 	/* Establish the base console before any graphics operation. Otherwise
@@ -124,6 +179,8 @@ cterm_igs_destroy(struct cterm_igs *igs)
 	if (igs == NULL)
 		return;
 	st_graphics_parser_destroy(igs->parser);
+	st_igs_image_destroy(igs->memory[0]);
+	st_igs_image_destroy(igs->memory[1]);
 	free(igs);
 }
 
@@ -136,10 +193,15 @@ cterm_igs_reset(struct cterm_igs *igs)
 		igs->reset_pending = true;
 		return;
 	}
-	st_graphics_parser_cancel(igs->parser);
-	igs->input_deadline = 0;
-	igs->reset_pending = false;
+	cancel_input(igs);
 	memset(igs->warned, 0, sizeof(igs->warned));
+	cterm_render_record_error(igs->terminal, cterm_igs_state_reset(igs));
+}
+
+bool
+cterm_igs_paused(const struct cterm_igs *igs)
+{
+	return igs != NULL && igs->pending_resolution >= 0;
 }
 
 int
@@ -150,6 +212,8 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	*used = 0;
 	if (igs->feeding)
 		return IO_ERROR_BUSY;
+	if (cterm_igs_paused(igs))
+		return 0;
 	do {
 		size_t consumed = 0;
 		struct st_graphics_parser_sink callbacks = sink(igs);
@@ -164,7 +228,9 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 		if (status == IO_ERROR_INTERRUPTED)
 			status = 0;
 	} while (status == 0 && *used < size);
-	if (status == 0 && st_graphics_parser_in_command(igs->parser)) {
+	if (status == IO_ERROR_IN_PROGRESS)
+		status = 0;
+	if (status == 0 && !cterm_igs_paused(igs) && st_graphics_parser_in_command(igs->parser)) {
 		uint64_t now;
 		status = igs->now_ms(&now);
 		if (status == 0 && (*used != 0 || igs->input_deadline == 0))
@@ -180,6 +246,10 @@ cterm_igs_finish(struct cterm_igs *igs)
 {
 	if (igs->feeding)
 		return 0;
+	if (cterm_igs_paused(igs)) {
+		cancel_input(igs);
+		return 0;
+	}
 	struct st_graphics_parser_sink callbacks = sink(igs);
 	igs->feeding = true;
 	int status = st_graphics_parser_finish(igs->parser, &callbacks);
@@ -201,11 +271,31 @@ int
 cterm_igs_poll(struct cterm_igs *igs)
 {
 	uint64_t now;
+	if (cterm_igs_paused(igs)) {
+		int status = igs->now_ms(&now);
+		if (status != 0 || now < igs->wait_deadline)
+			return status;
+		igs->feeding = true;
+		status = cterm_igs_set_resolution(igs->terminal, (unsigned)igs->pending_resolution);
+		igs->feeding = false;
+		if (igs->reset_pending) {
+			cterm_igs_reset(igs);
+			return status;
+		}
+		igs->pending_resolution = -1;
+		igs->wait_deadline = 0;
+		if (status != 0) {
+			cancel_input(igs);
+			return status;
+		}
+		cterm_igs_clip_screen(igs);
+		return st_graphics_parser_resume(igs->parser);
+	}
 	if (igs->input_deadline == 0)
 		return 0;
 	int status = igs->now_ms(&now);
 	if (status == 0 && now >= igs->input_deadline) {
-		cterm_igs_reset(igs);
+		cancel_input(igs);
 		cterm_log(igs->terminal, ST_CTERM_LOG_WARNING, "IGS input timed out");
 	}
 	return status;
