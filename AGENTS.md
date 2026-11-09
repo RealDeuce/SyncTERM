@@ -161,9 +161,11 @@ DLL exports.
 
 ## Verification
 
-For ordinary changes, use one native CMake build configuration and run the
-relevant native tests. Do not reproduce the CI compiler, toolchain, or platform
-matrix locally before committing. Rely on CI to catch cross-platform issues.
+For ordinary changes, use one native CMake build configuration with `$CC`
+(or CMake's native compiler default when `$CC` is unset) and run the relevant
+native tests. Do not add separate GCC or Clang builds, or reproduce the CI
+compiler, toolchain, or platform matrix locally before committing. Rely on
+CI to catch cross-platform issues.
 Only perform cross-compilation or additional platform/toolchain builds when
 the task specifically concerns cross-platform work or the user requests them.
 
