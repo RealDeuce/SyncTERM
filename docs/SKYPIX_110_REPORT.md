@@ -56,6 +56,13 @@ The remaining supplied variants are not substituted for existing defaults, per
 the user's choice. In particular the AWeb Courier/Times versions and the
 Ruby/Diamond native metadata differ from the selected Workbench/JR-Comm versions.
 The existing JR-Comm Ruby/Diamond baseline and width decisions remain in force.
+The [native Workbench reference comparison](../src/media/amiga_font/reference/README.adoc)
+subsequently established that the supplied 30 stock native strikes are exact
+Workbench 2.1/3.1 files. The compiled Ruby/Diamond metric overrides equal the
+1.3 values, and the five stock Courier conversions differ in width, advances
+and some glyph placement; the YAFF `workbench-3.1_` filenames do not establish
+equivalence to the native disk files. The reference sets do not change the
+selected compiled fonts.
 The reference inventory pins every supplied file's SHA-256 and marks which
 entries assert exact equivalence versus family/size coverage only.
 

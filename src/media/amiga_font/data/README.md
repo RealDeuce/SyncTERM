@@ -32,6 +32,14 @@ correction. Source paths and SHA-256 values are retained in the manifest.
 The existing Courier/Times alternate versions and JR-Comm Ruby/Diamond metrics
 remain selected rather than replacing fonts solely to match the report bundle.
 
+The native disk references and three-way comparison in `../reference/README.adoc`
+establish that all 30 stock native strikes in that report bundle exactly match
+the sampled Workbench 2.1/3.1 files. The `workbench-3.1_` YAFF filenames do not
+establish compiled equivalence: five Courier conversions and five Ruby/Diamond
+metric selections differ from those native files. Twenty compiled stock strikes
+match the later native fonts exactly; none matches the entire corresponding
+1.3 font. The reference files are not compiled or installed.
+
 report-font-reference.json pins the 38 requested family/size pairs across both
 native and SPF collections. Twenty matching native strikes include expected
 metrics and canonical FNV-1a-64 ink hashes. These were decoded independently
