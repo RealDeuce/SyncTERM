@@ -3,9 +3,13 @@
 
 == Goal and current state
 
-Implement all 47 top-level IGS commands and all 16 X selectors as a new
-SyncTERM graphics mode, one verified and committed step at a time. Target
-IGS221/IG221.ACC serial behavior and intended US TOS 1.04 software graphics.
+Implement complete IGS 2.21 serial graphics support using SyncTERM's existing
+palette-indexed bitmap framebuffer, indexed off-screen images, image-format
+conversion at boundaries and existing local timing facilities. Complete all
+47 top-level commands and all 16 X selectors as a new graphics mode, one fully
+implemented, independently tested and committed step at a time. Target
+intended IGS221/IG221.ACC serial behavior and US TOS 1.04 software graphics.
+There is no additional persistent planar framebuffer or foreign clock model.
 The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 202, 206, 208 and 210 establish provenance, scope and interpretation.
 The user's port policy below takes precedence over historical fidelity gates.
@@ -14,6 +18,30 @@ The executable coverage ledger is link:../src/tests/igs/conformance.json[conform
 No command is implemented yet. Parser-only tests do not establish command,
 rendering, sound or application support. The X dispatcher remains pending
 until all extended selectors and their dispatch behavior have passed.
+
+== Standalone goal summary
+
+The following is the complete replacement objective. Its framebuffer, image
+conversion, timing and fidelity requirements are part of the goal itself;
+they do not depend on conversation-specific overrides.
+
+----
+Implement complete IGS 2.21 serial graphics support in SyncTERM, targeting intended IGS221/IG221.ACC serial behavior and US TOS 1.04 software graphics. Reference: ~/IGS/docs/igs/. Complete all 47 top-level commands and 16 X selectors, one fully implemented, independently tested and committed step at a time. Include drawing, graphical text, Atari console behavior, palettes, memory-image transfers, raw bitmap loads, loops/math/nested scripts, flow control, queries, keyboard/mouse input, GIST/PSG effects and notes, console sounds and MIDI.
+
+Use SyncTERM's existing bitmap framebuffer as the authoritative screen; it already supports palette indices. Keep off-screen images indexed too. Decode native bytes at import and encode only when required; reinterpret plane-layout changes at format-change boundaries. Preserve full decoded capacity, padding, retained data and explicit layout/stride metadata. Ordinary drawing and G Boolean blits operate on physical indices without planar conversion per blit. No additional persistent planar framebuffer or planar off-screen backing.
+
+Translate protocol time units into existing local monotonic deadlines or audio sample timing at use sites. Initially use 60 sync-wait units/second and 200 note/envelope units/second; localize conversions for future PAL/native-vsync support. Inject local timestamps/sample positions for tests. No separate IGS clock domains, free-running foreign tick counters, CPU-cycle/interrupt emulation or old-hardware throughput delays.
+
+Require exact intended pixels, palettes, glyphs, overlays and replies in 320x200/16-colour, 640x200/4-colour and 640x400/monochrome modes. Correct clear original bugs and safely handle invalid input; do not emulate memory corruption, accidental overflow or uninitialized memory. Aim for audibly correct sound using existing SyncTERM MIDI. Test sound functionality/lifecycle; bit-identical PCM, waveform/perceptual comparison and manual listening are not development gates. Provide a manual audio checklist afterward. Older releases/deliveries and BIG/CONDOR implementations are excluded; add historical compatibility only for an identified existing consumer.
+
+Build a reusable incremental graphics-protocol parser with shared command/parameter descriptions, typed operands, explicit byte ownership and dialect framing so future BIG/CONDOR modes can share appropriate code/data. Keep Atari raster/audio policy outside it. Do not migrate RIP/SkyPix.
+
+Integrate profiles, menus, Wren, screen modes, palette handling, transport, input, resize/status, scrollback, reset, disconnect and reconnect; preserve existing behavior elsewhere. Follow AGENTS.md: C17, target-based CMake, existing components and one native build configuration. Inspect authoritative current state; remove or repurpose superseded experimental planar/clock work.
+
+Maintain docs/IGS_IMPLEMENTATION.adoc, docs/IGS_CONFORMANCE.md, docs/TERMINAL_CONFORMANCE.md and src/tests/igs/conformance.json with references, operations, tests, deviations, verification and completion commits. Use independent source-derived/literal expectations, never emulator-generated expected images. Cover input partitions, raw payloads, boundaries, errors/cancellation, all display modes, coherent control-bitmap captures, graphics/console interactions and audio lifecycle. Disable physical audio in headless fixtures; use private Xvfb if needed. Ordinary tests must not depend on ~/IGS/, ROMs or historical executables.
+
+Finish only when all required commands, selectors, integration and acceptance tests are complete, no required behavior is stubbed, deviations are explicit, and native CMake/CTest verification plus final ANSI, Atari VT52, RIP, SkyPix, profile, Wren, audio and graphics-lifecycle regressions pass. Commit completed work; do not push/publish.
+----
 
 == Agreed implementation boundary
 
