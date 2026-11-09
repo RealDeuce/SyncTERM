@@ -24,8 +24,9 @@ until all extended selectors and their dispatch behavior have passed.
   development waveform/perceptual comparison gate. Supply a manual listening
   checklist after implementation, without claiming listening was performed.
 * Honor explicit waits, playback durations, input deadlines and cancellation;
-  do not emulate old hardware throughput. Start with replaceable logical
-  60 Hz video and separate 200 Hz sound/note clocks.
+  do not emulate old hardware throughput or foreign clocks. Convert protocol
+  time units to the local monotonic/audio domain where needed: initially
+  60 sync-wait units per second and 200 note/envelope units per second.
 * Correct clear original bugs. Do not reproduce memory corruption, accidental
   overflow, uninitialized scratch or machine-fault behavior. Preserve defined
   valid-input quirks unless identified as bugs; record deliberate corrections
@@ -48,14 +49,15 @@ Commands consume protocol bytes before any text decoding. Shared machinery
 must allow BIG's I# framing and CONDOR's load/execute framing without putting
 Atari raster or sound policy in the parser. Do not migrate RIP or SkyPix.
 
-IGS owns per-terminal parser/interpreter state, authoritative native planar
-screen data, two memory screens, logical/physical routing, palette and drawing
-attributes, text, console and overlays. Reuse existing Atari ST/VT52 facilities
-where verified. All scene mutations use the same authoritative pixels.
-Presentation uses existing bitmap-console facilities.
+IGS owns per-terminal parser/interpreter state, two indexed memory images,
+logical/physical routing, palette and drawing attributes, text, console and
+overlays. SyncTERM's existing bitmap framebuffer is the authoritative screen.
+Reuse existing Atari ST/VT52 facilities where verified. All scene mutations
+use the same authoritative pixels and existing bitmap-console presentation.
 
 Parsing and graphics run on the terminal owner. Long work is resumable and
-bounded per pump. Inject clocks for tests; use monotonic live deadlines.
+bounded per pump. Use existing local monotonic deadlines; inject local time
+for tests rather than adding an IGS clock subsystem.
 Audio uses existing mixer ownership; any required raw MIDI queue uses the
 existing music worker and decoder. Reset/disconnect cancel pending work and
 release all owned audio, buffers and overlays.
@@ -66,9 +68,79 @@ enum-order checks that currently classify later graphics values as SkyPix.
 Update profiles, menus, Wren, session creation, input, geometry and docs.
 Check status, resize, scrollback, reset and reconnect isolation.
 
+== Framebuffer and image conversion decision
+
+Use the existing SyncTERM framebuffer and indexed pixel buffers for both
+screen rendering and off-screen images. Do not add a persistent planar
+framebuffer or planar shadow of the screen. The existing pixel representation
+already retains palette indices and resolves them to RGB at presentation;
+exact pixels and palette animation do not require planar rendering.
+
+Convert native image data at format boundaries. Decode an X11 upload into
+indexed storage when it is imported. Encode only at a boundary that requires
+native bytes, or repack/reinterpret when an image's plane layout changes.
+Ordinary drawing and G blits operate directly on physical colour indices;
+they must not pack/unpack planar data on every transfer. Remove any console
+palette-bank offset before Boolean raster operations and restore it afterward.
+X14 changes routing, not image representation, and needs no conversion itself.
+
+Preserve the complete decoded memory-image capacity, including padding and
+retained contents, rather than keeping only a cropped screenshot. Track the
+current plane layout and descriptor/row-stride metadata explicitly. A row
+stride change can be a view of the same decoded storage. A plane-count change
+must preserve the intended native-byte reinterpretation at the format-change
+boundary, without introducing a second persistent authoritative copy.
+
+G's sixteen Boolean operations are equivalent on the active physical index
+bits. Native bitmap codecs may be small boundary helpers; native word loops,
+bus behavior and a second screen are not prerequisites for valid-input pixel
+accuracy. Screen-to-screen, screen-to-memory, memory-to-screen and
+memory-to-memory transfers all use indexed working data.
+
+Use the existing console's text rasterization, scrolling coordinates, damage,
+snapshots and overlay ownership. Its current public read API allocates/copies
+both pixel phases and its blitter implements replacement. If those interfaces
+make indexed raster operations expensive, add only the narrow bulk operation
+needed to avoid repeated full-screen copies, retaining locking and damage
+handling. Do not use that API limitation as a reason for a planar screen.
+
+This decision supersedes the original plan's authoritative planar screen and
+the subsequent suggestion to retain planar off-screen buffers. The experimental
+planar-surface code in the working tree has not been integrated or committed;
+before continuing renderer integration, repurpose it only as a format-boundary
+codec if useful, or remove it. Do not extend it into the renderer.
+
+== Timing conversion decision
+
+IGS timing values are units to translate into SyncTERM's local time domain,
+not a requirement to emulate foreign clocks. Use the existing monotonic time
+and deadline facilities for pauses, receive timeouts and cancellation. Convert
+sync-wait counts at 60 units/second initially, seconds to ordinary host
+durations, and 200 Hz note/envelope units to 5 ms or corresponding local audio
+sample positions. Keep sync-wait conversion policy localized so PAL or native
+vsync can be selected later without changing command parsing or drawing.
+
+Do not introduce a separate IGS clock origin, free-running video/sound tick
+counters, Atari interrupt delivery or CPU-cycle scheduling. A bounded wait
+uses a local deadline and resumes through the existing owner/poll path. Note
+and effect updates use local audio sample timing or scheduled elapsed-time
+updates as needed; do not infer elapsed protocol time from callback count or
+buffer chunk size. Oscillator/envelope phase is synthesis state, not an
+emulated Atari system clock. Idle IGS sessions need no foreign clock ticking.
+
+Preserve intended duration/count behavior and continued sound during waits,
+with cancellation on reset/disconnect. Original clock-wrap and timeout bucket
+accidents remain outside the compatibility target. Inject local monotonic
+timestamps or sample positions for deterministic boundary/error tests.
+
+The uncommitted st_igs_clock experiment merely derives tick counts from local
+timestamps; it is not cycle-accurate emulation. Nevertheless its separate
+clock-domain abstraction is superseded. Use existing local timing facilities
+and narrow unit conversions instead when implementation continues.
+
 == Ordered work
 
-Finish the shared parser, IGS state/raster/clock and application scaffolding
+Finish the shared parser, IGS state/raster/timing and application scaffolding
 as separately tested foundations. Then implement each entry below separately,
 introducing downstream primitives only as needed. Establish X dispatch before
 X10; do not mark the complete X command finished at that point.
@@ -113,18 +185,23 @@ Native raster tests and control-bitmap application tests must cover all modes,
 clipping, endpoints, patterns, writing modes, text/effects, palette changes,
 overlap blits, console/overlays, status, scrolling and lifecycle. Fence scene
 completion and capture related pixels/cells/palette/state coherently.
+Include native-image import to indexed storage, repeated G transfers without
+format conversion, palette changes after transfers, row-stride views, retained
+padding/data and plane-layout changes. A passing planar-storage experiment
+does not establish the selected framebuffer architecture or command completion.
 
 Sound tests use silent/injected sinks and verify command/patch/voice state,
 note duration, stop/release, buffered playback, MIDI, synthesized output and
-shutdown. Use fake clocks for waits and continued playback. Disable physical
-audio in fixtures and use private Xvfb for any X11 tests.
+shutdown. Use injected local time for waits and continued playback. Disable
+physical audio in fixtures and use private Xvfb for any X11 tests.
 
-Finish only when all 63 command/selector entries and all foundations are
-complete, no required behavior is stubbed, deviations are explicit, and full
+Finish only when all 63 command/selector entries and all required foundations
+are complete, no required behavior is stubbed, deviations are explicit, and full
 native regressions pass (ANSI, Atari VT52, RIP, SkyPix, profiles, Wren, audio,
 graphics lifecycle). Update TERMINAL_CONFORMANCE.md and IGS inventories.
 Provide the manual sound checklist and verification record. Commit completed
-work; never push without an explicit request.
+work; never push without an explicit request. Superseded experiments are not
+required foundations or completion gates.
 
 == Completed steps
 
@@ -140,5 +217,22 @@ Parser port corrections are recorded in IGS_CONFORMANCE.md.
 
 Verified with the existing native FreeBSD /usr/bin/cc Release CMake build.
 The command ledger's 47+16 entries and listed chapters were independently
-checked against the local reference. Completion commit is recorded by the
-next completed step; all command entries remain pending.
+checked against the local reference. Commit: 87a116f. All command entries
+remain pending.
+
+== Uncommitted foundation experiments
+
+The working tree contains experimental device-form planar views and native
+igs_surface tests for byte/bit vectors from chapters 03/05/159, screen modes,
+explicit strides and scalar raster-logic rules. Their original intended use
+as framebuffer storage is superseded by the indexed-storage decision above.
+The tests provide possible codec evidence, not an approved screen architecture.
+
+igs_clock checks timestamp-derived counters and waits at several rates. Those
+experiments are not the selected timing design: use local deadlines and audio
+sample timing with conversions at protocol boundaries instead.
+
+These experiments passed local native tests but remain uncommitted; both
+original architectural uses are superseded by the decisions above. Interpreter
+state, drawing, console presentation and command-specific timing remain
+pending. The initial shared-parser foundation commit is 87a116f.

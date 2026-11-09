@@ -5,11 +5,18 @@
   "contract": {
     "pixel_fidelity": "exact for intended valid operations",
     "audio": "functional synthesis and playback tests; manual listening after implementation; no PCM/reference comparison gate",
-    "video_hz": 60,
-    "sound_hz": 200,
     "bugs": "safe documented corrections; no memory corruption or accidental overflow emulation",
     "older_profiles": false,
-    "big_condor_implementations": false
+    "big_condor_implementations": false,
+    "framebuffer": {
+      "screen": "existing SyncTERM bitmap framebuffer; palette-indexed IGS pixels; no persistent planar framebuffer or shadow",
+      "memory_images": "indexed pixels preserving full decoded capacity, padding and retained data, with plane-layout and row-stride metadata",
+      "conversion": "decode at import; encode when native bytes are required; repack/reinterpret at plane-layout changes, not at ordinary blits",
+      "raster_operations": "G Boolean operations on physical colour indices; row-stride changes can be views; X14 changes routing only"
+    },
+    "video_wait_units_per_second": 60,
+    "sound_time_units_per_second": 200,
+    "timing": "convert protocol units at use sites to existing local monotonic deadlines or audio sample timing; inject local time in tests; no separate IGS clocks, foreign tick counters or cycle/interrupt emulation"
   },
   "foundations": [
     {
@@ -23,7 +30,31 @@
         "All 47 top-level commands and 16 X selectors checked against the local reference command index; all listed source chapters exist.",
         "cmake -S . -B build; cmake --build build -j 4: full native application build passed. Existing build-tree timestamp/clock-skew warnings were emitted; the new C sources compiled without warnings."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "87a116f"
+    },
+    {
+      "id": "igs-planar-storage",
+      "status": "superseded",
+      "tests": [
+        "igs_surface"
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc, existing Release CMake configuration: igs_surface passed."
+      ],
+      "commit": null,
+      "decision": "Uncommitted experiment; no planar screen or planar off-screen backing. Repurpose only as an image-format boundary codec if useful, otherwise remove on resumption."
+    },
+    {
+      "id": "igs-logical-clocks",
+      "status": "superseded",
+      "tests": [
+        "igs_clock"
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc, existing Release CMake configuration: igs_clock passed."
+      ],
+      "commit": null,
+      "decision": "Uncommitted experiment; replace separate clock domains with existing local timing facilities and narrow protocol-unit conversions."
     },
     {
       "id": "igs-state-raster-clock",
