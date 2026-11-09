@@ -144,9 +144,8 @@ handling. Do not use that API limitation as a reason for a planar screen.
 
 This decision supersedes the original plan's authoritative planar screen and
 the subsequent suggestion to retain planar off-screen buffers. The experimental
-planar-surface code in the working tree has not been integrated or committed;
-before continuing renderer integration, repurpose it only as a format-boundary
-codec if useful, or remove it. Do not extend it into the renderer.
+planar-surface code has been removed. st_igs_image instead stores indexed pixels
+and converts native data only at format boundaries. Do not add a planar renderer.
 
 == Timing conversion decision
 
@@ -171,10 +170,8 @@ with cancellation on reset/disconnect. Original clock-wrap and timeout bucket
 accidents remain outside the compatibility target. Inject local monotonic
 timestamps or sample positions for deterministic boundary/error tests.
 
-The uncommitted st_igs_clock experiment merely derives tick counts from local
-timestamps; it is not cycle-accurate emulation. Nevertheless its separate
-clock-domain abstraction is superseded. Use existing local timing facilities
-and narrow unit conversions instead when implementation continues.
+The separate st_igs_clock experiment has been removed. Use existing local
+timing facilities and narrow unit conversions when implementing commands.
 
 == Ordered work
 
@@ -262,19 +259,23 @@ The command ledger's 47+16 entries and listed chapters were independently
 checked against the local reference. Commit: 87a116f. All command entries
 remain pending.
 
-== Uncommitted foundation experiments
+=== Indexed native-image conversion
 
-The working tree contains experimental device-form planar views and native
-igs_surface tests for byte/bit vectors from chapters 03/05/159, screen modes,
-explicit strides and scalar raster-logic rules. Their original intended use
-as framebuffer storage is superseded by the indexed-storage decision above.
-The tests provide possible codec evidence, not an approved screen architecture.
+st_igs_image owns indexed st_pixel_buffer storage for an entire 32000-byte
+native memory image, including padding and retained contents. Import/export
+accept arbitrary byte ranges at format boundaries. Plane-layout changes
+preserve native-byte meaning using temporary conversion storage and replace
+the indexed buffer only on success. No persistent planar copy is retained.
+Changing a G row-stride view does not invoke conversion.
 
-igs_clock checks timestamp-derived counters and waits at several rates. Those
-experiments are not the selected timing design: use local deadlines and audio
-sample timing with conversions at protocol boundaries instead.
+Native igs_image tests use independent literal byte/index vectors from
+chapters 03/05/159. They cover all three plane layouts, partial imports across
+group/section boundaries, retained full capacity, invalid indices/bounds,
+failure retention and plane changes. Round-trip/partition checks supplement
+the literal results. These are format/storage tests, not G or X11 completion.
 
-These experiments passed local native tests but remain uncommitted; both
-original architectural uses are superseded by the decisions above. Interpreter
-state, drawing, console presentation and command-specific timing remain
-pending. The initial shared-parser foundation commit is 87a116f.
+Configured with cmake -S . -B build and built st_igs_image_test using the
+existing native FreeBSD /usr/bin/cc Release configuration. CTest igs_image,
+st_pixels and graphics_protocol_parser all passed. The superseded planar
+surface and separate clock experiments and their tests have been removed.
+Completion commit is recorded by the next completed step.

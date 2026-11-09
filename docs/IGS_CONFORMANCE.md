@@ -75,19 +75,16 @@ These tests observe parser events; they do not claim IGS command execution,
 raster, sound, application or BIG/CONDOR conformance. Alternate framing tests
 only establish that attention bytes and outer buffered entry are configurable.
 
-Uncommitted experimental `igs_surface` coverage checks source-derived planar
-words, physical pixel indices, all three screen geometries, mode
-reinterpretation without conversion, padded MFDB row strides, all sixteen raster-logic truth tables,
-neighbor preservation and invalid-operation bounds. It establishes the
-storage primitive, not complete IGS drawing or raster-copy commands. The
-decision above supersedes its proposed use as framebuffer storage; any retained
-planar helper is limited to image-format boundaries.
-
-Uncommitted experimental `igs_clock` tests check counters derived from supplied
-local timestamps and phase-preserving waits. The separate clock abstraction
-is superseded by local deadline/sample timing with unit conversions. These
-tests do not establish command-specific timing or audio playback. The selected
-timing design and application are not integrated yet.
+Native `igs_image` coverage checks independent literal native-byte/index
+vectors in all three plane layouts, partial imports at arbitrary byte offsets,
+retained full capacity/padding and layout reinterpretation. Invalid bounds,
+RGB/foreign-index rejection and failed layout-change retention are checked.
+Round-trip and input-partition tests supplement the independent literal
+results. Images remain indexed; temporary native bytes are used only when
+changing the plane layout or explicitly importing/exporting native data.
+These are image-format tests, not completed `G`/`X11` commands or application
+integration. The earlier planar-surface and separate-clock experiments have
+been removed; local timing integration remains pending.
 
 ## Deliberate corrections
 

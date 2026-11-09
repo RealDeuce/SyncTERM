@@ -40,10 +40,10 @@
         "igs_surface"
       ],
       "verification": [
-        "Native FreeBSD /usr/bin/cc, existing Release CMake configuration: igs_surface passed."
+        "Historical experiment tests passed before removal; not an active conformance gate."
       ],
       "commit": null,
-      "decision": "Uncommitted experiment; no planar screen or planar off-screen backing. Repurpose only as an image-format boundary codec if useful, otherwise remove on resumption."
+      "decision": "Removed superseded experiment and tests. Indexed st_igs_image storage replaces it; native conversion occurs only at format boundaries."
     },
     {
       "id": "igs-logical-clocks",
@@ -52,10 +52,34 @@
         "igs_clock"
       ],
       "verification": [
-        "Native FreeBSD /usr/bin/cc, existing Release CMake configuration: igs_clock passed."
+        "Historical experiment tests passed before removal; not an active conformance gate."
       ],
       "commit": null,
-      "decision": "Uncommitted experiment; replace separate clock domains with existing local timing facilities and narrow protocol-unit conversions."
+      "decision": "Removed superseded experiment and tests. Use existing local timing facilities and narrow protocol-unit conversions."
+    },
+    {
+      "id": "igs-indexed-images",
+      "status": "complete",
+      "references": [
+        "03-raster.adoc",
+        "05-memory-palette.adoc",
+        "159-target-profile-acceptance.adoc"
+      ],
+      "operations": [
+        "native import/export at arbitrary byte boundaries",
+        "indexed full-capacity storage including padding/retained contents",
+        "plane-layout reinterpretation at format changes only",
+        "invalid-operation retention"
+      ],
+      "tests": [
+        "igs_image",
+        "st_pixels",
+        "graphics_protocol_parser"
+      ],
+      "verification": [
+        "cmake -S . -B build; cmake --build build --target st_igs_image_test -j 4; CTest igs_image, st_pixels and graphics_protocol_parser passed on native FreeBSD /usr/bin/cc Release."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "igs-state-raster-clock",
