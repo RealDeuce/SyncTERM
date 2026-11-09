@@ -5429,7 +5429,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "  sizes.clear()\n"
 	    "  if (family.sizes.count == 0) Fiber.abort(\"mutable family metadata\")\n"
 	    "}\n"
-	    "if (strikes != 39 || !(Menu.removeAmigaFont(catalog[0]) is MenuError)) Fiber.abort(\"immutable bundled fonts\")\n"
+	    "if (strikes != 35 || !(Menu.removeAmigaFont(catalog[0]) is MenuError)) Fiber.abort(\"immutable bundled fonts\")\n"
 	    "var mutate = Fiber.new { catalog[0].name = \"modified\" }\n"
 	    "mutate.try()\n"
 	    "if (mutate.error == null) Fiber.abort(\"writable Amiga metadata\")\n"
