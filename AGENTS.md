@@ -161,8 +161,14 @@ DLL exports.
 
 ## Verification
 
-Do not test under Wine. Cross-compilation may verify Windows builds, but run
-Windows tests on Windows.
+For ordinary changes, use one native CMake build configuration and run the
+relevant native tests. Do not reproduce the CI compiler, toolchain, or platform
+matrix locally before committing. Rely on CI to catch cross-platform issues.
+Only perform cross-compilation or additional platform/toolchain builds when
+the task specifically concerns cross-platform work or the user requests them.
+
+Do not test under Wine. When cross-platform verification is in scope,
+cross-compilation may verify Windows builds, but run Windows tests on Windows.
 
 Never run graphical tests on the user's display. Use a private Xvfb server
 for X11 tests and headless backends where supported. Clear inherited
@@ -209,7 +215,8 @@ was tested when it was not; state the configurations actually exercised.
 Warnings introduced by the change are defects. Keep Windows builds clean with
 MSVC and MinGW, and POSIX builds clean with the supported GCC and Clang
 toolchains, while avoiding compiler-specific language extensions in portable
-C.
+C. CI provides this routine matrix coverage; this does not require local
+matrix builds for ordinary changes.
 
 ## Version control
 
