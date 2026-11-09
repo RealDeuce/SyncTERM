@@ -61,9 +61,9 @@ def run_box(executable, reports, kick, encoding, status, mode_height):
                                 frame.primary[at], frame.alternate[at], expected)
                     assert frame.palette[515] == 0xff0000
 
-                # Times/15 has a four-pixel descent. Its nominal last anchor
+                # Native Times/15 has descent 3 in 1.3 and 4 in 2.x+. Its last anchor
                 # determines when to scroll, independently of the raster extent.
-                anchor = (canvas // 15 - 1) * 15 - 4
+                anchor = (canvas // 15 - 1) * 15 - (3 if kick == "1.3" else 4)
                 check((f'\x1bc\x1b[?25l\x1b[10;15!Times.font!\x1b[19;0;{anchor}!'
                        f'\x1b[15;3!\x1b[8;20;12!\x1b[2;620;12!\x1b[2;620;{canvas-4}!'
                        f'\x1b[2;20;{canvas-4}!\x1b[2;20;12!').encode(), 0)

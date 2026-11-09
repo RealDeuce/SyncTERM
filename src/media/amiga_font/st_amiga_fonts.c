@@ -284,9 +284,9 @@ int st_amiga_fonts_install(const char *root, const char *descriptor, bool replac
 		info_result.installed = true;
 		if (!info_result.name)
 			status = IO_ERROR_OUT_OF_MEMORY;
-		for (size_t i = 0; !status && i < st_amiga_font_builtin_count(); ++i) {
+		for (size_t i = 0; !status && i < st_amiga_font_builtin_count(ST_AMIGA_FONT_SET_2PLUS); ++i) {
 			unsigned height;
-			const char *built = st_amiga_font_builtin_name(i, &height);
+			const char *built = st_amiga_font_builtin_name(ST_AMIGA_FONT_SET_2PLUS, i, &height);
 			bool equal = false;
 			status = st_unicode_caseless_equal(&equal, name, strlen(name), built, strlen(built));
 			if (!status && equal) {
@@ -384,7 +384,7 @@ int st_amiga_fonts_remove(const char *root, const char *name)
 	free(removed);
 	return status;
 }
-int st_amiga_fonts_lookup(const st_amiga_font_t **result, const char *root, const char *name,
+int st_amiga_fonts_lookup(const st_amiga_font_t **result, enum st_amiga_font_set set, const char *root, const char *name,
 						  unsigned height)
 {
 	if (!result || !name)
@@ -429,12 +429,12 @@ int st_amiga_fonts_lookup(const st_amiga_font_t **result, const char *root, cons
 		if (!status)
 			return 0;
 	}
-	const st_amiga_font_t *font = st_amiga_font_builtin(name, height);
+	const st_amiga_font_t *font = st_amiga_font_builtin(set, name, height);
 	if (font) {
 		*result = font;
 		return status == IO_ERROR_NOT_FOUND ? 0 : status;
 	}
-	*result = st_amiga_font_builtin("pearl.font", 8);
+	*result = st_amiga_font_builtin(set, "pearl.font", 8);
 	return status;
 }
 static int add_size(unsigned **sizes, size_t *count, unsigned size)
@@ -497,9 +497,9 @@ int st_amiga_fonts_catalog_read(struct st_amiga_fonts_catalog *result, const cha
 	struct st_amiga_fonts_catalog c = {0};
 	struct amiga_names names = {0};
 	int status = 0;
-	for (size_t i = 0; !status && i < st_amiga_font_builtin_count(); ++i) {
+	for (size_t i = 0; !status && i < st_amiga_font_builtin_count(ST_AMIGA_FONT_SET_2PLUS); ++i) {
 		unsigned height;
-		const char *name = st_amiga_font_builtin_name(i, &height);
+		const char *name = st_amiga_font_builtin_name(ST_AMIGA_FONT_SET_2PLUS, i, &height);
 		struct st_amiga_font_family_info *f = NULL;
 		status = family_info(&c, name, &f);
 		if (!status) {

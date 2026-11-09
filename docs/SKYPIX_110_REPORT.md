@@ -9,7 +9,7 @@ CMake tree; the old patch is not applied to its separate renderer.
 | --- | --- |
 | SkyPix depends on RIPv3 and sends RIP identification | Separate Graphics values and parser ownership. `syncterm_skypix_report` selects SkyPix directly and verifies that a RIP version query produces no RIP response before the ANSI status reply. |
 | Font command 10 loses text after its first bang; command 16 has the same framing risk | Bounded parser retains both string terminators. `cterm_skypix` exercises every input split, including named font selection. The application report test verifies positioned glyphs after font selection; existing transfer/cache suites exercise command 16 through actual XMODEM. |
-| Fonts depend on the working directory and are absent from a normal install | Compiled font catalog supplies all 38 requested family/size pairs without installation. Exact installed strikes beside the INI remain optional overrides. `amiga_font_report` verifies coverage and independently decoded native metrics/ink for matching strikes. |
+| Fonts depend on the working directory and are absent from a normal install | Embedded native catalog supplies the 34 native reported strikes plus native Pearl/8, without installation. Exact installed strikes beside the INI remain optional overrides. `amiga_font_report` verifies every strike in both Workbench profiles. |
 | Text batching and deferred command dispatch reorder drawing | Commands synchronize pending text before changing positions or drawing. `cterm_skypix` replays the synthetic report sequence at every byte split and byte by byte. `syncterm_skypix_report` checks the same independent scene through the application, including reset/replay. |
 | Font reset leaves stale rendering state and breaks editor controls | Command `10;0` restores the configured default and its normal text routing. Both report regressions select Diamond, reset, then check literal Pearl A/B/D pixels after `ABC`, BS, EL0 and `D`. |
 | Command 3 lacks flood fill | The native pixel surface implements synchronous seed-colour fill. Both report regressions immediately fill a just-drawn outline and check the complete scene in both planes. The interior is 44,451 pixels, intentionally larger than the old patch's quarter-screen guard; valid enclosed fills must not be rejected for their area. |
@@ -27,48 +27,29 @@ and the Amiga, Commodore, IBM and Skypix labels are separate. This is a manual
 visual check, not an exact raster reference. The supplied repository has
 screenshots but no raw ACIS capture.
 
-## Font decisions
+## Font inputs
 
-The supplied native and SPF collections together request 38 distinct family/size
-pairs. The built-in catalog already contains all of them, plus Topaz/9:
+The built-ins embed native Amiga disk-font files unchanged and load them through
+`st_amiga_font_decode()`, the same memory parser used for installed fonts. No
+YAFF or SPF fonts participate. Kickstart 1.3 selects the 30 Workbench 1.3
+strikes; Kickstart 3.1 selects the 30 Workbench 2.x+ strikes. All 30 stock native
+files supplied in the report match the later set byte for byte. The reporter's
+four additional native AWeb strikes (Courier and Times at 30 and 36 pixels)
+are included in both profiles. Native Pearl/8 preserves the default.
 
-| Family | Requested heights |
-| --- | --- |
-| Courier | 11, 13, 15, 18, 24, 30, 36 |
-| Diamond | 12, 20 |
-| Emerald | 17, 20 |
-| Garnet | 9, 16 |
-| Helvetica | 9, 11, 13, 15, 18, 24 |
-| Opal | 9, 12 |
-| Pearl | 8 |
-| Ruby | 8, 12, 15 |
-| Sapphire | 14, 15, 18, 19 |
-| Times | 11, 13, 15, 18, 24, 30, 36 |
-| Topaz | 8, 11 |
+Each profile exposes 35 native strikes. The supplied Topaz/8 and Sapphire/15
+and /18 occur only in SPF and are excluded; Pearl/8 comes from the actual
+native file in the local Amiga font drawer. The unsupported converted
+Topaz/9 entry is removed. The
+[native input manifest and provenance](../src/media/amiga_font/data/README.md)
+record all 65 original files and image identities. The verified 2.04 Fonts
+disk (`AmigaFonts2.0`) shares its stock fonts with the sampled 2.1/3.1 disks;
+those bytes cannot identify which release supplied the reporter's copy.
 
-Twenty supplied native strikes match the selected built-in glyphs, advances and
-baseline exactly. Their native nominal widths are now pinned in the manifest;
-18 required a correction from the converted YAFF bounding/cell width. This
-affects nominal-grid operations such as BS and tabs, not the measured advance
-used for proportional wrapping. No glyph bitmap or individual advance changed.
-
-The remaining supplied variants are not substituted for existing defaults, per
-the user's choice. In particular the AWeb Courier/Times versions and the
-Ruby/Diamond native metadata differ from the selected Workbench/JR-Comm versions.
-The existing JR-Comm Ruby/Diamond baseline and width decisions remain in force.
-The [native Workbench reference comparison](../src/media/amiga_font/reference/README.adoc)
-subsequently established that the supplied 30 stock native strikes are exact
-Workbench 2.1/3.1 files. The compiled Ruby/Diamond metric overrides equal the
-1.3 values, and the five stock Courier conversions differ in width, advances
-and some glyph placement; the YAFF `workbench-3.1_` filenames do not establish
-equivalence to the native disk files. The reference sets do not change the
-selected compiled fonts.
-The subsequent Release 2 check found the same 30 exact native matches on the
-catalogue-verified 2.04 Fonts disk (`AmigaFonts2.0`); identical font files
-therefore cannot distinguish a 2.04 source from 2.1/3.1. The reference notes
-qualify archive labels separately from verified release identities.
-The reference inventory pins every supplied file's SHA-256 and marks which
-entries assert exact equivalence versus family/size coverage only.
+The previous converted catalog and JR-Comm metric overrides have been removed.
+`amiga_font_report` verifies independent native width, baseline, full byte-glyph
+ink and advance hashes for every strike in both profiles. Native fonts are
+not synthesized from another format to fill gaps in the supplied collection.
 
 ## Malformed Emberwood artwork
 

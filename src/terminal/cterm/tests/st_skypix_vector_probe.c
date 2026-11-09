@@ -22,7 +22,9 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (argc == 3 && strcmp(argv[1], "text") == 0) {
-		const st_amiga_font_t *font = st_amiga_font_builtin("Diamond.font", 20);
+		/* These historical ROM vectors use the same baseline-14 Diamond
+		 * strike in both ROMs, isolating their different overhang rules. */
+		const st_amiga_font_t *font = st_amiga_font_builtin(ST_AMIGA_FONT_SET_13, "Diamond.font", 20);
 		const struct st_amiga_glyph *g = st_amiga_font_glyph(font, '<');
 		int end = 16 + g->advance;
 		printf("%d\n", end);

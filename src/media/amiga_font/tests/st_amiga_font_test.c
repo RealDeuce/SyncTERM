@@ -38,12 +38,12 @@ static bool ink(const struct st_amiga_glyph *g, unsigned x, unsigned y)
 	unsigned bit = g->bit_offset + x;
 	return (g->bits[(size_t)y * g->stride + bit / 8] & (128u >> (bit % 8))) != 0;
 }
-static void builtin_inventory(void)
+static void builtin_inventory(enum st_amiga_font_set set)
 {
-	for (size_t i = 0; i < st_amiga_font_builtin_count(); ++i) {
+	for (size_t i = 0; i < st_amiga_font_builtin_count(set); ++i) {
 		unsigned height;
-		const char *name = st_amiga_font_builtin_name(i, &height);
-		const st_amiga_font_t *f = st_amiga_font_builtin(name, height);
+		const char *name = st_amiga_font_builtin_name(set, i, &height);
+		const st_amiga_font_t *f = st_amiga_font_builtin(set, name, height);
 		uint64_t hash = UINT64_C(14695981039346656037);
 		hash = hash_word(hash, (int)height);
 		hash = hash_word(hash, (int)st_amiga_font_baseline(f));
@@ -68,8 +68,8 @@ static void builtin_inventory(void)
 }
 int main(int argc, char **argv)
 {
-	if (argc == 2 && strcmp(argv[1], "--builtins") == 0) {
-		builtin_inventory();
+	if (argc == 2 && (strcmp(argv[1], "--builtins") == 0 || strcmp(argv[1], "--builtins-13") == 0)) {
+		builtin_inventory(strcmp(argv[1], "--builtins-13") == 0 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS);
 		return 0;
 	}
 	if (argc > 1) {
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 	CHECK(st_amiga_fonts_install(root, descriptor_path, false, NULL) == 0);
 	CHECK(st_amiga_fonts_install(root, descriptor_path, false, NULL) == IO_ERROR_ALREADY_EXISTS);
 	const st_amiga_font_t *selected = NULL;
-	CHECK(st_amiga_fonts_lookup(&selected, root, "TEST.FONT", 3) == 0);
+	CHECK(st_amiga_fonts_lookup(&selected, ST_AMIGA_FONT_SET_2PLUS, root, "TEST.FONT", 3) == 0);
 	CHECK(st_amiga_font_glyph(selected, 'A')->bearing == -2);
 	struct st_amiga_fonts_catalog catalog = {0};
 	CHECK(st_amiga_fonts_catalog_read(&catalog, root) == 0 && catalog.count == 12);
@@ -203,13 +203,13 @@ int main(int argc, char **argv)
 	CHECK(fs_replace_file(strike_path, "bad", 3) == 0);
 	CHECK(st_amiga_fonts_install(root, descriptor_path, true, NULL) == IO_ERROR_INVALID_FORMAT);
 	const st_amiga_font_t *unchanged = NULL;
-	CHECK(st_amiga_fonts_lookup(&unchanged, root, "Test.font", 3) == 0);
+	CHECK(st_amiga_fonts_lookup(&unchanged, ST_AMIGA_FONT_SET_2PLUS, root, "Test.font", 3) == 0);
 	st_amiga_font_release(unchanged);
 	CHECK(st_amiga_fonts_remove(root, "Test.font") == 0);
 	CHECK(st_amiga_font_glyph(selected, 'A')->bearing == -2);
 	st_amiga_font_release(selected);
-	CHECK(st_amiga_fonts_lookup(&selected, root, "Test.font", 3) == IO_ERROR_NOT_FOUND);
-	CHECK(selected == st_amiga_font_builtin("pearl.font", 8));
+	CHECK(st_amiga_fonts_lookup(&selected, ST_AMIGA_FONT_SET_2PLUS, root, "Test.font", 3) == IO_ERROR_NOT_FOUND);
+	CHECK(selected == st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "pearl.font", 8));
 	CHECK(fs_replace_file(strike_path, image, sizeof(image)) == 0);
 	CHECK(st_amiga_fonts_install(root, descriptor_path, false, NULL) == 0);
 	CHECK(path_join_alloc(&live, root, "test.font") == 0);
@@ -223,17 +223,28 @@ int main(int argc, char **argv)
 	free(root);
 	free(live);
 	free(backup);
-	CHECK(st_amiga_font_builtin_count() == 39);
-	const st_amiga_font_t *sapphire = st_amiga_font_builtin("sApPhIrE.FoNt", 19);
-	CHECK(sapphire != NULL && st_amiga_font_builtin("Sapphire.font", 20) == NULL);
+	CHECK(st_amiga_font_builtin_count(ST_AMIGA_FONT_SET_2PLUS) == 35);
+	const st_amiga_font_t *sapphire = st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "sApPhIrE.FoNt", 19);
+	CHECK(sapphire != NULL && st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "Sapphire.font", 20) == NULL);
 	CHECK(st_amiga_font_glyph(sapphire, 'R')->advance == 16);
 	CHECK(st_amiga_font_glyph(sapphire, 'e')->advance == 9);
 	CHECK(st_amiga_font_glyph(sapphire, ' ')->advance == 13);
-	const st_amiga_font_t *courier = st_amiga_font_builtin("Courier.font", 36);
+	const st_amiga_font_t *courier = st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "Courier.font", 36);
 	CHECK(courier != NULL && st_amiga_font_glyph(courier, 'M')->width > 8);
 	CHECK(st_amiga_font_glyph(courier, 'M')->advance == 22);
-	const st_amiga_font_t *times = st_amiga_font_builtin("Times.font", 15);
+	const st_amiga_font_t *times = st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "Times.font", 15);
 	CHECK(times != NULL && st_amiga_font_width(times) == 7);
 	CHECK(st_amiga_font_height(times) == 15 && st_amiga_font_baseline(times) == 10);
+	const st_amiga_font_t *old_diamond = st_amiga_font_builtin(ST_AMIGA_FONT_SET_13, "diamond.font", 20);
+	const st_amiga_font_t *new_diamond = st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "diamond.font", 20);
+	CHECK(old_diamond && new_diamond && old_diamond != new_diamond);
+	CHECK(st_amiga_font_width(old_diamond) == 20 && st_amiga_font_baseline(old_diamond) == 14);
+	CHECK(st_amiga_font_width(new_diamond) == 12 && st_amiga_font_baseline(new_diamond) == 13);
+	CHECK(st_amiga_font_glyph(st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "courier.font", 11), '!')->advance == 6);
+	CHECK(st_amiga_font_builtin(ST_AMIGA_FONT_SET_13, "sapphire.font", 15) == NULL);
+	CHECK(st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "topaz.font", 8) == NULL);
+	st_amiga_font_release(old_diamond);
+	CHECK(st_amiga_font_builtin(ST_AMIGA_FONT_SET_13, "diamond.font", 20) == old_diamond);
+
 	return EXIT_SUCCESS;
 }

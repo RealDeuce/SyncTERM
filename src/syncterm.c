@@ -1052,11 +1052,12 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 		char *directory = NULL;
 		status = st_amiga_fonts_directory(&directory, paths->settings_file);
 		if (status == 0)
-			status = st_amiga_fonts_lookup(&font, directory, profile->amiga_font,
+			status = st_amiga_fonts_lookup(&font, profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 ?
+					ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, directory, profile->amiga_font,
 										   profile->amiga_font_size);
 		free(directory);
 		if (font == NULL)
-			font = st_amiga_font_builtin("pearl.font", 8);
+			font = st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "pearl.font", 8);
 		if (status != 0)
 			fprintf(stderr, "SyncTERM: Amiga default font unavailable (%d); using fallback\n",
 					status);

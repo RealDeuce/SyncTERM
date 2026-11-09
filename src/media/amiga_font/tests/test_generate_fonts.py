@@ -3,6 +3,8 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import io
 import hashlib
+import json
+import re
 from pathlib import Path
 import runpy
 import sys
@@ -39,12 +41,27 @@ class GeneratorTests(unittest.TestCase):
                         generator['main']()
                     data = output.read_bytes()
                     self.assertTrue(data.startswith(b'/* Generated from pinned bitmap sources;'))
-                    self.assertIn(b'const struct st_amiga_builtin st_amiga_builtins[]', data)
+                    self.assertTrue(b'struct st_amiga_builtin st_amiga_builtins[]' in data)
                     self.assertFalse(b'\r' in data, 'generated source must use LF newlines')
                     if default_encoding == 'cp1252':
                         previous = hashlib.sha256(data).digest()
                     else:
                         self.assertEqual(hashlib.sha256(data).digest(), previous)
+
+    def test_embedded_files_are_unchanged(self):
+        generator = runpy.run_path(str(ROOT / 'generate_fonts.py'))
+        manifest = json.loads((ROOT / 'data/manifest.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'data.c'
+            with patch.object(sys, 'argv', ['generate_fonts.py', str(ROOT / 'data/manifest.json'), str(output)]):
+                generator['main']()
+            arrays = re.findall(r'static const uint8_t file_([0-9]+)\[\] = \{([^}]+)\};',
+                                output.read_text(encoding='utf-8'))
+            self.assertEqual(len(arrays), len(manifest['fonts']))
+            for index, values in arrays:
+                entry = manifest['fonts'][int(index)]
+                actual = bytes(int(value, 16) for value in values.split(',') if value.strip())
+                self.assertTrue(actual == (ROOT / 'data' / entry['file']).read_bytes(), entry['file'])
 
 
 if __name__ == '__main__':

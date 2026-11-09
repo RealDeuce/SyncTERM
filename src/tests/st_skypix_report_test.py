@@ -79,6 +79,29 @@ def run(executable, reports, kick, encoding, status):
                             next((i % 640, i // 640, a, e)
                                  for i, (a, e) in enumerate(zip(actual, expected)) if a != e))
                     assert tuple(frame.palette[512:517]) == (0, 0x1111ff, 0xdddddd, 0xff0000, 0x00ff11)
+                # Literal native Topaz/11 A rows from the two original files.
+                # This checks profile selection through the real application,
+                # rather than selecting a built-in directly in a unit fixture.
+                topaz = ((0x18, 0x3c, 0x3c, 0x66, 0x66, 0x7e, 0xc3, 0xc3, 0xc3, 0, 0)
+                         if kick == '1.3' else
+                         (0x7c, 0xc6, 0xc6, 0xc6, 0xfe, 0xc6, 0xc6, 0xc6, 0xc6, 0, 0))
+                peer.sendall(b'\x1bc\x1b[?25l\x1b[10;11!Topaz.font!\x1b[19;8;8!A\x1b[5n')
+                reply = b''
+                while len(reply) < 4:
+                    part = peer.recv(4 - len(reply))
+                    assert part, reply
+                    reply += part
+                assert reply == b'\x1b[0n', reply
+                frame = client.capture()
+                expected = [512] * (640 * height)
+                for y, row in enumerate(topaz):
+                    for x in range(8):
+                        if row & (128 >> x):
+                            expected[(10 + y) * 640 + 8 + x] = 514
+                start = frame.metadata['pixel_top'] * 640
+                for plane in (frame.primary, frame.alternate):
+                    assert list(plane[start:start + len(expected)]) == expected, (kick, encoding, status)
+                assert frame.application['cterm.graphics_mode'] == (3 if kick == '1.3' else 4)
                 peer.shutdown(socket.SHUT_RDWR)
                 client.wait_text('Disconnected: Enter exits, F1 details')
                 client.key('enter')

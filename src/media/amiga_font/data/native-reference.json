@@ -1,0 +1,725 @@
+{
+  "method": "Native strikes independently decoded with amitools 0.8.1; canonical FNV-1a-64 word encoding as documented in README.adoc. No output of SyncTERM was used to generate expectations.",
+  "fonts": [
+    {
+      "file": "native/workbench-1.3/courier/11",
+      "name": "courier.font",
+      "height": 11,
+      "sets": [
+        "1.3"
+      ],
+      "width": 6,
+      "baseline": 9,
+      "raster_fnv64": "ebf08305ce7f2a18"
+    },
+    {
+      "file": "native/workbench-1.3/courier/13",
+      "name": "courier.font",
+      "height": 13,
+      "sets": [
+        "1.3"
+      ],
+      "width": 7,
+      "baseline": 10,
+      "raster_fnv64": "89e257c5f595415d"
+    },
+    {
+      "file": "native/workbench-1.3/courier/15",
+      "name": "courier.font",
+      "height": 15,
+      "sets": [
+        "1.3"
+      ],
+      "width": 9,
+      "baseline": 12,
+      "raster_fnv64": "0bc0f2b1c36f55a9"
+    },
+    {
+      "file": "native/workbench-1.3/courier/18",
+      "name": "courier.font",
+      "height": 18,
+      "sets": [
+        "1.3"
+      ],
+      "width": 11,
+      "baseline": 14,
+      "raster_fnv64": "8ea0ad7acb5014a9"
+    },
+    {
+      "file": "native/workbench-1.3/courier/24",
+      "name": "courier.font",
+      "height": 24,
+      "sets": [
+        "1.3"
+      ],
+      "width": 15,
+      "baseline": 19,
+      "raster_fnv64": "8d9aa7895dcf2e94"
+    },
+    {
+      "file": "native/workbench-1.3/helvetica/11",
+      "name": "helvetica.font",
+      "height": 11,
+      "sets": [
+        "1.3"
+      ],
+      "width": 3,
+      "baseline": 9,
+      "raster_fnv64": "618ef29051499bb2"
+    },
+    {
+      "file": "native/workbench-1.3/helvetica/13",
+      "name": "helvetica.font",
+      "height": 13,
+      "sets": [
+        "1.3"
+      ],
+      "width": 4,
+      "baseline": 10,
+      "raster_fnv64": "69d7c442c2a21447"
+    },
+    {
+      "file": "native/workbench-1.3/helvetica/15",
+      "name": "helvetica.font",
+      "height": 15,
+      "sets": [
+        "1.3"
+      ],
+      "width": 4,
+      "baseline": 12,
+      "raster_fnv64": "b614f397a58d9628"
+    },
+    {
+      "file": "native/workbench-1.3/helvetica/18",
+      "name": "helvetica.font",
+      "height": 18,
+      "sets": [
+        "1.3"
+      ],
+      "width": 5,
+      "baseline": 14,
+      "raster_fnv64": "8e91b84bbd8272c3"
+    },
+    {
+      "file": "native/workbench-1.3/helvetica/24",
+      "name": "helvetica.font",
+      "height": 24,
+      "sets": [
+        "1.3"
+      ],
+      "width": 6,
+      "baseline": 19,
+      "raster_fnv64": "bba9e38d08c54511"
+    },
+    {
+      "file": "native/workbench-1.3/helvetica/9",
+      "name": "helvetica.font",
+      "height": 9,
+      "sets": [
+        "1.3"
+      ],
+      "width": 2,
+      "baseline": 7,
+      "raster_fnv64": "568c6d0624cd2dc8"
+    },
+    {
+      "file": "native/workbench-1.3/times/11",
+      "name": "times.font",
+      "height": 11,
+      "sets": [
+        "1.3"
+      ],
+      "width": 2,
+      "baseline": 8,
+      "raster_fnv64": "bdafa8aa3062a42f"
+    },
+    {
+      "file": "native/workbench-1.3/times/13",
+      "name": "times.font",
+      "height": 13,
+      "sets": [
+        "1.3"
+      ],
+      "width": 3,
+      "baseline": 10,
+      "raster_fnv64": "aeed11ee9c7a6a75"
+    },
+    {
+      "file": "native/workbench-1.3/times/15",
+      "name": "times.font",
+      "height": 15,
+      "sets": [
+        "1.3"
+      ],
+      "width": 3,
+      "baseline": 11,
+      "raster_fnv64": "b7538315c9014d0c"
+    },
+    {
+      "file": "native/workbench-1.3/times/18",
+      "name": "times.font",
+      "height": 18,
+      "sets": [
+        "1.3"
+      ],
+      "width": 4,
+      "baseline": 14,
+      "raster_fnv64": "8c7d8b9487c3780a"
+    },
+    {
+      "file": "native/workbench-1.3/times/24",
+      "name": "times.font",
+      "height": 24,
+      "sets": [
+        "1.3"
+      ],
+      "width": 6,
+      "baseline": 18,
+      "raster_fnv64": "0b2d8c4dc41fa126"
+    },
+    {
+      "file": "native/workbench-1.3/diamond/12",
+      "name": "diamond.font",
+      "height": 12,
+      "sets": [
+        "1.3"
+      ],
+      "width": 15,
+      "baseline": 9,
+      "raster_fnv64": "1fc2fd4731106120"
+    },
+    {
+      "file": "native/workbench-1.3/diamond/20",
+      "name": "diamond.font",
+      "height": 20,
+      "sets": [
+        "1.3"
+      ],
+      "width": 20,
+      "baseline": 14,
+      "raster_fnv64": "cb39aa35174d1aec"
+    },
+    {
+      "file": "native/workbench-1.3/emerald/17",
+      "name": "emerald.font",
+      "height": 17,
+      "sets": [
+        "1.3"
+      ],
+      "width": 20,
+      "baseline": 13,
+      "raster_fnv64": "bb20f6af99ab6c59"
+    },
+    {
+      "file": "native/workbench-1.3/emerald/20",
+      "name": "emerald.font",
+      "height": 20,
+      "sets": [
+        "1.3"
+      ],
+      "width": 20,
+      "baseline": 15,
+      "raster_fnv64": "2113e05f34a9460b"
+    },
+    {
+      "file": "native/workbench-1.3/garnet/16",
+      "name": "garnet.font",
+      "height": 16,
+      "sets": [
+        "1.3"
+      ],
+      "width": 20,
+      "baseline": 11,
+      "raster_fnv64": "7dbf8dc25fa4fbf1"
+    },
+    {
+      "file": "native/workbench-1.3/garnet/9",
+      "name": "garnet.font",
+      "height": 9,
+      "sets": [
+        "1.3"
+      ],
+      "width": 20,
+      "baseline": 7,
+      "raster_fnv64": "7ce4cf411bb5f458"
+    },
+    {
+      "file": "native/workbench-1.3/opal/12",
+      "name": "opal.font",
+      "height": 12,
+      "sets": [
+        "1.3"
+      ],
+      "width": 12,
+      "baseline": 9,
+      "raster_fnv64": "6383b8057d03b8dc"
+    },
+    {
+      "file": "native/workbench-1.3/opal/9",
+      "name": "opal.font",
+      "height": 9,
+      "sets": [
+        "1.3"
+      ],
+      "width": 12,
+      "baseline": 7,
+      "raster_fnv64": "e2b17ebfdb0ac7db"
+    },
+    {
+      "file": "native/workbench-1.3/ruby/12",
+      "name": "ruby.font",
+      "height": 12,
+      "sets": [
+        "1.3"
+      ],
+      "width": 15,
+      "baseline": 9,
+      "raster_fnv64": "843f9b941e137cb7"
+    },
+    {
+      "file": "native/workbench-1.3/ruby/15",
+      "name": "ruby.font",
+      "height": 15,
+      "sets": [
+        "1.3"
+      ],
+      "width": 20,
+      "baseline": 11,
+      "raster_fnv64": "dc7f3201fd3ec852"
+    },
+    {
+      "file": "native/workbench-1.3/ruby/8",
+      "name": "ruby.font",
+      "height": 8,
+      "sets": [
+        "1.3"
+      ],
+      "width": 15,
+      "baseline": 6,
+      "raster_fnv64": "e8c50f16bb7b9b60"
+    },
+    {
+      "file": "native/workbench-1.3/sapphire/14",
+      "name": "sapphire.font",
+      "height": 14,
+      "sets": [
+        "1.3"
+      ],
+      "width": 19,
+      "baseline": 11,
+      "raster_fnv64": "7219aab77697a132"
+    },
+    {
+      "file": "native/workbench-1.3/sapphire/19",
+      "name": "sapphire.font",
+      "height": 19,
+      "sets": [
+        "1.3"
+      ],
+      "width": 19,
+      "baseline": 15,
+      "raster_fnv64": "723dfaaf296aab71"
+    },
+    {
+      "file": "native/workbench-1.3/topaz/11",
+      "name": "topaz.font",
+      "height": 11,
+      "sets": [
+        "1.3"
+      ],
+      "width": 8,
+      "baseline": 8,
+      "raster_fnv64": "1df64066fa48e6f8"
+    },
+    {
+      "file": "native/workbench-2.x/courier/11",
+      "name": "courier.font",
+      "height": 11,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 6,
+      "baseline": 8,
+      "raster_fnv64": "dbd801dd35f8a12b"
+    },
+    {
+      "file": "native/workbench-2.x/courier/13",
+      "name": "courier.font",
+      "height": 13,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 7,
+      "baseline": 9,
+      "raster_fnv64": "4f8118e4f45bd197"
+    },
+    {
+      "file": "native/workbench-2.x/courier/15",
+      "name": "courier.font",
+      "height": 15,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 9,
+      "baseline": 11,
+      "raster_fnv64": "bb61b5227c894f02"
+    },
+    {
+      "file": "native/workbench-2.x/courier/18",
+      "name": "courier.font",
+      "height": 18,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 11,
+      "baseline": 13,
+      "raster_fnv64": "c2cba8336f6e657a"
+    },
+    {
+      "file": "native/workbench-2.x/courier/24",
+      "name": "courier.font",
+      "height": 24,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 15,
+      "baseline": 18,
+      "raster_fnv64": "4258b7c77bfa8aea"
+    },
+    {
+      "file": "native/workbench-2.x/diamond/12",
+      "name": "diamond.font",
+      "height": 12,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 8,
+      "baseline": 8,
+      "raster_fnv64": "23e1412c2e4dfa35"
+    },
+    {
+      "file": "native/workbench-2.x/diamond/20",
+      "name": "diamond.font",
+      "height": 20,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 12,
+      "baseline": 13,
+      "raster_fnv64": "f32c11b41fd6aee7"
+    },
+    {
+      "file": "native/workbench-2.x/emerald/17",
+      "name": "emerald.font",
+      "height": 17,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 13,
+      "baseline": 12,
+      "raster_fnv64": "13a89b70c67f3592"
+    },
+    {
+      "file": "native/workbench-2.x/emerald/20",
+      "name": "emerald.font",
+      "height": 20,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 13,
+      "baseline": 14,
+      "raster_fnv64": "5faef6ac4ef322d1"
+    },
+    {
+      "file": "native/workbench-2.x/garnet/16",
+      "name": "garnet.font",
+      "height": 16,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 10,
+      "baseline": 10,
+      "raster_fnv64": "a7572e1842873bde"
+    },
+    {
+      "file": "native/workbench-2.x/garnet/9",
+      "name": "garnet.font",
+      "height": 9,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 10,
+      "baseline": 7,
+      "raster_fnv64": "acfaf5194988eaf2"
+    },
+    {
+      "file": "native/workbench-2.x/helvetica/11",
+      "name": "helvetica.font",
+      "height": 11,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 6,
+      "baseline": 8,
+      "raster_fnv64": "9d4d4a85ed376225"
+    },
+    {
+      "file": "native/workbench-2.x/helvetica/13",
+      "name": "helvetica.font",
+      "height": 13,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 7,
+      "baseline": 9,
+      "raster_fnv64": "e4faddd5c29c01cf"
+    },
+    {
+      "file": "native/workbench-2.x/helvetica/15",
+      "name": "helvetica.font",
+      "height": 15,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 8,
+      "baseline": 11,
+      "raster_fnv64": "e2b989d29dea9f33"
+    },
+    {
+      "file": "native/workbench-2.x/helvetica/18",
+      "name": "helvetica.font",
+      "height": 18,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 10,
+      "baseline": 13,
+      "raster_fnv64": "6d7ff96ac08ec8a4"
+    },
+    {
+      "file": "native/workbench-2.x/helvetica/24",
+      "name": "helvetica.font",
+      "height": 24,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 14,
+      "baseline": 18,
+      "raster_fnv64": "ea9704de932dfd55"
+    },
+    {
+      "file": "native/workbench-2.x/helvetica/9",
+      "name": "helvetica.font",
+      "height": 9,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 5,
+      "baseline": 6,
+      "raster_fnv64": "134cc85ce7bc6f64"
+    },
+    {
+      "file": "native/workbench-2.x/opal/12",
+      "name": "opal.font",
+      "height": 12,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 9,
+      "baseline": 8,
+      "raster_fnv64": "1cb6323be2fabf83"
+    },
+    {
+      "file": "native/workbench-2.x/opal/9",
+      "name": "opal.font",
+      "height": 9,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 10,
+      "baseline": 6,
+      "raster_fnv64": "432170786cf9176c"
+    },
+    {
+      "file": "native/workbench-2.x/ruby/12",
+      "name": "ruby.font",
+      "height": 12,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 11,
+      "baseline": 8,
+      "raster_fnv64": "317c25da1c694eef"
+    },
+    {
+      "file": "native/workbench-2.x/ruby/15",
+      "name": "ruby.font",
+      "height": 15,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 14,
+      "baseline": 10,
+      "raster_fnv64": "816c070627e7f333"
+    },
+    {
+      "file": "native/workbench-2.x/ruby/8",
+      "name": "ruby.font",
+      "height": 8,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 11,
+      "baseline": 5,
+      "raster_fnv64": "529660f67390e903"
+    },
+    {
+      "file": "native/workbench-2.x/sapphire/14",
+      "name": "sapphire.font",
+      "height": 14,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 11,
+      "baseline": 10,
+      "raster_fnv64": "93cc89ee23e285ce"
+    },
+    {
+      "file": "native/workbench-2.x/sapphire/19",
+      "name": "sapphire.font",
+      "height": 19,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 12,
+      "baseline": 14,
+      "raster_fnv64": "f52529c63b2b2c42"
+    },
+    {
+      "file": "native/workbench-2.x/times/11",
+      "name": "times.font",
+      "height": 11,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 5,
+      "baseline": 7,
+      "raster_fnv64": "aafa86831507814a"
+    },
+    {
+      "file": "native/workbench-2.x/times/13",
+      "name": "times.font",
+      "height": 13,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 6,
+      "baseline": 9,
+      "raster_fnv64": "b9b0846738f90253"
+    },
+    {
+      "file": "native/workbench-2.x/times/15",
+      "name": "times.font",
+      "height": 15,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 7,
+      "baseline": 10,
+      "raster_fnv64": "a2ed3b0a638480b4"
+    },
+    {
+      "file": "native/workbench-2.x/times/18",
+      "name": "times.font",
+      "height": 18,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 10,
+      "baseline": 13,
+      "raster_fnv64": "f45063c299da166f"
+    },
+    {
+      "file": "native/workbench-2.x/times/24",
+      "name": "times.font",
+      "height": 24,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 13,
+      "baseline": 17,
+      "raster_fnv64": "35b54a6eb885c2e8"
+    },
+    {
+      "file": "native/workbench-2.x/topaz/11",
+      "name": "topaz.font",
+      "height": 11,
+      "sets": [
+        "2.x+"
+      ],
+      "width": 8,
+      "baseline": 8,
+      "raster_fnv64": "24383424cde2b64f"
+    },
+    {
+      "file": "native/supplied/courier/30",
+      "name": "courier.font",
+      "height": 30,
+      "sets": [
+        "1.3",
+        "2.x+"
+      ],
+      "width": 18,
+      "baseline": 23,
+      "raster_fnv64": "2ac76e06415bdfa9"
+    },
+    {
+      "file": "native/supplied/courier/36",
+      "name": "courier.font",
+      "height": 36,
+      "sets": [
+        "1.3",
+        "2.x+"
+      ],
+      "width": 22,
+      "baseline": 27,
+      "raster_fnv64": "3d5f63ce33c632af"
+    },
+    {
+      "file": "native/supplied/times/30",
+      "name": "times.font",
+      "height": 30,
+      "sets": [
+        "1.3",
+        "2.x+"
+      ],
+      "width": 16,
+      "baseline": 22,
+      "raster_fnv64": "003a454349988a2a"
+    },
+    {
+      "file": "native/supplied/times/36",
+      "name": "times.font",
+      "height": 36,
+      "sets": [
+        "1.3",
+        "2.x+"
+      ],
+      "width": 20,
+      "baseline": 27,
+      "raster_fnv64": "1b88d4fb1232bc49"
+    },
+    {
+      "file": "native/pearl/8",
+      "name": "pearl.font",
+      "height": 8,
+      "sets": [
+        "1.3",
+        "2.x+"
+      ],
+      "width": 8,
+      "baseline": 6,
+      "raster_fnv64": "a2c146d0b0308d1e"
+    }
+  ]
+}

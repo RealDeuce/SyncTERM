@@ -1,57 +1,88 @@
-Amiga bitmap strike sources from IcyTerm commit b568f6a087b7ececb28d0b45edd38f70a6bf692d.
+Native Amiga disk-font files embedded unchanged.
 
-The manifest pins each input and retains its original source path. YAFF headers
-retain conversion history and original Workbench/Kickstart provenance. The
-upstream repository license is retained in LICENSE-MIT. Native metrics and
-encoded byte labels are preserved; generated C belongs in the build directory.
+The built-in catalog contains the 30 Workbench 1.3 strikes and the 30
+Workbench 2.x+ strikes. SkyPix Kickstart 1.3 selects the first set; SkyPix
+Kickstart 3.1 selects the second. The reporter's native Courier/30, /36 and
+Times/30, /36 are additional strikes available in both profiles. Native
+Pearl/8 from the local Amiga font drawer supplies the existing default in
+both profiles. Each profile therefore exposes 35 strikes.
 
-Diamond and Ruby baseline corrections are independently pinned to the native
-JR-Comm disk-font metadata supplied with the JR-Comm analysis. Their original
-native paths and SHA-256 identities are recorded per strike in the manifest.
-No ROM or executable bytes are compiled into the application. The bitmap input
-hashes continue to identify the unmodified upstream YAFF files.
+`manifest.json` pins every original file with its SHA-256, family, height,
+profile membership and source path. `provenance.json` retains disk image
+identities and the qualifications on archive labels. The verified 2.04 disk
+and sampled 2.1/3.1 disks have identical stock font bytes. All 30 reporter
+stock strikes match those later native files exactly; only its four extra
+native strikes need separate copies. The original font data retains its
+Commodore/Agfa or other original provenance, separately from project code.
 
-Nominal cell widths are retained from native disk-font metadata where those
-reference files are available, with per-strike source hashes in the manifest.
-Other compiled strikes use the YAFF cell size or bounding width. Glyph kerning
-and advances remain independent of this nominal grid width.
+`generate_fonts.py` only emits C byte arrays containing the exact native file
+contents. It does not parse or convert fonts. At runtime the existing
+`st_amiga_font_decode()` memory decoder loads those embedded bytes, exactly
+as it loads a disk font. The same glyph representation and drawing path
+serve both. The decoded built-ins are immutable, process-owned objects,
+published with `st_call_once`; callers borrow them and release is a no-op.
+No file access is required to decode a built-in. Installed native packages
+remain explicit overrides and continue to use filesystem access.
 
-Times/15's nominal width is pinned to the native Workbench strike retained in
-`FS-UAE/Hard Drives/Default/Fonts/times/15`, with its SHA-256 in the manifest.
-It declares `tf_XSize=7`, while the converted YAFF has a 14-pixel bounding box.
-Using that bounding width for JR-Comm's receive forecast prematurely wraps the
-proportional text on Reign of Fire's welcome screen. The bitmap and individual
-glyph advances are unchanged.
+The catalog contains no YAFF, SPF or converted replacement fonts. Sources
+that do not supply native Amiga files are excluded. In particular, there are
+no invented Sapphire/15 or /18 or Topaz/8 or /9 entries from other formats.
+The older IcyTerm inputs, metric overrides and format-specific comparison
+artifacts have been removed.
 
-The SpitfireTN/syncterm-skypix report collection at commit
-647972fb9789deb5942f471b51a43be85578eafe independently supplies matching native
-strikes for Emerald, Garnet, Helvetica, Opal, Sapphire/14 and /19, Times/11
-through /24, and Topaz/11. All glyph advances and normalized ink positions
-were compared before pinning their nominal widths; 18 converted widths needed
-correction. Source paths and SHA-256 values are retained in the manifest.
-The existing Courier/Times alternate versions and JR-Comm Ruby/Diamond metrics
-remain selected rather than replacing fonts solely to match the report bundle.
+`native-reference.json` independently pins all 65 decoded inputs. Its
+FNV-1a-64 digest starts at 14695981039346656037; each integer is a big-endian
+16-bit word, with signed coordinates represented modulo 65536. Words are:
+font height, baseline, nominal width; then, for each byte 0..255, advance,
+number of lit pixels, and each lit pixel's X/Y sorted by Y then X. X is the
+native bearing plus glyph column; Y is row+height-baseline-1. Missing bytes
+select the native default glyph. This reference was decoded with amitools
+0.8.1, independently of SyncTERM. CTest checks every strike in both profiles.
 
-The native disk references and three-way comparison in `../reference/README.adoc`
-establish that all 30 stock native strikes in that report bundle exactly match
-the sampled Workbench 2.1/3.1 files. The `workbench-3.1_` YAFF filenames do not
-establish compiled equivalence: five Courier conversions and five Ruby/Diamond
-metric selections differ from those native files. Twenty compiled stock strikes
-match the later native fonts exactly; none matches the entire corresponding
-1.3 font. The reference files are not compiled or installed.
-The later check also found exact matches for all 30 stock native strikes on a
-catalogue-verified Workbench 2.04 Fonts disk, named `AmigaFonts2.0`. A Release 2
-source is consistent with the report bundle; the identical 2.04/2.1/3.1 files
-cannot identify its exact source release. Archive-labelled 2.0 and 2.05 images
-are recorded with their provenance qualifications in the reference README.
+Workbench 1.3 versus Workbench 2.x+
+-----------------------------------
 
-report-font-reference.json pins the 38 requested family/size pairs across both
-native and SPF collections. Twenty matching native strikes include expected
-metrics and canonical FNV-1a-64 ink hashes. These were decoded independently
-with SkyPix/tools/amiga_font.py's amitools HUNK relocator, not with SyncTERM.
-For each byte (using the native default glyph outside tf_LoChar..tf_HiChar),
-proportional bearing/advance are tf_CharKern and tf_CharKern+tf_CharSpace;
-monospaced bearing/advance are floor((tf_XSize-glyph_width)/2) and tf_XSize.
-Ink Y is row+tf_YSize-tf_Baseline-1. The JSON specifies the hash word order.
-The C test hashes the compiled catalog independently and the Python test compares
-only the matching variants; other entries assert availability, not equivalence.
+The same 30 family/height pairs occur in both sets. All original file bytes
+are retained. Printable ASCII glyph shapes agree in 29 strikes; Topaz/11
+redraws 64 of the 95 printable ASCII glyphs. Other changes include control
+and default glyphs and some byte-0xA0 mappings. Baselines change in 28
+strikes and nominal widths in 24. These fields control positioning and
+grid operations; they are independent of proportional glyph advances.
+
+For these native files, byte offset `0x72` holds the big-endian 16-bit
+nominal width and `0x74` holds the baseline. For example, Ruby/8 has
+`00 0f` / `00 06` in 1.3 and `00 0b` / `00 05` in 2.x+. The runtime decoder
+reads those bytes directly. It does not patch them.
+
+| Strike | 1.3 width / baseline | 2.x+ width / baseline |
+| --- | --- | --- |
+| courier/11 | 6 / 9 | 6 / 8 |
+| courier/13 | 7 / 10 | 7 / 9 |
+| courier/15 | 9 / 12 | 9 / 11 |
+| courier/18 | 11 / 14 | 11 / 13 |
+| courier/24 | 15 / 19 | 15 / 18 |
+| diamond/12 | 15 / 9 | 8 / 8 |
+| diamond/20 | 20 / 14 | 12 / 13 |
+| emerald/17 | 20 / 13 | 13 / 12 |
+| emerald/20 | 20 / 15 | 13 / 14 |
+| garnet/9 | 20 / 7 | 10 / 7 |
+| garnet/16 | 20 / 11 | 10 / 10 |
+| helvetica/9 | 2 / 7 | 5 / 6 |
+| helvetica/11 | 3 / 9 | 6 / 8 |
+| helvetica/13 | 4 / 10 | 7 / 9 |
+| helvetica/15 | 4 / 12 | 8 / 11 |
+| helvetica/18 | 5 / 14 | 10 / 13 |
+| helvetica/24 | 6 / 19 | 14 / 18 |
+| opal/9 | 12 / 7 | 10 / 6 |
+| opal/12 | 12 / 9 | 9 / 8 |
+| ruby/8 | 15 / 6 | 11 / 5 |
+| ruby/12 | 15 / 9 | 11 / 8 |
+| ruby/15 | 20 / 11 | 14 / 10 |
+| sapphire/14 | 19 / 11 | 11 / 10 |
+| sapphire/19 | 19 / 15 | 12 / 14 |
+| times/11 | 2 / 8 | 5 / 7 |
+| times/13 | 3 / 10 | 6 / 9 |
+| times/15 | 3 / 11 | 7 / 10 |
+| times/18 | 4 / 14 | 10 / 13 |
+| times/24 | 6 / 18 | 13 / 17 |
+| topaz/11 | 8 / 8 | 8 / 8 |

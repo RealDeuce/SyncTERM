@@ -4,6 +4,7 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "string_compat.h"
+#include "st_threads.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,24 +29,51 @@ static bool names_equal(const char *a, const char *b)
 	}
 	return *a == *b;
 }
-const st_amiga_font_t *st_amiga_font_builtin(const char *name, unsigned height)
+/* The process owns these immutable decoded fonts. once publishes the complete
+ * cache to all callers; release() never frees a borrowed built-in pointer. */
+static st_once_flag_t builtin_once = ST_ONCE_FLAG_INIT;
+static void decode_builtins(void)
+{
+	for (size_t i = 0; i < st_amiga_builtins_count; ++i) {
+		struct st_amiga_builtin *entry = &st_amiga_builtins[i];
+		st_amiga_font_t *font = NULL;
+		if (st_amiga_font_decode(&font, entry->bytes, entry->size) == 0) {
+			if (font->height != entry->height) {
+				st_amiga_font_release(font);
+				continue;
+			}
+			font->builtin = true;
+			entry->font = font;
+		}
+	}
+}
+const st_amiga_font_t *st_amiga_font_builtin(enum st_amiga_font_set set, const char *name, unsigned height)
 {
 	if (name == NULL)
 		return NULL;
+	st_call_once(&builtin_once, decode_builtins);
 	for (size_t i = 0; i < st_amiga_builtins_count; ++i)
-		if (st_amiga_builtins[i].font->height == height &&
+		if ((st_amiga_builtins[i].sets & (unsigned)set) && st_amiga_builtins[i].height == height &&
 			names_equal(name, st_amiga_builtins[i].name))
 			return st_amiga_builtins[i].font;
 	return NULL;
 }
-size_t st_amiga_font_builtin_count(void) { return st_amiga_builtins_count; }
-const char *st_amiga_font_builtin_name(size_t i, unsigned *height)
+size_t st_amiga_font_builtin_count(enum st_amiga_font_set set)
 {
-	if (i >= st_amiga_builtins_count)
-		return NULL;
-	if (height)
-		*height = st_amiga_builtins[i].font->height;
-	return st_amiga_builtins[i].name;
+	size_t count = 0;
+	for (size_t i = 0; i < st_amiga_builtins_count; ++i)
+		if (st_amiga_builtins[i].sets & (unsigned)set) ++count;
+	return count;
+}
+const char *st_amiga_font_builtin_name(enum st_amiga_font_set set, size_t index, unsigned *height)
+{
+	for (size_t i = 0; i < st_amiga_builtins_count; ++i) {
+		if (!(st_amiga_builtins[i].sets & (unsigned)set)) continue;
+		if (index-- != 0) continue;
+		if (height) *height = st_amiga_builtins[i].height;
+		return st_amiga_builtins[i].name;
+	}
+	return NULL;
 }
 unsigned st_amiga_font_width(const st_amiga_font_t *font) { return font->width; }
 unsigned st_amiga_font_height(const st_amiga_font_t *font) { return font->height; }
@@ -56,7 +84,7 @@ const struct st_amiga_glyph *st_amiga_font_glyph(const st_amiga_font_t *font, ui
 }
 void st_amiga_font_release(const st_amiga_font_t *font)
 {
-	if (font && font->storage) {
+	if (font && font->storage && !font->builtin) {
 		free(font->storage);
 		free((void *)font);
 	}

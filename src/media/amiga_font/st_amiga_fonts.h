@@ -25,6 +25,6 @@ int st_amiga_fonts_install(const char *directory, const char *descriptor, bool r
 int st_amiga_fonts_remove(const char *directory, const char *family);
 /* Exact installed strike, exact compiled strike; missing/corrupt custom data is
  * reported even when a compiled fallback is returned. Loaded data is owned. */
-int st_amiga_fonts_lookup(const st_amiga_font_t **result, const char *directory, const char *name,
+int st_amiga_fonts_lookup(const st_amiga_font_t **result, enum st_amiga_font_set set, const char *directory, const char *name,
 						  unsigned height);
 #endif

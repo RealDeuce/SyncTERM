@@ -1,0 +1,10 @@
+Native Amiga bitmap font data
+
+Workbench 1.3 and Workbench 2.x+ files originate from Commodore-Amiga's
+native bitmap font sets. The additional native Courier/30, Courier/36,
+Times/30 and Times/36 files identify themselves as AWeb 39.0, dated 1996.
+The native Pearl/8 file comes from the local Amiga font drawer.
+
+The original files are retained unchanged. Their individual SHA-256
+identities and source paths are recorded in manifest.json; disk-image
+identities are recorded in provenance.json.

@@ -130,7 +130,7 @@ st_wren_codepage_test_main(void)
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
 		/* A replacement raster has its own mapping, not the bundled flag. */
 		CHECK(st_font_catalog_load_amiga(fonts, 2,
-		    st_amiga_font_builtin("pearl.font", 8), ST_CODEPAGE_CP1251) == 0);
+		    st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "pearl.font", 8), ST_CODEPAGE_CP1251) == 0);
 		const struct st_cterm_config terminal_config = {
 			.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
 			.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,

@@ -31,7 +31,7 @@ static int check_amiga_descenders(void)
 	st_font_catalog_t *catalog = NULL;
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&catalog, console) == 0);
-	CHECK(st_font_catalog_load_amiga(catalog, 0, st_amiga_font_builtin("pearl.font", 8),
+	CHECK(st_font_catalog_load_amiga(catalog, 0, st_amiga_font_builtin(ST_AMIGA_FONT_SET_2PLUS, "pearl.font", 8),
 									 ST_CODEPAGE_ISO_8859_1) == 0);
 	uint16_t identifier;
 	CHECK(st_font_catalog_identifier(catalog, 0, &identifier));

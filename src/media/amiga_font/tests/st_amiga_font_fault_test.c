@@ -93,7 +93,7 @@ int main(void)
 	CHECK(st_amiga_fonts_install(root, file, true, NULL) == IO_ERROR_INVALID_FORMAT);
 	corrupt_copy = false;
 	const st_amiga_font_t *retained = NULL;
-	CHECK(st_amiga_fonts_lookup(&retained, root, "Fault.font", 3) == 0);
+	CHECK(st_amiga_fonts_lookup(&retained, ST_AMIGA_FONT_SET_2PLUS, root, "Fault.font", 3) == 0);
 	CHECK(st_amiga_font_height(retained) == 3);
 	st_amiga_font_release(retained);
 	for (unsigned failure = 1; failure <= 3; ++failure) {
@@ -103,7 +103,7 @@ int main(void)
 		CHECK(st_amiga_fonts_install(root, file, true, NULL) == IO_ERROR_NO_SPACE);
 		fail_first = fail_second = 0;
 		const st_amiga_font_t *selected = NULL;
-		CHECK(st_amiga_fonts_lookup(&selected, root, "Fault.font", 3) == 0);
+		CHECK(st_amiga_fonts_lookup(&selected, ST_AMIGA_FONT_SET_2PLUS, root, "Fault.font", 3) == 0);
 		CHECK(st_amiga_font_height(selected) == 3);
 		st_amiga_font_release(selected);
 	}
@@ -117,7 +117,7 @@ int main(void)
 	cleanup_suffix = ".removed";
 	CHECK(st_amiga_fonts_remove(root, "Fault.font") == 0);
 	const st_amiga_font_t *selected = NULL;
-	CHECK(st_amiga_fonts_lookup(&selected, root, "Fault.font", 3) == IO_ERROR_NOT_FOUND);
+	CHECK(st_amiga_fonts_lookup(&selected, ST_AMIGA_FONT_SET_2PLUS, root, "Fault.font", 3) == IO_ERROR_NOT_FOUND);
 	cleanup_suffix = NULL;
 	CHECK(st_amiga_fonts_remove(root, "Fault.font") == IO_ERROR_NOT_FOUND);
 	return 0;

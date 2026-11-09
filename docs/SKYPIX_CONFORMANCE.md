@@ -76,20 +76,28 @@ not the complete external research suite. Reference ROM SHA-256 identities:
 | Kickstart 2.04 A3000 | `563f948af19c09daed1f06b8760221ff4b2789c1690cdcfbce2c941157af23d1` |
 
 The latter two references agree with the 3.1 rendering rules in the retained
-cases. No ROM or executable is bundled. Font inputs, original conversion
-headers, upstream license, per-strike hashes and native Diamond/Ruby baseline
-corrections are retained in `src/media/amiga_font/data/`. The 39 strikes in 11
-families come from IcyTerm commit
-`b568f6a087b7ececb28d0b45edd38f70a6bf692d` and compile into build-tree C data.
+cases. The built-in font catalog embeds 65 unchanged native Amiga disk-font
+files and parses them with the same memory decoder as installed fonts. The
+30 Workbench 1.3 strikes belong to the Kickstart 1.3 profile, and the 30
+Workbench 2.x+ strikes belong to the Kickstart 3.1 profile. Native Pearl/8
+and the supplied native Courier/30, /36 and Times/30, /36 are shared, yielding
+35 strikes per profile. Input SHA-256 identities, disk provenance and
+independent native glyph/metric hashes are in `src/media/amiga_font/data/`.
+No converted font inputs or metric overrides are used.
 
 The 2026-11-08 RoF capture supplied two sessions with identical public welcome
 artwork, with status enabled and disabled. The retained network-line cases
-use Times/15's native `tf_XSize=7`, rather than its YAFF bounding width of 14.
+use each profile's native Times/15 metrics (`tf_XSize=3` for 1.3 and 7 for 2.x+).
 The native strike's identity is pinned in the font manifest. Literal final X/Y
 and complete glyph-mask hashes come from independently decoding that strike;
-the capture supplies input only. The updated first-line mask for Kick 1.3
-comes from issuing Text separately for each byte through the original 1.3 ROM;
-its SHA-256 is `4ee6aa59a25a1e0b3eea6cdd9052f85cf3ba93225ce5bcd9d8f8be7b7c29e7e4`.
+the capture supplies input only. The earlier first-line Kick 1.3 mask
+`4ee6aa59a25a1e0b3eea6cdd9052f85cf3ba93225ce5bcd9d8f8be7b7c29e7e4`
+was checked by issuing Text separately for each byte through the original
+1.3 ROM using the later font. Selecting the actual Workbench 1.3 Times/15
+(SHA-256 `85366fd141dc455976d3ced219089b3786c7ef3e4e203a22cbf3b85a7092629e`)
+moves its native baseline from 10 to 11. Independent decoding with the same
+per-byte clipping rule gives the current first-line mask
+`fd904ee3a54e917843de0460d8118deb23b3801bbb8341498c412dd8a0bb3b6f`.
 The same 3.1 ROM replay retains the prior mask; both finish at X=488.
 The second line now uses its captured pen 11 with the captured sixteen-colour
 request, giving steel blue rather than the former eight-colour alias to red.
@@ -223,12 +231,12 @@ ctest --test-dir <build> -R 'amiga_font|cterm_skypix|skypix_rom_vectors|syncterm
 | Test | Coverage |
 | --- | --- |
 | `amiga_font` | HUNK relocation, zero-offset references, metrics, bit rasters, malformed input, descriptors and confined paths; compiled catalog, package lifecycle and retained loaded fonts. |
-| `amiga_font_report` | All 38 family/size pairs from the pinned 1.10 report collection; independent native metrics and full byte-glyph ink/advance hashes for 20 matching strikes. Existing alternate versions remain selected. |
+| `amiga_font_report` | All 65 native inputs, with exact independent metrics and full byte-glyph ink/advance hashes for all 35 strikes in each Kickstart profile. Non-native font formats are excluded. |
 | `font_catalog` | Literal Pearl g/p/y rows retain descenders in fixed console cells. |
 | `amiga_font_transactions` | Injected rename/rollback failures and secondary cleanup failures before/after the package publication boundary. |
 | `cterm_skypix_audio` | Independent native raw vector, literal pre-mixer linear PCM, signed-byte alphabet, quantized periods, varying pull/block sizes and repeat phase; odd/max/truncated/zero/oversized data, allocation/open/backend failures, latency, bounded long-sample playback, channel-1 routing, zero-as-one, parser split/holds, previous-sample retention, reset/EOF/shutdown and active destruction. Pull/fake backends only. |
 | `cterm_skypix` | Parser splits, command/state/pixel expectations, both variants, status geometry, resets, delays, proportional overhang, standard ByteRun1 boundaries/no-op, brush palette/depth ownership and malformed replacement, palette/depth transitions, short delays, and literal Diamond text positions. Raster/position fixtures explicitly gate cursor operations rather than depending on overlay exclusion. |
-| `cterm_skypix_cursor` | Independent SkyTERM shape/colour expectations and clean-cursor lifecycle: nominal widths 8/9/20, text baseline, exact two-phase background restoration, clipping, first-bang entry, unknown/rejected commands, named/default fonts, SGR reset, no idle phase, native 8/16-colour indices, every input split and UTF-8 revision. Save/restore, brush capture and retired scrollback reject abandoned cursor pixels. Both Kick variants and status choices. |
+| `cterm_skypix_cursor` | Independent SkyTERM shape/colour expectations and clean-cursor lifecycle: nominal widths 8/9/12/20, text baseline, exact two-phase background restoration, clipping, first-bang entry, unknown/rejected commands, named/default fonts, SGR reset, no idle phase, native 8/16-colour indices, every input split and UTF-8 revision. Save/restore, brush capture and retired scrollback reject abandoned cursor pixels. Both Kick variants and status choices. |
 | `syncterm_skypix_cursor` | Reply-fenced complete-scene expectations from literal Pearl A/B/é rows and cursor rectangles. Both variants, CP437/UTF-8, status choices and 640x200/640x400; idle stability, command/default/named-font transitions, three/four-plane palette-dependent colour and menu snapshot restoration, with no console cursor overlay. |
 | `skypix_rom_vectors` | Independent ordered point sets/hashes and Diamond 20 text for the retained ROM vectors. |
 | `syncterm_skypix_conformance` | Real application over loopback TCP, both variants with status on/off, fixed mode resolution/aspect/system grid, status within the selected mode, Current/Custom/non-Amiga geometry and padding, and Latin-1/CP437/UTF-8; literal Pearl A/g/p/y rows, synthetic C1 glyphs, Ruby 12 metrics, editor save/reload and system-font UI isolation; both variants with Diamond 20 in CP437/UTF-8 on Amiga 640x200/640x400, proportional cursor movement and unscaled 8x8 menu rasters; literal native glyph rows below Y=199 and exact mode/status clipping; palette/brush pixels, transfers/cache/error recovery, responsive delays, reset/EOF and disconnected scrollback. Replies fence one coherent capture of related cells, pixels, palette and state. |

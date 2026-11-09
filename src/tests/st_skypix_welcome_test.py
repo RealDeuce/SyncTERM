@@ -13,19 +13,23 @@ from syncterm_fixture import fixture
 # Only these public welcome lines are retained from the user's 2026-11-08
 # /tmp/rof.pcap. Both sessions send identical artwork. No login data is used.
 # Expected masks come from amiga_font.py's load_font/text_mask on the native
-# FS-UAE Fonts/times/15, SHA256 d00caceb09f0ad46052b37ee5409040e56cf3c99125f867bf6ebec4d791a309a.
+# Workbench 1.3: SHA256 85366fd141dc455976d3ced219089b3786c7ef3e4e203a22cbf3b85a7092629e.
+# Workbench 2.x+: SHA256 d00caceb09f0ad46052b37ee5409040e56cf3c99125f867bf6ebec4d791a309a.
 # Baseline = command-19 Y + 15 - 1. Hash input: one byte per pixel, row-major
 # 640x200, 1 for a glyph bit and 0 otherwise. Each byte is a separate Text
 # call: Kick 1.3 clips its trailing overhang; Kick 3.1 retains it.
-# The per-byte first-line hashes were also checked by executing Text in the
-# pinned 1.3 and 3.1 ROMs via ~/SkyPix/tools/rom_graphics.py. Pens 4 and 11
+# The per-byte clipping rule was checked by executing Text in the pinned
+# 1.3 and 3.1 ROMs with the later native font. The 1.3 masks here are
+# recomputed independently with the original Workbench 1.3 font, not SyncTERM.
+# Pens 4 and 11
 # and the sixteen-colour request below are the captured wire values.
 LINES = (
     (4, 85, 95, 'JoinLink - Messages - Games - Warez - ROF FTN - irc.rofbbs.com',
-     ('4ee6aa59a25a1e0b3eea6cdd9052f85cf3ba93225ce5bcd9d8f8be7b7c29e7e4',
+     ('fd904ee3a54e917843de0460d8118deb23b3801bbb8341498c412dd8a0bb3b6f',
       'b050d0d47125ee9a3c51fb4c1c9b365bbfb7676e7ab4b50d197f67df692174e3')),
     (11, 75, 127, 'CommodoreNet 64:500/1  *  DiscipleNet 12:316/1  *  FidoNet 1:154/50',
-     ('c8277130050e195aefa2eaaa0f39d4c00e4f956d6a4b08028a2a96a913a5986c',)*2),
+     ('a322d8caddb00d116306c44391b8481e3cbf07a6b856b409b3a48d73b7aa0b60',
+      'c8277130050e195aefa2eaaa0f39d4c00e4f956d6a4b08028a2a96a913a5986c')),
 )
 
 

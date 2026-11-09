@@ -306,7 +306,7 @@ def run_preferences(executable, reports, encoding, height=8):
                 assert edge.primary[(top+383)*stride+1054]==515
                 # Remote changes and reset return to the configured native
                 # font, not Pearl. Compare independent synthetic glyph rows.
-                reset=frame(b"\x1b[10;8!Topaz.font!\x1b[10;0!\x1b[2J\x1b[H"+(b"\x82" if encoding=="CP437" else "é".encode()))
+                reset=frame(b"\x1b[10;11!Topaz.font!\x1b[10;0!\x1b[2J\x1b[H"+(b"\x82" if encoding=="CP437" else "é".encode()))
                 if height==8:
                     for y in range(8):
                         assert reset.primary[(top+y)*stride]==515
@@ -405,23 +405,24 @@ Hook.onKey(Key.f8) {|event|
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
                                 assert value==(0xdddddd if ink else 0),(kick,encoding,x,y,value)
                 def backspace_space(shown, transparent):
-                    position(shown,1,0)
+                    position(shown,1 if kick=="1.3" else 2,0)
                     # Literal W strike from the same native file. BS moves
-                    # twenty pixels; the blank space advances nine. JAM1
+                    # twenty pixels in 1.3 or twelve in 2.x+; space advances nine. JAM1
                     # preserves it; our JAM2 background spans the full strike
                     # height, rather than only one eight-pixel console row.
                     rows=(460551,)*12+(462606,522744,0,0,0,0,0,0)
                     m=shown.metadata
                     for y,bits in enumerate(rows):
                         for x in range(20):
-                            ink=x<19 and bool(bits&(1<<(18-x))) and (transparent or x>=9)
+                            space_start=0 if kick=="1.3" else 8
+                            ink=x<19 and bool(bits&(1<<(18-x))) and (transparent or not space_start<=x<space_start+9)
                             index=(y+m["pixel_top"])*m["plane_width"]+x
                             for plane in (shown.primary,shown.alternate):
                                 value=plane[index]
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
                                 assert value==(0xdddddd if ink else 0),(kick,encoding,transparent,x,y,value)
                 def tcsh_erase(shown):
-                    position(shown,0,0)
+                    position(shown,0 if kick=="1.3" else 1,0)
                     m=shown.metadata
                     # A clean tcsh PTY with TERM=ansi emits BS CSI K for
                     # deletion. JR-Comm H17:1ce0 uses the whole font height.
@@ -431,7 +432,9 @@ Hook.onKey(Key.f8) {|event|
                             for plane in (shown.primary,shown.alternate):
                                 value=plane[index]
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
-                                assert value==0,(kick,encoding,x,y,value)
+                                rows=(460551,)*12+(462606,522744,0,0,0,0,0,0)
+                                remaining=(kick!="1.3" and x<8 and bool(rows[y]&(1<<(18-x))))
+                                assert value==(0xdddddd if remaining else 0),(kick,encoding,x,y,value)
                 # Literal JR-Comm position-probe expectations: baseline 14,
                 # i advances four pixels and W advances twenty. Exact pixel
                 # cursor geometry is independently checked by the cursor fixture.
@@ -493,14 +496,14 @@ Hook.onKey(Key.f8) {|event|
                                 assert value==(0xff0000 if x>=638 and y>=bottom-2 else 0),(kick,encoding,hide_status,x,y,value)
                     # Diamond i keeps its literal 20-pixel strike below the
                     # 200-line boundary. Command 19 puts baseline at Y+19;
-                    # the native baseline 14 puts the strike's top at Y+5.
+                    # native baseline 14/13 puts the strike's top at Y+5/6.
                     shown=frame(b"\x1b[15;2!\x1b[19;100;240!i")
                     position(shown,13,30)
                     rows=(7,7,0,0,0,0,7,7,7,7,7,7,7,7,0,0,0,0,0)
                     for y,bits in enumerate(rows):
                         for x in range(4):
                             for plane in (shown.primary,shown.alternate):
-                                value=plane[(245+y+shown.metadata["pixel_top"])*shown.metadata["plane_width"]+100+x]
+                                value=plane[((245 if kick=="1.3" else 246)+y+shown.metadata["pixel_top"])*shown.metadata["plane_width"]+100+x]
                                 value=(value if value&0x80000000 else shown.palette[value])&0xffffff
                                 assert value==(0xdddddd if x<3 and bits&(4>>x) else 0),(kick,encoding,x,y,value)
                     position(frame(b"\x1bc"),0,0)

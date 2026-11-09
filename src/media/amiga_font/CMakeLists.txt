@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-file(GLOB _amiga_inputs CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/data/*.yaff")
+file(GLOB_RECURSE _amiga_inputs CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/data/native/*")
 set(_amiga_generated "${CMAKE_CURRENT_BINARY_DIR}/amiga_font_data.c")
 add_custom_command(OUTPUT "${_amiga_generated}"
 	COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/generate_fonts.py"
@@ -30,7 +30,7 @@ endif()
 add_library(st_amiga_font STATIC st_amiga_font.c st_amiga_fonts.c
 	${_amiga_directory} "${_amiga_generated}")
 target_include_directories(st_amiga_font PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_amiga_font PRIVATE syncterm_filesystem syncterm_path syncterm_string_compat st_unicode_compare st_unicode_text)
+target_link_libraries(st_amiga_font PRIVATE syncterm_filesystem syncterm_path syncterm_string_compat st_unicode_compare st_unicode_text syncterm_threads)
 set_target_properties(st_amiga_font PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
 	target_compile_definitions(st_amiga_font PRIVATE _CRT_SECURE_NO_WARNINGS)

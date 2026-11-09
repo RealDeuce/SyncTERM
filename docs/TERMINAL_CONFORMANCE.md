@@ -41,7 +41,7 @@ CP437/UTF-8 inventory below and from the historical RIP captures.
 
 SkyPix cursor rendering follows SkyTERM: exact nominal width at the text
 baseline, complementing active native plane bits with no idle blinking or
-separate overlay. `cterm_skypix_cursor` checks widths 8/9/20, clipping,
+separate overlay. `cterm_skypix_cursor` checks widths 8/9/12/20, clipping,
 exact background restoration, the command-entry effect at the first bang,
 unknown/rejected commands, font/reset transitions, Unicode revision, brushes
 and absence of cursor ghosts in brushes and retired scrollback. Unlike SkyTERM,
@@ -71,8 +71,8 @@ RIP identification isolation, immediate outline/fill, positioned text, named
 font framing and reset/editor recovery using literal full-scene expectations.
 It covers both variants, CP437/UTF-8 and status choices with reset/replay;
 native `cterm_skypix` checks every input split and bytewise replay.
-`amiga_font_report` checks all 38 requested font family/size pairs and exact
-native metrics/ink hashes for 20 matching strikes. The user's current ACIS
+`amiga_font_report` checks all 65 embedded native files and exact native
+metrics/ink hashes for all 35 strikes in each Kickstart profile. The user's current ACIS
 screenshot is recorded separately as manual verification, not a pixel golden.
 
 `cterm_skypix_audio` checks the independent signed-PCM vector and literal linear

@@ -171,8 +171,15 @@ static void widths(enum st_cterm_graphics_mode mode, const char *name,
 	const struct st_cterm_config config = {.console = console, .fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS, .graphics_mode = mode,
 		.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_CP437,
-		.amiga_font = st_amiga_font_builtin(name, height), .quiet = true};
+		.amiga_font = st_amiga_font_builtin(mode == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, name, height), .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
+	char select[128];
+	int length = snprintf(select, sizeof(select), "\x1b[10;%u!%s!", height, name);
+	CHECK(length > 0 && (size_t)length < sizeof(select));
+	feed(t, select);
+	CHECK(st_amiga_font_width(t->skypix_engine->font) == width);
+	CHECK(st_amiga_font_baseline(t->skypix_engine->font) == baseline);
+	feed(t, "\x1b[10;0!");
 	feed(t, "\f");
 	rectangle(t, 0, baseline, width, 527);
 	rectangle(t, width, baseline, 1, 512);
@@ -218,8 +225,8 @@ int st_cterm_skypix_cursor_test_main(void)
 			for (int status = 0; status < 2; ++status)
 				for (unsigned colours = 8; colours <= 16; colours += 8)
 					run(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, utf8, status, colours);
-		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Opal.font", 12, 8, 9);
-		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Diamond.font", 20, 14, 20);
+		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Opal.font", 12, kick ? 8 : 9, kick ? 9 : 12);
+		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Diamond.font", 20, kick ? 13 : 14, kick ? 12 : 20);
 	}
 	return 0;
 }

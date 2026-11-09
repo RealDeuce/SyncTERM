@@ -366,7 +366,7 @@ static int set_font(struct cterm_skypix *s, unsigned height, const uint8_t *byte
 	}
 	name[used] = 0;
 	const st_amiga_font_t *font = NULL;
-	int status = st_amiga_fonts_lookup(&font, s->font_directory, name, height);
+	int status = st_amiga_fonts_lookup(&font, s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, s->font_directory, name, height);
 	if (font == NULL)
 		font = s->default_data;
 	if (status != 0) {
@@ -709,8 +709,13 @@ int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *confi
 	s->height = canvas_height;
 	s->cell_width = cw;
 	s->cell_height = ch;
+	s->kick13 = t->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13;
 	s->default_data =
-		config->amiga_font == NULL ? st_amiga_font_builtin("pearl.font", 8) : config->amiga_font;
+		config->amiga_font == NULL ? st_amiga_font_builtin(s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, "pearl.font", 8) : config->amiga_font;
+	if (s->default_data == NULL) {
+		free(s);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
 	s->font_codepage =
 		config->encoding == ST_CTERM_ENCODING_UTF8 ? ST_CODEPAGE_ISO_8859_1 : config->codepage;
 	s->native_default = st_amiga_font_width(s->default_data) != cw ||
@@ -729,7 +734,6 @@ int cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *confi
 			t->altfont[i] = 0;
 		for (unsigned i = 0; i < 5; ++i)
 			t->screen.selectors[i] = 0;
-		s->kick13 = t->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13;
 		t->skypix = 1;
 		t->skypix_engine = s;
 		status = cterm_skypix_reset(s);

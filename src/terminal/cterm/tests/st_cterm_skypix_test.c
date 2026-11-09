@@ -185,6 +185,8 @@ static void depth_tests(st_cterm_t *t)
 }
 static void wrapping_tests(st_cterm_t *t)
 {
+	const bool kick13 = t->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13;
+	const unsigned descent = kick13 ? 5u : 6u;
 	/* Native Diamond/20 advances with the selected measured-wrap policy.
 	 * Writes, explicit flushes and Unicode revisions must agree. */
 	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
@@ -210,7 +212,7 @@ static void wrapping_tests(st_cterm_t *t)
 			CHECK(st_cterm_write(t, run, split, &used) == 0 && used == split);
 			CHECK(st_cterm_write(t, run + split, 33 - split, &used) == 0 && used == 33 - split);
 			CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 132 && t->skypix_engine->y == -5);
+		CHECK(t->skypix_engine->x == 132 && t->skypix_engine->y == (kick13 ? -5 : -6));
 		}
 		memset(run, 'W', 40);
 		run[32] = 0;
@@ -234,7 +236,7 @@ static void wrapping_tests(st_cterm_t *t)
 		run[33] = 0;
 		feed(t, run);
 		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 640 && t->skypix_engine->y == 40);
+		CHECK(t->skypix_engine->x == (kick13 ? 640 : 644) && t->skypix_engine->y == 40);
 		feed(t, "\x1b[?7h\f\x1b[19;32760;40!");
 		feed(t, run);
 		CHECK(st_cterm_finish(t) == 0);
@@ -246,7 +248,7 @@ static void wrapping_tests(st_cterm_t *t)
 		feed(t, run);
 		feed(t, "\ri\nW");
 		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 24 && t->skypix_engine->y == 15);
+		CHECK(t->skypix_engine->x == 24 && t->skypix_engine->y == (kick13 ? 15 : 14));
 		if (utf8) {
 			/* Native i advances four pixels; composed acute-i advances
 			 * eight. Revising the last glyph replaces its prior advance. */
@@ -254,7 +256,7 @@ static void wrapping_tests(st_cterm_t *t)
 			feed(t, run);
 			feed(t, "\xcc\x81i");
 			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 136 && t->skypix_engine->y == -5);
+			CHECK(t->skypix_engine->x == 136 && t->skypix_engine->y == (kick13 ? -5 : -6));
 			feed(t, "\f\x1b[19;636;40!i\xcc\x81i");
 			CHECK(st_cterm_finish(t) == 0);
 			CHECK(t->skypix_engine->x == 4 && t->skypix_engine->y == 60);
@@ -273,8 +275,8 @@ static void wrapping_tests(st_cterm_t *t)
 			CHECK(st_console_get_pixels(&pixels, t->screen.console, &rect, false) == 0);
 			for (unsigned y = 0; y < 31; ++y)
 				for (unsigned x = 0; x < 640; ++x) {
-					bool cleared = y >= 5 && y < 25 && (mode == 2 ||
-						(mode == 0 && x >= 100) || (mode == 1 && x < 120));
+					bool cleared = y >= descent && y < descent + 20 && (mode == 2 ||
+						(mode == 0 && x >= 100) || (mode == 1 && x < (kick13 ? 120u : 112u)));
 					unsigned expected = cleared ? 512 : 515;
 					if (pixels->primary[y * 640 + x] != expected)
 						fprintf(stderr, "EL%u (%u,%u): %u, expected %u\n", mode, x, y + 40,
@@ -700,7 +702,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	CHECK(reset_without_cursor(t) == 0 && !st_cterm_input_paused(t));
 	feed(t, "\x1b[2J\x1b[H\x1b[19;16;21!\x1b[10;20!Diamond.font!<");
 	CHECK(st_cterm_finish(t) == 0);
-	const struct st_console_rect overhang = {26, 29, 1, 9};
+	const struct st_console_rect overhang = {26, graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 29 : 30, 1, 9};
 	CHECK(st_console_get_pixels(&pixels, console, &overhang, false) == 0);
 	unsigned ink = graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 512 : 514;
 	CHECK(pixels->primary[0] == ink && pixels->primary[8] == ink);
@@ -713,7 +715,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	/* Text-position probes remain independent of cursor presentation. Named
 	 * fonts disable SkyTERM's bitmap cursor; its primitive has a focused test. */
 	feed(t, "\x1b[10;20!Diamond.font!\f");
-	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == -5);
+	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -5 : -6));
 	feed(t, "i");
 	CHECK(st_cterm_finish(t) == 0 && t->skypix_engine->x == 4);
 	feed(t, "W");
@@ -729,13 +731,13 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	feed(t, "\n");
 	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == 60);
 	feed(t, "\x1b[19;0;40!i\b");
-	CHECK(t->skypix_engine->x == -16 && t->skypix_engine->y == 40);
+	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -16 : -8) && t->skypix_engine->y == 40);
 	feed(t, "\b");
-	CHECK(t->skypix_engine->x == -16);
+	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -16 : -8));
 	feed(t, "\x1b[19;100;40!\t");
-	CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 40);
+	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 160 : 192) && t->skypix_engine->y == 40);
 	feed(t, "\v");
-	CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 40);
+	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 160 : 192) && t->skypix_engine->y == 40);
 	feed(t, "\x1b[19;13;51!\x1b[10;0!B\rC\nD");
 	CHECK(st_cterm_finish(t) == 0);
 	CHECK(t->skypix_engine->x == 16 && t->skypix_engine->y == 59);
@@ -770,7 +772,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 	const struct st_cterm_config config = {.console = console, .fonts = fonts,
 		.emulation = ST_CTERM_ANSI_BBS, .encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 		.codepage = ST_CODEPAGE_CP437, .graphics_mode = graphics, .status_line = status_line,
-		.amiga_font = st_amiga_font_builtin(font_height == 20 ? "Diamond.font" : "Ruby.font", font_height),
+		.amiga_font = st_amiga_font_builtin(graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS, font_height == 20 ? "Diamond.font" : "Ruby.font", font_height),
 		.scrollback_lines = capacity, .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
 	feed(t, "\x1b[?25l");
@@ -779,7 +781,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 	for (unsigned i = 0; i < (font_height == 20 ? 9u : 15u); ++i)
 		feed(t, "\r\n");
 	if (first_distance == 19)
-		feed(t, "\x1b[19;0;174!"); /* One pixel above the last nominal baseline. */
+		feed(t, graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? "\x1b[19;0;174!" : "\x1b[19;0;173!"); /* One pixel above the last native baseline. */
 	struct st_pixel_buffer *scene = NULL;
 	CHECK(st_pixel_buffer_create(&scene, 640, 200, true) == 0);
 	for (unsigned y = 0; y < 200; ++y)
@@ -804,7 +806,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		feed(t, "\r\n");
 		CHECK(st_cterm_finish(t) == 0);
 		CHECK(st_console_end_update(console) == 0);
-		CHECK(t->skypix_engine->y + (int)font_height == (font_height == 20 ? 195 : 190));
+		CHECK(t->skypix_engine->y + (int)font_height == (font_height == 20 ? (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 195 : 194) : (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 190 : 189)));
 		if (scroll == 1)
 			CHECK(st_console_set_palette(console, 200, &blue, 1) == 0);
 		uint32_t columns;
@@ -909,7 +911,7 @@ static void pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode grap
 		narrow[161] = 0;
 		feed(t, narrow);
 		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->y + 20 == 195);
+		CHECK(t->skypix_engine->y + 20 == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 195 : 194));
 		uint32_t columns;
 		size_t rows;
 		CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0 && rows > 0);
