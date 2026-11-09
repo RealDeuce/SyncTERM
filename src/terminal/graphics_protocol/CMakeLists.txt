@@ -1,0 +1,26 @@
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+add_library(st_graphics_protocol STATIC st_graphics_parser.c)
+target_include_directories(st_graphics_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(st_graphics_protocol PUBLIC syncterm_io_error)
+set_target_properties(st_graphics_protocol PROPERTIES
+	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_graphics_protocol PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+else()
+	target_compile_options(st_graphics_protocol PRIVATE
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+endif()
+
+if(BUILD_TESTING)
+	add_executable(st_graphics_parser_test tests/st_graphics_parser_test.c)
+	target_link_libraries(st_graphics_parser_test PRIVATE st_graphics_protocol)
+	set_target_properties(st_graphics_parser_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_graphics_parser_test PRIVATE /W4)
+	else()
+		target_compile_options(st_graphics_parser_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME graphics_protocol_parser COMMAND st_graphics_parser_test)
+	set_tests_properties(graphics_protocol_parser PROPERTIES TIMEOUT 20)
+endif()

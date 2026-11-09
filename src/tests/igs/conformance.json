@@ -1,0 +1,1085 @@
+{
+  "schema_version": 1,
+  "target": "IGS221/IG221.ACC serial / intended US TOS 1.04 software graphics",
+  "reference_root": "~/IGS/docs/igs/",
+  "contract": {
+    "pixel_fidelity": "exact for intended valid operations",
+    "audio": "functional synthesis and playback tests; manual listening after implementation; no PCM/reference comparison gate",
+    "video_hz": 60,
+    "sound_hz": 200,
+    "bugs": "safe documented corrections; no memory corruption or accidental overflow emulation",
+    "older_profiles": false,
+    "big_condor_implementations": false
+  },
+  "foundations": [
+    {
+      "id": "shared-parser",
+      "status": "complete",
+      "tests": [
+        "graphics_protocol_parser"
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc, existing Release CMake configuration: graphics_protocol_parser passed.",
+        "All 47 top-level commands and 16 X selectors checked against the local reference command index; all listed source chapters exist.",
+        "cmake -S . -B build; cmake --build build -j 4: full native application build passed. Existing build-tree timestamp/clock-skew warnings were emitted; the new C sources compiled without warnings."
+      ],
+      "commit": "recorded by the next completed step"
+    },
+    {
+      "id": "igs-state-raster-clock",
+      "status": "pending",
+      "tests": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "application-integration",
+      "status": "pending",
+      "tests": [],
+      "verification": [],
+      "commit": null
+    }
+  ],
+  "commands": [
+    {
+      "id": "X",
+      "phase": "dispatcher",
+      "references": [
+        "22-palette-bitmap-x-dispatch.adoc"
+      ],
+      "order": 0,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "I",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 1,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "R",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 2,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "g",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 3,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "M",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 4,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "C",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 5,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "S",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 6,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "H",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 7,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "A",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 8,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "T",
+      "phase": "attributes",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 9,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "P",
+      "phase": "lines",
+      "references": [
+        "15-graphics-commands.adoc",
+        "19-extended-math-sweeps.adoc"
+      ],
+      "order": 10,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "L",
+      "phase": "lines",
+      "references": [
+        "15-graphics-commands.adoc",
+        "19-extended-math-sweeps.adoc"
+      ],
+      "order": 11,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "D",
+      "phase": "lines",
+      "references": [
+        "15-graphics-commands.adoc",
+        "19-extended-math-sweeps.adoc"
+      ],
+      "order": 12,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X10",
+      "phase": "lines",
+      "references": [
+        "15-graphics-commands.adoc",
+        "19-extended-math-sweeps.adoc"
+      ],
+      "order": 13,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "z",
+      "phase": "lines",
+      "references": [
+        "15-graphics-commands.adoc",
+        "19-extended-math-sweeps.adoc"
+      ],
+      "order": 14,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "Z",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 15,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "B",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 16,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "U",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 17,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "O",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 18,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "Q",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 19,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "K",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 20,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "J",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 21,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "V",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 22,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "Y",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 23,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "f",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 24,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "F",
+      "phase": "shapes",
+      "references": [
+        "03-raster.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 25,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "E",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 26,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "W",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 27,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "c",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 28,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "p",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 29,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "m",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 30,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "r",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 31,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "k",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 32,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "v",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 33,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "w",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 34,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "l",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 35,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "s",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 36,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "d",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 37,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "i",
+      "phase": "text-console",
+      "references": [
+        "04-text-console.adoc",
+        "14-console-commands.adoc",
+        "15-graphics-commands.adoc"
+      ],
+      "order": 38,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "t",
+      "phase": "waits",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "182-delivery-note-and-wait-commands.adoc"
+      ],
+      "order": 39,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "q",
+      "phase": "waits",
+      "references": [
+        "16-state-timing-commands.adoc",
+        "182-delivery-note-and-wait-commands.adoc"
+      ],
+      "order": 40,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X1",
+      "phase": "extended-state",
+      "references": [
+        "19-extended-math-sweeps.adoc",
+        "20-extended-controls.adoc"
+      ],
+      "order": 41,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X12",
+      "phase": "extended-state",
+      "references": [
+        "19-extended-math-sweeps.adoc",
+        "20-extended-controls.adoc"
+      ],
+      "order": 42,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X7",
+      "phase": "extended-state",
+      "references": [
+        "19-extended-math-sweeps.adoc",
+        "20-extended-controls.adoc"
+      ],
+      "order": 43,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X2",
+      "phase": "extended-state",
+      "references": [
+        "19-extended-math-sweeps.adoc",
+        "20-extended-controls.adoc"
+      ],
+      "order": 44,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X0",
+      "phase": "extended-state",
+      "references": [
+        "19-extended-math-sweeps.adoc",
+        "20-extended-controls.adoc"
+      ],
+      "order": 45,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X13",
+      "phase": "extended-state",
+      "references": [
+        "19-extended-math-sweeps.adoc",
+        "20-extended-controls.adoc"
+      ],
+      "order": 46,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "G",
+      "phase": "raster-animation",
+      "references": [
+        "18-raster-transfer-commands.adoc",
+        "19-extended-math-sweeps.adoc",
+        "22-palette-bitmap-x-dispatch.adoc"
+      ],
+      "order": 47,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X14",
+      "phase": "raster-animation",
+      "references": [
+        "18-raster-transfer-commands.adoc",
+        "19-extended-math-sweeps.adoc",
+        "22-palette-bitmap-x-dispatch.adoc"
+      ],
+      "order": 48,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X11",
+      "phase": "raster-animation",
+      "references": [
+        "18-raster-transfer-commands.adoc",
+        "19-extended-math-sweeps.adoc",
+        "22-palette-bitmap-x-dispatch.adoc"
+      ],
+      "order": 49,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X8",
+      "phase": "raster-animation",
+      "references": [
+        "18-raster-transfer-commands.adoc",
+        "19-extended-math-sweeps.adoc",
+        "22-palette-bitmap-x-dispatch.adoc"
+      ],
+      "order": 50,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X15",
+      "phase": "raster-animation",
+      "references": [
+        "18-raster-transfer-commands.adoc",
+        "19-extended-math-sweeps.adoc",
+        "22-palette-bitmap-x-dispatch.adoc"
+      ],
+      "order": 51,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "b",
+      "phase": "sound",
+      "references": [
+        "06-audio.adoc",
+        "23-note-music-commands.adoc",
+        "24-effect-patch-command.adoc"
+      ],
+      "order": 52,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "n",
+      "phase": "sound",
+      "references": [
+        "06-audio.adoc",
+        "23-note-music-commands.adoc",
+        "24-effect-patch-command.adoc"
+      ],
+      "order": 53,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "N",
+      "phase": "sound",
+      "references": [
+        "06-audio.adoc",
+        "23-note-music-commands.adoc",
+        "24-effect-patch-command.adoc"
+      ],
+      "order": 54,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X5",
+      "phase": "interaction",
+      "references": [
+        "20-extended-controls.adoc",
+        "21-extended-payloads.adoc",
+        "26-query-command.adoc",
+        "27-input-command.adoc"
+      ],
+      "order": 55,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X3",
+      "phase": "interaction",
+      "references": [
+        "20-extended-controls.adoc",
+        "21-extended-payloads.adoc",
+        "26-query-command.adoc",
+        "27-input-command.adoc"
+      ],
+      "order": 56,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X4",
+      "phase": "interaction",
+      "references": [
+        "20-extended-controls.adoc",
+        "21-extended-payloads.adoc",
+        "26-query-command.adoc",
+        "27-input-command.adoc"
+      ],
+      "order": 57,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X6",
+      "phase": "interaction",
+      "references": [
+        "20-extended-controls.adoc",
+        "21-extended-payloads.adoc",
+        "26-query-command.adoc",
+        "27-input-command.adoc"
+      ],
+      "order": 58,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "?",
+      "phase": "interaction",
+      "references": [
+        "20-extended-controls.adoc",
+        "21-extended-payloads.adoc",
+        "26-query-command.adoc",
+        "27-input-command.adoc"
+      ],
+      "order": 59,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "<",
+      "phase": "interaction",
+      "references": [
+        "20-extended-controls.adoc",
+        "21-extended-payloads.adoc",
+        "26-query-command.adoc",
+        "27-input-command.adoc"
+      ],
+      "order": 60,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "&",
+      "phase": "loops-scripts",
+      "references": [
+        "13-dispatch-loops.adoc",
+        "21-extended-payloads.adoc"
+      ],
+      "order": 61,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X9",
+      "phase": "loops-scripts",
+      "references": [
+        "13-dispatch-loops.adoc",
+        "21-extended-payloads.adoc"
+      ],
+      "order": 62,
+      "status": "pending",
+      "dependencies": [],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    }
+  ]
+}

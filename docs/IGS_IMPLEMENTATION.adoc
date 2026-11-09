@@ -1,0 +1,144 @@
+= IGS 2.21 implementation goal
+:toc:
+
+== Goal and current state
+
+Implement all 47 top-level IGS commands and all 16 X selectors as a new
+SyncTERM graphics mode, one verified and committed step at a time. Target
+IGS221/IG221.ACC serial behavior and intended US TOS 1.04 software graphics.
+The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
+202, 206, 208 and 210 establish provenance, scope and interpretation.
+The user's port policy below takes precedence over historical fidelity gates.
+
+The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
+No command is implemented yet. Parser-only tests do not establish command,
+rendering, sound or application support. The X dispatcher remains pending
+until all extended selectors and their dispatch behavior have passed.
+
+== Agreed implementation boundary
+
+* Exact indexed pixels, palettes, glyphs, console output and overlays for
+  intended, valid IGS operations in all three Atari ST resolutions.
+* Implement GIST effects, PSG notes, console sounds and MIDI with a good-faith
+  aim of sounding correct. Reuse SyncTERM MIDI. No bit-identical PCM or
+  development waveform/perceptual comparison gate. Supply a manual listening
+  checklist after implementation, without claiming listening was performed.
+* Honor explicit waits, playback durations, input deadlines and cancellation;
+  do not emulate old hardware throughput. Start with replaceable logical
+  60 Hz video and separate 200 Hz sound/note clocks.
+* Correct clear original bugs. Do not reproduce memory corruption, accidental
+  overflow, uninitialized scratch or machine-fault behavior. Preserve defined
+  valid-input quirks unless identified as bugs; record deliberate corrections
+  and recovery rules with tests.
+* Low 320x200/16, medium 640x200/4, monochrome 640x400/2. Preset low resolution
+  and Atari ST encoding on selection; retain explicitly selected ST modes.
+* Only 2.21 serial compatibility is required. Nested script behavior is in
+  scope; standalone Atari applications, file viewers and host deliveries are
+  not. Add historical compatibility only for an identified existing consumer.
+* BIG and CONDOR inform reuse boundaries, not additional mode implementations.
+
+== Architecture
+
+Create an internal graphics-protocol library with its own target-based CMake
+component. Separate framing, argument acquisition, typed operand evaluation
+and execution. Command descriptors share parameter/coordinate descriptions
+where behavior agrees. Keep variable-arity readers, exact input ownership,
+raw payloads, suspended operations, bounded replay and cancellation explicit.
+Commands consume protocol bytes before any text decoding. Shared machinery
+must allow BIG's I# framing and CONDOR's load/execute framing without putting
+Atari raster or sound policy in the parser. Do not migrate RIP or SkyPix.
+
+IGS owns per-terminal parser/interpreter state, authoritative native planar
+screen data, two memory screens, logical/physical routing, palette and drawing
+attributes, text, console and overlays. Reuse existing Atari ST/VT52 facilities
+where verified. All scene mutations use the same authoritative pixels.
+Presentation uses existing bitmap-console facilities.
+
+Parsing and graphics run on the terminal owner. Long work is resumable and
+bounded per pump. Inject clocks for tests; use monotonic live deadlines.
+Audio uses existing mixer ownership; any required raw MIDI queue uses the
+existing music worker and decoder. Reset/disconnect cancel pending work and
+release all owned audio, buffers and overlays.
+
+Append ST_GRAPHICS_IGS_221, ST_CTERM_GRAPHICS_IGS_221 and GraphicsMode.igs221
+as value 5. Menu/config label: IGS (2.21). Preserve existing values. Replace
+enum-order checks that currently classify later graphics values as SkyPix.
+Update profiles, menus, Wren, session creation, input, geometry and docs.
+Check status, resize, scrollback, reset and reconnect isolation.
+
+== Ordered work
+
+Finish the shared parser, IGS state/raster/clock and application scaffolding
+as separately tested foundations. Then implement each entry below separately,
+introducing downstream primitives only as needed. Establish X dispatch before
+X10; do not mark the complete X command finished at that point.
+
+[cols="1,5",options="header"]
+|===
+|Phase |Individual command steps
+|attributes |`I`, `R`, `g`, `M`, `C`, `S`, `H`, `A`, `T`
+|lines |`P`, `L`, `D`, `X10`, `z`
+|shapes |`Z`, `B`, `U`, `O`, `Q`, `K`, `J`, `V`, `Y`, `f`, `F`
+|text-console |`E`, `W`, `c`, `p`, `m`, `r`, `k`, `v`, `w`, `l`, `s`, `d`, `i`
+|waits |`t`, `q`
+|extended-state |`X1`, `X12`, `X7`, `X2`, `X0`, `X13`
+|raster-animation |`G`, `X14`, `X11`, `X8`, `X15`
+|sound |`b`, `n`, `N`
+|interaction |`X5`, `X3`, `X4`, `X6`, `?`, `<`
+|loops-scripts |`&`, `X9`
+|===
+
+For each step, read the full caller/downstream contracts; add independent
+expectations before subtle changes; implement all applicable selectors,
+payloads, state, replies and cancellation; verify through the real parser and
+presentation path; update the manifest and this ledger; commit the finished
+step. Include reference sections, dependencies, operations, tests, deviations,
+verification and completion commit in every completed entry. A follow-up step
+may record the previous completion commit to avoid a self-referential hash.
+Never treat accepted syntax or a registered callback as implemented behavior.
+
+== Verification and final acceptance
+
+Use one native CMake build and relevant CTest suites for every step. Parser
+fixtures cover whole input, bytewise, every focused split and selected larger
+partitions with identical consumption, state and replies. Test binary marker
+bytes, truncated input, resource bounds, deadline/cancel recovery and replay.
+
+Use source-derived literal results, independent small calculations and pinned
+reference assets. Never generate expected images from SyncTERM. Keep ordinary
+tests independent of ~/IGS/, ROMs and historical executables; import only
+necessary fixtures/tables with provenance and applicable notices.
+
+Native raster tests and control-bitmap application tests must cover all modes,
+clipping, endpoints, patterns, writing modes, text/effects, palette changes,
+overlap blits, console/overlays, status, scrolling and lifecycle. Fence scene
+completion and capture related pixels/cells/palette/state coherently.
+
+Sound tests use silent/injected sinks and verify command/patch/voice state,
+note duration, stop/release, buffered playback, MIDI, synthesized output and
+shutdown. Use fake clocks for waits and continued playback. Disable physical
+audio in fixtures and use private Xvfb for any X11 tests.
+
+Finish only when all 63 command/selector entries and all foundations are
+complete, no required behavior is stubbed, deviations are explicit, and full
+native regressions pass (ANSI, Atari VT52, RIP, SkyPix, profiles, Wren, audio,
+graphics lifecycle). Update TERMINAL_CONFORMANCE.md and IGS inventories.
+Provide the manual sound checklist and verification record. Commit completed
+work; never push without an explicit request.
+
+== Completed steps
+
+=== Shared parser foundation
+
+The internal st_graphics_protocol C17 library implements configurable attention,
+explicit buffered entry, command descriptors, fixed/dynamic parameter acquisition,
+typed operands, bounded text/raw fields and suspension/cancel/EOF boundaries.
+Native graphics_protocol_parser tests pass, including every focused split,
+bytewise replay, literal reader examples, opaque binary markers, unknown
+commands, limits and recovery. Tests do not establish IGS command execution.
+Parser port corrections are recorded in IGS_CONFORMANCE.md.
+
+Verified with the existing native FreeBSD /usr/bin/cc Release CMake build.
+The command ledger's 47+16 entries and listed chapters were independently
+checked against the local reference. Completion commit is recorded by the
+next completed step; all command entries remain pending.
