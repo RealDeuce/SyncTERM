@@ -49,6 +49,7 @@ struct st_console_bitmap_presenter {
 	enum st_console_blink_mode blink_mode;
 	enum st_console_scaling_mode scaling_mode;
 	bool software_scaling_only;
+	bool preserve_window_size;
 	struct st_console_custom_cursor custom_cursor;
 	bool pixel_cursor_enabled;
 	bool cursor_custom;
@@ -355,15 +356,24 @@ st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	current = geometry_width_controls(geometry) ? current_width : current_height;
 	source = geometry_width_controls(geometry) ? source_width : source_height;
 	scale = current / source;
-	if (scale < 1)
+	if (geometry->preserve_window_size && scale == 0) {
+		if (!larger) {
+			*width = current_width;
+			*height = current_height;
+			return 0;
+		}
+		/* The next integer zoom above a preserved fractional size is 1x. */
 		scale = 1;
-	if (larger) {
-		if (scale == UINT32_MAX)
-			return IO_ERROR_OUT_OF_RANGE;
-		++scale;
 	}
 	else {
-		if (scale > 1 && current % source == 0)
+		if (scale < 1)
+			scale = 1;
+		if (larger) {
+			if (scale == UINT32_MAX)
+				return IO_ERROR_OUT_OF_RANGE;
+			++scale;
+		}
+		else if (scale > 1 && current % source == 0)
 			--scale;
 	}
 	status = st_console_scaled_window_size(source_width, source_height,
@@ -414,6 +424,12 @@ st_console_mode_change_size(const struct st_console_bitmap_geometry *previous,
 		    next->aspect_width, next->aspect_height, minimum_width, minimum_height);
 	if (status != 0)
 		return status;
+	if (next->preserve_window_size) {
+		*width = current_width;
+		*height = current_height;
+		*minimum_width = *minimum_height = 1;
+		return 0;
+	}
 	old_scale = geometry_width_controls(previous)
 	    ? (double)current_width / previous->width
 	    : (double)current_height / previous->height;
@@ -502,8 +518,10 @@ st_console_preserve_geometry_scale(
 		    minimum_height);
 	if (status != 0)
 		return status;
-	if (current_width < old_minimum_width
-	    || current_height < old_minimum_height) {
+	if (next->preserve_window_size)
+		*minimum_width = *minimum_height = 1;
+	if (!next->preserve_window_size && (current_width < old_minimum_width
+	    || current_height < old_minimum_height)) {
 		*width = *minimum_width;
 		*height = *minimum_height;
 		return 0;
@@ -540,7 +558,7 @@ st_console_preserve_geometry_scale(
 		numerator = fitted_height;
 		denominator = previous->height;
 	}
-	if (numerator < denominator)
+	if (numerator < denominator && !next->preserve_window_size)
 		numerator = denominator;
 	scaled_source_width = ((uint64_t)next->width * numerator
 	    + denominator / 2U) / denominator;
@@ -549,6 +567,8 @@ st_console_preserve_geometry_scale(
 	if (scaled_source_width > UINT32_MAX
 	    || scaled_source_height > UINT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (scaled_source_width == 0) scaled_source_width = 1;
+	if (scaled_source_height == 0) scaled_source_height = 1;
 	return st_console_aspect_correct_size((uint32_t)scaled_source_width,
 	    (uint32_t)scaled_source_height, next->aspect_width,
 	    next->aspect_height, width, height);
@@ -576,7 +596,7 @@ st_console_bitmap_geometry_scaling(
 	    &minimum_width, &minimum_height);
 	if (status != 0)
 		return status;
-	if (output_width < minimum_width || output_height < minimum_height)
+	if (!geometry->preserve_window_size && (output_width < minimum_width || output_height < minimum_height))
 		return IO_ERROR_OUT_OF_RANGE;
 	width_scaling = (double)output_width / minimum_width;
 	height_scaling = (double)output_height / minimum_height;
@@ -607,7 +627,7 @@ st_console_bitmap_geometry_scaling(
 static struct st_console_rect
 fit_rectangle(uint32_t output_width, uint32_t output_height,
 	uint32_t source_width, uint32_t source_height, uint32_t aspect_width,
-	uint32_t aspect_height)
+	uint32_t aspect_height, bool allow_downscale)
 {
 	struct st_console_rect result = {0, 0, output_width, output_height};
 	uint32_t minimum_width = source_width;
@@ -619,6 +639,8 @@ fit_rectangle(uint32_t output_width, uint32_t output_height,
 
 	(void)st_console_aspect_correct_size(source_width, source_height,
 	    aspect_width, aspect_height, &minimum_width, &minimum_height);
+	if (allow_downscale)
+		minimum_width = minimum_height = 1;
 	if (output_width < minimum_width || output_height < minimum_height) {
 		result.width = minimum_width;
 		result.height = minimum_height;
@@ -742,6 +764,7 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	    || presenter->aspect_width != console->aspect_width
 	    || presenter->aspect_height != console->aspect_height
 	    || presenter->scaling_mode != scaling_mode
+	    || presenter->preserve_window_size != console->preserve_window_size
 	    || presenter->blocky_scaling != console->blocky_scaling;
 
 	(void)st_mutex_lock(&console->display->presentation_mutex);
@@ -769,6 +792,7 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	presenter->custom_cursor = console->custom_cursor;
 	presenter->blink_mode = console->blink_mode;
 	presenter->scaling_mode = scaling_mode;
+	presenter->preserve_window_size = console->preserve_window_size;
 	presenter->blocky_scaling = console->blocky_scaling;
 	presenter->aspect_width = console->aspect_width;
 	presenter->aspect_height = console->aspect_height;
@@ -910,7 +934,7 @@ upload_image(struct st_console_bitmap_presenter *presenter,
 	const struct st_console_rect *rectangle, st_console_bitmap_upload_t upload,
 	void *context)
 {
-	int status = upload == NULL ? 0 : upload(context, pixels, rectangle,
+	int status = upload == NULL || rectangle->width == 0 || rectangle->height == 0 ? 0 : upload(context, pixels, rectangle,
 	    &presenter->images[identity], presenter->generation);
 
 	if (status == 0) {
@@ -1054,9 +1078,9 @@ st_console_bitmap_presenter_frame(
 	presenter->selected_image = identity;
 	destination = fit_rectangle(output_width, output_height,
 	    presenter->images[0]->width, presenter->images[0]->height,
-	    presenter->aspect_width, presenter->aspect_height);
-	if (destination.width < presenter->images[0]->width
-	    || destination.height < presenter->images[0]->height)
+	    presenter->aspect_width, presenter->aspect_height, presenter->preserve_window_size);
+	if (!presenter->preserve_window_size && (destination.width < presenter->images[0]->width
+	    || destination.height < presenter->images[0]->height))
 		return IO_ERROR_INVALID_ARGUMENT;
 	layout_changed = presenter->output_width != output_width
 	    || presenter->output_height != output_height;

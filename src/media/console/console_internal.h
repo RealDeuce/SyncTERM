@@ -171,6 +171,7 @@ struct st_console {
 	uint32_t video_flags;
 	enum st_console_scaling_mode scaling_mode;
 	bool blocky_scaling;
+	bool preserve_window_size;
 	bool color_emoji;
 	uint32_t aspect_width;
 	uint32_t aspect_height;
@@ -432,10 +433,11 @@ int st_console_bitmap_validate_geometry(const st_console_t *console,
 int st_console_scaled_window_size(uint32_t source_width,
 	uint32_t source_height, uint32_t aspect_width, uint32_t aspect_height,
 	double scaling, uint32_t *width, uint32_t *height);
-/* Geometry represented by the current window size, independent of selection. */
+/* Raster geometry and window-sizing policy represented by the backend. */
 struct st_console_bitmap_geometry {
 	uint32_t width, height;
 	uint32_t aspect_width, aspect_height;
+	bool preserve_window_size;
 };
 int st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	uint32_t current_width, uint32_t current_height, bool larger,

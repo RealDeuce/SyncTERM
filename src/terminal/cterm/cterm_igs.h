@@ -42,6 +42,7 @@ struct cterm_igs {
 	int16_t math[128];
 	uint32_t random_seed;
 	int random_range[2][2];
+	/* Each slot owns a distinct indexed image, preserving its native bytes. */
 	struct st_igs_image *memory[2];
 	/* Local monotonic milliseconds; injectable for deadline tests. */
 	int (*now_ms)(uint64_t *);
@@ -49,6 +50,7 @@ struct cterm_igs {
 	unsigned sync_wait_hz;
 	uint64_t wait_deadline;
 	int pending_resolution;
+	int pending_palette;
 	bool feeding, reset_pending;
 	uint8_t warned[32];
 };
@@ -61,6 +63,8 @@ int cterm_igs_finish(struct cterm_igs *);
 int cterm_igs_poll(struct cterm_igs *);
 bool cterm_igs_paused(const struct cterm_igs *);
 int cterm_igs_initialize(struct cterm_igs *, int operation);
+int cterm_igs_resolution(struct cterm_igs *, int requested, int palette);
+int cterm_igs_resolution_complete(struct cterm_igs *, int palette);
 int cterm_igs_palette_pen(struct cterm_igs *, int pen, int red, int green, int blue);
 int cterm_igs_state_init(struct cterm_igs *);
 int cterm_igs_state_reset(struct cterm_igs *);

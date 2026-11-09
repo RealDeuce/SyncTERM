@@ -1,7 +1,8 @@
 # IGS 2.21 conformance
 
 IGS implementation is in progress. The application-selectable IGS 2.21 mode
-implements `I`'s six initialization selectors. Other commands remain pending.
+implements `I`'s six initialization selectors and `R` resolution selection.
+Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -86,7 +87,7 @@ results. Images remain indexed; temporary native bytes are used only when
 changing the plane layout or explicitly importing/exporting native data.
 These are image-format tests, not completed `G`/`X11` commands or application
 integration. The earlier planar-surface and separate-clock experiments have
-been removed. `I5` uses an injected local monotonic deadline.
+been removed. `I5` and changed-colour `R` use injected local monotonic deadlines.
 
 Native `cterm_igs_input` covers the CTerm insertion point in all ST geometries,
 Atari ST byte/UTF-8 input and status on/off. Every focused split and bytewise
@@ -135,6 +136,64 @@ are corrected; I0/I2 restore intended captured values and keep the cache
 coherent. Palette restoration retains the captured host RGB values, including
 custom profile colours. Unavailable desktop pens map safely through its saved
 depth instead of restoring undefined data. These are explicit port policies.
+
+### R: resolution and palette selection
+
+`R` reads both unscaled arguments before applying effects. Only requests 0
+and 1 can change a colour mode; all other requests retain the current mode.
+Monochrome cannot switch to colour through `R`. A current-mode or invalid
+request preserves console position, attributes, wrapping and scene without a
+wait or clear. Every completed `R` restores full-screen clipping. After any
+mode switch and clipping, palette 1 restores the entry snapshot, 2 applies
+IGS defaults and 3 applies VDI defaults. Other palette values make no palette
+call. The entry resolution, graphical attributes, scaling/captured resolution,
+Drawto, G double-control and X14 route remain unchanged.
+
+Host display scaling adjusts to keep the physical window size unchanged during
+low/medium switches, including fractional scales and reduction below native
+width. The full canvas fits that window. For example, low at 3x becomes medium
+at 1.5x; a 320x240 window remains 320x240 when medium needs a 0.5x horizontal
+scale. This display policy is separate from `g`'s coordinate scaler. Other
+console modes retain their existing window-sizing policy. I5 uses the same
+host mode helper.
+
+A changed colour mode uses the same one-sync-unit local deadline and console
+reset as `I5`. Its pending palette is applied after the mode change, before
+following wire bytes resume. Partial/invalid arguments have no command effects;
+timeout, EOF, reset and disconnect discard pending input/work. Palette and clip
+completion do not run after a failed mode preparation.
+
+The common I5/R mode helper prepares both off-screen images before changing
+the console. At a changed plane layout, it replaces their indexed representation
+while preserving every native byte, including padding and retained capacity.
+This is a format-boundary operation; native bytes are temporary and no planar
+shadow is retained. Image objects and their remembered interpretation remain
+owned by the engine. Pixel borrows end at a successful layout change. Same-mode
+`R` does not change image storage. `G`/`X11` command execution remains pending.
+
+Native `cterm_igs_resolution` checks 210 resolution/palette/status combinations,
+including negative array-supplied values, mono lock, same-mode retention,
+palette ordering across the local deadline, clipping and unrelated-state
+preservation. Status cases include a host-writable status subterminal. Chained
+commands run bytewise and at every two-part split through multiple suspended
+switches. It checks complete memory-byte retention and literal decoded indices,
+history-ring content/geometry, malformed and timed-out second arguments,
+EOF/reset/disconnect cancellation and failed second-image preparation without
+console/palette/first-image mutation.
+
+`syncterm_igs_resolution` checks real transport in all ST entry modes, Atari ST,
+CP437 and UTF-8 with status on/off. Each capture checks literal glyph/clear
+pixels in both planes, cells, all sixteen palette entries, mode geometry,
+cursor position, wrapping and history width. It checks current/invalid requests,
+both colour transitions, all palette classes, directory restoration and a fresh
+mode/palette after reconnect, with unchanged 320x240 and 960x720 output and
+destination dimensions across R. Native scaler/bitmap tests check reduced and
+mixed-axis scaling, incremental damage, complete quadrants and sizing policy;
+the X11 mode fixture checks physical window dimensions and rendered edges at
+fractional and sub-native scales on a private Xvfb server.
+These fixtures disable audio and use ASCII
+protocol/text checkpoints; they do not establish complete character-set,
+graphical-text, drawing or sound conformance.
 
 ## Deliberate corrections
 

@@ -1279,7 +1279,7 @@ process_command(struct sdl_command *command)
 		int status;
 		struct st_console_bitmap_geometry next = {
 			command->data.size.source_width, command->data.size.source_height,
-			state->console->aspect_width, state->console->aspect_height};
+			state->console->aspect_width, state->console->aspect_height, state->console->preserve_window_size};
 		int output_width;
 		int output_height;
 		uint32_t width;
@@ -1702,7 +1702,7 @@ st_console_sdl_init(st_console_t *console)
 	state->console = console;
 	state->window_geometry = (struct st_console_bitmap_geometry){
 		console->pixels->width, console->pixels->height,
-		console->aspect_width, console->aspect_height};
+		console->aspect_width, console->aspect_height, console->preserve_window_size};
 	state->console_display = console->display;
 	uint32_t minimum_width;
 	uint32_t minimum_height;

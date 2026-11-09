@@ -454,7 +454,7 @@ test_indexed_pixel_palette_change(void)
 static void
 test_initial_window_geometry(void)
 {
-	const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3};
+	const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3, false};
 	struct st_console_display_config config_display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.initial_scaling = 2.0,
@@ -509,7 +509,7 @@ test_initial_window_geometry(void)
 	    &width, &height) == 0);
 	CHECK(width == 1280 && height == 960);
 	{
-		const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5};
+		const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5, false};
 		double scaling;
 		CHECK(st_console_scaled_window_size(320, 200, 6, 5, 1,
 		    &width, &height) == 0 && width == 320 && height == 267);
@@ -534,7 +534,7 @@ test_initial_window_geometry(void)
 		    && scaling == 3.0);
 	}
 	{
-		const struct st_console_bitmap_geometry portrait = {200, 320, 5, 6};
+		const struct st_console_bitmap_geometry portrait = {200, 320, 5, 6, false};
 		CHECK(st_console_snap_geometry_size(&portrait, 533, 640, true,
 		    1080, 1920, &width, &height) == 0 && width == 800 && height == 960);
 		CHECK(st_console_snap_geometry_size(&portrait, 800, 960, false,
@@ -553,10 +553,10 @@ test_initial_window_geometry(void)
 static void
 test_mode_change_geometry(void)
 {
-	const struct st_console_bitmap_geometry pc = {640, 400, 4, 3};
-	const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5};
-	const struct st_console_bitmap_geometry prestel = {480, 500, 3077, 2400};
-	const struct st_console_bitmap_geometry lcd = {640, 400, 8, 5};
+	const struct st_console_bitmap_geometry pc = {640, 400, 4, 3, false};
+	const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5, false};
+	const struct st_console_bitmap_geometry prestel = {480, 500, 3077, 2400, false};
+	const struct st_console_bitmap_geometry lcd = {640, 400, 8, 5, false};
 	const struct {
 		const struct st_console_bitmap_geometry *previous, *next;
 		uint32_t current_width, current_height, maximum_width, maximum_height;
@@ -592,6 +592,58 @@ test_mode_change_geometry(void)
 		    cases[i].next->height, cases[i].next->aspect_width,
 		    cases[i].next->aspect_height, &width, &height) == 0);
 		CHECK(width == minimum_width && height == minimum_height);
+	}
+}
+
+static void
+test_preserved_window(void)
+{
+	const struct st_console_bitmap_geometry low = {320,200,4,3,true}, medium = {640,200,4,3,true};
+	const uint32_t sizes[][2] = {{320,240},{960,720},{801,601}};
+	for (size_t i = 0; i < sizeof(sizes)/sizeof(*sizes); ++i) {
+		uint32_t w, h, mw, mh;
+		CHECK(st_console_mode_change_size(&low, &medium, sizes[i][0], sizes[i][1], 0, 0,
+		    &w, &h, &mw, &mh) == 0);
+		CHECK(w == sizes[i][0] && h == sizes[i][1] && mw == 1 && mh == 1);
+		CHECK(st_console_mode_change_size(&medium, &low, w, h, 0, 0, &w, &h, &mw, &mh) == 0);
+		CHECK(w == sizes[i][0] && h == sizes[i][1]);
+	}
+	double scale;
+	CHECK(st_console_bitmap_geometry_scaling(&medium, 320, 240, &scale) == 0 && scale == 0.5);
+	uint32_t w, h, mw, mh;
+	CHECK(st_console_preserve_geometry_scale(&medium, &medium, 320, 240, &w, &h, &mw, &mh) == 0);
+	CHECK(w == 320 && h == 240 && mw == 1 && mh == 1);
+	CHECK(st_console_snap_geometry_size(&medium, 320, 240, false, 0, 0, &w, &h) == 0 && w == 320 && h == 240);
+	CHECK(st_console_snap_geometry_size(&medium, 320, 240, true, 0, 0, &w, &h) == 0 && w == 640 && h == 480);
+	for (unsigned policy = 0; policy < 2; ++policy) {
+		st_console_t *console = NULL;
+		struct st_console_bitmap_presenter *presenter = NULL;
+		struct st_console_bitmap_frame frame;
+		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config config = {.columns = 80, .rows = 25,
+		    .cell_width = 8, .cell_height = 8, .aspect_width = 4, .aspect_height = 3,
+		    .preserve_window_size = true, .scaling_policy = (enum st_pixel_scaling_policy)policy};
+		CHECK(st_console_create(&console, &display, &config) == 0);
+		CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+		struct st_pixel_buffer *pixels = NULL;
+		CHECK(st_pixel_buffer_create(&pixels, 640, 200, false) == 0);
+		const uint32_t colours[] = {0xff0000,0x00ff00,0x0000ff,0xffffff};
+		for (uint32_t y = 0; y < 200; ++y)
+			for (uint32_t x = 0; x < 640; ++x)
+				pixels->primary[y * 640 + x] = ST_PIXEL_COLOR_RGB_TAG | colours[(y >= 100 ? 2 : 0) + (x >= 320)];
+		const struct st_pixel_blit blit = {.width = 640, .height = 200, .scale_x = 1, .scale_y = 1};
+		CHECK(st_console_blit_pixels(console, pixels, NULL, &blit) == 0);
+		CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+		CHECK(st_console_bitmap_presenter_frame(presenter, console, 320, 240, 0, NULL, NULL, &frame) == 0);
+		CHECK(frame.destination.width == 320 && frame.destination.height == 240);
+		CHECK(frame.pixels->width == 320 && frame.pixels->height == 240);
+		CHECK(frame.pixels->pixels[30 * 320 + 40] == colours[0]);
+		CHECK(frame.pixels->pixels[30 * 320 + 280] == colours[1]);
+		CHECK(frame.pixels->pixels[210 * 320 + 40] == colours[2]);
+		CHECK(frame.pixels->pixels[210 * 320 + 280] == colours[3]);
+		st_pixel_buffer_destroy(pixels);
+		st_console_bitmap_presenter_destroy(presenter);
+		st_console_destroy(console);
 	}
 }
 
@@ -878,9 +930,9 @@ main(void)
 	CHECK(width == 640 && height == 480);
 
 	{
-		const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3};
+		const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3, false};
 		const struct st_console_bitmap_geometry prestel = {
-			480, 500, 3077, 2400};
+			480, 500, 3077, 2400, false};
 
 		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1280, 960,
 		    &scaling) == 0);
@@ -907,8 +959,8 @@ main(void)
 	}
 
 	{
-		struct st_console_bitmap_geometry previous = {640, 400, 4, 3};
-		struct st_console_bitmap_geometry next = {320, 200, 4, 3};
+		struct st_console_bitmap_geometry previous = {640, 400, 4, 3, false};
+		struct st_console_bitmap_geometry next = {320, 200, 4, 3, false};
 		uint32_t minimum_width, minimum_height;
 
 		CHECK(st_console_preserve_geometry_scale(&previous, &next,
@@ -937,9 +989,9 @@ main(void)
 
 		const struct st_console_bitmap_geometry previous = {
 			console->pixels->width, console->pixels->height,
-			console->aspect_width, console->aspect_height};
+			console->aspect_width, console->aspect_height, false};
 		const struct st_console_bitmap_geometry next = {
-			8, 8, console->aspect_width, console->aspect_height};
+			8, 8, console->aspect_width, console->aspect_height, false};
 
 		CHECK(st_console_preserve_geometry_scale(&previous, &next, 10, 8,
 		    &width, &height, &minimum_width, &minimum_height) == 0);
@@ -1041,6 +1093,7 @@ main(void)
 	test_indexed_pixel_palette_change();
 	test_initial_window_geometry();
 	test_mode_change_geometry();
+	test_preserved_window();
 	test_mouse_coordinates();
 	test_default_cursor_scanlines();
 	test_legacy_bright_cursor_colour();

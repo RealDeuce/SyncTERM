@@ -1,4 +1,4 @@
-/* IGS graphics state and I's selective restoration, separate from console state.
+/* IGS graphics state and I/R restoration, separate from console state.
  * Original contracts: IGS reference 16, 28, 31, 117, 120 and 123. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
@@ -130,6 +130,20 @@ restore_attributes(struct cterm_igs *igs)
 	igs->marker_pen_cache = a->marker_pen;
 }
 
+static int
+select_palette(struct cterm_igs *igs, int selection)
+{
+	if (selection == 1)
+		return restore_palette(igs);
+	if (selection != 2 && selection != 3)
+		return 0;
+	const int (*table)[3] = selection == 2 ? igs_palette : vdi_palette;
+	int status = 0;
+	for (int pen = 0; pen < 16 && status == 0; ++pen)
+		status = cterm_igs_palette_pen(igs, pen, table[pen][0], table[pen][1], table[pen][2]);
+	return status;
+}
+
 void
 cterm_igs_clip_screen(struct cterm_igs *igs)
 {
@@ -139,6 +153,42 @@ cterm_igs_clip_screen(struct cterm_igs *igs)
 	igs->clip_y2 = (int)igs->height - 1;
 }
 
+static int
+begin_resolution(struct cterm_igs *igs, unsigned resolution, int palette)
+{
+	if (igs->sync_wait_hz == 0 || igs->sync_wait_hz > 1000)
+		return IO_ERROR_INVALID_ARGUMENT;
+	uint64_t now;
+	int status = igs->now_ms(&now);
+	if (status != 0)
+		return status;
+	uint64_t duration = (1000u + igs->sync_wait_hz - 1u) / igs->sync_wait_hz;
+	if (now > UINT64_MAX - duration)
+		return IO_ERROR_OUT_OF_RANGE;
+	igs->wait_deadline = now + duration;
+	igs->pending_resolution = (int)resolution;
+	igs->pending_palette = palette;
+	return IO_ERROR_IN_PROGRESS;
+}
+
+int
+cterm_igs_resolution_complete(struct cterm_igs *igs, int palette)
+{
+	/* R's palette calls follow the mode helper and full-screen clipping.
+	 * Invalid palette selectors preserve registers; they are not I values. */
+	cterm_igs_clip_screen(igs);
+	return select_palette(igs, palette);
+}
+
+int
+cterm_igs_resolution(struct cterm_igs *igs, int requested, int palette)
+{
+	unsigned target = requested >= 0 && requested <= 1 ? (unsigned)requested : igs->resolution;
+	if (igs->resolution != 2 && target != igs->resolution)
+		return begin_resolution(igs, target, palette);
+	return cterm_igs_resolution_complete(igs, palette);
+}
+
 int
 cterm_igs_initialize(struct cterm_igs *igs, int operation)
 {
@@ -146,7 +196,7 @@ cterm_igs_initialize(struct cterm_igs *igs, int operation)
 	if (operation > 5)
 		operation = 0;
 	if (operation == 0 || operation == 1)
-		status = restore_palette(igs);
+		status = select_palette(igs, 1);
 	if (status != 0)
 		return status;
 	if (operation == 0 || operation == 2) {
@@ -155,27 +205,14 @@ cterm_igs_initialize(struct cterm_igs *igs, int operation)
 		igs->memory_route = 0;
 	}
 	else if (operation == 3 || operation == 4) {
-		const int (*table)[3] = operation == 3 ? igs_palette : vdi_palette;
-		for (int pen = 0; pen < 16 && status == 0; ++pen)
-			status = cterm_igs_palette_pen(igs, pen, table[pen][0], table[pen][1], table[pen][2]);
+		status = select_palette(igs, operation - 1);
 	}
 	else if (operation == 5) {
 		if (igs->saved_resolution == 2) {
 			cterm_igs_clip_screen(igs);
 			return 0;
 		}
-		if (igs->sync_wait_hz == 0 || igs->sync_wait_hz > 1000)
-			return IO_ERROR_INVALID_ARGUMENT;
-		uint64_t now;
-		status = igs->now_ms(&now);
-		if (status != 0)
-			return status;
-		uint64_t duration = (1000u + igs->sync_wait_hz - 1u) / igs->sync_wait_hz;
-		if (now > UINT64_MAX - duration)
-			return IO_ERROR_OUT_OF_RANGE;
-		igs->wait_deadline = now + duration;
-		igs->pending_resolution = (int)igs->saved_resolution;
-		return IO_ERROR_IN_PROGRESS;
+		return begin_resolution(igs, igs->saved_resolution, 0);
 	}
 	return status;
 }

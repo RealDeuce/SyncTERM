@@ -2248,7 +2248,7 @@ process_command(struct x11_state *state, struct x11_command *command)
 		{
 		struct st_console_bitmap_geometry next = {
 			command->data.size.width, command->data.size.height,
-			state->console->aspect_width, state->console->aspect_height};
+			state->console->aspect_width, state->console->aspect_height, state->console->preserve_window_size};
 		uint32_t width;
 		uint32_t height;
 		uint32_t minimum_width;
@@ -2782,7 +2782,7 @@ st_console_x11_init(st_console_t *console)
 	state->console = console;
 	state->window_geometry = (struct st_console_bitmap_geometry){
 		console->pixels->width, console->pixels->height,
-		console->aspect_width, console->aspect_height};
+		console->aspect_width, console->aspect_height, console->preserve_window_size};
 	status = load_xlib(state);
 	if (status == 0)
 		status = enable_xlib_threads(state);

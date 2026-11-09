@@ -546,6 +546,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 	    = config->scaling_policy == ST_PIXEL_SCALING_BLOCKY;
 	console->aspect_width = config->aspect_width;
 	console->aspect_height = config->aspect_height;
+	console->preserve_window_size = config->preserve_window_size;
 	if (pixel_width != 0 && !display->backend_initialized) {
 		if (display->config.initial_window_width != 0) {
 			display->initial_window_width = display->config.initial_window_width
@@ -1873,6 +1874,7 @@ st_console_reconfigure(st_console_t *console,
 	uint32_t old_extra_height;
 	uint32_t old_aspect_width;
 	uint32_t old_aspect_height;
+	bool old_preserve_window_size;
 	bool configured_cursor;
 	int result;
 
@@ -1927,6 +1929,7 @@ st_console_reconfigure(st_console_t *console,
 	old_extra_height = console->pixel_extra_height;
 	old_aspect_width = console->aspect_width;
 	old_aspect_height = console->aspect_height;
+	old_preserve_window_size = console->preserve_window_size;
 	/* Resize must use the destination raster and its aspect ratio together. */
 	console->cell_width = config->cell_width;
 	console->cell_height = config->cell_height;
@@ -1934,6 +1937,7 @@ st_console_reconfigure(st_console_t *console,
 	console->pixel_extra_height = pixel_extra_height;
 	console->aspect_width = config->aspect_width;
 	console->aspect_height = config->aspect_height;
+	console->preserve_window_size = config->preserve_window_size;
 	if (atomic_load_explicit(&console->display->active,
 	    memory_order_acquire) == console && console->display->backend_ops != NULL
 	    && console->display->backend_ops->resize != NULL) {
@@ -1954,6 +1958,7 @@ st_console_reconfigure(st_console_t *console,
 		console->pixel_extra_height = old_extra_height;
 		console->aspect_width = old_aspect_width;
 		console->aspect_height = old_aspect_height;
+		console->preserve_window_size = old_preserve_window_size;
 		(void)st_rwlock_unlock(&console->state_lock);
 		st_pixel_buffer_destroy(pixels);
 		free(raster_rows);

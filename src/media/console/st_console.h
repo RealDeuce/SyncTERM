@@ -334,6 +334,9 @@ struct st_console_config {
 	/* Zero in either member selects the native bitmap aspect ratio. */
 	uint32_t aspect_width;
 	uint32_t aspect_height;
+	/* Keep the physical window on mode changes and fit the complete raster,
+	 * permitting scale below one. Zero retains normal nearest-scale sizing. */
+	bool preserve_window_size;
 };
 
 /* Physical output settings shared by every console on one display. */

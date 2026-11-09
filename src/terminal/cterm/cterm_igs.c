@@ -18,8 +18,12 @@ static const struct st_graphics_dialect dialect = {
 static const struct st_graphics_parameter initialize_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER},
 };
+static const struct st_graphics_parameter resolution_parameters[] = {
+	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
+};
 static const struct st_graphics_command commands[] = {
 	{'I', initialize_parameters, 1, NULL},
+	{'R', resolution_parameters, 2, NULL},
 };
 
 static void
@@ -28,6 +32,7 @@ cancel_input(struct cterm_igs *igs)
 	st_graphics_parser_cancel(igs->parser);
 	igs->input_deadline = igs->wait_deadline = 0;
 	igs->pending_resolution = -1;
+	igs->pending_palette = 0;
 	igs->reset_pending = false;
 }
 
@@ -59,13 +64,9 @@ boundary(void *context)
 }
 
 static int
-command(void *context, const struct st_graphics_command_view *view)
+number(struct cterm_igs *igs, const struct st_graphics_operand *operand, int *result)
 {
-	struct cterm_igs *igs = context;
-	const struct st_graphics_operand *operand = &view->arguments[0].operand;
 	int value;
-	if (igs->reset_pending)
-		return IO_ERROR_INTERRUPTED;
 	if (operand->operation != ST_GRAPHICS_VALUE)
 		return IO_ERROR_PROTOCOL;
 	switch (operand->source) {
@@ -97,7 +98,29 @@ command(void *context, const struct st_graphics_command_view *view)
 	default:
 		return IO_ERROR_PROTOCOL;
 	}
-	return view->code == 'I' ? cterm_igs_initialize(igs, value) : IO_ERROR_NOT_SUPPORTED;
+	*result = value;
+	return 0;
+}
+
+static int
+command(void *context, const struct st_graphics_command_view *view)
+{
+	struct cterm_igs *igs = context;
+	int values[2];
+	if (igs->reset_pending)
+		return IO_ERROR_INTERRUPTED;
+	if (view->count > sizeof(values) / sizeof(*values))
+		return IO_ERROR_PROTOCOL;
+	for (size_t i = 0; i < view->count; ++i) {
+		int status = number(igs, &view->arguments[i].operand, &values[i]);
+		if (status != 0)
+			return status;
+	}
+	switch (view->code) {
+	case 'I': return cterm_igs_initialize(igs, values[0]);
+	case 'R': return cterm_igs_resolution(igs, values[0], values[1]);
+	default: return IO_ERROR_NOT_SUPPORTED;
+	}
 }
 
 static void
@@ -284,11 +307,14 @@ cterm_igs_poll(struct cterm_igs *igs)
 		}
 		igs->pending_resolution = -1;
 		igs->wait_deadline = 0;
+		int palette = igs->pending_palette;
+		igs->pending_palette = 0;
+		if (status == 0)
+			status = cterm_igs_resolution_complete(igs, palette);
 		if (status != 0) {
 			cancel_input(igs);
 			return status;
 		}
-		cterm_igs_clip_screen(igs);
 		return st_graphics_parser_resume(igs->parser);
 	}
 	if (igs->input_deadline == 0)

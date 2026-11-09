@@ -2874,6 +2874,31 @@ resize_parser_geometry(st_cterm_t *terminal, int columns, int rows,
 	cterm_set_position(terminal, cursor_x, cursor_y);
 }
 
+static int
+prepare_igs_images(struct cterm_igs *igs, unsigned planes, struct st_igs_image *next[2])
+{
+	uint8_t *native = NULL;
+	int status = 0;
+	for (unsigned i = 0; i < 2 && status == 0; ++i) {
+		if (igs->memory[i] == NULL || igs->memory[i]->planes == planes)
+			continue;
+		if (native == NULL) {
+			native = malloc(ST_IGS_IMAGE_BYTES);
+			if (native == NULL)
+				return IO_ERROR_OUT_OF_MEMORY;
+		}
+		/* Preserve native contents at this format boundary. Prepare both
+		 * indexed replacements before committing console or image changes. */
+		status = st_igs_image_export(igs->memory[i], 0, native, ST_IGS_IMAGE_BYTES);
+		if (status == 0)
+			status = st_igs_image_create(&next[i], planes);
+		if (status == 0)
+			status = st_igs_image_import(next[i], 0, native, ST_IGS_IMAGE_BYTES);
+	}
+	free(native);
+	return status;
+}
+
 int
 cterm_igs_set_resolution(struct cterminal *t, unsigned resolution)
 {
@@ -2883,21 +2908,34 @@ cterm_igs_set_resolution(struct cterminal *t, unsigned resolution)
 	const struct st_screen_mode_descriptor *mode = st_screen_mode_get(resolution == 0
 	    ? ST_SCREEN_MODE_ATARIST_40X25 : ST_SCREEN_MODE_ATARIST_80X25);
 	struct st_console_config config = mode->console;
+	config.preserve_window_size = true;
 	struct st_console_cell *history = NULL;
 	struct st_pixel_buffer **history_pixels = NULL;
+	struct st_igs_image *next_images[2] = {NULL, NULL};
 	int status = st_console_get_scaling_mode(t->screen.console, &config.scaling_mode);
 	if (status == 0)
 		status = st_console_get_color_emoji(t->screen.console, &config.color_emoji);
 	if (status == 0 && t->backlines != 0)
 		status = resize_scrollback(t, config.columns, config.cell_width,
 		    config.cell_height, &history, &history_pixels);
-	if (status != 0)
-		return status;
-	status = st_console_reconfigure(t->screen.console, &config);
+	if (status == 0)
+		status = prepare_igs_images(igs, resolution == 0 ? 4 : 2, next_images);
+	if (status == 0)
+		status = st_console_reconfigure(t->screen.console, &config);
 	if (status != 0) {
 		free(history);
 		st_history_free_pixels(history_pixels, (size_t)t->backlines);
+		for (unsigned i = 0; i < 2; ++i)
+			st_igs_image_destroy(next_images[i]);
 		return status;
+	}
+	for (unsigned i = 0; i < 2; ++i) {
+		if (next_images[i] == NULL)
+			continue;
+		struct st_igs_image old = *igs->memory[i];
+		*igs->memory[i] = *next_images[i];
+		*next_images[i] = old;
+		st_igs_image_destroy(next_images[i]);
 	}
 	free(t->scrollback);
 	st_history_free_pixels(t->backpixels, (size_t)t->backlines);
@@ -2915,6 +2953,9 @@ cterm_igs_set_resolution(struct cterminal *t, unsigned resolution)
 	resize_parser_geometry(t, (int)config.columns,
 	    (int)(config.rows - t->api_reserved_rows - (t->status_display_type >= 1 ? 1u : 0u)), 1, 1);
 	if (t->status_sub != NULL) {
+		memcpy(t->status_sub->screen.mode_palette, t->screen.mode_palette, sizeof(t->screen.mode_palette));
+		cterm_render_attribute_colours(t->status_sub, t->status_sub->attr,
+		    &t->status_sub->fg_color, &t->status_sub->bg_color);
 		t->status_sub->y = t->y + t->height;
 		resize_parser_geometry(t->status_sub, (int)config.columns, 1, 1, 1);
 	}

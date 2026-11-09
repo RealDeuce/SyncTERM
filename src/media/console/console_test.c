@@ -108,7 +108,7 @@ static int test_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	struct st_console_bitmap_geometry next = {
 	    columns * console->cell_width + console->pixel_extra_width,
 	    rows * console->cell_height + console->pixel_extra_height,
-	    console->aspect_width, console->aspect_height};
+	    console->aspect_width, console->aspect_height, console->preserve_window_size};
 	uint32_t minimum_width, minimum_height, width, height;
 	int status = st_console_mode_change_size(&state->geometry, &next,
 	    state->width, state->height, 0, 0, &width, &height,
@@ -182,7 +182,7 @@ int st_console_test_init(st_console_t *console)
 	console->display->backend_state = state;
 	state->clipboard = strdup(""); state->url = strdup(""); state->title = strdup("");
 	state->geometry = (struct st_console_bitmap_geometry){console->pixels->width,
-	    console->pixels->height, console->aspect_width, console->aspect_height};
+	    console->pixels->height, console->aspect_width, console->aspect_height, console->preserve_window_size};
 	int status = st_console_scaled_window_size(state->geometry.width,
 	    state->geometry.height, state->geometry.aspect_width, state->geometry.aspect_height,
 	    console->display->config.initial_scaling, &state->width, &state->height);

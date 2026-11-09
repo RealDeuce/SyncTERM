@@ -275,6 +275,44 @@ check_fractional_aspect_snap(void)
 }
 
 static int
+check_preserved_window(void)
+{
+	static const char title[] = "st_console X11 preserved window";
+	for (unsigned scaling = 0; scaling < 2; ++scaling)
+		for (unsigned size = 0; size < 2; ++size) {
+			const uint32_t width = size == 0 ? 320 : 960, height = size == 0 ? 240 : 720;
+			const struct st_console_display_config display_config = {
+				.backend = ST_CONSOLE_BACKEND_X11, .initial_scaling = size == 0 ? 1 : 3};
+			struct st_console_config config = {.columns = 40, .rows = 25, .cell_width = 8, .cell_height = 8,
+			    .aspect_width = 4, .aspect_height = 3, .preserve_window_size = true,
+			    .scaling_mode = scaling == 0 ? ST_CONSOLE_SCALING_INTERNAL : ST_CONSOLE_SCALING_EXTERNAL};
+			st_console_t *console = NULL;
+			CHECK(st_console_create(&console, &display_config, &config) == 0);
+			CHECK(st_console_set_title(console, title) == 0);
+			Display *display = XOpenDisplay(NULL);
+			CHECK(display != NULL);
+			Window window = wait_named_window(display, DefaultRootWindow(display), title);
+			CHECK(window != None);
+			for (unsigned cycle = 0; cycle < 4; ++cycle) {
+				config.columns = cycle % 2 == 0 ? 80 : 40;
+				CHECK(st_console_reconfigure(console, &config) == 0);
+				CHECK(check_window_geometry(title, (int)width, (int)height, 1, 1, 4, 3) == 0);
+				CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+				CHECK(fill_pixels(console, ST_PIXEL_COLOR_RGB_VALUE(0x30,0x90,0xe0)) == 0);
+				CHECK(st_console_present(console) == 0);
+				XWindowAttributes attributes;
+				CHECK(XGetWindowAttributes(display, window, &attributes) != 0);
+				unsigned long pixel = visual_pixel(attributes.visual, ST_PIXEL_COLOR_RGB_VALUE(0x30,0x90,0xe0));
+				CHECK(wait_window_pixel(display, window, (int)width, (int)height, 1, (int)height / 2, pixel) == 0);
+				CHECK(wait_window_pixel(display, window, (int)width, (int)height, (int)width - 2, (int)height / 2, pixel) == 0);
+			}
+			(void)XCloseDisplay(display);
+			st_console_destroy(console);
+		}
+	return 0;
+}
+
+static int
 check_mode_changes(void)
 {
 	static const char title[] = "st_console X11 mode changes";
@@ -355,6 +393,7 @@ check_mode_changes(void)
 		(void)XCloseDisplay(display);
 		st_console_destroy(console);
 	}
+	CHECK(check_preserved_window() == 0);
 	return check_fractional_aspect_snap();
 }
 
@@ -804,6 +843,9 @@ check_mouse_coordinates(st_console_t *console, const char *title)
 	CHECK(display != NULL);
 	window = wait_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
+	/* The preceding input fixture queues synthetic resize bursts. Fence its
+	 * final frame before using that frame's destination to map pointer input. */
+	CHECK(st_console_present(console) == 0);
 	CHECK(st_console_events_clear(console) == 0);
 	CHECK(send_mouse_button(display, window, 40, 24, true, ShiftMask) == 0);
 	CHECK(send_mouse_button(display, window, 40, 24, false,

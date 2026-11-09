@@ -97,7 +97,7 @@ int st_pixel_buffer_fill(struct st_pixel_buffer *buffer, uint32_t primary,
 /* The returned plane is borrowed until the next scale call or destruction. */
 int st_pixel_scaler_create(st_pixel_scaler_t **result);
 void st_pixel_scaler_destroy(st_pixel_scaler_t *scaler);
-/* Target dimensions must be no smaller than the source dimensions. */
+/* Target dimensions must be nonzero; each axis may enlarge or reduce. */
 int st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 	const struct st_rgb_buffer **result, const struct st_rgb_buffer *source,
 	uint32_t width, uint32_t height,

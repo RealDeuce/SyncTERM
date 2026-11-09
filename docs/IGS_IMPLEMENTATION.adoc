@@ -15,8 +15,8 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I initialization command is implemented and independently tested natively
-and through the control bitmap application backend. Profile/menu/Wren selection
+The I initialization and R resolution commands are implemented and independently
+tested natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
 until all extended selectors and their dispatch behavior have passed.
@@ -345,5 +345,53 @@ configuration: full application build without compiler warnings; relevant
 CTerm (ANSI/VT52/RIP/SkyPix), parser/image/pixel, profile/BBS-list, term,
 Wren host/menu/persistence and application IGS/SkyPix-report/graphics-scrollback
 tests passed. IGS acceptance remains scoped to I and the integration above.
-The complete 47+16 inventory and reference paths were checked again; one
-command is complete. Completion commit will be recorded by the next step.
+The complete 47+16 inventory and reference paths were checked again; at that
+step one command was complete. Completion commit: a5e9a36.
+
+=== R resolution and palette ordering
+
+R has a shared-parser descriptor for two unscaled values. It locks monochrome,
+retains the current mode for invalid requests and avoids I5's unconditional
+reset when a colour target already matches. Changed colour modes wait one
+local sync unit. The completion restores full clipping and then applies only
+palette selectors 1/2/3; following input stays unread until completion. It keeps
+the entry snapshot, graphical state, captured scaling resolution, Drawto and
+G/X14 controls. Source references: 16, 18 and 28.
+
+The I5/R mode helper prepares two indexed image replacements before changing
+the console, preserving all 32000 native bytes of each at a changed plane
+layout. A failed preparation leaves the console, palette, clip and old images
+unchanged. There is no persistent planar representation or conversion at
+ordinary blits. History rows/pixels resize chronologically; host-writable
+status geometry and palette mapping follow the new mode.
+
+R resolution changes keep the physical window size by adjusting host display
+scaling. The I5/R helper selects a console mode policy that preserves exact
+drawable dimensions, permitting fractional and sub-native scales while fitting
+the full canvas. Normal mode switches retain their existing nearest-scale
+policy. g's coordinate-scaling state is unaffected. Shared scaler/presenter
+tests cover reduction, mixed-axis scaling and incremental damage; the native
+X11 mode fixture checks exact physical dimensions and visible edges under
+private Xvfb. Application R captures require unchanged 320x240/960x720 windows.
+
+cterm_igs_resolution checks the 210-case mode/palette/status matrix, ordered
+deadlines, independent literal palettes/indices, retained native image bytes,
+history, chained split inputs, malformed/partial argument recovery, timeout,
+reset/disconnect and transactional image-preparation failure.
+syncterm_igs_resolution checks coherent full bitmap/cell/palette/state captures
+and fresh reconnect in all three ST entry modes, Atari ST/CP437/UTF-8 and
+status choices, using literal Z font rows and palette tables. Audio is disabled.
+Other commands and the complete acceptance goal remain pending.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+the full CMake build passed without compiler warnings. Relevant console,
+scaler, parser/image, CTerm (including I), term, Wren and application graphics
+regressions passed. Live Wayland was skipped without a compositor; its internal
+tests passed. Private Xvfb ran native X11 pixel/mode/XRender tests and application
+scaling persistence; unchanged physical windows and rendered edges passed.
+Two existing fixtures now wait for the final resize frame/visible confirmation
+instead of assuming presentation/UI timing. Their expected coordinates,
+pre-approval silence and transfer results remain unchanged; Wren and IGS tests
+passed together under parallel load afterward. No Windows/device audio coverage
+is claimed. Two of the 47+16 ledger entries are complete. Completion commit will
+be recorded by the next completed step.

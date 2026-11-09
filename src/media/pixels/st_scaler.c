@@ -160,6 +160,8 @@ make_axis_map(struct axis_sample *samples, struct axis_damage *damage,
 	uint32_t output_size, uint32_t source_size)
 {
 	uint32_t repeat = output_size / source_size;
+	if (repeat == 0)
+		repeat = 1;
 	uint32_t expanded = source_size * repeat;
 	uint64_t increment = ((uint64_t)expanded << 16) / output_size;
 	uint64_t position = 0;
@@ -467,7 +469,6 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 	    || source->pixels == NULL
 	    || (policy != ST_PIXEL_SCALING_BLOCKY
 	    && policy != ST_PIXEL_SCALING_POINTY)
-	    || width < source->width || height < source->height
 	    || !pixel_count(source->width, source->height, &ignored_count)
 	    || !pixel_count(width, height, &target_count))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -508,6 +509,8 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 	}
 	x_integer = width / source_width;
 	y_integer = height / source_height;
+	if (x_integer == 0) x_integer = 1;
+	if (y_integer == 0) y_integer = 1;
 	common = x_integer < y_integer ? x_integer : y_integer;
 	if ((common & 1U) != 0 && common > 5) {
 		pointy_odd = common;
@@ -631,6 +634,9 @@ damage_bounds(const struct axis_damage *map, uint32_t first_source,
 		if (map[source].end > *end)
 			*end = map[source].end;
 	}
+	/* Reduction can leave a source pixel absent from every output sample. */
+	if (*end < *first)
+		*first = *end = 0;
 }
 
 static struct st_pixel_rect
@@ -878,6 +884,8 @@ st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 	if (scaler->policy != ST_PIXEL_SCALING_BLOCKY) {
 		changed = *damage;
 		for (size_t i = 0; i < scaler->stage_count; ++i) {
+			if (changed.width == 0 || changed.height == 0)
+				break;
 			const uint32_t *stage_source = i == 0 ? source_pixels
 			    : scaler->stages[i - 1].pixels;
 			struct st_pixel_rect stage_damage;
@@ -886,6 +894,8 @@ st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 			    &changed, &stage_damage);
 			changed = stage_damage;
 		}
+		if (changed.width == 0 || changed.height == 0)
+			changed = (struct st_pixel_rect){0};
 		*result = &scaler->output;
 		*output_damage = changed;
 		return 0;
@@ -910,7 +920,8 @@ st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 	    &changed.y, &bottom);
 	changed.width = right - changed.x;
 	changed.height = bottom - changed.y;
-	update_blocky_region(scaler, source_pixels, &changed);
+	if (changed.width != 0 && changed.height != 0)
+		update_blocky_region(scaler, source_pixels, &changed);
 	*result = &scaler->output;
 	*output_damage = changed;
 	return 0;

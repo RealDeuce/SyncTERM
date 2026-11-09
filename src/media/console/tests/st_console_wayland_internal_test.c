@@ -583,7 +583,7 @@ test_scaling_command(void)
 {
 	double scaling = 17.0;
 	struct state state = {
-		.window_geometry = {640, 400, 4, 3},
+		.window_geometry = {640, 400, 4, 3, false},
 		.window_width = 1280,
 		.window_height = 960,
 	};

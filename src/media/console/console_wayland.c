@@ -1778,7 +1778,7 @@ static int process(struct state *s, struct command *c)
 		{
 		struct st_console_bitmap_geometry next = {
 			c->data.size.width, c->data.size.height,
-			s->console->aspect_width, s->console->aspect_height};
+			s->console->aspect_width, s->console->aspect_height, s->console->preserve_window_size};
 		uint32_t width;
 		uint32_t height;
 		uint32_t minimum_width;
@@ -2108,7 +2108,7 @@ int st_console_wayland_init(st_console_t *c)
 	s->console = c;
 	s->window_geometry = (struct st_console_bitmap_geometry){
 		c->pixels->width, c->pixels->height,
-		c->aspect_width, c->aspect_height};
+		c->aspect_width, c->aspect_height, c->preserve_window_size};
 	s->wake[0] = s->wake[1] = -1;
 	s->console_display = c->display;
 	s->pointer_visible = true;

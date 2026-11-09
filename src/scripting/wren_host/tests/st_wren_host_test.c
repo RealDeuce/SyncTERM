@@ -3846,6 +3846,17 @@ static int rip_transfer_event(void *context, const struct st_console_event *even
 {
 	return st_wren_connected_handle_event(*(st_wren_connected_t **)context, event, consumed);
 }
+static bool rip_confirmation_ready(st_console_t *console)
+{
+	uint32_t columns, rows;
+	if (st_console_size(console, &columns, &rows) != 0 || columns < 7)
+		return false;
+	for (uint32_t y = 0; y < rows; ++y)
+		for (uint32_t x = 0; x <= columns - 7; ++x)
+			if (console_has_text(console, x, y, "Confirm"))
+				return true;
+	return false;
+}
 static int exercise_rip_transfer(st_wren_host_t *host, st_console_t *console)
 {
 	CHECK(setenv("ST_RIP_TEST_PYTHON", ST_RIP_TEST_PYTHON, 1) == 0);
@@ -3896,7 +3907,9 @@ static int exercise_rip_transfer(st_wren_host_t *host, st_console_t *console)
 			if (st_wren_connected_last_error(connected) != NULL) fprintf(stderr, "RIP mode %u: %s\n", mode, st_wren_connected_last_error(connected));
 			CHECK(st_wren_connected_last_error(connected) == NULL);
 			if (cterm->rip_engine->scene_depth != 0 && cterm->rip_engine->commands_seen > 1) streamed = true;
-			if (mode >= 6 && !answered && now - start > 350) {
+			/* Retain the peer's pre-approval silence interval, and wait for
+			 * the actual input owner rather than guessing UI startup time. */
+			if (mode >= 6 && !answered && now - start > 350 && rip_confirmation_ready(console)) {
 				CHECK(queue_text(console, mode == 6 ? "y" : "n") == 0); answered = true;
 			}
 			CHECK(st_time_monotonic_ms(&now) == 0);

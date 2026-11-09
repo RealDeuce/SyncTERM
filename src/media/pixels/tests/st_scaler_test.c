@@ -136,15 +136,52 @@ check_small_edge_damage(void)
 }
 
 static void
-check_downscale_rejected(void)
+check_reduction(void)
+{
+	uint32_t source[16];
+	struct st_rgb_buffer input = {source, 4, 4};
+	const uint32_t expected[] = {0,0x202020,0x808080,0xa0a0a0};
+	const uint32_t sizes[][2] = {{2,2},{2,6},{6,2},{1,1},{3,3},{1,4},{4,1}};
+	st_pixel_scaler_t *incremental = NULL, *reference = NULL;
+	const struct st_rgb_buffer *scaled, *fresh;
+	CHECK(st_pixel_scaler_create(&incremental) == 0);
+	CHECK(st_pixel_scaler_create(&reference) == 0);
+	for (unsigned policy = 0; policy < 2; ++policy) {
+		for (unsigned i = 0; i < 16; ++i) source[i] = i * UINT32_C(0x101010);
+		CHECK(st_pixel_scaler_scale(incremental, &scaled, &input, 2, 2,
+		    (enum st_pixel_scaling_policy)policy) == 0);
+		CHECK(memcmp(scaled->pixels, expected, sizeof(expected)) == 0);
+		for (size_t size = 0; size < sizeof(sizes)/sizeof(*sizes); ++size) {
+			uint32_t w = sizes[size][0], h = sizes[size][1];
+			CHECK(st_pixel_scaler_scale(incremental, &scaled, &input, w, h,
+			    (enum st_pixel_scaling_policy)policy) == 0);
+			for (uint32_t y = 0; y < 4; ++y)
+				for (uint32_t x = 0; x < 4; ++x) {
+					struct st_pixel_rect damage = {x,y,1,1}, changed;
+					source[y * 4 + x] ^= UINT32_C(0xa55a3c);
+					CHECK(st_pixel_scaler_scale_region(incremental, &scaled, &input, &damage, &changed) == 0);
+					CHECK(changed.x <= w && changed.width <= w - changed.x);
+					CHECK(changed.y <= h && changed.height <= h - changed.y);
+					CHECK(st_pixel_scaler_scale(reference, &fresh, &input, w, h,
+					    (enum st_pixel_scaling_policy)policy) == 0);
+					CHECK(memcmp(scaled->pixels, fresh->pixels, (size_t)w * h * sizeof(uint32_t)) == 0);
+				}
+		}
+	}
+	st_pixel_scaler_destroy(incremental);
+	st_pixel_scaler_destroy(reference);
+}
+
+static void
+check_invalid_dimensions(void)
 {
 	static const struct {
 		uint32_t width;
 		uint32_t height;
 	} rejected[] = {
-		{3, 6},
-		{8, 2},
-		{3, 2},
+		{0, 6},
+		{8, 0},
+		{0, 0},
 	};
 	uint32_t source[12];
 	struct st_rgb_buffer input = {source, 4, 3};
@@ -209,7 +246,8 @@ main(int argc, char **argv)
 	st_pixel_scaler_t *reference_scaler = NULL;
 	bool generate = argc == 2 && strcmp(argv[1], "--generate") == 0;
 
-	check_downscale_rejected();
+	check_invalid_dimensions();
+	check_reduction();
 	check_small_edge_damage();
 	CHECK(st_pixel_buffer_create(&source, 7, 5, false) == 0);
 	input = (struct st_rgb_buffer){source->primary, source->width,

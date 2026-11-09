@@ -808,7 +808,7 @@ process_command(struct gdi_state *state, struct command *command)
 		{
 		struct st_console_bitmap_geometry next = {
 			command->data.size.width, command->data.size.height,
-			state->console->aspect_width, state->console->aspect_height};
+			state->console->aspect_width, state->console->aspect_height, state->console->preserve_window_size};
 		uint32_t width;
 		uint32_t height;
 		uint32_t maximum_width = 0, maximum_height = 0;
@@ -1323,7 +1323,7 @@ st_console_gdi_init(st_console_t *console)
 	state->console = console;
 	state->window_geometry = (struct st_console_bitmap_geometry){
 		console->pixels->width, console->pixels->height,
-		console->aspect_width, console->aspect_height};
+		console->aspect_width, console->aspect_height, console->preserve_window_size};
 	state->pointer_visible = true;
 	state->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
 	state->console_display = console->display;

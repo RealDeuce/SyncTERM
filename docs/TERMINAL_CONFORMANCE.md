@@ -5,9 +5,13 @@ and [IGS_IMPLEMENTATION.adoc](IGS_IMPLEMENTATION.adoc). The shared graphics
 byte-parser foundation has native split-input and raw-ownership coverage;
 native image-format tests check indexed storage and boundary conversions.
 The CTerm input adapter has native ST geometry/encoding/status and lifecycle
-coverage. IGS is selectable through profiles, menus and Wren. The first command,
-`I`, has native selector/state/deadline coverage and coherent application bitmap
-checks in all ST modes, Atari ST/UTF-8 and status choices. Other commands,
+coverage. IGS is selectable through profiles, menus and Wren. `I` and `R` have
+native selector/state/deadline coverage and coherent application bitmap checks
+in all ST modes and status choices. `R` also covers CP437/Atari ST/UTF-8 wire
+input, retained images, unchanged-mode scenes, colour transitions and reconnect.
+Resolution changes retain physical window size through fractional/sub-native
+display scaling, with native bitmap/scaler and private X11 window checks.
+Other commands,
 including drawing and sound, remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

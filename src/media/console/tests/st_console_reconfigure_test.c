@@ -42,11 +42,13 @@ resize_console(st_console_t *console, uint32_t columns, uint32_t rows)
 	CHECK(rows * console->cell_height + console->pixel_extra_height == height);
 	CHECK(console->aspect_width == expected->aspect_width);
 	CHECK(console->aspect_height == expected->aspect_height);
+	CHECK(console->preserve_window_size == expected->preserve_window_size);
 	++state->resizes;
 	if (state->fail)
 		return IO_ERROR_IO;
 	state->geometry = (struct st_console_bitmap_geometry){
 		width, height, console->aspect_width, console->aspect_height,
+		console->preserve_window_size,
 	};
 	return 0;
 }
@@ -83,10 +85,11 @@ main(void)
 	struct st_console_config next = {
 		.columns = 40, .rows = 25, .cell_width = 12, .cell_height = 20,
 		.aspect_width = 3077, .aspect_height = 2400,
+		.preserve_window_size = true,
 	};
 	struct resize_state state = {
 		.expected = &next,
-		.geometry = {656, 408, 4, 3},
+		.geometry = {656, 408, 4, 3, false},
 	};
 	st_console_display_t *display = NULL;
 	st_console_t *console = NULL, *inactive = NULL;
@@ -107,6 +110,7 @@ main(void)
 	CHECK(console->cell_width == 8 && console->cell_height == 16);
 	CHECK(console->pixel_extra_width == 16 && console->pixel_extra_height == 8);
 	CHECK(console->aspect_width == 4 && console->aspect_height == 3);
+	CHECK(!console->preserve_window_size);
 	CHECK(console->pixels == old_pixels && console->cells == old_cells);
 	CHECK(memcmp(st_console_cell_at(console, 0), &old_cell, sizeof(old_cell)) == 0);
 	CHECK(console->pixels->primary[5 * 656 + 3] == marker);
