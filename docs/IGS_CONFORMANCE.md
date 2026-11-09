@@ -24,6 +24,22 @@ native-vsync support. There is no separate IGS clock subsystem, free-running
 foreign tick counters, Atari interrupt model or CPU-cycle emulation. Drawing
 does not reproduce old hardware throughput.
 
+## Parser insertion point
+
+IGS and RIP use the same pre-ANSI add-on-parser stage in CTerm's receive path,
+ahead of base ANSI/VT52 emulation. The selected graphics parser consumes its
+framing, parameters and payloads and forwards ordinary bytes to the existing
+plain-input path in order. IGS is not implemented inside ANSI parsing, and
+neither protocol's payloads are passed through the other protocol's parser.
+Their grammars remain separate; RIP need not migrate into the shared
+IGS-family grammar to use the same insertion point.
+
+Required integration tests cover mixed ordinary text/control input, split
+graphics introducers, payloads containing control-looking bytes, and reset/
+disconnect recovery at this boundary, while preserving existing encoding,
+hook/capture and intentional semantic-input bypass behavior. This is an
+integration requirement, not a claim of completed IGS routing.
+
 ## Framebuffer and image formats
 
 The authoritative screen is SyncTERM's existing bitmap framebuffer, whose

@@ -16,7 +16,8 @@
     },
     "video_wait_units_per_second": 60,
     "sound_time_units_per_second": 200,
-    "timing": "convert protocol units at use sites to existing local monotonic deadlines or audio sample timing; inject local time in tests; no separate IGS clocks, foreign tick counters or cycle/interrupt emulation"
+    "timing": "convert protocol units at use sites to existing local monotonic deadlines or audio sample timing; inject local time in tests; no separate IGS clocks, foreign tick counters or cycle/interrupt emulation",
+    "parser_insertion": "IGS and RIP share the pre-ANSI add-on-parser insertion point in CTerm receive dispatch before base ANSI/VT52 processing; selected parser owns protocol payloads and forwards ordinary bytes through the existing plain-input path; preserve separate grammars and existing encoding/hook/capture/semantic-bypass contracts"
   },
   "foundations": [
     {

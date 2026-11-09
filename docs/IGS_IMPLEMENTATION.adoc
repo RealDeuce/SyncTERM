@@ -34,7 +34,7 @@ Translate protocol time units into existing local monotonic deadlines or audio s
 
 Require exact intended pixels, palettes, glyphs, overlays and replies in 320x200/16-colour, 640x200/4-colour and 640x400/monochrome modes. Correct clear original bugs and safely handle invalid input; do not emulate memory corruption, accidental overflow or uninitialized memory. Aim for audibly correct sound using existing SyncTERM MIDI. Test sound functionality/lifecycle; bit-identical PCM, waveform/perceptual comparison and manual listening are not development gates. Provide a manual audio checklist afterward. Older releases/deliveries and BIG/CONDOR implementations are excluded; add historical compatibility only for an identified existing consumer.
 
-Build a reusable incremental graphics-protocol parser with shared command/parameter descriptions, typed operands, explicit byte ownership and dialect framing so future BIG/CONDOR modes can share appropriate code/data. Keep Atari raster/audio policy outside it. Do not migrate RIP/SkyPix.
+Build a reusable incremental graphics-protocol parser with shared command/parameter descriptions, typed operands, explicit byte ownership and dialect framing so future BIG/CONDOR modes can share appropriate code/data. Keep Atari raster/audio policy outside it. IGS and RIP plug into the same pre-ANSI add-on-parser point; ordinary bytes continue to base emulation and payloads stay opaque. Keep RIP/SkyPix grammars separate.
 
 Integrate profiles, menus, Wren, screen modes, palette handling, transport, input, resize/status, scrollback, reset, disconnect and reconnect; preserve existing behavior elsewhere. Follow AGENTS.md: C17, target-based CMake, existing components and one native build configuration. Inspect authoritative current state; remove or repurpose superseded experimental planar/clock work.
 
@@ -76,6 +76,16 @@ raw payloads, suspended operations, bounded replay and cancellation explicit.
 Commands consume protocol bytes before any text decoding. Shared machinery
 must allow BIG's I# framing and CONDOR's load/execute framing without putting
 Atari raster or sound policy in the parser. Do not migrate RIP or SkyPix.
+
+IGS and RIP are add-on parsers at the same pre-ANSI insertion point in the
+CTerm receive path. Dispatch the selected graphics parser at the existing
+st_cterm_write stage, before base ANSI/VT52 emulation; forward ordinary bytes
+through the existing write_plain path. Graphics framing, arguments and raw
+payloads belong to the selected add-on parser before the base parser sees
+them. Do not place IGS inside the ANSI parser or feed one protocol's payloads
+through the other protocol's parser. Sharing this insertion point does not
+require migrating RIP into the new IGS-family grammar. Preserve existing
+wire-encoding, hook, capture and intentional semantic-input bypass contracts.
 
 IGS owns per-terminal parser/interpreter state, two indexed memory images,
 logical/physical routing, palette and drawing attributes, text, console and
@@ -217,6 +227,10 @@ Include native-image import to indexed storage, repeated G transfers without
 format conversion, palette changes after transfers, row-stride views, retained
 padding/data and plane-layout changes. A passing planar-storage experiment
 does not establish the selected framebuffer architecture or command completion.
+Verify the common pre-ANSI insertion point for IGS and RIP: ordinary text and
+base-terminal controls pass through in order, split introducers retain their
+ownership, and control-looking bytes inside graphics payloads do not reach
+ANSI/VT52 processing. Preserve existing RIP parsing and lifecycle regressions.
 
 Sound tests use silent/injected sinks and verify command/patch/voice state,
 note duration, stop/release, buffered playback, MIDI, synthesized output and
