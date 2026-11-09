@@ -1,6 +1,56 @@
 {
   "method": "All 256 native byte mappings, including default substitutions, are compared. Shape removes translation; placed ink uses native bearing and y=row-baseline; advance uses kern+space for proportional fonts and nominal width for monospaced fonts. YAFF reconstruction is verified against actual compiled FNV-1a-64 hashes for all 39 built-ins. SPF coverage is ASCII 32..126 only; SPF placed ink assumes left alignment because SPF2 carries no bearing field, and is not a claim about RGTerm rendering.",
   "compiled_catalog_entries_verified": 39,
+  "reference_sources": [
+    {
+      "id": "1.3-workbench",
+      "version": "1.3",
+      "retained_files": 21,
+      "bitmap_strikes": 14
+    },
+    {
+      "id": "1.3-extras",
+      "version": "1.3",
+      "retained_files": 19,
+      "bitmap_strikes": 16
+    },
+    {
+      "id": "2.1-fonts",
+      "version": "2.1",
+      "retained_files": 49,
+      "bitmap_strikes": 30
+    },
+    {
+      "id": "3.1-archive-fonts",
+      "version": "3.1-archive",
+      "retained_files": 40,
+      "bitmap_strikes": 30
+    },
+    {
+      "id": "3.1-fonts",
+      "version": "3.1",
+      "retained_files": 49,
+      "bitmap_strikes": 30
+    },
+    {
+      "id": "2.0-fonts",
+      "version": "2.0 (archive label only)",
+      "retained_files": 49,
+      "bitmap_strikes": 30
+    },
+    {
+      "id": "2.04-fonts",
+      "version": "2.04",
+      "retained_files": 49,
+      "bitmap_strikes": 30
+    },
+    {
+      "id": "2.05-fonts",
+      "version": "2.05",
+      "retained_files": 49,
+      "bitmap_strikes": 30
+    }
+  ],
   "references": {
     "workbench-1.3": {
       "courier/11": {

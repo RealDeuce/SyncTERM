@@ -63,6 +63,10 @@ Workbench 2.1/3.1 files. The compiled Ruby/Diamond metric overrides equal the
 and some glyph placement; the YAFF `workbench-3.1_` filenames do not establish
 equivalence to the native disk files. The reference sets do not change the
 selected compiled fonts.
+The subsequent Release 2 check found the same 30 exact native matches on the
+catalogue-verified 2.04 Fonts disk (`AmigaFonts2.0`); identical font files
+therefore cannot distinguish a 2.04 source from 2.1/3.1. The reference notes
+qualify archive labels separately from verified release identities.
 The reference inventory pins every supplied file's SHA-256 and marks which
 entries assert exact equivalence versus family/size coverage only.
 

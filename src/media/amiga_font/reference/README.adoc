@@ -12,6 +12,9 @@ the Workbench and Extras disks. Original filename case is preserved.
 family descriptors, and nine outline font files (CGTimes, CGTriumvirate and
 LetterGothic). All 49 files are byte-for-byte identical between the sampled
 2.1 Fonts disk and the local 3.1 Fonts disk, so there is only one copy here.
+The same 49 files also match the catalogue-verified 2.04 Fonts disk and sampled
+archive images labelled 2.0 and 2.05. The directory keeps its original name;
+the additional image identities and per-file matches are in the manifest.
 An independently archived 3.1 Fonts disk also agrees on all 30 bitmap strikes
 and ten bitmap descriptors; that image does not contain the outline fonts.
 Whole disk images, icons and the `_bullet` support files are not retained.
@@ -26,9 +29,10 @@ repository] at commit `647972fb9789deb5942f471b51a43be85578eafe`.
 
 * All 30 stock native strikes in `fonts/amiga-font/` exactly match the
   Workbench 2.1/3.1 files, including their SHA-256 hashes. None matches the
-  corresponding 1.3 file. These identical fonts cannot establish whether
-  the supplier copied a 2.1 or a 3.1 disk.
-* Four additional native files are absent from all three sampled releases.
+  corresponding 1.3 file. The verified 2.04 disk also matches all 30 files;
+  these identical fonts cannot establish which of those releases the supplier
+  copied.
+* Four additional native files are absent from all sampled font sets.
   Their embedded version strings identify Courier/30 and /36, and Times/30
   and /36, as AWeb 39.0 fonts dated September/October 1996.
 * There are 37 SPF2 files, each containing only ASCII bytes 32 through 126.
@@ -42,6 +46,34 @@ repository] at commit `647972fb9789deb5942f471b51a43be85578eafe`.
 * Pearl/8, Sapphire/15, Sapphire/18 and Topaz/8 have no native counterparts in
   the supplied collection and no files in these disk references. This
   comparison does not assign them a disk origin.
+
+== Checking the reported Workbench 2.0 origin
+
+The font bytes are consistent with a Release 2 source. A verified Workbench
+2.04 Fonts disk (MAME part `367825-01`, image SHA-1
+`22827246c3147c9f9585d029a0f1ebe5fade584e`) matches all 30 supplied stock
+native strikes exactly. Its volume name is `AmigaFonts2.0`, even though the
+disk is catalogued as 2.04. All 49 retained bitmap/descriptor/outline files
+also match the 2.1/3.1 references. A separately sampled image labelled 2.05
+agrees on those same files. The earlier 2.1/3.1 matches therefore do not
+contradict a Release 2 source, and do not identify the exact release used.
+
+The archive's image labelled `Workbench 2.0 (36.68) - Fonts` also agrees on
+all 49 files, but it contains the 37.1/37.2 fonts dated January/March 1991,
+plus the outline families, and has no MAME image match. It is recorded as
+an archive label, not authenticated as the original 1990 36.68 font set.
+The same archive's boot disk labelled 36.68 actually contains
+`version.library` 37.67 (16.7.91). A separate Cloanto Amiga Forever Edition
+boot image identifies itself as 36.68 (19.6.90), but its Fonts directory is
+empty. Neither boot image supplies an independently verified early 36.68
+font set. The manifest records these checks and their image identities.
+
+The supplied repository's own `fonts/README.txt`, at the pinned commit,
+describes its native files as gathered from a ClassicWB font drawer and a
+live C-Net/Amiga system; it does not specify an exact Workbench revision.
+The stock set matches the verified 2.04 and later reference files. An exact
+original 36.68 attribution remains unverified. The four AWeb 1996
+additions remain separate from every stock disk set examined.
 
 == The compiled catalog is a separate comparison
 
@@ -82,7 +114,9 @@ agree with the later font rather than the 1.3 file. None of the 30 compiled
 stock strikes exactly matches the entire corresponding 1.3 font.
 
 `specimens.svg` shows ten representative strikes at a common pen baseline
-in four columns: 1.3 disk, 2.1/3.1 disk, compiled SyncTERM, and supplied native.
+in four columns: 1.3 disk, shared 2.x/3.1 disk fonts, compiled SyncTERM, and
+supplied native. The verified 2.x comparison is 2.04; the other archive
+labels retain the qualifications above.
 It contains literal unstyled pixels from the respective data, without
 scaling algorithms or screen captures. Each source pixel is displayed at 2x.
 
@@ -131,6 +165,10 @@ extracted. The source labels are recorded as found, with these qualifications:
 * The 2.1 Fonts download is labelled 38.36 by the archive, while its SHA-1
   matches MAME's `wb21_3835` Fonts image (`370160-01_fonts.adf`). Font version
   strings are 37.1 or 37.2, dated January or March 1991.
+* The added 2.04 image matches MAME's `wb204` and `wb204_a3000` Fonts 2.04
+  image. The sampled 2.0- and 2.05-labelled font images have no image match
+  in that catalogue snapshot; their font file matches are recorded separately
+  from those release labels.
 * The 3.1 images have different disk hashes, while the shared font files
   agree exactly. The comparison makes file-level claims, not a claim that
   every sampled disk is an untouched retail master.
@@ -144,6 +182,9 @@ TextFont character-location, kerning and spacing tables; native files are
 never executed.
 
 `comparison.json` contains the disk-to-disk and disk-to-compiled comparisons.
+Its `reference_sources` inventory includes the added 2.0/2.04/2.05 image
+identities and the number of retained files/bitmap strikes verified against
+each. The shared font bytes remain stored once in `workbench-2.1-3.1/`.
 `skypix-comparison.json` pins all 34 supplied native files and 37 SPF files
 and records their separate comparisons. Byte lists distinguish shape changes
 from advances and positioned ink; the default glyph is also compared for

@@ -191,7 +191,7 @@ def specimens(refs, catalog, supplied):
 
     label(25, 18, "Amiga disk references / compiled SyncTERM / supplied native fonts")
     label(25, 48, "Literal unstyled glyphs at 2x scale. Blue line = common pen baseline; widths and advances remain native.", 13)
-    columns = [("Workbench 1.3", 145), ("Workbench 2.1 / 3.1", 480),
+    columns = [("Workbench 1.3", 145), ("Workbench 2.x / 3.1", 480),
                ("Compiled SyncTERM", 815), ("syncterm-skypix native", 1150)]
     for title, x in columns:
         label(x, 83, title)
@@ -249,6 +249,16 @@ def main():
         raise ValueError("incomplete compiled catalog verification")
     report = {"method": "All 256 native byte mappings, including default substitutions, are compared. Shape removes translation; placed ink uses native bearing and y=row-baseline; advance uses kern+space for proportional fonts and nominal width for monospaced fonts. YAFF reconstruction is verified against actual compiled FNV-1a-64 hashes for all 39 built-ins. SPF coverage is ASCII 32..126 only; SPF placed ink assumes left alignment because SPF2 carries no bearing field, and is not a claim about RGTerm rendering.",
               "compiled_catalog_entries_verified": len(verified),
+              "reference_sources": [
+                  {"id": source["id"], "version": source["version"],
+                   "retained_files": sum(entry["source"] == source["id"] or
+                                         source["id"] in entry.get("verified_identical_in", [])
+                                         for entry in manifest["files"]),
+                   "bitmap_strikes": sum(Path(entry["path"]).name.isdecimal() and
+                                         (entry["source"] == source["id"] or
+                                          source["id"] in entry.get("verified_identical_in", []))
+                                         for entry in manifest["files"])}
+                  for source in manifest["sources"]],
               "references": {v: {k: metadata(f) for k, f in fs.items()} for v, fs in refs.items()},
               "builtins": {k: metadata(f) for k, f in catalog.items()},
               "workbench_changes": {k: compare(refs["workbench-1.3"][k], refs["workbench-2.1-3.1"][k]) for k in sorted(refs["workbench-1.3"])},

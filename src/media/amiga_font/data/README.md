@@ -39,6 +39,11 @@ establish compiled equivalence: five Courier conversions and five Ruby/Diamond
 metric selections differ from those native files. Twenty compiled stock strikes
 match the later native fonts exactly; none matches the entire corresponding
 1.3 font. The reference files are not compiled or installed.
+The later check also found exact matches for all 30 stock native strikes on a
+catalogue-verified Workbench 2.04 Fonts disk, named `AmigaFonts2.0`. A Release 2
+source is consistent with the report bundle; the identical 2.04/2.1/3.1 files
+cannot identify its exact source release. Archive-labelled 2.0 and 2.05 images
+are recorded with their provenance qualifications in the reference README.
 
 report-font-reference.json pins the 38 requested family/size pairs across both
 native and SPF collections. Twenty matching native strikes include expected
