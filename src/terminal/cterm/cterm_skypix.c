@@ -656,7 +656,7 @@ int cterm_skypix_reset(struct cterm_skypix *s)
 	memset(s->gadgets, 0, sizeof(s->gadgets));
 	s->delay_until = 0;
 	s->receiving = false;
-	int status = select_depth(s, 8);
+	int status = select_depth(s, 16);
 	if (status != 0) return status;
 	s->x = s->pen_x = s->pen_y = 0;
 	s->y = -font_descent(s->default_data);

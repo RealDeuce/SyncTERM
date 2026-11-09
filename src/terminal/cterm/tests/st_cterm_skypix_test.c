@@ -100,6 +100,8 @@ static void depth_tests(st_cterm_t *t)
 	const char mode[] = "\x1b[17;2!";
 	for (size_t split = 0; split <= strlen(mode); ++split) {
 		CHECK(reset_without_cursor(t) == 0);
+		CHECK(t->skypix_engine->colours == 16);
+		feed(t, "\x1b[17;1!");
 		size_t used;
 		CHECK(st_cterm_write(t, mode, split, &used) == 0 && used == split);
 		CHECK(st_cterm_write(t, mode + split, strlen(mode) - split, &used) == 0);
@@ -173,11 +175,13 @@ static void depth_tests(st_cterm_t *t)
 	for (unsigned pen = 0; pen < 16; ++pen)
 		CHECK(colours[pen] == pen * 17);
 	feed(t, "\x1b[17;2!\x1b[15;15!\x1b[1;40;20!");
-	CHECK(reset_without_cursor(t) == 0 && t->skypix_engine->colours == 8);
+	CHECK(reset_without_cursor(t) == 0 && t->skypix_engine->colours == 16);
 	const struct st_console_rect reset_pixel = {40, 20, 1, 1};
 	CHECK(st_console_get_pixels(&pixels, t->screen.console, &reset_pixel, false) == 0);
-	CHECK(pixels->primary[0] == 519 && pixels->alternate[0] == 519);
+	CHECK(pixels->primary[0] == 527 && pixels->alternate[0] == 527);
 	st_pixel_buffer_destroy(pixels);
+	feed(t, "\x1b[17;1!");
+	CHECK(reset_without_cursor(t) == 0 && t->skypix_engine->colours == 16);
 }
 static void wrapping_tests(st_cterm_t *t)
 {
@@ -305,6 +309,7 @@ static size_t test_ilbm(uint8_t *data, unsigned width, unsigned depth, unsigned 
 }
 static void brush_tests(st_cterm_t *t)
 {
+	feed(t, "\x1b[17;1!"); /* Exercise promotion from explicitly selected eight colours. */
 	uint8_t data[256], literal[129];
 	literal[0] = 127; memset(literal + 1, 0xff, 128);
 	size_t size = test_ilbm(data, 1024, 1, 1, literal, sizeof(literal));
@@ -616,6 +621,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	struct st_cterm_state state;
 	CHECK(st_cterm_state(t, &state) == 0 && state.skypix && state.graphics_mode == graphics);
 	CHECK(t->rip_engine == NULL && t->skypix_engine != NULL);
+	CHECK(t->skypix_engine->colours == 16);
 	mouse_tests(t);
 	gadget_tests(t);
 	depth_tests(t);

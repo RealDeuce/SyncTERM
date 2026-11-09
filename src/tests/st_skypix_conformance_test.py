@@ -57,7 +57,11 @@ Hook.onKey(Key.f10) {|event|
                     send(data + b"\x1b[5n")
                     assert read(4) == b"\x1b[0n"
                     return client.capture()
-                frame = exchange(b"\x1b[2J\x1b[H" + b"A\xe9")
+                # Startup must allow upper pens without a depth-selection command.
+                frame = exchange(b"\x1b[15;15!\x1b[1;200;100!")
+                for plane in (frame.primary, frame.alternate):
+                    assert plane[(100+frame.metadata["pixel_top"])*640+200] == 527
+                frame = exchange(b"\x1b[12!\x1b[2J\x1b[H" + b"A\xe9")
                 m = frame.metadata
                 assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (80, 25, 8, 8), m
                 def check_aspect(snapshot):
@@ -119,7 +123,7 @@ Hook.onKey(Key.f10) {|event|
                 # transition, independent of IcyTerm or captured images.
                 defaults=(0,0x1111ff,0xdddddd,0xff0000,0x00ff11,0x33aaff,0xffff22,0xcc00ee,
                           0x00bb66,0x00dddd,0x00aaff,0x0077cc,0x0000ff,0x7700ff,0xcc00ee,0xcc0088)
-                wire=b"\x1bc\x1b[17;2!\x1b[15;13!\x1b[18;9!A"
+                wire=b"\x1bc\x1b[15;13!\x1b[18;9!A"
                 wire+=b''.join(f"\x1b[15;{pen}!\x1b[4;{pen*8};100;{pen*8+7};107!".encode() for pen in range(16))
                 frame=exchange(wire)
                 assert tuple(frame.palette[512:528])==defaults

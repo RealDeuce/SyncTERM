@@ -19,7 +19,7 @@ GLYPHS = {'A': (0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0),
           'é': (0x0c, 0x10, 0x3c, 0x66, 0x7e, 0x60, 0x3c, 0)}
 
 
-def scene(height, text='', cursor=None, mask=7):
+def scene(height, text='', cursor=None, mask=15):
     expected = [512] * (640 * height)
     for i, character in enumerate(text):
         for y, bits in enumerate(GLYPHS[character]):
@@ -96,6 +96,7 @@ def run(executable, reports, kick, encoding, status, mode_height):
                 accent = b'\xe9' if encoding == 'CP437' else b'e\xcc\x81'
                 peer.sendall(accent[:1])
                 check(frame(accent[1:]), scene(drawable, 'é', 8))
+                check(frame(b'\x1b[17;1!\x1b[10;0!\f'), scene(drawable, cursor=0, mask=7))
                 # Cursor pixels use the active native palette/depth. Changing
                 # colour 15 makes the four-plane underline red, not fixed RGB.
                 palette = (b'\x1b[11;0;287;3549;3840;241;943;4082;3086;'

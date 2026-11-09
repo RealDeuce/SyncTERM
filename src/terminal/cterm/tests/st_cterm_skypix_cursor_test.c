@@ -35,7 +35,7 @@ static void rectangle(st_cterm_t *t, unsigned x, unsigned y, unsigned width, uin
 	st_pixel_buffer_destroy(pixels);
 }
 
-static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status)
+static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsigned colours)
 {
 	st_console_t *console = NULL;
 	st_font_catalog_t *fonts = NULL;
@@ -50,10 +50,14 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status)
 		.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 		.codepage = ST_CODEPAGE_CP437, .scrollback_lines = 3, .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
+	CHECK(t->skypix_engine->colours == 16);
+	if (colours == 8) feed(t, "\x1b[17;1!\x1b[0m");
+	const uint32_t cursor = colours == 16 ? 527 : 519;
+	const uint32_t ink_cursor = colours == 16 ? 525 : 517;
 	feed(t, "\f");
 	/* Default home is zero-origin with the complete Pearl/8 strike. The
 	 * cursor is at its text baseline, not one row below it. */
-	rectangle(t, 0, 6, 8, 519);
+	rectangle(t, 0, 6, 8, cursor);
 	struct st_console_pixel_cursor overlay;
 	CHECK(st_console_get_pixel_cursor(console, &overlay) == 0 && !overlay.enabled);
 	bool visible;
@@ -62,21 +66,21 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status)
 	feed(t, "A");
 	for (unsigned x = 0; x < 8; ++x)
 		rectangle(t, x, 6, 1, (0xc6u & (128u >> x)) ? 514 : 512);
-	rectangle(t, 8, 6, 8, 519);
+	rectangle(t, 8, 6, 8, cursor);
 	feed(t, "\b");
 	for (unsigned x = 0; x < 8; ++x)
-		rectangle(t, x, 6, 1, (0xc6u & (128u >> x)) ? 517 : 519);
+		rectangle(t, x, 6, 1, (0xc6u & (128u >> x)) ? ink_cursor : cursor);
 	feed(t, "\x1b[C");
 	for (unsigned x = 0; x < 8; ++x)
 		rectangle(t, x, 6, 1, (0xc6u & (128u >> x)) ? 514 : 512);
-	rectangle(t, 8, 6, 8, 519);
+	rectangle(t, 8, 6, 8, cursor);
 	CHECK(cterm_skypix_poll(t->skypix_engine, 1) == 0);
 	CHECK(cterm_skypix_poll(t->skypix_engine, 10000) == 0);
-	rectangle(t, 8, 6, 8, 519); /* Idle time has no phase effect. */
+	rectangle(t, 8, 6, 8, cursor); /* Idle time has no phase effect. */
 	feed(t, "\x1b" "7B\x1b" "8");
 	rectangle(t, 16, 6, 8, 512); /* DECSC/DECRC must not abandon B's cursor. */
 	for (unsigned x = 0; x < 8; ++x)
-		rectangle(t, 8 + x, 6, 1, (0xfcu & (128u >> x)) ? 517 : 519);
+		rectangle(t, 8 + x, 6, 1, (0xfcu & (128u >> x)) ? ink_cursor : cursor);
 	feed(t, "\fA");
 	feed(t, "\x1b[65535!"); /* Unknown SkyPix commands still erase/disable C. */
 	rectangle(t, 8, 6, 8, 512);
@@ -85,11 +89,11 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status)
 	feed(t, "\x1b[10;0!"); /* Enable operations without drawing a new cursor. */
 	rectangle(t, 16, 6, 8, 512);
 	feed(t, "A");
-	rectangle(t, 24, 6, 8, 519);
+	rectangle(t, 24, 6, 8, cursor);
 	feed(t, "\x1b[99!");
 	rectangle(t, 24, 6, 8, 512);
 	feed(t, "\x1b[0mA");
-	rectangle(t, 32, 6, 8, 519);
+	rectangle(t, 32, 6, 8, cursor);
 	feed(t, "\x1b[10;20!Diamond.font!\f");
 	rectangle(t, 0, 14, 20, 512);
 	/* Cursor entry happens at the FIRST bang, before a split font name. */
@@ -121,7 +125,7 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status)
 		CHECK(history->primary[6 * 640 + i] == ST_PIXEL_COLOR_RGB_TAG);
 	st_pixel_buffer_destroy(history);
 	rectangle(t, 8, (unsigned)t->height * 8 - 10, 8, 512);
-	rectangle(t, 8, (unsigned)t->height * 8 - 2, 8, 519);
+	rectangle(t, 8, (unsigned)t->height * 8 - 2, 8, cursor);
 	/* Full depth and palette indices, never a dedicated cursor RGB colour. */
 	feed(t, "\x1b[17;2!\x1b[0m\f");
 	rectangle(t, 0, 6, 8, 527);
@@ -129,10 +133,11 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status)
 	const char wire[] = "\fA\x1b[1;0!B\x1b[10;0!A";
 	for (size_t split = 0; split < sizeof(wire); ++split) {
 		CHECK(st_cterm_reset_terminal(t) == 0);
+		if (colours == 8) feed(t, "\x1b[17;1!\x1b[0m");
 		CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
 		CHECK(st_cterm_write(t, wire + split, sizeof(wire) - 1 - split, &used) == 0 && used == sizeof(wire) - 1 - split);
 		CHECK(st_cterm_finish(t) == 0);
-		rectangle(t, 24, 6, 8, 519);
+		rectangle(t, 24, 6, 8, cursor);
 	}
 	if (utf8) {
 		/* Independent Pearl/8 e-acute rows; revise e after the first cursor
@@ -145,7 +150,7 @@ static void run(enum st_cterm_graphics_mode mode, bool utf8, bool status)
 		CHECK(st_cterm_finish(t) == 0);
 		for (unsigned y = 0; y < 8; ++y) for (unsigned x = 0; x < 8; ++x)
 			rectangle(t, x, y, 1, accent[y] & (128u >> x) ? 514 : 512);
-		rectangle(t, 8, 6, 8, 519);
+		rectangle(t, 8, 6, 8, cursor);
 	}
 	st_cterm_destroy(&t);
 	st_font_catalog_destroy(fonts);
@@ -169,17 +174,17 @@ static void widths(enum st_cterm_graphics_mode mode, const char *name,
 		.amiga_font = st_amiga_font_builtin(name, height), .quiet = true};
 	CHECK(st_cterm_create(&t, &config) == 0);
 	feed(t, "\f");
-	rectangle(t, 0, baseline, width, 519);
+	rectangle(t, 0, baseline, width, 527);
 	rectangle(t, width, baseline, 1, 512);
 	feed(t, "\x1b[19;2;11!\x1b[10;0!\x1b[K");
-	rectangle(t, 2, 11 + height - 1, width, 519);
+	rectangle(t, 2, 11 + height - 1, width, 527);
 	feed(t, "\x1b[10;0!"); /* Hiding restores the exact background. */
 	rectangle(t, 2, 11 + height - 1, width, 512);
 	feed(t, "\x1b[19;65533;11!\x1b[10;0!\x1b[K");
-	rectangle(t, 0, 11 + height - 1, width - 3, 519);
+	rectangle(t, 0, 11 + height - 1, width - 3, 527);
 	rectangle(t, width - 3, 11 + height - 1, 1, 512);
 	feed(t, "\x1b[19;638;11!\x1b[10;0!\x1b[K");
-	rectangle(t, 638, 11 + height - 1, 2, 519);
+	rectangle(t, 638, 11 + height - 1, 2, 527);
 	/* Restore both actual phase backgrounds, rather than guessing a visible
 	 * phase from C or flattening a differently coloured alternate plane. */
 	feed(t, "\x1b[19;2;11!\x1b[10;0!");
@@ -194,7 +199,7 @@ static void widths(enum st_cterm_graphics_mode mode, const char *name,
 	const struct st_console_rect strip = {2, 11 + height - 1, width, 1};
 	CHECK(st_console_get_pixels(&background, console, &strip, false) == 0);
 	for (unsigned i = 0; i < width; ++i)
-		CHECK(background->primary[i] == 516 && background->alternate[i] == 515);
+		CHECK(background->primary[i] == 524 && background->alternate[i] == 523);
 	st_pixel_buffer_destroy(background);
 	feed(t, "\x1b[10;0!");
 	CHECK(st_console_get_pixels(&background, console, &strip, false) == 0);
@@ -211,7 +216,8 @@ int st_cterm_skypix_cursor_test_main(void)
 	for (int kick = 0; kick < 2; ++kick) {
 		for (int utf8 = 0; utf8 < 2; ++utf8)
 			for (int status = 0; status < 2; ++status)
-				run(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, utf8, status);
+				for (unsigned colours = 8; colours <= 16; colours += 8)
+					run(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, utf8, status, colours);
 		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Opal.font", 12, 8, 9);
 		widths(kick ? ST_CTERM_GRAPHICS_SKYPIX_31 : ST_CTERM_GRAPHICS_SKYPIX_13, "Diamond.font", 20, 14, 20);
 	}
