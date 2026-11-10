@@ -83,6 +83,12 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 	const struct cterm_igs *igs = st_term_session_cterm(owner->session)->igs_engine;
 	if (igs != NULL) {
 		st_console_test_number(app, "cterm.igs_resolution", igs->resolution);
+		st_console_test_number(app, "cterm.igs_console_foreground", igs->terminal->vt52_foreground);
+		st_console_test_number(app, "cterm.igs_console_background", igs->terminal->vt52_background);
+		st_console_test_number(app, "cterm.igs_console_reverse", igs->terminal->negative);
+		st_console_test_number(app, "cterm.igs_console_escape", igs->terminal->sequence != 0);
+		st_console_test_number(app, "cterm.igs_console_parameters",
+		    igs->terminal->accumulator != NULL && !igs->terminal->sequence ? igs->terminal->seq_trailing_remain : 0);
 		st_console_test_number(app, "cterm.igs_scaling_mode", igs->scaling_mode);
 		st_console_test_number(app, "cterm.igs_scaling_resolution", igs->scaling_resolution);
 		st_console_test_number(app, "cterm.igs_writing_mode", igs->attributes.writing_mode);

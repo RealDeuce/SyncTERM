@@ -2973,6 +2973,7 @@ cterm_igs_set_resolution(struct cterminal *t, unsigned resolution)
 	t->escbuf[0] = 0;
 	t->negative = false;
 	t->attr = 15;
+	t->vt52_foreground = 15; t->vt52_background = 0;
 	CTERM_FREE_AND_CLEAR(t->fg_tc_str);
 	CTERM_FREE_AND_CLEAR(t->bg_tc_str);
 	cterm_render_attribute_colours(t, t->attr, &t->fg_color, &t->bg_color);

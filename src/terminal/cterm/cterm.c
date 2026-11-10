@@ -1392,6 +1392,10 @@ cterm_scrollup(struct cterminal *cterm)
 	int x,y;
 	struct st_console_cell fill;
 	cterm_render_make_current_cell(cterm, &fill, ' ', 0);
+	/* Atari reverse video changes glyph colors, not the background used
+	 * to blank the new row after native LF or immediate right-edge wrap. */
+	if (cterm->igs_engine != NULL)
+		fill.background = cterm->screen.mode_palette[cterm->vt52_background & 15u];
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &minx, &miny);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &maxx, &maxy);
@@ -2090,6 +2094,8 @@ cterm_reset(struct cterminal *cterm)
 			cterm->attr = cterm->screen.default_attribute;
 			break;
 	}
+	cterm->vt52_foreground = cterm->attr & 15u;
+	cterm->vt52_background = cterm->attr >> 4;
 	cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 	if (cterm->last_column_flag & CTERM_LCF_FORCED)
 		cterm->last_column_flag &= ~(CTERM_LCF_SET);

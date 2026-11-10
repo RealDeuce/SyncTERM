@@ -215,6 +215,8 @@ struct cterminal {
 	bool negative;
 	bool lf_expand;
 	unsigned char		attr;			// Current attribute
+	/* Native Atari console words; effective display colors remain indexed. */
+	uint16_t			vt52_foreground, vt52_background;
 	uint32_t			fg_color;
 	uint32_t			bg_color;
 	uint32_t			cell_flags;

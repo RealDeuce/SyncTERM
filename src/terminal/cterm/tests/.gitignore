@@ -17,3 +17,4 @@ data/skypix/*
 !data/igs_polygon_vectors.h
 !data/igs_flood_vectors.h
 !data/igs_text_vectors.h
+!data/igs_console_color_glyphs.h

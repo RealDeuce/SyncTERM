@@ -28,10 +28,14 @@
  * no conflicts — one shared table covers both.
  */
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "cterm_render.h"
+#include "cterm_igs.h"
+#include "io_error.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_vt52.h"
@@ -133,6 +137,16 @@ cterm_vt52_goto_xy(struct cterminal *cterm, int *speed)	/* ESC Y row col */
 {
 	int x, y;
 	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		/* Native parameter subtraction is an unsigned word operation. Host
+		 * rows exclude a reserved status line, so clamp within that viewport. */
+		unsigned row = (uint16_t)(cterm->seq_param_int[0]-32);
+		unsigned col = (uint16_t)(cterm->seq_param_int[1]-32);
+		if (row >= (unsigned)cterm->height) row = (unsigned)cterm->height-1;
+		if (col >= (unsigned)cterm->width) col = (unsigned)cterm->width-1;
+		cterm_render_set_position(cterm,CURR_MINX+(int)col,CURR_MINY+(int)row);
+		return;
+	}
 	y = (int)cterm->seq_param_int[0] - 32;
 	if (y < 0)
 		return;
@@ -187,6 +201,9 @@ cterm_vt52_delete_line(struct cterminal *cterm, int *speed)	/* ESC M */
 static void
 cterm_vt52_do_attr(struct cterminal *cterm, char attr, bool bg)
 {
+	uint16_t raw = (uint16_t)((uint8_t)attr-32);
+	if (bg) cterm->vt52_background = raw;
+	else cterm->vt52_foreground = raw;
 	if (cterm->negative)
 		bg = !bg;
 	if (bg) {
@@ -315,6 +332,47 @@ cterm_vt52_autowrap_off(struct cterminal *cterm, int *speed)	/* ESC w */
 	cterm->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
 }
 
+/* IGS uses the TOS single-byte escape grammar. Keep the existing standalone
+ * VT52/ECMA compatibility path, and reuse its handlers/raw-parameter reader. */
+static bool
+accumulate_native(struct cterminal *cterm, unsigned char byte, int *speed)
+{
+	cterm->accumulator = NULL; cterm->sequence = 0; cterm->seq_phase = SEQ_PHASE_IDLE;
+	if (byte < 0x30 || byte > 0x7e || byte == '=' || byte == '>') return true;
+	uint32_t key = byte >= 0x40 && byte <= 0x5f ? SEQ_C1(byte) : SEQ_ESC | SEQ_FINAL(byte);
+	const struct seq_dispatch *entry = bsearch(&key,cterm_st_vt52_dispatch,
+	    cterm_st_vt52_dispatch_len,sizeof(*cterm_st_vt52_dispatch),cterm_seq_dispatch_cmp);
+	if (entry == NULL) return true;
+	if (entry->trailing != 0) {
+		cterm->seq_param_count = 0; cterm->seq_trailing_remain = entry->trailing;
+		cterm->seq_trailing_handler = entry->handler; cterm->accumulator = cterm_accumulate_trailing;
+		cterm_text_forget(cterm);
+	} else entry->handler(cterm,speed);
+	return true;
+}
+
+int
+cterm_vt52_output(struct cterminal *cterm, const uint8_t *bytes, size_t size)
+{
+	int status = cterm_text_boundary(cterm), speed = 0;
+	enum st_codepage saved = cterm->screen.codepage;
+	bool expand = cterm->lf_expand;
+	cterm->screen.codepage = ST_CODEPAGE_ATARI_ST;
+	cterm->lf_expand = false;
+	for (size_t i = 0; status == 0 && i < size; ++i) {
+		/* Native printable bytes always occupy one cell, including DEL;
+		 * they do not enter Unicode control/grapheme interpretation. */
+		if (cterm->accumulator == NULL && bytes[i] >= 32)
+			cterm_text_literal(cterm,bytes[i]);
+		else if (!cterm_parse_byte(cterm,bytes[i],&speed)) status = IO_ERROR_PROTOCOL;
+		if (status == 0) status = cterm_text_boundary(cterm);
+		if (status == 0) status = cterm_render_take_error(cterm);
+	}
+	cterm->screen.codepage = saved;
+	cterm->lf_expand = expand;
+	return status;
+}
+
 /* ------------------------------------------------------------------------
  * cterm_dispatch_vt52 — VT52 single-byte dispatcher.
  *
@@ -329,6 +387,16 @@ void
 cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 {
 	(void)speed;
+
+	if (cterm->igs_engine != NULL && byte == 9) {
+		/* TOS moves to the next eight-cell boundary, clipping at the edge;
+		 * terminal tab stops and right-edge wrapping do not participate. */
+		int x,y; CURR_XY(&x,&y);
+		x = CURR_MINX+((x-CURR_MINX) & ~7)+8;
+		if (x > CURR_MAXX) x = CURR_MAXX;
+		cterm_render_set_position(cterm,x,y);
+		return;
+	}
 
 	switch (byte) {
 		case 7:		/* BEL */
@@ -353,7 +421,7 @@ cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
-			cterm->accumulator = cterm_accumulate_ecma_seq;
+			cterm->accumulator = cterm->igs_engine != NULL ? accumulate_native : cterm_accumulate_ecma_seq;
 			cterm->sequence = 1;
 			cterm->seq_phase = SEQ_PHASE_C1;
 			cterm->seq_key = SEQ_ESC;

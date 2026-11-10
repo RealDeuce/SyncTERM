@@ -3,6 +3,7 @@
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
+#include "cterm_vt52.h"
 #include "io_error.h"
 #include "st_time.h"
 #include "st_graphics_parser.h"
@@ -142,6 +143,7 @@ static const struct st_graphics_command commands[] = {
 	{'g', unscaled_parameters, 1, NULL},
 	{'M', unscaled_parameters, 1, NULL},
 	{'C', unscaled_parameters, 2, NULL},
+	{'c', unscaled_parameters, 2, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -334,6 +336,12 @@ command(void *context, const struct st_graphics_command_view *view)
 		igs->attributes.writing_mode = values[0] >= 1 && values[0] <= 4 ? values[0] : 1;
 		return 0;
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
+	case 'c': {
+		/* Upper selectors select background; negative selectors emit ESC only.
+		 * Colors are raw console bytes, independent of VDI pen numbering. */
+		const uint8_t output[] = {27, values[0] == 1 ? 'b' : 'c', (uint8_t)values[1]};
+		return cterm_vt52_output(igs->terminal,output,values[0] < 0 ? 1 : sizeof(output));
+	}
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
 	case 'E': cterm_igs_set_text(igs, values[0], values[1], values[2]); return 0;
 	case 'W': {

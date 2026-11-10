@@ -154,7 +154,7 @@ cterm_render_make_cell(struct cterminal *cterm,
 		flags |= ST_CONSOLE_CELL_BRIGHT;
 	if ((attribute & CTERM_ATTR_BLINK) != 0)
 		flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->skypix) flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
+	if (cterm->skypix || cterm->igs_engine != NULL) flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
 	*cell = (struct st_console_cell){
 		.foreground = foreground,
 		.background = background,
@@ -337,7 +337,7 @@ cterm_render_set_attribute(struct cterminal *cterm, int attribute)
 	}
 	if ((cterm->attr & CTERM_ATTR_BLINK) != 0)
 		style.flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->skypix) style.flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
+	if (cterm->skypix || cterm->igs_engine != NULL) style.flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
 	style.font = font_identifier(cterm,
 	    cterm_render_attribute_font(cterm, cterm->attr));
 	style.hyperlink = cterm->screen.current_hyperlink;
@@ -738,6 +738,8 @@ cterm_render_set_font_selector(struct cterminal *cterm, int selector, int force,
 uint8_t
 cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute)
 {
+	/* IGS uses color-register bits, not ANSI intensity/blink font banks. */
+	if (cterm->igs_engine != NULL) return (uint8_t)cterm->screen.selectors[1];
 	int slot = 1;
 	uint32_t flags = (uint32_t)cterm_render_get_video_flags(cterm);
 

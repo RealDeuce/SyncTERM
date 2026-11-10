@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E and W commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W and c commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2063,5 +2063,99 @@ registrations,22554/186 inventory,24 replacement scenes,768 original glyphs,
 six metric records and pinned ROM/font/oracle/decoded-mask hashes were checked.
 Prior expected raster fixtures are unchanged. Superseded planar/clock gates
 remain excluded; X stays in progress. Other commands/selectors and full
-acceptance remain pending. Completion commit will be recorded by the next
-completed step.
+acceptance remain pending. Completion commit: d815bfc.
+
+=== c console colors
+
+c reuses the two-unscaled-number description and evaluator. It acquires both
+words before output, upper-resets selectors above1 to background0, and emits
+ESC c/color for0 or ESC b/color for1. A negative selector emits only ESC;
+its color operand is still acquired/evaluated. The color is the word's low
+byte, without adding32 or translating a VDI graphical pen. No palette/VDI
+setter, reply, serial flow or drawing wait is added.
+
+Generated BIOS-style console bytes enter the existing persistent VT52 parser
+one call at a time. They use Atari byte interpretation, independent of wire
+UTF-8/codepage decoding and LF expansion. Their placement commits before the
+next call; scoped codepage/expansion state is restored on errors too. These
+are generated drawing/control operations, not a second pass through received
+scalar hooks or raw-wire logging. Ordinary received input keeps its existing
+presentation path.
+
+IGS selects a strict TOS one-command-byte ESC accumulator while reusing the
+existing dispatch table, handlers and raw-parameter accumulator. ESC in ESC
+state cancels it; unsupported commands are discarded, and parameter states
+own all byte values. This preserves composition with an already-pending ESC,
+Y-row/Y-column or foreground/background parameter. Standalone VT52 retains
+its existing compatibility grammar. Native Y parameters subtract32 as words
+and unsigned-clamp to the viewport. A reserved status row reduces the host
+viewport safely instead of allowing console writes into application UI.
+
+Two native words retain foreground/background byte-minus32 state, including
+raw3 becoming$ffe3 and ASCII3 becoming19. Rendering uses their low physical
+color bits through the existing indexed palette. Reverse video changes glyph
+color selection, while scroll blanking uses the retained background word.
+Color bits select neither ANSI blink/intensity flags nor alternate font banks.
+The first literal high-background test caught differing blink phases; the
+corrected IGS attribute mapping keeps both phases identical. A focused control
+case also caught wire LF expansion leaking into generated output. Native TAB
+clips its fixed eight-cell advance at the edge, and native scroll blanking
+uses background independently of reverse video.
+
+cterm_igs_console_color executes1179648 algebraic state cases: every signed
+word as selector, foreground color and background color in every resolution
+and reverse state. All1536 color-pair/reverse/depth cases compare literal A
+rows in both phases. Another3696 complete native-frame contexts compose all
+six parser states plus a wrapping bottom-row context, negative/zero/one/upper
+selectors, NUL/BEL/BS/TAB/LF/VT/FF/CR/ESC and ASCII/high-byte output, reverse
+video and status choices. Independent source-state arithmetic and literal
+original font rows supply expectations; no emulator output constructs them.
+All224 printable bytes also have2688 literal pixel/advance cases through both
+wire modes and console fonts. This caught DEL being dropped by Unicode control
+interpretation; generated printable bytes now use the existing literal
+one-cell placement path. Every focused split/bytewise chain, once-only RNG,
+negative-selector pending ESC, EOF/local timeout/invalid input, I/R/reset lifetime and output-error scope
+restoration supplement the matrices. Other graphics state/palettes/pixels stay
+unchanged when the console only changes colors.
+
+syncterm_igs_console_color has360 source-derived wire-reachable scenes. One
+coherent capture checks raw colors, active pending console state, cursor,
+cells, physical indexed phases, palette, other graphics state and RGB. An
+existing W glyph remains independent of console colors and scrolls with the
+screen. A unique non-drawing X10 fence preserves incomplete console state;
+an ordinary caption could consume that state. Capture planes already use
+logical row order, so the test does not reapply storage-ring metadata.
+A separate six-scene DEL regression repeats its native glyph/advance check
+through all mode/encoding/status choices. All ST modes, Atari ST/CP437/UTF-8
+and status choices run with AudioModes=0
+and MidiModes=0. Partial numeric disconnect and fresh reconnect check clean
+font/color/parser lifetime. BEL cases establish dispatch/pixel behavior,
+not audible-device or synthesized-waveform coverage.
+
+Other console commands, loops, sound, remaining selectors and full acceptance
+remain pending. References:14/15/66/195.
+
+Verification used native FreeBSD /usr/bin/cc with the existing Release CMake
+configuration. Configure and full native builds passed without warnings.
+The literal color test failed before implementation; its high-background
+variant then exposed ANSI blink leakage. The expanded native control case
+failed with wire LF expansion, and the all-printable-byte test subsequently
+failed on DEL's missing advance. Each was corrected without relaxing its
+expected output.
+
+All93 selected CTest regressions passed in one run: every CTerm test, shared
+parser/images/pixels, bitmap/control backend, term/Wren,28 IGS application
+suites, SkyPix report, graphics scrollback and session modes. After the final
+literal-byte correction, the expanded native c suite passed all word/color/
+prior-state/printable-byte cases, the360-scene application suite passed again,
+and the separate six-scene DEL suite passed across every mode/encoding/status
+combination. The latter raises the registered IGS application suites to29.
+The capture readout was corrected to use the already-normalized logical rows;
+independent native scroll geometry and pixels stayed unchanged.
+
+All63 unique IDs,28 completed entries, source/dependency/test registrations,
+1179648/1536/3696/2688 native inventories,360+6 application inputs,512 original
+console glyphs and pinned ROM/font-export hashes were checked. Existing
+raster fixtures are unchanged; superseded planar/clock gates remain excluded.
+X stays in progress. Other commands/selectors and full acceptance remain
+pending. Completion commit will be recorded by the next completed step.

@@ -128,6 +128,11 @@ quadrant rotation, native clipping/light phases and underline. Its 22,554
 independent dual-phase frames and 186 full application scenes cover all ST
 modes, opaque/bounded text, console overlays/replacement, coordinates/status,
 reader reuse/handshake, absolute local deadlines and recovery/lifetime.
+`c` adds raw physical console colors through persistent native VT52 state.
+Its 1,179,648 word cases, 1,536 color-pair cases, 3,696 complete-frame contexts
+plus 2,688 printable-byte cases and 366 application scenes cover reverse
+video, pending sequences, controls,
+scrolling graphics, physical attributes, raw bytes and recovery/lifetime.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

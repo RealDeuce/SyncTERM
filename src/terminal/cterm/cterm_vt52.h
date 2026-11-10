@@ -18,11 +18,16 @@
 #define _CTERM_VT52_H_
 
 #include <stddef.h>
+#include <stdint.h>
 #include "cterm.h"
 #include "cterm_internal.h"	/* struct seq_dispatch */
 
 void cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte,
     int *speed);
+
+/* BIOS-style output uses the current persistent VT52 parser and Atari bytes;
+ * it is generated output, not another pass through wire UTF-8 or input hooks. */
+int cterm_vt52_output(struct cterminal *, const uint8_t *, size_t);
 
 extern const struct seq_dispatch cterm_st_vt52_dispatch[];
 extern const size_t cterm_st_vt52_dispatch_len;
