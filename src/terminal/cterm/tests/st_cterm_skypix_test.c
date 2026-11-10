@@ -22,7 +22,8 @@ struct parser_result {
 	unsigned commands;
 	unsigned values[17];
 	size_t count;
-	char name[100];
+	char name[1025];
+	size_t string_count;
 	char plain[100];
 	size_t size;
 	bool paused;
@@ -35,12 +36,18 @@ static int plain(void *context, const uint8_t *bytes, size_t size)
 	r->size += size;
 	return 0;
 }
-static int parsed(void *context, const unsigned *p, size_t count, const uint8_t *bytes, size_t size)
+static int parsed(void *context, const unsigned *p, size_t count,
+	const struct cterm_skypix_string *strings, size_t string_count)
 {
 	struct parser_result *r = context;
+	CHECK(count <= sizeof(r->values) / sizeof(*r->values));
+	CHECK(string_count <= 1);
+	const uint8_t *bytes = string_count == 0 ? NULL : strings[0].bytes;
+	size_t size = string_count == 0 ? 0 : strings[0].size;
 	++r->commands;
 	memcpy(r->values, p, count * sizeof(*p));
 	r->count = count;
+	r->string_count = string_count;
 	CHECK(size < sizeof(r->name));
 	if (size != 0)
 		memcpy(r->name, bytes, size);
@@ -50,6 +57,138 @@ static int parsed(void *context, const unsigned *p, size_t count, const uint8_t 
 	return 0;
 }
 static bool paused(void *context) { return ((struct parser_result *)context)->paused; }
+static void parser_string_tests(void)
+{
+	/* The six original parsers accept these independent numeric/string sets.
+	 * The RoF menu capture specifically supplies the trailing empty fields. */
+	static const struct {
+		const char *wire, *name, *plain;
+		unsigned numbers[6];
+		size_t count, strings;
+	} cases[] = {
+		{"A\x1b[10;8;!Pearl.font!Z", "Pearl.font", "AZ", {10, 8, 0}, 3, 1},
+		{"A\x1b[10;9;!Opal.font!Z", "Opal.font", "AZ", {10, 9, 0}, 3, 1},
+		{"A\x1b[10;8;7;8!Pearl.font!Z", "Pearl.font", "AZ", {10, 8, 7, 8}, 4, 1},
+		{"A\x1b[10;8;;!Pearl.font!Z", "Pearl.font", "AZ", {10, 8, 0, 0}, 4, 1},
+		{"A\x1b[10;8;7!!Z", "", "AZ", {10, 8, 7}, 3, 1},
+		{"A\x1b[10;0;7!Pearl.font!Z", "", "APearl.font!Z", {10, 0, 7}, 3, 0},
+		{"A\x1b[16;1;20;10;7!brush.iff!Z", "brush.iff", "AZ", {16, 1, 20, 10, 7}, 5, 1},
+		{"A\x1b[16;20;0;0;7!asset;01.raw!Z", "asset;01.raw", "AZ", {16, 20, 0, 0, 7}, 5, 1},
+		{"A\x1b[16!brush.iff!Z", "brush.iff", "AZ", {16}, 1, 1},
+	};
+	for (size_t n = 0; n < sizeof(cases) / sizeof(*cases); ++n) {
+		size_t length = strlen(cases[n].wire);
+		for (size_t split = 0; split <= length + 1; ++split) {
+			struct cterm_skypix_parser parser = {0};
+			struct parser_result r = {0};
+			struct cterm_skypix_sink s = {.context = &r, .text = plain, .command = parsed};
+			size_t used;
+			const uint8_t *wire = (const uint8_t *)cases[n].wire;
+			if (split <= length) {
+				CHECK(cterm_skypix_parser_feed(&parser, &s, wire, split, &used) == 0 && used == split);
+				CHECK(cterm_skypix_parser_feed(&parser, &s, wire + split, length - split, &used) == 0
+					&& used == length - split);
+			} else {
+				for (size_t i = 0; i < length; ++i)
+					CHECK(cterm_skypix_parser_feed(&parser, &s, wire + i, 1, &used) == 0 && used == 1);
+			}
+			CHECK(r.commands == 1 && r.count == cases[n].count && r.string_count == cases[n].strings);
+			CHECK(memcmp(r.values, cases[n].numbers, r.count * sizeof(*r.values)) == 0);
+			CHECK(strcmp(r.name, cases[n].name) == 0);
+			CHECK(r.size == strlen(cases[n].plain) && memcmp(r.plain, cases[n].plain, r.size) == 0);
+			CHECK(cterm_skypix_parser_finish(&parser, &s) == 0);
+		}
+	}
+}
+static void parser_limit_tests(void)
+{
+	for (unsigned variant = 0; variant < 6; ++variant) {
+		char wire[2200];
+		size_t length = 0;
+		bool valid = variant % 2 == 0;
+		memcpy(wire, "A\x1b[10;8", 7);
+		length = 7;
+		if (variant < 2) {
+			wire[length++] = '!';
+			memset(wire + length, 'x', 1024 + variant);
+			length += 1024 + variant;
+		} else if (variant < 4) {
+			wire[length++] = ';';
+			memset(wire + length, '9', 32 + variant - 2);
+			length += 32 + variant - 2;
+			memcpy(wire + length, "!Pearl.font", 11);
+			length += 11;
+		} else {
+			for (unsigned i = 0; i < 15 + variant - 4; ++i) {
+				memcpy(wire + length, ";0", 2);
+				length += 2;
+			}
+			memcpy(wire + length, "!Pearl.font", 11);
+			length += 11;
+		}
+		wire[length++] = '!';
+		if (!valid) {
+			memcpy(wire + length, "\x1b[15;2!", 7);
+			length += 7;
+		}
+		wire[length++] = 'Z';
+		for (size_t split = 0; split <= length; ++split) {
+			struct cterm_skypix_parser parser = {0};
+			struct parser_result r = {0};
+			struct cterm_skypix_sink s = {.context = &r, .text = plain, .command = parsed};
+			size_t used;
+			CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)wire, split, &used) == 0 && used == split);
+			CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)wire + split, length - split, &used) == 0
+				&& used == length - split);
+			CHECK(r.commands == 1 && r.values[0] == (valid ? 10u : 15u));
+			CHECK(r.string_count == (valid ? 1u : 0u));
+			CHECK(r.size == 2 && memcmp(r.plain, "AZ", 2) == 0);
+			if (valid) {
+				CHECK(r.count == (variant == 0 ? 2u : variant == 2 ? 3u : 17u));
+				CHECK(strlen(r.name) == (variant == 0 ? 1024u : 10u));
+				if (variant == 2) CHECK(r.values[2] == 65535);
+			}
+		}
+	}
+	/* A sender can keep either list open indefinitely. Storage stays fixed
+	 * while the parser drains input, then resynchronizes at the terminator. */
+	for (unsigned strings = 0; strings < 2; ++strings) {
+		struct cterm_skypix_parser parser = {0};
+		struct parser_result r = {0};
+		struct cterm_skypix_sink s = {.context = &r, .text = plain, .command = parsed};
+		const char *prefix = strings ? "A\x1b[10;8!" : "A\x1b[10;8;";
+		size_t used;
+		CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)prefix, strlen(prefix), &used) == 0);
+		uint8_t block[1024];
+		memset(block, strings ? 'x' : ';', sizeof(block));
+		for (unsigned i = 0; i < 64; ++i) {
+			CHECK(cterm_skypix_parser_feed(&parser, &s, block, sizeof(block), &used) == 0 && used == sizeof(block));
+			CHECK(parser.length <= sizeof(parser.bytes) && parser.number_count <= CTERM_SKYPIX_MAX_NUMBERS
+				&& r.commands == 0 && r.size == 1);
+		}
+		const char *suffix = strings ? "!\x1b[15;2!Z" : "!Pearl.font!\x1b[15;2!Z";
+		CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)suffix, strlen(suffix), &used) == 0);
+		CHECK(r.commands == 1 && r.values[0] == 15 && r.size == 2 && memcmp(r.plain, "AZ", 2) == 0);
+	}
+	for (unsigned oversized = 0; oversized < 2; ++oversized) {
+		struct cterm_skypix_parser parser = {0};
+		struct parser_result r = {0};
+		struct cterm_skypix_sink s = {.context = &r, .text = plain, .command = parsed};
+		const char prefix[] = "A\x1b[10;8!unfinished";
+		size_t used;
+		CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)prefix, strlen(prefix), &used) == 0);
+		if (oversized) {
+			uint8_t block[1024];
+			memset(block, 'x', sizeof(block));
+			CHECK(cterm_skypix_parser_feed(&parser, &s, block, sizeof(block), &used) == 0);
+		}
+		CHECK(cterm_skypix_parser_finish(&parser, &s) == 0 && r.commands == 0 && r.size == 1);
+		const char recovered[] = "\x1b[10;9;!Opal.font!Z";
+		CHECK(cterm_skypix_parser_feed(&parser, &s, (const uint8_t *)recovered, strlen(recovered), &used) == 0);
+		CHECK(r.commands == 1 && r.string_count == 1 && strcmp(r.name, "Opal.font") == 0
+			&& r.size == 2 && memcmp(r.plain, "AZ", 2) == 0);
+	}
+}
 static void parser_tests(void)
 {
 	const char wire[] = "A\x1b[31mB\x1b[10;19!Sapphire.font!C\x1b[16;1;20;10!brush.iff!\nTAIL";
@@ -1001,6 +1140,8 @@ int st_cterm_skypix_test_main(void)
 				pixel_scroll_test(status, graphics, utf8, 3, 12, 12);
 			}
 	graphics_history_test();
+	parser_string_tests();
+	parser_limit_tests();
 	parser_tests();
 	engine_tests(false, ST_CTERM_GRAPHICS_SKYPIX_13);
 	engine_tests(true, ST_CTERM_GRAPHICS_SKYPIX_13);

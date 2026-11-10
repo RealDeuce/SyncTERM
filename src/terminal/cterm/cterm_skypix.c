@@ -392,7 +392,8 @@ static int begin_command(void *context)
 	s->cursor_enabled = false;
 	return status;
 }
-static int command(void *context, const unsigned *p, size_t count, const uint8_t *text, size_t size)
+static int command(void *context, const unsigned *p, size_t count,
+	const struct cterm_skypix_string *strings, size_t string_count)
 {
 	struct cterm_skypix *s = context;
 	struct cterminal *t = s->terminal;
@@ -402,7 +403,7 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 		return status;
 	unsigned fg = (t->attr & 15) & (s->colours - 1), bg = (t->attr >> 4 & 15) & (s->colours - 1);
 	unsigned op = p[0];
-	int v[17];
+	int v[CTERM_SKYPIX_MAX_NUMBERS];
 	for (size_t i = 0; i < count; ++i)
 		v[i] = cterm_skypix_word(p[i]);
 	if (op == 9 && count == 5) {
@@ -423,8 +424,13 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 		op = 4;
 		count = 5;
 	}
-	if (op == 10 && count == 2)
-		return set_font(s, p[1], text, size);
+	if (op == 10 && count >= 2) {
+		if (p[1] == 0)
+			return cterm_skypix_reset_font(s);
+		if (string_count == 1)
+			return set_font(s, p[1], strings[0].bytes, strings[0].size);
+		return 0;
+	}
 	if (op == 11 && count == 17) {
 		for (unsigned i = 1; i < 17; ++i)
 			if (p[i] > 4095)
@@ -472,7 +478,7 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 	}
 	if (op == 99 && count == 1)
 		return 0;
-	if (op == 16 && count == 4) {
+	if (op == 16 && count >= 4 && string_count == 1) {
 		if (t->skypix_transfer == NULL) {
 			static const uint8_t cancel[] = {0x18, 0x18};
 			if (t->api_output != NULL)
@@ -480,7 +486,8 @@ static int command(void *context, const unsigned *p, size_t count, const uint8_t
 							  sizeof(cancel));
 			return 0;
 		}
-		status = t->skypix_transfer(t->skypix_transfer_context, p[1], p[2], p[3], text, size);
+		status = t->skypix_transfer(t->skypix_transfer_context, p[1], p[2], p[3],
+			strings[0].bytes, strings[0].size);
 		if (status == IO_ERROR_IN_PROGRESS)
 			s->receiving = true;
 		else if (status != 0) {

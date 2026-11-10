@@ -51,9 +51,9 @@ def run(executable, reports, kick, encoding, status):
                     assert read(4) == b'\x1b[0n'
                     return client.capture()
 
-                def request(mode, name):
+                def request(mode, name, extra=''):
                     # Dimensions do not size, truncate or decode cached files.
-                    peer.sendall(f'\x1b[16;{mode};999;888!'.encode() + name + b'!')
+                    peer.sendall(f'\x1b[16;{mode};999;888{extra}!'.encode() + name + b'!')
 
                 def idle():
                     client.wait_for(lambda s: s.application.get('transfer.active') == 0
@@ -116,7 +116,7 @@ def run(executable, reports, kick, encoding, status):
 
                 completed = {}
                 for mode, name, size in ((2, 'sample.8svx', 128), (3, 'sample.raw', 1024)):
-                    request(mode, name.encode())
+                    request(mode, name.encode(), extra=';7;')
                     assert read(1) == b'C'
                     # Deliberately not valid audio: caching is independent of
                     # audio formats. Include LF, NUL and every byte value.
@@ -125,6 +125,11 @@ def run(executable, reports, kick, encoding, status):
                     path = cached_file(name)
                     assert path.read_bytes() == completed[name]
                     unchanged()
+                    for extra in (';', ';7;8'):
+                        request(mode, name.encode(), extra=extra)
+                        assert read(len(CACHE_REPLY)) == CACHE_REPLY
+                        assert path.read_bytes() == completed[name]
+                        unchanged()
                     # All types share SkyTERM's BRU: namespace. A different
                     # sample type or type 20 must also hit this same file.
                     for repeated in (mode, 5-mode, 20):

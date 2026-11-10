@@ -114,6 +114,12 @@ The [1.10 SkyPix report review](SKYPIX_110_REPORT.md) maps all six reported
 issues to the current implementation and tests. `syncterm_skypix_report` checks
 RIP identification isolation, immediate outline/fill, positioned text, named
 font framing and reset/editor recovery using literal full-scene expectations.
+It also checks Pearl/8 and Opal/9 selection with trailing empty and explicit
+extra numeric parameters, right-edge advances, and height-zero reset on both
+Amiga resolutions, Kick variants, encodings and status choices. String positions
+are independent of numeric positions. Native parser cases check all input splits,
+empty strings, the 17-field/32-digit/1,024-byte limits, long unterminated input
+and EOF recovery; command-16 uploads and cache hits also carry extra fields.
 It covers both variants, CP437/UTF-8 and status choices with reset/replay;
 native `cterm_skypix` checks every input split and bytewise replay.
 `amiga_font_report` checks all 65 embedded native files and exact native
