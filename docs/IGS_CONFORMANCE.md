@@ -4,7 +4,8 @@ IGS implementation is in progress. The application-selectable IGS 2.21 mode
 implements `I`'s six initialization selectors and `R` resolution selection.
 `g` configures coordinate scaling and its captured resolution. `M` selects the
 workstation writing mode; `C` selects independent graphical pens and `S`
-changes palette colours. Other commands remain pending.
+changes palette colours. `H` selects hollow/solid fill, writing mode and
+perimeter together. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -332,6 +333,36 @@ background changes, mono polarity, I/R lifetime, retained window dimensions,
 no replies and reconnect. All ST modes, Atari ST/CP437/UTF-8 and status
 choices run with audio disabled and nearest display scaling. Drawing and
 sound commands remain pending.
+
+### H: hollow and solid attributes
+
+`H` reads one unscaled flag. Negative flags do nothing; flags above one
+select one. `H1` sets hollow interior 0, transparent writing mode 2 and
+perimeter on, in that order. `H0` sets solid interior 1, replace mode 1 and
+perimeter off. There is no separate hollow flag or H cache. A subsequent
+`M` changes writing mode independently. Fill pen, stored fill index and
+user pattern are preserved; selecting hollow/solid does not revalidate the
+old index. These are the state contracts in reference chapters 15/29/129.
+
+`H` draws no pixels and changes no palette, console colours, unrelated
+attributes, Drawto, clipping, scaling or memory controls. It sends no reply
+and adds no wait. `I0/I2` restore the captured interior and writing mode
+but preserve perimeter. Palette-only `I`, `I5` and `R` retain the selected
+triple; whole reset/reconnect restore the complete entry attributes,
+including perimeter. Each drawing primitive's use of these attributes is
+covered with that primitive when implemented.
+
+`cterm_igs_hollow` checks flags and signed bounds, literal/array/random
+operands under all scaling modes, old fill index/user pattern preservation,
+unrelated attributes and both pixel planes, `M` interaction, selective/full
+initialization and resolution suspension/ordering. Focused H/M chains run
+at every split and bytewise; partial input, EOF, timeout, malformed magnitude
+and reset/recovery preserve completed state. `syncterm_igs_hollow` checks
+the actual three attributes with coherent literal Z pixels, cells, palette,
+cursor and IGS state, in all ST modes, Atari ST/CP437/UTF-8 and status choices.
+It covers M/I/R lifetime, unchanged scene/window, no replies and reconnect,
+with audio disabled. This is attribute coverage; pending primitive and
+auditory conformance is not claimed.
 
 ## Deliberate corrections
 

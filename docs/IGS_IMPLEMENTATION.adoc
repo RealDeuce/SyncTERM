@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C and S commands are implemented and independently tested
+The I, R, g, M, C, S and H commands are implemented and independently tested
 natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
@@ -547,5 +547,44 @@ and status choices with literal palette/RGB expectations and unchanged raw
 planes. All 63 command/selector IDs, dependency/reference paths and active
 test registrations were checked; superseded experiments remain excluded.
 Six command entries are complete. Drawing, loops, sound/input and remaining
-acceptance work stay pending. Completion commit will be recorded by the next
-completed step.
+acceptance work stay pending. Completion commit: 7e6f3fd.
+
+=== H hollow and solid attribute selection
+
+H reads one unscaled flag. Negative flags are no-ops and flags above one
+select one. H1 assigns hollow interior 0, transparent mode 2 and perimeter
+true, in that order; H0 assigns solid interior 1, replace mode 1 and perimeter
+false. Existing workstation attributes hold these values; there is no extra
+persistent hollow flag or H cache. References: 15, 29, 129 and IG221.TXT's H entry.
+
+H overwrites a prior M mode; later M changes mode independently. Fill pen,
+stored fill index and user pattern remain, including indices selected under
+a different interior. No immediate pixels, palette, console colours, replies
+or waits change. Other attributes, Drawto, clip, g and memory controls remain.
+I0/I2 restore entry interior/mode while retaining perimeter; palette-only I,
+I5 and R retain all three attributes. Whole reset and reconnect restore the
+complete entry attributes, including perimeter. Primitive-specific raster
+use of these attributes remains part of each drawing command's later step.
+
+Native cterm_igs_hollow checks literal flags and signed bounds, unscaled
+literal/array/random operands under every g mode, unrelated state, stored
+index/user pattern, palette and both raw planes, M/I interactions and
+resolution suspension/ordering. H/M chains run at every focused split and
+bytewise, with partial input, EOF, local timeout, malformed magnitude and
+reset/recovery. Application syncterm_igs_hollow observes the three actual
+attributes in coherent literal scene/cell/palette/cursor captures across all
+ST modes, Atari ST/CP437/UTF-8 and status choices. It checks M/I/R lifetime,
+no immediate scene/window effect, no replies and fresh reconnect with audio
+disabled. Pending primitives and sound are not claimed by this step.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration. Configure and full build passed without compiler warnings;
+all 51 selected CTest tests passed, including every CTerm test, shared
+parser/images/pixels, bitmap console/control backend, term/Wren and
+application IGS I/R/g/M/C/S/H, SkyPix report, graphics scrollback and session
+modes. H captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices,
+with physical audio disabled and literal scene expectations. All 63 command/
+selector IDs, dependencies, reference paths and active test registrations
+were checked; superseded experiments remain excluded. Seven command entries
+are complete. Drawing, loops, sound/input and remaining acceptance work stay
+pending. Completion commit will be recorded by the next completed step.

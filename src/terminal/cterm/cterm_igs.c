@@ -34,6 +34,7 @@ static const struct st_graphics_command commands[] = {
 	{'M', scalar_parameters, 1, NULL},
 	{'C', pair_parameters, 2, NULL},
 	{'S', four_parameters, 4, NULL},
+	{'H', scalar_parameters, 1, NULL},
 };
 
 static void
@@ -171,6 +172,15 @@ command(void *context, const struct st_graphics_command_view *view)
 		igs->attributes.writing_mode = values[0] >= 1 && values[0] <= 4 ? values[0] : 1;
 		return 0;
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
+	case 'H': {
+		if (values[0] < 0)
+			return 0;
+		bool hollow = values[0] != 0;
+		igs->attributes.fill_interior = hollow ? 0 : 1;
+		igs->attributes.writing_mode = hollow ? 2 : 1;
+		igs->attributes.fill_perimeter = hollow;
+		return 0;
+	}
 	case 'S': {
 		static const int components[] = {0,142,285,428,571,714,857,1000};
 		for (unsigned i = 1; i < 4; ++i)

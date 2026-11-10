@@ -25,8 +25,11 @@ scenes in the same mode/encoding/status matrix. `S` adds literal component,
 physical palette and mono polarity tests plus coherent composed-RGB checks
 that existing indexed glyphs recolour without rewritten pixels/cells. Invalid
 negative pens are ignored safely. Palette restoration, I/R retention and
-reconnect run in the same matrix. Drawing and sound remain pending; see the
-IGS ledger for details.
+reconnect run in the same matrix. `H` adds hollow/solid interior, writing-mode
+and perimeter state tests, including M interaction, index/pattern retention,
+selective I versus full reset and I5/R preservation. Coherent application
+checks use the same geometry/encoding/status matrix. Drawing and sound remain
+pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
