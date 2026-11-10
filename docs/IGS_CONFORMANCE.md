@@ -8,6 +8,8 @@ changes palette colours. `H` selects hollow/solid fill, writing mode and
 perimeter together. `A` selects fill styles and copies/generates user patterns.
 `T` configures marker types/sizes, line styles/widths, custom masks and ends.
 `P` draws the selected marker and updates the remembered Drawto endpoint.
+`L` draws thin/wide lines with patterns, caps and arrowheads, remembering the
+original requested start/end coordinates.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -502,6 +504,61 @@ from one capture across all ST modes, Atari ST/CP437/UTF-8 and status choices.
 It includes maximum-size and normalized edge markers, retained pens through
 R, no replies and partial-input disconnect/fresh reconnect. Sound is disabled.
 Other primitives, loops and sound remain pending.
+
+### L: patterned shafts, wide geometry and arrowheads
+
+`L` reads four X/Y-classified operands through the existing shared point
+description and evaluator. It records the original start/end pairs after
+successful drawing; arrowheads shorten private points only. `P` changes only
+the final pair. `I/R` preserve both; whole reset/reconnect clear them.
+Incomplete/invalid acquisition leaves all positions and pixels unchanged,
+an explicit port policy replacing the native caller's intermediate stores.
+
+Thin shafts use all six native line masks and the custom mask, the physical
+line pen, all four writing modes, inherited clipping, absolute-X horizontal
+pattern alignment, original-direction vertical sampling, X-ordered slopes and
+X-major ties. Native bounded clip rounding is retained. Replace clears pattern
+gaps, transparent/XOR skip them, and reverse transparent draws only gaps.
+Thin arrows follow the patterned shaft; round-only ends have no extra pixels.
+
+Wide lines use native circle rows/aspect averaging and perpendicular offsets,
+solid bordered shaft polygons and ordered cap discs. Arrowhead triangles
+precede the wide shaft and shorten its private endpoints. Begin/end arrow
+ordering, minimum lengths and nested rounding remain native. Polygon fill
+rows/intersections and thin bordered endpoints retain their independent rules,
+including repeated XOR toggles, degenerate shafts and zero-length cap behavior.
+No host ideal-width or repeated-stroke substitute is used.
+
+Last-segment ownership persists across raster calls and is initialized true
+at full reset. Polygon vertical rejection leaves it false; a later initial
+cap can inherit its nonfinal-XOR endpoint behavior. Thin polylines/perimeters
+and `P` establish their own final ownership. `I/R` preserve it. Disc spans
+always activate the inherited clip bounds; other line/polygon paths use the
+workstation flag. The host status row is protected after native raster phase.
+Workstation attributes, palette, banks, console cursor and memory controls
+are preserved. Each blink phase retains its own pixels in the existing bitmap.
+
+Wide host arithmetic avoids native overflow, division faults and stale-local
+or out-of-buffer behavior. Circle data is derived from current width and
+resolution without ambient TOS cache state. A full signed-word diagonal is
+checked against its mathematical clipped pixels. Foreign host pixels retain
+`P`'s XOR policy. This does not emulate CPU/stack/chip timing or native memory
+accidents.
+
+`cterm_igs_line` checks 3321 source-derived cases, both all-zero/all-one initial
+phases, seven styles, odd widths 1..39, all end pairs, modes, depths, reversed
+and degenerate segments, clipping, arrow thresholds and inherited cap state.
+Hashes cover all 32000 native bytes at the observation boundary. The
+[provenance ledger](../src/tests/igs/line-vectors.json) pins the independent
+oracles and source fingerprint; maintainer generation runs neither SyncTERM
+nor Atari instructions, and ordinary tests require no external tree/ROM.
+Literal pixels, Drawto, g/array/random ordering, every focused split/bytewise
+input, EOF/timeout/malformed recovery, I/R retention, status and reset are
+checked separately. `syncterm_igs_line` observes coherent raw phases, cells,
+palette, cursor, state and RGB for 36 derived scenes, literal text overlays
+and bottom edges across all ST modes, Atari ST/CP437/UTF-8 and status choices.
+No replies, partial disconnect and reconnect are covered with physical audio
+disabled. `D`, other primitives, loops and sound remain pending.
 
 ## Deliberate corrections
 

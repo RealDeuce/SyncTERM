@@ -104,7 +104,9 @@
         "cterm_igs_type",
         "syncterm_igs_type",
         "cterm_igs_marker",
-        "syncterm_igs_marker"
+        "syncterm_igs_marker",
+        "cterm_igs_line",
+        "syncterm_igs_line"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -118,7 +120,8 @@
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 51 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H, SkyPix report, graphics scrollback and session modes. H captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled; literal scene expectations verify unchanged pixels/palette/window alongside actual interior/mode/perimeter state. All 63 command/selector IDs, dependencies, reference paths and active CTest registrations checked; superseded tests excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. Focused native/application A tests passed; all ST modes, Atari ST/CP437/UTF-8 and status choices use literal row/scene expectations with audio off. The broad 53-test run passed 52 tests, including every CTerm test and all IGS application tests; wren_host hit an existing fixed-100-ms transfer-notice assumption and passed in isolation. Replaced the two related fixture delays with bounded notice-readiness polling, retaining the original worker/ownership/message assertions; the final full build and parallel wren_host plus IGS fill/palette/resolution tests passed. All 53 distinct selected tests have passing verification across these runs. Ledger IDs, references, dependencies and active CTest registrations checked; superseded tests excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 55 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T, SkyPix report, graphics scrollback and session modes. T application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio off. Native split/bytewise cases verify conditional arity, random kinds advancing once, and incomplete random-kind input retaining its seed. All 63 command/selector IDs, reference/dependency paths and active CTest registrations checked; superseded tests excluded.",
-        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 57 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes. P uses independent rational/literal expectations and coherent scene/cell/palette/state/RGB captures across all ST resolutions, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Native tests cover every shape/size/mode/pen matrix, both blink phases, literal clipping/rounding, foreign-pixel/status protection, split/bytewise input and once-only random operands. All 63 command/selector IDs, references, dependencies and active CTest registrations checked; superseded experiments excluded."
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 57 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes. P uses independent rational/literal expectations and coherent scene/cell/palette/state/RGB captures across all ST resolutions, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Native tests cover every shape/size/mode/pen matrix, both blink phases, literal clipping/rounding, foreign-pixel/status protection, split/bytewise input and once-only random operands. All 63 command/selector IDs, references, dependencies and active CTest registrations checked; superseded experiments excluded.",
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. The broad 59-test run passed 58, including every IGS test, all other CTerm tests, shared parser/images/pixels, bitmap/control backend, term/Wren, SkyPix report, graphics scrollback and session modes. One native SkyPix parser test failed while independent SkyPix edits were in progress in the shared worktree. After that work settled, the final full build and targeted cterm_skypix, cterm_igs_line and syncterm_igs_line rerun all passed. All 59 distinct selected tests have passing verification across these runs. L validates 3321 independent dual-phase full-native-capacity cases plus literal/extreme/status/input/lifecycle checks; coherent application scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. All 63 ledger IDs, dependencies, reference paths, active CTest registrations, 3321/36 vector counts and pinned oracle hashes checked. Unrelated SkyPix changes are excluded from the IGS change."
       ],
       "commit": null,
       "operations": [
@@ -131,7 +134,8 @@
         "H composes existing fill interior, writing mode and perimeter attributes with no extra hollow flag",
         "A fill style/user-bank state, shared IGS random source and separate bounded pattern generator; source-bank versus active-pattern lifetime",
         "T marker/line type, native sizing, custom masks and endpoints with effect-free conditional arity using the existing generic parser",
-        "P markers on the authoritative indexed framebuffer with native clipping/solid line rules, ordered XOR endpoints, independent blink phases and Drawto; no planar shadow"
+        "P markers on the authoritative indexed framebuffer with native clipping/solid line rules, ordered XOR endpoints, independent blink phases and Drawto; no planar shadow",
+        "L native thin/wide patterns, polygon shafts, cap discs and arrow triangles on the indexed bitmap with ordered XOR and remembered start/end; explicit last-segment ownership"
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -586,23 +590,57 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 57 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes. P uses independent rational/literal expectations and coherent scene/cell/palette/state/RGB captures across all ST resolutions, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Native tests cover every shape/size/mode/pen matrix, both blink phases, literal clipping/rounding, foreign-pixel/status protection, split/bytewise input and once-only random operands. All 63 command/selector IDs, references, dependencies and active CTest registrations checked; superseded experiments excluded."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "40adf9b"
     },
     {
       "id": "L",
       "phase": "lines",
       "references": [
         "15-graphics-commands.adoc",
-        "19-extended-math-sweeps.adoc"
+        "43-native-line-clipping.adoc",
+        "44-native-software-lines.adoc",
+        "45-native-hardware-lines.adoc",
+        "46-native-polygon-fill.adoc",
+        "50-native-wide-lines.adoc",
+        "51-native-arrowheads.adoc",
+        "136-delivery-line-drawto-marker.adoc"
       ],
       "order": 11,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "g",
+        "M",
+        "C",
+        "T",
+        "P"
+      ],
+      "operations": [
+        "Four shared axis-aware operands; commit original start/end after drawing; P preserves the start; I/R preserve both pairs and full reset clears them",
+        "All native standard/custom line patterns, horizontal absolute-X phase, original vertical direction, X-ordered slopes, X-major ties and bounded native clip rounding",
+        "All four writing modes including replace gaps, transparent/XOR skipped gaps and reverse-transparent gap ink; both blink phases independently",
+        "Native wide circle/aspect rows, perpendicular boundary traversal, bordered solid shaft polygons and ordered cap discs; no repeated thin strokes or ideal host-width substitute",
+        "Thin post-shaft and wide pre-shaft bordered arrow triangles, minimum lengths, nested rounding/aspect correction, shared begin/end source-point ordering and private shortening",
+        "Native polygon scan rows/intersection rounding/perimeter ownership and ordered XOR overlap, reversed/degenerate geometry and inherited nonfinal cap state",
+        "Explicit raster last-segment state initialized true, modified by polylines/polygons/P, preserved by I/R; unconditional inherited clipping for cap spans",
+        "Authoritative indexed bitmap with bounded temporary captures, no planar backing/conversion; preserve workstation attributes, banks, palette, cursor and memory controls; crop host status after native phase",
+        "3321 independent source-derived dual-phase full-capacity vector cases; separate literal pixels, typed/random operands, split/bytewise input, error/recovery, I/R/reset and coherent application lifecycle"
+      ],
+      "tests": [
+        "cterm_igs_line",
+        "syncterm_igs_line"
+      ],
+      "deviations": [
+        "Publish all four remembered coordinates only after complete valid acquisition and successful drawing. Incomplete/invalid commands do not retain native intermediate position writes.",
+        "Use wide host arithmetic instead of accidental native word overflow, divide faults, stale locals or out-of-bounds point propagation. Test extreme signed-word input as intended mathematical clipped geometry.",
+        "Initialize raster last-segment ownership true at full reset and derive circle rows from current width/resolution; do not inherit ambient TOS memory/cache state.",
+        "Retain P host status cropping and foreign-pixel XOR policies."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. The broad 59-test run passed 58, including every IGS test, all other CTerm tests, shared parser/images/pixels, bitmap/control backend, term/Wren, SkyPix report, graphics scrollback and session modes. One native SkyPix parser test failed while independent SkyPix edits were in progress in the shared worktree. After that work settled, the final full build and targeted cterm_skypix, cterm_igs_line and syncterm_igs_line rerun all passed. All 59 distinct selected tests have passing verification across these runs. L validates 3321 independent dual-phase full-native-capacity cases plus literal/extreme/status/input/lifecycle checks; coherent application scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. All 63 ledger IDs, dependencies, reference paths, active CTest registrations, 3321/36 vector counts and pinned oracle hashes checked. Unrelated SkyPix changes are excluded from the IGS change."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "D",

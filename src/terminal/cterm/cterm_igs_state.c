@@ -372,6 +372,8 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	memset(igs->patterns, 0, sizeof(igs->patterns));
 	memset(igs->math, 0, sizeof(igs->math));
 	igs->draw_x = igs->draw_y = 0;
+	igs->draw_start_x = igs->draw_start_y = 0;
+	igs->last_line = true;
 	igs->scaling_mode = 0;
 	igs->scaling_resolution = (int)igs->resolution;
 	igs->random_seed = 1;

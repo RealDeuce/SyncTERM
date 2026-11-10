@@ -25,6 +25,8 @@ static const struct st_graphics_parameter unscaled_parameters[] = {
 static const struct st_graphics_parameter point_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_X},
 	{.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_Y},
+	{.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_X},
+	{.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_Y},
 };
 
 static int
@@ -57,6 +59,7 @@ static const struct st_graphics_command commands[] = {
 	{'A', unscaled_parameters, 3, NULL},
 	{'T', unscaled_parameters, 1, type_next},
 	{'P', point_parameters, 2, NULL},
+	{'L', point_parameters, 4, NULL},
 };
 
 static void
@@ -195,6 +198,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
 	case 'P': return cterm_igs_marker(igs, values[0], values[1]);
+	case 'L': return cterm_igs_line(igs, values[0], values[1], values[2], values[3]);
 	case 'T':
 		if (values[0] < 1 || values[0] > 2)
 			return 0;

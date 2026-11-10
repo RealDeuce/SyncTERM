@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T and P commands are implemented and independently tested
+The I, R, g, M, C, S, H, A, T, P and L commands are implemented and independently tested
 natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
@@ -759,4 +759,94 @@ incomplete random input retaining its seed, and foreign-pixel/status protection.
 All 63 ledger IDs, references, dependencies and active CTest registrations
 were checked; superseded experiments remain excluded. Ten command entries
 are complete. Other primitives, loops, sound/input and final acceptance work
-stay pending. Completion commit will be recorded by the next completed step.
+stay pending. Completion commit: 40adf9b.
+
+=== L thin and wide lines, caps and arrowheads
+
+L uses the shared point-parameter prefix for four X/Y-classified values.
+The original requested start and end become its four remembered position
+values after successful rendering; arrow shortening affects private raster
+points only. P changes only the remembered end. Whole reset clears both
+pairs; I/R preserve them. Incomplete/malformed acquisition publishes neither
+pixels nor partial positions. This is an explicit atomic parser policy rather
+than copying the original front end's intermediate writes during acquisition.
+References: 15/43/44/45/46/50/51/136, including the six literal line masks.
+
+Thin lines use the selected standard/custom pattern, physical line pen and
+writing mode. Horizontal patterns align to absolute X; vertical paths retain
+their original direction; slopes order by X, choosing X-major on ties. Clip
+intersections retain bounded native rounding and restart the pattern at the
+clipped segment. Replace clears pattern gaps to physical zero; transparent
+and XOR skip them; reverse transparent plots only gaps. Thin arrowheads are
+drawn after the patterned shaft. Round-only ends do not alter a thin shaft.
+
+Wide lines use native integer circle rows, in-place aspect averaging and
+perpendicular-boundary traversal. They compose a solid, bordered shaft
+polygon and the specified cap discs, rather than repeating thin strokes or
+using an ideal host pen. Arrowheads are bordered triangles drawn before the
+wide shaft, and shorten private endpoints for that shaft. Begin/end heads
+retain their shared original/shortened-point ordering and minimum-length
+test. Both rounds of native arrow rotation and aspect correction remain.
+Solid polygon intersections have their own nearest-offset rounding and
+excluded outer rows; their perimeter uses native thin-line endpoint rules.
+All overlapping operations retain their order in XOR. Zero-length wide
+segments skip their shaft/end cap but can still draw the starting cap.
+
+Raster last-segment ownership persists across drawing calls and starts true
+at full reset. Thin polylines and
+perimeters set it; vertical polygon rejection can leave it false, affecting
+a following initial cap's XOR endpoint. P ends with it true even when the
+marker is clipped or reverse-transparent. I/R preserve this raster state.
+Cap spans always use inherited clip bounds; other line/polygon clipping uses
+the workstation flag. Host status cropping happens after native raster phase.
+Line/fill/text attributes, banks, palette, console cursor and memory controls
+remain intact. The authoritative indexed bitmap is read/published in a
+bounded temporary region, independently for both blink phases, with no
+planar backing or ordinary-blit conversion.
+
+Arithmetic uses bounded/wide host values for defined rendering, not native
+word overflow, division faults, stale locals or corrupt point-buffer walks.
+Circle geometry is derived from the current width/resolution, with no
+ambient native cache dependency. The extreme signed-word diagonal is tested
+as the mathematical clipped diagonal rather than emulating wrapped deltas.
+
+Native cterm_igs_line validates 3321 independent cases with both initial
+all-zero and all-one blink phases. They cover all seven styles, every odd
+width 1..39, all cap pairs, writing modes and ST depths, clipping, reversals,
+minimum arrow lengths, degenerate lines and inherited cap state. Expected
+hashes cover every one of the 32000 native bytes, serialized only at the
+test observation boundary. link:../src/tests/igs/line-vectors.json[Vector provenance]
+pins the separate source-derived rational/bit/circle/arrow oracles and ROM
+fingerprint. Maintainer-only generation never runs SyncTERM or Atari
+instructions; ordinary tests use checked-in data and need no reference tree
+or ROM. Literal clipped-shaft/status/extreme-coordinate checks, typed/random
+operands, every focused split/bytewise input, EOF/timeout/malformed recovery,
+Drawto, I/R lifetime and reset supplement the vector matrix.
+
+Application syncterm_igs_line checks 36 independently derived scenes plus
+literal console overlays and normalized bottom-edge lines, in all three
+ST modes, Atari ST/CP437/UTF-8 and host status choices. Each observation
+combines complete raw phases, cells, palette, cursor, Drawto/attributes and
+composed RGB, including line pixels and neighbouring backgrounds. It checks
+no replies, partial-input disconnect and fresh reconnect. Physical audio is
+disabled. D, other primitives, loops, sound/input and final acceptance stay
+pending.
+
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and full native CMake builds passed without compiler
+warnings. The broad 59-test run passed 58 tests, including every IGS test,
+all other CTerm tests, shared parser/images/pixels, bitmap/control backend,
+term/Wren and application SkyPix report, graphics scrollback and session modes.
+One native SkyPix parser test failed while independent SkyPix changes were
+in progress in the shared worktree. Once that work settled, the final full
+build and targeted cterm_skypix, cterm_igs_line and syncterm_igs_line rerun
+all passed. All 59 distinct selected tests have passing verification across
+these runs; unrelated SkyPix edits are excluded from this IGS change.
+L's 3321 source-derived dual-phase cases, literal/extreme/status tests and
+split/random/lifecycle checks passed. Application captures passed all ST
+modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled.
+All 63 ledger IDs, references, dependencies, active CTest registrations,
+3321/36 vector counts and pinned oracle hashes were checked. Eleven command
+entries are complete; the full remaining goal stays active. Completion commit
+will be recorded by the next completed step.

@@ -40,6 +40,9 @@ struct cterm_igs {
 	uint32_t palette[16], saved_palette[16];
 	int requested_palette[16][3];
 	int draw_x, draw_y, scaling_mode, scaling_resolution;
+	int draw_start_x, draw_start_y;
+	/* Last-segment ownership survives native polygon/cap compositions. */
+	bool last_line;
 	int memory_route, double_step, marker_pen_cache;
 	bool clipping;
 	int clip_x1, clip_y1, clip_x2, clip_y2;
@@ -76,6 +79,7 @@ void cterm_igs_set_type(struct cterm_igs *, int kind, int style, int size);
 unsigned cterm_igs_plane_mask(unsigned resolution);
 unsigned cterm_igs_physical_pen(const struct cterm_igs *, int pen);
 int cterm_igs_marker(struct cterm_igs *, int x, int y);
+int cterm_igs_line(struct cterm_igs *, int x1, int y1, int x2, int y2);
 uint32_t cterm_igs_random(struct cterm_igs *);
 /* Apply the descriptor's axis to a decimal constant/index. Lookup and random
  * results are returned as values, without a second coordinate transform. */

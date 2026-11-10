@@ -42,8 +42,14 @@ inherited clipping and native rounding, Drawto, independent blink phases,
 safe invalid input and host status protection. Coherent application captures
 check literal marker/font rows, glyph overlays, indexed pixels and composed
 RGB in all ST modes, Atari ST/CP437/UTF-8 and status choices, plus retained
-pens and disconnect/reconnect. Other drawing, loops and sound remain pending;
-see the IGS ledger for details.
+pens and disconnect/reconnect. `L` adds native patterned thin shafts, wide
+polygon shafts, caps and arrowheads with exact ordered XOR composition and
+original Drawto positions. Its 3321 independent dual-phase cases cover all
+styles, odd widths, end pairs, modes/depths, clipping, reversals, degeneracy
+and inherited cap state. Coherent application scenes verify pixels, colours,
+cells, text overlays, status and lifecycle in the same mode/encoding matrix.
+Ordinary tests use checked-in reference data without ROMs or external assets.
+Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
