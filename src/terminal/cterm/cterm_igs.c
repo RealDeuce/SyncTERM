@@ -85,19 +85,19 @@ arc_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
-point_count(int count)
+point_count(int count, int minimum)
 {
-	return count < 2 ? 2 : count > CTERM_IGS_MAX_POINTS ? CTERM_IGS_MAX_POINTS : count;
+	return count < minimum ? minimum : count > CTERM_IGS_MAX_POINTS ? CTERM_IGS_MAX_POINTS : count;
 }
 
 static int
-polyline_next(void *context, const struct st_graphics_command_view *view,
+counted_points_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
 	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
 	int count;
 	int status = preview_first(context, view, &count);
-	if (status == 0 && view->count-1 < (size_t)point_count(count)*2)
+	if (status == 0 && view->count-1 < (size_t)point_count(count, view->code == 'f' ? 1 : 2)*2)
 		*result = point_parameters[(view->count-1)%2];
 	return status;
 }
@@ -135,7 +135,8 @@ static const struct st_graphics_command commands[] = {
 	{'P', point_parameters, 2, NULL},
 	{'L', point_parameters, 4, NULL},
 	{'D', point_parameters, 2, NULL},
-	{'z', unscaled_parameters, 1, polyline_next},
+	{'z', unscaled_parameters, 1, counted_points_next},
+	{'f', unscaled_parameters, 1, counted_points_next},
 	{'Z', point_parameters, 4, NULL},
 	{'B', point_parameters, 4, box_next},
 	{'U', point_parameters, 4, box_next},
@@ -313,13 +314,15 @@ command(void *context, const struct st_graphics_command_view *view)
 		if (values[4] < 0) return 0;
 		if (values[4] > 0) return cterm_igs_box(igs,values[0],values[1],values[2],values[3],true);
 		return cterm_igs_rounded_outline(igs,values[0],values[1],values[2],values[3]);
+	case 'f':
 	case 'z': {
-		int count = point_count(values[0]);
+		int count = point_count(values[0], view->code == 'f' ? 1 : 2);
 		if (view->count != 1+(size_t)count*2)
 			return IO_ERROR_PROTOCOL;
 		int status = igs->loop_mode == 1 ? 0 : flow(igs, false);
 		if (status == 0)
-			status = cterm_igs_polyline(igs, values+1, (size_t)count);
+			status = view->code == 'f' ? cterm_igs_polygon(igs, values+1, (size_t)count)
+			    : cterm_igs_polyline(igs, values+1, (size_t)count);
 		if (status == 0 && igs->loop_mode != 1)
 			status = flow(igs, true);
 		return status;

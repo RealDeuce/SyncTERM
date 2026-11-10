@@ -316,6 +316,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --command Y --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_igs_ellpie PROPERTIES
 				TIMEOUT 420 LABELS "terminal;conformance;igs")
+			add_test(NAME syncterm_igs_polygon
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_polygon_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_igs_polygon PROPERTIES
+				TIMEOUT 420 LABELS "terminal;conformance;igs")
 			add_test(NAME syncterm_igs_arc
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_arc_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

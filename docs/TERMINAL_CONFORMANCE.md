@@ -108,6 +108,12 @@ and patterned curve fill. Its 5,286 independent dual-phase cases cover both
 radius axes, fills/modes/depths, clipping and safe angles. Shared captures check
 132 independent scenes, including text replacement and tall ellipses, plus
 state/glyph/status/lifecycle checks throughout the ST mode/encoding matrix.
+`f` adds counted 1–128-point filled polygons through the shared patterned fill
+path and z's count/evaluator/serial-flow dispatch. Its 4,056 independent
+full-frame dual-phase cases include degenerate/concave/self-crossing polygons,
+128 simultaneous intersections and native orientation-sensitive rounding.
+Application captures check 168 independent scenes, text replacement, glyph/
+state/status/flow/lifecycle throughout the ST mode/encoding/status matrix.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

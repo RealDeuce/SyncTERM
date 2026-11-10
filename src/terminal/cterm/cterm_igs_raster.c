@@ -402,16 +402,11 @@ curve_points(struct point *points, int x, int y, int radius, int yr,
 }
 
 static int
-filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr,
-    int begin, int end, int delta, bool pie)
+patterned_polygon(struct cterm_igs *igs, const struct point *points, unsigned count)
 {
-	if (curve_rejected(igs,x,y,radius,yr)) return 0;
 	const uint16_t *rows; unsigned row_mask;
 	int status = fill_pattern(igs,&rows,&row_mask);
 	if (status != 0) return status;
-	struct point points[FILLED_CURVE_POINTS_MAX];
-	unsigned count = curve_points(points,x,y,radius,yr,begin,end,delta);
-	if (pie) points[count++] = (struct point){x,y};
 	int left = points[0].x, right = left, top = points[0].y, bottom = top;
 	for (unsigned i = 1; i < count; ++i) {
 		if (points[i].x < left) left = points[i].x;
@@ -437,6 +432,30 @@ filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr,
 	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
 	if (status == 0) igs->last_line = raster.last_line;
 	return status;
+}
+
+int
+cterm_igs_polygon(struct cterm_igs *igs, const int *coordinates, size_t count)
+{
+	if (coordinates == NULL || count == 0 || count > CTERM_IGS_MAX_POINTS)
+		return IO_ERROR_INVALID_ARGUMENT;
+	/* Closure stays private: even an already closed input retains its final
+	 * zero-length edge, and a 128-point input needs no extra source slot. */
+	struct point points[CTERM_IGS_MAX_POINTS];
+	for (size_t i = 0; i < count; ++i)
+		points[i] = (struct point){coordinates[2*i],coordinates[2*i+1]};
+	return patterned_polygon(igs,points,(unsigned)count);
+}
+
+static int
+filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr,
+    int begin, int end, int delta, bool pie)
+{
+	if (curve_rejected(igs,x,y,radius,yr)) return 0;
+	struct point points[FILLED_CURVE_POINTS_MAX];
+	unsigned count = curve_points(points,x,y,radius,yr,begin,end,delta);
+	if (pie) points[count++] = (struct point){x,y};
+	return patterned_polygon(igs,points,count);
 }
 
 int

@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V and Y commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y and f commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1738,4 +1738,81 @@ pinned model identities were checked; superseded planar/clock tests remain
 excluded. Concurrent macOS packaging changes are outside this IGS step;
 no macOS/Windows runtime coverage is claimed. Twenty-three entries are complete;
 X stays in progress. Other commands/selectors and full acceptance remain pending.
+Completion commit: d29ad6a.
+
+=== f counted filled polygons
+
+f and z share one count-driven descriptor and execution/flow path. Signed f
+counts clamp to 1..128, while z retains 2..128. Both acquire exactly the
+clamped number of X/Y pairs, using the existing axis-aware evaluator and
+side-effect-free count preview. Oversized requests do not consume discarded
+pairs; the following bytes retain ordinary parser ownership. All operands
+are acquired before drawing or serial flow. Random count/coordinate operands
+advance the real generator once only on completed acquisition.
+
+f shares patterned_polygon with O/Q/V/Y, including both authoritative indexed
+phases, physical fill pen, all original fill rows, absolute pattern anchoring,
+descending scanlines, orientation-sensitive native intersection rounding and
+optional solid fill-colour perimeter. Closure uses private point data and
+retains the closing edge of already closed input; 128 source pairs need no
+extra source slot. One/two-point inputs follow the native span/border rules.
+Line style/width/caps are ignored, including unusable line attributes. Last-line
+state clears before polygon vertical rejection and becomes true for a reached
+perimeter, even if its final segment clips out. Drawto, palette, source banks,
+active pattern, math words, seeds and other attributes remain owned by their
+existing operations.
+
+Serial XOFF occurs before rendering, XON after success, with the current loop
+mode retested on both sides. Existing flow defaults/configuration, callback
+mutation, reset interruption and transport ownership are shared with z.
+There are no foreign readiness polls or hardware throughput delays.
+
+The independent polygon oracle shares original pattern data, rational spans,
+whole-plane-word equations and ordered native border pixels with the curve
+fixture model. Its 4056 dual-phase native cases cover all 39 fills, all writing
+modes/depths/perimeters, concave/self-crossing/reversed edges, one/two/repeated/
+already-closed lists, 127/128-point inputs, 128 simultaneous intersections,
+clipped/rejected/inverted/one-row bounds and disabled clipping. Literal tests
+check orientation-dependent rounding, pen mapping, status bounds, normalized
+and relative coordinates and safe INT16_MIN/MAX geometry. Serial tests cover
+count clamps and exact ownership, every focused split/bytewise chain, random
+count preview, XOFF/XON byte/count/order, live callback mutation, loop guards,
+reset during reply, maximum flow counts, incomplete EOF/timeouts, invalid
+numeric/fill state, renderer errors and reset recovery. I/R/I5 and a
+suspended R preserve the existing command/Drawto lifetime; array tests check
+index-before-load ordering and an unscaled count index.
+
+The control bitmap application test checks 168 independent scenes, including
+24 complete console-cell replacements. Additional one-point border/XOR glyph
+composition, bottom/status protection, following D, exact serial flow and
+partial disconnect/fresh reconnect cover all three ST modes, Atari ST/CP437/
+UTF-8 and status choices. Coherent cells/phases/palette/state/RGB come from one
+capture with physical audio disabled. Expected images never come from
+SyncTERM; ordinary tests require no external reference tree or ROM.
+
+Native word-overflow intersections, escaped framebuffer writes and scratch
+memory corruption use the established wide-geometry/private-buffer/host-bound
+port corrections. Defined count-one behavior and orientation-dependent rounding
+are retained. This does not add foreign RAM/CPU fault emulation or relax z's
+serial 128-point bound and curves' private 130-point capacity.
+
+Verification used the native FreeBSD /usr/bin/cc Release configuration.
+cmake -S . -B build and the final full cmake --build build -j6 passed without
+warnings. The literal polygon/edge-orientation test failed before implementation
+and passed afterward. All seven focused native/application suites passed;
+additional final native array/index/extreme/I/R/I5/suspended-R checks passed.
+All 85 selected CTest tests passed in one run: every CTerm test, shared parser/
+images/pixels, bitmap/control backend, term/Wren, all 24 IGS application suites,
+SkyPix report, graphics scrollback and session modes.
+
+All 4056 independent dual-phase polygon cases and literal/serial/state checks
+passed. Coherent captures passed all 168 independent scenes, 24 complete cell
+replacements and extra glyph/flow/status/lifecycle checks throughout the ST
+mode/encoding/status matrix. All O/Q/V/Y native fixtures and their application
+recipes regenerated byte-identically after sharing the independent polygon
+oracle. Their existing native and application regressions passed. All 63 IDs,
+24 completed entries, references/dependencies/active test registrations,
+4056/168 f inventory, 24 replacements and pinned model identities were checked;
+superseded planar/clock tests remain excluded. X stays in progress. Other
+commands/selectors and full acceptance remain pending.
 Completion commit will be recorded by the next completed step.

@@ -1,4 +1,4 @@
-"""Independent maintainer oracle shared by native filled-curve fixtures.
+"""Independent maintainer oracle shared by native filled-curve and polygon fixtures.
 
 Uses source-derived reference geometry, rational spans, original pattern words
 and whole-plane-word Boolean equations. It never imports SyncTERM code/output.
@@ -29,14 +29,12 @@ class NativeFilledCurves:
         self.tables=tables;self.user=user;self.selections=selections
 
     def oracle(self,case,phase):
-        arithmetic=self.arithmetic;closed_curve=self.closed_curve;spans=self.spans
-        projected=self.projected;locations=self.locations;bit_rule=self.bit_rule;selections=self.selections
-        res=case['resolution'];planes=(4,2,1)[res];width=320 if res==0 else 640;height=400 if res==2 else 200
+        arithmetic=self.arithmetic;closed_curve=self.closed_curve
+        res=case['resolution'];width=320 if res==0 else 640;height=400 if res==2 else 200
         x,y=case['center'];xr=case['radius'];yr=case['radius_y'] if case.get('gdp',4) in (5,7) else arithmetic(xr,(338,169,372)[res],372)['result']
-        mode=case['mode']-1;_,_,rows=selections[case['selection']]
-        words=[0 if phase==2 else (0x5aa5^((i%planes)*0x1357)) if phase==0 else (0xa55a^((i%planes)*0x2468)) for i in range(16000)]
         bounds=case['bounds'] or (0,0,width-1,height-1);clip=bounds if case['clipping'] else None
-        if clip and (x+xr<clip[0] or x-xr>clip[2] or y+yr<clip[1] or y-yr>clip[3]):return words,int(case['last'])
+        if clip and (x+xr<clip[0] or x-xr>clip[2] or y+yr<clip[1] or y-yr>clip[3]):
+            return self.initial_words(res,phase),int(case['last'])
         gdp=case.get('gdp',4)
         if gdp in (3,7):
             begin,end=case['angles']
@@ -44,6 +42,21 @@ class NativeFilledCurves:
                 turn=(min(begin,end)//360)*360;begin-=turn;end-=turn
             points=self.vertices(begin*10,end*10,xr,yr,x,y,gdp)[0]
         else:points=closed_curve(gdp,xr,yr,x,y)
+        return self.polygon_oracle(case,phase,points)
+
+    @staticmethod
+    def initial_words(res,phase):
+        planes=(4,2,1)[res]
+        return [0 if phase==2 else (0x5aa5^((i%planes)*0x1357)) if phase==0 else (0xa55a^((i%planes)*0x2468)) for i in range(16000)]
+
+    def polygon_oracle(self,case,phase,points=None):
+        """Direct counted polygons share native spans and ordered solid borders."""
+        points=[tuple(p) for p in (case['points'] if points is None else points)]
+        spans=self.spans;projected=self.projected;locations=self.locations;bit_rule=self.bit_rule
+        res=case['resolution'];planes=(4,2,1)[res];width=320 if res==0 else 640;height=400 if res==2 else 200
+        mode=case['mode']-1;_,_,rows=self.selections[case['selection']]
+        words=self.initial_words(res,phase)
+        bounds=case['bounds'] or (0,0,width-1,height-1);clip=bounds if case['clipping'] else None
         last=0
         if clip and (clip[0]>clip[2] or clip[1]>clip[3] or max(py for px,py in points)<clip[1] or min(py for px,py in points)>clip[3]):return words,last
         # Whole-word equations are independent of the renderer's per-pixel plot.

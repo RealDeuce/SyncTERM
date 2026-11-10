@@ -14,3 +14,4 @@ data/skypix/*
 !data/igs_ellarc_vectors.h
 !data/igs_pie_vectors.h
 !data/igs_ellpie_vectors.h
+!data/igs_polygon_vectors.h

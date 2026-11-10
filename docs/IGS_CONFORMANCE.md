@@ -25,6 +25,8 @@ rectangles with native built-in/user patterns and no extra perimeter.
 `J` adds elliptical arcs with independently supplied X/Y radii through the same path.
 `V` adds patterned circular pies closed through their center with optional perimeter.
 `Y` adds elliptical pies with independently supplied X/Y radii through that path.
+`f` fills counted 1–128-point polygons with the same native spans/perimeter and
+serial XOFF/XON around drawing.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1060,6 +1062,43 @@ disconnect/reconnect cover all ST modes, Atari ST/CP437/UTF-8 and status choices
 Cells/phases/palette/state/RGB come from one capture, with physical audio
 disabled. References: 15/31/43/44/46/48/49/131/138. Other commands/selectors and
 full acceptance remain pending.
+
+### f: counted filled polygons
+
+`f` clamps signed counts to 1..128 and reads exactly that many X/Y pairs.
+Its descriptor/evaluator/flow dispatch is shared with `z`, which keeps its
+2..128 limit. Count preview has no RNG side effects; complete acquisition
+precedes serial XOFF, rendering and XON. Current loop mode is retested before
+each flow operation. Incomplete/error/reset paths preserve parser ownership.
+
+Rendering shares the indexed patterned polygon path with O/Q/V/Y: native
+orientation-sensitive intersection rounding, descending inclusive spans,
+absolute pattern anchoring, all 39 fills, physical fill pen and optional solid
+fill-colour perimeter. Line attributes are ignored. One/two/repeated/already-
+closed lists follow native closure rules on private data. Drawto and retained
+attributes/palette/banks/math state stay unchanged; last-line state follows
+native vertical rejection and border execution. Wide safe arithmetic and host/
+status clipping avoid original wrapped-address/scratch-buffer accidents.
+
+`cterm_igs_polygon` checks 4,056 independent dual-phase full native frames,
+including concave/self-crossing/reversed edges, every fill/mode/depth/perimeter,
+127/128 points and 128 simultaneous intersections, clipping/rejection/inverted/
+one-row bounds and disabled clipping. Literal and serial tests cover count-one
+behavior, exact oversized-request ownership, pen mapping, coordinate modes,
+wide extremes, every focused split and bytewise chain, once-only random count,
+flow byte/count/order/live mutations/loop guards/reset interruption, maximum
+flow counts and EOF/timeout/numeric/renderer/reset recovery, plus array-index
+ordering and I/R/I5/suspended-R lifetime.
+
+`syncterm_igs_polygon` checks 168 independent scenes (24 console replacements),
+plus glyph/XOR/bottom/status/following-D/exact-flow/disconnect/reconnect in all
+ST modes, Atari ST/CP437/UTF-8 and status choices, using coherent captures and
+physical audio disabled. [Fixture provenance](../src/tests/igs/polygon-vectors.json)
+and the [maintainer generator](../src/tests/igs/generate_polygon_vectors.py)
+share the [independent polygon/curve oracle](../src/tests/igs/filled_curve_oracle.py).
+Ordinary tests need no external assets; expected pixels never use SyncTERM
+output. References: 15/43/44/46/131/137. Other commands and full acceptance
+remain pending.
 
 ## Deliberate corrections
 
