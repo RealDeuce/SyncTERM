@@ -111,6 +111,7 @@ static const struct st_graphics_command commands[] = {
 	{'L', point_parameters, 4, NULL},
 	{'D', point_parameters, 2, NULL},
 	{'z', unscaled_parameters, 1, polyline_next},
+	{'Z', point_parameters, 4, NULL},
 	{'X', unscaled_parameters, 1, extended_next},
 };
 
@@ -267,6 +268,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
 	case 'P': return cterm_igs_marker(igs, values[0], values[1]);
 	case 'L': return cterm_igs_line(igs, values[0], values[1], values[2], values[3]);
+	case 'Z': return cterm_igs_rectangle(igs, values[0], values[1], values[2], values[3]);
 	case 'z': {
 		int count = point_count(values[0]);
 		if (view->count != 1+(size_t)count*2)

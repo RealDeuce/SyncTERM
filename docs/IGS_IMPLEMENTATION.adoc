@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D and z commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z and Z commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1063,5 +1063,81 @@ ST modes, Atari ST/CP437/UTF-8 and status choices, with exact flow replies
 and physical audio disabled. All 63 ledger IDs, references, dependencies,
 active CTest registrations and independent fixture inventory were checked;
 superseded planar/clock tests remain excluded. Fourteen entries are complete.
-Other commands/selectors and final acceptance remain pending. Completion commit
-will be recorded by the next completed step.
+Other commands/selectors and final acceptance remain pending. Completion commit:
+4043fb1.
+
+
+=== Z inclusive rectangle fill and native pattern rows
+
+Z reuses the fixed four-field X/Y point description, acquires all operands,
+then orders a private rectangle and draws inclusive endpoints. Reversed
+corners, a single pixel/row/column and fringe-word boundaries have their
+native intended meanings. Z is VDI114/dr_recfl only: it never adds GDP bar's
+perimeter, even when the perimeter attribute is true. It uses the effective
+fill pen and preserves both Drawto pairs, all attributes/clip settings,
+last-segment state, source math/banks, palette and RNG. It has no explicit
+wait, flow helper or reply. References: 15/29/47/131/134.
+
+All 38 built-in fills use original US TOS1.04 rows: hollow, solid, 8 dither,
+16 OEM and 12 hatch selections. cterm_igs_patterns.h records the ROM/table
+identities for the 304 indexed-family words. Canonical row masks 0/3/7/15
+select absolute screen Y and bits select absolute X modulo16; clipping and
+host/status bounds do not restart the pattern. IGS's single-plane active
+sixteen-row user copy is selected separately, without reloading a source bank
+or normalizing its retained style index. A source-bank change after A4 cannot
+change that active copy. All four Boolean writing modes use existing indexed
+read/modify/publish, including both blink phases and pen-independent XOR of
+all active physical bits. No native-layout conversion or persistent buffer
+is introduced. Later primitives can reuse the same fill selection data.
+
+The shared atomic acquisition policy discards incomplete/malformed coordinates
+without drawing. Signed loaded values and normalized/doubled coordinates
+retain the existing numeric evaluator's policy. Host bounds safely discard
+outside-canvas writes instead of reproducing native address wrap/adjacent-memory
+corruption; malformed inverted clip bounds are a no-op and impossible active
+pattern selectors fail safely before drawing. These are explicit port safety
+policies, not claims of native raw-memory/fault emulation.
+
+cterm_igs_rectangle has 1992 independently derived complete native-frame
+cases, each with different patterned primary/alternate initial bits. Every
+built-in fill plus explicit user rows is covered in all modes/resolutions,
+with corner orders, clipped/rejected rectangles, perimeter on/off and retained
+last state. Additional user-pattern cases cover single pixels, horizontal/
+vertical spans, word edges and safe negative-coordinate clipping. The
+maintainer-only generate_rectangle_vectors.py uses original literal rows
+and the reference's independent coordinate/plane-bit oracle, never SyncTERM
+output. It records original table/ROM/model fingerprints in rectangle-vectors.json;
+ordinary tests need no reference tree, ROM or historical executable.
+
+Literal tests add all pen selections, signed extrema, normalized/status
+bottom edges, g2 and scale-before-array-lookup pixels, every focused split/
+bytewise chain, literal random operands/seeds, unchanged partial/error phases,
+EOF/timeout/reset, I/R/I5 and suspended R, invalid state and active-user-copy
+ownership. These tests check retained Drawto/attributes/palette/clip/last state
+and no replies. Native framebuffer expectations remain independent of the
+renderer under test.
+
+syncterm_igs_rectangle checks 60 source-derived scenes and literal active-user,
+glyph-overlay, bottom-edge and following-D cases across all ST resolutions,
+Atari ST/CP437/UTF-8 and status choices. Related drawable scene pixels below
+the token row, both indexed phases, cells, palette, fill/line/position/RNG state
+and composed RGB come from one coherent capture. Partial disconnect and fresh
+reconnect are covered; physical audio is disabled. Verification and completion
+commit are recorded below. Other commands/selectors and final acceptance remain
+pending.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and full native CMake builds passed without compiler
+warnings. The literal rectangle test failed before implementation and passed
+afterward. All 67 selected CTest tests passed in one run, including every
+CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren,
+all IGS application tests, SkyPix report, graphics scrollback and session modes.
+Z's 1992 independent native-frame cases, literal/state/input/lifecycle/error
+and active-copy ownership tests passed. Its 60 coherent application scenes
+passed across all ST modes, Atari ST/CP437/UTF-8 and status choices, with no
+replies and physical audio disabled. All 304 production indexed-family pattern
+words matched the recorded original table SHA256 identities. All 63 ledger
+IDs, references, dependencies, active CTest registrations and fixture inventory
+were checked; superseded planar/clock tests remain excluded. Fifteen entries
+are complete; X stays in progress. Other commands/selectors and full acceptance
+remain pending. Completion commit will be recorded by the next completed step.

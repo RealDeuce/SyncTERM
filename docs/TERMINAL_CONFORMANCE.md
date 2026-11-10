@@ -63,6 +63,10 @@ selectors are no-ops; pending valid selectors fail without consuming payload.
 and multivertex arrow shortening. Its independent 1,692-case native matrix,
 literal input/lifecycle/flow checks and coherent application scenes cover all
 ST modes, encodings and status choices, including exact XOFF/XON replies.
+`Z` adds inclusive, perimeter-free rectangle fill using all native built-in
+and active user patterns. Its 1,992-case independent native matrix and coherent
+application scenes cover fill modes/pens/anchoring, boundaries, overlays,
+state/input/lifecycle recovery and all ST modes, encodings and status choices.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

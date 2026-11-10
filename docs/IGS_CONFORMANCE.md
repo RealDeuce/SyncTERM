@@ -15,7 +15,9 @@ both remembered pairs, preserving native Drawto chaining.
 X dispatch is in progress: `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
-position pair, with serial XOFF/XON around drawing. Other commands remain pending.
+position pair, with serial XOFF/XON around drawing. `Z` fills inclusive
+rectangles with native built-in/user patterns and no extra perimeter.
+Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -688,6 +690,46 @@ position/attributes and RGB use one coherent capture. Exact flow replies,
 partial disconnect and fresh reconnect/default flow are checked with physical
 audio disabled. References: 15/20/43/44/46/50/51/137. Superseded planar/clock
 experiments remain outside the active tests. The complete IGS goal is unfinished.
+
+## Inclusive rectangle fill (`Z`)
+
+`Z` consumes four X/Y coordinates, orders a private rectangle and includes
+both endpoints, including single-pixel/row/column cases. It uses the fill pen
+and adds no perimeter even when the perimeter attribute is set. It preserves
+Drawto pairs, attributes, clipping, last-segment state, palette, RNG and caller
+values, with no wait, flow helper or reply. All 38 built-in fills use original
+US TOS1.04 rows; the active single-plane user pattern uses its copied 16 rows.
+Canonical Y masks and X bits anchor to absolute screen coordinates through
+clipping. Source-bank changes after `A4` cannot change the active pattern.
+Both indexed phases use the four native writing modes; XOR ignores pen colour
+and toggles every active physical bit at set pattern bits.
+
+`cterm_igs_rectangle` checks 1,992 independently derived complete native-frame
+cases over different initial plane bits, every built-in fill plus user rows,
+all modes/resolutions, corner orders, clipped/rejected rectangles, perimeter
+settings, last state and fringe/degenerate/negative-coordinate cases.
+[Fixture provenance](../src/tests/igs/rectangle-vectors.json) and the
+[maintainer generator](../src/tests/igs/generate_rectangle_vectors.py) record
+original literal tables, ROM identity and independent coordinate/per-bit
+models. Tests do not depend on the reference tree or generate expected pixels
+from SyncTERM. Literal checks cover pens, signed extrema, normalization/g2,
+array-index transform ordering, every focused split/bytewise input, random
+operands/seeds, unchanged incomplete/error phases, EOF/timeout/reset,
+suspended R and I/R/I5, invalid state, copied-user ownership and no replies.
+
+`syncterm_igs_rectangle` checks 60 source-derived scenes plus literal user rows,
+glyph overlays in every writing mode, status/bottom edges and a following D.
+All ST modes, Atari ST/CP437/UTF-8 and status choices use coherent related
+pixels below the token row, both native phases, cells, palette, state and RGB.
+Partial disconnect and fresh reconnect restore independent state. Physical
+audio is disabled. References: 15/29/47/131/134.
+
+The atomic parser rejects incomplete/invalid acquisitions before drawing.
+Outside-canvas writes are clipped safely rather than reproducing native
+adjacent-memory writes or address wrap. Inverted clip bounds are a no-op;
+impossible active pattern selectors return an error before drawing. These
+port safety policies do not emulate arbitrary native raw-memory states.
+Other commands/selectors and the complete IGS acceptance remain pending.
 
 ## Deliberate corrections
 

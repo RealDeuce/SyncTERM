@@ -1,7 +1,8 @@
 /* Atari raster policy; independent of the shared graphics wire parser.
- * US TOS 1.04 lines, polygons, caps, arrows and markers: 43/44/46/50/51/52. */
+ * US TOS 1.04 lines, polygons, rectangles, caps, arrows and markers. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
+#include "cterm_igs_patterns.h"
 #include "cterm.h"
 #include "io_error.h"
 
@@ -160,6 +161,73 @@ publish(struct raster *raster)
 	    .height = (unsigned)(raster->bottom-raster->top+1),
 	    .destination_x = raster->left, .destination_y = raster->top, .scale_x = 1, .scale_y = 1};
 	return st_console_blit_pixels(raster->igs->terminal->screen.console, raster->pixels, NULL, &blit);
+}
+
+/* Canonical workstation patterns have row masks 0/3/7/15, so the native
+ * rectangle's sequential row loop is equivalent to absolute Y anchoring.
+ * IGS uploads only the single-plane sixteen-row user pattern. */
+static int
+fill_pattern(const struct cterm_igs *igs, const uint16_t **rows, unsigned *mask)
+{
+	static const uint16_t plain[] = {0,0xffff};
+	int interior = igs->attributes.fill_interior, index = igs->attributes.fill_index;
+	*mask = 0;
+	switch (interior) {
+	case 0: case 1: *rows = &plain[interior]; break;
+	case 2:
+		if (index < 1 || index > 24) return IO_ERROR_INVALID_ARGUMENT;
+		if (index <= 8) { *rows = fill_dither[index-1]; *mask = 3; }
+		else { *rows = fill_oempat[index-9]; *mask = 7; }
+		break;
+	case 3:
+		if (index < 1 || index > 12) return IO_ERROR_INVALID_ARGUMENT;
+		if (index <= 6) { *rows = fill_hatch0[index-1]; *mask = 7; }
+		else { *rows = fill_hatch1[index-7]; *mask = 15; }
+		break;
+	case 4: *rows = igs->attributes.user_fill; *mask = 15; break;
+	default: return IO_ERROR_INVALID_ARGUMENT;
+	}
+	return 0;
+}
+
+int
+cterm_igs_rectangle(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
+{
+	const uint16_t *rows;
+	unsigned mask;
+	int status = fill_pattern(igs, &rows, &mask);
+	if (status != 0) return status;
+	if (x1 > x2) { int swap = x1; x1 = x2; x2 = swap; }
+	if (y1 > y2) { int swap = y1; y1 = y2; y2 = swap; }
+	if (igs->clipping) {
+		if (igs->clip_x1 > igs->clip_x2 || igs->clip_y1 > igs->clip_y2) return 0;
+		if (x1 < igs->clip_x1) x1 = igs->clip_x1;
+		if (x2 > igs->clip_x2) x2 = igs->clip_x2;
+		if (y1 < igs->clip_y1) y1 = igs->clip_y1;
+		if (y2 > igs->clip_y2) y2 = igs->clip_y2;
+	}
+	/* Host canvas/status bounds restrict writes without re-anchoring rows or
+	 * turning private corner ordering into an IGS Drawto-state mutation. */
+	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
+	if (x1 < 0) x1 = 0;
+	if (y1 < 0) y1 = 0;
+	if (x2 >= (int)igs->width) x2 = (int)igs->width-1;
+	if (y2 >= drawable) y2 = drawable-1;
+	if (x1 > x2 || y1 > y2) return 0;
+	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
+	    .foreground = cterm_igs_physical_pen(igs, igs->attributes.fill_pen),
+	    .plane_mask = cterm_igs_plane_mask(igs->resolution),
+	    .area = {(unsigned)x1,(unsigned)y1,(unsigned)(x2-x1+1),(unsigned)(y2-y1+1)}};
+	status = st_console_get_pixels(&raster.pixels, igs->terminal->screen.console, &raster.area, false);
+	if (status != 0) return status;
+	for (int y = y1; y <= y2; ++y) {
+		uint16_t bits = rows[(unsigned)y & mask];
+		for (int x = x1; x <= x2; ++x)
+			plot(&raster, (struct point){x,y}, (bits & (0x8000u >> ((unsigned)x & 15))) != 0);
+	}
+	status = publish(&raster);
+	st_pixel_buffer_destroy(raster.pixels);
+	return status;
 }
 
 int
