@@ -114,6 +114,13 @@ position_in_window(const st_console_t *console, uint32_t x, uint32_t y)
 	    && y - console->window.y < console->window.height;
 }
 
+static void
+restart_cursor_animation(st_console_t *console)
+{
+	if (atomic_load_explicit(&console->display->active, memory_order_acquire) == console)
+		st_console_display_reset_animation(console->display, console->blink_mode, true);
+}
+
 int
 st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
 {
@@ -127,6 +134,10 @@ st_console_set_position(st_console_t *console, uint32_t x, uint32_t y)
 	if (!position_in_window(console, x, y))
 		result = IO_ERROR_OUT_OF_RANGE;
 	else {
+		if (!console->pixel_cursor.enabled && console->cursor_custom
+		    && console->custom_cursor.visible && console->custom_cursor.index_xor != 0
+		    && (console->cursor_x != x || console->cursor_y != y))
+			restart_cursor_animation(console);
 		console->cursor_x = x;
 		console->cursor_y = y;
 		console->changed = true;
@@ -166,7 +177,9 @@ st_console_set_cursor(st_console_t *console, bool visible,
 	    || console->custom_cursor.end != cursor.end
 	    || console->custom_cursor.range != cursor.range
 	    || console->custom_cursor.visible != cursor.visible
-	    || console->custom_cursor.blink != cursor.blink))) {
+	    || console->custom_cursor.blink != cursor.blink
+	    || console->custom_cursor.index_base != cursor.index_base
+	    || console->custom_cursor.index_xor != cursor.index_xor))) {
 		console->cursor_visible = visible;
 		console->cursor_shape = shape;
 		console->cursor_custom = shape != ST_CONSOLE_CURSOR_BAR;
@@ -195,6 +208,13 @@ st_console_get_default_cursor(st_console_t *console,
 	return 0;
 }
 
+static bool
+valid_cursor_indices(const struct st_console_custom_cursor *cursor)
+{
+	uint32_t mask = cursor->index_xor;
+	return (mask & (mask + 1)) == 0 && (uint32_t)cursor->index_base + mask <= UINT16_MAX;
+}
+
 int
 st_console_set_default_cursor(st_console_t *console,
 	const struct st_console_custom_cursor *cursor)
@@ -203,7 +223,7 @@ st_console_set_default_cursor(st_console_t *console,
 
 	if (console == NULL || cursor == NULL || cursor->range == 0
 	    || cursor->start >= cursor->range || cursor->end >= cursor->range
-	    || cursor->start > cursor->end)
+	    || cursor->start > cursor->end || !valid_cursor_indices(cursor))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
@@ -248,7 +268,8 @@ st_console_set_custom_cursor(st_console_t *console,
 {
 	int result;
 
-	if (console == NULL || cursor == NULL || cursor->range == 0)
+	if (console == NULL || cursor == NULL || cursor->range == 0
+	    || !valid_cursor_indices(cursor))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
@@ -262,7 +283,14 @@ st_console_set_custom_cursor(st_console_t *console,
 	    || console->custom_cursor.end != cursor->end
 	    || console->custom_cursor.range != cursor->range
 	    || console->custom_cursor.visible != cursor->visible
-	    || console->custom_cursor.blink != cursor->blink) {
+	    || console->custom_cursor.blink != cursor->blink
+	    || console->custom_cursor.index_base != cursor->index_base
+	    || console->custom_cursor.index_xor != cursor->index_xor) {
+		if (cursor->visible && cursor->index_xor != 0
+		    && (!console->cursor_custom || !console->custom_cursor.visible
+		    || console->custom_cursor.index_base != cursor->index_base
+		    || console->custom_cursor.index_xor != cursor->index_xor))
+			restart_cursor_animation(console);
 		console->custom_cursor = *cursor;
 		console->cursor_custom = true;
 		console->cursor_visible = cursor->visible;
@@ -317,7 +345,7 @@ st_console_set_blink_mode(st_console_t *console,
 		console->changed = true;
 		if (atomic_load_explicit(&console->display->active,
 		    memory_order_acquire) == console)
-			st_console_display_reset_animation(console->display, mode);
+			st_console_display_reset_animation(console->display, mode, false);
 	}
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);

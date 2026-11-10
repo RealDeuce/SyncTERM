@@ -36,6 +36,8 @@ struct st_console_bitmap_presenter {
 	uint32_t cursor_draw_x;
 	uint32_t cursor_columns;
 	uint32_t cursor_colour;
+	uint16_t cursor_index_base;
+	uint16_t cursor_index_xor;
 	uint32_t output_width;
 	uint32_t output_height;
 	uint32_t aspect_width;
@@ -55,6 +57,8 @@ struct st_console_bitmap_presenter {
 	bool cursor_custom;
 	bool cursor_visible;
 	bool cursor_composed;
+	bool local_animation_clock;
+	bool animation_epoch_pending;
 	bool planes_differ;
 	bool damage_valid;
 	bool damage_full;
@@ -122,6 +126,32 @@ fill_rectangle(struct st_rgb_buffer *buffer,
 		for (uint32_t x = 0; x < rectangle->width; ++x) {
 			changed = changed || row[x] != colour;
 			row[x] = colour;
+		}
+	}
+	return changed;
+}
+
+static bool
+compose_index_cursor(struct st_console_bitmap_presenter *presenter,
+	struct st_rgb_buffer *destination, const st_console_t *console, bool alternate)
+{
+	const struct st_console_rect *rect = &presenter->cursor_rectangle;
+	const uint32_t *plane = alternate && console->pixels->alternate != NULL
+	    ? console->pixels->alternate : console->pixels->primary;
+	uint32_t base = presenter->cursor_index_base;
+	uint32_t mask = presenter->cursor_index_xor;
+	bool changed = false;
+
+	for (uint32_t y = 0; y < rect->height; ++y) {
+		size_t source = st_console_pixel_position_locked(console, rect->x, rect->y + y);
+		size_t target = (size_t)(rect->y + y) * destination->width + rect->x;
+		for (uint32_t x = 0; x < rect->width; ++x) {
+			uint32_t index = plane[source + x];
+			if (index >= base && index - base <= mask)
+				index = base + ((index - base) ^ mask);
+			uint32_t rgb = colour_value(presenter, index);
+			changed = changed || destination->pixels[target + x] != rgb;
+			destination->pixels[target + x] = rgb;
 		}
 	}
 	return changed;
@@ -734,6 +764,16 @@ st_console_bitmap_presenter_set_external_scaling_available(
 	presenter->software_scaling_only = !available;
 }
 
+void
+st_console_bitmap_presenter_set_local_animation_clock(
+	struct st_console_bitmap_presenter *presenter, bool local)
+{
+	if (presenter->local_animation_clock != local) {
+		presenter->local_animation_clock = local;
+		presenter->animation_epoch_pending = true;
+	}
+}
+
 static bool
 cache_console_state(struct st_console_bitmap_presenter *presenter,
 	const st_console_t *console, uint32_t now, bool *cursor_changed)
@@ -758,6 +798,8 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	bool old_cursor_composed = presenter->cursor_composed;
 	struct st_console_rect old_cursor = presenter->cursor_rectangle;
 	uint32_t old_cursor_colour = presenter->cursor_colour;
+	uint16_t old_cursor_index_base = presenter->cursor_index_base;
+	uint16_t old_cursor_index_xor = presenter->cursor_index_xor;
 
 	st_console_cursor_span_locked(console, &cursor_draw_x, &cursor_columns);
 	changed = !presenter->initialized
@@ -768,13 +810,17 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	    || presenter->blocky_scaling != console->blocky_scaling;
 
 	(void)st_mutex_lock(&console->display->presentation_mutex);
-	if (console->display->presentation_animation_initialized
-	    && console->display->presentation_blink_mode == console->blink_mode)
+	bool shared_animation = !presenter->local_animation_clock
+	    && console->display->presentation_animation_initialized
+	    && console->display->presentation_blink_mode == console->blink_mode;
+	if (shared_animation)
 		presenter->epoch
 		    = (uint32_t)console->display->presentation_animation_epoch;
 	else if (!presenter->initialized
-	    || presenter->blink_mode != console->blink_mode)
+	    || presenter->blink_mode != console->blink_mode
+	    || presenter->animation_epoch_pending)
 		presenter->epoch = now;
+	presenter->animation_epoch_pending = false;
 	(void)st_mutex_unlock(&console->display->presentation_mutex);
 	changed = changed || presenter->blink_mode != console->blink_mode;
 	presenter->columns = console->columns;
@@ -798,6 +844,8 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	presenter->aspect_height = console->aspect_height;
 	presenter->initialized = true;
 	presenter->pixel_cursor_enabled = console->pixel_cursor.enabled;
+	presenter->cursor_index_base = 0;
+	presenter->cursor_index_xor = 0;
 	if (presenter->pixel_cursor_enabled) {
 		struct st_console_rect r = console->pixel_cursor.rectangle;
 		uint32_t width = console->pixels->width, height = console->pixels->height;
@@ -812,6 +860,12 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 		presenter->cursor_composed = console->pixel_cursor.visible && r.width != 0 && r.height != 0;
 	} else {
 		presenter->cursor_rectangle = cursor_rectangle(presenter);
+		if (presenter->cursor_custom && presenter->custom_cursor.index_xor != 0) {
+			presenter->cursor_rectangle.x = presenter->cursor_x * presenter->cell_width;
+			presenter->cursor_rectangle.width = presenter->cell_width;
+			presenter->cursor_index_base = presenter->custom_cursor.index_base;
+			presenter->cursor_index_xor = presenter->custom_cursor.index_xor;
+		}
 		presenter->cursor_composed = (presenter->cursor_custom
 			? presenter->custom_cursor.visible : presenter->cursor_visible)
 			&& presenter->cursor_x < presenter->columns
@@ -819,11 +873,15 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 			&& presenter->cursor_rectangle.width != 0
 			&& presenter->cursor_rectangle.height != 0;
 	}
+	bool rectangle_changed = !st_console_rects_equal(&old_cursor, &presenter->cursor_rectangle);
+	bool bank_changed = old_cursor_index_base != presenter->cursor_index_base
+	    || old_cursor_index_xor != presenter->cursor_index_xor;
+	if (!shared_animation && presenter->cursor_composed && presenter->cursor_index_xor != 0
+	    && (!old_cursor_composed || rectangle_changed || bank_changed))
+		presenter->epoch = now;
 	*cursor_changed = old_cursor_composed != presenter->cursor_composed
 	    || ((old_cursor_composed || presenter->cursor_composed)
-	    && (!st_console_rects_equal(&old_cursor,
-	    &presenter->cursor_rectangle)
-	    || old_cursor_colour != presenter->cursor_colour));
+	    && (rectangle_changed || bank_changed || old_cursor_colour != presenter->cursor_colour));
 	return changed;
 }
 
@@ -898,7 +956,12 @@ resolve_images(struct st_console_bitmap_presenter *presenter,
 	    presenter->images[BITMAP_PRIMARY], rectangle) || changed;
 	changed = copy_rgb_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
 	    presenter->images[BITMAP_ALTERNATE], rectangle) || changed;
-	if (presenter->cursor_composed) {
+	if (presenter->cursor_composed && presenter->cursor_index_xor != 0) {
+		changed = compose_index_cursor(presenter,
+		    presenter->images[BITMAP_PRIMARY_CURSOR], console, false) || changed;
+		changed = compose_index_cursor(presenter,
+		    presenter->images[BITMAP_ALTERNATE_CURSOR], console, true) || changed;
+	} else if (presenter->cursor_composed) {
 		changed = fill_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR],
 		    &presenter->cursor_rectangle,
 		    colour_value(presenter, presenter->cursor_colour)) || changed;

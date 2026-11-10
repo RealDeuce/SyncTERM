@@ -146,6 +146,10 @@ pending parameters, edge behavior, both pixel phases and recovery.
 the shared VT52 save slot. Coverage includes 672 native scenes and
 108 application captures with literal glyphs, pending parameters,
 mode initialization and reconnect.
+`k` adds counted Atari cursor hide and forced enable with live index
+inversion in the presenter. Native input cases and 180 coherent application
+captures cover blink, movement, drawing under the cursor and serial
+destructive backspace through the pending VT52 state.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

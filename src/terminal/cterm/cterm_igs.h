@@ -44,6 +44,7 @@ struct cterm_igs {
 	int draw_start_x, draw_start_y;
 	/* Last-segment ownership survives native polygon/cap compositions. */
 	bool last_line;
+	bool destructive_backspace;
 	/* Serial flow helpers read their own gate once and count/byte per send. */
 	int flow_mode, loop_mode, loop_kind;
 	size_t text_counter;
@@ -78,6 +79,7 @@ void cterm_igs_reset(struct cterm_igs *);
 int cterm_igs_feed(struct cterm_igs *, const void *, size_t, size_t *);
 int cterm_igs_finish(struct cterm_igs *);
 int cterm_igs_poll(struct cterm_igs *);
+int cterm_igs_echo_backspace(struct cterm_igs *);
 bool cterm_igs_paused(const struct cterm_igs *);
 int cterm_igs_initialize(struct cterm_igs *, int operation);
 void cterm_igs_set_scaling(struct cterm_igs *, int mode);

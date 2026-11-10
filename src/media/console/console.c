@@ -215,7 +215,7 @@ schedule_animation_locked(st_console_display_t *display,
 
 void
 st_console_display_reset_animation(st_console_display_t *display,
-	enum st_console_blink_mode mode)
+	enum st_console_blink_mode mode, bool restart)
 {
 	uint64_t now;
 
@@ -224,7 +224,7 @@ st_console_display_reset_animation(st_console_display_t *display,
 	    || st_time_monotonic_ms(&now) != 0)
 		return;
 	(void)st_mutex_lock(&display->presentation_mutex);
-	if (!display->presentation_animation_initialized
+	if (restart || !display->presentation_animation_initialized
 	    || display->presentation_blink_mode != mode) {
 		display->presentation_animation_initialized = false;
 		schedule_animation_locked(display, mode, now);
@@ -939,7 +939,7 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 		return status;
 	atomic_store_explicit(&display->active, console, memory_order_release);
 	if (setup)
-		st_console_display_reset_animation(display, console->blink_mode);
+		st_console_display_reset_animation(display, console->blink_mode, false);
 	if (setup && display->backend_ops != NULL
 	    && display->backend_ops->resize != NULL)
 		status = display->backend_ops->resize(console, console->columns,
@@ -2025,7 +2025,7 @@ st_console_reconfigure(st_console_t *console,
 	if (atomic_load_explicit(&console->display->active,
 	    memory_order_acquire) == console)
 		st_console_display_reset_animation(console->display,
-		    console->blink_mode);
+		    console->blink_mode, false);
 	/* A fresh raster has no valid drawn cells, even when a new cell equals
 	 * the zero-initialized contents of the drawn-cell allocation. */
 	st_console_invalidate_text_locked(console);

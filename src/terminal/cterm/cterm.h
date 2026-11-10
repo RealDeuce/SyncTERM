@@ -238,6 +238,7 @@ struct cterminal {
 	int					save_xpos;		// Saved position (for later restore)
 	int					save_ypos;
 	bool				vt52_cursor_saved;	// Atari IGS one-shot restore flag
+	uint16_t			vt52_cursor_hide_depth;
 	int					sequence;		// An escape sequence is being parsed
 	int					string;
 #define CTERM_STRING_APC	1

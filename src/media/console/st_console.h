@@ -218,6 +218,9 @@ struct st_console_custom_cursor {
 	uint32_t range;
 	bool visible;
 	bool blink;
+	/* With a nonzero mask, complement indices within this palette bank. */
+	uint16_t index_base;
+	uint16_t index_xor;
 };
 
 /* A separately composed bitmap cursor. It never changes cells or raster

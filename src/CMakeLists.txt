@@ -351,6 +351,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_igs_cursor_save PROPERTIES
 				TIMEOUT 120 LABELS "terminal;conformance;igs")
+			add_test(NAME syncterm_igs_cursor
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_cursor_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_igs_cursor PROPERTIES
+				TIMEOUT 120 LABELS "terminal;conformance;igs")
 			add_test(NAME syncterm_igs_text
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_text_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

@@ -2574,6 +2574,9 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size,
 			--target->input_depth;
 			if (status == 0)
 				status = cterm_render_take_error(target);
+			if (status == 0 && used && source == CTERM_INPUT_WIRE && byte == 8
+			    && target->igs_engine != NULL)
+				status = cterm_igs_echo_backspace(target->igs_engine);
 		}
 		else {
 			char decoded[4];

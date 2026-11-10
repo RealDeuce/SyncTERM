@@ -37,6 +37,7 @@ VT52 state, including byte wrapping and pending-sequence composition.
 `m` adds repeated home and directional motion with native signed count and
 selector rules through that same VT52 state.
 `r` adds one-shot cursor save and restore shared with raw VT52 j and k.
+`k` adds counted cursor visibility and serial destructive backspace.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1409,6 +1410,32 @@ delivery, lifetime, output errors and standalone VT52.
 reconnect scene in each of 18 mode/encoding/status profiles. Source glyphs
 and full phase comparisons account for literal j and k emitted in pending
 states. All 14 targeted checks passed on native FreeBSD Release.
+
+### k cursor and destructive backspace
+
+Selectors zero and one dispatch native ESC f and e. Upper selectors
+select f and negative selectors emit ESC alone. Hide increments the
+depth, which saturates at the word limit. Forced enable clears the
+depth and starts the Atari ST presentation blink phase. Position
+changes restart that phase. The presented full-cell cursor complements
+live indices in the mode's palette bank and then resolves RGB.
+Indexed drawing, cell data and raster capture use the underlying surface.
+Injected presentation timestamps share a local epoch during tests.
+
+Selectors two and three enable and disable destructive backspace. An
+accepted ordinary serial BS is processed first. With the setting enabled,
+the same VT52 parser then receives space and BS. These bytes can use
+the raw parameters, attributes and cursor position left by the original
+byte. Graphical payloads and semantic text follow their existing paths.
+Mode initialization restores hidden depth one. I and R retain the erase
+setting, which SyncTERM clears on terminal reset and reconnect.
+
+`cterm_igs_cursor` covers count, scope, partitioned input, pending
+parameters, raw VT52, resolution, reset and recovery. `syncterm_igs_cursor`
+uses original TOS glyph rows and 180 coherent mode/encoding/status
+captures. It verifies both indexed phases, full-cell complement in RGB,
+the 499/500 ms boundary, movement, live graphics, erase and reconnect.
+All 27 targeted checks passed on native FreeBSD Release.
 
 ## Deliberate corrections
 

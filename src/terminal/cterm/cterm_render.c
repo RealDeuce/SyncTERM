@@ -10,6 +10,7 @@
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_skypix.h"
+#include "cterm_vt52.h"
 
 #include "io_error.h"
 #include "st_base64.h"
@@ -371,6 +372,10 @@ cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 {
 	struct st_console_custom_cursor custom;
 
+	if (cterm->igs_engine != NULL) {
+		cterm_vt52_render_cursor(cterm, cursor);
+		return;
+	}
 	if (cterm->skypix_engine != NULL) {
 		cterm_skypix_cursor_mode(cterm->skypix_engine, cursor == CTERM_CURSOR_HIDDEN);
 		return;

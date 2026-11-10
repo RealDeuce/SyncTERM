@@ -397,6 +397,7 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	memset(igs->shared_text,0,sizeof(igs->shared_text));
 	igs->shared_text_size = 0; igs->text_counter = 0; igs->loop_kind = 0; igs->text_deadline = 0;
 	igs->last_line = true;
+	igs->destructive_backspace = false;
 	igs->flow_mode = 1;
 	igs->loop_mode = 0;
 	igs->flow_on = 17; igs->flow_off = 19;

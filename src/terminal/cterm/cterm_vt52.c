@@ -47,6 +47,9 @@ cterm_vt52_reset_console(struct cterminal *cterm)
 	cterm->vt52_foreground = cterm->attr & 15u;
 	cterm->vt52_background = cterm->attr >> 4;
 	cterm->vt52_cursor_saved = false;
+	cterm->vt52_cursor_hide_depth = 1;
+	if (cterm->igs_engine != NULL)
+		cterm->cursor = CTERM_CURSOR_HIDDEN;
 }
 
 uint32_t
@@ -54,6 +57,19 @@ cterm_vt52_background_color(const struct cterminal *cterm)
 {
 	/* Atari blanking uses the raw background even in reverse video. */
 	return cterm->screen.mode_palette[cterm->vt52_background & 15u];
+}
+
+void
+cterm_vt52_render_cursor(struct cterminal *cterm, int cursor)
+{
+	const struct st_console_custom_cursor custom = {
+		.range = 1,
+		.visible = cursor != CTERM_CURSOR_HIDDEN && cterm->vt52_cursor_hide_depth == 0,
+		.blink = true,
+		.index_base = CTERM_IGS_PALETTE_FIRST,
+		.index_xor = (uint16_t)cterm_igs_plane_mask(cterm->igs_engine->resolution),
+	};
+	(void)cterm_render_set_custom_cursor(cterm, &custom);
 }
 
 /* ------------------------------------------------------------------------
@@ -265,7 +281,13 @@ static void
 cterm_vt52_cursor_on(struct cterminal *cterm, int *speed)	/* ESC e */
 {
 	(void)speed;
-	cterm->cursor = CTERM_CURSOR_UNDERLINE;
+	if (cterm->igs_engine != NULL) {
+		if (cterm->vt52_cursor_hide_depth == 0)
+			return;
+		cterm->vt52_cursor_hide_depth = 0;
+		cterm->cursor = CTERM_CURSOR_BLOCK;
+	} else
+		cterm->cursor = CTERM_CURSOR_UNDERLINE;
 	cterm_render_set_cursor(cterm, cterm->cursor);
 }
 
@@ -273,6 +295,8 @@ static void
 cterm_vt52_cursor_off(struct cterminal *cterm, int *speed)	/* ESC f */
 {
 	(void)speed;
+	if (cterm->igs_engine != NULL && cterm->vt52_cursor_hide_depth < UINT16_MAX)
+		++cterm->vt52_cursor_hide_depth;
 	cterm->cursor = CTERM_CURSOR_HIDDEN;
 	cterm_render_set_cursor(cterm, cterm->cursor);
 }

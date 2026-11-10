@@ -364,7 +364,7 @@ st_console_t *st_console_display_active_console(st_console_t *console);
 int st_console_start_presentation_worker(st_console_t *console);
 void st_console_display_request_repaint(st_console_display_t *display);
 void st_console_display_reset_animation(st_console_display_t *display,
-	enum st_console_blink_mode mode);
+	enum st_console_blink_mode mode, bool restart);
 void st_console_mark_all_locked(st_console_t *console);
 void st_console_cursor_span_locked(const st_console_t *console,
 	uint32_t *x, uint32_t *columns);
@@ -471,6 +471,8 @@ void st_console_bitmap_presenter_destroy(
 /* Set before the first frame; unavailable acceleration uses software scaling. */
 void st_console_bitmap_presenter_set_external_scaling_available(
 	struct st_console_bitmap_presenter *presenter, bool available);
+void st_console_bitmap_presenter_set_local_animation_clock(
+	struct st_console_bitmap_presenter *presenter, bool local);
 /*
  * console may be NULL for a phase selection or host-only resize.  The image
  * identity is stable for the presenter's lifetime; generations change only

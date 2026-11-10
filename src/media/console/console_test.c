@@ -86,6 +86,8 @@ static int test_present(st_console_t *console)
 	uint64_t now = 0;
 	(void)st_time_monotonic_ms(&now);
 	state->timestamp = state->clock_override ? state->clock_ms : now;
+	st_console_bitmap_presenter_set_local_animation_clock(state->presenter,
+	    state->clock_override);
 	int status = st_console_bitmap_presenter_frame(state->presenter, console,
 	    state->width, state->height, (uint32_t)state->timestamp, NULL, NULL, &state->frame);
 	if (status == 0) ++state->presentation;

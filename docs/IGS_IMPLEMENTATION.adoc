@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m and r commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r and k commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2340,5 +2340,49 @@ The new native check failed before implementation. The FreeBSD Release
 build with /usr/bin/cc and all 14 targeted CTest checks passed after
 implementation. The native and application cursor-save checks took
 0.96 and 19.30 seconds respectively in the regression run.
-The ledger records 31 complete entries. Completion commit will be
+The ledger records 31 complete entries. Completion commit `8c3ed29`.
+
+=== k cursor and destructive backspace
+
+Selectors zero and one emit VT52 ESC f and ESC e. A selector above three
+selects f and a negative selector emits ESC alone. The VT52 parser receives
+each byte in its current state, including pending parameters. Raw f and e
+share the same cursor depth. Hide increments the depth and forced enable
+clears it. The depth saturates at the word limit so further hides keep the
+cursor disabled. Session startup, terminal reset and actual color-mode
+initialization establish a hidden cursor with depth one.
+
+The bitmap presenter complements each index in the current IGS palette
+bank across the cursor's cell. It resolves the resulting index through
+the live palette. The overlay is composed at presentation time from the
+same indexed surface used for drawing and capture. It uses the existing
+500 ms Atari ST presentation interval and restarts the phase on enable and
+position changes. Test-control clock injection selects a local presenter
+epoch while the worker keeps its real monotonic scheduling.
+
+Selectors two and three enable and disable destructive backspace. After
+the parser accepts an ordinary serial backspace, the VT52 output path
+emits a space glyph followed by backspace. The extra bytes use the state
+left by the original byte, including changes to a pending parameter.
+The scope is serial console output. Graphical payloads and semantic text
+keep their own byte ownership. The setting survives I and R commands.
+SyncTERM clears it on terminal reset and fresh connection.
+
+The native test covers count and selector boundaries, input splits and
+bytewise input, raw VT52 composition, payload and semantic isolation,
+destructive replacement of graphics, timeout, EOF, render error recovery,
+and reset and resolution lifetime. The application test checks 180 coherent
+captures across all three modes, three encodings and both status choices.
+The fixtures cover cursor phase boundaries, movement, live drawing and
+destructive erase through literal glyph rows, indexed planes, palette, RGB
+and cursor state. Reconnect checks the startup state after an incomplete
+command. Audio and MIDI are disabled.
+
+References include chapters 14, 16, 66, 99, 160 and 195. The FreeBSD
+Release build with /usr/bin/cc passed without warnings. The new native
+test failed before implementation. An initial bitmap run found a clock
+domain mismatch at the injected blink boundary, which the local
+presentation epoch corrected. All 27 targeted CTest checks passed in
+37.32 seconds, including Wren host and console scheduler regressions.
+The ledger records 32 complete entries. Completion commit will be
 recorded by the next step.

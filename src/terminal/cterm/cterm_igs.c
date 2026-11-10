@@ -147,6 +147,7 @@ static const struct st_graphics_command commands[] = {
 	{'p', unscaled_parameters, 2, NULL},
 	{'m', unscaled_parameters, 2, NULL},
 	{'r', unscaled_parameters, 1, NULL},
+	{'k', unscaled_parameters, 1, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -206,6 +207,15 @@ boundary(void *context)
 	if (status == 0 && igs->reset_pending)
 		status = IO_ERROR_INTERRUPTED;
 	return status;
+}
+
+int
+cterm_igs_echo_backspace(struct cterm_igs *igs)
+{
+	if (!igs->destructive_backspace || igs->reset_pending)
+		return 0;
+	const uint8_t erase[] = {' ', 8};
+	return cterm_vt52_output(igs->terminal, erase, sizeof(erase));
 }
 
 static int
@@ -362,6 +372,15 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'r': {
 		const uint8_t output[] = {27, values[0] == 1 ? 'k' : 'j'};
 		return cterm_vt52_output(igs->terminal, output, values[0] < 0 ? 1 : sizeof(output));
+	}
+	case 'k': {
+		int selector = values[0] > 3 ? 0 : values[0];
+		if (selector >= 2) {
+			igs->destructive_backspace = selector == 2;
+			return 0;
+		}
+		const uint8_t output[] = {27, selector == 1 ? 'e' : 'f'};
+		return cterm_vt52_output(igs->terminal, output, selector < 0 ? 1 : sizeof(output));
 	}
 	case 'c': {
 		/* Upper selectors select background; negative selectors emit ESC only.
@@ -529,13 +548,15 @@ cterm_igs_create(struct cterminal *terminal)
 	}
 	/* Establish the base console before any graphics operation. Otherwise
 	 * the first later ordinary byte would start CTerm and clear that scene. */
+	terminal->igs_engine = igs;
+	cterm_vt52_reset_console(terminal);
 	cterm_start(terminal);
 	status = cterm_render_take_error(terminal);
 	if (status != 0) {
+		terminal->igs_engine = NULL;
 		cterm_igs_destroy(igs);
 		return status;
 	}
-	terminal->igs_engine = igs;
 	return 0;
 }
 
