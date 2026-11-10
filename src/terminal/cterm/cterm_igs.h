@@ -3,13 +3,14 @@
 #ifndef CTERM_IGS_H_
 #define CTERM_IGS_H_
 
-#include "st_graphics_parser.h"
-#include "st_igs_image.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 struct cterminal;
+struct st_graphics_parser;
+struct st_graphics_argument;
+struct st_igs_image;
 enum { CTERM_IGS_PALETTE_FIRST = 768 };
 
 struct cterm_igs_attributes {
@@ -26,7 +27,7 @@ struct cterm_igs_attributes {
 
 struct cterm_igs {
 	struct cterminal *terminal;
-	st_graphics_parser_t *parser;
+	struct st_graphics_parser *parser;
 	unsigned resolution;
 	unsigned saved_resolution;
 	uint32_t width, height;
@@ -63,6 +64,11 @@ int cterm_igs_finish(struct cterm_igs *);
 int cterm_igs_poll(struct cterm_igs *);
 bool cterm_igs_paused(const struct cterm_igs *);
 int cterm_igs_initialize(struct cterm_igs *, int operation);
+void cterm_igs_set_scaling(struct cterm_igs *, int mode);
+/* Apply the descriptor's axis to a decimal constant/index. Lookup and random
+ * results are returned as values, without a second coordinate transform. */
+int cterm_igs_argument_value(struct cterm_igs *,
+	const struct st_graphics_argument *, int *result);
 int cterm_igs_resolution(struct cterm_igs *, int requested, int palette);
 int cterm_igs_resolution_complete(struct cterm_igs *, int palette);
 int cterm_igs_palette_pen(struct cterm_igs *, int pen, int red, int green, int blue);

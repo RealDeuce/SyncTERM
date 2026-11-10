@@ -2,7 +2,8 @@
 
 IGS implementation is in progress. The application-selectable IGS 2.21 mode
 implements `I`'s six initialization selectors and `R` resolution selection.
-Other commands remain pending.
+`g` configures coordinate scaling and its captured resolution. Other commands
+remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -194,6 +195,50 @@ fractional and sub-native scales on a private Xvfb server.
 These fixtures disable audio and use ASCII
 protocol/text checkpoints; they do not establish complete character-set,
 graphical-text, drawing or sound conformance.
+
+### g: coordinate scaling
+
+`g` consumes an unscaled mode, normalizes values outside 0..2 to zero, and
+captures the current ST resolution even when selecting mode zero. It does
+not change resolution, palette, scene, console position, Drawto or graphical
+attributes. `I0/I2`, `R` and `I5` preserve this captured scaler state; issuing
+another `g` captures the then-current mode. Whole-terminal reset disables
+scaling and captures its current resolution; a fresh connection starts there.
+
+Mode zero leaves numeric arguments unchanged. Mode one maps positive decimal
+X/Y inputs on the manual's 0..9999 logical canvas to the captured resolution's
+inclusive pixel maxima, rounded to nearest. Mode two doubles positive Y only
+for captured monochrome; X and unscaled arguments are unchanged. The generic
+parser keeps the per-parameter axis tag. The common IGS numeric evaluator
+applies it to decimal constants and array indices before lookup, without
+scaling loaded array values or random substitutions again. Loop operand
+execution remains a separate pending step.
+
+This intentionally corrects the original `g1` integer-division bug described
+in reference chapters 02/11/12. The original divides 9999 by the input as an
+integer before converting to float, collapsing the upper half of the logical
+range to the screen edge. SyncTERM follows IG221.TXT's intended 10000x10000
+canvas: X=5000 maps to 160/320 in low/medium, rather than 319/639. The bounded
+integer mapping needs no emulated compiler floating-point arithmetic. Invalid
+literal/index magnitudes above the reader's 9999 limit fail safely; accidental
+word overflow and software zero-denominator artifacts are not reproduced.
+Display scaling/window sizing is independent of this protocol state.
+
+`cterm_igs_scaling` checks literal mappings for all axes, modes and ST
+resolutions, mono doubling, stale capture through `R`, disabled/invalid-mode
+recapture, reset, selective `I` preservation and unrelated state. Synthetic
+X/Y schemas exercise the same parser/evaluator used by real commands, with
+every split/bytewise input, continuations/CRLF, lookup ordering and clamping,
+random substitutions and bounded failures. Actual `g` chains and partial,
+timeout and malformed-input recovery run through CTerm.
+
+`syncterm_igs_scaling` checks real `g` state and no immediate raster/palette/
+window effects in one coherent capture with both planes and literal Z rows.
+All ST entry modes, Atari ST/CP437/UTF-8 and status choices cover preservation
+through `I`/`R`/`I5`, mode-zero/invalid-mode recapture and fresh reconnect.
+Read-only control-backend fields observe actual/captured resolution and mode;
+they do not introduce Wren APIs or product settings. Audio is disabled.
+These tests do not claim any pending drawing or loop command is implemented.
 
 ## Deliberate corrections
 

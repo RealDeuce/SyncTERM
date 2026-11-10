@@ -5,6 +5,8 @@
 #include "cterm_render.h"
 #include "io_error.h"
 #include "st_time.h"
+#include "st_graphics_parser.h"
+#include "st_igs_image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -15,15 +17,16 @@ static const struct st_graphics_dialect dialect = {
 	.chain_indicator = true, .chain = '>', .number_skip_crlf = true,
 	.number_digits = 4,
 };
-static const struct st_graphics_parameter initialize_parameters[] = {
+static const struct st_graphics_parameter scalar_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER},
 };
-static const struct st_graphics_parameter resolution_parameters[] = {
+static const struct st_graphics_parameter pair_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
 };
 static const struct st_graphics_command commands[] = {
-	{'I', initialize_parameters, 1, NULL},
-	{'R', resolution_parameters, 2, NULL},
+	{'I', scalar_parameters, 1, NULL},
+	{'R', pair_parameters, 2, NULL},
+	{'g', scalar_parameters, 1, NULL},
 };
 
 static void
@@ -64,18 +67,55 @@ boundary(void *context)
 }
 
 static int
-number(struct cterm_igs *igs, const struct st_graphics_operand *operand, int *result)
+scale_number(const struct cterm_igs *igs, enum st_graphics_axis axis, unsigned value, int *result)
 {
+	if (value > 9999)
+		return IO_ERROR_OUT_OF_RANGE;
+	*result = (int)value;
+	if (axis == ST_GRAPHICS_UNSCALED || igs->scaling_mode == 0 || value == 0)
+		return 0;
+	if (igs->scaling_resolution < 0 || igs->scaling_resolution > 2)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (igs->scaling_mode == 2) {
+		if (axis == ST_GRAPHICS_Y && igs->scaling_resolution == 2)
+			*result = (int)(value * 2);
+	}
+	else if (igs->scaling_mode == 1) {
+		unsigned maximum = axis == ST_GRAPHICS_X
+		    ? (igs->scaling_resolution == 0 ? 319 : 639)
+		    : (igs->scaling_resolution == 2 ? 399 : 199);
+		/* IG221.TXT's intended normalized canvas. Correct the original
+		 * integer quotient before float conversion; no foreign FP model
+		 * or accidental word overflow is required for these bounds. */
+		*result = (int)((value * maximum + 4999) / 9999);
+	}
+	else
+		return IO_ERROR_INVALID_ARGUMENT;
+	return 0;
+}
+
+int
+cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argument *argument, int *result)
+{
+	if (igs == NULL || argument == NULL || result == NULL
+	    || argument->kind != ST_GRAPHICS_NUMBER
+	    || argument->axis < ST_GRAPHICS_UNSCALED || argument->axis > ST_GRAPHICS_Y)
+		return IO_ERROR_INVALID_ARGUMENT;
+	const struct st_graphics_operand *operand = &argument->operand;
 	int value;
 	if (operand->operation != ST_GRAPHICS_VALUE)
 		return IO_ERROR_PROTOCOL;
 	switch (operand->source) {
 	case ST_GRAPHICS_CONSTANT:
-		value = (int)operand->value;
+	case ST_GRAPHICS_ARRAY: {
+		int status = scale_number(igs, argument->axis, operand->value, &value);
+		if (status != 0)
+			return status;
+		/* Scale the decimal index before lookup, never the loaded value. */
+		if (operand->source == ST_GRAPHICS_ARRAY)
+			value = igs->math[value > 127 ? 127 : value];
 		break;
-	case ST_GRAPHICS_ARRAY:
-		value = igs->math[operand->value > 127 ? 127 : operand->value];
-		break;
+	}
 	case ST_GRAPHICS_RANDOM_R:
 	case ST_GRAPHICS_RANDOM_R2: {
 		unsigned which = operand->source == ST_GRAPHICS_RANDOM_R ? 0 : 1;
@@ -112,13 +152,14 @@ command(void *context, const struct st_graphics_command_view *view)
 	if (view->count > sizeof(values) / sizeof(*values))
 		return IO_ERROR_PROTOCOL;
 	for (size_t i = 0; i < view->count; ++i) {
-		int status = number(igs, &view->arguments[i].operand, &values[i]);
+		int status = cterm_igs_argument_value(igs, &view->arguments[i], &values[i]);
 		if (status != 0)
 			return status;
 	}
 	switch (view->code) {
 	case 'I': return cterm_igs_initialize(igs, values[0]);
 	case 'R': return cterm_igs_resolution(igs, values[0], values[1]);
+	case 'g': cterm_igs_set_scaling(igs, values[0]); return 0;
 	default: return IO_ERROR_NOT_SUPPORTED;
 	}
 }

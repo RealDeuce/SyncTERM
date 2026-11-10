@@ -153,6 +153,13 @@ cterm_igs_clip_screen(struct cterm_igs *igs)
 	igs->clip_y2 = (int)igs->height - 1;
 }
 
+void
+cterm_igs_set_scaling(struct cterm_igs *igs, int mode)
+{
+	igs->scaling_mode = mode >= 0 && mode <= 2 ? mode : 0;
+	igs->scaling_resolution = (int)igs->resolution;
+}
+
 static int
 begin_resolution(struct cterm_igs *igs, unsigned resolution, int palette)
 {

@@ -15,8 +15,9 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I initialization and R resolution commands are implemented and independently
-tested natively and through the control bitmap application backend. Profile/menu/Wren selection
+The I initialization, R resolution and g coordinate-scaling commands are
+implemented and independently tested natively and through the control bitmap
+application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
 until all extended selectors and their dispatch behavior have passed.
@@ -393,5 +394,40 @@ Two existing fixtures now wait for the final resize frame/visible confirmation
 instead of assuming presentation/UI timing. Their expected coordinates,
 pre-approval silence and transfer results remain unchanged; Wren and IGS tests
 passed together under parallel load afterward. No Windows/device audio coverage
-is claimed. Two of the 47+16 ledger entries are complete. Completion commit will
-be recorded by the next completed step.
+is claimed. At that step two of the 47+16 ledger entries were complete.
+Completion commit: 5ad9abc.
+
+=== g coordinate state and typed numeric evaluation
+
+g records a validated mode 0..2 and current resolution, even when disabled.
+The IGS numeric evaluator consumes the shared parser's axis/typed-operand
+metadata. It scales decimal constants/array indices before lookup, leaving
+loaded/random values unscaled. Mode two doubles positive mono Y; R/I5 and
+selective I resets preserve g's captured resolution and mode. Host display
+scaling is independent. References: 15/11/12 and IG221.TXT's g manual entry.
+
+Under the agreed bug-correction policy, mode one implements the manual's
+normalized 0..9999 canvas using bounded integer nearest rounding. It corrects
+the original integer quotient before float conversion: midpoint X=5000 maps
+to 160/320 rather than the full low/medium edge. This deliberately differs
+from the observed arithmetic model in the reference's g1 tables; no compiler
+floating-point emulation or zero-denominator artifact is needed. Array lookup
+ordering and substitution rules remain explicit. Loop execution is pending.
+
+Native cterm_igs_scaling tests literal coordinate vectors, state/lifecycle,
+synthetic axis schemas through the real generic parser/evaluator, all focused
+splits and bytewise input, reader ordering and boundaries. The application
+test observes g state with cells, palette and both pixel planes in one capture,
+all three ST modes, Atari ST/CP437/UTF-8 and status choices. It checks no
+immediate scene/display change, I/R preservation and fresh reconnect. Control
+observations are read-only; no new Wren/product API is introduced. Audio is off.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration. Full build passed without compiler warnings; all 41 selected
+CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix, shared parser/images/
+pixels, term, Wren and application I/R/g, SkyPix report, graphics scrollback
+and session modes. g's application captures cover all ST modes, Atari ST,
+CP437/UTF-8 and status choices. The 47+16 ledger, reference paths, dependency
+IDs and registered tests were checked; three entries are complete. Drawing,
+loops, sound and the remaining acceptance work remain pending. Completion
+commit will be recorded by the next completed step.

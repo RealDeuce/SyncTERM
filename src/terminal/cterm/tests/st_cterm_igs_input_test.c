@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_igs.h"
+#include "st_graphics_parser.h"
 #include "st_cterm.h"
 #include "io_error.h"
 

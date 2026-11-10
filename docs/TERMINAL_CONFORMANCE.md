@@ -11,6 +11,10 @@ in all ST modes and status choices. `R` also covers CP437/Atari ST/UTF-8 wire
 input, retained images, unchanged-mode scenes, colour transitions and reconnect.
 Resolution changes retain physical window size through fractional/sub-native
 display scaling, with native bitmap/scaler and private X11 window checks.
+`g` has literal coordinate-reader/state tests and coherent application checks
+for captured resolution, I/R preservation, reset/reconnect and no immediate
+scene or window effect. Its documented normalized mapping corrects the
+original integer-division bug; drawing and loop execution remain pending.
 Other commands,
 including drawing and sound, remain pending; see the IGS ledger for details.
 

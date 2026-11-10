@@ -88,18 +88,22 @@
         "cterm_igs_init",
         "cterm_igs_resolution",
         "syncterm_igs_init",
-        "syncterm_igs_resolution"
+        "syncterm_igs_resolution",
+        "cterm_igs_scaling",
+        "syncterm_igs_scaling"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
         "Targeted native parser/image/pixel/scaler/console/CTerm/term/Wren and application IGS/SkyPix/graphics-history/session-mode regressions passed across the recorded runs. The live Wayland backend test was skipped with no compositor; Wayland internal tests passed.",
         "Private Xvfb 1920x1200: st_console_x11_pixels, st_console_x11, st_console_x11_mode_changes, st_console_x11_xrender and app_scaling passed. Physical size and rendered edges were checked at medium 0.5x/1.5x with unchanged windows.",
-        "After adding frame/UI readiness fences to existing fixtures, wren_host, syncterm_igs_init and syncterm_igs_resolution passed together under parallel load. No physical audio or Windows device coverage is claimed."
+        "After adding frame/UI readiness fences to existing fixtures, wren_host, syncterm_igs_init and syncterm_igs_resolution passed together under parallel load. No physical audio or Windows device coverage is claimed.",
+        "Native FreeBSD /usr/bin/cc Release: full CMake build passed without compiler warnings; all 41 selected CTest tests passed, including every CTerm test, parser/image/pixel tests, term/Wren and IGS I/R/g, SkyPix report, graphics scrollback and session-mode application tests. New g captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled."
       ],
       "commit": null,
       "operations": [
         "Owned IGS workstation state and palette snapshot, shared I/R mode helpers, native console geometry and indexed image layout changes",
-        "Local monotonic sync-unit deadlines with injected time and cancellation; no separate clock domain"
+        "Local monotonic sync-unit deadlines with injected time and cancellation; no separate clock domain",
+        "g state and common typed axis-aware numeric evaluation with intended normalized mapping, lookup ordering and captured resolution"
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -136,20 +140,23 @@
         "wren_menu_contract",
         "syncterm_behavior_bbs_setters",
         "cterm_igs_resolution",
-        "syncterm_igs_resolution"
+        "syncterm_igs_resolution",
+        "syncterm_igs_scaling"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
         "Targeted native parser/image/pixel/scaler/console/CTerm/term/Wren and application IGS/SkyPix/graphics-history/session-mode regressions passed across the recorded runs. The live Wayland backend test was skipped with no compositor; Wayland internal tests passed.",
         "Private Xvfb 1920x1200: st_console_x11_pixels, st_console_x11, st_console_x11_mode_changes, st_console_x11_xrender and app_scaling passed. Physical size and rendered edges were checked at medium 0.5x/1.5x with unchanged windows.",
-        "After adding frame/UI readiness fences to existing fixtures, wren_host, syncterm_igs_init and syncterm_igs_resolution passed together under parallel load. No physical audio or Windows device coverage is claimed."
+        "After adding frame/UI readiness fences to existing fixtures, wren_host, syncterm_igs_init and syncterm_igs_resolution passed together under parallel load. No physical audio or Windows device coverage is claimed.",
+        "Native FreeBSD /usr/bin/cc Release: full CMake build passed without compiler warnings; all 41 selected CTest tests passed, including every CTerm test, parser/image/pixel tests, term/Wren and IGS I/R/g, SkyPix report, graphics scrollback and session-mode application tests. New g captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled."
       ],
       "commit": null,
       "operations": [
         "IGS profile INI codec and editor preset; ST modes and UTF-8 selection; Wren enum and persistence",
         "Session mapping to ST VT52 with common pre-ANSI IGS/RIP dispatch; explicit SkyPix selection",
         "Fixed host canvas and I5 colour mode/history/status geometry restoration",
-        "R colour transitions retain physical window size, history/status geometry and native memory-image contents; fresh profile mode/palette after reconnect"
+        "R colour transitions retain physical window size, history/status geometry and native memory-image contents; fresh profile mode/palette after reconnect",
+        "Coherent read-only IGS scaler-state observations and no immediate scene/window effect; I/R preservation and fresh reconnect"
       ],
       "limitations": [
         "Other command handlers, graphics/audio/input integration and final acceptance remain pending."
@@ -252,23 +259,43 @@
         "Private Xvfb 1920x1200: st_console_x11_pixels, st_console_x11, st_console_x11_mode_changes, st_console_x11_xrender and app_scaling passed. Physical size and rendered edges were checked at medium 0.5x/1.5x with unchanged windows.",
         "After adding frame/UI readiness fences to existing fixtures, wren_host, syncterm_igs_init and syncterm_igs_resolution passed together under parallel load. No physical audio or Windows device coverage is claimed."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "5ad9abc"
     },
     {
       "id": "g",
       "phase": "attributes",
       "references": [
-        "16-state-timing-commands.adoc",
-        "15-graphics-commands.adoc"
+        "15-graphics-commands.adoc",
+        "11-reader-state.adoc",
+        "12-compiler-arithmetic.adoc",
+        "16-state-timing-commands.adoc"
       ],
       "order": 3,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input"
+      ],
+      "operations": [
+        "Normalize mode outside 0..2 to zero; store mode and snapshot actual ST resolution even when disabled",
+        "Preserve actual resolution, scene/palette/window, console state, Drawto and graphical attributes",
+        "Axis-aware numeric evaluator: unscaled/off bypass; intended normalized 0..9999 canvas in mode 1; positive mono Y doubling in mode 2",
+        "Scale decimal constants and array indices before lookup; loaded array and random values are not scaled again; clamp array index safely",
+        "Keep captured scaler state through I0/I2, R and I5; recapture on every g; reset and reconnect start disabled",
+        "Chained incremental input, partial/timeout/error recovery, and coherent application state observations"
+      ],
+      "tests": [
+        "cterm_igs_scaling",
+        "syncterm_igs_scaling"
+      ],
+      "deviations": [
+        "Correct original g1 integer division before float conversion. Follow IG221.TXT intended normalized 10000x10000 canvas with bounded nearest integer mapping: X=5000 maps to 160/320, not the native quotient bug's 319/639. Compiler software floating-point and zero-denominator artifacts are not emulated.",
+        "Reject literal/index values above the four-digit 9999 domain and noncanonical internal scaling state instead of accidental overflow or uninitialized scratch."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: full CMake build passed without compiler warnings; all 41 selected CTest tests passed, including every CTerm test, parser/image/pixel tests, term/Wren and IGS I/R/g, SkyPix report, graphics scrollback and session-mode application tests. New g captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "M",

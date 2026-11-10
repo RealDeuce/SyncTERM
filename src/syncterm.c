@@ -13,6 +13,7 @@
 #include "st_builtin_fonts.h"
 #include "st_command_line.h"
 #include "st_console.h"
+#include "cterm_igs.h"
 #include "st_console_startup.h"
 #include "st_connection.h"
 #include "filesystem.h"
@@ -75,6 +76,12 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.skypix_sample_size", (int64_t)sky->audio.count);
 		st_console_test_number(app, "cterm.skypix_sample_period", sky->audio.period);
 		st_console_test_number(app, "cterm.skypix_playing", sky->audio.playing);
+	}
+	const struct cterm_igs *igs = st_term_session_cterm(owner->session)->igs_engine;
+	if (igs != NULL) {
+		st_console_test_number(app, "cterm.igs_resolution", igs->resolution);
+		st_console_test_number(app, "cterm.igs_scaling_mode", igs->scaling_mode);
+		st_console_test_number(app, "cterm.igs_scaling_resolution", igs->scaling_resolution);
 	}
 	FIELD(ext_attr.auto_wrap); FIELD(ext_attr.origin_mode); FIELD(ext_attr.sx_scroll); FIELD(ext_attr.dec_lrmm);
 	FIELD(ext_attr.bracket_paste); FIELD(ext_attr.dec_bkm); FIELD(ext_attr.alternate_keypad);

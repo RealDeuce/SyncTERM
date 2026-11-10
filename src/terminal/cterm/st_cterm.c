@@ -14,6 +14,7 @@
 #include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
 #include "cterm_igs.h"
+#include "st_igs_image.h"
 #include "st_session_history.h"
 #include "st_time.h"
 #include "st_screen_mode.h"
