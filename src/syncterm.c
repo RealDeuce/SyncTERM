@@ -86,6 +86,8 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_marker_pen", igs->attributes.marker_pen);
 		st_console_test_number(app, "cterm.igs_marker_type", igs->attributes.marker_type);
 		st_console_test_number(app, "cterm.igs_marker_height", igs->attributes.marker_height);
+		st_console_test_number(app, "cterm.igs_draw_x", igs->draw_x);
+		st_console_test_number(app, "cterm.igs_draw_y", igs->draw_y);
 		st_console_test_number(app, "cterm.igs_line_pen", igs->attributes.line_pen);
 		st_console_test_number(app, "cterm.igs_line_type", igs->attributes.line_type);
 		st_console_test_number(app, "cterm.igs_line_width", igs->attributes.line_width);

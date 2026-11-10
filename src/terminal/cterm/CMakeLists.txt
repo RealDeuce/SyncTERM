@@ -80,6 +80,7 @@ endif()
 add_library(st_cterm STATIC
 	cterm_igs.c
 	cterm_igs_state.c
+	cterm_igs_raster.c
 	cterm.c
 	cterm_apc.c
 	cterm_apc_audio.c
@@ -242,6 +243,17 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_igs_type COMMAND st_terminal_tests st_cterm_igs_type_test)
 	set_tests_properties(cterm_igs_type PROPERTIES TIMEOUT 60)
+	syncterm_add_test_case(st_terminal_tests st_cterm_igs_marker_test tests/st_cterm_igs_marker_test.c)
+	target_link_libraries(st_cterm_igs_marker_test PRIVATE st_cterm)
+	set_target_properties(st_cterm_igs_marker_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_igs_marker_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_igs_marker_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_igs_marker COMMAND st_terminal_tests st_cterm_igs_marker_test)
+	set_tests_properties(cterm_igs_marker PROPERTIES TIMEOUT 60)
 	option(ST_CTERM_TEST_EXTERNAL_ASSETS "Use optional external RIP test assets" ON)
 	# These replay/inventory tools are built explicitly for external comparisons.
 	add_executable(st_cterm_apc_replay EXCLUDE_FROM_ALL tests/st_cterm_apc_replay.c)

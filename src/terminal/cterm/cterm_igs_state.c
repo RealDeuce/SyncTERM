@@ -25,10 +25,16 @@ static const int vdi_palette[16][3] = {
 	{428,1000,428},{428,428,1000},{428,1000,1000},{1000,1000,428},{1000,428,1000},
 };
 
-static unsigned
-plane_mask(unsigned resolution)
+unsigned
+cterm_igs_plane_mask(unsigned resolution)
 {
 	return resolution == 0 ? 15 : resolution == 1 ? 3 : 1;
+}
+
+unsigned
+cterm_igs_physical_pen(const struct cterm_igs *igs, int pen)
+{
+	return pen_map[pen] & cterm_igs_plane_mask(igs->resolution);
 }
 
 static uint16_t
@@ -57,7 +63,7 @@ publish_palette(struct cterm_igs *igs)
 int
 cterm_igs_palette_pen(struct cterm_igs *igs, int pen, int red, int green, int blue)
 {
-	unsigned mask = plane_mask(igs->resolution);
+	unsigned mask = cterm_igs_plane_mask(igs->resolution);
 	if (pen < 0 || (unsigned)pen > mask)
 		return 0;
 	int input[3] = {red,green,blue};
@@ -86,8 +92,8 @@ cterm_igs_palette_pen(struct cterm_igs *igs, int pen, int red, int green, int bl
 static int
 restore_palette(struct cterm_igs *igs)
 {
-	unsigned mask = plane_mask(igs->resolution);
-	unsigned saved_mask = plane_mask(igs->saved_resolution);
+	unsigned mask = cterm_igs_plane_mask(igs->resolution);
+	unsigned saved_mask = cterm_igs_plane_mask(igs->saved_resolution);
 	for (unsigned pen = 0; pen <= mask; ++pen) {
 		unsigned physical = pen_map[pen] & mask;
 		uint32_t rgb = igs->saved_palette[pen_map[pen] & saved_mask];
@@ -167,7 +173,7 @@ cterm_igs_set_pen(struct cterm_igs *igs, int kind, int pen)
 		pen = 0;
 	if (kind > 3)
 		kind = 0;
-	int effective = pen < 0 || (unsigned)pen > plane_mask(igs->resolution) ? 1 : pen;
+	int effective = pen < 0 || (unsigned)pen > cterm_igs_plane_mask(igs->resolution) ? 1 : pen;
 	switch (kind) {
 	case 0:
 		igs->attributes.marker_pen = effective;
@@ -342,7 +348,7 @@ cterm_igs_state_init(struct cterm_igs *igs)
 		igs->palette[i] = igs->saved_palette[i];
 		igs->raw_palette[i] = rgb_word(igs->palette[i]);
 	}
-	unsigned mask = plane_mask(igs->resolution);
+	unsigned mask = cterm_igs_plane_mask(igs->resolution);
 	for (unsigned i = 0; i < 16; ++i)
 		t->screen.mode_palette[i] = CTERM_IGS_PALETTE_FIRST + (i & mask);
 	t->screen.capabilities &= ~ST_CONSOLE_CAP_EXTENDED_PALETTE;

@@ -36,8 +36,14 @@ Coherent application captures include all active rows and seeds with the
 unchanged scene. `T` adds conditional arity and once-only random-kind
 evaluation, marker/type sizing, literal width/end tables and all custom-mask
 rows/fallbacks. Coherent application captures cover state and I/R/reset/
-reconnect with the same unchanged-scene matrix. Drawing, loops and sound
-remain pending; see the IGS ledger for details.
+reconnect with the same unchanged-scene matrix. `P` adds exact native marker
+pixels: all shapes/sizes/modes/depths, ordered XOR crossings/endpoints,
+inherited clipping and native rounding, Drawto, independent blink phases,
+safe invalid input and host status protection. Coherent application captures
+check literal marker/font rows, glyph overlays, indexed pixels and composed
+RGB in all ST modes, Atari ST/CP437/UTF-8 and status choices, plus retained
+pens and disconnect/reconnect. Other drawing, loops and sound remain pending;
+see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

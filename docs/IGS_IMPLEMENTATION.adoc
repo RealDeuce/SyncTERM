@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A and T commands are implemented and independently tested
+The I, R, g, M, C, S, H, A, T and P commands are implemented and independently tested
 natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
@@ -700,4 +700,63 @@ input leaves the seed unchanged. All 63 command/selector IDs, references,
 dependencies and active CTest registrations were checked; superseded
 experiments remain excluded. Nine command entries are complete. Remaining
 drawing, loops, sound/input and final acceptance work stay pending.
-Completion commit will be recorded by the next completed step.
+Completion commit: db1d0c4.
+
+=== P marker drawing
+
+P reads an X/Y pair using the shared parser's axis metadata and existing
+g/array/random evaluation. The requested centre becomes the remembered
+Drawto endpoint after successful drawing, even when clipped or invisible.
+Partial input does not draw or publish a new endpoint. References:
+15/43/44/52/136 and the literal native marker coordinate arrays.
+
+The six native shapes use their ordered components, scale both axes by T's
+size 1..8, and draw solid width-one segments with square ends and the marker
+pen. Temporary raster parameters leave all workstation attributes intact.
+Replace and transparent modes plot the selected physical pen; XOR complements
+every active plane independent of that pen, retaining component crossings,
+closure visits and native nonfinal-segment endpoint ownership. Reverse mode
+has no pixels for a solid marker. Each blink phase is modified independently.
+The existing console bitmap remains authoritative; one small region is
+captured and published without a planar backing or per-blit conversion.
+
+P always uses inherited clip bounds without changing the workstation's
+stored clip flag or replacing those bounds. Bounded native intersection
+rounding, edge priority, X ordering and X-major ties are retained for exact
+valid pixels. Wider host arithmetic prevents raw native word wrap, division
+exceptions and cyclic clipping; malformed/inverted bounds reject drawing.
+A bounded clip-iteration guard prevents hangs. Host status reserves its row
+inside the native resolution: native clipping/raster phase runs first, then
+plots are restricted to the terminal rows. The recorded centre and native
+clip rectangle do not shrink to the host's reserved area. Non-IGS host pixels
+have no native plane bits and remain unchanged by XOR.
+
+Native cterm_igs_marker uses literal ROM coordinate tables and a separate
+closed-form rational line oracle across all six shapes, eight sizes, four
+writing modes, five pen selections and three resolutions. It tests independent
+blink phases, unchanged line/fill state, literal clipped cross/diamond pixels,
+negative-remainder rounding, disabled-record clipping with inherited bounds,
+screen/status edges, signed/extreme centres, split/bytewise input, g and array
+ordering, Drawto, EOF/timeout/malformed recovery and whole reset.
+Application syncterm_igs_marker uses literal size-one pixel rows and source
+font rows in coherent bitmap/cell/palette/cursor/state/RGB captures across
+all ST modes, Atari ST/CP437/UTF-8 and status choices. It checks glyph overlays,
+all writing modes, maximum-size and normalized edge markers, retained pens
+across R, no replies, partial-input disconnect and fresh reconnect. Physical
+audio is disabled. Other primitives, loops, sound/input and final acceptance
+remain pending.
+
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and the full cmake --build build -j4 passed without
+compiler warnings. All 57 selected CTest tests passed: every CTerm test,
+shared parser/images/pixels, bitmap/control backend, term/Wren and application
+IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes.
+P's application matrix passed in all ST resolutions, Atari ST/CP437/UTF-8
+and status choices with physical audio disabled. Native tests also verify
+once-only random-coordinate evaluation across every split/bytewise input,
+incomplete random input retaining its seed, and foreign-pixel/status protection.
+All 63 ledger IDs, references, dependencies and active CTest registrations
+were checked; superseded experiments remain excluded. Ten command entries
+are complete. Other primitives, loops, sound/input and final acceptance work
+stay pending. Completion commit will be recorded by the next completed step.

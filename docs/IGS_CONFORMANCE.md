@@ -7,6 +7,7 @@ workstation writing mode; `C` selects independent graphical pens and `S`
 changes palette colours. `H` selects hollow/solid fill, writing mode and
 perimeter together. `A` selects fill styles and copies/generates user patterns.
 `T` configures marker types/sizes, line styles/widths, custom masks and ends.
+`P` draws the selected marker and updates the remembered Drawto endpoint.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -462,6 +463,45 @@ Atari ST/CP437/UTF-8 and status choices. It covers conditional arity, mask
 fallback/retention, endpoint-only requests, I/R lifetime, unchanged scene/
 window, no replies and fresh reconnect with audio disabled. These tests do
 not claim primitive rendering, loop execution or sound conformance.
+
+### P: native markers and remembered position
+
+`P` reads two axis-aware coordinates through the existing shared parser and
+`g`/array/random evaluator. After successful rendering it records the requested
+centre as the next Drawto endpoint, including fully clipped and reverse-mode
+markers. Incomplete or rejected commands leave the previous endpoint intact.
+
+All six native shapes use ordered, independent line components from the ROM
+tables. Both axes scale by T's size 1..8; dots remain one pixel. Segments use
+solid width one, square ends and the marker pen, preserving the selected line
+style/width/ends and every other workstation attribute. Replace/transparent
+plot the physical pen. XOR complements the active 4/2/1 plane bits regardless
+of pen, with independent crossings, repeated closure points and the native
+nonfinal endpoint rules. Reverse transparent leaves all pixels unchanged.
+Both blink phases retain their own pixels. No planar screen is introduced.
+
+Markers force inherited clipping bounds without changing the stored record
+flag or bounds. The implementation preserves bounded native intersection
+rounding (including its signed remainder borrow), edge priority, X ordering
+and X-major ties. Host arithmetic safely avoids native coordinate wrap,
+division exceptions and raw-word clipping cycles; invalid/inverted bounds
+reject drawing and a bounded guard prevents nonconvergence. The host status
+row is protected after native segment clipping and rasterization, preserving
+line phase and the requested Drawto centre. It occupies the last row inside
+the selected native resolution. Foreign host pixels outside the IGS palette
+namespace are preserved by XOR, since they have no native plane bits.
+
+`cterm_igs_marker` covers every shape/size/mode at all resolutions with five
+pen choices, independent blink phases, a separate rational line oracle and
+literal cross/diamond clip vectors. It checks inherited clipping with the
+record flag off, negative rounding, boundaries/status, signed/extreme centres,
+Drawto, attribute preservation, g/array ordering, split/bytewise input,
+EOF/timeout/malformed recovery and reset. `syncterm_igs_marker` verifies
+literal marker rows, glyph overlays, both indexed phases and composed RGB
+from one capture across all ST modes, Atari ST/CP437/UTF-8 and status choices.
+It includes maximum-size and normalized edge markers, retained pens through
+R, no replies and partial-input disconnect/fresh reconnect. Sound is disabled.
+Other primitives, loops and sound remain pending.
 
 ## Deliberate corrections
 

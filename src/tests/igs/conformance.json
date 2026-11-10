@@ -102,7 +102,9 @@
         "cterm_igs_fill",
         "syncterm_igs_fill",
         "cterm_igs_type",
-        "syncterm_igs_type"
+        "syncterm_igs_type",
+        "cterm_igs_marker",
+        "syncterm_igs_marker"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -115,7 +117,8 @@
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 49 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S, SkyPix report, graphics scrollback and session modes. S application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices, with physical audio disabled, literal palette/RGB expectations and unchanged raw planes. All 63 command/selector IDs, dependency/reference paths and active CTest registrations checked; superseded tests excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 51 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H, SkyPix report, graphics scrollback and session modes. H captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled; literal scene expectations verify unchanged pixels/palette/window alongside actual interior/mode/perimeter state. All 63 command/selector IDs, dependencies, reference paths and active CTest registrations checked; superseded tests excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. Focused native/application A tests passed; all ST modes, Atari ST/CP437/UTF-8 and status choices use literal row/scene expectations with audio off. The broad 53-test run passed 52 tests, including every CTerm test and all IGS application tests; wren_host hit an existing fixed-100-ms transfer-notice assumption and passed in isolation. Replaced the two related fixture delays with bounded notice-readiness polling, retaining the original worker/ownership/message assertions; the final full build and parallel wren_host plus IGS fill/palette/resolution tests passed. All 53 distinct selected tests have passing verification across these runs. Ledger IDs, references, dependencies and active CTest registrations checked; superseded tests excluded.",
-        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 55 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T, SkyPix report, graphics scrollback and session modes. T application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio off. Native split/bytewise cases verify conditional arity, random kinds advancing once, and incomplete random-kind input retaining its seed. All 63 command/selector IDs, reference/dependency paths and active CTest registrations checked; superseded tests excluded."
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 55 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T, SkyPix report, graphics scrollback and session modes. T application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio off. Native split/bytewise cases verify conditional arity, random kinds advancing once, and incomplete random-kind input retaining its seed. All 63 command/selector IDs, reference/dependency paths and active CTest registrations checked; superseded tests excluded.",
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 57 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes. P uses independent rational/literal expectations and coherent scene/cell/palette/state/RGB captures across all ST resolutions, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Native tests cover every shape/size/mode/pen matrix, both blink phases, literal clipping/rounding, foreign-pixel/status protection, split/bytewise input and once-only random operands. All 63 command/selector IDs, references, dependencies and active CTest registrations checked; superseded experiments excluded."
       ],
       "commit": null,
       "operations": [
@@ -127,7 +130,8 @@
         "S component-to-VDI mapping through the shared native palette service, requested/realized distinction and coherent RGB recolouring of existing indices",
         "H composes existing fill interior, writing mode and perimeter attributes with no extra hollow flag",
         "A fill style/user-bank state, shared IGS random source and separate bounded pattern generator; source-bank versus active-pattern lifetime",
-        "T marker/line type, native sizing, custom masks and endpoints with effect-free conditional arity using the existing generic parser"
+        "T marker/line type, native sizing, custom masks and endpoints with effect-free conditional arity using the existing generic parser",
+        "P markers on the authoritative indexed framebuffer with native clipping/solid line rules, ordered XOR endpoints, independent blink phases and Drawto; no planar shadow"
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -539,23 +543,50 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 55 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T, SkyPix report, graphics scrollback and session modes. T application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio off. Native split/bytewise cases verify conditional arity, random kinds advancing once, and incomplete random-kind input retaining its seed. All 63 command/selector IDs, reference/dependency paths and active CTest registrations checked; superseded tests excluded."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "db1d0c4"
     },
     {
       "id": "P",
       "phase": "lines",
       "references": [
         "15-graphics-commands.adoc",
-        "19-extended-math-sweeps.adoc"
+        "43-native-line-clipping.adoc",
+        "44-native-software-lines.adoc",
+        "52-native-markers.adoc",
+        "136-delivery-line-drawto-marker.adoc"
       ],
       "order": 10,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "g",
+        "M",
+        "C",
+        "T"
+      ],
+      "operations": [
+        "Read one axis-aware X/Y pair with existing g/array/random evaluation; update requested Drawto endpoint after successful drawing even if clipped or reverse-transparent",
+        "Render all six ordered native marker component tables at T sizes 1..8, using solid thin square-ended segments and the physical marker pen without mutating line/fill/text attributes",
+        "Replace/transparent pen plots, XOR active plane complement independent of pen, native crossings/closure visits/nonfinal endpoint ownership, reverse-transparent no pixels; preserve both blink phases independently",
+        "Force inherited clip bounds without changing saved record flag/bounds; retain bounded native clipping rounding/edge priority/X ordering/X-major ties",
+        "Use the authoritative bitmap framebuffer directly; capture one small indexed region and publish only the visited bounding region; no planar shadow or native conversion",
+        "Protect the host status row after native rasterization without changing native clip state/Drawto; retain pens across R at raster-use mapping",
+        "All focused splits/bytewise input, g and array ordering, incomplete EOF/timeout/malformed recovery, signed/extreme centres, reset and fresh reconnect"
+      ],
+      "tests": [
+        "cterm_igs_marker",
+        "syncterm_igs_marker"
+      ],
+      "deviations": [
+        "Use wide host coordinates instead of native word wrap, CPU division faults or cyclic raw-word clipping. Reject inverted bounds and cap clip iterations safely.",
+        "Reserve host status inside native geometry, discarding plots there after native clipping/raster phase. Do not relocate or alter the native canvas.",
+        "Foreign host pixels outside the IGS palette namespace have no native plane representation; XOR preserves them."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 57 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes. P uses independent rational/literal expectations and coherent scene/cell/palette/state/RGB captures across all ST resolutions, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Native tests cover every shape/size/mode/pen matrix, both blink phases, literal clipping/rounding, foreign-pixel/status protection, split/bytewise input and once-only random operands. All 63 command/selector IDs, references, dependencies and active CTest registrations checked; superseded experiments excluded."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "L",
