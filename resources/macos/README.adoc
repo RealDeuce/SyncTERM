@@ -7,5 +7,10 @@ graphics switching, with current version information and a bundle identifier.
 It omits the old reference to a `MainMenu` nib, which this application does
 not supply, and the obsolete localized strings containing version 0.9.1.
 
+Version fields follow the legacy `updvers.sh` mapping:
+`CFBundleShortVersionString` contains the full ASCII release string (`2.0a`),
+and `CFBundleVersion` contains its numeric portion (`2.0`). The descriptive
+version and information strings use the application's `2.0α` spelling.
+
 The URL-scheme declarations preserve registration metadata only. Receiving
 macOS URL-open events and opening connections from them is not implemented.
