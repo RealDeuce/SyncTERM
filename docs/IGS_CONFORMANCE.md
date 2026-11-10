@@ -24,6 +24,7 @@ rectangles with native built-in/user patterns and no extra perimeter.
 `K` adds open circular arcs with line styles, widths, joins, caps and arrowheads.
 `J` adds elliptical arcs with independently supplied X/Y radii through the same path.
 `V` adds patterned circular pies closed through their center with optional perimeter.
+`Y` adds elliptical pies with independently supplied X/Y radii through that path.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1021,6 +1022,43 @@ even zero-radius pie XOR parity, bottom/status pixels, following D, no replies
 and disconnect/reconnect cover all ST modes, Atari ST/CP437/UTF-8 and status
 choices. Cells/phases/palette/state/RGB use one capture, with physical audio
 disabled. References: 15/43/44/46/48/49/131/138. Other commands/selectors and
+full acceptance remain pending.
+
+## Elliptical pies (`Y`)
+
+`Y` shares Q/J's X/Y/X/Y prefix and K/J/V's two-unscaled-angle tail. Six-field
+acquisition preserves coordinate/index/unscaled-angle ordering; random operands
+advance once each. In IGS's transformation 2 workstation, Y radius is supplied
+independently and follows g's Y conversion, with no circular aspect adjustment.
+V/Y share degree/sweep preparation and the common patterned fill path.
+
+Either signed radius determines 32–128 steps. The explicit arc endpoints,
+center append, 130-vertex capacity, radial closure, scanline patterns and solid
+fill-colour perimeter retain native traversal/XOR semantics. Line attributes
+are ignored without changing them. Both Drawto pairs, palette/clipping, banks,
+arrays and seeds remain unchanged by rendering. There is no reply/wait/flow call.
+Established safe periodic-angle corrections, wide geometry and post-traversal
+host/status bounds apply; other primitive/serial limits stay unchanged.
+
+`cterm_igs_ellpie` checks 5,286 independent dual-phase native frames: all 39 fills
+with tall/wide radii, all modes/resolutions/perimeters, sweep and signed-radius
+boundaries, all 97 step counts driven by both axes, clipping/rejection/inverted
+bounds/outside paths and 192 corrected-angle cases. Literal checks cover pens,
+ignored invalid line state, extreme safe sums/radii, status protection, g2
+Y-center/Y-radius behavior, array/angle ordering, focused splits/bytewise input,
+once-only six-field randomness, invalid/incomplete/renderer recovery, I/R/I5
+and reset. The [provenance](../src/tests/igs/ellpie-vectors.json) and
+[generator](../src/tests/igs/generate_ellpie_vectors.py) reuse the existing
+[independent filled-curve oracle](../src/tests/igs/filled_curve_oracle.py).
+O/Q/V expected native bytes and application recipes remain unchanged. Ordinary
+tests require no external assets, and expected pixels never come from SyncTERM.
+
+`syncterm_igs_ellpie` shares the O/Q/V coherent capture recipe. Its 132 independent
+scenes include 24 console-cell replacements and 12 tall ellipses; extra glyph
+composition/parity, bottom/status pixels, following D, no replies and partial
+disconnect/reconnect cover all ST modes, Atari ST/CP437/UTF-8 and status choices.
+Cells/phases/palette/state/RGB come from one capture, with physical audio
+disabled. References: 15/31/43/44/46/48/49/131/138. Other commands/selectors and
 full acceptance remain pending.
 
 ## Deliberate corrections

@@ -13,3 +13,4 @@ data/skypix/*
 !data/igs_arc_vectors.h
 !data/igs_ellarc_vectors.h
 !data/igs_pie_vectors.h
+!data/igs_ellpie_vectors.h

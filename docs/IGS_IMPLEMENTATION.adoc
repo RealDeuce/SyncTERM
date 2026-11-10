@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J and V commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V and Y commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1665,4 +1665,77 @@ dependencies, active CTest registrations, 3819/120 V inventory, 24 replacement
 scenes, 192 corrected cases, unchanged O/Q data and pinned oracle hashes were
 checked; superseded planar/clock tests remain excluded. Twenty-two entries
 are complete; X stays in progress. Other commands/selectors and full acceptance
-remain pending. Completion commit will be recorded by the next completed step.
+remain pending. Completion commit: 556c710.
+
+
+=== Y elliptical pies and shared pie preparation
+
+Y reuses Q/J's X/Y/X/Y coordinate prefix and K/J/V's two-unscaled-angle tail.
+Six operands are acquired before execution, with once-only random evaluation.
+IGS's actual raster-coordinate workstation preserves both supplied radii;
+Y radius follows g's Y conversion, while array values are loaded after index
+conversion and angle indices remain unscaled. There is no circular radius-
+aspect conversion. References: 15/31/43/44/46/48/49/131/138.
+
+V/Y now share pie_curve's degree-to-tenths preparation and native single
+negative-delta adjustment, then the same filled_curve path as O/Q. Either
+signed ellipse radius selects the native 32..128 step count. Explicit arc
+endpoints, center append, 130-point polygon capacity, radial closure, patterned
+spans, optional solid fill-colour perimeter and XOR order are unchanged.
+Line attributes remain ignored, and rendering preserves both Drawto pairs,
+attributes, palette, clipping, source banks, math arrays and seeds. Randomness
+belongs to operand evaluation. No reply/wait/flow helper is added. Established
+safe periodic angles, wide geometry and post-traversal host/status bounds
+apply; serial/outline limits and O/Q/V scene data stay unchanged.
+
+cterm_igs_ellpie checks 5286 independent complete native frames in both indexed
+phases. It covers all 39 fill selections across tall/wide radii, all modes,
+resolutions and perimeters; convex/reflex/wrapped/zero/full/multi-turn sweeps;
+zero/mixed-sign/large radii; all 97 step counts driven separately by each axis;
+clipping, coarse versus polygon rejection, inverted bounds and outside paths.
+The 192 corrected-angle cases reuse common-turn-shift expectations. Literal
+checks cover pens, ignored unusable line attributes, extreme safe sums/radii, status protection, g2 center/Y-radius
+conversion, array/angle ordering, every focused split/bytewise chain, once-only
+six-field randomness, EOF/timeout/error/renderer recovery, I/R/I5 and reset.
+All attributes, source/active user pattern ownership, full bank/math state,
+positions, palette, seeds and last state are retained or checked independently.
+
+The existing independent filled_curve_oracle.py already supplies native GDP7
+vertices plus rational spans, whole-plane-word Boolean equations and ordered
+border visits. generate_ellpie_vectors.py adds explicit paired-radius inputs
+and ellpie-vectors.json records model/ROM/table provenance. Ordinary tests
+use checked-in data without historical assets or SyncTERM-produced expectations.
+The existing O/Q/V expected headers and scene recipes remain byte/data identical.
+
+O/Q/V/Y share the coherent application recipe with explicit wire arity and
+separate independent scenes. Y checks 132 scenes, including 24 console-cell
+replacements and 12 tall-ellipse scenes, across all ST modes, Atari ST/CP437/
+UTF-8 and status choices. Cells, both indexed phases, palette, state and RGB
+use one capture. Extra glyph overlays, even pie XOR parity, bottom/status
+bounds, following D, no replies, partial disconnect and fresh reconnect run
+with physical audio disabled. Verification and completion commit follow below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and final full cmake --build build -j1 passed without
+compiler warnings; make reported filesystem clock-skew warnings on generated
+dependency files. The literal elliptical-pie test failed before implementation
+and passed afterward. All four focused V/Y native/application suites passed.
+All 83 selected CTest tests passed in one run, including every CTerm test,
+shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS
+application tests, SkyPix report, graphics scrollback and session modes.
+All 5286 independent dual-phase Y cases passed, including 192 corrected-angle
+cases, all fills with tall/wide radii and every step count driven by both axes,
+plus literal pen/ignored-line/extreme/status/ordering/six-field partition/RNG/
+error/renderer/lifecycle checks. Coherent captures passed 132 Y scenes
+(24 console-cell replacements and 12 tall ellipses), plus glyph/even pie
+parity/bottom/status/following-D/no-reply/disconnect/reconnect checks across
+all ST modes, Atari ST/CP437/UTF-8 and status choices with audio disabled.
+O/Q/V expected headers and scene recipes remain byte-identical. V/O/Q/K/J/B/U/
+L/D/z regressions passed after sharing V/Y preparation and the capture recipe.
+All 63 ledger IDs, references, dependencies, active CTest registrations,
+5286/132 inventory, 24 replacements, 12 tall scenes, 192 corrected cases and
+pinned model identities were checked; superseded planar/clock tests remain
+excluded. Concurrent macOS packaging changes are outside this IGS step;
+no macOS/Windows runtime coverage is claimed. Twenty-three entries are complete;
+X stays in progress. Other commands/selectors and full acceptance remain pending.
+Completion commit will be recorded by the next completed step.

@@ -144,6 +144,7 @@ static const struct st_graphics_command commands[] = {
 	{'K', point_parameters, 3, arc_next},
 	{'J', point_parameters, 4, arc_next},
 	{'V', point_parameters, 3, arc_next},
+	{'Y', point_parameters, 4, arc_next},
 	{'X', unscaled_parameters, 1, extended_next},
 };
 
@@ -306,6 +307,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'K': return cterm_igs_arc(igs,values[0],values[1],values[2],values[3],values[4]);
 	case 'J': return cterm_igs_ellarc(igs,values[0],values[1],values[2],values[3],values[4],values[5]);
 	case 'V': return cterm_igs_pie(igs,values[0],values[1],values[2],values[3],values[4]);
+	case 'Y': return cterm_igs_ellpie(igs,values[0],values[1],values[2],values[3],values[4],values[5]);
 	case 'B': return cterm_igs_box(igs, values[0], values[1], values[2], values[3], values[4] != 0);
 	case 'U':
 		if (values[4] < 0) return 0;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""O/Q/V: independent filled curves, coherent text overlays and lifecycle."""
+"""O/Q/V/Y: independent filled curves, coherent text overlays and lifecycle."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import json
@@ -15,11 +15,11 @@ from st_igs_init_test import Z8, Z16
 
 
 def run(executable,reports,resolution,encoding,status,command):
-    ellipse=command=='Q';pie=command=='V'
-    name={'O':'circle','Q':'ellipse','V':'pie'}[command]
+    ellipse=command in ('Q','Y');pie=command in ('V','Y')
+    name={'O':'circle','Q':'ellipse','V':'pie','Y':'ellpie'}[command]
     vectors=json.loads((Path(__file__).parent/'igs'/(name+'-vectors.json')).read_text())
     def shape(x,y,xr,yr,begin=0,end=360):
-        coordinates=(x,y,xr,begin,end) if pie else (x,y,xr,yr) if ellipse else (x,y,xr)
+        coordinates=(x,y,xr,yr,begin,end) if pie and ellipse else (x,y,xr,begin,end) if pie else (x,y,xr,yr) if ellipse else (x,y,xr)
         return command+' '+','.join(map(str,coordinates))+':'
     screen=('AtariST40x25','AtariST80x25','AtariST80x25Mono')[resolution]
     ch=16 if resolution==2 else 8
@@ -49,7 +49,7 @@ def run(executable,reports,resolution,encoding,status,command):
                     check_fill(frame,resolution,status,token,case=expected_console_replacement(case,resolution))
                     if text_after:assert not cell_at(frame,12,18).flags&8
                 # Radius0 repeats33 circle/ellipse edges,34 pie edges.
-                # On a known blank glyph bit, XOR is odd for O/Q, even for V;
+                # On a known blank glyph bit, XOR is odd for O/Q, even for V/Y;
                 # reverse-transparent solid borders leave the glyph intact.
                 assert not (Z16 if resolution==2 else Z8)[2]&1
                 for mode in range(1,5):
@@ -81,7 +81,8 @@ def run(executable,reports,resolution,encoding,status,command):
                 try:reply=peer.recv(1)
                 except socket.timeout:pass
                 else:raise AssertionError(f'unexpected IGS reply: {reply!r}')
-                send(('G#'+command+(' 1,2,3,4,' if pie else ' 1,2,3,' if ellipse else ' 1,2,')).encode());peer.shutdown(socket.SHUT_RDWR)
+                partial={'O':' 1,2,','Q':' 1,2,3,','V':' 1,2,3,4,','Y':' 1,2,3,4,5,'}[command]
+                send(('G#'+command+partial).encode());peer.shutdown(socket.SHUT_RDWR)
                 client.wait_text('Disconnected: Enter exits, F1 details');client.key('enter')
             client.wait_text('Directory: Name');client.key('enter')
             with listener.accept()[0] as peer:
@@ -94,7 +95,7 @@ def run(executable,reports,resolution,encoding,status,command):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('executable');parser.add_argument('--reports',default='reports/test-control')
-    parser.add_argument('--command',choices=('O','Q','V'),required=True);args=parser.parse_args()
+    parser.add_argument('--command',choices=('O','Q','V','Y'),required=True);args=parser.parse_args()
     for resolution in range(3):
         for encoding in ('ATARI-ST','CP437','UTF-8'):
             for status in (False,True):run(args.executable,args.reports,resolution,encoding,status,args.command)

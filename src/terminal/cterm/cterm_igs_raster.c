@@ -454,13 +454,27 @@ cterm_igs_ellipse(struct cterm_igs *igs, int x, int y, int x_radius, int y_radiu
 	return filled_curve(igs,x,y,x_radius,y_radius,0,0,3600,false);
 }
 
+static int
+pie_curve(struct cterm_igs *igs, int x, int y, int radius, int yr, int begin_degrees, int end_degrees)
+{
+	int begin = begin_degrees*10, end = end_degrees*10, delta = end-begin;
+	if (delta < 0) delta += 3600;
+	return filled_curve(igs,x,y,radius,yr,begin,end,delta,true);
+}
+
 int
 cterm_igs_pie(struct cterm_igs *igs, int x, int y, int radius, int begin_degrees, int end_degrees)
 {
 	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
-	int begin = begin_degrees*10, end = end_degrees*10, delta = end-begin;
-	if (delta < 0) delta += 3600;
-	return filled_curve(igs,x,y,radius,clip_ratio(radius,xs,372),begin,end,delta,true);
+	return pie_curve(igs,x,y,radius,clip_ratio(radius,xs,372),begin_degrees,end_degrees);
+}
+
+int
+cterm_igs_ellpie(struct cterm_igs *igs, int x, int y, int x_radius, int y_radius,
+    int begin_degrees, int end_degrees)
+{
+	/* IGS opens a raster-coordinate workstation; preserve both radii. */
+	return pie_curve(igs,x,y,x_radius,y_radius,begin_degrees,end_degrees);
 }
 
 /* Corners arrive ordered; build native GDP8/9's private, closed 21-point path. */
