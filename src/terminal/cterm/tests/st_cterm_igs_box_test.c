@@ -19,13 +19,8 @@ literal(void)
 	}
 }
 
-struct box_case {
-	int resolution, mode, interior, index, flag, perimeter, clipping, initial_last, expected_last;
-	int points[4], bounds[4];
-	uint64_t hashes[2];
-};
-#include "data/igs_box_vectors.h"
-_Static_assert(sizeof(box_cases)/sizeof(*box_cases) == 2688, "complete box matrix");
+#include "igs_box_test_vectors.h"
+
 static void
 vectors(void)
 {

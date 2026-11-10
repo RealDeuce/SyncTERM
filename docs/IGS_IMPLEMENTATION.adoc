@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z and B commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B and U commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1215,4 +1215,76 @@ regressions passed after the polygon and fill-fixture changes. All 63 ledger
 IDs, references, dependencies, active CTest registrations and fixture inventory
 were checked; superseded planar/clock tests remain excluded. Sixteen entries
 are complete; X stays in progress. Other commands/selectors and full acceptance
-remain pending. Completion commit will be recorded by the next completed step.
+remain pending. Completion commit: 0eb4158.
+
+
+=== U rounded outlines, filled routing and signed flags
+
+U shares B's four X/Y fields and unscaled flag tail. Zero draws a rounded
+outline; positive signed flags reuse B's rounded-fill path; negative flags
+consume all five valid operands but invoke no primitive. Numeric random
+operands still advance once when a negative flag suppresses drawing. The
+original manual reverses the ordinary zero/positive meanings; the supplied
+2.21 binary and native GDP8/9 paths establish the implemented meanings.
+References: 15/43/44/46/49/50/134.
+
+B/U now share the exact 21-point rounded construction. Thin U outlines use
+line pen/style/custom mask with ordered segment phase and XOR endpoints,
+without the filled polygon's additional closing edge. Wide outlines reuse
+native shafts and internal joins. Endpoint caps are disabled for this render,
+so neither arrows nor outer cap discs are added; caller line fields remain
+untouched on success and failure. This supplies the original stable cap-save/
+clear/restore behavior without foreign workstation/frame aliases. Both forms
+preserve Drawto pairs, palette, clipping and attributes; native last-segment
+state follows the actual line/wide/fill path. No reply, wait or flow helper
+is added. Existing safe arithmetic, atomic input and post-traversal host/status
+write bounds apply.
+
+cterm_igs_round_box checks 1845 independently derived full native-frame outline
+cases in both indexed phases. All ST modes/writing modes, seven styles,
+all nine endpoint pairs, native odd widths, repeated/narrow/zero dimensions,
+clipping/rejection/inverted bounds and partially outside unclipped paths are
+covered. Fill attributes cannot alter an outline. The same test reuses 1344
+independent flag1 cases from B for positive U, including every built-in/user
+fill and perimeter/corner/clip cases. Z/B/U share test fixture recipes and B/U
+share the rounded-fill expectations rather than copying expected frame data.
+The maintainer generator generate_round_box_vectors.py composes independent
+rounded geometry, circle/offset operations, rational spans, clipped endpoint
+visits and Boolean plane equations. round-box-vectors.json records model/ROM
+identities and the reused B fixture relationship; ordinary tests need none of
+the reference tree, ROMs or historical programs.
+
+Literal checks cover negative signed flags at every g mode (even with unusable
+line/fill state), no pixel/attribute changes, every focused split/bytewise
+outline/negative/random-positive chain, once-only RNG, five-field acquisition,
+EOF/timeout/error/reset, g2 pixels, I/R/I5 and suspended R. A failed outline
+cannot expose temporary cap clearing. Source arrays/active user rows, positions,
+attributes, clipping, palette and raster state remain independently checked.
+
+syncterm_igs_round_box checks 84 outline scenes, including 24 console-after-graphic
+replacements, plus 48 shared positive-fill scenes across all ST modes,
+Atari ST/CP437/UTF-8 and status choices. Related raw phases, cells, palette,
+line/fill/position state and RGB use one coherent capture. Independent glyph
+rasters replace their complete cells after the marked graphics scenes; observed
+captures are never modified. Normalized/status bottom outlines, following D,
+no replies, partial disconnect and fresh reconnect are covered. Physical audio
+is disabled. Other commands/selectors and complete acceptance remain pending;
+verification and completion commit are recorded below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and the final full cmake --build build -j1 passed without
+warnings. The literal outline test failed before implementation and passed
+afterward. All 71 selected CTest tests passed in one run, including every
+CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren,
+all IGS application tests, SkyPix report, graphics scrollback and session modes.
+All 1845 independent dual-phase outlines and 1344 reused independent B fill
+frames passed, plus signed/negative flags, partitions/RNG/errors/lifecycle and
+cap-preserving failure. Coherent captures passed 84 outline scenes (24 console
+replacements) and 48 shared positive-fill scenes across all ST modes,
+Atari ST/CP437/UTF-8 and status choices, with no replies and physical audio
+disabled. B/L/D/z regressions passed after sharing geometry and the cap policy.
+All 63 ledger IDs, references, dependencies, active CTest registrations and
+independent/reused fixture inventories were checked; superseded planar/clock
+tests remain excluded. Seventeen entries are complete; X stays in progress.
+Other commands/selectors and full acceptance remain pending. Completion commit
+will be recorded by the next completed step.

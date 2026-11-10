@@ -355,6 +355,34 @@ polygon(struct raster *raster, const struct point *points, unsigned count)
 	fill_polygon(raster, points, count, &solid, 0, true);
 }
 
+/* Corners arrive ordered; build native GDP8/9's private, closed 21-point path. */
+static void
+rounded_points(const struct cterm_igs *igs, int x1, int y1, int x2, int y2,
+    struct point points[21])
+{
+	/* These are the native interpolated trig results for 675/450/225.
+	 * Divisor32767's signed-word remainder comparison never rounds up;
+	 * all products here are nonnegative and safely bounded by radius9. */
+	static const int cosine[] = {12539,23170,30271};
+	static const int sine[] = {30271,23170,12539};
+	int xr = (int)(igs->width-1)/64;
+	if (xr > (x2-x1)/2) xr = (x2-x1)/2;
+	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
+	int yr = clip_ratio(xr,xs,372);
+	if (yr > (y2-y1)/2) yr = (y2-y1)/2;
+	struct point quarter[5] = {{0,yr},{0,0},{0,0},{0,0},{xr,0}};
+	for (unsigned i = 0; i < 3; ++i)
+		quarter[i+1] = (struct point){cosine[i]*xr/32767,sine[i]*yr/32767};
+	for (unsigned i = 0; i < 5; ++i) {
+		struct point q = quarter[i], reverse = quarter[4-i];
+		points[i] = (struct point){x2-xr+q.x,y1+yr-q.y};
+		points[5+i] = (struct point){x2-xr+reverse.x,y2-yr+reverse.y};
+		points[10+i] = (struct point){x1+xr-q.x,y2-yr+q.y};
+		points[15+i] = (struct point){x1+xr-reverse.x,y1+yr-reverse.y};
+	}
+	points[20] = points[0];
+}
+
 int
 cterm_igs_box(struct cterm_igs *igs, int x1, int y1, int x2, int y2, bool rounded)
 {
@@ -370,27 +398,7 @@ cterm_igs_box(struct cterm_igs *igs, int x1, int y1, int x2, int y2, bool rounde
 	}
 	struct point points[21]; unsigned count;
 	if (rounded) {
-		/* These are the native interpolated trig results for 675/450/225.
-		 * Divisor32767's signed-word remainder comparison never rounds up;
-		 * all products here are nonnegative and safely bounded by radius9. */
-		static const int cosine[] = {12539,23170,30271};
-		static const int sine[] = {30271,23170,12539};
-		int xr = (int)(igs->width-1)/64;
-		if (xr > (x2-x1)/2) xr = (x2-x1)/2;
-		int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
-		int yr = clip_ratio(xr,xs,372);
-		if (yr > (y2-y1)/2) yr = (y2-y1)/2;
-		struct point quarter[5] = {{0,yr},{0,0},{0,0},{0,0},{xr,0}};
-		for (unsigned i = 0; i < 3; ++i)
-			quarter[i+1] = (struct point){cosine[i]*xr/32767,sine[i]*yr/32767};
-		for (unsigned i = 0; i < 5; ++i) {
-			struct point q = quarter[i], reverse = quarter[4-i];
-			points[i] = (struct point){x2-xr+q.x,y1+yr-q.y};
-			points[5+i] = (struct point){x2-xr+reverse.x,y2-yr+reverse.y};
-			points[10+i] = (struct point){x1+xr-q.x,y2-yr+q.y};
-			points[15+i] = (struct point){x1+xr-reverse.x,y1+yr-reverse.y};
-		}
-		points[20] = points[0]; count = 21;
+		rounded_points(igs,x1,y1,x2,y2,points); count = 21;
 	} else {
 		points[0] = (struct point){x1,y1}; points[1] = (struct point){x2,y1};
 		points[2] = (struct point){x2,y2}; points[3] = (struct point){x1,y2}; count = 4;
@@ -536,8 +544,8 @@ arrows(struct raster *raster, struct point *points, size_t count, int width, int
 	}
 }
 
-int
-cterm_igs_polyline(struct cterm_igs *igs, const int *coordinates, size_t count)
+static int
+render_polyline(struct cterm_igs *igs, const int *coordinates, size_t count, bool caps)
 {
 	if (coordinates == NULL || count < 2 || count > CTERM_IGS_MAX_POINTS)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -576,7 +584,7 @@ cterm_igs_polyline(struct cterm_igs *igs, const int *coordinates, size_t count)
 	}
 	if (status != 0) return status;
 	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
-	int ys = 372, begin = igs->attributes.line_begin, end = igs->attributes.line_end;
+	int ys = 372, begin = caps ? igs->attributes.line_begin : 0, end = caps ? igs->attributes.line_end : 0;
 	if (width == 1) {
 		for (size_t i = 1; i < count; ++i) {
 			raster.last_line = i+1 == count;
@@ -611,6 +619,27 @@ cterm_igs_polyline(struct cterm_igs *igs, const int *coordinates, size_t count)
 	st_pixel_buffer_destroy(raster.pixels);
 	if (status == 0) igs->last_line = raster.last_line;
 	return status;
+}
+
+int
+cterm_igs_polyline(struct cterm_igs *igs, const int *coordinates, size_t count)
+{
+	return render_polyline(igs,coordinates,count,true);
+}
+
+int
+cterm_igs_rounded_outline(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
+{
+	if (x1 > x2) { int swap = x1; x1 = x2; x2 = swap; }
+	if (y1 > y2) { int swap = y1; y1 = y2; y2 = swap; }
+	struct point points[21]; int coordinates[42];
+	rounded_points(igs,x1,y1,x2,y2,points);
+	for (unsigned i = 0; i < 21; ++i) {
+		coordinates[2*i] = points[i].x; coordinates[2*i+1] = points[i].y;
+	}
+	/* GDP8 disables endpoint caps for both thin and wide traversal, then
+	 * restores the caller's settings. Keep those settings untouched here. */
+	return render_polyline(igs,coordinates,21,false);
 }
 
 int

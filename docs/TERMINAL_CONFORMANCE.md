@@ -71,6 +71,10 @@ state/input/lifecycle recovery and all ST modes, encodings and status choices.
 polygon span/closure/XOR behavior and retained raster state. Its independent
 2,688-case native matrix and 96 coherent source-derived application scenes
 also cover glyph/border overlays, input partitions, flags and lifecycle.
+`U` adds cap-suppressed thin/wide rounded outlines and signed fill/no-op
+routing. Independent native outlines and reused rounded-fill vectors cover
+styles/widths/flags/state, while coherent application scenes add console-cell
+replacement, boundaries, following D and lifecycle in every ST mode/encoding.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

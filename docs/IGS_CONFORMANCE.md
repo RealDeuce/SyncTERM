@@ -18,6 +18,7 @@ Its coordinate classes are corrected to normal X/Y scaling as described below.
 position pair, with serial XOFF/XON around drawing. `Z` fills inclusive
 rectangles with native built-in/user patterns and no extra perimeter.
 `B` adds bars with optional fill-colour perimeter and filled rounded boxes.
+`U` adds rounded outlines, positive-flag rounded fill and negative-flag no-ops.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -773,6 +774,45 @@ partial disconnect/reconnect. All ST modes, Atari ST/CP437/UTF-8 and status
 choices use coherent related native phases, cells, palette, state and RGB;
 physical audio is disabled. References: 15/46/47/48/49/131/134. Remaining
 commands/selectors and complete IGS acceptance stay pending.
+
+## Rounded outlines and signed routing (`U`)
+
+`U0` draws a rounded outline using the line pen/style/width; a positive flag
+draws rounded fill, and a negative flag consumes all five arguments without a
+primitive. The manual reverses the normal zero/positive meanings; the original
+2.21 binary/GDP paths govern this implementation. Flags are unscaled signed
+values. Suppressed drawing still evaluates valid random operands once.
+
+B/U share the exact native 21-point construction. Thin outline traversal has
+20 segments and no polygon-added final edge. Wide outlines retain native shaft/
+join order. Endpoint arrows/outer cap discs are suppressed for the call while
+the original cap fields remain unchanged, including on failure. Fill attributes
+cannot alter outlines; positive U reuses B's fill/perimeter behavior. Both
+preserve Drawto pairs, attributes, palette and clipping, with the native
+last-segment result and no reply/wait/flow call. The established atomic input,
+wide arithmetic and post-traversal host/status write bounds apply.
+
+`cterm_igs_round_box` checks 1,845 independent complete outline frames in both
+indexed phases and reuses 1,344 independent rounded-fill frames from B for
+positive U. Coverage includes all modes/resolutions, seven line styles, every
+endpoint pair, native odd widths, degenerate/repeated paths, clipping/rejection,
+inverted bounds, outside unclipped paths and retained state. Negative flags
+check unchanged phases/attributes at all g modes, even with unusable rendering
+attributes. Focused partitions/bytewise input, random coordinates/flags,
+EOF/timeout/error/reset, g2 pixels, I/R/I5/suspended R and cap-preserving errors
+are covered. The [provenance](../src/tests/igs/round-box-vectors.json) and
+[maintainer generator](../src/tests/igs/generate_round_box_vectors.py) identify
+independent geometry/circle/span/endpoint/bit models and reused B fixtures;
+no expected image is produced by SyncTERM or needs historical runtime assets.
+
+`syncterm_igs_round_box` checks 84 outline scenes, including 24 cases where
+console text replaces part of thin/wide graphics, plus 48 shared positive-fill
+scenes. All ST modes, Atari ST/CP437/UTF-8 and status choices use coherent
+native phases/cells/palette/state/RGB, with independent complete glyph-cell
+replacement. It also checks bottom/status edges, following D, no replies,
+partial disconnect/reconnect and fresh state, with physical audio disabled.
+References: 15/43/44/46/49/50/134. Remaining commands/selectors and full IGS
+acceptance stay pending.
 
 ## Deliberate corrections
 

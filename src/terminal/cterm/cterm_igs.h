@@ -88,6 +88,7 @@ int cterm_igs_line(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_polyline(struct cterm_igs *, const int *coordinates, size_t count);
 int cterm_igs_rectangle(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_box(struct cterm_igs *, int x1, int y1, int x2, int y2, bool rounded);
+int cterm_igs_rounded_outline(struct cterm_igs *, int x1, int y1, int x2, int y2);
 uint32_t cterm_igs_random(struct cterm_igs *);
 /* Apply the descriptor's axis to a decimal constant/index. Lookup and random
  * results are returned as values, without a second coordinate transform. */
