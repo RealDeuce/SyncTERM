@@ -114,6 +114,11 @@ full-frame dual-phase cases include degenerate/concave/self-crossing polygons,
 128 simultaneous intersections and native orientation-sensitive rounding.
 Application captures check 168 independent scenes, text replacement, glyph/
 state/status/flow/lifecycle throughout the ST mode/encoding/status matrix.
+`F` adds seed-colour flood fill with native ordered live runs, stored bounds,
+ignored perimeter, independent blink phases and an owned growable queue.
+Its 3,660 independent dual-phase frames and 168 application scenes cover
+fills/modes/depths, distinct phase topology, queue growth, text/graphics,
+status/coordinates/state/flow and lifecycle through the ST mode/encoding matrix.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

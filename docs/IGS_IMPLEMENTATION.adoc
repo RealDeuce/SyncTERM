@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y and f commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f and F commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1815,4 +1815,92 @@ oracle. Their existing native and application regressions passed. All 63 IDs,
 4056/168 f inventory, 24 replacements and pinned model identities were checked;
 superseded planar/clock tests remain excluded. X stays in progress. Other
 commands/selectors and full acceptance remain pending.
+Completion commit: 9ac3f19.
+
+=== F seed-color flood fill
+
+F reuses the shared two-field X/Y descriptor and numeric evaluator. Both
+operands are acquired before drawing and the existing f/z XOFF/render/XON
+path. Current loop mode is retested independently before each flow operation;
+flow configuration, callback mutation, reset interruption and queued transport
+ownership are shared. F does not change either remembered Drawto pair.
+
+The raster follows native seed-color runs and their discovery order: the
+initial seed is queued downward, first discovery is upward, queued holes are
+reused in order, opposite-direction runs collide by left endpoint, and tail
+compaction and left/right overhang repairs retain native endpoint ownership.
+Every probe reads the current indexed phase, including after earlier spans
+change its pixels. Spans use inclusive endpoints, physical fill pen, absolute
+X/Y pattern anchoring and all 39 original fills/writing modes. Perimeter and
+all line attributes are ignored. A rejected seed retains last-line state;
+accepted setup clears it even for a no-op fill.
+
+Stored bounds apply independently of the clipping-enable flag. The port
+intersects them with the actual host/status canvas before probing and omits
+native one-pixel-outside guard reads. Safe signed bounds replace accidental
+lower-Y word subtraction overflow. Host RGB or nonphysical index seeds are
+skipped separately by phase; their tags are never interpreted as bitplanes.
+
+Each blink phase runs its own live probes and queue. A phase mask on the
+existing raster writer selects which indexed phase is being painted; its
+ordinary default still writes both. Both completed results publish in one
+coherent blit. No persistent backing or extra planar framebuffer is added.
+Attributes/palette/Drawto/clipping/source banks/active fill/math/seeds remain
+owned by their existing operations.
+
+The owned run queue starts at 16 entries and grows with checked allocation.
+It retains native traversal and collision rules without the original 640-
+triple scratch/RAM overlap or capacity abort. A source-derived 34x5 comb has
+16 pending upper and 16 lower runs and exercises growth with both unchanged
+hollow-transparent pixels and solid painting. Uninitialized scratch values
+and adjacent memory aliases are not ported. Allocation/capture failure does
+not publish a partially computed screen.
+
+IGS calls VDI103, which installs retfalse as the quit hook. This path has no
+keyboard polling or foreign callback cancellation; the port does not invent
+one. Shared flow/reset/header cancellation still applies. Arbitrary Line-A
+seedfill hooks, nonnegative boundary-colour calls, native RAM interference,
+foreign event clocks and CPU fault behavior are outside this command.
+
+The independent fixtures use static four-neighbor seed-color components and
+per-plane mode equations, separate from the renderer's live run queue. All
+3660 native full frames have two independently seeded phases with mirrored
+grid topology. Cases cover all 39 fills/modes/depths, ignored perimeter, varied
+seeds, clip enable/disable, stored bounds, rejection, inverted and one-row
+bounds. Native literal tests cover every pen, status/escaped bounds, queue
+growth, split/bytewise chains, once-only two-field RNG, flow byte/count/order/
+mutation/loop/reset/max-count behavior, EOF/timeout/numeric/fill recovery,
+array-index ordering, g2 Y, I/R/I5/suspended R and per-phase foreign pixels.
+
+The application test checks 168 independent boxed-component scenes, including
+24 full console-cell replacements. It supplements them with enclosed glyph
+pixels/XOR and perimeter-ignore checks, normalized bottom/status bounds,
+following D, exact flow replies and incomplete disconnect/fresh reconnect.
+All ST modes, Atari ST/CP437/UTF-8 and status choices use coherent cells,
+phases, palette, state and RGB with physical audio disabled. The shared capture
+checker now accepts explicit physical colours for multi-colour expectations;
+existing single-ink cases keep their previous recipes. Expected pixels never
+come from SyncTERM; ordinary tests need no external assets.
+
+Verification used the native FreeBSD /usr/bin/cc Release configuration.
+cmake -S . -B build and the final full cmake --build build -j6 passed without
+warnings. The literal stored-bound/clip-disabled F test failed before
+implementation and passed afterward. All three focused native/application
+suites passed; additional final native growth/index/coordinate/I/R/I5/
+suspended-R/foreign-phase checks passed.
+
+All 87 selected CTest tests passed in one run: every CTerm test, shared parser/
+images/pixels, bitmap/control backend, term/Wren, all 25 IGS application suites,
+SkyPix report, graphics scrollback and session modes. All 3660 independent
+full-frame dual-phase cases and literal/serial/state checks passed. Coherent
+captures passed 168 independent multi-colour scenes, 24 complete console-cell
+replacements and extra glyph/flow/status/lifecycle checks throughout the ST
+mode/encoding/status matrix. Existing B/O/Q/V/Y/f expected headers and scene
+recipes remain byte-identical; their regressions passed after sharing the
+phase-selective writer and optional physical-colour capture expectations.
+
+All 63 IDs, 25 completed entries, references/dependencies/active registrations,
+3660/168 F inventory, 24 replacements and pinned source/ROM identities were
+checked; superseded planar/clock tests remain excluded. X stays in progress.
+Other commands/selectors and final acceptance remain pending.
 Completion commit will be recorded by the next completed step.

@@ -137,6 +137,7 @@ static const struct st_graphics_command commands[] = {
 	{'D', point_parameters, 2, NULL},
 	{'z', unscaled_parameters, 1, counted_points_next},
 	{'f', unscaled_parameters, 1, counted_points_next},
+	{'F', point_parameters, 2, NULL},
 	{'Z', point_parameters, 4, NULL},
 	{'B', point_parameters, 4, box_next},
 	{'U', point_parameters, 4, box_next},
@@ -314,14 +315,16 @@ command(void *context, const struct st_graphics_command_view *view)
 		if (values[4] < 0) return 0;
 		if (values[4] > 0) return cterm_igs_box(igs,values[0],values[1],values[2],values[3],true);
 		return cterm_igs_rounded_outline(igs,values[0],values[1],values[2],values[3]);
+	case 'F':
 	case 'f':
 	case 'z': {
-		int count = point_count(values[0], view->code == 'f' ? 1 : 2);
-		if (view->count != 1+(size_t)count*2)
+		int count = view->code == 'F' ? 0 : point_count(values[0], view->code == 'f' ? 1 : 2);
+		if (view->count != (view->code == 'F' ? 2 : 1+(size_t)count*2))
 			return IO_ERROR_PROTOCOL;
 		int status = igs->loop_mode == 1 ? 0 : flow(igs, false);
 		if (status == 0)
-			status = view->code == 'f' ? cterm_igs_polygon(igs, values+1, (size_t)count)
+			status = view->code == 'F' ? cterm_igs_flood(igs,values[0],values[1])
+			    : view->code == 'f' ? cterm_igs_polygon(igs, values+1, (size_t)count)
 			    : cterm_igs_polyline(igs, values+1, (size_t)count);
 		if (status == 0 && igs->loop_mode != 1)
 			status = flow(igs, true);

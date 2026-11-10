@@ -15,3 +15,4 @@ data/skypix/*
 !data/igs_pie_vectors.h
 !data/igs_ellpie_vectors.h
 !data/igs_polygon_vectors.h
+!data/igs_flood_vectors.h

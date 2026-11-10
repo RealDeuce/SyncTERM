@@ -42,7 +42,7 @@ def check(frame, resolution, status, token, case=None, overlay=None, edge=False,
         for y,x,count,value in case['runs']:
             assert value != 0
             if not ch <= y < drawable:continue
-            expected[y*width+x:y*width+x+count] = [768+foreground]*count
+            expected[y*width+x:y*width+x+count] = [768+(value if case.get("physical_runs",False) else foreground)]*count
             samples.update((column,y) for column in range(max(0,x-1),min(width,x+count+1)))
     if user is not None:
         mode,interior,index = user,4,24

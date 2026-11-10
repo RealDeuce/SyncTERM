@@ -27,6 +27,8 @@ rectangles with native built-in/user patterns and no extra perimeter.
 `Y` adds elliptical pies with independently supplied X/Y radii through that path.
 `f` fills counted 1–128-point polygons with the same native spans/perimeter and
 serial XOFF/XON around drawing.
+`F` adds seed-colour flood fill with native ordered runs, stored bounds and
+independent blink phases through the indexed raster writer.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1099,6 +1101,44 @@ share the [independent polygon/curve oracle](../src/tests/igs/filled_curve_oracl
 Ordinary tests need no external assets; expected pixels never use SyncTERM
 output. References: 15/43/44/46/131/137. Other commands and full acceptance
 remain pending.
+
+### F: seed-colour flood fill
+
+`F` reads X/Y through the common evaluator and shares f/z's live serial
+XOFF/render/XON/loop/reset path. Drawto is unchanged. The fill uses native
+live constant-colour run probes, initial upward discovery, queued directions,
+first-hole/collision/tail-compaction and overhang repairs. Inclusive spans
+use physical fill pen, all 39 anchored patterns and writing modes; perimeter
+and line attributes are ignored. Stored bounds apply even with clipping
+disabled. Rejected seeds retain last state; accepted setup clears it.
+
+Each blink phase probes and paints independently, then both publish together.
+The queue is owned/growable instead of native shared scratch and its 640-entry
+limit; a source-derived 32-active-run comb exercises growth. Bounds intersect
+the real host/status canvas, guard reads are omitted, and safe arithmetic
+replaces native lower-Y overflow/address accidents. Foreign RGB/index seeds
+are skipped per phase. The reachable VDI103 hook is retfalse; no extra host
+keyboard polling or arbitrary Line-A quit/boundary-colour interface is added.
+
+`cterm_igs_flood` checks 3,660 independently derived full native frames with
+different phase topologies, all fills/modes/depths, ignored perimeter, varied
+seeds and stored/clipped/rejected/inverted/one-row bounds. Literal and serial
+checks cover all pens, protected status/escaped bounds, queue growth, focused
+splits/bytewise chains/two-field RNG, flow byte/count/order/mutation/loop/reset/
+maximum counts, EOF/timeout/numeric/renderer recovery, index ordering, g2 Y,
+I/R/I5/suspended-R lifetime, negative rejected seeds and foreign phase pixels.
+
+`syncterm_igs_flood` checks 168 independent component scenes, including 24 full
+console replacements, plus enclosed glyph/XOR/perimeter-ignore, bottom/status,
+following D, exact flow and disconnect/reconnect in all ST modes, Atari ST/
+CP437/UTF-8 and status choices. Coherent captures check cells/phases/palette/
+state/RGB; physical audio is disabled. Explicit physical-colour run data
+extend the shared capture checker; older ink-only cases retain their recipes.
+[Fixture provenance](../src/tests/igs/flood-vectors.json) and the
+[maintainer generator](../src/tests/igs/generate_flood_vectors.py) use independent
+four-neighbor components/per-plane equations, not native queue simulation or
+SyncTERM output. Ordinary tests require no external assets. References:
+15/44/68/131/137. Other commands/selectors and final acceptance remain pending.
 
 ## Deliberate corrections
 

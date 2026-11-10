@@ -75,7 +75,7 @@ struct raster {
 	struct cterm_igs *igs;
 	struct st_pixel_buffer *pixels;
 	struct st_console_rect area;
-	unsigned mode, foreground, plane_mask;
+	unsigned mode, foreground, plane_mask, phase_mask;
 	uint16_t mask;
 	bool last_line;
 	bool touched;
@@ -106,6 +106,7 @@ plot(struct raster *raster, struct point p, bool pattern)
 	    + (unsigned)(p.x-(int)raster->area.x);
 	uint32_t *phases[] = {raster->pixels->primary, raster->pixels->alternate};
 	for (unsigned phase = 0; phase < 2; ++phase) {
+		if (raster->phase_mask != 0 && !(raster->phase_mask & (1u << phase))) continue;
 		if (raster->mode == 3) {
 			uint32_t old = phases[phase][offset];
 			/* Only IGS indices have native plane bits. Host UI pixels are
@@ -191,6 +192,188 @@ fill_pattern(const struct cterm_igs *igs, const uint16_t **rows, unsigned *mask)
 	}
 	return 0;
 }
+
+/* F uses the stored bounds independently of the ordinary clipping enable.
+ * Each blink phase probes its own live indices; writes publish together. */
+struct flood_run { int y, left, right; };
+struct flood {
+	struct raster *raster;
+	const uint16_t *rows;
+	unsigned row_mask, phase;
+	int xmin, ymin, xmax, ymax, status;
+	uint32_t search;
+	struct flood_run *queue;
+	size_t top, pointer, capacity;
+};
+enum { FLOOD_DOWN = 0x8000, FLOOD_EMPTY = -1 };
+
+static uint32_t
+flood_pixel(const struct flood *fill, int x, int y)
+{
+	const struct raster *r = fill->raster;
+	const uint32_t *pixels = fill->phase ? r->pixels->alternate : r->pixels->primary;
+	return pixels[(size_t)(y-(int)r->area.y)*r->area.width+(unsigned)(x-(int)r->area.x)];
+}
+
+static bool
+flood_endpoints(struct flood *fill, int x, int y, int *left, int *right)
+{
+	y &= 0x7fff;
+	/* Reject unsafe host probes, including the original one-pixel guard
+	 * reads. Rejected calls retain their output endpoints for repair loops. */
+	if (y < fill->ymin || y > fill->ymax || x < fill->xmin || x > fill->xmax)
+		return false;
+	uint32_t target = flood_pixel(fill,x,y);
+	int a = x, b = x;
+	while (b < fill->xmax && flood_pixel(fill,b+1,y) == target) ++b;
+	while (a > fill->xmin && flood_pixel(fill,a-1,y) == target) --a;
+	*left = a; *right = b;
+	return target == fill->search;
+}
+
+static void
+flood_span(struct flood *fill, int left, int right, int y)
+{
+	uint16_t bits = fill->rows[(unsigned)y & fill->row_mask];
+	for (int x = left; x <= right; ++x)
+		plot(fill->raster,(struct point){x,y},(bits & (0x8000u >> ((unsigned)x & 15))) != 0);
+}
+
+static void
+flood_crunch(struct flood *fill)
+{
+	while (fill->top != 0 && fill->queue[fill->top-1].y == FLOOD_EMPTY) --fill->top;
+	if (fill->pointer >= fill->top) fill->pointer = 0;
+	/* VDI103 installs retfalse. No foreign quit callback or keyboard poll
+	 * is reachable from the IGS F command. */
+}
+
+static bool
+flood_seed(struct flood *fill, int x, int y, int *left, int *right, bool *collision)
+{
+	*collision = false;
+	if (fill->status != 0 || !flood_endpoints(fill,x,y,left,right)) return false;
+	y = (int)((unsigned)y & 0xffff);
+	size_t hole = fill->top;
+	for (size_t i = 0; i < fill->top; ++i) {
+		struct flood_run *run = &fill->queue[i];
+		if (run->left == *left && run->y != FLOOD_EMPTY && (run->y ^ FLOOD_DOWN) == y) {
+			flood_span(fill,*left,*right,y & 0x7fff);
+			run->y = FLOOD_EMPTY;
+			if (i+1 == fill->top) flood_crunch(fill);
+			*collision = true; return false;
+		}
+		if (run->y == FLOOD_EMPTY && hole == fill->top) hole = i;
+	}
+	if (hole == fill->top) {
+		if (fill->top == fill->capacity) {
+			if (fill->capacity > SIZE_MAX/2/sizeof(*fill->queue)) { fill->status = IO_ERROR_OUT_OF_MEMORY; return false; }
+			size_t capacity = fill->capacity*2;
+			struct flood_run *queue = realloc(fill->queue,capacity*sizeof(*queue));
+			if (queue == NULL) { fill->status = IO_ERROR_OUT_OF_MEMORY; return false; }
+			fill->queue = queue; fill->capacity = capacity;
+		}
+		++fill->top;
+	}
+	fill->queue[hole] = (struct flood_run){y,*left,*right};
+	return true;
+}
+
+static int
+flood_phase(struct flood *fill, int x, int y)
+{
+	fill->search = flood_pixel(fill,x,y);
+	if (fill->search < CTERM_IGS_PALETTE_FIRST
+	    || fill->search > CTERM_IGS_PALETTE_FIRST+fill->raster->plane_mask)
+		return 0;
+	fill->raster->phase_mask = 1u << fill->phase;
+	int oldleft = 0, oldright = 0, newleft = 0, newright = 0, xleft = 0, xright = 0;
+	int oldy = y;
+	bool got = flood_endpoints(fill,x,y,&oldleft,&oldright), collision = false;
+	fill->pointer = 0; fill->top = 1;
+	fill->queue[0] = (struct flood_run){y | FLOOD_DOWN,oldleft,oldright};
+	if (!got) return 0;
+	bool first = true;
+	while (fill->status == 0) {
+		if (!first) {
+			while (fill->queue[fill->pointer].y == FLOOD_EMPTY) {
+				if (++fill->pointer == fill->top) fill->pointer = 0;
+			}
+			struct flood_run run = fill->queue[fill->pointer];
+			fill->queue[fill->pointer++].y = FLOOD_EMPTY;
+			oldy = run.y; oldleft = run.left; oldright = run.right;
+			if (fill->pointer == fill->top) flood_crunch(fill);
+			flood_span(fill,oldleft,oldright,oldy & 0x7fff);
+		}
+		first = false;
+		int direction = oldy & FLOOD_DOWN ? 1 : -1;
+		got = flood_seed(fill,oldleft,oldy+direction,&newleft,&newright,&collision);
+		int leftdirection = direction, lefty = oldy;
+		bool leftseed = got, leftcollision = collision;
+		while (newleft < oldleft-1 && (leftseed || leftcollision)) {
+			xleft = oldleft;
+			while (xleft > newleft) {
+				--xleft;
+				leftseed = flood_seed(fill,xleft,lefty ^ FLOOD_DOWN,&xleft,&xright,&leftcollision);
+			}
+			oldleft = newleft;
+			if (xleft < newleft-1 && (leftseed || leftcollision)) {
+				newleft = xleft; lefty += leftdirection;
+				leftdirection = -leftdirection; lefty ^= FLOOD_DOWN;
+			}
+		}
+		while (newright < oldright) {
+			++newright;
+			got = flood_seed(fill,newright,oldy+direction,&xleft,&newright,&collision);
+		}
+		while (newright > oldright+1 && (got || collision)) {
+			xright = oldright;
+			while (xright < newright) {
+				++xright;
+				got = flood_seed(fill,xright,oldy ^ FLOOD_DOWN,&xleft,&xright,&collision);
+			}
+			oldright = newright;
+			if (xright > newright+1 && (got || collision)) {
+				newright = xright; oldy += direction; direction = -direction; oldy ^= FLOOD_DOWN;
+			}
+		}
+		if (fill->top == 0) break;
+	}
+	return fill->status;
+}
+
+int
+cterm_igs_flood(struct cterm_igs *igs, int x, int y)
+{
+	int left = igs->clip_x1, top = igs->clip_y1, right = igs->clip_x2, bottom = igs->clip_y2;
+	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
+	if (left < 0) left = 0;
+	if (top < 0) top = 0;
+	if (right >= (int)igs->width) right = (int)igs->width-1;
+	if (bottom >= drawable) bottom = drawable-1;
+	if (x < left || x > right || y < top || y > bottom) return 0;
+	const uint16_t *rows; unsigned row_mask;
+	int status = fill_pattern(igs,&rows,&row_mask);
+	if (status != 0) return status;
+	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
+	    .foreground = cterm_igs_physical_pen(igs,igs->attributes.fill_pen),
+	    .plane_mask = cterm_igs_plane_mask(igs->resolution),
+	    .area = {(unsigned)left,(unsigned)top,(unsigned)(right-left+1),(unsigned)(bottom-top+1)}};
+	status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
+	if (status != 0) return status;
+	struct flood fill = {.raster = &raster, .rows = rows, .row_mask = row_mask,
+	    .xmin = left, .ymin = top, .xmax = right, .ymax = bottom, .capacity = 16};
+	fill.queue = malloc(fill.capacity*sizeof(*fill.queue));
+	if (fill.queue == NULL) status = IO_ERROR_OUT_OF_MEMORY;
+	for (unsigned phase = 0; status == 0 && phase < 2; ++phase) {
+		fill.phase = phase; status = flood_phase(&fill,x,y);
+	}
+	if (status == 0) status = publish(&raster);
+	free(fill.queue); st_pixel_buffer_destroy(raster.pixels);
+	if (status == 0) igs->last_line = false;
+	return status;
+}
+
 
 int
 cterm_igs_rectangle(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
