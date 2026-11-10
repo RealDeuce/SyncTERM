@@ -3,7 +3,8 @@
 IGS implementation is in progress. The application-selectable IGS 2.21 mode
 implements `I`'s six initialization selectors and `R` resolution selection.
 `g` configures coordinate scaling and its captured resolution. `M` selects the
-workstation writing mode. Other commands remain pending.
+workstation writing mode; `C` selects independent graphical pens. Other
+commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -264,6 +265,37 @@ the last complete mode. `syncterm_igs_writing_mode` covers all ST modes,
 Atari ST/CP437/UTF-8 and status choices through coherent captures of literal
 Z pixels, cells, palette, cursor and read-only IGS state. It verifies no
 immediate scene/window effect, no replies and a fresh reconnect; audio is off.
+
+### C: graphical pens
+
+`C` reads kind and pen as unscaled operands, then changes only the selected
+marker (0), line (1), fill (2) or graphical-text (3) pen. A kind above 3
+selects marker; a negative kind consumes both operands and changes nothing.
+IGS maps pens above 15 to zero. The workstation then maps negative or
+unavailable pens to logical pen 1, using the current 16/4/2-colour limit.
+Only marker selection updates the marker cache. It retains the request after
+IGS's upper clamp, separately from the effective marker pen. No palette
+register or console colour changes.
+These are the two validation stages in reference chapters 15/29/129.
+
+The port stores effective logical pen numbers in its workstation attributes.
+Drawing will apply the fixed MAP_COL mapping and active-plane mask. `R` and
+`I5` retain selections without revalidating them against the new depth, so
+the native physical colour bits remain recoverable. A subsequent `C` uses
+the new depth. `I0/I2` restore entry pens and the coherent marker cache;
+palette-only `I` selectors preserve them. Whole reset/reconnect start at pen 1.
+
+`cterm_igs_pen` covers every ordinary pen, upper/signed invalid values,
+negative/upper kinds, independent state preservation, all scaling modes,
+literal/array/random operands, cache differences, resolution changes,
+selective initialization and reset. Chains run at every split and bytewise;
+partial kind/pen input, timeout, malformed magnitude and following-command
+recovery preserve the last complete selection. `syncterm_igs_pen` verifies
+the real attribute command with coherent literal Z pixels, cells, palette,
+cursor and pen state in all ST modes, Atari ST/CP437/UTF-8 and status choices.
+It covers I/R lifetime, unchanged windows/scenes, no replies and reconnect.
+Audio is disabled. Primitive pen-to-pixel rendering remains pending with
+the drawing commands; this attribute step draws no pixels itself.
 
 ## Deliberate corrections
 

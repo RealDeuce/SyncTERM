@@ -15,9 +15,9 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I initialization, R resolution, g coordinate-scaling and M writing-mode
-commands are implemented and independently tested natively and through the control bitmap
-application backend. Profile/menu/Wren selection
+The I initialization, R resolution, g coordinate-scaling, M writing-mode and
+C graphical-pen commands are implemented and independently tested natively
+and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
 until all extended selectors and their dispatch behavior have passed.
@@ -465,4 +465,44 @@ report, graphics scrollback and session modes. The 47+16 ledger IDs,
 dependencies, references and active test registrations were checked; removed
 experimental tests remain explicitly superseded. Four command entries are
 complete. Remaining rendering, loop, audio/input and acceptance work is still
-pending. Completion commit will be recorded by the next completed step.
+pending. Completion commit: 3ccd6ca.
+
+=== C independent graphical pens
+
+C reads two unscaled operands before selecting the marker, line, fill or
+graphical-text pen. Kind above 3 becomes marker kind 0; negative kind does
+nothing. Pen above 15 becomes zero before the workstation validation, which
+replaces negative or unavailable pens with pen 1 at the active colour depth.
+The marker request cache remains separate from the effective marker pen.
+References: 15, 29, 129 and IG221.TXT's C entry.
+
+The port retains effective logical pen numbers and will apply fixed MAP_COL
+physical mapping at raster use sites, with only the active-plane mask.
+R/I5 retain selected pens without a new availability test; later C commands
+validate against the new depth. I0/I2 restore the captured pens and coherent
+marker cache, palette-only I operations preserve selections, and whole reset
+or reconnect starts at pen 1. No immediate pixels, palette registers, console
+colours, replies or waits change. Unrelated attributes and IGS state remain.
+
+Native cterm_igs_pen supplies literal expected pen tables at all three
+depths and checks independent selection, invalid signed/upper inputs,
+unscaled literal/array/random operands, requested cache, I/R lifetime and
+reset. Focused chains run at every split/bytewise, including partial reads,
+EOF, local timeout, malformed magnitude and recovery. Application
+syncterm_igs_pen checks all three ST modes, Atari ST/CP437/UTF-8 and status
+choices with coherent literal scene/cell/palette/cursor and pen observations,
+unchanged physical windows, no replies and fresh reconnect. Audio is off.
+This step does not claim pending primitive rendering or sound coverage.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration. Configure and full build passed without compiler warnings;
+all 45 selected CTest tests passed, covering CTerm ANSI/VT52/RIP/SkyPix and
+I/R/g/M/C, shared parser/images/pixels, term/Wren and application IGS,
+SkyPix report, graphics scrollback and session modes. After explicitly
+copying padding in the native test's whole-attribute comparisons and adding
+standard headers, the full build and native pen test passed again.
+All 63 command/selector IDs, reference paths, dependencies and active test
+registrations were checked; superseded experiments remain excluded. Five
+command entries are complete. Drawing, loops, sound/input and the remaining
+acceptance work stay pending. Completion commit will be recorded by the next
+completed step.

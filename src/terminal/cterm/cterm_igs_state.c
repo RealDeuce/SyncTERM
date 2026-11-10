@@ -160,6 +160,26 @@ cterm_igs_set_scaling(struct cterm_igs *igs, int mode)
 	igs->scaling_resolution = (int)igs->resolution;
 }
 
+void
+cterm_igs_set_pen(struct cterm_igs *igs, int kind, int pen)
+{
+	if (pen > 15)
+		pen = 0;
+	if (kind > 3)
+		kind = 0;
+	int effective = pen < 0 || (unsigned)pen > plane_mask(igs->resolution) ? 1 : pen;
+	switch (kind) {
+	case 0:
+		igs->attributes.marker_pen = effective;
+		/* IGS retains its request, not the workstation's fallback result. */
+		igs->marker_pen_cache = pen;
+		break;
+	case 1: igs->attributes.line_pen = effective; break;
+	case 2: igs->attributes.fill_pen = effective; break;
+	case 3: igs->attributes.text_pen = effective; break;
+	}
+}
+
 static int
 begin_resolution(struct cterm_igs *igs, unsigned resolution, int palette)
 {

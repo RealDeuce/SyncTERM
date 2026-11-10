@@ -92,7 +92,9 @@
         "cterm_igs_scaling",
         "syncterm_igs_scaling",
         "cterm_igs_writing_mode",
-        "syncterm_igs_writing_mode"
+        "syncterm_igs_writing_mode",
+        "cterm_igs_pen",
+        "syncterm_igs_pen"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -100,14 +102,16 @@
         "Private Xvfb 1920x1200: st_console_x11_pixels, st_console_x11, st_console_x11_mode_changes, st_console_x11_xrender and app_scaling passed. Physical size and rendered edges were checked at medium 0.5x/1.5x with unchanged windows.",
         "After adding frame/UI readiness fences to existing fixtures, wren_host, syncterm_igs_init and syncterm_igs_resolution passed together under parallel load. No physical audio or Windows device coverage is claimed.",
         "Native FreeBSD /usr/bin/cc Release: full CMake build passed without compiler warnings; all 41 selected CTest tests passed, including every CTerm test, parser/image/pixel tests, term/Wren and IGS I/R/g, SkyPix report, graphics scrollback and session-mode application tests. New g captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled.",
-        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 43 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. M application captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Active test registrations, all 63 ledger IDs, dependencies and reference paths checked."
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 43 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. M application captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Active test registrations, all 63 ledger IDs, dependencies and reference paths checked.",
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 45 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M/C, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. After a test-only padding-copy/header adjustment, the full build and native pen test passed again. C captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with audio disabled. All 63 command/selector IDs, reference paths, dependencies and active CTest registrations checked; superseded tests remain excluded."
       ],
       "commit": null,
       "operations": [
         "Owned IGS workstation state and palette snapshot, shared I/R mode helpers, native console geometry and indexed image layout changes",
         "Local monotonic sync-unit deadlines with injected time and cancellation; no separate clock domain",
         "g state and common typed axis-aware numeric evaluation with intended normalized mapping, lookup ordering and captured resolution",
-        "M writing-mode selection and lifecycle in the existing workstation attributes"
+        "M writing-mode selection and lifecycle in the existing workstation attributes",
+        "C independent graphical pens with two-stage validation, requested marker cache and cross-mode retention"
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -146,7 +150,8 @@
         "cterm_igs_resolution",
         "syncterm_igs_resolution",
         "syncterm_igs_scaling",
-        "syncterm_igs_writing_mode"
+        "syncterm_igs_writing_mode",
+        "syncterm_igs_pen"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -154,7 +159,8 @@
         "Private Xvfb 1920x1200: st_console_x11_pixels, st_console_x11, st_console_x11_mode_changes, st_console_x11_xrender and app_scaling passed. Physical size and rendered edges were checked at medium 0.5x/1.5x with unchanged windows.",
         "After adding frame/UI readiness fences to existing fixtures, wren_host, syncterm_igs_init and syncterm_igs_resolution passed together under parallel load. No physical audio or Windows device coverage is claimed.",
         "Native FreeBSD /usr/bin/cc Release: full CMake build passed without compiler warnings; all 41 selected CTest tests passed, including every CTerm test, parser/image/pixel tests, term/Wren and IGS I/R/g, SkyPix report, graphics scrollback and session-mode application tests. New g captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled.",
-        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 43 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. M application captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Active test registrations, all 63 ledger IDs, dependencies and reference paths checked."
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 43 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. M application captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Active test registrations, all 63 ledger IDs, dependencies and reference paths checked.",
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 45 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M/C, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. After a test-only padding-copy/header adjustment, the full build and native pen test passed again. C captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with audio disabled. All 63 command/selector IDs, reference paths, dependencies and active CTest registrations checked; superseded tests remain excluded."
       ],
       "commit": null,
       "operations": [
@@ -332,23 +338,41 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 43 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. M application captures cover all three ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Active test registrations, all 63 ledger IDs, dependencies and reference paths checked."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "3ccd6ca"
     },
     {
       "id": "C",
       "phase": "attributes",
       "references": [
-        "16-state-timing-commands.adoc",
-        "15-graphics-commands.adoc"
+        "15-graphics-commands.adoc",
+        "29-native-workstation-state.adoc",
+        "129-delivery-color-mode-hollow.adoc",
+        "16-state-timing-commands.adoc"
       ],
       "order": 5,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input"
+      ],
+      "operations": [
+        "Read two unscaled operands before changing only marker, line, fill or graphical-text pen; kind above 3 selects marker and negative kind changes nothing",
+        "IGS pen upper clamp above 15 to zero, then workstation negative/unavailable fallback to pen 1 using current 16/4/2-colour limit",
+        "Keep the requested marker cache after the IGS clamp separate from the effective workstation pen",
+        "Retain effective logical selections across R/I5 without revalidation; fixed physical MAP_COL mapping and active-plane masking belong to raster use sites",
+        "I0/I2 restore captured pens and coherent marker cache; palette-only I preserves selections; whole reset/reconnect start at pen 1",
+        "Preserve unrelated attributes, palette registers, console colours, Drawto, clip, g and memory controls; no immediate pixels, replies or waits",
+        "Incremental chains, partial kind/pen acquisition, EOF, local timeout, malformed magnitude and recovery"
+      ],
+      "tests": [
+        "cterm_igs_pen",
+        "syncterm_igs_pen"
+      ],
       "deviations": [],
-      "verification": [],
-      "commit": null
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 45 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and I/R/g/M/C, shared parser/images/pixels, term/Wren and application IGS, SkyPix report, graphics scrollback and session modes. After a test-only padding-copy/header adjustment, the full build and native pen test passed again. C captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with audio disabled. All 63 command/selector IDs, reference paths, dependencies and active CTest registrations checked; superseded tests remain excluded."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "S",

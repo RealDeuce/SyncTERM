@@ -18,8 +18,11 @@ original integer-division bug; drawing and loop execution remain pending.
 `M` has native mode-selection/reset/input-boundary tests and coherent bitmap
 checks for an unchanged scene, palette and window, across ST geometries,
 Atari ST/CP437/UTF-8 and status choices. Primitive-specific use of the writing
-mode remains part of the pending drawing tests. Other commands, including
-drawing and sound, remain pending; see the IGS ledger for details.
+mode remains part of the pending drawing tests. `C` covers independent
+graphical-pen selection, depth-specific validation, requested marker cache,
+I/R preservation, split/error recovery and coherent unchanged application
+scenes in the same mode/encoding/status matrix. Drawing and sound remain
+pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

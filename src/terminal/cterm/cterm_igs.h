@@ -15,6 +15,8 @@ enum { CTERM_IGS_PALETTE_FIRST = 768 };
 
 struct cterm_igs_attributes {
 	/* Writing mode uses the VDI caller's 1..4 convention. */
+	/* Pens are effective logical selections; map to physical bits at raster
+	 * use sites without revalidating them after a resolution change. */
 	int marker_type, marker_pen, marker_height, writing_mode;
 	int line_type, line_pen, line_width, line_begin, line_end;
 	uint16_t user_line;
@@ -66,6 +68,7 @@ int cterm_igs_poll(struct cterm_igs *);
 bool cterm_igs_paused(const struct cterm_igs *);
 int cterm_igs_initialize(struct cterm_igs *, int operation);
 void cterm_igs_set_scaling(struct cterm_igs *, int mode);
+void cterm_igs_set_pen(struct cterm_igs *, int kind, int pen);
 /* Apply the descriptor's axis to a decimal constant/index. Lookup and random
  * results are returned as values, without a second coordinate transform. */
 int cterm_igs_argument_value(struct cterm_igs *,

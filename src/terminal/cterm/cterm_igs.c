@@ -28,6 +28,7 @@ static const struct st_graphics_command commands[] = {
 	{'R', pair_parameters, 2, NULL},
 	{'g', scalar_parameters, 1, NULL},
 	{'M', scalar_parameters, 1, NULL},
+	{'C', pair_parameters, 2, NULL},
 };
 
 static void
@@ -164,6 +165,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'M':
 		igs->attributes.writing_mode = values[0] >= 1 && values[0] <= 4 ? values[0] : 1;
 		return 0;
+	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
 	default: return IO_ERROR_NOT_SUPPORTED;
 	}
 }
