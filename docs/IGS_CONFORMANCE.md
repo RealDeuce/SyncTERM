@@ -3,8 +3,8 @@
 IGS implementation is in progress. The application-selectable IGS 2.21 mode
 implements `I`'s six initialization selectors and `R` resolution selection.
 `g` configures coordinate scaling and its captured resolution. `M` selects the
-workstation writing mode; `C` selects independent graphical pens. Other
-commands remain pending.
+workstation writing mode; `C` selects independent graphical pens and `S`
+changes palette colours. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -296,6 +296,42 @@ cursor and pen state in all ST modes, Atari ST/CP437/UTF-8 and status choices.
 It covers I/R lifetime, unchanged windows/scenes, no replies and reconnect.
 Audio is disabled. Primitive pen-to-pixel rendering remains pending with
 the drawing commands; this attribute step draws no pixels itself.
+
+### S: palette components
+
+`S` reads pen, red, green and blue as unscaled operands. A pen above 15
+becomes zero. Each component 1..7 maps to 142, 285, 428, 571, 714, 857 or
+1000; every other signed value becomes zero. The existing workstation
+palette service retains requested triples and uses the physical pen map,
+active-depth pen limit and three-bit ST DAC. Captured entry/default palettes
+remain separate from the current requested/realized palette.
+
+Monochrome retains requested triples even when the visible palette stays
+unchanged. Only all-black and all-white triples change polarity; mixed or
+middle triples do not choose a nearest gray. All negative palette pens are
+ignored safely, including low-byte aliases such as -256 and -32768. This
+deliberately avoids the original byte-width check's indexed-memory/bus
+accidents. Out-of-depth positive pens are ignored; they do not use `C`'s
+fallback pen. These rules follow reference 15/28 with that explicit safety
+correction.
+
+Existing indexed pixels recolour through the palette without rewritten
+indices or cells. Console colours, graphical pens/attributes, Drawto,
+clipping, scaling and memory controls remain unchanged, with no replies or
+waits. `I2`, `I5` and `R` palette zero retain the palette; `I0/I1`, whole
+reset and reconnect restore the captured entry palette.
+
+`cterm_igs_palette` checks literal component/request/DAC tables, every pen's
+physical mapping at all three depths, signed invalid values and negative
+aliases, random/array operands under every scaling mode, unchanged state/
+indices, requested versus visible mono values, I restoration, split/bytewise
+chains, partial input, EOF, timeout, malformed magnitude and reset/recovery.
+`syncterm_igs_palette` uses coherent cells, both raw planes, full palette,
+state and composed RGB to verify recolouring of an already-drawn literal Z,
+background changes, mono polarity, I/R lifetime, retained window dimensions,
+no replies and reconnect. All ST modes, Atari ST/CP437/UTF-8 and status
+choices run with audio disabled and nearest display scaling. Drawing and
+sound commands remain pending.
 
 ## Deliberate corrections
 

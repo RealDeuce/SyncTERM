@@ -21,8 +21,12 @@ Atari ST/CP437/UTF-8 and status choices. Primitive-specific use of the writing
 mode remains part of the pending drawing tests. `C` covers independent
 graphical-pen selection, depth-specific validation, requested marker cache,
 I/R preservation, split/error recovery and coherent unchanged application
-scenes in the same mode/encoding/status matrix. Drawing and sound remain
-pending; see the IGS ledger for details.
+scenes in the same mode/encoding/status matrix. `S` adds literal component,
+physical palette and mono polarity tests plus coherent composed-RGB checks
+that existing indexed glyphs recolour without rewritten pixels/cells. Invalid
+negative pens are ignored safely. Palette restoration, I/R retention and
+reconnect run in the same matrix. Drawing and sound remain pending; see the
+IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

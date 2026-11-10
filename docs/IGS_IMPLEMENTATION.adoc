@@ -15,9 +15,8 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I initialization, R resolution, g coordinate-scaling, M writing-mode and
-C graphical-pen commands are implemented and independently tested natively
-and through the control bitmap application backend. Profile/menu/Wren selection
+The I, R, g, M, C and S commands are implemented and independently tested
+natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
 until all extended selectors and their dispatch behavior have passed.
@@ -504,5 +503,49 @@ standard headers, the full build and native pen test passed again.
 All 63 command/selector IDs, reference paths, dependencies and active test
 registrations were checked; superseded experiments remain excluded. Five
 command entries are complete. Drawing, loops, sound/input and the remaining
+acceptance work stay pending. Completion commit: b11a959.
+
+=== S palette component selection
+
+S consumes four unscaled operands before acting. Pen above 15 becomes zero;
+each component 1..7 maps to its fixed VDI level (142 through 1000), while
+all other signed components become zero. The existing native palette service
+supplies depth validation, physical pen mapping, requested triples, ST DAC
+quantization and monochrome polarity. Entry/default palettes remain distinct.
+References: 15, 28 and IG221.TXT's S entry.
+
+Only all-black/all-white triples change mono polarity; mixed and middle
+levels update requests without changing visible colours. Negative pens are
+ignored, including native low-byte aliases, as an explicit correction of
+indexed-memory/bus accidents. Invalid positive pens at the current depth are
+ignored; the IGS upper clamp above 15 still applies. Attribute setter C's
+fallback pen rule does not apply to this palette setter.
+
+No indexed pixels, cells, console colours, graphical attributes, Drawto,
+clipping, g, memory controls, replies or waits change. Existing pixels
+recolour through the shared palette. I2, I5 and R palette zero preserve the
+palette; I0/I1, whole reset and reconnect restore the captured entry palette.
+
+Native cterm_igs_palette checks literal component/request/DAC tables, all
+ordinary pens and invalid signed/alias pens at each depth, random/array
+operands under every scaling mode, state/index preservation, mono polarity,
+I restoration, every focused split/bytewise chain, partial arguments, EOF,
+local timeout, malformed magnitude and recovery. Application
+syncterm_igs_palette checks coherent cells, planes, full palette, IGS state
+and composed RGB for an already-drawn literal Z, background changes, mono
+polarity, I/R lifetime, unchanged window size and fresh reconnect. It covers
+all ST modes, Atari ST/CP437/UTF-8 and status choices, with audio disabled
+and nearest display scaling. Pending primitives and audio remain separate.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration. Configure and full build passed without compiler warnings;
+all 49 selected CTest tests passed, including every CTerm test, shared
+parser/images/pixels, bitmap console/control backend, term/Wren and
+application IGS I/R/g/M/C/S, SkyPix report, graphics scrollback and session
+modes. The S application test covers all ST modes, Atari ST/CP437/UTF-8
+and status choices with literal palette/RGB expectations and unchanged raw
+planes. All 63 command/selector IDs, dependency/reference paths and active
+test registrations were checked; superseded experiments remain excluded.
+Six command entries are complete. Drawing, loops, sound/input and remaining
 acceptance work stay pending. Completion commit will be recorded by the next
 completed step.

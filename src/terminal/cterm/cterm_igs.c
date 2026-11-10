@@ -23,12 +23,17 @@ static const struct st_graphics_parameter scalar_parameters[] = {
 static const struct st_graphics_parameter pair_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
 };
+static const struct st_graphics_parameter four_parameters[] = {
+	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
+	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
+};
 static const struct st_graphics_command commands[] = {
 	{'I', scalar_parameters, 1, NULL},
 	{'R', pair_parameters, 2, NULL},
 	{'g', scalar_parameters, 1, NULL},
 	{'M', scalar_parameters, 1, NULL},
 	{'C', pair_parameters, 2, NULL},
+	{'S', four_parameters, 4, NULL},
 };
 
 static void
@@ -148,7 +153,7 @@ static int
 command(void *context, const struct st_graphics_command_view *view)
 {
 	struct cterm_igs *igs = context;
-	int values[2];
+	int values[4];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
 	if (view->count > sizeof(values) / sizeof(*values))
@@ -166,6 +171,12 @@ command(void *context, const struct st_graphics_command_view *view)
 		igs->attributes.writing_mode = values[0] >= 1 && values[0] <= 4 ? values[0] : 1;
 		return 0;
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
+	case 'S': {
+		static const int components[] = {0,142,285,428,571,714,857,1000};
+		for (unsigned i = 1; i < 4; ++i)
+			values[i] = values[i] >= 1 && values[i] <= 7 ? components[values[i]] : 0;
+		return cterm_igs_palette_pen(igs, values[0] > 15 ? 0 : values[0], values[1], values[2], values[3]);
+	}
 	default: return IO_ERROR_NOT_SUPPORTED;
 	}
 }
