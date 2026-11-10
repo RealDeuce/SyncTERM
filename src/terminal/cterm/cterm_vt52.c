@@ -41,6 +41,21 @@
 #include "cterm_vt52.h"
 #include "cterm_ecma48.h"	/* cterm_accumulate_ecma_seq installed on ESC */
 
+void
+cterm_vt52_reset_console(struct cterminal *cterm)
+{
+	cterm->vt52_foreground = cterm->attr & 15u;
+	cterm->vt52_background = cterm->attr >> 4;
+	cterm->vt52_cursor_saved = false;
+}
+
+uint32_t
+cterm_vt52_background_color(const struct cterminal *cterm)
+{
+	/* Atari blanking uses the raw background even in reverse video. */
+	return cterm->screen.mode_palette[cterm->vt52_background & 15u];
+}
+
 /* ------------------------------------------------------------------------
  * VT52 command handlers
  * ------------------------------------------------------------------------ */
@@ -267,12 +282,24 @@ cterm_vt52_save_cursor(struct cterminal *cterm, int *speed)	/* ESC j */
 {
 	(void)speed;
 	CURR_XY(&cterm->save_xpos, &cterm->save_ypos);
+	if (cterm->igs_engine != NULL)
+		cterm->vt52_cursor_saved = true;
 }
 
 static void
 cterm_vt52_restore_cursor(struct cterminal *cterm, int *speed)	/* ESC k */
 {
-	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		/* TOS tests and clears the flag before using the stored words. */
+		bool saved = cterm->vt52_cursor_saved;
+		cterm->vt52_cursor_saved = false;
+		if (saved && cterm->save_xpos >= CURR_MINX && cterm->save_xpos <= CURR_MAXX
+		    && cterm->save_ypos >= CURR_MINY && cterm->save_ypos <= CURR_MAXY)
+			cterm_render_set_position(cterm, cterm->save_xpos, cterm->save_ypos);
+		else
+			cterm_vt52_home(cterm, speed);
+		return;
+	}
 	if (cterm->save_ypos > 0 && cterm->save_ypos <= cterm->height
 	    && cterm->save_xpos > 0 && cterm->save_xpos <= cterm->width) {
 		if (cterm->save_ypos < CURR_MINY || cterm->save_ypos > CURR_MAXY

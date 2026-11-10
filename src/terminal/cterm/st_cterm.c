@@ -14,6 +14,7 @@
 #include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
 #include "cterm_igs.h"
+#include "cterm_vt52.h"
 #include "st_igs_image.h"
 #include "st_session_history.h"
 #include "st_time.h"
@@ -2973,7 +2974,7 @@ cterm_igs_set_resolution(struct cterminal *t, unsigned resolution)
 	t->escbuf[0] = 0;
 	t->negative = false;
 	t->attr = 15;
-	t->vt52_foreground = 15; t->vt52_background = 0;
+	cterm_vt52_reset_console(t);
 	CTERM_FREE_AND_CLEAR(t->fg_tc_str);
 	CTERM_FREE_AND_CLEAR(t->bg_tc_str);
 	cterm_render_attribute_colours(t, t->attr, &t->fg_color, &t->bg_color);

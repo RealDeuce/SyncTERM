@@ -10,6 +10,8 @@ struct model {
 	unsigned state,x,y,row,columns,rows,count;
 	uint16_t fg,bg;
 	bool reverse,wrap;
+	bool saved;
+	unsigned saved_x,saved_y;
 	uint16_t backgrounds[25];
 	struct model_cell cells[4];
 };
@@ -42,6 +44,15 @@ model_byte(struct model *m, uint8_t byte)
 		else if (byte == 'C' && m->x+1 < m->columns) ++m->x;
 		else if (byte == 'D' && m->x != 0) --m->x;
 		else if (byte == 'H') m->x = m->y = 0;
+		else if (byte == 'j') {
+			m->saved_x = m->x;
+			m->saved_y = m->y;
+			m->saved = true;
+		} else if (byte == 'k') {
+			m->x = m->saved ? m->saved_x : 0;
+			m->y = m->saved ? m->saved_y : 0;
+			m->saved = false;
+		}
 		return;
 	}
 	if (state == 2) { m->row = (byte+65536-32)%65536; if (m->row >= m->rows) m->row = m->rows-1; m->state = 3; return; }

@@ -36,6 +36,7 @@ renders original system glyphs with software effects, rotations and underline.
 VT52 state, including byte wrapping and pending-sequence composition.
 `m` adds repeated home and directional motion with native signed count and
 selector rules through that same VT52 state.
+`r` adds one-shot cursor save and restore shared with raw VT52 j and k.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1382,6 +1383,32 @@ checks and the corrected native m CTest rerun passed. The m application
 suite took 55.78 seconds and the native suite 8.80. Earlier expected scenes
 and references are unchanged. The ledger has 30 complete entries; X and
 final acceptance remain unfinished.
+
+### r cursor save and restore
+
+Selector zero and selectors above one emit ESC j. Selector one emits ESC k
+and a negative selector emits ESC alone. The shared VT52 parser interprets
+these bytes in its current state. In IGS mode, a successful save replaces
+the stored position. Restore consumes the saved-position flag, so a later
+restore homes the cursor until another save. An out-of-viewport save also
+falls back to home. Standalone VT52 restores remain repeatable.
+
+VT52 initializes the flag and native colors through a common reset helper.
+Actual color-mode initialization clears the flag while retaining the
+stored coordinates, including I5 at the current color resolution.
+Same-mode R, monochrome I5 and I0 through I4 preserve the slot. A terminal
+reset clears the shared coordinates and a fresh session starts with an
+empty slot.
+
+`cterm_igs_cursor_save` checks 672 complete source-defined scenes across
+the console parser states, bottom-row wrap, reverse video, saved and
+unsaved positions, signed selector classes and mode/status combinations.
+It also covers raw VT52 interoperability, input splits and bytewise
+delivery, lifetime, output errors and standalone VT52.
+`syncterm_igs_cursor_save` checks five literal wire scenes and one
+reconnect scene in each of 18 mode/encoding/status profiles. Source glyphs
+and full phase comparisons account for literal j and k emitted in pending
+states. All 14 targeted checks passed on native FreeBSD Release.
 
 ## Deliberate corrections
 

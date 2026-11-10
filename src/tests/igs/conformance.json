@@ -145,7 +145,9 @@
         "cterm_igs_position",
         "syncterm_igs_position",
         "cterm_igs_move",
-        "syncterm_igs_move"
+        "syncterm_igs_move",
+        "cterm_igs_cursor_save",
+        "syncterm_igs_cursor_save"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -180,7 +182,8 @@
         "Native FreeBSD /usr/bin/cc Release: configure/full native CMake builds passed without warnings. The literal c test failed before implementation; high-background blink, generated-output LF expansion and missing DEL advance failures were reproduced and corrected without weakening expectations. All93 selected CTest tests passed in one run before the final literal-byte correction, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren,28 IGS application suites, SkyPix report, graphics scrollback and session modes. Afterward, the expanded native c suite passed1179648 word-state,1536 color-pair,3696 complete prior-state/control/wrap/status and2688 all-printable-byte glyph/advance cases, plus every focused split/bytewise/RNG, negative pending ESC, EOF/timeout/invalid input, I/R/reset and output-error restoration check. The360-scene application suite passed again, and the separate six-scene DEL suite passed in every ST mode, Atari ST/CP437/UTF-8 and status choice with physical audio/MIDI disabled. Coherent raw colors/pending parser/cursor/cells/indexed phases/palette/other graphics state/RGB, W graphics through color changes and scrolling, non-drawing X10 capture fences, no replies and partial disconnect/fresh reconnect passed. The new test readout uses logical capture rows without reapplying bitmap-ring metadata; independent scroll expectations are unchanged. All63 unique IDs,28 complete entries, source/dependency/active test registrations,1179648/1536/3696/2688 native inventory,360+6 application inputs,512 original source glyphs (6144 rows) and ROM/font-export hashes checked. There are now29 registered IGS application suites. Prior raster fixtures unchanged; X remains in progress and superseded planar/clock gates excluded. Other commands/selectors and final acceptance remain pending.",
         "Native FreeBSD /usr/bin/cc Release: configure/full native CMake builds passed without warnings. The coordinate test failed before implementation. The full native suite passed2359296 word cases,4452 prior-state/control/wrap/status frames and6144 byte-role frames, plus every focused split/bytewise/array/RNG/acquisition/error/I/R/reset check. A split-chain expectation initially used stored seed low bytes; it was corrected against chapter124 returned bits8..31 (operands230,202) without changing production behavior or pixel expectations. The360-scene control bitmap application suite passed in all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio/MIDI disabled, including coherent state/cells/indexed phases/palette/RGB, W graphics during scrolling, no replies and partial disconnect/fresh reconnect. All96 selected CTest regressions passed in one run (590.32 seconds): every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all30 IGS application suites, SkyPix report, graphics scrollback and session modes. All63 unique IDs,29 completed entries, dependencies/references/active test registrations,2359296/4452/6144 native inventory,360 application scenes and pinned source font/ROM identities checked. Existing raster fixtures unchanged; X remains in progress and other commands/selectors/final acceptance remain pending.",
         "Native FreeBSD /usr/bin/cc Release performance follow-up: configure/full CMake builds passed without warnings. All40 relevant CTest regressions passed (388.99 seconds): all30 unchanged IGS application suites, native p, bitmap test backend, all five control protocol/session/transfer tests, SkyPix report, graphics scrollback and session modes. Native p dropped from58.87 to17.82 seconds, application p from290.59 to213.22 seconds, and the summed runtime of the same30 IGS application suites from2927.02 to2244.56 seconds (about23 percent). Pixel serialization uses bounded explicitly little-endian chunks; pipe reception fills one allocated buffer. One exhaustive signed-word sweep per coordinate role plus all256 byte classes with negative/positive/carry representatives and signed extremes in every remaining mode/status/g configuration reduces redundant parser transactions to157252. All4452 pending-state and6144 byte-role complete-frame cases remain. Independent expected frames now use row fills and sparse glyph writes before complete dual-phase comparison. All360 application scenes, literal glyph rows, source identities, drawable sizes and assertions are unchanged. Native inventory arithmetic, Python syntax,63 unique IDs/29 completed entries and all dependency/reference/test registrations checked. Other commands/selectors and final acceptance remain pending.",
-        "Native FreeBSD /usr/bin/cc Release configure/full CMake builds passed without warnings. The native split-input test failed before implementation. Corrected two native fixture defects (cell row stride and logical cursor seeding) without changing the expected results. The 13 other targeted tests passed: application m (55.78 seconds), native and application p/c, c DEL, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The corrected native m CTest rerun passed in 8.80 seconds. All70404 normal cases,1764 independent full frames, partition/RNG/lifetime/error checks and147 wire scenes passed. Shared exact word comparison retained all c/p application cases and reduced their local times to about130 seconds each. All63 unique IDs,30 complete entries, dependencies/references/registered tests, native/application inventories and source font/ROM hashes checked. Existing expected raster assets unchanged. X and final acceptance remain in progress."
+        "Native FreeBSD /usr/bin/cc Release configure/full CMake builds passed without warnings. The native split-input test failed before implementation. Corrected two native fixture defects (cell row stride and logical cursor seeding) without changing the expected results. The 13 other targeted tests passed: application m (55.78 seconds), native and application p/c, c DEL, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The corrected native m CTest rerun passed in 8.80 seconds. All70404 normal cases,1764 independent full frames, partition/RNG/lifetime/error checks and147 wire scenes passed. Shared exact word comparison retained all c/p application cases and reduced their local times to about130 seconds each. All63 unique IDs,30 complete entries, dependencies/references/registered tests, native/application inventories and source font/ROM hashes checked. Existing expected raster assets unchanged. X and final acceptance remain in progress.",
+        "The new native test failed before implementation. FreeBSD Release configure and full native builds with /usr/bin/cc passed without warnings. All 14 targeted CTest checks passed, including native and application r, native c/p/m, application R and c DEL, graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native r suite ran in 0.96 seconds and the application suite in 19.30 seconds. Verified literal j/k font rows, source hashes, test registrations and all 63 ledger IDs with 31 complete entries."
       ],
       "commit": null,
       "operations": [
@@ -213,7 +216,8 @@
         "W opaque bounded shared text, local absolute acquisition deadline/reuse/first-XON, original decoded system glyphs and software mask effects/rotation/underline through the indexed writer; coherent console/text lifetime and independent full-frame coverage",
         "c physical console colors and retained byte-minus32 words through shared persistent VT52 handlers, strict IGS escape framing, native byte output and corrected physical-index attributes/TAB/scroll background; complete word/color/state/capture coverage",
         "p unscaled console word positioning through existing persistent VT52 parsing and native byte output; word/byte/state/status/scrolled-graphics/error/lifetime coverage without new console state",
-        "m repeated native console motion, signed selector/count rules and parity through existing persistent VT52 bytes; independent full-frame, boundary, partition and lifetime checks"
+        "m repeated native console motion, signed selector/count rules and parity through existing persistent VT52 bytes; independent full-frame, boundary, partition and lifetime checks",
+        "r and raw VT52 j/k share a one-shot Atari cursor save slot in IGS mode. VT52 owns native color and flag initialization."
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -1625,7 +1629,7 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release configure/full CMake builds passed without warnings. The native split-input test failed before implementation. Corrected two native fixture defects (cell row stride and logical cursor seeding) without changing the expected results. The 13 other targeted tests passed: application m (55.78 seconds), native and application p/c, c DEL, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The corrected native m CTest rerun passed in 8.80 seconds. All70404 normal cases,1764 independent full frames, partition/RNG/lifetime/error checks and147 wire scenes passed. Shared exact word comparison retained all c/p application cases and reduced their local times to about130 seconds each. All63 unique IDs,30 complete entries, dependencies/references/registered tests, native/application inventories and source font/ROM hashes checked. Existing expected raster assets unchanged. X and final acceptance remain in progress."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "1530047"
     },
     {
       "id": "r",
@@ -1633,16 +1637,40 @@
       "references": [
         "04-text-console.adoc",
         "14-console-commands.adoc",
-        "15-graphics-commands.adoc"
+        "16-state-timing-commands.adoc",
+        "66-native-console-pixels.adoc",
+        "99-native-graphics-console-initialization.adoc",
+        "124-native-random-source.adoc",
+        "195-delivery-console.adoc"
       ],
       "order": 31,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "I",
+        "R",
+        "c",
+        "p"
+      ],
+      "operations": [
+        "Acquire the signed selector once through the common unscaled numeric description. Emit ESC j for zero and upper values, ESC k for one and ESC alone for negative values.",
+        "Use the persistent VT52 parser for raw and generated bytes. Save records the existing shared coordinates and sets the IGS flag. Restore consumes the flag and uses home when the slot is empty.",
+        "Initialize VT52 colors and the saved flag in VT52 helpers called by terminal reset and mode initialization. Actual color initialization clears the flag and retains coordinates. I0 through I4, same-mode R and monochrome I5 preserve the slot.",
+        "Compare 672 full native frames and probe slot state across selector classes, pending parameters, wrap, reverse, all ST modes and status choices. Verify partitioned and bytewise random acquisition, EOF, timeout, invalid input, error recovery and standalone VT52.",
+        "Capture five literal wire scenes and a reconnect scene per profile across 18 mode/encoding/status combinations. Check coherent cells, cursor, both indexed phases, RGB, palette and graphics state with physical audio and MIDI disabled."
+      ],
+      "tests": [
+        "cterm_igs_cursor_save",
+        "syncterm_igs_cursor_save"
+      ],
+      "deviations": [
+        "Use home as the safe fallback for a saved position outside the host viewport. Apply the one-shot Atari flag in IGS mode and retain standalone VT52 repeatable restores."
+      ],
+      "verification": [
+        "The new native test failed before implementation. FreeBSD Release configure and full native builds with /usr/bin/cc passed without warnings. All 14 targeted CTest checks passed, including native and application r, native c/p/m, application R and c DEL, graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native r suite ran in 0.96 seconds and the application suite in 19.30 seconds. Verified literal j/k font rows, source hashes, test registrations and all 63 ledger IDs with 31 complete entries."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "k",

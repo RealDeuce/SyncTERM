@@ -237,6 +237,7 @@ struct cterminal {
 #define CTERM_EXTATTR_ALTERNATE_KEYPAD	0x0800
 	int					save_xpos;		// Saved position (for later restore)
 	int					save_ypos;
+	bool				vt52_cursor_saved;	// Atari IGS one-shot restore flag
 	int					sequence;		// An escape sequence is being parsed
 	int					string;
 #define CTERM_STRING_APC	1

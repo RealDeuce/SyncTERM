@@ -25,6 +25,9 @@
 void cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte,
     int *speed);
 
+void cterm_vt52_reset_console(struct cterminal *cterm);
+uint32_t cterm_vt52_background_color(const struct cterminal *cterm);
+
 /* BIOS-style output uses the current persistent VT52 parser and Atari bytes;
  * it is generated output, not another pass through wire UTF-8 or input hooks. */
 int cterm_vt52_output(struct cterminal *, const uint8_t *, size_t);
