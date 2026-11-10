@@ -144,6 +144,7 @@ static const struct st_graphics_command commands[] = {
 	{'M', unscaled_parameters, 1, NULL},
 	{'C', unscaled_parameters, 2, NULL},
 	{'c', unscaled_parameters, 2, NULL},
+	{'p', unscaled_parameters, 2, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -336,6 +337,12 @@ command(void *context, const struct st_graphics_command_view *view)
 		igs->attributes.writing_mode = values[0] >= 1 && values[0] <= 4 ? values[0] : 1;
 		return 0;
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
+	case 'p': {
+		/* Acquire column/row unscaled, then send BIOS low bytes through the
+		 * existing console state. Addition and byte wrap precede VT52 clamps. */
+		const uint8_t output[] = {27,'Y',(uint8_t)((unsigned)values[1]+32u),(uint8_t)((unsigned)values[0]+32u)};
+		return cterm_vt52_output(igs->terminal,output,sizeof(output));
+	}
 	case 'c': {
 		/* Upper selectors select background; negative selectors emit ESC only.
 		 * Colors are raw console bytes, independent of VDI pen numbering. */

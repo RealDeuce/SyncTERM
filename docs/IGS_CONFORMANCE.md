@@ -32,6 +32,8 @@ independent blink phases through the indexed raster writer.
 `E` selects graphical text effects, canonical point size and rotation; `W`
 renders original system glyphs with software effects, rotations and underline.
 `c` sets physical console colors through persistent native VT52 parsing.
+`p` positions the console using unscaled word operands and the same persistent
+VT52 state, including byte wrapping and pending-sequence composition.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1287,6 +1289,49 @@ and separate six-scene DEL suite passed afterward. Expected pixels/advance
 were retained when fixing blink, LF expansion and DEL; captured planes are
 read in their documented logical row order. The ledger now has28 completed
 entries, with X and final acceptance unfinished.
+
+### p: console positioning
+
+`p` acquires column then row as unscaled words before output. It emits
+ESC Y, low-byte(row+32), low-byte(column+32) using defined unsigned addition
+and the existing native console output helper. It adds no parser or console
+state. Normal-state Y handling performs unsigned word subtraction and clamps
+within the host viewport, including status protection. For example,
+`p(300,400)` reaches column 44 in 80 columns or 39 in 40, and the bottom row;
+`p(-32,-32)` also reaches the bottom-right corner. Values below32 in native
+parameter bytes wrap to large unsigned coordinates rather than home.
+
+The four bytes enter whatever console state is already pending. They can
+become raw parameters, glyphs or controls, and can leave another ESC/Y/color
+parameter pending. Direct cursor assignment would lose that behavior.
+Neither decimal values nor loaded math words are g-scaled. No reply, serial
+flow, video wait, palette change or VDI attribute call is introduced.
+
+`cterm_igs_position` checks 2,359,296 algebraic signed-word cases across both
+operand roles, all modes, status choices and g settings, with unchanged
+indexed phases/graphics state. Another 4,452 independent full-frame cases
+compose all six console states and a wrapping bottom-row context with signed,
+byte/control boundaries and reverse/status choices. Another 6,144 frames cover
+all 256 byte values in both roles with pending foreground state, both reverse
+settings and Atari/UTF-8 wire modes. Source-state equations and original TOS
+font rows supply expectations. Split/bytewise chains, array operands,
+exactly-once RNG, full acquisition before output failure, incomplete/invalid/
+local-timeout recovery, loop context, I/R/reset and error-scope restoration
+supplement those matrices.
+
+`syncterm_igs_position` adds 360 source-defined wire scenes across every ST
+mode, Atari ST/CP437/UTF-8 and status choice. It shares c's capture readout,
+with its own p state oracle and pinned source font rows. Coherent checks
+include raw colors, pending parameters, cursor/cells, both indexed phases,
+palette/graphics state/RGB, and existing W graphics through scrolling.
+Non-drawing X10 fences preserve pending console state; captures are already
+in logical row order. Partial disconnect/fresh reconnect checks recovery.
+Physical audio and MIDI stay disabled. References: 14/66/124/195.
+
+Native FreeBSD /usr/bin/cc Release configure/full builds passed without
+warnings. Both focused suites and all 96 selected regressions passed,
+including every CTerm test and all 30 IGS application suites. The ledger has
+29 completed entries; X and final acceptance remain unfinished.
 
 ## Deliberate corrections
 

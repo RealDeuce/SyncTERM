@@ -133,6 +133,11 @@ Its 1,179,648 word cases, 1,536 color-pair cases, 3,696 complete-frame contexts
 plus 2,688 printable-byte cases and 366 application scenes cover reverse
 video, pending sequences, controls,
 scrolling graphics, physical attributes, raw bytes and recovery/lifetime.
+`p` adds unscaled console positioning through that same VT52 state.
+Its 2,359,296 signed-word cases, 4,452 complete-frame composition cases,
+6,144 byte-role frames and 360 coherent application scenes cover wrapped
+coordinates, pending controls/colors, status boundaries, unchanged graphics,
+scrolling and parser/error/reset/disconnect recovery.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

@@ -49,15 +49,17 @@ def expected(case,columns,rows):
     return dict(state=state,x=x,y=y,fg=fg,bg=bg,cells=cells,row_background=row_background,scrolls=scrolls)
 
 
-def check(frame,resolution,status,marker,case):
+def check(frame,resolution,status,marker,case,model=None,fonts=None):
     m,s=frame.metadata,frame.application
     width=320 if resolution==0 else 640;height=400 if resolution==2 else 200;ch=16 if resolution==2 else 8
-    rows=24 if status else 25;mask=(15,3,1)[resolution];model=expected(case,width//8,rows)
+    rows=24 if status else 25;mask=(15,3,1)[resolution]
+    if model is None:model=expected(case,width//8,rows)
+    if fonts is None:fonts=DATA['fonts']
     assert (m['plane_width'],m['plane_height'])==(width,height)
     assert s['cterm.graphics_mode']==5 and s['cterm.igs_resolution']==resolution
     assert (s['cterm.x'],s['cterm.y'])==(model['x']+1,model['y']+1)
     assert tuple(frame.palette[768:784])==tuple(initial(resolution))
-    assert tuple(s[f'cterm.igs_console_{name}'] for name in ('foreground','background','reverse','escape','parameters'))==(model['fg'],model['bg'],case['reverse'],model['state']==1,1 if model['state']==3 else 0)
+    assert tuple(s[f'cterm.igs_console_{name}'] for name in ('foreground','background','reverse','escape','parameters'))==(model['fg'],model['bg'],case['reverse'],model['state']==1,2 if model['state']==2 else 1 if model['state']>=3 else 0)
     assert tuple(s[f'cterm.igs_{name}'] for name in ('draw_start_x','draw_start_y','draw_x','draw_y'))==(0,0,marker,777)
     assert s['cterm.igs_last_line']==1 and s['cterm.igs_writing_mode']==1
     assert (s['cterm.igs_random_seed'],s['cterm.igs_pattern_seed'])==(1,0)
@@ -67,12 +69,12 @@ def check(frame,resolution,status,marker,case):
     expected_pixels=[];samples={(20,20)}
     for background in model['row_background']:expected_pixels.extend([768+(background&mask)]*(width*ch))
     graphic_top=54-model['scrolls']*ch
-    for y,bits in enumerate(DATA['fonts']['8']['65']):
+    for y,bits in enumerate(fonts['8']['65']):
         for x in range(8):
             expected_pixels[(graphic_top+y)*width+100+x]=768+((5 if resolution==0 else mask) if bits&(128>>x) else 0)
             samples.add((100+x,graphic_top+y))
     for (cx,cy),(code,fg,bg) in model['cells'].items():
-        for y,bits in enumerate(DATA['fonts'][str(ch)][str(code)]):
+        for y,bits in enumerate(fonts[str(ch)][str(code)]):
             for x in range(8):
                 expected_pixels[(cy*ch+y)*width+cx*8+x]=768+((fg if bits&(128>>x) else bg)&mask)
                 samples.add((cx*8+x,cy*ch+y))
