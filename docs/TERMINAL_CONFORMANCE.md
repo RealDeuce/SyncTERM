@@ -123,8 +123,12 @@ status/coordinates/state/flow and lifecycle through the ST mode/encoding matrix.
 point/top selections and safe signed rotation state. Its 219,072 expected
 state cases and 120 coherent application scenes verify sizing/rotation/effects,
 unchanged console/graphics pixels, default restoration, parser and lifecycle.
-Graphical W glyphs, other drawing, loops and sound remain pending; see the IGS
-ledger for details.
+`W` adds original graphical glyphs, source/doubled fonts, combined effects,
+quadrant rotation, native clipping/light phases and underline. Its 22,554
+independent dual-phase frames and 186 full application scenes cover all ST
+modes, opaque/bounded text, console overlays/replacement, coordinates/status,
+reader reuse/handshake, absolute local deadlines and recovery/lifetime.
+Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

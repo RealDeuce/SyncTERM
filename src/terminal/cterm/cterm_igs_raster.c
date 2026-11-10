@@ -2,6 +2,7 @@
  * US TOS 1.04 lines, polygons, rectangles, caps, arrows and markers. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
+#include "cterm_igs_fonts.h"
 #include "cterm_igs_patterns.h"
 #include "cterm_igs_trig.h"
 #include "cterm.h"
@@ -466,6 +467,179 @@ segment(struct raster *raster, struct point first, struct point last, bool force
 	if ((force_clip || raster->igs->clipping) && !clip_segment(raster->igs, &first, &last))
 		return;
 	pattern_segment(raster, first, last, raster->last_line);
+}
+
+/* Canonical glyph masks are decoded at import. Geometry/effects use byte
+ * masks; only stipple and underline patterns retain their native bit words. */
+enum { TEXT_SIDE_MAX = 36 };
+struct text_mask { unsigned width, height; uint8_t pixels[TEXT_SIDE_MAX][TEXT_SIDE_MAX]; };
+
+static void
+text_skew(int *shifts, unsigned width, unsigned source_dot, unsigned destination_dot,
+    uint16_t mask, unsigned height)
+{
+	unsigned end = destination_dot+width;
+	bool multi = end > 16 && (end/16-1 != 0 || source_dot+width >= 32 || width > 16);
+	int shift = 0;
+	for (unsigned row = 0; row < height; ++row) {
+		if (!multi && (mask & 0x8000)) ++shift;
+		shifts[height-1-row] = shift;
+		if (multi && !(mask & 0x8000)) ++shift;
+		mask = (uint16_t)((unsigned)mask << 1 | mask >> 15);
+	}
+}
+
+static void
+text_glyph(struct raster *raster, const struct cterm_igs_font *font,
+    unsigned style, unsigned angle, uint8_t code, int x, int y)
+{
+	unsigned factor = font->doubled ? 2 : 1;
+	unsigned width = font->width*factor, height = font->height*factor;
+	unsigned weight = style & 1 ? (unsigned)font->thicken : 0;
+	unsigned offsets = style & 4 ? (unsigned)(font->left+font->right) : 0;
+	unsigned outline = (style & 16) != 0;
+	unsigned estimated_width = width+offsets+2*outline, estimated_height = height+2*outline;
+	if (angle == 900) { y -= (int)estimated_width; unsigned swap = estimated_width; estimated_width = estimated_height; estimated_height = swap; }
+	else if (angle == 1800) x -= (int)estimated_width;
+	else if (angle != 0) { unsigned swap = estimated_width; estimated_width = estimated_height; estimated_height = swap; }
+	const struct cterm_igs *igs = raster->igs;
+	int xmin = INT16_MIN, ymin = INT16_MIN, xmax = INT16_MAX, ymax = INT16_MAX;
+	if (igs->clipping) { xmin = igs->clip_x1; ymin = igs->clip_y1; xmax = igs->clip_x2; ymax = igs->clip_y2; }
+	if (xmin > xmax || ymin > ymax || x > xmax || y > ymax
+	    || x+(int)estimated_width <= xmin || y+(int)estimated_height <= ymin)
+		return;
+	bool partial = x < xmin || y < ymin || x+(int)estimated_width-1 > xmax || y+(int)estimated_height-1 > ymax;
+	bool pre = (style & 21) && (angle != 0 || outline || ((style & 4) && partial));
+	struct text_mask base = {.width = width, .height = height}, stage, shell;
+	const uint8_t *glyph = font->pixels+(size_t)code*font->width*font->height;
+	for (unsigned row = 0; row < height; ++row) for (unsigned col = 0; col < width; ++col)
+		base.pixels[row][col] = glyph[(row/factor)*font->width+col/factor];
+	struct text_mask *image = &base;
+	unsigned source_dot = font->doubled ? 0 : ((unsigned)code*font->width)%16;
+	if (pre) {
+		stage = (struct text_mask){.width = width+weight+offsets+2*outline, .height = height+2*outline};
+		int shifts[TEXT_SIDE_MAX] = {0};
+		if (style & 4) text_skew(shifts,width+weight,source_dot,outline,font->skew,height);
+		for (unsigned row = 0; row < height; ++row) for (unsigned col = 0; col < width+weight; ++col) {
+			bool ink = false;
+			for (unsigned n = 0; n <= weight; ++n)
+				if (col >= n && col-n < width && base.pixels[row][col-n]) ink = true;
+			unsigned at = outline+(unsigned)shifts[row]+col;
+			if (at < stage.width) stage.pixels[outline+row][at] = ink;
+		}
+		image = &stage;
+		if (outline) {
+			shell = (struct text_mask){.width = stage.width, .height = stage.height};
+			for (unsigned row = 0; row < stage.height; ++row) for (unsigned col = 0; col < stage.width; ++col) {
+				if (stage.pixels[row][col]) continue;
+				for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) {
+					int a = (int)row+dy, b = (int)col+dx;
+					if (a >= 0 && a < (int)stage.height && b >= 0 && b < (int)stage.width && stage.pixels[a][b]) shell.pixels[row][col] = 1;
+				}
+			}
+			image = &shell;
+		}
+	}
+	if (angle != 0) {
+		struct text_mask *rotated = image == &base ? &stage : &base;
+		*rotated = (struct text_mask){.width = angle == 1800 ? image->width : image->height,
+		    .height = angle == 1800 ? image->height : image->width};
+		for (unsigned row = 0; row < image->height; ++row) for (unsigned col = 0; col < image->width; ++col) {
+			unsigned a = angle == 900 ? image->width-1-col : angle == 1800 ? image->height-1-row : col;
+			unsigned b = angle == 900 ? row : angle == 1800 ? image->width-1-col : image->height-1-row;
+			rotated->pixels[a][b] = image->pixels[row][col];
+		}
+		image = rotated;
+	}
+	int left = x < xmin ? xmin : x, top = y < ymin ? ymin : y;
+	int right = x+(int)image->width-1, bottom = y+(int)image->height-1;
+	if (right > xmax) right = xmax;
+	if (bottom > ymax) bottom = ymax;
+	if (left > right || top > bottom) return;
+	unsigned visible = (unsigned)(right-left+1), rows = (unsigned)(bottom-top+1);
+	unsigned sx = (unsigned)(left-x), sy = (unsigned)(top-y);
+	int shifts[TEXT_SIDE_MAX] = {0};
+	if ((style & 4) && !pre) text_skew(shifts,visible,(source_dot+sx)%16,(unsigned)left & 15,font->skew,rows);
+	for (unsigned row = 0; row < rows; ++row) {
+		unsigned rotation = (rows-1-row)%16;
+		uint16_t light = rotation == 0 ? font->lighten : (uint16_t)((unsigned)font->lighten << rotation | font->lighten >> (16-rotation));
+		for (unsigned col = 0; col < visible; ++col) {
+			bool ink = false;
+			if (pre || angle != 0) ink = image->pixels[sy+row][sx+col] != 0;
+			else for (unsigned n = 0; n <= weight; ++n)
+				if (col >= n && (int)(col-n) < (int)visible-(int)weight && sx+col-n < image->width && image->pixels[sy+row][sx+col-n]) ink = true;
+			int px = left+shifts[row]+(int)col, py = top+(int)row;
+			if (style & 2) ink = ink && (light & (0x8000u >> ((unsigned)px & 15)));
+			plot(raster,(struct point){px,py},ink);
+		}
+	}
+}
+
+int
+cterm_igs_graphic_text(struct cterm_igs *igs, int x, int y, const uint8_t *bytes, size_t size)
+{
+	if (size == 0) return 0;
+	if (bytes == NULL || size > 128) return IO_ERROR_INVALID_ARGUMENT;
+	const struct cterm_igs_attributes *a = &igs->attributes;
+	if (a->text_face != 1) return IO_ERROR_NOT_SUPPORTED;
+	int angle = (a->text_rotation%3600+3600)%3600;
+	if (angle%900 != 0 || a->text_align_h < 0 || a->text_align_h > 2 || a->text_align_v < 0 || a->text_align_v > 5
+	    || a->writing_mode < 1 || a->writing_mode > 4) return IO_ERROR_INVALID_ARGUMENT;
+	const struct cterm_igs_font *font = cterm_igs_font_for_points(a->text_points);
+	unsigned style = (unsigned)a->text_effects & 31;
+	int outline = (style & 16) != 0, left = style & 4 ? font->left : 0, right = style & 4 ? font->right : 0;
+	int advance = font->cell_width+2*outline;
+	int width = (int)size*advance+left+right;
+	int delh = a->text_align_h == 1 ? width/2-outline : a->text_align_h == 2 ? width-2*outline : 0;
+	int delv;
+	switch (a->text_align_v) {
+	case 0: delv = font->top; delh += left; break;
+	case 1: delv = font->top-font->half; delh += font->half*right/font->top; break;
+	case 2: delv = font->top-font->ascent; delh += font->ascent*right/font->top; break;
+	case 3: delv = font->top+font->bottom; break;
+	case 4: delv = font->top+font->descent; delh += font->descent*left/font->bottom; break;
+	default: delv = 0; delh += left+right; break;
+	}
+	struct point destination;
+	switch (angle) {
+	case 0: destination = (struct point){x-delh-outline,y-delv-outline}; break;
+	case 900: destination = (struct point){x-delv-outline,y+delh+outline+1}; break;
+	case 1800: destination = (struct point){x+delh+outline+1,y-(font->top+font->bottom-delv)-outline}; break;
+	default: destination = (struct point){x-(font->top+font->bottom-delv)-outline,y-delh-outline}; break;
+	}
+	int ulin = font->bottom <= font->underline ? (font->doubled ? -1 : 0) : 1;
+	struct point start, step;
+	switch (angle) {
+	case 0: start = (struct point){destination.x,destination.y+font->top+font->underline+ulin}; step = (struct point){0,1}; break;
+	case 900: start = (struct point){destination.x+font->top+font->underline+ulin,destination.y}; step = (struct point){1,0}; break;
+	case 1800: start = (struct point){destination.x,destination.y+font->bottom-(font->underline+ulin)}; step = (struct point){0,-1}; break;
+	default: start = (struct point){destination.x+font->bottom-(font->underline+ulin),destination.y}; step = (struct point){-1,0}; break;
+	}
+	unsigned drawable = (unsigned)igs->terminal->height*(igs->resolution == 2 ? 16u : 8u);
+	struct raster raster = {.igs = igs, .mode = (unsigned)a->writing_mode,
+	    .foreground = cterm_igs_physical_pen(igs,a->text_pen), .plane_mask = cterm_igs_plane_mask(igs->resolution),
+	    .last_line = igs->last_line, .area = {0,0,igs->width,drawable}};
+	int status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
+	if (status != 0) return status;
+	for (size_t i = 0; i < size; ++i) {
+		text_glyph(&raster,font,style,(unsigned)angle,bytes[i],destination.x,destination.y);
+		if (angle == 0) destination.x += advance;
+		else if (angle == 900) destination.y -= advance;
+		else if (angle == 1800) destination.x -= advance;
+		else destination.y += advance;
+	}
+	if (style & 8) {
+		struct point end = angle%1800 == 0 ? (struct point){destination.x,start.y} : (struct point){start.x,destination.y};
+		raster.mask = style & 2 ? font->lighten : 0xffff;
+		for (int row = 0; row < font->underline; ++row) {
+			segment(&raster,start,end,false);
+			start.x += step.x; end.x += step.x; start.y += step.y; end.y += step.y;
+			/* Native underline uses arithmetic shift, then ORs the old bit0. */
+			raster.mask = (uint16_t)((raster.mask >> 1) | (raster.mask & 0x8000) | ((raster.mask & 1u) << 15));
+		}
+	}
+	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
+	return status;
 }
 
 /* Native patterned spans and optional solid border. Pies append a center

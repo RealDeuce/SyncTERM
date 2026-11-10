@@ -1,0 +1,46 @@
+{
+  "generator": "src/tests/igs/generate_text_fonts.py",
+  "source": "generated/tos104-fonts.json",
+  "source_sha256": "0bb73744d31489e78d251b1b81258bbaa098bc48d3e0917555f06d364ef833e4",
+  "rom_sha256": "1d08153c15f3e9c010ce9fdd172e082854f31bc5f35d558843f3ed409e9c52f1",
+  "method": "Decode original packed font forms using their original offset tables; cross-check every decoded row against the independent exported glyph arrays. Six native metric records include exact doubled top/ascent/half rules.",
+  "original_glyphs": 768,
+  "decoded_bytes": 58368,
+  "fonts": [
+    {
+      "symbol": "_f6x6",
+      "name": "6x6 system font",
+      "point": 8,
+      "width": 6,
+      "height": 6,
+      "bitmap_sha256": "cfa58fce72be35ce30645a3d8c9e704fa1b3c616f2a01b5cebd47aa6ed03f7f3",
+      "offsets_sha256": "79ebf58f592ab43fa1d34e8465b12754565d5365817d1109d4a086991ffbd04e",
+      "decoded_sha256": "89eca9c834af35a37eb89ad330abacd1b782c489b418870341326c18d6deb1f1"
+    },
+    {
+      "symbol": "_f8x8",
+      "name": "8x8 system font",
+      "point": 9,
+      "width": 8,
+      "height": 8,
+      "bitmap_sha256": "ac73ca313da9367c08081e0ac4293633ed37a76153335f860cc2f553bac5ba94",
+      "offsets_sha256": "02bf631ca6c0f6c086807fe5dcf3052014a683f826369512930965b437ea648f",
+      "decoded_sha256": "f971a3f5293ea85c2612791adbe58b486d0774fa4783db79b57896e17d785d9a"
+    },
+    {
+      "symbol": "_f8x16",
+      "name": "8x16 system font",
+      "point": 10,
+      "width": 8,
+      "height": 16,
+      "bitmap_sha256": "b2547eda06f66d8ef23a2f4e939141dfc6f1546f05b4096b625bab27e00aac33",
+      "offsets_sha256": "02bf631ca6c0f6c086807fe5dcf3052014a683f826369512930965b437ea648f",
+      "decoded_sha256": "47bbfd96370011752161e3ab5410b969f160f60c3bf3dcbc540bec895f9e53fe"
+    }
+  ],
+  "references": [
+    "04-text-console.adoc",
+    "30-native-font-sizing.adoc",
+    "32-native-physical-font-init.adoc"
+  ]
+}

@@ -60,6 +60,20 @@ type_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+text_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	const struct cterm_igs *igs = context;
+	bool reuse = (igs->loop_mode == 1 && igs->loop_kind != '@')
+	    || (igs->loop_mode == 0 && igs->loop_kind == 'Z');
+	*result = view->count == 2 && !reuse
+	    ? (struct st_graphics_parameter){.kind = ST_GRAPHICS_TEXT, .size = 128,
+	        .terminator = '@', .skip_crlf = true, .empty_is_terminator = true}
+	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	return 0;
+}
+
+static int
 box_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
@@ -139,6 +153,7 @@ static const struct st_graphics_command commands[] = {
 	{'f', unscaled_parameters, 1, counted_points_next},
 	{'F', point_parameters, 2, NULL},
 	{'E', unscaled_parameters, 3, NULL},
+	{'W', point_parameters, 2, text_next},
 	{'Z', point_parameters, 4, NULL},
 	{'B', point_parameters, 4, box_next},
 	{'U', point_parameters, 4, box_next},
@@ -155,7 +170,7 @@ static void
 cancel_input(struct cterm_igs *igs)
 {
 	st_graphics_parser_cancel(igs->parser);
-	igs->input_deadline = igs->wait_deadline = 0;
+	igs->input_deadline = igs->text_deadline = igs->wait_deadline = 0;
 	igs->pending_resolution = -1;
 	igs->pending_palette = 0;
 	igs->reset_pending = false;
@@ -280,6 +295,23 @@ flow(struct cterm_igs *igs, bool on)
 }
 
 static int
+field_entry(void *context, const struct st_graphics_command_view *view,
+    const struct st_graphics_parameter *parameter)
+{
+	struct cterm_igs *igs = context;
+	if (view->code != 'W' || parameter->kind != ST_GRAPHICS_TEXT) return 0;
+	uint64_t now;
+	int status = igs->now_ms(&now);
+	if (status != 0) return status;
+	igs->text_deadline = now > UINT64_MAX-5000 ? UINT64_MAX : now+5000;
+	if (igs->loop_mode == 1 && igs->loop_kind == '@') {
+		if (igs->text_counter < SIZE_MAX) ++igs->text_counter;
+		if (igs->text_counter == 1) return flow(igs,true);
+	}
+	return 0;
+}
+
+static int
 command(void *context, const struct st_graphics_command_view *view)
 {
 	struct cterm_igs *igs = context;
@@ -289,6 +321,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	if (view->count > sizeof(values) / sizeof(*values))
 		return IO_ERROR_PROTOCOL;
 	for (size_t i = 0; i < view->count; ++i) {
+		if (view->arguments[i].kind != ST_GRAPHICS_NUMBER) { values[i] = 0; continue; }
 		int status = cterm_igs_argument_value(igs, &view->arguments[i], &values[i]);
 		if (status != 0)
 			return status;
@@ -303,6 +336,20 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
 	case 'E': cterm_igs_set_text(igs, values[0], values[1], values[2]); return 0;
+	case 'W': {
+		igs->text_deadline = 0;
+		if (view->count == 3) {
+			const struct st_graphics_argument *text = &view->arguments[2];
+			if (text->kind != ST_GRAPHICS_TEXT || text->size > 128) return IO_ERROR_PROTOCOL;
+			memcpy(igs->shared_text,text->bytes,text->size);
+			igs->shared_text[text->size] = 0; igs->shared_text_size = text->size;
+		} else if (view->count != 2) return IO_ERROR_PROTOCOL;
+		if (igs->loop_mode == 0 && igs->loop_kind == 'Z') igs->loop_kind = ' ';
+		const uint8_t *nul = memchr(igs->shared_text,0,igs->shared_text_size);
+		size_t visible = nul == NULL ? igs->shared_text_size : (size_t)(nul-igs->shared_text);
+		return cterm_igs_graphic_text(igs,values[0],values[1],igs->shared_text,visible);
+	}
+
 	case 'P': return cterm_igs_marker(igs, values[0], values[1]);
 	case 'L': return cterm_igs_line(igs, values[0], values[1], values[2], values[3]);
 	case 'Z': return cterm_igs_rectangle(igs, values[0], values[1], values[2], values[3]);
@@ -399,7 +446,7 @@ unknown(void *context, uint8_t code)
 static struct st_graphics_parser_sink
 sink(struct cterm_igs *igs)
 {
-	return (struct st_graphics_parser_sink){igs, text, boundary, command, unknown};
+	return (struct st_graphics_parser_sink){.context = igs, .text = text, .boundary = boundary, .command = command, .unknown = unknown, .field = field_entry};
 }
 
 int
@@ -498,6 +545,15 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 		return IO_ERROR_BUSY;
 	if (cterm_igs_paused(igs))
 		return 0;
+	if (igs->text_deadline != 0) {
+		uint64_t now;
+		status = igs->now_ms(&now);
+		if (status != 0) return status;
+		if (now >= igs->text_deadline) {
+			cancel_input(igs); cterm_render_beep(igs->terminal);
+			cterm_log(igs->terminal, ST_CTERM_LOG_WARNING, "IGS text input timed out");
+		}
+	}
 	do {
 		size_t consumed = 0;
 		struct st_graphics_parser_sink callbacks = sink(igs);
@@ -521,7 +577,11 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 			igs->input_deadline = now > UINT64_MAX - 5000 ? UINT64_MAX : now + 5000;
 	}
 	else
-		igs->input_deadline = 0;
+		igs->input_deadline = igs->text_deadline = 0;
+	/* Text entry already established this absolute deadline, even if the
+	 * later progress-clock read failed. Keep polling it without more input. */
+	if (igs->text_deadline != 0)
+		igs->input_deadline = igs->text_deadline;
 	return status;
 }
 
@@ -547,7 +607,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 		if (status == IO_ERROR_INTERRUPTED)
 			status = 0;
 	}
-	igs->input_deadline = 0;
+	igs->input_deadline = igs->text_deadline = 0;
 	return status;
 }
 
@@ -582,7 +642,9 @@ cterm_igs_poll(struct cterm_igs *igs)
 		return 0;
 	int status = igs->now_ms(&now);
 	if (status == 0 && now >= igs->input_deadline) {
+		bool text_timeout = igs->text_deadline != 0;
 		cancel_input(igs);
+		if (text_timeout) cterm_render_beep(igs->terminal);
 		cterm_log(igs->terminal, ST_CTERM_LOG_WARNING, "IGS input timed out");
 	}
 	return status;

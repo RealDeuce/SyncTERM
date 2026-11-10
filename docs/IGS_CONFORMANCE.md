@@ -30,7 +30,7 @@ serial XOFF/XON around drawing.
 `F` adds seed-colour flood fill with native ordered runs, stored bounds and
 independent blink phases through the indexed raster writer.
 `E` selects graphical text effects, canonical point size and rotation; `W`
-graphical glyph rendering remains pending.
+renders original system glyphs with software effects, rotations and underline.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1176,7 +1176,60 @@ pixels/phases/palette/cursor/other graphics state/RGB. I1 preservation, I0/I2
 restoration, following D, no replies and partial disconnect/fresh reconnect
 are checked too. Expectations come from literal source data and arithmetic,
 not SyncTERM output. These establish E state and console retention; W glyph
-pixels and graphical text effects remain pending. References:15/29/30/139/144.
+pixels and graphical text effects are covered below. References:15/29/30/139/144.
+
+### W: graphical text
+
+`W` acquires two typed X/Y operands and an opaque128-byte text window.
+CR/LF are skipped; @ terminates, empty @ is literal, and a trailing @ after
+128 bytes belongs to subsequent input. Embedded NUL stays stored but ends
+visible text. ANSI/UTF-8/G# bytes are glyph data. Ordinary W sends no reply,
+flow or wait. Loop text reuse and first-@-text XON are supported with native
+guards; tests supply the context until containing loop commands are complete.
+
+An optional synchronous shared-parser field callback starts acquisition once,
+before payload. IGS uses an absolute local five-second deadline, with no
+extension from progress. Partial/invalid/expired input is discarded instead
+of rendering stale tail bytes. Successful text survives I/R; reset/reconnect
+clears it. The loop counter saturates at host capacity instead of native word
+wrap. Timeout uses the existing beep request; headless tests disable audio.
+
+The three original TOS fonts supply768 decoded source glyphs and six source/
+exact-double metric records shared with E. Import cross-checks packed forms,
+offsets and independent row exports; provenance pins ROM/font/mask hashes.
+A bounded decoded-mask renderer implements native thickening, skew, outline,
+rotation, clipping and light phases, composing both indexed blink phases.
+Underline reuses the segment raster with native mask/LastLine behavior.
+W preserves text/line/fill attributes, Drawto/LastLine, palette/banks/math and
+seeds beyond normal operand evaluation. Safe periodic angles replace foreign
+stale/escaped RAM; host/status writes remain bounded. There is no planar
+screen, foreign scratch-memory model, arbitrary loaded-font API or hardware
+clock requirement.
+
+`cterm_igs_text` checks22,554 independent complete dual-phase native frames:
+32 effect combinations, six sizes, quadrants, writing modes, all ST depths,
+clip/corner/inverted/disabled cases, all768 source glyphs, all18 alignments
+and corrected periodic angles. Separate font-array and line-bit oracles
+construct expectations without SyncTERM output; ordinary tests use checked-in
+assets only. Literal clip-before-bold/glyph rows, NUL/CRLF/empty/limit/opaque
+payloads, every focused split/bytewise and once-only RNG, reuse/XON/reset,
+absolute timeout/EOF/clock failure/error, off-screen advance, coordinates,
+status and font/window lifetime add focused coverage.
+
+`syncterm_igs_text` has186 independent full-scene expectations, including24
+console-cell replacements after graphics. Coherent captures check glyph
+interactions, six sizes, combined effects/rotations/modes, raw/boundary text,
+indexed phases/cells/cursor/palette/state/RGB, a following D, partial disconnect and fresh
+reconnect in all ST modes, Atari ST/CP437/UTF-8 and status choices. Physical
+audio is disabled. References:15/30/32–38/43/44/139/140/144. Full containing
+loop commands, other commands/selectors and final acceptance remain pending.
+
+Verification: native FreeBSD /usr/bin/cc Release configure/full builds passed
+without warnings. All91 selected terminal/graphics/Wren/application regressions
+passed. An additional clock-error test reproduced a lost poll deadline after
+text entry; after correction, all three affected parser/native-W/application-W
+suites passed again, including the full matrix, scenes and following-D checks.
+The ledger now has27 completed entries; X and final acceptance remain unfinished.
 
 ## Deliberate corrections
 

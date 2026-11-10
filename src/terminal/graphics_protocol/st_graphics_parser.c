@@ -238,6 +238,10 @@ advance(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink)
 		p->digits = 0;
 		p->number_invalid = false;
 		p->operand = (struct st_graphics_operand){0};
+		if (sink->field != NULL) {
+			status = synchronous_status(sink->field(sink->context, &p->view, &p->parameter));
+			if (status != 0) return status;
+		}
 		if (parameter.kind == ST_GRAPHICS_BYTES && parameter.size == 0) {
 			append_field(p);
 			continue;

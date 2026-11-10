@@ -45,7 +45,10 @@ struct cterm_igs {
 	/* Last-segment ownership survives native polygon/cap compositions. */
 	bool last_line;
 	/* Serial flow helpers read their own gate once and count/byte per send. */
-	int flow_mode, loop_mode;
+	int flow_mode, loop_mode, loop_kind;
+	size_t text_counter;
+	uint8_t shared_text[129];
+	size_t shared_text_size;
 	uint8_t flow_on, flow_off;
 	int flow_on_count, flow_off_count;
 	int memory_route, double_step, marker_pen_cache;
@@ -60,7 +63,7 @@ struct cterm_igs {
 	struct st_igs_image *memory[2];
 	/* Local monotonic milliseconds; injectable for deadline tests. */
 	int (*now_ms)(uint64_t *);
-	uint64_t input_deadline;
+	uint64_t input_deadline, text_deadline;
 	unsigned sync_wait_hz;
 	uint64_t wait_deadline;
 	int pending_resolution;
@@ -89,6 +92,7 @@ int cterm_igs_line(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_polyline(struct cterm_igs *, const int *coordinates, size_t count);
 int cterm_igs_polygon(struct cterm_igs *, const int *coordinates, size_t count);
 int cterm_igs_flood(struct cterm_igs *, int x, int y);
+int cterm_igs_graphic_text(struct cterm_igs *, int x, int y, const uint8_t *, size_t);
 int cterm_igs_rectangle(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_box(struct cterm_igs *, int x1, int y1, int x2, int y2, bool rounded);
 int cterm_igs_rounded_outline(struct cterm_igs *, int x1, int y1, int x2, int y2);

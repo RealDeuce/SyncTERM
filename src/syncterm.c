@@ -111,6 +111,9 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 			(void)snprintf(name, sizeof(name), "cterm.igs_user_fill_%u", i);
 			st_console_test_number(app, name, igs->attributes.user_fill[i]);
 		}
+		st_console_test_number(app, "cterm.igs_shared_text_size", (int64_t)igs->shared_text_size);
+		st_console_test_number(app, "cterm.igs_text_counter", (int64_t)igs->text_counter);
+		st_console_test_number(app, "cterm.igs_text_deadline", (int64_t)igs->text_deadline);
 		st_console_test_number(app, "cterm.igs_text_pen", igs->attributes.text_pen);
 		st_console_test_number(app, "cterm.igs_text_effects", igs->attributes.text_effects);
 		st_console_test_number(app, "cterm.igs_text_rotation", igs->attributes.text_rotation);

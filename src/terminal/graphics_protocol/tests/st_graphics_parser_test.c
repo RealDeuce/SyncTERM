@@ -15,7 +15,8 @@ struct capture {
 	uint8_t trace[8192], text[1024], payload[1024], codes[64];
 	size_t size, text_size, payload_size, commands, boundaries, unknown;
 	struct st_graphics_operand operands[128];
-	size_t numbers;
+	size_t numbers, fields;
+	int field_fail;
 	bool suspend;
 	int fail;
 };
@@ -108,7 +109,7 @@ unknown(void *context, uint8_t code)
 static struct st_graphics_parser_sink
 sink(struct capture *c)
 {
-	return (struct st_graphics_parser_sink){c, text, boundary, command, unknown};
+	return (struct st_graphics_parser_sink){.context = c, .text = text, .boundary = boundary, .command = command, .unknown = unknown};
 }
 
 static const struct st_graphics_parameter number[] = {
@@ -423,9 +424,61 @@ alternate_framing(void)
 	return 0;
 }
 
+static int
+field_entry(void *context, const struct st_graphics_command_view *view,
+    const struct st_graphics_parameter *parameter)
+{
+	struct capture *c = context;
+	++c->fields;
+	if (view->code == 'W') {
+		if (view->count > 2 || parameter->kind != (view->count < 2 ? ST_GRAPHICS_NUMBER : ST_GRAPHICS_TEXT))
+			return IO_ERROR_PROTOCOL;
+		if (view->count == 2 && (view->arguments[0].operand.value != 1 || view->arguments[1].operand.value != 2))
+			return IO_ERROR_PROTOCOL;
+	}
+	return parameter->kind == ST_GRAPHICS_TEXT ? c->field_fail : 0;
+}
+
+static int
+field_entries(void)
+{
+	const uint8_t bytes[] = "G#W 1,2,ABC@";
+	for (size_t split = 0; split <= sizeof(bytes); ++split) {
+		st_graphics_parser_t *p = NULL; struct capture c = {0};
+		struct st_graphics_parser_sink s = sink(&c); s.field = field_entry; size_t used;
+		CHECK(create(&p,&igs,16,1024) == 0);
+		if (split == sizeof(bytes)) {
+			for (size_t i = 0; i < sizeof(bytes)-1; ++i)
+				CHECK(st_graphics_parser_feed(p,&s,bytes+i,1,&used) == 0 && used == 1);
+		} else {
+			CHECK(st_graphics_parser_feed(p,&s,bytes,split,&used) == 0 && used == split);
+			CHECK(st_graphics_parser_feed(p,&s,bytes+split,sizeof(bytes)-1-split,&used) == 0 && used == sizeof(bytes)-1-split);
+		}
+		CHECK(c.fields == 3 && c.commands == 1 && c.payload_size == 3 && memcmp(c.payload,"ABC",3) == 0);
+		st_graphics_parser_destroy(p);
+	}
+	st_graphics_parser_t *p = NULL; struct capture c = {0};
+	struct st_graphics_parser_sink s = sink(&c); s.field = field_entry; size_t used;
+	CHECK(create(&p,&igs,16,1024) == 0);
+	CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"G#W 1,2,",8,&used) == 0 && used == 8);
+	CHECK(c.fields == 3 && c.commands == 0); /* Entry precedes payload arrival. */
+	CHECK(st_graphics_parser_feed(p,&s,NULL,0,&used) == 0 && c.fields == 3);
+	st_graphics_parser_cancel(p); memset(&c,0,sizeof(c));
+	CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"G#$ 0:",6,&used) == 0 && c.fields == 2 && c.commands == 1);
+	for (unsigned error = 0; error < 2; ++error) {
+		memset(&c,0,sizeof(c)); c.field_fail = error ? IO_ERROR_IN_PROGRESS : IO_ERROR_OUT_OF_MEMORY;
+		CHECK(st_graphics_parser_feed(p,&s,bytes,sizeof(bytes)-1,&used) == (error ? IO_ERROR_PROTOCOL : IO_ERROR_OUT_OF_MEMORY));
+		CHECK(used == 8 && c.fields == 3 && c.commands == 0 && !st_graphics_parser_in_command(p));
+		c.field_fail = 0;
+		CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"tail",4,&used) == 0 && c.text_size == 4);
+	}
+	st_graphics_parser_destroy(p); return 0;
+}
+
 int
 main(void)
 {
+	CHECK(field_entries() == 0);
 	CHECK(literal_examples() == 0);
 	CHECK(readers() == 0);
 	CHECK(raw_fields() == 0);

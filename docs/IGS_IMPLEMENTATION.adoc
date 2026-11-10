@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F and E commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E and W commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1974,4 +1974,94 @@ five rotations, six source/doubled point/top pairs, original font records and
 reference ROM identity were checked. Superseded planar/clock tests remain
 excluded; X stays in progress. W glyph pixels/effects, other commands/selectors
 and final acceptance remain pending.
-Completion commit will be recorded by the next completed step.
+Completion commit: 24a3d31.
+
+=== W graphical text
+
+W describes two X/Y operands followed by one bounded opaque text field. The
+shared parser now has an optional synchronous field-entry callback: it runs
+once after field/resource validation and before the first byte, including
+zero-byte fields. Dynamic arity remains free of side effects. IGS uses this
+callback for the shared reader's local deadline and first loop-text XON;
+other protocols need no Atari knowledge in their parser descriptions.
+
+The shared window retains up to128 unsigned bytes plus a terminating NUL.
+CR/LF are skipped, @ ends the field, and an empty @ means a literal @ glyph.
+At the128-byte limit the next @ belongs to subsequent input. Embedded NUL
+is retained in the window but ends the visible v_gtext string. Escape, UTF-8
+and G# bytes stay opaque. Ordinary W emits no flow/reply or drawing wait.
+Loop-mode1/non-@ reuses the window; final Z reuse clears the kind. Loop @
+reads new text, increments its counter and sends the configured first XON
+before acquiring payload. Tests set that context directly; containing loop
+commands remain their own steps.
+
+Text acquisition has an absolute local five-second deadline; incoming bytes
+do not extend it. EOF, timeout and malformed input discard incomplete text
+instead of rendering old tail bytes. A successful window survives I/R;
+full reset/reconnect clears it. Timeout requests the existing terminal beep;
+headless fixtures disable physical audio. The host-size counter saturates
+instead of wrapping native16-bit state into repeated first-text handshakes.
+This intentionally fixes overflow and stale-buffer accidents.
+
+Original TOS1.04 packed system fonts are decoded at maintainer import into
+58368 one-byte mask values for768 source glyphs. Their raw forms/offsets and
+independent exported rows are cross-checked. Checked-in provenance records
+ROM/font/offset/decoded hashes. Six source/exact-double metric records serve
+both E selection and W layout, including doubled top/ascent/half rules.
+Ordinary builds/tests need no ROM, historical executable or external tree.
+There is no second screen format or persistent glyph raster cache.
+
+The renderer lays out the canonical face1 string, constructs bounded decoded
+masks for thickening/skew/outline, rotates them by quadrants and applies native
+clipping/light phases through the existing indexed Boolean pixel writer.
+A unified software pixel path covers both native fast and general cases;
+foreign hardware/CPU timing and scratch addresses are not reproduced. Native
+clip-before-bold, monospaced advance, multiword versus short skew phases,
+outline neighborhoods and rotated origin adjustments are retained. Underline
+uses the existing segment clip/raster path, font stipple and arithmetic mask
+shift, including inherited LastLine. W preserves all workstation attributes,
+Drawto/LastLine, palette/patterns/math and seeds beyond normal operand reads.
+Both blink phases are read and published in one operation; host/status bounds
+restrict writes after native geometry. E3600 and negative angles normalize
+periodically instead of using stale origins/uninitialized/escaped RAM.
+
+The independent matrix contains22554 complete dual-phase native frames:
+all32 effects, six source/doubled sizes, four quadrants, four writing modes
+and three depths, plus clip/corner/inverted/disabled-clip cases, all768 source
+glyphs, all18 alignments and safe periodic-angle cases. Expectations use the
+independent original-font array oracle and separate line-bit underline model,
+never SyncTERM output. CRC32/Adler32 pairs cover the32000 native bytes per
+phase. Additional literal glyph/clip-before-bold, raw NUL/CRLF/empty/limit,
+opaque text, every focused split/bytewise/RNG, loop reuse/XON/reset, absolute
+deadline/EOF/error/clock failure, off-screen advance, coordinate/index and
+status/lifetime cases exercise behavior outside the matrix.
+
+The control bitmap suite has186 independently generated full scenes,
+including24 console-cell replacements after graphics. It checks text over
+console glyphs, combined effects, six font variants, rotations/writing modes,
+opaque and boundary payloads, full indexed phases, cells/cursor/palette/state
+and RGB in all ST modes, Atari ST/CP437/UTF-8 and status choices. Partial
+input disconnect, fresh reconnect and a following D check window/font and
+remembered-origin lifetime. Physical
+audio remains disabled. Other commands/selectors and full acceptance remain
+pending; this step does not claim containing loop execution or audio output.
+
+Verification used native FreeBSD /usr/bin/cc with the existing Release CMake
+configuration. cmake -S . -B build and full native builds passed without
+warnings. All91 selected CTest regressions passed in one run: every CTerm
+test, shared parser/images/pixels, bitmap/control backend, term/Wren, all27
+IGS application suites, SkyPix report, graphics scrollback and session modes.
+The additional clock-failure test then reproduced a lost poll deadline after
+successful text-field entry. Preserving that already-established absolute
+deadline fixed it. The final three affected shared-parser/native-W/application-W
+suites passed again, including22554 native dual-phase frames,186 independent
+application scenes and the following-D/reconnect checks. Explicit casts in
+test-only inspection follow the existing signed-number interface.
+
+All63 unique IDs,27 completed entries, references/dependencies/active test
+registrations,22554/186 inventory,24 replacement scenes,768 original glyphs,
+six metric records and pinned ROM/font/oracle/decoded-mask hashes were checked.
+Prior expected raster fixtures are unchanged. Superseded planar/clock gates
+remain excluded; X stays in progress. Other commands/selectors and full
+acceptance remain pending. Completion commit will be recorded by the next
+completed step.

@@ -100,7 +100,7 @@ struct st_graphics_parser_config {
 struct st_graphics_parser_sink {
 	void *context;
 	int (*text)(void *, const uint8_t *, size_t);
-	/* text/boundary/next are synchronous; only command may return IN_PROGRESS.
+	/* text/boundary/field/next are synchronous; only command may return IN_PROGRESS.
 	 * Callbacks must not reenter the parser. A boundary commits pending text
 	 * before acquiring a command. */
 	int (*boundary)(void *);
@@ -108,6 +108,11 @@ struct st_graphics_parser_sink {
 	 * with IO_ERROR_IN_PROGRESS. Accepted commands are never called twice. */
 	int (*command)(void *, const struct st_graphics_command_view *);
 	void (*unknown)(void *, uint8_t code);
+	/* Once per accepted field, before acquiring its first byte (also for
+	 * zero-byte fields). Use for deadlines/handshakes; arity next stays pure.
+	 * The prior-argument view and parameter are borrowed for this call. */
+	int (*field)(void *, const struct st_graphics_command_view *,
+	    const struct st_graphics_parameter *);
 };
 
 typedef struct st_graphics_parser st_graphics_parser_t;

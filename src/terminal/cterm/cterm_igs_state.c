@@ -2,6 +2,7 @@
  * Original contracts: IGS reference 15/16/28/29/31/117/120/123/124/128/129/130. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
+#include "cterm_igs_fonts.h"
 #include "cterm.h"
 #include "cterm_render.h"
 #include "io_error.h"
@@ -240,16 +241,9 @@ cterm_igs_set_text(struct cterm_igs *igs, int effects, int points, int rotation)
 	a->text_rotation = (int)((angle+450)/900*900);
 	if (points < 8) points = 8;
 	if (points > 20) points = 20;
-	/* Canonical face1: three original fonts and their exact doubled forms.
-	 * These are effective font point/top values, not an IGS metric cache. */
-	static const struct { int points, top; } sizes[] = {
-		{8,4}, {9,6}, {10,13}, {16,9}, {18,13}, {20,27},
-	};
-	size_t selected = 0;
-	for (size_t i = 1; i < sizeof(sizes)/sizeof(*sizes); ++i)
-		if (points >= sizes[i].points) selected = i;
-	a->text_points = sizes[selected].points;
-	a->text_height = sizes[selected].top;
+	const struct cterm_igs_font *font = cterm_igs_font_for_points(points);
+	a->text_points = font->points;
+	a->text_height = font->top;
 	a->text_point_mode = true;
 }
 
@@ -400,6 +394,8 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	memset(igs->math, 0, sizeof(igs->math));
 	igs->draw_x = igs->draw_y = 0;
 	igs->draw_start_x = igs->draw_start_y = 0;
+	memset(igs->shared_text,0,sizeof(igs->shared_text));
+	igs->shared_text_size = 0; igs->text_counter = 0; igs->loop_kind = 0; igs->text_deadline = 0;
 	igs->last_line = true;
 	igs->flow_mode = 1;
 	igs->loop_mode = 0;
