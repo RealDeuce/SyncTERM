@@ -15,11 +15,13 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L and D commands are implemented and independently tested
-natively and through the control bitmap application backend. Profile/menu/Wren selection
+The I, R, g, M, C, S, H, A, T, P, L and D commands and X10 selector are
+implemented and independently tested natively and through the control bitmap
+application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. The X dispatcher remains pending
-until all extended selectors and their dispatch behavior have passed.
+command, rendering or sound support. X dispatch is in progress, with X10
+implemented; the complete X command remains unfinished until every selector
+and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
 
 == Standalone goal summary
@@ -916,5 +918,75 @@ L regressions passed after sharing the fixture/hash and scene observations.
 All 63 ledger IDs, references, dependencies and active CTest registrations
 were checked; superseded experiments remain excluded. Twelve command entries
 are complete. X selectors, other primitives, loops, sound/input and final
+acceptance remain pending. Completion commit: e85d81d.
+
+=== X dispatch and X10 Drawto positioning
+
+X reads one unscaled selector without clamping. Selector-specific fixed
+descriptors reuse the shared command/parameter types and point data; X10
+adds two coordinates. Dynamic arity uses the same effect-free numeric preview
+as T, while real operand/random evaluation occurs once on completion. An
+out-of-range selector consumes only itself and completes without a store,
+service call or reply. Chaining then follows the common parser contract.
+References: 22/19 and IG221.TXT's X10 and g manual entries.
+
+The X dispatcher remains in progress: only selector 10 is implemented in
+this step. A valid selector 0..15 whose handler is still pending returns
+NOT_SUPPORTED after its selector, leaving following payload unread. This
+explicit development failure avoids presenting missing handlers as native
+no-ops. The X command must not be marked complete until all sixteen selector
+handlers and shared dispatch/loop behavior are finished.
+
+X10 updates only the remembered endpoint. It preserves the start pair,
+raster last-segment state, all attributes, clipping/bounds, g snapshot,
+palette, banks, images, memory controls and console/cursor state. It draws
+nothing, adds no wait or reply, and supplies the origin for the next D.
+Both new values are published after complete validated acquisition; partial
+input, EOF, timeout and reset do not expose intermediate coordinate stores.
+I/R retain the endpoint; full reset/reconnect clear it with the other points.
+
+The binary passes coordinate reader classes 0/1, an off-by-one call-site
+choice that breaks X10's stated equivalence to L/P positioning when g is on.
+IG221.TXT explicitly describes X10 as doing the same positioning without
+drawing, and g as applying to all X/Y coordinates. Under this goal's bug-fix
+policy the port corrects X10 to classes 1/2, reusing the normal X/Y point
+description. Thus normalized 5000,5000 selects the centre in every mode and
+g2 doubles only monochrome Y. This is a deliberate correction from the
+original binary, not a claim that the native reader classes were 1/2.
+Array indices scale before lookup and loaded/random results are not scaled
+again. R/I5 retain g's captured geometry until another g command.
+
+Native cterm_igs_x10 checks literal coordinate tables at all g modes and ST
+resolutions, unchanged indexed phases/palette/attributes and retained start/
+clip/raster state. It covers signed array values, index ordering, unclamped
+invalid selectors, pending-selector rejection/consumption, every focused
+split/bytewise chain, selector/coordinate randomness advancing once,
+incomplete/invalid input, EOF/timeout/reset, I/R/I5 lifetime and R suspension.
+Common headless fixture helpers now serve X10, L and D without importing
+line-vector data into non-raster tests.
+
+Application syncterm_igs_x10 observes coherent native phases, cells, palette,
+cursor, four-coordinate/scaler state and RGB across all ST modes,
+Atari ST/CP437/UTF-8 and status choices. It checks unchanged literal Z scenes,
+I/R lifetime and captured geometry, invalid-selector chaining, a subsequent
+D from the normalized X10 origin, no replies, partial disconnect and fresh
+reconnect. Physical audio is disabled. The remaining X selectors, z, other
+primitives, loops, sound/input and final acceptance remain pending.
+
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and full native CMake builds passed without compiler
+warnings. All 63 selected CTest tests passed in one run, including every
+CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren,
+all IGS application tests, SkyPix report, graphics scrollback and session modes.
+X10's literal/state/input/selector/RNG/lifecycle checks passed. Coherent
+application captures passed all ST modes, Atari ST/CP437/UTF-8 and status
+choices, with exact unchanged scenes and following-D pixels, no replies and
+physical audio disabled. T/L/D regressions passed after sharing the numeric
+preview and headless fixture helpers. All 63 ledger IDs, dependencies,
+reference paths and active CTest registrations were checked; superseded tests
+remain excluded. Concurrent RIP/Wren edits are outside this IGS change.
+Thirteen command/selector entries are complete; X remains in progress.
+The remaining selectors, z, other primitives, loops, sound/input and final
 acceptance remain pending. Completion commit will be recorded by the next
 completed step.

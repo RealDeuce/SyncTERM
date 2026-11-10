@@ -12,6 +12,8 @@ perimeter together. `A` selects fill styles and copies/generates user patterns.
 original requested start/end coordinates.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
+X dispatch is in progress: `X10` sets the next Drawto origin without drawing.
+Its coordinate classes are corrected to normal X/Y scaling as described below.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -604,6 +606,46 @@ four-coordinate state, attributes and RGB across all ST modes,
 Atari ST/CP437/UTF-8 and status choices. No replies and partial-input
 disconnect/reconnect are covered with physical audio disabled. X selectors,
 other primitives, loops and sound remain pending.
+
+### X dispatch and X10: non-drawing Drawto origin
+
+X reads one unscaled selector without clamping. Values outside 0..15 consume
+only that operand, make no store/call/reply and allow normal chaining. Fixed
+selector descriptors reuse the shared command/point descriptions. T and X
+share effect-free arity preview; selector/random values advance once when
+the command completes. Only X10 is implemented so far. Other valid selectors
+return NOT_SUPPORTED after the selector and leave payload unread; those
+handlers and full X dispatch/loop conformance remain pending.
+
+X10 sets only the remembered end pair, preserving the start, attributes,
+clipping/bounds, last-segment ownership, palette, banks, g snapshot, memory
+controls, console/cursor and pixels. It adds no wait or reply and supplies
+the next D origin. Partial/invalid acquisition does not publish intermediate
+positions; EOF, local timeout and reset cancel pending fields. I/R preserve
+the points; full reset/reconnect clear them.
+
+**Deliberate scaling correction:** the original binary reads coordinate
+classes 0/1. The manual describes X10 as equivalent to L/P positioning without
+drawing and g as covering all X/Y coordinates. The port treats the 0/1 pair
+as an off-by-one call-site bug and uses classes 1/2 with the shared X/Y
+description. Normalized 5000,5000 reaches the centre; g2 doubles only mono Y.
+Array indices scale before lookup, and loaded/random values are not rescaled.
+R/I5 retain g's captured resolution until g is reissued. The source's actual
+0/1 behavior remains recorded in reference 19; this correction follows the
+goal's intended-behavior and bug-fix policy.
+
+`cterm_igs_x10` uses literal scalar vectors across every resolution/g mode,
+dual-phase invariance, signed/lookup boundaries, invalid-selector arity,
+pending-selector errors and byte ownership. It tests every focused split/
+bytewise chain, random selectors and coordinates committing once, partial/
+malformed input, EOF/timeout/reset, I/R/I5 lifetime and R suspension. Shared
+fixture extraction retains L/D observation tests without duplicated vectors.
+`syncterm_igs_x10` checks coherent literal scenes, indexed phases, cells,
+palette, cursor, position/scaler state and RGB in all ST modes,
+Atari ST/CP437/UTF-8 and status choices. It includes captured geometry,
+invalid-selector chains, an exact following D, no replies, partial disconnect
+and reconnect with physical audio disabled. Completing X10 does not complete
+the parent X command or its other selectors.
 
 ## Deliberate corrections
 

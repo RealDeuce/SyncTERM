@@ -108,7 +108,9 @@
         "cterm_igs_line",
         "syncterm_igs_line",
         "cterm_igs_drawto",
-        "syncterm_igs_drawto"
+        "syncterm_igs_drawto",
+        "cterm_igs_x10",
+        "syncterm_igs_x10"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -124,7 +126,8 @@
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 55 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T, SkyPix report, graphics scrollback and session modes. T application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio off. Native split/bytewise cases verify conditional arity, random kinds advancing once, and incomplete random-kind input retaining its seed. All 63 command/selector IDs, reference/dependency paths and active CTest registrations checked; superseded tests excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 57 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes. P uses independent rational/literal expectations and coherent scene/cell/palette/state/RGB captures across all ST resolutions, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Native tests cover every shape/size/mode/pen matrix, both blink phases, literal clipping/rounding, foreign-pixel/status protection, split/bytewise input and once-only random operands. All 63 command/selector IDs, references, dependencies and active CTest registrations checked; superseded experiments excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. The broad 59-test run passed 58, including every IGS test, all other CTerm tests, shared parser/images/pixels, bitmap/control backend, term/Wren, SkyPix report, graphics scrollback and session modes. One native SkyPix parser test failed while independent SkyPix edits were in progress in the shared worktree. After that work settled, the final full build and targeted cterm_skypix, cterm_igs_line and syncterm_igs_line rerun all passed. All 59 distinct selected tests have passing verification across these runs. L validates 3321 independent dual-phase full-native-capacity cases plus literal/extreme/status/input/lifecycle checks; coherent application scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. All 63 ledger IDs, dependencies, reference paths, active CTest registrations, 3321/36 vector counts and pinned oracle hashes checked. Unrelated SkyPix changes are excluded from the IGS change.",
-        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 61 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. D replays 3321 independent dual-phase native line cases and tests literal joins, L/P origins, both remembered pairs, every focused split/bytewise input, invalid/partial/renderer-error recovery, R suspension, I/R/I5/reset lifetime, typed/random/extreme/status inputs. Coherent application checks cover 36 source-derived scenes plus literal chains, arrowed-L/visible-P origins, overlays, bottom edges and disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. L and D share fixture/hash helpers and coherent scene observations; L regressions passed after extraction. All 63 command/selector IDs, dependencies, references and active CTest registrations checked; superseded experiments excluded."
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 61 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. D replays 3321 independent dual-phase native line cases and tests literal joins, L/P origins, both remembered pairs, every focused split/bytewise input, invalid/partial/renderer-error recovery, R suspension, I/R/I5/reset lifetime, typed/random/extreme/status inputs. Coherent application checks cover 36 source-derived scenes plus literal chains, arrowed-L/visible-P origins, overlays, bottom edges and disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. L and D share fixture/hash helpers and coherent scene observations; L regressions passed after extraction. All 63 command/selector IDs, dependencies, references and active CTest registrations checked; superseded experiments excluded.",
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. All 63 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, every IGS application test, SkyPix report, graphics scrollback and session modes. X10 has literal X/Y scalar vectors, unchanged dual phases and attributes, signed/array ordering, unclamped invalid-selector arity, pending-selector errors/consumption, every focused split/bytewise input, random selectors and coordinates committing once, incomplete/invalid recovery, R suspension and I/R/I5/reset lifetime. Coherent scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices, captured geometry, exact following D, no replies and disconnect/reconnect with physical audio disabled. T/L/D regressions passed after sharing preview and base-fixture helpers. All 63 ledger IDs, dependencies, reference paths and active CTest registrations checked; X remains in progress and superseded tests excluded. Concurrent RIP/Wren work is excluded from this IGS change."
       ],
       "commit": null,
       "operations": [
@@ -139,7 +142,8 @@
         "T marker/line type, native sizing, custom masks and endpoints with effect-free conditional arity using the existing generic parser",
         "P markers on the authoritative indexed framebuffer with native clipping/solid line rules, ordered XOR endpoints, independent blink phases and Drawto; no planar shadow",
         "L native thin/wide patterns, polygon shafts, cap discs and arrow triangles on the indexed bitmap with ordered XOR and remembered start/end; explicit last-segment ownership",
-        "D reuses the native line renderer from the remembered end, then publishes the requested endpoint to both pairs; original L/P origins, atomic recovery and I/R/reset lifetime"
+        "D reuses the native line renderer from the remembered end, then publishes the requested endpoint to both pairs; original L/P origins, atomic recovery and I/R/reset lifetime",
+        "Partial X dispatch with shared selector/point descriptions, effect-free T/X arity preview, native invalid-selector no-op ownership, and X10 non-drawing origin with documented X/Y scaling correction"
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -219,13 +223,28 @@
         "22-palette-bitmap-x-dispatch.adoc"
       ],
       "order": 0,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
+      "status": "in-progress",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input"
+      ],
+      "operations": [
+        "Read one unscaled selector without clamping; out-of-range words consume no selector payload and perform no store/service/reply before normal chaining",
+        "Reuse shared command/point descriptions for fixed selector payloads and T/X effect-free preview; real selector/random operands commit once",
+        "Selector 10 implemented; pending valid 0..15 handlers return NOT_SUPPORTED after the selector, leaving their payload unread"
+      ],
+      "tests": [
+        "cterm_igs_x10",
+        "syncterm_igs_x10"
+      ],
       "deviations": [],
-      "verification": [],
-      "commit": null
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. All 63 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, every IGS application test, SkyPix report, graphics scrollback and session modes. X10 has literal X/Y scalar vectors, unchanged dual phases and attributes, signed/array ordering, unclamped invalid-selector arity, pending-selector errors/consumption, every focused split/bytewise input, random selectors and coordinates committing once, incomplete/invalid recovery, R suspension and I/R/I5/reset lifetime. Coherent scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices, captured geometry, exact following D, no replies and disconnect/reconnect with physical audio disabled. T/L/D regressions passed after sharing preview and base-fixture helpers. All 63 ledger IDs, dependencies, reference paths and active CTest registrations checked; X remains in progress and superseded tests excluded. Concurrent RIP/Wren work is excluded from this IGS change."
+      ],
+      "commit": null,
+      "limitations": [
+        "Only X10 is implemented. All remaining selector handlers and shared dispatch/loop behavior must pass before marking X complete."
+      ]
     },
     {
       "id": "I",
@@ -691,23 +710,45 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 61 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. D replays 3321 independent dual-phase native line cases and tests literal joins, L/P origins, both remembered pairs, every focused split/bytewise input, invalid/partial/renderer-error recovery, R suspension, I/R/I5/reset lifetime, typed/random/extreme/status inputs. Coherent application checks cover 36 source-derived scenes plus literal chains, arrowed-L/visible-P origins, overlays, bottom edges and disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. L and D share fixture/hash helpers and coherent scene observations; L regressions passed after extraction. All 63 command/selector IDs, dependencies, references and active CTest registrations checked; superseded experiments excluded."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "e85d81d"
     },
     {
       "id": "X10",
       "phase": "lines",
       "references": [
+        "19-extended-math-sweeps.adoc",
+        "22-palette-bitmap-x-dispatch.adoc",
         "15-graphics-commands.adoc",
-        "19-extended-math-sweeps.adoc"
+        "16-state-timing-commands.adoc"
       ],
       "order": 13,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "g",
+        "D"
+      ],
+      "operations": [
+        "Set only the remembered endpoint after two typed coordinates; preserve the start pair, attributes, last-segment state, clip/bounds, palette, banks, g snapshot, images, controls, cursor and pixels",
+        "Correct the binary 0/1 reader classes to normal X/Y classes 1/2, following IG221.TXT L/P-equivalence and all-coordinate g semantics; reuse point-parameter data",
+        "Scale decimal constants/array indices by captured g geometry, cap lookup indices and avoid rescaling loaded/random values; I/R/I5 preserve points and g snapshot, full reset/reconnect clear points",
+        "Atomic complete acquisition, no drawing/replies/waits, and the next D starts from the published endpoint",
+        "Literal scalar and unchanged-phase tests in every mode, dispatch arity/byte ownership, split/bytewise chains, once-only selector/coordinate randomness, invalid/partial/EOF/timeout/reset recovery and R suspension",
+        "Coherent application scenes/state/palette/RGB in all ST modes, Atari ST/CP437/UTF-8 and status choices, captured geometry, following D and disconnect/reconnect"
+      ],
+      "tests": [
+        "cterm_igs_x10",
+        "syncterm_igs_x10"
+      ],
+      "deviations": [
+        "Treat native coordinate reader classes 0/1 as an off-by-one call-site bug: the manual describes X10 as L/P-equivalent positioning without drawing, with g applying to all X/Y coordinates. Use normal X/Y classes 1/2 and record the native behavior separately.",
+        "Publish the endpoint only after complete validated acquisition instead of exposing native intermediate stores; incomplete or invalid commands preserve the prior position."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. All 63 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, every IGS application test, SkyPix report, graphics scrollback and session modes. X10 has literal X/Y scalar vectors, unchanged dual phases and attributes, signed/array ordering, unclamped invalid-selector arity, pending-selector errors/consumption, every focused split/bytewise input, random selectors and coordinates committing once, incomplete/invalid recovery, R suspension and I/R/I5/reset lifetime. Coherent scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices, captured geometry, exact following D, no replies and disconnect/reconnect with physical audio disabled. T/L/D regressions passed after sharing preview and base-fixture helpers. All 63 ledger IDs, dependencies, reference paths and active CTest registrations checked; X remains in progress and superseded tests excluded. Concurrent RIP/Wren work is excluded from this IGS change."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "z",

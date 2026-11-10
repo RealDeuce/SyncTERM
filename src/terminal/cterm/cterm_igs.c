@@ -28,24 +28,55 @@ static const struct st_graphics_parameter point_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_X},
 	{.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_Y},
 };
+/* Extended selectors reuse the same descriptor and parameter data as the
+ * top-level byte grammar. X itself owns the unscaled selector field. */
+static const struct st_graphics_command extended_commands[] = {
+	{10, point_parameters, 2, NULL},
+};
+
+/* Dynamic arity inspects a private numeric-state copy. Real operands,
+ * including a random selector/kind, advance once at execution. */
+static int
+preview_first(void *context, const struct st_graphics_command_view *view, int *value)
+{
+	if (view->count == 0)
+		return IO_ERROR_PROTOCOL;
+	struct cterm_igs preview = *(struct cterm_igs *)context;
+	return cterm_igs_argument_value(&preview, &view->arguments[0], value);
+}
 
 static int
 type_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
 	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
-	if (view->count == 0)
-		return IO_ERROR_PROTOCOL;
 	if (view->count >= 3)
 		return 0;
-	/* The arity query is effect-free. Numeric evaluation only touches this
-	 * private copy; real random/operand state advances once at execution. */
-	struct cterm_igs preview = *(struct cterm_igs *)context;
 	int kind;
-	int status = cterm_igs_argument_value(&preview, &view->arguments[0], &kind);
+	int status = preview_first(context, view, &kind);
 	if (status == 0 && (kind == 1 || kind == 2))
 		*result = unscaled_parameters[0];
 	return status;
+}
+
+static int
+extended_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	int selector;
+	int status = preview_first(context, view, &selector);
+	if (status != 0)
+		return status;
+	for (size_t i = 0; i < sizeof(extended_commands)/sizeof(*extended_commands); ++i) {
+		const struct st_graphics_command *command = &extended_commands[i];
+		if (selector == command->code) {
+			if (view->count-1 < command->count)
+				*result = command->parameters[view->count-1];
+			break;
+		}
+	}
+	return 0;
 }
 
 static const struct st_graphics_command commands[] = {
@@ -61,6 +92,7 @@ static const struct st_graphics_command commands[] = {
 	{'P', point_parameters, 2, NULL},
 	{'L', point_parameters, 4, NULL},
 	{'D', point_parameters, 2, NULL},
+	{'X', unscaled_parameters, 1, extended_next},
 };
 
 static void
@@ -210,6 +242,22 @@ command(void *context, const struct st_graphics_command_view *view)
 		}
 		return status;
 	}
+	case 'X':
+		if (values[0] == 10) {
+			if (view->count != 3)
+				return IO_ERROR_PROTOCOL;
+			/* IG221.TXT's L/P-equivalent positioning uses X/Y scaling;
+			 * correct the binary's off-by-one 0/1 reader classes. */
+			igs->draw_x = values[1]; igs->draw_y = values[2];
+			return 0;
+		}
+		if (values[0] >= 0 && values[0] <= 15) {
+			cterm_log(igs->terminal, ST_CTERM_LOG_WARNING,
+			    "Unsupported IGS X selector %d", values[0]);
+			return IO_ERROR_NOT_SUPPORTED;
+		}
+		/* Out-of-range selectors have native one-argument no-op arity. */
+		return 0;
 	case 'T':
 		if (values[0] < 1 || values[0] > 2)
 			return 0;

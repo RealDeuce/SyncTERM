@@ -54,6 +54,11 @@ origins, chained endpoint visits, both remembered coordinate pairs, typed and
 random operands, errors/cancellation, suspended R, reset and reconnect.
 Coherent application scenes add arrowed-L and visible-P origins, literal
 chains, text overlays and bottom edges in the same mode/encoding/status matrix.
+`X10` adds non-drawing origin selection with intended X/Y scaling (correcting
+the original binary's 0/1 reader classes), retained start/clip/raster state,
+once-only random-selector arity and input/lifecycle checks. Coherent scenes
+also check a following D. X dispatch remains in progress: out-of-range
+selectors are no-ops; pending valid selectors fail without consuming payload.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
