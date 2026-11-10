@@ -51,9 +51,8 @@ def main():
         "CFBundleDisplayName": "SyncTERM",
         "CFBundleIconFile": "SyncTERM.icns",
         "CFBundlePackageType": "APPL",
-        # Legacy updvers.sh maps VERSTR to the short version and strips its
-        # prerelease suffix for the bundle version (e.g. 1.10b -> 1.10).
-        "CFBundleShortVersionString": "2.0a",
+        # Retain the legacy full/numeric split with Unicode display spelling.
+        "CFBundleShortVersionString": "2.0α",
         "CFBundleVersion": "2.0",
         "CFBundleLongVersionString": "2.0α",
         "NSHighResolutionCapable": True,

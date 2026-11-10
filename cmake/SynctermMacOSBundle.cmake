@@ -15,9 +15,9 @@ function(syncterm_macos_bundle target)
 		MACOSX_BUNDLE_BUNDLE_NAME SyncTERM
 		MACOSX_BUNDLE_GUI_IDENTIFIER net.bbsdev.syncterm
 		MACOSX_BUNDLE_ICON_FILE SyncTERM.icns
-		# Match legacy updvers.sh: short version is VERSTR, bundle version
-		# is NUMERIC (the release string without its prerelease suffix).
-		MACOSX_BUNDLE_SHORT_VERSION_STRING 2.0a
+		# Retain the legacy full/numeric version split, using the application's
+		# Unicode prerelease spelling for the short version.
+		MACOSX_BUNDLE_SHORT_VERSION_STRING "2.0α"
 		MACOSX_BUNDLE_BUNDLE_VERSION 2.0
 		MACOSX_BUNDLE_LONG_VERSION_STRING "2.0α"
 		MACOSX_BUNDLE_INFO_STRING "SyncTERM 2.0α — an ANSI-BBS terminal supporting telnet, rlogin, and SSH"
