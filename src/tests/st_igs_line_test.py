@@ -20,12 +20,12 @@ VECTORS = json.loads((Path(__file__).parent / 'igs' / 'line-vectors.json').read_
 END = ((0,52,62),(51,50,53),(61,54,60))
 
 
-def expected_retained_outline(case,resolution):
+def expected_console_replacement(case,resolution):
     # The console writes the complete Z cell after graphics in marked cases.
     # Remove covered native runs, then let the shared literal glyph recipe
     # supply that cell. This changes no observed capture.
-    expected=dict(case,points=((17,23),(37,47)))
-    if case['text_after']:
+    expected=dict(case)
+    if case.get('text_after',False):
         ch=16 if resolution==2 else 8
         runs=[]
         for y,x,count,value in case['runs']:
@@ -36,6 +36,10 @@ def expected_retained_outline(case,resolution):
         expected['runs']=runs
     return expected
 
+
+
+def expected_retained_outline(case,resolution):
+    return dict(expected_console_replacement(case,resolution),points=((17,23),(37,47)))
 
 
 def check(frame, resolution, status, token, scenario, case=None, mode=1, drawto=False):

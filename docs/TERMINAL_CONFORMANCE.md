@@ -98,6 +98,11 @@ curve and line/cap execution. Its 4,659 independent native cases cover both
 radius axes, styles/caps/widths, signed geometry and safe angle handling.
 The shared application recipe checks 96 independent scenes plus glyph/state/
 status/lifecycle interactions throughout the ST mode/encoding/status matrix.
+`V` adds patterned circular pies with native center append, radial closure and
+optional fill-colour perimeter. Its 3,819 independent dual-phase cases cover
+fills/modes/depths, sweep/radius/step boundaries, clipping and safe angles.
+Shared filled-curve captures check 120 independent scenes, text replacement,
+glyph/XOR parity, status protection and lifecycle in every ST mode/encoding.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

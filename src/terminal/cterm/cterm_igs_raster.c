@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 
-enum { CURVE_STEPS_MIN = 32, CURVE_STEPS_MAX = 128 };
+enum { CURVE_STEPS_MIN = 32, CURVE_STEPS_MAX = 128, FILLED_CURVE_POINTS_MAX = CURVE_STEPS_MAX+2 };
 struct point { int x, y; };
 struct marker_component { unsigned count; struct point points[5]; };
 static const struct { unsigned count; struct marker_component components[3]; } markers[] = {
@@ -285,8 +285,8 @@ segment(struct raster *raster, struct point first, struct point last, bool force
 	pattern_segment(raster, first, last, raster->last_line);
 }
 
-/* Native patterned spans and optional solid border. A full circle supplies
- * up to 129 vertices, including its explicit final point. */
+/* Native patterned spans and optional solid border. Pies append a center
+ * after up to 129 curve points, including the explicit final point. */
 static void
 fill_polygon(struct raster *raster, const struct point *points, unsigned count,
     const uint16_t *rows, unsigned row_mask, bool perimeter)
@@ -315,7 +315,7 @@ fill_polygon(struct raster *raster, const struct point *points, unsigned count,
 		first = (int)(raster->area.y+raster->area.height)-1;
 	if (limit < (int)raster->area.y-1) limit = (int)raster->area.y-1;
 	for (int y = first; y > limit; --y) {
-		int intersections[CURVE_STEPS_MAX+1]; unsigned found = 0;
+		int intersections[FILLED_CURVE_POINTS_MAX]; unsigned found = 0;
 		for (unsigned i = 0; i < count; ++i) {
 			struct point a = points[i], b = points[(i+1)%count];
 			if (!((a.y <= y && y < b.y) || (b.y <= y && y < a.y))) continue;
@@ -402,14 +402,16 @@ curve_points(struct point *points, int x, int y, int radius, int yr,
 }
 
 static int
-filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr, int end_angle)
+filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr,
+    int begin, int end, int delta, bool pie)
 {
 	if (curve_rejected(igs,x,y,radius,yr)) return 0;
 	const uint16_t *rows; unsigned row_mask;
 	int status = fill_pattern(igs,&rows,&row_mask);
 	if (status != 0) return status;
-	struct point points[CURVE_STEPS_MAX+1];
-	unsigned count = curve_points(points,x,y,radius,yr,0,end_angle,3600);
+	struct point points[FILLED_CURVE_POINTS_MAX];
+	unsigned count = curve_points(points,x,y,radius,yr,begin,end,delta);
+	if (pie) points[count++] = (struct point){x,y};
 	int left = points[0].x, right = left, top = points[0].y, bottom = top;
 	for (unsigned i = 1; i < count; ++i) {
 		if (points[i].x < left) left = points[i].x;
@@ -441,7 +443,7 @@ int
 cterm_igs_circle(struct cterm_igs *igs, int x, int y, int radius)
 {
 	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
-	return filled_curve(igs,x,y,radius,clip_ratio(radius,xs,372),3600);
+	return filled_curve(igs,x,y,radius,clip_ratio(radius,xs,372),0,3600,3600,false);
 }
 
 int
@@ -449,7 +451,16 @@ cterm_igs_ellipse(struct cterm_igs *igs, int x, int y, int x_radius, int y_radiu
 {
 	/* IGS opens its workstation in raster-coordinate transformation2.
 	 * GDP5's full interior sweep ends with an explicit angle0 point. */
-	return filled_curve(igs,x,y,x_radius,y_radius,0);
+	return filled_curve(igs,x,y,x_radius,y_radius,0,0,3600,false);
+}
+
+int
+cterm_igs_pie(struct cterm_igs *igs, int x, int y, int radius, int begin_degrees, int end_degrees)
+{
+	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
+	int begin = begin_degrees*10, end = end_degrees*10, delta = end-begin;
+	if (delta < 0) delta += 3600;
+	return filled_curve(igs,x,y,radius,clip_ratio(radius,xs,372),begin,end,delta,true);
 }
 
 /* Corners arrive ordered; build native GDP8/9's private, closed 21-point path. */

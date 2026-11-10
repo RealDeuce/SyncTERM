@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K and J commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J and V commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1588,4 +1588,81 @@ CTest registrations, 4659/96 J and 3876/84 K inventories, 24 replacement scenes,
 12 tall scenes, 192 corrected cases and pinned oracle hashes were checked;
 superseded planar/clock tests remain excluded. Twenty-one entries are complete;
 X stays in progress. Other commands/selectors and full acceptance remain pending.
-Completion commit will be recorded by the next completed step.
+Completion commit: 45038f9.
+
+
+=== V circular pies and shared patterned curve closure
+
+V reuses K's X/Y/X prefix and the shared two-unscaled-angle tail. Five operands
+are acquired before execution; random operands advance once each. Native circle
+aspect derives Y radius. The existing integer curve builder emits S+1 points
+with explicit begin/end angles and appends the center as point S+1, producing
+S+2 polygon vertices. Native scanline fill and optional solid fill-colour
+perimeter close through both radial edges. Their traversal order, repeated
+endpoints and XOR ownership are retained. The private fill-point/intersection
+capacity is 130; outline and serial polyline limits remain unchanged.
+References: 15/43/44/46/48/49/131/138.
+
+O/Q/V share filled_curve's signed coarse rejection, fill validation, point
+construction, patterned spans, perimeter and last-line state. Line pen/style/
+width/caps do not participate, even when unusable as line attributes. Rendering
+preserves both Drawto pairs, all attributes, palette, clipping, source banks,
+math arrays and seeds; only numeric evaluation owns random-source progression.
+No reply, wait or flow helper is added. The established wide degree/interpolation
+and periodic-trig correction applies to pies, with the native single negative-
+delta adjustment. Host/status bounds discard writes after native traversal;
+there is no persistent plane backing or foreign timing model.
+
+cterm_igs_pie checks 3819 independent complete native frames in both indexed
+phases. Coverage includes all 39 fill selections, modes/resolutions/perimeters,
+convex/reflex/wrapped/zero/full/multi-turn sweeps, zero/negative/large radii,
+every adaptive step count32..128, coarse versus polygon rejection, inverted
+clips and partially outside unclipped paths. 192 corrected-angle cases use
+common whole-turn shifts into the safe native table domain. Source/active user
+patterns, complete math/bank state, palette, attributes, both positions, seeds
+and last state are checked. Literal cases add all 16 pens, unused invalid line
+attributes, wide extreme radii/coordinates, status protection, typed coordinate/
+unscaled-angle ordering, every focused split/bytewise input, once-only five-
+field randomness, EOF/timeout/error/renderer recovery, reset and I/R/I5.
+
+The independent filled_curve_oracle.py now composes native pie vertices with
+its existing rational spans, whole-plane-word Boolean equations and ordered
+border visits. All 3126 O and 3660 Q native hashes and both 48-scene application
+recipes regenerate unchanged. pie-vectors.json records model/ROM/table
+identities. Ordinary tests use checked-in data and need no historical assets
+or emulator-derived expectations.
+
+O/Q/V share the coherent application recipe with explicit command arity and
+separate independent scene data. V checks 120 scenes, including 24 complete
+console-cell replacements after drawing, across all ST modes, Atari ST/CP437/
+UTF-8 and status choices. Glyph replacement now uses the same geometry-neutral
+expected-result recipe as U/K/J. Literal zero-radius tests distinguish 34 pie
+border visits (even XOR parity) from 33 circle/ellipse visits. Cells, both raw
+phases, palette, state and RGB come from one capture. Bottom/status bounds,
+following D, no replies, partial disconnect and fresh reconnect are checked
+with physical audio disabled. Verification and completion commit follow below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and final full cmake --build build -j1 passed without
+warnings. The literal pie test failed before implementation and passed
+afterward; all six focused O/Q/V native/application suites passed. Concurrent
+console/CI work triggered a full rebuild, so the initial broad attempt was
+interrupted. After that build, a fresh run passed all 81 selected CTest tests,
+including every CTerm test, shared parser/images/pixels, bitmap/control backend,
+term/Wren, all IGS application tests, SkyPix report, graphics scrollback and
+session modes. The concurrent work is separately committed as 3241f64.
+All 3819 independent dual-phase pie cases passed, including 192 corrected-angle
+cases and all fill/mode/depth/perimeter/sweep/radius/step/clip boundaries, plus
+literal pen/ignored-line/extreme/status/ordering/partition/RNG/error/renderer/
+lifecycle checks. The shared oracle regenerated all 3126 O and 3660 Q native
+hashes and both 48-scene recipes unchanged. Coherent captures passed 120 V
+scenes (24 console-cell replacements), even zero-radius pie XOR parity and
+extra bottom/status/following-D/no-reply/disconnect/reconnect checks across
+all ST modes, Atari ST/CP437/UTF-8 and status choices, with audio disabled.
+O/Q/K/J/B/U/L/D/z regressions passed after sharing fill execution and the
+geometry-neutral console replacement recipe. All 63 ledger IDs, references,
+dependencies, active CTest registrations, 3819/120 V inventory, 24 replacement
+scenes, 192 corrected cases, unchanged O/Q data and pinned oracle hashes were
+checked; superseded planar/clock tests remain excluded. Twenty-two entries
+are complete; X stays in progress. Other commands/selectors and full acceptance
+remain pending. Completion commit will be recorded by the next completed step.

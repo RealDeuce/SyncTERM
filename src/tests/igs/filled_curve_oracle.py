@@ -1,4 +1,4 @@
-"""Independent maintainer oracle shared by native filled-circle/ellipse fixtures.
+"""Independent maintainer oracle shared by native filled-curve fixtures.
 
 Uses source-derived reference geometry, rational spans, original pattern words
 and whole-plane-word Boolean equations. It never imports SyncTERM code/output.
@@ -12,11 +12,11 @@ class NativeFilledCurves:
     def __init__(self,reference):
         sys.path.insert(0,str(reference/'tools'))
         from verify_tos104_gdp import closed_curve
-        from verify_tos104_curves import arithmetic
+        from verify_tos104_curves import arithmetic,vertices
         from verify_tos104_polygon import spans
         from verify_tos104_line_clip import projected
         from verify_tos104_lines import locations,bit_rule
-        self.closed_curve=closed_curve;self.arithmetic=arithmetic;self.spans=spans
+        self.closed_curve=closed_curve;self.arithmetic=arithmetic;self.spans=spans;self.vertices=vertices
         self.projected=projected;self.locations=locations;self.bit_rule=bit_rule
         table_source=(reference/'docs/igs/pattern-acceptance-data.adoc').read_text()
         tables=json.JSONDecoder().raw_decode(table_source[table_source.index('{'):])[0]
@@ -32,12 +32,19 @@ class NativeFilledCurves:
         arithmetic=self.arithmetic;closed_curve=self.closed_curve;spans=self.spans
         projected=self.projected;locations=self.locations;bit_rule=self.bit_rule;selections=self.selections
         res=case['resolution'];planes=(4,2,1)[res];width=320 if res==0 else 640;height=400 if res==2 else 200
-        x,y=case['center'];xr=case['radius'];yr=case['radius_y'] if case.get('gdp',4)==5 else arithmetic(xr,(338,169,372)[res],372)['result']
+        x,y=case['center'];xr=case['radius'];yr=case['radius_y'] if case.get('gdp',4) in (5,7) else arithmetic(xr,(338,169,372)[res],372)['result']
         mode=case['mode']-1;_,_,rows=selections[case['selection']]
         words=[0 if phase==2 else (0x5aa5^((i%planes)*0x1357)) if phase==0 else (0xa55a^((i%planes)*0x2468)) for i in range(16000)]
         bounds=case['bounds'] or (0,0,width-1,height-1);clip=bounds if case['clipping'] else None
         if clip and (x+xr<clip[0] or x-xr>clip[2] or y+yr<clip[1] or y-yr>clip[3]):return words,int(case['last'])
-        points=closed_curve(case.get('gdp',4),xr,yr,x,y);last=0
+        gdp=case.get('gdp',4)
+        if gdp in (3,7):
+            begin,end=case['angles']
+            if case.get('corrected',False):
+                turn=(min(begin,end)//360)*360;begin-=turn;end-=turn
+            points=self.vertices(begin*10,end*10,xr,yr,x,y,gdp)[0]
+        else:points=closed_curve(gdp,xr,yr,x,y)
+        last=0
         if clip and (clip[0]>clip[2] or clip[1]>clip[3] or max(py for px,py in points)<clip[1] or min(py for px,py in points)>clip[3]):return words,last
         # Whole-word equations are independent of the renderer's per-pixel plot.
         # Source pattern words are absolute-X anchored in every native word group.

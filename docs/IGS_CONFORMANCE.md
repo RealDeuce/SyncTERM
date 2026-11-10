@@ -23,6 +23,7 @@ rectangles with native built-in/user patterns and no extra perimeter.
 `Q` adds ellipses with independent X/Y radii through the shared filled-curve path.
 `K` adds open circular arcs with line styles, widths, joins, caps and arrowheads.
 `J` adds elliptical arcs with independently supplied X/Y radii through the same path.
+`V` adds patterned circular pies closed through their center with optional perimeter.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -982,6 +983,45 @@ partial disconnect/reconnect cover all ST modes, Atari ST/CP437/UTF-8 and
 status choices. Cells/phases/palette/state/RGB come from one capture, with
 physical audio disabled. References: 15/31/43/44/46/48/49/50/51/138. Other
 commands/selectors and complete acceptance remain pending.
+
+## Circular pies (`V`)
+
+`V` shares K's X/Y/X prefix and the two-unscaled-angle tail. After five-field
+acquisition, native circular aspect and 32–128-step integer tessellation emit
+S+1 arc points, then append the center. The S+2-vertex polygon uses the fill
+pen/pattern/writing mode and optional thin solid perimeter, preserving both
+radial-edge visits and ordered XOR behavior. Fill-point/intersection capacity
+is 130; outline and serial limits stay unchanged. Line attributes are retained
+and ignored. Both Drawto pairs, palette/clipping, banks, arrays and seeds remain
+unchanged by rendering; numeric random operands advance once. No reply/wait/
+flow call is added.
+
+O/Q/V share signed coarse rejection, scanline fill, perimeter and last-state
+transitions. Existing wide geometry, degree/angle arithmetic, periodic trig-only
+correction, native single negative-delta adjustment and post-traversal host/
+status write bounds apply. There are no pre-table ROM reads or overflow-driven
+foreign addresses.
+
+`cterm_igs_pie` checks 3,819 independent dual-phase native frames: all 39 fills,
+all modes/resolutions/perimeters, convex/reflex/wrapped/zero/full/multi-turn
+sweeps, signed/radius/step boundaries, coarse versus polygon rejection, inverted
+clips and outside paths. 192 corrected-angle cases use common turn shifts into
+the safe native domain. Literal checks cover pens, unusable ignored line state,
+extreme sums/radii, status protection, coordinate/array/unscaled-angle ordering,
+focused splits/bytewise input, once-only randomness, invalid/incomplete/renderer
+recovery, I/R/I5 and reset. The [provenance](../src/tests/igs/pie-vectors.json)
+and [generator](../src/tests/igs/generate_pie_vectors.py) reuse the shared
+[independent filled-curve oracle](../src/tests/igs/filled_curve_oracle.py).
+All O/Q native hashes and application recipes regenerate unchanged. Expected
+pixels never come from SyncTERM output, and ordinary tests need no external assets.
+
+`syncterm_igs_pie` shares the O/Q coherent capture recipe. Its 120 independent
+scenes include 24 console-after-graphic replacements; extra glyph overlays,
+even zero-radius pie XOR parity, bottom/status pixels, following D, no replies
+and disconnect/reconnect cover all ST modes, Atari ST/CP437/UTF-8 and status
+choices. Cells/phases/palette/state/RGB use one capture, with physical audio
+disabled. References: 15/43/44/46/48/49/131/138. Other commands/selectors and
+full acceptance remain pending.
 
 ## Deliberate corrections
 

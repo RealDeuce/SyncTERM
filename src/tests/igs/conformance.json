@@ -126,7 +126,9 @@
         "cterm_igs_arc",
         "syncterm_igs_arc",
         "cterm_igs_ellarc",
-        "syncterm_igs_ellarc"
+        "syncterm_igs_ellarc",
+        "cterm_igs_pie",
+        "syncterm_igs_pie"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -151,7 +153,8 @@
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and final full cmake --build build -j1 passed without warnings. The literal circle test failed before implementation and passed afterward. All 73 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. All 3126 independent dual-phase native circle cases passed with retained line/fill/position/palette/array/seed state, plus literal all16 pens, extreme signed radii, status safety, focused partitions/bytewise chains, once-only RNG, EOF/timeout/error/reset, renderer rejection and I/R/I5/suspended R. Coherent captures passed48 independent scenes plus zero-radius glyph overlays, console-cell replacement, normalized/status bottom pixels, following D, no replies and partial disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. B/U/L/D/z regressions passed after sharing integer trigonometry and extending polygon capacity. All 63 IDs, 18 completed entries, references, dependencies, active CTest registrations,3126/48 fixture inventory and92 sine words/SHA256 checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and final full cmake --build build -j1 passed without warnings. The literal ellipse test failed before implementation and passed afterward. All 75 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. All 3660 independent dual-phase ellipse cases and literal pen/extreme/status/partition/RNG/error/renderer/lifecycle checks passed, including Y center/radius g2 conversion and index-before-load semantics. The shared independent oracle regenerated all3126 O native cases and48 O application scenes unchanged; only shared-oracle provenance was added. Coherent application captures passed48 independent Q scenes plus zero-radius glyph overlays, console-cell replacement, bottom/status pixels, following D, no replies and partial disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. O/B/U/L/D/z regressions passed after sharing filled-curve execution and application recipes. All 63 IDs,19 completed entries, references, dependencies, active CTest registrations,3660/48 Q and3126/48 O inventories and shared sine identity checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed. The literal arc test failed before implementation and passed afterward. All 77 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. Following a final signed-angle type/bounded-quadrant cleanup, the final full cmake --build build -j1 passed without warnings and all five affected native arc/circle/ellipse/box/rounded-box tests passed again. All 3876 independent dual-phase arc cases passed, including192 corrected-angle cases derived by common whole-turn shifts into the native positive table domain, plus literal pens/XOR parity/extreme sums/coarse rejection/axis-array-angle ordering/focused partitions/once-only RNG/errors/renderer/lifecycle checks. Coherent captures passed84 independent scenes (24 console-cell replacements) plus glyph overlays, bottom/status pixels, following D, no replies and partial disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. O/Q/B/U/L/D/z regressions passed after sharing curve construction, extending only private vertex capacity and moving the glyph-cell recipe into shared line helpers. All 63 IDs,20 completed entries, references, dependencies, active CTest registrations,3876/84 inventory,24 replacement scenes,192 corrected cases and pinned oracle hashes checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending.",
-        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and final full cmake --build build -j1 passed without warnings. The literal elliptical-arc test failed before implementation and passed afterward. All 79 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. All 4659 independent dual-phase J cases passed, including192 corrected-angle cases, every step count driven by both axes, tall/wide/zero/mixed-sign radii, line styles/caps/odd widths and clipping boundaries; literal pens/parity/extreme/coarse/axis-array-angle ordering/six-field partitions/RNG/errors/renderer/lifecycle checks passed. Shared-oracle extraction regenerated all3876 K native hashes and84 K application scene recipes unchanged, adding only provenance. Coherent captures passed96 independent J scenes (24 console-cell replacements and12 tall ellipses), extra glyph/bottom/status/following-D/no-reply/partial-disconnect/reconnect cases across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. K/Q/O/B/U/L/D/z regressions passed after sharing metadata-driven angle tails and open-curve/capture execution. All 63 IDs,21 completed entries, reference/dependency paths, active CTest registrations,4659/96 J and3876/84 K inventories,24 replacement scenes/12 tall scenes/192 corrected angles and pinned oracle hashes checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending."
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and final full cmake --build build -j1 passed without warnings. The literal elliptical-arc test failed before implementation and passed afterward. All 79 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. All 4659 independent dual-phase J cases passed, including192 corrected-angle cases, every step count driven by both axes, tall/wide/zero/mixed-sign radii, line styles/caps/odd widths and clipping boundaries; literal pens/parity/extreme/coarse/axis-array-angle ordering/six-field partitions/RNG/errors/renderer/lifecycle checks passed. Shared-oracle extraction regenerated all3876 K native hashes and84 K application scene recipes unchanged, adding only provenance. Coherent captures passed96 independent J scenes (24 console-cell replacements and12 tall ellipses), extra glyph/bottom/status/following-D/no-reply/partial-disconnect/reconnect cases across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. K/Q/O/B/U/L/D/z regressions passed after sharing metadata-driven angle tails and open-curve/capture execution. All 63 IDs,21 completed entries, reference/dependency paths, active CTest registrations,4659/96 J and3876/84 K inventories,24 replacement scenes/12 tall scenes/192 corrected angles and pinned oracle hashes checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending.",
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and final full cmake --build build -j1 passed without warnings. The literal pie test failed before implementation and passed afterward. All six focused O/Q/V native/application suites passed. Concurrent console/CI work triggered a full rebuild; the first broad attempt was interrupted, then a fresh run after that build passed all 81 selected CTest tests, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. The concurrent work is separately committed as3241f64. All3819 independent dual-phase pie cases passed, including all39 fills/modes/depths/perimeters, sweep/radius/step boundaries, clip/rejection behavior and192 corrected angles, plus literal pen/ignored-line/extreme/status/typed-order/partition/RNG/error/renderer/lifecycle checks. Shared-oracle extension regenerated all3126 O and3660 Q native hashes and both48-scene recipes unchanged. Coherent captures passed120 independent V scenes including24 console-cell replacements, zero-radius34-edge even XOR parity, bottom/status pixels, following D, no replies and partial disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. O/Q/K/J/B/U/L/D/z regressions passed after sharing filled-curve execution and the geometry-neutral console replacement recipe. All 63 IDs,22 completed entries, reference/dependency paths, active CTest registrations,3819/120 V inventory,24 replacement scenes/192 corrected angles, unchanged O/Q data and pinned oracle hashes checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending."
       ],
       "commit": null,
       "operations": [
@@ -175,7 +178,8 @@
         "O native aspect-corrected circles with adaptive integer curves, shared original sine data and patterned polygon/perimeter on both indexed phases; signed rejection, retained state and safe widened bounds",
         "Q independent X/Y radii through shared O/Q filled-curve execution with explicit native endpoint distinction, Y-class numeric semantics, signed geometry and shared independent fixture/capture recipes",
         "K native circular arc aspect/point construction through shared open line styles/joins/caps/arrows, private129-vertex capacity, unscaled angle metadata and safe periodic angle corrections with independent source-derived frames",
-        "J independent ellipse radii, shared K/J metadata-driven angle-tail and open curve/line/cap execution, both-axis adaptive steps and shared independent arc/capture fixtures"
+        "J independent ellipse radii, shared K/J metadata-driven angle-tail and open curve/line/cap execution, both-axis adaptive steps and shared independent arc/capture fixtures",
+        "V patterned circular pies through shared O/Q/V fill execution with native center append/radial closure, safe angle policy,130-vertex private fill capacity and shared independent geometry/word/capture recipes"
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -1154,23 +1158,55 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and final full cmake --build build -j1 passed without warnings. The literal elliptical-arc test failed before implementation and passed afterward. All 79 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. All 4659 independent dual-phase J cases passed, including192 corrected-angle cases, every step count driven by both axes, tall/wide/zero/mixed-sign radii, line styles/caps/odd widths and clipping boundaries; literal pens/parity/extreme/coarse/axis-array-angle ordering/six-field partitions/RNG/errors/renderer/lifecycle checks passed. Shared-oracle extraction regenerated all3876 K native hashes and84 K application scene recipes unchanged, adding only provenance. Coherent captures passed96 independent J scenes (24 console-cell replacements and12 tall ellipses), extra glyph/bottom/status/following-D/no-reply/partial-disconnect/reconnect cases across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. K/Q/O/B/U/L/D/z regressions passed after sharing metadata-driven angle tails and open-curve/capture execution. All 63 IDs,21 completed entries, reference/dependency paths, active CTest registrations,4659/96 J and3876/84 K inventories,24 replacement scenes/12 tall scenes/192 corrected angles and pinned oracle hashes checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "45038f9"
     },
     {
       "id": "V",
       "phase": "shapes",
       "references": [
         "03-raster.adoc",
-        "15-graphics-commands.adoc"
+        "15-graphics-commands.adoc",
+        "43-native-line-clipping.adoc",
+        "44-native-software-lines.adoc",
+        "46-native-polygon-fill.adoc",
+        "48-native-curve-helpers.adoc",
+        "49-native-gdp-rounded-boxes.adoc",
+        "131-patterns-acceptance.adoc",
+        "138-delivery-curve-callers.adoc"
       ],
       "order": 22,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "g",
+        "M",
+        "C",
+        "A",
+        "O",
+        "K"
+      ],
+      "operations": [
+        "Reuse X/Y/X prefix and shared two-unscaled-angle tail, acquire five operands once and preserve coordinate/index/unscaled-angle ordering with no replies/waits/flow calls",
+        "Use native circular aspect, signed rejection and adaptive32..128-step integer curve construction; append center after S+1 arc points and fill the S+2-vertex polygon with ordered radial closure/perimeter/XOR",
+        "Share O/Q/V patterned spans, fill pen and solid perimeter, ignoring retained line attributes; private fill/intersection capacity130 leaves outline/serial limits unchanged, rendering preserves positions/attributes/palette/clipping/banks/arrays/seeds and numeric random operands advance once",
+        "3819 independent dual-phase native cases cover all39 fill selections/modes/resolutions/perimeters, convex/reflex/wrapped/zero/full/multi-turn sweeps, signed radii/step bounds, clipping/rejection/inverted/outside paths and192 corrected-angle cases",
+        "Literal pens, unusable ignored line attributes, extreme safe radii/sums/status bounds, source-active pattern ownership, full bank/math state, focused partitions/bytewise chains, once-only five-field RNG, errors/EOF/timeout/renderer recovery, reset and I/R/I5/suspended R",
+        "Extend the shared independent filled-curve oracle with native center append; regenerate O3126 and Q3660 native hashes and both48-scene recipes unchanged, with pinned reference provenance and no runtime external assets",
+        "120 independent coherent application scenes include24 console-cell replacements; geometry-neutral glyph recipe shared with U/K/J, zero-radius34-edge even XOR parity, bottom/status pixels, following D, no replies and partial disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with audio off"
+      ],
+      "tests": [
+        "cterm_igs_pie",
+        "syncterm_igs_pie"
+      ],
+      "deviations": [
+        "Reuse safe wide degree/interpolation arithmetic and periodic trig-only reduction instead of native angle wrap/pre-table ROM reads, while retaining intended native integer pixels, signed radius/coarse rules and single negative-delta adjustment.",
+        "Reuse atomic acquisition, wide coordinates/radii and post-traversal host/status bounds instead of accidental word wrap/corrupt native addresses/CPU faults. Only private filled-curve capacity grows to130 vertices."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and final full cmake --build build -j1 passed without warnings. The literal pie test failed before implementation and passed afterward. All six focused O/Q/V native/application suites passed. Concurrent console/CI work triggered a full rebuild; the first broad attempt was interrupted, then a fresh run after that build passed all 81 selected CTest tests, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. The concurrent work is separately committed as3241f64. All3819 independent dual-phase pie cases passed, including all39 fills/modes/depths/perimeters, sweep/radius/step boundaries, clip/rejection behavior and192 corrected angles, plus literal pen/ignored-line/extreme/status/typed-order/partition/RNG/error/renderer/lifecycle checks. Shared-oracle extension regenerated all3126 O and3660 Q native hashes and both48-scene recipes unchanged. Coherent captures passed120 independent V scenes including24 console-cell replacements, zero-radius34-edge even XOR parity, bottom/status pixels, following D, no replies and partial disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. O/Q/K/J/B/U/L/D/z regressions passed after sharing filled-curve execution and the geometry-neutral console replacement recipe. All 63 IDs,22 completed entries, reference/dependency paths, active CTest registrations,3819/120 V inventory,24 replacement scenes/192 corrected angles, unchanged O/Q data and pinned oracle hashes checked; X remains in progress and superseded planar/clock tests excluded. Other commands/selectors and full acceptance remain pending."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "Y",
