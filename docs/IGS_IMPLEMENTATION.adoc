@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c and p commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p and m commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2244,3 +2244,59 @@ Native p dropped from 58.87 to 17.82 seconds and application p from 290.59
 to 213.22 seconds. The summed runtime of the same 30 IGS application suites
 dropped from 2927.02 to 2244.56 seconds, about 23 percent. These are local
 measurements from the existing native configuration, not CI timing limits.
+
+=== m repeated console movement
+
+m acquires an unscaled selector and count before its first console output.
+Selectors 0 through 4 emit ESC followed by H, A, B, C or D for home, up, down,
+right or left. Values above 4 select home; negative selectors emit ESC alone.
+Every signed count at or below zero executes once. Positive counts execute
+exactly that many repetitions, including home and the largest signed word.
+An output error stops the remaining repetitions and retains the prefix
+already accepted by the console.
+
+The existing VT52 helper interprets every byte in its current state. Repeated
+home can first print a literal H or complete a pending raw parameter, then
+home on a subsequent pair. ESC-only output can cancel a pending escape or
+leave a new one, according to parity. In normal state, motion stops at the
+viewport edge without scrolling; a generated glyph in a pending-state
+composition can still wrap and scroll. No new console state, replies, flow
+signals, palette/VDI operations or video waits are added.
+
+cterm_igs_move checks 70404 algebraic cases: one exhaustive signed selector
+sweep, small count and origin classes across mode/status/g choices, and
+maximum signed count plus large even parity cases without duplicating large
+repetition loops across settings. Another 1764 complete frames cover all six
+console states and a bottom-row wrapping context, both reverse states,
+selector classes and one/two/three repetitions. The independent p test model
+and source font rows supply both-phase pixel expectations, including status
+protection. Normal moves preserve indexed phases, Drawto, palette and other
+graphics attributes. Split and bytewise chains verify exactly-once random
+acquisition and ordinary text after negative-selector output. EOF, local
+timeout, invalid numeric input, loop context, I/R/reset and error scope are
+also checked.
+
+syncterm_igs_move adds 147 source-defined wire scenes across all ST modes,
+Atari ST/CP437/UTF-8 and status choices. Native cases cover negative array
+values; the application scenes use wire-reachable operands. An X10 fence
+preserves pending console state. One capture checks cursor, colors, pending
+parameters, cells, indexed phases, palette/graphics state and RGB, including
+the existing W glyph moving with scroll. No replies and partial disconnect/
+fresh reconnect are checked with physical audio and MIDI disabled. Shared
+c/p/m readout compares exact phase words without boxing each observed pixel.
+References: 14/66/124/195.
+
+Native FreeBSD /usr/bin/cc Release configure and full builds passed without
+warnings. The split-input test failed before implementation. A fixture row
+stride error and stale logical cursor in native setup were corrected without
+changing expectations. The 13 other targeted checks passed, including the
+55.78-second m application suite, native p/c, application p/c and DEL, the
+shared parser, CTerm, RIP parser, native SkyPix, term, control protocol and
+session modes. The corrected native m test passed the CTest rerun in 8.80
+seconds. The unchanged c/p scene inventories each ran in about 130 seconds
+with the exact word comparison, down from about 209/213 seconds locally.
+
+All 63 unique IDs, 30 completed entries, dependencies/references/registered
+tests, native/application inventories and original font/ROM identities were
+checked. Previous expected raster data is unchanged. X and final acceptance
+remain in progress. Completion commit will be recorded by the next step.

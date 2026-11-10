@@ -34,6 +34,8 @@ renders original system glyphs with software effects, rotations and underline.
 `c` sets physical console colors through persistent native VT52 parsing.
 `p` positions the console using unscaled word operands and the same persistent
 VT52 state, including byte wrapping and pending-sequence composition.
+`m` adds repeated home and directional motion with native signed count and
+selector rules through that same VT52 state.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1343,6 +1345,43 @@ pixel. Shared captures serialize pixel chunks and receive into one buffer.
 All 40 relevant regressions passed afterward. Native p fell from 58.87 to
 17.82 seconds and application p from 290.59 to 213.22 seconds locally; the
 same 30 IGS application suites used about 23 percent less summed time.
+
+### m: repeated console movement
+
+`m` acquires selector and count as unscaled signed words before output. It
+emits ESC H/A/B/C/D for selector 0/1/2/3/4; upper selectors select home and
+negative selectors emit ESC alone. A count at or below zero still executes
+once. Positive counts repeat exactly, including home. Movement at a normal
+viewport edge stops without scrolling. Pending VT52 input can instead
+consume parameters, print a letter, wrap/scroll or leave another escape
+pending. ESC-only repetitions preserve their observable odd/even behavior.
+The first output failure stops the command with its completed prefix intact.
+No new console state, graphics attributes, palette actions, replies, flow
+or timed waits are introduced.
+
+`cterm_igs_move` checks 70,404 algebraic cases with one exhaustive selector
+sweep, count/origin classes through mode/status/g choices and a bounded set
+of maximum-count cases. Another 1,764 complete frames cover the six console
+states and bottom-row wrap, reverse video, signed selector classes and one,
+two and three repetitions. Expected pixels use the shared source-state model
+and original TOS glyphs. Split/bytewise chains, pending ESC followed by
+ordinary text, exactly-once RNG, invalid/incomplete input, local timeout,
+I/R/reset, loop context and output-error recovery are covered.
+
+`syncterm_igs_move` checks 147 wire-reachable scene inputs in all ST modes,
+Atari ST/CP437/UTF-8 and status choices. Coherent captures compare cursor,
+pending parameters, colors, cells, both indexed phases, palette/graphics
+state and RGB, including a pre-existing W glyph through scrolling. The shared
+c/p/m readout compares exact word bytes. X10 fences preserve pending state,
+and partial disconnect and fresh reconnect check recovery. Physical audio
+and MIDI stay disabled. References: 14/66/124/195.
+
+Native FreeBSD /usr/bin/cc Release configure/full builds passed without
+warnings. The test failed before implementation, then all 13 other targeted
+checks and the corrected native m CTest rerun passed. The m application
+suite took 55.78 seconds and the native suite 8.80. Earlier expected scenes
+and references are unchanged. The ledger has 30 complete entries; X and
+final acceptance remain unfinished.
 
 ## Deliberate corrections
 

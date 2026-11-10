@@ -1,0 +1,1487 @@
+{
+  "provenance": {
+    "generator": "src/tests/igs/generate_move_vectors.py",
+    "references": [
+      "14-console-commands.adoc",
+      "66-native-console-pixels.adoc",
+      "195-delivery-console.adoc"
+    ],
+    "method": "Source-defined signed selector/repetition and persistent console-state composition; independent native algebra/state interpreter and application oracle, with literal original TOS font rows. No emulator-generated expectations.",
+    "font_export_sha256": "0bb73744d31489e78d251b1b81258bbaa098bc48d3e0917555f06d364ef833e4",
+    "rom_sha256": "1d08153c15f3e9c010ce9fdd172e082854f31bc5f35d558843f3ed409e9c52f1",
+    "native_normal_cases": 70404,
+    "native_composition_cases": 1764,
+    "application_cases": 147
+  },
+  "fonts": {
+    "8": {
+      "65": [
+        24,
+        60,
+        102,
+        102,
+        126,
+        102,
+        102,
+        0
+      ],
+      "66": [
+        124,
+        102,
+        102,
+        124,
+        102,
+        102,
+        124,
+        0
+      ],
+      "67": [
+        60,
+        102,
+        96,
+        96,
+        96,
+        102,
+        60,
+        0
+      ],
+      "68": [
+        120,
+        108,
+        102,
+        102,
+        102,
+        108,
+        120,
+        0
+      ],
+      "72": [
+        102,
+        102,
+        102,
+        126,
+        102,
+        102,
+        102,
+        0
+      ]
+    },
+    "16": {
+      "65": [
+        0,
+        0,
+        24,
+        60,
+        126,
+        102,
+        102,
+        102,
+        126,
+        126,
+        102,
+        102,
+        102,
+        102,
+        0,
+        0
+      ],
+      "66": [
+        0,
+        0,
+        124,
+        126,
+        102,
+        102,
+        126,
+        124,
+        102,
+        102,
+        102,
+        102,
+        126,
+        124,
+        0,
+        0
+      ],
+      "67": [
+        0,
+        0,
+        60,
+        126,
+        102,
+        102,
+        96,
+        96,
+        96,
+        96,
+        102,
+        102,
+        126,
+        60,
+        0,
+        0
+      ],
+      "68": [
+        0,
+        0,
+        120,
+        124,
+        110,
+        102,
+        102,
+        102,
+        102,
+        102,
+        102,
+        110,
+        124,
+        120,
+        0,
+        0
+      ],
+      "72": [
+        0,
+        0,
+        102,
+        102,
+        102,
+        102,
+        126,
+        126,
+        102,
+        102,
+        102,
+        102,
+        102,
+        102,
+        0,
+        0
+      ]
+    }
+  },
+  "cases": [
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 1,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 2,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 3,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 4,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 5,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 1,
+      "selector": 0,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 1,
+      "selector": 1,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 1,
+      "selector": 2,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 1,
+      "selector": 3,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 1,
+      "selector": 4,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 1,
+      "selector": 5,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 2,
+      "selector": 0,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 2,
+      "selector": 1,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 2,
+      "selector": 2,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 2,
+      "selector": 3,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 2,
+      "selector": 4,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 2,
+      "selector": 5,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 3,
+      "selector": 0,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 3,
+      "selector": 1,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 3,
+      "selector": 2,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 3,
+      "selector": 3,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 3,
+      "selector": 4,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 3,
+      "selector": 5,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 4,
+      "selector": 0,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 4,
+      "selector": 1,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 4,
+      "selector": 2,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 4,
+      "selector": 3,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 4,
+      "selector": 4,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 4,
+      "selector": 5,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 5,
+      "selector": 0,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 5,
+      "selector": 1,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 5,
+      "selector": 2,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 5,
+      "selector": 3,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 5,
+      "selector": 4,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 5,
+      "selector": 5,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 6,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 0,
+      "state": 6,
+      "selector": 1,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 0,
+      "state": 6,
+      "selector": 2,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 0,
+      "state": 6,
+      "selector": 3,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 0,
+      "state": 6,
+      "selector": 4,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 0,
+      "state": 6,
+      "selector": 5,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 1,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 2,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 3,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 4,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 5,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 1,
+      "selector": 0,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 1,
+      "selector": 1,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 1,
+      "selector": 2,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 1,
+      "selector": 3,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 1,
+      "selector": 4,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 1,
+      "selector": 5,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 2,
+      "selector": 0,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 2,
+      "selector": 1,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 2,
+      "selector": 2,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 2,
+      "selector": 3,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 2,
+      "selector": 4,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 2,
+      "selector": 5,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 3,
+      "selector": 0,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 3,
+      "selector": 1,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 3,
+      "selector": 2,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 3,
+      "selector": 3,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 3,
+      "selector": 4,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 3,
+      "selector": 5,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 4,
+      "selector": 0,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 4,
+      "selector": 1,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 4,
+      "selector": 2,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 4,
+      "selector": 3,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 4,
+      "selector": 4,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 4,
+      "selector": 5,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 5,
+      "selector": 0,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 5,
+      "selector": 1,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 5,
+      "selector": 2,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 5,
+      "selector": 3,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 5,
+      "selector": 4,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 5,
+      "selector": 5,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 6,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 1,
+      "state": 6,
+      "selector": 1,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 1,
+      "state": 6,
+      "selector": 2,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 1,
+      "state": 6,
+      "selector": 3,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 1,
+      "state": 6,
+      "selector": 4,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 1,
+      "state": 6,
+      "selector": 5,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 1,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 2,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 3,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 4,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 5,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 1,
+      "selector": 0,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 1,
+      "selector": 1,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 1,
+      "selector": 2,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 1,
+      "selector": 3,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 1,
+      "selector": 4,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 1,
+      "selector": 5,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 2,
+      "selector": 0,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 2,
+      "selector": 1,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 2,
+      "selector": 2,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 2,
+      "selector": 3,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 2,
+      "selector": 4,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 2,
+      "selector": 5,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 3,
+      "selector": 0,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 3,
+      "selector": 1,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 3,
+      "selector": 2,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 3,
+      "selector": 3,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 3,
+      "selector": 4,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 3,
+      "selector": 5,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 4,
+      "selector": 0,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 4,
+      "selector": 1,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 4,
+      "selector": 2,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 4,
+      "selector": 3,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 4,
+      "selector": 4,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 4,
+      "selector": 5,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 5,
+      "selector": 0,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 5,
+      "selector": 1,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 5,
+      "selector": 2,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 5,
+      "selector": 3,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 5,
+      "selector": 4,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 5,
+      "selector": 5,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 6,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 2,
+      "state": 6,
+      "selector": 1,
+      "count": 2,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 2,
+      "state": 6,
+      "selector": 2,
+      "count": 3,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 2,
+      "state": 6,
+      "selector": 3,
+      "count": 0,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 2,
+      "state": 6,
+      "selector": 4,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 2,
+      "state": 6,
+      "selector": 5,
+      "count": 3,
+      "reverse": true,
+      "background": 2,
+      "wrap": true
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 1,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 2,
+      "count": 25,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 3,
+      "count": 80,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 4,
+      "count": 80,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 5,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 0,
+      "state": 0,
+      "selector": 1,
+      "count": 9999,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 1,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 2,
+      "count": 25,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 3,
+      "count": 80,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 4,
+      "count": 80,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 5,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 1,
+      "state": 0,
+      "selector": 1,
+      "count": 9999,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 0,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 1,
+      "count": 0,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 2,
+      "count": 25,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 3,
+      "count": 80,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 4,
+      "count": 80,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 5,
+      "count": 2,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    },
+    {
+      "resolution": 2,
+      "state": 0,
+      "selector": 1,
+      "count": 9999,
+      "reverse": false,
+      "background": 2,
+      "wrap": false
+    }
+  ]
+}

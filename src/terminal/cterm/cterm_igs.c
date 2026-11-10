@@ -145,6 +145,7 @@ static const struct st_graphics_command commands[] = {
 	{'C', unscaled_parameters, 2, NULL},
 	{'c', unscaled_parameters, 2, NULL},
 	{'p', unscaled_parameters, 2, NULL},
+	{'m', unscaled_parameters, 2, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -342,6 +343,20 @@ command(void *context, const struct st_graphics_command_view *view)
 		 * existing console state. Addition and byte wrap precede VT52 clamps. */
 		const uint8_t output[] = {27,'Y',(uint8_t)((unsigned)values[1]+32u),(uint8_t)((unsigned)values[0]+32u)};
 		return cterm_vt52_output(igs->terminal,output,sizeof(output));
+	}
+	case 'm': {
+		static const uint8_t directions[] = {'H','A','B','C','D'};
+		int selector = values[0] > 4 ? 0 : values[0];
+		unsigned count = values[1] > 0 ? (unsigned)values[1] : 1;
+		const uint8_t output[] = {27, selector < 0 ? 0 : directions[selector]};
+		/* Even home repeats: the first pair can be consumed by pending
+		 * parameters. Negative selectors repeat ESC alone. */
+		for (unsigned i = 0; i < count; ++i) {
+			int status = cterm_vt52_output(igs->terminal,output,selector < 0 ? 1 : sizeof(output));
+			if (status != 0)
+				return status;
+		}
+		return 0;
 	}
 	case 'c': {
 		/* Upper selectors select background; negative selectors emit ESC only.

@@ -138,6 +138,10 @@ Its 157,252 word/byte-class cases, 4,452 complete-frame composition cases,
 6,144 byte-role frames and 360 coherent application scenes cover wrapped
 coordinates, pending controls/colors, status boundaries, unchanged graphics,
 scrolling and parser/error/reset/disconnect recovery.
+`m` adds repeated VT52 movement with signed selector/count behavior.
+Its 70,404 algebraic cases, 1,764 complete-frame contexts and 147 application
+scene inputs verify zero/negative counts, maximum repetition, ESC parity,
+pending parameters, edge behavior, both pixel phases and recovery.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

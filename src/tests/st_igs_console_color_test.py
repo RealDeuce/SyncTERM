@@ -7,7 +7,7 @@ import socket
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'/'testing'))
-from syncterm_fixture import fixture,cell_at
+from syncterm_fixture import fixture,cell_at,check_pixel_planes
 from st_igs_resolution_test import initial
 from st_igs_text_attributes_test import check_text
 from st_igs_box_test import check as check_blank
@@ -89,11 +89,7 @@ def check(frame,resolution,status,marker,case,model=None,fonts=None):
     if status:assert all(not cell_at(frame,x,24).flags&8 for x in range(width//8))
     # Capture planes are already copied in logical row order. pixel_top is
     # retained storage-ring metadata, not another offset into this snapshot.
-    start=0
-    for plane in (frame.primary,frame.alternate):
-        observed=list(plane[start:start+len(expected_pixels)])
-        assert observed==expected_pixels,(resolution,status,case,next((i%width,i//width,a,b)
-            for i,(a,b) in enumerate(zip(observed,expected_pixels)) if a!=b))
+    check_pixel_planes(frame,expected_pixels,context=(resolution,status,case))
     for x,y in samples:
         ox=m['destination_x']+(2*x+1)*m['destination_width']//(2*width)
         oy=m['destination_y']+(2*y+1)*m['destination_height']//(2*height)
