@@ -93,6 +93,11 @@ cover native geometry/composition and safe periodic corrections for large or
 negative angles. Coherent scenes include console-cell replacement, glyph
 interaction, retained Drawto state, status protection and lifecycle across
 all ST modes, encodings and status choices.
+`J` adds elliptical arcs with independent X/Y radii and shared K/J angle-tail,
+curve and line/cap execution. Its 4,659 independent native cases cover both
+radius axes, styles/caps/widths, signed geometry and safe angle handling.
+The shared application recipe checks 96 independent scenes plus glyph/state/
+status/lifecycle interactions throughout the ST mode/encoding/status matrix.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

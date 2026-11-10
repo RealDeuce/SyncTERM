@@ -725,11 +725,9 @@ cterm_igs_polyline(struct cterm_igs *igs, const int *coordinates, size_t count)
 	return render_polyline(igs,coordinates,count,true);
 }
 
-int
-cterm_igs_arc(struct cterm_igs *igs, int x, int y, int radius, int begin_degrees, int end_degrees)
+static int
+outline_curve(struct cterm_igs *igs, int x, int y, int radius, int yr, int begin_degrees, int end_degrees)
 {
-	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
-	int yr = clip_ratio(radius,xs,372);
 	if (curve_rejected(igs,x,y,radius,yr)) return 0;
 	/* Use wide degree-to-tenths arithmetic and retain the native single
 	 * negative-delta adjustment. Trig alone reduces periodic arguments. */
@@ -742,6 +740,21 @@ cterm_igs_arc(struct cterm_igs *igs, int x, int y, int radius, int begin_degrees
 		coordinates[2*i] = points[i].x; coordinates[2*i+1] = points[i].y;
 	}
 	return render_polyline(igs,coordinates,count,true);
+}
+
+int
+cterm_igs_arc(struct cterm_igs *igs, int x, int y, int radius, int begin_degrees, int end_degrees)
+{
+	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
+	return outline_curve(igs,x,y,radius,clip_ratio(radius,xs,372),begin_degrees,end_degrees);
+}
+
+int
+cterm_igs_ellarc(struct cterm_igs *igs, int x, int y, int x_radius, int y_radius,
+    int begin_degrees, int end_degrees)
+{
+	/* IGS's raster-coordinate workstation preserves both supplied radii. */
+	return outline_curve(igs,x,y,x_radius,y_radius,begin_degrees,end_degrees);
 }
 
 int

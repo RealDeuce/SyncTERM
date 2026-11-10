@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q and K commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K and J commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1514,5 +1514,78 @@ All 63 ledger IDs, references, dependencies, active CTest registrations,
 3876/84 inventory, 24 replacement scenes, 192 corrected cases and pinned oracle
 hashes were checked; superseded planar/clock tests remain excluded.
 Twenty entries are complete; X stays in progress. Other commands/selectors
-and full acceptance remain pending. Completion commit will be recorded by
-the next completed step.
+and full acceptance remain pending. Completion commit: 23215ba.
+
+
+=== J elliptical arcs and shared two-angle descriptions
+
+J shares the four-field X/Y/X/Y coordinate prefix with Q and the two-unscaled-
+angle tail with K. The tail callback uses operand-axis metadata to finish after
+both angles, without inspecting or evaluating numeric values. Six operands
+are acquired before execution. Y radius follows g's Y conversion; array indices
+are converted before lookup, while loaded values and unscaled angle indices
+retain their original words. Numeric random operands advance once each.
+References: 15/31/43/44/46/48/49/50/51/138.
+
+The actual IGS workstation's raster-coordinate transformation 2 preserves both
+supplied radii. J applies no circular aspect conversion to those radii. K/J
+share outline_curve's signed coarse rejection, native radius-derived step count,
+explicit endpoints, safe periodic angle handling and open line/cap traversal.
+Either ellipse radius can select any of the 97 adaptive step counts 32..128.
+Device pixel aspect still applies to the shared line-width/cap/arrow geometry,
+as it does for ordinary native lines. Both Drawto pairs, attributes, palette,
+clipping, source banks, math arrays and seeds remain unchanged by rendering;
+randomness belongs only to operand evaluation. No reply, wait or flow call is
+added. Established wide-safe geometry and post-traversal host/status bounds,
+private 129-vertex capacity and serial 128-point polyline limit remain.
+
+cterm_igs_ellarc checks 4659 independent complete native frames in both indexed
+phases. It covers all seven line styles, every endpoint pair, native odd widths,
+all writing modes/resolutions, tall/wide/zero/mixed-sign radii, narrow/zero/full/
+reversed/multi-turn sweeps, every step count selected by each axis, clipping,
+coarse rejection, inverted bounds and partially outside unclipped paths.
+The 192 corrected-angle cases use the already declared common-turn-shift oracle
+for safe periodic coordinates. Literal tests cover line pens, zero-sweep XOR
+parity, extreme-coordinate/radius rejection, six-field acquisition, g2 center/
+Y-radius conversion, index-before-load/unscaled-angle order, every focused
+split/bytewise chain, once-only six-field randomness, EOF/timeout/error/renderer
+recovery, I/R/I5/suspended R and reset.
+
+K/J maintainer generators share arc_oracle.py's independent curve, arrow,
+circle-offset, rational-span and Boolean line models. K's existing 3876 native
+frames and 84 application scenes regenerate unchanged, with only shared-oracle
+provenance added. J's ellarc-vectors.json records model/ROM identities. Ordinary
+tests use checked-in data and need no external reference assets; expectations
+never come from SyncTERM output.
+
+Both application suites share st_igs_arc_test.py with explicit K/J wire arity
+and separate independent scene data. J checks 96 independent scenes, including
+24 console-after-graphic replacements and 12 tall-ellipse scenes, across all
+ST modes, Atari ST/CP437/UTF-8 and status choices. One coherent capture supplies
+cells, both indexed phases, palette, state and composed RGB. Additional glyph
+overlays, bottom/status pixels, following D, no replies, partial disconnect and
+fresh reconnect run with physical audio disabled. Verification and completion
+commit follow below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and final full cmake --build build -j1 passed without
+warnings. The literal elliptical-arc test failed before implementation and
+passed afterward. All 79 selected CTest tests passed in one run, including
+every CTerm test, shared parser/images/pixels, bitmap/control backend, term/
+Wren, all IGS application tests, SkyPix report, graphics scrollback and session
+modes. All 4659 independent dual-phase J cases passed, including 192 corrected
+angle cases, tall/wide/zero/mixed-sign radii and every step count driven by
+both axes; literal pen/parity/extreme/coarse/ordering/six-field partition/RNG/
+error/renderer/lifecycle checks passed. The shared independent oracle regenerated
+all 3876 K native hashes and 84 K application scene recipes unchanged, adding
+only shared-oracle provenance. Coherent captures passed 96 independent J scenes
+(24 console-cell replacements and 12 tall ellipses), plus extra glyph/bottom/
+status/following-D/no-reply/disconnect/reconnect checks across all ST modes,
+Atari ST/CP437/UTF-8 and status choices with physical audio disabled. K/Q/O/B/U/
+L/D/z regressions passed after sharing metadata-driven angle tails and open
+curve/capture execution. All 63 ledger IDs, references, dependencies, active
+CTest registrations, 4659/96 J and 3876/84 K inventories, 24 replacement scenes,
+12 tall scenes, 192 corrected cases and pinned oracle hashes were checked;
+superseded planar/clock tests remain excluded. Twenty-one entries are complete;
+X stays in progress. Other commands/selectors and full acceptance remain pending.
+Completion commit will be recorded by the next completed step.

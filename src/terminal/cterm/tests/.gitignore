@@ -11,3 +11,4 @@ data/skypix/*
 !data/skypix/golden-vectors.json
 !data/igs_ellipse_vectors.h
 !data/igs_arc_vectors.h
+!data/igs_ellarc_vectors.h

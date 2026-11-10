@@ -1,6 +1,7 @@
 {
   "provenance": {
     "generator": "src/tests/igs/generate_arc_vectors.py",
+    "shared_oracle": "src/tests/igs/arc_oracle.py",
     "references": [
       "15-graphics-commands.adoc",
       "43-native-line-clipping.adoc",

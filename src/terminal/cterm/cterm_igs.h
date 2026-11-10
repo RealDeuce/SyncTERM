@@ -92,6 +92,7 @@ int cterm_igs_rounded_outline(struct cterm_igs *, int x1, int y1, int x2, int y2
 int cterm_igs_circle(struct cterm_igs *, int x, int y, int radius);
 int cterm_igs_ellipse(struct cterm_igs *, int x, int y, int x_radius, int y_radius);
 int cterm_igs_arc(struct cterm_igs *, int x, int y, int radius, int begin_degrees, int end_degrees);
+int cterm_igs_ellarc(struct cterm_igs *, int x, int y, int x_radius, int y_radius, int begin_degrees, int end_degrees);
 uint32_t cterm_igs_random(struct cterm_igs *);
 /* Apply the descriptor's axis to a decimal constant/index. Lookup and random
  * results are returned as values, without a second coordinate transform. */

@@ -22,6 +22,7 @@ rectangles with native built-in/user patterns and no extra perimeter.
 `O` adds filled circles with native pixel aspect and adaptive integer curves.
 `Q` adds ellipses with independent X/Y radii through the shared filled-curve path.
 `K` adds open circular arcs with line styles, widths, joins, caps and arrowheads.
+`J` adds elliptical arcs with independently supplied X/Y radii through the same path.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -942,6 +943,45 @@ choices use coherent cells/phases/palette/state/RGB with audio disabled. The
 complete glyph-cell replacement recipe is shared with U. References:
 15/43/44/46/48/49/50/51/138. Remaining commands/selectors and full acceptance
 stay pending.
+
+## Elliptical arcs (`J`)
+
+`J` reads center X/Y, independent X/Y radii, and two unscaled degree angles.
+Its coordinate prefix is shared with Q, and its angle-tail callback with K.
+Arity follows operand-axis metadata without evaluating numbers. Y radius follows
+g's Y conversion; loaded array values retain their words after index conversion,
+while angle indices remain unscaled. The IGS workstation opens in transformation 2,
+so the supplied Y radius is preserved without circular aspect conversion.
+Native line width/cap/arrow geometry still uses device pixel metrics.
+
+K/J share signed coarse rejection, 32–128 radius-derived steps, explicit
+endpoints and open thin/wide line styles, joins, caps and arrowheads. Either
+radius can determine subdivision. The established safe periodic angle correction,
+wide geometry and post-traversal host/status bounds apply. Both Drawto pairs,
+attributes, palette/clipping, banks, arrays and seeds stay unchanged by rendering;
+random operands advance once during evaluation. There is no reply/wait/flow call.
+
+`cterm_igs_ellarc` checks 4,659 independent dual-phase native frames covering
+styles/caps/odd widths/modes/depths, tall/wide/zero/mixed-sign radii, sweep and
+step boundaries driven by both axes, clipping/rejection/inverted bounds and
+outside paths. 192 cases cover corrected large/negative angles through common
+whole-turn shifts into the safe native domain. Literal checks add pens, zero-
+sweep XOR parity, extreme sums/rejection, six fields, g2 Y-center/Y-radius
+behavior, array/angle ordering, focused splits/bytewise input, once-only RNG,
+invalid/incomplete/renderer recovery, I/R/I5 and reset. The
+[provenance](../src/tests/igs/ellarc-vectors.json) and
+[generator](../src/tests/igs/generate_ellarc_vectors.py) use the shared
+[independent arc oracle](../src/tests/igs/arc_oracle.py). Extraction regenerates
+K's 3876 native hashes and 84 scene recipes unchanged. Ordinary tests require no
+external assets, and expected pixels never come from SyncTERM output.
+
+`syncterm_igs_ellarc` shares its coherent capture recipe with K. Its 96 independent
+scenes include 24 console-cell replacements and 12 tall-ellipse scenes; extra
+literal glyph overlays, bottom/status pixels, following D, no replies and
+partial disconnect/reconnect cover all ST modes, Atari ST/CP437/UTF-8 and
+status choices. Cells/phases/palette/state/RGB come from one capture, with
+physical audio disabled. References: 15/31/43/44/46/48/49/50/51/138. Other
+commands/selectors and complete acceptance remain pending.
 
 ## Deliberate corrections
 

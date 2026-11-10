@@ -70,12 +70,17 @@ box_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
-circular_arc_next(void *context, const struct st_graphics_command_view *view,
+arc_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
 	(void)context;
-	*result = view->count < 5 ? unscaled_parameters[0]
-	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	/* Both coordinate prefixes are followed by exactly two unscaled angles.
+	 * Use their metadata so the X/Y/X and X/Y/X/Y forms share this tail. */
+	size_t n = view->count;
+	bool complete = n >= 2 && view->arguments[n-1].axis == ST_GRAPHICS_UNSCALED
+	    && view->arguments[n-2].axis == ST_GRAPHICS_UNSCALED;
+	*result = complete ? (struct st_graphics_parameter){.kind = ST_GRAPHICS_END}
+	    : unscaled_parameters[0];
 	return 0;
 }
 
@@ -136,7 +141,8 @@ static const struct st_graphics_command commands[] = {
 	{'U', point_parameters, 4, box_next},
 	{'O', point_parameters, 3, NULL},
 	{'Q', point_parameters, 4, NULL},
-	{'K', point_parameters, 3, circular_arc_next},
+	{'K', point_parameters, 3, arc_next},
+	{'J', point_parameters, 4, arc_next},
 	{'X', unscaled_parameters, 1, extended_next},
 };
 
@@ -297,6 +303,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'O': return cterm_igs_circle(igs,values[0],values[1],values[2]);
 	case 'Q': return cterm_igs_ellipse(igs,values[0],values[1],values[2],values[3]);
 	case 'K': return cterm_igs_arc(igs,values[0],values[1],values[2],values[3],values[4]);
+	case 'J': return cterm_igs_ellarc(igs,values[0],values[1],values[2],values[3],values[4],values[5]);
 	case 'B': return cterm_igs_box(igs, values[0], values[1], values[2], values[3], values[4] != 0);
 	case 'U':
 		if (values[4] < 0) return 0;
