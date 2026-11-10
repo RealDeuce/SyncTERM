@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P and L commands are implemented and independently tested
+The I, R, g, M, C, S, H, A, T, P, L and D commands are implemented and independently tested
 natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
@@ -848,5 +848,73 @@ split/random/lifecycle checks passed. Application captures passed all ST
 modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled.
 All 63 ledger IDs, references, dependencies, active CTest registrations,
 3321/36 vector counts and pinned oracle hashes were checked. Eleven command
-entries are complete; the full remaining goal stays active. Completion commit
-will be recorded by the next completed step.
+entries are complete; the full remaining goal stays active. Completion commit:
+bd6bdd3.
+
+=== D Drawto position and shared line rendering
+
+D consumes the first two entries of the shared point-parameter description,
+using the existing X/Y evaluator for new coordinates. It draws from the
+previous requested endpoint through the same thin/wide line renderer as L.
+The old point remains in pixel coordinates when g or R changes; only the
+new operands are evaluated. After successful drawing, D copies the original
+requested new endpoint to both remembered pairs. Arrow shortening remains
+private to the raster, so a following D still begins at the previous tip.
+P supplies a new Drawto origin without changing the remembered start; L
+supplies its requested end. References: 15/136 and L's native raster chapters.
+
+The caller adds no new raster implementation, timing state, replies or waits.
+Patterns, writing modes, pens, widths, caps, heads, clipping, last-segment
+ownership, independent blink phases and status protection use the tested L
+path. Each D is a separate native polyline invocation. Chained D commands
+retain independent endpoint visits, including repeated XOR toggles at joins.
+Reverse-transparent, clipped and zero-length requests still publish their
+requested endpoints after ordinary completion. Attributes, palette, source
+banks, cursor, scaling and memory controls remain unchanged.
+
+Complete validated acquisition and successful rendering publish both pairs
+atomically, consistent with L's port policy. Incomplete/malformed input preserves
+prior positions and pixels. Renderer failure preserves positions and returns
+its status. The original caller's pre-acquisition/intermediate stores are not
+exposed. EOF, the local header
+timeout and whole reset cancel partial input. I/R preserve remembered points;
+full reset/reconnect clear them. A suspended R leaves following D bytes unread
+until its deadline and geometry change complete.
+
+Native cterm_igs_drawto reuses L's 3321 independent full-capacity line vectors
+with separate all-zero/all-one initial blink phases, covering every style,
+odd width, end pair, mode and depth plus reversals, clipping, degeneracy,
+arrow thresholds and inherited cap state. P or a preceding rejected L
+establishes the origin through real commands. Expected pixels remain the
+pinned source-derived data; no observed L output supplies D expectations.
+Shared fixture/hash helpers keep this observation code common. Literal chained
+pixels verify join ownership. Other checks cover every focused split/bytewise
+input, L/P origin selection, both final pairs, EOF/timeout/invalid acquisition,
+renderer failure, reset, I/R/I5 lifetime, R suspension, g and array ordering,
+once-only random operands and extreme/offscreen/status cases.
+
+Application syncterm_igs_drawto reuses the 36 independent line scenes and adds
+literal D chains, a D following an arrowed L, a visible P as the next origin,
+all-mode console overlays and normalized bottom-edge drawing. Coherent
+observations combine complete phases, cells, palette, cursor, all four
+remembered coordinates, attributes and composed RGB in every ST mode,
+Atari ST/CP437/UTF-8 and status choice. No replies, partial disconnect and
+fresh reconnect are checked with physical audio disabled. Shared loop
+execution, X selectors, remaining primitives, sound/input and final acceptance
+remain pending.
+
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and the full cmake --build build -j4 passed without
+compiler warnings. All 61 selected CTest tests passed in one run: every CTerm
+test, shared parser/images/pixels, bitmap/control backend, term/Wren and all
+IGS application tests, SkyPix report, graphics scrollback and session modes.
+D's 3321 independent dual-phase cases and focused position/input/lifecycle
+checks passed, as did the expanded coherent application matrix in every ST
+mode, Atari ST/CP437/UTF-8 and status choice with physical audio disabled.
+L regressions passed after sharing the fixture/hash and scene observations.
+All 63 ledger IDs, references, dependencies and active CTest registrations
+were checked; superseded experiments remain excluded. Twelve command entries
+are complete. X selectors, other primitives, loops, sound/input and final
+acceptance remain pending. Completion commit will be recorded by the next
+completed step.

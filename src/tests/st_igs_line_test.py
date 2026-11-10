@@ -20,7 +20,7 @@ VECTORS = json.loads((Path(__file__).parent / 'igs' / 'line-vectors.json').read_
 END = ((0,52,62),(51,50,53),(61,54,60))
 
 
-def check(frame, resolution, status, token, scenario, case=None, mode=1):
+def check(frame, resolution, status, token, scenario, case=None, mode=1, drawto=False):
     m, state = frame.metadata, frame.application
     width, height, ch = (320 if resolution == 0 else 640), (400 if resolution == 2 else 200), (16 if resolution == 2 else 8)
     mask = (15,3,1)[resolution]
@@ -70,6 +70,8 @@ def check(frame, resolution, status, token, scenario, case=None, mode=1):
         assert state['cterm.igs_scaling_mode'] == 1
     elif scenario != 'fresh':
         raise AssertionError(scenario)
+    if drawto:
+        positions = positions[2:]+positions[2:]
     assert tuple(state[f'cterm.igs_{name}'] for name in ('draw_start_x','draw_start_y','draw_x','draw_y')) == positions
     assert tuple(state[f'cterm.igs_{name}'] for name in ('line_type','line_width','line_begin','line_end')) == attributes
     assert state['cterm.igs_user_line'] == 0xffff

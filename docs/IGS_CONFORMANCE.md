@@ -10,6 +10,8 @@ perimeter together. `A` selects fill styles and copies/generates user patterns.
 `P` draws the selected marker and updates the remembered Drawto endpoint.
 `L` draws thin/wide lines with patterns, caps and arrowheads, remembering the
 original requested start/end coordinates.
+`D` draws from the remembered end and copies its requested new endpoint to
+both remembered pairs, preserving native Drawto chaining.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -559,6 +561,49 @@ palette, cursor, state and RGB for 36 derived scenes, literal text overlays
 and bottom edges across all ST modes, Atari ST/CP437/UTF-8 and status choices.
 No replies, partial disconnect and reconnect are covered with physical audio
 disabled. `D`, other primitives, loops and sound remain pending.
+
+### D: Drawto chaining and original endpoints
+
+`D` consumes two X/Y operands through the shared point description and calls
+the existing line renderer from the remembered endpoint. Only the new
+coordinates are evaluated by g/array/random handling; old coordinates stay
+in pixels across g/R changes. After successful drawing, both remembered
+pairs equal the requested new endpoint. Native arrow shortening affects only
+private raster points. Thus `L` supplies its original requested tip and `P`
+supplies its centre as the next D origin. Both reverse-transparent and clipped
+requests still update positions after ordinary completion.
+
+Patterns, modes, colours, widths, caps, heads, clipping, last-segment state,
+independent blink phases and host status protection share L's native renderer.
+Each D starts a new polyline invocation; repeated joins retain separate XOR
+visits. Workstation attributes, palette, banks, console cursor, g and memory
+controls are preserved, with no new waits or replies. I/R preserve points;
+whole reset/reconnect clear them. Suspended R processing leaves following
+D input unread until the local wait and geometry update complete.
+
+The port publishes positions only after complete valid input and successful
+rendering, consistent with L's atomic acquisition policy. Partial/invalid
+headers, EOF and local timeout preserve the previous pairs and scene. Renderer
+failure preserves positions and propagates its status. This deliberately
+omits the native caller's early/intermediate position stores. Shared
+loop-context execution remains pending.
+
+`cterm_igs_drawto` replays 3321 independent source-derived line cases through
+D using actual P/rejected-L origins and both initial blink phases. It checks
+full native-capacity hashes and final positions across all styles, odd widths,
+end pairs, modes and depths, including clipping, reversals, degenerate lines,
+arrows and inherited cap state. Expected pixels are the checked-in independent
+data, never observed L rendering. Shared helpers retain one fixture/observation
+implementation. Literal chain pixels, every focused split/bytewise input,
+L/P positions, error/cancellation/reset paths, renderer failure, I/R/I5 lifetime,
+R suspension, g/array/random ordering and extreme/status cases supplement it.
+`syncterm_igs_drawto` checks 36 source-derived scenes plus literal chains,
+arrowed-L/visible-P origins, all-mode text overlays and normalized bottom
+edges. Each capture combines cells, both pixel phases, palette, cursor,
+four-coordinate state, attributes and RGB across all ST modes,
+Atari ST/CP437/UTF-8 and status choices. No replies and partial-input
+disconnect/reconnect are covered with physical audio disabled. X selectors,
+other primitives, loops and sound remain pending.
 
 ## Deliberate corrections
 

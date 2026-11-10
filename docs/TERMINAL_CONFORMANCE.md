@@ -49,6 +49,11 @@ styles, odd widths, end pairs, modes/depths, clipping, reversals, degeneracy
 and inherited cap state. Coherent application scenes verify pixels, colours,
 cells, text overlays, status and lifecycle in the same mode/encoding matrix.
 Ordinary tests use checked-in reference data without ROMs or external assets.
+`D` shares those independent raster expectations while testing original L/P
+origins, chained endpoint visits, both remembered coordinate pairs, typed and
+random operands, errors/cancellation, suspended R, reset and reconnect.
+Coherent application scenes add arrowed-L and visible-P origins, literal
+chains, text overlays and bottom edges in the same mode/encoding/status matrix.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

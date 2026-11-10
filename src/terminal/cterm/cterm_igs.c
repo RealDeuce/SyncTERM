@@ -60,6 +60,7 @@ static const struct st_graphics_command commands[] = {
 	{'T', unscaled_parameters, 1, type_next},
 	{'P', point_parameters, 2, NULL},
 	{'L', point_parameters, 4, NULL},
+	{'D', point_parameters, 2, NULL},
 };
 
 static void
@@ -199,6 +200,16 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
 	case 'P': return cterm_igs_marker(igs, values[0], values[1]);
 	case 'L': return cterm_igs_line(igs, values[0], values[1], values[2], values[3]);
+	case 'D': {
+		int status = cterm_igs_line(igs, igs->draw_x, igs->draw_y, values[0], values[1]);
+		if (status == 0) {
+			/* Native D copies the original endpoint to both remembered
+			 * pairs after drawing; arrow shortening stays raster-private. */
+			igs->draw_start_x = igs->draw_x;
+			igs->draw_start_y = igs->draw_y;
+		}
+		return status;
+	}
 	case 'T':
 		if (values[0] < 1 || values[0] > 2)
 			return 0;

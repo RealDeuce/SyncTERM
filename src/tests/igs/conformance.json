@@ -106,7 +106,9 @@
         "cterm_igs_marker",
         "syncterm_igs_marker",
         "cterm_igs_line",
-        "syncterm_igs_line"
+        "syncterm_igs_line",
+        "cterm_igs_drawto",
+        "syncterm_igs_drawto"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -121,7 +123,8 @@
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. Focused native/application A tests passed; all ST modes, Atari ST/CP437/UTF-8 and status choices use literal row/scene expectations with audio off. The broad 53-test run passed 52 tests, including every CTerm test and all IGS application tests; wren_host hit an existing fixed-100-ms transfer-notice assumption and passed in isolation. Replaced the two related fixture delays with bounded notice-readiness polling, retaining the original worker/ownership/message assertions; the final full build and parallel wren_host plus IGS fill/palette/resolution tests passed. All 53 distinct selected tests have passing verification across these runs. Ledger IDs, references, dependencies and active CTest registrations checked; superseded tests excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings; all 55 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap console/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T, SkyPix report, graphics scrollback and session modes. T application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio off. Native split/bytewise cases verify conditional arity, random kinds advancing once, and incomplete random-kind input retaining its seed. All 63 command/selector IDs, reference/dependency paths and active CTest registrations checked; superseded tests excluded.",
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 57 selected CTest tests passed, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren and application IGS I/R/g/M/C/S/H/A/T/P, SkyPix report, graphics scrollback and session modes. P uses independent rational/literal expectations and coherent scene/cell/palette/state/RGB captures across all ST resolutions, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. Native tests cover every shape/size/mode/pen matrix, both blink phases, literal clipping/rounding, foreign-pixel/status protection, split/bytewise input and once-only random operands. All 63 command/selector IDs, references, dependencies and active CTest registrations checked; superseded experiments excluded.",
-        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. The broad 59-test run passed 58, including every IGS test, all other CTerm tests, shared parser/images/pixels, bitmap/control backend, term/Wren, SkyPix report, graphics scrollback and session modes. One native SkyPix parser test failed while independent SkyPix edits were in progress in the shared worktree. After that work settled, the final full build and targeted cterm_skypix, cterm_igs_line and syncterm_igs_line rerun all passed. All 59 distinct selected tests have passing verification across these runs. L validates 3321 independent dual-phase full-native-capacity cases plus literal/extreme/status/input/lifecycle checks; coherent application scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. All 63 ledger IDs, dependencies, reference paths, active CTest registrations, 3321/36 vector counts and pinned oracle hashes checked. Unrelated SkyPix changes are excluded from the IGS change."
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. The broad 59-test run passed 58, including every IGS test, all other CTerm tests, shared parser/images/pixels, bitmap/control backend, term/Wren, SkyPix report, graphics scrollback and session modes. One native SkyPix parser test failed while independent SkyPix edits were in progress in the shared worktree. After that work settled, the final full build and targeted cterm_skypix, cterm_igs_line and syncterm_igs_line rerun all passed. All 59 distinct selected tests have passing verification across these runs. L validates 3321 independent dual-phase full-native-capacity cases plus literal/extreme/status/input/lifecycle checks; coherent application scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. All 63 ledger IDs, dependencies, reference paths, active CTest registrations, 3321/36 vector counts and pinned oracle hashes checked. Unrelated SkyPix changes are excluded from the IGS change.",
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 61 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. D replays 3321 independent dual-phase native line cases and tests literal joins, L/P origins, both remembered pairs, every focused split/bytewise input, invalid/partial/renderer-error recovery, R suspension, I/R/I5/reset lifetime, typed/random/extreme/status inputs. Coherent application checks cover 36 source-derived scenes plus literal chains, arrowed-L/visible-P origins, overlays, bottom edges and disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. L and D share fixture/hash helpers and coherent scene observations; L regressions passed after extraction. All 63 command/selector IDs, dependencies, references and active CTest registrations checked; superseded experiments excluded."
       ],
       "commit": null,
       "operations": [
@@ -135,7 +138,8 @@
         "A fill style/user-bank state, shared IGS random source and separate bounded pattern generator; source-bank versus active-pattern lifetime",
         "T marker/line type, native sizing, custom masks and endpoints with effect-free conditional arity using the existing generic parser",
         "P markers on the authoritative indexed framebuffer with native clipping/solid line rules, ordered XOR endpoints, independent blink phases and Drawto; no planar shadow",
-        "L native thin/wide patterns, polygon shafts, cap discs and arrow triangles on the indexed bitmap with ordered XOR and remembered start/end; explicit last-segment ownership"
+        "L native thin/wide patterns, polygon shafts, cap discs and arrow triangles on the indexed bitmap with ordered XOR and remembered start/end; explicit last-segment ownership",
+        "D reuses the native line renderer from the remembered end, then publishes the requested endpoint to both pairs; original L/P origins, atomic recovery and I/R/reset lifetime"
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -640,23 +644,54 @@
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full native CMake builds passed without compiler warnings. The broad 59-test run passed 58, including every IGS test, all other CTerm tests, shared parser/images/pixels, bitmap/control backend, term/Wren, SkyPix report, graphics scrollback and session modes. One native SkyPix parser test failed while independent SkyPix edits were in progress in the shared worktree. After that work settled, the final full build and targeted cterm_skypix, cterm_igs_line and syncterm_igs_line rerun all passed. All 59 distinct selected tests have passing verification across these runs. L validates 3321 independent dual-phase full-native-capacity cases plus literal/extreme/status/input/lifecycle checks; coherent application scenes cover all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. All 63 ledger IDs, dependencies, reference paths, active CTest registrations, 3321/36 vector counts and pinned oracle hashes checked. Unrelated SkyPix changes are excluded from the IGS change."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "bd6bdd3"
     },
     {
       "id": "D",
       "phase": "lines",
       "references": [
         "15-graphics-commands.adoc",
-        "19-extended-math-sweeps.adoc"
+        "136-delivery-line-drawto-marker.adoc",
+        "43-native-line-clipping.adoc",
+        "44-native-software-lines.adoc",
+        "46-native-polygon-fill.adoc",
+        "50-native-wide-lines.adoc",
+        "51-native-arrowheads.adoc"
       ],
       "order": 12,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "g",
+        "M",
+        "C",
+        "T",
+        "L",
+        "P"
+      ],
+      "operations": [
+        "Two shared X/Y operand descriptions and existing evaluation; old remembered origin remains in pixel coordinates across g/R changes",
+        "Call the common thin/wide line renderer from the previous requested endpoint; preserve native patterns, modes, physical pens, caps, heads, clipping, last-segment state, dual phases and host status",
+        "After successful rendering, copy the original requested new endpoint to both remembered pairs; private arrow shortening never changes the next Drawto origin",
+        "Use L original ends and P centres as origins; chained D commands retain separate endpoint visits and XOR toggles; zero-length/reverse/clipped requests retain ordinary position publication",
+        "Preserve attributes, palette, banks, cursor, g and memory controls; no replies or waits; I/R retain positions and full reset/reconnect clear them",
+        "Publish positions after complete acquisition and successful rendering; partial/invalid input preserves positions/scene and renderer failure propagates its status with prior positions; EOF/local timeout/reset cancel partial input; suspended R leaves following D unread",
+        "Reuse 3321 independent dual-phase native vectors with actual P/rejected-L origins and shared fixture/hash helpers, never L-generated expectations",
+        "Literal chain pixels, all focused split/bytewise inputs, typed/random/extreme operands, lifecycle/status, coherent 36-scene application matrix plus arrowed-L/visible-P origins, overlays and edges"
+      ],
+      "tests": [
+        "cterm_igs_drawto",
+        "syncterm_igs_drawto"
+      ],
+      "deviations": [
+        "Publish both pairs only after complete valid acquisition and successful rendering. Preserve prior positions on failures and preserve the scene on incomplete/invalid acquisition instead of exposing native pre-acquisition and intermediate position writes.",
+        "Use the same documented bounded-arithmetic, raster initialization, indexed framebuffer, host-status and foreign-pixel policies as L/P."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings. All 61 selected CTest tests passed in one run, including every CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren, all IGS application tests, SkyPix report, graphics scrollback and session modes. D replays 3321 independent dual-phase native line cases and tests literal joins, L/P origins, both remembered pairs, every focused split/bytewise input, invalid/partial/renderer-error recovery, R suspension, I/R/I5/reset lifetime, typed/random/extreme/status inputs. Coherent application checks cover 36 source-derived scenes plus literal chains, arrowed-L/visible-P origins, overlays, bottom edges and disconnect/reconnect across all ST modes, Atari ST/CP437/UTF-8 and status choices with physical audio disabled. L and D share fixture/hash helpers and coherent scene observations; L regressions passed after extraction. All 63 command/selector IDs, dependencies, references and active CTest registrations checked; superseded experiments excluded."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "X10",
