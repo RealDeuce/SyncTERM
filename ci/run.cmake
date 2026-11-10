@@ -42,9 +42,10 @@ file(GLOB _old_sanitizer_reports "${_reports}/asan.*" "${_reports}/ubsan.*"
 if(_old_sanitizer_reports)
 	file(REMOVE ${_old_sanitizer_reports})
 endif()
-file(GLOB _old_apps "${CI_BUILD_DIR}/artifacts/syncterm*")
+file(GLOB _old_apps "${CI_BUILD_DIR}/artifacts/syncterm*"
+	"${CI_BUILD_DIR}/artifacts/SyncTERM.app")
 if(_old_apps)
-	file(REMOVE ${_old_apps})
+	file(REMOVE_RECURSE ${_old_apps})
 endif()
 file(WRITE "${_reports}/environment.txt"
 	"Host: ${CMAKE_HOST_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_VERSION}\n"
@@ -218,7 +219,14 @@ if(NOT _products)
 endif()
 # Validate the whole set before publishing any product.
 foreach(_product IN LISTS _products)
-	if(NOT EXISTS "${_product}" OR IS_DIRECTORY "${_product}")
+	if(IS_DIRECTORY "${_product}" AND _product MATCHES "[.]app$")
+		# The manifest names the whole bundle, not just its executable.
+		if(NOT EXISTS "${_product}/Contents/Info.plist"
+		    OR NOT EXISTS "${_product}/Contents/MacOS/SyncTERM"
+		    OR NOT EXISTS "${_product}/Contents/Resources/SyncTERM.icns")
+			message(FATAL_ERROR "CI artifacts failed: incomplete application bundle: ${_product}")
+		endif()
+	elseif(NOT EXISTS "${_product}" OR IS_DIRECTORY "${_product}")
 		message(FATAL_ERROR "CI artifacts failed: application product was not built: ${_product}")
 	endif()
 endforeach()

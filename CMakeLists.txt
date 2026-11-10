@@ -152,6 +152,9 @@ if(BUILD_TESTING)
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_policy.cmake")
 	find_package(Python3 QUIET COMPONENTS Interpreter)
 	if(Python3_Interpreter_FOUND)
+		add_test(NAME build_macos_bundle COMMAND "${Python3_EXECUTABLE}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/macos_bundle.py"
+			"${CMAKE_COMMAND}" "${PROJECT_BINARY_DIR}/macos-bundle-tests")
 		add_test(NAME wren_api_accounting_checks COMMAND "${Python3_EXECUTABLE}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/test_wren_c_api_coverage.py"
 			"${PROJECT_BINARY_DIR}/wren-api-check-tests")

@@ -17,6 +17,16 @@ The executable and libretro core are in `build/bin/`. Multi-configuration
 generators use `build/bin/<configuration>/`. After the source reorganization,
 configure a fresh build directory rather than reusing a pre-move build tree.
 
+On macOS the application is `build/bin/SyncTERM.app`, including its Finder
+icon and application metadata. Launch it from Finder or with
+`open build/bin/SyncTERM.app`; for command-line arguments invoke
+`build/bin/SyncTERM.app/Contents/MacOS/SyncTERM` directly. Multi-configuration
+generators put the bundle below `build/bin/<configuration>/`. CI artifacts
+contain the complete bundle alongside `syncterm_libretro.dylib`.
+Dependency source/linkage settings still apply; the bundle does not embed
+externally selected shared libraries. URL-scheme registration metadata is
+included, but handling incoming macOS URL-open events is not implemented.
+
 For process-controlled bitmap tests of the regular executable, configure with
 `-DST_CONSOLE_TEST=ON`. See link:docs/TEST_CONTROL.md[the testing driver guide]
 for the Python client, coherent cell/pixel captures, and pipe protocol.

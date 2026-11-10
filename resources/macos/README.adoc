@@ -1,0 +1,11 @@
+= macOS bundle resources
+
+`SyncTERM.icns` is the existing SyncTERM icon, copied unchanged from the
+legacy `src/sbbs/src/syncterm/SyncTERM.icns`. The plist retains the legacy
+bundle metadata, URL-scheme declarations, Retina support, and automatic
+graphics switching, with current version information and a bundle identifier.
+It omits the old reference to a `MainMenu` nib, which this application does
+not supply, and the obsolete localized strings containing version 0.9.1.
+
+The URL-scheme declarations preserve registration metadata only. Receiving
+macOS URL-open events and opening connections from them is not implemented.

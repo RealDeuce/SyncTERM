@@ -11,6 +11,11 @@ if(CI_FIXTURE_CONFIGURE_FAIL OR (CI_FIXTURE_ARTIFACT_CONFIGURE_FAIL AND NOT ST_C
 	message(FATAL_ERROR "fixture configure failure")
 endif()
 add_executable(syncterm_app main.c)
+set_target_properties(syncterm_app PROPERTIES
+	OUTPUT_NAME syncterm RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermMacOSBundle.cmake")
+syncterm_macos_bundle(syncterm_app)
 target_compile_definitions(syncterm_app PRIVATE
 	ST_CONSOLE_TEST=$<BOOL:${ST_CONSOLE_TEST}> BUILD_TESTING=$<BOOL:${BUILD_TESTING}>)
 add_library(syncterm_core MODULE core.c)
@@ -19,7 +24,32 @@ set_target_properties(syncterm_core PROPERTIES OUTPUT_NAME syncterm_libretro PRE
 set_target_properties(syncterm_core PROPERTIES
 	LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(_products "$<TARGET_FILE:syncterm_app>\n$<TARGET_FILE:syncterm_core>\n")
+set(_app "$<TARGET_FILE:syncterm_app>")
+if(APPLE)
+	set(_app "$<TARGET_BUNDLE_DIR:syncterm_app>")
+elseif(CI_FIXTURE_BUNDLE)
+	# Exercise recursive bundle collection on hosts without an Apple SDK.
+	set(_app "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/SyncTERM.app")
+	add_custom_command(TARGET syncterm_app POST_BUILD
+		COMMAND "${CMAKE_COMMAND}" -E make_directory
+			"${_app}/Contents/MacOS" "${_app}/Contents/Resources"
+		COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:syncterm_app>"
+			"${_app}/Contents/MacOS/SyncTERM"
+		COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_LIST_DIR}/main.c"
+			"${_app}/Contents/Info.plist"
+		COMMAND "${CMAKE_COMMAND}" -E copy
+			"${CMAKE_CURRENT_LIST_DIR}/../../../resources/macos/SyncTERM.icns"
+			"${_app}/Contents/Resources/SyncTERM.icns" VERBATIM)
+endif()
+if(CI_FIXTURE_INCOMPLETE_BUNDLE)
+	add_custom_command(TARGET syncterm_app POST_BUILD
+		COMMAND "${CMAKE_COMMAND}" -E rm -f
+			"${_app}/Contents/Resources/SyncTERM.icns" VERBATIM)
+endif()
+if(CI_FIXTURE_DIRECTORY_PRODUCT)
+	set(_app "${CMAKE_BINARY_DIR}/bin")
+endif()
+set(_products "${_app}\n$<TARGET_FILE:syncterm_core>\n")
 if(CI_FIXTURE_MISSING_PRODUCT)
 	string(APPEND _products "${CMAKE_BINARY_DIR}/missing-product\n")
 elseif(CI_FIXTURE_EMPTY_MANIFEST)
@@ -29,9 +59,6 @@ if(NOT CI_FIXTURE_MISSING_MANIFEST)
 	file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/syncterm-artifacts-$<CONFIG>.txt"
 		CONTENT "${_products}")
 endif()
-set_target_properties(syncterm_app PROPERTIES
-	OUTPUT_NAME syncterm RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(CI_FIXTURE_BUILD_FAIL OR (CI_FIXTURE_ARTIFACT_BUILD_FAIL AND NOT ST_CONSOLE_TEST))
 	add_custom_target(fail_build ALL COMMAND "${CMAKE_COMMAND}" -E false)
 endif()
