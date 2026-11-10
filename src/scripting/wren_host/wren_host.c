@@ -1079,7 +1079,7 @@ static int
 host_dialog(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	bool masked, char **result, const char *const *choices, size_t count,
-	int *selected, const char *method)
+	int *selected, const char *method, const uint32_t *hotkeys, bool required)
 {
 	st_console_snapshot_t *snapshot = NULL;
 	struct st_console_event resize = {0};
@@ -1106,20 +1106,29 @@ host_dialog(st_wren_host_t *host, const char *title,
 	    &resized, &resize);
 	if (status != 0 || closed)
 		goto finished;
-	wrenEnsureSlots(host->vm, 6);
+	wrenEnsureSlots(host->vm, 7);
 	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
 	wrenSetSlotString(host->vm, 1, title);
 	wrenSetSlotString(host->vm, 2, question);
 	if (method != NULL)
 		choice_call = wrenMakeCallHandle(host->vm, method);
 	else if (choices != NULL) {
-		choice_call = wrenMakeCallHandle(host->vm, "choice(_,_,_,_)");
+		choice_call = wrenMakeCallHandle(host->vm, hotkeys == NULL
+		    ? "choice(_,_,_,_)" : "ripChoice(_,_,_,_,_)");
 		wrenSetSlotNewList(host->vm, 3);
 		for (size_t i = 0; i < count; ++i) {
 			wrenSetSlotString(host->vm, 5, choices[i]);
 			wrenInsertInList(host->vm, 3, -1, 5);
 		}
 		wrenSetSlotDouble(host->vm, 4, 0);
+		if (hotkeys != NULL) {
+			wrenSetSlotNewList(host->vm, 4);
+			for (size_t i = 0; i < count; i++) {
+				wrenSetSlotDouble(host->vm, 6, (double)hotkeys[i]);
+				wrenInsertInList(host->vm, 4, -1, 6);
+			}
+			wrenSetSlotBool(host->vm, 5, required);
+		}
 	} else {
 		wrenSetSlotString(host->vm, 3, initial);
 		wrenSetSlotDouble(host->vm, 4, (double)max_length);
@@ -1183,7 +1192,7 @@ st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, false,
-	    result, NULL, 0, NULL, NULL);
+	    result, NULL, 0, NULL, NULL, NULL, false);
 }
 
 int
@@ -1192,7 +1201,7 @@ st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 	bool masked, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, masked,
-	    result, NULL, 0, NULL, NULL);
+	    result, NULL, 0, NULL, NULL, NULL, false);
 }
 
 int
@@ -1204,7 +1213,27 @@ st_wren_host_choice(st_wren_host_t *host, const char *title,
 	if (choices == NULL || count == 0 || count > INT_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = host_dialog(host, title, question, "", 0, false, &unused,
-	    choices, count, &selected, NULL);
+	    choices, count, &selected, NULL, NULL, false);
+	return status == 0 ? selected : status;
+}
+
+int
+st_wren_host_rip_choice(st_wren_host_t *host, const char *title,
+	const char *question, const char *const *choices,
+	const uint32_t *hotkeys, size_t count, bool required)
+{
+	char *unused = NULL;
+	int selected = IO_ERROR_CANCELLED, status;
+
+	if (choices == NULL || hotkeys == NULL || count == 0 || count > 20)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (size_t i = 0; i < count; i++) {
+		if (choices[i] == NULL || hotkeys[i] > 0x10ffff
+		    || (hotkeys[i] >= 0xd800 && hotkeys[i] <= 0xdfff))
+			return IO_ERROR_INVALID_ARGUMENT;
+	}
+	status = host_dialog(host, title, question, "", 0, false, &unused,
+	    choices, count, &selected, NULL, hotkeys, required);
 	return status == 0 ? selected : status;
 }
 
@@ -1213,7 +1242,7 @@ st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, title, message, "", 0, false, &unused,
-	    NULL, 0, NULL, "alert(_,_)");
+	    NULL, 0, NULL, "alert(_,_)", NULL, false);
 	free(unused);
 	return status;
 }
@@ -1223,7 +1252,7 @@ st_wren_host_help(st_wren_host_t *host, const char *title, const char *body)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, title, body, "", 0, false, &unused,
-	    NULL, 0, NULL, "help(_,_)");
+	    NULL, 0, NULL, "help(_,_)", NULL, false);
 	free(unused);
 	return status;
 }
@@ -1233,7 +1262,7 @@ st_wren_host_disconnected(st_wren_host_t *host, const char *details)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, "Disconnected", details, "", 0, false, &unused,
-	    NULL, 0, NULL, "disconnected(_,_)");
+	    NULL, 0, NULL, "disconnected(_,_)", NULL, false);
 	free(unused);
 	return status;
 }

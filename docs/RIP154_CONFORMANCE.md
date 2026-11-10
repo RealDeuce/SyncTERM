@@ -128,6 +128,23 @@ toggling, same-group radio exclusion, button font retention and font restoration
 These use the normal application input path; they are not direct calls into the
 RIP implementation.
 
+The same interaction suites exercise host-command template definition, chains,
+repeated slots, null/undefined references, checkbox-group aggregation, and local
+scene variables within host commands and templates. Nested scene queries retain
+their order in the final host response. Pick lists run in the menu VM: keyboard
+hotkeys, mouse selection, optional cancellation, required selection after Escape,
+Unicode labels, and template responses are covered. Each dismissal checks the
+restored pixel plane and palette from one coherent checkpoint in CP437 and UTF-8.
+These are literal protocol expectations, separate from the historical captures.
+
+The native `cterm_rip_variables` fixture additionally checks template lifetime
+across window/direct reset, recursion and 4095-byte response limits, radio and
+checkbox definitions, saved-field ownership, commands that delete their own
+fields, missing/unsafe scene names, callback errors and recovery, and consumers
+without popup UI. Protocol window reset retains templates; direct terminal reset
+starts a new template store. Local playback retains the legacy eight-scene depth
+limit and bare-name lookup without defaulting an extension.
+
 `cterm_rip_parser` additionally runs 15 independent dispatch/text expectations at
 every two-part input split and bytewise, including C0 data in arguments and EOF
 flush. TCP writes are not a way to force decoder chunk boundaries, so these C

@@ -12,6 +12,8 @@
 #include "st_codepage.h"
 #include "cterm_rip_raster.h"
 
+struct rip_command_context;
+
 struct cterm_rip_mouse_field {
 	struct cterm_rip_mouse_field *next;
 	int x1;
@@ -26,6 +28,7 @@ struct cterm_rip_mouse_field {
 	char *icon;
 	char *label;
 	char *command;
+	char *template_command;
 };
 
 struct cterm_rip_user_var {
@@ -56,6 +59,10 @@ struct cterm_rip_engine {
 	bool tab_enabled;
 	char *graphics_click;
 	char *text_click;
+	char *templates[36];
+	/* Borrowed only during synchronous host-command expansion. */
+	struct rip_command_context *command_context;
+	size_t mouse_generation;
 	struct {
 		int x;
 		int y;
@@ -78,6 +85,8 @@ void cterm_rip_engine_destroy(struct cterm_rip_engine *engine);
 int cterm_rip_engine_feed(struct cterm_rip_engine *engine,
     const uint8_t *bytes, size_t size, size_t *consumed);
 int cterm_rip_engine_flush(struct cterm_rip_engine *engine);
+int cterm_rip_engine_play_scene(struct cterm_rip_engine *engine,
+    const char *filename);
 int cterm_rip_engine_receive_begin(struct cterm_rip_engine *engine);
 int cterm_rip_engine_receive_data(struct cterm_rip_engine *engine,
     const uint8_t *bytes, size_t size);

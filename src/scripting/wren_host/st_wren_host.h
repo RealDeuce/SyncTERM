@@ -100,6 +100,10 @@ int st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 /* Returns a choice index, or IO_ERROR_CANCELLED when dismissed. */
 int st_wren_host_choice(st_wren_host_t *host, const char *title,
 	const char *question, const char *const *choices, size_t count);
+/* Zero hotkeys are inactive. Required lists ignore ordinary dismissal. */
+int st_wren_host_rip_choice(st_wren_host_t *host, const char *title,
+	const char *question, const char *const *choices,
+	const uint32_t *hotkeys, size_t count, bool required);
 int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
 int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
 /* Enter/close exits; F1 opens details/log, Alt-B (Cmd-B on macOS) opens history.

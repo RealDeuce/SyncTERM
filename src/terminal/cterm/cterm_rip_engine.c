@@ -27,6 +27,7 @@ free_mouse_fields(struct cterm_rip_mouse_field **head)
 		free(field->icon);
 		free(field->label);
 		free(field->command);
+		free(field->template_command);
 		free(field);
 	}
 }
@@ -115,6 +116,7 @@ cterm_rip_engine_clear_mouse(struct cterm_rip_engine *engine)
 	/* Legacy MKILL drops the selection without erasing its pixels. */
 	engine->tab_highlight = NULL;
 	engine->pressed_field = NULL;
+	engine->mouse_generation++;
 	free_mouse_fields(&engine->mouse_fields);
 }
 
@@ -137,14 +139,18 @@ clone_mouse_fields(struct cterm_rip_mouse_field **result,
 		copy->label = src->label == NULL ? NULL : strdup(src->label);
 		copy->command = src->command == NULL
 		    ? NULL : strdup(src->command);
+		copy->template_command = src->template_command == NULL
+		    ? NULL : strdup(src->template_command);
 		copy->drawing.icon = copy->icon;
 		copy->drawing.label = copy->label;
 		if ((src->icon != NULL && copy->icon == NULL)
 		    || (src->label != NULL && copy->label == NULL)
-		    || (src->command != NULL && copy->command == NULL)) {
+		    || (src->command != NULL && copy->command == NULL)
+		    || (src->template_command != NULL && copy->template_command == NULL)) {
 			free(copy->icon);
 			free(copy->label);
 			free(copy->command);
+			free(copy->template_command);
 			free(copy);
 			goto out_of_memory;
 		}
@@ -316,9 +322,6 @@ music_introducer(void *context, uint8_t final)
 	    && engine->host.music_introducer(engine->host.context, final);
 }
 
-static int play_scene_file(struct cterm_rip_engine *engine,
-    const char *filename);
-
 static int
 dispatch_command(void *context, int level, int sublevel, uint8_t code,
     const char *arguments)
@@ -331,7 +334,7 @@ dispatch_command(void *context, int level, int sublevel, uint8_t code,
 	if (level == 1 && sublevel == 0 && code == 'R') {
 		if (strlen(arguments) < 9)
 			return 0;
-		return play_scene_file(engine, arguments + 8);
+		return cterm_rip_engine_play_scene(engine, arguments + 8);
 	}
 	if (level == 0 && sublevel == 0 && code == '$'
 	    && arguments[0] == '>') {
@@ -344,7 +347,7 @@ dispatch_command(void *context, int level, int sublevel, uint8_t code,
 		    (size_t)(end - arguments - 1));
 		if (filename == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
-		status = play_scene_file(engine, filename);
+		status = cterm_rip_engine_play_scene(engine, filename);
 		free(filename);
 		return status;
 	}
@@ -444,8 +447,8 @@ cterm_rip_engine_receive_end(struct cterm_rip_engine *engine, bool success)
 	return status;
 }
 
-static int
-play_scene_file(struct cterm_rip_engine *engine, const char *filename)
+int
+cterm_rip_engine_play_scene(struct cterm_rip_engine *engine, const char *filename)
 {
 	struct cterm_rip_parser saved;
 	struct cterm_rip_parser_sink sink;
@@ -512,6 +515,8 @@ cterm_rip_engine_destroy(struct cterm_rip_engine *engine)
 	free_mouse_fields(&engine->saved_mouse_fields);
 	free(engine->graphics_click);
 	free(engine->text_click);
+	for (size_t i = 0; i < 36; i++)
+		free(engine->templates[i]);
 	while ((variable = engine->user_vars) != NULL) {
 		engine->user_vars = variable->next;
 		free(variable->value);

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import zlib
 
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, click_text
 from st_terminal_conformance_test import Terminal, ESC
 
 DATA = Path(__file__).with_name("rip154")
@@ -252,12 +252,76 @@ def interaction_cases(t):
     assert pixel(frame, 161, 81) == off_a and pixel(frame, 221, 81) != off_b
 
 
+def host_command_cases(t):
+    scene(t)
+    for name, command, expected in (
+        ("template-define", b"[0:]S FORUM1 $?$^m", b""),
+        ("template-use", b"[0]HELLO", b"S FORUM1 HELLO\r"),
+        ("template-chain-define", b"[1:]<$?$>", b""),
+        ("template-repeat", b"[11]X", b"<<X>>"),
+        ("template-null", b"[]literal", b"literal"),
+        ("template-undefined", b"[Z]PASS", b"PASS"),
+    ):
+        t.check(name, b"!|1\x1b0000" + command + b"\r\n", expected=expected, reset=False)
+    t.case("playback-in-host-command")
+    markers = list(t.root.rglob("syncterm-cache-name.txt"))
+    assert len(markers) == 1, markers
+    (markers[0].parent / "host-scene.rip").write_bytes(b"!|c04|X2S2S|1\x1b0000INNER\r\n")
+    frame = t.exchange(b"!|1\x1b0000L$>host-scene.rip$R^m\r\n", expected=b"LINNERR\r")
+    assert pixel(frame, 100, 100) == 0xaa0000
+    t.check("template-playback-define", b"!|1\x1b0000[2:]$>host-scene.rip$$?$\r\n", reset=False)
+    t.check("template-playback-use", b"!|1\x1b0000[2]END\r\n", expected=b"INNEREND", reset=False)
+    t.case("checkbox-group-host-commands")
+    frame = scene(t, b"!|1B140A0200ZK0300080F080702010707000000"
+                  b"|1U2S2S00001T10<>A<>[2:]A|1U3M2S00001U10<>B<>[2:]B\r\n")
+    t.exchange(b"!|1\x1b0000$?2$\r\n", expected=b"AB")
+    selected = pixel(frame, 101, 101)
+    t.client.text("a")
+    t.client.wait_for(lambda f: pixel(f, 101, 101) != selected)
+    t.exchange(b"!|1\x1b0000$?2$\r\n", expected=b"B")
+    # Popup UI runs in the menu VM. Related pixels/state are read together
+    # only after the selected host response and parsing fence have completed.
+    before = scene(t, b"!|c04|X2S2S\r\n")
+    for name, command, key, expected in (
+        ("popup-hotkey", b"A((Pick recipient::Sysop@_H_ead Honcho,Joe@~B~rother))Z", "b", b"AJoeZ"),
+        ("popup-cancel", b"A((Pick recipient::Sysop@_H_ead Honcho,Joe@~B~rother))Z", "escape", b"AZ"),
+        ("popup-required", b"((*Pick recipient::Sysop@_H_ead Honcho,Joe@~B~rother))", "b", b"Joe"),
+        ("popup-template-response", b"((Pick recipient::[0]HI@_H_ead Honcho,Joe@~B~rother))", "h", b"S FORUM1 HI\r"),
+    ):
+        t.case(name)
+        t.send(b"\r!|1\x1b0000" + command + b"\r\n")
+        t.client.wait_text("Pick recipient")
+        if name == "popup-required":
+            t.client.key("escape")
+        if key == "escape":
+            t.client.key(key)
+        else:
+            t.client.text(key)
+        frame = t.input(expected)
+        assert frame.primary == before.primary and frame.palette == before.palette, name
+    t.case("popup-mouse")
+    t.send(b"\r!|1\x1b0000((Pick recipient::Sysop@_H_ead Honcho,Joe@~B~rother))\r\n")
+    popup = t.client.wait_text("Pick recipient")
+    click_text(t.client, popup, "Brother [B]")
+    frame = t.input(b"Joe")
+    assert frame.primary == before.primary and frame.palette == before.palette
+    t.case("popup-unicode")
+    label = b"\x82" if t.encoding == "CP437" else "é".encode()
+    t.send(b"\r!|1\x1b0000((Caf" + label + b"::OK@_" + label + b"_))\r\n")
+    t.client.wait_text("Café")
+    t.client.text("é")
+    frame = t.input(b"OK")
+    assert frame.primary == before.primary and frame.palette == before.palette
+
+
 def live_cases(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=80x43\nRIP=RIPv1\n", settings="AudioModes=0\n") as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
         t.encoding = args.encoding
         (wire_cases if args.group == "wire" else interaction_cases)(t)
+        if args.group == "interaction":
+            host_command_cases(t)
         print(f"Passed {len(t.completed)} live {args.group} cases", flush=True)
 
 

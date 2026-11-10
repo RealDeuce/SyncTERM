@@ -121,6 +121,8 @@ class ChoiceMessage is Widget {
 class StandaloneChoice is Popup {
   construct new(message, labels) {
     super(null)
+    _ripHotkeys = null
+    _required = false
     keyHints = [["PgUp/PgDn", "Scroll"], ["Enter", "Select"],
         ["Esc", "Close"]]
     if (labels.count == 1) {
@@ -139,11 +141,16 @@ class StandaloneChoice is Popup {
   }
 
   selected=(value) { _list.selected = value }
+  ripOptions=(value) {
+    _ripHotkeys = value[0]
+    _required = value[1]
+    if (_required) keyHints = [["Up/Down", "Move"], ["Enter", "Select"]]
+  }
   messageScrollTop { _messageView.scrollTop }
   messageBounds { _messageView.bounds }
   listBounds { _list.bounds }
   closesOnOutsideClick(event) {
-    return event == Mouse.button1Click || event == Mouse.button3Click
+    return !_required && (event == Mouse.button1Click || event == Mouse.button3Click)
   }
 
   bounds=(value) {
@@ -161,8 +168,20 @@ class StandaloneChoice is Popup {
 
   handle(event) {
     if (event is KeyEvent && event.shortcut_ == Key.escape) {
-      dismissWith_(null)
+      if (!_required) dismissWith_(null)
       return true
+    }
+    if (event is KeyEvent && _ripHotkeys != null && event.codepoint != null) {
+      var key = event.codepoint
+      if (key >= 97 && key <= 122) key = key - 32
+      for (i in 0..._ripHotkeys.count) {
+        var hotkey = _ripHotkeys[i]
+        if (hotkey >= 97 && hotkey <= 122) hotkey = hotkey - 32
+        if (hotkey > 0 && key == hotkey) {
+          dismissWith_(i)
+          return true
+        }
+      }
     }
     if (event is KeyEvent && _messageView.visible) {
       var code = event.shortcut_
@@ -369,17 +388,25 @@ class MenuUi {
   }
 
   static choiceStandalone(title, message, rows, current) {
+    return choiceStandalone(title, message, rows, current, null, false)
+  }
+
+  static choiceStandalone(title, message, rows, current, hotkeys, required) {
     if (rows.count == 0) return null
     var app = App.new()
     var longest = Screen.checked_(Screen.textWidth(title, 0)) + 12
     var labels = []
     for (row in rows) {
       var label = row is List ? row[1] : row
+      if (hotkeys != null && hotkeys[labels.count] > 0) {
+        label = "%(label) [%(String.fromCodePoint(hotkeys[labels.count]))]"
+      }
       labels.add(label)
       var labelWidth = Screen.checked_(Screen.textWidth(label, 0)) + 4
       if (labelWidth > longest) longest = labelWidth
     }
     var popup = StandaloneChoice.new(message, labels)
+    popup.ripOptions = [hotkeys, required]
     popup.title = title
     popup.bounds = Popup.centeredBounds_(message, labels.count + 1,
         longest.max(24), false, Popup.appMessageFont_(app))

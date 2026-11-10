@@ -75,6 +75,8 @@ struct st_term_config {
 	uint32_t initial_throttle_bps;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	st_cterm_rip_choice_callback_t rip_choice;
+	void *rip_choice_context;
 	st_cterm_rip_transfer_callback_t rip_transfer;
 	void *rip_transfer_context;
 	/* Called before built-in event handling; true consumes the event. */

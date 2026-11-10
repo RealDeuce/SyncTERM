@@ -313,6 +313,8 @@ devices. BEL/music cases check parsing only; silence here is not an audio pass.
 
 RIPterm 1.54 compatibility has a separate [historical regression inventory](RIP154_CONFORMANCE.md),
 including reference rasters, parser boundaries, button interaction and capture UI context.
+Its CP437/UTF-8 interaction tests also check host-command templates, local playback
+variables and pick-list input with coherent screen restoration.
 
 Failures print the case identifier and retain the outgoing input, exact reply
 bytes, case trace, coherent snapshot and PPM under the build's

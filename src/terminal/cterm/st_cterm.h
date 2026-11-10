@@ -77,6 +77,17 @@ typedef int (*st_cterm_rip_prompt_callback_t)(void *context,
 	const char *question, const char *initial, size_t field_width,
 	bool reject_blank, char **result);
 
+struct st_cterm_rip_choice {
+	const char *label;
+	uint32_t hotkey; /* Unicode scalar, zero when no hotkey is specified. */
+};
+/* Synchronous, borrowed UTF-8 labels. Do not reenter the terminal. Set
+ * selected to -1 for optional cancellation, or an index in [0,count).
+ * Required lists ignore ordinary dismissal; close/error returns nonzero. */
+typedef int (*st_cterm_rip_choice_callback_t)(void *context,
+	const char *question, const struct st_cterm_rip_choice *choices,
+	size_t count, bool required, int *selected);
+
 struct st_cterm_rip_transfer_request {
 	bool upload;
 	unsigned protocol, file_type;
@@ -182,6 +193,8 @@ struct st_cterm_config {
 	/* Without a callback, interactive RIP_DEFINE leaves the variable unchanged. */
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	st_cterm_rip_choice_callback_t rip_choice;
+	void *rip_choice_context;
 	st_cterm_rip_transfer_callback_t rip_transfer;
 	void *rip_transfer_context;
 	st_cterm_input_filter_t input_filter;

@@ -70,8 +70,10 @@ static int present_filtered_scalar(void *context, uint32_t scalar,
 static int capture_scalar(st_cterm_t *terminal, uint32_t scalar);
 static int rip_send_mouse_command(st_cterm_t *terminal,
     const char *command);
+static int rip_send_field_command(st_cterm_t *terminal, const char *command,
+    struct cterm_rip_mouse_field *field);
 static int rip_activate_field(st_cterm_t *terminal,
-    const struct cterm_rip_mouse_field *field);
+    struct cterm_rip_mouse_field *field);
 static int rip_compat_frame(st_cterm_t *terminal);
 static void status_display_changed(struct cterminal *terminal,
     int old_type, int new_type, void *context);
@@ -1392,6 +1394,7 @@ rip_host_command(void *context, int level, int sublevel,
 			const char *command;
 			char *icon = NULL;
 			char *label = NULL;
+			struct cterm_rip_mouse_field *created = NULL;
 			int status;
 
 			if (strlen(arguments) < 12)
@@ -1455,11 +1458,12 @@ rip_host_command(void *context, int level, int sublevel,
 					free(label);
 					return status;
 				}
+				created = terminal->rip_engine->mouse_fields;
 			}
 			free(icon);
 			free(label);
 			if ((button[5] & 1) != 0 && command[0] != '\0')
-				return rip_send_mouse_command(terminal, command);
+				return rip_send_field_command(terminal, command, created);
 			return 0;
 		}
 		default:
@@ -2184,6 +2188,8 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	terminal->api_output_context = config->output_context;
 	terminal->rip_prompt = config->rip_prompt;
 	terminal->rip_prompt_context = config->rip_prompt_context;
+	terminal->rip_choice = config->rip_choice;
+	terminal->rip_choice_context = config->rip_choice_context;
 	terminal->rip_transfer = config->rip_transfer;
 	terminal->rip_transfer_context = config->rip_transfer_context;
 	terminal->api_apc = config->apc;
@@ -3795,34 +3801,6 @@ append_mouse_utf8(char *buffer, size_t offset, uint32_t value)
 }
 
 static int
-rip_append_command_bytes(uint8_t **output, size_t *capacity,
-    size_t *used, const void *bytes, size_t size)
-{
-	if (size > SIZE_MAX - *used)
-		return IO_ERROR_OUT_OF_RANGE;
-	if (*used + size > *capacity) {
-		size_t grown = *capacity;
-		uint8_t *replacement;
-
-		while (grown < *used + size) {
-			if (grown > SIZE_MAX / 2) {
-				grown = *used + size;
-				break;
-			}
-			grown *= 2;
-		}
-		replacement = realloc(*output, grown);
-		if (replacement == NULL)
-			return IO_ERROR_OUT_OF_MEMORY;
-		*output = replacement;
-		*capacity = grown;
-	}
-	memcpy(*output + *used, bytes, size);
-	*used += size;
-	return 0;
-}
-
-static int
 rip_compat_frame(st_cterm_t *terminal)
 {
 	/* The legacy COMPAT variable resets the coordinate frame only. */
@@ -3845,123 +3823,395 @@ rip_compat_frame(st_cterm_t *terminal)
 	return 0;
 }
 
-static int
-rip_send_mouse_command(st_cterm_t *terminal, const char *command)
+#define RIP_HOST_LIMIT 4095
+
+struct rip_command_context {
+	st_cterm_t *terminal;
+	struct cterm_rip_engine *engine;
+	uint8_t output[RIP_HOST_LIMIT];
+	size_t used;
+	size_t depth;
+};
+
+static void
+rip_command_append(struct rip_command_context *context, const void *bytes, size_t size)
 {
-	size_t length = strlen(command);
-	size_t capacity;
-	uint8_t *output;
+	if (size > RIP_HOST_LIMIT - context->used)
+		size = RIP_HOST_LIMIT - context->used;
+	memcpy(context->output + context->used, bytes, size);
+	context->used += size;
+}
+
+static int
+rip_template_index(char byte)
+{
+	if (byte >= '0' && byte <= '9') return byte - '0';
+	if (byte >= 'A' && byte <= 'Z') return byte - 'A' + 10;
+	return -1;
+}
+
+static int
+rip_store_template(struct cterm_rip_engine *engine, int slot, const char *text,
+	struct cterm_rip_mouse_field *button, size_t generation)
+{
+	char *replacement;
+	char group[RIP_HOST_LIMIT + 1];
 	size_t used = 0;
-	int status = 0;
 
-	if (length > (SIZE_MAX - 1) / 2)
-		return IO_ERROR_OUT_OF_RANGE;
-	capacity = length * 2 + 1;
-	output = malloc(capacity);
-	if (output == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	for (size_t i = 0; i < length; i++) {
-		uint8_t value = (uint8_t)command[i];
-
-		if (value == '$') {
-			const char *end = strchr(command + i + 1, '$');
-			size_t name_length;
-
-			if (end == NULL)
+	if (button != NULL && generation == engine->mouse_generation && button->is_button
+	    && ((button->drawing.style.flags & 16384) != 0
+	        || (button->drawing.style.flags2 & 1) != 0)) {
+		replacement = button->selected ? strdup(text) : NULL;
+		if (button->selected && replacement == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		free(button->template_command);
+		button->template_command = replacement;
+		slot = button->drawing.style.group;
+		if (slot < 0 || slot >= 36)
+			return 0;
+		/* Fields are newest first; prepend to retain creation order. */
+		for (struct cterm_rip_mouse_field *field = engine->mouse_fields;
+		    field != NULL; field = field->next) {
+			if (!field->is_button || !field->selected
+			    || field->drawing.style.group != slot
+			    || field->template_command == NULL
+			    || ((field->drawing.style.flags & 16384) == 0
+			        && (field->drawing.style.flags2 & 1) == 0))
 				continue;
-			name_length = (size_t)(end - command - i - 1);
-			if (rip_variable_token_equal(command + i + 1,
-			    name_length, "COMPAT"))
-				status = rip_compat_frame(terminal);
-			else {
-				char name[13];
-				char answer[RIP_QUERY_VALUE_SIZE];
-				struct cterm_rip_user_var *variable = NULL;
-				bool handled;
+			size_t prefix = strlen(field->template_command);
 
-				status = rip_query_variable(terminal,
-				    command + i + 1, name_length, answer,
-				    &handled);
-				if (status != 0)
-					break;
-				if (handled)
-					status = rip_append_command_bytes(&output,
-					    &capacity, &used, answer,
-					    strlen(answer));
-				if (status != 0)
-					break;
-				if (!handled) {
-					status = rip_state_variable(terminal,
-					    command + i + 1, name_length, &handled);
-					if (status != 0)
-						break;
-					if (!handled && name_length >= 1
-					    && name_length <= 12) {
-						memcpy(name, command + i + 1,
-						    name_length);
-						name[name_length] = '\0';
-						variable = rip_find_variable(
-						    terminal->rip_engine, name);
-					}
-					if (!handled && variable != NULL
-					    && variable->value != NULL)
-						status = rip_append_command_bytes(&output,
-						    &capacity, &used, variable->value,
-						    strlen(variable->value));
+			if (prefix > RIP_HOST_LIMIT) prefix = RIP_HOST_LIMIT;
+			if (used > RIP_HOST_LIMIT - prefix) used = RIP_HOST_LIMIT - prefix;
+			memmove(group + prefix, group, used);
+			memcpy(group, field->template_command, prefix);
+			used += prefix;
+		}
+		group[used] = '\0';
+		text = group;
+	}
+	replacement = strdup(text);
+	if (replacement == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	free(engine->templates[slot]);
+	engine->templates[slot] = replacement;
+	return 0;
+}
+
+static int
+rip_apply_templates(struct cterm_rip_engine *engine, const char *text,
+	const int *slots, size_t count, char **result)
+{
+	char *input = strdup(text);
+
+	*result = NULL;
+	if (input == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t slot = 0; slot < count; slot++) {
+		const char *source = engine->templates[slots[slot]];
+		char expanded[RIP_HOST_LIMIT + 1];
+		size_t used = 0;
+
+		if (source == NULL) {
+			for (struct cterm_rip_mouse_field *field = engine->mouse_fields;
+			    field != NULL; field = field->next) {
+				if (field->is_button && field->drawing.style.group == slots[slot]) {
+					free(input);
+					return 0;
 				}
 			}
-			if (status != 0)
-				break;
-			i = (size_t)(end - command);
 			continue;
 		}
-		if ((value == '^' || value == '`') && i + 1 < length) {
-			uint8_t next = (uint8_t)command[i + 1];
+		while (*source != '\0' && used < RIP_HOST_LIMIT) {
+			const char *value = NULL;
+			size_t advance = 1;
 
-			if (next == value) {
-				status = rip_append_command_bytes(&output,
-				    &capacity, &used, &value, 1);
-				if (status != 0)
-					break;
-				i++;
-				continue;
+			if (strncmp(source, "$?$", 3) == 0) {
+				value = input;
+				advance = 3;
 			}
-			if (next >= 'a' && next <= 'z')
-				next -= 'a' - 'A';
-			if (next >= '@' && next <= '_') {
-				uint8_t control = next - '@';
+			else if (strncmp(source, "$?", 2) == 0 && source[2] != '\0'
+			    && rip_template_index(source[2]) >= 0 && source[3] == '$') {
+				value = engine->templates[rip_template_index(source[2])];
+				advance = 4;
+				if (value == NULL) value = "";
+			}
+			if (value != NULL) {
+				size_t size = strlen(value);
 
-				status = rip_append_command_bytes(&output,
-				    &capacity, &used, &control, 1);
-				if (status != 0)
-					break;
-				i++;
-				continue;
+				if (size > RIP_HOST_LIMIT - used) size = RIP_HOST_LIMIT - used;
+				memcpy(expanded + used, value, size);
+				used += size;
 			}
+			else
+				expanded[used++] = *source;
+			source += advance;
 		}
-		status = rip_append_command_bytes(&output, &capacity,
-		    &used, &value, 1);
-		if (status != 0)
-			break;
+		expanded[used] = '\0';
+		free(input);
+		input = strdup(expanded);
+		if (input == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
 	}
-	if (status == 0 && used != 0)
-		emit_user((const char *)output, used, terminal);
-	free(output);
+	*result = input;
+	return 0;
+}
+
+static int
+rip_dialog_text(st_cterm_t *terminal, const char *text, char **result)
+{
+	size_t length = strlen(text), used = 0;
+	size_t normalized_size;
+
+	if (terminal->rip_engine->raster.unicode_text)
+		return st_unicode_text_normalize(result, &normalized_size,
+		    text, length, NULL);
+	char *unicode = malloc(length * 4 + 1);
+
+	if (unicode == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < length; i++) {
+		uint32_t scalar = st_codepage_to_unicode(terminal->screen.codepage,
+		    (uint8_t)text[i], false);
+		ptrdiff_t size = st_utf8_encode_one(unicode + used, length * 4 - used, scalar);
+
+		if (size < 0) {
+			free(unicode);
+			return (int)size;
+		}
+		used += (size_t)size;
+	}
+	int status = st_unicode_text_normalize(result, &normalized_size,
+	    unicode, used, NULL);
+
+	free(unicode);
+	return status;
+}
+
+static int rip_process_host(struct rip_command_context *, const char *,
+	struct cterm_rip_mouse_field *, size_t);
+
+static int
+rip_popup(struct rip_command_context *context, const char *text, size_t length,
+	struct cterm_rip_mouse_field *button, size_t generation)
+{
+	st_cterm_t *terminal = context->terminal;
+	struct st_cterm_rip_choice choices[20] = {{0}};
+	char *responses[20] = {0}, *question = NULL, *copy = NULL;
+	char *options, *heading, *separator;
+	size_t count = 0;
+	bool required;
+	int selected = -1, status = 0;
+
+	if (length > 1024 || terminal->rip_choice == NULL)
+		return 0;
+	copy = strndup(text, length);
+	if (copy == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	heading = copy;
+	required = *heading == '*';
+	if (required) heading++;
+	options = strstr(heading, "::");
+	if (options == NULL) {
+		options = heading;
+		heading = "";
+	}
+	else {
+		*options = '\0';
+		options += 2;
+	}
+	status = rip_dialog_text(terminal,
+	    *heading == '\0' ? "Choose one of the following:" : heading, &question);
+	if (status != 0) goto done;
+	do {
+		char *label, *source, *target;
+
+		if (count == 20) goto done;
+		separator = strchr(options, ',');
+		if (separator != NULL) *separator = '\0';
+		label = strchr(options, '@');
+		if (label != NULL) *label++ = '\0';
+		else label = options;
+		responses[count] = strdup(options);
+		if (responses[count] == NULL) { status = IO_ERROR_OUT_OF_MEMORY; goto done; }
+		count++;
+		for (source = target = label; *source != '\0'; source++) {
+			if (*source == '_' || *source == '~') {
+				if (choices[count - 1].hotkey == 0 && source[1] != '\0') {
+					if (terminal->rip_engine->raster.unicode_text) {
+						size_t consumed;
+						(void)st_utf8_decode_one(&choices[count - 1].hotkey,
+						    &consumed, source + 1, strlen(source + 1));
+					}
+					else
+						choices[count - 1].hotkey = st_codepage_to_unicode(
+						    terminal->screen.codepage, (uint8_t)source[1], false);
+				}
+				continue;
+			}
+			*target++ = *source;
+		}
+		*target = '\0';
+		char *unicode_label = NULL;
+
+		status = rip_dialog_text(terminal, label, &unicode_label);
+		choices[count - 1].label = unicode_label;
+		if (status != 0) goto done;
+		if (separator != NULL) options = separator + 1;
+	} while (separator != NULL);
+	status = terminal->rip_choice(terminal->rip_choice_context,
+	    question, choices, count, required, &selected);
+	if (status == 0 && selected >= 0 && (size_t)selected < count)
+		status = rip_process_host(context, responses[selected], button, generation);
+	else if (status == 0 && selected != -1)
+		status = IO_ERROR_INVALID_ARGUMENT;
+	else if (status == 0 && required)
+		status = IO_ERROR_CANCELLED;
+done:
+	for (size_t i = 0; i < count; i++) {
+		free(responses[i]);
+		free((void *)choices[i].label);
+	}
+	free(question);
+	free(copy);
 	return status;
 }
 
 static int
-rip_activate_field(st_cterm_t *terminal,
-    const struct cterm_rip_mouse_field *field)
+rip_process_host(struct rip_command_context *context, const char *command,
+	struct cterm_rip_mouse_field *button, size_t generation)
 {
-	bool reset_after = field->is_button && field->reset_after;
-	int status = rip_send_mouse_command(terminal, field->command);
+	st_cterm_t *terminal = context->terminal;
+	struct cterm_rip_engine *engine = context->engine;
+	char *copy;
+	int status = 0;
 
-	/* The command can clear or replace the field list. */
-	if (status == 0 && reset_after
-	    && terminal->rip_engine->mouse_fields != NULL)
-		status = rip_host_command(terminal, 0, 0, '*', "");
+	if (context->depth >= 64)
+		return 0;
+	/* Playback and active variables can delete the originating field or query. */
+	copy = strdup(command);
+	if (copy == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	context->depth++;
+	for (size_t i = 0; copy[i] != '\0' && status == 0; i++) {
+		uint8_t value = (uint8_t)copy[i];
+
+		if (value == '[') {
+			int slots[36];
+			size_t count = 0, end = i + 1;
+			int slot = rip_template_index(copy[end]);
+
+			if (slot >= 0 && copy[end + 1] == ':' && copy[end + 2] == ']') {
+				status = rip_store_template(engine, slot,
+				    copy + end + 3, button, generation);
+				break;
+			}
+			while (copy[end] != '\0' && count < 36
+			    && rip_template_index(copy[end]) >= 0)
+				slots[count++] = rip_template_index(copy[end++]);
+			if (copy[end] == ']') {
+				if (count == 0) { i = end; continue; }
+				char *expanded = NULL;
+
+				status = rip_apply_templates(engine, copy + end + 1,
+				    slots, count, &expanded);
+				if (status == 0 && expanded != NULL)
+					status = rip_process_host(context, expanded, button, generation);
+				free(expanded);
+				break;
+			}
+		}
+		if (value == '(' && copy[i + 1] == '(') {
+			const char *end = strstr(copy + i + 2, "))");
+
+			if (end != NULL) {
+				status = rip_popup(context, copy + i + 2,
+				    (size_t)(end - copy - i - 2), button, generation);
+				i = (size_t)(end - copy) + 1;
+				continue;
+			}
+		}
+		if (value == '$') {
+			char *end = strchr(copy + i + 1, '$');
+			size_t name_length;
+
+			if (end == NULL) continue;
+			name_length = (size_t)(end - copy - i - 1);
+			*end = '\0';
+			const char *name = copy + i + 1;
+
+			if (name[0] == '>')
+				status = cterm_rip_engine_play_scene(engine, name + 1);
+			else if (name_length == 2 && name[0] == '?' && rip_template_index(name[1]) >= 0) {
+				const char *text = engine->templates[rip_template_index(name[1])];
+
+				if (text != NULL) rip_command_append(context, text, strlen(text));
+			}
+			else if (rip_variable_token_equal(name, name_length, "COMPAT"))
+				status = rip_compat_frame(terminal);
+			else {
+				char answer[RIP_QUERY_VALUE_SIZE];
+				bool handled;
+
+				status = rip_query_variable(terminal, name, name_length, answer, &handled);
+				if (status == 0 && handled)
+					rip_command_append(context, answer, strlen(answer));
+				if (status == 0 && !handled) {
+					status = rip_state_variable(terminal, name, name_length, &handled);
+					if (status == 0 && !handled
+					    && name_length >= 1 && name_length <= 12) {
+						struct cterm_rip_user_var *variable =
+						    rip_find_variable(engine, name);
+
+						if (variable != NULL && variable->value != NULL)
+							rip_command_append(context, variable->value,
+							    strlen(variable->value));
+					}
+				}
+			}
+			*end = '$';
+			i = (size_t)(end - copy);
+			continue;
+		}
+		if ((value == '^' || value == '`') && copy[i + 1] != '\0') {
+			uint8_t next = (uint8_t)copy[i + 1];
+
+			if (next == value) { i++; }
+			else {
+				if (next >= 'a' && next <= 'z') next -= 'a' - 'A';
+				if (next >= '@' && next <= '_') { value = next - '@'; i++; }
+			}
+		}
+		rip_command_append(context, &value, 1);
+	}
+	context->depth--;
+	free(copy);
 	return status;
+}
+
+static int
+rip_send_field_command(st_cterm_t *terminal, const char *command,
+	struct cterm_rip_mouse_field *field)
+{
+	struct cterm_rip_engine *engine = terminal->rip_engine;
+	struct rip_command_context local = {.terminal = terminal, .engine = engine};
+	struct rip_command_context *context = engine->command_context;
+	bool owner = context == NULL;
+	int status;
+
+	if (owner) engine->command_context = context = &local;
+	status = rip_process_host(context, command, field, engine->mouse_generation);
+	if (owner) {
+		engine->command_context = NULL;
+		if (status == 0 && context->used != 0)
+			emit_user((const char *)context->output, context->used, terminal);
+	}
+	return status;
+}
+
+static int
+rip_send_mouse_command(st_cterm_t *terminal, const char *command)
+{
+	return rip_send_field_command(terminal, command, NULL);
 }
 
 static int
@@ -3973,6 +4223,51 @@ rip_redraw_button(struct cterm_rip_engine *engine,
 
 	field->x2 = field->drawing.x2;
 	field->y2 = field->drawing.y2;
+	return status;
+}
+
+static int
+rip_select_button(struct cterm_rip_engine *engine,
+    struct cterm_rip_mouse_field *field)
+{
+	int status = 0;
+
+	if (!field->is_button)
+		return 0;
+	if ((field->drawing.style.flags & 16384) != 0) {
+		for (struct cterm_rip_mouse_field *other = engine->mouse_fields;
+		    other != NULL && status == 0; other = other->next) {
+			if (other == field || !other->is_button || !other->selected
+			    || (other->drawing.style.flags & 16384) == 0
+			    || other->drawing.style.group != field->drawing.style.group)
+				continue;
+			other->selected = false;
+			status = rip_redraw_button(engine, other, false);
+		}
+		if (status == 0 && !field->selected) {
+			field->selected = true;
+			status = rip_redraw_button(engine, field, true);
+		}
+	}
+	else if ((field->drawing.style.flags2 & 1) != 0) {
+		field->selected = !field->selected;
+		status = rip_redraw_button(engine, field, field->selected);
+	}
+	return status;
+}
+
+static int
+rip_activate_field(st_cterm_t *terminal, struct cterm_rip_mouse_field *field)
+{
+	bool reset_after = field->is_button && field->reset_after;
+	int status = rip_select_button(terminal->rip_engine, field);
+
+	if (status == 0)
+		status = rip_send_field_command(terminal, field->command, field);
+	/* The command can clear or replace the field list. */
+	if (status == 0 && reset_after
+	    && terminal->rip_engine->mouse_fields != NULL)
+		status = rip_host_command(terminal, 0, 0, '*', "");
 	return status;
 }
 
@@ -4033,32 +4328,8 @@ rip_handle_mouse(st_cterm_t *terminal,
 		if (field->is_button) {
 			const int flags = field->drawing.style.flags;
 
-			if ((flags & 16384) != 0) {
-				for (struct cterm_rip_mouse_field *other =
-				    engine->mouse_fields; other != NULL;
-				    other = other->next) {
-					if (other == field || !other->is_button
-					    || !other->selected
-					    || (other->drawing.style.flags & 16384) == 0
-					    || other->drawing.style.group
-					    != field->drawing.style.group)
-						continue;
-					other->selected = false;
-					status = rip_redraw_button(engine, other,
-					    false);
-					cterm_render_record_error(terminal, status);
-				}
-				if (!field->selected) {
-					field->selected = true;
-					status = rip_redraw_button(engine, field,
-					    true);
-					cterm_render_record_error(terminal, status);
-				}
-			}
-			else if ((field->drawing.style.flags2 & 1) != 0) {
-				field->selected = !field->selected;
-				status = rip_redraw_button(engine, field,
-				    field->selected);
+			if ((flags & 16384) != 0 || (field->drawing.style.flags2 & 1) != 0) {
+				status = rip_select_button(engine, field);
 				cterm_render_record_error(terminal, status);
 			}
 			else if (field->invert) {
@@ -4115,9 +4386,11 @@ rip_handle_mouse(st_cterm_t *terminal,
 		    field->x1, field->y1, field->x2, field->y2);
 		cterm_render_record_error(terminal, status);
 	}
-	status = rip_send_mouse_command(terminal, field->command);
+	bool reset_after = field->reset_after;
+
+	status = rip_send_field_command(terminal, field->command, field);
 	cterm_render_record_error(terminal, status);
-	if (field->reset_after) {
+	if (reset_after) {
 		status = rip_host_command(terminal, 0, 0, '*', "");
 		cterm_render_record_error(terminal, status);
 	}

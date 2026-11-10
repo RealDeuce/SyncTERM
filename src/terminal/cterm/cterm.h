@@ -110,6 +110,8 @@ struct cterminal {
 	const char *rip_directory;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	st_cterm_rip_choice_callback_t rip_choice;
+	void *rip_choice_context;
 	st_cterm_rip_transfer_callback_t rip_transfer;
 	void *rip_transfer_context;
 	bool rip_text_disabled;

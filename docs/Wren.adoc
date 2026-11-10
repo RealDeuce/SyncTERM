@@ -1406,7 +1406,8 @@ The embedded `menu_host_ui` module exports class `MenuHostUI` with static
 methods `alert(title, message)`, `alertWithHelp(title, message, helpText)`,
 `help(title, body)`, `confirm(title, message)`,
 `prompt(title, message, initial, maxLen, masked)`,
-`choice(title, message, options, current)`, `status(title, lines)`, and
+`choice(title, message, options, current)`,
+`ripChoice(title, message, options, hotkeys, required)`, `status(title, lines)`, and
 `statusClear()`, plus `disconnected(title, details)` for the post-session
 bottom-row notice. That notice keeps the completed terminal visible until
 Enter, with F1 opening session details and the final protocol log. Alt-B
@@ -1421,6 +1422,11 @@ and status layout are preserved, and the notice does not enter saved history.
 `hidePopups` and local hangup/exit skip the notice. This is a host-controller
 ABI rather than a public menu script API: application C code holds the call
 handles and invokes it.
+
+`ripChoice` is the C-owned RIP pick-list bridge: hotkeys are Unicode scalar
+values (zero disables one), and required lists ignore Escape and outside clicks.
+Closing the application still unwinds the dialog and restores its saved screen.
+
 The progress pane fits the wider of its title and status rows, capped to the
 standard screen margins.  The pane itself is centered, but all status rows
 share one padded left edge so preformatted columns remain aligned between

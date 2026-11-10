@@ -79,6 +79,10 @@ class MenuHostUI {
     return MenuUi.choiceStandalone(title, message, options, current)
   }
 
+  static ripChoice(title, message, options, hotkeys, required) {
+    return MenuUi.choiceStandalone(title, message, options, 0, hotkeys, required)
+  }
+
   static status(title, lines) {
     if (__statusApp == null) {
       __statusCursor = Screen.checked_(CustomCursor.current)

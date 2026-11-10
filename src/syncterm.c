@@ -382,6 +382,32 @@ run_rip_prompt(void *context, const char *question, const char *initial,
 	    field_width, result);
 }
 
+static int
+run_rip_choice(void *context, const char *question,
+	const struct st_cterm_rip_choice *choices, size_t count,
+	bool required, int *selected)
+{
+	const char *labels[20];
+	uint32_t hotkeys[20];
+	int result;
+
+	if (count == 0 || count > 20)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (size_t i = 0; i < count; i++) {
+		labels[i] = choices[i].label;
+		hotkeys[i] = choices[i].hotkey;
+	}
+	*selected = -1;
+	result = st_wren_host_rip_choice(context, "RIP Selection", question,
+	    labels, hotkeys, count, required);
+	if (result == IO_ERROR_CANCELLED && !required)
+		return 0;
+	if (result < 0)
+		return result;
+	*selected = result;
+	return 0;
+}
+
 struct connection_ui {
 	st_wren_host_t *host;
 	st_console_t *console;
@@ -937,6 +963,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.initial_throttle_bps = profile->bps_rate,
 		.rip_prompt = run_rip_prompt,
 		.rip_prompt_context = host,
+		.rip_choice = run_rip_choice,
+		.rip_choice_context = host,
 		.event_hook = run_wren_event_hook,
 		.event_hook_context = &connected,
 		.wire_filter = run_wren_wire_filter,
