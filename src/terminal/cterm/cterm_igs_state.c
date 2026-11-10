@@ -1,5 +1,5 @@
 /* IGS workstation state, separate from console state.
- * Original contracts: IGS reference 15/16/28/29/31/117/120/123/124/129/130. */
+ * Original contracts: IGS reference 15/16/28/29/31/117/120/123/124/128/129/130. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
 #include "cterm.h"
@@ -218,6 +218,51 @@ cterm_igs_set_fill(struct cterm_igs *igs, int interior, int index, int border)
 		memcpy(a->user_fill, igs->patterns[index], sizeof(a->user_fill));
 	}
 	a->fill_perimeter = border != 0;
+}
+
+void
+cterm_igs_set_type(struct cterm_igs *igs, int kind, int style, int size)
+{
+	struct cterm_igs_attributes *a = &igs->attributes;
+	if (style < 1 || style > 7)
+		style = 1;
+	if (kind == 1) {
+		if (size < 1 || size > 8)
+			size = 1;
+		a->marker_type = style == 7 ? 3 : style;
+		a->marker_height = size * 11;
+		return;
+	}
+	if (kind != 2)
+		return;
+	if (style != 7)
+		a->line_type = style;
+	if (size >= 1 && size <= 41) {
+		if (style == 7) {
+			if (size <= 32) {
+				unsigned bank = size <= 16 ? 6u : 7u;
+				unsigned row = (unsigned)size - (bank == 6 ? 1u : 17u);
+				uint16_t mask = igs->patterns[bank][row];
+				a->user_line = (uint16_t)(mask != 0 ? mask : bank == 6 ? 0xaaaa : 0x5555);
+			}
+			a->line_type = 7;
+		}
+		int width = style == 1 ? (size > 40 ? 40 : size) : 1;
+		a->line_width = 2 * ((width - 1) / 2) + 1;
+		/* Width requests cannot reach an endpoint selector: patterned
+		 * styles change the native size local to one before those tests. */
+		return;
+	}
+	static const struct { int selector, begin, end; } ends[] = {
+		{0,0,0},{50,1,1},{51,1,0},{52,0,1},{53,1,2},{54,2,1},
+		{60,2,2},{61,2,0},{62,0,2},{63,2,1},{64,1,2},
+	};
+	for (size_t i = 0; i < sizeof(ends)/sizeof(*ends); ++i)
+		if (size == ends[i].selector) {
+			a->line_begin = ends[i].begin;
+			a->line_end = ends[i].end;
+			break;
+		}
 }
 
 static int

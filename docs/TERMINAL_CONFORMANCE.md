@@ -33,7 +33,11 @@ user-bank copying, source/active pattern separation, literal random rows and
 shared random-source progression, plus I/R/reset/reconnect checks. Its user
 branch corrects the pointer-to-style bug and safely bounds negative indices.
 Coherent application captures include all active rows and seeds with the
-unchanged scene. Drawing and sound remain pending; see the IGS ledger for details.
+unchanged scene. `T` adds conditional arity and once-only random-kind
+evaluation, marker/type sizing, literal width/end tables and all custom-mask
+rows/fallbacks. Coherent application captures cover state and I/R/reset/
+reconnect with the same unchanged-scene matrix. Drawing, loops and sound
+remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

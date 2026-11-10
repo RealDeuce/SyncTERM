@@ -6,6 +6,7 @@ implements `I`'s six initialization selectors and `R` resolution selection.
 workstation writing mode; `C` selects independent graphical pens and `S`
 changes palette colours. `H` selects hollow/solid fill, writing mode and
 perimeter together. `A` selects fill styles and copies/generates user patterns.
+`T` configures marker types/sizes, line styles/widths, custom masks and ends.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -414,6 +415,53 @@ coherent literal scene/cell/palette/cursor checks in all ST modes,
 Atari ST/CP437/UTF-8 and status choices. It checks I/R lifetime, unchanged
 scene/window, no replies and reconnect with audio off. Primitive rendering,
 loop execution and sound remain pending.
+
+### T: marker and line attributes
+
+`T` reads one unscaled kind first. Kind outside 1..2 ends the command
+without reading style or size. Remaining bytes retain their normal chain/
+ordinary-text ownership. Valid kinds read two additional unscaled operands.
+The existing generic parser's dynamic-parameter callback previews kind on
+a private state copy; real random/operand state advances exactly once when
+the completed command executes. Invalid kinds produce a distinct one-argument
+view for the later `&` executor; loop/repetition-guard execution remains
+pending with that command.
+
+Style outside 1..7 becomes one. Marker kind 1 clamps size to 1..8 (otherwise
+one), stores height `size*11`, and uses native types 1..6. Requested marker
+type seven selects native default type three. Line kind 2 changes an ordinary
+type immediately, even when width is invalid. Only widths 1..41 change width;
+solid widths clamp to 40 and round down to an odd value (maximum 39), while
+all patterned styles force width one.
+
+Custom line type seven is selected only in that valid-width branch. Sizes
+1..16 read source-bank 6 rows 0..15, and 17..32 read bank 7 rows 0..15.
+A zero row uses fallback mask 0xaaaa or 0x5555 respectively; nonzero words
+are retained without byte reversal. Sizes 33..41 select the existing custom
+mask. Endpoint-only requests do not themselves change width/mask; for type
+seven they also retain the previous type. Selector zero sets square ends;
+50..54 and 60..64 use the exact arrow/round/square table in reference 15/128.
+Other size words leave ends unchanged. Width processing cannot trigger an
+endpoint selector after forcing patterned widths to one.
+
+`I0/I2` restore captured types, dimensions and ends but preserve the uploaded
+user-line mask. `I5/R` preserve the selected attributes; full reset/reconnect
+restore entry state, including mask 0xffff. Pens, fill/text state, palette,
+Drawto, clipping, scaling, source banks and memory controls remain unchanged.
+`T` produces no immediate pixels, replies or waits. Reference 29/52 supplies
+the native sizing rules; primitive raster use remains pending.
+
+`cterm_igs_type` uses literal marker/width/end tables, every custom row and
+both zero-mask fallbacks under all scaling modes and ST resolutions. It
+checks unrelated state/indices, I/R lifetime, full reset, every focused split
+and bytewise input, random kinds committing once, invalid-kind byte ownership,
+partial acquisition, EOF, timeout and malformed-input recovery.
+`syncterm_igs_type` captures actual marker/line fields with coherent literal
+scene/cell/palette/cursor expectations across all ST modes,
+Atari ST/CP437/UTF-8 and status choices. It covers conditional arity, mask
+fallback/retention, endpoint-only requests, I/R lifetime, unchanged scene/
+window, no replies and fresh reconnect with audio disabled. These tests do
+not claim primitive rendering, loop execution or sound conformance.
 
 ## Deliberate corrections
 

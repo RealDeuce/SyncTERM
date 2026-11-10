@@ -84,7 +84,14 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_scaling_resolution", igs->scaling_resolution);
 		st_console_test_number(app, "cterm.igs_writing_mode", igs->attributes.writing_mode);
 		st_console_test_number(app, "cterm.igs_marker_pen", igs->attributes.marker_pen);
+		st_console_test_number(app, "cterm.igs_marker_type", igs->attributes.marker_type);
+		st_console_test_number(app, "cterm.igs_marker_height", igs->attributes.marker_height);
 		st_console_test_number(app, "cterm.igs_line_pen", igs->attributes.line_pen);
+		st_console_test_number(app, "cterm.igs_line_type", igs->attributes.line_type);
+		st_console_test_number(app, "cterm.igs_line_width", igs->attributes.line_width);
+		st_console_test_number(app, "cterm.igs_line_begin", igs->attributes.line_begin);
+		st_console_test_number(app, "cterm.igs_line_end", igs->attributes.line_end);
+		st_console_test_number(app, "cterm.igs_user_line", igs->attributes.user_line);
 		st_console_test_number(app, "cterm.igs_fill_pen", igs->attributes.fill_pen);
 		st_console_test_number(app, "cterm.igs_fill_interior", igs->attributes.fill_interior);
 		st_console_test_number(app, "cterm.igs_fill_index", igs->attributes.fill_index);

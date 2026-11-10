@@ -22,6 +22,26 @@ static const struct st_graphics_parameter unscaled_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
 };
+
+static int
+type_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	if (view->count == 0)
+		return IO_ERROR_PROTOCOL;
+	if (view->count >= 3)
+		return 0;
+	/* The arity query is effect-free. Numeric evaluation only touches this
+	 * private copy; real random/operand state advances once at execution. */
+	struct cterm_igs preview = *(struct cterm_igs *)context;
+	int kind;
+	int status = cterm_igs_argument_value(&preview, &view->arguments[0], &kind);
+	if (status == 0 && (kind == 1 || kind == 2))
+		*result = unscaled_parameters[0];
+	return status;
+}
+
 static const struct st_graphics_command commands[] = {
 	{'I', unscaled_parameters, 1, NULL},
 	{'R', unscaled_parameters, 2, NULL},
@@ -31,6 +51,7 @@ static const struct st_graphics_command commands[] = {
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
+	{'T', unscaled_parameters, 1, type_next},
 };
 
 static void
@@ -168,6 +189,13 @@ command(void *context, const struct st_graphics_command_view *view)
 		return 0;
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
+	case 'T':
+		if (values[0] < 1 || values[0] > 2)
+			return 0;
+		if (view->count != 3)
+			return IO_ERROR_PROTOCOL;
+		cterm_igs_set_type(igs, values[0], values[1], values[2]);
+		return 0;
 	case 'H': {
 		if (values[0] < 0)
 			return 0;

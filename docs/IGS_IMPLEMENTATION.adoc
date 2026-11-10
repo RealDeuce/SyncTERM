@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H and A commands are implemented and independently tested
+The I, R, g, M, C, S, H, A and T commands are implemented and independently tested
 natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
@@ -647,4 +647,57 @@ All 53 distinct selected tests have passing verification across these runs.
 Ledger IDs, references, dependencies and active CTest registrations were
 checked; superseded experiments remain excluded. Eight command entries are
 complete. Remaining drawing, loops, sound/input and final acceptance work
-stay pending. Completion commit will be recorded by the next completed step.
+stay pending. Completion commit: 39b8d11.
+
+=== T conditional marker and line attributes
+
+T reads an unscaled kind; invalid kinds stop after that one operand and
+consume no style/size. Valid kinds read two more unscaled fields. The generic
+parser's existing dynamic descriptor selects those fields using a private
+state preview, without advancing live random/operand state. The completed
+command evaluates real operands once. Its one- versus three-argument view
+retains the invalid-kind exit distinction for the later & executor; loop and
+repeat-guard execution remains part of that pending step.
+
+Style defaults to one outside 1..7. Marker size defaults to one outside
+1..8, with native height size*11 and marker type seven mapped to default
+type three. Line widths 1..41 use native odd rounding/clamp (maximum 39)
+for solid lines and force width one for patterned types. Ordinary line type
+changes even when width is invalid; custom type seven changes only inside
+the valid-width branch. Custom sizes 1..16/17..32 use banks 6/7, with zero
+fallbacks aaaa/5555. Sizes 33..41 retain the current user mask. Endpoint-only
+requests preserve width/mask, and custom endpoint requests retain the prior
+line type. All eleven endpoint selectors follow their literal table.
+References: 15/29/52/128 and IG221.TXT's T entry.
+
+These changes affect existing workstation attributes only. Pens, fill/text
+state, source banks, palette, Drawto, clip, g and memory controls remain;
+there is no immediate drawing, reply or wait. I0/I2 restore captured type/
+size/end fields but preserve the uploaded user-line mask. I5/R preserve
+attributes, while whole reset/reconnect restore entry state including the
+ffff user mask. Primitive raster use is tested in the later drawing steps.
+
+Native cterm_igs_type checks literal marker/width/end tables at all g modes
+and ST resolutions, every custom row, mask fallback and byte order, unchanged
+state/indices, I/R lifetime, reset, every focused split/bytewise input,
+conditional/random arity, once-only random consumption, partial input, EOF,
+local timeout and invalid-magnitude recovery. Application syncterm_igs_type
+observes actual marker/line attributes with coherent literal scene/cell/
+palette/cursor expectations in all ST modes, Atari ST/CP437/UTF-8 and status
+choices. It checks conditional reads, masks/endpoints, I/R lifetime,
+unchanged windows/scenes, no replies and reconnect with audio disabled.
+Pending drawing, loops and sound remain separate acceptance requirements.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration. Configure and full build passed without compiler warnings;
+all 55 selected CTest tests passed, including every CTerm test, shared
+parser/images/pixels, bitmap console/control backend, term/Wren and
+application IGS I/R/g/M/C/S/H/A/T, SkyPix report, graphics scrollback and
+session modes. T captures cover all ST modes, Atari ST/CP437/UTF-8 and
+status choices with physical audio disabled. Native conditional/random
+arity cases verify once-only consumption and that incomplete random-kind
+input leaves the seed unchanged. All 63 command/selector IDs, references,
+dependencies and active CTest registrations were checked; superseded
+experiments remain excluded. Nine command entries are complete. Remaining
+drawing, loops, sound/input and final acceptance work stay pending.
+Completion commit will be recorded by the next completed step.
