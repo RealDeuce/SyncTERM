@@ -27,7 +27,7 @@ data=dict(provenance=dict(generator='src/tests/igs/generate_position_vectors.py'
     method='Source-defined unscaled signed-word/low-byte console composition, independently interpreted by native and application tests; literal original font rows. No SyncTERM-generated expected output.',
     font_export_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
     rom_sha256=hashlib.sha256((root/'TOS/tos104.img').read_bytes()).hexdigest(),
-    native_word_cases=2359296,native_composition_cases=4452,native_byte_cases=6144,application_cases=len(cases)),
+    native_word_cases=157252,native_composition_cases=4452,native_byte_cases=6144,application_cases=len(cases)),
     fonts={str(f['form_height']):{str(c):[int(row.replace('.','0').replace('#','1'),2) for row in f['glyphs'][c]] for c in sorted(codes)} for f in fonts[1:]},cases=cases)
 (Path(__file__).parent/'position.json').write_text(json.dumps(data,indent=2)+'\n')
 print('Wrote 360 source-derived p cases and literal console font rows.')

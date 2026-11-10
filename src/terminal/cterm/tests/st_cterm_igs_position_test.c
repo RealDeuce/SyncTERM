@@ -32,7 +32,14 @@ words(void)
 		const struct st_console_rect full = {0,0,igs->width,igs->height}; seed(&f,&full,769,768);
 		for (unsigned scaling = 0; scaling < 3; ++scaling) {
 			char setup[32]; (void)snprintf(setup,sizeof(setup),"G#g %u:",scaling); feed(&f,setup);
-			for (unsigned role = 0; role < 2; ++role) for (int word = INT16_MIN; word <= INT16_MAX; ++word) {
+			/* Byte conversion is shared by all geometries. Exhaust both words
+			 * once; elsewhere cover every byte with negative/positive/carry
+			 * representatives and both signed extremes, without repeating the
+			 * same 16-bit sweep for each unrelated mode/status/g setting. */
+			bool exhaustive = resolution == 0 && reserved == 0 && scaling == 0;
+			unsigned cases = exhaustive ? 65536 : 770;
+			for (unsigned role = 0; role < 2; ++role) for (unsigned i = 0; i < cases; ++i) {
+				int word = exhaustive ? INT16_MIN+(int)i : i < 768 ? (int)i-256 : i == 768 ? INT16_MIN : INT16_MAX;
 				int column = role == 0 ? word : 300, row = role == 1 ? word : 400;
 				igs->math[0] = (int16_t)column; igs->math[1] = (int16_t)row;
 				feed(&f,"G#p 0],1]:");
@@ -130,19 +137,25 @@ composition_case(struct fixture *f, unsigned resolution, bool reserved, unsigned
 	unsigned ch = resolution == 2 ? 16 : 8, mask = cterm_igs_plane_mask(resolution);
 	const struct st_console_rect full = {0,0,igs->width,igs->height};
 	struct st_pixel_buffer *b = NULL; CHECK(st_console_get_pixels(&b,f->console,&full,false) == 0);
-	for (unsigned y = 0; y < igs->height; ++y) for (unsigned x = 0; x < igs->width; ++x) {
-		unsigned primary = 769, alternate = 768;
-		if (y/ch < m.rows) {
-			primary = alternate = 768+(m.backgrounds[y/ch] & mask);
-			for (unsigned i = 0; i < m.count; ++i) {
-				const struct model_cell *cell = &m.cells[i];
-				if (cell->x != x/8 || cell->y != y/ch) continue;
-				bool ink = (console_source_rows[resolution == 2][cell->ch][y%ch] & (128u >> (x%8))) != 0;
-				primary = alternate = 768+((ink ? cell->fg : cell->bg) & mask);
-			}
-		}
-		CHECK(b->primary[(size_t)y*igs->width+x] == primary && b->alternate[(size_t)y*igs->width+x] == alternate);
+	/* Build the independent frame by rows and sparse cells. Testing each cell
+	 * against every pixel repeats billions of irrelevant coordinate checks. */
+	size_t count = (size_t)igs->width*igs->height, drawable = (size_t)igs->width*ch*m.rows;
+	uint32_t *expected = malloc(count*sizeof(*expected)); CHECK(expected != NULL);
+	for (unsigned y = 0; y < igs->height; ++y) {
+		uint32_t value = y/ch < m.rows ? 768+(m.backgrounds[y/ch] & mask) : 769;
+		for (unsigned x = 0; x < igs->width; ++x) expected[(size_t)y*igs->width+x] = value;
 	}
+	for (unsigned i = 0; i < m.count; ++i) {
+		const struct model_cell *cell = &m.cells[i];
+		for (unsigned y = 0; y < ch; ++y) for (unsigned x = 0; x < 8; ++x) {
+			bool ink = (console_source_rows[resolution == 2][cell->ch][y] & (128u >> x)) != 0;
+			expected[((size_t)cell->y*ch+y)*igs->width+cell->x*8+x] = 768+((ink ? cell->fg : cell->bg) & mask);
+		}
+	}
+	CHECK(memcmp(b->primary,expected,count*sizeof(*expected)) == 0);
+	for (size_t i = drawable; i < count; ++i) expected[i] = 768;
+	CHECK(memcmp(b->alternate,expected,count*sizeof(*expected)) == 0);
+	free(expected);
 	st_pixel_buffer_destroy(b);
 }
 

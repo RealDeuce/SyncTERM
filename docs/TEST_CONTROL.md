@@ -72,7 +72,11 @@ or drains queues. The transport thread never reads live CTerm or Wren state.
 
 Captures own their buffers and remain valid after another frame, console switch,
 resize, or session/display destruction. Pipe serialization occurs after the
-transaction releases its locks. Snapshot IDs, presentation serials, content
+transaction releases its locks. Pixel words are encoded in bounded chunks with
+explicit little-endian byte order; the Python client fills a preallocated
+buffer across short pipe reads. These avoid per-pixel appends and repeated
+fragment allocations while retaining the same complete capture and wire format.
+Snapshot IDs, presentation serials, content
 generations, and timestamps have distinct meanings. The presenter generation alone does not
 identify a blink-phase selection. An unchanged image still
 has a new capture and presentation serial.

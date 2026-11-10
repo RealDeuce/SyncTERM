@@ -1307,9 +1307,10 @@ parameter pending. Direct cursor assignment would lose that behavior.
 Neither decimal values nor loaded math words are g-scaled. No reply, serial
 flow, video wait, palette change or VDI attribute call is introduced.
 
-`cterm_igs_position` checks 2,359,296 algebraic signed-word cases across both
-operand roles, all modes, status choices and g settings, with unchanged
-indexed phases/graphics state. Another 4,452 independent full-frame cases
+`cterm_igs_position` checks 157,252 algebraic coordinate cases: one exhaustive
+signed-word sweep in each role, then all byte classes with negative/positive/
+carry representatives and signed extremes across every mode/status/g setting,
+with unchanged indexed phases/graphics state. Another 4,452 full-frame cases
 compose all six console states and a wrapping bottom-row context with signed,
 byte/control boundaries and reverse/status choices. Another 6,144 frames cover
 all 256 byte values in both roles with pending foreground state, both reverse
@@ -1332,6 +1333,16 @@ Native FreeBSD /usr/bin/cc Release configure/full builds passed without
 warnings. Both focused suites and all 96 selected regressions passed,
 including every CTerm test and all 30 IGS application suites. The ledger has
 29 completed entries; X and final acceptance remain unfinished.
+
+A performance follow-up retains all pending-state/full-frame and application
+cases. It exhausts word conversion once per coordinate role, then checks
+every byte class with negative/positive/carry representatives and signed
+extremes across the remaining mode/status/g combinations. Complete expected
+frames use sparse glyph writes rather than checking every cell against every
+pixel. Shared captures serialize pixel chunks and receive into one buffer.
+All 40 relevant regressions passed afterward. Native p fell from 58.87 to
+17.82 seconds and application p from 290.59 to 213.22 seconds locally; the
+same 30 IGS application suites used about 23 percent less summed time.
 
 ## Deliberate corrections
 

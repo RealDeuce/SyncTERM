@@ -134,7 +134,7 @@ plus 2,688 printable-byte cases and 366 application scenes cover reverse
 video, pending sequences, controls,
 scrolling graphics, physical attributes, raw bytes and recovery/lifetime.
 `p` adds unscaled console positioning through that same VT52 state.
-Its 2,359,296 signed-word cases, 4,452 complete-frame composition cases,
+Its 157,252 word/byte-class cases, 4,452 complete-frame composition cases,
 6,144 byte-role frames and 360 coherent application scenes cover wrapped
 coordinates, pending controls/colors, status boundaries, unchanged graphics,
 scrolling and parser/error/reset/disconnect recovery.

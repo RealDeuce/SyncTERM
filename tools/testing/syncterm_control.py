@@ -186,12 +186,15 @@ class Client:
                 completed.put(error)
 
     def _read_exact(self, size):
-        result = bytearray()
-        while len(result) < size:
-            part = self.process.stdout.read(size - len(result))
-            if not part:
+        # Large snapshots arrive in short pipe reads. Fill their final buffer
+        # directly instead of allocating and extending for every fragment.
+        result = bytearray(size)
+        view, offset = memoryview(result), 0
+        while offset < size:
+            count = self.process.stdout.readinto(view[offset:])
+            if not count:
                 raise EOFError("SyncTERM control pipe closed")
-            result.extend(part)
+            offset += count
         return result
 
     def _read_responses(self):

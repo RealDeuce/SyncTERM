@@ -78,7 +78,22 @@ static void end_section(struct test_bytes *b, size_t start) { patch32(b, start, 
 static void words(struct test_bytes *b, uint32_t tag, const uint32_t *p, size_t count)
 {
 	size_t start = section(b, tag);
-	for (size_t i = 0; i < count; ++i) put32(b, p[i]);
+	/* Captures contain millions of pixel words. Encode bounded chunks rather
+	 * than checking capacity and appending four bytes for every pixel. Keep
+	 * the wire explicitly little endian on either host byte order. */
+	uint8_t encoded[4096];
+	while (count != 0 && b->error == 0) {
+		size_t n = count < sizeof(encoded)/4 ? count : sizeof(encoded)/4;
+		for (size_t i = 0; i < n; ++i) {
+			uint32_t value = p[i];
+			encoded[4*i] = (uint8_t)value;
+			encoded[4*i+1] = (uint8_t)(value >> 8);
+			encoded[4*i+2] = (uint8_t)(value >> 16);
+			encoded[4*i+3] = (uint8_t)(value >> 24);
+		}
+		bytes(b, encoded, n*4);
+		p += n; count -= n;
+	}
 	end_section(b, start);
 }
 static void fields(struct test_bytes *b, uint32_t tag, const struct st_console_test_application *app)

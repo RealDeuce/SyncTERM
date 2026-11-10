@@ -9,7 +9,7 @@
     "method": "Source-defined unscaled signed-word/low-byte console composition, independently interpreted by native and application tests; literal original font rows. No SyncTERM-generated expected output.",
     "font_export_sha256": "0bb73744d31489e78d251b1b81258bbaa098bc48d3e0917555f06d364ef833e4",
     "rom_sha256": "1d08153c15f3e9c010ce9fdd172e082854f31bc5f35d558843f3ed409e9c52f1",
-    "native_word_cases": 2359296,
+    "native_word_cases": 157252,
     "native_composition_cases": 4452,
     "native_byte_cases": 6144,
     "application_cases": 360
