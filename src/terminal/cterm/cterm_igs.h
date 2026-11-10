@@ -44,7 +44,9 @@ struct cterm_igs {
 	bool clipping;
 	int clip_x1, clip_y1, clip_x2, clip_y2;
 	int16_t math[128];
+	/* Independent 32-bit states for the shared source and A's row generator. */
 	uint32_t random_seed;
+	uint32_t pattern_seed;
 	int random_range[2][2];
 	/* Each slot owns a distinct indexed image, preserving its native bytes. */
 	struct st_igs_image *memory[2];
@@ -69,6 +71,8 @@ bool cterm_igs_paused(const struct cterm_igs *);
 int cterm_igs_initialize(struct cterm_igs *, int operation);
 void cterm_igs_set_scaling(struct cterm_igs *, int mode);
 void cterm_igs_set_pen(struct cterm_igs *, int kind, int pen);
+void cterm_igs_set_fill(struct cterm_igs *, int interior, int index, int border);
+uint32_t cterm_igs_random(struct cterm_igs *);
 /* Apply the descriptor's axis to a decimal constant/index. Lookup and random
  * results are returned as values, without a second coordinate transform. */
 int cterm_igs_argument_value(struct cterm_igs *,

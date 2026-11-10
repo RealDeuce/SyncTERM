@@ -1461,6 +1461,38 @@ transfer_key(st_wren_connected_t *connected, unsigned key)
 	return 0;
 }
 
+static int
+wait_transfer_notice(st_wren_connected_t *connected, st_console_t *console,
+	const char *notice)
+{
+	uint32_t width, height;
+	CHECK(st_console_size(console, &width, &height) == 0);
+	size_t count = (size_t)width * height;
+	struct st_console_cell *cells = calloc(count, sizeof(*cells));
+	CHECK(cells != NULL);
+	const struct st_console_rect area = {0, 0, width, height};
+	size_t length = strlen(notice);
+	bool found = false;
+	/* Worker completion and the flow's 50 ms timer are asynchronous. Wait
+	 * for the observable notice instead of assuming a 100 ms pump budget. */
+	for (unsigned attempt = 0; attempt < 5000 && !found; ++attempt) {
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(st_console_read_cells(console, &area, cells, width) == 0);
+		for (uint32_t y = 0; y < height && !found; ++y)
+			for (size_t x = 0; x + length <= width && !found; ++x) {
+				size_t i = 0;
+				while (i < length && cells[(size_t)y * width + x + i].glyph == (unsigned char)notice[i])
+					++i;
+				found = i == length;
+			}
+		if (!found)
+			(void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
+	}
+	free(cells);
+	CHECK(found);
+	return 0;
+}
+
 /* Real protocol input and startup failures use the same session/worker owner. */
 static int
 exercise_transfer_wire(st_wren_host_t *host, st_console_t *console)
@@ -1646,10 +1678,7 @@ exercise_transfer_wire(st_wren_host_t *host, st_console_t *console)
 	    "  if (error != null) Fiber.abort(error)\n"
 	    "  TransferFlow.inline_()\n"
 	    "})\n") == 0);
-	for (unsigned i = 0; i < 100; ++i) {
-		CHECK(st_wren_connected_pump(connected, 0) == 0);
-		(void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
-	}
+	CHECK(wait_transfer_notice(connected, console, "Not connected") == 0);
 	CHECK(transfer_interpret(NULL, connected,
 	    "text = Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join()\n"
 	    "if (Transfer.active || !TransferFlow.busy || !text.contains(\"Not connected\")) Fiber.abort(\"inline error lost after cleanup\")\n") == 0);
@@ -1662,10 +1691,7 @@ exercise_transfer_wire(st_wren_host_t *host, st_console_t *console)
 	    "  Timer.after(1).await()\n"
 	    "  Fiber.abort(\"transfer text failure\")\n"
 	    "})\n") == 0);
-	for (unsigned i = 0; i < 100; ++i) {
-		CHECK(st_wren_connected_pump(connected, 0) == 0);
-		(void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
-	}
+	CHECK(wait_transfer_notice(connected, console, "transfer text failure") == 0);
 	CHECK(transfer_interpret(NULL, connected,
 	    "text = Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join()\n"
 	    "if (TransferFlow.busy || Transfer.active || !text.contains(\"transfer text failure\")) Fiber.abort(\"resumed Fiber error escaped supervisor\")\n") == 0);

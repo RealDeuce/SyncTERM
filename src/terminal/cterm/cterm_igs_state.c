@@ -1,5 +1,5 @@
-/* IGS graphics state and I/R restoration, separate from console state.
- * Original contracts: IGS reference 16, 28, 31, 117, 120 and 123. */
+/* IGS workstation state, separate from console state.
+ * Original contracts: IGS reference 15/16/28/29/31/117/120/123/124/129/130. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
 #include "cterm.h"
@@ -180,6 +180,46 @@ cterm_igs_set_pen(struct cterm_igs *igs, int kind, int pen)
 	}
 }
 
+uint32_t
+cterm_igs_random(struct cterm_igs *igs)
+{
+	igs->random_seed = igs->random_seed * UINT32_C(0xbb40e62d) + 1;
+	return (igs->random_seed >> 8) & UINT32_C(0xffffff);
+}
+
+void
+cterm_igs_set_fill(struct cterm_igs *igs, int interior, int index, int border)
+{
+	struct cterm_igs_attributes *a = &igs->attributes;
+	if (interior < 0 || interior > 4)
+		interior = 0;
+	a->fill_interior = interior;
+	if (interior < 4) {
+		int maximum = interior == 2 ? 24 : 12;
+		a->fill_index = index >= 1 && index <= maximum ? index : 1;
+	}
+	else {
+		if (index < 0)
+			index = 0;
+		if (index > 7) {
+			igs->pattern_seed = cterm_igs_random(igs);
+			if (index == 8) {
+				for (unsigned row = 0; row < 16; ++row) {
+					igs->pattern_seed = igs->pattern_seed * UINT32_C(0x1afb) + UINT32_C(0x1fccd);
+					igs->patterns[0][row] = (uint16_t)igs->pattern_seed;
+				}
+			}
+			else
+				memcpy(igs->patterns[0], pattern_zero, sizeof(pattern_zero));
+			index = 0;
+		}
+		/* Correct the original pointer-to-scalar style call. User pattern
+		 * rows are selected independently of the unused non-user index. */
+		memcpy(a->user_fill, igs->patterns[index], sizeof(a->user_fill));
+	}
+	a->fill_perimeter = border != 0;
+}
+
 static int
 begin_resolution(struct cterm_igs *igs, unsigned resolution, int palette)
 {
@@ -284,6 +324,7 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	igs->scaling_mode = 0;
 	igs->scaling_resolution = (int)igs->resolution;
 	igs->random_seed = 1;
+	igs->pattern_seed = 0;
 	igs->random_range[0][0] = igs->random_range[1][0] = 0;
 	igs->random_range[0][1] = igs->random_range[1][1] = 199;
 	cterm_igs_clip_screen(igs);

@@ -28,8 +28,12 @@ negative pens are ignored safely. Palette restoration, I/R retention and
 reconnect run in the same matrix. `H` adds hollow/solid interior, writing-mode
 and perimeter state tests, including M interaction, index/pattern retention,
 selective I versus full reset and I5/R preservation. Coherent application
-checks use the same geometry/encoding/status matrix. Drawing and sound remain
-pending; see the IGS ledger for details.
+checks use the same geometry/encoding/status matrix. `A` adds fill-style bounds,
+user-bank copying, source/active pattern separation, literal random rows and
+shared random-source progression, plus I/R/reset/reconnect checks. Its user
+branch corrects the pointer-to-style bug and safely bounds negative indices.
+Coherent application captures include all active rows and seeds with the
+unchanged scene. Drawing and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

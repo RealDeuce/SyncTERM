@@ -87,7 +87,15 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_line_pen", igs->attributes.line_pen);
 		st_console_test_number(app, "cterm.igs_fill_pen", igs->attributes.fill_pen);
 		st_console_test_number(app, "cterm.igs_fill_interior", igs->attributes.fill_interior);
+		st_console_test_number(app, "cterm.igs_fill_index", igs->attributes.fill_index);
 		st_console_test_number(app, "cterm.igs_fill_perimeter", igs->attributes.fill_perimeter);
+		st_console_test_number(app, "cterm.igs_random_seed", igs->random_seed);
+		st_console_test_number(app, "cterm.igs_pattern_seed", igs->pattern_seed);
+		for (unsigned i = 0; i < 16; ++i) {
+			char name[48];
+			(void)snprintf(name, sizeof(name), "cterm.igs_user_fill_%u", i);
+			st_console_test_number(app, name, igs->attributes.user_fill[i]);
+		}
 		st_console_test_number(app, "cterm.igs_text_pen", igs->attributes.text_pen);
 		st_console_test_number(app, "cterm.igs_marker_pen_cache", igs->marker_pen_cache);
 	}

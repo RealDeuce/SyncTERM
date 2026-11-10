@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S and H commands are implemented and independently tested
+The I, R, g, M, C, S, H and A commands are implemented and independently tested
 natively and through the control bitmap application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
@@ -587,4 +587,64 @@ with physical audio disabled and literal scene expectations. All 63 command/
 selector IDs, dependencies, reference paths and active test registrations
 were checked; superseded experiments remain excluded. Seven command entries
 are complete. Drawing, loops, sound/input and remaining acceptance work stay
-pending. Completion commit will be recorded by the next completed step.
+pending. Completion commit: e64beaf.
+
+=== A fill styles, source banks and active user pattern
+
+A consumes three unscaled operands before changing state. Invalid interiors
+select hollow; pattern interior 2 has style indices 1..24 and the other
+non-user interiors use 1..12, defaulting invalid indices to one. Border is
+false only for zero. User indices 0..7 copy sixteen source rows to an
+independent active fill. Negative user indices safely select bank zero.
+Writing mode, fill pen and unrelated state remain unchanged.
+
+User index 8 advances the shared IGS random source once, then performs the
+sixteen unsigned 32-bit pattern updates (seed*0x1afb+0x1fccd), writing each
+low word to bank zero and copying that bank into active fill. Index 9 or
+above also advances the shared source once and retains that returned value
+as pattern seed, but restores default bank-zero rows before copying. No
+other source bank is changed. References: 15/29/123/124/130 and the manual.
+
+The pointer-to-scalar vsf_style call in the original user branch is removed.
+User selection leaves the prior non-user style index unchanged; it does not
+derive an index from a native load address. This is an intentional bug fix.
+The random-source helper shares the existing port stream with r/R, retaining
+the full 32-bit seed and returning bits 8..31 after each native LCG update.
+Full reset starts that stream at one and A's separate pattern seed at zero.
+Zero advances to one without native clock reseeding; foreign OS consumers
+and clock reads are not emulated. The two seed domains are algorithm states,
+not clocks. Fixed unscaled command signatures now share parameter prefixes
+with their own counts; Atari fill/random policy stays outside the parser.
+
+I0/I2 restore source bank zero and entry attributes while retaining active
+user fill and both seeds. R/I5 retain banks, active fill and seeds. Whole
+reset/reconnect restore defaults, including zeroed banks 1..7 and solid
+active user rows. A has no immediate pixel/palette/console, reply or wait
+effect. Primitive rendering will consume the selected style and pattern.
+
+Native cterm_igs_fill checks literal style bounds, signed borders, all eight
+source-bank copies, active/source independence, literal default/random rows,
+shared-source advancement including default restoration, random return
+vectors and zero policy, I/R lifetime, reset and split/bytewise/error input.
+Application syncterm_igs_fill observes the actual style fields, sixteen
+active rows and both seeds in the same capture as literal scene/cell/palette/
+cursor expectations, across all ST modes, Atari ST/CP437/UTF-8 and status
+choices. It checks I/R lifetime, unchanged windows/scenes, no replies and
+fresh reconnect with audio disabled. Ordinary tests use no external assets.
+Pending drawing, loops and sound remain separate acceptance requirements.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration. Configure and full build passed without compiler warnings;
+focused native/application A tests passed. The broad 53-test run passed
+52 tests, including every CTerm test, shared parser/images/pixels, bitmap
+console/control backend, term and all IGS application tests. Wren hit an
+existing fixture's fixed 100 ms assumption for an asynchronous transfer
+notice; its isolated run passed. The two related fixture delays now pump
+until the expected notice is visible, within a bounded wait, retaining the
+original worker/ownership/message assertions. After the final full build,
+Wren and IGS fill/palette/resolution passed together under parallel load.
+All 53 distinct selected tests have passing verification across these runs.
+Ledger IDs, references, dependencies and active CTest registrations were
+checked; superseded experiments remain excluded. Eight command entries are
+complete. Remaining drawing, loops, sound/input and final acceptance work
+stay pending. Completion commit will be recorded by the next completed step.

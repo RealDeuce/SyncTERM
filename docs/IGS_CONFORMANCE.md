@@ -5,7 +5,8 @@ implements `I`'s six initialization selectors and `R` resolution selection.
 `g` configures coordinate scaling and its captured resolution. `M` selects the
 workstation writing mode; `C` selects independent graphical pens and `S`
 changes palette colours. `H` selects hollow/solid fill, writing mode and
-perimeter together. Other commands remain pending.
+perimeter together. `A` selects fill styles and copies/generates user patterns.
+Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -363,6 +364,56 @@ cursor and IGS state, in all ST modes, Atari ST/CP437/UTF-8 and status choices.
 It covers M/I/R lifetime, unchanged scene/window, no replies and reconnect,
 with audio disabled. This is attribute coverage; pending primitive and
 auditory conformance is not claimed.
+
+### A: fill styles and user patterns
+
+`A` reads interior, index and border as three unscaled operands before
+changing state. Invalid interiors become hollow (0). Standard pattern (2)
+indices are 1..24; other non-user interiors use 1..12. Invalid style indices
+become 1. Border is false only for zero, including signed nonzero values.
+Writing mode and fill pen remain unchanged. These are the caller and native
+style rules in reference 15/29/130 and IG221.TXT.
+
+For user interior 4, indices 0..7 copy sixteen source-bank rows into an
+independent active user fill. Index 8 consumes one shared random result,
+then performs sixteen unsigned 32-bit updates with multiplier 0x1afb and
+increment 0x1fccd, storing the low word of each update in bank zero before
+copying it. Index 9 or above also consumes one shared random result, but
+restores the literal default bank-zero rows before copying. Other banks
+are retained. Negative user indices safely select zero.
+
+The original user branch erroneously passes a pointer to scalar `vsf_style`,
+making its stored index depend on the native load address. SyncTERM removes
+that call: user-pattern selection leaves the previous non-user style index
+unchanged and copies the requested rows. No native pointer or address-wrap
+artifact is emulated. This explicit correction leaves pattern/hatch index
+selection independent of user-pattern storage.
+
+The existing IGS-owned random source is shared with numeric `r/R`: full
+reset starts its 32-bit state at one; updates use multiplier 0xbb40e62d and
+increment one, returning bits 8..31. Zero advances to one without foreign
+clock reseeding. Other OS consumers/native clock observations are outside
+this port policy. A's separate pattern seed starts at zero. References 124
+and 130 supply the two recurrences and independent literal vectors.
+
+`I0/I2` restore source bank zero and entry attributes but preserve active
+user fill and both random seeds. `R/I5` retain banks, active fill and seeds;
+full reset/reconnect restore the complete entry state, default bank zero,
+zeroed other banks and solid active user rows. `A` draws no immediate pixels,
+changes no palette/console colours and sends no replies or waits. Its
+pattern masks and style index will be consumed by later drawing commands.
+
+`cterm_igs_fill` checks signed/upper bounds, all style limits and borders,
+all eight user-bank copies and source/active independence, literal random
+rows and shared-source progression, selective initialization, resolution
+lifetime, full reset and every focused split/bytewise input. Partial
+acquisition, EOF, timeout, malformed magnitude and recovery retain completed
+state and do not consume a random draw. `syncterm_igs_fill` observes actual
+interior/index/perimeter, all sixteen active rows and both seeds alongside
+coherent literal scene/cell/palette/cursor checks in all ST modes,
+Atari ST/CP437/UTF-8 and status choices. It checks I/R lifetime, unchanged
+scene/window, no replies and reconnect with audio off. Primitive rendering,
+loop execution and sound remain pending.
 
 ## Deliberate corrections
 

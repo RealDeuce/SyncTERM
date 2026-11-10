@@ -17,24 +17,20 @@ static const struct st_graphics_dialect dialect = {
 	.chain_indicator = true, .chain = '>', .number_skip_crlf = true,
 	.number_digits = 4,
 };
-static const struct st_graphics_parameter scalar_parameters[] = {
-	{.kind = ST_GRAPHICS_NUMBER},
-};
-static const struct st_graphics_parameter pair_parameters[] = {
-	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
-};
-static const struct st_graphics_parameter four_parameters[] = {
+/* Fixed unscaled signatures share prefixes; counts remain per command. */
+static const struct st_graphics_parameter unscaled_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
 };
 static const struct st_graphics_command commands[] = {
-	{'I', scalar_parameters, 1, NULL},
-	{'R', pair_parameters, 2, NULL},
-	{'g', scalar_parameters, 1, NULL},
-	{'M', scalar_parameters, 1, NULL},
-	{'C', pair_parameters, 2, NULL},
-	{'S', four_parameters, 4, NULL},
-	{'H', scalar_parameters, 1, NULL},
+	{'I', unscaled_parameters, 1, NULL},
+	{'R', unscaled_parameters, 2, NULL},
+	{'g', unscaled_parameters, 1, NULL},
+	{'M', unscaled_parameters, 1, NULL},
+	{'C', unscaled_parameters, 2, NULL},
+	{'S', unscaled_parameters, 4, NULL},
+	{'H', unscaled_parameters, 1, NULL},
+	{'A', unscaled_parameters, 3, NULL},
 };
 
 static void
@@ -132,8 +128,7 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 			return IO_ERROR_OUT_OF_RANGE;
 		bool found = false;
 		for (unsigned tries = 0; tries < 65536; ++tries) {
-			igs->random_seed = igs->random_seed * UINT32_C(0xbb40e62d) + 1;
-			unsigned raw = (igs->random_seed >> 8) & 0xffffff;
+			unsigned raw = cterm_igs_random(igs);
 			unsigned word = raw & 0xffff;
 			value = upper < 256 ? (int)(raw & 255)
 			    : word >= 32768 ? (int)word - 65536 : (int)word;
@@ -172,6 +167,7 @@ command(void *context, const struct st_graphics_command_view *view)
 		igs->attributes.writing_mode = values[0] >= 1 && values[0] <= 4 ? values[0] : 1;
 		return 0;
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
+	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
 	case 'H': {
 		if (values[0] < 0)
 			return 0;
