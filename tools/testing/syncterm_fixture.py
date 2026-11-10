@@ -1,5 +1,6 @@
 """Isolated application fixtures shared by process regression tests."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+import array
 import contextlib
 import json
 import os
@@ -86,6 +87,18 @@ def fixture(executable, *, entries="", extra=(), script=None,
 
 def cell_at(snapshot, x, y):
     return snapshot.cells[y * snapshot.metadata["columns"] + x]
+
+
+def check_pixel_planes(snapshot, expected, *, start=0, context=()):
+    """Compare every expected word in both phases without boxing observed pixels."""
+    values = array.array("I", expected)
+    data, width = values.tobytes(), snapshot.metadata["plane_width"]
+    for phase in ("primary", "alternate"):
+        observed = memoryview(getattr(snapshot, phase))[start:start + len(values)]
+        assert observed.tobytes() == data, (context, phase,
+            next(((i % width, i // width, a, e)
+                  for i, (a, e) in enumerate(zip(observed, values)) if a != e),
+                 ("length", len(observed), len(values))))
 
 
 def click_cell(client, snapshot, x, y, buttons=1):

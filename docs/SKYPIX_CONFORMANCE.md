@@ -274,3 +274,25 @@ Headless fixtures disable physical audio with `AudioModes=0`. Bitmap and native
 algorithm tests make no claim about physical Amiga hardware, audible sound or
 native display backend behaviour. ANSI CP437/UTF-8 and historical RIP suites
 remain separate regressions with their original reference provenance.
+
+### Test execution cost
+
+Pixel-only captures defer Python cell-object construction until cells or text
+are accessed. Cell-section lengths are still checked immediately, and deferred
+cells use owned bytes from the same coherent capture. Complete cursor/report/
+scrolling scenes compare both planes as word bytes rather than constructing a
+Python integer object for every observed pixel. Scrolling-box expectations
+use background rows and literal borders; all 20 canvas/scroll combinations
+were checked byte-for-byte against the former per-pixel geometry equations.
+No scene, profile, source glyph/hash, input split, reply fence or cursor idle
+interval was removed.
+
+Native FreeBSD /usr/bin/cc Release configure/full builds passed without
+warnings. All 11 SkyPix tests passed before the changes, and all 18 relevant
+SkyPix/control/IGS-DEL regressions passed afterward. Literal protocol checks
+also cover deferred-cell ownership, malformed cell-section lengths and
+mismatch rejection in either pixel plane. The unchanged seven SkyPix
+application suites' summed time fell from 182.48 to 148.55 seconds locally.
+Cursor tests fell from 33.59 to 24.02 seconds, scrolling from 32.04 to 20.11,
+and report tests from 15.31 to 11.79. These are local measurements, not CI
+timing thresholds.

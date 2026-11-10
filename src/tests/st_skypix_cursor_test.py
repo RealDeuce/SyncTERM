@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'testing'))
-from syncterm_fixture import fixture
+from syncterm_fixture import fixture,check_pixel_planes
 
 GLYPHS = {'A': (0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0),
           'B': (0xfc, 0xc6, 0xc6, 0xfc, 0xc6, 0xc6, 0xfc, 0),
@@ -68,11 +68,8 @@ def run(executable, reports, kick, encoding, status, mode_height):
                     assert (m['plane_width'], m['plane_height'], m['rows']) == (640, mode_height, mode_height // 8), m
                     assert m['pixel_cursor_enabled'] == 0 and m['cursor_visible'] == 0, m
                     start = m['pixel_top'] * 640
-                    for plane in (shown.primary, shown.alternate):
-                        actual = list(plane[start:start + len(expected)])
-                        assert actual == expected, (kick, encoding, status, mode_height,
-                            next((i % 640, i // 640, a, e)
-                                 for i, (a, e) in enumerate(zip(actual, expected)) if a != e))
+                    check_pixel_planes(shown, expected, start=start,
+                                       context=(kick, encoding, status, mode_height))
 
                 check(frame(b'\f'), scene(drawable, cursor=0))
                 check(frame(b'A'), scene(drawable, 'A', 8))

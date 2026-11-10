@@ -104,7 +104,9 @@ class Snapshot:
             raise ProtocolError("Incomplete snapshot")
         self.metadata = Reader(sections[1]).fields()
         self.application = Reader(sections[8]).fields()
-        self.cells = tuple(Cell(*values) for values in struct.iter_unpack("<IIIIHHHH", sections[2]))
+        # Pixel-only captures need no Python object per cell. Keep owned bytes
+        # from this same transaction and decode the tuple on first access.
+        self._cell_data, self._cells = bytes(sections[2]), None
         self.palette, self.primary, self.alternate, self.rgb = (words(sections[i]) for i in (3, 4, 5, 6))
         glyphs = Reader(sections[7])
         self.glyphs = {}
@@ -116,11 +118,17 @@ class Snapshot:
         self.title, self.clipboard, self.url = host.string(), host.string(), host.string()
         host.end()
         m = self.metadata
-        if (len(self.cells) != m["columns"] * m["rows"] or len(self.palette) != 65536
+        if (len(self._cell_data) != m["columns"] * m["rows"] * struct.calcsize("<IIIIHHHH") or len(self.palette) != 65536
                 or len(self.primary) != m["plane_width"] * m["plane_height"]
                 or len(self.alternate) != len(self.primary)
                 or len(self.rgb) != m["output_width"] * m["output_height"]):
             raise ProtocolError("Snapshot dimensions disagree with its buffers")
+
+    @property
+    def cells(self):
+        if self._cells is None:
+            self._cells = tuple(Cell(*values) for values in struct.iter_unpack("<IIIIHHHH", self._cell_data))
+        return self._cells
 
     def cell_text(self, cell):
         return self.glyphs.get((cell.glyph_font, cell.glyph), "")

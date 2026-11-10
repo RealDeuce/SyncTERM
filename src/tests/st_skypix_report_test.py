@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'testing'))
-from syncterm_fixture import fixture
+from syncterm_fixture import fixture,check_pixel_planes
 
 ROWS = ((0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0),
         (0xfc, 0xc6, 0xc6, 0xfc, 0xc6, 0xc6, 0xfc, 0),
@@ -77,11 +77,7 @@ def font_parameters(peer, client, kick, height):
         assert (frame.palette[512], frame.palette[514]) == (0, 0xdddddd)
         assert frame.metadata['cursor_visible'] == 0
         start = frame.metadata['pixel_top'] * 640
-        for plane in (frame.primary, frame.alternate):
-            actual = plane[start:start + len(expected)]
-            assert list(actual) == expected, (kick, extra,
-                next((i % 640, i // 640, a, e)
-                     for i, (a, e) in enumerate(zip(actual, expected)) if a != e))
+        check_pixel_planes(frame, expected, start=start, context=(kick, extra))
 
 
 def run(executable, reports, kick, encoding, status, mode_height):
@@ -119,11 +115,8 @@ def run(executable, reports, kick, encoding, status, mode_height):
                     height = mode_height - (8 if status else 0)
                     expected = expected_scene(height)
                     start = m['pixel_top'] * 640
-                    for plane in (frame.primary, frame.alternate):
-                        actual = plane[start:start + len(expected)]
-                        assert list(actual) == expected, (kick, encoding, status, repeat,
-                            next((i % 640, i // 640, a, e)
-                                 for i, (a, e) in enumerate(zip(actual, expected)) if a != e))
+                    check_pixel_planes(frame, expected, start=start,
+                                       context=(kick, encoding, status, repeat))
                     assert tuple(frame.palette[512:517]) == (0, 0x1111ff, 0xdddddd, 0xff0000, 0x00ff11)
                 # Literal native Topaz/11 A rows from the two original files.
                 # This checks profile selection through the real application,
@@ -145,8 +138,7 @@ def run(executable, reports, kick, encoding, status, mode_height):
                         if row & (128 >> x):
                             expected[(10 + y) * 640 + 8 + x] = 514
                 start = frame.metadata['pixel_top'] * 640
-                for plane in (frame.primary, frame.alternate):
-                    assert list(plane[start:start + len(expected)]) == expected, (kick, encoding, status)
+                check_pixel_planes(frame, expected, start=start, context=(kick, encoding, status))
                 assert frame.application['cterm.graphics_mode'] == (3 if kick == '1.3' else 4)
                 font_parameters(peer, client, kick, height)
                 peer.shutdown(socket.SHUT_RDWR)

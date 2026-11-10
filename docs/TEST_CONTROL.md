@@ -76,6 +76,11 @@ transaction releases its locks. Pixel words are encoded in bounded chunks with
 explicit little-endian byte order; the Python client fills a preallocated
 buffer across short pipe reads. These avoid per-pixel appends and repeated
 fragment allocations while retaining the same complete capture and wire format.
+Cell-section lengths are validated immediately. Python cell objects are decoded
+on first access from owned bytes of that same capture; this causes no further
+application request. Pixel-only checks can compare both complete planes with
+`syncterm_fixture.check_pixel_planes`, which reports the first differing word
+without constructing a Python integer object for each observed pixel.
 Snapshot IDs, presentation serials, content
 generations, and timestamps have distinct meanings. The presenter generation alone does not
 identify a blink-phase selection. An unchanged image still

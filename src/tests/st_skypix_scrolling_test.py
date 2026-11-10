@@ -2,12 +2,13 @@
 """Literal pixel stripes through fractional scrolling and both history views."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
+import array
 import socket
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'testing'))
-from syncterm_fixture import fixture
+from syncterm_fixture import fixture,check_pixel_planes
 
 COLOURS = (0, 0x0000ff, 0xffffff, 0xff0000, 0x00ff00, 0xffff00, 0x00ffff, 0xff00ff)
 
@@ -49,16 +50,18 @@ def run_box(executable, reports, kick, encoding, status, mode_height):
                     frame = client.capture()
                     m = frame.metadata
                     assert (m['columns'], m['rows'], m['plane_width'], m['plane_height']) == (80, mode_height // 8, 640, mode_height), m
+                    expected = array.array('I', [512]) * (640 * canvas)
+                    border = array.array('I', [515]) * 601
                     for y in range(canvas):
                         source_y = y + shifted
-                        for x in range(640):
-                            outline = (20 <= x <= 620 and 12 <= source_y <= canvas - 4
-                                       and (x in (20, 620) or source_y in (12, canvas - 4)))
-                            expected = 515 if outline else 512
-                            at = (y + m['pixel_top']) * m['plane_width'] + x
-                            assert frame.primary[at] == expected and frame.alternate[at] == expected, (
-                                kick, encoding, status, mode_height, shifted, x, y,
-                                frame.primary[at], frame.alternate[at], expected)
+                        if not 12 <= source_y <= canvas - 4:
+                            continue
+                        if source_y in (12, canvas - 4):
+                            expected[y*640+20:y*640+621] = border
+                        else:
+                            expected[y*640+20] = expected[y*640+620] = 515
+                    check_pixel_planes(frame, expected, start=m['pixel_top']*640,
+                                       context=(kick, encoding, status, mode_height, shifted))
                     assert frame.palette[515] == 0xff0000
 
                 # Native Times/15 has descent 3 in 1.3 and 4 in 2.x+. Its last anchor

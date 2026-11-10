@@ -14,8 +14,8 @@ import queue
 import threading
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "testing"))
-from syncterm_control import ALT, SHIFT, Client, CommandError, Snapshot
-from syncterm_fixture import application, environment, fixture, click_text, receive
+from syncterm_control import ALT, SHIFT, Cell, Client, CommandError, ProtocolError, Snapshot
+from syncterm_fixture import application, environment, fixture, click_text, receive, check_pixel_planes
 
 
 def basic(executable):
@@ -173,7 +173,48 @@ def read_exact(process, size, timeout=15):
     return data
 
 
+def capture_reader():
+    # Literal wire data verifies deferred cell ownership independently of the
+    # server and rejects malformed cell lengths before any cells are accessed.
+    def string(value):
+        return struct.pack('<I', len(value)) + value
+    metadata = dict(columns=1, rows=1, plane_width=1, plane_height=1, output_width=1, output_height=1)
+    fields = struct.pack('<I', len(metadata)) + b''.join(
+        string(k.encode()) + struct.pack('<Iq', 0, v) for k, v in metadata.items())
+    cell = struct.pack('<IIIIHHHH', 65, 0x12345678, 0x81234567, 0, 2, 2, 0, 0)
+    def payload(cells):
+        sections = (fields, cells, bytes(65536*4), struct.pack('<I', 0x12345678),
+                    struct.pack('<I', 0x12345678), struct.pack('<I', 0x10203),
+                    struct.pack('<III', 1, 2, 65) + string(b'A'), struct.pack('<I', 0), string(b'')*3)
+        return bytearray(b''.join(struct.pack('<II', tag, len(data)) + data
+                                  for tag, data in enumerate(sections, 1)))
+    raw = payload(cell)
+    shown = Snapshot(raw)
+    raw[:] = bytes(len(raw))
+    assert shown.cells == (Cell(65, 0x12345678, 0x81234567, 0, 2, 2, 0, 0),)
+    assert shown.lines == ['A']
+    for cells in (b'', cell[:-1], cell+b'\0', cell*2):
+        try:
+            Snapshot(payload(cells))
+        except ProtocolError:
+            pass
+        else:
+            raise AssertionError('Malformed cell section accepted')
+    check_pixel_planes(shown, [0x12345678])
+    for phase in ('primary', 'alternate'):
+        plane = getattr(shown, phase)
+        plane[0] ^= 1
+        try:
+            check_pixel_planes(shown, [0x12345678])
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError(f'{phase} mismatch accepted')
+        plane[0] ^= 1
+
+
 def protocol(executable):
+    capture_reader()
     with fixture(executable) as (client, root):
         for op, payload, error in ((999, b"", -18), (2, b"unexpected", -1),
                                    (4, struct.pack("<II", 0, 1), -12),
