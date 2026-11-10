@@ -3,11 +3,13 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
 #include "cterm_igs_patterns.h"
+#include "cterm_igs_trig.h"
 #include "cterm.h"
 #include "io_error.h"
 
 #include <stdlib.h>
 
+enum { CURVE_STEPS_MIN = 32, CURVE_STEPS_MAX = 128 };
 struct point { int x, y; };
 struct marker_component { unsigned count; struct point points[5]; };
 static const struct { unsigned count; struct marker_component components[3]; } markers[] = {
@@ -283,8 +285,8 @@ segment(struct raster *raster, struct point first, struct point last, bool force
 	pattern_segment(raster, first, last, raster->last_line);
 }
 
-/* Native patterned spans and optional solid border. The current largest
- * input is the rounded box's 21 vertices, including its explicit closure. */
+/* Native patterned spans and optional solid border. A full circle supplies
+ * up to 129 vertices, including its explicit final point. */
 static void
 fill_polygon(struct raster *raster, const struct point *points, unsigned count,
     const uint16_t *rows, unsigned row_mask, bool perimeter)
@@ -313,7 +315,7 @@ fill_polygon(struct raster *raster, const struct point *points, unsigned count,
 		first = (int)(raster->area.y+raster->area.height)-1;
 	if (limit < (int)raster->area.y-1) limit = (int)raster->area.y-1;
 	for (int y = first; y > limit; --y) {
-		int intersections[21]; unsigned found = 0;
+		int intersections[CURVE_STEPS_MAX+1]; unsigned found = 0;
 		for (unsigned i = 0; i < count; ++i) {
 			struct point a = points[i], b = points[(i+1)%count];
 			if (!((a.y <= y && y < b.y) || (b.y <= y && y < a.y))) continue;
@@ -355,6 +357,74 @@ polygon(struct raster *raster, const struct point *points, unsigned count)
 	fill_polygon(raster, points, count, &solid, 0, true);
 }
 
+/* Internal curve angles are 0..4500 tenths of a degree (the upper quarter
+ * comes from cosine's +900). No raw negative-angle ROM addressing occurs. */
+static int
+curve_sine(unsigned angle)
+{
+	if (angle > 3600) angle -= 3600;
+	unsigned quadrant = angle/900;
+	if (quadrant == 1) angle = 1800-angle;
+	else if (quadrant == 2) angle -= 1800;
+	else if (quadrant == 3) angle = 3600-angle;
+	else if (quadrant == 4) angle -= 3600;
+	unsigned index = angle/10, remainder = angle%10;
+	int value = curve_sine_table[index];
+	if (remainder != 0)
+		value += ((int)curve_sine_table[index+1]-value)*(int)remainder/10;
+	return quadrant > 1 ? -value : value;
+}
+
+int
+cterm_igs_circle(struct cterm_igs *igs, int x, int y, int radius)
+{
+	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
+	int yr = clip_ratio(radius,xs,372);
+	/* Preserve the native signed-radius predicates, widening sums so valid
+	 * coordinates cannot become accidental wrapped rejection/addresses. */
+	if (igs->clipping && (x+radius < igs->clip_x1 || x-radius > igs->clip_x2
+	    || y+yr < igs->clip_y1 || y-yr > igs->clip_y2)) return 0;
+	const uint16_t *rows; unsigned row_mask;
+	int status = fill_pattern(igs,&rows,&row_mask);
+	if (status != 0) return status;
+	int maximum = radius > yr ? radius : yr;
+	unsigned steps = maximum/4 < CURVE_STEPS_MIN ? CURVE_STEPS_MIN
+	    : maximum/4 > CURVE_STEPS_MAX ? CURVE_STEPS_MAX : (unsigned)(maximum/4);
+	struct point points[CURVE_STEPS_MAX+1];
+	for (unsigned i = 0; i <= steps; ++i) {
+		unsigned angle = i == steps ? 3600u : (unsigned)clip_ratio(3600,(int)i,(int)steps);
+		/* The native divisor32767 comparison never increments a quotient;
+		 * use signed truncation, keeping safe coordinates wider than a word. */
+		points[i] = (struct point){x+curve_sine(angle+900)*radius/32767,
+		    y-curve_sine(angle)*yr/32767};
+	}
+	int left = points[0].x, right = left, top = points[0].y, bottom = top;
+	for (unsigned i = 1; i <= steps; ++i) {
+		if (points[i].x < left) left = points[i].x;
+		if (points[i].x > right) right = points[i].x;
+		if (points[i].y < top) top = points[i].y;
+		if (points[i].y > bottom) bottom = points[i].y;
+	}
+	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
+	if (left < 0) left = 0;
+	if (top < 0) top = 0;
+	if (right >= (int)igs->width) right = (int)igs->width-1;
+	if (bottom >= drawable) bottom = drawable-1;
+	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
+	    .foreground = cterm_igs_physical_pen(igs,igs->attributes.fill_pen),
+	    .plane_mask = cterm_igs_plane_mask(igs->resolution)};
+	if (left <= right && top <= bottom) {
+		raster.area = (struct st_console_rect){(unsigned)left,(unsigned)top,
+		    (unsigned)(right-left+1),(unsigned)(bottom-top+1)};
+		status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
+	}
+	if (status != 0) return status;
+	fill_polygon(&raster,points,steps+1,rows,row_mask,igs->attributes.fill_perimeter);
+	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
+	if (status == 0) igs->last_line = raster.last_line;
+	return status;
+}
+
 /* Corners arrive ordered; build native GDP8/9's private, closed 21-point path. */
 static void
 rounded_points(const struct cterm_igs *igs, int x1, int y1, int x2, int y2,
@@ -363,16 +433,16 @@ rounded_points(const struct cterm_igs *igs, int x1, int y1, int x2, int y2,
 	/* These are the native interpolated trig results for 675/450/225.
 	 * Divisor32767's signed-word remainder comparison never rounds up;
 	 * all products here are nonnegative and safely bounded by radius9. */
-	static const int cosine[] = {12539,23170,30271};
-	static const int sine[] = {30271,23170,12539};
 	int xr = (int)(igs->width-1)/64;
 	if (xr > (x2-x1)/2) xr = (x2-x1)/2;
 	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
 	int yr = clip_ratio(xr,xs,372);
 	if (yr > (y2-y1)/2) yr = (y2-y1)/2;
 	struct point quarter[5] = {{0,yr},{0,0},{0,0},{0,0},{xr,0}};
-	for (unsigned i = 0; i < 3; ++i)
-		quarter[i+1] = (struct point){cosine[i]*xr/32767,sine[i]*yr/32767};
+	for (unsigned i = 0; i < 3; ++i) {
+		unsigned angle = 675-225*i;
+		quarter[i+1] = (struct point){curve_sine(angle+900)*xr/32767,curve_sine(angle)*yr/32767};
+	}
 	for (unsigned i = 0; i < 5; ++i) {
 		struct point q = quarter[i], reverse = quarter[4-i];
 		points[i] = (struct point){x2-xr+q.x,y1+yr-q.y};

@@ -19,6 +19,7 @@ position pair, with serial XOFF/XON around drawing. `Z` fills inclusive
 rectangles with native built-in/user patterns and no extra perimeter.
 `B` adds bars with optional fill-colour perimeter and filled rounded boxes.
 `U` adds rounded outlines, positive-flag rounded fill and negative-flag no-ops.
+`O` adds filled circles with native pixel aspect and adaptive integer curves.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -813,6 +814,47 @@ replacement. It also checks bottom/status edges, following D, no replies,
 partial disconnect/reconnect and fresh state, with physical audio disabled.
 References: 15/43/44/46/49/50/134. Remaining commands/selectors and full IGS
 acceptance stay pending.
+
+## Filled circles (`O`)
+
+`O` reads center X/Y and an X-class radius through the shared numeric reader.
+Native GDP4 derives the signed Y radius with aspect 338/372, 169/372 or 372/372,
+chooses 32–128 curve steps from the larger signed radius, and fills the S+1
+point polygon. It retains the explicit final point and polygon-added closing
+edge, including repeated zero-radius visits and ordered XOR endpoints. The
+fill pen, active pattern, perimeter and writing mode apply; line attributes
+cannot alter the circle. Both remembered position pairs and all attributes,
+palette and clipping remain unchanged. There is no reply, wait or flow helper.
+
+The original 92-word sine table (including pad), quadrant folding and integer
+interpolation are shared with B/U's rounded points. Native divisor 32767 radius
+products truncate; replacing this with floating-point trigonometry or ordinary
+nearest rounding would alter pixels. O's generated angles are 0..4500, so this
+path never accesses the original negative-angle ROM window. Signed coarse
+rejection happens before polygon entry and preserves incoming last-line state.
+Executed polygon fill clears it; executed perimeter sets it. Negative radii
+retain these signed rules. Wide safe geometry corrects accidental coordinate/
+radius wrap and CPU faults; host/status bounds discard writes after traversal.
+
+`cterm_igs_circle` checks 3,126 independent complete native-frame cases in both
+indexed phases: all 39 built-in/user selections, every mode/resolution/perimeter,
+all adaptive step counts 32..128, small/zero/negative/large radii, clip rejection,
+inverted bounds and partially outside unclipped paths. It checks retained
+positions/attributes/palette/arrays/seeds, all 16 pens, extreme signed radii,
+status safety, focused partitions/bytewise input, random operands, incomplete/
+invalid recovery, reset and I/R/I5 lifetime. The
+[fixture provenance](../src/tests/igs/circle-vectors.json) and
+[maintainer generator](../src/tests/igs/generate_circle_vectors.py) identify
+independent curve/span/endpoint/whole-word Boolean models and ROM/table hashes.
+Expected data never comes from SyncTERM output; ordinary tests require none
+of the external reference assets.
+
+`syncterm_igs_circle` checks 48 independent scenes plus literal glyph overlays,
+console-cell replacement, normalized/status bottom pixels, following D,
+no replies and partial disconnect/reconnect. All ST modes, Atari ST/CP437/UTF-8
+and status choices use coherent phases/cells/palette/state/RGB, with physical
+audio disabled. References: 15/46/48/49/131/138. Other commands/selectors and
+full acceptance remain pending.
 
 ## Deliberate corrections
 

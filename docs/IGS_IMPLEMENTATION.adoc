@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B and U commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U and O commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1286,5 +1286,78 @@ disabled. B/L/D/z regressions passed after sharing geometry and the cap policy.
 All 63 ledger IDs, references, dependencies, active CTest registrations and
 independent/reused fixture inventories were checked; superseded planar/clock
 tests remain excluded. Seventeen entries are complete; X stays in progress.
-Other commands/selectors and full acceptance remain pending. Completion commit
-will be recorded by the next completed step.
+Other commands/selectors and full acceptance remain pending. Completion commit: 6978c94.
+
+
+=== O filled circles and shared integer trigonometry
+
+O uses the shared X/Y/X numeric signature: center X, center Y and X radius.
+Only decimal coordinates/indices receive g's normal axis conversion; array
+loads and random results retain the existing numeric evaluator's ordering.
+The active resolution supplies the native pixel aspect: Y radius is signed
+SMUL_DIV(X radius,338/169/372,372). GDP4 selects 32 through 128 steps from the
+larger signed radius divided by four, builds S+1 points including the explicit
+3600-degree-tenths endpoint, and enters the existing patterned polygon fill.
+The additional closing edge and repeated points are retained for XOR ownership.
+Fill pen, active pattern, perimeter and writing mode apply. Line pen, style,
+width and caps are ignored without changing their stored attributes. Neither
+Drawto pair changes; no reply, flow call or wait is added.
+
+The shared curve helper uses the original 92-word integer sine table at
+$feaed0, including its pad, with quadrant folding and linear tenth-degree
+interpolation. The imported table's big-endian SHA256 is
+26e18f309a90a15f0dd0a6b90eca8daf7174b034bd6f412efe6c5a3e1b6d38ec.
+Trigonometric radius products use truncation toward zero: native divisor 32767's
+signed-word remainder comparison does not increment a representable quotient.
+B/U rounded points now use this helper too; their independent regressions
+retain the same pixels. O internally generates only nonnegative angles through
+4500; raw negative-angle addressing is outside this command's path.
+References: 15/46/48/49/131/138.
+
+The original signed-radius coarse rejection precedes polygon entry. A rejected
+circle preserves incoming last-line state. Once the polygon executes it clears
+that state, except an executed perimeter leaves it set. Negative radii are
+neither silently made positive nor clamped. Widened coordinates/products and
+bounded host/status writes correct accidental native word wrap and CPU faults;
+there is no foreign memory addressing or planar shadow. Geometry and border
+traversal precede host write bounds so clipping does not invent new endpoints.
+
+cterm_igs_circle checks 3126 independently derived complete native-frame cases
+in both indexed phases, with distinct initial physical words and retained
+attributes/positions/palette/source arrays/RNG. All 39 built-in/user fill
+selections, modes, resolutions, perimeters, zero/small/negative/large radii,
+every adaptive step count from 32 through 128, clipping/rejection/inverted bounds
+and partially outside unclipped paths are covered. Literal checks add all 16
+pens, extreme signed radii, host/status protection, every focused input split
+and bytewise chain, once-only RNG, EOF/timeout/error/reset and I/R/I5 lifetime.
+The maintainer generator generate_circle_vectors.py uses independent native
+curve geometry, rational spans, whole-plane-word Boolean equations and ordered
+border visits. circle-vectors.json records model/ROM/table identities. Ordinary
+tests use checked-in data and need no reference tree, ROM or historical program.
+
+syncterm_igs_circle checks 48 independent source-derived circle scenes plus
+literal zero-radius glyph overlays, complete console-cell replacement,
+normalized bottom/status bounds, following D, no replies, partial disconnect
+and fresh reconnect. All ST modes, Atari ST/CP437/UTF-8 and status choices use
+one coherent capture for indexed phases, cells, palette, state and RGB.
+Physical audio is disabled. Verification and completion commit follow below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and the final full cmake --build build -j1 passed without
+warnings. The literal circle test failed before implementation and passed
+afterward. All 73 selected CTest tests passed in one run, including every
+CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren,
+all IGS application tests, SkyPix report, graphics scrollback and session modes.
+All 3126 independent dual-phase native cases and literal pen/extreme/status/
+input/error/lifecycle checks passed, including renderer rejection preserving
+state and signed coarse rejection preceding fill validation. Coherent captures
+passed 48 independent scenes plus zero-radius glyph overlays, console-cell
+replacement, bottom/status bounds, following D and partial disconnect/reconnect
+across all ST modes, Atari ST/CP437/UTF-8 and status choices, with no replies
+and physical audio disabled. B/U/L/D/z regressions passed after sharing integer
+trigonometry and extending polygon capacity. All 63 ledger IDs, references,
+dependencies, active CTest registrations, 3126/48 fixture inventory and 92 sine
+words/SHA256 were checked; superseded planar/clock tests remain excluded.
+Eighteen entries are complete; X stays in progress. Other commands/selectors
+and full acceptance remain pending. Completion commit will be recorded by
+the next completed step.

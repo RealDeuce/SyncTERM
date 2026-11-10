@@ -75,6 +75,12 @@ also cover glyph/border overlays, input partitions, flags and lifecycle.
 routing. Independent native outlines and reused rounded-fill vectors cover
 styles/widths/flags/state, while coherent application scenes add console-cell
 replacement, boundaries, following D and lifecycle in every ST mode/encoding.
+`O` adds aspect-corrected filled circles with original integer trigonometry,
+adaptive 32–128-step polygon construction, fill patterns/perimeters and native
+signed-radius rejection. Its 3,126 independent dual-phase cases cover all
+fills/modes/depths and step counts; coherent application scenes cover glyph
+composition/replacement, status/bottom pixels, following D and lifecycle in
+every ST mode, encoding and status choice.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

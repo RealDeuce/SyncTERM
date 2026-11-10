@@ -5,6 +5,7 @@ data/*
 !data/igs_rectangle_vectors.h
 !data/igs_box_vectors.h
 !data/igs_round_box_vectors.h
+!data/igs_circle_vectors.h
 !data/skypix/
 data/skypix/*
 !data/skypix/golden-vectors.json
