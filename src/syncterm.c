@@ -112,6 +112,14 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 			st_console_test_number(app, name, igs->attributes.user_fill[i]);
 		}
 		st_console_test_number(app, "cterm.igs_text_pen", igs->attributes.text_pen);
+		st_console_test_number(app, "cterm.igs_text_effects", igs->attributes.text_effects);
+		st_console_test_number(app, "cterm.igs_text_rotation", igs->attributes.text_rotation);
+		st_console_test_number(app, "cterm.igs_text_height", igs->attributes.text_height);
+		st_console_test_number(app, "cterm.igs_text_points", igs->attributes.text_points);
+		st_console_test_number(app, "cterm.igs_text_point_mode", igs->attributes.text_point_mode);
+		st_console_test_number(app, "cterm.igs_text_face", igs->attributes.text_face);
+		st_console_test_number(app, "cterm.igs_text_align_h", igs->attributes.text_align_h);
+		st_console_test_number(app, "cterm.igs_text_align_v", igs->attributes.text_align_v);
 		st_console_test_number(app, "cterm.igs_marker_pen_cache", igs->marker_pen_cache);
 	}
 	FIELD(ext_attr.auto_wrap); FIELD(ext_attr.origin_mode); FIELD(ext_attr.sx_scroll); FIELD(ext_attr.dec_lrmm);

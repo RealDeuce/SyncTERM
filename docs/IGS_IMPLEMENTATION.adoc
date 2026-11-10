@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f and F commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F and E commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1903,4 +1903,75 @@ All 63 IDs, 25 completed entries, references/dependencies/active registrations,
 3660/168 F inventory, 24 replacements and pinned source/ROM identities were
 checked; superseded planar/clock tests remain excluded. X stays in progress.
 Other commands/selectors and final acceptance remain pending.
+Completion commit: e15b4ba.
+
+=== E graphical text attributes
+
+E reuses the fixed three-unscaled-field description and common numeric
+evaluator for effects, point request and rotation. All operands are acquired
+before changing attributes. It masks effects to 31, clears rotations greater
+than 4, applies signed native quadrant rounding and clamps point requests to
+8..20 before selecting the canonical face1 size. These source/doubled point/
+top pairs are literal native data: 8/4, 9/6, 10/13, 16/9, 18/13, 20/27. Effective
+point size and top are kept in the existing workstation text fields; E
+selects point mode. text_height means font top, not full bitmap/cell height.
+There is no added persistent cache for the original caller's four local
+metric outputs. Face, alignment, text pen and all unrelated attributes stay
+unchanged. E draws nothing, moves no cursor/Drawto and sends no flow/replies
+or waits. Graphical glyph rendering remains the next W step.
+
+Native effects/rotation/point order is retained. Rotation 4 remains 3600 in
+attribute state. Negative multiplication/addition uses wide arithmetic instead
+of native accidental word wrap; defined signed rounding remains, including
+negative -1 becoming 0 and -2 becoming -900. Rendering must normalize periodic
+angles at use. The goal's safe port policy excludes native 3600/
+negative-angle stale origins, uninitialized underline state and escaped
+scratch-memory reads; those are not useful pixel contracts for this port.
+E does not claim completed graphical-text pixels.
+
+I0/I2 restore the saved pixel-height font and now keep effective point size
+coherent with it (9 colour, 10 monochrome). They reset effects/rotation/point
+mode as before. Palette-only I and R/I5 preserve the active text selection;
+full reset/reconnect restore captured entry state. No arbitrary loaded-font
+ring, pointer alias or foreign workstation memory model is added.
+
+Native tests execute 219072 source-derived expected state cases: all 65536
+signed words in all three argument roles across three ST modes, plus all 32
+masks/request 8..20/rotation0..5/scaling0..2 cross-products. They check the six
+literal native point/top selections, safe negative rotations, unscaled array
+indices, unchanged palettes/banks/Drawto/seeds and retained full bitmap phases.
+Focused split/bytewise ordinary-text chains, exactly three RNG evaluations,
+EOF/timeout/invalid input recovery, I0/I1/I2/R/I5/suspended-R/reset lifetime
+and separate blink pixels supplement the matrix. Expected state is literal/
+algebraic, independent of emulator output; ordinary tests need no reference
+ROM or external tree.
+
+The control bitmap test checks 120 independent text-state scenes, covering
+six source/doubled fonts, five rotations, all 32 masks and request boundaries,
+through all ST modes, Atari ST/CP437/UTF-8 and status choices. Test-only
+application inspection exposes effect/rotation/top/point/mode/face/alignment.
+One coherent capture checks those fields with unchanged console Z glyph,
+full indexed phases, palette, cursor, other graphics state and RGB. Additional
+I1-preserve/I0-I2-restore, following D, no-reply and partial disconnect/fresh
+reconnect checks keep physical audio disabled. These are attribute/console
+retention tests; W drawing and text effects on graphical glyphs remain pending.
+
+Verification used the native FreeBSD /usr/bin/cc Release configuration.
+cmake -S . -B build and the final full cmake --build build -j6 passed without
+warnings. The literal E effects/point/rotation test failed before implementation
+and passed afterward. All three focused native/application suites passed.
+All 89 selected CTest tests passed in one run: every CTerm test, shared parser/
+images/pixels, bitmap/control backend, term/Wren, all 26 IGS application suites,
+SkyPix report, graphics scrollback and session modes.
+
+All 219072 native state cases and additional parser/RNG/error/lifetime checks
+passed, with both full indexed phases retained. Coherent captures passed 120
+independent text-state scenes, unchanged console/graphics output, I1/I0/I2
+state lifetime, following D, no replies and disconnect/reconnect throughout
+the ST mode/encoding/status matrix. All 63 IDs, 26 completed entries,
+references/dependencies/active registrations, 219072/120 inventory, all32 masks,
+five rotations, six source/doubled point/top pairs, original font records and
+reference ROM identity were checked. Superseded planar/clock tests remain
+excluded; X stays in progress. W glyph pixels/effects, other commands/selectors
+and final acceptance remain pending.
 Completion commit will be recorded by the next completed step.

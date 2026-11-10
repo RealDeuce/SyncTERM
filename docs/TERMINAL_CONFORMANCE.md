@@ -119,7 +119,12 @@ ignored perimeter, independent blink phases and an owned growable queue.
 Its 3,660 independent dual-phase frames and 168 application scenes cover
 fills/modes/depths, distinct phase topology, queue growth, text/graphics,
 status/coordinates/state/flow and lifecycle through the ST mode/encoding matrix.
-Other drawing, loops and sound remain pending; see the IGS ledger for details.
+`E` adds graphical text attributes with native effect masking, six canonical
+point/top selections and safe signed rotation state. Its 219,072 expected
+state cases and 120 coherent application scenes verify sizing/rotation/effects,
+unchanged console/graphics pixels, default restoration, parser and lifecycle.
+Graphical W glyphs, other drawing, loops and sound remain pending; see the IGS
+ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

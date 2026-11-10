@@ -130,6 +130,7 @@ restore_attributes(struct cterm_igs *igs)
 	a->text_rotation = s->text_rotation;
 	a->text_effects = 0;
 	a->text_height = s->text_height;
+	a->text_points = s->text_points;
 	a->text_point_mode = false;
 	/* The port keeps this cache coherent rather than retaining the original
 	 * mismatch between direct attribute restore and later scatter commands. */
@@ -224,6 +225,32 @@ cterm_igs_set_fill(struct cterm_igs *igs, int interior, int index, int border)
 		memcpy(a->user_fill, igs->patterns[index], sizeof(a->user_fill));
 	}
 	a->fill_perimeter = border != 0;
+}
+
+void
+cterm_igs_set_text(struct cterm_igs *igs, int effects, int points, int rotation)
+{
+	struct cterm_igs_attributes *a = &igs->attributes;
+	a->text_effects = (int)((unsigned)effects & 31u);
+	if (rotation > 4) rotation = 0;
+	/* Retain native signed rounding and the 3600 attribute. Wide arithmetic
+	 * avoids accidental negative-word multiplication/addition wrap. The
+	 * renderer must normalize periodic angles instead of reading stale origins. */
+	int64_t angle = (int64_t)rotation*900;
+	a->text_rotation = (int)((angle+450)/900*900);
+	if (points < 8) points = 8;
+	if (points > 20) points = 20;
+	/* Canonical face1: three original fonts and their exact doubled forms.
+	 * These are effective font point/top values, not an IGS metric cache. */
+	static const struct { int points, top; } sizes[] = {
+		{8,4}, {9,6}, {10,13}, {16,9}, {18,13}, {20,27},
+	};
+	size_t selected = 0;
+	for (size_t i = 1; i < sizeof(sizes)/sizeof(*sizes); ++i)
+		if (points >= sizes[i].points) selected = i;
+	a->text_points = sizes[selected].points;
+	a->text_height = sizes[selected].top;
+	a->text_point_mode = true;
 }
 
 void

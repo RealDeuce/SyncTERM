@@ -81,6 +81,7 @@ void cterm_igs_set_scaling(struct cterm_igs *, int mode);
 void cterm_igs_set_pen(struct cterm_igs *, int kind, int pen);
 void cterm_igs_set_fill(struct cterm_igs *, int interior, int index, int border);
 void cterm_igs_set_type(struct cterm_igs *, int kind, int style, int size);
+void cterm_igs_set_text(struct cterm_igs *, int effects, int points, int rotation);
 unsigned cterm_igs_plane_mask(unsigned resolution);
 unsigned cterm_igs_physical_pen(const struct cterm_igs *, int pen);
 int cterm_igs_marker(struct cterm_igs *, int x, int y);

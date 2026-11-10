@@ -138,6 +138,7 @@ static const struct st_graphics_command commands[] = {
 	{'z', unscaled_parameters, 1, counted_points_next},
 	{'f', unscaled_parameters, 1, counted_points_next},
 	{'F', point_parameters, 2, NULL},
+	{'E', unscaled_parameters, 3, NULL},
 	{'Z', point_parameters, 4, NULL},
 	{'B', point_parameters, 4, box_next},
 	{'U', point_parameters, 4, box_next},
@@ -301,6 +302,7 @@ command(void *context, const struct st_graphics_command_view *view)
 		return 0;
 	case 'C': cterm_igs_set_pen(igs, values[0], values[1]); return 0;
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
+	case 'E': cterm_igs_set_text(igs, values[0], values[1], values[2]); return 0;
 	case 'P': return cterm_igs_marker(igs, values[0], values[1]);
 	case 'L': return cterm_igs_line(igs, values[0], values[1], values[2], values[3]);
 	case 'Z': return cterm_igs_rectangle(igs, values[0], values[1], values[2], values[3]);

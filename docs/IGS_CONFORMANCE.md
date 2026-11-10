@@ -29,6 +29,8 @@ rectangles with native built-in/user patterns and no extra perimeter.
 serial XOFF/XON around drawing.
 `F` adds seed-colour flood fill with native ordered runs, stored bounds and
 independent blink phases through the indexed raster writer.
+`E` selects graphical text effects, canonical point size and rotation; `W`
+graphical glyph rendering remains pending.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -1139,6 +1141,42 @@ extend the shared capture checker; older ink-only cases retain their recipes.
 four-neighbor components/per-plane equations, not native queue simulation or
 SyncTERM output. Ordinary tests require no external assets. References:
 15/44/68/131/137. Other commands/selectors and final acceptance remain pending.
+
+### E: graphical text attributes
+
+`E` reads three unscaled effects/points/rotation operands, then masks effects
+to 31, resets rotations above 4, applies signed quadrant rounding and selects
+a canonical source/doubled font after clamping point requests to 8..20. The
+six effective point/top pairs are 8/4, 9/6, 10/13, 16/9, 18/13 and 20/27.
+Face/alignment/text pen and unrelated attributes stay unchanged. E sets point
+mode, draws nothing, moves no cursor/Drawto and emits no replies/flow/waits.
+The existing height field holds font top, not full bitmap/cell height; no IGS
+cache of caller-local metric output words is added.
+
+Rotation 4 retains the native 3600 attribute. Wide negative arithmetic avoids
+word-wrap accidents while retaining defined signed rounding. W must normalize
+periodic angles at use instead of native stale-origin/uninitialized/escaped-
+RAM behavior. I0/I2 restore coherent effective point size with saved pixel
+height; palette-only I and R/I5 preserve the text selection, while reset and
+reconnect restore entry state. Canonical built-in face1 sizing is used; no
+arbitrary foreign font rings or pointer aliases are introduced.
+
+`cterm_igs_text_attributes` executes 219,072 literal/algebraic matrix cases:
+all signed word values in the three argument roles across ST modes, plus
+all 32 masks/request8..20/rotation0..5/scaling0..2 cross-products. Full indexed
+phases, palette/banks/other attributes/Drawto/seeds remain unchanged. Focused
+splits/bytewise mixed-text chains, exactly three RNG draws, unscaled index
+clamping, invalid/incomplete recovery, I0/I1/I2/R/I5/suspended-R/reset and
+independent blink-pixel checks supplement those cases.
+
+`syncterm_igs_text_attributes` checks 120 independent state scenes in all ST
+modes, Atari ST/CP437/UTF-8 and status choices, with physical audio disabled.
+Coherent captures combine test-only text state with unchanged console glyphs,
+pixels/phases/palette/cursor/other graphics state/RGB. I1 preservation, I0/I2
+restoration, following D, no replies and partial disconnect/fresh reconnect
+are checked too. Expectations come from literal source data and arithmetic,
+not SyncTERM output. These establish E state and console retention; W glyph
+pixels and graphical text effects remain pending. References:15/29/30/139/144.
 
 ## Deliberate corrections
 
