@@ -70,6 +70,16 @@ box_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+circular_arc_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	(void)context;
+	*result = view->count < 5 ? unscaled_parameters[0]
+	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	return 0;
+}
+
+static int
 point_count(int count)
 {
 	return count < 2 ? 2 : count > CTERM_IGS_MAX_POINTS ? CTERM_IGS_MAX_POINTS : count;
@@ -126,6 +136,7 @@ static const struct st_graphics_command commands[] = {
 	{'U', point_parameters, 4, box_next},
 	{'O', point_parameters, 3, NULL},
 	{'Q', point_parameters, 4, NULL},
+	{'K', point_parameters, 3, circular_arc_next},
 	{'X', unscaled_parameters, 1, extended_next},
 };
 
@@ -285,6 +296,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'Z': return cterm_igs_rectangle(igs, values[0], values[1], values[2], values[3]);
 	case 'O': return cterm_igs_circle(igs,values[0],values[1],values[2]);
 	case 'Q': return cterm_igs_ellipse(igs,values[0],values[1],values[2],values[3]);
+	case 'K': return cterm_igs_arc(igs,values[0],values[1],values[2],values[3],values[4]);
 	case 'B': return cterm_igs_box(igs, values[0], values[1], values[2], values[3], values[4] != 0);
 	case 'U':
 		if (values[4] < 0) return 0;

@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O and Q commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q and K commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1430,5 +1430,89 @@ execution and application recipes. All 63 ledger IDs, references, dependencies,
 active CTest registrations, 3660/48 Q and 3126/48 O inventories and shared sine
 identity were checked; superseded planar/clock tests remain excluded.
 Nineteen entries are complete; X stays in progress. Other commands/selectors
+and full acceptance remain pending. Completion commit: 67a044c.
+
+
+=== K circular arcs, line composition and safe periodic angles
+
+K shares the X/Y/X point-prefix description with O and acquires two unscaled
+angle fields afterward. All five operands are acquired before drawing; angles
+and their array indices do not receive coordinate conversion. The native
+circle aspect derives Y radius, and the shared signed coarse test can reject
+before line validation, preserving incoming last-line state. Rendering preserves both Drawto pairs, attributes, palette, clipping, source
+banks, math arrays and seeds. Numeric random operands still advance once.
+There is no reply, flow call or wait. References: 15/43/44/46/48/49/50/51/138.
+
+O/Q/K now share curve point construction: select 32..128 steps from the larger
+signed radius, interpolate the sweep with native integer arithmetic, and emit
+both explicit endpoints. Narrow and zero sweeps still emit S+1 points. K uses
+the open thin/wide line path with normal styles, ordered phase/XOR endpoints,
+joins and endpoint caps/arrowheads. Thin shafts precede heads; wide heads
+shorten the private point list before shafts/joins/caps. Caller fill attributes
+cannot alter the result. Final last-line state follows the actual composed
+line/polygon/cap path. Native coarse rejection uses the circle extent without
+adding stroke/head margins.
+
+The private line renderer now accepts 129 generated vertices, while the public
+serial polyline wrapper/parser retain their 128-point limit. This represents
+the native maximum 128 curve steps without relaxing z's wire contract. Existing
+post-traversal host/status write bounds and wide-safe coordinate arithmetic
+also apply to arc shafts, heads and caps.
+
+Degree multiplication and angle interpolation use wide integers. Keep the
+native delta=end-begin, adding one 3600 turn only when negative; do not rescale
+subdivision by sweep length or discard explicit end angle. Periodic reduction
+happens only at trig lookup, avoiding negative pre-table ROM reads and native
+signed-word multiply/cosine overflow. Ordinary positive-domain native pixels
+remain exact. Large or negative inputs retain their wide sweep and safe
+periodic coordinates instead of foreign memory-derived shapes/CPU faults.
+This is a deliberate port correction, not an implementation of raw-ROM lookup.
+
+cterm_igs_arc checks 3876 independent complete native frames in both indexed
+phases. It covers all seven line styles, every endpoint pair, native odd widths,
+all writing modes/resolutions, narrow/zero/full/reversed/multi-turn sweeps,
+zero/negative/large radii, every adaptive step count, clipping/rejection/inverted
+bounds and partially outside unclipped traversal. Distinct initial plane words,
+attributes, both positions, palette, arrays, banks, seeds and last state are
+checked. The 192 corrected-angle cases derive native positive-domain expected
+geometry by shifting both endpoints by the same whole turns, retaining the
+same sweep and integer interpolation. The maintainer generator combines
+independent curve vertices, geometric arrows/circle offsets, rational spans and
+ordered Boolean line visits; arc-vectors.json records model/ROM provenance.
+Ordinary tests use checked-in data without historical assets or emulator output.
+
+Literal checks cover line pens, zero-sweep XOR parity, extreme-coordinate
+non-wrapping writes, coarse rejection before invalid line attributes, g2 and
+index-before-load/unscaled-angle semantics, every focused split/bytewise input,
+once-only five-field randomness, EOF/timeout/error/renderer recovery, I/R/I5
+and reset. syncterm_igs_arc checks 84 independent scenes, including 24 where
+console text replaces part of the arc, across all ST modes, Atari ST/CP437/
+UTF-8 and status choices. Related cells, both indexed phases, palette, state
+and RGB use one capture. Additional literal glyph overlays, status/bottom
+pixels, following D, no replies, partial disconnect and fresh reconnect are
+covered with physical audio disabled. The glyph-cell replacement recipe is
+shared with U through the existing line capture helpers. Verification and
+completion commit follow below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and full native builds passed. The literal arc test failed
+before implementation and passed afterward. All 77 selected CTest tests passed
+in one run, including every CTerm test, shared parser/images/pixels, bitmap/
+control backend, term/Wren, all IGS application tests, SkyPix report, graphics
+scrollback and session modes. After the final signed-angle type/bounded-quadrant
+cleanup, the final full cmake --build build -j1 passed without warnings and all
+five affected native arc/circle/ellipse/box/rounded-box tests passed again.
+All 3876 independent dual-phase arc cases passed, including 192 corrected-angle
+cases, plus literal pen/parity/extreme/coarse/ordering/partition/RNG/error/
+renderer/lifecycle checks. Coherent captures passed 84 independent scenes
+(24 console-cell replacements) plus glyph overlays, status/bottom pixels,
+following D and partial disconnect/reconnect across all ST modes, Atari ST/
+CP437/UTF-8 and status choices, with no replies and physical audio disabled.
+O/Q/B/U/L/D/z regressions passed after sharing curve construction, extending
+only private vertex capacity and sharing the glyph-cell replacement recipe.
+All 63 ledger IDs, references, dependencies, active CTest registrations,
+3876/84 inventory, 24 replacement scenes, 192 corrected cases and pinned oracle
+hashes were checked; superseded planar/clock tests remain excluded.
+Twenty entries are complete; X stays in progress. Other commands/selectors
 and full acceptance remain pending. Completion commit will be recorded by
 the next completed step.

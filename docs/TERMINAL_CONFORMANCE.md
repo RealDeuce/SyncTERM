@@ -87,6 +87,12 @@ zero/mixed-sign/tall/wide radii and every adaptive step count driven by each
 axis. Shared circle/ellipse application captures cover independent scenes,
 glyph composition/replacement, retained state, status and lifecycle throughout
 the ST mode/encoding/status matrix.
+`K` adds open circular arcs through native curve construction and existing
+thin/wide lines, joins, caps and arrows. Its 3,876 independent dual-phase cases
+cover native geometry/composition and safe periodic corrections for large or
+negative angles. Coherent scenes include console-cell replacement, glyph
+interaction, retained Drawto state, status protection and lifecycle across
+all ST modes, encodings and status choices.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

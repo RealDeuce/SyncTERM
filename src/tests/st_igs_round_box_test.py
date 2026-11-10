@@ -9,27 +9,10 @@ from pathlib import Path
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'/'testing'))
 from syncterm_fixture import fixture, cell_at
-from st_igs_line_test import END, check as check_line
+from st_igs_line_test import END, check as check_line, expected_retained_outline
 from st_igs_box_test import check as check_fill, VECTORS as FILLS
 
 OUTLINES=json.loads((Path(__file__).parent/'igs'/'round-box-vectors.json').read_text())
-
-
-def expected_outline(case,resolution):
-    # The console writes the complete Z cell after graphics in marked cases.
-    # Remove covered native runs, then let the shared literal glyph recipe
-    # supply that cell. This changes no observed capture.
-    expected=dict(case,points=((17,23),(37,47)))
-    if case['text_after']:
-        ch=16 if resolution==2 else 8
-        runs=[]
-        for y,x,count,value in case['runs']:
-            if 18*ch<=y<19*ch:
-                for left,right in ((x,min(x+count,96)),(max(x,104),x+count)):
-                    if left<right:runs.append((y,left,right-left,value))
-            else:runs.append((y,x,count,value))
-        expected['runs']=runs
-    return expected
 
 
 def run(executable,reports,resolution,encoding,status):
@@ -57,7 +40,7 @@ def run(executable,reports,resolution,encoding,status):
                     send(prefix+base+f'C>1,10:C>2,7:A>0,1,1:T>2,{style},{size}:T>2,{style},{END[begin][end]}:M>{case["mode"]}:U {coordinates},0:'.encode()+
                          (b'\x1bY2,Z' if case['text_after'] else b'')+b'\x1bH'+token.encode())
                     frame=client.wait_text(token)
-                    check_line(frame,resolution,status,token,'vector',case=expected_outline(case,resolution))
+                    check_line(frame,resolution,status,token,'vector',case=expected_retained_outline(case,resolution))
                     state=frame.application
                     assert tuple(state[f'cterm.igs_fill_{name}'] for name in ('interior','index','perimeter','pen'))==(0,1,True,7 if resolution==0 else 1)
                     assert (state['cterm.igs_random_seed'],state['cterm.igs_pattern_seed'])==(1,0)

@@ -299,6 +299,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --command Q --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_igs_ellipse PROPERTIES
 				TIMEOUT 420 LABELS "terminal;conformance;igs")
+			add_test(NAME syncterm_igs_arc
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_arc_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_igs_arc PROPERTIES
+				TIMEOUT 420 LABELS "terminal;conformance;igs")
 			add_test(NAME syncterm_skypix_cursor
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_skypix_cursor_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

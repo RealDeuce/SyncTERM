@@ -357,47 +357,61 @@ polygon(struct raster *raster, const struct point *points, unsigned count)
 	fill_polygon(raster, points, count, &solid, 0, true);
 }
 
-/* Internal curve angles are 0..4500 tenths of a degree (the upper quarter
- * comes from cosine's +900). No raw negative-angle ROM addressing occurs. */
+/* Preserve native interpolation on periodic angles without signed-word
+ * overflow or indexing the foreign ROM before its actual sine table. */
 static int
-curve_sine(unsigned angle)
+curve_sine(int angle)
 {
-	if (angle > 3600) angle -= 3600;
-	unsigned quadrant = angle/900;
+	angle %= 3600;
+	if (angle < 0) angle += 3600;
+	unsigned quadrant = (unsigned)angle/900;
 	if (quadrant == 1) angle = 1800-angle;
 	else if (quadrant == 2) angle -= 1800;
 	else if (quadrant == 3) angle = 3600-angle;
-	else if (quadrant == 4) angle -= 3600;
-	unsigned index = angle/10, remainder = angle%10;
+	unsigned index = (unsigned)angle/10, remainder = (unsigned)angle%10;
 	int value = curve_sine_table[index];
 	if (remainder != 0)
 		value += ((int)curve_sine_table[index+1]-value)*(int)remainder/10;
 	return quadrant > 1 ? -value : value;
 }
 
-static int
-filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr, unsigned end_angle)
+static bool
+curve_rejected(const struct cterm_igs *igs, int x, int y, int radius, int yr)
 {
-	/* Preserve the native signed-radius predicates, widening sums so valid
-	 * coordinates cannot become accidental wrapped rejection/addresses. */
-	if (igs->clipping && (x+radius < igs->clip_x1 || x-radius > igs->clip_x2
-	    || y+yr < igs->clip_y1 || y-yr > igs->clip_y2)) return 0;
-	const uint16_t *rows; unsigned row_mask;
-	int status = fill_pattern(igs,&rows,&row_mask);
-	if (status != 0) return status;
+	/* Keep native signed-radius predicates, widening sums so coordinates
+	 * cannot become accidental wrapped rejection or foreign addresses. */
+	return igs->clipping && (x+radius < igs->clip_x1 || x-radius > igs->clip_x2
+	    || y+yr < igs->clip_y1 || y-yr > igs->clip_y2);
+}
+
+static unsigned
+curve_points(struct point *points, int x, int y, int radius, int yr,
+    int begin, int end, int delta)
+{
 	int maximum = radius > yr ? radius : yr;
 	unsigned steps = maximum/4 < CURVE_STEPS_MIN ? CURVE_STEPS_MIN
 	    : maximum/4 > CURVE_STEPS_MAX ? CURVE_STEPS_MAX : (unsigned)(maximum/4);
-	struct point points[CURVE_STEPS_MAX+1];
 	for (unsigned i = 0; i <= steps; ++i) {
-		unsigned angle = i == steps ? end_angle : (unsigned)clip_ratio(3600,(int)i,(int)steps);
+		int angle = i == steps ? end : begin+clip_ratio(delta,(int)i,(int)steps);
 		/* The native divisor32767 comparison never increments a quotient;
 		 * use signed truncation, keeping safe coordinates wider than a word. */
 		points[i] = (struct point){x+curve_sine(angle+900)*radius/32767,
 		    y-curve_sine(angle)*yr/32767};
 	}
+	return steps+1;
+}
+
+static int
+filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr, int end_angle)
+{
+	if (curve_rejected(igs,x,y,radius,yr)) return 0;
+	const uint16_t *rows; unsigned row_mask;
+	int status = fill_pattern(igs,&rows,&row_mask);
+	if (status != 0) return status;
+	struct point points[CURVE_STEPS_MAX+1];
+	unsigned count = curve_points(points,x,y,radius,yr,0,end_angle,3600);
 	int left = points[0].x, right = left, top = points[0].y, bottom = top;
-	for (unsigned i = 1; i <= steps; ++i) {
+	for (unsigned i = 1; i < count; ++i) {
 		if (points[i].x < left) left = points[i].x;
 		if (points[i].x > right) right = points[i].x;
 		if (points[i].y < top) top = points[i].y;
@@ -417,7 +431,7 @@ filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr, unsigned e
 		status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
 	}
 	if (status != 0) return status;
-	fill_polygon(&raster,points,steps+1,rows,row_mask,igs->attributes.fill_perimeter);
+	fill_polygon(&raster,points,count,rows,row_mask,igs->attributes.fill_perimeter);
 	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
 	if (status == 0) igs->last_line = raster.last_line;
 	return status;
@@ -453,7 +467,7 @@ rounded_points(const struct cterm_igs *igs, int x1, int y1, int x2, int y2,
 	if (yr > (y2-y1)/2) yr = (y2-y1)/2;
 	struct point quarter[5] = {{0,yr},{0,0},{0,0},{0,0},{xr,0}};
 	for (unsigned i = 0; i < 3; ++i) {
-		unsigned angle = 675-225*i;
+		int angle = 675-225*(int)i;
 		quarter[i+1] = (struct point){curve_sine(angle+900)*xr/32767,curve_sine(angle)*yr/32767};
 	}
 	for (unsigned i = 0; i < 5; ++i) {
@@ -630,9 +644,9 @@ arrows(struct raster *raster, struct point *points, size_t count, int width, int
 static int
 render_polyline(struct cterm_igs *igs, const int *coordinates, size_t count, bool caps)
 {
-	if (coordinates == NULL || count < 2 || count > CTERM_IGS_MAX_POINTS)
+	if (coordinates == NULL || count < 2 || count > CURVE_STEPS_MAX+1)
 		return IO_ERROR_INVALID_ARGUMENT;
-	struct point points[CTERM_IGS_MAX_POINTS];
+	struct point points[CURVE_STEPS_MAX+1];
 	for (size_t i = 0; i < count; ++i)
 		points[i] = (struct point){coordinates[2*i],coordinates[2*i+1]};
 	static const uint16_t styles[] = {0xffff,0xfff0,0xc0c0,0xff18,0xff00,0xf191};
@@ -707,6 +721,26 @@ render_polyline(struct cterm_igs *igs, const int *coordinates, size_t count, boo
 int
 cterm_igs_polyline(struct cterm_igs *igs, const int *coordinates, size_t count)
 {
+	if (count > CTERM_IGS_MAX_POINTS) return IO_ERROR_INVALID_ARGUMENT;
+	return render_polyline(igs,coordinates,count,true);
+}
+
+int
+cterm_igs_arc(struct cterm_igs *igs, int x, int y, int radius, int begin_degrees, int end_degrees)
+{
+	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
+	int yr = clip_ratio(radius,xs,372);
+	if (curve_rejected(igs,x,y,radius,yr)) return 0;
+	/* Use wide degree-to-tenths arithmetic and retain the native single
+	 * negative-delta adjustment. Trig alone reduces periodic arguments. */
+	int begin = begin_degrees*10, end = end_degrees*10, delta = end-begin;
+	if (delta < 0) delta += 3600;
+	struct point points[CURVE_STEPS_MAX+1];
+	unsigned count = curve_points(points,x,y,radius,yr,begin,end,delta);
+	int coordinates[2*(CURVE_STEPS_MAX+1)];
+	for (unsigned i = 0; i < count; ++i) {
+		coordinates[2*i] = points[i].x; coordinates[2*i+1] = points[i].y;
+	}
 	return render_polyline(igs,coordinates,count,true);
 }
 

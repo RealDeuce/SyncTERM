@@ -21,6 +21,7 @@ rectangles with native built-in/user patterns and no extra perimeter.
 `U` adds rounded outlines, positive-flag rounded fill and negative-flag no-ops.
 `O` adds filled circles with native pixel aspect and adaptive integer curves.
 `Q` adds ellipses with independent X/Y radii through the shared filled-curve path.
+`K` adds open circular arcs with line styles, widths, joins, caps and arrowheads.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -895,6 +896,52 @@ bottom/status pixels, following D, no replies and partial disconnect/reconnect.
 All ST modes, Atari ST/CP437/UTF-8 and status choices check indexed phases,
 cells, palette, state and RGB with physical audio disabled. Other commands/
 selectors and complete acceptance remain pending.
+
+## Circular arcs (`K`)
+
+`K` reads center X/Y, X-class radius, and two unscaled degree angles. It shares
+native circular aspect, signed coarse rejection and integer curve generation
+with O/Q, then runs the open thin/wide line path. Every sweep, including zero
+or narrow sweeps, uses 32–128 radius-derived steps and S+1 points with explicit
+begin/end angles. The renderer's private 129-vertex capacity is separate from
+z's unchanged serial 128-point limit. Line patterns/phase, XOR endpoints,
+wide joins and normal caps/arrows apply; fill attributes are retained and
+ignored. Thin shafts precede heads; wide heads shorten only private points.
+Coarse rejection preserves incoming last state; later line/polygon/cap work
+sets its own state. Both Drawto pairs, attributes, palette/clipping, banks,
+arrays and seeds remain unchanged by rendering; random operands still advance
+once during numeric evaluation. No reply/wait/flow helper is added.
+
+The native sweep rule subtracts begin from end and adds one 3600 turn if
+negative. Wide degree/angle arithmetic preserves that rule without accidental
+word wrap; periodic reduction occurs only at sine/cosine lookup. It avoids
+reads before the original sine table and signed-word cosine overflow, rather
+than drawing foreign ROM-derived shapes. Native safe-domain integer pixels
+remain exact. This deliberately corrects corrupt/overflow behavior for negative
+or large angles. Existing safe geometry and host/status bounds apply after
+native traversal, including to heads/caps.
+
+`cterm_igs_arc` checks 3,876 independent complete native frames in both phases:
+all styles, endpoint pairs, odd widths, modes/resolutions, sweep/step boundaries,
+zero/negative/large radii, clipping/rejection/inverted bounds and outside paths.
+Its 192 corrected-angle cases use a common whole-turn shift of both endpoints
+to obtain source-derived positive-domain geometry with identical interpolation
+and sweep. Literal tests cover pens, zero-sweep XOR parity, extreme sums,
+coarse rejection before renderer validation, axis/array/unscaled-angle ordering,
+focused partitions/bytewise input, once-only randomness, invalid/incomplete/
+renderer recovery, I/R/I5 and reset. The
+[provenance](../src/tests/igs/arc-vectors.json) and
+[maintainer generator](../src/tests/igs/generate_arc_vectors.py) compose independent
+curve/arrow/circle/span/line/Boolean oracles. Ordinary tests need no external
+assets, and expected images never come from SyncTERM output.
+
+`syncterm_igs_arc` checks 84 independent scenes, including 24 console-after-graphic
+replacements, plus glyph overlays, bottom/status pixels, following D, no replies
+and partial disconnect/reconnect. All ST modes, Atari ST/CP437/UTF-8 and status
+choices use coherent cells/phases/palette/state/RGB with audio disabled. The
+complete glyph-cell replacement recipe is shared with U. References:
+15/43/44/46/48/49/50/51/138. Remaining commands/selectors and full acceptance
+stay pending.
 
 ## Deliberate corrections
 
