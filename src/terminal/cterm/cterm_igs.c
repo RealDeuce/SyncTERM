@@ -27,6 +27,7 @@ static const struct st_graphics_command commands[] = {
 	{'I', scalar_parameters, 1, NULL},
 	{'R', pair_parameters, 2, NULL},
 	{'g', scalar_parameters, 1, NULL},
+	{'M', scalar_parameters, 1, NULL},
 };
 
 static void
@@ -160,6 +161,9 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'I': return cterm_igs_initialize(igs, values[0]);
 	case 'R': return cterm_igs_resolution(igs, values[0], values[1]);
 	case 'g': cterm_igs_set_scaling(igs, values[0]); return 0;
+	case 'M':
+		igs->attributes.writing_mode = values[0] >= 1 && values[0] <= 4 ? values[0] : 1;
+		return 0;
 	default: return IO_ERROR_NOT_SUPPORTED;
 	}
 }

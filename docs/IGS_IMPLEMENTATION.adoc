@@ -15,8 +15,8 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I initialization, R resolution and g coordinate-scaling commands are
-implemented and independently tested natively and through the control bitmap
+The I initialization, R resolution, g coordinate-scaling and M writing-mode
+commands are implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
 command, rendering or sound support. The X dispatcher remains pending
@@ -430,4 +430,39 @@ and session modes. g's application captures cover all ST modes, Atari ST,
 CP437/UTF-8 and status choices. The 47+16 ledger, reference paths, dependency
 IDs and registered tests were checked; three entries are complete. Drawing,
 loops, sound and the remaining acceptance work remain pending. Completion
-commit will be recorded by the next completed step.
+commit: 0d13bb1.
+
+=== M workstation writing mode
+
+M reads one unscaled numeric argument. Values 1..4 select replace,
+transparent, XOR and reverse transparent; values outside that range select
+replace. The port stores the public 1..4 convention directly in the existing
+workstation attributes rather than the native driver's internal zero-based
+word. There is no second IGS cache. References: 15, 129 and IG221.TXT's M entry.
+
+The command produces no pixels, palette changes, replies, waits or console
+effects. It preserves pens, patterns, fill/perimeter, Drawto, clip, scaling
+and memory routing. I0/I2 restore the captured writing mode, whereas
+palette-only I operations, I5 and R preserve the selected mode. Whole reset
+and a new session start in replace mode. Drawing commands will consume this
+attribute and test their own pixel compositions as their steps are completed.
+
+Native cterm_igs_writing_mode checks all four modes, invalid signed/upper
+values, unscaled literal/array/random operands under g0/g1/g2, selective
+state preservation, both pixel planes, I/R ordering and local suspension,
+reset, every focused split/bytewise replay, partial input, timeout and error
+recovery. Application syncterm_igs_writing_mode uses the existing literal Z
+scene assertion with coherent cells, both pixel planes, palette, cursor and
+IGS state. It covers all ST modes, Atari ST/CP437/UTF-8 and status choices,
+unchanged physical windows, no replies and fresh reconnect. Physical audio
+is disabled. These tests do not claim drawing or auditory conformance.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release CMake
+configuration. Configure and full build passed without compiler warnings;
+all 43 selected CTest tests passed, including CTerm ANSI/VT52/RIP/SkyPix and
+I/R/g/M, shared parser/images/pixels, term/Wren and application IGS, SkyPix
+report, graphics scrollback and session modes. The 47+16 ledger IDs,
+dependencies, references and active test registrations were checked; removed
+experimental tests remain explicitly superseded. Four command entries are
+complete. Remaining rendering, loop, audio/input and acceptance work is still
+pending. Completion commit will be recorded by the next completed step.

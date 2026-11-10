@@ -15,8 +15,11 @@ display scaling, with native bitmap/scaler and private X11 window checks.
 for captured resolution, I/R preservation, reset/reconnect and no immediate
 scene or window effect. Its documented normalized mapping corrects the
 original integer-division bug; drawing and loop execution remain pending.
-Other commands,
-including drawing and sound, remain pending; see the IGS ledger for details.
+`M` has native mode-selection/reset/input-boundary tests and coherent bitmap
+checks for an unchanged scene, palette and window, across ST geometries,
+Atari ST/CP437/UTF-8 and status choices. Primitive-specific use of the writing
+mode remains part of the pending drawing tests. Other commands, including
+drawing and sound, remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

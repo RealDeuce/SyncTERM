@@ -14,6 +14,7 @@ struct st_igs_image;
 enum { CTERM_IGS_PALETTE_FIRST = 768 };
 
 struct cterm_igs_attributes {
+	/* Writing mode uses the VDI caller's 1..4 convention. */
 	int marker_type, marker_pen, marker_height, writing_mode;
 	int line_type, line_pen, line_width, line_begin, line_end;
 	uint16_t user_line;

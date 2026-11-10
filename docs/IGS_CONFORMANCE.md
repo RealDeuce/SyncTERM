@@ -2,8 +2,8 @@
 
 IGS implementation is in progress. The application-selectable IGS 2.21 mode
 implements `I`'s six initialization selectors and `R` resolution selection.
-`g` configures coordinate scaling and its captured resolution. Other commands
-remain pending.
+`g` configures coordinate scaling and its captured resolution. `M` selects the
+workstation writing mode. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -239,6 +239,31 @@ through `I`/`R`/`I5`, mode-zero/invalid-mode recapture and fresh reconnect.
 Read-only control-backend fields observe actual/captured resolution and mode;
 they do not introduce Wren APIs or product settings. Audio is disabled.
 These tests do not claim any pending drawing or loop command is implemented.
+
+### M: workstation writing mode
+
+`M` consumes one unscaled numeric operand. Modes 1..4 select replace,
+transparent, XOR and reverse transparent; all other signed values select
+replace. The existing workstation attribute stores the public 1..4 values,
+without an additional IGS cache. This is the M caller/native-mode contract
+in reference chapters 15/129 and the mode names in IG221.TXT.
+
+The command produces no immediate pixels, palette changes, replies, console
+changes or waits. Pens, patterns, fill/perimeter, Drawto, clip, scaling and
+memory routing are preserved. `I0/I2` restore the captured writing mode;
+palette-only `I` selectors, `I5` and `R` preserve it. Whole reset and reconnect
+start in replace mode. Primitive-specific pixel composition remains pending
+with the drawing commands that consume this attribute.
+
+`cterm_igs_writing_mode` checks the four modes and invalid/signed bounds,
+literal/array/random operands under all scaling modes, unrelated attributes,
+palette and both pixel planes, selective `I` restoration, `R` suspension/
+ordering, whole reset and every focused split/bytewise input. Incomplete
+EOF, local timeout, five-digit failure and following-command recovery retain
+the last complete mode. `syncterm_igs_writing_mode` covers all ST modes,
+Atari ST/CP437/UTF-8 and status choices through coherent captures of literal
+Z pixels, cells, palette, cursor and read-only IGS state. It verifies no
+immediate scene/window effect, no replies and a fresh reconnect; audio is off.
 
 ## Deliberate corrections
 
