@@ -59,6 +59,10 @@ the original binary's 0/1 reader classes), retained start/clip/raster state,
 once-only random-selector arity and input/lifecycle checks. Coherent scenes
 also check a following D. X dispatch remains in progress: out-of-range
 selectors are no-ops; pending valid selectors fail without consuming payload.
+`z` adds connected polylines with segment phase/XOR ownership, native wide joins
+and multivertex arrow shortening. Its independent 1,692-case native matrix,
+literal input/lifecycle/flow checks and coherent application scenes cover all
+ST modes, encodings and status choices, including exact XOFF/XON replies.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

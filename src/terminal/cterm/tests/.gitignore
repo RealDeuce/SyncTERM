@@ -1,6 +1,7 @@
 __pycache__/
 data/*
 !data/igs_line_vectors.h
+!data/igs_polyline_vectors.h
 !data/skypix/
 data/skypix/*
 !data/skypix/golden-vectors.json

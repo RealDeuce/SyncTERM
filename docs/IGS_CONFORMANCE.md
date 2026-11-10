@@ -14,7 +14,8 @@ original requested start/end coordinates.
 both remembered pairs, preserving native Drawto chaining.
 X dispatch is in progress: `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
-Other commands remain pending.
+`z` draws connected 2–128-point polylines without changing either remembered
+position pair, with serial XOFF/XON around drawing. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -646,6 +647,47 @@ Atari ST/CP437/UTF-8 and status choices. It includes captured geometry,
 invalid-selector chains, an exact following D, no replies, partial disconnect
 and reconnect with physical audio disabled. Completing X10 does not complete
 the parent X command or its other selectors.
+
+## Connected polylines (`z`)
+
+`z` clamps its unscaled signed count to 2–128 and consumes exactly that many
+X/Y pairs. Oversized discarded pairs remain ordinary following input.
+Count/coordinate random operands commit once, including across split input.
+The shared L/D/z renderer retains segment pattern phase, nonfinal XOR endpoint
+ownership, clipped final-segment state, wide shaft/join ordering and private
+arrowhead shortening/propagation across short or repeated points. `z` leaves
+both remembered Drawto pairs, attributes and clipping unchanged.
+
+Serial drawing brackets a successful render with XOFF/XON when the respective
+current loop mode is not exactly 1. Each helper gates once on flow enable,
+then reads its signed count and byte per queued response. Initial/full-reset
+configuration is enabled, bytes 19/17 once each (original accessory DATA).
+I/R preserve it. SyncTERM's response transport owns readiness; no foreign
+BIOS poll or device delay is reproduced. A failed draw sends no extra XON;
+callback reset cancels further sends/drawing. X5 and `&` remain pending;
+their relevant native state is injected for the helper tests.
+
+`cterm_igs_polyline` includes 1,692 independently derived complete raster cases
+in all resolutions and modes, with separate initially clear/set phases,
+standard/custom patterns, wide joins, all cap combinations, clipping,
+closed/retraced/repeated and short-prefix paths. The checked-in
+[vector provenance](../src/tests/igs/polyline-vectors.json) and maintainer-only
+[generator](../src/tests/igs/generate_polyline_vectors.py) identify the
+reference's independent arithmetic/per-bit/circle/arrow models; no expected
+pixels come from SyncTERM. Literal corners/edges, signed count clamps,
+128-point capacity/discarded suffix, every focused split/bytewise input,
+once-only random count/coordinates, partial/error/EOF/timeout/reset recovery,
+I/R/I5 and suspended R supplement the matrix. Flow tests check default/custom
+bytes, repetitions, zero/negative counts, loop/gate changes, before/after pixels,
+callback reset and failed drawing.
+
+`syncterm_igs_polyline` checks 36 source-derived connected-line scenes and
+literal overlays/edges/following-D cases across all ST modes, Atari ST,
+CP437 and UTF-8, and both status choices. Related raw phases, cells, palette,
+position/attributes and RGB use one coherent capture. Exact flow replies,
+partial disconnect and fresh reconnect/default flow are checked with physical
+audio disabled. References: 15/20/43/44/46/50/51/137. Superseded planar/clock
+experiments remain outside the active tests. The complete IGS goal is unfinished.
 
 ## Deliberate corrections
 

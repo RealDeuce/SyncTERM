@@ -12,6 +12,7 @@ struct st_graphics_parser;
 struct st_graphics_argument;
 struct st_igs_image;
 enum { CTERM_IGS_PALETTE_FIRST = 768 };
+enum { CTERM_IGS_MAX_POINTS = 128 };
 
 struct cterm_igs_attributes {
 	/* Writing mode uses the VDI caller's 1..4 convention. */
@@ -43,6 +44,10 @@ struct cterm_igs {
 	int draw_start_x, draw_start_y;
 	/* Last-segment ownership survives native polygon/cap compositions. */
 	bool last_line;
+	/* Serial flow helpers read their own gate once and count/byte per send. */
+	int flow_mode, loop_mode;
+	uint8_t flow_on, flow_off;
+	int flow_on_count, flow_off_count;
 	int memory_route, double_step, marker_pen_cache;
 	bool clipping;
 	int clip_x1, clip_y1, clip_x2, clip_y2;
@@ -80,6 +85,7 @@ unsigned cterm_igs_plane_mask(unsigned resolution);
 unsigned cterm_igs_physical_pen(const struct cterm_igs *, int pen);
 int cterm_igs_marker(struct cterm_igs *, int x, int y);
 int cterm_igs_line(struct cterm_igs *, int x1, int y1, int x2, int y2);
+int cterm_igs_polyline(struct cterm_igs *, const int *coordinates, size_t count);
 uint32_t cterm_igs_random(struct cterm_igs *);
 /* Apply the descriptor's axis to a decimal constant/index. Lookup and random
  * results are returned as values, without a second coordinate transform. */

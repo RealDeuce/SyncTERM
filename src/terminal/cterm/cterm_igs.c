@@ -60,6 +60,24 @@ type_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+point_count(int count)
+{
+	return count < 2 ? 2 : count > CTERM_IGS_MAX_POINTS ? CTERM_IGS_MAX_POINTS : count;
+}
+
+static int
+polyline_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	int count;
+	int status = preview_first(context, view, &count);
+	if (status == 0 && view->count-1 < (size_t)point_count(count)*2)
+		*result = point_parameters[(view->count-1)%2];
+	return status;
+}
+
+static int
 extended_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
@@ -92,6 +110,7 @@ static const struct st_graphics_command commands[] = {
 	{'P', point_parameters, 2, NULL},
 	{'L', point_parameters, 4, NULL},
 	{'D', point_parameters, 2, NULL},
+	{'z', unscaled_parameters, 1, polyline_next},
 	{'X', unscaled_parameters, 1, extended_next},
 };
 
@@ -208,10 +227,26 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 }
 
 static int
+flow(struct cterm_igs *igs, bool on)
+{
+	if (igs->flow_mode == 0)
+		return 0;
+	/* The existing response transport queues output and owns readiness.
+	 * No foreign BIOS polling or per-byte throughput delay belongs here. */
+	for (int i = 0; i < (on ? igs->flow_on_count : igs->flow_off_count); ++i) {
+		char byte = (char)(on ? igs->flow_on : igs->flow_off);
+		cterm_respond(igs->terminal, &byte, 1);
+		if (igs->reset_pending)
+			return IO_ERROR_INTERRUPTED;
+	}
+	return 0;
+}
+
+static int
 command(void *context, const struct st_graphics_command_view *view)
 {
 	struct cterm_igs *igs = context;
-	int values[4];
+	int values[1+2*CTERM_IGS_MAX_POINTS];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
 	if (view->count > sizeof(values) / sizeof(*values))
@@ -232,6 +267,17 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'A': cterm_igs_set_fill(igs, values[0], values[1], values[2]); return 0;
 	case 'P': return cterm_igs_marker(igs, values[0], values[1]);
 	case 'L': return cterm_igs_line(igs, values[0], values[1], values[2], values[3]);
+	case 'z': {
+		int count = point_count(values[0]);
+		if (view->count != 1+(size_t)count*2)
+			return IO_ERROR_PROTOCOL;
+		int status = igs->loop_mode == 1 ? 0 : flow(igs, false);
+		if (status == 0)
+			status = cterm_igs_polyline(igs, values+1, (size_t)count);
+		if (status == 0 && igs->loop_mode != 1)
+			status = flow(igs, true);
+		return status;
+	}
 	case 'D': {
 		int status = cterm_igs_line(igs, igs->draw_x, igs->draw_y, values[0], values[1]);
 		if (status == 0) {

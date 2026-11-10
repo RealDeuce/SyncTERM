@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L and D commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D and z commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -988,5 +988,80 @@ reference paths and active CTest registrations were checked; superseded tests
 remain excluded. Concurrent RIP/Wren edits are outside this IGS change.
 Thirteen command/selector entries are complete; X remains in progress.
 The remaining selectors, z, other primitives, loops, sound/input and final
-acceptance remain pending. Completion commit will be recorded by the next
-completed step.
+acceptance remain pending. Completion commit: f882326.
+
+
+=== z connected polylines and serial drawing flow
+
+z acquires an unscaled count, clamps signed values to 2..128, then acquires
+exactly that many X/Y pairs. The dynamic descriptor reuses the shared point
+parameter data and effect-free first-operand preview. A random count is
+previewed without advancing live state; all real operands advance once at
+execution. Discarded oversized pairs remain outside the command and follow
+normal text/chaining rules. References: 15/20/43/44/46/50/51/137.
+
+The common polyline renderer now serves L, D and z. Thin traversal preserves
+nonfinal XOR endpoint ownership and mask continuation across segments, setting
+last-segment state before clipping the final segment. Wide traversal draws
+native quadrilateral shafts and internal round joins, skips zero-length
+segments, and retains inherited cap state. Arrowheads search beyond short or
+repeated pairs and propagate shortened tips through skipped private vertices.
+The end head sees the original first pair and begin-modified interior pairs;
+the begin-shortened first pair is restored afterward. Thin shafts precede
+heads; wide heads precede shafts/joins. Captures remain temporary indexed
+regions of the authoritative bitmap. No native layout conversion is added.
+z preserves both remembered Drawto pairs and all attributes/clip settings;
+L/D retain their existing position publication around the shared renderer.
+
+Serial z independently tests loop_mode!=1 before XOFF and after successful
+rendering before XON. Each helper tests its enable gate once, then rereads
+the signed count and byte at each send through the existing queued response
+transport. Readiness belongs to that transport; no BIOS polling, physical
+serial device, foreign clock or throughput delay is emulated. On reset from
+a response callback, acquisition/execution is cancelled before further sends
+or drawing. Failed raster calls preserve the prior XOFF and send no invented
+XON. Full reset/reconnect establishes enabled mode1, XOFF19/XON17, count1;
+I/R retain the configuration. Original DATA has those words/bytes at
+TEXT-relative $131a8/$13130/$131a6/$138ca/$13b8c in IG221.ACC
+(SHA256 3dfab4e763b35346a1ed2aa0ab05bb1c1b2de06692e26edd16bc205c08a5d9f1).
+X5 configuration and containing-& execution remain pending; native tests
+inject their state explicitly and do not claim those commands are implemented.
+
+cterm_igs_polyline checks 1692 independently derived complete native-frame
+cases with separate zero/all-one initial phases. Standard/custom patterns,
+all writing modes and resolutions, widths3/9/39, all cap pairs, closed,
+repeated/retraced and short-prefix paths, clipping and inherited cap state
+come from the reference's independent rational/bit/circle/arrow oracles.
+The maintainer-only generate_polyline_vectors.py records source fingerprints,
+ROM identity and provenance in polyline-vectors.json; ordinary tests need no
+reference tree, ROM or historical executable. Literal corner/edge tests,
+signed count/coordinate boundaries, 128-point capacity and discarded suffix,
+every focused split/bytewise input, once-only count/coordinate RNG, unchanged
+partial/error pixels, EOF/timeout/reset, suspended R and I/R/I5 lifetime
+supplement the oracle. Flow checks cover default/custom bytes, repetition,
+zero/negative counts, helper-gate/loop decisions, before/after pixels,
+callback reset and rejected drawing. L/D tests share indexed observation
+helpers without importing their vector arrays into z tests.
+
+syncterm_igs_polyline checks 36 independent thin/wide/arrow scenes across all
+ST modes, Atari ST/CP437/UTF-8 and status choices. One coherent capture checks
+raw phases, cells, palette, position/attributes and RGB, plus literal overlays,
+normalized bottom edges, following D, exact XOFF/XON replies, incomplete
+input disconnect and fresh reconnect/default flow. Physical audio is disabled.
+Other commands, remaining X selectors, loops, sound/input and final acceptance
+remain pending. Verification and completion commit are recorded below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and full native CMake builds passed without compiler
+warnings. All 65 selected CTest tests passed in one run, including every
+CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren,
+all IGS application tests, SkyPix report, graphics scrollback and session modes.
+Final test-only assertions added maximum flow counts, rejected-final/zero-segment
+state and incomplete random-count cancellation; the full build and focused
+cterm_igs_polyline passed again afterward. Application captures passed all
+ST modes, Atari ST/CP437/UTF-8 and status choices, with exact flow replies
+and physical audio disabled. All 63 ledger IDs, references, dependencies,
+active CTest registrations and independent fixture inventory were checked;
+superseded planar/clock tests remain excluded. Fourteen entries are complete.
+Other commands/selectors and final acceptance remain pending. Completion commit
+will be recorded by the next completed step.

@@ -374,6 +374,10 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	igs->draw_x = igs->draw_y = 0;
 	igs->draw_start_x = igs->draw_start_y = 0;
 	igs->last_line = true;
+	igs->flow_mode = 1;
+	igs->loop_mode = 0;
+	igs->flow_on = 17; igs->flow_off = 19;
+	igs->flow_on_count = igs->flow_off_count = 1;
 	igs->scaling_mode = 0;
 	igs->scaling_resolution = (int)igs->resolution;
 	igs->random_seed = 1;

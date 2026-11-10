@@ -344,12 +344,21 @@ vector_length(int x, int y)
 }
 
 static void
-arrow(struct raster *raster, struct point points[2], unsigned tip, int width, int xs, int ys)
+arrow(struct raster *raster, struct point *points, size_t count, bool begin, int width, int xs, int ys)
 {
-	struct point end = points[tip], other = points[1-tip];
-	int dx = end.x-other.x, dy = clip_ratio(end.y-other.y, ys, xs);
+	size_t tip = begin ? 0 : count-1, candidate = tip;
+	struct point end = points[tip];
 	int length = width == 1 ? 8 : 3*width-1, half = length/2;
-	int distance = vector_length(dx, dy);
+	int dx = 0, dy = 0, distance = 0;
+	/* Find the first vertex beyond the head, skipping short/repeated pairs.
+	 * Only the private point copy is shortened, including skipped vertices. */
+	for (size_t i = 1; i < count; ++i) {
+		candidate = begin ? i : count-1-i;
+		dx = end.x-points[candidate].x;
+		dy = clip_ratio(end.y-points[candidate].y, ys, xs);
+		distance = vector_length(dx, dy);
+		if (distance >= length) break;
+	}
 	if (distance < length) return;
 	/* Keep both rounds of the native rotation; combining the fractions
 	 * changes small heads and aspect-corrected diagonals. */
@@ -362,25 +371,35 @@ arrow(struct raster *raster, struct point points[2], unsigned tip, int width, in
 	    {end.x-bx-hx,end.y-by-hy},end};
 	polygon(raster, triangle, 3);
 	points[tip] = (struct point){end.x-hx,end.y-hy};
+	if (begin) {
+		for (size_t i = 1; i < candidate; ++i) points[i] = points[tip];
+	} else {
+		for (size_t i = count-2; i > candidate; --i) points[i] = points[tip];
+	}
 }
 
 static void
-arrows(struct raster *raster, struct point points[2], int width, int begin, int end, int xs, int ys)
+arrows(struct raster *raster, struct point *points, size_t count, int width, int begin, int end, int xs, int ys)
 {
 	raster->mask = 0xffff;
 	struct point original = points[0];
-	if (begin & 1) arrow(raster, points, 0, width, xs, ys);
+	if (begin & 1) arrow(raster, points, count, true, width, xs, ys);
 	struct point shortened = points[0];
 	if (end & 1) {
 		points[0] = original;
-		arrow(raster, points, 1, width, xs, ys);
+		arrow(raster, points, count, false, width, xs, ys);
 		points[0] = shortened;
 	}
 }
 
 int
-cterm_igs_line(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
+cterm_igs_polyline(struct cterm_igs *igs, const int *coordinates, size_t count)
 {
+	if (coordinates == NULL || count < 2 || count > CTERM_IGS_MAX_POINTS)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct point points[CTERM_IGS_MAX_POINTS];
+	for (size_t i = 0; i < count; ++i)
+		points[i] = (struct point){coordinates[2*i],coordinates[2*i+1]};
 	static const uint16_t styles[] = {0xffff,0xfff0,0xc0c0,0xff18,0xff00,0xf191};
 	int type = igs->attributes.line_type, width = igs->attributes.line_width;
 	if (type < 1 || type > 7 || width < 1 || width > 39 || (width & 1) == 0)
@@ -392,8 +411,14 @@ cterm_igs_line(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
 	/* Native bytes never back the screen. Restrict a temporary indexed
 	 * capture to the endpoint box plus the largest head/cap extent. */
 	int margin = 5*width+8;
-	int left = (x1 < x2 ? x1 : x2)-margin, top = (y1 < y2 ? y1 : y2)-margin;
-	int right = (x1 > x2 ? x1 : x2)+margin, bottom = (y1 > y2 ? y1 : y2)+margin;
+	int left = points[0].x, right = left, top = points[0].y, bottom = top;
+	for (size_t i = 1; i < count; ++i) {
+		if (points[i].x < left) left = points[i].x;
+		if (points[i].x > right) right = points[i].x;
+		if (points[i].y < top) top = points[i].y;
+		if (points[i].y > bottom) bottom = points[i].y;
+	}
+	left -= margin; right += margin; top -= margin; bottom += margin;
 	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
 	if (left < 0) left = 0;
 	if (top < 0) top = 0;
@@ -408,37 +433,50 @@ cterm_igs_line(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
 	if (status != 0) return status;
 	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
 	int ys = 372, begin = igs->attributes.line_begin, end = igs->attributes.line_end;
-	struct point points[] = {{x1,y1},{x2,y2}};
 	if (width == 1) {
-		raster.last_line = true;
-		segment(&raster, points[0], points[1], false);
-		if ((begin | end) & 1) arrows(&raster, points, width, begin, end, xs, ys);
+		for (size_t i = 1; i < count; ++i) {
+			raster.last_line = i+1 == count;
+			segment(&raster, points[i-1], points[i], false);
+		}
+		if ((begin | end) & 1) arrows(&raster, points, count, width, begin, end, xs, ys);
 	} else {
 		int circle[40] = {0};
 		unsigned rows = circle_table(width, xs, ys, circle);
-		if ((begin | end) & 1) arrows(&raster, points, width, begin, end, xs, ys);
+		if ((begin | end) & 1) arrows(&raster, points, count, width, begin, end, xs, ys);
 		raster.mask = 0xffff;
 		if (begin != 0) disc(&raster, points[0], circle, rows);
-		int dx = points[1].x-points[0].x, dy = points[1].y-points[0].y;
-		if (dx != 0 || dy != 0) {
+		struct point first = points[0];
+		for (size_t i = 1; i < count; ++i) {
+			struct point last = points[i];
+			int dx = last.x-first.x, dy = last.y-first.y;
+			if (dx == 0 && dy == 0) continue;
 			struct point offset;
 			if (dx == 0) offset = (struct point){circle[0],0};
 			else if (dy == 0) offset = (struct point){0,(int)rows-1};
 			else offset = perpendicular((struct point){clip_ratio(-dy,ys,xs),clip_ratio(dx,xs,ys)},circle,rows);
-			const struct point box[] = {{points[0].x+offset.x,points[0].y+offset.y},
-			    {points[0].x-offset.x,points[0].y-offset.y},
-			    {points[1].x-offset.x,points[1].y-offset.y},
-			    {points[1].x+offset.x,points[1].y+offset.y}};
+			const struct point box[] = {{first.x+offset.x,first.y+offset.y},
+			    {first.x-offset.x,first.y-offset.y},
+			    {last.x-offset.x,last.y-offset.y},
+			    {last.x+offset.x,last.y+offset.y}};
 			polygon(&raster,box,4);
-			if (end != 0) disc(&raster,points[1],circle,rows);
+			if (i+1 < count || end != 0) disc(&raster,last,circle,rows);
+			first = last;
 		}
 	}
 	status = publish(&raster);
 	st_pixel_buffer_destroy(raster.pixels);
+	if (status == 0) igs->last_line = raster.last_line;
+	return status;
+}
+
+int
+cterm_igs_line(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
+{
+	const int coordinates[] = {x1,y1,x2,y2};
+	int status = cterm_igs_polyline(igs, coordinates, 2);
 	if (status == 0) {
 		igs->draw_start_x = x1; igs->draw_start_y = y1;
 		igs->draw_x = x2; igs->draw_y = y2;
-		igs->last_line = raster.last_line;
 	}
 	return status;
 }
