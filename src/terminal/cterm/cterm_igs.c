@@ -60,6 +60,16 @@ type_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+box_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	(void)context;
+	*result = view->count == 4 ? unscaled_parameters[0]
+	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	return 0;
+}
+
+static int
 point_count(int count)
 {
 	return count < 2 ? 2 : count > CTERM_IGS_MAX_POINTS ? CTERM_IGS_MAX_POINTS : count;
@@ -112,6 +122,7 @@ static const struct st_graphics_command commands[] = {
 	{'D', point_parameters, 2, NULL},
 	{'z', unscaled_parameters, 1, polyline_next},
 	{'Z', point_parameters, 4, NULL},
+	{'B', point_parameters, 4, box_next},
 	{'X', unscaled_parameters, 1, extended_next},
 };
 
@@ -269,6 +280,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'P': return cterm_igs_marker(igs, values[0], values[1]);
 	case 'L': return cterm_igs_line(igs, values[0], values[1], values[2], values[3]);
 	case 'Z': return cterm_igs_rectangle(igs, values[0], values[1], values[2], values[3]);
+	case 'B': return cterm_igs_box(igs, values[0], values[1], values[2], values[3], values[4] != 0);
 	case 'z': {
 		int count = point_count(values[0]);
 		if (view->count != 1+(size_t)count*2)

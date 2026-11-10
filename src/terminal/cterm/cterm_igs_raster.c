@@ -283,10 +283,11 @@ segment(struct raster *raster, struct point first, struct point last, bool force
 	pattern_segment(raster, first, last, raster->last_line);
 }
 
-/* The shafts/heads use the native solid polygon with its independent fill
- * rounding, descending rows, excluded outer rows and ordered thin border. */
+/* Native patterned spans and optional solid border. The current largest
+ * input is the rounded box's 21 vertices, including its explicit closure. */
 static void
-polygon(struct raster *raster, const struct point *points, unsigned count)
+fill_polygon(struct raster *raster, const struct point *points, unsigned count,
+    const uint16_t *rows, unsigned row_mask, bool perimeter)
 {
 	int low = points[0].y, high = low;
 	raster->last_line = false;
@@ -312,7 +313,7 @@ polygon(struct raster *raster, const struct point *points, unsigned count)
 		first = (int)(raster->area.y+raster->area.height)-1;
 	if (limit < (int)raster->area.y-1) limit = (int)raster->area.y-1;
 	for (int y = first; y > limit; --y) {
-		int intersections[4]; unsigned found = 0;
+		int intersections[21]; unsigned found = 0;
 		for (unsigned i = 0; i < count; ++i) {
 			struct point a = points[i], b = points[(i+1)%count];
 			if (!((a.y <= y && y < b.y) || (b.y <= y && y < a.y))) continue;
@@ -333,14 +334,89 @@ polygon(struct raster *raster, const struct point *points, unsigned count)
 			if (left < (int)raster->area.x) left = (int)raster->area.x;
 			if (right >= (int)(raster->area.x+raster->area.width))
 				right = (int)(raster->area.x+raster->area.width)-1;
-			for (int x = left; x <= right; ++x) plot(raster, (struct point){x,y}, true);
+			uint16_t bits = rows[(unsigned)y & row_mask];
+			for (int x = left; x <= right; ++x)
+				plot(raster, (struct point){x,y}, (bits & (0x8000u >> ((unsigned)x & 15))) != 0);
 		}
 	}
+	if (!perimeter) return;
 	raster->mask = 0xffff;
 	for (unsigned i = 0; i < count; ++i) {
 		raster->last_line = i+1 == count;
 		segment(raster, points[i], points[(i+1)%count], false);
 	}
+}
+
+/* Wide shafts and arrowheads temporarily select solid fill/perimeter. */
+static void
+polygon(struct raster *raster, const struct point *points, unsigned count)
+{
+	static const uint16_t solid = 0xffff;
+	fill_polygon(raster, points, count, &solid, 0, true);
+}
+
+int
+cterm_igs_box(struct cterm_igs *igs, int x1, int y1, int x2, int y2, bool rounded)
+{
+	const uint16_t *rows;
+	unsigned row_mask;
+	int status = fill_pattern(igs, &rows, &row_mask);
+	if (status != 0) return status;
+	if (x1 > x2) { int swap = x1; x1 = x2; x2 = swap; }
+	if (y1 > y2) { int swap = y1; y1 = y2; y2 = swap; }
+	if (!rounded) {
+		status = cterm_igs_rectangle(igs,x1,y1,x2,y2);
+		if (status != 0 || !igs->attributes.fill_perimeter) return status;
+	}
+	struct point points[21]; unsigned count;
+	if (rounded) {
+		/* These are the native interpolated trig results for 675/450/225.
+		 * Divisor32767's signed-word remainder comparison never rounds up;
+		 * all products here are nonnegative and safely bounded by radius9. */
+		static const int cosine[] = {12539,23170,30271};
+		static const int sine[] = {30271,23170,12539};
+		int xr = (int)(igs->width-1)/64;
+		if (xr > (x2-x1)/2) xr = (x2-x1)/2;
+		int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
+		int yr = clip_ratio(xr,xs,372);
+		if (yr > (y2-y1)/2) yr = (y2-y1)/2;
+		struct point quarter[5] = {{0,yr},{0,0},{0,0},{0,0},{xr,0}};
+		for (unsigned i = 0; i < 3; ++i)
+			quarter[i+1] = (struct point){cosine[i]*xr/32767,sine[i]*yr/32767};
+		for (unsigned i = 0; i < 5; ++i) {
+			struct point q = quarter[i], reverse = quarter[4-i];
+			points[i] = (struct point){x2-xr+q.x,y1+yr-q.y};
+			points[5+i] = (struct point){x2-xr+reverse.x,y2-yr+reverse.y};
+			points[10+i] = (struct point){x1+xr-q.x,y2-yr+q.y};
+			points[15+i] = (struct point){x1+xr-reverse.x,y1+yr-reverse.y};
+		}
+		points[20] = points[0]; count = 21;
+	} else {
+		points[0] = (struct point){x1,y1}; points[1] = (struct point){x2,y1};
+		points[2] = (struct point){x2,y2}; points[3] = (struct point){x1,y2}; count = 4;
+	}
+	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
+	    .foreground = cterm_igs_physical_pen(igs,igs->attributes.fill_pen),
+	    .plane_mask = cterm_igs_plane_mask(igs->resolution), .mask = 0xffff,
+	    .last_line = igs->last_line};
+	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
+	int left = x1 < 0 ? 0 : x1, top = y1 < 0 ? 0 : y1;
+	int right = x2 >= (int)igs->width ? (int)igs->width-1 : x2;
+	int bottom = y2 >= drawable ? drawable-1 : y2;
+	if (left <= right && top <= bottom) {
+		raster.area = (struct st_console_rect){(unsigned)left,(unsigned)top,
+		    (unsigned)(right-left+1),(unsigned)(bottom-top+1)};
+		status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
+	}
+	if (status != 0) return status;
+	if (rounded) fill_polygon(&raster,points,count,rows,row_mask,igs->attributes.fill_perimeter);
+	else for (unsigned i = 0; i < count; ++i) {
+		raster.last_line = i+1 == count;
+		segment(&raster,points[i],points[(i+1)%count],false);
+	}
+	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
+	if (status == 0) igs->last_line = raster.last_line;
+	return status;
 }
 
 static unsigned

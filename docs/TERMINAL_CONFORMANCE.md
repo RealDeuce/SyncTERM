@@ -67,6 +67,10 @@ ST modes, encodings and status choices, including exact XOFF/XON replies.
 and active user patterns. Its 1,992-case independent native matrix and coherent
 application scenes cover fill modes/pens/anchoring, boundaries, overlays,
 state/input/lifecycle recovery and all ST modes, encodings and status choices.
+`B` adds bars and rounded filled boxes with native thin solid perimeters,
+polygon span/closure/XOR behavior and retained raster state. Its independent
+2,688-case native matrix and 96 coherent source-derived application scenes
+also cover glyph/border overlays, input partitions, flags and lifecycle.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

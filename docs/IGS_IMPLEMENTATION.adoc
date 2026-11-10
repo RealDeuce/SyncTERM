@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z and Z commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z and B commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1139,5 +1139,80 @@ replies and physical audio disabled. All 304 production indexed-family pattern
 words matched the recorded original table SHA256 identities. All 63 ledger
 IDs, references, dependencies, active CTest registrations and fixture inventory
 were checked; superseded planar/clock tests remain excluded. Fifteen entries
+are complete; X stays in progress. Other commands/selectors and full acceptance
+remain pending. Completion commit: ad7577e.
+
+
+=== B bars, rounded fill and native perimeters
+
+B reuses the four X/Y point fields and adds an unscaled numeric tail.
+Flag0 draws an inclusive rectangle through the existing Z renderer, followed
+by a solid one-pixel fill-colour border when fill perimeter is enabled.
+Any nonzero flag, including negative signed operands, draws a filled rounded
+box. Both forms ignore line pen/style/width/caps and preserve both remembered
+Drawto pairs, all attributes, palette, clipping, source banks/math and RNG
+apart from explicit operand evaluation. There is no added wait, reply or
+flow-helper call. References: 15/46/47/48/49/131/134.
+
+Rounded radii use the current screen's X maximum divided by64, limited by
+half-width, and native pixel aspect for Y, limited by half-height. The fixed
+675/450/225 quarter samples use the original interpolated trig results and
+its divisor32767 truncation; host trigonometric rounding would change corners.
+The native 21-point order and repeated closure vertices are retained.
+Patterned polygon spans share existing intersection rounding, descending rows,
+vertical rejection and absolute screen anchoring. The optional perimeter is a
+second solid thin traversal, with native nonfinal XOR endpoint ownership;
+filled areas and borders can cancel each other. It uses the fill pen and
+never applies the graphical line's width, pattern or arrows.
+
+The generalized polygon helper still supplies solid/perimeter wrappers for
+wide shafts and arrowheads. B0 without perimeter preserves incoming last-line
+state; with perimeter it finishes true even after fill rejection. Rounded
+fill clears it before vertical clipping and leaves false on rejection or
+without perimeter. An executed border finishes true, including its final
+repeated/zero-length edge. Those effects remain available to later primitives.
+Off-screen/status writes are discarded after native clipping/traversal, so a
+host boundary does not become a new nonfinal line endpoint. Widened dimensions
+and bounded radii avoid raw wrapped-radius/arithmetic/memory accidents. Atomic
+complete acquisition remains the shared parser policy.
+
+cterm_igs_box checks 2688 independent complete native-frame cases, with distinct
+initial bits in both indexed phases: all 38 built-ins plus active user rows,
+all ST modes and writing modes, bar/rounded and perimeter branches, inherited
+last state, corner order, narrow/zero dimensions, clip rejection/inverted
+bounds and partially off-screen unclipped traversal. Arbitrary line width 39,
+custom mask, caps and other pens remain untouched and cannot alter fill output.
+The maintainer-only generate_box_vectors.py composes independent rounded point
+construction, rational spans, clipped endpoint visits and plane-bit Boolean
+rules from the reference; box-vectors.json records source/ROM fingerprints.
+Ordinary tests have no reference-tree/ROM/executable dependency. Literal native
+checks add the hand-derived low-resolution corner limits, signed flags at all
+g modes, random operands/flag committing once, five-field byte ownership,
+all focused splits/bytewise input, EOF/timeout/error/reset, safe signed extrema,
+I/R/I5/suspended R, active-user-copy ownership and unchanged positions/attributes.
+Z/B now share only their test fixture/initial-word recipe, not expected images.
+
+syncterm_igs_box checks 96 source-derived bar/rounded scenes and literal active
+user rows, fill/border glyph overlays in all modes, bottom/status edges,
+following D and partial disconnect/reconnect across all ST modes,
+Atari ST/CP437/UTF-8 and status choices. Each related pixel/cell/palette/state/
+RGB check uses one coherent capture. Physical audio is disabled. Other commands,
+remaining X selectors and full acceptance remain pending; verification and
+completion commit are recorded below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and the final full cmake --build build -j1 passed without
+warnings. The literal bar test failed before implementation and passed after.
+All 69 selected CTest tests passed in one run, including every CTerm test,
+shared parser/images/pixels, bitmap/control backend, term/Wren, every IGS
+application test, SkyPix report, graphics scrollback and session modes.
+All 2688 independent native-frame cases passed with arbitrary line attributes
+retained and ignored, plus literal corners/flags/partitions/RNG/error/lifecycle
+checks. All 96 independent coherent application scenes and literal user/
+border/glyph overlays passed across all ST modes, Atari ST/CP437/UTF-8 and
+status choices, with no replies and physical audio disabled. Existing L/D/z/Z
+regressions passed after the polygon and fill-fixture changes. All 63 ledger
+IDs, references, dependencies, active CTest registrations and fixture inventory
+were checked; superseded planar/clock tests remain excluded. Sixteen entries
 are complete; X stays in progress. Other commands/selectors and full acceptance
 remain pending. Completion commit will be recorded by the next completed step.
