@@ -81,6 +81,12 @@ signed-radius rejection. Its 3,126 independent dual-phase cases cover all
 fills/modes/depths and step counts; coherent application scenes cover glyph
 composition/replacement, status/bottom pixels, following D and lifecycle in
 every ST mode, encoding and status choice.
+`Q` adds ellipses with independent X/Y radii using the shared filled-curve path.
+Its 3,660 independent dual-phase cases cover all fill/mode/depth combinations,
+zero/mixed-sign/tall/wide radii and every adaptive step count driven by each
+axis. Shared circle/ellipse application captures cover independent scenes,
+glyph composition/replacement, retained state, status and lifecycle throughout
+the ST mode/encoding/status matrix.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

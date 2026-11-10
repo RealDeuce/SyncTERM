@@ -20,6 +20,7 @@ rectangles with native built-in/user patterns and no extra perimeter.
 `B` adds bars with optional fill-colour perimeter and filled rounded boxes.
 `U` adds rounded outlines, positive-flag rounded fill and negative-flag no-ops.
 `O` adds filled circles with native pixel aspect and adaptive integer curves.
+`Q` adds ellipses with independent X/Y radii through the shared filled-curve path.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -855,6 +856,45 @@ no replies and partial disconnect/reconnect. All ST modes, Atari ST/CP437/UTF-8
 and status choices use coherent phases/cells/palette/state/RGB, with physical
 audio disabled. References: 15/46/48/49/131/138. Other commands/selectors and
 full acceptance remain pending.
+
+## Filled ellipses (`Q`)
+
+`Q` reads center X/Y and independent X/Y radii through the existing four-field
+coordinate description. Y radius follows g's Y conversion; array values are
+loaded after index conversion and are not transformed again. IGS's workstation
+opens with transformation 2, so native GDP5 retains the supplied Y radius.
+There is no circle pixel-aspect conversion or positivity clamp. Both Drawto
+pairs remain unchanged. References: 15/31/46/48/49/131/138.
+
+O/Q share signed coarse rejection and its incoming last-state preservation,
+32–128 steps selected from the larger signed radius, original integer trig,
+patterned polygon fill and solid fill-colour perimeter. Q's interior angles
+sweep 3600 but its explicit final angle is 0, whereas O uses 3600. Both retain
+that final point and the polygon-added closing edge for ordered XOR behavior.
+Line attributes are retained and ignored; palette/clipping/arrays/banks/seeds
+stay unchanged. Established safe widened geometry, atomic acquisition and
+post-traversal host/status bounds apply. No reply, wait or flow helper is added.
+
+`cterm_igs_ellipse` checks 3,660 independent complete native frames in both phases:
+all 39 fill selections, every mode/resolution/perimeter, tall/wide/zero/mixed-sign
+radii, all 97 step counts selected independently by each axis, clip rejection,
+inverted bounds and partially outside unclipped paths. Literal checks add
+all 16 pens, extreme signed radii, status protection, g2 center/radius Y behavior,
+indexed operand ordering, focused splits/bytewise input, once-only randomness,
+EOF/timeout/error/renderer recovery, reset and I/R/I5 lifetime. The
+[provenance](../src/tests/igs/ellipse-vectors.json) and
+[generator](../src/tests/igs/generate_ellipse_vectors.py) use the shared
+[independent oracle](../src/tests/igs/filled_curve_oracle.py); circle hashes and
+application runs regenerated unchanged after extraction. Ordinary tests do not
+need external assets and expected pixels never come from SyncTERM.
+
+`syncterm_igs_ellipse` and `syncterm_igs_circle` share one coherent capture
+recipe with separate independent scenes. Q adds 48 source-derived scenes plus
+literal zero-radius glyph overlays, complete console-cell replacement,
+bottom/status pixels, following D, no replies and partial disconnect/reconnect.
+All ST modes, Atari ST/CP437/UTF-8 and status choices check indexed phases,
+cells, palette, state and RGB with physical audio disabled. Other commands/
+selectors and complete acceptance remain pending.
 
 ## Deliberate corrections
 

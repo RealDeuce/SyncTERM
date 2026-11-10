@@ -1,6 +1,7 @@
 {
   "provenance": {
     "generator": "src/tests/igs/generate_circle_vectors.py",
+    "shared_oracle": "src/tests/igs/filled_curve_oracle.py",
     "references": [
       "15-graphics-commands.adoc",
       "46-native-polygon-fill.adoc",

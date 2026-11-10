@@ -375,11 +375,9 @@ curve_sine(unsigned angle)
 	return quadrant > 1 ? -value : value;
 }
 
-int
-cterm_igs_circle(struct cterm_igs *igs, int x, int y, int radius)
+static int
+filled_curve(struct cterm_igs *igs, int x, int y, int radius, int yr, unsigned end_angle)
 {
-	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
-	int yr = clip_ratio(radius,xs,372);
 	/* Preserve the native signed-radius predicates, widening sums so valid
 	 * coordinates cannot become accidental wrapped rejection/addresses. */
 	if (igs->clipping && (x+radius < igs->clip_x1 || x-radius > igs->clip_x2
@@ -392,7 +390,7 @@ cterm_igs_circle(struct cterm_igs *igs, int x, int y, int radius)
 	    : maximum/4 > CURVE_STEPS_MAX ? CURVE_STEPS_MAX : (unsigned)(maximum/4);
 	struct point points[CURVE_STEPS_MAX+1];
 	for (unsigned i = 0; i <= steps; ++i) {
-		unsigned angle = i == steps ? 3600u : (unsigned)clip_ratio(3600,(int)i,(int)steps);
+		unsigned angle = i == steps ? end_angle : (unsigned)clip_ratio(3600,(int)i,(int)steps);
 		/* The native divisor32767 comparison never increments a quotient;
 		 * use signed truncation, keeping safe coordinates wider than a word. */
 		points[i] = (struct point){x+curve_sine(angle+900)*radius/32767,
@@ -423,6 +421,21 @@ cterm_igs_circle(struct cterm_igs *igs, int x, int y, int radius)
 	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
 	if (status == 0) igs->last_line = raster.last_line;
 	return status;
+}
+
+int
+cterm_igs_circle(struct cterm_igs *igs, int x, int y, int radius)
+{
+	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
+	return filled_curve(igs,x,y,radius,clip_ratio(radius,xs,372),3600);
+}
+
+int
+cterm_igs_ellipse(struct cterm_igs *igs, int x, int y, int x_radius, int y_radius)
+{
+	/* IGS opens its workstation in raster-coordinate transformation2.
+	 * GDP5's full interior sweep ends with an explicit angle0 point. */
+	return filled_curve(igs,x,y,x_radius,y_radius,0);
 }
 
 /* Corners arrive ordered; build native GDP8/9's private, closed 21-point path. */

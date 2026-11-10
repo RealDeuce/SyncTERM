@@ -9,3 +9,4 @@ data/*
 !data/skypix/
 data/skypix/*
 !data/skypix/golden-vectors.json
+!data/igs_ellipse_vectors.h

@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U and O commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O and Q commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -1359,5 +1359,76 @@ trigonometry and extending polygon capacity. All 63 ledger IDs, references,
 dependencies, active CTest registrations, 3126/48 fixture inventory and 92 sine
 words/SHA256 were checked; superseded planar/clock tests remain excluded.
 Eighteen entries are complete; X stays in progress. Other commands/selectors
+and full acceptance remain pending. Completion commit: de5844d.
+
+
+=== Q ellipses and shared filled-curve execution
+
+Q reuses the four-field X/Y/X/Y descriptor for center X/Y and independent
+X/Y radii. IGS opens the workstation with work_in[10]=2, so the native GDP5
+transformation-mode branch preserves the supplied Y radius. The port needs
+no selectable foreign workstation transformation model. There is no circular
+pixel-aspect conversion, radius positivity check or Drawto update. Decimal
+Y radius follows g's Y conversion just like center Y; array lookup still
+scales the index before loading and does not scale the loaded value again.
+References: 15/31/46/48/49/131/138.
+
+O/Q now share filled_curve's native signed coarse rejection, step selection,
+integer point generation, patterned polygon spans, optional thin solid
+fill-colour border and last-line-state transitions. The radius-derived step
+count uses the larger signed axis and stays between 32 and 128. Interior angles
+sweep 3600; the final explicit angle is 0 for Q and 3600 for O. Identical ordinary
+endpoint coordinates do not justify dropping the repeated final point or the
+polygon's extra closing edge. Existing sine data/interpolation/truncation,
+ordered XOR visits and safe widened/post-traversal host bounds are reused.
+Line pen/style/width/caps cannot affect either filled curve; all attributes,
+positions, palette, clipping, source pattern banks, math arrays and seeds remain.
+No reply, wait or flow call is added.
+
+cterm_igs_ellipse checks 3660 independent complete native-frame cases in both
+indexed phases. Coverage includes all 39 fill selections and every mode,
+resolution and perimeter; tall/wide geometry; zero/mixed-sign radii; all 97
+step counts 32..128 selected separately by each axis; clip rejection, inverted
+bounds and partially outside unclipped paths. Literal checks cover all 16 pens,
+maximum/minimum signed radii, both status choices, four-field acquisition,
+every focused partition/bytewise chain, once-only random operands, invalid/
+incomplete/renderer recovery, reset and I/R/I5/suspended R. Mono g2 explicitly
+checks both center Y and Y radius; indexed operands retain their source words.
+
+The maintainer generators now share filled_curve_oracle.py, composing the
+existing independent native geometry, rational spans, whole-plane-word Boolean
+equations and ordered border visits. Regenerating O reproduced every native
+hash and application run unchanged; only shared-oracle provenance was added.
+Q's ellipse-vectors.json records model/ROM/table hashes and 48 independent
+application scenes. Ordinary tests need no reference tree, ROM or historical
+program, and expected pixels never come from SyncTERM output.
+
+syncterm_igs_circle and syncterm_igs_ellipse share the same coherent capture
+recipe in st_igs_filled_curve_test.py with explicit command arity and separate
+independent scene data. They check complete indexed phases, cells, palette,
+state and composed RGB in all ST modes, Atari ST/CP437/UTF-8 and status choices.
+Literal zero-radius overlays and later console-cell replacement verify both
+composition directions; bottom/status bounds, following D, no replies, partial
+disconnect and fresh reconnect are covered. Physical audio is disabled.
+Verification and completion commit follow below.
+
+Verification used the existing native FreeBSD /usr/bin/cc Release configuration:
+cmake -S . -B build and the final full cmake --build build -j1 passed without
+warnings. The literal ellipse test failed before implementation and passed
+afterward. All 75 selected CTest tests passed in one run, including every
+CTerm test, shared parser/images/pixels, bitmap/control backend, term/Wren,
+all IGS application tests, SkyPix report, graphics scrollback and session modes.
+All 3660 independent dual-phase Q cases passed, plus literal pen/extreme/status/
+input/RNG/error/renderer/lifecycle checks. The extracted independent oracle
+regenerated all 3126 native O cases and 48 O application scenes unchanged;
+only shared-oracle provenance was added. Coherent captures passed 48 independent
+Q scenes plus zero-radius glyph overlays, console-cell replacement, bottom/
+status bounds, following D and partial disconnect/reconnect across all ST
+modes, Atari ST/CP437/UTF-8 and status choices, with no replies and physical
+audio disabled. O/B/U/L/D/z regressions passed after sharing filled-curve
+execution and application recipes. All 63 ledger IDs, references, dependencies,
+active CTest registrations, 3660/48 Q and 3126/48 O inventories and shared sine
+identity were checked; superseded planar/clock tests remain excluded.
+Nineteen entries are complete; X stays in progress. Other commands/selectors
 and full acceptance remain pending. Completion commit will be recorded by
 the next completed step.
