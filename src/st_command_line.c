@@ -162,6 +162,7 @@ st_command_line_parse(struct st_command_line *result, int argc,
 
 		bad_argument = argument;
 
+#if ST_CONSOLE_TEST
 		if (strcmp(argument, "--test-directory") == 0) {
 			if (++i >= argc || argv[i][0] == '\0') goto invalid;
 			parsed.test_directory = argv[i];
@@ -175,6 +176,7 @@ st_command_line_parse(struct st_command_line *result, int argc,
 			parsed.backend_set = true;
 			continue;
 		}
+#endif
 		if (strcmp(argument, "--help") == 0 || strcmp(argument, "-?") == 0) {
 			parsed.action = ST_COMMAND_HELP;
 			continue;
@@ -213,7 +215,9 @@ st_command_line_parse(struct st_command_line *result, int argc,
 			parsed.connection_type_set = true;
 			break;
 		case 'I':
+#if ST_CONSOLE_TEST
 			if (parsed.test_control) goto invalid;
+#endif
 			if (!parse_backend(&parsed, argument + 2))
 				goto invalid;
 			break;
@@ -260,7 +264,9 @@ st_command_line_parse(struct st_command_line *result, int argc,
 			goto invalid;
 		}
 	}
+#if ST_CONSOLE_TEST
 	if (parsed.test_directory != NULL && !parsed.test_control) goto invalid;
+#endif
 	*result = parsed;
 	return 0;
 

@@ -720,8 +720,13 @@ create_console(st_console_t **result, st_console_display_t *display,
 	}
 	else if (display->config.backend == ST_CONSOLE_BACKEND_LIBRETRO)
 		status = st_console_libretro_init(console);
-	else if (display->config.backend == ST_CONSOLE_BACKEND_TEST)
+	else if (display->config.backend == ST_CONSOLE_BACKEND_TEST) {
+#if ST_CONSOLE_TEST
 		status = st_console_test_init(console);
+#else
+		status = IO_ERROR_NOT_SUPPORTED;
+#endif
+	}
 	else if (display->config.backend == ST_CONSOLE_BACKEND_HEADLESS)
 		status = 0;
 	else
@@ -3362,6 +3367,7 @@ event_take_locked(st_console_t *console, struct st_console_event *event,
 	int result = ST_THREAD_SUCCESS;
 
 	while (console->event_count == 0) {
+#if ST_CONSOLE_TEST
 		if (console->display->backend == ST_CONSOLE_BACKEND_TEST) {
 			struct timespec control_deadline;
 			(void)st_mutex_unlock(&console->event_mutex);
@@ -3385,6 +3391,7 @@ event_take_locked(st_console_t *console, struct st_console_event *event,
 				return IO_ERROR_IO;
 			continue;
 		}
+#endif
 		if (polling)
 			return IO_ERROR_WOULD_BLOCK;
 		if (deadline == NULL)
@@ -3779,13 +3786,17 @@ event_take(st_console_t *console, struct st_console_event *event,
 
 	if (console == NULL || event == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+#if ST_CONSOLE_TEST
 	st_console_test_service(console->display);
+#endif
 	result = st_mutex_lock(&console->event_mutex);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	result = event_take_locked(console, event, deadline, polling);
 	(void)st_mutex_unlock(&console->event_mutex);
+#if ST_CONSOLE_TEST
 	if (result == 0) st_console_test_event_read(console->display);
+#endif
 	return result;
 }
 

@@ -27,7 +27,9 @@ st_application_main(int argc, char **argv, int console_mode)
 	int (*application)(int, char **) = console_mode != 0
 	    ? console_application : graphical_application;
 #ifdef ST_APP_USE_SDL_DISPATCH
+#if ST_CONSOLE_TEST
 	if (st_console_test_requested(argc, argv)) return application(argc, argv);
+#endif
 	return st_console_sdl_run_application(argc, argv, application);
 #else
 	return application(argc, argv);

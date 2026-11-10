@@ -321,9 +321,4 @@ finished:
 	else *result = capture;
 	return status;
 }
-#else
-void st_console_test_event_read(st_console_display_t *display) { (void)display; }
-int st_console_test_init(st_console_t *console) { (void)console; return IO_ERROR_NOT_SUPPORTED; }
-void st_console_test_set_application_reader(st_console_display_t *display, st_console_test_application_reader reader, void *context) { (void)display; (void)reader; (void)context; }
-int st_console_test_capture(st_console_display_t *display, struct st_console_test_capture **result) { (void)display; (void)result; return IO_ERROR_NOT_SUPPORTED; }
 #endif

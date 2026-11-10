@@ -442,23 +442,13 @@ void st_console_test_service(st_console_display_t *display)
 	c->reply = reply; c->reply_ready = true; (void)st_condition_signal(&c->ready);
 	(void)st_mutex_unlock(&c->mutex);
 }
-#else
-void st_console_test_service(st_console_display_t *display) { (void)display; }
 #endif
 
 int st_console_test_start_control(st_console_display_t *display)
 {
-#if ST_CONSOLE_TEST
 	return st_console_test_control_start(display);
-#else
-	(void)display; return IO_ERROR_NOT_SUPPORTED;
-#endif
 }
 void st_console_test_stop_control(st_console_display_t *display)
 {
-#if ST_CONSOLE_TEST
 	st_console_test_control_destroy(display);
-#else
-	(void)display;
-#endif
 }

@@ -132,7 +132,9 @@ struct st_console {
 	st_console_display_t *display;
 	st_console_t *next_display;
 	bool owns_display;
+#if ST_CONSOLE_TEST
 	uint64_t test_identifier; /* Assigned only by the optional test driver. */
+#endif
 	uint32_t columns;
 	uint32_t rows;
 	struct st_console_cell *cells;
@@ -189,8 +191,10 @@ struct st_console {
 	enum st_console_pointer_shape pointer_shape;
 };
 
+#if ST_CONSOLE_TEST
 int st_console_test_init(st_console_t *console);
 void st_console_test_event_read(st_console_display_t *display);
+#endif
 
 static inline uint32_t
 st_console_row_index(const st_console_t *console, uint32_t y)

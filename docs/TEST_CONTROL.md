@@ -2,8 +2,11 @@
 
 Configure with `-DST_CONSOLE_TEST=ON`, build normally, and run the regular
 SyncTERM executable with `--test-control`. This feature defaults to OFF and is
-reported under **Video / Testing bitmap backend** in Build Options. CI enables
-it in the same application binaries it builds and publishes.
+reported under **Video / Testing bitmap backend** in Build Options. When it is
+disabled, the backend, control transport, and application inspection hooks are
+excluded from the build. CI enables it for testing, then rebuilds with both
+`ST_CONSOLE_TEST=OFF` and `BUILD_TESTING=OFF` before collecting binaries for
+upload.
 
 The driver uses the normal software bitmap presenter, application, Wren menus,
 CTerm engine, connection layer, and transfer workers. It needs no display

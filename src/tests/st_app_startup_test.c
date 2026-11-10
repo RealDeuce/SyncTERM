@@ -85,11 +85,13 @@ test_command_line(void)
 	char *test[] = {"syncterm", "--test-control", "--test-directory", "/tmp/fixture"};
 	bool enabled = (st_console_build_features() & ST_CONSOLE_BUILD_TEST) != 0;
 	CHECK((st_command_line_parse(&command, 4, test, NULL) == 0) == enabled);
+#if ST_CONSOLE_TEST
 	CHECK(st_console_test_requested(4, test) == enabled);
 	if (enabled) CHECK(command.test_control && command.backend == ST_CONSOLE_BACKEND_TEST
 	    && strcmp(command.test_directory, "/tmp/fixture") == 0);
 	char *script_value[] = {"syncterm", "-w", "--test-control"};
 	CHECK(!st_console_test_requested(3, script_value));
+#endif
 	char *conflict[] = {"syncterm", "--test-control", "-iA"};
 	CHECK(st_command_line_parse(&command, 3, conflict, NULL) != 0);
 	char *reverse[] = {"syncterm", "-iA", "--test-control"};

@@ -13,7 +13,6 @@
 #include "st_builtin_fonts.h"
 #include "st_command_line.h"
 #include "st_console.h"
-#include "cterm_igs.h"
 #include "st_console_startup.h"
 #include "st_connection.h"
 #include "filesystem.h"
@@ -40,8 +39,11 @@
 #include "value_convert_time.h"
 
 #include "st_console_test.h"
+#if ST_CONSOLE_TEST
 #include "cterm.h"
+#include "cterm_igs.h"
 #include "cterm_skypix.h"
+#endif
 
 #include <locale.h>
 #include <stdbool.h>
@@ -53,6 +55,7 @@
 
 static atomic_bool application_running;
 
+#if ST_CONSOLE_TEST
 struct application_inspection {
 	st_term_session_t *session;
 	st_connection_t *connection;
@@ -138,7 +141,7 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_text(app, "transfer.line4", transfer.progress.line4);
 	}
 }
-
+#endif
 
 static int
 application_paths(struct st_app_paths *paths, const struct st_command_line *command,
@@ -147,8 +150,10 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
 	struct st_app_path_overrides overrides = {0};
 	char *files[8] = {0};
 	int status = 0;
-	const char *directory = command->test_directory != NULL ? command->test_directory
-	    : frontend == NULL ? NULL : frontend->directory;
+	const char *directory = frontend == NULL ? NULL : frontend->directory;
+#if ST_CONSOLE_TEST
+	if (command->test_directory != NULL) directory = command->test_directory;
+#endif
 	if (directory != NULL) {
 		const char *names[] = {"syncterm.ini", "syncterm.lst", "shared.lst",
 		    "cache", "downloads", "keys.ini", "scripts", "themes"};
@@ -216,9 +221,11 @@ usage(FILE *stream, const char *program)
 	    | ST_CONSOLE_BUILD_WAYLAND)) != 0)
 		fputs("                Graphics modes accept W for windowed or F for fullscreen;\n"
 		    "                the suffix is optional.\n", stream);
+#if ST_CONSOLE_TEST
 	if ((features & ST_CONSOLE_BUILD_TEST) != 0)
 		fputs("  --test-control  use the testing bitmap driver with pipe input/output\n"
 		    "  --test-directory path  use private application paths with --test-control\n", stream);
+#endif
 	fputs(
 	    "  -l#           use 14, 21, 25, 28, 30, 43, 50, or 60 rows\n"
 	    "                (default: configured startup screen mode)\n"
@@ -852,7 +859,9 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	st_connection_t *connection = NULL;
 	st_term_session_t *session = NULL;
 	st_wren_connected_t *connected = NULL;
+#if ST_CONSOLE_TEST
 	struct application_inspection inspection = {0};
+#endif
 	char *cache_directory = NULL;
 	char *amiga_font_directory = NULL;
 	char *disconnect_details = NULL;
@@ -983,8 +992,10 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	};
 	status = st_term_session_create(&session, &config);
 	if (status == 0) {
+#if ST_CONSOLE_TEST
 		inspection.session = session; inspection.connection = connection;
 		st_console_test_set_application_reader(display, inspect_application, &inspection);
+#endif
 		st_cterm_set_music_mode(st_term_session_cterm(session), profile->music);
 		const struct st_wren_connected_config wren_config = {
 			.host = host,
@@ -1063,7 +1074,9 @@ finished:
 	st_wren_connected_destroy(connected);
 	connected = NULL;
 	if (connection != NULL) {
+#if ST_CONSOLE_TEST
 		inspection.connection = NULL;
+#endif
 		int close_status = st_connection_close(connection);
 
 		connection = NULL;
@@ -1093,7 +1106,9 @@ finished:
 	}
 	connection_log_close(&connection_ui);
 	free(disconnect_details);
+#if ST_CONSOLE_TEST
 	st_console_test_set_application_reader(display, NULL, NULL);
+#endif
 	st_term_session_destroy(&session);
 	connection_status(&connection_ui, NULL);
 	free(connection_ui.log);
@@ -1321,6 +1336,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		.hyperlinks = hyperlinks,
 		.safe_mode = command.safe_mode,
 	};
+#if ST_CONSOLE_TEST
 	if (command.test_control) {
 		status = st_console_test_start_control(display);
 		if (status != 0) {
@@ -1328,6 +1344,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 			goto finished;
 		}
 	}
+#endif
 	/* Auto-loaded Wren scripts may open a modal during host creation. The
 	 * frontend must already be able to present it and deliver input. */
 	if (frontend != NULL && frontend->ready != NULL) {
@@ -1405,7 +1422,9 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 	}
 
 finished:
+#if ST_CONSOLE_TEST
 	st_console_test_stop_control(display);
+#endif
 	if (published && frontend->release != NULL)
 		frontend->release(frontend->context);
 	persist_window_scaling(host, display, result == 0, command.safe_mode);

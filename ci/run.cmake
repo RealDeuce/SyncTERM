@@ -33,6 +33,8 @@ file(MAKE_DIRECTORY "${_reports}")
 # Do not publish results or binaries left by an earlier attempt in this tree.
 file(REMOVE "${_reports}/junit.xml" "${_reports}/execution.txt"
 	"${_reports}/capabilities.txt" "${_reports}/build.log" "${_reports}/test.log"
+	"${_reports}/artifact-configure.log" "${_reports}/artifact-build.log"
+	"${_reports}/artifact-configuration.txt"
 	"${_reports}/CMakeConfigureLog.yaml" "${_reports}/CMakeError.log"
 	"${_reports}/CMakeOutput.log")
 file(GLOB _old_sanitizer_reports "${_reports}/asan.*" "${_reports}/ubsan.*"
@@ -70,7 +72,7 @@ function(ci_command name)
 	endif()
 	foreach(_result IN LISTS _results)
 		if(NOT "${_result}" STREQUAL "0")
-			if(name STREQUAL configure)
+			if(name STREQUAL configure OR name STREQUAL artifact-configure)
 				# CMake moved probe diagnostics to YAML in 3.26. Keep either
 				# format even when configure fails before capabilities exist.
 				foreach(_log IN ITEMS CMakeConfigureLog.yaml CMakeError.log CMakeOutput.log)
@@ -156,6 +158,51 @@ endif()
 ci_command(build "${CMAKE_COMMAND}" --build "${CI_BUILD_DIR}"
 	--config "${CI_BUILD_TYPE}" --parallel "$ENV{CMAKE_BUILD_PARALLEL_LEVEL}")
 
+if(_cross)
+	file(WRITE "${_reports}/execution.txt"
+		"Cross-compilation only: application and test targets built; no target tests executed.\n")
+	message(STATUS "Cross-build complete; target tests were NOT executed")
+else()
+	file(WRITE "${_reports}/execution.txt" "Native test execution\n")
+	get_filename_component(_cmake_bin "${CMAKE_COMMAND}" DIRECTORY)
+	find_program(_ctest NAMES ctest HINTS "${_cmake_bin}" REQUIRED)
+	if("$ENV{CTEST_PARALLEL_LEVEL}" STREQUAL "")
+		set(ENV{CTEST_PARALLEL_LEVEL} 1)
+	endif()
+	set(_saved_ld_debug "$ENV{LD_DEBUG}")
+	set(_saved_ld_debug_output "$ENV{LD_DEBUG_OUTPUT}")
+	if(CI_PROFILE STREQUAL sanitizers AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+		# Record module bases for allocation frames in runtime-loaded libraries,
+		# including tentative loads rejected after symbol resolution fails.
+		# This optional diagnostic does not alter library lifetime.
+		set(ENV{LD_DEBUG} files)
+		set(ENV{LD_DEBUG_OUTPUT} "${_reports}/loader")
+	endif()
+	ci_command(test "${_ctest}" --test-dir "${CI_BUILD_DIR}"
+		-C "${CI_BUILD_TYPE}" --parallel "$ENV{CTEST_PARALLEL_LEVEL}"
+		--output-on-failure --no-tests=error --output-junit "${_reports}/junit.xml")
+	set(ENV{LD_DEBUG} "${_saved_ld_debug}")
+	set(ENV{LD_DEBUG_OUTPUT} "${_saved_ld_debug_output}")
+endif()
+
+# Reuse the configured dependency/toolchain choices, but rebuild the products
+# without test targets or instrumentation before collecting downloadable files.
+ci_command(artifact-configure "${CMAKE_COMMAND}" -S "${CI_SOURCE_DIR}"
+	-B "${CI_BUILD_DIR}" -DST_CONSOLE_TEST=OFF -DBUILD_TESTING=OFF)
+foreach(_option IN ITEMS ST_CONSOLE_TEST BUILD_TESTING)
+	file(STRINGS "${CI_BUILD_DIR}/CMakeCache.txt" _value REGEX "^${_option}:[^=]+=")
+	string(REGEX REPLACE "^[^=]*=" "" _value "${_value}")
+	if(_value)
+		message(FATAL_ERROR "CI artifacts require ${_option}=OFF")
+	endif()
+endforeach()
+if(EXISTS "${CI_BUILD_DIR}/syncterm-configuration.txt")
+	file(COPY_FILE "${CI_BUILD_DIR}/syncterm-configuration.txt"
+		"${_reports}/artifact-configuration.txt")
+endif()
+ci_command(artifact-build "${CMAKE_COMMAND}" --build "${CI_BUILD_DIR}"
+	--config "${CI_BUILD_TYPE}" --parallel "$ENV{CMAKE_BUILD_PARALLEL_LEVEL}")
+
 set(_manifest "${CI_BUILD_DIR}/syncterm-artifacts-${CI_BUILD_TYPE}.txt")
 if(NOT EXISTS "${_manifest}")
 	message(FATAL_ERROR "CI artifacts failed: missing application manifest: ${_manifest}")
@@ -179,26 +226,3 @@ file(MAKE_DIRECTORY "${CI_BUILD_DIR}/artifacts")
 foreach(_product IN LISTS _products)
 	file(COPY "${_product}" DESTINATION "${CI_BUILD_DIR}/artifacts")
 endforeach()
-
-if(_cross)
-	file(WRITE "${_reports}/execution.txt"
-		"Cross-compilation only: application and test targets built; no target tests executed.\n")
-	message(STATUS "Cross-build complete; target tests were NOT executed")
-else()
-	file(WRITE "${_reports}/execution.txt" "Native test execution\n")
-	get_filename_component(_cmake_bin "${CMAKE_COMMAND}" DIRECTORY)
-	find_program(_ctest NAMES ctest HINTS "${_cmake_bin}" REQUIRED)
-	if("$ENV{CTEST_PARALLEL_LEVEL}" STREQUAL "")
-		set(ENV{CTEST_PARALLEL_LEVEL} 1)
-	endif()
-	if(CI_PROFILE STREQUAL sanitizers AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-		# Record module bases for allocation frames in runtime-loaded libraries,
-		# including tentative loads rejected after symbol resolution fails.
-		# This optional diagnostic does not alter library lifetime.
-		set(ENV{LD_DEBUG} files)
-		set(ENV{LD_DEBUG_OUTPUT} "${_reports}/loader")
-	endif()
-	ci_command(test "${_ctest}" --test-dir "${CI_BUILD_DIR}"
-		-C "${CI_BUILD_TYPE}" --parallel "$ENV{CTEST_PARALLEL_LEVEL}"
-		--output-on-failure --no-tests=error --output-junit "${_reports}/junit.xml")
-endif()

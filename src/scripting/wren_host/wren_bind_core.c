@@ -1268,7 +1268,9 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit,
 		deadline_pointer = &deadline;
 	}
 	for (;;) {
+#if ST_CONSOLE_TEST
 		st_console_test_service(host->config.display);
+#endif
 		struct st_wren_context *poll_context = context->cterm != NULL ? context : host->poll_contexts;
 		st_cterm_t *terminal = poll_context != NULL ? poll_context->cterm : NULL;
 		/* Synchronous UI waits keep the owner from reaching the outer

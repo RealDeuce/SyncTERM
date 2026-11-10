@@ -182,8 +182,13 @@ isolation; resource groups are not cross-project locks.
 
 Job artifacts under `build-ci/reports/` retain configure/build/test logs,
 detected capabilities and JUnit results even on failure. Application binaries
-are under `build-ci/artifacts/`; these are build outputs, not self-contained
-release packages with every optional runtime library. Pipeline creation
+are under `build-ci/artifacts/`. After the test run (or test-target build for
+cross jobs), CI reconfigures the same build tree with `BUILD_TESTING=OFF` and
+`ST_CONSOLE_TEST=OFF` and rebuilds before collecting application binaries.
+The test run retains its original capability report; `artifact-configure.log`,
+`artifact-build.log`, and `artifact-configuration.txt` describe the distributed
+build. These are build outputs, not self-contained release packages with every
+optional runtime library. Pipeline creation
 covers merge requests, branch pushes, tags, schedules and manual pipelines,
 without duplicating a push pipeline when an MR pipeline is already requested.
 Jobs do not download upstream job artifacts. A new attempt removes its own

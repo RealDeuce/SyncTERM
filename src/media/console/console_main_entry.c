@@ -17,8 +17,10 @@ int st_console_quartz_run_application(int argc, char **argv,
 int
 main(int argc, char **argv)
 {
+#if ST_CONSOLE_TEST
 	if (st_console_test_requested(argc, argv))
 		return st_console_application_main(argc, argv);
+#endif
 #if ST_CONSOLE_HAVE_QUARTZ
 	return st_console_quartz_run_application(argc, argv,
 	    st_console_application_main);

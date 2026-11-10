@@ -9,6 +9,7 @@
 #define ST_COMMAND_LINE_H_
 
 #include "st_console.h"
+#include "st_console_test_config.h"
 #include "st_profile.h"
 
 #include <stdbool.h>
@@ -23,7 +24,9 @@ enum st_command_action {
 
 struct st_command_line {
 	enum st_command_action action;
+#if ST_CONSOLE_TEST
 	const char *test_directory;
+#endif
 	const char *settings_path;
 	const char *list_path;
 	const char *wren_script;
@@ -34,7 +37,9 @@ struct st_command_line {
 	int connection_type;
 	uint32_t rows;
 	bool backend_set;
+#if ST_CONSOLE_TEST
 	bool test_control;
+#endif
 	bool fullscreen;
 	bool connection_type_set;
 	bool rows_set;

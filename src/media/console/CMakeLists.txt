@@ -482,6 +482,7 @@ int main(void) { return fcntl(1, F_SETNOSIGPIPE, 1); }
 endif()
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermConsoleDependencies.cmake")
 configure_file(console_config.h.in console_config.h @ONLY)
+configure_file(st_console_test_config.h.in include/st_console_test_config.h @ONLY)
 
 if(NOT TARGET syncterm_io_error)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/io_error"
@@ -546,8 +547,6 @@ set(_st_console_sources
 	console_text_terminal.c
 	console_pixels.c
 	console_bitmap.c
-	console_test.c
-	console_test_control.c
 	console_libretro.c
 	console_ansi.c
 	console_curses_locale.c
@@ -586,6 +585,9 @@ if(ST_CONSOLE_HAVE_POSIX_URL)
 	set_source_files_properties(console_posix_url.c PROPERTIES
 		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 endif()
+if(ST_CONSOLE_TEST)
+	list(APPEND _st_console_sources console_test.c console_test_control.c)
+endif()
 if(ST_CONSOLE_TEST AND NOT WIN32)
 	set_source_files_properties(console_test_control.c PROPERTIES
 		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
@@ -602,6 +604,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 		PROPERTIES COMPILE_OPTIONS -Wno-pedantic)
 endif()
 target_include_directories(st_console PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+	"${CMAKE_CURRENT_BINARY_DIR}/include"
 	PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${ST_CONSOLE_SDL_INCLUDE_DIRS}
 		${ST_CONSOLE_X11_INCLUDE_DIRS} ${ST_CONSOLE_WAYLAND_INCLUDE_DIRS}
 		${_st_wl_dir})

@@ -3,6 +3,9 @@
 #ifndef ST_CONSOLE_TEST_H
 #define ST_CONSOLE_TEST_H
 
+#include "st_console_test_config.h"
+
+#if ST_CONSOLE_TEST
 #include "st_console.h"
 
 struct st_console_test_field {
@@ -69,4 +72,5 @@ void st_console_test_service(st_console_display_t *display);
 /* Pure argument detection, for dispatchers which initialize before main. */
 bool st_console_test_requested(int argc, char *const argv[]);
 
+#endif /* ST_CONSOLE_TEST */
 #endif
