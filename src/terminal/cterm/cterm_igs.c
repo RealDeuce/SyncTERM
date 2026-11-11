@@ -34,6 +34,7 @@ static const struct st_graphics_parameter point_parameters[] = {
 static int palette_group_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int pattern_load_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int random_range_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int math_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int unscaled_tail_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
 	{0, point_parameters, 4, unscaled_tail_next},
@@ -42,6 +43,7 @@ static const struct st_graphics_command extended_commands[] = {
 	{7, unscaled_parameters, 1, pattern_load_next},
 	{10, point_parameters, 2, NULL},
 	{12, unscaled_parameters, 1, palette_group_next},
+	{13, unscaled_parameters, 1, math_next},
 };
 
 /* Dynamic arity inspects a private numeric-state copy. Real operands,
@@ -65,6 +67,33 @@ reuse_text(const struct cterm_igs *igs)
 {
 	return (igs->loop_mode == 1 && igs->loop_kind != '@')
 	    || (igs->loop_mode == 0 && igs->loop_kind == 'Z');
+}
+
+static int
+math_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	struct cterm_igs preview = *(struct cterm_igs *)context;
+	if (preview.math_printing) {
+		if (view->count < 5) *result = point_parameters[view->count-3];
+		return 0;
+	}
+	int operation;
+	int status = cterm_igs_argument_value(&preview, &view->arguments[0], &operation);
+	if (status != 0) return status;
+	if (operation < 0 || operation > 7) return 0;
+	size_t count = operation >= 1 && operation <= 5 ? 4 : 3;
+	if (operation == 7 && view->count >= 2) {
+		int kind;
+		status = cterm_igs_argument_value(&preview, &view->arguments[1], &kind);
+		if (status != 0) return status;
+		if (kind == 1) count = 5;
+	}
+	if (view->count < count)
+		*result = operation == 7 && view->count >= 3
+		    ? point_parameters[view->count-3] : unscaled_parameters[0];
+	return 0;
 }
 
 static int
@@ -251,7 +280,9 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 	int selector;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	int status = 0;
-	if (preview.pattern_loading)
+	if (preview.math_printing)
+		selector = 13;
+	else if (preview.pattern_loading)
 		selector = 7;
 	else
 		status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
@@ -327,6 +358,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->timed_pause = igs->pause_key = false;
 	igs->pattern_loading = false;
 	igs->pattern_slot = 0;
+	igs->math_printing = false;
 	igs->reset_pending = false;
 }
 
@@ -532,11 +564,32 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 		struct cterm_igs preview = *igs;
 		int selector, slot;
 		int status = 0;
-		if (igs->pattern_loading)
+		if (igs->math_printing)
+			selector = 13;
+		else if (igs->pattern_loading)
 			selector = 7;
 		else
 			status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
 		if (status != 0) return status;
+		if (selector == 13 && view->count == 4 && !igs->math_printing) {
+			int operation, kind, index;
+			status = cterm_igs_argument_value(&preview, &view->arguments[1], &operation);
+			if (status != 0) return status;
+			if (operation == 7) {
+				status = cterm_igs_argument_value(&preview, &view->arguments[2], &kind);
+				if (status != 0) return status;
+				if (kind == 1) {
+					status = cterm_igs_argument_value(&preview, &view->arguments[3], &index);
+					if (status != 0) return status;
+					/* sprintf precedes the first coordinate reader. Keep its
+					 * buffer and prefix effects even if that reader stops. */
+					status = cterm_igs_math_format(igs, index);
+					if (status != 0) return status;
+					igs->random_seed = preview.random_seed;
+					igs->math_printing = true;
+				}
+			}
+		}
 		pattern = selector == 7;
 		if (pattern) {
 			if (!igs->pattern_loading) {
@@ -624,6 +677,15 @@ command(void *context, const struct st_graphics_command_view *view)
 	int values[1+2*CTERM_IGS_MAX_POINTS];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
+	if (view->code == 'X' && igs->math_printing) {
+		if (view->count != 6) return IO_ERROR_PROTOCOL;
+		int x, y;
+		int status = cterm_igs_argument_value(igs, &view->arguments[4], &x);
+		if (status == 0) status = cterm_igs_argument_value(igs, &view->arguments[5], &y);
+		igs->math_printing = false;
+		return status == 0 ? cterm_igs_graphic_text(igs, x, y,
+		    igs->shared_text, igs->shared_text_size) : status;
+	}
 	if (view->code == 'X' && igs->pattern_loading) {
 		if (view->count != 18)
 			return IO_ERROR_PROTOCOL;
@@ -785,6 +847,19 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 13) {
+			int operation = values[1];
+			if (operation < 0 || operation > 7) return 0;
+			if (operation == 0 && view->count == 4)
+				return cterm_igs_math_write(igs, 0, values[2], 0, values[3]);
+			if (operation >= 1 && operation <= 5 && view->count == 5)
+				return cterm_igs_math_write(igs, operation, values[2], values[3], values[4]);
+			if (operation == 6 && view->count == 4)
+				return cterm_igs_math_clear(igs, values[2], values[3]);
+			if (operation == 7 && view->count == 4)
+				return values[2] == 0 ? cterm_igs_math_console(igs, values[3]) : 0;
+			return IO_ERROR_PROTOCOL;
+		}
 		if (values[0] == 0) {
 			if (view->count != 6)
 				return IO_ERROR_PROTOCOL;
@@ -1010,6 +1085,7 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	if (status != 0) {
 		igs->pattern_loading = false;
 		igs->pattern_slot = 0;
+		igs->math_printing = false;
 	}
 	if (status == 0 && !cterm_igs_paused(igs) && st_graphics_parser_in_command(igs->parser)) {
 		uint64_t now;
@@ -1060,6 +1136,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 	igs->input_deadline = igs->text_deadline = 0;
 	igs->pattern_loading = false;
 	igs->pattern_slot = 0;
+	igs->math_printing = false;
 	return status;
 }
 

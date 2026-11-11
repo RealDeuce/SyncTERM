@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X0, X1, X2, X7, X10 and X12 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X0, X1, X2, X7, X10, X12 and X13 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10 and X12
+command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10, X12 and X13
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -2942,5 +2942,76 @@ application P/X0 regressions. Native and application X0 took 2.16 and
 17.79 seconds. Initial generated-dependency clock skew warnings cleared
 in the final full build, which had no warnings. Ledger IDs, references,
 dependencies, source identities and active test registrations were checked.
-The ledger records 45 complete entries. Completion commit will be recorded
-by the next step.
+The ledger records 45 complete entries. Completion commit `8e8d90c`.
+
+
+=== X13 signed-word math and decimal output
+
+X13 reads an unscaled signed operation. Operations 0..5 acquire their whole
+numeric header before storing a bounded 128-word array destination: assignment,
+addition, subtraction, multiplication, signed quotient and signed remainder.
+Arithmetic produces the defined low word; quotient truncates toward zero and
+remainder follows the dividend's sign. Division by zero and indices outside
+0..127 return OUT_OF_RANGE without changing the destination. Native aliases
+into neighboring state or code are excluded. The sole word quotient overflow,
+-32768/-1, stores -32768; its remainder is corrected to mathematical zero,
+rather than the accidental MC68000 unchanged-register result -1.
+
+Operation 6 clears an inclusive range. A positive start above 127 caps to
+127; negative starts fail safely. The exclusive end is incremented in the
+host domain and capped at 128, correcting the native last=32767 wrap.
+Negative last values and inverted ranges do nothing. All operands are read
+before clearing, so source-array operands are not affected by early writes.
+Unsupported operations consume only the operation and allow chaining.
+
+Operation 7 reads kind/index. Unsupported kinds consume both without an
+array access or coordinates. Kind 0 writes signed decimal digits and then
+CRLF through the existing VT52 console renderer, preserving pending escape
+state. It neither changes the shared text window nor sends a network reply.
+The normal accessory stdout profile is represented as local console output;
+foreign FILE structures, redirection and corrupted runtime pointers are not
+modeled. A host digit-output error suppresses the following newline.
+
+Kind 1 formats decimal plus NUL into the persistent W/X7 window before
+acquiring X then Y. Later window bytes remain unchanged. The adapter commits
+that evaluated numeric prefix once and retains ownership across input splits,
+so random selector/operation/kind/index operands cannot reroll after formatting.
+Coordinates use the existing X/Y descriptors and g classes. Completed input
+calls the existing graphical-text renderer with current font/effects/mode/pen,
+preserving console state and both Drawto pairs. No W reader, text counter,
+XON or text deadline is introduced. EOF, malformed input and numeric timeout
+retain the formatted prefix but draw nothing; reset/reconnect clear ownership,
+window and math words. I and R preserve the array.
+
+Arithmetic and formatting policy lives in cterm_igs_math.c; dialect framing
+and typed dynamic arity remain in the existing graphics adapter. No second
+VT52 parser, framebuffer format or foreign clock is added.
+
+Native tests sweep every signed word through all six arithmetic operations
+and every signed destination index, plus boundary pairs in all modes, status
+choices and g settings. They independently check low-word residues, division
+signs/zero/overflow correction, inclusive clears, invalid/no-op arities,
+console digits/CRLF/pending escapes/wrap/scroll, literal graphical glyphs,
+staged window publication and retained suffixes, W/X7 reuse, every focused
+split and bytewise input, exact random seeds, clock errors, malformed/EOF/
+timeout recovery and I/R/reset lifetime. The application test checks 144
+coherent captures across all ST modes, Atari ST/CP437/UTF-8 and both status
+choices, with audio and MIDI off. Literal arithmetic strings and independently
+source-derived glyph/effect masks verify cells, both indexed phases, palette,
+RGB, graphical effects/rotations, normalized coordinates, retained Drawto,
+no replies and partial disconnect/reconnect. Ordinary tests need no ROM or
+external reference tree.
+
+References: 19, 20, 139, 140, 144 and IG221.TXT's X13 entry.
+Parent X, containing-loop operands and remaining selectors are still pending.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full CMake builds with /usr/bin/cc passed. All 18 selected
+CTest checks passed in 68.19 seconds, including shared parser, CTerm
+ANSI/VT52, RIP parser, SkyPix, term, I/R/input/W/X0/X1/X2/X7/X10/X12 and
+application X7/X13 regressions. Native and application X13 took 1.01 and
+19.11 seconds. Initial generated-dependency clock skew warnings cleared
+in the final full build, which had no warnings. Ledger IDs, references,
+dependencies, active tests, 24 source-derived scene vectors and pinned
+font/ROM/oracle identities were checked. The ledger records 46 complete
+entries. Completion commit will be recorded by the next step.

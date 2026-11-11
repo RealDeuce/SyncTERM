@@ -16,6 +16,7 @@ X dispatch is in progress: `X0` scatters markers with persistent color cycling.
 `X1` changes a raw physical palette register,
 and `X12` changes four consecutive physical registers. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
+`X13` provides bounded signed-word math and console/graphical decimal output.
 `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
@@ -640,8 +641,9 @@ other primitives, loops and sound remain pending.
 X reads one unscaled selector without clamping. Values outside 0..15 consume
 only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
-share effect-free arity preview; selector/random values advance once when
-the command completes. X0, X1, X2, X7, X10 and X12 are implemented so far. Other valid selectors
+share effect-free arity preview; real random operands advance once at
+complete numeric execution or entry to a stateful payload reader.
+X0, X1, X2, X7, X10, X12 and X13 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1730,6 +1732,49 @@ MIDI are off. References: 20/43/44/52/124/129/136 and IG221.TXT.
 All 20 selected checks passed on native FreeBSD Release; the final full
 CMake build completed without warnings. Full X and containing-loop command integration remain pending.
 
+### X13 signed-word math and decimal output
+
+`cterm_igs_math` and `syncterm_igs_math` cover operations 0..7 with typed
+unscaled arithmetic fields and X/Y graphical coordinates. Operations 0..5
+store only after complete acquisition: assignment, add, subtract, multiply,
+signed quotient and signed remainder. Word results wrap explicitly;
+quotient truncates toward zero and remainder follows the dividend's sign.
+Division by zero and array access outside 0..127 report OUT_OF_RANGE without
+a destination store. Native memory aliases and CPU exceptions are excluded.
+The -32768/-1 quotient is -32768; its remainder is mathematical zero,
+correcting the original overflow-register accident.
+
+Operation 6 clears inclusive start..last, caps a positive start to 127 and
+an exclusive end to 128, rejects negative starts, and leaves inverted or
+negative-ended ranges alone. The host-domain endpoint increment corrects
+the original last=32767 wrap. Unsupported operations consume only their
+operation; unsupported print kinds consume kind/index without accessing the
+array or coordinates. All retain normal chaining.
+
+Operation 7 kind 0 sends signed decimal then CRLF to the existing VT52
+console renderer, composing with pending escapes. It leaves W's window
+alone and sends no reply. This represents the accessory's normal local
+stdout profile, without foreign FILE internals or redirected process output.
+A digit-output failure stops before the newline. Kind 1 formats decimal/NUL
+into the shared W/X7 window before X/Y acquisition, preserving the old tail.
+The evaluated prefix and RNG advancement are retained once across splits.
+Only complete coordinates draw with current graphical text attributes;
+Drawto and console state stay unchanged. No W reader/count/XON/text deadline
+is entered. EOF, numeric timeout and malformed coordinates retain formatting
+without drawing; reset/reconnect clear the transient prefix, window and array.
+I/R preserve math. Loop-context operand acceptance remains pending.
+
+Native coverage includes every signed word for all six arithmetic operations,
+every signed destination index, mode/status/scaling cases, clear boundaries,
+console wrap/scroll and pending escapes, literal graphical glyphs, W/X7 reuse,
+focused partitions/bytewise input, exact prefix/coordinate RNG seeds, clock
+failure and cancellation/lifecycle recovery. Application coverage has 144
+coherent scenes across all modes, Atari ST/CP437/UTF-8 and status choices.
+Pinned independent glyph/effect oracles and literal decimal results check
+cells, both indexed phases, palette and RGB, rotations/effects, normalized
+coordinates, Drawto retention, no replies and partial disconnect/reconnect.
+Audio/MIDI are disabled; no device/audio coverage is claimed.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on
@@ -1756,7 +1801,7 @@ The following parser policies intentionally avoid original reader accidents:
 These are parser port policies, not claims that associated IGS commands have
 been completed. Constant and array values and the initial random ranges can
 be evaluated;
-loop-context operands and command-specific array/math commands remain pending.
+X13 now implements array math; loop-context operands remain pending.
 The CTerm adapter recovers from incomplete source EOF by discarding partial
 grammar and logging a diagnostic. Incomplete header input has a five-second
 local timeout after progress; expiry discards the header. An ordinary held G

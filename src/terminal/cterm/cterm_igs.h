@@ -40,6 +40,8 @@ struct cterm_igs {
 	/* X7 owns its evaluated prefix while incrementally receiving rows. */
 	bool pattern_loading;
 	int pattern_slot;
+	/* X13 has formatted the shared buffer and owns its numeric prefix. */
+	bool math_printing;
 	uint16_t raw_palette[16];
 	uint32_t palette[16], saved_palette[16];
 	int requested_palette[16][3];
@@ -104,6 +106,10 @@ int cterm_igs_polyline(struct cterm_igs *, const int *coordinates, size_t count)
 int cterm_igs_polygon(struct cterm_igs *, const int *coordinates, size_t count);
 int cterm_igs_flood(struct cterm_igs *, int x, int y);
 int cterm_igs_graphic_text(struct cterm_igs *, int x, int y, const uint8_t *, size_t);
+int cterm_igs_math_write(struct cterm_igs *, int operation, int a, int b, int index);
+int cterm_igs_math_clear(struct cterm_igs *, int first, int last);
+int cterm_igs_math_format(struct cterm_igs *, int index);
+int cterm_igs_math_console(struct cterm_igs *, int index);
 int cterm_igs_rectangle(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_box(struct cterm_igs *, int x1, int y1, int x2, int y2, bool rounded);
 int cterm_igs_rounded_outline(struct cterm_igs *, int x1, int y1, int x2, int y2);

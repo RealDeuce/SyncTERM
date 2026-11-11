@@ -204,6 +204,11 @@ color cycling through the shared P raster primitive. Its 1,152 native
 raster cases, signed-word/state tests and 126 coherent application captures
 cover shapes, writing modes, cycles/cache rules, normalized extents,
 retained Drawto state, XOR over text and reconnect.
+`X13` adds bounded signed-word array math and decimal console/graphical
+output through the existing renderers. Native exhaustive word/index tests
+and 144 coherent application captures check arithmetic, safe division and
+bounds, staged W/X7 buffer reuse, typed coordinates, exact pixels/cells/RGB,
+input partitions, recovery and reconnect, with audio and MIDI off.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
