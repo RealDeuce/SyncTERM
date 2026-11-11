@@ -1475,6 +1475,14 @@ cterm_clear2bol(struct cterminal * cterm)
 }
 
 void
+cterm_page_to_scrollback(struct cterminal *cterm)
+{
+	/* Save the terminal viewport independently of the scroll margins. */
+	for (int i = 0; i < cterm->height; ++i)
+		cterm_line_to_scrollback(cterm, cterm->y + i);
+}
+
+void
 cterm_clearscreen(struct cterminal *cterm, char attr)
 {
 	if (cterm->skypix_engine != NULL) {
@@ -1489,10 +1497,7 @@ cterm_clearscreen(struct cterminal *cterm, char attr)
 	if(!cterm->started)
 		cterm_start(cterm);
 
-	/* Save a complete display snapshot from the terminal origin. Starting
-	 * at the scrolling margin shifts the page and reads past its bottom. */
-	for (int i = 0; i < cterm->height; ++i)
-		cterm_line_to_scrollback(cterm, cterm->y + i);
+	cterm_page_to_scrollback(cterm);
 	cterm_render_clear_window(cterm);
 	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 	if (cterm->skypix_engine != NULL)

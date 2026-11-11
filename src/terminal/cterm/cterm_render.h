@@ -148,6 +148,8 @@ bool cterm_render_set_custom_cursor(struct cterminal *cterm,
 void cterm_render_beep(struct cterminal *cterm);
 void cterm_render_clear_window(struct cterminal *cterm);
 void cterm_render_clear_line(struct cterminal *cterm);
+int cterm_render_fill_blank(struct cterminal *cterm, int left, int top,
+	int right, int bottom, uint32_t background);
 int cterm_render_write_cells(struct cterminal *cterm, int left, int top,
 	int right, int bottom, const struct st_console_cell *cells);
 int cterm_render_read_cells(struct cterminal *cterm, int left, int top,

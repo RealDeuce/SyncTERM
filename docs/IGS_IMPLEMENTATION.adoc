@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w and l commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l and s commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2482,4 +2482,48 @@ The new native test failed before implementation. The native FreeBSD
 Release build with /usr/bin/cc passed without warnings. All 20 targeted
 CTest checks passed in 36.92 seconds. The native and application checks
 for l took 1.36 and 17.13 seconds respectively. The ledger records 35
-complete entries. Completion commit will be recorded by the next step.
+complete entries. Completion commit `93fdcb6`.
+
+=== s screen erasure
+
+The signed unscaled selector zero emits VT52 ESC E to home and erase.
+One emits ESC d to erase from the start of the screen through the cursor.
+Two emits ESC J to erase from the cursor through the end. Both partial
+erasures include the cursor cell and retain its position. These VT52
+operations use the raw background color, including in reverse video.
+ESC E saves the previous viewport to SyncTERM scrollback.
+
+Selector three clears the drawable screen to physical index zero and
+clears the corresponding cell metadata. This VDI operation preserves
+the palette, clipping and drawing attributes, cursor and pending VT52
+state. Four first sends ESC E and then performs the separate VDI clear.
+The reserved status row stays outside the drawable screen. The indexed
+surface is filled through the host bitmap without native memory-write
+timing.
+
+Selector five sends the leading ESC followed by the original GEMDOS
+string. In normal VT52 state the two ESC bytes cancel, so q prints in
+the current colors and may wrap and scroll before the final ESC E. An
+already pending ESC instead allows the string's ESC q to clear reverse.
+The later color operations leave raw background 16 and raw foreground
+19, with the low-resolution adjustment setting foreground 31. Selectors
+above five select zero. Negative selectors emit only ESC.
+
+The native fixture checks 252 erase scenes, 210 pending console
+compositions and 36 reset-string scenes, plus focused partition, random
+operand, timeout, EOF and recovery checks. Scrollback tests verify the
+transient q after a bottom-right wrap and the pre-erase text saved by
+selector four. The application fixture checks 126 coherent captures
+across all modes, Atari ST, CP437 and UTF-8, and both status choices,
+with audio and MIDI disabled. It verifies literal TOS glyphs, text
+and graphics boundaries, both indexed phases, an altered palette, RGB,
+cursor state, no replies and reconnect after a partial command.
+
+References include chapters 04, 14, 16, 66, 99, 100, 124 and 195.
+The native test failed before implementation. Native FreeBSD Release
+builds with /usr/bin/cc passed without warnings. The first targeted run
+passed 23 checks, including the application test in 17.93 seconds.
+The native test passed in 2.00 seconds on rerun after correcting the
+copied-row count assertion and adding the VDI history check. The ledger
+records 36 complete entries. Completion commit will be recorded by the
+next step.

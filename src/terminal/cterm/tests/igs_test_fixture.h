@@ -24,7 +24,7 @@ static uint64_t local_ms;
 static int now(uint64_t *value) { *value = local_ms; return 0; }
 
 static void
-create(struct fixture *f, unsigned resolution, bool status)
+create_with_history(struct fixture *f, unsigned resolution, bool status, size_t history_rows)
 {
 	memset(f, 0, sizeof(*f));
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -33,11 +33,17 @@ create(struct fixture *f, unsigned resolution, bool status)
 	CHECK(st_console_create(&f->console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&f->fonts, f->console) == 0);
 	const struct st_cterm_config config = {.console = f->console, .fonts = f->fonts, .font_selector = 44,
-	    .terminal_rows = status ? 24 : 25, .status_line = status,
+	    .terminal_rows = status ? 24 : 25, .status_line = status, .scrollback_lines = history_rows,
 	    .emulation = ST_CTERM_ATARI_ST_VT52, .graphics_mode = ST_CTERM_GRAPHICS_IGS_221,
 	    .encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_ATARI_ST, .quiet = true};
 	CHECK(st_cterm_create(&f->terminal, &config) == 0);
 	f->terminal->igs_engine->now_ms = now; local_ms = 1000;
+}
+
+static void
+create(struct fixture *f, unsigned resolution, bool status)
+{
+	create_with_history(f, resolution, status, 0);
 }
 
 static void destroy(struct fixture *f)

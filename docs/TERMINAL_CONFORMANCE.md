@@ -163,6 +163,10 @@ color and a depth-dependent destination column for whole-line erase.
 Its 492 native scenes and 90 coherent application captures check the
 erase range, graphics and text, cursor presentation, status bounds and
 reconnect.
+`s` adds full and partial Atari VT52 screen erasure, a VDI clear to
+index zero, and the original mode-dependent color-reset sequence. Its
+498 native scenes and 126 application captures cover erase ranges,
+palette preservation, pending state, scrollback and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

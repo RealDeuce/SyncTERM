@@ -156,6 +156,8 @@
         "syncterm_igs_wrap",
         "cterm_igs_line_erase",
         "syncterm_igs_line_erase",
+        "cterm_igs_screen_erase",
+        "syncterm_igs_screen_erase",
         "st_console_bitmap",
         "st_console_scheduler"
       ],
@@ -197,7 +199,8 @@
         "The new native test failed before implementation. Native FreeBSD Release configure and full builds with /usr/bin/cc passed without warnings. The first application run found a clock domain mismatch at the injected blink boundary. The local presenter epoch fixed it. All 27 targeted checks passed in 37.32 seconds, including native and application k, IGS resolution and console, bitmap, scheduler, reconfiguration, control protocol and capture, CP437 and UTF-8 rendering, session modes, Wren host, shared graphics parser, CTerm, RIP parser, native SkyPix and term. The application k suite ran in 21.26 seconds with 180 coherent captures. Verified the original A glyph rows, pinned source hashes, test registration and all 63 ledger IDs with 32 complete entries.",
         "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native v test failed before implementation. All 18 targeted CTest checks passed in 40.52 seconds, including native and application v, console, resolution, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native v suite ran in 0.57 seconds and the 72-capture application suite in 15.95 seconds. Verified literal A/p/q font rows, pinned source hashes, test registration and all 63 ledger IDs with 33 complete entries.",
         "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native w test failed before implementation. All 17 targeted CTest checks passed in 30.61 seconds, including native and application w, console, resolution, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native and 90-capture application w checks took 0.77 and 17.03 seconds. Verified literal A/c/v/w rows, pinned source hashes, active test registration and all 63 ledger IDs with 34 complete entries.",
-        "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native l test failed before implementation. All 20 targeted CTest checks passed in 36.92 seconds, including native and application l, console, resolution, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native and 90-capture application l checks took 1.36 and 17.13 seconds. Verified original TOS glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 35 complete entries."
+        "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native l test failed before implementation. All 20 targeted CTest checks passed in 36.92 seconds, including native and application l, console, resolution, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native and 90-capture application l checks took 1.36 and 17.13 seconds. Verified original TOS glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 35 complete entries.",
+        "Native FreeBSD Release configure and full builds with /usr/bin/cc passed without warnings. The native s test failed before implementation. All 24 targeted tests passed across two runs. The first run passed 23 checks, including the application s suite with 126 captures in 17.93 seconds. The native s rerun passed in 2.00 seconds after correcting the fixture to expect the scrollback row copy count and adding the VDI history check. The targeted suite includes IGS console, native and application scrollback, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. Verified original TOS glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 36 complete entries."
       ],
       "commit": null,
       "operations": [
@@ -235,7 +238,8 @@
         "k integrates VT52 counted visibility and the indexed cursor overlay with existing bitmap presentation. Serial-only destructive erase reuses the VT52 output path.",
         "v selects reverse through the shared VT52 handlers. Raw colors and existing raster data are preserved when reverse changes. Newly drawn glyphs use the effective colors and scrolling blanks with the raw background.",
         "w uses existing VT52 wrap state and immediate placement. Edge overwrite, row advancement and graphics-preserving scroll share the existing console renderer.",
-        "l and raw VT52 l/o/K erase inclusive ranges in both indexed phases using the raw background. Whole-line erasure moves using the incoming hide depth with host bounds."
+        "l and raw VT52 l/o/K erase inclusive ranges in both indexed phases using the raw background. Whole-line erasure moves using the incoming hide depth with host bounds.",
+        "s uses native VT52 E/d/J raw-background screen erasure and a separate VDI clear to physical index zero. Preserve console byte composition and scrollback through the existing output and history paths."
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -1853,7 +1857,7 @@
       "verification": [
         "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The new native test failed before implementation. All 20 targeted CTest checks passed in 36.92 seconds. The native and application l checks took 1.36 and 17.13 seconds. Verified the TOS A glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 35 complete entries."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "93fdcb6"
     },
     {
       "id": "s",
@@ -1861,16 +1865,42 @@
       "references": [
         "04-text-console.adoc",
         "14-console-commands.adoc",
-        "15-graphics-commands.adoc"
+        "16-state-timing-commands.adoc",
+        "66-native-console-pixels.adoc",
+        "99-native-graphics-console-initialization.adoc",
+        "100-native-screen-services.adoc",
+        "124-native-random-source.adoc",
+        "195-delivery-console.adoc"
       ],
       "order": 36,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "c",
+        "p",
+        "v",
+        "w",
+        "l"
+      ],
+      "operations": [
+        "Acquire a signed unscaled selector. Zero and values above five emit ESC E, one emits ESC d, two emits ESC J and negatives emit only ESC. Clear inclusive screen ranges in the raw background. ESC E homes and saves the previous viewport to scrollback.",
+        "Three clears the drawable screen to physical index zero and clears corresponding host cell metadata while retaining palette, drawing and pending console state. Four first emits ESC E then performs the separate VDI clear.",
+        "Five emits the extra initial ESC and the original reset string through the persistent VT52 state. At low resolution append the original foreground adjustment. Retain the prior-state-dependent reverse flag and the transient q glyph and scroll where applicable.",
+        "Cover 252 native erase scenes, 210 pending console compositions and 36 reset-string cases, plus split input, random acquisition, EOF, timeout, invalid input, renderer recovery and scrollback ordering.",
+        "Verify 126 coherent captures across all ST modes, Atari ST, CP437 and UTF-8 and both status choices, with audio and MIDI disabled. Verify literal glyphs, graphics, both indexed phases, changed palette, RGB, pending state, no replies and reconnect."
+      ],
+      "tests": [
+        "cterm_igs_screen_erase",
+        "syncterm_igs_screen_erase"
+      ],
+      "deviations": [
+        "The VDI clear fills the drawable host bitmap and keeps the reserved status row and local cursor overlay. It does not reproduce the original memory-write timing."
+      ],
+      "verification": [
+        "The native test failed before implementation. Native FreeBSD Release configure and full builds with /usr/bin/cc passed without warnings. The first targeted run passed 23 checks, including the 126-capture application test in 17.93 seconds. The native test passed in 2.00 seconds on rerun after correcting its copied-row count assertion and adding the VDI history check. Verified the TOS A glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 36 complete entries."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "d",

@@ -439,6 +439,24 @@ cterm_render_clear_line(struct cterminal *cterm)
 }
 
 int
+cterm_render_fill_blank(struct cterminal *cterm, int left, int top,
+	int right, int bottom, uint32_t background)
+{
+	if (left < 1 || top < 1 || right < left || bottom < top)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct st_console_cell blank;
+	int status = cterm_render_make_current_cell(cterm, &blank, ' ', 0);
+	if (status != 0)
+		return status;
+	blank.background = background;
+	const struct st_console_rect rect = {
+		.x = (uint32_t)(left - 1), .y = (uint32_t)(top - 1),
+		.width = (uint32_t)(right - left + 1), .height = (uint32_t)(bottom - top + 1),
+	};
+	return st_console_fill(cterm->screen.console, &rect, &blank);
+}
+
+int
 cterm_render_write_cells(struct cterminal *cterm, int left, int top,
 	int right, int bottom, const struct st_console_cell *cells)
 {

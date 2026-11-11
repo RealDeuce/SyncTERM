@@ -151,6 +151,7 @@ static const struct st_graphics_command commands[] = {
 	{'v', unscaled_parameters, 1, NULL},
 	{'w', unscaled_parameters, 1, NULL},
 	{'l', unscaled_parameters, 1, NULL},
+	{'s', unscaled_parameters, 1, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -330,6 +331,39 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+clear_screen(struct cterm_igs *igs, int selector)
+{
+	struct cterminal *terminal = igs->terminal;
+	if (selector > 5)
+		selector = 0;
+	if (selector == 5) {
+		/* The first ESC is sent before the reset string's own ESC.
+		 * In Normal this makes q a glyph, which can wrap and scroll. */
+		static const uint8_t reset[] = {27, 27, 'q', 27, 'c', '0', 27, 'b', '3', 27, 'E'};
+		static const uint8_t low_foreground[] = {27, 'b', '?'};
+		int status = cterm_vt52_output(terminal, reset, sizeof(reset));
+		if (status == 0 && igs->resolution == 0)
+			status = cterm_vt52_output(terminal, low_foreground, sizeof(low_foreground));
+		return status;
+	}
+	if (selector != 3) {
+		static const uint8_t letters[] = {'E', 'd', 'J', 0, 'E'};
+		const uint8_t output[] = {27, selector < 0 ? 0 : letters[selector]};
+		int status = cterm_vt52_output(terminal, output, selector < 0 ? 1 : sizeof(output));
+		if (status != 0)
+			return status;
+	}
+	if (selector == 3 || selector == 4) {
+		/* The VDI clear covers the drawable screen independently of clip,
+		 * console colors and cursor state. Keep the reserved UI row. */
+		return cterm_render_fill_blank(terminal, terminal->x, terminal->y,
+		    terminal->x + terminal->width - 1, terminal->y + terminal->height - 1,
+		    CTERM_IGS_PALETTE_FIRST);
+	}
+	return 0;
+}
+
+static int
 command(void *context, const struct st_graphics_command_view *view)
 {
 	struct cterm_igs *igs = context;
@@ -399,6 +433,7 @@ command(void *context, const struct st_graphics_command_view *view)
 		const uint8_t output[] = {27, selector < 0 ? 0 : letters[selector]};
 		return cterm_vt52_output(igs->terminal, output, selector < 0 ? 1 : sizeof(output));
 	}
+	case 's': return clear_screen(igs, values[0]);
 	case 'c': {
 		/* Upper selectors select background; negative selectors emit ESC only.
 		 * Colors are raw console bytes, independent of VDI pen numbering. */

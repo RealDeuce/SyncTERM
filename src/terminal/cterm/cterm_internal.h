@@ -309,6 +309,7 @@ int cterm_history_copy_pixels(const struct cterminal *, size_t row, struct st_pi
 void cterm_scrolldown(struct cterminal *cterm);
 void cterm_clear_line(struct cterminal *cterm);
 void cterm_clear2bol(struct cterminal *cterm);
+void cterm_page_to_scrollback(struct cterminal *cterm);
 void cterm_dellines(struct cterminal *cterm, int lines);
 void cterm_clear_selection(struct cterminal *cterm);
 void cterm_fill_rect(struct cterminal *cterm, int left, int top, int right,

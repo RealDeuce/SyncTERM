@@ -1494,6 +1494,24 @@ choices. It verifies text, graphics, both indexed phases, RGB, visible
 cursor inversion and reconnect.
 All 20 targeted checks passed on native FreeBSD Release.
 
+### s screen erasure
+
+Selectors zero, one and two emit VT52 ESC E, d and J for whole, prefix
+and suffix erasure using the raw background. Three performs the VDI
+clear to index zero with the current palette and pending console state.
+Four sends ESC E before that clear. Selector five preserves the leading
+ESC and both original string operations, including the low-mode
+foreground adjustment. With an initially normal parser, q prints
+before ESC E and can scroll into the saved page. A pending escape can
+change that sequence's effect on reverse video.
+
+`cterm_igs_screen_erase` covers 498 source-derived scenes plus focused
+scrollback, partition and recovery cases. `syncterm_igs_screen_erase`
+checks 126 coherent captures for text and graphics, indexed phases,
+palette, RGB, pending state and reconnect across all ST modes, Atari
+ST, CP437 and UTF-8, and both status choices.
+All 24 targeted checks passed across two native FreeBSD Release runs.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on

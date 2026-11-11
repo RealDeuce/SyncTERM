@@ -141,53 +141,34 @@ cterm_vt52_reverse_lf(struct cterminal *cterm, int *speed)	/* ESC I */
 	cterm_adjust_currpos(cterm, 0, -1, 1);
 }
 
-static void
-cterm_vt52_erase_to_end(struct cterminal *cterm, int *speed)	/* ESC J */
-{
-	int x, y, i;
-	(void)speed;
-	cterm_render_clear_line(cterm);
-	CURR_XY(&x, &y);
-	for (i = y + 1; i <= TERM_MAXY; i++) {
-		cterm_set_position(cterm, TERM_MINY, i);
-		cterm_render_clear_line(cterm);
-	}
-	cterm_render_set_position(cterm, x, y);
-}
-
-enum vt52_line_erase {
-	VT52_ERASE_WHOLE_LINE,
-	VT52_ERASE_TO_LINE_START,
-	VT52_ERASE_TO_LINE_END,
+enum vt52_erase_range {
+	VT52_ERASE_WHOLE,
+	VT52_ERASE_TO_START,
+	VT52_ERASE_TO_END,
 };
 
+static int
+cterm_vt52_blank(struct cterminal *cterm, int left, int top, int right, int bottom)
+{
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &left, &top);
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &right, &bottom);
+	return cterm_render_fill_blank(cterm, left, top, right, bottom,
+	    cterm_vt52_background_color(cterm));
+}
+
 static void
-cterm_vt52_erase_row(struct cterminal *cterm, enum vt52_line_erase range)
+cterm_vt52_erase_row(struct cterminal *cterm, enum vt52_erase_range range)
 {
 	int x, y;
 	CURR_XY(&x, &y);
-	int left = range == VT52_ERASE_TO_LINE_END ? x : CURR_MINX;
-	int right = range == VT52_ERASE_TO_LINE_START ? x : CURR_MAXX;
-	int screen_y = y;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &left, &screen_y);
-	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &right, NULL);
-	const struct st_console_rect rect = {
-		.x = (uint32_t)(left - 1), .y = (uint32_t)(screen_y - 1),
-		.width = (uint32_t)(right - left + 1), .height = 1,
-	};
-	struct st_console_cell blank;
-	int status = cterm_render_make_current_cell(cterm, &blank, ' ', 0);
-	if (status != 0) {
-		cterm_render_record_error(cterm, status);
-		return;
-	}
-	blank.background = cterm_vt52_background_color(cterm);
+	int left = range == VT52_ERASE_TO_END ? x : CURR_MINX;
+	int right = range == VT52_ERASE_TO_START ? x : CURR_MAXX;
 
 	/* Hide and show the presenter overlay without editing the retained
 	 * depth or the indexed pixels under the old cursor. */
 	cterm_vt52_render_cursor(cterm, CTERM_CURSOR_HIDDEN);
-	status = st_console_fill(cterm->screen.console, &rect, &blank);
-	if (status == 0 && range == VT52_ERASE_WHOLE_LINE) {
+	int status = cterm_vt52_blank(cterm, left, y, right, y);
+	if (status == 0 && range == VT52_ERASE_WHOLE) {
 		/* TOS moves with the depth word left by the erase wrapper's
 		 * counted show. Bound the host column and keep depth saturated. */
 		int column = CURR_MINX + cterm->vt52_cursor_hide_depth;
@@ -198,11 +179,57 @@ cterm_vt52_erase_row(struct cterminal *cterm, enum vt52_line_erase range)
 }
 
 static void
+cterm_vt52_erase_screen(struct cterminal *cterm, enum vt52_erase_range range)
+{
+	int x, y, status = 0;
+	CURR_XY(&x, &y);
+	cterm_vt52_render_cursor(cterm, CTERM_CURSOR_HIDDEN);
+	switch (range) {
+	case VT52_ERASE_WHOLE:
+		cterm_page_to_scrollback(cterm);
+		cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
+		status = cterm_vt52_blank(cterm, CURR_MINX, CURR_MINY, CURR_MAXX, CURR_MAXY);
+		break;
+	case VT52_ERASE_TO_START:
+		if (y > CURR_MINY)
+			status = cterm_vt52_blank(cterm, CURR_MINX, CURR_MINY, CURR_MAXX, y - 1);
+		if (status == 0)
+			status = cterm_vt52_blank(cterm, CURR_MINX, y, x, y);
+		break;
+	case VT52_ERASE_TO_END:
+		status = cterm_vt52_blank(cterm, x, y, CURR_MAXX, y);
+		if (status == 0 && y < CURR_MAXY)
+			status = cterm_vt52_blank(cterm, CURR_MINX, y + 1, CURR_MAXX, CURR_MAXY);
+		break;
+	}
+	cterm_render_record_error(cterm, status);
+	cterm_vt52_render_cursor(cterm, cterm->cursor);
+}
+
+static void
+cterm_vt52_erase_to_end(struct cterminal *cterm, int *speed)	/* ESC J */
+{
+	int x, y, i;
+	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		cterm_vt52_erase_screen(cterm, VT52_ERASE_TO_END);
+		return;
+	}
+	cterm_render_clear_line(cterm);
+	CURR_XY(&x, &y);
+	for (i = y + 1; i <= TERM_MAXY; i++) {
+		cterm_set_position(cterm, TERM_MINY, i);
+		cterm_render_clear_line(cterm);
+	}
+	cterm_render_set_position(cterm, x, y);
+}
+
+static void
 cterm_vt52_erase_eol(struct cterminal *cterm, int *speed)	/* ESC K */
 {
 	(void)speed;
 	if (cterm->igs_engine != NULL)
-		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_LINE_END);
+		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_END);
 	else
 		cterm_render_clear_line(cterm);
 }
@@ -241,6 +268,10 @@ static void
 cterm_vt52_clear_screen(struct cterminal *cterm, int *speed)	/* ESC E */
 {
 	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		cterm_vt52_erase_screen(cterm, VT52_ERASE_WHOLE);
+		return;
+	}
 	cterm_clearscreen(cterm, (char)cterm->attr);
 	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 }
@@ -312,6 +343,10 @@ cterm_vt52_clear_to_begin(struct cterminal *cterm, int *speed)	/* ESC d */
 {
 	int x, y, i;
 	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		cterm_vt52_erase_screen(cterm, VT52_ERASE_TO_START);
+		return;
+	}
 	cterm_clear2bol(cterm);
 	CURR_XY(&x, &y);
 	for (i = y - 1; i >= TERM_MINY; i--) {
@@ -383,7 +418,7 @@ cterm_vt52_clear_line(struct cterminal *cterm, int *speed)	/* ESC l */
 	int x, y;
 	(void)speed;
 	if (cterm->igs_engine != NULL) {
-		cterm_vt52_erase_row(cterm, VT52_ERASE_WHOLE_LINE);
+		cterm_vt52_erase_row(cterm, VT52_ERASE_WHOLE);
 		return;
 	}
 	CURR_XY(&x, &y);
@@ -397,7 +432,7 @@ cterm_vt52_clear_to_bol(struct cterminal *cterm, int *speed)	/* ESC o */
 {
 	(void)speed;
 	if (cterm->igs_engine != NULL)
-		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_LINE_START);
+		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_START);
 	else
 		cterm_clear2bol(cterm);
 }
