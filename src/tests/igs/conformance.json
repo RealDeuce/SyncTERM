@@ -2849,7 +2849,7 @@
       "verification": [
         "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed without warnings. Final verification used the current main tree including the separately committed b6c5f80 parser recovery change. All 28 selected CTest checks passed in 106.61s with two concurrent test processes, covering shared parser/stream, IGS X5/input/I/R/math/random/pattern/X8/X15/t/q/z/f/F/W/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application X5/N. Native cterm_igs_flow took 0.26s; its added loop-before-default-reset assertion also passed a focused final rerun. syncterm_igs_flow passed all 288 coherent captures in 22.09s across all ST modes/encodings/status choices, including exact NUL/FF replies and 32761-byte real transport replies. Its initial missing-handler native test failed before implementation. Physical audio/MIDI were disabled, and ordinary tests need no external files. All 63 ordered IDs, 55 completed entries, active test registrations/dependencies/references, incomplete parent X dispatch and X5 source identities were validated."
       ],
-      "commit": null
+      "commit": "a6f27e2"
     },
     {
       "id": "X3",

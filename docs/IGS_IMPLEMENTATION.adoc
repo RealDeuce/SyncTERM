@@ -4005,6 +4005,8 @@ full goal remains active; unrelated parallel recovery edits stay separate.
 
 == X5 flow configuration (complete)
 
+Completion commit: `a6f27e2`.
+
 Reference: chapter 20's serial X5 stores and shared XON/XOFF helpers. Read the
 mode unscaled as a signed word. Any nonzero containing-loop word forces it
 to 1, using state after that numeric reader finishes. Modes 2 and 3 alone
