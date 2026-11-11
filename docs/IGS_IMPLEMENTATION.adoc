@@ -4061,6 +4061,8 @@ active.
 
 == X3 right-button macros (complete)
 
+Implementation commit: `502cf25`.
+
 Reference: chapter21's serial X3 block $001fc6..$0020da and outer-loop
 consumer $000858..$000926, with chapter20's shared XON helper. Original
 accessory DATA $013b82 initializes enabled to0; the signed length,80 payload

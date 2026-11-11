@@ -2554,3 +2554,5 @@ selected checks passed, then the final timeout-order fix passed native
 X3/N/X5 and the423-capture X3 application run. Final native X3 took0.26s and
 application X3 took40.89s. The ledger is now56/63 complete; parent X and
 remaining command/final acceptance work stay unfinished.
+
+Completion commit for X3: 502cf25. The goal remains active at56/63.

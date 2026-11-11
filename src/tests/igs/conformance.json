@@ -2899,7 +2899,7 @@
       "verification": [
         "Native FreeBSD Release CMake configure and full builds with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON passed without warnings. Initial missing-handler test failed before implementation. All33 selected regressions passed in165.45s: shared parser/stream, IGS input/I/R/X5/bitmap/math/random/pattern/X8/X15/t/q/drawing/text/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and application X5/N/SkyPix mouse/X3. A new local-key-during-X3-load test exposed premature sends; after fixing ownership, all25 selected regressions passed in90.31s, including423 coherent X3 captures over all18 display/encoding/status profiles in42.09s. A final injected-time test exposed the first auxiliary deadline starting before XON readiness; after correcting that order, the final full build was warning-free and native X3/N/X5 plus application X3 all passed in40.96s. Native X3 took0.26s and the final423-capture application test40.89s. Tests include all256 raw values,18 signed length boundaries,40 partitions and bytewise input, retained scenes/state, source-derived zero initialization, local timeout/extra discard, flow order, held/reentrant reset/release, exact unread suffix, queued NFC Unicode/normal/codepage keys, Wren mouse/scrollback gates and partial-load/held EOF/reconnect. Validated63 unique ordered IDs,56 completed entries, active test registrations, dependencies/references, pinned source identities and unchanged unrelated ledger entries. Physical audio/MIDI were disabled; no reference tree/ROM/executable is required at test runtime. X remains in progress and final acceptance is unfinished."
       ],
-      "commit": null
+      "commit": "502cf25"
     },
     {
       "id": "X4",
