@@ -110,10 +110,6 @@ include("{(source / 'MidiBackends.cmake').as_posix()}")
 set(APPLE "${{fixture_native_apple}}")
 set(WIN32 "${{fixture_native_windows}}")
 configure_file("{(source / 'music_config.h.in').as_posix()}" music_config.h @ONLY)
-if(DEFINED ARCHIVE_TEST_PATH)
-    syncterm_is_static_archive("${{ARCHIVE_TEST_PATH}}" valid)
-    file(WRITE "${{CMAKE_BINARY_DIR}}/archive.txt" "${{valid}}")
-endif()
 file(WRITE "${{CMAKE_BINARY_DIR}}/modes.txt" "${{ST_MIDI_LINK_ALSA}};${{ST_MIDI_LINK_FLUIDSYNTH}};${{ST_MIDI_LINK_ADLMIDI}}")
 add_library(consumer MODULE main.c)
 target_include_directories(consumer PRIVATE "${{CMAKE_BINARY_DIR}}" "{prefix.as_posix()}/include")
@@ -122,8 +118,11 @@ set_target_properties(consumer PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES 
 ''')
     env = dict(os.environ, PKG_CONFIG_PATH="", PKG_CONFIG_LIBDIR=str(prefix / "lib/pkgconfig"))
 
-    def configure(label, modes, expected=None, extra=()):
-        build = root / label
+    def configure(label, modes, expected=None, extra=(), *, reuse=False):
+        # Reconfigure the successful policy cases in one tree. Each still
+        # compiles and links its selected mode, and now also checks transitions
+        # without repeating compiler/ABI detection for an unchanged toolchain.
+        build = root / ("policy-build" if reuse else label)
         args = [cmake, "-S", consumer, "-B", build, f"-DCMAKE_C_COMPILER={compiler}",
                 f"-DCMAKE_PREFIX_PATH={prefix}", "-DST_MIDI_WINMM=OFF", "-DST_MIDI_APPLE=OFF"]
         args += [f"-DST_MIDI_{row[0]}={'OFF' if mode == 'OFF' else 'AUTO' if mode == 'AUTO' else 'ON'}" for row, mode in zip(specs, modes)]
@@ -137,13 +136,13 @@ set_target_properties(consumer PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES 
         print(label, "passed", flush=True)
         return build
 
-    configure("auto", ["AUTO"] * 3, "1;1;1")
-    configure("runtime", ["RUNTIME"] * 3, "1;1;1")
-    configure("static", ["STATIC"] * 3, "2;2;2")
-    configure("shared", ["SHARED"] * 3, "4;4;4")
-    configure("all-linkages", ["SHARED", "STATIC", "RUNTIME"], "4;2;1")
-    configure("mixed", ["RUNTIME", "STATIC", "OFF"], "1;2;0")
-    configure("off", ["OFF"] * 3, "0;0;0")
+    configure("auto", ["AUTO"] * 3, "1;1;1", reuse=True)
+    configure("runtime", ["RUNTIME"] * 3, "1;1;1", reuse=True)
+    configure("static", ["STATIC"] * 3, "2;2;2", reuse=True)
+    configure("shared", ["SHARED"] * 3, "4;4;4", reuse=True)
+    configure("all-linkages", ["SHARED", "STATIC", "RUNTIME"], "4;2;1", reuse=True)
+    configure("mixed", ["RUNTIME", "STATIC", "OFF"], "1;2;0", reuse=True)
+    configure("off", ["OFF"] * 3, "0;0;0", reuse=True)
     bad = root / "bad-headers"
     for _, _, _, header, _ in specs:
         path = bad / header
@@ -160,6 +159,16 @@ set_target_properties(consumer PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES 
     pc.write_text(pc.read_text().replace("-lmidi_private", ""))
     configure("closure-missing", ["STATIC", "OFF", "OFF"])
 
+    # Archive classification reads file headers and needs no compiler, native
+    # module link, or MIDI provider configuration for each synthetic header.
+    archive_check = root / "archive-check.cmake"
+    archive_check.write_text(f'''cmake_minimum_required(VERSION 3.22)
+include("{(source / '../../../cmake/SynctermDependencies.cmake').resolve().as_posix()}")
+syncterm_is_static_archive("${{ARCHIVE_TEST_PATH}}" valid)
+if(NOT "${{valid}}" STREQUAL "${{EXPECTED}}")
+    message(FATAL_ERROR "Archive classification: ${{valid}}, expected ${{EXPECTED}}")
+endif()
+''')
     raw = next((prefix / "lib").glob("libasound.a")).read_bytes()
     for wide in (False, True):
         header = (struct.pack(">IIiiQQII", 0xcafebabf, 1, 0x01000007, 3, 40, len(raw), 0, 0)
@@ -167,6 +176,6 @@ set_target_properties(consumer PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES 
         for static in (False, True):
             fat = root / (f"fat-{wide}-{static}.a")
             fat.write_bytes(header + (raw if static else b"\x7fELF-not-an-archive"))
-            build = configure(f"fat-{wide}-{static}", ["OFF"] * 3, "0;0;0",
-                              [f"-DARCHIVE_TEST_PATH={fat}"])
-            assert (build / "archive.txt").read_text() == ("TRUE" if static else "FALSE")
+            run(cmake, f"-DARCHIVE_TEST_PATH={fat}",
+                f"-DEXPECTED={'TRUE' if static else 'FALSE'}", "-P", archive_check)
+            print(f"fat-{wide}-{static}", "passed", flush=True)

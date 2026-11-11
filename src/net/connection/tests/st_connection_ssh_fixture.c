@@ -7,6 +7,7 @@
 #include <deucessh-conn.h>
 #include "st_threads.h"
 #include "st_base64.h"
+#include "socket.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -215,6 +216,9 @@ main(int argc, char **argv)
 	    && getsockname(listener, (struct sockaddr *)&address, &length) == 0);
 	printf("%u\n", (unsigned)ntohs(address.sin_port)); fflush(stdout);
 	descriptor = accept(listener, NULL, NULL); CHECK(descriptor >= 0);
+	/* Preserve the channel-level reply fragments without waiting for TCP's
+	 * delayed ACK timer between each small SSH packet. */
+	CHECK(socket_set_no_delay(descriptor, true) == 0);
 	close(listener);
 	if (strcmp(mode, "bad-handshake") == 0) {
 		static const char invalid[] = "SSH-1.5-fixture\r\n";

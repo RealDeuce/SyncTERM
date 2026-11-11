@@ -3369,27 +3369,13 @@ event_take_locked(st_console_t *console, struct st_console_event *event,
 	while (console->event_count == 0) {
 #if ST_CONSOLE_TEST
 		if (console->display->backend == ST_CONSOLE_BACKEND_TEST) {
-			struct timespec control_deadline;
 			(void)st_mutex_unlock(&console->event_mutex);
 			st_console_test_service(console->display);
 			(void)st_mutex_lock(&console->event_mutex);
 			if (console->event_count != 0) break;
-			if (polling) return IO_ERROR_WOULD_BLOCK;
-			if (st_time_utc_deadline_after_ms(&control_deadline, 10) != 0)
-				return IO_ERROR_IO;
-			if (deadline != NULL && (deadline->tv_sec < control_deadline.tv_sec
-			    || (deadline->tv_sec == control_deadline.tv_sec
-			    && deadline->tv_nsec <= control_deadline.tv_nsec))) {
-				result = st_condition_timedwait(&console->event_ready,
-				    &console->event_mutex, deadline);
-				if (result == ST_THREAD_TIMED_OUT) return IO_ERROR_TIMED_OUT;
-			} else {
-				result = st_condition_timedwait(&console->event_ready,
-				    &console->event_mutex, &control_deadline);
-			}
-			if (result != ST_THREAD_SUCCESS && result != ST_THREAD_TIMED_OUT)
-				return IO_ERROR_IO;
-			continue;
+			/* Check under event_mutex so a request arriving between service
+			 * and wait cannot lose its worker's event_ready notification. */
+			if (st_console_test_control_pending(console->display)) continue;
 		}
 #endif
 		if (polling)

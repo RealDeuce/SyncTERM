@@ -250,9 +250,17 @@ def protocol(executable):
             size, = struct.unpack("<I", header)
             response = read_exact(process, size)
             assert struct.unpack_from("<IIII", response) == (1, 42, 1, 0)
+            # Requests arriving while the application is servicing a reply or
+            # returning to its event wait must retain ordering and wake it.
+            process.stdin.write(b"".join(frame(serial, 1) for serial in range(43, 75)))
+            process.stdin.flush()
+            for serial in range(43, 75):
+                size, = struct.unpack("<I", read_exact(process, 4))
+                response = read_exact(process, size)
+                assert struct.unpack_from("<IIII", response) == (1, serial, 1, 0)
             # Closing both control ends while a large frame is being written
             # must also close the app, rather than killing it with SIGPIPE.
-            process.stdin.write(frame(43, 2))
+            process.stdin.write(frame(75, 2))
             process.stdin.flush()
             size, = struct.unpack("<I", read_exact(process, 4))
             assert size > 1024 * 1024  # ensure the snapshot writer has started

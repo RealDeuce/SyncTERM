@@ -133,6 +133,8 @@ def lz4_block(data):
     out = bytearray()
     positions = {}
     anchor = pos = 0
+    last_match = len(data) - 12
+    match_end = len(data) - 5
 
     def length(value):
         while value >= 255:
@@ -140,15 +142,15 @@ def lz4_block(data):
             value -= 255
         out.append(value)
 
-    while pos + 12 <= len(data):
+    while pos <= last_match:
         word = data[pos:pos + 4]
         previous = positions.get(word, -65536)
         positions[word] = pos
-        if pos - previous > 65535 or data[previous:previous + 4] != word:
+        if pos - previous > 65535:
             pos += 1
             continue
         size = 4
-        while pos + size < len(data) - 5 and data[previous + size] == data[pos + size]:
+        while pos + size < match_end and data[previous + size] == data[pos + size]:
             size += 1
         literals = pos - anchor
         out.append((min(literals, 15) << 4) | min(size - 4, 15))
@@ -208,7 +210,7 @@ def generate(data, entries):
         symbol = "locale_" + language.replace("-", "_")
         out.append(f"static const unsigned char {symbol}[] = {{")
         for start in range(0, len(packed), 24):
-            out.append("\t" + ",".join(f"0x{b:02x}" for b in packed[start:start + 24]) + ",")
+            out.append("\t0x" + packed[start:start + 24].hex(",").replace(",", ",0x") + ",")
         out.append("};")
         ancestor = parent(language, data["parents"])
         while ancestor != "root" and ancestor not in languages:

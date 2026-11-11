@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 from pathlib import Path
+import hashlib
 import random
 import sys
 import unittest
@@ -91,6 +92,13 @@ class LocaleTests(unittest.TestCase):
             with self.subTest(size=len(original)):
                 self.assertEqual(unpack(locales.lz4_block(original)), original)
         self.assertEqual(locales.lz4_block(b'hello'), b'\x50hello')
+        # Keep the historical greedy encoding as well as decoded contents.
+        for original, digest in (
+                (b'a' * 10000, 'cba17bab29f2308aafec19040a25a939df3052d420fc1ec0e9515b9fa30c6efc'),
+                (bytes(range(256)) * 400, '38e887993e10a5688cc3da5488288246930b6be1ba234b015fdbbe09d70d9ee6'),
+                ('🤷🏽‍♂️ visage rieur '.encode() * 1000,
+                 '3050ba31e7c5f30acb5688619964abb78b7b95e3471f257b2e5ab265992eaa72')):
+            self.assertEqual(hashlib.sha256(locales.lz4_block(original)).hexdigest(), digest)
 
     def test_all_parent_chains_terminate(self):
         for locale in self.data['locales']:

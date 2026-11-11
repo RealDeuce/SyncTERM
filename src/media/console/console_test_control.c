@@ -28,6 +28,7 @@
 #define TEST_VERSION 1U
 struct test_bytes { uint8_t *data; size_t size, capacity; int error; };
 struct test_control {
+	st_console_display_t *display; /* Owner joins the worker before destruction. */
 	st_mutex_t mutex; /* Request/reply mailbox and ready predicate. */
 	st_condition_t ready;
 	st_thread_t thread;
@@ -191,6 +192,21 @@ static bool transfer_bytes(struct test_control *c, void *buffer, size_t size, bo
 	}
 	return size == 0;
 }
+static void wake_application(struct test_control *c)
+{
+	/* input_mutex pins the selected console until delivery has completed,
+	 * including during console switches and final backend shutdown. Never
+	 * hold the mailbox mutex while acquiring an input/event lock. */
+	(void)st_mutex_lock(&c->display->input_mutex);
+	st_console_t *console = atomic_load_explicit(&c->display->input_active, memory_order_acquire);
+	if (console != NULL) {
+		(void)st_mutex_lock(&console->event_mutex);
+		(void)st_condition_signal(&console->event_ready);
+		(void)st_mutex_unlock(&console->event_mutex);
+	}
+	(void)st_mutex_unlock(&c->display->input_mutex);
+}
+
 static int control_worker(void *argument)
 {
 	struct test_control *c = argument;
@@ -199,6 +215,7 @@ static int control_worker(void *argument)
 	if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
 	    &self, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
 		atomic_store_explicit(&c->disconnected, true, memory_order_release);
+		wake_application(c);
 		atomic_store_explicit(&c->exited, true, memory_order_release);
 		return 1;
 	}
@@ -210,6 +227,7 @@ static int control_worker(void *argument)
 	sigemptyset(&blocked); sigaddset(&blocked, SIGPIPE);
 	if (pthread_sigmask(SIG_BLOCK, &blocked, NULL) != 0) {
 		atomic_store_explicit(&c->disconnected, true, memory_order_release);
+		wake_application(c);
 		atomic_store_explicit(&c->exited, true, memory_order_release);
 		return 1;
 	}
@@ -225,6 +243,9 @@ static int control_worker(void *argument)
 		if (get32(request) != TEST_VERSION || get32(request + 12) != 0) { free(request); break; }
 		(void)st_mutex_lock(&c->mutex);
 		c->request = request; c->request_size = size; c->pending = true;
+		(void)st_mutex_unlock(&c->mutex);
+		wake_application(c);
+		(void)st_mutex_lock(&c->mutex);
 		while (!c->reply_ready && !atomic_load_explicit(&c->stop, memory_order_acquire))
 			(void)st_condition_wait(&c->ready, &c->mutex);
 		struct test_bytes reply = c->reply;
@@ -236,6 +257,7 @@ static int control_worker(void *argument)
 		if (!sent) break;
 	}
 	atomic_store_explicit(&c->disconnected, true, memory_order_release);
+	wake_application(c);
 	atomic_store_explicit(&c->exited, true, memory_order_release);
 	return 0;
 }
@@ -297,6 +319,7 @@ int st_console_test_control_start(st_console_display_t *display)
 	if (state->control != NULL) return IO_ERROR_BUSY;
 	struct test_control *c = calloc(1, sizeof(*c));
 	if (c == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	c->display = display;
 	atomic_init(&c->stop, false); atomic_init(&c->exited, false); atomic_init(&c->disconnected, false);
 #ifndef _WIN32
 	c->input = -1; c->output = -1;
@@ -428,6 +451,17 @@ static int command(st_console_display_t *display, const uint8_t *p, size_t n, st
 		return 0;
 	default: return IO_ERROR_NOT_SUPPORTED;
 	}
+}
+
+bool st_console_test_control_pending(st_console_display_t *display)
+{
+	struct st_console_test_state *state = st_console_test_state(display);
+	struct test_control *c = state == NULL ? NULL : state->control;
+	if (c == NULL) return false;
+	(void)st_mutex_lock(&c->mutex);
+	bool pending = c->pending || (atomic_load_explicit(&c->disconnected, memory_order_acquire) && !c->close_posted);
+	(void)st_mutex_unlock(&c->mutex);
+	return pending;
 }
 
 void st_console_test_service(st_console_display_t *display)

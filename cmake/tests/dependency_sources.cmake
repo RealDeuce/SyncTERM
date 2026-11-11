@@ -18,7 +18,12 @@ file(WRITE "${TEST_ROOT}/package/fixture.h" "int answer(void);\n")
 file(WRITE "${TEST_ROOT}/package/fixture.c" "#include <child.h>\nint answer(void) { return child_answer() + 1; }\n")
 file(WRITE "${TEST_ROOT}/package/CMakeLists.txt" [=[
 cmake_minimum_required(VERSION 3.22)
-project(Fixture C)
+# Resolve C++ in the parent before recording the dependency toolchain. A
+# compiler discovered only here could differ on the next parent configure.
+if(NOT CMAKE_CXX_COMPILER)
+  message(FATAL_ERROR "Dependency C++ compiler was not initialized")
+endif()
+project(Fixture C CXX)
 # Configure must run after the prerequisite's install, not merely its download.
 find_path(child_include child.h REQUIRED)
 find_library(child_library child REQUIRED)
@@ -50,6 +55,7 @@ set(package fixture)
 set(header fixture.h)
 set(libs fixture)
 set(deps CHILD)
+set(cxx ON)
 elseif(name STREQUAL "CHILD")
 set(package child)
 set(header child.h)

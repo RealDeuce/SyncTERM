@@ -318,7 +318,7 @@ if(BUILD_TESTING)
 			add_executable(st_connection_ssh_fixture tests/st_connection_ssh_fixture.c
 				tests/st_connection_sftp_fixture.c)
 			target_link_libraries(st_connection_ssh_fixture PRIVATE
-				${ST_DEUCESSH_TARGET} syncterm_threads st_base64)
+				${ST_DEUCESSH_TARGET} syncterm_threads syncterm_socket st_base64)
 			set_target_properties(st_connection_ssh_fixture PROPERTIES
 				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_ssh_fixture)

@@ -194,6 +194,7 @@ struct st_console {
 #if ST_CONSOLE_TEST
 int st_console_test_init(st_console_t *console);
 void st_console_test_event_read(st_console_display_t *display);
+bool st_console_test_control_pending(st_console_display_t *display);
 #endif
 
 static inline uint32_t
