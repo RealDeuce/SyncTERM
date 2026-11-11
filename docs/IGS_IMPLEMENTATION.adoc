@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1, X7, X10 and X12 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1, X2, X7, X10 and X12 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X1, X7, X10 and X12
+command, rendering or sound support. X dispatch is in progress, with X1, X2, X7, X10 and X12
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -2830,5 +2830,57 @@ application A/X7 regressions. Native and application X7 took 0.26 and
 17.09 seconds. After adding final clock-failure assertions, another full
 build and the focused native X7 test passed in 0.32 seconds. Ledger IDs,
 references, dependencies, source identities and active test registrations
-were checked. The ledger records 43 complete entries. Completion commit
-will be recorded by the next step.
+were checked. The ledger records 43 complete entries. Completion commit `bc827d8`.
+
+
+=== X2 random-function ranges
+
+X2 reads two unscaled signed words and conditionally a third. First
+assign r.lower. Evaluate the second operand against that updated range,
+then replace r.upper only if the second differs from the current lower.
+Clamp a negative r.lower to zero and compare again. Equality after that
+clamp copies the lower to R.lower and acquires R.upper as the third
+operand. Repair both inverted pairs independently, including R when no
+third operand was read. I/R preserve the pairs; full reset/reconnect select
+0..199 for both. No drawing, console, palette, flow or wait effects occur.
+
+Arity preview and execution share the same ordered-update helper on private
+numeric state. Thus later random operands see earlier stores without
+advancing the real source during preview. The complete header publishes
+both pairs and the final random seed once. Incomplete, malformed, timed-out
+or rejected headers leave those states unchanged, following the adapter's
+header policy rather than exposing native partial stores.
+
+The repair at lower 32767 retains a valid singleton upper bound of 32767,
+correcting the original wrap into an impossible negative upper. Existing
+r/R rejection sampling now permits a complete relevant generator period:
+2^16 calls for byte candidates or 2^24 for signed-word candidates. The low
+seed bits have those full periods, so a valid interval cannot be falsely
+rejected by the old 65,536-call limit. Impossible intervals still fail
+promptly. No foreign clock or host PRNG is introduced.
+
+The native test checks 75,238 range cases, including every signed first
+word and mode/status/scaling representatives. It checks the two distinct
+equality tests, independent R repair, maximum-bound correction, unchanged
+pixels/palette/console/drawing state, every focused split and bytewise
+chain, ordered random operands, malformed/impossible/EOF/timeout recovery,
+and initialization/reset lifetime. A literal seed-4 singleton case requires
+89,478 calls and verifies the exact final seed. The application fixture
+checks 126 coherent captures across all ST modes, Atari ST, CP437, UTF-8
+and both status choices. Both range pairs are in the same control capture
+as retained indexed phases, cells, palette, cursor and composed RGB.
+It verifies upper retention/repair, conditional arity, unscaled operands,
+no replies and partial disconnect/reconnect, with audio and MIDI off.
+
+References: 20, 124 and the X2 entry in IG221.TXT. Parent X remains in progress.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full CMake builds with /usr/bin/cc passed without warnings.
+All 17 selected CTest checks passed in 87.19 seconds, including shared
+parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12
+and application A/X2 regressions. Native and application X2 took 0.35 and
+17.97 seconds. After adding explicit R retention checks, another full build
+and focused native X2 test passed in 0.56 seconds. Ledger IDs, references,
+dependencies, source identities and active test registrations were checked.
+The ledger records 44 complete entries. Completion commit will be recorded
+by the next step.

@@ -195,6 +195,10 @@ Completed rows retain their shared-window edits; A4 selection makes an
 independent active copy. Native reader/partition/lifecycle checks and 108
 coherent application captures verify pattern use by Z, including all ST
 modes, encodings and status choices, with audio and MIDI off.
+`X2` configures both random ranges with ordered operand evaluation and
+conditional arity. Its 75,238 native cases and 126 coherent application
+captures cover range repairs, input partitions, retained scene and reconnect.
+Valid narrow ranges now allow a full relevant generator period.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

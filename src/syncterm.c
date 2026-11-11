@@ -111,6 +111,10 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_fill_index", igs->attributes.fill_index);
 		st_console_test_number(app, "cterm.igs_fill_perimeter", igs->attributes.fill_perimeter);
 		st_console_test_number(app, "cterm.igs_random_seed", igs->random_seed);
+		st_console_test_number(app, "cterm.igs_r_lower", igs->random_range[0][0]);
+		st_console_test_number(app, "cterm.igs_r_upper", igs->random_range[0][1]);
+		st_console_test_number(app, "cterm.igs_R_lower", igs->random_range[1][0]);
+		st_console_test_number(app, "cterm.igs_R_upper", igs->random_range[1][1]);
 		st_console_test_number(app, "cterm.igs_pattern_seed", igs->pattern_seed);
 		for (unsigned i = 0; i < 16; ++i) {
 			char name[48];

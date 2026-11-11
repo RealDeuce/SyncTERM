@@ -33,8 +33,10 @@ static const struct st_graphics_parameter point_parameters[] = {
  * top-level byte grammar. X itself owns the unscaled selector field. */
 static int palette_group_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int pattern_load_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int random_range_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
 	{1, unscaled_parameters, 2, NULL},
+	{2, unscaled_parameters, 1, random_range_next},
 	{7, unscaled_parameters, 1, pattern_load_next},
 	{10, point_parameters, 2, NULL},
 	{12, unscaled_parameters, 1, palette_group_next},
@@ -91,6 +93,65 @@ palette_group_base(int group)
 {
 	unsigned base = ((unsigned)(group > 3 ? 3 : group) & 0x3fffu) * 4u;
 	return base > 32767 ? (int)base - 65536 : (int)base;
+}
+
+/* Run the same ordered stores on private state for arity and execution.
+ * A later r/R operand must see earlier stores, including a negative lower
+ * bound until the second operand has been evaluated. */
+static int
+random_range_arguments(struct cterm_igs *igs, const struct st_graphics_command_view *view,
+    bool complete, bool *extra)
+{
+	if (view->count < 1 || view->count > 3)
+		return IO_ERROR_PROTOCOL;
+	int first, second;
+	int status = cterm_igs_argument_value(igs, &view->arguments[0], &first);
+	if (status != 0) return status;
+	igs->random_range[0][0] = first;
+	*extra = false;
+	if (view->count == 1)
+		return complete ? IO_ERROR_PROTOCOL : 0;
+	status = cterm_igs_argument_value(igs, &view->arguments[1], &second);
+	if (status != 0) return status;
+	if (second != igs->random_range[0][0])
+		igs->random_range[0][1] = second;
+	if (igs->random_range[0][0] < 0)
+		igs->random_range[0][0] = 0;
+	*extra = igs->random_range[0][0] == second;
+	if (*extra) {
+		igs->random_range[1][0] = igs->random_range[0][0];
+		if (view->count == 3) {
+			status = cterm_igs_argument_value(igs, &view->arguments[2], &igs->random_range[1][1]);
+			if (status != 0) return status;
+		}
+		else if (complete)
+			return IO_ERROR_PROTOCOL;
+	}
+	else if (view->count == 3)
+		return IO_ERROR_PROTOCOL;
+	if (complete)
+		for (unsigned i = 0; i < 2; ++i)
+			if (igs->random_range[i][1] < igs->random_range[i][0])
+				/* Keep the maximum valid word as a singleton, rather than
+				 * wrapping into an impossible, negative upper bound. */
+				igs->random_range[i][1] = igs->random_range[i][0] < 32767
+				    ? igs->random_range[i][0] + 1 : 32767;
+	return 0;
+}
+
+static int
+random_range_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	if (view->count == 3)
+		return 0;
+	struct cterm_igs preview = *(struct cterm_igs *)context;
+	bool extra;
+	int status = random_range_arguments(&preview, view, false, &extra);
+	if (status == 0 && (view->count == 1 || extra))
+		*result = unscaled_parameters[0];
+	return status;
 }
 
 static size_t
@@ -360,7 +421,10 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 		if (lower > upper || upper < 0 || lower > 32767 || upper > 32767)
 			return IO_ERROR_OUT_OF_RANGE;
 		bool found = false;
-		for (unsigned tries = 0; tries < 65536; ++tries) {
+		/* Low 16/24 seed bits have full periods 2^16/2^24. Checking one
+		 * period cannot falsely reject a valid byte/word interval. */
+		unsigned limit = upper < 256 ? 65536u : 16777216u;
+		for (unsigned tries = 0; tries < limit; ++tries) {
 			unsigned raw = cterm_igs_random(igs);
 			unsigned word = raw & 0xffff;
 			value = upper < 256 ? (int)(raw & 255)
@@ -565,6 +629,23 @@ command(void *context, const struct st_graphics_command_view *view)
 		igs->pattern_loading = false;
 		igs->pattern_slot = 0;
 		return status;
+	}
+	if (view->code == 'X') {
+		struct cterm_igs preview = *igs;
+		int selector;
+		int status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
+		if (status != 0) return status;
+		if (selector == 2) {
+			struct st_graphics_command_view tail = {.code = 2, .chained = view->chained,
+			    .arguments = view->arguments + 1, .count = view->count - 1};
+			bool extra;
+			status = random_range_arguments(&preview, &tail, true, &extra);
+			if (status == 0) {
+				memcpy(igs->random_range, preview.random_range, sizeof(igs->random_range));
+				igs->random_seed = preview.random_seed;
+			}
+			return status;
+		}
 	}
 	if (view->count > sizeof(values) / sizeof(*values))
 		return IO_ERROR_PROTOCOL;

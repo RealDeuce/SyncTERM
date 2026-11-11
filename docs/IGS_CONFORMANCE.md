@@ -14,7 +14,7 @@ original requested start/end coordinates.
 both remembered pairs, preserving native Drawto chaining.
 X dispatch is in progress: `X1` changes a raw physical palette register,
 and `X12` changes four consecutive physical registers. `X7` loads source
-pattern slots for later A4 selection.
+pattern slots for later A4 selection. `X2` configures both random ranges.
 `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
@@ -640,7 +640,7 @@ X reads one unscaled selector without clamping. Values outside 0..15 consume
 only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; selector/random values advance once when
-the command completes. X1, X7, X10 and X12 are implemented so far. Other valid selectors
+the command completes. X1, X2, X7, X10 and X12 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1668,6 +1668,35 @@ are disabled. References: 11/20/124/130/131. All 15 selected checks and
 the final focused clock-error check passed on native FreeBSD Release;
 full CMake builds completed without warnings. Full containing-loop command
 integration and remaining X selectors stay pending.
+
+### X2 random-function ranges
+
+Two unscaled signed operands update r.lower and conditionally r.upper.
+The first equality check precedes clamping a negative lower to zero; the
+second follows it and decides whether to acquire R.upper after copying
+R.lower. Later random operands see those ordered updates. Both inverted
+pairs are repaired independently, including R when it was not selected.
+The maximum lower 32767 is repaired to a valid singleton, correcting the
+original negative wrap. I/R preserve ranges; full reset/reconnect restore
+both pairs to 0..199.
+
+Private arity preview and complete-header execution share the ordered
+updates. Incomplete or rejected headers publish neither range changes
+nor random advancement, following the adapter header policy instead of
+native partial stores. Sampling allows one full relevant generator period
+(2^16 byte or 2^24 signed-word calls), so valid narrow ranges are not
+falsely rejected by the former 65,536-call limit. Impossible intervals
+fail promptly. No drawing, console, flow or wait effects are added.
+
+`cterm_igs_random_range` checks 75,238 cases, input partitions, state
+retention, ordered random acquisition, independent repairs and lifecycle.
+A literal singleton case needs 89,478 calls and checks the final seed.
+`syncterm_igs_random_range` checks 126 coherent captures across all ST
+modes, encodings and status choices, with exact range state, retained
+scene, unscaled arguments, no reply and reconnect. Audio and MIDI are off.
+References: 20/124 and IG221.TXT. All 17 selected checks and the final
+focused R-retention check passed on native FreeBSD Release; full CMake
+builds completed without warnings. Full X and loop integration remain pending.
 
 ## Deliberate corrections
 
