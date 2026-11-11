@@ -243,6 +243,10 @@ The GIST software-voice foundation adds standalone register/record tests:
 1044 independent envelope cases, 160 API cases, all pitch/control words and
 original-patch lifetime checks. These do not establish PCM playback or b/n/N
 command support; synthesis and session/audio integration remain unfinished.
+Live audio-source tests additionally cover sample delivery and acknowledgment,
+clear/detach and concurrent stream destruction/engine stop with an active
+callback, using the existing consumer and device-free pull runtime. PSG
+synthesis and IGS session/audio integration remain pending.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

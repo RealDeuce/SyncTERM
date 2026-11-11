@@ -414,6 +414,21 @@ audio_stream_append(audio_stream_t *stream, const int16_t *frames,
 }
 
 int
+audio_stream_set_source(audio_stream_t *stream,
+    size_t (*source)(void *, int16_t *, size_t), void *context)
+{
+	return stream == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : audio_mixer_stream_set_source(stream->mixer_stream,source,context);
+}
+
+int
+audio_stream_source_active(audio_stream_t *stream, bool active)
+{
+	return stream == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : audio_mixer_stream_source_active(stream->mixer_stream,active);
+}
+
+int
 audio_stream_append_take(audio_stream_t *stream, int16_t *frames,
     size_t frame_count, const struct audio_buffer_options *options)
 {

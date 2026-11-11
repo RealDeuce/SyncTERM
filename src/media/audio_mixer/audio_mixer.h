@@ -30,6 +30,15 @@ void audio_mixer_destroy(audio_mixer_t *mixer);
 int audio_mixer_stream_create(audio_mixer_stream_t **result,
     audio_mixer_t *mixer, float volume_left_db, float volume_right_db);
 void audio_mixer_stream_destroy(audio_mixer_stream_t *stream);
+/* Live sources run under mixer/stream locks on the existing consumer thread.
+ * They must return promptly without calling mixer APIs. Return a filled
+ * prefix in the mixer's fixed format (44100 Hz stereo); a short return
+ * deactivates the source. Attaching/detaching discards pending buffers and
+ * waits for any prior callback to finish; context remains caller-owned.
+ * Activate only after releasing any lock the source callback acquires. */
+int audio_mixer_stream_set_source(audio_mixer_stream_t *,
+    size_t (*source)(void *, int16_t *, size_t), void *context);
+int audio_mixer_stream_source_active(audio_mixer_stream_t *, bool active);
 
 int audio_mixer_stream_append(audio_mixer_stream_t *stream,
     const int16_t *frames, size_t frame_count,

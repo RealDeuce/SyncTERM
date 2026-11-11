@@ -384,6 +384,21 @@ test_synthesis(void)
 	return 0;
 }
 
+static size_t
+live_samples(void *context, int16_t *frames, size_t capacity)
+{
+	size_t *remaining = context;
+	const int16_t samples[] = {100, -100, 200, -200};
+	size_t count = *remaining < capacity ? *remaining : capacity;
+
+	for (size_t i = 0; i < count; ++i) {
+		frames[2*i] = samples[2*i];
+		frames[2*i+1] = samples[2*i+1];
+	}
+	*remaining -= count;
+	return count;
+}
+
 static int
 test_pull_runtime(void)
 {
@@ -412,6 +427,20 @@ test_pull_runtime(void)
 	CHECK(memcmp(frames, expected, sizeof(expected)) == 0);
 	for (size_t i = 4; i < 8; ++i) CHECK(frames[i] == 0);
 	CHECK(audio_stream_drain(stream) == 0);
+	/* Live sources use the same pull runtime, gain and clipping. */
+	size_t remaining = 2;
+	CHECK(audio_stream_set_source(stream, live_samples, &remaining) == 0);
+	CHECK(audio_stream_source_active(stream, true) == 0);
+	CHECK(audio_stream_drain(stream) == IO_ERROR_BUSY);
+	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0);
+	CHECK(remaining == 0 && memcmp(frames, expected, sizeof(expected)) == 0);
+	for (size_t i = 4; i < 8; ++i) CHECK(frames[i] == 0);
+	CHECK(audio_stream_drain(stream) == 0);
+	remaining = 2;
+	CHECK(audio_stream_source_active(stream, true) == 0);
+	CHECK(audio_stream_clear(stream) == 0);
+	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0 && remaining == 2);
+	CHECK(audio_stream_set_source(stream, NULL, NULL) == 0);
 	CHECK(audio_stream_append(stream, samples, 2, &options) == 0);
 	drain = (struct drain_context){.stream = stream};
 	CHECK(st_thread_create(&thread, drain_thread, &drain) == ST_THREAD_SUCCESS);
@@ -419,6 +448,8 @@ test_pull_runtime(void)
 	CHECK(st_thread_join(thread, NULL) == ST_THREAD_SUCCESS);
 	CHECK(drain.result == IO_ERROR_CANCELLED);
 	CHECK(st_audio_runtime_acquire(runtime, &other) == IO_ERROR_CANCELLED);
+	CHECK(audio_stream_source_active(stream, true) == IO_ERROR_CANCELLED);
+	CHECK(audio_stream_set_source(stream, NULL, NULL) == 0);
 	audio_stream_destroy(stream);
 	st_audio_runtime_destroy(runtime);
 	CHECK(st_audio_runtime_create_pull(&runtime) == 0);

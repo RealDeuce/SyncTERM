@@ -101,6 +101,17 @@ enum audio_backend audio_engine_backend(const audio_engine_t *engine);
 int audio_stream_create(audio_stream_t **result, audio_engine_t *engine,
 	float volume_left_db, float volume_right_db);
 void audio_stream_destroy(audio_stream_t *stream);
+/* Continuous stereo producer in AUDIO_SAMPLE_RATE/AUDIO_CHANNELS format,
+ * called on the existing mixer consumer thread. Return promptly without
+ * calling audio APIs. A short filled-prefix return deactivates it.
+ * Set/detach clears pending buffers and quiesces the previous callback.
+ * Context is caller-owned; destroy the stream before freeing it. Never
+ * activate while holding a lock the callback needs. Queued append is BUSY
+ * while a source is attached; drain/buffered_frames treat an active source
+ * like an unterminated loop. Clear pauses it, keeping its attachment. */
+int audio_stream_set_source(audio_stream_t *,
+    size_t (*source)(void *, int16_t *, size_t), void *context);
+int audio_stream_source_active(audio_stream_t *, bool active);
 
 int audio_stream_append(audio_stream_t *stream, const int16_t *frames,
 	size_t frame_count, const struct audio_buffer_options *options);

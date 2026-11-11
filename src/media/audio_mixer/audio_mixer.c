@@ -57,6 +57,9 @@ struct audio_mixer_stream {
 	uint64_t next_sequence;
 	uint64_t clear_generation;
 	int status;
+	size_t (*source)(void *, int16_t *, size_t);
+	void *source_context;
+	bool source_active;
 };
 
 struct audio_mixer {
@@ -315,6 +318,40 @@ prepare_buffer(struct audio_mixer_buffer **result, int16_t *frames,
 }
 
 int
+audio_mixer_stream_set_source(audio_mixer_stream_t *stream,
+    size_t (*source)(void *, int16_t *, size_t), void *context)
+{
+	if (stream == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	int status = source == NULL ? 0 : stream->status;
+	if (status == 0) {
+		++stream->clear_generation;
+		drop_buffers_locked(stream);
+		stream->source = source; stream->source_context = context;
+		stream->source_active = false;
+		(void)st_condition_broadcast(&stream->condition);
+	}
+	(void)st_mutex_unlock(&stream->mutex);
+	return status;
+}
+
+int
+audio_mixer_stream_source_active(audio_mixer_stream_t *stream, bool active)
+{
+	if (stream == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	int status = stream->status;
+	if (status == 0 && active && stream->source == NULL) status = IO_ERROR_INVALID_ARGUMENT;
+	if (status == 0) stream->source_active = active;
+	(void)st_mutex_unlock(&stream->mutex);
+	if (status == 0 && active && st_mutex_lock(&stream->mixer->mutex) == ST_THREAD_SUCCESS) {
+		(void)st_condition_signal(&stream->mixer->condition);
+		(void)st_mutex_unlock(&stream->mixer->mutex);
+	}
+	return status;
+}
+
+int
 audio_mixer_stream_append_take(audio_mixer_stream_t *stream,
     int16_t *frames, size_t frame_count,
     const struct audio_mixer_buffer_options *options)
@@ -332,8 +369,8 @@ audio_mixer_stream_append_take(audio_mixer_stream_t *stream,
 		free(buffer);
 		return IO_ERROR_IO;
 	}
-	if (stream->status != 0) {
-		status = stream->status;
+	if (stream->status != 0 || stream->source != NULL) {
+		status = stream->status != 0 ? stream->status : IO_ERROR_BUSY;
 		(void)st_mutex_unlock(&stream->mutex);
 		free(buffer);
 		return status;
@@ -391,6 +428,7 @@ audio_mixer_stream_clear(audio_mixer_stream_t *stream)
 	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	++stream->clear_generation;
+	stream->source_active = false;
 	drop_buffers_locked(stream);
 	(void)st_condition_broadcast(&stream->condition);
 	(void)st_mutex_unlock(&stream->mutex);
@@ -419,6 +457,7 @@ size_t audio_mixer_stream_buffered_frames(audio_mixer_stream_t *stream)
 	size_t total = 0;
 	if (stream == NULL) return 0;
 	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return SIZE_MAX;
+	if (stream->source_active) { (void)st_mutex_unlock(&stream->mutex); return SIZE_MAX; }
 	for (struct audio_mixer_buffer *b = stream->head; b != NULL; b = b->next) {
 		size_t left = b->frame_count - b->consumed;
 		if (b->loop || left > SIZE_MAX - total) { total = SIZE_MAX; break; }
@@ -448,6 +487,7 @@ audio_mixer_stream_drain(audio_mixer_stream_t *stream)
 		status = stream->status;
 		goto done;
 	}
+	if (stream->source_active) { status = IO_ERROR_BUSY; goto done; }
 	target = stream->next_sequence - 1;
 	clear_generation = stream->clear_generation;
 	for (buffer = stream->head; buffer != NULL; buffer = buffer->next) {
@@ -489,7 +529,7 @@ audio_mixer_stream_is_idle(audio_mixer_stream_t *stream)
 		return true;
 	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS)
 		return true;
-	idle = stream->head == NULL || stream->status != 0;
+	idle = (stream->head == NULL && !stream->source_active) || stream->status != 0;
 	(void)st_mutex_unlock(&stream->mutex);
 	return idle;
 }
@@ -719,12 +759,38 @@ pull_chunk_locked(audio_mixer_t *mixer, int16_t *output, size_t frames,
 
 		(void)st_mutex_lock(&stream->mutex);
 		advance_ramp(mixer, stream, frames);
-		if (stream->status != 0 || stream->head == NULL) {
+		if (stream->status != 0 || (stream->head == NULL && !stream->source_active)) {
 			(void)st_mutex_unlock(&stream->mutex);
 			continue;
 		}
 		left_db = stream->volume_left_db;
 		right_db = stream->volume_right_db;
+		if (stream->source_active) {
+			/* The marker carries only acknowledgment/sequence ownership;
+			 * callback PCM goes straight into this pull's mix accumulator. */
+			struct audio_mixer_buffer *marker = calloc(1,sizeof(*marker));
+			if (marker == NULL) stream->status = IO_ERROR_OUT_OF_MEMORY;
+			else {
+				int16_t generated[AUDIO_MIXER_CHUNK_FRAMES*AUDIO_MIXER_CHANNELS];
+				size_t count = stream->source(stream->source_context,generated,frames);
+				if (count > frames) stream->status = IO_ERROR_OUT_OF_RANGE;
+				else if (count != 0) {
+					struct audio_mixer_buffer input = {.frames = generated,.frame_count = count};
+					size_t written;
+					(void)mix_buffer(mixer,&input,mixer->accumulator,frames,left_db,right_db,&written);
+					if (written > maximum) maximum = written;
+					marker->frame_count = count; marker->consumed = count;
+					marker->sequence = stream->next_sequence++;
+					retire_buffer_locked(stream,marker,pull_ticket); marker = NULL;
+				}
+				if (count < frames) stream->source_active = false;
+				free(marker);
+			}
+			if (stream->status != 0) stream->source_active = false;
+			(void)st_condition_broadcast(&stream->condition);
+			(void)st_mutex_unlock(&stream->mutex);
+			continue;
+		}
 		while ((head = stream->head) != NULL && offset < frames) {
 			struct audio_mixer_buffer *next = head->next;
 			size_t written = 0;
@@ -880,7 +946,7 @@ has_data_locked(audio_mixer_t *mixer)
 
 	for (stream = mixer->streams; stream != NULL; stream = stream->next) {
 		(void)st_mutex_lock(&stream->mutex);
-		if (stream->head != NULL && stream->status == 0)
+		if ((stream->head != NULL || stream->source_active) && stream->status == 0)
 			has_data = true;
 		(void)st_mutex_unlock(&stream->mutex);
 		if (has_data)
@@ -926,6 +992,7 @@ audio_mixer_stop(audio_mixer_t *mixer, int status)
 	for (stream = mixer->streams; stream != NULL; stream = stream->next) {
 		(void)st_mutex_lock(&stream->mutex);
 		stream->status = status;
+		stream->source_active = false;
 		drop_buffers_locked(stream);
 		(void)st_condition_broadcast(&stream->condition);
 		(void)st_mutex_unlock(&stream->mutex);

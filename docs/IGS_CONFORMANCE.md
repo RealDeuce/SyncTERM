@@ -2186,3 +2186,42 @@ The CTerm adapter recovers from incomplete source EOF by discarding partial
 grammar and logging a diagnostic. Incomplete header input has a five-second
 local timeout after progress; expiry discards the header. An ordinary held G
 prefix alone has no header timeout. No Atari bucket/wrap arithmetic is used.
+
+
+### Live PCM source foundation
+
+The audio mixer now accepts a continuous source on an explicitly owned stream.
+Its existing consumer requests a bounded prefix of stereo PCM at the normal
+44100-frame/second output format, then applies the existing stream gain,
+clipping and device-acknowledgment path. A short return deactivates the source;
+an invalid oversized return stops that stream with an error. Source buffers
+are consumed directly by that pull rather than queued ahead by another thread.
+This lets later PSG register changes take effect at the next consumed samples.
+
+Attach/replacement discards pending frames and leaves the source inactive.
+Activation wakes the existing consumer; clear pauses the source and cancels
+pending acknowledgments while retaining its attachment. An active source has
+unbounded buffered length and drain reports BUSY, like an indefinite loop.
+Queued append is BUSY while a source is attached. Detach, destruction and
+engine stop wait for an in-flight callback to finish. The caller owns the
+context, must keep it alive until detach/destruction, and must release any
+callback-needed lock before calling an audio API. The callback runs under
+mixer/stream locks and must return promptly without calling audio APIs.
+No new worker, foreign clock or timer is introduced.
+
+The st_audio_source test checks finite-prefix sample delivery through the
+existing mix path, chunk boundaries, idle/active transitions, invalid returns,
+acknowledgment and clear/replacement behavior, and data-ready wakeup. Predicate-
+gated concurrent tests prove detach, destruction and stop cannot return while
+a callback still uses its context. st_audio checks the public wrappers with
+literal expected PCM through the device-free pull runtime and verifies clear
+and stopped-runtime behavior. These tests cover the audio infrastructure;
+PSG synthesis, session ownership and b/n/N integration remain pending.
+
+Native FreeBSD Release CMake configure and full build passed; the final build
+had no warnings. All ten selected CTest checks passed: st_audio_source,
+st_audio_mixer, st_audio, st_audio_synthesis, music_player, igs_gist,
+cterm_apc_audio, cterm_skypix_audio, cterm and term. No command count advances
+and no physical audio-device or audible coverage is claimed. The GIST engine
+component is committed as 4e5e0a0; the sound foundation remains in progress
+with 51/63 command entries complete.
