@@ -186,6 +186,10 @@ and reconnect.
 complete raw-word retention and mono polarity, preserving the VDI color cache.
 Its 197,994 native word cases and 126 coherent application captures verify
 retained indexed pixels, unscaled operands, parser recovery and reconnect.
+`X12` adds four-register groups through the same raw palette service,
+including negative group aliases and two zero-color arities. Its 67,048
+native cases and 126 coherent application captures cover group order,
+query/write mixtures, parser partitions, retained pixels and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

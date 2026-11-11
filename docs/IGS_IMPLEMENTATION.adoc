@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1 and X10 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1, X10 and X12 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X1 and X10
+command, rendering or sound support. X dispatch is in progress, with X1, X10 and X12
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -2726,4 +2726,55 @@ regressions. Native and application X1 took 1.45 and 18.34 seconds.
 Initial generated-dependency clock skew warnings cleared in the final
 builds, which had no warnings. Source identities, test registrations,
 references and dependencies were checked. The ledger records 41 complete
-entries. Completion commit will be recorded by the next step.
+entries. Completion commit `6996112`.
+
+
+=== X12 raw palette groups
+
+X12 reads an unscaled signed group, caps only values above three,
+and forms its signed word base and upper loop bound. All groups
+except -8193 and -24577 read four unscaled signed colors. Those two
+values have an initially false signed bound and consume no colors.
+Other negative groups alias through the raw register service. Four
+calls use ascending indices, preserving full positive raw words,
+negative query-only colors and the separate VDI requested-color cache.
+Monochrome display polarity still depends only on register zero bit zero.
+There are no drawing, timing, flow or console effects.
+
+Extended selector descriptors now support the same fixed-prefix and
+dynamic-tail callbacks as top-level descriptors. A payload view omits
+the selector and receives a private numeric state after selector
+preview. Real selector, group and color operands advance the random
+source once at command execution. No Atari policy was added to the
+shared graphics parser.
+
+As with other command headers, X12 publishes only after full acquisition.
+Incomplete, malformed or timed-out headers leave palette and random state
+unchanged. This safely differs from the original's per-read partial
+register writes. EOF/reset cancel pending fields and reconnect restores
+the initial palette. Completed writes retain normal I/R/I5 lifetime.
+
+The native test checks 67,048 group cases, including every signed group
+and a mode/status/scaling matrix with mixed positive, negative, zero and
+unused-bit color words. Literal exceptions and a modulo-four oracle are
+independent of the production signed-bound calculation. It checks raw,
+realized, published and saved palettes, the requested cache, unchanged
+indexed phases and retained graphics/console state. Focused chains cover
+every two-way split and bytewise input, both empty-loop groups,
+once-only random acquisition, partial/invalid/timeout/reset recovery and
+I/R/I5 lifetime. The application fixture shares X1's observation code
+and checks 126 coherent captures across all ST modes, Atari ST, CP437,
+UTF-8 and status choices. Literal RGB and pinned glyph rows verify group
+order, upper cap, unscaled operands, retained pixels, monochrome polarity,
+no replies and partial disconnect/reconnect, with audio and MIDI off.
+
+References: 19, 22, 28, 100, 124 and 165. Parent X remains in progress.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full CMake builds with /usr/bin/cc passed without warnings.
+All 16 selected CTest checks passed in 71.43 seconds, including shared
+parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/S/X1/X10 and
+application S/X1/X10/X12 regressions. Native and application X12 took
+0.62 and 18.12 seconds. Source identities, ledger IDs, dependencies,
+references and active test registrations were checked. The ledger records
+42 complete entries. Completion commit will be recorded by the next step.

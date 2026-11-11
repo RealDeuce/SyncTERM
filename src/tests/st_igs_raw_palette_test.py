@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""IGS X1 recolors retained indexed pixels through physical registers."""
+"""IGS X1/X12 recolor retained indexed pixels through physical registers."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import socket
@@ -8,7 +8,7 @@ from st_igs_cursor_test import check, fixture
 from st_igs_console_color_test import initial
 
 
-def run(executable, reports, resolution, encoding, status):
+def run(executable, reports, resolution, encoding, status, groups=False):
     screen = ("AtariST40x25", "AtariST80x25", "AtariST80x25Mono")[resolution]
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -47,18 +47,30 @@ def run(executable, reports, resolution, encoding, status):
                 send(peer, setup)
                 # Literal register words and original-ST DAC results. The
                 # high bits of 0x0888 are retained but produce black RGB.
-                steps = ((0, 1792, 0xff0000), (3, 7, 0x0000ff),
-                         (1, 112, 0x00ff00), (0, 1, 0x000024),
-                         (9999, 2184, 0), (3, 1911, 0xffffff))
-                for number, (index, word, rgb) in enumerate(steps):
-                    physical = min(index, 15)
-                    if resolution != 2:
-                        palette[physical] = rgb
-                    elif physical == 0:
-                        palette[0] = 0xffffff if word & 1 else 0
-                        palette[1] = palette[0] ^ 0xffffff
+                selector = 12 if groups else 1
+                if groups:
+                    steps = ((0, (1792, 112, 7, 1911), (0xff0000, 0x00ff00, 0x0000ff, 0xffffff)),
+                             (1, (1, 2184, 1911, 0), (0x000024, 0, 0xffffff, 0)),
+                             (2, (1911, 1792, 112, 7), (0xffffff, 0xff0000, 0x00ff00, 0x0000ff)),
+                             (3, (0, 1, 2184, 1911), (0, 0x000024, 0, 0xffffff)),
+                             (9999, (1792, 112, 7, 0), (0xff0000, 0x00ff00, 0x0000ff, 0)),
+                             (0, (1, 0, 7, 1792), (0x000024, 0, 0x0000ff, 0xff0000)))
+                else:
+                    steps = ((0, (1792,), (0xff0000,)), (3, (7,), (0x0000ff,)),
+                             (1, (112,), (0x00ff00,)), (0, (1,), (0x000024,)),
+                             (9999, (2184,), (0,)), (3, (1911,), (0xffffff,)))
+                for number, (index, words, rgbs) in enumerate(steps):
+                    first = min(index, 3) * 4 if groups else min(index, 15)
+                    for offset, (word, rgb) in enumerate(zip(words, rgbs)):
+                        physical = first + offset
+                        if resolution != 2:
+                            palette[physical] = rgb
+                        elif physical == 0:
+                            palette[0] = 0xffffff if word & 1 else 0
+                            palette[1] = palette[0] ^ 0xffffff
                     marker = 1000 + number
-                    send(peer, f"G#g 1:G#X 1,{index},{word}:G#g>0:X 10,{marker},777:".encode())
+                    arguments = ",".join(str(value) for value in (selector, index, *words))
+                    send(peer, f"G#g 1:G#X {arguments}:G#g>0:X 10,{marker},777:".encode())
                     inspect(marker)
                 peer.settimeout(0.03)
                 try:
@@ -66,8 +78,8 @@ def run(executable, reports, resolution, encoding, status):
                 except socket.timeout:
                     pass
                 else:
-                    raise AssertionError(f"unexpected X1 reply: {reply!r}")
-                send(peer, b"G#X 1,0,")
+                    raise AssertionError(f"unexpected X{selector} reply: {reply!r}")
+                send(peer, b"G#X 12,0,1792,112,7," if groups else b"G#X 1,0,")
                 disconnect(peer)
 
             client.key("enter")
@@ -84,8 +96,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("executable")
     parser.add_argument("--reports", default="reports/test-control")
+    parser.add_argument("--groups", action="store_true")
     args = parser.parse_args()
     for resolution in range(3):
         for encoding in ("ATARI-ST", "CP437", "UTF-8"):
             for status in (False, True):
-                run(args.executable, args.reports, resolution, encoding, status)
+                run(args.executable, args.reports, resolution, encoding, status, args.groups)

@@ -31,9 +31,11 @@ static const struct st_graphics_parameter point_parameters[] = {
 };
 /* Extended selectors reuse the same descriptor and parameter data as the
  * top-level byte grammar. X itself owns the unscaled selector field. */
+static int palette_group_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
 	{1, unscaled_parameters, 2, NULL},
 	{10, point_parameters, 2, NULL},
+	{12, unscaled_parameters, 1, palette_group_next},
 };
 
 /* Dynamic arity inspects a private numeric-state copy. Real operands,
@@ -45,6 +47,32 @@ preview_first(void *context, const struct st_graphics_command_view *view, int *v
 		return IO_ERROR_PROTOCOL;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	return cterm_igs_argument_value(&preview, &view->arguments[0], value);
+}
+
+static int
+palette_group_base(int group)
+{
+	unsigned base = ((unsigned)(group > 3 ? 3 : group) & 0x3fffu) * 4u;
+	return base > 32767 ? (int)base - 65536 : (int)base;
+}
+
+static size_t
+palette_group_count(int base)
+{
+	/* Only this reachable base has a wrapped, negative upper bound. */
+	return base == 32764 ? 0 : 4;
+}
+
+static int
+palette_group_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	int group;
+	int status = preview_first(context, view, &group);
+	if (status == 0 && view->count - 1 < palette_group_count(palette_group_base(group)))
+		*result = unscaled_parameters[0];
+	return status;
 }
 
 static int
@@ -124,18 +152,25 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 {
 	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
 	int selector;
-	int status = preview_first(context, view, &selector);
+	struct cterm_igs preview = *(struct cterm_igs *)context;
+	int status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
 	if (status != 0)
 		return status;
 	for (size_t i = 0; i < sizeof(extended_commands)/sizeof(*extended_commands); ++i) {
 		const struct st_graphics_command *command = &extended_commands[i];
 		if (selector == command->code) {
-			if (view->count-1 < command->count)
-				*result = command->parameters[view->count-1];
+			struct st_graphics_command_view tail = {.code = command->code,
+			    .chained = view->chained, .arguments = view->arguments + 1, .count = view->count - 1};
+			if (tail.count < command->count)
+				*result = command->parameters[tail.count];
+			else if (command->next != NULL)
+				/* Dynamic payloads see numeric state after the selector;
+				 * neither this preview nor their own commits real state. */
+				status = command->next(&preview, &tail, result);
 			break;
 		}
 	}
-	return 0;
+	return status;
 }
 
 static const struct st_graphics_command commands[] = {
@@ -555,6 +590,20 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 12) {
+			if (view->count < 2)
+				return IO_ERROR_PROTOCOL;
+			int base = palette_group_base(values[1]);
+			size_t count = palette_group_count(base);
+			if (view->count != count + 2)
+				return IO_ERROR_PROTOCOL;
+			for (size_t i = 0; i < count; ++i) {
+				int status = cterm_igs_palette_register(igs, base + (int)i, values[i + 2]);
+				if (status != 0)
+					return status;
+			}
+			return 0;
+		}
 		if (values[0] == 1) {
 			if (view->count != 3)
 				return IO_ERROR_PROTOCOL;

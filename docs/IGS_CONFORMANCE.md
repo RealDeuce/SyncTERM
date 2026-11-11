@@ -12,7 +12,8 @@ perimeter together. `A` selects fill styles and copies/generates user patterns.
 original requested start/end coordinates.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
-X dispatch is in progress: `X1` changes a raw physical palette register.
+X dispatch is in progress: `X1` changes a raw physical palette register,
+and `X12` changes four consecutive physical registers.
 `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
@@ -635,10 +636,10 @@ other primitives, loops and sound remain pending.
 ### X dispatch and X10: non-drawing Drawto origin
 
 X reads one unscaled selector without clamping. Values outside 0..15 consume
-only that operand, make no store/call/reply and allow normal chaining. Fixed
-selector descriptors reuse the shared command/point descriptions. T and X
+only that operand, make no store/call/reply and allow normal chaining. Selector
+descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; selector/random values advance once when
-the command completes. X1 and X10 are implemented so far. Other valid selectors
+the command completes. X1, X10 and X12 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1609,6 +1610,33 @@ Physical audio and MIDI are disabled. References: 20/28/100/124/165.
 All 17 selected checks passed on native FreeBSD Release; the final full
 build completed without warnings. Full X dispatch and other selectors
 remain pending.
+
+### X12 raw physical palette groups
+
+An unscaled signed group is capped only above three. Its signed word
+base and upper bound cause groups -8193 and -24577 to read no colors.
+Every other group consumes four unscaled signed colors, using the same
+raw register service as X1 in ascending index order. Negative groups
+alias to physical registers; negative colors remain query-only. Raw
+unused bits, requested-cache independence and mono polarity follow X1.
+
+Dynamic selector payloads share the descriptor callback interface.
+Private numeric-state previews include selector evaluation; random
+operands commit once after complete acquisition. Incomplete, malformed
+or timed-out headers publish no partial palette writes, following the
+adapter's header policy. The original writes between color reads.
+No waits, flow bytes, drawing or console effects are added.
+
+`cterm_igs_palette_group` checks 67,048 group cases, including every
+signed group, all modes/status/scaling states and mixed query/write
+colors, plus input partitions, random evaluation, state retention,
+recovery and I/R/I5/reset lifetime. `syncterm_igs_palette_group` checks
+126 coherent captures across all ST modes, encodings and status choices,
+using literal RGB and pinned glyph rows to verify group order, upper
+cap, retained indexed pixels, mono polarity, no reply and reconnect.
+Audio and MIDI are disabled. References: 19/22/28/100/124/165.
+All 16 selected checks passed on native FreeBSD Release; full CMake
+builds completed without warnings. Full X dispatch and other selectors remain pending.
 
 ## Deliberate corrections
 
