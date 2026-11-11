@@ -509,6 +509,153 @@ test_offset_viewport_line_clipping(void)
 	return 0;
 }
 
+static int
+test_in_place_pixels(void)
+{
+	/* BGI colour numbers and the installed native console indexes. */
+	static const uint32_t indexes[16] = {
+		16, 20, 18, 22, 17, 21, 19, 23, 24, 28, 26, 30, 25, 29, 27, 31
+	};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {.columns = 81, .rows = 45,
+		.cell_width = 8, .cell_height = 8, .pixel_width = 648, .pixel_height = 360};
+	const uint32_t primary = ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3);
+	const uint32_t alternate = ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6);
+	const struct st_pixel_blit full_blit = {.width = 648, .height = 360, .scale_x = 1, .scale_y = 1};
+	const struct st_console_rect full = {0, 0, 648, 360};
+	st_console_t *console = NULL;
+	struct cterm_rip_raster rip;
+	struct st_pixel_buffer *base = NULL, *image = NULL, *row = NULL;
+	bool handled;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(cterm_rip_raster_init(&rip, console) == 0);
+	CHECK(st_pixel_buffer_create(&base, 648, 360, true) == 0);
+	CHECK(st_pixel_buffer_fill(base, primary, alternate) == 0);
+	CHECK(st_console_blit_pixels(console, base, NULL, &full_blit) == 0);
+	/* Reproduce the previous flood publication sequence explicitly. A
+	 * snapshot owns two planes: modifying primary does not discard alternate,
+	 * and the blitter copies that supplied alternate rather than primary. */
+	const struct st_console_rect single = {0, 0, 1, 1};
+	const struct st_pixel_blit single_blit = {.width = 1, .height = 1, .scale_x = 1, .scale_y = 1};
+	CHECK(st_console_get_pixels(&image, console, &single, false) == 0);
+	CHECK(image->alternate != NULL && image->alternate[0] == alternate);
+	image->primary[0] = 17;
+	CHECK(st_console_blit_pixels(console, image, NULL, &single_blit) == 0);
+	st_pixel_buffer_destroy(image);
+	CHECK(st_console_get_pixels(&image, console, &single, false) == 0);
+	CHECK(image->primary[0] == 17 && image->alternate[0] == alternate);
+	/* v1.10a explicitly removes that plane before publication. */
+	st_pixel_buffer_remove_alternate(image);
+	CHECK(st_console_blit_pixels(console, image, NULL, &single_blit) == 0);
+	st_pixel_buffer_destroy(image);
+	CHECK(st_console_get_pixels(&image, console, &single, false) == 0);
+	CHECK(image->primary[0] == 17 && image->alternate[0] == 17);
+	st_pixel_buffer_destroy(image);
+	CHECK(st_console_blit_pixels(console, base, NULL, &full_blit) == 0);
+	rip.viewport.sx = 9; rip.viewport.sy = 7; rip.viewport.ex = 15; rip.viewport.ey = 12;
+	cterm_rip_raster_fill_style(&rip, 1, 4);
+	cterm_rip_raster_bar(&rip, 0, 0, 6, 5);
+	CHECK(rip.error == 0 && rip.drawing_pixels == NULL && rip.drawing_damage == NULL);
+	CHECK(st_console_get_pixels(&image, console, &full, false) == 0);
+	for (unsigned y = 0; y < 360; ++y) for (unsigned x = 0; x < 648; ++x) {
+		bool painted = x >= 9 && x <= 15 && y >= 7 && y <= 12;
+		CHECK(image->primary[y * 648 + x] == (painted ? 17 : primary));
+		CHECK(image->alternate[y * 648 + x] == (painted ? 17 : alternate));
+	}
+	st_pixel_buffer_destroy(image);
+	/* Preserve the legacy unscaled XOR read and independently rounded write.
+	 * Virtual X=21 and X=22 both write physical X=11; the latter wins. */
+	rip.viewport.sx = rip.viewport.sy = 0; rip.viewport.ex = 1279; rip.viewport.ey = 699;
+	rip.x_dim = 1280; rip.y_dim = 700;
+	base->primary[20 * 648 + 20] = indexes[4];
+	base->primary[20 * 648 + 21] = indexes[5];
+	base->primary[20 * 648 + 22] = indexes[6];
+	CHECK(st_console_blit_pixels(console, base, NULL, &full_blit) == 0);
+	rip.colour = 2; rip.xor_mode = true;
+	cterm_rip_raster_line(&rip, 20, 20, 22, 20);
+	CHECK(rip.error == 0);
+	CHECK(cterm_rip_raster_invert_rectangle(&rip, 10, 10, 12, 11) == 0);
+	CHECK(st_console_get_pixels(&image, console, &full, false) == 0);
+	for (unsigned y = 0; y < 360; ++y) for (unsigned x = 0; x < 648; ++x) {
+		uint32_t ink = x == 10 && y == 10 ? 28u : x == 11 && y == 10 ? 30u : 0;
+		CHECK(image->primary[y * 648 + x] == (ink ? ink : base->primary[y * 648 + x]));
+		CHECK(image->alternate[y * 648 + x] == (ink ? ink : base->alternate[y * 648 + x]));
+	}
+	st_pixel_buffer_destroy(image);
+	rip.x_dim = rip.x_max = 640; rip.y_dim = rip.y_max = 350;
+	rip.viewport.ex = 639; rip.viewport.ey = 349;
+	rip.xor_mode = false;
+	/* Duplicate visible RGB values must not merge distinct indexed colours. */
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'a', "0400", &handled) == 0 && handled);
+	CHECK(st_pixel_buffer_create(&rip.clipboard, 256, 1, false) == 0);
+	CHECK(st_pixel_buffer_create(&row, 256, 1, true) == 0);
+	const struct st_pixel_blit row_blit = {.width = 256, .height = 1,
+		.destination_x = 10, .destination_y = 50, .scale_x = 1, .scale_y = 1};
+	for (unsigned mode = 1; mode <= 4; ++mode) for (unsigned rgb = 0; rgb < 2; ++rgb) {
+		for (unsigned at = 0; at < 256; ++at) {
+			rip.clipboard->primary[at] = indexes[at / 16];
+			row->primary[at] = indexes[at % 16];
+			row->alternate[at] = indexes[(at + 3) % 16];
+		}
+		/* RGB fallback: an unrecognized RGB maps to 0; native extended
+		 * default colour 18 is literal 0x202020 before Boolean masking. */
+		if (rgb) {
+			rip.clipboard->primary[0] = primary;
+			rip.clipboard->primary[1] = ST_PIXEL_COLOR_RGB_VALUE(32, 32, 32);
+			row->primary[2] = primary;
+			row->alternate[3] = ST_PIXEL_COLOR_RGB_VALUE(32, 32, 32);
+		}
+		CHECK(st_console_blit_pixels(console, base, NULL, &full_blit) == 0);
+		CHECK(st_console_blit_pixels(console, row, NULL, &row_blit) == 0);
+		char arguments[8];
+		snprintf(arguments, sizeof(arguments), "0A1E0%u0", mode);
+		CHECK(cterm_rip_raster_command(&rip, 1, 0, 'P', arguments, &handled) == 0 && handled);
+		CHECK(rip.drawing_pixels == NULL && rip.drawing_damage == NULL);
+		CHECK(st_console_get_pixels(&image, console, &full, false) == 0);
+		for (unsigned y = 0; y < 360; ++y) for (unsigned x = 0; x < 648; ++x) {
+			uint32_t expected[2] = {base->primary[y * 648 + x], base->alternate[y * 648 + x]};
+			if (y == 50 && x >= 10 && x < 266) {
+				unsigned at = x - 10, src = rgb && at == 0 ? 0 : rgb && at == 1 ? 18 : at / 16;
+				unsigned dst[2] = {rgb && at == 2 ? 0 : at % 16, rgb && at == 3 ? 18 : (at + 3) % 16};
+				for (unsigned phase = 0; phase < 2; ++phase) {
+					unsigned value = mode == 1 ? src ^ dst[phase] : mode == 2 ? src | dst[phase]
+					    : mode == 3 ? src & dst[phase] : src ^ 15;
+					expected[phase] = indexes[value & 15];
+				}
+			}
+			if (image->primary[y * 648 + x] != expected[0])
+				fprintf(stderr, "paste mode %u at %u,%u: %u expected %u\n", mode, x, y,
+				    image->primary[y * 648 + x], expected[0]);
+			CHECK(image->primary[y * 648 + x] == expected[0]);
+			CHECK(image->alternate[y * 648 + x] == expected[1]);
+		}
+		st_pixel_buffer_destroy(image);
+	}
+	/* Flood uses a viewport view with the full raster stride. v1.10a's
+	 * single-plane publication synchronizes the entire viewport, including
+	 * its untouched border. Separate phases outside the viewport survive. */
+	CHECK(st_pixel_buffer_fill(base, primary, alternate) == 0);
+	for (unsigned y = 7; y <= 12; ++y) for (unsigned x = 9; x <= 15; ++x)
+		base->primary[y * 648 + x] = x == 9 || x == 15 || y == 7 || y == 12 ? 22 : 16;
+	CHECK(st_console_blit_pixels(console, base, NULL, &full_blit) == 0);
+	rip.viewport.sx = 9; rip.viewport.sy = 7; rip.viewport.ex = 15; rip.viewport.ey = 12;
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'F', "010103", &handled) == 0 && handled);
+	CHECK(st_console_get_pixels(&image, console, &full, false) == 0);
+	for (unsigned y = 0; y < 360; ++y) for (unsigned x = 0; x < 648; ++x) {
+		bool painted = x > 9 && x < 15 && y > 7 && y < 12;
+		bool inside = x >= 9 && x <= 15 && y >= 7 && y <= 12;
+		uint32_t expected = painted ? 17 : base->primary[y * 648 + x];
+		CHECK(image->primary[y * 648 + x] == expected);
+		CHECK(image->alternate[y * 648 + x] == (inside ? expected : alternate));
+	}
+	st_pixel_buffer_destroy(image);
+	st_pixel_buffer_destroy(base);
+	st_pixel_buffer_destroy(row);
+	cterm_rip_raster_destroy(&rip);
+	st_console_destroy(console);
+	return 0;
+}
+
 int
 st_cterm_rip_raster_test_main(void)
 {
@@ -530,6 +677,7 @@ st_cterm_rip_raster_test_main(void)
 	size_t bitmap_size;
 	bool handled;
 
+	CHECK(test_in_place_pixels() == 0);
 	CHECK(test_offset_viewport_line_clipping() == 0);
 	CHECK(test_initial_borders() == 0);
 	CHECK(test_reserved_fields_required() == 0);

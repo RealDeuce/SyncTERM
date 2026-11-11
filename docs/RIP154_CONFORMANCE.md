@@ -16,7 +16,7 @@ The ten `syncterm_rip154_*` suites exercise the ordinary executable over private
 loopback Raw connections in CP437 and UTF-8. They use a 640x350 80x43 starting
 screen, disable physical audio with `AudioModes=0`, and need no display server,
 DOSBox, RIPterm installation, external corpus, Pillow, or network service.
-Rendering checks resolve the primary pixel plane and palette from one coherent
+Rendering checks resolve both pixel planes and palette from one coherent
 control checkpoint. Wire replies fence parsing; injected input is awaited on the
 connection before a capture. No timing sleeps or packet-boundary assumptions are
 used. Failed cases retain their identifier, input/reply bytes, snapshot and PPM
@@ -37,6 +37,56 @@ disconnected/offline history, with status on/off. These literal expectations
 are separate from the historical DOS captures and do not change their provenance.
 The native bitmap clear/draw/status regression also protects explicit RIP pixel
 rasters from a stale pending text redraw; no RIP wire semantics are changed.
+
+## Raster edits and blink phases
+
+RIP primitives edit the console raster under its write lock. A drawing command
+borrows the normalized framebuffer once; line, stroke-font and curve walkers
+reuse that view instead of locking or allocating at every pixel. XOR retains
+the legacy unscaled source read and independently mapped destination write.
+Bars, viewport erasure, polygon/ellipse fills and filled poly-Béziers no longer
+allocate canvas-sized output images or masks. The poly-Bézier crossing marks,
+polygon intersection storage and bounded flood seed stack remain part of their
+documented raster algorithms. Damage covers the pixels painted, rather than a
+full masked source image.
+
+The fixed BGI palette-index bank 16–31 permutes colour bits, so native Boolean
+blits can operate directly on indexed pixels even when two palette entries have
+the same RGB. Palette publication updates the contiguous bank in one console
+call instead of sixteen separate updates. RGB reverse lookup remains only where the input is actually RGB
+or otherwise outside that native bank. Boolean paste and inversion edit their
+destination rectangles in place. File loading and clipboard/screen snapshots
+retain owned buffers because their pixels must outlive drawing; file I/O stays
+outside the console lock. Independent button strokes/glyphs borrow the raster
+for their operation, while isolated corner points use the single-pixel API.
+
+Non-blinking graphics must be painted into both blink phases. Source buffers
+without an alternate plane are copied to both destinations; a supplied alternate
+is copied verbatim, with no per-plane modification tracking. Sixel and decoded
+icons use the former contract. Saved screens and captured images preserve both
+phases, including any captured blinking text. The SkyPix and shared console
+drawing paths also explicitly write both phases or retain their saved originals.
+
+SyncTERM v1.10a (`d2ef8842b2`, `src/syncterm/ripper.c:13636`) explicitly calls
+`FREE_AND_NULL(pix->pixelsb)` before publishing a flood fill. Its bitmap blitter
+then copies the filled primary image to **both** screens across the entire
+viewport, including the border and other pixels outside the filled region.
+That plane removal was lost in the modern port. The in-place flood path now
+restores v1.10a's result by synchronizing the live alternate viewport from
+primary after filling, without capturing and republishing the framebuffer.
+The seed/scanline algorithm and its intentional RIPterm compatibility quirks
+remain unchanged.
+
+`cterm_rip_raster` checks separate native/RGB phases on a 648x360 raster, offset
+viewports, world-coordinate XOR ordering, RGB-preserving inversion, all 256
+source/destination indexed pairs for Boolean paste, RGB fallback and duplicate
+palette RGB values. It checks both source-plane publication contracts and the
+legacy flood synchronization, including unchanged phases outside its viewport.
+The live `packed-raster-edits` wire case checks both phases, palette and geometry
+in one reply-fenced capture: clipped offset fills/XOR, Boolean clipboard modes,
+flood-filled interior/border, and bottom padding pixels below the text grid.
+Every historical graphics scene below is compared against the same independent
+reference in **both** phases, with its original UI exclusions intact.
 
 ## Historical reference captures
 

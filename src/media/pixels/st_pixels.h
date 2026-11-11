@@ -110,6 +110,9 @@ int st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
  * Blits clip against the destination. The mask, when present, addresses the
  * same unscaled source pixels and is flipped with them. If source has an
  * alternate plane, destination acquires one before any pixels are changed.
+ * A missing source alternate copies primary into both destination planes.
+ * A supplied alternate is copied verbatim, regardless of which source plane
+ * was modified; buffers have no per-plane modification tracking.
  */
 int st_pixel_buffer_blit(struct st_pixel_buffer *destination,
 	const struct st_pixel_buffer *source, const struct st_pixel_mask *mask,

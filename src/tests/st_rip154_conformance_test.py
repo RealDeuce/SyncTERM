@@ -13,12 +13,12 @@ from st_terminal_conformance_test import Terminal, ESC
 DATA = Path(__file__).with_name("rip154")
 
 
-def rgb6(frame):
+def rgb6(frame, phase="primary"):
     m = frame.metadata
     assert m["plane_width"] == 640 and m["plane_height"] >= 350, m
     # Resolve palette entries from the SAME checkpoint as the pixel plane.
     rgb = (pixel if pixel & 0x80000000 else frame.palette[pixel]
-           for pixel in frame.primary[:640 * 350])
+           for pixel in getattr(frame, phase)[:640 * 350])
     return bytes((pixel >> shift) & 63 for pixel in rgb for shift in (18, 10, 2))
 
 
@@ -42,16 +42,17 @@ def capture_cases(args):
                 # CR terminates RIP wire commands; LF alone is tested separately.
                 wire = wire.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
                 frame = t.exchange(b"\r!|*\r\n" + wire + b"\r\n!|#\r\n")
-                actual = rgb6(frame)
                 capture_ui = {y * 640 + x for left, top, width, height in row["capture_ui_rectangles"]
                               for y in range(top, top + height) for x in range(left, left + width)}
-                differences = [i for i in range(640 * 350) if i not in capture_ui
-                               and actual[i*3:i*3+3] != expected[i*3:i*3+3]]
-                if differences:
-                    first = differences[0]
-                    raise AssertionError((row["id"], len(differences), "pixel differences; first",
-                                          first % 640, first // 640,
-                                          actual[first*3:first*3+3].hex(), expected[first*3:first*3+3].hex()))
+                for phase in ("primary", "alternate"):
+                    actual = rgb6(frame, phase)
+                    differences = [i for i in range(640 * 350) if i not in capture_ui
+                                   and actual[i*3:i*3+3] != expected[i*3:i*3+3]]
+                    if differences:
+                        first = differences[0]
+                        raise AssertionError((row["id"], phase, len(differences), "pixel differences; first",
+                                              first % 640, first // 640,
+                                              actual[first*3:first*3+3].hex(), expected[first*3:first*3+3].hex()))
                 print("PASS " + row["id"], flush=True)
         except Exception as error:
             failures.append(str(error))
@@ -146,6 +147,42 @@ def wire_cases(t):
     frame = scene(t, b"!|fM8JG|X2S2S\r\n")
     assert pixel(frame, 80, 50) == 0xffffff
     assert pixel(frame, 100, 100) == 0
+    t.case("packed-raster-edits")
+    # BGI colour 4 now has the same visible RGB as colour 0. XOR must
+    # still use its indexed bits, with repeated writes cancelling exactly.
+    commands = (b"!|a0400|v" + point(100, 40) + point(109, 49)
+                + b"|S0102|B" + point(0, 0) + point(9, 9)
+                + b"|c04|W1|L" + point(0, 5) + point(9, 5)
+                + b"|L" + point(2, 5) + point(7, 5)
+                + b"|c01|L" + point(0, 9) + point(12, 9)
+                + b"|1C" + point(0, 0) + point(1, 1) + b"0"
+                + b"|v0000HR9P")
+    for x, mode in ((200, 1), (204, 4), (208, 3), (212, 2)):
+        commands += b"|1P" + point(x, 40) + mega(mode) + b"0"
+    commands += (b"|v" + point(300, 40) + point(309, 49) + b"|c03|W0|R"
+                 + point(0, 0) + point(9, 9) + b"|S0106|F010103|v0000HR9P")
+    commands += b"|S010A|B" + point(638, 348) + point(639, 349) + b"\r\n"
+    frame = scene(t, commands)
+    m = frame.metadata
+    assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (80, 43, 8, 8)
+    assert frame.palette[16] == frame.palette[17] == 0
+    assert frame.palette[19] == 0xaa5500
+    for phase in ("primary", "alternate"):
+        plane = getattr(frame, phase)
+        for y in range(32, 64):
+            for x in range(90, 320):
+                expected = 16
+                if 100 <= x <= 109 and 40 <= y <= 49:
+                    expected = 22 if y == 49 else 19 if y == 45 and x in (100, 101, 108, 109) else 18
+                elif 300 <= x <= 309 and 40 <= y <= 49:
+                    expected = 22 if x in (300, 309) or y in (40, 49) else 19
+                elif y in (40, 41):
+                    if x in (200, 201, 212, 213): expected = 18
+                    elif x in (204, 205): expected = 29
+                assert plane[y * 640 + x] == expected, (phase, x, y, plane[y * 640 + x], expected)
+        for y in (348, 349):
+            for x in range(640):
+                assert plane[y * 640 + x] == (26 if x >= 638 else 16), (x, y)
     t.case("bezier-zero-count")
     # Historical RIPterm residual/default count, documented in
     # rip_test/thick_xor_research.md; it is not an empty curve.

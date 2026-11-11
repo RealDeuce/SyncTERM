@@ -718,6 +718,8 @@ int st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
  * borrowed buffer must not be retained, resized or freed, and edit must not
  * call console APIs. Set changed to the bounding rectangle of all writes
  * (initially empty), including writes made before returning an error.
+ * Static graphics must write both planes; this API does not synthesize an
+ * alternate plane from primary writes or track per-plane modifications.
  * Changes are published even when edit fails; there is no rollback.
  */
 int st_console_modify_pixels(st_console_t *console,

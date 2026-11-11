@@ -484,6 +484,10 @@ RIPterm 1.54 compatibility has a separate [historical regression inventory](RIP1
 including reference rasters, parser boundaries, button interaction and capture UI context.
 Its CP437/UTF-8 interaction tests also check host-command templates, local playback
 variables and pick-list input with coherent screen restoration.
+RIP raster checks compare both blink phases against the historical graphics
+references and add literal packed-index, viewport/stride, RGB fallback and
+clipboard expectations. Flood fill restores v1.10a's two-phase viewport output;
+the single-plane-source blit contract is checked explicitly.
 
 Failures print the case identifier and retain the outgoing input, exact reply
 bytes, case trace, coherent snapshot and PPM under the build's

@@ -110,11 +110,15 @@ struct cterm_rip_raster {
 	uint8_t fill_pattern[8];
 	int fill_colour;
 	int fill_style;
+	/* Fixed BGI-to-console index mapping; palette commands change slot RGB. */
 	uint32_t palette[16];
 	uint8_t master_palette[16];
 	struct cterm_rip_button_style button_style;
 	/* Active only while rasterizing a filled poly-Bézier. */
 	uint8_t *poly_fill_marks;
+	/* Borrowed only inside a console raster edit; never owned or retained. */
+	const struct st_pixel_buffer *drawing_pixels;
+	struct st_console_rect *drawing_damage;
 	int error;
 };
 
