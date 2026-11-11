@@ -135,9 +135,50 @@ cterm_vt52_home(struct cterminal *cterm, int *speed)	/* ESC H */
 }
 
 static void
+cterm_vt52_scroll_rows(struct cterminal *cterm, int row, int next_x, bool down)
+{
+	int left = CURR_MINX, top = row, right = CURR_MAXX, bottom = CURR_MAXY;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &left, &top);
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &right, &bottom);
+	uint32_t background = cterm_vt52_background_color(cterm);
+	cterm_vt52_render_cursor(cterm, CTERM_CURSOR_HIDDEN);
+	bool moved;
+	if (top == bottom) {
+		int status = cterm_render_fill_blank(cterm, left, top, right, bottom, background);
+		cterm_render_record_error(cterm, status);
+		moved = status == 0;
+	} else {
+		struct st_console_cell blank;
+		int status = cterm_render_make_current_cell(cterm, &blank, ' ', 0);
+		cterm_render_record_error(cterm, status);
+		blank.background = background;
+		int source_top = down ? top : top + 1;
+		int source_bottom = down ? bottom - 1 : bottom;
+		int destination_top = down ? top + 1 : top;
+		moved = status == 0 && cterm_render_move_cells_clear(cterm,
+		    left, source_top, right, source_bottom, left, destination_top, &blank);
+	}
+	if (moved) {
+		if (!down)
+			cterm_text_scrolled(cterm, top, bottom);
+		cterm_render_set_position(cterm, next_x, row);
+	}
+	cterm_vt52_render_cursor(cterm, cterm->cursor);
+}
+
+static void
 cterm_vt52_reverse_lf(struct cterminal *cterm, int *speed)	/* ESC I */
 {
 	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		int x, y;
+		CURR_XY(&x, &y);
+		if (y == CURR_MINY)
+			cterm_vt52_scroll_rows(cterm, y, x, true);
+		else
+			cterm_render_set_position(cterm, x, y - 1);
+		return;
+	}
 	cterm_adjust_currpos(cterm, 0, -1, 1);
 }
 
@@ -281,6 +322,11 @@ cterm_vt52_insert_line(struct cterminal *cterm, int *speed)	/* ESC L */
 {
 	int x, y, x2, y2, maxx, maxy;
 	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		CURR_XY(NULL, &y);
+		cterm_vt52_scroll_rows(cterm, y, CURR_MINX, true);
+		return;
+	}
 
 	TERM_XY(&x, &y);
 	if (y < TERM_MINY || y > TERM_MAXY || x < TERM_MINX || x > TERM_MAXX)
@@ -308,29 +354,7 @@ cterm_vt52_delete_line(struct cterminal *cterm, int *speed)	/* ESC M */
 
 	int y;
 	CURR_XY(NULL, &y);
-	int left = CURR_MINX, top = y, right = CURR_MAXX, bottom = CURR_MAXY;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &left, &top);
-	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &right, &bottom);
-	uint32_t background = cterm_vt52_background_color(cterm);
-	cterm_vt52_render_cursor(cterm, CTERM_CURSOR_HIDDEN);
-	bool erased;
-	if (top == bottom) {
-		int status = cterm_render_fill_blank(cterm, left, top, right, bottom, background);
-		cterm_render_record_error(cterm, status);
-		erased = status == 0;
-	} else {
-		struct st_console_cell blank;
-		int status = cterm_render_make_current_cell(cterm, &blank, ' ', 0);
-		cterm_render_record_error(cterm, status);
-		blank.background = background;
-		erased = status == 0 && cterm_render_move_cells_clear(cterm,
-		    left, top + 1, right, bottom, left, top, &blank);
-	}
-	if (erased) {
-		cterm_text_scrolled(cterm, top, bottom);
-		cterm_render_set_position(cterm, CURR_MINX, y);
-	}
-	cterm_vt52_render_cursor(cterm, cterm->cursor);
+	cterm_vt52_scroll_rows(cterm, y, CURR_MINX, false);
 }
 
 static void

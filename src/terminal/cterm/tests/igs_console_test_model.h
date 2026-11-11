@@ -34,6 +34,23 @@ model_scroll_up(struct model *m, unsigned top)
 }
 
 static void
+model_scroll_down(struct model *m, unsigned top)
+{
+	unsigned kept = 0;
+	for (unsigned i = 0; i < m->count; ++i) {
+		if (m->cells[i].y == m->rows - 1)
+			continue;
+		if (m->cells[i].y >= top)
+			++m->cells[i].y;
+		m->cells[kept++] = m->cells[i];
+	}
+	m->count = kept;
+	for (unsigned row = m->rows - 1; row > top; --row)
+		m->backgrounds[row] = m->backgrounds[row - 1];
+	m->backgrounds[top] = m->bg;
+}
+
+static void
 model_down(struct model *m)
 {
 	if (m->y + 1 < m->rows)
@@ -57,11 +74,18 @@ model_byte(struct model *m, uint8_t byte)
 		else if (byte == 'C' && m->x+1 < m->columns) ++m->x;
 		else if (byte == 'D' && m->x != 0) --m->x;
 		else if (byte == 'H') m->x = m->y = 0;
-		else if (byte == 'M') {
+		else if (byte == 'I') {
+			if (m->y == 0)
+				model_scroll_down(m, 0);
+			else
+				--m->y;
+		} else if (byte == 'L') {
+			model_scroll_down(m, m->y);
+			m->x = 0;
+		} else if (byte == 'M') {
 			model_scroll_up(m, m->y);
 			m->x = 0;
-		}
-		else if (byte == 'p') m->reverse = true;
+		} else if (byte == 'p') m->reverse = true;
 		else if (byte == 'q') m->reverse = false;
 		else if (byte == 'v') m->wrap = true;
 		else if (byte == 'w') m->wrap = false;

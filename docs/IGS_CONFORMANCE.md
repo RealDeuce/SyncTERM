@@ -1530,6 +1530,25 @@ It verifies original glyphs, moved graphics, RGB, cursor overlay and
 reconnect.
 All 21 targeted checks passed on native FreeBSD Release.
 
+### i reverse index and line insertion
+
+Selector zero and values above one repeat VT52 ESC I, one repeats
+ESC L, and negative selectors repeat ESC alone. Counts at or below
+zero execute once. Reverse index retains the column while moving up.
+At the top it scrolls down and blanks the first row in the raw
+background. Line insertion scrolls down from the current row and
+moves to column zero. Both indexed phases and cell metadata move
+together, while status and scrollback are retained.
+
+`cterm_igs_insert_lines` checks 938 source-derived scenes, including
+maximum counts, pending parameters and ESC parity, plus focused
+partition and recovery cases. `syncterm_igs_insert_lines` checks 126
+coherent captures across all ST modes, Atari ST, CP437 and UTF-8,
+and both status choices. It shares the deletion fixture's graphics
+recipe and checks indexed movement, literal glyphs, RGB, cursor
+overlay and reconnect.
+All 22 targeted checks passed on native FreeBSD Release.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on

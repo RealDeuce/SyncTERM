@@ -160,6 +160,8 @@
         "syncterm_igs_screen_erase",
         "cterm_igs_delete_lines",
         "syncterm_igs_delete_lines",
+        "cterm_igs_insert_lines",
+        "syncterm_igs_insert_lines",
         "st_console_bitmap",
         "st_console_scheduler"
       ],
@@ -203,7 +205,8 @@
         "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native w test failed before implementation. All 17 targeted CTest checks passed in 30.61 seconds, including native and application w, console, resolution, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native and 90-capture application w checks took 0.77 and 17.03 seconds. Verified literal A/c/v/w rows, pinned source hashes, active test registration and all 63 ledger IDs with 34 complete entries.",
         "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native l test failed before implementation. All 20 targeted CTest checks passed in 36.92 seconds, including native and application l, console, resolution, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native and 90-capture application l checks took 1.36 and 17.13 seconds. Verified original TOS glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 35 complete entries.",
         "Native FreeBSD Release configure and full builds with /usr/bin/cc passed without warnings. The native s test failed before implementation. All 24 targeted tests passed across two runs. The first run passed 23 checks, including the application s suite with 126 captures in 17.93 seconds. The native s rerun passed in 2.00 seconds after correcting the fixture to expect the scrollback row copy count and adding the VDI history check. The targeted suite includes IGS console, native and application scrollback, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. Verified original TOS glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 36 complete entries.",
-        "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native d test failed before implementation. All 21 targeted CTest checks passed in 33.93 seconds, including native and application d, IGS console, graphics scrollback, history, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. The native and 90-capture application d checks took 1.26 and 17.16 seconds. Verified literal A/M glyph rows, pinned source hashes, test registration and all 63 ledger IDs with 37 complete entries."
+        "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native d test failed before implementation. All 21 targeted CTest checks passed in 33.93 seconds, including native and application d, IGS console, graphics scrollback, history, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. The native and 90-capture application d checks took 1.26 and 17.16 seconds. Verified literal A/M glyph rows, pinned source hashes, test registration and all 63 ledger IDs with 37 complete entries.",
+        "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native i test failed before implementation and the refactored d oracle passed. All 22 targeted CTest checks passed in 36.74 seconds, including native and application i/d, IGS console, graphics scrollback, history, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. The native and 126-capture application i checks took 2.50 and 18.69 seconds. Verified literal A/L/M glyph rows, pinned source hashes, shared test registration and all 63 ledger IDs with 38 complete entries."
       ],
       "commit": null,
       "operations": [
@@ -243,7 +246,8 @@
         "w uses existing VT52 wrap state and immediate placement. Edge overwrite, row advancement and graphics-preserving scroll share the existing console renderer.",
         "l and raw VT52 l/o/K erase inclusive ranges in both indexed phases using the raw background. Whole-line erasure moves using the incoming hide depth with host bounds.",
         "s uses native VT52 E/d/J raw-background screen erasure and a separate VDI clear to physical index zero. Preserve console byte composition and scrollback through the existing output and history paths.",
-        "d shares the repeated escape emitter with m. The VT52 M handler moves retained cells and both indexed phases and fills the exposed bottom row with the raw background."
+        "d shares the repeated escape emitter with m. The VT52 M handler moves retained cells and both indexed phases and fills the exposed bottom row with the raw background.",
+        "i shares the repeated escape emitter and the VT52 row movement used by d. Reverse index retains the column and scrolls at the top, while insertion scrolls from the current row and moves to column zero."
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -1945,7 +1949,7 @@
       "verification": [
         "The native test failed before implementation. Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. All 21 targeted CTest checks passed in 33.93 seconds. The native and application d checks took 1.26 and 17.16 seconds respectively. Verified TOS A/M glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 37 complete entries."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "53e4f92"
     },
     {
       "id": "i",
@@ -1953,16 +1957,39 @@
       "references": [
         "04-text-console.adoc",
         "14-console-commands.adoc",
-        "15-graphics-commands.adoc"
+        "66-native-console-pixels.adoc",
+        "124-native-random-source.adoc",
+        "160-console-acceptance.adoc",
+        "195-delivery-console.adoc"
       ],
       "order": 38,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "c",
+        "p",
+        "m",
+        "v",
+        "w",
+        "d"
+      ],
+      "operations": [
+        "Acquire signed unscaled selector and count. Zero and values above one emit ESC I, one emits ESC L, and negatives emit ESC alone through the shared repeat emitter. Counts at or below zero execute once.",
+        "Reverse index moves up while retaining the column. At the top it scrolls the drawable screen down and blanks the first row with the raw background. Line insertion scrolls down from the current row and moves to column zero.",
+        "Reuse VT52 row movement for insertion, top-edge reverse index and deletion. Move retained cells and both indexed phases together and preserve status, scrollback, raw colors, reverse, palette, VDI attributes and Drawto.",
+        "Check 433 indexed scroll scenes and 505 pending console compositions, including maximum counts and ESC parity, plus partitions, random acquisition, EOF, timeout, invalid input, renderer recovery and history.",
+        "Share the independent native row oracle and application graphics recipe with d. Verify 126 coherent application captures across all ST modes, Atari ST, CP437 and UTF-8 and both status choices with audio and MIDI disabled. Check literal glyphs, indexed phases, RGB, cursor overlay, no replies and raw ESC I after reconnect."
+      ],
+      "tests": [
+        "cterm_igs_insert_lines",
+        "syncterm_igs_insert_lines"
+      ],
       "deviations": [],
-      "verification": [],
-      "commit": null
+      "verification": [
+        "The native test failed before implementation while the shared d oracle passed. Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. All 22 targeted CTest checks passed in 36.74 seconds. The native and application i checks took 2.50 and 18.69 seconds respectively. Verified TOS A/L/M glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 38 complete entries."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "t",

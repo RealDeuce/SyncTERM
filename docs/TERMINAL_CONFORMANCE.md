@@ -170,6 +170,10 @@ palette preservation, pending state, scrollback and reconnect.
 `d` adds repeated VT52 line deletion. Its 433 native scenes and 90
 application captures cover signed counts, pending state, indexed text
 and graphics movement, raw background, cursor, history and reconnect.
+`i` adds repeated reverse index and line insertion through the same
+VT52 state and indexed row movement. Its 938 native scenes and 126
+application captures cover top and bottom edges, signed counts,
+pending input, raw background, cursor and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

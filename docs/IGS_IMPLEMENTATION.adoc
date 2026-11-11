@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s and d commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d and i commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2557,4 +2557,40 @@ The new native test failed before implementation. The native FreeBSD
 Release build with /usr/bin/cc passed without warnings. All 21 targeted
 CTest checks passed in 33.93 seconds. The native and application checks
 for d took 1.26 and 17.16 seconds respectively. The ledger records 37
-complete entries. Completion commit will be recorded by the next step.
+complete entries. Completion commit `53e4f92`.
+
+=== i reverse index and line insertion
+
+Both selector and count are signed unscaled operands. Selector zero and
+values above one emit VT52 ESC I. One emits ESC L and negative selectors
+emit only ESC. The shared repeated-escape emitter runs once for counts
+at or below zero and once per positive count. Each repetition starts in
+the console state left by previous bytes, including raw parameters and
+an odd or even number of ESC-only emissions.
+
+Reverse index moves up one row, retaining the column. At the top it
+scrolls the drawable screen down one row and blanks that row in the raw
+background, retaining the cursor coordinates. Line insertion scrolls
+down from the cursor's row and moves to column zero of that row. Both
+indexed phases and retained cells move together. The shared VT52 row
+movement serves insertion, top-edge reverse index and deletion. These
+operations retain the status row and scrollback.
+
+The native fixture checks 433 indexed scroll scenes and 505 pending
+console compositions, plus focused partitions, random acquisition,
+EOF, timeout, invalid input, renderer recovery and history. Insertion
+and deletion share a source-derived row oracle with distinct indexed
+phases. The application fixtures share a literal glyph and graphics
+recipe and a directional row oracle. The i fixture checks 126 coherent
+captures across all ST modes, Atari ST, CP437 and UTF-8, and both status
+choices, with audio and MIDI disabled. It covers movement, raw
+background, cursor overlay, pending L as a glyph, no replies and raw
+ESC I after reconnect.
+
+References include chapters 04, 14, 66, 124, 160 and 195.
+The new native test failed before implementation while the shared d
+oracle passed. Native FreeBSD Release configure and full build with
+/usr/bin/cc passed without warnings. All 22 targeted CTest checks
+passed in 36.74 seconds. The native and application i checks took
+2.50 and 18.69 seconds respectively. The ledger records 38 complete
+entries. Completion commit will be recorded by the next step.

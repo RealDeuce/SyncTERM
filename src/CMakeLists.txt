@@ -377,9 +377,14 @@ if(BUILD_TESTING)
 			set_tests_properties(syncterm_igs_screen_erase PROPERTIES
 				TIMEOUT 120 LABELS "terminal;conformance;igs")
 			add_test(NAME syncterm_igs_delete_lines
-				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_delete_lines_test.py
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_console_scroll_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_igs_delete_lines PROPERTIES
+				TIMEOUT 120 LABELS "terminal;conformance;igs")
+			add_test(NAME syncterm_igs_insert_lines
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_console_scroll_test.py
+					$<TARGET_FILE:syncterm_app> --insert --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_igs_insert_lines PROPERTIES
 				TIMEOUT 120 LABELS "terminal;conformance;igs")
 			add_test(NAME syncterm_igs_text
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_text_test.py
