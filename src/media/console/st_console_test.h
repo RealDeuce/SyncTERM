@@ -15,7 +15,7 @@ struct st_console_test_field {
 };
 
 struct st_console_test_application {
-	struct st_console_test_field fields[128];
+	struct st_console_test_field fields[256];
 	size_t count;
 	int error;
 };

@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q and G commands and X0, X1, X2, X7, X10, X11, X12, X13 and X14 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q and G commands and X0, X1, X2, X7, X8, X10, X11, X12, X13 and X14 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10, X11, X12, X13 and X14
+command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X8, X10, X11, X12, X13 and X14
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -3252,4 +3252,92 @@ timeout. All 63 IDs with 49 complete entries, references/dependencies, active
 tests and pinned font/ROM identities were validated. Parallel
 graphics/dependency/emoji changes are excluded from this IGS commit.
 The ledger records 49 complete entries. X and final acceptance remain in
+progress. Completion commit `9198f03`.
+
+
+=== X8 palette rotation and snapshots
+
+X8 reads four unscaled signed words: first, last, times and delay. If either
+endpoint exceeds 15, subtract 15 from both as signed words and select raw
+registers for this command and the persistent restore choice. Otherwise use
+requested VDI colours without clearing that restore choice. Endpoints outside
+0..15 then become 15, including negative endpoints. The special 1,1,1,1
+request, tested before clamps and after decoding, captures all 16 requested
+triples and raw query words. Encoded 16,16,1,1 captures both too. There is no
+rotation wait when the endpoints are equal.
+
+For distinct endpoints and positive times, retain the reference's times+1
+passes. Query the last colour, then each adjacent source before its local
+sync wait; apply the destination write afterward. Include the extra endpoint
+query/write and final replacement from the saved colour, yielding
+abs(first-last)+2 waits per pass. Raw queries mask to 0x777 and wrap physical
+indices to four bits, including the extra -1/16 query; requested queries
+and writes use the logical pen namespace and existing VDI quantization.
+Pixels, graphical pens, Drawto, image banks and console parsing do not move.
+Palette changes recolour existing indexed pixels through the normal backend.
+
+After every pass, convert the unsigned delay word to local milliseconds at
+200 units/second. Zero delay completes without a timer. A local key is
+retained through the current rotation's sync waits, shortens the post-pass
+delay, and ends the command after that pass. Consume the first cancellation
+key without sending it remotely. Queued graphics/text bytes remain unread
+until completion; no XOFF/XON helper is called. Negative times perform no
+rotation, while times 0 restores all 16 entries from the selected snapshot,
+ignoring endpoints and delay, then clears the raw restore choice. Raw
+restore leaves the requested cache unchanged. A later ordinary restore
+therefore selects the requested snapshot. Snapshot storage begins at zero;
+I/R preserve it and the restore choice; full reset/reconnect clear both.
+EOF or a host error cancels unfinished rotation, retaining completed writes
+and snapshots; a failed poll-clock read leaves the wait retryable.
+
+Port corrections: use local deadlines rather than low-word foreign-clock
+wrap, count passes in the host domain so times 32767 terminates after 32768
+passes and cancellation also works at 32766/32767. Preserve native invalid
+requested-query retention within the command, starting that output triple
+at zero rather than using unspecified shared VDI scratch from another
+command. Never read an out-of-range host pen or invent a clamped query.
+The serial snapshot namespace is sufficient for the selected accessory
+serial target; containing nested-script/loop execution is tracked by its
+unfinished commands. No CPU cycles or foreign interrupt schedule are modeled.
+
+The native palette_rotation test uses an independent integer palette model
+for 2022 range/mode/delay cases: canonical endpoints in both directions and
+namespaces, mixed/negative/encoded endpoints, all ST resolutions, 50/60/1000-Hz
+local sync conversions and zero/positive/unsigned-negative delays. It checks
+every intermediate palette write, actual backend palette and unchanged full
+indexed phases, including retained off-screen data and status clipping.
+Further checks cover both snapshot representations, restore before capture,
+sticky raw selection, requested-cache preservation, restore after a mode
+change, I/R/reset/EOF lifetime, four key-entry APIs, held queries across a
+local palette change, maximum-count completion/cancellation, once-only
+random selector/operands, every focused split and bytewise chain, partial/
+invalid/timeout recovery and clock/rate/deadline-overflow failures.
+
+The application palette_rotation fixture uses independent palette algebra
+and pinned A glyphs for 288 coherent captures across all ST modes, Atari
+ST/CP437/UTF-8 and status choices. Each capture checks cells, full indexed
+phases, palette/RGB, requested/raw colour values, cursor and rotation/restore
+state together. It tests completed rotations and restores, a long post-pass
+wait with queued commands, keyboard cancellation without a remote key,
+disconnect while active and fresh zero-snapshot restore after reconnect.
+Audio and MIDI are disabled; tests require no external ROM or reference tree.
+Test-control capture capacity grows from 128 to 256 fields to accommodate
+these observations together with existing terminal/transfer state; palette
+values are grouped into two text fields.
+
+References: chapter 22's addressed X8 rotation/receiver contract, chapter 28's
+US TOS 1.04 palette query/set rules, and IG221.TXT's X8 entry.
+
+The native X8 test failed at the selector before implementation. Native
+FreeBSD Release configure and full CMake builds with /usr/bin/cc passed.
+Generated-dependency clock-skew warnings cleared in the final full build,
+which had no warnings. All 32 selected CTest regressions passed in 53.21
+seconds, including shared parser/stream, indexed images, control
+backend/protocol, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key
+forwarding, I/R/input/g/t/q/X1/X10/X11/X12/G and application S/X1/X11/X12/t
+checks. Native X8 took 1.37 seconds; application X8 separately passed all 288
+coherent captures in 76.84 seconds. Validated all 63 unique ordered IDs with
+50 complete entries, references/dependencies, active test registrations and
+pinned font/ROM identities. No parallel changes are included in this step.
+The ledger records 50 complete entries. X and final acceptance remain in
 progress. Completion commit will be recorded by the next step.

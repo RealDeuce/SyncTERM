@@ -137,6 +137,23 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		}
 		st_console_test_number(app,"cterm.igs_copy_pending",igs->copy_pending);
 		st_console_test_number(app,"cterm.igs_memory_route",igs->memory_route);
+		st_console_test_number(app,"cterm.igs_palette_rotation_active",igs->palette_rotation.active);
+		st_console_test_number(app,"cterm.igs_palette_rotation_raw",igs->palette_rotation.raw);
+		st_console_test_number(app,"cterm.igs_palette_rotation_restore_raw",igs->palette_rotation.restore_raw);
+		st_console_test_number(app,"cterm.igs_palette_rotation_delaying",igs->palette_rotation.delaying);
+		st_console_test_number(app,"cterm.igs_palette_rotation_remaining",igs->palette_rotation.remaining);
+		char raw_colors[65], requested_colors[600] = {0};
+		size_t offset = 0;
+		for (unsigned i = 0; i < 16; ++i) {
+			(void)snprintf(raw_colors+4*i,sizeof(raw_colors)-4*i,"%04x",igs->raw_palette[i]);
+			int count = snprintf(requested_colors+offset,sizeof(requested_colors)-offset,
+			    "%s%d,%d,%d",i == 0 ? "" : ",",igs->requested_palette[i][0],
+			    igs->requested_palette[i][1],igs->requested_palette[i][2]);
+			if (count < 0 || (size_t)count >= sizeof(requested_colors)-offset) break;
+			offset += (size_t)count;
+		}
+		st_console_test_text(app,"cterm.igs_raw_palette",raw_colors);
+		st_console_test_text(app,"cterm.igs_requested_palette",requested_colors);
 		st_console_test_number(app,"cterm.igs_bitmap_loading",igs->bitmap_loading);
 		st_console_test_number(app,"cterm.igs_bitmap_received",(int64_t)igs->bitmap_received);
 		st_console_test_number(app,"cterm.igs_bitmap_size",(int64_t)igs->bitmap_size);

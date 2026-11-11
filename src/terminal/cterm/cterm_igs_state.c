@@ -440,6 +440,7 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	memset(igs->memory_rect,0,sizeof(igs->memory_rect));
 	memset(igs->memory_view,0,sizeof(igs->memory_view));
 	igs->bitmap_errors = 0;
+	memset(&igs->palette_rotation,0,sizeof(igs->palette_rotation));
 	igs->attributes = igs->saved_attributes;
 	memset(igs->patterns, 0, sizeof(igs->patterns));
 	memset(igs->math, 0, sizeof(igs->math));

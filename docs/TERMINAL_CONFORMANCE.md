@@ -225,6 +225,13 @@ captures cover all ST modes, encodings/status choices, random fills, timeout
 accumulation, opaque controls, binary Telnet escaping and reconnect. The shared
 parser exposes generic raw-field observation/early completion; bitmap policy
 remains in CTerm. Physical audio and MIDI are disabled in these fixtures.
+`X8` adds requested/raw palette rotation, dual snapshots and sticky restore
+selection through the existing palette backend and local deadlines. Native
+checks verify every intermediate write across 2022 independent cases plus
+input/lifecycle/error/max-count coverage. Its 288 coherent application
+captures check unchanged indexed scenes, palette/RGB/cache state, queued
+commands, cancellation and reconnect across all ST modes/encodings/status
+choices, with audio and MIDI disabled.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

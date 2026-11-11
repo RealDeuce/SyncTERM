@@ -19,6 +19,7 @@ and `X12` changes four consecutive physical registers. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
 `X14` selects the persistent screen/memory transfer route used by `G`.
+`X8` rotates requested or raw palette colours and saves/restores both forms.
 `X11` wipes or incrementally imports native bitmap bytes into indexed memory 0,
 optionally displaying the completed or partial image.
 `X10` sets the next Drawto origin without drawing.
@@ -647,7 +648,7 @@ only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; real random operands advance once at
 complete numeric execution or entry to a stateful payload reader.
-X0, X1, X2, X7, X10, X11, X12, X13 and X14 are implemented so far. Other valid selectors
+X0, X1, X2, X7, X8, X10, X11, X12, X13 and X14 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1939,6 +1940,82 @@ on external ROMs or the reference tree.
 References: chapter 22's X11 receiver/descriptor contract, chapters 18/19 and
 IG221.TXT's X11 entry. `graphics_protocol_stream`, `cterm_igs_bitmap` and
 `syncterm_igs_bitmap` cover this step.
+
+### X8 palette rotation and snapshots
+
+X8 reads four unscaled signed words: first, last, times and delay. If either
+endpoint exceeds 15, subtract 15 from both as signed words and select raw
+registers for this command and the persistent restore choice. Otherwise use
+requested VDI colours without clearing that restore choice. Endpoints outside
+0..15 then become 15, including negative endpoints. The special 1,1,1,1
+request, tested before clamps and after decoding, captures all 16 requested
+triples and raw query words. Encoded 16,16,1,1 captures both too. There is no
+rotation wait when the endpoints are equal.
+
+For distinct endpoints and positive times, retain the reference's times+1
+passes. Query the last colour, then each adjacent source before its local
+sync wait; apply the destination write afterward. Include the extra endpoint
+query/write and final replacement from the saved colour, yielding
+abs(first-last)+2 waits per pass. Raw queries mask to 0x777 and wrap physical
+indices to four bits, including the extra -1/16 query; requested queries
+and writes use the logical pen namespace and existing VDI quantization.
+Pixels, graphical pens, Drawto, image banks and console parsing do not move.
+Palette changes recolour existing indexed pixels through the normal backend.
+
+After every pass, convert the unsigned delay word to local milliseconds at
+200 units/second. Zero delay completes without a timer. A local key is
+retained through the current rotation's sync waits, shortens the post-pass
+delay, and ends the command after that pass. Consume the first cancellation
+key without sending it remotely. Queued graphics/text bytes remain unread
+until completion; no XOFF/XON helper is called. Negative times perform no
+rotation, while times 0 restores all 16 entries from the selected snapshot,
+ignoring endpoints and delay, then clears the raw restore choice. Raw
+restore leaves the requested cache unchanged. A later ordinary restore
+therefore selects the requested snapshot. Snapshot storage begins at zero;
+I/R preserve it and the restore choice; full reset/reconnect clear both.
+EOF or a host error cancels unfinished rotation, retaining completed writes
+and snapshots; a failed poll-clock read leaves the wait retryable.
+
+Port corrections: use local deadlines rather than low-word foreign-clock
+wrap, count passes in the host domain so times 32767 terminates after 32768
+passes and cancellation also works at 32766/32767. Preserve native invalid
+requested-query retention within the command, starting that output triple
+at zero rather than using unspecified shared VDI scratch from another
+command. Never read an out-of-range host pen or invent a clamped query.
+The serial snapshot namespace is sufficient for the selected accessory
+serial target; containing nested-script/loop execution is tracked by its
+unfinished commands. No CPU cycles or foreign interrupt schedule are modeled.
+
+The native palette_rotation test uses an independent integer palette model
+for 2022 range/mode/delay cases: canonical endpoints in both directions and
+namespaces, mixed/negative/encoded endpoints, all ST resolutions, 50/60/1000-Hz
+local sync conversions and zero/positive/unsigned-negative delays. It checks
+every intermediate palette write, actual backend palette and unchanged full
+indexed phases, including retained off-screen data and status clipping.
+Further checks cover both snapshot representations, restore before capture,
+sticky raw selection, requested-cache preservation, restore after a mode
+change, I/R/reset/EOF lifetime, four key-entry APIs, held queries across a
+local palette change, maximum-count completion/cancellation, once-only
+random selector/operands, every focused split and bytewise chain, partial/
+invalid/timeout recovery and clock/rate/deadline-overflow failures.
+
+The application palette_rotation fixture uses independent palette algebra
+and pinned A glyphs for 288 coherent captures across all ST modes, Atari
+ST/CP437/UTF-8 and status choices. Each capture checks cells, full indexed
+phases, palette/RGB, requested/raw colour values, cursor and rotation/restore
+state together. It tests completed rotations and restores, a long post-pass
+wait with queued commands, keyboard cancellation without a remote key,
+disconnect while active and fresh zero-snapshot restore after reconnect.
+Audio and MIDI are disabled; tests require no external ROM or reference tree.
+Test-control capture capacity grows from 128 to 256 fields to accommodate
+these observations together with existing terminal/transfer state; palette
+values are grouped into two text fields.
+
+References: chapter 22's addressed X8 rotation/receiver contract, chapter 28's
+US TOS 1.04 palette query/set rules, and IG221.TXT's X8 entry.
+
+`cterm_igs_palette_rotation` and `syncterm_igs_palette_rotation` cover this
+step; the X dispatcher and complete IGS acceptance remain in progress.
 
 ## Deliberate corrections
 

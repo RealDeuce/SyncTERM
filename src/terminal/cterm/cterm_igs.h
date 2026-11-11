@@ -35,6 +35,19 @@ struct cterm_igs_memory_view {
 	bool screen;
 };
 
+struct cterm_igs_palette_rotation {
+	/* X8's serial snapshots and restore choice survive I/R and cancellation. */
+	int snapshot[16][3];
+	uint16_t registers[16];
+	bool restore_raw;
+	/* A queried value belongs to the write after the next local sync wait. */
+	bool active, raw, key, delaying, final;
+	int first, last, index, step;
+	unsigned remaining;
+	uint16_t delay;
+	int saved[3], held[3], query[3];
+};
+
 struct cterm_igs {
 	struct cterminal *terminal;
 	struct st_graphics_parser *parser;
@@ -57,6 +70,7 @@ struct cterm_igs {
 	uint16_t raw_palette[16];
 	uint32_t palette[16], saved_palette[16];
 	int requested_palette[16][3];
+	struct cterm_igs_palette_rotation palette_rotation;
 	int draw_x, draw_y, scaling_mode, scaling_resolution;
 	int draw_start_x, draw_start_y;
 	/* Last-segment ownership survives native polygon/cap compositions. */
@@ -90,7 +104,7 @@ struct cterm_igs {
 	uint64_t input_deadline, text_deadline;
 	unsigned sync_wait_hz;
 	uint64_t wait_deadline;
-	/* Only timed pauses accept keyboard cancellation of this deadline. */
+	/* t's key cancellation and flow lifecycle are separate from X8's state. */
 	bool timed_pause, pause_key;
 	int pending_resolution;
 	int pending_palette;
@@ -156,6 +170,9 @@ int cterm_igs_wait_sync(struct cterm_igs *, unsigned units);
 int cterm_igs_resolution_complete(struct cterm_igs *, int palette);
 int cterm_igs_palette_pen(struct cterm_igs *, int pen, int red, int green, int blue);
 int cterm_igs_palette_register(struct cterm_igs *, int index, int color);
+int cterm_igs_palette_rotation_begin(struct cterm_igs *, int first, int last, int times, int delay);
+int cterm_igs_palette_rotation_resume(struct cterm_igs *);
+void cterm_igs_palette_rotation_cancel(struct cterm_igs *);
 int cterm_igs_state_init(struct cterm_igs *);
 int cterm_igs_state_reset(struct cterm_igs *);
 int cterm_igs_set_resolution(struct cterminal *, unsigned resolution);

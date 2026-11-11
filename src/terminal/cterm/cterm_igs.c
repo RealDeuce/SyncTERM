@@ -42,6 +42,7 @@ static const struct st_graphics_command extended_commands[] = {
 	{1, unscaled_parameters, 2, NULL},
 	{2, unscaled_parameters, 1, random_range_next},
 	{7, unscaled_parameters, 1, pattern_load_next},
+	{8, unscaled_parameters, 4, NULL},
 	{10, point_parameters, 2, NULL},
 	{11, unscaled_parameters, 2, bitmap_next},
 	{12, unscaled_parameters, 1, palette_group_next},
@@ -399,6 +400,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->math_printing = false;
 	igs->copy_pending = false;
 	cterm_igs_bitmap_cancel(igs);
+	cterm_igs_palette_rotation_cancel(igs);
 	igs->reset_pending = false;
 }
 
@@ -903,6 +905,8 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 8)
+			return cterm_igs_palette_rotation_begin(igs,values[1],values[2],values[3],values[4]);
 		if (values[0] == 11) {
 			if (values[1] == 0 && view->count == 4)
 				return cterm_igs_bitmap_wipe(igs,values[2],values[3]);
@@ -1121,6 +1125,10 @@ cterm_igs_paused(const struct cterm_igs *igs)
 bool
 cterm_igs_handle_key(struct cterm_igs *igs)
 {
+	if (igs != NULL && igs->palette_rotation.active && !igs->palette_rotation.key) {
+		igs->palette_rotation.key = true;
+		return true;
+	}
 	if (igs == NULL || !igs->timed_pause || igs->pause_key)
 		return false;
 	igs->pause_key = true;
@@ -1229,6 +1237,19 @@ int
 cterm_igs_poll(struct cterm_igs *igs)
 {
 	uint64_t now;
+	if (igs->palette_rotation.active) {
+		int status = igs->now_ms(&now);
+		if (status != 0) return status;
+		if (now < igs->wait_deadline && !(igs->palette_rotation.delaying && igs->palette_rotation.key)) return 0;
+		igs->feeding = true;
+		status = cterm_igs_palette_rotation_resume(igs);
+		igs->feeding = false;
+		if (igs->reset_pending) { cterm_igs_reset(igs); return status == IO_ERROR_INTERRUPTED ? 0 : status; }
+		if (status == IO_ERROR_IN_PROGRESS) return 0;
+		if (status != 0) { cancel_input(igs); return status; }
+		igs->wait_deadline = 0;
+		return st_graphics_parser_resume(igs->parser);
+	}
 	if (igs->timed_pause) {
 		if (!igs->pause_key) {
 			int status = igs->now_ms(&now);
