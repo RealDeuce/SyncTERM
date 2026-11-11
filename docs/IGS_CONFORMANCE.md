@@ -19,6 +19,8 @@ and `X12` changes four consecutive physical registers. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
 `X14` selects the persistent screen/memory transfer route used by `G`.
+`X11` wipes or incrementally imports native bitmap bytes into indexed memory 0,
+optionally displaying the completed or partial image.
 `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
@@ -645,7 +647,7 @@ only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; real random operands advance once at
 complete numeric execution or entry to a stateful payload reader.
-X0, X1, X2, X7, X10, X12, X13 and X14 are implemented so far. Other valid selectors
+X0, X1, X2, X7, X10, X11, X12, X13 and X14 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1868,6 +1870,75 @@ expose both bank directions, selected memory inversion, disabled routes,
 negative/upper values and fresh defaults after partial disconnect/reconnect.
 Cells, both index phases, palette/RGB, cursor, Drawto and route/view metadata
 are checked in the same frame, with audio/MIDI disabled.
+
+### X11 native bitmap wipe and serial load
+
+X11 acquires unscaled operation/section words, caps sections above 8 at 8,
+and leaves negative sections empty. Operation 0 consumes a fill word and
+writes its low byte over all 32000 bytes (section 0) or a 4000-byte band
+(sections 1..8). The original fill 256 draws one raw Random byte per position,
+including when numeric r/R first evaluates to 256. Wipe does not display.
+Operations 1/2 accept exactly the selected raw byte count, with no terminator
+or discarded byte; imported prefixes immediately update indexed memory 0.
+Only operation 1 displays, once, with replace logic 3. X14 routing, q repeats,
+g scaling, palette, Drawto and memory 1 are unaffected.
+
+Every completed operation, including unsupported operations and negative or
+partial loads, refreshes memory 0's remembered rectangle and device-form
+view using actual resolution: full screen or 25/50-line bands, descriptor
+width/height without an added pixel, word width 20/40 and 4/2/1 planes.
+Native bytes decode at the image boundary into the existing indexed storage;
+there is no planar framebuffer or per-blit format conversion.
+
+The shared parser now offers a synchronous incremental BYTES observer and
+an explicit owner request to end that field early. Field offsets, borrowed
+views, accepted-byte/error ownership and unread suffixes remain generic.
+Raw bytes also remain in the bounded final argument view. Normal parser EOF
+still rejects incomplete fields. X11 alone chooses to complete an entered
+raw field at source EOF, retaining its imported prefix and old remainder.
+Header previews do not publish RNG state; entered raw headers evaluate once.
+
+Each receive uses a fresh 5000-ms local deadline. Expiry stores ASCII 42,
+emits BEL through the existing VT52 console parser and increments the
+accumulated miss count; successful reads retain that count. The third miss
+stores its marker before ending the field and displaying for operation 1.
+A byte presented after expiry is consumed but replaced by the marker.
+Idle polling supplies a marker without consuming later unobserved input.
+Completed/aborted operations 1/2 clear errors, even with a negative section;
+wipes and unsupported operations retain them. No flow helper or keyboard
+abort is involved. Full reset cancels without display and drops images.
+
+Intentional corrections: use local deadlines instead of foreign absolute
+clock buckets, saturate misses at 3 instead of emulating accidental byte wrap,
+keep negative geometry in safe host arithmetic instead of foreign word
+overflow, and retain the old suffix at explicit raw EOF instead of reading
+uninitialized script stack data. Resolution comes from stable owned host
+state rather than repeated hardware inquiries that could disagree. Raw host
+errors preserve imported prefixes and cancel parser ownership; a failed
+poll clock leaves the load retryable. Random wipes commit their seed only
+for successfully imported chunks. Containing script/loop execution remains
+part of its own unfinished entries.
+
+Native tests cover 312 section/fill combinations across all resolutions,
+independent big-endian word-to-index expectations for both retained phases,
+full/band/negative loads, immediate partial import and deferred display,
+status clipping, exact random seeds/bytes, bank 1 isolation, every focused
+header split and bytewise payload, word/band/end boundaries, opaque controls,
+chaining, incomplete/invalid/EOF/timeout recovery, accumulated/interleaved
+misses, late-byte replacement, pending VT52 parameters, clock/import/display
+failures, reset and a resolution change during loading.
+
+The application fixture checks 191 coherent captures over all ST resolutions,
+Atari ST/CP437/UTF-8 and status choices, plus a binary Telnet session.
+Independent native-byte and pinned glyph expectations check full indexed
+phases, cells, palette/RGB, cursor, route/descriptor state, retained bank 1,
+random wipes, raw command-looking data, a real receive timeout and fresh
+reconnect after a partial load. Audio/MIDI are disabled. Tests do not depend
+on external ROMs or the reference tree.
+
+References: chapter 22's X11 receiver/descriptor contract, chapters 18/19 and
+IG221.TXT's X11 entry. `graphics_protocol_stream`, `cterm_igs_bitmap` and
+`syncterm_igs_bitmap` cover this step.
 
 ## Deliberate corrections
 

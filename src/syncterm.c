@@ -137,6 +137,11 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		}
 		st_console_test_number(app,"cterm.igs_copy_pending",igs->copy_pending);
 		st_console_test_number(app,"cterm.igs_memory_route",igs->memory_route);
+		st_console_test_number(app,"cterm.igs_bitmap_loading",igs->bitmap_loading);
+		st_console_test_number(app,"cterm.igs_bitmap_received",(int64_t)igs->bitmap_received);
+		st_console_test_number(app,"cterm.igs_bitmap_size",(int64_t)igs->bitmap_size);
+		st_console_test_number(app,"cterm.igs_bitmap_errors",igs->bitmap_errors);
+		st_console_test_number(app,"cterm.igs_bitmap_deadline",(int64_t)igs->bitmap_deadline);
 		st_console_test_number(app, "cterm.igs_shared_text_size", (int64_t)igs->shared_text_size);
 		st_console_test_number(app, "cterm.igs_text_counter", (int64_t)igs->text_counter);
 		st_console_test_number(app, "cterm.igs_text_deadline", (int64_t)igs->text_deadline);

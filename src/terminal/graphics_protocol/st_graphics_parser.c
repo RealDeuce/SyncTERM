@@ -251,6 +251,40 @@ advance(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink)
 }
 
 static int
+raw_bytes(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink,
+    const uint8_t *bytes, size_t size, size_t *accepted)
+{
+	size_t count = p->parameter.size-p->field_size;
+	if (count > size) count = size;
+	*accepted = count;
+	bool end = false;
+	int status = sink->raw == NULL ? 0 : synchronous_status(sink->raw(sink->context,
+	    &p->view,&p->parameter,p->field_size,bytes,count,accepted,&end));
+	if (*accepted > count || (status == 0 && *accepted == 0 && !end)) {
+		*accepted = 0;
+		return IO_ERROR_PROTOCOL;
+	}
+	if (*accepted != 0) memcpy(p->payload+p->payload_size,bytes,*accepted);
+	p->payload_size += *accepted;
+	p->field_size += *accepted;
+	if (status == 0 && (end || p->field_size == p->parameter.size)) append_field(p);
+	return status;
+}
+
+int
+st_graphics_parser_end_bytes(st_graphics_parser_t *p,
+    const struct st_graphics_parser_sink *sink)
+{
+	if (p == NULL || !valid_sink(sink) || p->state != FIELD || !p->field_active
+	    || p->parameter.kind != ST_GRAPHICS_BYTES)
+		return IO_ERROR_INVALID_ARGUMENT;
+	append_field(p);
+	int status = advance(p,sink);
+	if (status != 0 && status != IO_ERROR_IN_PROGRESS) st_graphics_parser_cancel(p);
+	return status;
+}
+
+static int
 outside_byte(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink,
     uint8_t byte)
 {
@@ -381,6 +415,13 @@ st_graphics_parser_feed(st_graphics_parser_t *p,
 			    bytes + start, *consumed - start));
 			if (status != 0)
 				break;
+			continue;
+		}
+		if (p->state == FIELD && p->field_active && p->parameter.kind == ST_GRAPHICS_BYTES) {
+			size_t accepted;
+			status = raw_bytes(p,sink,bytes+*consumed,size-*consumed,&accepted);
+			*consumed += accepted;
+			if (status != 0) break;
 			continue;
 		}
 		uint8_t byte = bytes[(*consumed)++];

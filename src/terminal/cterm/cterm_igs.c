@@ -35,6 +35,7 @@ static int palette_group_next(void *, const struct st_graphics_command_view *, s
 static int pattern_load_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int random_range_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int math_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int bitmap_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int unscaled_tail_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
 	{0, point_parameters, 4, unscaled_tail_next},
@@ -42,6 +43,7 @@ static const struct st_graphics_command extended_commands[] = {
 	{2, unscaled_parameters, 1, random_range_next},
 	{7, unscaled_parameters, 1, pattern_load_next},
 	{10, point_parameters, 2, NULL},
+	{11, unscaled_parameters, 2, bitmap_next},
 	{12, unscaled_parameters, 1, palette_group_next},
 	{13, unscaled_parameters, 1, math_next},
 	{14, unscaled_parameters, 1, NULL},
@@ -68,6 +70,25 @@ reuse_text(const struct cterm_igs *igs)
 {
 	return (igs->loop_mode == 1 && igs->loop_kind != '@')
 	    || (igs->loop_mode == 0 && igs->loop_kind == 'Z');
+}
+
+static int
+bitmap_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	if (view->count == 3) return 0;
+	struct cterm_igs preview = *(struct cterm_igs *)context;
+	int operation, section;
+	int status = cterm_igs_argument_value(&preview,&view->arguments[0],&operation);
+	if (status != 0) return status;
+	if (operation == 0) *result = unscaled_parameters[0];
+	else if (operation == 1 || operation == 2) {
+		status = cterm_igs_argument_value(&preview,&view->arguments[1],&section);
+		if (status == 0) *result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_BYTES,
+		    .size = cterm_igs_bitmap_size(section)};
+	}
+	return status;
 }
 
 static int
@@ -294,7 +315,9 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 	int selector;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	int status = 0;
-	if (preview.math_printing)
+	if (preview.bitmap_loading)
+		selector = 11;
+	else if (preview.math_printing)
 		selector = 13;
 	else if (preview.pattern_loading)
 		selector = 7;
@@ -375,6 +398,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->pattern_slot = 0;
 	igs->math_printing = false;
 	igs->copy_pending = false;
+	cterm_igs_bitmap_cancel(igs);
 	igs->reset_pending = false;
 }
 
@@ -580,13 +604,23 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 		struct cterm_igs preview = *igs;
 		int selector, slot;
 		int status = 0;
-		if (igs->math_printing)
+		if (igs->bitmap_loading)
+			selector = 11;
+		else if (igs->math_printing)
 			selector = 13;
 		else if (igs->pattern_loading)
 			selector = 7;
 		else
 			status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
 		if (status != 0) return status;
+		if (selector == 11 && view->count == 3 && parameter->kind == ST_GRAPHICS_BYTES) {
+			int operation, section;
+			status = cterm_igs_argument_value(&preview,&view->arguments[1],&operation);
+			if (status == 0) status = cterm_igs_argument_value(&preview,&view->arguments[2],&section);
+			if (status != 0) return status;
+			igs->random_seed = preview.random_seed;
+			return cterm_igs_bitmap_begin(igs,operation,section);
+		}
 		if (selector == 13 && view->count == 4 && !igs->math_printing) {
 			int operation, kind, index;
 			status = cterm_igs_argument_value(&preview, &view->arguments[1], &operation);
@@ -693,6 +727,11 @@ command(void *context, const struct st_graphics_command_view *view)
 	int values[1+2*CTERM_IGS_MAX_POINTS];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
+	if (view->code == 'X' && igs->bitmap_loading) {
+		if (view->count != 4 || view->arguments[3].kind != ST_GRAPHICS_BYTES
+		    || view->arguments[3].size != igs->bitmap_received) return IO_ERROR_PROTOCOL;
+		return cterm_igs_bitmap_complete(igs,igs->bitmap_operation,igs->bitmap_section);
+	}
 	if (view->code == 'X' && igs->math_printing) {
 		if (view->count != 6) return IO_ERROR_PROTOCOL;
 		int x, y;
@@ -864,6 +903,12 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 11) {
+			if (values[1] == 0 && view->count == 4)
+				return cterm_igs_bitmap_wipe(igs,values[2],values[3]);
+			if (view->count != 3 || values[1] == 1 || values[1] == 2) return IO_ERROR_PROTOCOL;
+			return cterm_igs_bitmap_complete(igs,values[1],values[2]);
+		}
 		if (values[0] == 14) {
 			if (view->count != 2) return IO_ERROR_PROTOCOL;
 			igs->memory_route = values[1] > 5 ? 0 : values[1];
@@ -959,10 +1004,23 @@ unknown(void *context, uint8_t code)
 	}
 }
 
+static int
+raw(void *context, const struct st_graphics_command_view *view,
+    const struct st_graphics_parameter *parameter, size_t offset,
+    const uint8_t *bytes, size_t size, size_t *accepted, bool *end)
+{
+	struct cterm_igs *igs = context;
+	if (!igs->bitmap_loading) return 0;
+	if (view->code != 'X' || parameter->kind != ST_GRAPHICS_BYTES
+	    || offset != igs->bitmap_received) { *accepted = 0; return IO_ERROR_PROTOCOL; }
+	return cterm_igs_bitmap_bytes(igs,bytes,size,accepted,end);
+}
+
 static struct st_graphics_parser_sink
 sink(struct cterm_igs *igs)
 {
-	return (struct st_graphics_parser_sink){.context = igs, .text = text, .boundary = boundary, .command = command, .unknown = unknown, .field = field_entry};
+	return (struct st_graphics_parser_sink){.context = igs, .text = text, .boundary = boundary,
+	    .command = command, .unknown = unknown, .field = field_entry, .raw = raw};
 }
 
 int
@@ -1108,8 +1166,11 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 		igs->pattern_loading = false;
 		igs->pattern_slot = 0;
 		igs->math_printing = false;
+		cterm_igs_bitmap_cancel(igs);
 	}
-	if (status == 0 && !cterm_igs_paused(igs) && st_graphics_parser_in_command(igs->parser)) {
+	if (status == 0 && igs->bitmap_loading)
+		igs->input_deadline = igs->bitmap_deadline;
+	else if (status == 0 && !cterm_igs_paused(igs) && st_graphics_parser_in_command(igs->parser)) {
 		uint64_t now;
 		status = igs->now_ms(&now);
 		if (status == 0 && (*used != 0 || igs->input_deadline == 0))
@@ -1144,7 +1205,8 @@ cterm_igs_finish(struct cterm_igs *igs)
 	}
 	struct st_graphics_parser_sink callbacks = sink(igs);
 	igs->feeding = true;
-	int status = st_graphics_parser_finish(igs->parser, &callbacks);
+	int status = igs->bitmap_loading ? st_graphics_parser_end_bytes(igs->parser,&callbacks) : 0;
+	if (status == 0) status = st_graphics_parser_finish(igs->parser, &callbacks);
 	igs->feeding = false;
 	if (status == IO_ERROR_PROTOCOL) {
 		cterm_log(igs->terminal, ST_CTERM_LOG_WARNING, "Discarded incomplete IGS command");
@@ -1159,6 +1221,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 	igs->pattern_loading = false;
 	igs->pattern_slot = 0;
 	igs->math_printing = false;
+	cterm_igs_bitmap_cancel(igs);
 	return status;
 }
 
@@ -1218,6 +1281,23 @@ cterm_igs_poll(struct cterm_igs *igs)
 			return status;
 		}
 		return st_graphics_parser_resume(igs->parser);
+	}
+	if (igs->bitmap_loading) {
+		int status = igs->now_ms(&now);
+		if (status != 0 || now < igs->bitmap_deadline) return status;
+		/* Supply one expired receive slot. The raw consumer owns marker,
+		 * console BEL and accumulated-error policy, outside this grammar. */
+		const uint8_t marker = '*'; size_t used;
+		struct st_graphics_parser_sink callbacks = sink(igs);
+		igs->feeding = true;
+		status = st_graphics_parser_feed(igs->parser,&callbacks,&marker,1,&used);
+		igs->feeding = false;
+		if (igs->reset_pending) { cterm_igs_reset(igs); return status == IO_ERROR_INTERRUPTED ? 0 : status; }
+		if (status != 0) { cancel_input(igs); return status; }
+		igs->input_deadline = igs->bitmap_loading ? igs->bitmap_deadline
+		    : st_graphics_parser_in_command(igs->parser)
+		    ? (now > UINT64_MAX-5000 ? UINT64_MAX : now+5000) : 0;
+		return 0;
 	}
 	if (igs->input_deadline == 0)
 		return 0;

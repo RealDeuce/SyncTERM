@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q and G commands and X0, X1, X2, X7, X10, X12, X13 and X14 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q and G commands and X0, X1, X2, X7, X10, X11, X12, X13 and X14 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10, X12, X13 and X14
+command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10, X11, X12, X13 and X14
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -3169,4 +3169,87 @@ retained-extent G2 route4/5 assertions, another warning-free full build and
 focused native X14 check passed. Ledger IDs, references, dependencies,
 active tests and pinned glyph/ROM identities were checked. Parallel graphics
 changes are excluded from this IGS commit. The ledger records 48 complete
-entries. Completion commit will be recorded by the next step.
+entries. Completion commit `a8887f7`.
+
+
+=== X11 native bitmap wipe and serial load
+
+X11 acquires unscaled operation/section words, caps sections above 8 at 8,
+and leaves negative sections empty. Operation 0 consumes a fill word and
+writes its low byte over all 32000 bytes (section 0) or a 4000-byte band
+(sections 1..8). The original fill 256 draws one raw Random byte per position,
+including when numeric r/R first evaluates to 256. Wipe does not display.
+Operations 1/2 accept exactly the selected raw byte count, with no terminator
+or discarded byte; imported prefixes immediately update indexed memory 0.
+Only operation 1 displays, once, with replace logic 3. X14 routing, q repeats,
+g scaling, palette, Drawto and memory 1 are unaffected.
+
+Every completed operation, including unsupported operations and negative or
+partial loads, refreshes memory 0's remembered rectangle and device-form
+view using actual resolution: full screen or 25/50-line bands, descriptor
+width/height without an added pixel, word width 20/40 and 4/2/1 planes.
+Native bytes decode at the image boundary into the existing indexed storage;
+there is no planar framebuffer or per-blit format conversion.
+
+The shared parser now offers a synchronous incremental BYTES observer and
+an explicit owner request to end that field early. Field offsets, borrowed
+views, accepted-byte/error ownership and unread suffixes remain generic.
+Raw bytes also remain in the bounded final argument view. Normal parser EOF
+still rejects incomplete fields. X11 alone chooses to complete an entered
+raw field at source EOF, retaining its imported prefix and old remainder.
+Header previews do not publish RNG state; entered raw headers evaluate once.
+
+Each receive uses a fresh 5000-ms local deadline. Expiry stores ASCII 42,
+emits BEL through the existing VT52 console parser and increments the
+accumulated miss count; successful reads retain that count. The third miss
+stores its marker before ending the field and displaying for operation 1.
+A byte presented after expiry is consumed but replaced by the marker.
+Idle polling supplies a marker without consuming later unobserved input.
+Completed/aborted operations 1/2 clear errors, even with a negative section;
+wipes and unsupported operations retain them. No flow helper or keyboard
+abort is involved. Full reset cancels without display and drops images.
+
+Intentional corrections: use local deadlines instead of foreign absolute
+clock buckets, saturate misses at 3 instead of emulating accidental byte wrap,
+keep negative geometry in safe host arithmetic instead of foreign word
+overflow, and retain the old suffix at explicit raw EOF instead of reading
+uninitialized script stack data. Resolution comes from stable owned host
+state rather than repeated hardware inquiries that could disagree. Raw host
+errors preserve imported prefixes and cancel parser ownership; a failed
+poll clock leaves the load retryable. Random wipes commit their seed only
+for successfully imported chunks. Containing script/loop execution remains
+part of its own unfinished entries.
+
+Native tests cover 312 section/fill combinations across all resolutions,
+independent big-endian word-to-index expectations for both retained phases,
+full/band/negative loads, immediate partial import and deferred display,
+status clipping, exact random seeds/bytes, bank 1 isolation, every focused
+header split and bytewise payload, word/band/end boundaries, opaque controls,
+chaining, incomplete/invalid/EOF/timeout recovery, accumulated/interleaved
+misses, late-byte replacement, pending VT52 parameters, clock/import/display
+failures, reset and a resolution change during loading.
+
+The application fixture checks 191 coherent captures over all ST resolutions,
+Atari ST/CP437/UTF-8 and status choices, plus a binary Telnet session.
+Independent native-byte and pinned glyph expectations check full indexed
+phases, cells, palette/RGB, cursor, route/descriptor state, retained bank 1,
+random wipes, raw command-looking data, a real receive timeout and fresh
+reconnect after a partial load. Audio/MIDI are disabled. Tests do not depend
+on external ROMs or the reference tree.
+
+References: chapter 22's addressed X11 receiver/descriptor contract,
+chapters 18/19 and IG221.TXT's X11 entry.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full CMake builds with /usr/bin/cc passed; initial generated-
+dependency clock-skew warnings cleared in the final full build, which had no
+warnings. All 24 selected regression tests passed in 65.05 seconds, including
+shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix,
+term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11
+took 1.80 seconds. Application X11 separately passed 191 coherent captures in
+45.30 seconds, including binary Telnet escaping and a real local receive
+timeout. All 63 IDs with 49 complete entries, references/dependencies, active
+tests and pinned font/ROM identities were validated. Parallel
+graphics/dependency/emoji changes are excluded from this IGS commit.
+The ledger records 49 complete entries. X and final acceptance remain in
+progress. Completion commit will be recorded by the next step.

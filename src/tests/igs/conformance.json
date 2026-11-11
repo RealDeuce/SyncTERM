@@ -24,14 +24,19 @@
       "id": "shared-parser",
       "status": "complete",
       "tests": [
-        "graphics_protocol_parser"
+        "graphics_protocol_parser",
+        "graphics_protocol_stream"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc, existing Release CMake configuration: graphics_protocol_parser passed.",
         "All 47 top-level commands and 16 X selectors checked against the local reference command index; all listed source chapters exist.",
-        "cmake -S . -B build; cmake --build build -j 4: full native application build passed. Existing build-tree timestamp/clock-skew warnings were emitted; the new C sources compiled without warnings."
+        "cmake -S . -B build; cmake --build build -j 4: full native application build passed. Existing build-tree timestamp/clock-skew warnings were emitted; the new C sources compiled without warnings.",
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit."
       ],
-      "commit": "87a116f"
+      "commit": "87a116f",
+      "operations": [
+        "Optional synchronous incremental BYTES consumer with per-field offset and explicit accepted-byte/early-end ownership; bounded opaque final payload remains available. Explicit owner end_bytes performs field/command completion; finish still rejects incomplete grammar. No raster/timing policy in shared parser."
+      ]
     },
     {
       "id": "igs-planar-storage",
@@ -75,11 +80,13 @@
       "tests": [
         "igs_image",
         "st_pixels",
-        "graphics_protocol_parser"
+        "graphics_protocol_parser",
+        "cterm_igs_bitmap"
       ],
       "verification": [
         "cmake -S . -B build; cmake --build build --target st_igs_image_test -j 4; CTest igs_image, st_pixels and graphics_protocol_parser passed on native FreeBSD /usr/bin/cc Release.",
-        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings after the transient parallel SkyPix unresolved-symbol issue was fixed in that separate work. All 18 selected CTest checks passed in 30.53 seconds, including shared parser, indexed images/pixels, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native and application G took 3.16 and 24.71 seconds. G covers 12096 independent dual-phase screen cases, 480 source-derived native-model memory cases and 126 coherent application captures. All 63 ledger IDs with 47 complete entries, active tests, dependencies/references and pinned font/ROM/oracle identities were checked. Parallel SkyPix/console changes are excluded from the IGS commit."
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings after the transient parallel SkyPix unresolved-symbol issue was fixed in that separate work. All 18 selected CTest checks passed in 30.53 seconds, including shared parser, indexed images/pixels, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native and application G took 3.16 and 24.71 seconds. G covers 12096 independent dual-phase screen cases, 480 source-derived native-model memory cases and 126 coherent application captures. All 63 ledger IDs with 47 complete entries, active tests, dependencies/references and pinned font/ROM/oracle identities were checked. Parallel SkyPix/console changes are excluded from the IGS commit.",
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit."
       ],
       "commit": "3fe002a"
     },
@@ -186,7 +193,9 @@
         "igs_image",
         "syncterm_igs_grab",
         "cterm_igs_routing",
-        "syncterm_igs_routing"
+        "syncterm_igs_routing",
+        "cterm_igs_bitmap",
+        "syncterm_igs_bitmap"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -239,7 +248,8 @@
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 20 selected CTest checks passed in 72.71 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/C/P/B/U/X1/X2/X7/X10/X12 and application P/X0 regressions. Native and application X0 took 2.16 and 17.79 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Verified all 63 ledger IDs with 45 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 18 selected CTest checks passed in 68.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/W/X0/X1/X2/X7/X10/X12 and application X7/X13 regressions. Native and application X13 took 1.01 and 19.11 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Validated all 63 ledger IDs with 46 complete entries, active test registrations, dependencies, references, 24 source-derived scene vectors and pinned font/ROM/oracle identities.",
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings after the transient parallel SkyPix unresolved-symbol issue was fixed in that separate work. All 18 selected CTest checks passed in 30.53 seconds, including shared parser, indexed images/pixels, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native and application G took 3.16 and 24.71 seconds. G covers 12096 independent dual-phase screen cases, 480 source-derived native-model memory cases and 126 coherent application captures. All 63 ledger IDs with 47 complete entries, active tests, dependencies/references and pinned font/ROM/oracle identities were checked. Parallel SkyPix/console changes are excluded from the IGS commit.",
-        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 18 selected CTest checks passed in 33.38 seconds, including shared parser, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/X10/X13/G and application R/G/X14 regressions. Native and application X14 took 0.36 and 23.93 seconds. After adding explicit metadata-only G1 and retained-extent G2 route4/5 assertions, another warning-free full build and focused native X14 check passed. Validated all 63 ledger IDs with 48 complete entries, references/dependencies, active tests and pinned glyph/ROM identities. Parallel graphics changes are excluded from this IGS commit."
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 18 selected CTest checks passed in 33.38 seconds, including shared parser, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/X10/X13/G and application R/G/X14 regressions. Native and application X14 took 0.36 and 23.93 seconds. After adding explicit metadata-only G1 and retained-extent G2 route4/5 assertions, another warning-free full build and focused native X14 check passed. Validated all 63 ledger IDs with 48 complete entries, references/dependencies, active tests and pinned glyph/ROM identities. Parallel graphics changes are excluded from this IGS commit.",
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit."
       ],
       "commit": null,
       "operations": [
@@ -378,7 +388,7 @@
       "operations": [
         "Read one unscaled selector without clamping; out-of-range words consume no selector payload and perform no store/service/reply before normal chaining",
         "Reuse shared fixed-prefix and dynamic-tail descriptions for selector payloads; effect-free preview includes selector numeric state and real random operands commit once",
-        "Selectors 0, 1, 2, 7, 10, 12, 13 and 14 implemented; pending valid 0..15 handlers return NOT_SUPPORTED after the selector, leaving their payload unread"
+        "Selectors 0, 1, 2, 7, 10, 11, 12, 13 and 14 implemented; pending valid 0..15 handlers return NOT_SUPPORTED after the selector, leaving their payload unread"
       ],
       "tests": [
         "cterm_igs_x10",
@@ -396,7 +406,9 @@
         "cterm_igs_math",
         "syncterm_igs_math",
         "cterm_igs_routing",
-        "syncterm_igs_routing"
+        "syncterm_igs_routing",
+        "cterm_igs_bitmap",
+        "syncterm_igs_bitmap"
       ],
       "deviations": [],
       "verification": [
@@ -407,11 +419,12 @@
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 17 selected CTest checks passed in 87.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12 and application A/X2 regressions. Native and application X2 took 0.35 and 17.97 seconds. After adding explicit R retention checks, another full build and focused native X2 test passed in 0.56 seconds. Verified all 63 ledger IDs with 44 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 20 selected CTest checks passed in 72.71 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/C/P/B/U/X1/X2/X7/X10/X12 and application P/X0 regressions. Native and application X0 took 2.16 and 17.79 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Verified all 63 ledger IDs with 45 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 18 selected CTest checks passed in 68.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/W/X0/X1/X2/X7/X10/X12 and application X7/X13 regressions. Native and application X13 took 1.01 and 19.11 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Validated all 63 ledger IDs with 46 complete entries, active test registrations, dependencies, references, 24 source-derived scene vectors and pinned font/ROM/oracle identities.",
-        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 18 selected CTest checks passed in 33.38 seconds, including shared parser, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/X10/X13/G and application R/G/X14 regressions. Native and application X14 took 0.36 and 23.93 seconds. After adding explicit metadata-only G1 and retained-extent G2 route4/5 assertions, another warning-free full build and focused native X14 check passed. Validated all 63 ledger IDs with 48 complete entries, references/dependencies, active tests and pinned glyph/ROM identities. Parallel graphics changes are excluded from this IGS commit."
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 18 selected CTest checks passed in 33.38 seconds, including shared parser, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/X10/X13/G and application R/G/X14 regressions. Native and application X14 took 0.36 and 23.93 seconds. After adding explicit metadata-only G1 and retained-extent G2 route4/5 assertions, another warning-free full build and focused native X14 check passed. Validated all 63 ledger IDs with 48 complete entries, references/dependencies, active tests and pinned glyph/ROM identities. Parallel graphics changes are excluded from this IGS commit.",
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit."
       ],
       "commit": null,
       "limitations": [
-        "Only X0, X1, X2, X7, X10, X12, X13 and X14 are implemented. All remaining selector handlers and shared dispatch/loop behavior must pass before marking X complete."
+        "Only X0, X1, X2, X7, X10, X11, X12, X13 and X14 are implemented. All remaining selector handlers and shared dispatch/loop behavior must pass before marking X complete."
       ]
     },
     {
@@ -2463,7 +2476,7 @@
       "verification": [
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 18 selected CTest checks passed in 33.38 seconds, including shared parser, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/X10/X13/G and application R/G/X14 regressions. Native and application X14 took 0.36 and 23.93 seconds. After adding explicit metadata-only G1 and retained-extent G2 route4/5 assertions, another warning-free full build and focused native X14 check passed. Validated all 63 ledger IDs with 48 complete entries, references/dependencies, active tests and pinned glyph/ROM identities. Parallel graphics changes are excluded from this IGS commit."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "a8887f7"
     },
     {
       "id": "X11",
@@ -2474,13 +2487,39 @@
         "22-palette-bitmap-x-dispatch.adoc"
       ],
       "order": 49,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-indexed-images",
+        "igs-preansi-input",
+        "igs-state-raster-timing",
+        "G",
+        "X14",
+        "I",
+        "R"
+      ],
+      "operations": [
+        "Acquire unscaled operation/section, upper-cap section at 8 only. Wipe low fill byte over 32000/4000 native bytes, or one raw Random byte per position when the evaluated original fill equals 256; no display for wipe.",
+        "Load 1/2 incrementally import opaque raw bytes into indexed memory 0 with exact selected byte count and no terminator/discard. Evaluate random headers once at raw entry; ordinary incomplete headers publish nothing. Generic synchronous BYTES observation and explicit owner end preserve bounded payload views, accepted-byte/error ownership and unread suffixes.",
+        "Every completed operation refreshes only memory 0 rectangle/device-form view in actual resolution, including unsupported/negative/partial cases. Load 1 displays once with replace 3; ignore X14/q/g and preserve palette, Drawto, attributes, text reuse and memory 1.",
+        "Use fresh local 5000-ms receive deadlines. Each expiry imports 42 and emits console BEL through existing VT52; accumulate misses across successes, store the third marker then abort, retain remaining image bytes. Late delivered byte is consumed/replaced. Idle poll supplies a marker without consuming future input. Load 1/2 completion clears errors; wipe/no-op preserve them.",
+        "Native independent WORD-to-index tests cover 312 wipe combinations, full/band/negative/partial loads, both phases/status, literal random seeds/bytes, bank isolation, header/word/band/end splits and bytewise opaque payloads, incomplete/invalid/EOF/timeout/reset recovery, pending console parameters, late bytes, clock/import/display errors and a mid-load resolution change.",
+        "191 coherent application captures cover all resolutions, Atari ST/CP437/UTF-8/status choices plus binary Telnet. Independent bytes/glyphs verify full indexed phases, cells, palette/RGB, cursor, route/views, bank 1 retention, real timeout and disconnect/reconnect; audio/MIDI off, no external assets."
+      ],
+      "tests": [
+        "graphics_protocol_stream",
+        "cterm_igs_bitmap",
+        "syncterm_igs_bitmap"
+      ],
+      "deviations": [
+        "Use fresh local 5000-ms deadlines rather than foreign absolute 200-Hz buckets; saturate accumulated misses at 3 rather than emulating accidental native byte wrap. No foreign throughput or interrupt model.",
+        "Explicit source EOF ends an entered raw field and performs normal descriptor/display completion using its imported prefix and retained remainder. Do not fabricate bytes from the native uninitialized script return local. Partial numeric headers still cancel.",
+        "Use stable owned actual-resolution state and safe host negative geometry rather than repeated disagreeing hardware inquiries or native coordinate-word overflow. Preserve imported prefixes on host errors; failed poll-clock reads leave loads retryable. Full reset cancels without display and discards images. Containing loop/script integration remains pending with those entries."
+      ],
+      "verification": [
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "X8",

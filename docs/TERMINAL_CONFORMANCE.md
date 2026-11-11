@@ -218,6 +218,13 @@ clipping/status protection, input recovery and reconnect.
 tests plus 162 coherent application captures verify both banks, opposite
 G1/G3 cross-memory directions, self-copy selection, disabled routes and
 reset/reconnect defaults without immediate raster or console side effects.
+`X11` adds native-byte bitmap wipes and incremental raw imports into indexed
+memory 0, with optional single display, retained image suffixes and local
+receive deadlines. Independent native tests and 191 coherent application
+captures cover all ST modes, encodings/status choices, random fills, timeout
+accumulation, opaque controls, binary Telnet escaping and reconnect. The shared
+parser exposes generic raw-field observation/early completion; bitmap policy
+remains in CTerm. Physical audio and MIDI are disabled in these fixtures.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

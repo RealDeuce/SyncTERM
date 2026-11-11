@@ -100,7 +100,7 @@ struct st_graphics_parser_config {
 struct st_graphics_parser_sink {
 	void *context;
 	int (*text)(void *, const uint8_t *, size_t);
-	/* text/boundary/field/next are synchronous; only command may return IN_PROGRESS.
+	/* text/boundary/field/raw/next are synchronous; only command may return IN_PROGRESS.
 	 * Callbacks must not reenter the parser. A boundary commits pending text
 	 * before acquiring a command. */
 	int (*boundary)(void *);
@@ -113,6 +113,14 @@ struct st_graphics_parser_sink {
 	 * The prior-argument view and parameter are borrowed for this call. */
 	int (*field)(void *, const struct st_graphics_command_view *,
 	    const struct st_graphics_parameter *);
+	/* Optional incremental BYTES consumer. Offset is relative to this field;
+	 * data remains opaque and is also retained for the final argument view.
+	 * Report accepted bytes even on error. A successful callback must make
+	 * progress or set end=true to finish this field early. Unaccepted suffix
+	 * bytes remain input. This callback is synchronous and must not reenter. */
+	int (*raw)(void *, const struct st_graphics_command_view *,
+	    const struct st_graphics_parameter *, size_t offset,
+	    const uint8_t *, size_t size, size_t *accepted, bool *end);
 };
 
 typedef struct st_graphics_parser st_graphics_parser_t;
@@ -137,6 +145,11 @@ int st_graphics_parser_feed(st_graphics_parser_t *,
 	const struct st_graphics_parser_sink *, const uint8_t *, size_t,
 	size_t *consumed);
 int st_graphics_parser_resume(st_graphics_parser_t *);
+/* Explicit owner policy may end an active BYTES field with the bytes already
+ * accepted, then run normal field/command completion. This does not fabricate
+ * payload or change finish()'s rejection of incomplete commands. */
+int st_graphics_parser_end_bytes(st_graphics_parser_t *,
+	const struct st_graphics_parser_sink *);
 /* Explicit source EOF flushes held ordinary attention-prefix text. A partial
  * command is rejected, never completed with fabricated bytes. Not a read flush. */
 int st_graphics_parser_finish(st_graphics_parser_t *,

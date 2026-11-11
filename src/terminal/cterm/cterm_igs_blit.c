@@ -152,8 +152,8 @@ source_group(struct source_cache *cache, const struct bank *source, unsigned pha
 	return cache->pixels[slot];
 }
 
-static int
-copy_pixels(struct cterm_igs *igs, int logic, int source_id, int destination_id, const int points[8])
+int
+cterm_igs_blit(struct cterm_igs *igs, int logic, int source_id, int destination_id, const int points[8])
 {
 	if (logic < 0 || logic == 5) return 0;
 	if (source_id < 2 && igs->memory_view[source_id].screen) source_id = 2;
@@ -224,7 +224,7 @@ int
 cterm_igs_grab_resume(struct cterm_igs *igs)
 {
 	igs->copy_pending = false;
-	return copy_pixels(igs,igs->copy_logic,igs->copy_source,igs->copy_destination,igs->copy_points);
+	return cterm_igs_blit(igs,igs->copy_logic,igs->copy_source,igs->copy_destination,igs->copy_points);
 }
 
 int
@@ -283,9 +283,9 @@ cterm_igs_grab(struct cterm_igs *igs, const int *values, size_t count)
 		else if (route == 4 || route == 5) { source = 2; destination = route-4; }
 	}
 	if (source < 0) return 0;
-	int status = copy_pixels(igs,logic,source,destination,p);
+	int status = cterm_igs_blit(igs,logic,source,destination,p);
 	if (status != 0 || !repeat || igs->double_step == 0) return status;
-	if (igs->double_step <= 1) return copy_pixels(igs,logic,source,destination,p);
+	if (igs->double_step <= 1) return cterm_igs_blit(igs,logic,source,destination,p);
 	igs->copy_source = source; igs->copy_destination = destination; igs->copy_logic = logic;
 	memcpy(igs->copy_points,p,sizeof(p));
 	status = cterm_igs_wait_sync(igs,(unsigned)igs->double_step-1);

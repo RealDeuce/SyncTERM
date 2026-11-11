@@ -48,6 +48,12 @@ struct cterm_igs {
 	int pattern_slot;
 	/* X13 has formatted the shared buffer and owns its numeric prefix. */
 	bool math_printing;
+	/* X11 owns its complete numeric prefix during incremental raw input. */
+	bool bitmap_loading;
+	int bitmap_operation, bitmap_section;
+	size_t bitmap_offset, bitmap_size, bitmap_received;
+	unsigned bitmap_errors;
+	uint64_t bitmap_deadline;
 	uint16_t raw_palette[16];
 	uint32_t palette[16], saved_palette[16];
 	int requested_palette[16][3];
@@ -123,6 +129,14 @@ int cterm_igs_math_format(struct cterm_igs *, int index);
 int cterm_igs_math_console(struct cterm_igs *, int index);
 int cterm_igs_grab(struct cterm_igs *, const int *, size_t count);
 int cterm_igs_grab_resume(struct cterm_igs *);
+/* Prepared views and caller rectangle, with no G routing/repeat effects. */
+int cterm_igs_blit(struct cterm_igs *, int logic, int source, int destination, const int points[8]);
+size_t cterm_igs_bitmap_size(int section);
+int cterm_igs_bitmap_begin(struct cterm_igs *, int operation, int section);
+int cterm_igs_bitmap_bytes(struct cterm_igs *, const uint8_t *, size_t, size_t *accepted, bool *end);
+int cterm_igs_bitmap_complete(struct cterm_igs *, int operation, int section);
+int cterm_igs_bitmap_wipe(struct cterm_igs *, int section, int fill);
+void cterm_igs_bitmap_cancel(struct cterm_igs *);
 int cterm_igs_rectangle(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_box(struct cterm_igs *, int x1, int y1, int x2, int y2, bool rounded);
 int cterm_igs_rounded_outline(struct cterm_igs *, int x1, int y1, int x2, int y2);
