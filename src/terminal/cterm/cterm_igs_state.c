@@ -454,6 +454,7 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	igs->last_line = true;
 	igs->destructive_backspace = false;
 	igs->flow_mode = 1;
+	igs->flow_configuring = 0;
 	igs->loop_mode = 0;
 	igs->flow_on = 17; igs->flow_off = 19;
 	igs->flow_on_count = igs->flow_off_count = 1;

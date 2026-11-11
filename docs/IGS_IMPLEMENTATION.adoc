@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q, G, b, n and N commands and X0, X1, X2, X7, X8, X10, X11, X12, X13, X14 and X15 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q, G, b, n and N commands and X0, X1, X2, X5, X7, X8, X10, X11, X12, X13, X14 and X15 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X8, X10, X11, X12, X13, X14 and X15
+command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X5, X7, X8, X10, X11, X12, X13, X14 and X15
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -4001,3 +4001,57 @@ SkyPix and term/key forwarding. Source identities and the ledger's 63 ordered
 IDs, 54 completed commands, active tests, references and dependencies were
 validated. Ordinary tests use no external files or physical devices. The
 full goal remains active; unrelated parallel recovery edits stay separate.
+
+
+== X5 flow configuration (complete)
+
+Reference: chapter 20's serial X5 stores and shared XON/XOFF helpers. Read the
+mode unscaled as a signed word. Any nonzero containing-loop word forces it
+to 1, using state after that numeric reader finishes. Modes 2 and 3 alone
+read a custom XON/XOFF low byte and signed repeat count. Modes above 3 restore
+bytes 17/19 and counts 1/1 but retain the supplied mode. Other modes preserve
+all four fields: zero disables emission, 1 and negative modes enable it.
+There is no parameter clamp, reply, wait or immediate send.
+
+The generic X descriptor reuses numeric parameters and an effect-free dynamic
+arity callback. Field entry commits mode/selector once, then the byte before
+reading the count. A stored 2/3 branch remains fixed through later scalar or
+loop changes; only the final count is evaluated at completion. RNG and array
+operands are not reevaluated. EOF, timeout or rejection discards pending
+reader ownership while retaining completed stores; full reset/reconnect
+restores mode 1, bytes 17/19 and counts 1/1.
+
+Playback/pause/drawing keep the existing common serial emitters. A helper
+checks mode once on entry, then reads its current count and byte per send.
+Nonpositive counts emit nothing; stable positive counts repeat exactly that
+many raw bytes, including NUL and 0xff under UTF-8. Changing mode during an
+entered helper does not stop it; changed byte/count affect following sends.
+Existing response transport owns queue/readiness. No BIOS polling, foreign
+clock, worker or throughput delay is added.
+
+`cterm_igs_flow` checks 192 literal byte/count configurations, 160 short
+emitter cases, a full 32767-byte emission, live helper mutation, every split
+of chained configuration across all ST mode/status/scaling choices, exact
+unchanged dual-phase pixels/attributes/palette/cursor, signed modes, any-nonzero
+loop overrides, incremental stores, EOF/timeout/rejection recovery, fixed
+prefix ownership and independent RNG advancement. `syncterm_igs_flow` adds 288
+coherent captures across all ST modes, Atari ST/CP437/UTF-8 and status choices,
+combining exact scene/state with raw custom/default N playback flow replies,
+zero/disabled counts, 32761-byte real transport replies and partial
+disconnect/fresh reconnect. Audio/MIDI are
+disabled; ordinary tests require no external reference tree or device.
+Provenance and original reference identities are in
+`src/tests/igs/flow-vectors.json`.
+
+Native FreeBSD Release configure/full build with `/usr/bin/cc` passed without
+warnings. Final checks used the current tree including the separately
+committed parser-recovery work `b6c5f80`. All 28 selected CTest checks passed
+in 106.61s, including shared parser, IGS input/I/R/math/random/pattern/waits/
+rotation/sweep/drawing/text/b/n/N, CTerm, RIP, SkyPix and term/key forwarding,
+plus application X5/N. Native X5 took 0.26s; the final loop-before-default-reset
+assertion also passed a focused rerun. Application X5 passed all 288 coherent
+captures in 22.09s, including exact 32761-byte transport replies. The missing
+native handler failed its test before implementation. Validated all 63 ordered
+IDs, 55 completed commands, active tests, dependencies, references, original
+source identities and the still-incomplete X dispatcher. The full goal remains
+active.

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "target": "IGS221/IG221.ACC serial / intended US TOS 1.04 software graphics",
+  "provenance": "Handwritten literal byte/count/mode tables and field/flow expectations from chapter 20; no emulator-generated expected images. All ordinary tests are self-contained.",
+  "references": [
+    {
+      "path": "docs/igs/20-extended-controls.adoc",
+      "sha256": "afb69eb0fc1ae4954084b825fcd6958b705b5505fa1b2d3d518d27bf72bee85a"
+    },
+    {
+      "path": "tools/spec_igs_extended_controls.py",
+      "sha256": "9ecdb6ec1863fd6d658fba5b889a48f8963625aa079171529996e27e419e9c48"
+    }
+  ],
+  "tests": [
+    "cterm_igs_flow",
+    "syncterm_igs_flow"
+  ],
+  "literal_configurations": 192,
+  "short_emitter_cases": 160,
+  "maximum_emission_bytes": 32767,
+  "native_graphics_profiles": 18,
+  "application_graphics_profiles": 18,
+  "application_captures": 288,
+  "command_split_positions": 27,
+  "physical_audio": false,
+  "physical_midi": false,
+  "external_runtime_assets": false,
+  "application_large_reply_bytes": 32761
+}

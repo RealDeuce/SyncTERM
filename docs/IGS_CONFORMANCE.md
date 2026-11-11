@@ -15,7 +15,9 @@ original requested start/end coordinates.
 both remembered pairs, preserving native Drawto chaining.
 X dispatch is in progress: `X0` scatters markers with persistent color cycling.
 `X1` changes a raw physical palette register,
-and `X12` changes four consecutive physical registers. `X7` loads source
+and `X12` changes four consecutive physical registers. `X5` configures the
+flow mode, custom XON/XOFF bytes and signed repeat counts without emitting
+immediately, preserving completed prefix stores and loop overrides. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
 `X14` selects the persistent screen/memory transfer route used by `G`.
@@ -733,8 +735,8 @@ then reads its signed count and byte per queued response. Initial/full-reset
 configuration is enabled, bytes 19/17 once each (original accessory DATA).
 I/R preserve it. SyncTERM's response transport owns readiness; no foreign
 BIOS poll or device delay is reproduced. A failed draw sends no extra XON;
-callback reset cancels further sends/drawing. X5 and `&` remain pending;
-their relevant native state is injected for the helper tests.
+callback reset cancels further sends/drawing. `&` remains pending;
+its loop state is injected where needed by the helper tests.
 
 `cterm_igs_polyline` includes 1,692 independently derived complete raster cases
 in all resolutions and modes, with separate initially clear/set phases,

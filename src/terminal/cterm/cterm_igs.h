@@ -107,6 +107,8 @@ struct cterm_igs {
 	bool destructive_backspace;
 	/* Serial flow helpers read their own gate once and count/byte per send. */
 	int flow_mode, loop_mode, loop_kind;
+	/* X5 commits its mode/byte before reading the remaining count. */
+	int flow_configuring;
 	size_t text_counter;
 	uint8_t shared_text[129];
 	size_t shared_text_size;

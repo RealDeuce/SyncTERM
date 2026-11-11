@@ -270,6 +270,12 @@ through those existing helpers. Native buffer/backpressure/lifecycle tests and
 342 coherent all-mode/encoding/status application captures check opaque input,
 retained records, unchanged scenes and reconnect. No audible/device coverage
 is claimed.
+X5 now configures flow mode and custom XON/XOFF bytes/counts through staged
+numeric fields. Literal native cases and 288 coherent application captures
+cover signed/loop rules, partial stores, exact raw replies, unchanged scenes
+and reconnect across all modes/encodings/status choices with physical output
+disabled. Existing serial helpers retain their once-per-entry mode gate and
+live byte/count reads.
 Other commands, loops and input remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

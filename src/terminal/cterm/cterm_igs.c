@@ -41,11 +41,13 @@ static int pattern_load_next(void *, const struct st_graphics_command_view *, st
 static int random_range_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int math_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int bitmap_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int flow_mode_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int unscaled_tail_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
 	{0, point_parameters, 4, unscaled_tail_next},
 	{1, unscaled_parameters, 2, NULL},
 	{2, unscaled_parameters, 1, random_range_next},
+	{5, unscaled_parameters, 1, flow_mode_next},
 	{7, unscaled_parameters, 1, pattern_load_next},
 	{8, unscaled_parameters, 4, NULL},
 	{10, point_parameters, 2, NULL},
@@ -65,6 +67,31 @@ preview_first(void *context, const struct st_graphics_command_view *view, int *v
 		return IO_ERROR_PROTOCOL;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	return cterm_igs_argument_value(&preview, &view->arguments[0], value);
+}
+
+/* X5's mode decision is frozen once its extra readers have begun. */
+static int
+flow_mode_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	struct cterm_igs *igs = context;
+	int mode = igs->flow_configuring;
+	int status = mode != 0 ? 0 : preview_first(context, view, &mode);
+	if (status != 0) return status;
+	if (igs->flow_configuring == 0 && igs->loop_mode != 0) mode = 1;
+	*result = (mode == 2 || mode == 3) && view->count < 3 ? unscaled_parameters[0]
+	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	return 0;
+}
+
+static void
+set_flow_mode(struct cterm_igs *igs, int mode)
+{
+	igs->flow_mode = igs->loop_mode != 0 ? 1 : mode;
+	if (igs->flow_mode > 3) {
+		igs->flow_on = 17; igs->flow_off = 19;
+		igs->flow_on_count = igs->flow_off_count = 1;
+	}
 }
 
 static const struct st_graphics_parameter text_parameter = {
@@ -357,7 +384,9 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 	int selector;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	int status = 0;
-	if (preview.bitmap_loading)
+	if (preview.flow_configuring != 0)
+		selector = 5;
+	else if (preview.bitmap_loading)
 		selector = 11;
 	else if (preview.math_printing)
 		selector = 13;
@@ -442,6 +471,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->pending_palette = 0;
 	igs->timed_pause = igs->pause_key = false;
 	igs->note = (struct cterm_igs_note){0};
+	igs->flow_configuring = 0;
 	igs->pattern_loading = false;
 	igs->pattern_slot = 0;
 	igs->math_printing = false;
@@ -669,7 +699,9 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 		struct cterm_igs preview = *igs;
 		int selector, slot;
 		int status = 0;
-		if (igs->bitmap_loading)
+		if (igs->flow_configuring != 0)
+			selector = 5;
+		else if (igs->bitmap_loading)
 			selector = 11;
 		else if (igs->math_printing)
 			selector = 13;
@@ -678,6 +710,21 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 		else
 			status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
 		if (status != 0) return status;
+		if (selector == 5 && view->count == 2) {
+			int mode;
+			status = cterm_igs_argument_value(&preview, &view->arguments[1], &mode);
+			if (status != 0) return status;
+			set_flow_mode(igs, mode);
+			igs->flow_configuring = igs->flow_mode;
+			igs->random_seed = preview.random_seed;
+		}
+		if (selector == 5 && view->count == 3 && igs->flow_configuring != 0) {
+			int byte;
+			status = cterm_igs_argument_value(igs, &view->arguments[2], &byte);
+			if (status != 0) return status;
+			if (igs->flow_configuring == 2) igs->flow_on = (uint8_t)byte;
+			else igs->flow_off = (uint8_t)byte;
+		}
 		if (selector == 11 && view->count == 3 && parameter->kind == ST_GRAPHICS_BYTES) {
 			int operation, section;
 			status = cterm_igs_argument_value(&preview,&view->arguments[1],&operation);
@@ -807,6 +854,16 @@ command(void *context, const struct st_graphics_command_view *view)
 			if (status == 0) status = cterm_igs_argument_value(igs, &view->arguments[2], &end);
 		}
 		return status == 0 ? cterm_igs_music_execute(igs, first, end) : status;
+	}
+	if (view->code == 'X' && igs->flow_configuring != 0) {
+		if (view->count != 4) return IO_ERROR_PROTOCOL;
+		int count, mode = igs->flow_configuring;
+		igs->flow_configuring = 0;
+		int status = cterm_igs_argument_value(igs, &view->arguments[3], &count);
+		if (status != 0) return status;
+		if (mode == 2) igs->flow_on_count = count;
+		else igs->flow_off_count = count;
+		return 0;
 	}
 	if (view->code == 'X' && igs->bitmap_loading) {
 		if (view->count != 4 || view->arguments[3].kind != ST_GRAPHICS_BYTES
@@ -988,6 +1045,7 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 5) { set_flow_mode(igs, values[1]); return 0; }
 		if (values[0] == 15)
 			return cterm_igs_sweep_begin(igs,values+1);
 		if (values[0] == 8)
@@ -1281,6 +1339,7 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 			cterm_log(igs->terminal, ST_CTERM_LOG_WARNING,
 			    "IGS input rejected (%d); continuing stream", status);
 			cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
+			igs->flow_configuring = 0;
 			igs->pattern_loading = false;
 			igs->pattern_slot = 0;
 			igs->math_printing = false;
@@ -1293,6 +1352,7 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 		status = 0;
 	if (status != 0) {
 		cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
+		igs->flow_configuring = 0;
 		igs->pattern_loading = false;
 		igs->pattern_slot = 0;
 		igs->math_printing = false;
@@ -1357,6 +1417,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 			status = 0;
 	}
 	igs->input_deadline = igs->text_deadline = 0;
+	igs->flow_configuring = 0;
 	igs->pattern_loading = false;
 	igs->pattern_slot = 0;
 	igs->math_printing = false;

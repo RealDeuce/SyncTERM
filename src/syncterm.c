@@ -84,6 +84,11 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 	if (igs != NULL) {
 		cterm_igs_audio_inspect(igs,app);
 		cterm_igs_music_inspect(igs,app);
+		st_console_test_number(app, "cterm.igs_flow_mode", igs->flow_mode);
+		st_console_test_number(app, "cterm.igs_flow_on", igs->flow_on);
+		st_console_test_number(app, "cterm.igs_flow_off", igs->flow_off);
+		st_console_test_number(app, "cterm.igs_flow_on_count", igs->flow_on_count);
+		st_console_test_number(app, "cterm.igs_flow_off_count", igs->flow_off_count);
 		st_console_test_number(app, "cterm.igs_resolution", igs->resolution);
 		st_console_test_number(app, "cterm.igs_console_foreground", igs->terminal->vt52_foreground);
 		st_console_test_number(app, "cterm.igs_console_background", igs->terminal->vt52_background);
