@@ -20,7 +20,9 @@ flow mode, custom XON/XOFF bytes and signed repeat counts without emitting
 immediately, preserving completed prefix stores and loop overrides. `X3` loads
 an opaque right-button macro, sends it once with optional CR and pauses serial
 acquisition until all buttons release; retained input and local UI/Wren routing
-share the existing owner/event paths. `X7` loads source
+share the existing owner/event paths. `X4` defines48 retained zone rectangles
+and raw payloads, clears rectangle bounds and controls strict loopback for the
+future `<` consumer. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
 `X14` selects the persistent screen/memory transfer route used by `G`.
@@ -2556,3 +2558,55 @@ application X3 took40.89s. The ledger is now56/63 complete; parent X and
 remaining command/final acceptance work stay unfinished.
 
 Completion commit for X3: 502cf25. The goal remains active at56/63.
+
+
+## Zone definitions and payloads (`X4`)
+
+Chapter21 defines X4's producer independently of the still-pending `<` zone
+selection/reply consumer. Unscaled selectors above47 become47, except9999
+(clear all four words of every rectangle to-1),9998 (strict loopback on) and
+9997 (off). Those controls read no extra operands or raw bytes and emit no
+flow. Clearing bounds preserves every stored length/payload and loopback.
+Initial bounds, payloads, lengths and loopback are zero from accessory BSS/
+DATA. Full reset/reconnect restore that state; I/R preserve it.
+
+Ordinary definitions store X/Y/X/Y signed words individually before the next
+reader, using existing coordinate scaling and numeric sources. Bounds are
+neither reordered nor clipped. The unscaled signed WORD length clamps1..80;
+255/256 become80, while X3's signed-byte clamp produces1. Exactly n opaque
+bytes are stored and one further byte is discarded without delimiter checking,
+leading separator skip, NUL padding or suffix clearing. Exact loop1 calls XON
+before the first auxiliary receive deadline. X3 and X4 share this service:
+each raw slot, including the discard, times out independently at local5s,
+returns space/console BEL and continues. Local keys wait through loading
+without aborting it and resume through their original encoding path.
+EOF/rejection/timeout cancels pending readers while keeping completed stores.
+
+Negative zone indices are safely rejected before the first rectangle store;
+they are native wrapped RAM/code escapes, not extra zones or aliases to47.
+Their unread suffix follows the existing nonfatal graphics/plain recovery.
+Transport EOF does not fabricate missing bytes; no foreign clock, BIOS polling,
+legacy file-source EOF behavior or hardware throughput wait is added.
+
+`cterm_igs_zone` covers all48 slots,14 signed length boundaries, all256 raw
+values, maximum80 bytes, untouched slots/suffixes, controls/loop guards,
+individual stores, numeric/EOF/timeout/RNG/reset recovery, delayed-flow first
+deadline and reentrant reset. All44 partitions plus bytewise input over18
+mode/encoding/status profiles and162 captured-resolution/scaling cases retain
+full dual-phase pixels, palette, attributes and cursor. An X3 click sampled
+during loading waits for X4 completion and retains the serial suffix and local
+key queue until release. `syncterm_igs_zone` adds432 coherent control-bitmap
+captures across all modes, Atari ST/CP437/UTF-8 and status choices, checking
+independent glyph/index/RGB and every zone's explicit serialized state.
+Application negative values are actual X13 subtraction/lookup operands; a
+minus prefix is an IGS loop expression. The fixture covers opacity/retention,
+controls, incremental stores, queued Unicode input and partial EOF/reconnect.
+Physical audio/MIDI are disabled; ordinary tests are self-contained. Provenance
+and reference hashes are in `src/tests/igs/zone-vectors.json`.
+
+Native FreeBSD Release configure/full CMake builds were warning-free. All30
+selected regressions passed in107.15s, including shared grammar, IGS input/
+state/auxiliary/music, CTerm ANSI/VT52/keyboard, RIP, SkyPix, term, Wren and
+application X3/X4/X5/N. Native X4 took0.26s and the432-capture application run
+28.26s. The ledger is57/63 complete; X dispatch, `<` and final acceptance remain
+unfinished.

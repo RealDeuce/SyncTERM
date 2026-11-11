@@ -284,6 +284,12 @@ unchanged pixels/palettes/glyphs, local/Wren mouse routing, UTF-8 key replay and
 disconnect/reconnect with physical audio/MIDI disabled. N and X3 share the
 owner-side input queue. Other commands, loops and input remain pending; see
 the IGS ledger for details.
+X4 adds48 retained zone definitions, individual scaled coordinate stores,
+signed-word length clamping, raw auxiliary loads/discard and strict-loopback
+controls for the future `<` consumer. Native literal tests plus432 coherent
+all-mode/encoding/status application captures verify opaque data, unchanged
+scenes, queued keys and EOF/reconnect, sharing X3's auxiliary service with
+physical sound/MIDI disabled. Negative zone memory escapes are rejected.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

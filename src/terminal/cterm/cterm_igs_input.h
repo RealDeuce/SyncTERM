@@ -16,13 +16,22 @@ struct cterm_igs_key {
 	int local;
 };
 
-enum { CTERM_IGS_MACRO_BYTES = 80, CTERM_IGS_INPUT_KEYS = 64 };
+enum { CTERM_IGS_MACRO_BYTES = 80, CTERM_IGS_INPUT_KEYS = 64, CTERM_IGS_ZONES = 48 };
+struct cterm_igs_zone {
+	int16_t rectangle[4];
+	uint8_t length, bytes[CTERM_IGS_MACRO_BYTES];
+};
 struct cterm_igs_input {
 	uint8_t enabled, length, cr, bytes[CTERM_IGS_MACRO_BYTES];
 	bool configuring, loading;
 	int operation;
 	size_t received;
 	uint64_t deadline;
+	struct cterm_igs_zone *zones;
+	int zone, zone_loopback;
+	bool zone_configuring, zone_loading;
+	size_t zone_received;
+	uint64_t zone_deadline;
 	/* Terminal-owner state, never accessed by a worker. Native TOS bits:
 	 * left=1/right=2. A hold ends only at an all-buttons-up sample. */
 	struct cterm_igs_key keys[CTERM_IGS_INPUT_KEYS];
@@ -34,6 +43,12 @@ struct cterm_igs_input {
 bool cterm_igs_buffer_key(struct cterm_igs *, const struct cterm_igs_key *);
 int cterm_igs_take_key(struct cterm_igs *);
 int cterm_igs_forward_keys(struct cterm_igs *);
+int cterm_igs_input_reset(struct cterm_igs *);
+void cterm_igs_input_cancel_reader(struct cterm_igs *);
+int cterm_igs_zone_length(int value);
+int cterm_igs_zone_control(struct cterm_igs *, int zone);
+int cterm_igs_zone_load(struct cterm_igs *, int length);
+int cterm_igs_zone_bytes(struct cterm_igs *, const uint8_t *, size_t, size_t *accepted);
 int cterm_igs_macro_length(int value);
 int cterm_igs_macro_load(struct cterm_igs *, int length);
 int cterm_igs_macro_bytes(struct cterm_igs *, const uint8_t *, size_t, size_t *accepted);

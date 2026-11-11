@@ -13,11 +13,12 @@
 #include "st_utf8.h"
 #include "st_unicode_text.h"
 #include <stdlib.h>
+#include <string.h>
 
 bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 {
 	struct cterm_igs_input *m = &igs->input;
-	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->held) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
+	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
 	m->keys[(m->key_first + m->key_count) % CTERM_IGS_INPUT_KEYS] = *key;
 	++m->key_count;
 	return true;
@@ -70,6 +71,47 @@ static uint64_t deadline(uint64_t now)
 {
 	return now > UINT64_MAX-5000 ? UINT64_MAX : now+5000;
 }
+int cterm_igs_input_reset(struct cterm_igs *igs)
+{
+	struct cterm_igs_zone *zones = igs->input.zones;
+	if (zones == NULL) zones = calloc(CTERM_IGS_ZONES, sizeof(*zones));
+	if (zones == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	memset(zones, 0, CTERM_IGS_ZONES * sizeof(*zones));
+	memset(&igs->input, 0, sizeof(igs->input));
+	igs->input.zones = zones;
+	return 0;
+}
+int cterm_igs_zone_length(int value)
+{
+	return value < 1 ? 1 : value > CTERM_IGS_MACRO_BYTES ? CTERM_IGS_MACRO_BYTES : value;
+}
+int cterm_igs_zone_control(struct cterm_igs *igs, int zone)
+{
+	if (zone == 9999) {
+		for (size_t i = 0; i < CTERM_IGS_ZONES; ++i)
+			for (size_t j = 0; j < 4; ++j) igs->input.zones[i].rectangle[j] = -1;
+	} else if (zone == 9998) igs->input.zone_loopback = 1;
+	else if (zone == 9997) igs->input.zone_loopback = 0;
+	else return IO_ERROR_PROTOCOL;
+	return 0;
+}
+static int auxiliary_begin(struct cterm_igs *igs, uint64_t *due)
+{
+	int status = igs->loop_mode == 1 ? cterm_igs_flow(igs, true) : 0;
+	/* The first auxiliary read starts after any flow output/readiness. */
+	uint64_t now;
+	if (status == 0) status = igs->now_ms(&now);
+	if (status == 0) *due = deadline(now);
+	return status;
+}
+int cterm_igs_zone_load(struct cterm_igs *igs, int length)
+{
+	struct cterm_igs_input *input = &igs->input;
+	if (input->zone < 0 || input->zone >= CTERM_IGS_ZONES) return IO_ERROR_OUT_OF_RANGE;
+	input->zones[input->zone].length = (uint8_t)cterm_igs_zone_length(length);
+	input->zone_loading = true; input->zone_received = 0;
+	return auxiliary_begin(igs, &input->zone_deadline);
+}
 int cterm_igs_macro_length(int value)
 {
 	unsigned byte = (unsigned)value & 255u;
@@ -81,41 +123,57 @@ int cterm_igs_macro_load(struct cterm_igs *igs, int length)
 	struct cterm_igs_input *input = &igs->input;
 	input->length = (uint8_t)cterm_igs_macro_length(length);
 	input->loading = true; input->received = 0;
-	int status = igs->loop_mode == 1 ? cterm_igs_flow(igs, true) : 0;
-	/* The first auxiliary read starts after any flow output/readiness. */
-	uint64_t now;
-	if (status == 0) status = igs->now_ms(&now);
-	if (status == 0) input->deadline = deadline(now);
-	return status;
+	return auxiliary_begin(igs, &input->deadline);
 }
-int cterm_igs_macro_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size, size_t *accepted)
+/* X3 and X4 use the same fixed auxiliary service: retain n bytes and
+ * discard one unconditional read, with a separate deadline for each slot. */
+static int auxiliary_bytes(struct cterm_igs *igs, uint8_t *destination, size_t length,
+    size_t *received, uint64_t *due, const uint8_t *bytes, size_t size, size_t *accepted)
 {
-	struct cterm_igs_input *input = &igs->input;
 	*accepted = 0;
-	if (!input->loading || input->received > input->length || size > (size_t)input->length+1-input->received)
-		return IO_ERROR_PROTOCOL;
+	if (*received > length || size > length+1-*received) return IO_ERROR_PROTOCOL;
 	uint64_t now;
 	int status = igs->now_ms(&now);
 	if (status != 0) return status;
-	bool expired = now >= input->deadline;
+	bool expired = now >= *due;
 	if (expired && size != 0) {
 		const uint8_t bell = 7;
 		status = cterm_vt52_output(igs->terminal, &bell, 1);
 		if (status != 0 || igs->reset_pending) return status != 0 ? status : IO_ERROR_INTERRUPTED;
 	}
 	while (*accepted < size) {
-		/* The final auxiliary read is discarded, irrespective of its byte. */
-		if (input->received < input->length)
-			input->bytes[input->received] = expired && *accepted == 0 ? ' ' : bytes[*accepted];
-		++input->received; ++*accepted;
+		if (*received < length) destination[*received] = expired && *accepted == 0 ? ' ' : bytes[*accepted];
+		++*received; ++*accepted;
 	}
-	input->deadline = deadline(now);
+	*due = deadline(now);
 	return 0;
+}
+int cterm_igs_macro_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size, size_t *accepted)
+{
+	struct cterm_igs_input *input = &igs->input;
+	if (!input->loading || input->length > sizeof(input->bytes)) { *accepted = 0; return IO_ERROR_PROTOCOL; }
+	return auxiliary_bytes(igs, input->bytes, input->length, &input->received, &input->deadline, bytes, size, accepted);
+}
+int cterm_igs_zone_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size, size_t *accepted)
+{
+	struct cterm_igs_input *input = &igs->input;
+	if (!input->zone_loading || input->zone < 0 || input->zone >= CTERM_IGS_ZONES) {
+		*accepted = 0; return IO_ERROR_PROTOCOL;
+	}
+	struct cterm_igs_zone *zone = &input->zones[input->zone];
+	if (zone->length > sizeof(zone->bytes)) { *accepted = 0; return IO_ERROR_PROTOCOL; }
+	return auxiliary_bytes(igs, zone->bytes, zone->length, &input->zone_received, &input->zone_deadline, bytes, size, accepted);
+}
+void cterm_igs_input_cancel_reader(struct cterm_igs *igs)
+{
+	struct cterm_igs_input *input = &igs->input;
+	input->configuring = input->loading = false; input->deadline = 0;
+	input->zone_configuring = input->zone_loading = false; input->zone_deadline = 0;
 }
 void cterm_igs_input_cancel(struct cterm_igs *igs)
 {
 	struct cterm_igs_input *input = &igs->input;
-	input->configuring = input->loading = false; input->deadline = 0;
+	cterm_igs_input_cancel_reader(igs);
 	input->held = input->suspended = input->sending = input->suppressed = false;
 	input->buttons = 0;
 }
@@ -195,5 +253,21 @@ void cterm_igs_input_inspect(const struct cterm_igs *igs, struct st_console_test
 	FIELD(enabled); FIELD(length); FIELD(cr); FIELD(loading); FIELD(received); FIELD(held); FIELD(buttons);
 #undef FIELD
 	st_console_test_number(app, "cterm.igs_macro_buffer", hash);
+	uint32_t rectangles = UINT32_C(2166136261), payloads = rectangles;
+	for (size_t i = 0; i < CTERM_IGS_ZONES; ++i) {
+		const struct cterm_igs_zone *zone = &input->zones[i];
+		for (size_t j = 0; j < 4; ++j) {
+			unsigned word = (uint16_t)zone->rectangle[j];
+			rectangles = (rectangles ^ (word >> 8)) * UINT32_C(16777619);
+			rectangles = (rectangles ^ (word & 255)) * UINT32_C(16777619);
+		}
+		payloads = (payloads ^ zone->length) * UINT32_C(16777619);
+		for (size_t j = 0; j < sizeof(zone->bytes); ++j) payloads = (payloads ^ zone->bytes[j]) * UINT32_C(16777619);
+	}
+	st_console_test_number(app, "cterm.igs_zone_rectangles", rectangles);
+	st_console_test_number(app, "cterm.igs_zone_payloads", payloads);
+	st_console_test_number(app, "cterm.igs_zone_loopback", input->zone_loopback);
+	st_console_test_number(app, "cterm.igs_zone_loading", input->zone_loading);
+	st_console_test_number(app, "cterm.igs_zone_received", (int64_t)input->zone_received);
 }
 #endif

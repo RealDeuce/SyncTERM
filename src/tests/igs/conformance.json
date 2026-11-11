@@ -357,7 +357,9 @@
         "cterm_igs_x10",
         "syncterm_behavior_session_modes",
         "cterm_igs_macro",
-        "syncterm_igs_macro"
+        "syncterm_igs_macro",
+        "cterm_igs_zone",
+        "syncterm_igs_zone"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -466,7 +468,7 @@
       "operations": [
         "Read one unscaled selector without clamping; out-of-range words consume no selector payload and perform no store/service/reply before normal chaining",
         "Reuse shared fixed-prefix and dynamic-tail descriptions for selector payloads; effect-free preview includes selector numeric state and real random operands commit once",
-        "Selectors 0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14 and 15 implemented; pending valid 0..15 handlers warn after the selector; the adapter cancels the rejected grammar and continues the unread suffix through graphics/plain input without ending the session"
+        "Selectors 0, 1, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 14 and 15 implemented; pending valid 0..15 handlers warn after the selector; the adapter cancels the rejected grammar and continues the unread suffix through graphics/plain input without ending the session"
       ],
       "tests": [
         "cterm_igs_x10",
@@ -494,7 +496,9 @@
         "cterm_igs_flow",
         "syncterm_igs_flow",
         "cterm_igs_macro",
-        "syncterm_igs_macro"
+        "syncterm_igs_macro",
+        "cterm_igs_zone",
+        "syncterm_igs_zone"
       ],
       "deviations": [],
       "verification": [
@@ -509,7 +513,8 @@
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit.",
         "The native X8 test failed at the selector before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. Generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 32 selected CTest regressions passed in 53.21 seconds, including shared parser/stream, indexed images, control backend/protocol, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, I/R/input/g/t/q/X1/X10/X11/X12/G and application S/X1/X11/X12/t checks. Native X8 took 1.37 seconds; application X8 separately passed all 288 coherent captures in 76.84 seconds. Validated all 63 unique ordered IDs with 50 complete entries, references/dependencies, active test registrations and pinned font/ROM identities. No parallel changes are included in this step.",
         "The native X15 test failed at the selector before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; generated-dependency clock-skew warnings cleared in the final builds, which had no warnings. Native X15 and application X15 first passed in 2.37 and 43.73 seconds, including 600 independent dual-phase raster cases and 451 coherent application captures. The 27-test regression run passed 26 in 58.21 seconds; its X10 test still selected newly implemented X15 for a NOT_SUPPORTED expectation. Changed that seed to pending selector X9, preserving the same error/consumption/seed/position assertions. The final full build and focused X10/X15 tests passed in 8.31 seconds (X15 2.32 seconds). All 27 distinct regression tests have passing verification across these runs: shared parser/stream, indexed images, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, I/R/input/g/L/D/X10/z/t/q/G/X8/X11/X15 and application L/D/R. Validated 63 unique ordered IDs with 51 complete entries, references/dependencies, active tests, 600/36 vector inventories, six source-oracle hashes and pinned font/ROM identities. Parallel work is excluded from this step.",
-        "Native FreeBSD Release CMake configure and full builds with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON passed without warnings. Initial missing-handler test failed before implementation. All33 selected regressions passed in165.45s: shared parser/stream, IGS input/I/R/X5/bitmap/math/random/pattern/X8/X15/t/q/drawing/text/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and application X5/N/SkyPix mouse/X3. A new local-key-during-X3-load test exposed premature sends; after fixing ownership, all25 selected regressions passed in90.31s, including423 coherent X3 captures over all18 display/encoding/status profiles in42.09s. A final injected-time test exposed the first auxiliary deadline starting before XON readiness; after correcting that order, the final full build was warning-free and native X3/N/X5 plus application X3 all passed in40.96s. Native X3 took0.26s and the final423-capture application test40.89s. Tests include all256 raw values,18 signed length boundaries,40 partitions and bytewise input, retained scenes/state, source-derived zero initialization, local timeout/extra discard, flow order, held/reentrant reset/release, exact unread suffix, queued NFC Unicode/normal/codepage keys, Wren mouse/scrollback gates and partial-load/held EOF/reconnect. Validated63 unique ordered IDs,56 completed entries, active test registrations, dependencies/references, pinned source identities and unchanged unrelated ledger entries. Physical audio/MIDI were disabled; no reference tree/ROM/executable is required at test runtime. X remains in progress and final acceptance is unfinished."
+        "Native FreeBSD Release CMake configure and full builds with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON passed without warnings. Initial missing-handler test failed before implementation. All33 selected regressions passed in165.45s: shared parser/stream, IGS input/I/R/X5/bitmap/math/random/pattern/X8/X15/t/q/drawing/text/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and application X5/N/SkyPix mouse/X3. A new local-key-during-X3-load test exposed premature sends; after fixing ownership, all25 selected regressions passed in90.31s, including423 coherent X3 captures over all18 display/encoding/status profiles in42.09s. A final injected-time test exposed the first auxiliary deadline starting before XON readiness; after correcting that order, the final full build was warning-free and native X3/N/X5 plus application X3 all passed in40.96s. Native X3 took0.26s and the final423-capture application test40.89s. Tests include all256 raw values,18 signed length boundaries,40 partitions and bytewise input, retained scenes/state, source-derived zero initialization, local timeout/extra discard, flow order, held/reentrant reset/release, exact unread suffix, queued NFC Unicode/normal/codepage keys, Wren mouse/scrollback gates and partial-load/held EOF/reconnect. Validated63 unique ordered IDs,56 completed entries, active test registrations, dependencies/references, pinned source identities and unchanged unrelated ledger entries. Physical audio/MIDI were disabled; no reference tree/ROM/executable is required at test runtime. X remains in progress and final acceptance is unfinished.",
+        "Native FreeBSD Release CMake configure and full builds with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON passed without warnings. The initial missing-handler test failed because X4 numeric/raw bytes reached the console, and passed after implementation. Expanded native X4 passed all48-slot,14 signed-word length,256-byte,44-partition,18-profile and162 scaling cases, including X3 pending macro/held suffix/queued-key composition, in0.26s. An initial application fixture incorrectly used minus-prefixed literals; corrected it to actual X13 subtraction/array lookup without changing pixel/state expectations or parser semantics. All30 selected CTest regressions passed in107.15s: shared parser/stream, IGS input/I/R/X3/X4/X5/bitmap/math/random/pattern/X8/X15/t/q/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and application X3/X4/X5/N. syncterm_igs_zone passed432 coherent captures in28.26s over all ST modes, Atari ST/CP437/UTF-8 and status choices, with exact glyph/index/RGB/zone fingerprints, opacity/retention/controls, individual stores, queued Unicode keys and partial EOF/reconnect. Physical audio/MIDI were disabled and ordinary tests require no external reference assets. Validated63 unique ordered IDs,57 completed commands, active test registrations/dependencies/references, pinned source identities and preserved unrelated command entries. Parent X, < consumer, remaining commands and final acceptance are unfinished."
       ],
       "commit": null,
       "limitations": [
@@ -2907,16 +2912,40 @@
       "references": [
         "20-extended-controls.adoc",
         "21-extended-payloads.adoc",
-        "26-query-command.adoc",
         "27-input-command.adoc"
       ],
       "order": 57,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "X3",
+        "X5"
+      ],
+      "operations": [
+        "48 retained zones each hold four signed rectangle words and an independent length plus80 opaque bytes. Unscaled zone selectors>47 clamp to47 except9997/9998/9999. Special9999 clears only all four corners of all48 rectangles to-1, preserving lengths/bytes/loopback;9998 enables strict zone loopback and9997 disables it, with no extra operands, raw acquisition or flow.",
+        "Ordinary zone definitions read X/Y/X/Y coordinates with existing scaling/array/random semantics and commit each signed word before the next reader. Preserve requested order and out-of-display bounds. Read unscaled signed WORD length and clamp1..80 before publishing it;255/256 become80 unlike X3. Freeze accepted selector/zone and advance numeric state once.",
+        "Share X3 auxiliary begin/byte service for exactlyn raw stores plus one unconditional discarded byte; retain old suffix, do not skip another separator/check a delimiter/append a terminator. Exact loop1 calls existing XON first; the first local5s deadline starts after its output. Per-slot timeout, including the discard, inserts space/console BEL and continues. Local keys queue through loading and retain original encoding when forwarded after completion.",
+        "EOF, numeric timeout or rejection cancels pending ownership while preserving accepted coordinates, length and bytes. Full reset/reconnect restore initial zero zones/loopback/macro state and destruction frees zone storage; I/R preserve it. Future < consumes these definitions and loopback policy; X4 does not select/report a zone or draw.",
+        "Native tests cover all48 slots,14 signed-word length boundaries, all256 raw values, high-selector clamping/negative escapes, all44 partitions and bytewise input over18 graphics profiles,162 captured-resolution/scaling cases, partial/error/EOF/RNG/deadline/flow/reset recovery, unchanged full dual-phase pixels/palettes/attributes/cursor and composition with X3 held input/suffix/queued keys. Application432 coherent all-mode/encoding/status captures combine independent glyph/index/RGB/state expectations with every zone, actual negative-word X13/lookup construction, opaque payloads, retained suffixes, controls, incremental stores, Unicode key forwarding and disconnect/reconnect."
+      ],
+      "tests": [
+        "cterm_igs_zone",
+        "syncterm_igs_zone",
+        "cterm_igs_macro",
+        "syncterm_igs_macro",
+        "cterm_igs_music",
+        "syncterm_igs_music",
+        "cterm_igs_flow",
+        "syncterm_igs_flow"
+      ],
+      "deviations": [
+        "Reject negative zone indices before storing any coordinates; do not emulate signed wrapped native addressing into adjacent RAM/code or silently map those indices to47. A rejected command follows existing nonfatal parser recovery, leaving unread suffix to normal graphics/plain parsing. Nonnegative out-of-range zone normalization remains native.",
+        "Transport EOF cancels incomplete acquisition and preserves actual stores without inventing missing payload/discard bytes. Only actual local receive timeout supplies space/BEL; full local deadlines replace native low-word wrap artifacts. Existing response transport owns XON readiness, with no foreign clock, hardware polling/throughput wait or file-helper EOF behavior.",
+        "Zone definitions/strict-loopback configuration are complete here; hit testing, retries, markers/pointers and zone replies belong to the still-pending < command. No claim of that consumer or audible/native-device coverage is made."
+      ],
+      "verification": [
+        "Native FreeBSD Release CMake configure and full builds with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON passed without warnings. The initial missing-handler test failed because X4 numeric/raw bytes reached the console, and passed after implementation. Expanded native X4 passed all48-slot,14 signed-word length,256-byte,44-partition,18-profile and162 scaling cases, including X3 pending macro/held suffix/queued-key composition, in0.26s. An initial application fixture incorrectly used minus-prefixed literals; corrected it to actual X13 subtraction/array lookup without changing pixel/state expectations or parser semantics. All30 selected CTest regressions passed in107.15s: shared parser/stream, IGS input/I/R/X3/X4/X5/bitmap/math/random/pattern/X8/X15/t/q/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and application X3/X4/X5/N. syncterm_igs_zone passed432 coherent captures in28.26s over all ST modes, Atari ST/CP437/UTF-8 and status choices, with exact glyph/index/RGB/zone fingerprints, opacity/retention/controls, individual stores, queued Unicode keys and partial EOF/reconnect. Physical audio/MIDI were disabled and ordinary tests require no external reference assets. Validated63 unique ordered IDs,57 completed commands, active test registrations/dependencies/references, pinned source identities and preserved unrelated command entries. Parent X, < consumer, remaining commands and final acceptance are unfinished."
+      ],
       "commit": null
     },
     {

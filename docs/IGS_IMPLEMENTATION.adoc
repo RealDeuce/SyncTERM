@@ -4136,3 +4136,70 @@ its final423-capture application run took40.89s. All63 ordered IDs,56 completed
 entries, active test registrations/dependencies/references and pinned source
 identities were checked. Parent X, remaining commands and final acceptance
 stay unfinished; the full goal remains active.
+
+
+== X4 zone definitions (complete)
+
+Reference: chapter21, serial block $0020da..$0022b8, with chapter20's XON
+helper and chapter27's later `<` consumer. X4 owns48 zones, each with four
+signed rectangle words plus length and80 retained bytes. Initial rectangles/
+payloads are zero-initialized BSS, and original DATA loopback word $013b5e
+is0. Full reset/reconnect clear both tables and loopback; I/R preserve them.
+A separately allocated zone table avoids copying these persistent bytes into
+numeric-state previews, and is freed with its owning IGS session.
+
+The unscaled zone reader clamps nonnegative values above47 to47 except9999,
+9998 and9997. Those special selectors consume no extra operands/raw data and
+emit no XON.9999 clears all four rectangle words in all48 zones to-1 while
+retaining every length/payload byte and loopback;9998/9997 set strict loopback
+on/off. Ordinary definitions read X/Y/X/Y and publish each signed word before
+the following reader. Existing scaling, array/index, random and frozen-prefix
+rules apply; there is no bound/order correction or drawing. The unscaled
+signed WORD length clamps1..80 before storage, so255/256 become80, unlike
+X3's signed-byte path. Negative zone indices are rejected before the first
+store instead of reproducing native signed-offset RAM/code escapes. Their
+unread suffix follows existing nonfatal parser recovery.
+
+Exactly n opaque bytes are stored, preserving the prior suffix, then one
+unconditional extra helper byte is discarded. No leading separator skip,
+terminator comparison, NUL padding or local-key abort is added. Exact loop1
+calls XON first, including its current mode/byte/count/readiness policy. The
+first local5s raw deadline starts afterward. X3/X4 now share the same actual
+auxiliary begin/byte implementation, including per-slot space/BEL timeout,
+extra-discard ownership and cancellation. Local keys queue throughout X4
+raw acquisition and retain their original forwarding/encoding path on completion.
+EOF cancels acquisition while retaining completed bounds/length/data; it does
+not fabricate remaining bytes. Shared parser/owner suspension also preserves
+pending X3 clicks, held serial suffixes and queued keys through release.
+No foreign clock, native polling/IRQ emulation or throughput wait is added.
+The `<` hit-testing/marker/mouse/retry/reply behavior remains a separate pending
+command; defining zones or strict policy does not implement that consumer.
+
+cterm_igs_zone covers every slot,14 signed length boundaries, all256 raw values,
+maximum80-byte loads, retained suffix/other zones, normalization/controls,
+partial coordinates/raw input, numeric/EOF/timeout/RNG/reset recovery,
+exact-loop/delayed-flow deadlines and reentrant reset. All44 partitions and
+bytewise input over18 ST mode/encoding/status profiles plus162 captured-mode/
+scaling cases preserve full dual-phase pixels, palettes, attributes and cursor.
+A pending X3 macro at X4 completion preserves exact unread serial suffix and
+queued key ownership. syncterm_igs_zone adds432 coherent application captures
+over the same18 profiles, with independent glyph/index/RGB state, full-table
+serialized fingerprints, opaque payloads, suffix/clear/loopback retention,
+individual stores, queued Unicode input and partial disconnect/fresh reconnect.
+Negative application words are built using actual X13 subtraction/lookup;
+minus is a loop-expression prefix. Physical audio/MIDI are off and ordinary
+tests need no external tree/ROM/executable. Source identities and literal
+coverage inventory: src/tests/igs/zone-vectors.json.
+
+Native FreeBSD Release CMake configure and full builds with /usr/bin/cc passed
+without warnings. The missing-handler test failed before implementation and
+passed afterward. An initial application fixture used minus-prefixed literals;
+corrected it to X13 subtraction/lookup while preserving pixel/state assertions
+and parser semantics. All30 selected CTest checks passed in107.15s: shared
+parser/stream, IGS input/I/R/X3/X4/X5/bitmap/math/random/pattern/waits/audio,
+CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and
+application X3/X4/X5/N. Native X4 took0.26s; application X4 passed all432 coherent
+captures in28.26s. All63 unique ordered IDs,57 completed entries, active tests,
+dependencies/references and source identities were checked. Parent X, the `<`
+consumer, remaining commands and final acceptance stay pending. The full goal
+remains active.
