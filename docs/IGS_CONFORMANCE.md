@@ -2385,3 +2385,5 @@ b 19.73 seconds. The prior PSG component completion commit is 8dad5c7.
 The sound foundation stays in progress for n/N and MIDI integration; those
 commands and the remaining loops/selectors/final acceptance are unfinished.
 References: chapters 06/24/53/55/56/57.
+
+Completion commit for b: 53d1e31. The goal remains active at 52/63.

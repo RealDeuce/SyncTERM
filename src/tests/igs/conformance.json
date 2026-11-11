@@ -2712,7 +2712,7 @@
       "verification": [
         "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 30 selected CTest checks passed in 59.47 seconds, covering shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and the b application fixture. cterm_igs_audio took 0.27 seconds, igs_psg 0.13 seconds and syncterm_igs_effect 19.73 seconds. The application fixture passed 198 coherent captures across all three ST modes, Atari ST/CP437/UTF-8 and both status choices, with AudioModes=0 and MidiModes=0. No external runtime assets or physical audio were used. Independent original-data fingerprints and active test registrations are validated; 52/63 command entries are complete."
       ],
-      "commit": null
+      "commit": "53d1e31"
     },
     {
       "id": "n",
