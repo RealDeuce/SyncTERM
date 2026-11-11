@@ -17,16 +17,29 @@ struct model {
 };
 
 static void
-model_down(struct model *m)
+model_scroll_up(struct model *m, unsigned top)
 {
-	if (m->y+1 < m->rows) { ++m->y; return; }
 	unsigned kept = 0;
-	for (unsigned i = 0; i < m->count; ++i) if (m->cells[i].y != 0) {
-		m->cells[i].y--; m->cells[kept++] = m->cells[i];
+	for (unsigned i = 0; i < m->count; ++i) {
+		if (m->cells[i].y == top)
+			continue;
+		if (m->cells[i].y > top)
+			--m->cells[i].y;
+		m->cells[kept++] = m->cells[i];
 	}
 	m->count = kept;
-	for (unsigned row = 1; row < m->rows; ++row) m->backgrounds[row-1] = m->backgrounds[row];
+	for (unsigned row = top + 1; row < m->rows; ++row)
+		m->backgrounds[row - 1] = m->backgrounds[row];
 	m->backgrounds[m->rows-1] = m->bg;
+}
+
+static void
+model_down(struct model *m)
+{
+	if (m->y + 1 < m->rows)
+		++m->y;
+	else
+		model_scroll_up(m, 0);
 }
 
 /* Source-derived six-state oracle, independent of the production dispatch,
@@ -44,6 +57,10 @@ model_byte(struct model *m, uint8_t byte)
 		else if (byte == 'C' && m->x+1 < m->columns) ++m->x;
 		else if (byte == 'D' && m->x != 0) --m->x;
 		else if (byte == 'H') m->x = m->y = 0;
+		else if (byte == 'M') {
+			model_scroll_up(m, m->y);
+			m->x = 0;
+		}
 		else if (byte == 'p') m->reverse = true;
 		else if (byte == 'q') m->reverse = false;
 		else if (byte == 'v') m->wrap = true;

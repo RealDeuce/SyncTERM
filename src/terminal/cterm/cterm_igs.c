@@ -152,6 +152,7 @@ static const struct st_graphics_command commands[] = {
 	{'w', unscaled_parameters, 1, NULL},
 	{'l', unscaled_parameters, 1, NULL},
 	{'s', unscaled_parameters, 1, NULL},
+	{'d', unscaled_parameters, 1, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -331,6 +332,21 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+repeat_console_escape(struct cterm_igs *igs, uint8_t letter, int count)
+{
+	const uint8_t output[] = {27, letter};
+	const size_t size = letter == 0 ? 1 : sizeof(output);
+	/* The first iteration precedes the signed count comparison. Each
+	 * escape starts in the state left by the previous output bytes. */
+	for (int i = 0; i < (count > 0 ? count : 1); ++i) {
+		int status = cterm_vt52_output(igs->terminal, output, size);
+		if (status != 0)
+			return status;
+	}
+	return 0;
+}
+
+static int
 clear_screen(struct cterm_igs *igs, int selector)
 {
 	struct cterminal *terminal = igs->terminal;
@@ -395,17 +411,9 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'm': {
 		static const uint8_t directions[] = {'H','A','B','C','D'};
 		int selector = values[0] > 4 ? 0 : values[0];
-		unsigned count = values[1] > 0 ? (unsigned)values[1] : 1;
-		const uint8_t output[] = {27, selector < 0 ? 0 : directions[selector]};
-		/* Even home repeats: the first pair can be consumed by pending
-		 * parameters. Negative selectors repeat ESC alone. */
-		for (unsigned i = 0; i < count; ++i) {
-			int status = cterm_vt52_output(igs->terminal,output,selector < 0 ? 1 : sizeof(output));
-			if (status != 0)
-				return status;
-		}
-		return 0;
+		return repeat_console_escape(igs, selector < 0 ? 0 : directions[selector], values[1]);
 	}
+	case 'd': return repeat_console_escape(igs, 'M', values[0]);
 	case 'r': {
 		const uint8_t output[] = {27, values[0] == 1 ? 'k' : 'j'};
 		return cterm_vt52_output(igs->terminal, output, values[0] < 0 ? 1 : sizeof(output));

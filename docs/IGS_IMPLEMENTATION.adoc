@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l and s commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s and d commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2525,5 +2525,36 @@ builds with /usr/bin/cc passed without warnings. The first targeted run
 passed 23 checks, including the application test in 17.93 seconds.
 The native test passed in 2.00 seconds on rerun after correcting the
 copied-row count assertion and adding the VDI history check. The ledger
-records 36 complete entries. Completion commit will be recorded by the
-next step.
+records 36 complete entries. Completion commit `5616fee`.
+
+=== d line deletion
+
+The signed unscaled count is acquired once. Each repetition emits ESC M
+through the existing VT52 state. Counts at or below zero emit one pair.
+Positive counts emit that many pairs. The same emitter serves m. Pending
+escapes and raw parameters can consume the bytes or make M print before
+a later repetition reaches the delete handler.
+
+Native ESC M shifts all rows below the cursor up one row within the
+drawable terminal. Both indexed phases and the corresponding cells move
+together. The last row is blanked in the raw background color, even in
+reverse video. Deletion from that row just blanks it. The cursor moves
+to column zero of the original row and the local cursor overlay is
+redisplayed. Explicit deletion leaves scrollback and the reserved status
+row intact.
+
+The native fixture checks 181 indexed scroll scenes including distinct
+phases and the maximum positive word, and 252 pending-state compositions.
+It also covers split and bytewise input, random acquisition, timeout,
+EOF, invalid input, render failure recovery and history. The application
+fixture checks 90 coherent captures across all ST modes, Atari ST,
+CP437 and UTF-8, and both status choices, with audio and MIDI disabled.
+It verifies literal glyphs, moved graphics, indexed phases, RGB, cursor
+overlay, no replies and raw ESC M after reconnect.
+
+References include chapters 04, 14, 66, 124, 160 and 195.
+The new native test failed before implementation. The native FreeBSD
+Release build with /usr/bin/cc passed without warnings. All 21 targeted
+CTest checks passed in 33.93 seconds. The native and application checks
+for d took 1.26 and 17.16 seconds respectively. The ledger records 37
+complete entries. Completion commit will be recorded by the next step.

@@ -1512,6 +1512,24 @@ palette, RGB, pending state and reconnect across all ST modes, Atari
 ST, CP437 and UTF-8, and both status choices.
 All 24 targeted checks passed across two native FreeBSD Release runs.
 
+### d line deletion
+
+The signed count emits one ESC M pair for zero or negative values and
+one pair per positive count. Every pair is processed through persistent
+VT52 state, including any pending escape or parameter. ESC M moves
+the rows below the cursor up within the drawable terminal and blanks
+the bottom row with the raw background. Text and both indexed pixel
+phases move together. The cursor returns to column zero of the original
+row and explicit deletion leaves scrollback intact.
+
+`cterm_igs_delete_lines` checks 433 native scenes including the maximum
+count, distinct indexed phases, pending state, and focused input and
+history cases. `syncterm_igs_delete_lines` checks 90 coherent captures
+across all ST modes, Atari ST, CP437 and UTF-8, and both status choices.
+It verifies original glyphs, moved graphics, RGB, cursor overlay and
+reconnect.
+All 21 targeted checks passed on native FreeBSD Release.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on

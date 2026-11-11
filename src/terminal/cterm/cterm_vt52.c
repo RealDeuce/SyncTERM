@@ -301,7 +301,36 @@ static void
 cterm_vt52_delete_line(struct cterminal *cterm, int *speed)	/* ESC M */
 {
 	(void)speed;
-	cterm_dellines(cterm, 1);
+	if (cterm->igs_engine == NULL) {
+		cterm_dellines(cterm, 1);
+		return;
+	}
+
+	int y;
+	CURR_XY(NULL, &y);
+	int left = CURR_MINX, top = y, right = CURR_MAXX, bottom = CURR_MAXY;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &left, &top);
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &right, &bottom);
+	uint32_t background = cterm_vt52_background_color(cterm);
+	cterm_vt52_render_cursor(cterm, CTERM_CURSOR_HIDDEN);
+	bool erased;
+	if (top == bottom) {
+		int status = cterm_render_fill_blank(cterm, left, top, right, bottom, background);
+		cterm_render_record_error(cterm, status);
+		erased = status == 0;
+	} else {
+		struct st_console_cell blank;
+		int status = cterm_render_make_current_cell(cterm, &blank, ' ', 0);
+		cterm_render_record_error(cterm, status);
+		blank.background = background;
+		erased = status == 0 && cterm_render_move_cells_clear(cterm,
+		    left, top + 1, right, bottom, left, top, &blank);
+	}
+	if (erased) {
+		cterm_text_scrolled(cterm, top, bottom);
+		cterm_render_set_position(cterm, CURR_MINX, y);
+	}
+	cterm_vt52_render_cursor(cterm, cterm->cursor);
 }
 
 static void
