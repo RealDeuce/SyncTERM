@@ -32,6 +32,7 @@ static const struct st_graphics_parameter point_parameters[] = {
 /* Extended selectors reuse the same descriptor and parameter data as the
  * top-level byte grammar. X itself owns the unscaled selector field. */
 static const struct st_graphics_command extended_commands[] = {
+	{1, unscaled_parameters, 2, NULL},
 	{10, point_parameters, 2, NULL},
 };
 
@@ -554,6 +555,11 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 1) {
+			if (view->count != 3)
+				return IO_ERROR_PROTOCOL;
+			return cterm_igs_palette_register(igs, values[1] > 15 ? 15 : values[1], values[2]);
+		}
 		if (values[0] == 10) {
 			if (view->count != 3)
 				return IO_ERROR_PROTOCOL;

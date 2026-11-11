@@ -182,6 +182,10 @@ resumption, errors, reset and reconnect.
 native duration cases and 145 coherent application checkpoints cover
 count boundaries, control lifetime, key forwarding, suffix resumption
 and reconnect.
+`X1` adds raw palette registers, signed index aliases, negative-color queries,
+complete raw-word retention and mono polarity, preserving the VDI color cache.
+Its 197,994 native word cases and 126 coherent application captures verify
+retained indexed pixels, unscaled operands, parser recovery and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

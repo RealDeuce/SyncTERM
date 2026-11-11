@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1 and X10 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X10
+command, rendering or sound support. X dispatch is in progress, with X1 and X10
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -2684,5 +2684,46 @@ Release configure and full builds with /usr/bin/cc passed. All 17
 selected CTest checks passed in 33.89 seconds. Native and application
 q took 0.38 and 24.98 seconds respectively. Generated-dependency clock
 skew warnings in the initial build cleared in the final build. The
-ledger records 40 complete entries. Completion commit will be recorded
-by the next step.
+ledger records 40 complete entries. Completion commit `f59ec90`.
+
+=== X1 raw palette register
+
+X1 acquires two unscaled signed words. Clamp indices above 15 to 15;
+negative indices alias through their low four bits. A negative color
+queries the old register and has no side effect or serial reply. A
+nonnegative color stores the complete raw word, including unused bits.
+Realize RGB through the original ST three-bit channels. Keep this raw
+register service separate from S's VDI pen mapping and requested-RGB cache.
+
+In monochrome, only register zero bit zero determines the complementary
+RGB colors for pixel indices zero and one. Other registers retain raw
+words without changing those display colors. In color modes, all sixteen
+registers remain available even when only four indices are visible.
+An R change with palette choice zero retains those words and colors.
+Ordinary indexed pixels, both blink phases, console state and drawing
+attributes remain untouched. There is no wait or flow-control output.
+
+The native test checks 197,994 word cases: exhaustive signed index and
+color sweeps plus mode/status/scaling representatives. It checks raw,
+realized and published palettes, the saved palette and requested cache,
+pending VT52 input, unchanged indexed planes, every focused input split
+and bytewise chain, once-only random acquisition, EOF/timeout/invalid
+input and initialization/reset lifetime. A medium-to-low transition
+verifies retention of a register outside medium's visible four colors.
+The application test checks 126 coherent captures across all ST modes,
+Atari ST, CP437 and UTF-8, and both status choices, with audio and MIDI
+disabled. Literal RGB values and pinned glyph rows verify recoloring of
+existing pixels, mono polarity and unrelated-register preservation,
+unscaled operands, no replies and partial-input disconnect/reconnect.
+
+References: 20, 28, 100, 124 and 165. Parent X remains in progress.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full builds with /usr/bin/cc passed. All 17 selected CTest
+checks passed in 79.88 seconds, including shared parser, CTerm ANSI/VT52,
+RIP parser, SkyPix, term input, I/R/S/X10 and application palette/cursor/t/q
+regressions. Native and application X1 took 1.45 and 18.34 seconds.
+Initial generated-dependency clock skew warnings cleared in the final
+builds, which had no warnings. Source identities, test registrations,
+references and dependencies were checked. The ledger records 41 complete
+entries. Completion commit will be recorded by the next step.

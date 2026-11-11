@@ -12,7 +12,8 @@ perimeter together. `A` selects fill styles and copies/generates user patterns.
 original requested start/end coordinates.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
-X dispatch is in progress: `X10` sets the next Drawto origin without drawing.
+X dispatch is in progress: `X1` changes a raw physical palette register.
+`X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
 position pair, with serial XOFF/XON around drawing. `Z` fills inclusive
@@ -637,7 +638,7 @@ X reads one unscaled selector without clamping. Values outside 0..15 consume
 only that operand, make no store/call/reply and allow normal chaining. Fixed
 selector descriptors reuse the shared command/point descriptions. T and X
 share effect-free arity preview; selector/random values advance once when
-the command completes. Only X10 is implemented so far. Other valid selectors
+the command completes. X1 and X10 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1584,6 +1585,30 @@ UTF-8, and both status choices. It verifies literal scene retention,
 control values, a live wait, key forwarding, no replies and reconnect.
 G's double-copy use remains pending with G.
 All 17 selected checks passed on native FreeBSD Release.
+
+### X1 raw physical palette register
+
+Two signed unscaled operands select the index and color word. Indices
+above 15 clamp to 15; negative indices alias through their low four bits.
+Negative colors query without changing state or sending a reply. Positive
+words and zero store all raw bits; original-ST RGB uses only bits 10..8,
+6..4 and 2..0. X1 preserves the separate VDI requested-RGB and desktop
+palette caches. In monochrome, only register zero bit zero changes the
+complementary display colors. Other raw registers remain independent.
+No pixels, drawing attributes, console state, waits or flow bytes change.
+
+`cterm_igs_raw_palette` checks 197,994 word cases including exhaustive
+signed index and color sweeps. It also covers all focused partitions,
+random evaluation, pending console input, invalid/partial acquisition,
+EOF, timeout, initialization/reset and palette-preserving R lifetime.
+`syncterm_igs_raw_palette` checks 126 coherent captures across all ST
+modes, encodings and status choices, using literal RGB and pinned glyph
+rows to verify recoloring of retained indexed pixels, mono polarity,
+ignored register writes, unscaled operands, no reply and reconnect.
+Physical audio and MIDI are disabled. References: 20/28/100/124/165.
+All 17 selected checks passed on native FreeBSD Release; the final full
+build completed without warnings. Full X dispatch and other selectors
+remain pending.
 
 ## Deliberate corrections
 

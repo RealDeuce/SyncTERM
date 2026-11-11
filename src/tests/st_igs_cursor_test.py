@@ -10,7 +10,7 @@ from st_igs_console_color_test import DATA, fixture, initial
 from syncterm_fixture import cell_at, check_pixel_planes
 
 
-def check(frame, resolution, status, cursor_x, glyph, line, visible, inverted):
+def check(frame, resolution, status, cursor_x, glyph, line, visible, inverted, palette=None):
     width = 320 if resolution == 0 else 640
     height = 400 if resolution == 2 else 200
     cell_height = 16 if resolution == 2 else 8
@@ -21,7 +21,7 @@ def check(frame, resolution, status, cursor_x, glyph, line, visible, inverted):
     assert (metadata["plane_width"], metadata["plane_height"]) == (width, height)
     assert (state["cterm.x"], state["cterm.y"]) == (cursor_x + 1, 3)
     assert metadata["cursor_visible"] == visible
-    assert tuple(frame.palette[768:784]) == tuple(initial(resolution))
+    assert tuple(frame.palette[768:784]) == tuple(initial(resolution) if palette is None else palette)
 
     expected = array("I", [768]) * (width * rows * cell_height)
     top = 2 * cell_height

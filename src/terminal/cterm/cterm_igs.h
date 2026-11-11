@@ -116,6 +116,7 @@ int cterm_igs_resolution(struct cterm_igs *, int requested, int palette);
 int cterm_igs_wait_sync(struct cterm_igs *, unsigned units);
 int cterm_igs_resolution_complete(struct cterm_igs *, int palette);
 int cterm_igs_palette_pen(struct cterm_igs *, int pen, int red, int green, int blue);
+int cterm_igs_palette_register(struct cterm_igs *, int index, int color);
 int cterm_igs_state_init(struct cterm_igs *);
 int cterm_igs_state_reset(struct cterm_igs *);
 int cterm_igs_set_resolution(struct cterminal *, unsigned resolution);

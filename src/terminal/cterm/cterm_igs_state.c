@@ -62,6 +62,26 @@ publish_palette(struct cterm_igs *igs)
 }
 
 int
+cterm_igs_palette_register(struct cterm_igs *igs, int index, int color)
+{
+	/* Setcolor queries have no side effects; X1 discards the old word.
+	 * Raw writes preserve unused bits and leave VDI's request cache alone. */
+	if (color < 0)
+		return 0;
+	unsigned physical = (unsigned)index & 15u;
+	igs->raw_palette[physical] = (uint16_t)color;
+	if (igs->resolution == 2) {
+		if (physical != 0)
+			return 0;
+		igs->palette[0] = (color & 1) != 0 ? 0xffffff : 0;
+		igs->palette[1] = igs->palette[0] ^ UINT32_C(0xffffff);
+	}
+	else
+		igs->palette[physical] = word_rgb((uint16_t)color);
+	return publish_palette(igs);
+}
+
+int
 cterm_igs_palette_pen(struct cterm_igs *igs, int pen, int red, int green, int blue)
 {
 	unsigned mask = cterm_igs_plane_mask(igs->resolution);

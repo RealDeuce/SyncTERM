@@ -68,7 +68,7 @@ dispatch_and_arrays(void)
 			/* Valid selectors whose handlers are still pending fail at the
 			 * selector boundary, rather than forwarding payload to ANSI. */
 			for (unsigned selector = 0; selector < 16; ++selector) {
-				if (selector == 10) continue;
+				if (selector == 1 || selector == 10) continue;
 				int prefix = snprintf(wire,sizeof(wire),"G#X>%u,",selector);
 				CHECK(prefix > 0 && (size_t)prefix+sizeof("1234:M 1:") <= sizeof(wire));
 				memcpy(wire+prefix,"1234:M 1:",sizeof("1234:M 1:"));
