@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1, X2, X7, X10 and X12 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X0, X1, X2, X7, X10 and X12 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X1, X2, X7, X10 and X12
+command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10 and X12
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -2882,5 +2882,65 @@ and application A/X2 regressions. Native and application X2 took 0.35 and
 17.97 seconds. After adding explicit R retention checks, another full build
 and focused native X2 test passed in 0.56 seconds. Ledger IDs, references,
 dependencies, source identities and active test registrations were checked.
-The ledger records 44 complete entries. Completion commit will be recorded
+The ledger records 44 complete entries. Completion commit `e041047`.
+
+
+=== X0 marker scatter and persistent color cycling
+
+X0 acquires an X/Y base pair, X/Y extents and one unscaled signed count.
+The coordinate pairs share the existing point descriptors; the final
+unscaled field shares its descriptor callback with B/U. Extents therefore
+undergo g scaling before use. Ordinary scatter starts with two independent
+Random low-byte samples. Rejected coordinates alone are resampled. The
+ninth checking pass still consumes its rejected-coordinate samples, then
+forces both coordinates to zero. Extents above 255 do not enlarge the byte
+distribution; negative extents reject every candidate. No r/R range helper,
+wait, flow output or old-hardware throughput delay is involved.
+
+Zero extents in a color mode instead copy the already scaled base X into
+persistent cycle-current and restart words. This serial setup skips marker
+color restoration and emits no markers, regardless of count. Monochrome
+continues through ordinary scatter. Before each marker, a nonzero cycle
+advances within the current color-mode limit and restarts when exceeded;
+monochrome keeps its current word. The native marker-color setter validates
+the selected pen without changing C's request cache. After an ordinary
+scatter, including a nonpositive count, a nonzero cache restores its pen.
+A zero cache suppresses restoration. Cycle state survives C, I, R and I5;
+full reset/reconnect clears both words. Defined point/cycle word arithmetic
+uses bounded unsigned conversion without C signed overflow.
+
+P and X0 now share one marker raster primitive. P alone owns its remembered
+endpoint store; scatter preserves both Drawto pairs and uses one separate
+primitive per emitted marker. Existing shape, size, writing-mode, XOR,
+clipping, status-row and blink-phase rules apply. On a host primitive error,
+stop sampling/drawing and restore a nonzero cached color, retaining prior
+pixels, RNG advancement and cycle state.
+
+The native test checks 1,152 complete dual-phase raster cases across eight
+literal sample vectors, six marker shapes, four writing modes, three modes
+and both status choices. Source-derived points and final seeds verify the
+resampling order, ninth-pass fallback and byte distribution independently
+of the production scatter loop. Additional checks cover all 65,536 signed
+setup words, color cycles/restoration, zero cache, serial setup bypass,
+monochrome, I/R/I5/reset, g1/g2 classes, extreme signed counts, invalid marker
+recovery, every focused split and bytewise input, random operands, partial
+headers, EOF, timeout and invalid acquisition. The application test checks
+126 coherent captures across all ST modes, Atari ST, CP437, UTF-8 and status
+choices with audio and MIDI off. Literal consecutive-stream points and
+independent marker/font masks verify exact pixels and RGB, XOR over a console
+glyph, all shapes and modes, cycling/cache state, normalized coordinates,
+unchanged Drawto pairs, no replies and partial disconnect/reconnect.
+
+References: 20, 43, 44, 52, 124, 129, 136 and IG221.TXT's X0 entry.
+Parent X and containing-loop integration remain in progress.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full CMake builds with /usr/bin/cc passed. All 20 selected
+CTest checks passed in 72.71 seconds, including shared parser, CTerm
+ANSI/VT52, RIP parser, SkyPix, term, I/R/C/P/B/U/X1/X2/X7/X10/X12 and
+application P/X0 regressions. Native and application X0 took 2.16 and
+17.79 seconds. Initial generated-dependency clock skew warnings cleared
+in the final full build, which had no warnings. Ledger IDs, references,
+dependencies, source identities and active test registrations were checked.
+The ledger records 45 complete entries. Completion commit will be recorded
 by the next step.

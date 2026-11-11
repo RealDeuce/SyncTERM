@@ -34,7 +34,9 @@ static const struct st_graphics_parameter point_parameters[] = {
 static int palette_group_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int pattern_load_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int random_range_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int unscaled_tail_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
+	{0, point_parameters, 4, unscaled_tail_next},
 	{1, unscaled_parameters, 2, NULL},
 	{2, unscaled_parameters, 1, random_range_next},
 	{7, unscaled_parameters, 1, pattern_load_next},
@@ -199,7 +201,7 @@ text_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
-box_next(void *context, const struct st_graphics_command_view *view,
+unscaled_tail_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
 	(void)context;
@@ -304,8 +306,8 @@ static const struct st_graphics_command commands[] = {
 	{'E', unscaled_parameters, 3, NULL},
 	{'W', point_parameters, 2, text_next},
 	{'Z', point_parameters, 4, NULL},
-	{'B', point_parameters, 4, box_next},
-	{'U', point_parameters, 4, box_next},
+	{'B', point_parameters, 4, unscaled_tail_next},
+	{'U', point_parameters, 4, unscaled_tail_next},
 	{'O', point_parameters, 3, NULL},
 	{'Q', point_parameters, 4, NULL},
 	{'K', point_parameters, 3, arc_next},
@@ -783,6 +785,11 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 0) {
+			if (view->count != 6)
+				return IO_ERROR_PROTOCOL;
+			return cterm_igs_scatter(igs, values[1], values[2], values[3], values[4], values[5]);
+		}
 		if (values[0] == 12) {
 			if (view->count < 2)
 				return IO_ERROR_PROTOCOL;

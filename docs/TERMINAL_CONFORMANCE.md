@@ -199,6 +199,11 @@ modes, encodings and status choices, with audio and MIDI off.
 conditional arity. Its 75,238 native cases and 126 coherent application
 captures cover range repairs, input partitions, retained scene and reconnect.
 Valid narrow ranges now allow a full relevant generator period.
+`X0` adds byte-sampled marker scatter, bounded resampling and persistent
+color cycling through the shared P raster primitive. Its 1,152 native
+raster cases, signed-word/state tests and 126 coherent application captures
+cover shapes, writing modes, cycles/cache rules, normalized extents,
+retained Drawto state, XOR over text and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

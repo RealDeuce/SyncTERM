@@ -416,8 +416,8 @@ cterm_igs_rectangle(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
 	return status;
 }
 
-int
-cterm_igs_marker(struct cterm_igs *igs, int x, int y)
+static int
+draw_marker(struct cterm_igs *igs, int x, int y)
 {
 	int scale = igs->attributes.marker_height/11;
 	int type = igs->attributes.marker_type-1;
@@ -457,7 +457,63 @@ cterm_igs_marker(struct cterm_igs *igs, int x, int y)
 		}
 		st_pixel_buffer_destroy(raster.pixels);
 	}
-	if (status == 0) { igs->draw_x = x; igs->draw_y = y; igs->last_line = true; }
+	if (status == 0) igs->last_line = true;
+	return status;
+}
+
+int
+cterm_igs_marker(struct cterm_igs *igs, int x, int y)
+{
+	int status = draw_marker(igs, x, y);
+	/* P owns the remembered endpoint store; raw v_pmarker callers do not. */
+	if (status == 0) { igs->draw_x = x; igs->draw_y = y; }
+	return status;
+}
+
+static int
+scatter_word(int value)
+{
+	unsigned word = (unsigned)value & 0xffffu;
+	return word >= 32768 ? (int)word - 65536 : (int)word;
+}
+
+int
+cterm_igs_scatter(struct cterm_igs *igs, int x, int y, int extent_x, int extent_y, int count)
+{
+	if (extent_x == 0 && extent_y == 0 && igs->resolution < 2) {
+		igs->marker_cycle = igs->marker_cycle_restart = x;
+		/* The serial setup branch bypasses even the cached-pen restore. */
+		return 0;
+	}
+	int status = 0;
+	for (int n = 0; n < count; ++n) {
+		int dx = (int)(cterm_igs_random(igs) & 255u);
+		int dy = (int)(cterm_igs_random(igs) & 255u);
+		for (unsigned attempt = 1; ; ++attempt) {
+			bool retry = false;
+			if (dx > extent_x) { dx = (int)(cterm_igs_random(igs) & 255u); retry = true; }
+			if (dy > extent_y) { dy = (int)(cterm_igs_random(igs) & 255u); retry = true; }
+			/* The ninth pass still consumes rejected-coordinate samples,
+			 * then forces BOTH coordinates to zero even if now acceptable. */
+			if (attempt > 8) { dx = dy = 0; retry = false; }
+			if (!retry) break;
+		}
+		if (igs->marker_cycle != 0) {
+			if (igs->resolution == 1) {
+				igs->marker_cycle = scatter_word(igs->marker_cycle + 1);
+				if (igs->marker_cycle > 3) igs->marker_cycle = igs->marker_cycle_restart;
+			}
+			if (igs->resolution == 0) {
+				igs->marker_cycle = scatter_word(igs->marker_cycle + 1);
+				if (igs->marker_cycle > 15) igs->marker_cycle = igs->marker_cycle_restart;
+			}
+			cterm_igs_set_marker_color(igs, igs->marker_cycle);
+		}
+		status = draw_marker(igs, scatter_word(x + dx), scatter_word(y + dy));
+		if (status != 0) break;
+	}
+	if (igs->marker_pen_cache != 0)
+		cterm_igs_set_marker_color(igs, igs->marker_pen_cache);
 	return status;
 }
 

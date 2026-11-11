@@ -12,7 +12,8 @@ perimeter together. `A` selects fill styles and copies/generates user patterns.
 original requested start/end coordinates.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
-X dispatch is in progress: `X1` changes a raw physical palette register,
+X dispatch is in progress: `X0` scatters markers with persistent color cycling.
+`X1` changes a raw physical palette register,
 and `X12` changes four consecutive physical registers. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X10` sets the next Drawto origin without drawing.
@@ -640,7 +641,7 @@ X reads one unscaled selector without clamping. Values outside 0..15 consume
 only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; selector/random values advance once when
-the command completes. X1, X2, X7, X10 and X12 are implemented so far. Other valid selectors
+the command completes. X0, X1, X2, X7, X10 and X12 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1697,6 +1698,37 @@ scene, unscaled arguments, no reply and reconnect. Audio and MIDI are off.
 References: 20/124 and IG221.TXT. All 17 selected checks and the final
 focused R-retention check passed on native FreeBSD Release; full CMake
 builds completed without warnings. Full X and loop integration remain pending.
+
+### X0 marker scatter and color cycling
+
+The X/Y base and extents use coordinate scaling; count is unscaled and
+signed. Each marker samples independent Random low bytes, resampling only
+rejected coordinates. The ninth pass still samples rejects before forcing
+both coordinates to zero. Large extents retain byte-sized distribution;
+negative extents reject all samples. This uses the common RNG source,
+independently of configured r/R ranges, with no waits or flow output.
+
+Zero extents in color modes set both cycle words from scaled base X and
+bypass restoration on the serial path. Mono takes ordinary scatter.
+Nonzero cycles advance through the mode's color limit before each marker,
+then select a validated native marker color without changing C's cache.
+Ordinary scatter restores only a nonzero cached pen, including for a
+nonpositive count. C/I/R/I5 retain cycle words; reset/reconnect clear them.
+P and X0 share raster policy, with P alone storing its Drawto endpoint.
+Host primitive errors stop the loop and restore a nonzero cache while
+retaining completed pixels, RNG and cycle changes.
+
+`cterm_igs_scatter` checks 1,152 dual-phase raster cases from literal points,
+seeds and marker masks, plus every signed setup word, cycles/cache rules,
+mode and argument boundaries, g1/g2, partitions, random evaluation,
+EOF/timeout/error recovery and lifecycle. `syncterm_igs_scatter` checks
+126 coherent captures across all modes, encodings and status choices,
+including consecutive RNG calls, all shapes/modes, exact indexed pixels
+and RGB, XOR over a glyph, cycling, cache-zero retention, normalized
+coordinates, unchanged Drawto pairs, no replies and reconnect. Audio and
+MIDI are off. References: 20/43/44/52/124/129/136 and IG221.TXT.
+All 20 selected checks passed on native FreeBSD Release; the final full
+CMake build completed without warnings. Full X and containing-loop command integration remain pending.
 
 ## Deliberate corrections
 

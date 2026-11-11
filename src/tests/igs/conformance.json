@@ -175,7 +175,9 @@
         "cterm_igs_pattern_load",
         "syncterm_igs_pattern_load",
         "cterm_igs_random_range",
-        "syncterm_igs_random_range"
+        "syncterm_igs_random_range",
+        "cterm_igs_scatter",
+        "syncterm_igs_scatter"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -224,7 +226,8 @@
         "The native test failed before implementation. Native FreeBSD Release configure and full builds with /usr/bin/cc passed. All 17 selected CTest checks passed in 79.88 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term input, I/R/S/X10 and application palette/cursor/t/q regressions. Native and application X1 took 1.45 and 18.34 seconds. Initial generated-dependency clock skew warnings cleared in the final builds, which had no warnings. Verified pinned glyph/ROM identities, active test registrations, references and dependencies, and all 63 ledger IDs with 41 complete entries.",
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 16 selected CTest checks passed in 71.43 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/S/X1/X10 and application S/X1/X10/X12 regressions. Native and application X12 took 0.62 and 18.12 seconds. Verified all 63 command/selector IDs, 42 complete entries, active test registration, dependencies, source references and pinned glyph/ROM identities.",
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 15 selected CTest checks passed in 90.91 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X10/X12 and application A/X7 regressions. Native X7 and application X7 took 0.26 and 17.09 seconds. After adding final clock-failure assertions, another full build and the focused native X7 test passed in 0.32 seconds. Verified all 63 ledger IDs with 43 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
-        "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 17 selected CTest checks passed in 87.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12 and application A/X2 regressions. Native and application X2 took 0.35 and 17.97 seconds. After adding explicit R retention checks, another full build and focused native X2 test passed in 0.56 seconds. Verified all 63 ledger IDs with 44 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities."
+        "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 17 selected CTest checks passed in 87.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12 and application A/X2 regressions. Native and application X2 took 0.35 and 17.97 seconds. After adding explicit R retention checks, another full build and focused native X2 test passed in 0.56 seconds. Verified all 63 ledger IDs with 44 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
+        "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 20 selected CTest checks passed in 72.71 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/C/P/B/U/X1/X2/X7/X10/X12 and application P/X0 regressions. Native and application X0 took 2.16 and 17.79 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Verified all 63 ledger IDs with 45 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities."
       ],
       "commit": null,
       "operations": [
@@ -271,7 +274,8 @@
         "X1 raw physical palette registers retain signed-query, alias, raw-word, monochrome-polarity and separate VDI-cache semantics without changing indexed content.",
         "X12 uses the X1 raw register service for four signed color words, with upper-only group clamping, signed-bound zero-color arity, aliasing and shared descriptor callbacks.",
         "X7 loads persistent source patterns through shared text-reader state and descriptor parameters, with per-row publication, prefix ownership, safe cancellation and independent A4 active copies.",
-        "X2 updates both random ranges through ordered private numeric state shared by arity and execution; sampling covers one full relevant period and maximum-bound repair keeps a valid singleton."
+        "X2 updates both random ranges through ordered private numeric state shared by arity and execution; sampling covers one full relevant period and maximum-bound repair keeps a valid singleton.",
+        "X0 shares the P marker raster primitive while retaining independent Drawto state. Byte sampling, ninth-pass fallback, persistent cycles and nonzero-cache restoration use the existing indexed backend and common RNG."
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -359,7 +363,7 @@
       "operations": [
         "Read one unscaled selector without clamping; out-of-range words consume no selector payload and perform no store/service/reply before normal chaining",
         "Reuse shared fixed-prefix and dynamic-tail descriptions for selector payloads; effect-free preview includes selector numeric state and real random operands commit once",
-        "Selectors 1, 2, 7, 10 and 12 implemented; pending valid 0..15 handlers return NOT_SUPPORTED after the selector, leaving their payload unread"
+        "Selectors 0, 1, 2, 7, 10 and 12 implemented; pending valid 0..15 handlers return NOT_SUPPORTED after the selector, leaving their payload unread"
       ],
       "tests": [
         "cterm_igs_x10",
@@ -371,7 +375,9 @@
         "cterm_igs_pattern_load",
         "syncterm_igs_pattern_load",
         "cterm_igs_random_range",
-        "syncterm_igs_random_range"
+        "syncterm_igs_random_range",
+        "cterm_igs_scatter",
+        "syncterm_igs_scatter"
       ],
       "deviations": [],
       "verification": [
@@ -379,11 +385,12 @@
         "The native test failed before implementation. Native FreeBSD Release configure and full builds with /usr/bin/cc passed. All 17 selected CTest checks passed in 79.88 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term input, I/R/S/X10 and application palette/cursor/t/q regressions. Native and application X1 took 1.45 and 18.34 seconds. Initial generated-dependency clock skew warnings cleared in the final builds, which had no warnings. Verified pinned glyph/ROM identities, active test registrations, references and dependencies, and all 63 ledger IDs with 41 complete entries.",
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 16 selected CTest checks passed in 71.43 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/S/X1/X10 and application S/X1/X10/X12 regressions. Native and application X12 took 0.62 and 18.12 seconds. Verified all 63 command/selector IDs, 42 complete entries, active test registration, dependencies, source references and pinned glyph/ROM identities.",
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 15 selected CTest checks passed in 90.91 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X10/X12 and application A/X7 regressions. Native X7 and application X7 took 0.26 and 17.09 seconds. After adding final clock-failure assertions, another full build and the focused native X7 test passed in 0.32 seconds. Verified all 63 ledger IDs with 43 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
-        "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 17 selected CTest checks passed in 87.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12 and application A/X2 regressions. Native and application X2 took 0.35 and 17.97 seconds. After adding explicit R retention checks, another full build and focused native X2 test passed in 0.56 seconds. Verified all 63 ledger IDs with 44 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities."
+        "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 17 selected CTest checks passed in 87.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12 and application A/X2 regressions. Native and application X2 took 0.35 and 17.97 seconds. After adding explicit R retention checks, another full build and focused native X2 test passed in 0.56 seconds. Verified all 63 ledger IDs with 44 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
+        "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 20 selected CTest checks passed in 72.71 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/C/P/B/U/X1/X2/X7/X10/X12 and application P/X0 regressions. Native and application X0 took 2.16 and 17.79 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Verified all 63 ledger IDs with 45 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities."
       ],
       "commit": null,
       "limitations": [
-        "Only X1, X2, X7, X10 and X12 are implemented. All remaining selector handlers and shared dispatch/loop behavior must pass before marking X complete."
+        "Only X0, X1, X2, X7, X10 and X12 are implemented. All remaining selector handlers and shared dispatch/loop behavior must pass before marking X complete."
       ]
     },
     {
@@ -2260,23 +2267,53 @@
       "verification": [
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 17 selected CTest checks passed in 87.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12 and application A/X2 regressions. Native and application X2 took 0.35 and 17.97 seconds. After adding explicit R retention checks, another full build and focused native X2 test passed in 0.56 seconds. Verified all 63 ledger IDs with 44 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "e041047"
     },
     {
       "id": "X0",
       "phase": "extended-state",
       "references": [
-        "19-extended-math-sweeps.adoc",
-        "20-extended-controls.adoc"
+        "20-extended-controls.adoc",
+        "43-native-line-clipping.adoc",
+        "44-native-software-lines.adoc",
+        "52-native-markers.adoc",
+        "124-native-random-source.adoc",
+        "129-delivery-color-mode-hollow.adoc",
+        "136-delivery-line-drawto-marker.adoc"
       ],
       "order": 45,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "igs-state-raster-timing",
+        "P",
+        "T",
+        "C",
+        "M",
+        "g",
+        "I",
+        "R",
+        "X10"
+      ],
+      "operations": [
+        "Acquire two scaled X/Y pairs and an unscaled signed count using shared point and trailing-field descriptors. Scatter independent Random low bytes; resample rejected coordinates separately. On the ninth pass consume rejected-coordinate samples before forcing both coordinates to zero. Large extents retain byte distribution and negative extents reject all candidates.",
+        "Zero extents in color modes set current/restart cycle words from scaled base X and bypass marker-color restoration on the serial path, regardless of count. Mono takes ordinary scatter. Nonzero cycles advance through mode color limits and select validated native marker colors independently of C's request cache.",
+        "Restore only a nonzero cached marker pen after ordinary scatter, including a nonpositive count. Retain cycles through C/I/R/I5 and clear them at full reset/reconnect. Preserve Drawto pairs and use one shared P raster primitive per marker. Add no wait, flow output, foreign clock or planar framebuffer.",
+        "Check 1,152 full dual-phase raster cases across eight literal sample/seed vectors, six shapes, four modes, three resolutions and two status choices. Check all signed setup words, cycling/restoration, zero cache, serial setup bypass, mono, g1/g2, signed count extremes, I/R/I5/reset, primitive errors, focused partitions and bytewise input, random operands, partial/EOF/timeout/invalid recovery.",
+        "Check 126 coherent captures across all ST modes, Atari ST, CP437 and UTF-8 and both status choices. Literal consecutive-stream points, marker masks and pinned glyph rows verify indexed pixels and RGB, all shapes/modes, XOR over a glyph, cycles/cache, normalized coordinates, retained Drawto state, no replies and partial disconnect/reconnect with audio and MIDI off."
+      ],
+      "tests": [
+        "cterm_igs_scatter",
+        "syncterm_igs_scatter"
+      ],
+      "deviations": [
+        "On a host marker primitive error, stop the scatter loop and restore a nonzero cached marker color, retaining completed pixels and RNG/cycle advancement. Native service errors do not define a corresponding host-backend failure path."
+      ],
+      "verification": [
+        "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 20 selected CTest checks passed in 72.71 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/C/P/B/U/X1/X2/X7/X10/X12 and application P/X0 regressions. Native and application X0 took 2.16 and 17.79 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Verified all 63 ledger IDs with 45 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "X13",

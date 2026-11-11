@@ -56,6 +56,7 @@ struct cterm_igs {
 	uint8_t flow_on, flow_off;
 	int flow_on_count, flow_off_count;
 	int memory_route, double_step, marker_pen_cache;
+	int marker_cycle, marker_cycle_restart;
 	bool clipping;
 	int clip_x1, clip_y1, clip_x2, clip_y2;
 	int16_t math[128];
@@ -96,6 +97,8 @@ void cterm_igs_set_text(struct cterm_igs *, int effects, int points, int rotatio
 unsigned cterm_igs_plane_mask(unsigned resolution);
 unsigned cterm_igs_physical_pen(const struct cterm_igs *, int pen);
 int cterm_igs_marker(struct cterm_igs *, int x, int y);
+int cterm_igs_scatter(struct cterm_igs *, int x, int y, int extent_x, int extent_y, int count);
+void cterm_igs_set_marker_color(struct cterm_igs *, int pen);
 int cterm_igs_line(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_polyline(struct cterm_igs *, const int *coordinates, size_t count);
 int cterm_igs_polygon(struct cterm_igs *, const int *coordinates, size_t count);

@@ -188,6 +188,18 @@ cterm_igs_set_scaling(struct cterm_igs *igs, int mode)
 	igs->scaling_resolution = (int)igs->resolution;
 }
 
+static int
+effective_pen(const struct cterm_igs *igs, int pen)
+{
+	return pen < 0 || (unsigned)pen > cterm_igs_plane_mask(igs->resolution) ? 1 : pen;
+}
+
+void
+cterm_igs_set_marker_color(struct cterm_igs *igs, int pen)
+{
+	igs->attributes.marker_pen = effective_pen(igs, pen);
+}
+
 void
 cterm_igs_set_pen(struct cterm_igs *igs, int kind, int pen)
 {
@@ -195,7 +207,7 @@ cterm_igs_set_pen(struct cterm_igs *igs, int kind, int pen)
 		pen = 0;
 	if (kind > 3)
 		kind = 0;
-	int effective = pen < 0 || (unsigned)pen > cterm_igs_plane_mask(igs->resolution) ? 1 : pen;
+	int effective = effective_pen(igs, pen);
 	switch (kind) {
 	case 0:
 		igs->attributes.marker_pen = effective;
@@ -437,6 +449,7 @@ cterm_igs_state_reset(struct cterm_igs *igs)
 	igs->scaling_resolution = (int)igs->resolution;
 	igs->random_seed = 1;
 	igs->pattern_seed = 0;
+	igs->marker_cycle = igs->marker_cycle_restart = 0;
 	igs->random_range[0][0] = igs->random_range[1][0] = 0;
 	igs->random_range[0][1] = igs->random_range[1][1] = 199;
 	cterm_igs_clip_screen(igs);

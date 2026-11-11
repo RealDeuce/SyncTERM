@@ -137,6 +137,8 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_text_align_h", igs->attributes.text_align_h);
 		st_console_test_number(app, "cterm.igs_text_align_v", igs->attributes.text_align_v);
 		st_console_test_number(app, "cterm.igs_marker_pen_cache", igs->marker_pen_cache);
+		st_console_test_number(app, "cterm.igs_marker_cycle", igs->marker_cycle);
+		st_console_test_number(app, "cterm.igs_marker_cycle_restart", igs->marker_cycle_restart);
 	}
 	FIELD(ext_attr.auto_wrap); FIELD(ext_attr.origin_mode); FIELD(ext_attr.sx_scroll); FIELD(ext_attr.dec_lrmm);
 	FIELD(ext_attr.bracket_paste); FIELD(ext_attr.dec_bkm); FIELD(ext_attr.alternate_keypad);
