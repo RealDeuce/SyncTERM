@@ -712,6 +712,17 @@ int st_console_pixel_size(st_console_t *console, uint32_t *width,
 	uint32_t *height);
 int st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 	uint32_t colour);
+/*
+ * Edit the native indexed/RGB raster under the console write lock. Pending
+ * text and circular row offsets are resolved before edit is called. The
+ * borrowed buffer must not be retained, resized or freed, and edit must not
+ * call console APIs. Set changed to the bounding rectangle of all writes
+ * (initially empty), including writes made before returning an error.
+ * Changes are published even when edit fails; there is no rollback.
+ */
+int st_console_modify_pixels(st_console_t *console,
+	int (*edit)(void *context, const struct st_pixel_buffer *pixels,
+	    struct st_console_rect *changed), void *context);
 int st_console_get_pixels(struct st_pixel_buffer **result,
 	st_console_t *console, const struct st_console_rect *source,
 	bool force_text);

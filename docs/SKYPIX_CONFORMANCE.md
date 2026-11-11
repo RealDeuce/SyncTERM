@@ -33,8 +33,49 @@ Amiga bitmap, including rows below the baseline. Pixel-positioned JR-Comm text r
 its separate native baseline convention. Classic bitmap fonts carry byte indexes,
 including C1 glyph positions, without a charset tag; the selected codepage maps
 bytes to glyphs, while UTF-8 text uses Latin-1 glyph mapping. Remote SkyPix palette
-changes do not recolour application UI. SkyPix drawing and text publish identically
-into both blink phase planes.
+changes do not recolour application UI. SkyPix drawing and text write identically
+into both blink phase planes at the pixels they paint. Pixels outside the operation,
+including transparent JAM1 glyph backgrounds, retain their native indexed/RGB
+values and separate phase contents.
+
+## Raster implementation and checks
+
+SkyPix palette indexes occupy bank 512–527. Its 16-entry alignment leaves the
+low four index bits equal to the Amiga colour number. Points, lines, rectangle
+fills, ellipse outlines/fills, brush blits, native text and erasure edit the
+console's existing raster under its write lock. The console first resolves any
+pending text and circular row offset, then marks the cells intersecting the
+reported damage. A point uses the existing single-pixel console operation.
+Drawing does not copy or republish the full canvas, and canvas bounds are
+independent of the underlying raster stride.
+
+Brush minterms operate on all enabled colour bits together with boolean
+expressions, using the truth-table half for a set C input. Disabled planes retain
+their destination bits. There is no indexed-to-RGB round trip; planar ILBM input
+is decoded once when the brush is loaded. Capturing a brush copies only its
+requested rectangle and retains the documented source Y+1 convention.
+
+Cursor rendering saves its underline for exact restoration, then complements
+the live native/RGB pixels in place. Text retains a clipped background for
+Unicode cluster revision and paints directly into the raster; transparent JAM1
+pixels and both restored phases are preserved. Erasure needs no temporary image.
+Depth reduction and scrolling still save the raster across retained-cell updates
+to preserve padding and both phases; these are full-canvas operations, rather
+than the per-primitive snapshots removed here. Flood fill retains its bounded
+visited map and queue, needed to prevent repeated visits in boundary-fill mode.
+The parser, signed-word/ROM walkers, font metrics, ILBM validation and bounded
+audio queue retain their existing algorithms.
+
+`cterm_skypix` checks literal primitive damage on a 31x23 canvas in a 40x32
+raster, with different indexed/RGB phase contents, clipping, rejected/empty
+operations, brush capture, transparent glyphs and exact revision restoration,
+in both variants and CP437/UTF-8. Its brush truth-table checks enumerate all
+256 minterm bytes, all sixteen masks, depths 1–4 and eight/sixteen display colours
+against an independent per-bit oracle. `st_console_bitmap` checks that edits
+borrow the actual raster, resolve pending text and nonzero circular row offsets,
+mark only affected cells, and publish reported damage even on callback errors.
+The application conformance fixture adds literal corner/boundary point checks
+in both phases using reply-fenced coherent captures.
 
 ## Reference provenance
 

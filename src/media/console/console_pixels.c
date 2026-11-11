@@ -994,6 +994,42 @@ st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 }
 
 int
+st_console_modify_pixels(st_console_t *console,
+	int (*edit)(void *context, const struct st_pixel_buffer *pixels,
+	    struct st_console_rect *changed), void *context)
+{
+	int status;
+
+	if (console == NULL || edit == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (console->pixels == NULL || !pixel_changes_supported(console))
+		status = IO_ERROR_NOT_SUPPORTED;
+	else {
+		status = console->raster_current ? 0
+		    : st_console_rasterize_locked(console, false);
+		if (status == 0)
+			status = st_console_normalize_raster_locked(console);
+		if (status == 0) {
+			struct st_console_rect changed = {0};
+
+			status = edit(context, console->pixels, &changed);
+			if (changed.width != 0 && changed.height != 0) {
+				mark_pixel_cells(console, changed.x, changed.y,
+				    (int64_t)changed.x + changed.width,
+				    (int64_t)changed.y + changed.height);
+				int finished = st_console_finish_change_locked(console);
+				if (status == 0)
+					status = finished;
+			}
+		}
+	}
+	(void)st_rwlock_unlock(&console->state_lock);
+	return status;
+}
+
+int
 st_console_get_pixels(struct st_pixel_buffer **result, st_console_t *console,
 	const struct st_console_rect *source, bool force_text)
 {

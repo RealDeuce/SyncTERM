@@ -61,6 +61,18 @@ Hook.onKey(Key.f10) {|event|
                 frame = exchange(b"\x1b[15;15!\x1b[1;200;100!")
                 for plane in (frame.primary, frame.alternate):
                     assert plane[(100+frame.metadata["pixel_top"])*640+200] == 527
+                # Inclusive canvas corner, signed-word clipping and empty
+                # rectangles must leave neighbouring pixels untouched.
+                bottom = 199 if hide_status else 191
+                frame = exchange((f"\x1b[15;2!\x1b[1;639;{bottom}!"
+                                  f"\x1b[1;640;{bottom}!\x1b[1;65535;{bottom}!"
+                                  f"\x1b[1;639;{bottom+1}!\x1b[4;640;0;650;10!").encode())
+                for plane in (frame.primary, frame.alternate):
+                    for y in range(bottom-1, bottom+1):
+                        for x in range(638, 640):
+                            at = (y+frame.metadata["pixel_top"])*640+x
+                            assert plane[at] == (514 if (x,y)==(639,bottom) else 512), (x,y,plane[at])
+                    assert plane[(100+frame.metadata["pixel_top"])*640+200] == 527
                 frame = exchange(b"\x1b[12!\x1b[2J\x1b[H" + b"A\xe9")
                 m = frame.metadata
                 assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (80, 25, 8, 8), m

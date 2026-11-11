@@ -731,6 +731,146 @@ static void report_ordering_tests(st_cterm_t *t)
 	}
 	free(expected);
 }
+static void brush_logic_tests(st_cterm_t *t)
+{
+	/* Enumerate all source/destination colour pairs. Expected results use
+	 * the documented one-bit truth table independently for each plane. */
+	struct st_pixel_buffer *row = NULL;
+	CHECK(st_pixel_buffer_create(&row, 256, 1, false) == 0);
+	const struct st_console_rect area = {0, 100, 256, 1};
+	const struct st_pixel_blit blit = {.destination_y = 100,
+		.width = 256, .height = 1, .scale_x = 1, .scale_y = 1};
+	for (unsigned colours = 8; colours <= 16; colours *= 2) {
+		feed(t, colours == 8 ? "\x1b[17;1!" : "\x1b[17;2!");
+		st_pixel_buffer_destroy(t->skypix_engine->brush);
+		CHECK(st_pixel_buffer_create(&t->skypix_engine->brush, 256, 1, false) == 0);
+		for (unsigned at = 0; at < 256; ++at) t->skypix_engine->brush->primary[at] = at / 16;
+		t->skypix_engine->brush_palette_pending = false;
+		for (unsigned depth = 1; depth <= (colours == 8 ? 3u : 4u); ++depth) {
+			t->skypix_engine->brush_depth = depth;
+			for (unsigned code = 0; code < 256; ++code)
+				for (unsigned mask = 0; mask < 16; ++mask) {
+					for (unsigned at = 0; at < 256; ++at) row->primary[at] = 512 + at % colours;
+					CHECK(st_console_blit_pixels(t->screen.console, row, NULL, &blit) == 0);
+					char wire[80];
+					snprintf(wire, sizeof(wire), "\x1b[7;0;0;0;100;256;1;%u;%u!", code, mask);
+					feed(t, wire);
+					struct st_pixel_buffer *image = NULL;
+					CHECK(st_console_get_pixels(&image, t->screen.console, &area, false) == 0);
+					for (unsigned at = 0; at < 256; ++at) {
+						unsigned src = at / 16, dst = at % colours, expected = dst;
+						for (unsigned plane = 0; plane < depth; ++plane) {
+							unsigned bit = 1u << plane;
+							unsigned input = 4 + ((src & bit) ? 2u : 0u) + ((dst & bit) ? 1u : 0u);
+							if (mask & bit) {
+								if (code & (1u << input)) expected |= bit;
+								else expected &= ~bit;
+							}
+						}
+						CHECK(image->primary[at] == 512 + expected && image->alternate[at] == 512 + expected);
+					}
+					st_pixel_buffer_destroy(image);
+				}
+		}
+	}
+	st_pixel_buffer_destroy(row);
+	CHECK(reset_without_cursor(t) == 0);
+}
+static void primitive_isolation_tests(enum st_cterm_graphics_mode graphics, bool utf8)
+{
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *t = NULL;
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 5, .rows = 4,
+		.cell_width = 8, .cell_height = 8, .wrap = true};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {.console = console, .fonts = fonts,
+		.emulation = ST_CTERM_ANSI_BBS, .graphics_mode = graphics,
+		.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+		.codepage = ST_CODEPAGE_CP437, .skypix_width = 31, .skypix_height = 23,
+		.quiet = true};
+	CHECK(st_cterm_create(&t, &config) == 0);
+	feed(t, "\x1b[?25l\x1b[99!");
+	/* A canvas narrower/shorter than the raster catches stride and clipping
+	 * mistakes. Different native/RGB planes must survive outside each write. */
+	static const char *const commands[] = {
+		"\x1b[1;30;22!", "\x1b[8;29;21!\x1b[2;33;25!",
+		"\x1b[4;29;21;35;27!", "\x1b[5;30;22;1;1!",
+		"\x1b[13;30;22;1;1!", "\x1b[3;0;30;22!",
+		"\x1b[6;29;20;2;2!", "\x1b[7;0;0;30;22;2;2;192;255!",
+		"\x1b[1;31;22!", "\x1b[1;30;23!", "\x1b[1;65535;22!",
+		"\x1b[4;32;24;35;27!", "\x1b[6;30;22;1;1!",
+		"\x1b[7;0;0;31;23;2;2;192;255!"
+	};
+	struct st_pixel_buffer *base = NULL;
+	CHECK(st_pixel_buffer_create(&base, 40, 32, true) == 0);
+	const struct st_pixel_blit blit = {.width = 40, .height = 32, .scale_x = 1, .scale_y = 1};
+	const struct st_console_rect whole = {0, 0, 40, 32};
+	for (size_t n = 0; n < sizeof(commands) / sizeof(*commands); ++n) {
+		CHECK(st_pixel_buffer_fill(base, 512, ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3)) == 0);
+		base->primary[0] = ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6);
+		/* Flood stays inside this literal 2x2 corner region. */
+		for (unsigned y = 21; y < 23; ++y)
+			for (unsigned x = 29; x < 31; ++x) base->primary[y * 40 + x] = 513;
+		CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
+		feed(t, commands[n]);
+		struct st_pixel_buffer *image = NULL;
+		CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
+		for (unsigned y = 0; y < 32; ++y)
+			for (unsigned x = 0; x < 40; ++x) {
+				size_t at = y * 40 + x;
+				bool changed = n == 0 || n == 7 ? x == 30 && y == 22
+					: n == 1 ? (x == 29 && y == 21) || (x == 30 && y == 22)
+					: n == 2 || n == 5 ? x >= 29 && x <= 30 && y >= 21 && y <= 22
+					: n == 3 ? (x == 30 && y == 21) || (x == 29 && y == 22)
+					: n == 4 ? (x == 30 && y >= 21 && y <= 22) || (x == 29 && y == 22)
+					: false;
+				CHECK(image->primary[at] == (changed ? 514 : base->primary[at]));
+				CHECK(image->alternate[at] == (changed ? 514 : base->alternate[at]));
+			}
+		st_pixel_buffer_destroy(image);
+		if (n == 6) {
+			CHECK(t->skypix_engine->brush->width == 2 && t->skypix_engine->brush->height == 2);
+			for (unsigned i = 0; i < 4; ++i) CHECK(t->skypix_engine->brush->primary[i] == 513);
+			/* Make the following copy's expected ink independent of capture. */
+			for (unsigned i = 0; i < 4; ++i) t->skypix_engine->brush->primary[i] = 2;
+		}
+	}
+	/* JAM1 writes only ink, and revising the cluster restores both original
+	 * phases. Pearl/8 A rows are literal pinned-font expectations. */
+	feed(t, "\x1b[10;8!Pearl.font!\x1b[19;0;65535!\x1b[15;2!");
+	CHECK(st_pixel_buffer_fill(base, ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6), 519) == 0);
+	CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
+	struct st_unicode_presentation_event event = {.kind = ST_UNICODE_PRESENTATION_BEGIN,
+		.bytes = (const uint8_t *)"A", .size = 1};
+	bool handled;
+	CHECK(cterm_skypix_present(t->skypix_engine, &event, &handled) == 0 && handled);
+	struct st_pixel_buffer *image = NULL;
+	CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
+	static const unsigned rows[8] = {0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0};
+	for (unsigned y = 0; y < 32; ++y)
+		for (unsigned x = 0; x < 40; ++x) {
+			bool ink = y < 8 && x < 8 && (rows[y] & (0x80u >> x));
+			CHECK(image->primary[y * 40 + x] == (ink ? 514 : base->primary[y * 40 + x]));
+			CHECK(image->alternate[y * 40 + x] == (ink ? 514 : base->alternate[y * 40 + x]));
+		}
+	st_pixel_buffer_destroy(image);
+	event.kind = ST_UNICODE_PRESENTATION_REVISE;
+	event.bytes = (const uint8_t *)" ";
+	CHECK(cterm_skypix_present(t->skypix_engine, &event, &handled) == 0 && handled);
+	CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
+	CHECK(memcmp(image->primary, base->primary, 40 * 32 * sizeof(uint32_t)) == 0);
+	CHECK(memcmp(image->alternate, base->alternate, 40 * 32 * sizeof(uint32_t)) == 0);
+	st_pixel_buffer_destroy(image);
+	event.kind = ST_UNICODE_PRESENTATION_COMMIT;
+	CHECK(cterm_skypix_present(t->skypix_engine, &event, &handled) == 0);
+	st_pixel_buffer_destroy(base);
+	st_cterm_destroy(&t);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
 static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 {
 	st_console_t *console = NULL;
@@ -767,6 +907,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	gadget_tests(t);
 	depth_tests(t);
 	brush_tests(t);
+	brush_logic_tests(t);
 	short_delay_tests(t);
 	report_ordering_tests(t);
 	CHECK(st_cterm_resize(t, 100, geometry.rows) == IO_ERROR_NOT_SUPPORTED);
@@ -1129,6 +1270,9 @@ static void graphics_history_test(void)
 }
 int st_cterm_skypix_test_main(void)
 {
+	for (unsigned graphics = ST_CTERM_GRAPHICS_SKYPIX_13; graphics <= ST_CTERM_GRAPHICS_SKYPIX_31; ++graphics)
+		for (unsigned utf8 = 0; utf8 < 2; ++utf8)
+			primitive_isolation_tests(graphics, utf8);
 	for (unsigned graphics = ST_CTERM_GRAPHICS_SKYPIX_13; graphics <= ST_CTERM_GRAPHICS_SKYPIX_31; ++graphics)
 		for (unsigned status = 0; status < 2; ++status)
 			for (unsigned utf8 = 0; utf8 < 2; ++utf8) {

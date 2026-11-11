@@ -223,6 +223,11 @@ canvas/status clipping, aspect ratio, reset and directory geometry restoration.
 Startup and full reset select sixteen colours; upper-pen pixel checks cover both
 phase planes without a mode command. Explicit eight-colour selection retains
 depth-reduction, brush-promotion and cursor-complement coverage.
+Primitive rendering edits the native indexed/RGB raster in place and preserves
+untouched phase pixels. Native tests check exact damage, canvas/stride boundaries,
+transparent glyph revision and exhaustive brush minterms/masks; application tests
+check literal corner clipping. See the SkyPix raster implementation notes for the
+remaining restoration, depth and scrolling snapshots.
 Status reserves a row inside the selected mode without changing resolution,
 aspect or system grid: 640x200 remains 80x25, 640x400 remains 80x50. Current,
 Custom and non-Amiga modes (including 80x43's six padding pixels) have literal

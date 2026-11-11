@@ -22,6 +22,8 @@ static void cursor_bookkeeping(struct cterm_skypix *s);
 static void sync_cursor(struct cterm_skypix *s);
 static int draw_cursor(struct cterm_skypix *s);
 
+_Static_assert(CTERM_SKYPIX_PALETTE_FIRST % 16 == 0, "SkyPix plane bits must be palette index bits");
+
 void cterm_skypix_cursor_mode(struct cterm_skypix *s, bool hidden)
 {
 	int status = hidden ? cterm_skypix_hide_cursor(s) : 0;
@@ -73,28 +75,7 @@ static void set_pen(struct cterm_skypix *s, unsigned colour, bool background)
 	}
 	cterm_render_attribute_colours(t, t->attr, &t->fg_color, &t->bg_color);
 }
-static int pixels(struct cterm_skypix *s, struct st_pixel_buffer **buffer)
-{
-	const struct st_console_rect rect = {0, 0, s->width, s->height};
-	return st_console_get_pixels(buffer, s->terminal->screen.console, &rect, false);
-}
-static int publish(struct cterm_skypix *s, const struct st_pixel_buffer *buffer, int x, int y)
-{
-	const struct st_pixel_blit blit = {
-		.width = buffer->width,
-		.height = buffer->height,
-		.destination_x = x,
-		.destination_y = y,
-		.scale_x = 1,
-		.scale_y = 1,
-	};
-	/* SkyPix pixels do not blink. A missing alternate source tells the
-	 * shared blitter to copy the primary image into both destination planes. */
-	struct st_pixel_buffer image = *buffer;
-	image.alternate = NULL;
-	return st_console_blit_pixels(s->terminal->screen.console, &image, NULL, &blit);
-}
-static int cursor_blit(struct cterm_skypix *s, const struct st_pixel_buffer *image,
+static int restore_pixels(struct cterm_skypix *s, const struct st_pixel_buffer *image,
 	const struct st_console_rect *area)
 {
 	const struct st_pixel_blit blit = {.width = image->width, .height = image->height,
@@ -107,12 +88,36 @@ static int cursor_blit(struct cterm_skypix *s, const struct st_pixel_buffer *ima
 int cterm_skypix_hide_cursor(struct cterm_skypix *s)
 {
 	if (s->cursor_background == NULL) return 0;
-	int status = cursor_blit(s, s->cursor_background, &s->cursor_background_rect);
+	int status = restore_pixels(s, s->cursor_background, &s->cursor_background_rect);
 	if (status == 0) {
 		st_pixel_buffer_destroy(s->cursor_background);
 		s->cursor_background = NULL;
 	}
 	return status;
+}
+struct cursor_drawing {
+	struct cterm_skypix *sky;
+	struct st_console_rect area;
+};
+static int complement_cursor(void *context, const struct st_pixel_buffer *buffer,
+	struct st_console_rect *changed)
+{
+	const struct cursor_drawing *cursor = context;
+	const struct st_console_rect *area = &cursor->area;
+	for (unsigned phase = 0; phase < 2; ++phase) {
+		uint32_t *plane = phase ? buffer->alternate : buffer->primary;
+		for (uint32_t x = area->x; x < area->x + area->width; ++x) {
+			size_t at = (size_t)area->y * buffer->width + x;
+			uint32_t colour = plane[at];
+			/* Native pixels complement their active plane bits. RGB pixels
+			 * supplied by other console users retain a true-colour complement. */
+			plane[at] = colour >= CTERM_SKYPIX_PALETTE_FIRST && colour < CTERM_SKYPIX_PALETTE_FIRST + 16
+				? CTERM_SKYPIX_PALETTE_FIRST + ((colour - CTERM_SKYPIX_PALETTE_FIRST) ^ (cursor->sky->colours - 1))
+				: colour ^ UINT32_C(0xffffff);
+		}
+	}
+	*changed = *area;
+	return 0;
 }
 static int draw_cursor(struct cterm_skypix *s)
 {
@@ -126,24 +131,10 @@ static int draw_cursor(struct cterm_skypix *s)
 	if (right > (int)s->width) right = (int)s->width;
 	if (left >= right || y < 0 || y >= (int)s->height) return 0;
 	const struct st_console_rect area = {(uint32_t)left, (uint32_t)y, (uint32_t)(right - left), 1};
-	struct st_pixel_buffer *before = NULL, *image = NULL;
+	struct st_pixel_buffer *before = NULL;
 	int status = st_console_get_pixels(&before, s->terminal->screen.console, &area, false);
-	if (status == 0) status = st_pixel_buffer_clone(&image, before);
-	if (status == 0) {
-		for (unsigned phase = 0; phase < 2; ++phase) {
-			uint32_t *plane = phase ? image->alternate : image->primary;
-			if (plane == NULL) continue;
-			for (uint32_t x = 0; x < image->width; ++x) {
-				uint32_t colour = plane[x];
-				/* Native pixels complement their active plane bits. RGB pixels
-				 * supplied by other console users retain a true-colour complement. */
-				plane[x] = colour >= CTERM_SKYPIX_PALETTE_FIRST && colour < CTERM_SKYPIX_PALETTE_FIRST + 16
-					? CTERM_SKYPIX_PALETTE_FIRST + ((colour - CTERM_SKYPIX_PALETTE_FIRST) ^ (s->colours - 1))
-					: colour ^ UINT32_C(0xffffff);
-			}
-		}
-		status = cursor_blit(s, image, &area);
-	}
+	struct cursor_drawing cursor = {s, area};
+	if (status == 0) status = st_console_modify_pixels(s->terminal->screen.console, complement_cursor, &cursor);
 	if (status == 0) {
 		st_pixel_buffer_destroy(s->cursor_background);
 		s->cursor_background = before;
@@ -151,7 +142,6 @@ static int draw_cursor(struct cterm_skypix *s)
 		before = NULL;
 	}
 	st_pixel_buffer_destroy(before);
-	st_pixel_buffer_destroy(image);
 	return status;
 }
 int cterm_skypix_present_cell(struct cterm_skypix *s)
@@ -230,65 +220,187 @@ static int select_depth(struct cterm_skypix *s, unsigned colours)
 		&s->terminal->fg_color, &s->terminal->bg_color);
 	return 0;
 }
-static void point(struct st_pixel_buffer *b, int x, int y, unsigned colour)
+/* The console owns the raster and lock. Canvas dimensions can be smaller
+ * than its stride and height; never reinterpret the buffer as packed SkyPix. */
+struct raster {
+	const struct st_pixel_buffer *buffer;
+	uint32_t width, height;
+	struct st_console_rect *changed;
+};
+static void damage(struct raster *r, uint32_t left, uint32_t top, uint32_t right, uint32_t bottom)
 {
-	if (x >= 0 && x < (int)b->width && y >= 0 && y < (int)b->height)
-		b->primary[(size_t)y * b->width + (unsigned)x] = CTERM_SKYPIX_PALETTE_FIRST + colour;
+	struct st_console_rect *d = r->changed;
+	if (d->width != 0 && d->height != 0) {
+		if (right < d->x + d->width) right = d->x + d->width;
+		if (bottom < d->y + d->height) bottom = d->y + d->height;
+		if (left > d->x) left = d->x;
+		if (top > d->y) top = d->y;
+	}
+	*d = (struct st_console_rect){left, top, right - left, bottom - top};
 }
-static void span(struct st_pixel_buffer *b, int x1, int x2, int y, unsigned c)
+static void raster_point(struct raster *r, int x, int y, uint32_t colour)
 {
-	if (y < 0 || y >= (int)b->height)
-		return;
-	if (x1 < 0)
-		x1 = 0;
-	if (x2 >= (int)b->width)
-		x2 = (int)b->width - 1;
-	for (int x = x1; x <= x2; ++x)
-		point(b, x, y, c);
+	if (x < 0 || x >= (int)r->width || y < 0 || y >= (int)r->height) return;
+	size_t at = (size_t)y * r->buffer->width + (unsigned)x;
+	r->buffer->primary[at] = colour;
+	r->buffer->alternate[at] = colour;
+	damage(r, (unsigned)x, (unsigned)y, (unsigned)x + 1, (unsigned)y + 1);
+}
+static void span(struct raster *r, int x1, int x2, int y, unsigned colour)
+{
+	if (y < 0 || y >= (int)r->height) return;
+	if (x1 < 0) x1 = 0;
+	if (x2 >= (int)r->width) x2 = (int)r->width - 1;
+	if (x1 > x2) return;
+	size_t row = (size_t)y * r->buffer->width;
+	for (int x = x1; x <= x2; ++x) {
+		r->buffer->primary[row + (unsigned)x] = CTERM_SKYPIX_PALETTE_FIRST + colour;
+		r->buffer->alternate[row + (unsigned)x] = CTERM_SKYPIX_PALETTE_FIRST + colour;
+	}
+	damage(r, (unsigned)x1, (unsigned)y, (unsigned)x2 + 1, (unsigned)y + 1);
 }
 struct drawing {
-	struct st_pixel_buffer *pixels;
+	struct raster *raster;
 	unsigned colour;
 };
 static void plot(void *context, int x, int y)
 {
 	struct drawing *drawing = context;
-	point(drawing->pixels, x, y, drawing->colour);
+	raster_point(drawing->raster, x, y, CTERM_SKYPIX_PALETTE_FIRST + drawing->colour);
 }
-static int flood(struct st_pixel_buffer *b, unsigned mode, int x, int y, unsigned fg, unsigned bg)
+static uint32_t raster_colour(const struct raster *r, unsigned p)
 {
-	unsigned w = b->width, h = b->height;
+	return r->buffer->primary[(size_t)(p / r->width) * r->buffer->width + p % r->width];
+}
+static void flood(struct raster *r, unsigned mode, int x, int y, unsigned fg, unsigned bg,
+	uint8_t *visited, unsigned *queue)
+{
+	unsigned w = r->width, h = r->height;
 	if (x < 0 || x >= (int)w || y < 0 || y >= (int)h || mode > 1)
-		return 0;
+		return;
 	fg += CTERM_SKYPIX_PALETTE_FIRST;
 	bg += CTERM_SKYPIX_PALETTE_FIRST;
-	uint32_t original = b->primary[(size_t)y * w + (unsigned)x];
+	unsigned start = (unsigned)y * w + (unsigned)x;
+	uint32_t original = raster_colour(r, start);
 	if ((mode == 1 && original == fg) || (mode == 0 && original == bg))
-		return 0;
+		return;
 	/* A visited plane is essential in boundary mode when the new colour
 	 * already occurs inside the area. Each canvas point is enqueued once. */
-	uint8_t *visited = calloc((size_t)w * h, 1);
-	unsigned *queue = malloc((size_t)w * h * sizeof(*queue));
-	if (visited == NULL || queue == NULL) {
-		free(visited);
-		free(queue);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
 	size_t head = 0, tail = 0;
-	queue[tail++] = (unsigned)((size_t)y * w + (unsigned)x);
-	visited[(size_t)y * w + (unsigned)x] = 1;
+	queue[tail++] = start;
+	visited[start] = 1;
 	while (head < tail) {
 		unsigned p = queue[head++];
-		b->primary[p] = fg;
+		raster_point(r, (int)(p % w), (int)(p / w), fg);
 		unsigned adjacent[4] = {p % w ? p - 1 : p, p % w < w - 1 ? p + 1 : p, p >= w ? p - w : p,
 								p < w * (h - 1) ? p + w : p};
 		for (unsigned i = 0; i < 4; ++i) {
 			unsigned q = adjacent[i];
-			if (!visited[q] && (mode == 1 ? b->primary[q] == original : b->primary[q] != bg)) {
+			if (!visited[q] && (mode == 1 ? raster_colour(r, q) == original : raster_colour(r, q) != bg)) {
 				visited[q] = 1;
 				queue[tail++] = q;
 			}
 		}
+	}
+}
+struct raster_command {
+	struct cterm_skypix *sky;
+	const unsigned *p;
+	const int *v;
+	unsigned op, fg;
+};
+struct brush_capture {
+	struct st_pixel_buffer *brush;
+	unsigned x, y;
+};
+static int capture_brush(void *context, const struct st_pixel_buffer *buffer,
+	struct st_console_rect *changed)
+{
+	const struct brush_capture *capture = context;
+	struct st_pixel_buffer *brush = capture->brush;
+	(void)changed;
+	for (uint32_t y = 0; y < brush->height; ++y)
+		memcpy(brush->primary + (size_t)y * brush->width,
+			buffer->primary + (size_t)(y + capture->y) * buffer->width + capture->x,
+			(size_t)brush->width * sizeof(*brush->primary));
+	return 0;
+}
+static int draw_command(void *context, const struct st_pixel_buffer *buffer,
+	struct st_console_rect *changed)
+{
+	const struct raster_command *c = context;
+	struct cterm_skypix *s = c->sky;
+	const unsigned *p = c->p;
+	const int *v = c->v;
+	struct raster r = {buffer, s->width, s->height, changed};
+	struct drawing drawing = {&r, c->fg};
+	uint8_t *visited = NULL;
+	unsigned *queue = NULL;
+	if (c->op == 3 || c->op == 13) {
+		int x = c->op == 3 ? v[2] : v[1], y = c->op == 3 ? v[3] : v[2];
+		if (x >= 0 && x < (int)s->width && y >= 0 && y < (int)s->height &&
+			buffer->primary[(size_t)y * buffer->width + (unsigned)x] != CTERM_SKYPIX_PALETTE_FIRST + c->fg) {
+			/* Reserve fill workspace before drawing an ellipse outline so
+			 * allocation failure leaves the entire command unapplied. */
+			visited = calloc((size_t)s->width * s->height, 1);
+			queue = malloc((size_t)s->width * s->height * sizeof(*queue));
+			if (visited == NULL || queue == NULL) {
+				free(visited);
+				free(queue);
+				return IO_ERROR_OUT_OF_MEMORY;
+			}
+		}
+	}
+	switch (c->op) {
+	case 2:
+		cterm_skypix_line(s->pen_x, s->pen_y, v[1], v[2], plot, &drawing);
+		s->pen_x = v[1];
+		s->pen_y = v[2];
+		break;
+	case 3:
+		flood(&r, 1, v[2], v[3], c->fg, 0, visited, queue);
+		break;
+	case 4:
+		if (v[1] <= v[3] && v[2] <= v[4])
+			for (int y = v[2] < 0 ? 0 : v[2]; y <= v[4] && y < (int)s->height; ++y)
+				span(&r, v[1], v[3], y, c->fg);
+		break;
+	case 5:
+	case 13:
+		cterm_skypix_ellipse(v[1], v[2], v[3], v[4], s->kick13, plot, &drawing);
+		if (c->op == 13)
+			flood(&r, 0, v[1], v[2], c->fg, c->fg, visited, queue);
+		break;
+	case 7: {
+		/* The palette bank is aligned to 16: its low bits ARE the Amiga
+		 * planes. Evaluate the four source/destination minterms together,
+		 * then merge only the enabled planes. No planar conversion or RGB
+		 * palette expansion is involved. The source C plane is always set. */
+		unsigned mask = p[8] & ((1u << s->brush_depth) - 1) & (s->colours - 1);
+		unsigned code = p[7] >> 4;
+		uint32_t terms[4];
+		for (unsigned i = 0; i < 4; ++i) terms[i] = (code & (1u << i)) ? UINT32_MAX : 0;
+		if (p[3] >= s->width || p[4] >= s->height ||
+			p[1] >= s->brush->width || p[2] >= s->brush->height) break;
+		unsigned width = p[5], height = p[6];
+		if (width > s->width - p[3]) width = s->width - p[3];
+		if (width > s->brush->width - p[1]) width = s->brush->width - p[1];
+		if (height > s->height - p[4]) height = s->height - p[4];
+		if (height > s->brush->height - p[2]) height = s->brush->height - p[2];
+		if (width == 0 || height == 0) break;
+		for (unsigned y = 0; y < height; ++y)
+			for (unsigned x = 0; x < width; ++x) {
+				uint32_t src = s->brush->primary[(size_t)(y + p[2]) * s->brush->width + x + p[1]];
+				size_t at = (size_t)(y + p[4]) * buffer->width + x + p[3];
+				uint32_t dst = buffer->primary[at];
+				uint32_t bits = (terms[0] & ~src & ~dst) | (terms[1] & ~src & dst)
+					| (terms[2] & src & ~dst) | (terms[3] & src & dst);
+				uint32_t value = (dst & ~mask) | (bits & mask);
+				buffer->primary[at] = buffer->alternate[at] = CTERM_SKYPIX_PALETTE_FIRST + (value & 15);
+			}
+		damage(&r, p[3], p[4], p[3] + width, p[4] + height);
+		break;
+	}
 	}
 	free(queue);
 	free(visited);
@@ -401,7 +513,7 @@ static int command(void *context, const unsigned *p, size_t count,
 	struct st_pixel_buffer *b = NULL;
 	if (status != 0)
 		return status;
-	unsigned fg = (t->attr & 15) & (s->colours - 1), bg = (t->attr >> 4 & 15) & (s->colours - 1);
+	unsigned fg = (t->attr & 15) & (s->colours - 1);
 	unsigned op = p[0];
 	int v[CTERM_SKYPIX_MAX_NUMBERS];
 	for (size_t i = 0; i < count; ++i)
@@ -512,83 +624,39 @@ static int command(void *context, const unsigned *p, size_t count,
 		}
 		if (status != 0) return status;
 	}
-	status = pixels(s, &b);
-	if (status != 0)
-		return status;
-	switch (op) {
-	case 1:
-		point(b, v[1], v[2], fg);
-		break;
-	case 2: {
-		struct drawing drawing = {b, fg};
-		cterm_skypix_line(s->pen_x, s->pen_y, v[1], v[2], plot, &drawing);
-		s->pen_x = v[1];
-		s->pen_y = v[2];
-		break;
+	if (op == 1) {
+		if (v[1] < 0 || v[1] >= (int)s->width || v[2] < 0 || v[2] >= (int)s->height)
+			return 0;
+		return st_console_set_pixel(t->screen.console, (unsigned)v[1], (unsigned)v[2],
+			CTERM_SKYPIX_PALETTE_FIRST + fg);
 	}
-	case 3:
-		status = flood(b, 1, v[2], v[3], fg, bg);
-		break;
-	case 4:
-		if (v[1] <= v[3] && v[2] <= v[4])
-			for (int y = v[2] < 0 ? 0 : v[2]; y <= v[4] && y < (int)s->height; ++y)
-				span(b, v[1], v[3], y, fg);
-		break;
-	case 5:
-	case 13: {
-		struct drawing drawing = {b, fg};
-		cterm_skypix_ellipse(v[1], v[2], v[3], v[4], s->kick13, plot, &drawing);
-		if (op == 13)
-			status = flood(b, 0, v[1], v[2], fg, fg);
-		break;
-	}
-	case 6: {
+	if (op == 6) {
 		if (p[1] >= s->width || p[2] >= s->height - 1 || p[3] == 0 || p[4] == 0 ||
 			p[3] > s->width - p[1] || p[4] > s->height - 1 - p[2])
-			break;
-		struct st_pixel_buffer *brush = NULL;
-		status = st_pixel_buffer_create(&brush, p[3], p[4], false);
+			return 0;
+		/* Capture only the requested brush, including JR-Comm's Y+1 rule. */
 		uint32_t colours[16];
-		if (status == 0)
-			status = st_console_get_palette(t->screen.console, CTERM_SKYPIX_PALETTE_FIRST, colours, 16);
-		if (status == 0) {
-			for (unsigned y = 0; y < p[4]; ++y)
-				memcpy(brush->primary + (size_t)y * p[3],
-					   b->primary + (size_t)(y + p[2] + 1) * s->width + p[1],
-					   p[3] * sizeof(uint32_t));
-			st_pixel_buffer_destroy(s->brush);
-			s->brush = brush;
-			s->brush_depth = s->colours == 8 ? 3 : 4;
-			memcpy(s->brush_palette, colours, sizeof(colours));
-			s->brush_palette_size = 16;
-			s->brush_palette_pending = true;
-		} else st_pixel_buffer_destroy(brush);
-		break;
+		status = st_console_get_palette(t->screen.console, CTERM_SKYPIX_PALETTE_FIRST, colours, 16);
+		if (status == 0) status = st_pixel_buffer_create(&b, p[3], p[4], false);
+		struct brush_capture capture = {b, p[1], p[2] + 1};
+		if (status == 0) status = st_console_modify_pixels(t->screen.console, capture_brush, &capture);
+		if (status != 0) {
+			st_pixel_buffer_destroy(b);
+			return status;
+		}
+		st_pixel_buffer_destroy(s->brush);
+		s->brush = b;
+		s->brush_depth = s->colours == 8 ? 3 : 4;
+		memcpy(s->brush_palette, colours, sizeof(colours));
+		s->brush_palette_size = 16;
+		s->brush_palette_pending = true;
+		return 0;
 	}
-	case 7:
-		if (s->brush == NULL || p[7] > 255 || p[8] > 255)
-			break;
-		for (unsigned y = 0; y < p[6] && y + p[4] < s->height && y + p[2] < s->brush->height; ++y)
-			for (unsigned x = 0; x < p[5] && x + p[3] < s->width && x + p[1] < s->brush->width;
-				 ++x) {
-				uint32_t src = s->brush->primary[(size_t)(y + p[2]) * s->brush->width + x + p[1]];
-				uint32_t *dst = &b->primary[(size_t)(y + p[4]) * s->width + x + p[3]], value = *dst;
-				for (unsigned plane = 0;
-					 plane < s->brush_depth && plane < (s->colours == 8 ? 3u : 4u); ++plane) {
-					unsigned mask = 1u << plane,
-							 index = 4u + ((src & mask) ? 2u : 0u) + ((*dst & mask) ? 1u : 0u);
-					if (p[8] & mask)
-						value = (value & ~mask) | ((p[7] & (1u << index)) ? mask : 0);
-				}
-				*dst = CTERM_SKYPIX_PALETTE_FIRST + (value & 15);
-			}
-		break;
-	}
-	if (status == 0 && op != 6)
-		status = publish(s, b, 0, 0);
-	st_pixel_buffer_destroy(b);
-	return status;
+	if (op == 7 && (s->brush == NULL || p[7] > 255 || p[8] > 255)) return 0;
+	struct raster_command draw = {s, p, v, op, fg};
+	return st_console_modify_pixels(t->screen.console, draw_command, &draw);
 }
+
 static int text(void *context, const uint8_t *bytes, size_t size)
 {
 	struct cterm_skypix *s = context;
@@ -915,6 +983,23 @@ bool cterm_skypix_control(struct cterm_skypix *s, uint8_t byte)
 	s->presented = true;
 	return true;
 }
+struct erase_drawing {
+	struct st_console_rect area;
+	uint32_t colour;
+};
+static int erase_pixels(void *context, const struct st_pixel_buffer *buffer,
+	struct st_console_rect *changed)
+{
+	const struct erase_drawing *erase = context;
+	const struct st_console_rect *area = &erase->area;
+	for (uint32_t y = area->y; y < area->y + area->height; ++y)
+		for (uint32_t x = area->x; x < area->x + area->width; ++x) {
+			size_t at = (size_t)y * buffer->width + x;
+			buffer->primary[at] = buffer->alternate[at] = erase->colour;
+		}
+	*changed = *area;
+	return 0;
+}
 bool cterm_skypix_erase_line(struct cterm_skypix *s, unsigned mode)
 {
 	if (!s->custom && !s->positioned && !s->native_default)
@@ -934,17 +1019,44 @@ bool cterm_skypix_erase_line(struct cterm_skypix *s, unsigned mode)
 	s->presented = true;
 	if (left >= right || top >= bottom)
 		return true;
-	struct st_pixel_buffer *image = NULL;
-	int status = st_pixel_buffer_create(&image, (uint32_t)(right - left),
-		(uint32_t)(bottom - top), false);
 	unsigned bg = CTERM_SKYPIX_PALETTE_FIRST + ((s->terminal->attr >> 4 & 15) & (s->colours - 1));
-	if (status == 0)
-		status = st_pixel_buffer_fill(image, bg, bg);
-	if (status == 0)
-		status = publish(s, image, left, top);
-	st_pixel_buffer_destroy(image);
+	struct erase_drawing erase = {{(uint32_t)left, (uint32_t)top,
+		(uint32_t)(right - left), (uint32_t)(bottom - top)}, bg};
+	int status = st_console_modify_pixels(s->terminal->screen.console, erase_pixels, &erase);
 	cterm_render_record_error(s->terminal, status);
 	return true;
+}
+struct glyph_drawing {
+	struct cterm_skypix *sky;
+	const struct st_amiga_glyph *glyph;
+	struct st_console_rect area;
+	int next;
+};
+static int draw_glyph(void *context, const struct st_pixel_buffer *buffer,
+	struct st_console_rect *changed)
+{
+	const struct glyph_drawing *drawing = context;
+	struct cterm_skypix *s = drawing->sky;
+	const struct st_amiga_glyph *glyph = drawing->glyph;
+	const struct st_console_rect *area = &drawing->area;
+	struct raster r = {buffer, s->width, s->height, changed};
+	unsigned fg = (s->terminal->attr & 15) & (s->colours - 1),
+		bg = (s->terminal->attr >> 4 & 15) & (s->colours - 1);
+	for (uint32_t py = area->y; py < area->y + area->height; ++py)
+		for (uint32_t px = area->x; px < area->x + area->width; ++px) {
+			int gx = (int)px - s->x - glyph->bearing, gy = (int)py - s->y - glyph->top;
+			bool ink = false;
+			if (gx >= 0 && gy >= 0 && (unsigned)gx < glyph->width && (unsigned)gy < glyph->height) {
+				unsigned bit = (unsigned)gx + glyph->bit_offset;
+				/* Each byte is its own native Text call. Kick 1.3's
+				 * clipped overhang cannot be recovered by a later byte. */
+				ink = (glyph->bits[(size_t)gy * glyph->stride + bit / 8] & (0x80u >> (bit % 8)))
+					&& (!s->kick13 || (int)px < drawing->next);
+			}
+			if (ink || !s->custom)
+				raster_point(&r, (int)px, (int)py, CTERM_SKYPIX_PALETTE_FIRST + (ink ? fg : bg));
+		}
+	return 0;
 }
 int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_presentation_event *event,
 						 bool *handled)
@@ -959,7 +1071,7 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 	if (hidden != 0) return hidden;
 	if (!*handled) return 0;
 	if (event->kind == ST_UNICODE_PRESENTATION_REVISE && s->undo != NULL) {
-		int status = publish(s, s->undo, (int)s->undo_rect.x, (int)s->undo_rect.y);
+		int status = restore_pixels(s, s->undo, &s->undo_rect);
 		if (status != 0)
 			return status;
 		s->x = s->undo_x;
@@ -1010,29 +1122,8 @@ int cterm_skypix_present(struct cterm_skypix *s, const struct st_unicode_present
 		int status = st_console_get_pixels(&s->undo, s->terminal->screen.console, &area, false);
 		if (status != 0) return status;
 		s->undo_rect = area;
-		struct st_pixel_buffer *image = NULL;
-		status = st_pixel_buffer_clone(&image, s->undo);
-		if (status != 0) return status;
-		unsigned fg = (s->terminal->attr & 15) & (s->colours - 1),
-			bg = (s->terminal->attr >> 4 & 15) & (s->colours - 1);
-		if (!s->custom)
-			st_pixel_buffer_fill(image, CTERM_SKYPIX_PALETTE_FIRST + bg,
-				CTERM_SKYPIX_PALETTE_FIRST + bg);
-		for (int py = top; py < bottom; ++py)
-			for (int px = left; px < right; ++px) {
-				int gx = px - s->x - glyph.bearing, gy = py - s->y - glyph.top;
-				if (gx < 0 || gy < 0 || (unsigned)gx >= glyph.width || (unsigned)gy >= glyph.height)
-					continue;
-				unsigned bit = (unsigned)gx + glyph.bit_offset;
-				if (glyph.bits[(size_t)gy * glyph.stride + bit / 8] & (0x80u >> (bit % 8))) {
-					/* Each byte is its own native Text call. Kick 1.3's
-					 * clipped overhang cannot be recovered by a later byte. */
-					if (!s->kick13 || px < next)
-						point(image, px - left, py - top, fg);
-				}
-			}
-		status = publish(s, image, left, top);
-		st_pixel_buffer_destroy(image);
+		struct glyph_drawing drawing = {s, &glyph, area, next};
+		status = st_console_modify_pixels(s->terminal->screen.console, draw_glyph, &drawing);
 		if (status != 0) return status;
 	}
 	s->x = next;

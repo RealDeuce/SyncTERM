@@ -47,6 +47,91 @@ record_upload(void *context, const struct st_rgb_buffer *pixels,
 	return 0;
 }
 
+struct pixel_edit_test {
+	st_console_t *console;
+	uint32_t primary, alternate;
+	bool write;
+	int status;
+};
+
+static int
+edit_test_pixel(void *context, const struct st_pixel_buffer *pixels,
+	struct st_console_rect *changed)
+{
+	struct pixel_edit_test *test = context;
+	/* The callback borrows the actual normalized raster, not a copy. */
+	CHECK(pixels == test->console->pixels && test->console->pixel_top == 0);
+	CHECK(test->console->raster_current);
+	CHECK(changed->width == 0 && changed->height == 0);
+	CHECK(pixels->primary[0] == test->primary && pixels->alternate[0] == test->alternate);
+	if (test->write) {
+		pixels->primary[9] = 512;
+		pixels->alternate[9] = ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3);
+		*changed = (struct st_console_rect){1, 1, 1, 1};
+	}
+	return test->status;
+}
+
+static void
+test_modify_pixels(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {.columns = 4, .rows = 3,
+		.cell_width = 2, .cell_height = 2};
+	st_console_t *console = NULL;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+	/* Exercise the real circular-row mapping with distinct physical rows. */
+	CHECK(st_console_present(console) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0, 3) == 0);
+	CHECK(st_console_rasterize_locked(console, false) == 0);
+	console->pixel_top = 2;
+	for (size_t i = 0; i < 48; ++i) {
+		console->pixels->primary[i] = 3 + (uint32_t)(i / 8);
+		console->pixels->alternate[i] = 7 + (uint32_t)(i / 8);
+	}
+	for (size_t i = 0; i < 12; ++i)
+		st_console_cell_at(console, i)->flags &= ~(ST_CONSOLE_CELL_DIRTY | ST_CONSOLE_CELL_PIXEL_GRAPHICS);
+	struct pixel_edit_test test = {.console = console, .primary = 5, .alternate = 9};
+	CHECK(st_console_modify_pixels(NULL, edit_test_pixel, &test) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_modify_pixels(console, NULL, &test) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_modify_pixels(console, edit_test_pixel, &test) == 0);
+	for (size_t i = 0; i < 12; ++i)
+		CHECK((st_console_cell_at(console, i)->flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) == 0);
+	/* Even a failed callback must publish the writes it reported. */
+	test.write = true;
+	test.status = IO_ERROR_OUT_OF_MEMORY;
+	CHECK(st_console_begin_update(console) == 0);
+	CHECK(st_console_modify_pixels(console, edit_test_pixel, &test) == IO_ERROR_OUT_OF_MEMORY);
+	for (size_t i = 0; i < 12; ++i)
+		CHECK(((st_console_cell_at(console, i)->flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS) != 0) == (i == 0));
+	CHECK(st_console_end_update(console) == 0);
+	struct st_pixel_buffer *image = NULL;
+	const struct st_console_rect whole = {0, 0, 8, 6};
+	CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
+	for (size_t i = 0; i < 48; ++i) {
+		uint32_t row = (uint32_t)((i / 8 + 2) % 6);
+		CHECK(image->primary[i] == (i == 9 ? 512u : 3u + row));
+		CHECK(image->alternate[i] == (i == 9 ? ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3) : 7u + row));
+	}
+	st_pixel_buffer_destroy(image);
+	/* A clear must be rasterized before a callback sees the native pixels. */
+	static const uint8_t bitmap[256 * 2] = {0};
+	const struct st_console_font font = {.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
+		.glyph_count = 256, .width = 2, .height = 2, .row_stride = 1, .glyph_stride = 2};
+	uint16_t identifier;
+	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
+	const struct st_console_cell blank = {.glyph = ' ', .background = 11,
+		.font = identifier, .glyph_font = identifier};
+	const struct st_console_rect cells = {0, 0, 4, 3};
+	CHECK(st_console_fill(console, &cells, &blank) == 0);
+	test.write = false;
+	test.status = 0;
+	test.primary = test.alternate = 11;
+	CHECK(st_console_modify_pixels(console, edit_test_pixel, &test) == 0);
+	st_console_destroy(console);
+}
+
 static void
 test_pixel_cursor_overlay(void)
 {
@@ -1101,6 +1186,7 @@ main(void)
 	test_vga_ninth_column();
 	test_upload_retry();
 	test_pixel_cursor_overlay();
+	test_modify_pixels();
 	test_pixel_raster_cache();
 	return 0;
 }
