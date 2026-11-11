@@ -1,4 +1,4 @@
-/* Session music: ANSI interpretation, MIDI files, and logical channel 0. */
+/* Session music: ANSI notes, MIDI files/live input, and logical channel 0. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #ifndef ST_MUSIC_H_
 #define ST_MUSIC_H_
@@ -52,6 +52,15 @@ bool st_music_available(st_music_t *music);
 int st_music_queue_file(st_music_t *music, FILE *file);
 int st_music_queue_notes(st_music_t *music, struct st_music_note *notes,
 	size_t count);
+/* Copies live MIDI wire bytes into the same bounded worker FIFO. Timing is
+ * supplied by the caller; running status/partial messages persist across
+ * writes. No start/reset/release messages are added at write boundaries.
+ * Held voices keep sounding (and software sinks keep rendering) until wire
+ * input stops them, a file/ANSI request takes over, or flush/destroy/error.
+ * Busy remains true during this live session. Wait acknowledges earlier
+ * writes at the destination/PCM position, without waiting for held voices.
+ * A zero-length write is a no-op and does not select/open a destination. */
+int st_music_queue_midi(st_music_t *music, const uint8_t *bytes, size_t count);
 /* Wait covers requests accepted before the call, not later requests.
  * Cancellation wakes waiters. Idle includes native output and PCM drain. */
 int st_music_wait(st_music_t *music);

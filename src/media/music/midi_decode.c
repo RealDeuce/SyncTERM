@@ -57,8 +57,8 @@ int st_midi_gain_controllers(struct st_midi_sink *s, float left, float right,
 	}
 	return 0;
 }
-int st_midi_decode(struct st_midi_sink *s, const uint8_t *bytes,
-	size_t size, st_midi_emit_t emit, void *context)
+static int decode(struct st_midi_sink *s, const uint8_t *bytes,
+	size_t size, st_midi_emit_t emit, void *context, bool stream)
 {
 	for (size_t i = 0; i < size; ++i) {
 		uint8_t b = bytes[i];
@@ -67,35 +67,39 @@ int st_midi_decode(struct st_midi_sink *s, const uint8_t *bytes,
 			continue;
 		}
 		if (s->sysex_size != 0) {
-			if (b >= 0x80 && b != 0xf7) return IO_ERROR_INVALID_FORMAT;
-			if (s->sysex_size == ST_MUSIC_STORAGE_LIMIT / 2) return IO_ERROR_MESSAGE_TOO_LARGE;
-			if (!s->validate_only && s->sysex_size == s->sysex_capacity) {
-				size_t cap = s->sysex_capacity * 2;
-				uint8_t *p = realloc(s->sysex, cap);
-				if (p == NULL) return IO_ERROR_OUT_OF_MEMORY;
-				s->sysex = p; s->sysex_capacity = cap;
-			}
-			if (!s->validate_only) s->sysex[s->sysex_size] = b;
-			++s->sysex_size;
-			if (b == 0xf7) {
-				bool reset = !s->validate_only && reset_message(s->sysex, s->sysex_size);
-				int status = s->validate_only ? 0 : emit(context, s->sysex, s->sysex_size);
+			if (b >= 0x80 && b != 0xf7) {
+				if (!stream) return IO_ERROR_INVALID_FORMAT;
 				s->sysex_size = 0;
-				if (status != 0) return status;
-				/* GM/GS/XG resets restore file controllers as well as
-				 * programs. Other SysEx remains untouched. */
-				if (reset && s->gain == NULL && s->render == NULL) {
-					memset(s->volume, 100, sizeof(s->volume));
-					memset(s->pan, 64, sizeof(s->pan));
-					memset(s->gain_sent, 0, sizeof(s->gain_sent));
-					status = st_midi_gain_controllers(s, s->left_db, s->right_db, emit, context);
-					if (status != 0) return status;
+			} else {
+				if (s->sysex_size == ST_MUSIC_STORAGE_LIMIT / 2) return IO_ERROR_MESSAGE_TOO_LARGE;
+				if (!s->validate_only && s->sysex_size == s->sysex_capacity) {
+					size_t cap = s->sysex_capacity * 2;
+					uint8_t *p = realloc(s->sysex, cap);
+					if (p == NULL) return IO_ERROR_OUT_OF_MEMORY;
+					s->sysex = p; s->sysex_capacity = cap;
 				}
+				if (!s->validate_only) s->sysex[s->sysex_size] = b;
+				++s->sysex_size;
+				if (b == 0xf7) {
+					bool reset = !s->validate_only && reset_message(s->sysex, s->sysex_size);
+					int status = s->validate_only ? 0 : emit(context, s->sysex, s->sysex_size);
+					s->sysex_size = 0;
+					if (status != 0) return status;
+					/* GM/GS/XG resets restore file controllers as well as
+					 * programs. Other SysEx remains untouched. */
+					if (reset && s->gain == NULL && s->render == NULL) {
+						memset(s->volume, 100, sizeof(s->volume));
+						memset(s->pan, 64, sizeof(s->pan));
+						memset(s->gain_sent, 0, sizeof(s->gain_sent));
+						status = st_midi_gain_controllers(s, s->left_db, s->right_db, emit, context);
+						if (status != 0) return status;
+					}
+				}
+				continue;
 			}
-			continue;
 		}
 		if (b == 0xf0) {
-			if (s->used != 0) return IO_ERROR_INVALID_FORMAT;
+			if (s->used != 0 && !stream) return IO_ERROR_INVALID_FORMAT;
 			s->status = 0; s->used = 0;
 			if (!s->validate_only && s->sysex_capacity == 0) {
 				s->sysex = malloc(256);
@@ -107,12 +111,19 @@ int st_midi_decode(struct st_midi_sink *s, const uint8_t *bytes,
 			continue;
 		}
 		if (b >= 0x80) {
-			if (s->used != 0) return IO_ERROR_INVALID_FORMAT;
+			if (s->used != 0 && !stream) return IO_ERROR_INVALID_FORMAT;
+			if (stream && (b == 0xf4 || b == 0xf5 || b == 0xf7)) {
+				s->status = 0; s->used = 0;
+				continue;
+			}
 			s->status = b; s->message[0] = b; s->used = 1;
 			s->needed = b < 0xf0 ? ((b & 0xe0) == 0xc0 ? 2 : 3)
 			    : b == 0xf1 || b == 0xf3 ? 2 : b == 0xf2 ? 3 : 1;
 		} else {
-			if (s->status == 0) return IO_ERROR_INVALID_FORMAT;
+			if (s->status == 0) {
+				if (stream) continue;
+				return IO_ERROR_INVALID_FORMAT;
+			}
 			if (s->used == 0) { s->message[0] = s->status; s->used = 1; }
 			s->message[s->used++] = b;
 		}
@@ -128,4 +139,15 @@ int st_midi_decode(struct st_midi_sink *s, const uint8_t *bytes,
 		}
 	}
 	return 0;
+}
+
+int st_midi_decode(struct st_midi_sink *s, const uint8_t *bytes,
+	size_t size, st_midi_emit_t emit, void *context)
+{
+	return decode(s, bytes, size, emit, context, false);
+}
+int st_midi_decode_stream(struct st_midi_sink *s, const uint8_t *bytes,
+	size_t size, st_midi_emit_t emit, void *context)
+{
+	return decode(s, bytes, size, emit, context, true);
 }

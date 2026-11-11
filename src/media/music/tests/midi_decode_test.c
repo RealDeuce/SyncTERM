@@ -19,8 +19,56 @@ static int mode(void *context, bool ansi)
 	if (log->fail_mode) return IO_ERROR_IO;
 	log->ansi = ansi; return 0;
 }
+static void stream(void)
+{
+	/* Replacement statuses cancel partial channel/common/SysEx messages.
+	 * Realtime is emitted immediately, even inside those messages. */
+	const uint8_t input[] = {12, 0x90,60,0xf8,100,61,101, 0x90,62,
+	    0x80,60,0, 0xc2,7,8, 0xf1,1,9, 0xf2,1,0xfb,2,
+	    0xf3,4, 0xf6,5, 0xf0,0x7d,6,0xfe,7,0xf7,
+	    0xf0,0x7d,1,0x90,63,90, 0x90,1,0xf0,0x7d,2,0xf7,
+	    0xf4,1,0xf5,2,0xf7,3, 0xd0,4,5,0xff,6};
+	const uint8_t expected[] = {0xf8,0x90,60,100,0x90,61,101,
+	    0x80,60,0,0xc2,7,0xc2,8,0xf1,1,0xfb,0xf2,1,2,
+	    0xf3,4,0xf6,0xfe,0xf0,0x7d,6,7,0xf7,
+	    0x90,63,90,0xf0,0x7d,2,0xf7,0xd0,4,0xd0,5,0xff,0xd0,6};
+	for (size_t first = 0; first <= sizeof(input); ++first) {
+		for (size_t second = first; second <= sizeof(input); ++second) {
+			struct st_midi_sink s = {.gain = gain}; struct log log = {0};
+			CHECK(st_midi_decode_stream(&s, input, first, record, &log) == 0);
+			CHECK(st_midi_decode_stream(&s, input + first, second - first, record, &log) == 0);
+			CHECK(st_midi_decode_stream(&s, input + second, sizeof(input) - second, record, &log) == 0);
+			CHECK(log.size == sizeof(expected) && memcmp(log.bytes, expected, sizeof(expected)) == 0);
+			CHECK(s.status == 0xd0 && s.used == 0 && s.sysex_size == 0);
+			free(s.sysex);
+		}
+	}
+	struct st_midi_sink s = {.gain = gain}; struct log log = {0};
+	for (size_t i = 0; i < sizeof(input); ++i)
+		CHECK(st_midi_decode_stream(&s, input + i, 1, record, &log) == 0);
+	CHECK(log.size == sizeof(expected) && memcmp(log.bytes, expected, sizeof(expected)) == 0);
+	free(s.sysex);
+	/* A raw SysEx may exceed the initial arena and contain realtime without
+	 * putting those realtime bytes inside the assembled message. */
+	memset(&s, 0, sizeof(s)); s.gain = gain; memset(&log, 0, sizeof(log));
+	uint8_t large[602]; large[0] = 0xf0; large[1] = 0x7d;
+	for (size_t i = 2; i < sizeof(large) - 1; ++i) large[i] = (uint8_t)(i & 127);
+	large[sizeof(large) - 1] = 0xf7;
+	CHECK(st_midi_decode_stream(&s, large, 300, record, &log) == 0);
+	const uint8_t realtime = 0xfa;
+	CHECK(st_midi_decode_stream(&s, &realtime, 1, record, &log) == 0);
+	CHECK(log.size == 1 && log.bytes[0] == 0xfa);
+	CHECK(st_midi_decode_stream(&s, large + 300, sizeof(large) - 300, record, &log) == 0);
+	CHECK(log.messages == 2 && log.size == sizeof(large) + 1 && memcmp(log.bytes + 1, large, sizeof(large)) == 0);
+	/* Check the bound before any out-of-arena write. */
+	s.sysex_size = ST_MUSIC_STORAGE_LIMIT / 2;
+	const uint8_t data = 1;
+	CHECK(st_midi_decode_stream(&s, &data, 1, record, &log) == IO_ERROR_MESSAGE_TOO_LARGE);
+	free(s.sysex);
+}
 int main(void)
 {
+	stream();
 	const uint8_t data[] = {0x90,60,100,61,101,0xf8,0xf0,0x7e,0x7f,9,1,0xf7,0x80,60,0};
 	const uint8_t expected[] = {0x90,60,100,0x90,61,101,0xf8,0xf0,0x7e,0x7f,9,1,0xf7,0x80,60,0};
 	for (size_t split = 0; split <= sizeof(data); ++split) {

@@ -34,6 +34,11 @@ struct st_midi_sink {
 typedef int (*st_midi_emit_t)(void *, const uint8_t *, size_t);
 int st_midi_decode(struct st_midi_sink *sink, const uint8_t *bytes,
 	size_t size, st_midi_emit_t emit, void *context);
+/* Live wire input can replace an unfinished message. Orphan data and
+ * undefined system-common statuses are ignored; realtime is independent.
+ * The same decoder/controller state survives successive writes. */
+int st_midi_decode_stream(struct st_midi_sink *sink, const uint8_t *bytes,
+	size_t size, st_midi_emit_t emit, void *context);
 int st_midi_gain_controllers(struct st_midi_sink *sink, float left, float right,
 	st_midi_emit_t emit, void *context);
 int st_midi_sink_open(struct st_midi_sink *sink, enum st_midi_backend kind,

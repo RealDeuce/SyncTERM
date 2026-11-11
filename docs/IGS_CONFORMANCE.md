@@ -65,7 +65,10 @@ and will be listed here with tests. Historical delivery profiles, BIG and
 CONDOR implementations are outside this goal.
 
 GIST/PSG synthesis, shared console sound and b/n session integration are tested.
-Buffered N/music and MIDI integration remain unfinished.
+The existing music worker now supports continuous raw MIDI writes with
+retained framing/held voices and bounded software rendering; native
+`music_decode` and `music_stream` checks cover this component.
+Buffered N/music and its MIDI integration remain unfinished.
 Audio implements GIST/PSG behavior; buffered music will use SyncTERM MIDI facilities.
 Sound tests check functionality and lifecycle, without requiring identical PCM
 or reference-render comparisons. Listening is deferred to manual testing

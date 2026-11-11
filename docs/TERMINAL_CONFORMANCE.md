@@ -756,7 +756,8 @@ assignments, retained cells, failed selection and reset recovery in coherent
 captures. Native `cterm` tests cover per-geometry remote mapping metadata and
 restoration; these checks do not claim new remote-font protocol behavior.
 
-MIDI's `music_parse`, `music_decode`, `music_calibrate` and `music_player` tests
+MIDI's `music_parse`, `music_decode`, `music_calibrate`, `music_player` and
+`music_stream` tests
 independently check all 84 ANSI pitches, existing articulation/frame rounding, SMF0/1/RMID,
 tempo/running status/SMPTE, split SysEx, FIFO limits, internal PCM bounds,
 external channel-zero gain/fade/wait/cancellation and runtime shutdown. The
@@ -768,6 +769,12 @@ file/ANSI transitions check voice selection without changing MIDI-file
 instruments. PCM player captures check fixed source calibration with unchanged
 channel gains, wide mixing before clipping and fade/recovery behavior. Final
 PCM power diagnostics exclude DC independently in each stereo channel.
+Live MIDI shares the worker and decoder, retaining partial messages, running
+status, SysEx and held voices across writes. Literal split-input tests cover
+wire recovery and realtime; injected-sink tests cover bounded continuous PCM,
+raw/file/ANSI transitions, copied FIFO ownership/backpressure, completion
+positions, flush/fade/error recovery and in-flight shutdown quiescence.
+No IGS N command integration or physical-device coverage is implied.
 Optional final-output captures support independent loudness comparisons;
 unweighted RMS is not used to claim equal perceived loudness.
 Manually selected synth checks compare onset and sustained levels across

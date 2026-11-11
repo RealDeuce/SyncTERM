@@ -3795,3 +3795,67 @@ remaining loops/selectors and final acceptance are unfinished. References:
 chapters 06/23/57/182; prior b completion commit 53d1e31.
 
 Completion commit for n: 4f868b5. The goal remains active at 53/63.
+
+
+== Continuous MIDI input for N (component complete; N pending)
+
+N sends individual MIDI bytes, retains notes when playback completes or a
+local outer-loop key aborts it, and can continue an unfinished message in a
+later playback. A MIDI-file request resets and releases voices, so it cannot
+represent these wire writes. The existing session music player now provides
+`st_music_queue_midi()`: a copying, bounded FIFO write on its existing worker,
+using its existing backend selection, decoder, channel gain and audio stream.
+No extra MIDI adapter, worker or protocol clock is introduced. N integration
+and the shared N/X9 buffer remain pending; no command completion is claimed.
+
+The caller supplies byte timing through local deadlines. Success accepts the
+copied bytes; a full 128-request/64MiB combined queue returns BUSY without
+taking caller data. A zero-length write opens nothing. Incremental decoding
+retains running status, unfinished channel/system-common messages and SysEx
+across writes, with independent immediate realtime messages. Wire recovery
+ignores orphan data and undefined system-common statuses and lets a new
+status replace an unfinished message. File decoding keeps its strict format
+validation. Both modes share framing and logical controller-gain behavior.
+SysEx assembly retains the existing bounded arena and allocation/error path.
+
+Write boundaries add no start, reset or release messages. Software sinks keep
+rendering held voices between writes, limiting new live lookahead to 256
+frames (about 5.8ms at the existing sample rate); already queued file/ANSI
+PCM retains its FIFO position. Native sinks keep sounding themselves.
+All send/render/mode/gain calls stay on the existing music worker, with its
+mutex owning the FIFO, generation and controls. A condition variable wakes
+live work on queued input or controls; timed waits also notice runtime/policy
+changes. Local PCM position and monotonic elapsed time drive the existing
+controls without a foreign clock or UART-readiness model.
+
+Busy includes an open live session. Wait acknowledges preceding writes at
+their native/PCM positions without waiting for sustained voices to end, and
+preserves earlier file/ANSI completion markers. A later file/ANSI request
+retains its existing reset/voice behavior. Explicit flush, destination error,
+policy/runtime shutdown or destruction stops voices and quiesces the worker;
+normal end/abort of N must therefore leave this stream alone. Failure cancels
+its queued raw prefix and clears partial framing; a flushed generation leaves
+newer writes available to the next worker iteration.
+
+`music_decode` checks literal stream messages at every pair of split points
+and bytewise, interrupted channel/common/SysEx framing, running status,
+realtime interleaving, growing SysEx and the assembly bound, alongside the
+existing strict-file/controller tests. `music_stream` uses injected native
+and software sinks with physical output disabled. It checks partial-message
+and held-voice retention, repeated pull-only PCM, bounded lookahead,
+completion ordering, raw/file/ANSI transitions, queue capacity/copied
+ownership, normal/faded flush, send/render failure and recovery, stopped
+runtime and in-flight callback quiescence for flush/destruction. Ordinary
+checks use no external IGS files or MIDI/audio devices.
+
+Native FreeBSD Release CMake configure and full build with `/usr/bin/cc`
+passed without warnings. All 36 selected CTest checks passed in 87.07s,
+covering shared parser/stream, GIST/PSG/images, audio runtime/source/mixer/
+synthesis, MIDI parse/decode/calibration/player/stream, APC/SkyPix audio,
+IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, CTerm ANSI/VT52/keyboard, RIP,
+SkyPix, term/key forwarding and application b/n. `music_stream` took 0.40s;
+`music_decode` took 0.00s and `music_player` 0.94s. The ledger's 63 ordered
+IDs, 53 completed commands, pending N, active test registrations, dependencies
+and references were validated. No audible or native-device coverage is
+claimed. The complete MIDI component is ready for N; the full goal remains
+active.

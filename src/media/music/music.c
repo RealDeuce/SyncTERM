@@ -12,9 +12,12 @@
 #define NOTE_STORAGE_LIMIT (64U * 1024U * 1024U)
 #define AHEAD_FRAMES 4096U
 #define BLOCK_FRAMES 1024U
+/* Bound live-input latency without a second MIDI/synthesis worker. */
+#define LIVE_FRAMES 256U
 struct request {
 	FILE *file;
 	struct st_music_note *notes;
+	uint8_t *bytes;
 	size_t count;
 	uint64_t sequence;
 	struct request *next;
@@ -29,7 +32,7 @@ struct st_music {
 	bool started, stopping, active, injected, was_file;
 	uint64_t generation, working_generation, accepted, completed;
 	struct request *head, *tail;
-	size_t requests, note_bytes;
+	size_t requests, storage_bytes;
 	struct st_midi_sink sink;
 	uint32_t attempted, policy;
 	float left, right, from_left, from_right, target_left, target_right;
@@ -100,14 +103,19 @@ static void discard(struct request *r)
 {
 	if (r->file != NULL) fclose(r->file);
 	free(r->notes);
+	free(r->bytes);
 	free(r);
+}
+static size_t request_storage(const struct request *r)
+{
+	return r->bytes != NULL ? r->count : r->count * sizeof(*r->notes);
 }
 static void drop_pending(st_music_t *m)
 {
 	while (m->head != NULL) {
 		struct request *r = m->head;
 		m->head = r->next;
-		m->note_bytes -= r->count * sizeof(*r->notes);
+		m->storage_bytes -= request_storage(r);
 		--m->requests;
 		discard(r);
 	}
@@ -302,6 +310,114 @@ static int drain_pcm(struct playback *p, bool *continuing)
 		pause_worker();
 	}
 }
+/* A live stream retains decoder state and held voices between writes. Only
+ * this worker calls the sink. A software sink keeps rendering while idle;
+ * native sinks keep sounding themselves. The caller supplies byte timing.
+ * Enter and leave with the player mutex held. */
+static void live(st_music_t *m)
+{
+	bool continuing = m->active;
+	m->active = true; m->working_generation = m->generation;
+	bool midi = continuing ? m->sink.send != NULL : select_locked(m);
+	int result = midi ? 0 : IO_ERROR_NOT_SUPPORTED;
+	bool pcm = midi && m->sink.render != NULL;
+	if (result == 0 && pcm) result = pcm_locked(m);
+	if (!continuing) { m->rendered = m->progress = 0; m->pcm_origin = m->clock; }
+	struct playback p = {.music = m, .pcm = pcm, .origin = pcm ? m->pcm_origin : m->clock,
+	    .rendered = m->rendered, .progress = m->progress};
+	if (!continuing) { m->controls_changed = true; m->gain_valid = false; }
+	uint64_t sequence = m->completed;
+	st_mutex_unlock(&m->mutex);
+	if (result == 0 && st_time_monotonic_ns(&p.start_ns) != 0) result = IO_ERROR_IO;
+	/* Restore an ANSI-specific synthesizer mode without injecting a reset or
+	 * releasing the wire stream. Later ANSI captures need their normal reset. */
+	if (result == 0 && m->sink.set_ansi != NULL) result = m->sink.set_ansi(m->sink.state, false);
+	m->was_file = true;
+	while (result == 0) {
+		result = update(&p);
+		st_mutex_lock(&m->mutex);
+		if (!m->injected && m->policy != st_audio_runtime_midi_allowed(m->runtime))
+			result = IO_ERROR_CANCELLED;
+		struct request *r = m->head;
+		if (result != 0 || (r != NULL && r->bytes == NULL)) {
+			st_mutex_unlock(&m->mutex);
+			break;
+		}
+		if (r != NULL) {
+			m->head = r->next; if (m->head == NULL) m->tail = NULL;
+			st_mutex_unlock(&m->mutex);
+			result = st_midi_decode_stream(&m->sink, r->bytes, r->count, m->sink.send, m->sink.state);
+			st_mutex_lock(&m->mutex);
+			m->storage_bytes -= request_storage(r);
+			sequence = r->sequence;
+			if (result == 0 && pcm) {
+				uint64_t latency = ((uint64_t)audio_stream_latency_ms(*m->pcm) * AUDIO_SAMPLE_RATE + 999) / 1000;
+				struct completion *c = &m->markers[(m->marker_first + m->marker_count) % REQUEST_LIMIT];
+				*c = (struct completion){sequence, p.origin + p.rendered + latency};
+				++m->marker_count;
+				complete_markers(m, p.origin + p.progress, false);
+			} else {
+				--m->requests;
+				if (result == 0) m->completed = sequence;
+			}
+			discard(r);
+			st_condition_broadcast(&m->changed);
+			st_mutex_unlock(&m->mutex);
+			continue;
+		}
+		st_mutex_unlock(&m->mutex);
+		if (pcm) {
+			size_t pending = audio_stream_buffered_frames(*m->pcm);
+			if (pending < LIVE_FRAMES) {
+				/* advance only fills the vacant live window; it never waits
+				 * for the consumer with incoming MIDI bytes queued. */
+				p.base = 0;
+				if (p.rendered > UINT64_MAX - (LIVE_FRAMES - pending)) result = IO_ERROR_OUT_OF_RANGE;
+				else result = advance(&p, p.rendered + LIVE_FRAMES - pending, -1, 0, NULL);
+				continue;
+			}
+		}
+		struct timespec deadline;
+		if (st_time_utc_deadline_after_ms(&deadline, pcm ? 2 : 20) != 0) {
+			result = IO_ERROR_IO; break;
+		}
+		st_mutex_lock(&m->mutex);
+		/* The outer loop rechecks queued bytes, controls and cancellation
+		 * after every wake. Runtime/policy changes need no player signal. */
+		if (m->head == NULL && !m->controls_changed && !m->stopping
+		    && m->generation == m->working_generation) {
+			int waited = st_condition_timedwait(&m->changed, &m->mutex, &deadline);
+			if (waited != ST_THREAD_SUCCESS && waited != ST_THREAD_TIMED_OUT) result = IO_ERROR_IO;
+		}
+		st_mutex_unlock(&m->mutex);
+	}
+	st_mutex_lock(&m->mutex);
+	if (m->generation != m->working_generation || m->stopping) result = IO_ERROR_CANCELLED;
+	m->rendered = p.rendered; m->progress = p.progress;
+	if (result == 0) return; /* The next file/ANSI request owns the transition. */
+	/* A failed destination cannot retain a meaningful partial wire message.
+	 * Cancel its queued prefix; a flushed generation leaves newer writes
+	 * alone. Subsequent writes can select a fresh sink. */
+	while (m->generation == m->working_generation && m->head != NULL && m->head->bytes != NULL) {
+		struct request *r = m->head;
+		m->head = r->next; if (m->head == NULL) m->tail = NULL;
+		m->storage_bytes -= request_storage(r); --m->requests;
+		sequence = r->sequence; discard(r);
+	}
+	st_mutex_unlock(&m->mutex);
+	st_midi_sink_release(&m->sink, true);
+	st_mutex_lock(&m->mutex);
+	if (*m->pcm != NULL) (void)audio_stream_clear(*m->pcm);
+	complete_markers(m, 0, true);
+	if (m->completed < sequence) m->completed = sequence;
+	if (m->fading) {
+		m->fading = false; m->controls_changed = true;
+		if (m->completed < m->fade_cutoff) m->completed = m->fade_cutoff;
+		if (*m->pcm != NULL) (void)audio_stream_set_volume(*m->pcm, m->left, m->right);
+	}
+	m->active = false;
+	st_condition_broadcast(&m->changed);
+}
 static int worker(void *context)
 {
 	st_music_t *m = context;
@@ -310,6 +426,7 @@ static int worker(void *context)
 		while (m->head == NULL && !m->stopping)
 			st_condition_wait(&m->changed, &m->mutex);
 		if (m->stopping) break;
+		if (m->head->bytes != NULL) { live(m); continue; }
 		struct request *r = m->head;
 		m->head = r->next; if (m->head == NULL) m->tail = NULL;
 		bool continuing = m->active;
@@ -326,7 +443,7 @@ static int worker(void *context)
 		if (result == 0 && st_time_monotonic_ns(&p.start_ns) == 0) result = play(&p, r);
 		else if (result == 0) result = IO_ERROR_IO;
 		st_mutex_lock(&m->mutex);
-		m->note_bytes -= r->count * sizeof(*r->notes);
+		m->storage_bytes -= request_storage(r);
 		uint64_t sequence = r->sequence;
 		if (result == 0 && pcm) {
 			uint64_t latency = ((uint64_t)audio_stream_latency_ms(*m->pcm) * AUDIO_SAMPLE_RATE + 999) / 1000;
@@ -417,7 +534,7 @@ static int enqueue(st_music_t *m, struct request *r)
 	st_mutex_lock(&m->mutex);
 	int result = 0;
 	if (m->stopping || st_audio_runtime_stopped(m->runtime)) result = IO_ERROR_CANCELLED;
-	else if (m->requests == REQUEST_LIMIT || r->count > (NOTE_STORAGE_LIMIT - m->note_bytes) / sizeof(*r->notes)
+	else if (m->requests == REQUEST_LIMIT || request_storage(r) > NOTE_STORAGE_LIMIT - m->storage_bytes
 	    || m->accepted == UINT64_MAX) result = IO_ERROR_BUSY;
 	else if (!m->started) {
 		if (st_thread_create(&m->thread, worker, m) != ST_THREAD_SUCCESS) result = IO_ERROR_IO;
@@ -425,7 +542,7 @@ static int enqueue(st_music_t *m, struct request *r)
 	}
 	if (result == 0) {
 		r->sequence = ++m->accepted; ++m->requests;
-		m->note_bytes += r->count * sizeof(*r->notes);
+		m->storage_bytes += request_storage(r);
 		if (m->tail == NULL) m->head = r; else m->tail->next = r;
 		m->tail = r;
 		st_condition_signal(&m->changed);
@@ -470,6 +587,22 @@ int st_music_queue_notes(st_music_t *m, struct st_music_note *notes, size_t coun
 	if (status != 0) free(r);
 	return status;
 }
+int st_music_queue_midi(st_music_t *m, const uint8_t *bytes, size_t count)
+{
+	if (m == NULL || (count != 0 && bytes == NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	if (count > NOTE_STORAGE_LIMIT) return IO_ERROR_MESSAGE_TOO_LARGE;
+	if (count == 0) return 0;
+	if (!st_music_available(m)) return st_audio_runtime_stopped(m->runtime)
+	    ? IO_ERROR_CANCELLED : IO_ERROR_NOT_SUPPORTED;
+	struct request *r = calloc(1, sizeof(*r));
+	if (r == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	r->bytes = malloc(count);
+	if (r->bytes == NULL) { free(r); return IO_ERROR_OUT_OF_MEMORY; }
+	memcpy(r->bytes, bytes, count); r->count = count;
+	int status = enqueue(m, r);
+	if (status != 0) discard(r);
+	return status;
+}
 int st_music_wait(st_music_t *m)
 {
 	if (m == NULL) return IO_ERROR_INVALID_ARGUMENT;
@@ -499,6 +632,7 @@ int st_music_flush(st_music_t *m, size_t fade_frames)
 		m->fading = true; m->fade_frames = fade_frames; m->fade_start = m->clock;
 		m->fade_cutoff = cutoff;
 		m->controls_changed = true;
+		st_condition_signal(&m->changed);
 		if (*m->pcm != NULL && (m->sink.send == NULL || m->sink.render != NULL)) {
 			(void)audio_stream_ramp_volume(*m->pcm, -192, -192, fade_frames);
 			m->controls_changed = false;
@@ -523,6 +657,7 @@ int st_music_volume(st_music_t *m, float left, float right, size_t ramp)
 	m->ramp_frames = m->active ? ramp : 0;
 	if (m->ramp_frames == 0) { m->left = left; m->right = right; }
 	m->controls_changed = true;
+	st_condition_signal(&m->changed);
 	if (*m->pcm != NULL && (m->sink.send == NULL || m->sink.render != NULL)) {
 		(void)audio_stream_ramp_volume(*m->pcm, left, right, m->ramp_frames);
 		m->controls_changed = false;
