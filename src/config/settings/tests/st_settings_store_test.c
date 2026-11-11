@@ -389,6 +389,7 @@ main(void)
 	CHECK(st_settings.audio_output_modes == 0 && st_settings.midi_output_modes == 5);
 	CHECK(st_settings.prompt_save);
 	CHECK(st_settings.color_emoji);
+	CHECK(st_settings.atari_st_key_clicks);
 	CHECK(st_settings.download_system_list);
 	CHECK(strcmp(st_settings.stored_list_path,
 	    "https://example.invalid/system.lst") == 0);
@@ -482,14 +483,20 @@ main(void)
 		CHECK(st_settings_copy(&candidate, &st_settings));
 		candidate.confirm_close = !old_confirm;
 		candidate.color_emoji = false;
+		candidate.atari_st_key_clicks = false;
 		CHECK(st_settings.confirm_close == old_confirm);
 		CHECK(st_settings_save_value(&candidate) == 0);
 		CHECK(st_settings.confirm_close == !old_confirm);
 		CHECK(!st_settings.color_emoji);
+		CHECK(!st_settings.atari_st_key_clicks);
 		CHECK(read_document(settings_path, &document) == 0);
 		CHECK(ini_section_get_bool(ini_document_find_section(document,
 		    "SyncTERM"), "ConfirmClose", old_confirm) == !old_confirm);
+		CHECK(!ini_section_get_bool(ini_document_find_section(document,
+		    "SyncTERM"), "AtariSTKeyClicks", true));
 		ini_document_free(&document);
+		CHECK(st_settings_reload() == 0);
+		CHECK(!st_settings.atari_st_key_clicks);
 		candidate.confirm_close = old_confirm;
 		st_settings_install(&candidate);
 		CHECK(st_settings.confirm_close == old_confirm);

@@ -575,6 +575,7 @@ class SettingsMenu {
         helpItem_("Default Cursor Style", "The cursor's normal appearance") +
         helpItem_("Audio Output Mode", "The audio backends SyncTERM may try") +
         helpItem_("MIDI", "Enable or disable MIDI libraries independently of PCM output") +
+        helpItem_("Atari ST Key Clicks", "Play a click when typing in an Atari ST session; select to toggle") +
         helpItem_("Scrollback Buffer Lines", "The number of retained scrollback rows") +
         helpItem_("Modem/Comm Device", "The modem communications device") +
         helpItem_("Modem/Comm Rate", "The modem-port DTE rate") +
@@ -848,6 +849,7 @@ class SettingsMenu {
       rows.add([5, settingsLine_("Default Cursor Style", Menu.cursorStyles[s.cursorStyle])])
       rows.add([6, settingsLine_("Audio Output Mode", audioSummary_(s))])
       rows.add([22, settingsLine_("MIDI", midiSummary_(s))])
+      rows.add([23, settingsLine_("Atari ST Key Clicks", yesNo_(s.atariStKeyClicks))])
       rows.add([7, settingsLine_("Scrollback Buffer Lines", s.scrollbackLines)])
       rows.add([8, settingsLine_("Modem/Comm Device", s.modemDevice)])
       var rate = s.modemRate == 0 ? "Current" : "%(s.modemRate)bps"
@@ -895,6 +897,8 @@ class SettingsMenu {
           if (audio_(app, s)) changed = true
         } else if (value == 22) {
           if (midi_(app, s)) changed = true
+        } else if (value == 23) {
+          s.atariStKeyClicks = !s.atariStKeyClicks
         } else if (value == 7) {
           var next = MenuUi.integer(app, "Scrollback Lines",
               "Number of retained lines", s.scrollbackLines, 1,

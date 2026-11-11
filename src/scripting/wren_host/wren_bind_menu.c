@@ -3968,6 +3968,7 @@ SETTINGS_BOOL_PROPERTY(confirm_close, confirm_close)
 SETTINGS_BOOL_PROPERTY(prompt_save, prompt_save)
 SETTINGS_BOOL_PROPERTY(invert_wheel, invert_wheel)
 SETTINGS_BOOL_PROPERTY(color_emoji, color_emoji)
+SETTINGS_BOOL_PROPERTY(atari_st_key_clicks, atari_st_key_clicks)
 SETTINGS_OWNED_PROPERTY(modem_device, modem_device)
 SETTINGS_FIXED_PROPERTY(modem_init, modem_init_string)
 SETTINGS_FIXED_PROPERTY(modem_dial, modem_dial_string)
@@ -4324,6 +4325,10 @@ install_prepared_settings(struct st_wren_host *host,
 	    st_settings.audio_output_modes);
 	st_audio_runtime_set_midi_allowed(host->config.audio_runtime,
 	    st_settings.midi_output_modes);
+	for (struct st_wren_context *context = host->poll_contexts;
+	    context != NULL; context = context->poll_next)
+		st_cterm_set_atari_st_key_clicks(context->cterm,
+		    st_settings.atari_st_key_clicks);
 	++host->settings_generation;
 	settings->generation = host->settings_generation;
 	settings->dirty = false;
@@ -5220,6 +5225,7 @@ static const struct binding bindings[] = {
 	BIND_GETSET("Settings", "promptSave", settings_prompt_save),
 	BIND_GETSET("Settings", "invertWheel", settings_invert_wheel),
 	BIND_GETSET("Settings", "colorEmoji", settings_color_emoji),
+	BIND_GETSET("Settings", "atariStKeyClicks", settings_atari_st_key_clicks),
 	BIND_GETSET("Settings", "modemDevice", settings_modem_device),
 	BIND_GETSET("Settings", "modemInit", settings_modem_init),
 	BIND_GETSET("Settings", "modemDial", settings_modem_dial),

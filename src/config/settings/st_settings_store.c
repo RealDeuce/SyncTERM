@@ -156,6 +156,7 @@ static const struct setting_key known_keys[] = {
 	{ "SyncTERM", "DefaultCursor" },
 	{ "SyncTERM", "AudioModes" },
 	{ "SyncTERM", "MidiModes" },
+	{ "SyncTERM", "AtariSTKeyClicks" },
 	{ "SyncTERM", "ScrollBackLines" },
 	{ "SyncTERM", "TransferSuccessKeypressTimeout" },
 	{ "SyncTERM", "TransferFailureKeypressTimeout" },
@@ -296,6 +297,7 @@ settings_defaults(struct st_settings *value, const char *personal_list)
 	value->output_mode = 0;
 	value->audio_output_modes = UINT32_MAX;
 	value->midi_output_modes = UINT32_MAX;
+	value->atari_st_key_clicks = true;
 	value->scrollback_lines = 2000;
 	value->transfer_success_keypress_timeout = 0;
 	value->transfer_failure_keypress_timeout = 60;
@@ -378,6 +380,8 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 		value->midi_output_modes = (uint32_t)ini_section_get_bitfield(section,
 		    "MidiModes", midi_modes, sizeof(midi_modes) / sizeof(midi_modes[0]),
 		    value->midi_output_modes);
+		value->atari_st_key_clicks = ini_section_get_bool(section,
+		    "AtariSTKeyClicks", value->atari_st_key_clicks);
 		value->scrollback_lines = bounded_int(section, "ScrollBackLines", 2000,
 		    0, INT_MAX);
 		value->transfer_success_keypress_timeout = bounded_int(section,
@@ -705,6 +709,8 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	SET(ini_section_set_bitfield(section, "MidiModes", midi_modes,
 	    sizeof(midi_modes) / sizeof(midi_modes[0]), value->midi_output_modes,
 	    &ini_default_style));
+	SET(ini_section_set_bool(section, "AtariSTKeyClicks",
+	    value->atari_st_key_clicks, &ini_default_style));
 #define SET_INT(key, member) SET(ini_section_set_int64(section, key, \
 	    value->member, &ini_default_style))
 	SET_INT("ScrollBackLines", scrollback_lines);

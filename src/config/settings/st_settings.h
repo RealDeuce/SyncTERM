@@ -99,6 +99,7 @@ struct st_settings {
 	char key_derivation_iterations[ST_SETTINGS_KDF_MAX + 1];
 	bool invert_wheel;
 	bool color_emoji;
+	bool atari_st_key_clicks;
 	bool download_system_list;
 };
 

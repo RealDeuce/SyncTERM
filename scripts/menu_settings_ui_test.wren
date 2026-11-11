@@ -70,6 +70,7 @@ class SettingsMenuTest {
   }
   static testProgram_() {
     var before = Menu.settings
+    var atariStKeyClicks = before.atariStKeyClicks
     var colorEmoji = before.colorEmoji
     var confirm = before.confirmClose
     var promptSave = before.promptSave
@@ -78,6 +79,7 @@ class SettingsMenuTest {
     check_((before.apply() == null), "prepare TLS file fields")
     var actions = [
       row_("Confirm Program Exit"), row_("Prompt to Save"),
+      row_("Atari ST Key Clicks"),
       row_("Startup Screen Mode"), row_(Menu.screenModes[3]),
       row_("Video Output Mode"), row_(Menu.outputModes[0][1]),
       row_("Default Cursor Style"), row_(Menu.cursorStyles[4])
@@ -150,6 +152,7 @@ class SettingsMenuTest {
     check_(SettingsMenu.program_(app, false), "program editor reports changes")
     check_(app.remaining == 0 && app.alerts == 0, "all program controls accepted")
     var s = Menu.settings
+    check_(s.atariStKeyClicks == !atariStKeyClicks, "Atari ST key clicks toggle applied")
     check_(s.colorEmoji == !colorEmoji, "colour emoji setting applied")
     check_(s.confirmClose == !confirm && s.promptSave == !promptSave &&
         s.startupMode == 3 && s.outputMode == 0 && s.cursorStyle == 4,

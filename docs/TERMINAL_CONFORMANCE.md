@@ -256,7 +256,12 @@ local-sample phase/frequency checks, DC probes/filter tails, partition
 invariance and all 20 original GIST patches. No foreign clock or reference
 PCM-byte identity is required. The b command now adds editable source/saved
 patch banks, exact trigger counts, restoration and stop-all, through a dedicated
-session stream shared by GIST and console sounds. Disabled audio advances on
+session stream shared by GIST and console sounds. The Program Settings
+"Atari ST Key Clicks" toggle suppresses local clicks independently of BEL and
+remote effects, applies to live sessions, and survives terminal reset and
+application restart. Native audio, settings/runtime and headless editor tests
+cover these preference paths; physical-device audibility is not claimed.
+Disabled audio advances on
 local deadlines without PCM; fast phase/noise jumps prevent replay on re-enable.
 Native input/lifecycle/error tests and 198 coherent application captures cover
 all ST modes, Atari ST/CP437/UTF-8 and status choices, with physical audio/MIDI

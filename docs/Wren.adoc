@@ -5099,6 +5099,12 @@ when `Menu.encryptionAvailable` is false.
 |===
 | Property | Meaning
 
+| `atariStKeyClicks`
+| Bool, defaults to true. Enables local Atari ST keyboard clicks independently
+  of the terminal bell and remote sound effects. The Program Settings row
+  toggles on selection and applies immediately, including during a connection.
+  Persists as `AtariSTKeyClicks` under `[SyncTERM]`.
+
 | `confirmClose`, `promptSave`, `invertWheel`, `colorEmoji`
 | Bool program options. `colorEmoji` defaults to true and enables intrinsic
   emoji colours in graphical output. Disabling it uses monochrome artwork

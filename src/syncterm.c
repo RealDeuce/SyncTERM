@@ -1071,6 +1071,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		st_console_test_set_application_reader(display, inspect_application, &inspection);
 #endif
 		st_cterm_set_music_mode(st_term_session_cterm(session), profile->music);
+		st_cterm_set_atari_st_key_clicks(st_term_session_cterm(session),
+		    st_settings.atari_st_key_clicks);
 		const struct st_wren_connected_config wren_config = {
 			.host = host,
 			.console = console,

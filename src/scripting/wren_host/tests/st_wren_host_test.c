@@ -8718,6 +8718,48 @@ struct ignored_input_poster {
 	st_console_t *console;
 };
 
+static int
+exercise_key_click_setting(struct st_wren_host *host)
+{
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *terminal = NULL;
+	st_wren_connected_t *connected = NULL;
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 8};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {.console = console, .fonts = fonts,
+		.emulation = ST_CTERM_ATARI_ST_VT52, .encoding = ST_CTERM_ENCODING_CODEPAGE,
+		.codepage = ST_CODEPAGE_ATARI_ST, .graphics_mode = ST_CTERM_GRAPHICS_IGS_221, .quiet = true};
+	CHECK(st_cterm_create(&terminal, &config) == 0);
+	struct st_profile profile;
+	st_profile_init(&profile);
+	const struct st_wren_connected_config wren_config = {
+		.host = host, .console = console, .cterm = terminal, .profile = &profile};
+	CHECK(st_wren_connected_create(&connected, &wren_config) == 0);
+	st_profile_dispose(&profile);
+	CHECK(wrenInterpret(host->vm, "key_click_setting",
+		"import \"syncterm_menu\" for Menu\n"
+		"var settings = Menu.settings\n"
+		"var previous = settings.atariStKeyClicks\n"
+		"settings.atariStKeyClicks = false\n"
+		"if (settings.apply() != null) Fiber.abort(\"disable clicks\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(!terminal->atari_st_key_clicks);
+	CHECK(wrenInterpret(host->vm, "key_click_setting",
+		"settings.atariStKeyClicks = true\n"
+		"if (settings.apply() != null) Fiber.abort(\"enable clicks\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(terminal->atari_st_key_clicks);
+	CHECK(wrenInterpret(host->vm, "key_click_setting",
+		"settings.atariStKeyClicks = previous\n"
+		"if (settings.apply() != null) Fiber.abort(\"restore clicks\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_connected_destroy(connected);
+	st_cterm_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
 static int exercise_skypix_menu_audio(struct st_wren_host *host)
 {
 	st_console_t *console=NULL;
@@ -9172,6 +9214,7 @@ main(int argc, char **argv)
 	CHECK(exercise_numeric_encoding_contract(host, console) == 0);
 	CHECK(exercise_claim_wake_contract(host) == 0);
 	CHECK(exercise_input_deadline_contract(host, console) == 0);
+	CHECK(exercise_key_click_setting(host) == 0);
 	CHECK(exercise_skypix_menu_audio(host) == 0);
 	CHECK(exercise_repl_contract(host) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,

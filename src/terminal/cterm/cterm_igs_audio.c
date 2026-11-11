@@ -235,6 +235,7 @@ cterm_igs_audio_effect(struct cterm_igs *igs, const int *v, size_t count)
 int
 cterm_igs_audio_console(struct cterm_igs *igs, bool click)
 {
+	if (click && !igs->terminal->atari_st_key_clicks) return 0;
 	int status = create(igs);
 	if (status == 0) status = cterm_igs_audio_poll(igs);
 	if (status != 0) return status;

@@ -907,7 +907,10 @@ def settings_ui(executable, reports):
         frame = client.wait_text("Program Settings")
         click_text(client, frame, "Program Settings")
         click_text(client, client.capture(), "Program Settings")
-        frame = client.wait_text("Prompt to Save")
+        frame = client.wait_text("Atari ST Key Clicks")
+        assert any("Atari ST Key Clicks" in row and "Yes" in row for row in frame.lines)
+        click_text(client, frame, "Atari ST Key Clicks")
+        frame = client.wait_for(lambda s: any("Atari ST Key Clicks" in row and "No" in row for row in s.lines))
         click_text(client, frame, "Prompt to Save")
         # The normal editor keeps the draft open after a persistence error.
         settings = root / "syncterm.ini"
@@ -925,6 +928,7 @@ def settings_ui(executable, reports):
         client.close()
         contents = settings.read_text(encoding="utf-8")
         assert "PromptSave=false" in contents, contents
+        assert "AtariSTKeyClicks=false" in contents, contents
         # Verify persisted values through a fresh application instance.
         with application(executable, root, reports=reports) as restarted:
             frame = restarted.wait_text("Program Settings")
@@ -932,6 +936,7 @@ def settings_ui(executable, reports):
             click_text(restarted, restarted.capture(), "Program Settings")
             frame = restarted.wait_text("Prompt to Save")
             assert any("Prompt to Save" in row and "No" in row for row in frame.lines)
+            assert any("Atari ST Key Clicks" in row and "No" in row for row in frame.lines)
             restarted.key("escape")
 
 

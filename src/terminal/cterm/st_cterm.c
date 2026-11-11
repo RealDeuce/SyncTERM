@@ -2179,6 +2179,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	terminal->skypix_transfer = config->skypix_transfer;
 	terminal->skypix_transfer_context = config->skypix_transfer_context;
 	terminal->quiet = config->quiet;
+	terminal->atari_st_key_clicks = true;
 	terminal->lf_expand = config->expand_lf;
 	if ((config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3))
 		terminal->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
@@ -3377,6 +3378,13 @@ st_cterm_set_music_mode(st_cterm_t *terminal, int mode)
 	if (mode > CTERM_MUSIC_ENABLED)
 		mode = CTERM_MUSIC_ENABLED;
 	terminal->music_enable = (cterm_music_t)mode;
+}
+
+void
+st_cterm_set_atari_st_key_clicks(st_cterm_t *terminal, bool enabled)
+{
+	if (terminal != NULL)
+		terminal->atari_st_key_clicks = enabled;
 }
 
 bool

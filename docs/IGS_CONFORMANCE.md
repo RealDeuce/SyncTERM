@@ -2371,7 +2371,11 @@ its callback context.
 Local sample fractions schedule GIST at 200 updates/second. The fixed console
 tables are serviced at 50/second, initially after 15ms, following GIST when
 both are due. New console triggers obey quiet and the driver's post-update
-active-voice audio gate. A previously accepted console table still writes
+active-voice audio gate. The enabled-by-default Program Settings option
+"Atari ST Key Clicks" toggles local clicks immediately and persists across
+sessions as `[SyncTERM] AtariSTKeyClicks`. Disabling it leaves BEL and remote
+sound effects enabled; terminal reset retains the local preference.
+A previously accepted console table still writes
 the shared PSG while a new effect suppresses further triggers. Bell/click
 preserve R7's upper bits; click writes R13 before R11/R12 and retains B/C gains.
 Only these used fixed tables are needed; no arbitrary Dosound pointer/memory

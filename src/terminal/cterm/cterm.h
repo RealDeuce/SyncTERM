@@ -175,6 +175,7 @@ struct cterminal {
 	int					left_margin;
 	int					right_margin;
 	int					quiet;			// No sounds are made
+	bool atari_st_key_clicks;
 	struct st_console_cell	*scrollback;
 	struct st_pixel_buffer **backpixels; /* Optional, owned pixel strip per ring slot. */
 	struct st_pixel_buffer *backpartial; /* RGB pixels not yet filling one history row. */

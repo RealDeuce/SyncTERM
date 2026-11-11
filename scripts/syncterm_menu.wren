@@ -313,6 +313,8 @@ foreign class Settings {
   foreign audioModes=(value)
   foreign midiModes
   foreign midiModes=(value)
+  foreign atariStKeyClicks
+  foreign atariStKeyClicks=(value)
   foreign scrollbackLines
   foreign scrollbackLines=(value)
   foreign transferSuccessKeypressTimeout

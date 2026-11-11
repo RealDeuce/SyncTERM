@@ -345,6 +345,8 @@ bool st_cterm_doorway_mode(const st_cterm_t *terminal);
 void st_cterm_set_doorway_mode(st_cterm_t *terminal, bool enabled);
 int st_cterm_music_mode(const st_cterm_t *terminal);
 void st_cterm_set_music_mode(st_cterm_t *terminal, int mode);
+/* Local keyboard preference; terminal reset does not change it. Default true. */
+void st_cterm_set_atari_st_key_clicks(st_cterm_t *terminal, bool enabled);
 bool st_cterm_atascii_inverse(const st_cterm_t *terminal);
 /* Effective protocol: 0 off, 1 RIP, 2 SkyPix, 3 IGS, 9 X10, 1000/1002/1003 XTerm. */
 int st_cterm_mouse_mode(const st_cterm_t *terminal);
