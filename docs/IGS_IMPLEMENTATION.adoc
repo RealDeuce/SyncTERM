@@ -3865,6 +3865,8 @@ active.
 
 == N buffered MIDI and chip notes (complete)
 
+Completion commit: `9e3ae2d`.
+
 Reference: chapters 06, 23, 25, 58, 182 and 183, and the original 2.21 manual
 for the initially enabled MIDI toggle. N uses the same generic numeric/BYTES
 field descriptions and pre-ANSI insertion point as other IGS commands.
