@@ -18,7 +18,7 @@
 bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 {
 	struct cterm_igs_input *m = &igs->input;
-	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
+	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
 	m->keys[(m->key_first + m->key_count) % CTERM_IGS_INPUT_KEYS] = *key;
 	++m->key_count;
 	return true;
@@ -167,6 +167,7 @@ int cterm_igs_zone_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t siz
 void cterm_igs_input_cancel_reader(struct cterm_igs *igs)
 {
 	struct cterm_igs_input *input = &igs->input;
+	input->left_configuring = false;
 	input->configuring = input->loading = false; input->deadline = 0;
 	input->zone_configuring = input->zone_loading = false; input->zone_deadline = 0;
 }
@@ -174,13 +175,35 @@ void cterm_igs_input_cancel(struct cterm_igs *igs)
 {
 	struct cterm_igs_input *input = &igs->input;
 	cterm_igs_input_cancel_reader(igs);
+	input->left_held = false;
 	input->held = input->suspended = input->sending = input->suppressed = false;
 	input->buttons = 0;
+}
+int cterm_igs_left_finish(struct cterm_igs *igs)
+{
+	struct cterm_igs_input *input = &igs->input;
+	if (!input->left_held || input->buttons == 1) return IO_ERROR_PROTOCOL;
+	bool feeding = igs->feeding;
+	igs->feeding = true; input->sending = true;
+	/* Entry already gated the nonzero mode. CR is unconditional; only the
+	 * CURRENT mode, reloaded after its send, decides whether LF follows. */
+	if (igs->terminal->keystroke_cb != NULL)
+		igs->terminal->keystroke_cb("\r", 1, igs->terminal->keystroke_cbdata);
+	if (!igs->reset_pending && input->left_mode == 2 && igs->terminal->keystroke_cb != NULL)
+		igs->terminal->keystroke_cb("\n", 1, igs->terminal->keystroke_cbdata);
+	input->sending = input->left_held = false;
+	igs->feeding = feeding;
+	return igs->reset_pending ? IO_ERROR_INTERRUPTED : 0;
 }
 int cterm_igs_input_activate(struct cterm_igs *igs)
 {
 	struct cterm_igs_input *input = &igs->input;
-	if (input->buttons != 2 || input->enabled != 1 || input->suppressed || cterm_igs_paused(igs)) return 0;
+	if (input->suppressed || cterm_igs_paused(igs)) return 0;
+	if (input->left_mode != 0 && input->buttons == 1) {
+		input->left_held = true;
+		return 0;
+	}
+	if (input->buttons != 2 || input->enabled != 1) return 0;
 	bool feeding = igs->feeding;
 	igs->feeding = true; input->sending = input->held = true;
 	int status = 0;
@@ -211,19 +234,23 @@ static unsigned tos_buttons(uint32_t buttons)
 }
 static void sample(struct cterm_igs *igs, uint32_t buttons)
 {
-	bool releasing = igs->input.held || igs->input.suspended;
-	igs->input.buttons = tos_buttons(buttons);
-	if (igs->input.buttons == 0) {
-		igs->input.held = igs->input.suppressed = false;
-		/* Release may arrive inside a send callback. Defer parser/key work
-		 * until that callback and its surrounding parser have returned. */
-		if (releasing && !igs->feeding) cterm_render_record_error(igs->terminal, cterm_igs_poll(igs));
+	struct cterm_igs_input *input = &igs->input;
+	bool releasing = input->held || input->left_held || input->suspended;
+	input->buttons = tos_buttons(buttons);
+	if (input->buttons == 0) {
+		input->suppressed = false;
+		if (!input->sending) input->held = false;
 	}
+	/* A sample inside an output callback never reenters parser/key work.
+	 * The owner finishes X6's CR/LF before the possible X3 right branch. */
+	if (releasing && !igs->feeding && !input->sending
+	    && (input->buttons == 0 || (input->left_held && input->buttons != 1)))
+		cterm_render_record_error(igs->terminal, cterm_igs_poll(igs));
 }
 bool cterm_igs_mouse(struct cterm_igs *igs, const struct st_console_event *event)
 {
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) return false;
-	bool was_held = igs->input.held;
+	bool was_held = igs->input.held || igs->input.left_held;
 	bool inside = event->data.mouse.pixel_x >= 0 && event->data.mouse.pixel_y >= 0
 	    ? (uint32_t)event->data.mouse.pixel_x < igs->width
 	      && (uint32_t)event->data.mouse.pixel_y < (uint32_t)igs->terminal->height * (igs->resolution == 2 ? 16u : 8u)
@@ -231,7 +258,9 @@ bool cterm_igs_mouse(struct cterm_igs *igs, const struct st_console_event *event
 	      && event->data.mouse.x < igs->terminal->width && event->data.mouse.y < igs->terminal->height;
 	if (!inside && !was_held) { cterm_igs_mouse_sync(igs, event->data.mouse.buttons); return false; }
 	sample(igs, event->data.mouse.buttons);
-	bool claimed = was_held || (igs->input.enabled == 1 && igs->input.buttons == 2 && !igs->input.suppressed);
+	bool claimed = was_held || (!igs->input.suppressed
+	    && ((igs->input.enabled == 1 && igs->input.buttons == 2)
+	    || (igs->input.left_mode != 0 && igs->input.buttons == 1)));
 	if (!igs->feeding && !st_graphics_parser_in_command(igs->parser))
 		cterm_render_record_error(igs->terminal, cterm_igs_input_activate(igs));
 	return claimed;
@@ -240,7 +269,7 @@ void cterm_igs_mouse_sync(struct cterm_igs *igs, uint32_t buttons)
 {
 	/* A press claimed by local UI/disabled forwarding must not fire later
 	 * merely because a command completed while that button remained held. */
-	if (!igs->input.held && tos_buttons(buttons) != 0) igs->input.suppressed = true;
+	if (!igs->input.held && !igs->input.left_held && tos_buttons(buttons) != 0) igs->input.suppressed = true;
 	sample(igs, buttons);
 }
 #if ST_CONSOLE_TEST
@@ -253,6 +282,9 @@ void cterm_igs_input_inspect(const struct cterm_igs *igs, struct st_console_test
 	FIELD(enabled); FIELD(length); FIELD(cr); FIELD(loading); FIELD(received); FIELD(held); FIELD(buttons);
 #undef FIELD
 	st_console_test_number(app, "cterm.igs_macro_buffer", hash);
+	st_console_test_number(app, "cterm.igs_left_mode", input->left_mode);
+	st_console_test_number(app, "cterm.igs_left_held", input->left_held);
+	st_console_test_number(app, "cterm.igs_left_configuring", input->left_configuring);
 	uint32_t rectangles = UINT32_C(2166136261), payloads = rectangles;
 	for (size_t i = 0; i < CTERM_IGS_ZONES; ++i) {
 		const struct cterm_igs_zone *zone = &input->zones[i];

@@ -107,10 +107,11 @@ dispatch_and_arrays(void)
 				igs->math[0] = (int16_t)invalid[i];
 				feed(&f,"G#X 0]:"); position(igs,10,20,30,40);
 			}
-			/* Valid selectors whose handlers are still pending fail at the
-			 * selector boundary, rather than forwarding payload to ANSI. */
-			for (unsigned selector = 0; selector < 16; ++selector) {
-				if (selector == 0 || selector == 1 || selector == 2 || selector == 7 || selector == 8 || selector == 10 || selector == 11 || selector == 12 || selector == 13 || selector == 14 || selector == 15) continue;
+			/* X9 remains pending. Rejection cancels the graphics chain, so
+			 * the following M remains ordinary input, not a graphics command. */
+			const unsigned pending[] = {9};
+			for (size_t s = 0; s < sizeof(pending)/sizeof(*pending); ++s) {
+				unsigned selector = pending[s];
 				int prefix = snprintf(wire,sizeof(wire),"G#X>%u,",selector);
 				CHECK(prefix > 0 && (size_t)prefix+sizeof("1234:M 1:") <= sizeof(wire));
 				memcpy(wire+prefix,"1234:M 1:",sizeof("1234:M 1:"));

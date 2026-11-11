@@ -33,10 +33,12 @@ struct cterm_igs_input {
 	size_t zone_received;
 	uint64_t zone_deadline;
 	/* Terminal-owner state, never accessed by a worker. Native TOS bits:
-	 * left=1/right=2. A hold ends only at an all-buttons-up sample. */
+	 * left=1/right=2. X3 waits for all buttons up; X6 waits for !=1. */
 	struct cterm_igs_key keys[CTERM_IGS_INPUT_KEYS];
 	size_t key_first, key_count;
 	bool replaying;
+	uint8_t left_mode;
+	bool left_held, left_configuring;
 	unsigned buttons;
 	bool held, suspended, sending, suppressed;
 };
@@ -54,6 +56,7 @@ int cterm_igs_macro_load(struct cterm_igs *, int length);
 int cterm_igs_macro_bytes(struct cterm_igs *, const uint8_t *, size_t, size_t *accepted);
 void cterm_igs_input_cancel(struct cterm_igs *);
 int cterm_igs_input_activate(struct cterm_igs *);
+int cterm_igs_left_finish(struct cterm_igs *);
 bool cterm_igs_mouse(struct cterm_igs *, const struct st_console_event *);
 void cterm_igs_mouse_sync(struct cterm_igs *, uint32_t buttons);
 #endif

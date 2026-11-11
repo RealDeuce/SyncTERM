@@ -22,7 +22,8 @@ an opaque right-button macro, sends it once with optional CR and pauses serial
 acquisition until all buttons release; retained input and local UI/Wren routing
 share the existing owner/event paths. `X4` defines48 retained zone rectangles
 and raw payloads, clears rectangle bounds and controls strict loopback for the
-future `<` consumer. `X7` loads source
+future `<` consumer. `X6` configures left-only release CR/CRLF, retaining
+right-only handoff into X3 and owner-managed serial/key waits. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
 `X14` selects the persistent screen/memory transfer route used by `G`.
@@ -2616,3 +2617,53 @@ application X3/X4/X5/N. Native X4 took0.26s and the432-capture application run
 unfinished.
 
 Completion commit for X4: 542fbb4. The goal remains active at57/63.
+
+
+## Left-button release output (`X6`)
+
+Chapter20 defines the mode store and actual outer-loop consumer. One unscaled
+operand stores its low byte, without clamping or immediate transmission.
+The original accessory DATA byte is0. I/R retain it; full reset/reconnect
+restore0. The accepted selector is cached before acquiring the mode, avoiding
+repeat random/array evaluation. EOF/timeout/rejection retains the prior mode.
+
+Any nonzero byte plus exact left-only button word1 enters a hold, with no
+output while it remains1. Initial both3 does not enter. Once the word is any
+other value, send raw USER CR, reload the current mode and send LF only for
+byte2. Values255/1/3 all send only CR;256 disables and258 selects CRLF after
+byte truncation. Changing the mode during the CR send affects LF but cannot
+remove the already-committed CR. Existing transport owns readiness; there is
+no additional clock, native polling, debounce or hardware throughput wait.
+
+The final sample survives for the immediately following X3 branch. Right-only2
+can send the separate macro after CR/LF; its own hold still requires all
+buttons up. Left-to-both ends X6 immediately. Serial suffix and original-key
+input remain queued in native order until the relevant holds finish. Input
+sampled during commands/chains/raw loads/local waits waits for their outer
+boundary. Reset during output interrupts remaining bytes safely; transport
+EOF cancels a hold without a fabricated release CR. Local UI/viewport/status/
+disabled presses cannot arm a macro or left hold, while release anywhere is
+accepted. Effective mode3 covers either X3/X6, preserving Wren selection,
+paste, status/disable gates and local wheel-up scrollback. The API manual is
+updated. The future `<` command retains its own separate input-loop scope.
+
+Native `cterm_igs_left_mouse` checks all256 bytes,16 signed word boundaries,
+17 split positions and bytewise chains over18 mode/encoding/status profiles
+and54 scaling variants. Full dual-phase pixels/palette/attributes/cursor stay
+unchanged. It also covers release masks, X3 handoff, key/serial ownership,
+raw/q/command suspension, fixed selector/RNG, numeric/error/EOF/I/R/reset,
+post-CR live mode changes and reentrant reset/release. The application test
+adds675 coherent captures across all ST modes, Atari ST/CP437/UTF-8 and status
+choices. Exact socket bytes and explicit Wren output fences prove no early or
+repeated CR, exact CRLF/macro order, Unicode queue/remote-disable ordering,
+local mouse/scrollback gates and held/partial EOF/reconnect, alongside the
+independent glyph/index/RGB/state scene checks. Physical audio/MIDI are off.
+Ordinary tests are self-contained; provenance: `src/tests/igs/left-mouse-vectors.json`.
+
+Native FreeBSD Release configure/full builds passed; the final build was
+warning-free after transient generated-dependency timestamp warnings. All34
+selected checks have passing results across the regression run and focused
+rerun, which corrected an old X10 unsupported-selector inventory without
+changing its chain-cancellation expectation. Final X10/native X6 took10.20s/
+0.22s; the675-capture X6 application matrix took68.69s. The ledger is58/63
+complete; X dispatch, remaining commands and final acceptance are unfinished.

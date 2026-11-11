@@ -4398,11 +4398,14 @@ arguments or native resources.
   other buttons, movement, status-row and UI-handled events do not report.
   Cell-only events without native pixel coordinates are not approximated.
   Wheel-up retains the local scrollback action.
-  IGS reports mode `3` while its right-button macro is enabled or waiting
-  for release. Right-only sends the loaded raw bytes once, optionally
-  followed by CR; all buttons must be released before serial input and
-  queued keys resume. Status-row and UI-handled presses do not activate
-  the macro; release is accepted anywhere. IGS also keeps wheel-up local.
+  IGS reports mode `3` while X3 or X6 is enabled or holding input.
+  X3 sends the loaded raw macro once on right-only, optionally followed by CR,
+  then waits for all buttons to release. X6 waits for a left-only hold to
+  change to any other button state before sending CR; only mode byte2 adds
+  LF. A transition to right-only can then enter X3. Serial input and queued
+  keys resume after these holds. Status-row and UI-handled presses do not
+  activate either behavior; release is accepted anywhere. IGS keeps wheel-up
+  local for scrollback.
 
 | `CTerm.mouseSgrPixels`
 | Read-only Bool; true while DECSET 1016 is the active SGR pixel-position

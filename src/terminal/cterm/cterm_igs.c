@@ -52,6 +52,7 @@ static const struct st_graphics_command extended_commands[] = {
 	{3, unscaled_parameters, 1, macro_next},
 	{4, unscaled_parameters, 1, zone_next},
 	{5, unscaled_parameters, 1, flow_mode_next},
+	{6, unscaled_parameters, 1, NULL},
 	{7, unscaled_parameters, 1, pattern_load_next},
 	{8, unscaled_parameters, 4, NULL},
 	{10, point_parameters, 2, NULL},
@@ -432,7 +433,9 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 	int selector;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	int status = 0;
-	if (preview.input.zone_configuring)
+	if (preview.input.left_configuring)
+		selector = 6;
+	else if (preview.input.zone_configuring)
 		selector = 4;
 	else if (preview.input.configuring)
 		selector = 3;
@@ -747,6 +750,16 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 		}
 		return 0;
 	}
+	if (view->code == 'X' && view->count == 1) {
+		struct cterm_igs preview = *igs;
+		int selector;
+		int status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
+		if (status != 0) return status;
+		if (selector == 6) {
+			igs->random_seed = preview.random_seed;
+			igs->input.left_configuring = true;
+		}
+	}
 	bool pattern = false;
 	if (view->code == 'X' && view->count >= 2) {
 		struct cterm_igs preview = *igs;
@@ -952,6 +965,14 @@ execute_command(void *context, const struct st_graphics_command_view *view)
 			if (status == 0) status = cterm_igs_argument_value(igs, &view->arguments[2], &end);
 		}
 		return status == 0 ? cterm_igs_music_execute(igs, first, end) : status;
+	}
+	if (view->code == 'X' && igs->input.left_configuring) {
+		int mode;
+		igs->input.left_configuring = false;
+		if (view->count != 2) return IO_ERROR_PROTOCOL;
+		int status = cterm_igs_argument_value(igs, &view->arguments[1], &mode);
+		if (status == 0) igs->input.left_mode = (uint8_t)mode;
+		return status;
 	}
 	if (view->code == 'X' && igs->input.zone_configuring) {
 		struct cterm_igs_input *input = &igs->input;
@@ -1270,7 +1291,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	int status = execute_command(context, view);
 	if (status == 0 && !view->chained) {
 		status = cterm_igs_input_activate(igs);
-		if (status == 0 && igs->input.held) {
+		if (status == 0 && (igs->input.held || igs->input.left_held)) {
 			igs->input.suspended = true;
 			status = IO_ERROR_IN_PROGRESS;
 		}
@@ -1436,7 +1457,7 @@ bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
 	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause || igs->note.active
-	    || (igs->music != NULL && igs->music->playing) || igs->input.held || igs->input.suspended);
+	    || (igs->music != NULL && igs->music->playing) || igs->input.held || igs->input.left_held || igs->input.suspended);
 }
 
 bool
@@ -1602,11 +1623,23 @@ cterm_igs_poll(struct cterm_igs *igs)
 {
 	int audio_status = cterm_igs_audio_poll(igs);
 	if (audio_status != 0) return audio_status;
-	if (igs->input.held || igs->input.sending) return 0;
+	if (igs->input.sending) return 0;
+	bool left_finished = false;
+	if (igs->input.left_held && igs->input.buttons != 1) {
+		int status = cterm_igs_left_finish(igs);
+		if (igs->reset_pending) { cterm_igs_reset(igs); return status == IO_ERROR_INTERRUPTED ? 0 : status; }
+		if (status != 0) return status;
+		left_finished = true;
+	}
+	if (igs->input.held || igs->input.left_held) return 0;
 	if (igs->input.suspended) {
 		igs->input.suspended = false;
 		int status = st_graphics_parser_resume(igs->parser);
 		if (status != 0) return status;
+	}
+	if (left_finished && igs->input.buttons == 2) {
+		int status = cterm_igs_input_activate(igs);
+		if (status != 0 || igs->input.held) return status;
 	}
 	if (igs->input.key_count != 0 && !igs->input.loading && !igs->input.zone_loading && !igs->music->loading && !igs->music->playing) {
 		igs->feeding = true;

@@ -4205,3 +4205,68 @@ captures in28.26s. All63 unique ordered IDs,57 completed entries, active tests,
 dependencies/references and source identities were checked. Parent X, the `<`
 consumer, remaining commands and final acceptance stay pending. The full goal
 remains active.
+
+
+== X6 left-button release output (complete)
+
+Reference: chapter20, serial X6 byte store and main-loop consumer
+$0007ca..$000858, followed by chapter21's X3 branch. One unscaled mode operand
+stores its low byte, without0..2 clamping or immediate output. Accessory DATA
+$013138 initializes to0; the adjacent byte/other protocol state is preserved.
+I/R retain mode; full reset/reconnect restore0. Cache the selector before
+reading mode so accepted random/array prefixes advance once. Cancelled,
+timed-out or rejected numeric fields retain the prior mode.
+
+Any nonzero mode and exact native left-only1 enter a hold that sends nothing
+while the buttons remain1. Initial both3 does not enter. When the sampled word
+changes to any other value, send raw USER CR, reload the current mode and
+append LF only for byte2, without another readiness poll. Values255/1/3 send
+CR only,256 disables and258 selects CRLF. A mode change during CR affects LF;
+it does not revoke CR. Existing output transport owns readiness, with no
+foreign clock, debounce, worker, native BIOS polling or throughput wait.
+
+The retained sample can immediately enter X3 when right-only2. Its macro
+follows CR/LF and retains its independent all-buttons-up wait. X6 instead ends
+on0/2/3. Serial suffix and original queued keys remain owned until the active
+holds finish. Samples during command/raw/chained/local-wait ownership defer
+to the outer boundary; a release resumes in native order. Reentrant callbacks
+cannot reenter parser/key work, and reset interrupts remaining output safely.
+EOF cancels held state without inventing a release CR. Input stays responsive
+to host UI; viewport/status/UI/disabled presses remain suppressed until release,
+and release anywhere clears a hold. Shared effective mouse mode3 now includes
+X3 or X6 enabled/held state, so existing Wren selection/paste/status/disable
+routing and local wheel-up scrollback apply. docs/Wren.adoc is updated; no new
+Wren binding/parser is added. The `<` acquisition loop remains a separate
+pending consumer and will own mouse events while active.
+
+cterm_igs_left_mouse checks256 byte modes,16 signed word boundaries,17 splits
+and bytewise chains over18 ST mode/encoding/status profiles and54 scaling
+variants, with unchanged full dual-phase pixels, palettes, attributes and
+cursor. It checks no immediate/held-repeat output, exact release masks,
+post-CR live mode changes, X3 handoff, UTF-8 keys/serial suffix, raw/q/command
+suspension, numeric/EOF/timeout/RNG/I/R/reset and reentrant reset/release.
+The675 coherent syncterm_igs_left_mouse captures cover the same18 application
+profiles with independent glyph/index/RGB/state checks, exact real socket
+CR/CRLF/macro bytes, explicit Wren output fences against premature/duplicate
+bytes, queued Unicode input/remote-disable ordering, local mouse/status/
+scrollback policy and held/partial disconnect/fresh reconnect. Sound/MIDI are
+disabled; ordinary tests need no external tree/ROM/executable. Literal coverage
+and source identities: src/tests/igs/left-mouse-vectors.json.
+
+Native FreeBSD Release CMake configure/full builds with /usr/bin/cc passed.
+Early generated-dependency future-timestamp warnings cleared in repeat/final
+builds, which were warning-free. The missing-handler test failed before
+implementation. All34 selected checks have passing verification across the
+175.21s regression run and10.26s final focused rerun:33 passed initially;
+corrected the old X10 unsupported-selector inventory for completed X3/X4/
+X5/X6 while retaining the exact rejection/chain assertion for pending X9,
+then relinked its shared runner. Final X10 passed in10.20s and native X6 in
+0.22s (0.26s in the full run). Other regressions cover shared grammar/stream,
+IGS input/I/R/X3/X4/X5/bitmap/math/random/pattern/waits/audio, CTerm ANSI/VT52/
+keyboard, RIP, SkyPix, term/key forwarding, Wren and application X3/X4/X5/X6/N/
+SkyPix mouse. X6 passed all675 coherent captures in68.69s. All63 unique ordered
+IDs,58 completed entries, active tests, dependencies/references and pinned
+source identities were checked. Parallel Atari ST key-click settings work
+was committed separately as1732492; final linking/native checks used that
+baseline and those changes are excluded from the X6 diff. Parent X, remaining
+commands and final acceptance stay pending; the full goal remains active.

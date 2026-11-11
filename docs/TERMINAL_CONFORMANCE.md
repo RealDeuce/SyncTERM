@@ -295,6 +295,11 @@ controls for the future `<` consumer. Native literal tests plus432 coherent
 all-mode/encoding/status application captures verify opaque data, unchanged
 scenes, queued keys and EOF/reconnect, sharing X3's auxiliary service with
 physical sound/MIDI disabled. Negative zone memory escapes are rejected.
+X6 adds exact left-only release CR/CRLF and immediate right-only handoff to
+X3, with shared owner-side key/serial suspension. Native byte/word/split/
+callback/lifetime cases and675 coherent all-profile captures verify raw output
+order, unchanged scenes and Wren/UI/disabled/scrollback/reconnect behavior.
+Only mode byte2 appends LF; initial both-buttons does not enter the left hold.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
