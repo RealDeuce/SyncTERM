@@ -158,6 +158,11 @@ scroll, and reset and reconnect.
 coherent application captures cover pending console input, immediate
 right-edge wrap, overwrite, scrolling with graphics, status row
 boundaries, and reconnect.
+`l` adds three inclusive Atari VT52 line erasures with raw background
+color and a depth-dependent destination column for whole-line erase.
+Its 492 native scenes and 90 coherent application captures check the
+erase range, graphics and text, cursor presentation, status bounds and
+reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

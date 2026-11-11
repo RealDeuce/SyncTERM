@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v and w commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w and l commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2447,4 +2447,39 @@ The new native check failed before implementation. The native FreeBSD
 Release build with /usr/bin/cc passed without warnings. All 17 targeted
 CTest checks passed in 30.61 seconds. The native and application checks
 for w took 0.77 and 17.03 seconds respectively. The ledger records 34
+complete entries. Completion commit `60332ff`.
+
+=== l line erasure
+
+The unscaled signed selector zero emits VT52 ESC l for the whole line,
+one emits ESC o from the start through the cursor, and two emits ESC K
+from the cursor through the end. Selectors above two emit ESC l.
+Negative selectors emit ESC alone. The existing console state consumes
+the emitted bytes, including pending escapes and raw parameters.
+
+The three native VT52 handlers replace the selected inclusive range
+of text and graphics with blanks in the raw background color, including
+in reverse video. The retained text cells and both indexed phases update
+together. Partial erasure retains the cursor position. Whole-line
+erasure moves to the zero-based column selected by the incoming hide
+depth, which the original erase wrapper leaves in the move register.
+The port bounds the destination at the last column and preserves the
+saturating hide count. The indexed cursor overlay is hidden for the
+erase and redisplayed through the local presenter.
+
+The native test checks 336 full indexed erase scenes and 156 pending
+console compositions across all ST modes and both status choices. It
+covers edge and single-cell erasure, normal and reverse colors, cursor
+depth, split input, random operands, timeout, EOF, renderer recovery,
+terminal reset and standalone VT52. The application test checks 90
+coherent captures with original TOS glyphs, graphics crossing the erase
+boundary, both indexed phases, RGB, cursor presentation, no replies and
+reconnect across all modes, Atari ST, CP437 and UTF-8, and both status
+choices. Audio and MIDI are disabled.
+
+References include chapters 04, 14, 66, 124, 160 and 195.
+The new native test failed before implementation. The native FreeBSD
+Release build with /usr/bin/cc passed without warnings. All 20 targeted
+CTest checks passed in 36.92 seconds. The native and application checks
+for l took 1.36 and 17.13 seconds respectively. The ledger records 35
 complete entries. Completion commit will be recorded by the next step.

@@ -150,6 +150,7 @@ static const struct st_graphics_command commands[] = {
 	{'k', unscaled_parameters, 1, NULL},
 	{'v', unscaled_parameters, 1, NULL},
 	{'w', unscaled_parameters, 1, NULL},
+	{'l', unscaled_parameters, 1, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -391,6 +392,12 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'w': {
 		const uint8_t output[] = {27, values[0] == 1 ? 'v' : 'w'};
 		return cterm_vt52_output(igs->terminal, output, values[0] < 0 ? 1 : sizeof(output));
+	}
+	case 'l': {
+		static const uint8_t letters[] = {'l', 'o', 'K'};
+		int selector = values[0] > 2 ? 0 : values[0];
+		const uint8_t output[] = {27, selector < 0 ? 0 : letters[selector]};
+		return cterm_vt52_output(igs->terminal, output, selector < 0 ? 1 : sizeof(output));
 	}
 	case 'c': {
 		/* Upper selectors select background; negative selectors emit ESC only.

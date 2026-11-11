@@ -155,12 +155,56 @@ cterm_vt52_erase_to_end(struct cterminal *cterm, int *speed)	/* ESC J */
 	cterm_render_set_position(cterm, x, y);
 }
 
+enum vt52_line_erase {
+	VT52_ERASE_WHOLE_LINE,
+	VT52_ERASE_TO_LINE_START,
+	VT52_ERASE_TO_LINE_END,
+};
+
+static void
+cterm_vt52_erase_row(struct cterminal *cterm, enum vt52_line_erase range)
+{
+	int x, y;
+	CURR_XY(&x, &y);
+	int left = range == VT52_ERASE_TO_LINE_END ? x : CURR_MINX;
+	int right = range == VT52_ERASE_TO_LINE_START ? x : CURR_MAXX;
+	int screen_y = y;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &left, &screen_y);
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &right, NULL);
+	const struct st_console_rect rect = {
+		.x = (uint32_t)(left - 1), .y = (uint32_t)(screen_y - 1),
+		.width = (uint32_t)(right - left + 1), .height = 1,
+	};
+	struct st_console_cell blank;
+	int status = cterm_render_make_current_cell(cterm, &blank, ' ', 0);
+	if (status != 0) {
+		cterm_render_record_error(cterm, status);
+		return;
+	}
+	blank.background = cterm_vt52_background_color(cterm);
+
+	/* Hide and show the presenter overlay without editing the retained
+	 * depth or the indexed pixels under the old cursor. */
+	cterm_vt52_render_cursor(cterm, CTERM_CURSOR_HIDDEN);
+	status = st_console_fill(cterm->screen.console, &rect, &blank);
+	if (status == 0 && range == VT52_ERASE_WHOLE_LINE) {
+		/* TOS moves with the depth word left by the erase wrapper's
+		 * counted show. Bound the host column and keep depth saturated. */
+		int column = CURR_MINX + cterm->vt52_cursor_hide_depth;
+		cterm_render_set_position(cterm, column < CURR_MAXX ? column : CURR_MAXX, y);
+	}
+	cterm_render_record_error(cterm, status);
+	cterm_vt52_render_cursor(cterm, cterm->cursor);
+}
+
 static void
 cterm_vt52_erase_eol(struct cterminal *cterm, int *speed)	/* ESC K */
 {
-	(void)cterm;
 	(void)speed;
-	cterm_render_clear_line(cterm);
+	if (cterm->igs_engine != NULL)
+		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_LINE_END);
+	else
+		cterm_render_clear_line(cterm);
 }
 
 static void
@@ -338,6 +382,10 @@ cterm_vt52_clear_line(struct cterminal *cterm, int *speed)	/* ESC l */
 {
 	int x, y;
 	(void)speed;
+	if (cterm->igs_engine != NULL) {
+		cterm_vt52_erase_row(cterm, VT52_ERASE_WHOLE_LINE);
+		return;
+	}
 	CURR_XY(&x, &y);
 	cterm_render_set_position(cterm, CURR_MINX, y);
 	cterm_render_clear_line(cterm);
@@ -348,7 +396,10 @@ static void
 cterm_vt52_clear_to_bol(struct cterminal *cterm, int *speed)	/* ESC o */
 {
 	(void)speed;
-	cterm_clear2bol(cterm);
+	if (cterm->igs_engine != NULL)
+		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_LINE_START);
+	else
+		cterm_clear2bol(cterm);
 }
 
 static void

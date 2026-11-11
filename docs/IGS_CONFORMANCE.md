@@ -1474,6 +1474,26 @@ immediate wrap, overwrite, scrolling, and reconnect after a partial
 command.
 All 17 targeted checks passed on native FreeBSD Release.
 
+### l line erasure
+
+Selectors zero and above two emit VT52 ESC l for the whole row. One
+emits ESC o for start through cursor and two emits ESC K for cursor
+through end. Negative selectors emit ESC alone. The persistent VT52
+state interprets these bytes. Native erasure replaces text and graphics
+in the inclusive range with the raw background, even in reverse video.
+Partial erase retains the cursor position. Whole-line erase uses the
+incoming hide depth as its zero-based column, bounded at the right
+edge. The hide count is preserved and the local cursor overlay is
+redisplayed after the erase.
+
+`cterm_igs_line_erase` checks 336 indexed erase scenes and 156 pending
+console compositions, plus partition, recovery, reset and standalone
+VT52 cases. `syncterm_igs_line_erase` checks 90 coherent application
+captures across all ST modes, Atari ST, CP437 and UTF-8 and both status
+choices. It verifies text, graphics, both indexed phases, RGB, visible
+cursor inversion and reconnect.
+All 20 targeted checks passed on native FreeBSD Release.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on
