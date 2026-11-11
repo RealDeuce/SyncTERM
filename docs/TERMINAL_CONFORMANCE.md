@@ -239,6 +239,10 @@ Independent 600-case native compositions and 451 coherent application
 captures cover ordered patterned/wide/arrow/XOR drawing, console overlays,
 Drawto, status/input/error/lifecycle boundaries and key forwarding during
 waits, across all ST modes/encodings/status choices with audio/MIDI off.
+The GIST software-voice foundation adds standalone register/record tests:
+1044 independent envelope cases, 160 API cases, all pitch/control words and
+original-patch lifetime checks. These do not establish PCM playback or b/n/N
+command support; synthesis and session/audio integration remain unfinished.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

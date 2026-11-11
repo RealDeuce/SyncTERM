@@ -60,6 +60,8 @@ required. Original bugs and memory/overflow accidents are corrected safely
 and will be listed here with tests. Historical delivery profiles, BIG and
 CONDOR implementations are outside this goal.
 
+A tested GIST software-voice/register engine is available as a foundation;
+PSG synthesis and b/n/N command/audio integration remain unfinished.
 Audio will implement GIST/PSG behavior and use SyncTERM MIDI facilities.
 Sound tests check functionality and lifecycle, without requiring identical PCM
 or reference-render comparisons. Listening is deferred to manual testing
@@ -2097,6 +2099,61 @@ entry, plus the existing line/polyline raster contracts in chapters 43/44/
 
 `cterm_igs_sweep` and `syncterm_igs_sweep` cover this step; vector provenance
 is recorded in `src/tests/igs/sweep-vectors.json`.
+
+### GIST software-voice foundation
+
+The next sound step begins with a tested GIST software-voice engine in
+st_igs. It owns three copied 56-word parameter records, their six envelope/
+modulation accumulators and a masked PSG-register mirror. Original 20-patch,
+85-pitch and 16-factor tables are checked in with source fingerprints. The
+identical effect 3/11 contents occupy distinct source rows; later mutable
+patch banks must preserve that independence. Initialization creates a silent
+host state with mixer 0x3f and zero gain registers.
+
+The engine implements automatic voice allocation and priority rejection,
+stop-before-copy, pitch folding from the original table, volume override,
+per-voice tone/noise enables and mixer preservation. Stop emits immediate
+zero gain; release schedules the duration/release transition and leaves the
+accumulators intact. Accepted source parameters are copied forward, so
+later patch edits do not silently alter an already active voice. A valid
+self-alias observes stop before the duration read. Duration 0 leaves the
+selected voice stopped. Oscillator phases are not owned or reset here.
+
+A caller invokes one update at each converted local 1/200-second boundary.
+There is no clock, timer, origin or free-running foreign tick counter in
+this engine. Updates visit C,B,A and apply the original signed fixed-point
+amplitude/tone/noise envelopes, reflected modulators, tone step replacement,
+duration/release order and raw gain/tone/noise conversions. Preserve every
+ordered raw PSG write through a synchronous observer, including immediate
+zero followed by another gain and shared-noise overwrites. The register
+mirror applies the chip masks separately. No PSG GPIO or machine-bus behavior is
+introduced. The observer must not mutate or reenter the engine.
+
+Safe-port policy: retain an edited volume word but bound its dynamic
+multiplier-table index to 0..15. Do not read outside that host table to
+reproduce a native escaped factor lookup. Preserve otherwise defined raw
+arithmetic, including negative gain bytes that set the hardware-envelope
+bit and the signed-byte noise guard. Other native RAM/code/MMIO escapes
+remain outside this component, under the goal's memory-safety policy.
+
+The standalone igs_gist CTest uses 1044 independent immutable-field update
+vectors, 160 full API vectors and explicit register-order/priority/release
+checks. Vectors include all original patches, raw edited words, recognized
+and unrecognized phase bytes, carry/clamp/replacement boundaries and exact
+masked register state. Literal checks cover all 65536 pitch/control words,
+copy/source independence, self-alias stop ordering, free-record priority
+rejection, C/B/A noise precedence, fixed versus dynamic gain, safe factor
+bounds, invalid voices and stop-all order. All 20 original automatic effects
+reach completion under bounded test observation. No elapsed host waits or
+PCM matching supply expected results; ordinary tests require no external
+reference tree or ROM.
+
+This is a sound-foundation step. PSG synthesis, audio-stream ownership and
+shutdown, console sound interaction and b/n/N command integration remain
+unfinished. No command status is advanced and no PCM, audible or physical
+audio-device coverage is claimed by these register/record tests. References:
+chapters 06, 56, 57 and the b caller contract in chapter 24. Source identities
+and test counts are recorded in src/tests/igs/gist-vectors.json.
 
 ## Deliberate corrections
 

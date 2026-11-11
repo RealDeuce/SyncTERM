@@ -376,6 +376,38 @@
       "limitations": [
         "Other command handlers, graphics/audio/input integration and final acceptance remain pending."
       ]
+    },
+    {
+      "id": "igs-sound",
+      "status": "in-progress",
+      "references": [
+        "06-audio.adoc",
+        "56-gist-interrupt-voices.adoc",
+        "57-gist-caller-apis.adoc",
+        "24-effect-patch-command.adoc"
+      ],
+      "dependencies": [
+        "igs-state-raster-timing"
+      ],
+      "operations": [
+        "Tested GIST software-voice/register core: three independent copied 56-word records and six accumulators; original 20-patch/85-pitch/16-factor data pinned to source identities, preserving separate identical-effect 3/11 rows.",
+        "Automatic voice/priority allocation, stop-before-source-read and forward copy, original pitch folding, tone/noise disable and mixer masking, fixed gain, selected stop and scheduled release. Source edits do not change an active copied voice; stop does not reset oscillator phases.",
+        "Explicit C,B,A envelope update calls, driven later by converted local sample/deadline positions. No clock origin/timer/free-running foreign counter. Signed fixed-point envelopes, symmetric reflection, tone carry/replacement, duration/release sequencing and raw conversions emit ordered PSG bytes with masked register state.",
+        "1044 independent immutable-field update vectors and 160 full API vectors plus exhaustive 65536 pitch/control words, original-patch lifetimes, safe factor indexing, aliases/copy ownership, priority/stop/release and raw shared-noise/gain order. Tests use checked-in data, no external files, physical audio or PCM reference."
+      ],
+      "tests": [
+        "igs_gist"
+      ],
+      "deviations": [
+        "Edited dynamic volume-factor indices are bounded to 0..15 at use, preserving the stored word and other defined raw conversions rather than reading outside the host table. No native code/RAM/MMIO escape or installer/bus model."
+      ],
+      "limitations": [
+        "PSG synthesis, PCM streaming/ownership/lifecycle, console sound interaction and b/n/N command integration remain pending. Register/record tests claim no PCM/audible/device coverage."
+      ],
+      "verification": [
+        "Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. Generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 13 selected CTest checks passed in 8.18 seconds: igs_gist, indexed images, shared parser/stream, audio mixer/synthesis, music player, APC/SkyPix audio, X8/X15, CTerm and term. igs_gist took 0.01 seconds, checking 1044 independent update records, 160 complete API records, 65536 pitch/control words and all 20 original automatic patch lifetimes, plus literal ordering/ownership/safe-bound cases. Validated all 63 command IDs with 51 complete entries, references/dependencies/active test registrations, fixture inventories and all four original-data/oracle hashes. No command completion or PSG/PCM/audible/native-device coverage is claimed; this is a complete GIST record/register component within the still-in-progress sound foundation."
+      ],
+      "commit": null
     }
   ],
   "commands": [
@@ -2618,7 +2650,7 @@
       "verification": [
         "The native X15 test failed at the selector before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; generated-dependency clock-skew warnings cleared in the final builds, which had no warnings. Native X15 and application X15 first passed in 2.37 and 43.73 seconds, including 600 independent dual-phase raster cases and 451 coherent application captures. The 27-test regression run passed 26 in 58.21 seconds; its X10 test still selected newly implemented X15 for a NOT_SUPPORTED expectation. Changed that seed to pending selector X9, preserving the same error/consumption/seed/position assertions. The final full build and focused X10/X15 tests passed in 8.31 seconds (X15 2.32 seconds). All 27 distinct regression tests have passing verification across these runs: shared parser/stream, indexed images, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, I/R/input/g/L/D/X10/z/t/q/G/X8/X11/X15 and application L/D/R. Validated 63 unique ordered IDs with 51 complete entries, references/dependencies, active tests, 600/36 vector inventories, six source-oracle hashes and pinned font/ROM identities. Parallel work is excluded from this step."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "f942f1a"
     },
     {
       "id": "b",
@@ -2630,7 +2662,11 @@
       ],
       "order": 52,
       "status": "pending",
-      "dependencies": [],
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "igs-sound"
+      ],
       "operations": [],
       "tests": [],
       "deviations": [],

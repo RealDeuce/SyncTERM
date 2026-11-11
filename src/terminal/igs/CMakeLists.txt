@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-add_library(st_igs STATIC st_igs_image.c)
+add_library(st_igs STATIC st_igs_image.c st_igs_gist.c)
 target_include_directories(st_igs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_igs PUBLIC st_pixels syncterm_io_error)
 set_target_properties(st_igs PROPERTIES
@@ -12,7 +12,7 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	foreach(part IN ITEMS image)
+	foreach(part IN ITEMS image gist)
 		add_executable(st_igs_${part}_test tests/st_igs_${part}_test.c)
 		target_link_libraries(st_igs_${part}_test PRIVATE st_igs)
 		set_target_properties(st_igs_${part}_test PROPERTIES

@@ -1,0 +1,21 @@
+{
+  "generator": "src/tests/igs/generate_gist_vectors.py",
+  "references": [
+    "06-audio.adoc",
+    "56-gist-interrupt-voices.adoc",
+    "57-gist-caller-apis.adoc"
+  ],
+  "method": "Original source patch/pitch/factor words plus the separate immutable-field integer oracle from verify_gist_tick.py. Explicit stable records, raw words and ordered register writes; no SyncTERM output, native instruction execution, CPU clocks or PCM matching.",
+  "source_sha256": {
+    "docs/igs/generated/source-sound-patches.json": "76263e9fb923779160766fd3341c4ff4ebb13c9b58a322a71426cbff0d82ac93",
+    "docs/igs/generated/gist.json": "34be9658a4ce09aa73ec7aab48fc32a2eb9243b383d2120562ee27b1fafb67c4",
+    "tools/verify_gist_tick.py": "f19e92d7ef3e2f8820b39183c5b6daa78dca97757b34f6e8d3cdb2d930a2dc5d",
+    "tools/verify_gist_api.py": "b01e291e4a82d27f64e7166008830cf7d4ff0103b56ce76f004e7700810bafae"
+  },
+  "patches": 20,
+  "words_per_patch": 56,
+  "voice_cases": 1044,
+  "api_cases": 160,
+  "random_seed": "0x49475347495354",
+  "raw_volume_policy": "Stored words retained; unsafe dynamic factor indices are bounded to0..15 at use. Random oracle cases use valid factor indices; dedicated literal tests cover the safe-port policy."
+}
