@@ -67,7 +67,7 @@ struct cterm_igs {
 	uint64_t input_deadline, text_deadline;
 	unsigned sync_wait_hz;
 	uint64_t wait_deadline;
-	/* A timed pause owns wait_deadline until expiry, a key, reset or EOF. */
+	/* Only timed pauses accept keyboard cancellation of this deadline. */
 	bool timed_pause, pause_key;
 	int pending_resolution;
 	int pending_palette;
@@ -113,6 +113,7 @@ uint32_t cterm_igs_random(struct cterm_igs *);
 int cterm_igs_argument_value(struct cterm_igs *,
 	const struct st_graphics_argument *, int *result);
 int cterm_igs_resolution(struct cterm_igs *, int requested, int palette);
+int cterm_igs_wait_sync(struct cterm_igs *, unsigned units);
 int cterm_igs_resolution_complete(struct cterm_igs *, int palette);
 int cterm_igs_palette_pen(struct cterm_igs *, int pen, int red, int green, int blue);
 int cterm_igs_state_init(struct cterm_igs *);

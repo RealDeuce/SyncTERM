@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i and t commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2641,4 +2641,48 @@ application t fixtures took 0.24 and 18.33 seconds. A final focused
 rerun adds zero-delay key consumption. The first full build reported
 clock skew on generated dependency files; the final build completed
 without warnings. The ledger records 39 complete entries. Completion
-commit will be recorded by the next step.
+commit `9f6f367`.
+
+=== q sync wait and double-copy control
+
+The signed unscaled word normally supplies a count clamped to 1..180.
+A value above 9994 instead stores 9999 minus that word in the retained
+G double-copy control and uses count one. The original postdecrement
+loop executes count plus one sync waits. Thus zero, negative words,
+one and all control-setting words wait two units. Values 180..9994
+wait 181 units.
+
+Convert the total sync-unit count to a checked local monotonic
+deadline, rounding upward once to milliseconds. The initial rate is
+60 units per second in all ST modes. The same conversion serves R
+and I5 resolution waits. The parser retains its unread suffix and
+resumes from the existing owner/poll path. Keyboard input passes
+through during q. The command issues no flow-control output.
+
+Values 9995..9999 select double-copy controls 4..0. Larger signed
+words obtained from arrays can store a negative nonzero control.
+Ordinary q values retain the control. I0/I2 and terminal reset clear
+it, while the other I selectors and R retain it. EOF cancels a pending
+wait and retains the selected control. A clock, rate or deadline
+error after the control assignment also retains that assignment.
+G's use of this field remains part of the pending G step.
+
+The native test checks 66,346 duration cases, including every signed
+word and representative operands across all modes, status choices,
+scaling states and configured rates. Focused checks cover input
+partitions, random acquisition, pending raw console parameters, key
+forwarding, control lifetime, EOF, timeout, clock errors, invalid rates
+and deadline overflow. The application test checks 145 coherent
+captures across all ST modes, Atari ST, CP437 and UTF-8, and both status
+choices, with audio and MIDI disabled. It verifies retained scene,
+all documented controls, ordinary-value retention, a live short wait,
+key forwarding during a wait, no replies and reconnect after EOF.
+
+References include chapters 16, 124 and 182.
+The new native test failed before implementation. Native FreeBSD
+Release configure and full builds with /usr/bin/cc passed. All 17
+selected CTest checks passed in 33.89 seconds. Native and application
+q took 0.38 and 24.98 seconds respectively. Generated-dependency clock
+skew warnings in the initial build cleared in the final build. The
+ledger records 40 complete entries. Completion commit will be recorded
+by the next step.

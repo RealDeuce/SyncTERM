@@ -178,6 +178,10 @@ pending input, raw background, cursor and reconnect.
 input. Its 252 native duration contexts and 74 coherent application
 checkpoints cover deadline boundaries, key consumption, suffix
 resumption, errors, reset and reconnect.
+`q` adds sync waits and retained double-copy control. Its 66,346
+native duration cases and 145 coherent application checkpoints cover
+count boundaries, control lifetime, key forwarding, suffix resumption
+and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

@@ -1567,6 +1567,24 @@ flow bytes, unchanged scene, key consumption, retained suffix,
 one live deadline, and reconnect after a paused disconnect.
 All 18 selected checks passed on native FreeBSD Release.
 
+### q sync wait and double-copy control
+
+The signed count is clamped to 1..180 and contributes one extra sync
+unit from the terminating iteration. Values above 9994 instead set
+the retained double-copy control to 9999 minus the word and wait two
+units. Ordinary values preserve that control. The total count is
+converted to a local deadline using the configured sync rate, initially
+60 units per second. Keys pass through during q and the input suffix
+resumes at expiry.
+
+`cterm_igs_sync_wait` checks 66,346 duration cases plus partition,
+keyboard, control-lifetime and error cases. `syncterm_igs_sync_wait`
+checks 145 coherent captures across all ST modes, Atari ST, CP437 and
+UTF-8, and both status choices. It verifies literal scene retention,
+control values, a live wait, key forwarding, no replies and reconnect.
+G's double-copy use remains pending with G.
+All 17 selected checks passed on native FreeBSD Release.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on

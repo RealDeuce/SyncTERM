@@ -121,6 +121,8 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.igs_text_counter", (int64_t)igs->text_counter);
 		st_console_test_number(app, "cterm.igs_text_deadline", (int64_t)igs->text_deadline);
 		st_console_test_number(app, "cterm.igs_timed_pause", igs->timed_pause);
+		st_console_test_number(app, "cterm.igs_input_paused", cterm_igs_paused(igs));
+		st_console_test_number(app, "cterm.igs_double_step", igs->double_step);
 		st_console_test_number(app, "cterm.igs_text_pen", igs->attributes.text_pen);
 		st_console_test_number(app, "cterm.igs_text_effects", igs->attributes.text_effects);
 		st_console_test_number(app, "cterm.igs_text_rotation", igs->attributes.text_rotation);

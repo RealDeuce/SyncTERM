@@ -155,6 +155,7 @@ static const struct st_graphics_command commands[] = {
 	{'d', unscaled_parameters, 1, NULL},
 	{'i', unscaled_parameters, 2, NULL},
 	{'t', unscaled_parameters, 1, NULL},
+	{'q', unscaled_parameters, 1, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -444,6 +445,20 @@ command(void *context, const struct st_graphics_command_view *view)
 	}
 	case 'd': return repeat_console_escape(igs, 'M', values[0]);
 	case 't': return begin_pause(igs, values[0]);
+	case 'q': {
+		int count = values[0];
+		if (count > 9994) {
+			igs->double_step = 9999 - count;
+			count = 1;
+		}
+		if (count < 1)
+			count = 1;
+		if (count > 180)
+			count = 180;
+		/* The original loop calls Vsync before its old-value decrement
+		 * test, so its terminating iteration contributes one more unit. */
+		return cterm_igs_wait_sync(igs, (unsigned)count + 1);
+	}
 	case 'i': {
 		static const uint8_t letters[] = {'I', 'L'};
 		int selector = values[0] > 1 ? 0 : values[0];
@@ -690,7 +705,7 @@ cterm_igs_reset(struct cterm_igs *igs)
 bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
-	return igs != NULL && (igs->pending_resolution >= 0 || igs->timed_pause);
+	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause);
 }
 
 bool
@@ -814,6 +829,10 @@ cterm_igs_poll(struct cterm_igs *igs)
 		int status = igs->now_ms(&now);
 		if (status != 0 || now < igs->wait_deadline)
 			return status;
+		if (igs->pending_resolution < 0) {
+			igs->wait_deadline = 0;
+			return st_graphics_parser_resume(igs->parser);
+		}
 		igs->feeding = true;
 		status = cterm_igs_set_resolution(igs->terminal, (unsigned)igs->pending_resolution);
 		igs->feeding = false;

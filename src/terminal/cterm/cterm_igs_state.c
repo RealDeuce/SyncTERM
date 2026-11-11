@@ -292,19 +292,30 @@ cterm_igs_set_type(struct cterm_igs *igs, int kind, int style, int size)
 		}
 }
 
-static int
-begin_resolution(struct cterm_igs *igs, unsigned resolution, int palette)
+int
+cterm_igs_wait_sync(struct cterm_igs *igs, unsigned units)
 {
+	if (units == 0)
+		return 0;
 	if (igs->sync_wait_hz == 0 || igs->sync_wait_hz > 1000)
 		return IO_ERROR_INVALID_ARGUMENT;
 	uint64_t now;
 	int status = igs->now_ms(&now);
 	if (status != 0)
 		return status;
-	uint64_t duration = (1000u + igs->sync_wait_hz - 1u) / igs->sync_wait_hz;
+	uint64_t duration = ((uint64_t)units * 1000 + igs->sync_wait_hz - 1) / igs->sync_wait_hz;
 	if (now > UINT64_MAX - duration)
 		return IO_ERROR_OUT_OF_RANGE;
 	igs->wait_deadline = now + duration;
+	return IO_ERROR_IN_PROGRESS;
+}
+
+static int
+begin_resolution(struct cterm_igs *igs, unsigned resolution, int palette)
+{
+	int status = cterm_igs_wait_sync(igs, 1);
+	if (status != IO_ERROR_IN_PROGRESS)
+		return status;
 	igs->pending_resolution = (int)resolution;
 	igs->pending_palette = palette;
 	return IO_ERROR_IN_PROGRESS;
