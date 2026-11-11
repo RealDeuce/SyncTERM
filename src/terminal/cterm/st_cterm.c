@@ -3392,6 +3392,8 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 
 	if (terminal == NULL)
 		return 0;
+	if (terminal->igs_engine != NULL)
+		return terminal->igs_engine->input.enabled == 1 || terminal->igs_engine->input.held ? 3 : 0;
 	if (terminal->skypix_engine != NULL)
 		return 2;
 	if (terminal->rip_engine != NULL
@@ -3410,7 +3412,7 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 bool
 st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal)
 {
-	return terminal != NULL && terminal->skypix_engine == NULL
+	return terminal != NULL && terminal->skypix_engine == NULL && terminal->igs_engine == NULL
 	    && (terminal->api_mouse_modes & MOUSE_SGR_PIXELS) != 0;
 }
 
@@ -4431,6 +4433,7 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 	modes = terminal->api_mouse_modes;
 	changed = terminal->api_mouse_buttons ^ event->data.mouse.buttons;
 	terminal->api_mouse_buttons = event->data.mouse.buttons;
+	if (terminal->igs_engine != NULL) return cterm_igs_mouse(terminal->igs_engine, event);
 	if (terminal->skypix_engine != NULL) {
 		const struct cterm_skypix *sky = terminal->skypix_engine;
 		/* JR-Comm reports SELECTDOWN in raw canvas pixels, independent
@@ -4538,8 +4541,10 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 void
 st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons)
 {
-	if (terminal != NULL)
+	if (terminal != NULL) {
 		terminal->api_mouse_buttons = buttons;
+		if (terminal->igs_engine != NULL) cterm_igs_mouse_sync(terminal->igs_engine, buttons);
+	}
 }
 
 bool

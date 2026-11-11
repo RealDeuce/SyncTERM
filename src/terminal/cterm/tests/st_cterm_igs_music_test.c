@@ -145,7 +145,7 @@ static void keyboard(void)
 	/* Ctrl-C in the inner delay shortens it; the second queued Ctrl-X is
 	 * consumed by the next outer poll and stops before triggering record 2. */
 	CHECK(st_cterm_handle_key(f.terminal,3,0) && igs->note.key);
-	CHECK(st_cterm_handle_codepage_key(f.terminal,24) && m->key_count==1);
+	CHECK(st_cterm_handle_codepage_key(f.terminal,24) && igs->input.key_count==1);
 	CHECK(st_cterm_poll(f.terminal)==0 && !m->playing && st_igs_test_calls==1); flow_pair();
 	CHECK(m->count==18 && igs->audio->gist.voice[0].parameters[0]>0 && key_count==0);
 	/* A + used by the inner note does not shift its next record. */
@@ -310,10 +310,10 @@ static void backpressure(void)
 	feed(&f,"G#N 2:"); CHECK(m->playing && !m->delaying && m->index==1 && m->checked);
 	/* A pending key cannot bypass readiness after this pair's key poll. */
 	CHECK(st_cterm_handle_key(f.terminal,3,0));
-	CHECK(st_cterm_poll(f.terminal)==0 && m->playing && m->index==1 && m->key_count==1);
+	CHECK(st_cterm_poll(f.terminal)==0 && m->playing && m->index==1 && igs->input.key_count==1);
 	st_mutex_lock(&log.mutex); log.block=false; st_condition_broadcast(&log.changed); st_mutex_unlock(&log.mutex);
 	CHECK(st_music_wait(f.terminal->music_player)==0);
-	CHECK(st_cterm_poll(f.terminal)==0 && m->playing && m->delaying && m->key_count==1);
+	CHECK(st_cterm_poll(f.terminal)==0 && m->playing && m->delaying && igs->input.key_count==1);
 	poll_due(&f); CHECK(!m->playing); flow_pair(); CHECK(st_music_wait(f.terminal->music_player)==0);
 	st_mutex_lock(&log.mutex);
 	CHECK(log.count==129 && log.bytes[128]==0xfa);

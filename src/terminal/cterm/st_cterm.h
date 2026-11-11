@@ -346,7 +346,7 @@ void st_cterm_set_doorway_mode(st_cterm_t *terminal, bool enabled);
 int st_cterm_music_mode(const st_cterm_t *terminal);
 void st_cterm_set_music_mode(st_cterm_t *terminal, int mode);
 bool st_cterm_atascii_inverse(const st_cterm_t *terminal);
-/* Effective protocol: 0 off, 1 RIP, 2 SkyPix, 9 X10, 1000/1002/1003 XTerm. */
+/* Effective protocol: 0 off, 1 RIP, 2 SkyPix, 3 IGS, 9 X10, 1000/1002/1003 XTerm. */
 int st_cterm_mouse_mode(const st_cterm_t *terminal);
 bool st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal);
 bool st_cterm_bracketed_paste(const st_cterm_t *terminal);

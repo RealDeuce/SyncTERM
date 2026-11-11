@@ -17,7 +17,10 @@ X dispatch is in progress: `X0` scatters markers with persistent color cycling.
 `X1` changes a raw physical palette register,
 and `X12` changes four consecutive physical registers. `X5` configures the
 flow mode, custom XON/XOFF bytes and signed repeat counts without emitting
-immediately, preserving completed prefix stores and loop overrides. `X7` loads source
+immediately, preserving completed prefix stores and loop overrides. `X3` loads
+an opaque right-button macro, sends it once with optional CR and pauses serial
+acquisition until all buttons release; retained input and local UI/Wren routing
+share the existing owner/event paths. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
 `X14` selects the persistent screen/memory transfer route used by `G`.
@@ -2504,3 +2507,50 @@ remaining loops/selectors and final acceptance are unfinished. References:
 chapters 06/23/57/182; prior b completion commit 53d1e31.
 
 Completion commit for n: 4f868b5. The goal remains active at 53/63.
+
+
+## Right-button macros (`X3`)
+
+Chapter21 defines both configuration and the main-loop consumer. Operation0
+only disables; >2 selects0 and negative words are no-op. Operation1 enables
+before its low-byte CR reader. Operation2 publishes enable, low-byte CR, then
+length truncated to a signed byte and clamped1..80. Thus128/255 become1,
+-200 becomes56 and256 becomes1. Each store survives a later failed reader.
+It acquires exactly n opaque bytes plus one discarded byte, without leading
+separator skip or delimiter test. Old suffix bytes survive. Exact loop1 calls
+the existing XON helper before acquisition even when enable is0. Every raw
+slot, including the discard, uses its own local5s timeout returning space/BEL;
+raw control bytes and local cancellation keys do not abort this reader.
+
+Right-only (native button2) and enabled byte1 send the macro once, reloading
+its current signed length, payload byte and final CR flag at their use sites.
+The wire contains unchanged low bytes and optional CR, with no LF or text
+conversion. An owner-managed hold preserves unread serial suffix and queued
+key events until all buttons release; left-only/both keep the hold. Existing
+transport owns readiness. UI/status/outside presses cannot arm a macro;
+release anywhere and disabled-forwarding synchronization prevent stuck holds.
+Effective mouse mode3 preserves the Wren mouse gate/indicator, avoids local
+paste/selection on macro clicks, and retains wheel-up scrollback. Full reset
+and reconnect clear the initially zero macro, while I/R preserve it.
+
+The native test covers all256 opaque byte values,18 signed length boundaries,
+max80 sends, incremental/retained/discard/timeout/EOF/error stores, exact-loop
+flow, numeric RNG,40 partitions plus bytewise input over18 graphics profiles,
+dual-phase indexed pixels/palettes/attributes/cursor, pending click/suffix
+ownership, current-state callback changes and reset/release during send.
+The application test covers423 coherent scene/state captures over all three
+ST modes, Atari ST/CP437/UTF-8 and status choices, with real raw socket output,
+queued Unicode text, mouse disable/scrollback/status routing, disconnect during
+a load/hold and fresh reconnect. N and X3 share the input component's existing
+bounded key FIFO; replayed UTF-8 text retains NFC and its normal fallback path.
+Physical audio/MIDI are off. Provenance: `src/tests/igs/macro-vectors.json`.
+Corrupted positive lengths cannot read beyond80 payload bytes; native RAM
+escapes, low-word wrap artifacts and device polling are deliberately excluded.
+Transport EOF cancels a partial load without manufacturing more raw bytes.
+
+Native FreeBSD Release CMake configure/full builds passed without warnings.
+All33 selected regressions passed; after a raw-key ownership fix all25
+selected checks passed, then the final timeout-order fix passed native
+X3/N/X5 and the423-capture X3 application run. Final native X3 took0.26s and
+application X3 took40.89s. The ledger is now56/63 complete; parent X and
+remaining command/final acceptance work stay unfinished.

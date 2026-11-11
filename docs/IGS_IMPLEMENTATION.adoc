@@ -4057,3 +4057,80 @@ native handler failed its test before implementation. Validated all 63 ordered
 IDs, 55 completed commands, active tests, dependencies, references, original
 source identities and the still-incomplete X dispatcher. The full goal remains
 active.
+
+
+== X3 right-button macros (complete)
+
+Reference: chapter21's serial X3 block $001fc6..$0020da and outer-loop
+consumer $000858..$000926, with chapter20's shared XON helper. Original
+accessory DATA $013b82 initializes enabled to0; the signed length,80 payload
+bytes and CR flag are zero-initialized BSS. Op0 disables only; op>2 becomes0;
+negative operations do nothing. Op1 enables before reading low-byte CR,
+retaining length and payload. Op2 publishes normalized enable, low-byte CR,
+then a length truncated to signed byte before clamping1..80:128/255/256
+become1 and -200 becomes56. Completed stores persist through later reader
+failure. Accepted random/array selector and operation prefixes evaluate once.
+
+Op2 starts raw input immediately after the consumed numeric delimiter. It
+stores n opaque bytes, retaining the old suffix, then consumes/discards one
+extra arbitrary raw byte. There is no terminator check, extra separator skip,
+NUL padding or local-key abort. Exact loop1 calls XON first even with enable0.
+Each receive/discard slot has its own existing local5s auxiliary timeout,
+substituting space and console BEL and continuing. EOF cancels an incomplete
+reader and retains actual completed stores; it does not synthesize raw data.
+
+Only right-only native button2 and enabled byte1 enter the outer consumer.
+It reloads current signed length and payload for each raw USER send, then
+current CR for optional CR without LF. Macro high-bit/NUL/control bytes stay
+unchanged under UTF-8. Existing transport owns readiness; no UART polls,
+foreign clocks or hardware throughput delays are added. The owner suspends
+serial acquisition until all native buttons are released, preserving exact
+unread suffix and keeping local UI responsive. Left-only/both retain a hold;
+release anywhere ends it. Input sampled during a command or existing wait
+is considered at its next outer boundary, after a chain completes. Reset
+callbacks can interrupt sends safely. Invalid positive lengths cannot escape
+the80-byte object; negative signed lengths still skip payload and allow CR.
+
+The cohesive cterm_igs_input component owns the macro and shared original-key
+FIFO previously used by N. Both consumers preserve entry kind/modifiers and
+console-click ownership. Replayed non-ASCII UTF-8 text now takes its normal
+NFC forwarding fallback when the terminal parser declines it. The existing
+64-event bound and overflow-to-normal-input policy remain. Local keys also
+wait through raw X3 acquisition without aborting it, then resume through their
+original entry points before further ordinary serial input. Full reset/
+reconnect clear macro/input state, while I/R preserve configuration/data.
+UI/status/outside/disabled presses do not accidentally arm a macro; a claimed
+press stays suppressed until release. Effective mouse mode3 lets existing
+Wren paste/selection/status routing honor the macro. Wheel-up remains local
+scrollback. The API manual and default connected script are updated.
+
+cterm_igs_macro checks18 signed-byte length boundaries, all256 raw values,
+max80 output, exact extra discard, individual/partial stores and retained
+suffix, no raw-key abort, exact-loop XON, every raw-slot timeout, numeric
+EOF/rejection, I/R/reset, fixed prefixes/RNG,40 splits and bytewise input over
+18 ST mode/encoding/status profiles, unchanged dual-phase pixels/palettes/
+attributes/cursor, held/no-repeat/left/both/release semantics, pending click
+at raw completion or q resume, exact unread suffix, queued Unicode NFC/byte/
+normal keys, live length/byte/CR/enable changes and callback reset/release.
+syncterm_igs_macro adds423 coherent captures over the same18 profiles,
+combining independent glyph/index/RGB/state checks with raw real socket
+output, UTF-8 key replay, disabled/status/Wren routing, local scrollback,
+partial-load EOF, disconnect while held and a fresh reconnect. Physical
+sound/MIDI are disabled. All ordinary tests are self-contained. Reference
+identities and literal coverage inventory: src/tests/igs/macro-vectors.json.
+
+Native FreeBSD Release CMake configure and full builds with /usr/bin/cc were
+warning-free. The missing-handler native test failed before implementation.
+All33 selected CTest regressions passed in165.45s, including shared parser,
+IGS input/I/R/X5/bitmap/math/random/pattern/waits/drawing/text/audio, CTerm
+ANSI/VT52/keyboard, RIP, SkyPix, term/key forwarding, Wren host and application
+X5/N/SkyPix mouse/X3. A focused failing test exposed premature local-key sends
+during raw X3 input; after the ownership correction, all25 selected checks
+passed in90.31s, including423 application captures. A final injected-time
+red/green test verified that first raw timeout starts after XON readiness;
+following the correction, the warning-free full build and all four selected
+native X3/N/X5 and application X3 checks passed in40.96s. Native X3 took0.26s;
+its final423-capture application run took40.89s. All63 ordered IDs,56 completed
+entries, active test registrations/dependencies/references and pinned source
+identities were checked. Parent X, remaining commands and final acceptance
+stay unfinished; the full goal remains active.

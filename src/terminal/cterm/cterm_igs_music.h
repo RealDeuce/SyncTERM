@@ -4,7 +4,7 @@
 #define CTERM_IGS_MUSIC_H
 #include "cterm_igs.h"
 
-enum { CTERM_IGS_MUSIC_BYTES = 10001, CTERM_IGS_MUSIC_KEYS = 64 };
+enum { CTERM_IGS_MUSIC_BYTES = 10001 };
 struct cterm_igs_music {
 	/* Independent lengths share one persistent byte buffer. */
 	uint8_t bytes[CTERM_IGS_MUSIC_BYTES];
@@ -12,11 +12,10 @@ struct cterm_igs_music {
 	uint32_t script_length;
 	uint8_t midi_enabled;
 	/* Only the terminal owner accesses acquisition/playback state. */
-	bool command, loading, playing, midi, delaying, flow, replaying;
+	bool command, loading, playing, midi, delaying, flow;
 	bool midi_output, checked;
 	int operation, local_count, index, end;
-	size_t received, key_first, key_count;
-	struct cterm_igs_key keys[CTERM_IGS_MUSIC_KEYS];
+	size_t received;
 	uint64_t receive_deadline;
 };
 int cterm_igs_music_reset(struct cterm_igs *);
@@ -28,6 +27,5 @@ int cterm_igs_music_bytes(struct cterm_igs *, const uint8_t *, size_t,
 	size_t *accepted, bool *end);
 int cterm_igs_music_execute(struct cterm_igs *, int first, int end);
 int cterm_igs_music_resume(struct cterm_igs *);
-bool cterm_igs_music_key(struct cterm_igs *, const struct cterm_igs_key *);
 int cterm_igs_flow(struct cterm_igs *, bool on);
 #endif

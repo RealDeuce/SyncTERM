@@ -276,7 +276,14 @@ cover signed/loop rules, partial stores, exact raw replies, unchanged scenes
 and reconnect across all modes/encodings/status choices with physical output
 disabled. Existing serial helpers retain their once-per-entry mode gate and
 live byte/count reads.
-Other commands, loops and input remain pending; see the IGS ledger for details.
+X3 now loads and sends opaque right-button macros, retaining its individual
+configuration stores and old payload suffix. All-buttons release resumes the
+serial suffix and queued original key events. Literal native coverage and423
+coherent all-mode/encoding/status application captures check exact raw bytes,
+unchanged pixels/palettes/glyphs, local/Wren mouse routing, UTF-8 key replay and
+disconnect/reconnect with physical audio/MIDI disabled. N and X3 share the
+owner-side input queue. Other commands, loops and input remain pending; see
+the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

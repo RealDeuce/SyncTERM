@@ -4283,7 +4283,7 @@ logic. Terminal operations are available in the connected VM.
 
 | Mouse state
 | `mouseMode` (effective native protocol: 0 = off,
-  1 = RIP, 2 = SkyPix, 9 = X10, 1000/1002/1003 = the tracking modes),
+  1 = RIP, 2 = SkyPix, 3 = IGS, 9 = X10, 1000/1002/1003 = the tracking modes),
   `mouseSgrPixels` (Bool — true when DECSET 1016 SGR pixel-position
   reporting is active),
   `mouseDisabled` / `mouseDisabled = b` (Bool — disables forwarding
@@ -4389,7 +4389,7 @@ arguments or native resources.
 
 | `CTerm.mouseMode`
 | Read-only effective native mouse protocol: `0` (off), `1` (RIP),
-  `2` (SkyPix), `9` (X10), `1000/1002/1003` (the XTerm tracking modes).
+  `2` (SkyPix), `3` (IGS), `9` (X10), `1000/1002/1003` (the XTerm tracking modes).
   Used by the default status bar to light the "M" indicator. SkyPix is
   available without a host enable command; Alt/Command-O or Toggle Remote
   Mouse in the online menu controls `mouseDisabled`. A disabled indicator
@@ -4398,11 +4398,16 @@ arguments or native resources.
   other buttons, movement, status-row and UI-handled events do not report.
   Cell-only events without native pixel coordinates are not approximated.
   Wheel-up retains the local scrollback action.
+  IGS reports mode `3` while its right-button macro is enabled or waiting
+  for release. Right-only sends the loaded raw bytes once, optionally
+  followed by CR; all buttons must be released before serial input and
+  queued keys resume. Status-row and UI-handled presses do not activate
+  the macro; release is accepted anywhere. IGS also keeps wheel-up local.
 
 | `CTerm.mouseSgrPixels`
 | Read-only Bool; true while DECSET 1016 is the active SGR pixel-position
-  reporting mode. False for SkyPix, whose controller reports use their own
-  pixel-coordinate format even if an ANSI mouse mode was requested.
+  reporting mode. False for IGS and SkyPix. SkyPix controller reports use their
+  own pixel-coordinate format even if an ANSI mouse mode was requested.
 
 | `CTerm.doorwayMode`, `CTerm.doorwayMode = b`
 | Read or write the cterm doorway-mode flag.  When true, the input

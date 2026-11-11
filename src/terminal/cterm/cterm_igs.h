@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "cterm_igs_input.h"
 
 struct cterminal;
 struct st_graphics_parser;
@@ -64,20 +65,13 @@ struct cterm_igs_note {
 	int voice, stop;
 };
 
-/* Keep the original host event for keys still pending when N completes. */
-enum cterm_igs_key_kind { CTERM_IGS_KEY_NORMAL, CTERM_IGS_KEY_CODEPAGE,
-	CTERM_IGS_KEY_TEXT, CTERM_IGS_KEY_DOORWAY };
-struct cterm_igs_key {
-	enum cterm_igs_key_kind kind;
-	uint32_t value, modifiers;
-	int local;
-};
 
 struct cterm_igs {
 	struct cterminal *terminal;
 	struct st_graphics_parser *parser;
 	struct cterm_igs_audio *audio;
 	struct cterm_igs_music *music;
+	struct cterm_igs_input input;
 	unsigned resolution;
 	unsigned saved_resolution;
 	uint32_t width, height;
@@ -151,6 +145,7 @@ int cterm_igs_finish(struct cterm_igs *);
 int cterm_igs_poll(struct cterm_igs *);
 /* Optional ST_CONSOLE_TEST capture helper; copies worker state under its lock. */
 void cterm_igs_audio_inspect(const struct cterm_igs *, struct st_console_test_application *);
+void cterm_igs_input_inspect(const struct cterm_igs *, struct st_console_test_application *);
 void cterm_igs_music_inspect(const struct cterm_igs *, struct st_console_test_application *);
 int cterm_igs_echo_backspace(struct cterm_igs *);
 bool cterm_igs_paused(const struct cterm_igs *);

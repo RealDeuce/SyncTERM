@@ -84,6 +84,7 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 	if (igs != NULL) {
 		cterm_igs_audio_inspect(igs,app);
 		cterm_igs_music_inspect(igs,app);
+		cterm_igs_input_inspect(igs,app);
 		st_console_test_number(app, "cterm.igs_flow_mode", igs->flow_mode);
 		st_console_test_number(app, "cterm.igs_flow_on", igs->flow_on);
 		st_console_test_number(app, "cterm.igs_flow_off", igs->flow_off);

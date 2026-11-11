@@ -355,7 +355,9 @@
         "syncterm_igs_fill",
         "syncterm_igs_type",
         "cterm_igs_x10",
-        "syncterm_behavior_session_modes"
+        "syncterm_behavior_session_modes",
+        "cterm_igs_macro",
+        "syncterm_igs_macro"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -464,7 +466,7 @@
       "operations": [
         "Read one unscaled selector without clamping; out-of-range words consume no selector payload and perform no store/service/reply before normal chaining",
         "Reuse shared fixed-prefix and dynamic-tail descriptions for selector payloads; effect-free preview includes selector numeric state and real random operands commit once",
-        "Selectors 0, 1, 2, 5, 7, 8, 10, 11, 12, 13, 14 and 15 implemented; pending valid 0..15 handlers warn after the selector; the adapter cancels the rejected grammar and continues the unread suffix through graphics/plain input without ending the session"
+        "Selectors 0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14 and 15 implemented; pending valid 0..15 handlers warn after the selector; the adapter cancels the rejected grammar and continues the unread suffix through graphics/plain input without ending the session"
       ],
       "tests": [
         "cterm_igs_x10",
@@ -488,7 +490,11 @@
         "cterm_igs_palette_rotation",
         "syncterm_igs_palette_rotation",
         "cterm_igs_sweep",
-        "syncterm_igs_sweep"
+        "syncterm_igs_sweep",
+        "cterm_igs_flow",
+        "syncterm_igs_flow",
+        "cterm_igs_macro",
+        "syncterm_igs_macro"
       ],
       "deviations": [],
       "verification": [
@@ -502,7 +508,8 @@
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 18 selected CTest checks passed in 33.38 seconds, including shared parser, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/X10/X13/G and application R/G/X14 regressions. Native and application X14 took 0.36 and 23.93 seconds. After adding explicit metadata-only G1 and retained-extent G2 route4/5 assertions, another warning-free full build and focused native X14 check passed. Validated all 63 ledger IDs with 48 complete entries, references/dependencies, active tests and pinned glyph/ROM identities. Parallel graphics changes are excluded from this IGS commit.",
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit.",
         "The native X8 test failed at the selector before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. Generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 32 selected CTest regressions passed in 53.21 seconds, including shared parser/stream, indexed images, control backend/protocol, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, I/R/input/g/t/q/X1/X10/X11/X12/G and application S/X1/X11/X12/t checks. Native X8 took 1.37 seconds; application X8 separately passed all 288 coherent captures in 76.84 seconds. Validated all 63 unique ordered IDs with 50 complete entries, references/dependencies, active test registrations and pinned font/ROM identities. No parallel changes are included in this step.",
-        "The native X15 test failed at the selector before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; generated-dependency clock-skew warnings cleared in the final builds, which had no warnings. Native X15 and application X15 first passed in 2.37 and 43.73 seconds, including 600 independent dual-phase raster cases and 451 coherent application captures. The 27-test regression run passed 26 in 58.21 seconds; its X10 test still selected newly implemented X15 for a NOT_SUPPORTED expectation. Changed that seed to pending selector X9, preserving the same error/consumption/seed/position assertions. The final full build and focused X10/X15 tests passed in 8.31 seconds (X15 2.32 seconds). All 27 distinct regression tests have passing verification across these runs: shared parser/stream, indexed images, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, I/R/input/g/L/D/X10/z/t/q/G/X8/X11/X15 and application L/D/R. Validated 63 unique ordered IDs with 51 complete entries, references/dependencies, active tests, 600/36 vector inventories, six source-oracle hashes and pinned font/ROM identities. Parallel work is excluded from this step."
+        "The native X15 test failed at the selector before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; generated-dependency clock-skew warnings cleared in the final builds, which had no warnings. Native X15 and application X15 first passed in 2.37 and 43.73 seconds, including 600 independent dual-phase raster cases and 451 coherent application captures. The 27-test regression run passed 26 in 58.21 seconds; its X10 test still selected newly implemented X15 for a NOT_SUPPORTED expectation. Changed that seed to pending selector X9, preserving the same error/consumption/seed/position assertions. The final full build and focused X10/X15 tests passed in 8.31 seconds (X15 2.32 seconds). All 27 distinct regression tests have passing verification across these runs: shared parser/stream, indexed images, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, I/R/input/g/L/D/X10/z/t/q/G/X8/X11/X15 and application L/D/R. Validated 63 unique ordered IDs with 51 complete entries, references/dependencies, active tests, 600/36 vector inventories, six source-oracle hashes and pinned font/ROM identities. Parallel work is excluded from this step.",
+        "Native FreeBSD Release CMake configure and full builds with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON passed without warnings. Initial missing-handler test failed before implementation. All33 selected regressions passed in165.45s: shared parser/stream, IGS input/I/R/X5/bitmap/math/random/pattern/X8/X15/t/q/drawing/text/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and application X5/N/SkyPix mouse/X3. A new local-key-during-X3-load test exposed premature sends; after fixing ownership, all25 selected regressions passed in90.31s, including423 coherent X3 captures over all18 display/encoding/status profiles in42.09s. A final injected-time test exposed the first auxiliary deadline starting before XON readiness; after correcting that order, the final full build was warning-free and native X3/N/X5 plus application X3 all passed in40.96s. Native X3 took0.26s and the final423-capture application test40.89s. Tests include all256 raw values,18 signed length boundaries,40 partitions and bytewise input, retained scenes/state, source-derived zero initialization, local timeout/extra discard, flow order, held/reentrant reset/release, exact unread suffix, queued NFC Unicode/normal/codepage keys, Wren mouse/scrollback gates and partial-load/held EOF/reconnect. Validated63 unique ordered IDs,56 completed entries, active test registrations, dependencies/references, pinned source identities and unchanged unrelated ledger entries. Physical audio/MIDI were disabled; no reference tree/ROM/executable is required at test runtime. X remains in progress and final acceptance is unfinished."
       ],
       "commit": null,
       "limitations": [
@@ -2861,12 +2868,37 @@
         "27-input-command.adoc"
       ],
       "order": 56,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "X5",
+        "N"
+      ],
+      "operations": [
+        "Unscaled signed operation: >2 becomes disable, negative is no-op. Op0 changes enabled only. Op1 enables before reading/storing low-byte CR, retaining length/payload. Op2 publishes normalized enable, low-byte CR and signed-low-byte length clamp 1..80 at individual field boundaries; no repeat evaluation of accepted numeric prefixes.",
+        "Op2 reads exactly length+1 opaque raw bytes: retain payload prefix and old suffix, discard one unconditional final byte without checking its value. Loop word exactly1 calls existing XON first, including disabled loads. Each raw receive has its own local 5s timeout substituting space and console BEL, including the discard; local keys wait for completion without aborting the load. The first receive deadline starts after XON output/readiness. EOF/rejection cancels ownership and retains completed stores.",
+        "Outer-loop right-only TOS button2 and enabled byte1 activate once. Send current payload byte/current signed length on each iteration, then optional current CR without LF, using raw USER transport even under UTF-8. Preserve wait until all buttons release, suspend RX without blocking UI and retain exact unread suffix across command completion or existing waits. Full reset/reconnect clear initial zero macro state; I/R preserve it.",
+        "Host viewport/status/UI/disabled forwarding gates prevent accidental macro activation, release anywhere ends a hold. Mouse mode3 routes default Wren paste/selection around the enabled macro and retains local wheel-up scrollback. N and X3 share one owner-side original-event key FIFO in cterm_igs_input; replay preserves key source, encoding, Unicode NFC and console-click ownership.",
+        "Native literal 18 word/byte-length boundaries, every byte value, max80 output, incremental/partial stores, exact-loop flow, per-slot timeout/discard, RNG, all40 splits and bytewise input over18 mode/encoding/status profiles, retained dual-phase pixels/palettes/attributes/cursor, live callback mutations/reset/release, queued keys and pending click/suffix ownership. Application423 coherent all-profile captures combine independent glyph/index/RGB/state expectations with real raw transport, UTF-8 key replay, local mouse/scrollback routing and disconnect/reconnect."
+      ],
+      "tests": [
+        "cterm_igs_macro",
+        "syncterm_igs_macro",
+        "cterm_igs_music",
+        "syncterm_igs_music",
+        "cterm_keyboard",
+        "term_key_forward",
+        "wren_host",
+        "syncterm_skypix_mouse"
+      ],
+      "deviations": [
+        "Bound actual macro reads to80 bytes; reject corrupted positive lengths that would read adjacent original RAM. Negative signed length still skips payload and retains the optional CR phase. Do not emulate sign-extended BIOS device words beyond their unchanged wire low byte, UART readiness loops, foreign ticks or original RAM/code/stack corruption.",
+        "Use existing transport readiness and terminal-owner suspension for native blocking holds. Host UI/status/outside presses do not arm a macro, disabled/UI-held buttons remain suppressed until release, and release anywhere is accepted. Middle host button is not an Atari button. Existing64-event input bound returns overflow to ordinary input; accessory global IRQ/UI polling is outside protocol scope.",
+        "Transport EOF cancels incomplete serial reads without fabricating the remaining bytes. Only an actual local receive timeout supplies space/BEL; full local deadlines replace low-word wrap artifacts. The selected profile controls wire encoding for replayed user text, while loaded macro bytes are always opaque."
+      ],
+      "verification": [
+        "Native FreeBSD Release CMake configure and full builds with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON passed without warnings. Initial missing-handler test failed before implementation. All33 selected regressions passed in165.45s: shared parser/stream, IGS input/I/R/X5/bitmap/math/random/pattern/X8/X15/t/q/drawing/text/b/n/N, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding, Wren host and application X5/N/SkyPix mouse/X3. A new local-key-during-X3-load test exposed premature sends; after fixing ownership, all25 selected regressions passed in90.31s, including423 coherent X3 captures over all18 display/encoding/status profiles in42.09s. A final injected-time test exposed the first auxiliary deadline starting before XON readiness; after correcting that order, the final full build was warning-free and native X3/N/X5 plus application X3 all passed in40.96s. Native X3 took0.26s and the final423-capture application test40.89s. Tests include all256 raw values,18 signed length boundaries,40 partitions and bytewise input, retained scenes/state, source-derived zero initialization, local timeout/extra discard, flow order, held/reentrant reset/release, exact unread suffix, queued NFC Unicode/normal/codepage keys, Wren mouse/scrollback gates and partial-load/held EOF/reconnect. Validated63 unique ordered IDs,56 completed entries, active test registrations, dependencies/references, pinned source identities and unchanged unrelated ledger entries. Physical audio/MIDI were disabled; no reference tree/ROM/executable is required at test runtime. X remains in progress and final acceptance is unfinished."
+      ],
       "commit": null
     },
     {

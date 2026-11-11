@@ -40,7 +40,7 @@ int cterm_igs_music_cancel(struct cterm_igs *igs)
 	}
 	m->command = m->loading = m->playing = m->delaying = false;
 	m->receive_deadline = 0;
-	m->key_first = m->key_count = 0;
+	igs->input.key_first = igs->input.key_count = 0;
 	bool feeding = igs->feeding;
 	igs->feeding = true;
 	int status = end_flow(igs);
@@ -75,22 +75,6 @@ int cterm_igs_music_load(struct cterm_igs *igs, int count)
 	if (status == 0) m->receive_deadline = receive_deadline(now);
 	return status;
 }
-bool cterm_igs_music_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
-{
-	struct cterm_igs_music *m = igs->music;
-	if (m == NULL || (!m->loading && !m->playing) || m->key_count == CTERM_IGS_MUSIC_KEYS) return false;
-	m->keys[(m->key_first + m->key_count) % CTERM_IGS_MUSIC_KEYS] = *key;
-	++m->key_count;
-	return true;
-}
-static int take_key(struct cterm_igs_music *m)
-{
-	if (m->key_count == 0) return -1;
-	int value = m->keys[m->key_first].local;
-	m->key_first = (m->key_first + 1) % CTERM_IGS_MUSIC_KEYS;
-	--m->key_count;
-	return value;
-}
 int cterm_igs_music_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size,
     size_t *accepted, bool *end)
 {
@@ -111,7 +95,7 @@ int cterm_igs_music_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t si
 		++*accepted;
 		/* Payload Ctrl-C/X is opaque. Only a separately queued local key
 		 * aborts, after the current store has become persistent. */
-		int key = take_key(m);
+		int key = cterm_igs_take_key(igs);
 		if (key == 3 || key == 24) {
 			m->count = 0; m->operation = 0;
 			m->loading = false; *end = true;
@@ -128,22 +112,7 @@ static int complete(struct cterm_igs *igs)
 	m->receive_deadline = 0; igs->wait_deadline = 0;
 	int status = end_flow(igs);
 	if (status != 0) return status;
-	/* Native local keys not reached by another poll remain normal input.
-	 * Replay their original entry point, preserving encoding/modifiers and
-	 * suppressing a second console click for the same physical event. */
-	while (m->key_count != 0) {
-		struct cterm_igs_key key = m->keys[m->key_first];
-		(void)take_key(m); m->replaying = true;
-		switch (key.kind) {
-		case CTERM_IGS_KEY_NORMAL: (void)st_cterm_handle_key(igs->terminal, (uint16_t)key.value, key.modifiers); break;
-		case CTERM_IGS_KEY_CODEPAGE: (void)st_cterm_handle_codepage_key(igs->terminal, (uint8_t)key.value); break;
-		case CTERM_IGS_KEY_TEXT: (void)st_cterm_handle_text_key(igs->terminal, key.value); break;
-		case CTERM_IGS_KEY_DOORWAY: (void)st_cterm_handle_doorway_key(igs->terminal, (uint8_t)key.value); break;
-		}
-		m->replaying = false;
-		if (igs->reset_pending) return IO_ERROR_INTERRUPTED;
-	}
-	return 0;
+	return cterm_igs_forward_keys(igs);
 }
 static int midi_byte(struct cterm_igs *igs, uint8_t byte)
 {
@@ -177,7 +146,7 @@ int cterm_igs_music_resume(struct cterm_igs *igs)
 	}
 	while (m->index < m->end) {
 		if (!m->checked) {
-			int key = take_key(m);
+			int key = cterm_igs_take_key(igs);
 			if (key == 3 || key == 24) return complete(igs);
 			if (key == '+') ++m->index;
 			m->checked = true;
@@ -212,7 +181,7 @@ int cterm_igs_music_resume(struct cterm_igs *igs)
 			if (status == IO_ERROR_IN_PROGRESS) {
 				/* An already queued local event belongs to the INNER wait;
 				 * its value does not become an outer-loop abort or shift. */
-				if (m->key_count != 0) { (void)take_key(m); igs->note.key = true; }
+				if (igs->input.key_count != 0) { (void)cterm_igs_take_key(igs); igs->note.key = true; }
 				return status;
 			}
 			if (status != 0) return status;
@@ -255,6 +224,6 @@ void cterm_igs_music_inspect(const struct cterm_igs *igs, struct st_console_test
 	st_console_test_number(app, "cterm.igs_music_midi", m->midi);
 	st_console_test_number(app, "cterm.igs_music_index", m->index);
 	st_console_test_number(app, "cterm.igs_music_end", m->end);
-	st_console_test_number(app, "cterm.igs_music_keys", (int64_t)m->key_count);
+	st_console_test_number(app, "cterm.igs_music_keys", (int64_t)igs->input.key_count);
 }
 #endif

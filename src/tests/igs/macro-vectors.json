@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "target": "IGS221/IG221.ACC serial / intended US TOS 1.04 software graphics",
+  "provenance": "Handwritten source-derived literal lengths, raw payloads, field/callback ownership and independent FNV fingerprints. Scene checks reuse the pinned US TOS glyph/index/palette oracle, never emulator-generated expected images. Original accessory DATA enabled byte is0 and payload/length/CR are in zero-initialized BSS. Ordinary tests need no reference tree/executable/ROM.",
+  "references": [
+    {
+      "path": "docs/igs/21-extended-payloads.adoc",
+      "sha256": "d907f7462d29cad39dd35125816d74c84ce66550ad811f1161369201251a2127"
+    },
+    {
+      "path": "docs/igs/20-extended-controls.adoc",
+      "sha256": "afb69eb0fc1ae4954084b825fcd6958b705b5505fa1b2d3d518d27bf72bee85a"
+    },
+    {
+      "path": "tools/spec_igs_extended_payloads.py",
+      "sha256": "861b23df9d75650ff0ae0dc10be04fbd3275986c90ae899c8816f7742ed9851a"
+    },
+    {
+      "path": "IGS221/IG221.ACC",
+      "sha256": "3dfab4e763b35346a1ed2aa0ab05bb1c1b2de06692e26edd16bc205c08a5d9f1"
+    }
+  ],
+  "tests": [
+    "cterm_igs_macro",
+    "syncterm_igs_macro"
+  ],
+  "word_length_boundaries": 18,
+  "opaque_byte_values": 256,
+  "maximum_macro_bytes": 80,
+  "command_split_positions": 40,
+  "native_graphics_profiles": 18,
+  "application_graphics_profiles": 18,
+  "application_captures": 423,
+  "physical_audio": false,
+  "physical_midi": false,
+  "external_runtime_assets": false
+}

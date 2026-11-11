@@ -434,6 +434,7 @@ cterm_igs_state_init(struct cterm_igs *igs)
 int
 cterm_igs_state_reset(struct cterm_igs *igs)
 {
+	memset(&igs->input, 0, sizeof(igs->input));
 	int status = cterm_igs_music_reset(igs);
 	if (status != 0) return status;
 	for (unsigned i = 0; i < 2; ++i) {
