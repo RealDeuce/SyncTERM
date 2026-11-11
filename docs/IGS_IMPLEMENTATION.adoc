@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1, X10 and X12 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X1, X7, X10 and X12 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X1, X10 and X12
+command, rendering or sound support. X dispatch is in progress, with X1, X7, X10 and X12
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -2777,4 +2777,58 @@ parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/S/X1/X10 and
 application S/X1/X10/X12 regressions. Native and application X12 took
 0.62 and 18.12 seconds. Source identities, ledger IDs, dependencies,
 references and active test registrations were checked. The ledger records
-42 complete entries. Completion commit will be recorded by the next step.
+42 complete entries. Completion commit `7f99e60`.
+
+
+=== X7 persistent pattern rows
+
+X7 reads an unscaled slot and sixteen normal text strings. Each completed
+row scans all sixteen bytes of the shared W text window, including retained
+bytes after a new NUL. Lowercase x becomes uppercase X in the actual window;
+only X sets a bit, with column zero at bit 15. Completed rows publish before
+the next reader starts. The source slot changes independently of the active
+VDI user pattern: A4 makes a separate copy, so overwriting a source slot does
+not change an already selected pattern or redraw pixels.
+
+The extended descriptor uses the existing TEXT parameter and a zero-byte
+field for a reused string. W and X7 share text parameter data, retained-window
+copying, loop-reuse rules, local whole-string deadlines and loop-@ XON/count
+handling. Final-W Z reuse applies once and clears its kind before the next
+row. The evaluated selector/slot prefix is retained during X7 input; random
+values advance once before the first row and stay advanced after cancellation.
+No protocol policy was added to the shared graphics parser.
+
+Slots outside 0..7 are rejected at the slot boundary. Native wrapped aliases
+and stores into unrelated data or code are excluded. Timeout and EOF discard
+the incomplete current string instead of using partially overwritten stale
+bytes, retaining completed rows and the prior completed shared window.
+Reset drops pending input and restores the normal source/active-pattern state.
+Normal I0/I2 restore source slot zero independently of the active copy and
+preserve source slots 1..7; R and I5 preserve pattern storage.
+
+The native test checks 144 full slot/mode/status/scaling loads, 253 byte
+windows, literal short/NUL/max-length/opaque-control rows, uppercase edits,
+row publication, every focused two-way split and bytewise input, random
+selector/slot evaluation, invalid slots, timeout/EOF/reset recovery, loop
+reuse and XON behavior including a reentrant reset. Existing W tests verify
+the shared reader. The application fixture checks 108 coherent captures
+across all ST modes, Atari ST, CP437 and UTF-8 and both status choices.
+Literal diagonal/full/empty masks and pinned glyph rows verify source/active
+copy independence, actual Z raster use, unchanged indexed content, palettes,
+cells, cursor and composed RGB, plus no replies and partial disconnect/
+reconnect. Audio and MIDI are disabled.
+
+References: 11, 20, 124, 130 and 131. Containing-loop execution remains pending
+with its own commands; direct loop-state fixtures cover the shared reader.
+Parent X remains in progress.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full CMake builds with /usr/bin/cc passed without warnings.
+All 15 selected CTest checks passed in 90.91 seconds, including shared
+parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X10/X12 and
+application A/X7 regressions. Native and application X7 took 0.26 and
+17.09 seconds. After adding final clock-failure assertions, another full
+build and the focused native X7 test passed in 0.32 seconds. Ledger IDs,
+references, dependencies, source identities and active test registrations
+were checked. The ledger records 43 complete entries. Completion commit
+will be recorded by the next step.

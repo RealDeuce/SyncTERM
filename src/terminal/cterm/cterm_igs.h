@@ -37,6 +37,9 @@ struct cterm_igs {
 	uint32_t width, height;
 	struct cterm_igs_attributes attributes, saved_attributes;
 	uint16_t patterns[8][16];
+	/* X7 owns its evaluated prefix while incrementally receiving rows. */
+	bool pattern_loading;
+	int pattern_slot;
 	uint16_t raw_palette[16];
 	uint32_t palette[16], saved_palette[16];
 	int requested_palette[16][3];

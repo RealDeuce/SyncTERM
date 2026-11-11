@@ -190,6 +190,11 @@ retained indexed pixels, unscaled operands, parser recovery and reconnect.
 including negative group aliases and two zero-color arities. Its 67,048
 native cases and 126 coherent application captures cover group order,
 query/write mixtures, parser partitions, retained pixels and reconnect.
+`X7` loads sixteen source-pattern rows through the shared W text reader.
+Completed rows retain their shared-window edits; A4 selection makes an
+independent active copy. Native reader/partition/lifecycle checks and 108
+coherent application captures verify pattern use by Z, including all ST
+modes, encodings and status choices, with audio and MIDI off.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

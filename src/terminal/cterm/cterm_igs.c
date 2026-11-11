@@ -32,8 +32,10 @@ static const struct st_graphics_parameter point_parameters[] = {
 /* Extended selectors reuse the same descriptor and parameter data as the
  * top-level byte grammar. X itself owns the unscaled selector field. */
 static int palette_group_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int pattern_load_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
 	{1, unscaled_parameters, 2, NULL},
+	{7, unscaled_parameters, 1, pattern_load_next},
 	{10, point_parameters, 2, NULL},
 	{12, unscaled_parameters, 1, palette_group_next},
 };
@@ -47,6 +49,41 @@ preview_first(void *context, const struct st_graphics_command_view *view, int *v
 		return IO_ERROR_PROTOCOL;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	return cterm_igs_argument_value(&preview, &view->arguments[0], value);
+}
+
+static const struct st_graphics_parameter text_parameter = {
+	.kind = ST_GRAPHICS_TEXT, .size = 128, .terminator = '@',
+	.skip_crlf = true, .empty_is_terminator = true,
+};
+
+static bool
+reuse_text(const struct cterm_igs *igs)
+{
+	return (igs->loop_mode == 1 && igs->loop_kind != '@')
+	    || (igs->loop_mode == 0 && igs->loop_kind == 'Z');
+}
+
+static int
+pattern_load_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	int slot;
+	const struct cterm_igs *igs = context;
+	int status = 0;
+	if (igs->pattern_loading)
+		slot = igs->pattern_slot;
+	else
+		status = preview_first(context, view, &slot);
+	if (status != 0)
+		return status;
+	/* Native out-of-slot stores escape into unrelated data or code. */
+	if (slot < 0 || slot > 7)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (view->count < 17)
+		*result = reuse_text(context) ? (struct st_graphics_parameter){.kind = ST_GRAPHICS_BYTES}
+		    : text_parameter;
+	return 0;
 }
 
 static int
@@ -94,11 +131,8 @@ text_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
 	const struct cterm_igs *igs = context;
-	bool reuse = (igs->loop_mode == 1 && igs->loop_kind != '@')
-	    || (igs->loop_mode == 0 && igs->loop_kind == 'Z');
-	*result = view->count == 2 && !reuse
-	    ? (struct st_graphics_parameter){.kind = ST_GRAPHICS_TEXT, .size = 128,
-	        .terminator = '@', .skip_crlf = true, .empty_is_terminator = true}
+	*result = view->count == 2 && !reuse_text(igs)
+	    ? text_parameter
 	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
 	return 0;
 }
@@ -153,7 +187,11 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
 	int selector;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
-	int status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
+	int status = 0;
+	if (preview.pattern_loading)
+		selector = 7;
+	else
+		status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
 	if (status != 0)
 		return status;
 	for (size_t i = 0; i < sizeof(extended_commands)/sizeof(*extended_commands); ++i) {
@@ -224,6 +262,8 @@ cancel_input(struct cterm_igs *igs)
 	igs->pending_resolution = -1;
 	igs->pending_palette = 0;
 	igs->timed_pause = igs->pause_key = false;
+	igs->pattern_loading = false;
+	igs->pattern_slot = 0;
 	igs->reset_pending = false;
 }
 
@@ -381,11 +421,77 @@ begin_pause(struct cterm_igs *igs, int seconds)
 }
 
 static int
+store_text(struct cterm_igs *igs, const struct st_graphics_argument *text)
+{
+	if (text->kind != ST_GRAPHICS_TEXT || text->size > 128)
+		return IO_ERROR_PROTOCOL;
+	memcpy(igs->shared_text, text->bytes, text->size);
+	igs->shared_text[text->size] = 0;
+	igs->shared_text_size = text->size;
+	return 0;
+}
+
+static int
+store_pattern_row(struct cterm_igs *igs, int slot, size_t row,
+    const struct st_graphics_argument *text)
+{
+	if (slot < 0 || slot > 7 || row >= 16)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (text->kind != ST_GRAPHICS_BYTES || text->size != 0) {
+		int status = store_text(igs, text);
+		if (status != 0)
+			return status;
+	}
+	uint16_t bits = 0;
+	/* The shared reader retains the suffix after its new NUL. X7 scans
+	 * all sixteen bytes, including that retained suffix, and edits case. */
+	for (unsigned col = 0; col < 16; ++col) {
+		if (igs->shared_text[col] == 'x')
+			igs->shared_text[col] = 'X';
+		if (igs->shared_text[col] == 'X')
+			bits |= (uint16_t)(0x8000u >> col);
+	}
+	igs->patterns[slot][row] = bits;
+	igs->text_deadline = 0;
+	return 0;
+}
+
+static int
 field_entry(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
 	struct cterm_igs *igs = context;
-	if (view->code != 'W' || parameter->kind != ST_GRAPHICS_TEXT) return 0;
+	bool pattern = false;
+	if (view->code == 'X' && view->count >= 2) {
+		struct cterm_igs preview = *igs;
+		int selector, slot;
+		int status = 0;
+		if (igs->pattern_loading)
+			selector = 7;
+		else
+			status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
+		if (status != 0) return status;
+		pattern = selector == 7;
+		if (pattern) {
+			if (!igs->pattern_loading) {
+				status = cterm_igs_argument_value(&preview, &view->arguments[1], &slot);
+				if (status != 0) return status;
+				igs->pattern_slot = slot;
+				igs->pattern_loading = true;
+				igs->random_seed = preview.random_seed;
+			}
+			slot = igs->pattern_slot;
+			/* Entry to the next row follows acceptance of the prior row,
+			 * even with no more input bytes. Publish it before its reader. */
+			if (view->count > 2) {
+				status = store_pattern_row(igs, slot, view->count - 3, &view->arguments[view->count - 1]);
+				if (status != 0) return status;
+			}
+			if (igs->loop_mode == 0 && igs->loop_kind == 'Z')
+				igs->loop_kind = ' ';
+		}
+	}
+	if ((view->code != 'W' && !pattern) || parameter->kind != ST_GRAPHICS_TEXT) return 0;
 	uint64_t now;
 	int status = igs->now_ms(&now);
 	if (status != 0) return status;
@@ -452,6 +558,14 @@ command(void *context, const struct st_graphics_command_view *view)
 	int values[1+2*CTERM_IGS_MAX_POINTS];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
+	if (view->code == 'X' && igs->pattern_loading) {
+		if (view->count != 18)
+			return IO_ERROR_PROTOCOL;
+		int status = store_pattern_row(igs, igs->pattern_slot, 15, &view->arguments[17]);
+		igs->pattern_loading = false;
+		igs->pattern_slot = 0;
+		return status;
+	}
 	if (view->count > sizeof(values) / sizeof(*values))
 		return IO_ERROR_PROTOCOL;
 	for (size_t i = 0; i < view->count; ++i) {
@@ -539,10 +653,8 @@ command(void *context, const struct st_graphics_command_view *view)
 	case 'W': {
 		igs->text_deadline = 0;
 		if (view->count == 3) {
-			const struct st_graphics_argument *text = &view->arguments[2];
-			if (text->kind != ST_GRAPHICS_TEXT || text->size > 128) return IO_ERROR_PROTOCOL;
-			memcpy(igs->shared_text,text->bytes,text->size);
-			igs->shared_text[text->size] = 0; igs->shared_text_size = text->size;
+			int status = store_text(igs, &view->arguments[2]);
+			if (status != 0) return status;
 		} else if (view->count != 2) return IO_ERROR_PROTOCOL;
 		if (igs->loop_mode == 0 && igs->loop_kind == 'Z') igs->loop_kind = ' ';
 		const uint8_t *nul = memchr(igs->shared_text,0,igs->shared_text_size);
@@ -807,6 +919,10 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	} while (status == 0 && *used < size);
 	if (status == IO_ERROR_IN_PROGRESS)
 		status = 0;
+	if (status != 0) {
+		igs->pattern_loading = false;
+		igs->pattern_slot = 0;
+	}
 	if (status == 0 && !cterm_igs_paused(igs) && st_graphics_parser_in_command(igs->parser)) {
 		uint64_t now;
 		status = igs->now_ms(&now);
@@ -854,6 +970,8 @@ cterm_igs_finish(struct cterm_igs *igs)
 			status = 0;
 	}
 	igs->input_deadline = igs->text_deadline = 0;
+	igs->pattern_loading = false;
+	igs->pattern_slot = 0;
 	return status;
 }
 

@@ -13,7 +13,8 @@ original requested start/end coordinates.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
 X dispatch is in progress: `X1` changes a raw physical palette register,
-and `X12` changes four consecutive physical registers.
+and `X12` changes four consecutive physical registers. `X7` loads source
+pattern slots for later A4 selection.
 `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
@@ -639,7 +640,7 @@ X reads one unscaled selector without clamping. Values outside 0..15 consume
 only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; selector/random values advance once when
-the command completes. X1, X10 and X12 are implemented so far. Other valid selectors
+the command completes. X1, X7, X10 and X12 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1637,6 +1638,36 @@ cap, retained indexed pixels, mono polarity, no reply and reconnect.
 Audio and MIDI are disabled. References: 19/22/28/100/124/165.
 All 16 selected checks passed on native FreeBSD Release; full CMake
 builds completed without warnings. Full X dispatch and other selectors remain pending.
+
+### X7 persistent pattern rows
+
+X7 reads an unscaled slot and sixteen shared-reader strings. It uppercases
+x in the first sixteen shared bytes and assembles X bits from column zero
+at bit 15. Scanning continues past NUL into the retained suffix. Each
+completed row updates the source slot before the next row starts. A4 copies
+a source slot into the active user pattern independently; X7 performs no
+drawing or implicit selection.
+
+W and X7 share opaque text acquisition, retained-window copying, reuse,
+local per-string deadlines and loop-@ XON/count handling. Z reuse applies
+to one row. Selector/slot random operands commit once before row input.
+Invalid slots outside 0..7 fail safely without native aliases or memory
+escapes. Timeout/EOF discard only the incomplete current string and retain
+completed rows and the prior completed shared window. Reset clears pending
+input; normal I/R pattern lifetime is preserved.
+
+`cterm_igs_pattern_load` checks 144 full loads across slots/modes/status/
+scaling, 253 byte windows, literal stale-suffix/NUL/128-byte/control rows,
+uppercase edits, input partitions, random evaluation, completed-row retention,
+invalid-slot/error recovery, loop reuse, XON and reset during output.
+`syncterm_igs_pattern_load` checks 108 coherent captures across all ST modes,
+encodings and status choices, including exact Z use of selected masks,
+source/active copy independence, glyphs, indexed phases, palette, cursor,
+RGB, no replies and partial disconnect/reconnect. Physical audio and MIDI
+are disabled. References: 11/20/124/130/131. All 15 selected checks and
+the final focused clock-error check passed on native FreeBSD Release;
+full CMake builds completed without warnings. Full containing-loop command
+integration and remaining X selectors stay pending.
 
 ## Deliberate corrections
 
