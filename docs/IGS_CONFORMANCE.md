@@ -2667,3 +2667,5 @@ rerun, which corrected an old X10 unsupported-selector inventory without
 changing its chain-cancellation expectation. Final X10/native X6 took10.20s/
 0.22s; the675-capture X6 application matrix took68.69s. The ledger is58/63
 complete; X dispatch, remaining commands and final acceptance are unfinished.
+
+Completion commit for X6: 7fb2643. The goal remains active at58/63.

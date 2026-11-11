@@ -4209,6 +4209,8 @@ remains active.
 
 == X6 left-button release output (complete)
 
+Implementation commit: `7fb2643`.
+
 Reference: chapter20, serial X6 byte store and main-loop consumer
 $0007ca..$000858, followed by chapter21's X3 branch. One unscaled mode operand
 stores its low byte, without0..2 clamping or immediate output. Accessory DATA
