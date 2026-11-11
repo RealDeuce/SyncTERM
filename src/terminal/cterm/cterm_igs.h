@@ -48,6 +48,13 @@ struct cterm_igs_palette_rotation {
 	int saved[3], held[3], query[3];
 };
 
+struct cterm_igs_sweep {
+	bool active, increasing;
+	int points[4], axis, step;
+	int32_t scalar, bound;
+	unsigned wait;
+};
+
 struct cterm_igs {
 	struct cterminal *terminal;
 	struct st_graphics_parser *parser;
@@ -71,6 +78,7 @@ struct cterm_igs {
 	uint32_t palette[16], saved_palette[16];
 	int requested_palette[16][3];
 	struct cterm_igs_palette_rotation palette_rotation;
+	struct cterm_igs_sweep sweep;
 	int draw_x, draw_y, scaling_mode, scaling_resolution;
 	int draw_start_x, draw_start_y;
 	/* Last-segment ownership survives native polygon/cap compositions. */
@@ -173,6 +181,9 @@ int cterm_igs_palette_register(struct cterm_igs *, int index, int color);
 int cterm_igs_palette_rotation_begin(struct cterm_igs *, int first, int last, int times, int delay);
 int cterm_igs_palette_rotation_resume(struct cterm_igs *);
 void cterm_igs_palette_rotation_cancel(struct cterm_igs *);
+int cterm_igs_sweep_begin(struct cterm_igs *, const int values[9]);
+int cterm_igs_sweep_resume(struct cterm_igs *);
+void cterm_igs_sweep_cancel(struct cterm_igs *);
 int cterm_igs_state_init(struct cterm_igs *);
 int cterm_igs_state_reset(struct cterm_igs *);
 int cterm_igs_set_resolution(struct cterminal *, unsigned resolution);

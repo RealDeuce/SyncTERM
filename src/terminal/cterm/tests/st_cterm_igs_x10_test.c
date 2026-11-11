@@ -68,7 +68,7 @@ dispatch_and_arrays(void)
 			/* Valid selectors whose handlers are still pending fail at the
 			 * selector boundary, rather than forwarding payload to ANSI. */
 			for (unsigned selector = 0; selector < 16; ++selector) {
-				if (selector == 0 || selector == 1 || selector == 2 || selector == 7 || selector == 8 || selector == 10 || selector == 11 || selector == 12 || selector == 13 || selector == 14) continue;
+				if (selector == 0 || selector == 1 || selector == 2 || selector == 7 || selector == 8 || selector == 10 || selector == 11 || selector == 12 || selector == 13 || selector == 14 || selector == 15) continue;
 				int prefix = snprintf(wire,sizeof(wire),"G#X>%u,",selector);
 				CHECK(prefix > 0 && (size_t)prefix+sizeof("1234:M 1:") <= sizeof(wire));
 				memcpy(wire+prefix,"1234:M 1:",sizeof("1234:M 1:"));
@@ -143,10 +143,10 @@ partitions_and_recovery(void)
 				igs->random_seed = UINT32_C(0x8602185b);
 				feed(&f,"G#X r,1,"); CHECK(st_cterm_finish(f.terminal) == 0);
 				CHECK(igs->random_seed == UINT32_C(0x8602185b)); position(igs,sx,sy,ex,ey);
-				igs->random_seed = UINT32_C(0xfdc2515b);
+				igs->random_seed = UINT32_C(0x07a8735b);
 				const char unsupported[] = "G#X r:";
 				CHECK(st_cterm_write(f.terminal,unsupported,sizeof(unsupported)-1,&used) == IO_ERROR_NOT_SUPPORTED);
-				CHECK(igs->random_seed == UINT32_C(0xf00)); position(igs,sx,sy,ex,ey);
+				CHECK(igs->random_seed == UINT32_C(0x900)); position(igs,sx,sy,ex,ey);
 				feed(&f,"G#X 10,10,20:");
 				feed(&f,"G#X 10,1,"); CHECK(st_cterm_reset_terminal(f.terminal) == 0); position(igs,0,0,0,0);
 				feed(&f,"G#X 10,10,20:"); position(igs,0,0,10,20);

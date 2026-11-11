@@ -142,6 +142,8 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app,"cterm.igs_palette_rotation_restore_raw",igs->palette_rotation.restore_raw);
 		st_console_test_number(app,"cterm.igs_palette_rotation_delaying",igs->palette_rotation.delaying);
 		st_console_test_number(app,"cterm.igs_palette_rotation_remaining",igs->palette_rotation.remaining);
+		st_console_test_number(app,"cterm.igs_sweep_active",igs->sweep.active);
+		st_console_test_number(app,"cterm.igs_sweep_wait",igs->sweep.wait);
 		char raw_colors[65], requested_colors[600] = {0};
 		size_t offset = 0;
 		for (unsigned i = 0; i < 16; ++i) {

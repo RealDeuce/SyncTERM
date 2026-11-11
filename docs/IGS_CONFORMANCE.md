@@ -20,6 +20,7 @@ pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
 `X14` selects the persistent screen/memory transfer route used by `G`.
 `X8` rotates requested or raw palette colours and saves/restores both forms.
+`X15` emits anchored line sweeps with exclusive bounds and local post-line waits.
 `X11` wipes or incrementally imports native bitmap bytes into indexed memory 0,
 optionally displaying the completed or partial image.
 `X10` sets the next Drawto origin without drawing.
@@ -648,7 +649,7 @@ only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; real random operands advance once at
 complete numeric execution or entry to a stateful payload reader.
-X0, X1, X2, X7, X8, X10, X11, X12, X13 and X14 are implemented so far. Other valid selectors
+X0, X1, X2, X7, X8, X10, X11, X12, X13, X14 and X15 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -2016,6 +2017,86 @@ US TOS 1.04 palette query/set rules, and IG221.TXT's X8 entry.
 
 `cterm_igs_palette_rotation` and `syncterm_igs_palette_rotation` cover this
 step; the X dispatcher and complete IGS acceptance remain in progress.
+
+### X15 anchored line sweeps
+
+X15 reads nine unscaled words: anchor X/Y, initial endpoint X/Y, axis,
+starting scalar, add selector, step and wait. The shared fixed-prefix table
+now supplies all nine NUMBER descriptions; no new grammar is introduced.
+Normalize step below 1 to 1 and wait to 0..60. Initialize both remembered
+coordinate pairs from the four supplied coordinates before checking axis
+or bounds. Axis 0 moves X and axis 1 moves Y; any other signed word does no
+rendering or waiting and retains the initialized coordinates. A nonzero
+add word, including a negative word, selects increasing motion.
+
+For an entered sweep, test the scalar before each draw: increasing requires
+scalar<the initial endpoint coordinate, decreasing requires scalar>it.
+The bound is excluded. Emit one separate two-point polyline from the fixed
+anchor to each scalar, updating the shared original endpoint before the
+call. Reuse the existing renderer's patterns, writing modes, line widths,
+caps, arrows, clipping, blink phases and per-primitive pattern reset. The
+renderer works on private points, so arrow shortening does not change the
+remembered coordinates. For start 2, bound 8 and step 3 the emitted endpoints
+are 2 and 5; following D starts at 5. Empty sweeps retain the supplied endpoint.
+No palette, image, attribute, flow-helper or console-parser change is added.
+
+A nonzero wait follows every emitted line, including the last, and uses
+exactly that many local sync-wait units; q's additional unit does not apply.
+There is no initial wait or wait for an empty sweep. Keep evaluated operands
+in owned sweep state while the common parser is suspended. Resume at the
+next scalar only after the deadline, leaving following wire bytes unread.
+Keys follow their normal send path and do not abort or shorten this wait.
+Wait 0 draws the whole finite sweep without reading the IGS deadline clock.
+EOF/error cancellation retains already drawn pixels and the last published
+original coordinate pair; full reset/reconnect cancel and restore initial
+session state. A failed poll-clock read leaves an active wait retryable.
+
+Correct the original signed-word scalar wrap by calculating the next scalar
+in a wider host integer. Stop at the first mathematical bound crossing,
+without drawing an out-of-range wrapped coordinate or imposing an arbitrary
+iteration limit. This fixes both nonterminating word cycles and extra
+wraparound passes, while preserving ordinary sweep order. At most 65535
+lines are possible for signed-word endpoints and minimum step 1. Host
+renderer/scheduling errors retain the endpoint published before that call,
+consistent with X15's source order; they do not fabricate a successful sweep.
+Containing-loop operand integration remains tracked by the unfinished loop
+commands.
+
+The maintainer-only generate_sweep_vectors.py composes separate primitives
+from the independent source-derived rational/bit/circle/arrow oracles,
+carrying explicitly seeded framebuffer words and last-line state between
+calls. It pins six oracle hashes and the US TOS 1.04 ROM identity. The 600
+native cases cover both directions/axes, all resolutions and writing modes,
+seven thin styles, wide shafts, caps/arrows, clipping, XOR crossings and
+inherited last-line state; both initial zero/all-one phase hashes cover
+all 32000 bytes. Wide cases use valid solid-style T requests; the test
+asserts selected width/style before checking pixels. Ordinary tests require
+only the checked-in header and JSON, without the reference tree or ROM.
+
+Further native tests cover literal overlapping/degenerate lines and D,
+status boundaries, every unsupported signed axis word, exact wait counts
+at 50/60/1000-Hz local conversions, normalized steps/waits, exclusive/equal/
+wrong-direction bounds, full signed-word spans and formerly nonterminating
+steps. Partitioned/bytewise chains and random selector/start operands check
+once-only evaluation and unread suffixes. Partial/invalid/EOF/timeout,
+zero-wait clock independence, clock/rate/deadline failure, failed render,
+reset and key forwarding have focused tests.
+
+The application fixture checks 451 coherent captures across all ST modes,
+Atari ST/CP437/UTF-8 and status choices with audio/MIDI disabled. It combines
+36 source-derived sweep scenes with literal console glyphs, ordered XOR/
+patterned overlays, D from the retained endpoint, later console overwrite,
+empty/unsupported sweeps, a real local wait with queued commands and a
+forwarded key, active disconnect and fresh reconnect. One capture checks
+all drawable indexed pixels in both phases, cells, palette/RGB, cursor,
+original coordinate pairs, line attributes and parser/wait/image-route state.
+
+References: chapter 19's addressed X15 state machine and IG221.TXT's X15
+entry, plus the existing line/polyline raster contracts in chapters 43/44/
+46/50/51. X and final acceptance remain in progress.
+
+`cterm_igs_sweep` and `syncterm_igs_sweep` cover this step; vector provenance
+is recorded in `src/tests/igs/sweep-vectors.json`.
 
 ## Deliberate corrections
 

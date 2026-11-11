@@ -232,6 +232,13 @@ input/lifecycle/error/max-count coverage. Its 288 coherent application
 captures check unchanged indexed scenes, palette/RGB/cache state, queued
 commands, cancellation and reconnect across all ST modes/encodings/status
 choices, with audio and MIDI disabled.
+`X15` adds anchored sweeps through the existing polyline renderer, with
+exclusive unscaled bounds, original endpoint retention and exact local
+post-line waits. Wider host arithmetic fixes wrapped/infinite sweeps.
+Independent 600-case native compositions and 451 coherent application
+captures cover ordered patterned/wide/arrow/XOR drawing, console overlays,
+Drawto, status/input/error/lifecycle boundaries and key forwarding during
+waits, across all ST modes/encodings/status choices with audio/MIDI off.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

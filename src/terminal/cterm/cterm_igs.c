@@ -22,6 +22,9 @@ static const struct st_graphics_dialect dialect = {
 static const struct st_graphics_parameter unscaled_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
 	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
+	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
+	{.kind = ST_GRAPHICS_NUMBER}, {.kind = ST_GRAPHICS_NUMBER},
+	{.kind = ST_GRAPHICS_NUMBER},
 };
 static const struct st_graphics_parameter point_parameters[] = {
 	{.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_X},
@@ -48,6 +51,7 @@ static const struct st_graphics_command extended_commands[] = {
 	{12, unscaled_parameters, 1, palette_group_next},
 	{13, unscaled_parameters, 1, math_next},
 	{14, unscaled_parameters, 1, NULL},
+	{15, unscaled_parameters, 9, NULL},
 };
 
 /* Dynamic arity inspects a private numeric-state copy. Real operands,
@@ -401,6 +405,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->copy_pending = false;
 	cterm_igs_bitmap_cancel(igs);
 	cterm_igs_palette_rotation_cancel(igs);
+	cterm_igs_sweep_cancel(igs);
 	igs->reset_pending = false;
 }
 
@@ -905,6 +910,8 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 15)
+			return cterm_igs_sweep_begin(igs,values+1);
 		if (values[0] == 8)
 			return cterm_igs_palette_rotation_begin(igs,values[1],values[2],values[3],values[4]);
 		if (values[0] == 11) {
@@ -1237,6 +1244,18 @@ int
 cterm_igs_poll(struct cterm_igs *igs)
 {
 	uint64_t now;
+	if (igs->sweep.active) {
+		int status = igs->now_ms(&now);
+		if (status != 0 || now < igs->wait_deadline) return status;
+		igs->feeding = true;
+		status = cterm_igs_sweep_resume(igs);
+		igs->feeding = false;
+		if (igs->reset_pending) { cterm_igs_reset(igs); return status == IO_ERROR_INTERRUPTED ? 0 : status; }
+		if (status == IO_ERROR_IN_PROGRESS) return 0;
+		if (status != 0) { cancel_input(igs); return status; }
+		igs->wait_deadline = 0;
+		return st_graphics_parser_resume(igs->parser);
+	}
 	if (igs->palette_rotation.active) {
 		int status = igs->now_ms(&now);
 		if (status != 0) return status;
