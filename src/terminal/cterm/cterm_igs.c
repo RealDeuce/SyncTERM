@@ -154,6 +154,7 @@ static const struct st_graphics_command commands[] = {
 	{'s', unscaled_parameters, 1, NULL},
 	{'d', unscaled_parameters, 1, NULL},
 	{'i', unscaled_parameters, 2, NULL},
+	{'t', unscaled_parameters, 1, NULL},
 	{'S', unscaled_parameters, 4, NULL},
 	{'H', unscaled_parameters, 1, NULL},
 	{'A', unscaled_parameters, 3, NULL},
@@ -185,6 +186,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->input_deadline = igs->text_deadline = igs->wait_deadline = 0;
 	igs->pending_resolution = -1;
 	igs->pending_palette = 0;
+	igs->timed_pause = igs->pause_key = false;
 	igs->reset_pending = false;
 }
 
@@ -316,6 +318,32 @@ flow(struct cterm_igs *igs, bool on)
 }
 
 static int
+end_pause(struct cterm_igs *igs)
+{
+	igs->timed_pause = igs->pause_key = false;
+	igs->wait_deadline = 0;
+	/* Exit uses the current loop and flow settings, independently of entry. */
+	return igs->loop_mode == 1 ? 0 : flow(igs, true);
+}
+
+static int
+begin_pause(struct cterm_igs *igs, int seconds)
+{
+	uint64_t now;
+	int status = igs->now_ms(&now);
+	if (status != 0)
+		return status;
+	uint64_t duration = (uint64_t)(uint16_t)(seconds > 30 ? 30 : seconds) * 1000;
+	if (duration > UINT64_MAX - now)
+		return IO_ERROR_OUT_OF_RANGE;
+	igs->wait_deadline = now + duration;
+	igs->timed_pause = true;
+	igs->pause_key = false;
+	status = igs->loop_mode == 1 ? 0 : flow(igs, false);
+	return status == 0 ? IO_ERROR_IN_PROGRESS : status;
+}
+
+static int
 field_entry(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
@@ -415,6 +443,7 @@ command(void *context, const struct st_graphics_command_view *view)
 		return repeat_console_escape(igs, selector < 0 ? 0 : directions[selector], values[1]);
 	}
 	case 'd': return repeat_console_escape(igs, 'M', values[0]);
+	case 't': return begin_pause(igs, values[0]);
 	case 'i': {
 		static const uint8_t letters[] = {'I', 'L'};
 		int selector = values[0] > 1 ? 0 : values[0];
@@ -646,6 +675,13 @@ cterm_igs_reset(struct cterm_igs *igs)
 		igs->reset_pending = true;
 		return;
 	}
+	if (igs->timed_pause) {
+		igs->feeding = true;
+		int status = end_pause(igs);
+		igs->feeding = false;
+		if (status != IO_ERROR_INTERRUPTED)
+			cterm_render_record_error(igs->terminal, status);
+	}
 	cancel_input(igs);
 	memset(igs->warned, 0, sizeof(igs->warned));
 	cterm_render_record_error(igs->terminal, cterm_igs_state_reset(igs));
@@ -654,7 +690,16 @@ cterm_igs_reset(struct cterm_igs *igs)
 bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
-	return igs != NULL && igs->pending_resolution >= 0;
+	return igs != NULL && (igs->pending_resolution >= 0 || igs->timed_pause);
+}
+
+bool
+cterm_igs_handle_key(struct cterm_igs *igs)
+{
+	if (igs == NULL || !igs->timed_pause || igs->pause_key)
+		return false;
+	igs->pause_key = true;
+	return true;
 }
 
 int
@@ -713,8 +758,17 @@ cterm_igs_finish(struct cterm_igs *igs)
 	if (igs->feeding)
 		return 0;
 	if (cterm_igs_paused(igs)) {
+		int status = 0;
+		if (igs->timed_pause) {
+			igs->feeding = true;
+			status = end_pause(igs);
+			igs->feeding = false;
+		}
+		bool reset = igs->reset_pending;
 		cancel_input(igs);
-		return 0;
+		if (reset)
+			cterm_igs_reset(igs);
+		return status == IO_ERROR_INTERRUPTED ? 0 : status;
 	}
 	struct st_graphics_parser_sink callbacks = sink(igs);
 	igs->feeding = true;
@@ -737,6 +791,25 @@ int
 cterm_igs_poll(struct cterm_igs *igs)
 {
 	uint64_t now;
+	if (igs->timed_pause) {
+		if (!igs->pause_key) {
+			int status = igs->now_ms(&now);
+			if (status != 0 || now < igs->wait_deadline)
+				return status;
+		}
+		igs->feeding = true;
+		int status = end_pause(igs);
+		igs->feeding = false;
+		if (igs->reset_pending) {
+			cterm_igs_reset(igs);
+			return status == IO_ERROR_INTERRUPTED ? 0 : status;
+		}
+		if (status != 0) {
+			cancel_input(igs);
+			return status;
+		}
+		return st_graphics_parser_resume(igs->parser);
+	}
 	if (cterm_igs_paused(igs)) {
 		int status = igs->now_ms(&now);
 		if (status != 0 || now < igs->wait_deadline)

@@ -3646,6 +3646,8 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
 
 	if (terminal == NULL)
 		return false;
+	if (cterm_igs_handle_key(terminal->igs_engine))
+		return true;
 	engine = terminal->rip_engine;
 	if (engine != NULL && engine->tab_enabled && key_code == '\t') {
 		/* The historical handler passes false for Tab, true for Backtab. */
@@ -3688,6 +3690,8 @@ st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte)
 {
 	if (terminal == NULL)
 		return false;
+	if (cterm_igs_handle_key(terminal->igs_engine))
+		return true;
 	if (st_cterm_handle_rip_text(terminal,
 	    st_codepage_to_unicode(terminal->screen.codepage, byte, false)))
 		return true;
@@ -3702,6 +3706,8 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 
 	if (terminal == NULL)
 		return false;
+	if (cterm_igs_handle_key(terminal->igs_engine))
+		return true;
 	if (st_cterm_handle_rip_text(terminal, codepoint))
 		return true;
 	if (terminal->wire_encoding == ST_CTERM_ENCODING_UTF8) {
@@ -3756,6 +3762,8 @@ st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint)
 bool
 st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code)
 {
+	if (terminal != NULL && cterm_igs_handle_key(terminal->igs_engine))
+		return true;
 	if (terminal != NULL && terminal->rip_engine != NULL
 	    && terminal->rip_engine->tab_enabled && scan_code == 0x0f) {
 		cterm_rip_engine_next_tab(terminal->rip_engine, true);

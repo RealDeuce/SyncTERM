@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d and i commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i and t commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2593,4 +2593,52 @@ oracle passed. Native FreeBSD Release configure and full build with
 /usr/bin/cc passed without warnings. All 22 targeted CTest checks
 passed in 36.74 seconds. The native and application i checks took
 2.50 and 18.69 seconds respectively. The ledger records 38 complete
-entries. Completion commit will be recorded by the next step.
+entries. Completion commit `e56d62a`.
+
+=== t timed pause
+
+Read the signed unscaled seconds word once and cap values above 30.
+Convert the retained word to its unsigned 16-bit duration and form an
+absolute deadline from the local monotonic timestamp plus that many
+seconds. This follows the persisted host-duration decision. In
+particular, negative words become finite long waits. The native
+low-word clock arithmetic can leave those waits unbounded or end them
+on a clock wrap.
+
+The start timestamp precedes the eligible XOFF call, so time spent
+queueing flow output counts toward the duration. The parser suspends
+after the command and retains the unread suffix with its caller.
+Completion resumes through the existing terminal poll path. Zero
+seconds still enters the pause and completes at the first poll.
+Deadline overflow is reported before flow output.
+
+One local key ends a pause and is consumed without transmission or
+echo. The normalized control, codepage, Unicode text and doorway key
+paths share this action. The enclosing loop setting is retained.
+Entry and exit independently consult the current loop and flow
+settings. On exit, send the configured XON bytes unless the current
+loop setting equals one. Reset and EOF also end an active pause and
+release eligible flow before discarding its suspended continuation.
+The existing response transport suppresses output after disconnection.
+
+The native fixture checks 252 mode, status, scaling, duration and
+fractional-start combinations with injected local timestamps. Focused
+cases cover input partitions, retained suffixes, operand acquisition,
+all four keyboard paths, flow gates and mutations, time spent in XOFF,
+clock errors, overflow, EOF, reset and reentrant response callbacks.
+It checks retained pixels, palette, cursor and drawing attributes.
+The application fixture checks 74 coherent captures across all ST
+modes, Atari ST, CP437 and UTF-8, and both status choices, with audio
+and MIDI disabled. It verifies XOFF/XON, cancellation without key
+leakage, the next ordinary key, zero delay, one live one-second wait
+and disconnect/reconnect during a pause.
+
+References include chapters 16, 124, 170, 174 and 182.
+The new native test failed before implementation. Native FreeBSD
+Release configure and full builds with /usr/bin/cc passed. All 18
+selected CTest checks passed in 67.52 seconds. The native and
+application t fixtures took 0.24 and 18.33 seconds. A final focused
+rerun adds zero-delay key consumption. The first full build reported
+clock skew on generated dependency files; the final build completed
+without warnings. The ledger records 39 complete entries. Completion
+commit will be recorded by the next step.

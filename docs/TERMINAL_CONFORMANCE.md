@@ -174,6 +174,10 @@ and graphics movement, raw background, cursor, history and reconnect.
 VT52 state and indexed row movement. Its 938 native scenes and 126
 application captures cover top and bottom edges, signed counts,
 pending input, raw background, cursor and reconnect.
+`t` adds a cancellable local pause with flow control and retained
+input. Its 252 native duration contexts and 74 coherent application
+checkpoints cover deadline boundaries, key consumption, suffix
+resumption, errors, reset and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

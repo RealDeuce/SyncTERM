@@ -1549,6 +1549,24 @@ recipe and checks indexed movement, literal glyphs, RGB, cursor
 overlay and reconnect.
 All 22 targeted checks passed on native FreeBSD Release.
 
+### t timed pause
+
+The signed unscaled seconds word is capped above 30, converted to
+its unsigned 16-bit duration, and translated to a local monotonic
+deadline. Zero completes on the first poll. Negative words become
+finite long waits under the host-duration policy. A local key cancels
+the pause and is consumed. Entry and exit independently test the
+current loop setting and call the existing flow helpers when eligible.
+Reset and EOF release flow and discard the suspended continuation.
+
+`cterm_igs_pause` checks 252 duration contexts plus partitions,
+keyboard paths, flow mutation, clock errors, overflow and lifecycle.
+`syncterm_igs_pause` checks 74 coherent captures across all ST modes,
+Atari ST, CP437 and UTF-8, and both status choices. It verifies the
+flow bytes, unchanged scene, key consumption, retained suffix,
+one live deadline, and reconnect after a paused disconnect.
+All 18 selected checks passed on native FreeBSD Release.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on

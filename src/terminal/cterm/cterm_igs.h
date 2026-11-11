@@ -67,6 +67,8 @@ struct cterm_igs {
 	uint64_t input_deadline, text_deadline;
 	unsigned sync_wait_hz;
 	uint64_t wait_deadline;
+	/* A timed pause owns wait_deadline until expiry, a key, reset or EOF. */
+	bool timed_pause, pause_key;
 	int pending_resolution;
 	int pending_palette;
 	bool feeding, reset_pending;
@@ -81,6 +83,7 @@ int cterm_igs_finish(struct cterm_igs *);
 int cterm_igs_poll(struct cterm_igs *);
 int cterm_igs_echo_backspace(struct cterm_igs *);
 bool cterm_igs_paused(const struct cterm_igs *);
+bool cterm_igs_handle_key(struct cterm_igs *);
 int cterm_igs_initialize(struct cterm_igs *, int operation);
 void cterm_igs_set_scaling(struct cterm_igs *, int mode);
 void cterm_igs_set_pen(struct cterm_igs *, int kind, int pen);

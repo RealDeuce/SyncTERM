@@ -162,6 +162,8 @@
         "syncterm_igs_delete_lines",
         "cterm_igs_insert_lines",
         "syncterm_igs_insert_lines",
+        "cterm_igs_pause",
+        "syncterm_igs_pause",
         "st_console_bitmap",
         "st_console_scheduler"
       ],
@@ -206,7 +208,8 @@
         "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native l test failed before implementation. All 20 targeted CTest checks passed in 36.92 seconds, including native and application l, console, resolution, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. The native and 90-capture application l checks took 1.36 and 17.13 seconds. Verified original TOS glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 35 complete entries.",
         "Native FreeBSD Release configure and full builds with /usr/bin/cc passed without warnings. The native s test failed before implementation. All 24 targeted tests passed across two runs. The first run passed 23 checks, including the application s suite with 126 captures in 17.93 seconds. The native s rerun passed in 2.00 seconds after correcting the fixture to expect the scrollback row copy count and adding the VDI history check. The targeted suite includes IGS console, native and application scrollback, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. Verified original TOS glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 36 complete entries.",
         "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native d test failed before implementation. All 21 targeted CTest checks passed in 33.93 seconds, including native and application d, IGS console, graphics scrollback, history, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. The native and 90-capture application d checks took 1.26 and 17.16 seconds. Verified literal A/M glyph rows, pinned source hashes, test registration and all 63 ledger IDs with 37 complete entries.",
-        "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native i test failed before implementation and the refactored d oracle passed. All 22 targeted CTest checks passed in 36.74 seconds, including native and application i/d, IGS console, graphics scrollback, history, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. The native and 126-capture application i checks took 2.50 and 18.69 seconds. Verified literal A/L/M glyph rows, pinned source hashes, shared test registration and all 63 ledger IDs with 38 complete entries."
+        "Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. The native i test failed before implementation and the refactored d oracle passed. All 22 targeted CTest checks passed in 36.74 seconds, including native and application i/d, IGS console, graphics scrollback, history, bitmap, shared graphics parser, CTerm, RIP parser, native SkyPix, term and control protocol. The native and 126-capture application i checks took 2.50 and 18.69 seconds. Verified literal A/L/M glyph rows, pinned source hashes, shared test registration and all 63 ledger IDs with 38 complete entries.",
+        "Native FreeBSD Release configure and full builds with /usr/bin/cc passed. The native t test failed before implementation. All 18 selected CTest checks passed in 67.52 seconds, including native and application t, IGS input/resolution/polyline/text, keyboard, shared graphics parser, CTerm, RIP parser, native SkyPix, term, control protocol and session modes. Native t took 0.24 seconds and its 74-checkpoint application fixture took 18.33 seconds. A final focused t rerun covers zero-delay key consumption. The first full build reported submillisecond clock skew on generated dependency files; the final build completed without warnings. Verified original glyph rows, pinned source hashes, test registration and all 63 ledger IDs with 39 complete entries."
       ],
       "commit": null,
       "operations": [
@@ -247,7 +250,8 @@
         "l and raw VT52 l/o/K erase inclusive ranges in both indexed phases using the raw background. Whole-line erasure moves using the incoming hide depth with host bounds.",
         "s uses native VT52 E/d/J raw-background screen erasure and a separate VDI clear to physical index zero. Preserve console byte composition and scrollback through the existing output and history paths.",
         "d shares the repeated escape emitter with m. The VT52 M handler moves retained cells and both indexed phases and fills the exposed bottom row with the raw background.",
-        "i shares the repeated escape emitter and the VT52 row movement used by d. Reverse index retains the column and scrolls at the top, while insertion scrolls from the current row and moves to column zero."
+        "i shares the repeated escape emitter and the VT52 row movement used by d. Reverse index retains the column and scrolls at the top, while insertion scrolls from the current row and moves to column zero.",
+        "t converts seconds to a checked local deadline and suspends the generic parser through the existing owner/poll path. Normalized local keys cancel one pause. Completion, reset and EOF release flow using current loop and flow settings."
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -1989,23 +1993,48 @@
       "verification": [
         "The native test failed before implementation while the shared d oracle passed. Native FreeBSD Release configure and full build with /usr/bin/cc passed without warnings. All 22 targeted CTest checks passed in 36.74 seconds. The native and application i checks took 2.50 and 18.69 seconds respectively. Verified TOS A/L/M glyph rows, pinned source hashes, active test registration and all 63 ledger IDs with 38 complete entries."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "e56d62a"
     },
     {
       "id": "t",
       "phase": "waits",
       "references": [
         "16-state-timing-commands.adoc",
+        "124-native-random-source.adoc",
+        "170-interlink-command-dispatch.adoc",
+        "174-delivery-dispatch-envelopes.adoc",
         "182-delivery-note-and-wait-commands.adoc"
       ],
       "order": 39,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "igs-state-raster-timing",
+        "R",
+        "z"
+      ],
+      "operations": [
+        "Acquire one unscaled signed seconds word, cap positive values above 30 and convert its unsigned 16-bit duration to a checked local monotonic deadline sampled before XOFF.",
+        "Suspend through the generic parser and preserve the unread input suffix. Zero seconds still enters the pause and finishes on the first poll. Resume through the existing terminal owner.",
+        "Consume one cancelling key through normalized control, codepage, Unicode text or doorway input. Preserve the enclosing loop. Entry and exit independently use current loop/flow settings and configured bytes and counts.",
+        "End an active pause on reset or EOF, release eligible flow and discard the suspended continuation. Defer response-callback resets until the parser/flow callback returns.",
+        "Check 252 native duration contexts plus partitions, random operands, zero-delay keyboard consumption, all keyboard paths, flow gates and mutations, clock errors, overflow, timeout, EOF, reset and reentrant callbacks.",
+        "Check 74 coherent application checkpoints across all ST modes, Atari ST, CP437 and UTF-8 and both status choices with audio and MIDI disabled. Verify flow bytes, retained scene and suffix, consumed cancellation key, next ordinary key, zero delay, one live one-second wait and reconnect."
+      ],
+      "tests": [
+        "cterm_igs_pause",
+        "syncterm_igs_pause"
+      ],
+      "deviations": [
+        "Apply the persisted host-duration policy using full local seconds. The original absolute 200 Hz buckets and low-word rollover are omitted.",
+        "Convert negative words to their unsigned 16-bit seconds duration and use a finite local deadline, correcting the original negative-duration clock-wrap failure.",
+        "Host reset and EOF release eligible XON before discarding the pause."
+      ],
+      "verification": [
+        "The native test failed before implementation. Native FreeBSD Release configure and full builds with /usr/bin/cc passed. All 18 selected CTest checks passed in 67.52 seconds. The native and application t fixtures took 0.24 and 18.33 seconds. The final focused t rerun includes zero-delay key consumption. Initial generated-dependency clock skew warnings cleared in the final build. Verified pinned glyph/ROM source identities, test registration and all 63 ledger IDs with 39 complete entries."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "q",
