@@ -3799,6 +3799,8 @@ Completion commit for n: 4f868b5. The goal remains active at 53/63.
 
 == Continuous MIDI input for N (component complete; N pending)
 
+Component commit: `255d0b7`.
+
 N sends individual MIDI bytes, retains notes when playback completes or a
 local outer-loop key aborts it, and can continue an unfinished message in a
 later playback. A MIDI-file request resets and releases voices, so it cannot
