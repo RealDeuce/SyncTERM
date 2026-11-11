@@ -214,6 +214,10 @@ retained capture coordinates and stride views, phase-preserving images and
 local second-copy deadlines. Independent native pixel/row-alias vectors and
 coherent application scenes cover capture/replay, hidden memory edits,
 clipping/status protection, input recovery and reconnect.
+`X14` selects G's persistent transfer route. Native signed-word and lifetime
+tests plus 162 coherent application captures verify both banks, opposite
+G1/G3 cross-memory directions, self-copy selection, disabled routes and
+reset/reconnect defaults without immediate raster or console side effects.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

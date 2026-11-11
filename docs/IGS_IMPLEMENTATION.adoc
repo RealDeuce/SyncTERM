@@ -15,11 +15,11 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q and G commands and X0, X1, X2, X7, X10, X12 and X13 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q and G commands and X0, X1, X2, X7, X10, X12, X13 and X14 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10, X12 and X13
+command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X7, X10, X12, X13 and X14
 implemented; the complete X command remains unfinished until every selector
 and its dispatch behavior have passed.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
@@ -3026,15 +3026,15 @@ arity preview preserve ordinary framing, g scaling, array substitutions,
 random evaluation order and input-partition ownership. Arithmetic/geometry
 policy stays in cterm_igs_blit.c, outside the generic wire parser.
 
-The complete route matrix is implemented independently of X14's still-pending
-wire selector. G0 routes 0/1 copy screen to screen and leave the selected
+The complete route matrix is implemented and selected by X14 as described
+below. G0 routes 0/1 copy screen to screen and leave the selected
 memory descriptor aliased to the screen until the next G rebuild. G1 routes
 0/1 capture to that memory; routes 2/3 copy memory0->1 / memory1->0; routes
 4/5 update remembered capture coordinates without copying. G2/G3 routes 0/1
 replay memory to screen, routes 2/3 copy memory1->0 / memory0->1, and routes
 4/5 copy screen to memory0/1. G4 routes 0/1 copy within one memory. Other
-routes and negative operations issue no copy. X14 application routing will
-be verified in its own next step; native G tests supply all route words.
+routes and negative operations issue no copy. Native G tests supply all route words; X14 application routing is verified
+in the following completed step.
 
 G1 remembers upper-clamped source coordinates before negative coordinates
 are replaced by zero. Captures keep their original coordinates, including
@@ -3113,5 +3113,60 @@ SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native
 and application G took 3.16 and 24.71 seconds. Ledger IDs, references,
 dependencies, active tests and pinned font/ROM/oracle identities were checked.
 Parallel SkyPix/console changes are excluded from the IGS commit. The ledger
-records 47 complete entries. Completion commit will be recorded by the next
-step.
+records 47 complete entries. Completion commit `8e79a0b`.
+
+
+=== X14 persistent G routing
+
+X14 reads exactly one unscaled signed route word. Values above 5 become
+zero; negative values pass unchanged. Store the route only when the complete
+header has been accepted. The shared fixed-prefix descriptor and existing
+numeric evaluator handle selector/route arrays and r/R operands once, without
+new grammar or raster code. Setting the route does not issue a service call,
+change a descriptor/capture rectangle/image/pixel, advance a wait, touch
+Drawto or graphics attributes, consume console bytes or send a reply.
+
+The following G uses that route through the already implemented complete
+matrix. In particular G1 routes 2/3 copy memory0->1 / memory1->0, while G3
+routes 2/3 copy in the opposite directions. G4 selects one memory bank only
+for routes 0/1; G0 routes >=2 and negative routes do not copy. G1 routes
+4/5 retain capture coordinates without transferring pixels, while G3 routes
+4/5 capture screen pieces into the selected bank. G retains the route. I0
+and I2 reset it; I1/I3/I4/I5 and R retain it. Full reset/reconnect restore
+zero. A queued setter waits behind a pending repeated G and affects only
+subsequent commands. Loop-context operand integration remains pending with
+the containing-loop entries.
+
+Native tests cover 65,734 route-value cases, including every signed word
+and representative constants/array values across all ST modes, status
+choices and g classes. They assert unchanged dual-phase screen pixels,
+image bytes, capture/view metadata, palette, graphics state, Drawto, pending
+console parsing/cursor and deadlines. Additional cases cover metadata-only
+G1 and retained-extent G2 routing for routes 4/5, and every focused
+split and bytewise chain, selector/route arrays, exact random seed/route
+results, no replies or clock dependency, malformed/incomplete/EOF/timeout
+recovery, I/R/reset lifetime and ordering behind a delayed G.
+
+The application fixture checks 162 coherent captures across all ST modes,
+Atari ST/CP437/UTF-8 and status choices with audio/MIDI off. Literal A/b/c
+font masks distinguish retained bank contents and G1/G3 cross-bank direction,
+G4 inversion, G0 disabled routes, negative routes, upper fallback, and fresh
+session defaults. Each frame verifies cells, both indexed phases, palette,
+RGB, cursor, Drawto and memory route/view state together. Ordinary tests do
+not require ROMs or an external reference tree.
+
+References: chapter18's addressed X14 contract and IG221.TXT's X14 entry.
+No additional command-specific behavioral correction is required; incomplete
+numeric headers retain the existing adapter cancellation policy.
+
+The new native test failed before implementation. Native FreeBSD Release
+configure and full CMake builds with /usr/bin/cc passed without warnings.
+All 18 selected CTest checks passed in 33.38 seconds, including shared parser,
+indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/
+X10/X13/G and application R/G/X14 regressions. Native and application X14
+took 0.36 and 23.93 seconds. After adding explicit metadata-only G1 and
+retained-extent G2 route4/5 assertions, another warning-free full build and
+focused native X14 check passed. Ledger IDs, references, dependencies,
+active tests and pinned glyph/ROM identities were checked. Parallel graphics
+changes are excluded from this IGS commit. The ledger records 48 complete
+entries. Completion commit will be recorded by the next step.

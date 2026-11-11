@@ -18,6 +18,7 @@ X dispatch is in progress: `X0` scatters markers with persistent color cycling.
 and `X12` changes four consecutive physical registers. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
+`X14` selects the persistent screen/memory transfer route used by `G`.
 `X10` sets the next Drawto origin without drawing.
 Its coordinate classes are corrected to normal X/Y scaling as described below.
 `z` draws connected 2–128-point polylines without changing either remembered
@@ -644,7 +645,7 @@ only that operand, make no store/call/reply and allow normal chaining. Selector
 descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; real random operands advance once at
 complete numeric execution or entry to a stateful payload reader.
-X0, X1, X2, X7, X10, X12 and X13 are implemented so far. Other valid selectors
+X0, X1, X2, X7, X10, X12, X13 and X14 are implemented so far. Other valid selectors
 return NOT_SUPPORTED after the selector and leave payload unread; those
 handlers and full X dispatch/loop conformance remain pending.
 
@@ -1790,8 +1791,8 @@ every call. Capture coordinates are not rebased and descriptive width/height
 do not clip addresses inside the allocation. G0 leaves its selected memory
 descriptor as a screen alias until the next G; G1 routes 4/5 update capture
 coordinates despite making no raster call. Native tests cover the complete
-operation/route matrix. X14 wire routing and its application scenes follow
-in the next command step.
+operation/route matrix. X14 wire routing and its application scenes are
+covered in the completed selector entry below.
 
 All sixteen Boolean operations use physical indices in both host blink
 phases. Logic above 15 selects replace; negative logic leaves pixels alone.
@@ -1835,6 +1836,38 @@ font masks, capture/replay, hidden memory edits, delayed repeats, normalized
 coordinates, status edges and partial disconnect/reconnect, with audio/MIDI
 disabled. Each frame checks cells, indices in both phases, palette/RGB,
 cursor, Drawto and memory-view/pending-copy state together.
+
+### X14 persistent G routing
+
+`cterm_igs_routing` and `syncterm_igs_routing` cover one unscaled signed
+route field: values above 5 select zero, negative values pass unchanged.
+The fixed shared descriptor/evaluator commits a complete selector/route
+header once, including array/random operands. X14 itself does not touch
+pixels, images, remembered capture/view metadata, palette, graphics state,
+Drawto, console parsing/cursor or timing, and sends no reply.
+
+Subsequent G commands honor the selected route. G1 and G3 have opposite
+cross-bank directions for routes 2/3; G4 self-copies only routes 0/1; G0
+copies only routes 0/1. G1 routes 4/5 remember coordinates without copying,
+whereas G3 routes 4/5 capture screen pieces. Negative routes disable copies.
+G preserves the route. I0/I2 restore zero; I1/I3/I4/I5 and R retain it;
+full reset/reconnect restore zero. A setter queued after a delayed repeated
+G executes only when that G completes. Incomplete/error headers preserve
+the last completed route under the existing adapter cancellation policy;
+containing-loop operand support remains pending with those entries.
+
+Native tests cover 65,734 route-value cases, all signed words and mode/
+status/scaling representatives, unchanged screen/image/state snapshots,
+focused split and bytewise chains, array/random operands with exact seeds,
+clock independence, no replies, malformed/partial/EOF/timeout and I/R/reset
+lifetime. Explicit G1 routes 4/5 checks verify metadata changes without
+pixels, and G2 checks verify capture using retained extents. Application
+coverage is 162 coherent scenes across all modes,
+Atari ST/CP437/UTF-8 and status choices. Independent pinned A/b/c masks
+expose both bank directions, selected memory inversion, disabled routes,
+negative/upper values and fresh defaults after partial disconnect/reconnect.
+Cells, both index phases, palette/RGB, cursor, Drawto and route/view metadata
+are checked in the same frame, with audio/MIDI disabled.
 
 ## Deliberate corrections
 

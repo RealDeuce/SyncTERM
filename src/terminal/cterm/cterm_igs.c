@@ -44,6 +44,7 @@ static const struct st_graphics_command extended_commands[] = {
 	{10, point_parameters, 2, NULL},
 	{12, unscaled_parameters, 1, palette_group_next},
 	{13, unscaled_parameters, 1, math_next},
+	{14, unscaled_parameters, 1, NULL},
 };
 
 /* Dynamic arity inspects a private numeric-state copy. Real operands,
@@ -863,6 +864,11 @@ command(void *context, const struct st_graphics_command_view *view)
 		return status;
 	}
 	case 'X':
+		if (values[0] == 14) {
+			if (view->count != 2) return IO_ERROR_PROTOCOL;
+			igs->memory_route = values[1] > 5 ? 0 : values[1];
+			return 0;
+		}
 		if (values[0] == 13) {
 			int operation = values[1];
 			if (operation < 0 || operation > 7) return 0;
