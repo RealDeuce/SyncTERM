@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k and v commands and X10 selector are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v and w commands and X10 selector are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -2412,4 +2412,39 @@ The new native check failed before implementation. The FreeBSD Release
 build with /usr/bin/cc passed without warnings and all 18 targeted
 CTest checks passed in 40.52 seconds. The native and application checks
 for v took 0.57 and 15.95 seconds respectively. The ledger records 33
+complete entries. Completion commit `0b493ae`.
+
+=== w console wrapping
+
+The signed unscaled selector one emits VT52 ESC v to enable wrapping.
+Zero and selectors above one emit ESC w to disable it. Negative selectors
+emit ESC alone. Each byte is processed by the existing VT52 state, so a
+pending escape or parameter can change how it is interpreted.
+
+At the right edge with wrapping disabled, successive glyphs overwrite
+that cell. With wrapping enabled, the cursor immediately moves to column
+zero of the next row. At the bottom right it scrolls the glyph and the
+graphics up, blanks the new row using the raw background, and moves to
+column zero of that row. A flag change alone leaves the cursor and raster
+in place. Color-mode initialization via R or I5 enables wrapping for low
+resolution and disables it for medium resolution. An unchanged R target
+or monochrome initialization retains the flag. Session startup and a
+SyncTERM terminal reset start with wrapping disabled.
+
+The native fixture checks 336 complete indexed scenes across all modes,
+both status choices, seven parser and edge contexts, both starting wrap
+states and four selector classes. It checks the immediate cursor move,
+overwrite, bottom-row scroll and pending console state, plus split and
+bytewise input, random selection, timeout, EOF, invalid input, renderer
+failure and initialization. The application fixture checks 90 coherent
+captures across all ST modes, Atari ST, CP437 and UTF-8, and both status
+choices, with audio and MIDI disabled. It verifies original TOS glyphs,
+both indexed phases, palette, RGB, graphics during scroll, no replies and
+fresh wrapping state after reconnect.
+
+References include chapters 04, 14, 16, 66, 99, 124, 160 and 195.
+The new native check failed before implementation. The native FreeBSD
+Release build with /usr/bin/cc passed without warnings. All 17 targeted
+CTest checks passed in 30.61 seconds. The native and application checks
+for w took 0.77 and 17.03 seconds respectively. The ledger records 34
 complete entries. Completion commit will be recorded by the next step.

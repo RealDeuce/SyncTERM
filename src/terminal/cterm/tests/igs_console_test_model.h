@@ -46,6 +46,8 @@ model_byte(struct model *m, uint8_t byte)
 		else if (byte == 'H') m->x = m->y = 0;
 		else if (byte == 'p') m->reverse = true;
 		else if (byte == 'q') m->reverse = false;
+		else if (byte == 'v') m->wrap = true;
+		else if (byte == 'w') m->wrap = false;
 		else if (byte == 'j') {
 			m->saved_x = m->x;
 			m->saved_y = m->y;
@@ -73,6 +75,19 @@ model_byte(struct model *m, uint8_t byte)
 	m->cells[index] = (struct model_cell){m->x,m->y,byte,m->reverse ? m->bg : m->fg,m->reverse ? m->fg : m->bg};
 	if (m->x+1 < m->columns) ++m->x;
 	else if (m->wrap) { m->x = 0; model_down(m); }
+}
+
+static inline void
+model_check_console(const struct cterminal *t, const struct model *m)
+{
+	CHECK(t->xpos == (int)m->x + 1 && t->ypos == (int)m->y + 1);
+	CHECK(t->vt52_foreground == m->fg && t->vt52_background == m->bg);
+	CHECK(t->negative == m->reverse);
+	CHECK(((t->extattr & CTERM_EXTATTR_AUTOWRAP) != 0) == m->wrap);
+	CHECK((t->accumulator != NULL) == (m->state != 0));
+	CHECK((t->sequence != 0) == (m->state == 1));
+	if (m->state >= 2)
+		CHECK(t->seq_trailing_remain == (m->state == 2 ? 2 : 1));
 }
 
 static void

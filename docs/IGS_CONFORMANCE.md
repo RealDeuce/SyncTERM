@@ -1455,6 +1455,25 @@ glyphs and colors, indexed phases, RGB, retained graphics, scrolling,
 and fresh console state after reconnect.
 All 18 targeted checks passed on native FreeBSD Release.
 
+### w console wrapping
+
+Selector one emits VT52 ESC v. Zero and selectors above one emit ESC w.
+A negative selector emits ESC alone. Pending console parameters and
+escapes can consume those bytes. With wrapping off, a glyph at the right
+edge leaves the cursor in that cell for overwrite. With wrapping on,
+the cursor moves immediately to the next row. A bottom-right glyph and
+existing graphics scroll up, and the cursor moves to column zero on the
+new row, blanked with the raw background. Actual color-mode
+initialization sets wrapping on for low and off for medium.
+
+`cterm_igs_wrap` checks 336 complete indexed scenes, split input,
+recovery and lifetime. `syncterm_igs_wrap` checks 90 coherent captures
+across all three ST modes, Atari ST, CP437 and UTF-8, and both status
+choices. The captures include literal glyphs, both indexed phases, RGB,
+immediate wrap, overwrite, scrolling, and reconnect after a partial
+command.
+All 17 targeted checks passed on native FreeBSD Release.
+
 ## Deliberate corrections
 
 The parser reports a bounded failure and cancels its pending command on

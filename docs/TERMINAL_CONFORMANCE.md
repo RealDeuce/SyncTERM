@@ -154,6 +154,10 @@ destructive backspace through the pending VT52 state.
 native scenes and 72 coherent application captures cover pending escape
 and parameter states, retained text and graphics, raw background on
 scroll, and reset and reconnect.
+`w` controls Atari wrapping through VT52. Its 336 native scenes and 90
+coherent application captures cover pending console input, immediate
+right-edge wrap, overwrite, scrolling with graphics, status row
+boundaries, and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

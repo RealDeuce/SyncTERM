@@ -44,18 +44,6 @@ state_only(struct fixture *f)
 }
 
 static void
-check_console(const struct cterminal *t, const struct model *m)
-{
-	CHECK(t->xpos == (int)m->x + 1 && t->ypos == (int)m->y + 1);
-	CHECK(t->vt52_foreground == m->fg && t->vt52_background == m->bg);
-	CHECK(t->negative == m->reverse);
-	CHECK((t->accumulator != NULL) == (m->state != 0));
-	CHECK((t->sequence != 0) == (m->state == 1));
-	if (m->state >= 2)
-		CHECK(t->seq_trailing_remain == (m->state == 2 ? 2 : 1));
-}
-
-static void
 composition(struct fixture *f, unsigned resolution, unsigned state, bool reverse, int selector)
 {
 	static const char *prefixes[] = {"", "\033", "\033Y", "\033Y!", "\033b", "\033c"};
@@ -83,12 +71,12 @@ composition(struct fixture *f, unsigned resolution, unsigned state, bool reverse
 		model_byte(&m, selector == 1 ? 'p' : 'q');
 	t->igs_engine->math[0] = (int16_t)selector;
 	feed(f, "G#v 0]:");
-	check_console(t, &m);
+	model_check_console(t, &m);
 
 	/* Probe the resulting raster colors with ordinary output as well. */
 	model_byte(&m, 'A');
 	feed(f, "A");
-	check_console(t, &m);
+	model_check_console(t, &m);
 	model_pixels(f, resolution, &m);
 	feed(f, "\001\001");
 }
