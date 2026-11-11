@@ -79,6 +79,7 @@ endif()
 
 add_library(st_cterm STATIC
 	cterm_igs.c
+	cterm_igs_music.c
 	cterm_igs_audio.c
 	cterm_igs_state.c
 	cterm_igs_math.c
@@ -438,7 +439,7 @@ if(BUILD_TESTING)
 	add_test(NAME cterm_igs_text_attributes COMMAND st_terminal_tests st_cterm_igs_text_attributes_test)
 	set_tests_properties(cterm_igs_text_attributes PROPERTIES TIMEOUT 120)
 	syncterm_add_test_case(st_terminal_tests st_cterm_igs_text_test tests/st_cterm_igs_text_test.c)
-	target_link_libraries(st_cterm_igs_text_test PRIVATE st_cterm)
+	target_link_libraries(st_cterm_igs_text_test PRIVATE st_cterm st_igs)
 	set_target_properties(st_cterm_igs_text_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
@@ -724,6 +725,18 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_igs_audio COMMAND st_cterm_igs_audio_test)
 	set_tests_properties(cterm_igs_audio PROPERTIES TIMEOUT 30)
+	add_executable(st_cterm_igs_music_test tests/st_cterm_igs_music_test.c
+		tests/st_cterm_igs_audio_bindings.c)
+	target_link_libraries(st_cterm_igs_music_test PRIVATE st_cterm st_igs syncterm_threads)
+	set_target_properties(st_cterm_igs_music_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_igs_music_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_igs_music_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_igs_music COMMAND st_cterm_igs_music_test)
+	set_tests_properties(cterm_igs_music PROPERTIES TIMEOUT 30)
 	add_executable(st_cterm_igs_note_test tests/st_cterm_igs_note_test.c
 		tests/st_cterm_igs_audio_bindings.c)
 	target_link_libraries(st_cterm_igs_note_test PRIVATE st_cterm st_igs syncterm_threads)

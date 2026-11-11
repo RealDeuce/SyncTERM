@@ -259,9 +259,13 @@ off. The n helper adds private normalization, priority-7 mutable-patch notes,
 local deadline/key waits and selected/all release/stop, with 235 independent
 helper cases and 306 coherent all-mode/encoding/status application captures.
 It corrects low-word clock-wrap early exits and preserves source/caller state,
-queued input and key ownership. N and MIDI integration remain pending; no
-audible/device coverage is claimed.
-Other drawing, loops and sound remain pending; see the IGS ledger for details.
+queued input and key ownership. N adds retained raw MIDI/chip buffers, byte
+alignment, replay ranges, distinct inner/outer keys, flow and local deadlines
+through those existing helpers. Native buffer/backpressure/lifecycle tests and
+342 coherent all-mode/encoding/status application captures check opaque input,
+retained records, unchanged scenes and reconnect. No audible/device coverage
+is claimed.
+Other commands, loops and input remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
@@ -774,7 +778,8 @@ status, SysEx and held voices across writes. Literal split-input tests cover
 wire recovery and realtime; injected-sink tests cover bounded continuous PCM,
 raw/file/ANSI transitions, copied FIFO ownership/backpressure, completion
 positions, flush/fade/error recovery and in-flight shutdown quiescence.
-No IGS N command integration or physical-device coverage is implied.
+IGS N uses this queue; its parser/session coverage is tracked separately in
+the IGS inventory. No physical-device coverage is implied.
 Optional final-output captures support independent loudness comparisons;
 unweighted RMS is not used to claim equal perceived loudness.
 Manually selected synth checks compare onset and sustained levels across

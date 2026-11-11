@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q, G, b and n commands and X0, X1, X2, X7, X8, X10, X11, X12, X13, X14 and X15 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q, G, b, n and N commands and X0, X1, X2, X7, X8, X10, X11, X12, X13, X14 and X15 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -3861,3 +3861,134 @@ IDs, 53 completed commands, pending N, active test registrations, dependencies
 and references were validated. No audible or native-device coverage is
 claimed. The complete MIDI component is ready for N; the full goal remains
 active.
+
+
+== N buffered MIDI and chip notes (complete)
+
+Reference: chapters 06, 23, 25, 58, 182 and 183, and the original 2.21 manual
+for the initially enabled MIDI toggle. N uses the same generic numeric/BYTES
+field descriptions and pre-ANSI insertion point as other IGS commands.
+Incremental field entry commits operation and signed count once; previews
+remain effect-free even with random/array operands. Only exact operations
+2/5/6 replay. Every other signed operation reads/publishes a count before
+loading precisely that many opaque low bytes, without a terminator, extra
+byte, clearing or rollback. A nonpositive count acquires no bytes. The
+session owns one persistent 10001-byte buffer and independent signed music
+count and 32-bit X9 script length. N never updates script length. Full
+reset/reconnect starts with zero BSS-style bytes/count/length and MIDI flag 1;
+ordinary I/R changes retain storage and sound state.
+
+Each raw store precedes its local key poll. Only a separate local Ctrl-C/X
+clears stored count and changes operation to 0, leaving the just-stored byte,
+old suffix, original local count and unread input intact. Payload 3/24 is
+ordinary data. Auxiliary receive expiry substitutes one space with BEL after
+a local five-second deadline, repeats without X11's bitmap-error counter or
+three-error abort, and preserves completed stores. Transport EOF cancels the
+unfinished reader and keeps its count/accepted bytes; it does not fabricate
+missing serial data or start playback from an incomplete load.
+
+The MIDI flag is gated once for operations <3 except fresh operation 0;
+fresh 0/>2 paths suppress and restore the flag before chip playback. N1 and
+negative operations can load/play MIDI; N2 replays. Data/delay pairs start at
+index 1. The final unpaired byte is skipped. An outer + shifts the index by
+one byte, potentially using retained data beyond the current count. The
+existing session MIDI FIFO accepts each data byte before sampling the local
+start; a delay byte means 5ms per unit. Zero delay still takes a second local
+sample. Backpressure suspends before output without repeating the pair's key
+poll, sending twice or starting its deadline early. No local key shortens a
+MIDI delay. Serial XOFF/XON surround entered MIDI blocks even when empty or
+output is disabled. Completion/outer abort leaves framing, held voices and
+buffer/count intact; only EOF/full reset/disconnect stops the session stream.
+There is no IGS message decoder, additional worker or UART/foreign clock model.
+
+N4 enters chip playback even with an empty/nonpositive count; N5 requires
+count>5. Each record fetches six unsigned bytes and calls the existing n
+helper, retaining its priority-7 trigger, private normalization, delay and
+selected/all release/stop behavior. A partial last record uses old bytes in
+the buffer, rather than being dropped or padded. Outer Ctrl-C/X aborts; outer
++ shifts by one byte. A key consumed by an inner note delay only shortens that
+delay and still applies its stop action. It never becomes an outer abort or
+shift. No automatic stop-all follows ordinary completion/abort.
+
+N6 reads first/end only when count>5. Valid nonnegative first<end<1666 numbers
+select six-byte records, first included/end excluded, independently of loaded
+length beyond that gate. End 1665 is valid; end 1666 or non-increasing ranges
+perform no playback. Entered chip/range playback uses the same flow helpers
+as MIDI and retains all completed notes on cancellation/error.
+
+Pending host events use a bounded owner-only FIFO during raw loads/outer
+playback, including events arriving during MIDI delays or an already-ended
+inner wait. Events left unpolled on normal completion return through their
+original normal/codepage/text/doorway entry point, retaining encoding and
+modifiers and avoiding duplicate console clicks. The 64-event queue falls
+back to normal host input when full; it does not emulate the Atari keyboard
+ring or impose foreign device throughput. Direct n's existing one-key wait
+and subsequent forwarding behavior is unchanged.
+
+Safe-port corrections: reject loads above 10001 after publishing their count,
+retain prior bytes, and validate every actual pair/record fetch against real
+capacity. Do not emulate following-memory writes, negative/wrapped ranges,
+index-cap nontermination or reads beyond buffer end. Incomplete final records
+remain supported whenever all six retained bytes fit. N5/N6 preserve the
+current MIDI-enable byte instead of restoring an uninitialized stack local.
+Delays use checked full local deadlines rather than the native low-word wrap.
+Acquisition/record failures retain completed side effects and cleanly cancel
+pending ownership/flow; an inner wait's failed clock poll can be retried. Muted MIDI
+still follows logical delays/flow. Output selection/volume use existing user
+policy; original accessory UI toggles/BIOS readiness are not extra host UI.
+
+Native `cterm_igs_music` checks raw payloads containing all byte values at every
+split, full command partitions, exact count publication and no extra reads,
+retained bytes/length/flags, abort/timeout/EOF, replay/range boundaries, unsigned
+helper arguments, independent RNG advancement, inner/outer keys and subsequent
+forwarding, local wait/clock errors, reset/reentrant flow, configured/disabled
+flow and loops, all ST modes/status/scaling choices with independent dual-phase
+pixels/attributes/palette/cursor, native MIDI framing/odd tails/abort/gate and
+real FIFO backpressure without devices. Application `syncterm_igs_music` adds
+342 coherent captures across all ST modes, Atari ST/CP437/UTF-8 and status
+choices, combining literal bytes/independent buffer fingerprints with exact
+indexed/RGB scene, palette, cells, cursor and voice state. It covers retained
+short/range records, queued-input/key ownership, flow, opaque controls and
+partial disconnect/fresh reconnect with AudioModes=0 and MidiModes=0. Ordinary
+tests require no external IGS installation, ROM or audio/MIDI device. Provenance and original-file
+identities are recorded in `src/tests/igs/music-vectors.json`.
+
+
+=== Manual audio checklist (not a completion gate)
+
+These checks require a deliberately enabled output and listening device; none
+has been performed by the headless/bitmap fixtures.
+
+* Compare the twenty original b effects and console BEL/keyclick. Check quiet
+  console behavior, simultaneous voices, edited/saved patches and restoration.
+* Play n on each voice at several pitches/volumes. Compare sustained notes,
+  selected/all release and immediate stop, and a key-shortened delay.
+* Play/replay a buffered N chip tune and a retained-data N6 range. Check the
+  same source patches/voices, release tails and ordinary-completion sustain.
+* Select an existing MIDI backend/device and send a valid N1 byte/delay score
+  with explicit Note On/Off. Check duration/order, N2 replay and a score split
+  across commands. Timbre belongs to the receiving synth and its current
+  programs. Ordinary playback completion/abort must not silence held notes.
+* Disconnect/reset during sustained PSG and MIDI output, then reconnect.
+  Check for hanging notes, stale PCM tails and clean session storage/patches.
+  Check output disable/re-enable and independent effects/music streams.
+
+
+=== N verification
+
+Native FreeBSD Release CMake with `/usr/bin/cc`, BUILD_TESTING=ON and
+ST_CONSOLE_TEST=ON configured and built without warnings. Concurrent IGS/RIP
+receive-error recovery edits were excluded by verifying the reviewed N-only
+snapshot against `aab6620` in `/tmp/igs-N-review`, using the same native
+configuration. All 42 selected checks are passing across the full run and
+focused reruns. Forty passed initially; the final two passed after correcting
+N receive-policy assertions and quiescing earlier console BEL audio in W's
+field/progress clock-fault fixture. W retains its exact deadline expectations
+and passed its complete 22554-vector matrix in 63.87s. Native N took 0.34s;
+the N application fixture passed 342 coherent captures in 24.48s. Other checks
+cover the shared parser, GIST/PSG/images, audio and MIDI facilities, APC/SkyPix
+audio, existing IGS waits/input/graphics/b/n, polygon/polyline, CTerm, RIP,
+SkyPix and term/key forwarding. Source identities and the ledger's 63 ordered
+IDs, 54 completed commands, active tests, references and dependencies were
+validated. Ordinary tests use no external files or physical devices. The
+full goal remains active; unrelated parallel recovery edits stay separate.

@@ -83,6 +83,7 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 	const struct cterm_igs *igs = st_term_session_cterm(owner->session)->igs_engine;
 	if (igs != NULL) {
 		cterm_igs_audio_inspect(igs,app);
+		cterm_igs_music_inspect(igs,app);
 		st_console_test_number(app, "cterm.igs_resolution", igs->resolution);
 		st_console_test_number(app, "cterm.igs_console_foreground", igs->terminal->vt52_foreground);
 		st_console_test_number(app, "cterm.igs_console_background", igs->terminal->vt52_background);

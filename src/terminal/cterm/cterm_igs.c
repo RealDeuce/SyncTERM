@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
 #include "cterm_igs_audio.h"
+#include "cterm_igs_music.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
@@ -93,6 +94,29 @@ bitmap_next(void *context, const struct st_graphics_command_view *view,
 		status = cterm_igs_argument_value(&preview,&view->arguments[1],&section);
 		if (status == 0) *result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_BYTES,
 		    .size = cterm_igs_bitmap_size(section)};
+	}
+	return status;
+}
+
+static int
+music_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	struct cterm_igs *igs = context;
+	struct cterm_igs_music *m = igs->music;
+	*result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	int operation = m->operation;
+	int status = m->command ? 0 : preview_first(context, view, &operation);
+	if (status != 0) return status;
+	if (operation == 2 || operation == 5 || operation == 6) {
+		if (operation == 6 && m->count > 5 && view->count < 3) *result = unscaled_parameters[0];
+	} else if (view->count == 1) *result = unscaled_parameters[0];
+	else if (view->count == 2) {
+		struct cterm_igs preview = *igs;
+		int count;
+		status = cterm_igs_argument_value(&preview, &view->arguments[1], &count);
+		if (status == 0) *result = (struct st_graphics_parameter){.kind = ST_GRAPHICS_BYTES,
+		    .size = count > 0 && count <= CTERM_IGS_MUSIC_BYTES ? (size_t)count : 0};
 	}
 	return status;
 }
@@ -364,6 +388,7 @@ static const struct st_graphics_command commands[] = {
 	{'G', unscaled_parameters, 2, grab_next},
 	{'b', unscaled_parameters, 1, effect_next},
 	{'n', unscaled_parameters, 6, NULL},
+	{'N', unscaled_parameters, 1, music_next},
 	{'I', unscaled_parameters, 1, NULL},
 	{'R', unscaled_parameters, 2, NULL},
 	{'g', unscaled_parameters, 1, NULL},
@@ -409,6 +434,8 @@ static const struct st_graphics_command commands[] = {
 static void
 cancel_input(struct cterm_igs *igs)
 {
+	igs->reset_pending = false;
+	cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
 	st_graphics_parser_cancel(igs->parser);
 	igs->input_deadline = igs->text_deadline = igs->wait_deadline = 0;
 	igs->pending_resolution = -1;
@@ -422,7 +449,6 @@ cancel_input(struct cterm_igs *igs)
 	cterm_igs_bitmap_cancel(igs);
 	cterm_igs_palette_rotation_cancel(igs);
 	cterm_igs_sweep_cancel(igs);
-	igs->reset_pending = false;
 }
 
 static int
@@ -539,8 +565,8 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 	return 0;
 }
 
-static int
-flow(struct cterm_igs *igs, bool on)
+int
+cterm_igs_flow(struct cterm_igs *igs, bool on)
 {
 	if (igs->flow_mode == 0)
 		return 0;
@@ -561,7 +587,7 @@ end_pause(struct cterm_igs *igs)
 	igs->timed_pause = igs->pause_key = false;
 	igs->wait_deadline = 0;
 	/* Exit uses the current loop and flow settings, independently of entry. */
-	return igs->loop_mode == 1 ? 0 : flow(igs, true);
+	return igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, true);
 }
 
 static int
@@ -577,7 +603,7 @@ begin_pause(struct cterm_igs *igs, int seconds)
 	igs->wait_deadline = now + duration;
 	igs->timed_pause = true;
 	igs->pause_key = false;
-	status = igs->loop_mode == 1 ? 0 : flow(igs, false);
+	status = igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, false);
 	return status == 0 ? IO_ERROR_IN_PROGRESS : status;
 }
 
@@ -622,6 +648,22 @@ field_entry(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
 	struct cterm_igs *igs = context;
+	if (view->code == 'N') {
+		if (view->count == 0) return 0;
+		struct cterm_igs_music *m = igs->music;
+		if (!m->command) {
+			int operation;
+			int status = cterm_igs_argument_value(igs, &view->arguments[0], &operation);
+			if (status != 0) return status;
+			cterm_igs_music_prefix(igs, operation);
+		}
+		if (view->count == 2 && parameter->kind == ST_GRAPHICS_BYTES) {
+			int count;
+			int status = cterm_igs_argument_value(igs, &view->arguments[1], &count);
+			return status == 0 ? cterm_igs_music_load(igs, count) : status;
+		}
+		return 0;
+	}
 	bool pattern = false;
 	if (view->code == 'X' && view->count >= 2) {
 		struct cterm_igs preview = *igs;
@@ -690,7 +732,7 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 	igs->text_deadline = now > UINT64_MAX-5000 ? UINT64_MAX : now+5000;
 	if (igs->loop_mode == 1 && igs->loop_kind == '@') {
 		if (igs->text_counter < SIZE_MAX) ++igs->text_counter;
-		if (igs->text_counter == 1) return flow(igs,true);
+		if (igs->text_counter == 1) return cterm_igs_flow(igs,true);
 	}
 	return 0;
 }
@@ -750,6 +792,22 @@ command(void *context, const struct st_graphics_command_view *view)
 	int values[1+2*CTERM_IGS_MAX_POINTS];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
+	if (view->code == 'N') {
+		struct cterm_igs_music *m = igs->music;
+		if (!m->command) {
+			int operation;
+			int status = cterm_igs_argument_value(igs, &view->arguments[0], &operation);
+			if (status != 0) return status;
+			cterm_igs_music_prefix(igs, operation);
+		}
+		int first = 0, end = 0, status = 0;
+		if (m->operation == 6 && m->local_count > 5) {
+			if (view->count != 3) return IO_ERROR_PROTOCOL;
+			status = cterm_igs_argument_value(igs, &view->arguments[1], &first);
+			if (status == 0) status = cterm_igs_argument_value(igs, &view->arguments[2], &end);
+		}
+		return status == 0 ? cterm_igs_music_execute(igs, first, end) : status;
+	}
 	if (view->code == 'X' && igs->bitmap_loading) {
 		if (view->count != 4 || view->arguments[3].kind != ST_GRAPHICS_BYTES
 		    || view->arguments[3].size != igs->bitmap_received) return IO_ERROR_PROTOCOL;
@@ -908,13 +966,13 @@ command(void *context, const struct st_graphics_command_view *view)
 		int count = view->code == 'F' ? 0 : point_count(values[0], view->code == 'f' ? 1 : 2);
 		if (view->count != (view->code == 'F' ? 2 : 1+(size_t)count*2))
 			return IO_ERROR_PROTOCOL;
-		int status = igs->loop_mode == 1 ? 0 : flow(igs, false);
+		int status = igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, false);
 		if (status == 0)
 			status = view->code == 'F' ? cterm_igs_flood(igs,values[0],values[1])
 			    : view->code == 'f' ? cterm_igs_polygon(igs, values+1, (size_t)count)
 			    : cterm_igs_polyline(igs, values+1, (size_t)count);
 		if (status == 0 && igs->loop_mode != 1)
-			status = flow(igs, true);
+			status = cterm_igs_flow(igs, true);
 		return status;
 	}
 	case 'D': {
@@ -1039,6 +1097,12 @@ raw(void *context, const struct st_graphics_command_view *view,
     const uint8_t *bytes, size_t size, size_t *accepted, bool *end)
 {
 	struct cterm_igs *igs = context;
+	if (view->code == 'N') {
+		if (parameter->kind != ST_GRAPHICS_BYTES || offset != igs->music->received) {
+			*accepted = 0; return IO_ERROR_PROTOCOL;
+		}
+		return cterm_igs_music_bytes(igs, bytes, size, accepted, end);
+	}
 	if (!igs->bitmap_loading) return 0;
 	if (view->code != 'X' || parameter->kind != ST_GRAPHICS_BYTES
 	    || offset != igs->bitmap_received) { *accepted = 0; return IO_ERROR_PROTOCOL; }
@@ -1114,6 +1178,8 @@ cterm_igs_destroy(struct cterm_igs *igs)
 {
 	if (igs == NULL)
 		return;
+	cterm_igs_music_stop(igs);
+	free(igs->music);
 	cterm_igs_audio_destroy(igs);
 	st_graphics_parser_destroy(igs->parser);
 	st_igs_image_destroy(igs->memory[0]);
@@ -1138,6 +1204,7 @@ cterm_igs_reset(struct cterm_igs *igs)
 			cterm_render_record_error(igs->terminal, status);
 	}
 	cancel_input(igs);
+	cterm_igs_music_stop(igs);
 	cterm_igs_audio_destroy(igs);
 	memset(igs->warned, 0, sizeof(igs->warned));
 	cterm_render_record_error(igs->terminal, cterm_igs_state_reset(igs));
@@ -1146,18 +1213,21 @@ cterm_igs_reset(struct cterm_igs *igs)
 bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
-	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause || igs->note.active);
+	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause || igs->note.active
+	    || (igs->music != NULL && igs->music->playing));
 }
 
 bool
-cterm_igs_handle_key(struct cterm_igs *igs)
+cterm_igs_handle_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 {
+	if (igs != NULL && igs->music != NULL && igs->music->replaying) return false;
 	if (igs != NULL && !igs->terminal->quiet)
 		cterm_render_record_error(igs->terminal,cterm_igs_audio_console(igs,true));
 	if (igs != NULL && igs->note.active && !igs->note.key) {
 		igs->note.key = true;
 		return true;
 	}
+	if (igs != NULL && cterm_igs_music_key(igs, key)) return true;
 	if (igs != NULL && igs->palette_rotation.active && !igs->palette_rotation.key) {
 		igs->palette_rotation.key = true;
 		return true;
@@ -1206,12 +1276,15 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	if (status == IO_ERROR_IN_PROGRESS)
 		status = 0;
 	if (status != 0) {
+		cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
 		igs->pattern_loading = false;
 		igs->pattern_slot = 0;
 		igs->math_printing = false;
 		cterm_igs_bitmap_cancel(igs);
 	}
-	if (status == 0 && igs->bitmap_loading)
+	if (status == 0 && igs->music->loading)
+		igs->input_deadline = igs->music->receive_deadline;
+	else if (status == 0 && igs->bitmap_loading)
 		igs->input_deadline = igs->bitmap_deadline;
 	else if (status == 0 && !cterm_igs_paused(igs) && st_graphics_parser_in_command(igs->parser)) {
 		uint64_t now;
@@ -1233,6 +1306,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 {
 	if (igs->feeding)
 		return 0;
+	cterm_igs_music_stop(igs);
 	cterm_igs_audio_stop(igs);
 	if (cterm_igs_paused(igs)) {
 		int status = 0;
@@ -1266,7 +1340,8 @@ cterm_igs_finish(struct cterm_igs *igs)
 	igs->pattern_slot = 0;
 	igs->math_printing = false;
 	cterm_igs_bitmap_cancel(igs);
-	return status;
+	int cancelled = cterm_igs_music_cancel(igs);
+	return status == 0 ? cancelled : status;
 }
 
 int
@@ -1279,7 +1354,17 @@ cterm_igs_poll(struct cterm_igs *igs)
 		int status = igs->now_ms(&now);
 		if (status != 0 || (!igs->note.key && now < igs->wait_deadline)) return status;
 		status = cterm_igs_audio_note_end(igs);
-		return status == 0 ? st_graphics_parser_resume(igs->parser) : status;
+		if (status != 0) return status;
+		if (!igs->music->playing) return st_graphics_parser_resume(igs->parser);
+	}
+	if (igs->music->playing) {
+		igs->feeding = true;
+		int status = cterm_igs_music_resume(igs);
+		igs->feeding = false;
+		if (igs->reset_pending) { cterm_igs_reset(igs); return status == IO_ERROR_INTERRUPTED ? 0 : status; }
+		if (status == IO_ERROR_IN_PROGRESS) return 0;
+		if (status != 0) { cancel_input(igs); return status; }
+		return st_graphics_parser_resume(igs->parser);
 	}
 	if (igs->sweep.active) {
 		int status = igs->now_ms(&now);
@@ -1358,6 +1443,20 @@ cterm_igs_poll(struct cterm_igs *igs)
 			return status;
 		}
 		return st_graphics_parser_resume(igs->parser);
+	}
+	if (igs->music->loading) {
+		int status = igs->now_ms(&now);
+		if (status != 0 || now < igs->music->receive_deadline) return status;
+		const uint8_t space = ' '; size_t used;
+		struct st_graphics_parser_sink callbacks = sink(igs);
+		igs->feeding = true;
+		status = st_graphics_parser_feed(igs->parser, &callbacks, &space, 1, &used);
+		igs->feeding = false;
+		if (igs->reset_pending) { cterm_igs_reset(igs); return status == IO_ERROR_INTERRUPTED ? 0 : status; }
+		if (status == IO_ERROR_IN_PROGRESS) status = 0;
+		if (status != 0) { cancel_input(igs); return status; }
+		igs->input_deadline = igs->music->loading ? igs->music->receive_deadline : 0;
+		return 0;
 	}
 	if (igs->bitmap_loading) {
 		int status = igs->now_ms(&now);

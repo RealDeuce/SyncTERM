@@ -53,6 +53,9 @@ selector rules through that same VT52 state.
 GIST/PSG/console audio with session ownership and muted progression.
 `n` adds priority-7 notes, local key/deadline waits and selected/all release or
 stop through the same mutable patches and shared PSG.
+`N` adds incremental shared-buffer loads, retained MIDI/chip replay and ranges,
+local waits, flow and distinct inner/outer key handling through those existing
+MIDI and note helpers.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -64,12 +67,13 @@ required. Original bugs and memory/overflow accidents are corrected safely
 and will be listed here with tests. Historical delivery profiles, BIG and
 CONDOR implementations are outside this goal.
 
-GIST/PSG synthesis, shared console sound and b/n session integration are tested.
+GIST/PSG synthesis, shared console sound and b/n/N session integration are tested.
 The existing music worker now supports continuous raw MIDI writes with
 retained framing/held voices and bounded software rendering; native
 `music_decode` and `music_stream` checks cover this component.
-Buffered N/music and its MIDI integration remain unfinished.
-Audio implements GIST/PSG behavior; buffered music will use SyncTERM MIDI facilities.
+N now integrates that worker and the shared six-byte note helper.
+Nested X9 script execution remains pending.
+Audio implements GIST/PSG behavior; buffered music uses SyncTERM MIDI facilities.
 Sound tests check functionality and lifecycle, without requiring identical PCM
 or reference-render comparisons. Listening is deferred to manual testing
 after implementation; no auditory coverage is claimed by silent fixtures.

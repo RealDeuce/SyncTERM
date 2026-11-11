@@ -3634,7 +3634,9 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
 
 	if (terminal == NULL)
 		return false;
-	if (cterm_igs_handle_key(terminal->igs_engine))
+	if (cterm_igs_handle_key(terminal->igs_engine, &(struct cterm_igs_key){
+	    .kind = CTERM_IGS_KEY_NORMAL, .value = key_code, .modifiers = modifiers,
+	    .local = mapped_key(key_code, modifiers)}))
 		return true;
 	engine = terminal->rip_engine;
 	if (engine != NULL && engine->tab_enabled && key_code == '\t') {
@@ -3678,7 +3680,8 @@ st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte)
 {
 	if (terminal == NULL)
 		return false;
-	if (cterm_igs_handle_key(terminal->igs_engine))
+	if (cterm_igs_handle_key(terminal->igs_engine, &(struct cterm_igs_key){
+	    .kind = CTERM_IGS_KEY_CODEPAGE, .value = byte, .local = byte}))
 		return true;
 	if (st_cterm_handle_rip_text(terminal,
 	    st_codepage_to_unicode(terminal->screen.codepage, byte, false)))
@@ -3694,7 +3697,8 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 
 	if (terminal == NULL)
 		return false;
-	if (cterm_igs_handle_key(terminal->igs_engine))
+	if (cterm_igs_handle_key(terminal->igs_engine, &(struct cterm_igs_key){
+	    .kind = CTERM_IGS_KEY_TEXT, .value = codepoint, .local = (int)codepoint}))
 		return true;
 	if (st_cterm_handle_rip_text(terminal, codepoint))
 		return true;
@@ -3750,7 +3754,8 @@ st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint)
 bool
 st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code)
 {
-	if (terminal != NULL && cterm_igs_handle_key(terminal->igs_engine))
+	if (terminal != NULL && cterm_igs_handle_key(terminal->igs_engine, &(struct cterm_igs_key){
+	    .kind = CTERM_IGS_KEY_DOORWAY, .value = scan_code, .local = (int)scan_code << 8}))
 		return true;
 	if (terminal != NULL && terminal->rip_engine != NULL
 	    && terminal->rip_engine->tab_enabled && scan_code == 0x0f) {

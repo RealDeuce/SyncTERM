@@ -379,7 +379,7 @@
     },
     {
       "id": "igs-sound",
-      "status": "in-progress",
+      "status": "complete",
       "references": [
         "06-audio.adoc",
         "56-gist-interrupt-voices.adoc",
@@ -406,7 +406,8 @@
         "Local sample fractions schedule GIST at 200 updates/second and console service at 50/second, first console service at 15ms, with GIST preceding a coincident console service. New BEL/click obey the post-update active-voice gate; a previously accepted table still overwrites shared PSG registers. Quiet suppresses console triggers. A stopped/unavailable/disabled output retains logical command behavior and edits, while local monotonic time advances control and generator phases without PCM. Exact rational phase reduction and GF(2) noise jumps handle unheard 64-bit frame spans; discard unheard filter history to prevent replaying old tails.",
         "b0..23 parser and session integration are complete. EOF/disconnect stops the chip source and voices while retaining source patches for the current terminal; full reset/reconnect discards the model and recreates original mutable/saved banks. I/R graphics changes preserve sound state. Native tests include disabled output, two idle days, backend/model allocation/clock failures, policy re-enable without stale envelopes, independent FX survival and concurrent pull/edit/restore/reset/shutdown. Application captures observe locked sound state together with pixels/cells/palette/cursor.",
         "n now reuses the same session patches/GIST/PSG through a shared six-argument note helper for future N byte records. Explicit priority-7 voice/volume/pitch overrides, sentinel effect 125 and nonpositive pitch, sustained notes, release/stop order, local interruptible deadlines, error/EOF/reset lifecycle and zero-delay ordering are independently tested without adding an audio/clock subsystem.",
-        "The existing session music worker now accepts copied continuous MIDI wire writes without a per-write start/reset/release. It shares backend selection, incremental framing/controller gain, output stream, FIFO limits and cancellation. Running status and incomplete messages/SysEx survive writes; wire recovery handles interrupted messages and orphan bytes while file decoding remains strict. Software sinks render held voices between writes with a 256-frame live window; caller-local deadlines supply byte timing. N integration remains pending. Component commit: 255d0b7."
+        "The existing session music worker now accepts copied continuous MIDI wire writes without a per-write start/reset/release. It shares backend selection, incremental framing/controller gain, output stream, FIFO limits and cancellation. Running status and incomplete messages/SysEx survive writes; wire recovery handles interrupted messages and orphan bytes while file decoding remains strict. Software sinks render held voices between writes with a 256-frame live window; caller-local deadlines supply byte timing. N integration remains pending. Component commit: 255d0b7.",
+        "N now integrates the continuous MIDI FIFO and shared numeric/byte note helper with incremental retained-buffer loads, MIDI/chip replay/ranges, local waits, inner/outer keyboard ownership, configured flow and disconnect/reset. No additional backend, PSG, VT52 parser or clock subsystem. Shared X9 storage is established; nested script execution remains a separate pending command."
       ],
       "tests": [
         "igs_gist",
@@ -419,14 +420,16 @@
         "syncterm_igs_note",
         "music_decode",
         "music_stream",
-        "music_player"
+        "music_player",
+        "cterm_igs_music",
+        "syncterm_igs_music"
       ],
       "deviations": [
         "Edited dynamic volume-factor indices are bounded to 0..15 at use, preserving the stored word and other defined raw conversions rather than reading outside the host table. No native code/RAM/MMIO escape or installer/bus model.",
         "Host synthesis choices: summed logarithmic channel amplitudes, local 44100Hz waveform-edge integration and documented low-pass/DC filtering, rather than the separate canonical 48kHz nonlinear reference PCM. Register writes take effect at local sample boundaries; a shortened period behind carried phase resolves one overdue edge at the next sample. No CPU/bus/sub-sample write timestamp model or machine GPIO effects. These choices do not impose a reference PCM-byte or listening gate."
       ],
       "limitations": [
-        "Buffered N commands and their connection to the completed continuous MIDI queue remain pending. No auditory or physical-device coverage is claimed."
+        "No auditory or physical-device coverage is claimed; final manual listening remains a goal deliverable. X9 nested script execution is tracked separately from the completed sound foundation."
       ],
       "verification": [
         "Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. Generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 13 selected CTest checks passed in 8.18 seconds: igs_gist, indexed images, shared parser/stream, audio mixer/synthesis, music player, APC/SkyPix audio, X8/X15, CTerm and term. igs_gist took 0.01 seconds, checking 1044 independent update records, 160 complete API records, 65536 pitch/control words and all 20 original automatic patch lifetimes, plus literal ordering/ownership/safe-bound cases. Validated all 63 command IDs with 51 complete entries, references/dependencies/active test registrations, fixture inventories and all four original-data/oracle hashes. No command completion or PSG/PCM/audible/native-device coverage is claimed; this is a complete GIST record/register component within the still-in-progress sound foundation.",
@@ -434,7 +437,8 @@
         "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 14 selected CTest checks passed in 13.41 seconds: igs_psg, igs_gist, igs_image, shared parser/stream, st_audio_source, st_audio_mixer, st_audio, st_audio_synthesis, music_player, APC/SkyPix audio, CTerm and term. The standalone PSG check runs in about 0.1 second with literal/closed-form expectations, 4096 register writes, 12288 tone-period/phase profiles, 65536 envelope-period words, 32 noise periods, all 16 envelope shapes at 2400 local sample positions each, 32768 gate/level profiles, 32 DAC probes, manual shared-noise trace, source-partition invariance and all 20 original GIST patches. No command status advances; 51/63 remain complete. Source identities and synthesis choices are recorded in src/tests/igs/psg-synthesis.json.",
         "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 30 selected CTest checks passed in 59.47 seconds, covering shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and the b application fixture. cterm_igs_audio took 0.27 seconds, igs_psg 0.13 seconds and syncterm_igs_effect 19.73 seconds. The application fixture passed 198 coherent captures across all three ST modes, Atari ST/CP437/UTF-8 and both status choices, with AudioModes=0 and MidiModes=0. No external runtime assets or physical audio were used. Independent original-data fingerprints and active test registrations are validated; 52/63 command entries are complete.",
         "The native n test failed at the missing trigger before implementation. Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 32 selected CTest checks passed in 86.51 seconds: shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application b/n. Native n took 0.34 seconds and its application fixture 25.87 seconds, including 235 independent helper cases and 306 coherent all-mode/encoding/status captures. Physical audio/MIDI were disabled; PCM tests use the device-free pull runtime. All 63 ordered command IDs, 53 completed entries, active test registrations/dependencies/references, original-data identities and independent note fixture provenance/counts were validated. No auditory/device/reference-waveform coverage is claimed.",
-        "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 36 selected CTest checks passed in 87.07 seconds: shared parser/stream, GIST/PSG/images, audio runtime/source/mixer/synthesis, MIDI parse/decode/calibration/player/continuous stream, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application b/n. music_stream took 0.40 seconds, music_decode 0.00 seconds and music_player 0.94 seconds. Tests use injected sinks and device-free pull PCM; application fixtures keep physical audio/MIDI disabled. Validated 63 ordered command IDs, 53 completed entries, pending N, active tests, dependencies and source references. This completes continuous MIDI worker/decoder support only; N command integration and auditory/native-device coverage remain pending."
+        "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 36 selected CTest checks passed in 87.07 seconds: shared parser/stream, GIST/PSG/images, audio runtime/source/mixer/synthesis, MIDI parse/decode/calibration/player/continuous stream, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application b/n. music_stream took 0.40 seconds, music_decode 0.00 seconds and music_player 0.94 seconds. Tests use injected sinks and device-free pull PCM; application fixtures keep physical audio/MIDI disabled. Validated 63 ordered command IDs, 53 completed entries, pending N, active tests, dependencies and source references. This completes continuous MIDI worker/decoder support only; N command integration and auditory/native-device coverage remain pending.",
+        "Native FreeBSD Release CMake with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON. To exclude concurrent IGS/RIP receive-error recovery edits, verified the N-only snapshot against aab6620 in /tmp/igs-N-review using the same native configuration. Full configure/build passed without warnings. The 42 selected checks are passing across the full run and targeted reruns: 40 checks passed initially; corrected N receive-policy assertions and isolated W field/progress clock injection from an earlier BEL audio model, retaining its deadline/pixel expectations. The final focused rerun passed cterm_igs_text in 63.87s (22554 independent glyph vectors) and cterm_igs_music in 0.34s. The other checks cover shared parser/stream, GIST/PSG/images, audio runtime/source/mixer/synthesis, MIDI parse/decode/calibration/player/stream, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, polygon/polyline, CTerm ANSI/VT52/keyboard/MIDI, RIP parser, SkyPix, term/key forwarding and application b/n/N. syncterm_igs_music passed 342 coherent all-mode/encoding/status captures in 24.48s, with physical audio/MIDI off. Validated all 63 ordered IDs, 54 completed commands, active tests, dependencies, references and pinned N source identities. No auditory/native-device coverage is claimed. Parallel recovery changes are excluded from the N snapshot/commit."
       ],
       "commit": null
     }
@@ -2774,15 +2778,42 @@
       "references": [
         "06-audio.adoc",
         "23-note-music-commands.adoc",
-        "24-effect-patch-command.adoc"
+        "25-file-raw-services.adoc",
+        "58-native-midi-output.adoc",
+        "182-delivery-note-and-wait-commands.adoc",
+        "183-delivery-buffered-music.adoc"
       ],
       "order": 54,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "igs-sound",
+        "n"
+      ],
+      "operations": [
+        "Incremental generic numeric/BYTES descriptors stage operation and signed count exactly once, including random/array values, before receiving opaque data. Exact 2/5/6 replay; every other signed operation loads. One persistent 10001-byte session buffer shares independent music count and future X9 script length; N never updates script length. Initial/reset bytes/count/length are zero and MIDI flag is 1; I/R retain them.",
+        "Raw stores occur before local key polls. Separate Ctrl-C/X clears only stored count and changes local operation to 0, preserving the just-stored byte, old suffix, original local count and unread input. Payload controls remain opaque. Per-receive local five-second timeout substitutes a space with BEL and continues, independent of X11 errors. EOF cancels incomplete loads while retaining accepted bytes/count.",
+        "MIDI gate is tested once for signed operation<3, except the fresh-0 suppress/restore path. N1/negative operations load and play; N2 replays. Byte/delay pairs send before sampling their local start, use 5ms units, skip an unpaired final byte and allow + one-byte alignment shifts through retained storage. Zero delay samples twice; MIDI waits do not poll keys. Existing music worker FIFO backpressure pauses before output/deadline without repeating key polls or bytes.",
+        "N4 always enters chip playback; N5 requires count>5. Six unsigned bytes, including retained suffixes of short records, call the shared n helper. No automatic stop-all on ordinary completion/abort. Outer Ctrl-C/X aborts and + shifts one byte; an inner arbitrary key only shortens that note delay and still applies stop. N6 reads first/end only when count>5 and plays nonnegative first<end<1666 record ranges independent of current loaded length.",
+        "Common serial XOFF/XON helpers surround entered playback, including empty/disabled-output and local abort paths, preserving configured bytes/counts/gates and reentrant-reset safety. Full reset/EOF/disconnect quiesces this session MIDI stream and chip; normal completion/abort retains held voices, decoder framing, data and count.",
+        "Owner-only 64-event FIFO preserves original normal/codepage/text/doorway input and modifiers while loading/playing, queues MIDI-delay keys until the next outer poll, separates inner/outer polls, and returns unused events through their original input entry points without duplicate clicks. A full queue falls through to normal host input.",
+        "Independent native literal cases cover all raw byte values and every split, full command partitions, record/range/capacity boundaries, unsigned operands, RNG state, clock/error/timeout/EOF/reset, keys/forwarding, all ST mode/status/scaling combinations with exact dual-phase pixels/attributes/palette/cursor, flow configuration/loops, injected MIDI frames/gate/odd tails and real bounded-FIFO backpressure. 342 coherent application captures combine independent byte-buffer fingerprints and voice state with exact indexed/RGB cells/pixels/palette/cursor across all modes/encodings/status choices; physical audio/MIDI are off."
+      ],
+      "tests": [
+        "cterm_igs_music",
+        "syncterm_igs_music",
+        "cterm_igs_note",
+        "music_decode",
+        "music_stream",
+        "music_player"
+      ],
+      "deviations": [
+        "Reject counts above 10001 after publishing the count and preserve prior bytes. Validate every actual pair/record read against real capacity; do not emulate native following-memory writes, negative/wrapped range escapes, index-cap nontermination or padding beyond buffer end. Incomplete records are retained-data reads whenever all six bytes fit.",
+        "N5/N6 preserve the current MIDI-enable byte instead of restoring an uninitialized saved stack word. Use checked full local deadlines instead of native low-word clock-wrap behavior. Existing output queue/readiness and MIDI decoder/backends replace Atari BIOS/UART/IKBD timing; no new foreign clock or stream parser.",
+        "Transport EOF cancels an unfinished serial reader; only actual receive timeout supplies space/BEL. Host event queue is bounded and returns overflow to normal input rather than reproducing a native keyboard ring. Original accessory UI toggle keys are not additional host UI; MIDI output selection/volume follows existing user policy."
+      ],
+      "verification": [
+        "Native FreeBSD Release CMake with /usr/bin/cc, BUILD_TESTING=ON and ST_CONSOLE_TEST=ON. To exclude concurrent IGS/RIP receive-error recovery edits, verified the N-only snapshot against aab6620 in /tmp/igs-N-review using the same native configuration. Full configure/build passed without warnings. The 42 selected checks are passing across the full run and targeted reruns: 40 checks passed initially; corrected N receive-policy assertions and isolated W field/progress clock injection from an earlier BEL audio model, retaining its deadline/pixel expectations. The final focused rerun passed cterm_igs_text in 63.87s (22554 independent glyph vectors) and cterm_igs_music in 0.34s. The other checks cover shared parser/stream, GIST/PSG/images, audio runtime/source/mixer/synthesis, MIDI parse/decode/calibration/player/stream, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, polygon/polyline, CTerm ANSI/VT52/keyboard/MIDI, RIP parser, SkyPix, term/key forwarding and application b/n/N. syncterm_igs_music passed 342 coherent all-mode/encoding/status captures in 24.48s, with physical audio/MIDI off. Validated all 63 ordered IDs, 54 completed commands, active tests, dependencies, references and pinned N source identities. No auditory/native-device coverage is claimed. Parallel recovery changes are excluded from the N snapshot/commit."
+      ],
       "commit": null
     },
     {

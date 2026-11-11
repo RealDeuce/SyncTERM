@@ -2,6 +2,7 @@
  * Original contracts: IGS reference 15/16/28/29/31/117/120/123/124/128/129/130. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
+#include "cterm_igs_music.h"
 #include "cterm_igs_fonts.h"
 #include "cterm.h"
 #include "cterm_render.h"
@@ -433,6 +434,8 @@ cterm_igs_state_init(struct cterm_igs *igs)
 int
 cterm_igs_state_reset(struct cterm_igs *igs)
 {
+	int status = cterm_igs_music_reset(igs);
+	if (status != 0) return status;
 	for (unsigned i = 0; i < 2; ++i) {
 		st_igs_image_destroy(igs->memory[i]);
 		igs->memory[i] = NULL;

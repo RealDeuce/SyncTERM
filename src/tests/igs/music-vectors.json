@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "target": "IGS221/IG221.ACC serial / intended US TOS 1.04 software graphics",
+  "provenance": "Handwritten literal N raw-byte records, MIDI messages, boundary/ownership expectations and independent buffer fingerprints derived from documented serial command order. No expected images/PCM generated from SyncTERM. The original accessory/manual confirm initialized flag 1 and BSS-style zero buffer.",
+  "references": [
+    {
+      "path": "docs/igs/06-audio.adoc",
+      "sha256": "37b5ea4cf736260706a6d207ee2fdda71894c34d09bd9efadce1a4460190cc71"
+    },
+    {
+      "path": "docs/igs/23-note-music-commands.adoc",
+      "sha256": "fecd34328ca348617dceefdb4c23b2eb2feefd599b6a7554d613eb510d535e80"
+    },
+    {
+      "path": "docs/igs/25-file-raw-services.adoc",
+      "sha256": "022138f43d9530e0942ff6c7cb4c63b3555c83cbea4fbc2942ed83f4c6e7235d"
+    },
+    {
+      "path": "docs/igs/58-native-midi-output.adoc",
+      "sha256": "81d2ace568c1859f181876049db1691373dc73300938f60c732d35d1ddd609f4"
+    },
+    {
+      "path": "docs/igs/182-delivery-note-and-wait-commands.adoc",
+      "sha256": "8cb974c37d5a5e11e3cb16267fc552b3297a70ef2619e672680ca2e2d3340bcf"
+    },
+    {
+      "path": "docs/igs/183-delivery-buffered-music.adoc",
+      "sha256": "16889866c979979b42c78384081b1b259fc8f8006e465aff87c53cbb63faf18d"
+    },
+    {
+      "path": "docs/igs/22-palette-bitmap-x-dispatch.adoc",
+      "sha256": "2366956363f67b75c9abbfbbd37d00cec199615992f4c81d642b377a1c1ef799"
+    }
+  ],
+  "originals": [
+    {
+      "path": "IGS221/IG221.ACC",
+      "sha256": "3dfab4e763b35346a1ed2aa0ab05bb1c1b2de06692e26edd16bc205c08a5d9f1"
+    },
+    {
+      "path": "IGS221/IG221.TXT",
+      "sha256": "02bd787fc7271fd0485609fc5e7689c7099cf2ffc188f90070025645abecfe66"
+    }
+  ],
+  "tests": [
+    "cterm_igs_music",
+    "syncterm_igs_music"
+  ],
+  "raw_bytes": 256,
+  "raw_split_positions": 257,
+  "command_split_positions": 33,
+  "native_graphics_profiles": 18,
+  "application_graphics_profiles": 18,
+  "application_captures": 342,
+  "storage_bytes": 10001,
+  "note_record_bytes": 6,
+  "delay_unit_ms": 5,
+  "expected_midi_example": {
+    "source_pairs_hex": "90003c0164023d0065007f",
+    "emitted_messages_hex": "903c64903d65"
+  },
+  "ordinary_tests_require_external_files": false,
+  "physical_audio": false,
+  "physical_midi": false,
+  "manual_listening_or_device_coverage": false
+}

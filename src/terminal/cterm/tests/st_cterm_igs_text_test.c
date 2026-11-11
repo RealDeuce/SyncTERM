@@ -1,6 +1,7 @@
 /* W: literal native glyph pixels and opaque incremental text acquisition. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_fill_test_helpers.h"
+#include "cterm_igs_audio.h"
 
 static void
 literal(void)
@@ -169,7 +170,10 @@ loops_and_deadlines(void)
 	CHECK(st_cterm_write(f.terminal,"A@",2,&used) == IO_ERROR_IO && used == 0 && igs->text_deadline == deadline);
 	igs->now_ms = now; feed(&f,"A@"); CHECK(igs->text_deadline == 0 && igs->shared_text_size == 1);
 	for (unsigned i = 0; i < 16; ++i) CHECK(igs->patterns[2][i] == user_rows[i]);
-	/* A later clock failure must not lose the already established deadline. */
+	/* A later clock failure must not lose the already established deadline.
+	 * Earlier timeout BELs can leave a console audio model polling the clock;
+	 * quiesce it so this fault targets field entry and reader progress. */
+	cterm_igs_audio_destroy(igs);
 	igs->now_ms = first_clock; clock_reads = 0;
 	CHECK(st_cterm_write(f.terminal,header,sizeof(header)-1,&used) == IO_ERROR_IO && used == sizeof(header)-1);
 	CHECK(clock_reads == 2 && igs->text_deadline == local_ms+5000 && igs->input_deadline == igs->text_deadline);
