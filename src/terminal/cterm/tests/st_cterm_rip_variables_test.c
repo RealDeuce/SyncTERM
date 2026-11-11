@@ -246,7 +246,8 @@ test_host_commands(enum st_cterm_encoding encoding)
 		size_t consumed;
 
 		capture.size = 0;
-		CHECK(st_cterm_write(terminal, failed, sizeof(failed) - 1, &consumed) == IO_ERROR_IO);
+		CHECK(st_cterm_write(terminal, failed, sizeof(failed) - 1, &consumed) == 0);
+		CHECK(consumed == sizeof(failed)-1);
 		CHECK(capture.size == 0);
 	}
 	capture.choice_status = 0;
@@ -258,7 +259,8 @@ test_host_commands(enum st_cterm_encoding encoding)
 
 		capture.size = 0;
 		CHECK(st_cterm_write(terminal, cancelled, sizeof(cancelled) - 1,
-		    &consumed) == IO_ERROR_CANCELLED);
+		    &consumed) == 0);
+		CHECK(consumed == sizeof(cancelled)-1);
 		CHECK(capture.size == 0);
 	}
 	CHECK(host_query(terminal, &capture, "RECOVERED", "RECOVERED") == 0);
@@ -548,11 +550,11 @@ st_cterm_rip_variables_test_main(void)
 		CHECK(feed(terminal, "!|$RESET$\r") == 0);
 		CHECK(query(terminal, &capture, "TWIN", "YES\r") == 0);
 	}
-	/* Failure while flushing a pending RIP callback propagates unchanged;
-	 * destroying the terminal after that failed reset remains safe. */
+	/* Failure while flushing a pending RIP callback is a warning; reset
+	 * and destruction still complete normally. */
 	capture.prompt_status = IO_ERROR_IO;
 	CHECK(feed(terminal, "!|1D00000FAILED,5:?Question?Start") == 0);
-	CHECK(st_cterm_reset_terminal(terminal) == IO_ERROR_IO);
+	CHECK(st_cterm_reset_terminal(terminal) == 0);
 	st_cterm_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);

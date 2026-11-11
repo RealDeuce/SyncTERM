@@ -100,7 +100,7 @@ input_and_lifetime(void)
 				CHECK(igs->draw_start_x == 20 && igs->draw_start_y == 30 && igs->draw_x == 60 && igs->draw_y == 70);
 			}
 			const char bad[] = "G#L 1,2,3,10000:";
-			CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 			CHECK(igs->draw_start_x == 20 && igs->draw_y == 70);
 			feed(&f,"G#g>1:L 2500,7500,9999,0:");
 			CHECK(igs->draw_start_x == (resolution == 0 ? 80 : 160));

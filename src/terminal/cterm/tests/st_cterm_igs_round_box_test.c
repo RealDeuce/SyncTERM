@@ -132,7 +132,7 @@ negative_flags(void)
 		igs->attributes.line_begin = 1; igs->attributes.line_end = 2;
 		struct cterm_igs_attributes attrs; memcpy(&attrs,&igs->attributes,sizeof(attrs));
 		size_t used; const char bad_outline[] = "G#U 40,60,80,80,0:";
-		CHECK(st_cterm_write(f.terminal,bad_outline,sizeof(bad_outline)-1,&used) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_cterm_write(f.terminal,bad_outline,sizeof(bad_outline)-1,&used) == 0);
 		CHECK(memcmp(&attrs,&igs->attributes,sizeof(attrs)) == 0);
 		destroy(&f);
 	}
@@ -188,7 +188,7 @@ recovery_and_lifetime(void)
 			feed(&f,partial[i]); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0);
 		}
 		const char bad[] = "G#U 1,2,3,4,10000:";
-		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 		struct st_pixel_buffer *after = NULL; CHECK(st_console_get_pixels(&after,f.console,&full,false) == 0);
 		CHECK(memcmp(before->primary,after->primary,(size_t)igs->width*igs->height*sizeof(*before->primary)) == 0);
 		CHECK(memcmp(before->alternate,after->alternate,(size_t)igs->width*igs->height*sizeof(*before->alternate)) == 0);

@@ -240,7 +240,7 @@ lifetime(void)
 			CHECK(t->vt52_foreground == 19 && t->vt52_background == 16 && igs->random_seed == 1 && t->accumulator == NULL);
 		}
 		size_t used; const char bad[] = "G#c r,10000:";
-		CHECK(st_cterm_write(t,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(t,bad,sizeof(bad)-1,&used) == 0);
 		CHECK(t->vt52_foreground == 19 && t->vt52_background == 16 && igs->random_seed == 1);
 		feed(&f,"G#I>0:I>1:I 2:"); CHECK(t->vt52_foreground == 19 && t->vt52_background == 16);
 		/* An unchanged R and palette-only I retain console selection/state. */

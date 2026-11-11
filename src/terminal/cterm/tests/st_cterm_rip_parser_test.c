@@ -6,6 +6,7 @@
  */
 
 #include "cterm_rip_parser.h"
+#include "io_error.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -31,6 +32,8 @@ struct capture {
 	unsigned commands;
 	unsigned controls;
 	unsigned text_calls;
+	unsigned warnings;
+	int command_error;
 	bool bol;
 	bool disabled;
 	bool music;
@@ -55,6 +58,7 @@ capture_command(void *context, int level, int sublevel, uint8_t code,
 {
 	struct capture *capture = context;
 	const size_t size = strlen(args);
+	if (code == '?' && capture->command_error != 0) return capture->command_error;
 
 	if (size >= sizeof(capture->args))
 		return -1;
@@ -97,6 +101,13 @@ capture_music(void *context, uint8_t final)
 	return ((struct capture *)context)->music && final == 'M';
 }
 
+static void
+capture_warning(void *context, const char *message)
+{
+	struct capture *capture = context;
+	if (message[0] != '\0') capture->warnings++;
+}
+
 static struct cterm_rip_parser_sink
 sink_for(struct capture *capture)
 {
@@ -108,6 +119,7 @@ sink_for(struct capture *capture)
 		.at_carriage_return_column = capture_bol,
 		.text_disabled = capture_disabled,
 		.music_introducer = capture_music,
+		.warning = capture_warning,
 	};
 }
 
@@ -531,10 +543,35 @@ test_v154_dispatch_vectors(void)
 	return 0;
 }
 
+static int
+test_rejected_command(void)
+{
+	const uint8_t wire[] = "!|?bad|c02\r\n\x1b[31mOK";
+	for (size_t split = 0; split <= sizeof(wire); ++split) {
+		struct cterm_rip_parser parser;
+		struct capture capture = {.command_error = IO_ERROR_NOT_SUPPORTED};
+		cterm_rip_parser_init(&parser, true);
+		size_t size = sizeof(wire)-1;
+		if (split == sizeof(wire)) {
+			for (size_t i = 0; i < size; ++i)
+				CHECK(write_bytes(&parser,&capture,wire+i,1) == 0);
+		} else {
+			CHECK(write_bytes(&parser,&capture,wire,split) == 0);
+			CHECK(write_bytes(&parser,&capture,wire+split,size-split) == 0);
+		}
+		CHECK(capture.warnings == 1 && capture.commands == 1);
+		CHECK(capture.code == 'c' && strcmp(capture.args,"02") == 0);
+		CHECK(capture.text_size == sizeof("\x1b[31mOK")-1);
+		CHECK(memcmp(capture.text,"\x1b[31mOK",capture.text_size) == 0);
+		cterm_rip_parser_destroy(&parser);
+	}
+	return 0;
+}
+
 int
 st_cterm_rip_parser_test_main(void)
 {
-	if (test_v154_dispatch_vectors() != 0
+	if (test_rejected_command() != 0 || test_v154_dispatch_vectors() != 0
 	    || test_split_and_ebc() != 0 || test_ansi_and_bol() != 0
 	    || test_bogus_introducer_batch() != 0
 	    || test_controls_and_disable() != 0

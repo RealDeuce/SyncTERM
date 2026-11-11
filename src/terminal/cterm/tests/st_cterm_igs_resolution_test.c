@@ -270,7 +270,7 @@ memory_and_failures(void)
 	CHECK(st_cterm_poll(f.terminal) == 0 && !st_graphics_parser_in_command(igs->parser));
 	CHECK(!igs->clipping && igs->resolution == 0 && memcmp(palette, igs->palette, sizeof(palette)) == 0);
 	size_t used;
-	CHECK(st_cterm_write(f.terminal, "G#R 1,99999:", 12, &used) == IO_ERROR_OUT_OF_RANGE && used == 12);
+	CHECK(st_cterm_write(f.terminal, "G#R 1,99999:", 12, &used) == 0 && used == 12);
 	CHECK(igs->resolution == 0 && !st_cterm_input_paused(f.terminal));
 	feed(&f, "G#R 1,3:");
 	CHECK(st_cterm_finish(f.terminal) == 0);

@@ -387,21 +387,21 @@ errors_and_partitions(void)
 		feed(&f,partial[i]); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0 && !igs->palette_rotation.restore_raw);
 	}
 	const char invalid[] = "G#X 8,16,16,1,10000:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == IO_ERROR_OUT_OF_RANGE && !igs->palette_rotation.restore_raw);
+	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == 0 && !igs->palette_rotation.restore_raw);
 	/* Completed no-op and restore headers have no clock dependency. */
 	igs->now_ms = bad_clock;
 	feed(&f,"G#X 8,1,1,1,1:"); feed(&f,"G#X 8,1,3,0,0:");
 	const char active[] = "G#X 8,1,3,1,0:";
-	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == IO_ERROR_IO && !igs->palette_rotation.active);
+	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == 0 && !igs->palette_rotation.active);
 	igs->now_ms = now; feed(&f,active); igs->now_ms = bad_clock;
 	CHECK(st_cterm_poll(f.terminal) == IO_ERROR_IO && igs->palette_rotation.active);
 	igs->now_ms = now; finish(&f);
 	local_ms = UINT64_MAX-1;
-	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == IO_ERROR_OUT_OF_RANGE && !igs->palette_rotation.active);
+	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == 0 && !igs->palette_rotation.active);
 	local_ms = 1000; igs->sync_wait_hz = 0;
-	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == IO_ERROR_INVALID_ARGUMENT && !igs->palette_rotation.active);
+	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == 0 && !igs->palette_rotation.active);
 	igs->sync_wait_hz = 1001;
-	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == IO_ERROR_INVALID_ARGUMENT && !igs->palette_rotation.active);
+	CHECK(st_cterm_write(f.terminal,active,sizeof(active)-1,&used) == 0 && !igs->palette_rotation.active);
 	igs->sync_wait_hz = 60;
 	/* Failed scheduling after a committed write cancels pending ownership. */
 	feed(&f,active); local_ms = UINT64_MAX-1;

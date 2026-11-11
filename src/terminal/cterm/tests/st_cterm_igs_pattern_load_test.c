@@ -150,8 +150,8 @@ partitions_and_errors(void)
 		igs->math[0] = (int16_t)invalid[i];
 		uint16_t saved[8][16]; memcpy(saved, igs->patterns, sizeof(saved));
 		const char wire[] = "G#X 7,0],XXXXXXXXXXXXXXXX@"; size_t used;
-		CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
-		CHECK(used == 9 && memcmp(saved, igs->patterns, sizeof(saved)) == 0);
+		CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == 0);
+		CHECK(used == sizeof(wire)-1 && memcmp(saved, igs->patterns, sizeof(saved)) == 0);
 	}
 	feed(&f, "G#X 7,0,X@");
 	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && igs->shared_text_size == 0);
@@ -231,7 +231,7 @@ clock_errors(void)
 	 * retains the acquired prefix and its original deadline for recovery. */
 	CHECK(used == sizeof(header) - 1 && igs->pattern_loading && igs->text_deadline == local_ms + 5000);
 	clock_reads = 0;
-	CHECK(st_cterm_write(f.terminal, "x@", 2, &used) == IO_ERROR_IO && used == 2);
+	CHECK(st_cterm_write(f.terminal, "x@", 2, &used) == 0 && used == 2);
 	/* Row acceptance precedes the next reader's failing entry sample. */
 	CHECK(igs->patterns[0][0] == 0x8000 && !igs->pattern_loading && igs->text_deadline == 0);
 	igs->now_ms = now;

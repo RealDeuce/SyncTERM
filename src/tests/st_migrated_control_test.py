@@ -344,6 +344,39 @@ Conn.sendText("PROFILE-READY")
 
 
 def session_modes(executable, reports):
+    for graphics, mode, encoding, wire in (
+        ("IGS (2.21)", "AtariST40x25", "ATARI-ST",
+         b"G#X>5,0:G#P>10000,1:\x1bHOKG#X>10,17,23:"),
+        ("IGS (2.21)", "AtariST40x25", "CP437",
+         b"G#X>5,0:G#P>10000,1:\x1bHOKG#X>10,17,23:"),
+        ("IGS (2.21)", "AtariST40x25", "UTF-8",
+         b"G#X>5,0:G#P>10000,1:\x1bHOKG#X>10,17,23:"),
+        ("RIPv1", "80x43", "CP437",
+         b"!|1R00000000missing.rip|c02\r\n\x1b[31m\x1b[HOK"),
+        ("RIPv1", "80x43", "UTF-8",
+         b"!|1R00000000missing.rip|c02\r\n\x1b[31m\x1b[HOK"),
+    ):
+        for hide_popups in (False, True):
+            options = f"Graphics={graphics}\nScreenMode={mode}\nCTermLogLevel=Warning\n"
+            with connection(executable, reports, options=options, encoding=encoding,
+                            hide_popups=hide_popups) as (client, root, peer, send):
+                send(wire)
+                frame = client.wait_for(lambda s: s.lines[0].startswith("OK"))
+                assert frame.application["connected"] == 1
+                if graphics.startswith("IGS"):
+                    assert (frame.application["cterm.igs_draw_x"], frame.application["cterm.igs_draw_y"]) == (17, 23)
+                else:
+                    assert frame.application["cterm.attr"] & 15 == 4  # ANSI red
+                # A command rejection leaves the real transport usable in
+                # both directions; only actual EOF enters disconnect UI.
+                client.text("z")
+                receive(peer, b"z")
+                send((b"\x1bH" if graphics.startswith("IGS") else b"\x1b[H") + b"STILL-HERE")
+                client.wait_text("STILL-HERE")
+                peer.shutdown(socket.SHUT_RDWR)
+                if not hide_popups:
+                    client.wait_text("Disconnected: Enter exits, F1 details")
+                    client.key("enter")
     for mode, shape in (("80x25", (80, 25, 16)), ("C128-40col", (40, 25, 8)),
                         ("Current", (80, 28, 14)), ("Custom", (91, 27, 8))):
         options = f"ScreenMode={mode}\n"

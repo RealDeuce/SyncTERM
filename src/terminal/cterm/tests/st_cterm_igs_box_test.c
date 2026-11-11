@@ -148,7 +148,7 @@ input_and_recovery(void)
 		CHECK(igs->random_seed == 1 && igs->draw_x == 0);
 	}
 	size_t used; const char bad[] = "G#B 1,2,3,4,10000:";
-	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 	struct st_pixel_buffer *after = NULL; CHECK(st_console_get_pixels(&after,f.console,&full,false) == 0);
 	CHECK(memcmp(before->primary,after->primary,320u*200*sizeof(*before->primary)) == 0);
 	CHECK(memcmp(before->alternate,after->alternate,320u*200*sizeof(*before->alternate)) == 0);
@@ -208,9 +208,9 @@ invalid_state(void)
 	st_pixel_buffer_destroy(b); cterm_igs_clip_screen(igs);
 	igs->attributes.fill_interior = 3; igs->attributes.fill_index = 13;
 	size_t used; const char wire[] = "G#B 30,30,33,33,0:";
-	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used) == 0);
 	igs->attributes.fill_interior = 5;
-	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used) == 0);
 	CHECK(st_console_get_pixels(&b,f.console,&area,false) == 0);
 	for (unsigned i = 0; i < 16; ++i) CHECK(b->primary[i] == 769 && b->alternate[i] == 770);
 	st_pixel_buffer_destroy(b); destroy(&f);

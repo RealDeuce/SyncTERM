@@ -146,7 +146,7 @@ cycles_and_limits(void)
 		igs->marker_cycle = 1; igs->marker_cycle_restart = 1;
 		igs->marker_pen_cache = 3; igs->attributes.marker_type = 0;
 		const char bad_marker[] = "G#X 0,40,40,255,255,1:"; size_t used;
-		CHECK(st_cterm_write(f.terminal, bad_marker, sizeof(bad_marker)-1, &used) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_cterm_write(f.terminal, bad_marker, sizeof(bad_marker)-1, &used) == 0);
 		CHECK(igs->random_seed == UINT32_C(0x5eb5ca17));
 		CHECK(igs->attributes.marker_pen == (resolution == 2 ? 1 : 3));
 		CHECK(igs->marker_cycle == (resolution == 2 ? 1 : 2) && igs->draw_x == 0 && igs->draw_y == 0);
@@ -198,7 +198,7 @@ partitions_and_recovery(void)
 			feed(&f, partial[i]); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0 && igs->random_seed == 228);
 		}
 		const char bad[] = "G#X 0,40,40,63,63,10000:"; size_t used;
-		CHECK(st_cterm_write(f.terminal, bad, sizeof(bad)-1, &used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal, bad, sizeof(bad)-1, &used) == 0);
 		CHECK(igs->random_seed == 228);
 		feed(&f, "G#X 0,1,0,0,0,0:");
 		CHECK(st_cterm_reset_terminal(f.terminal) == 0 && igs->marker_cycle == 0 && igs->marker_cycle_restart == 0);

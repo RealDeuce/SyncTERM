@@ -190,13 +190,13 @@ lifetime(void)
 	CHECK(st_cterm_poll(t) == 0 && igs->random_seed == 1);
 	const char bad[] = "G#l 10000:";
 	size_t used;
-	CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 	check_cell(&f, 4, 2, 'A');
 	CHECK(t->xpos == 5 && t->ypos == 3);
 
 	t->screen.error = IO_ERROR_IO;
 	const char whole[] = "G#l 0:";
-	CHECK(st_cterm_write(t, whole, sizeof(whole) - 1, &used) == IO_ERROR_IO);
+	CHECK(st_cterm_write(t, whole, sizeof(whole) - 1, &used) == 0);
 	CHECK(t->accumulator != NULL && t->sequence != 0);
 	check_cell(&f, 4, 2, 'A');
 	feed(&f, "l");

@@ -288,7 +288,7 @@ deadline_bounds(void)
 	CHECK(st_cterm_poll(f.terminal) == 0 && !st_cterm_input_paused(f.terminal));
 	local_ms = UINT64_MAX - 19;
 	size_t used;
-	CHECK(st_cterm_write(f.terminal, "G#I 5:A", 7, &used) == IO_ERROR_OUT_OF_RANGE && used == 6);
+	CHECK(st_cterm_write(f.terminal, "G#I 5:A", 7, &used) == 0 && used == 7);
 	CHECK(!st_cterm_input_paused(f.terminal));
 	local_ms = 1000;
 	feed(&f, "G#I 4:A");

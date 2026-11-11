@@ -40,6 +40,8 @@ struct cterm_rip_parser_sink {
 	bool (*at_carriage_return_column)(void *context);
 	bool (*text_disabled)(void *context);
 	bool (*music_introducer)(void *context, uint8_t final);
+	/* Rejected commands are diagnostics, not connection failures. */
+	void (*warning)(void *context, const char *message);
 };
 
 void cterm_rip_parser_init(struct cterm_rip_parser *parser, bool enabled);

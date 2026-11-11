@@ -118,7 +118,7 @@ recovery_and_lifetime(void)
 			CHECK(memcmp(&before,&igs->attributes,sizeof(before)) == 0 && igs->random_seed == 1);
 		}
 		size_t used; const char bad[] = "G#E 1,2,10000:";
-		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 		CHECK(memcmp(&before,&igs->attributes,sizeof(before)) == 0);
 		feed(&f,"G#I 1:"); CHECK(memcmp(&before,&igs->attributes,sizeof(before)) == 0);
 		const char *wire = resolution == 0 ? "G#R>1,0:E 15,16,3:" : "G#R>0,0:E 15,16,3:";

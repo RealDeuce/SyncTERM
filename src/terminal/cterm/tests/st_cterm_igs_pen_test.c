@@ -189,7 +189,7 @@ partitions_and_recovery(void)
 				CHECK(st_cterm_poll(f.terminal) == 0 && igs->marker_pen_cache == 15);
 				CHECK(memcmp(&igs->attributes, &completed, sizeof(completed)) == 0);
 			}
-			CHECK(st_cterm_write(f.terminal, "G#C 0,99999:", 12, &used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal, "G#C 0,99999:", 12, &used) == 0);
 			CHECK(igs->marker_pen_cache == 15);
 			CHECK(memcmp(&igs->attributes, &completed, sizeof(completed)) == 0);
 			feed(&f, "G#C 0,0:"); CHECK(igs->attributes.marker_pen == 0 && igs->marker_pen_cache == 0);

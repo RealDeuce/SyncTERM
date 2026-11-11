@@ -1,5 +1,10 @@
 # Terminal conformance coverage
 
+RIP and IGS command rejections are nonfatal warnings at the graphics input
+stage. Native recovery tests and `syncterm_behavior_session_modes` verify
+following graphics and ANSI/VT52 handling, continued bidirectional connection
+use, and the normal notice on later remote disconnect.
+
 IGS 2.21 work is tracked separately in [IGS_CONFORMANCE.md](IGS_CONFORMANCE.md)
 and [IGS_IMPLEMENTATION.adoc](IGS_IMPLEMENTATION.adoc). The shared graphics
 byte-parser foundation has native split-input and raw-ownership coverage;

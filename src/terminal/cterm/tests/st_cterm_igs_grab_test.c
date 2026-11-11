@@ -163,7 +163,7 @@ capture_and_routes(void)
 			igs->math[0] = (int16_t)op;
 			size_t used;
 			int status = st_cterm_write(f.terminal,wire,strlen(wire),&used);
-			CHECK(status == (op == 2 && (route == 2 || route == 3) ? IO_ERROR_OUT_OF_RANGE : 0));
+			CHECK(status == 0);
 			CHECK(used == strlen(wire));
 			int source = -1, destination = -1;
 			if (op == 0 && (route == 0 || route == 1)) source = destination = 2;
@@ -248,12 +248,12 @@ second_copy(void)
 	seed(&f,&source,769,770); seed(&f,&destination,772,776); igs->double_step = 4;
 	igs->now_ms = bad_clock;
 	const char failed[] = "G#G 0,6,0,0,15,0,32,0:";
-	CHECK(st_cterm_write(f.terminal,failed,sizeof(failed)-1,&used) == IO_ERROR_IO && used == sizeof(failed)-1);
+	CHECK(st_cterm_write(f.terminal,failed,sizeof(failed)-1,&used) == 0 && used == sizeof(failed)-1);
 	CHECK(!igs->copy_pending && !st_cterm_input_paused(f.terminal)); check_row(&f,773,778);
 	igs->now_ms = now; igs->double_step = 0;
 	feed(&f,"G#G 0,3,0,0,15,0,32,0:"); check_row(&f,769,770);
 	igs->double_step = 4; local_ms = UINT64_MAX-1;
-	CHECK(st_cterm_write(f.terminal,failed,sizeof(failed)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(f.terminal,failed,sizeof(failed)-1,&used) == 0);
 	CHECK(!igs->copy_pending && !st_cterm_input_paused(f.terminal)); local_ms = 1000;
 	igs->double_step = 0; feed(&f,"G#G 1,3,0,0,15,0:");
 	igs->double_step = 4; feed(&f,"G#G 4,10,0,0,15,0,0,0:");
@@ -381,16 +381,16 @@ partitions_and_bounds(void)
 			CHECK(igs->memory[0] == NULL && igs->input_deadline == 0);
 		}
 		const char bad[] = "G#G 0,3,0,0,10000,0,32,0:"; size_t used;
-		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE && igs->memory[0] == NULL);
+		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0 && igs->memory[0] == NULL);
 		const char unknown[] = "G#G 5,3,0,0:remainder";
-		CHECK(st_cterm_write(f.terminal,unknown,sizeof(unknown)-1,&used) == IO_ERROR_OUT_OF_RANGE);
-		CHECK(used == strlen("G#G 5,3,0,0:"));
+		CHECK(st_cterm_write(f.terminal,unknown,sizeof(unknown)-1,&used) == 0);
+		CHECK(used == sizeof(unknown)-1);
 		igs->memory_rect[0][2] = 639;
 		const char outside[] = "G#G 4,3,0,199,15,199,0,0:";
-		if (resolution == 0) CHECK(st_cterm_write(f.terminal,outside,sizeof(outside)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		if (resolution == 0) CHECK(st_cterm_write(f.terminal,outside,sizeof(outside)-1,&used) == 0);
 		igs->memory_rect[0][2] = -17;
 		const char stride[] = "G#G 4,3,0,0,15,0,0,0:";
-		CHECK(st_cterm_write(f.terminal,stride,sizeof(stride)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal,stride,sizeof(stride)-1,&used) == 0);
 		CHECK(igs->memory_view[0].word_width == 0);
 		/* Host status rows are never read into a native image or overwritten. */
 		CHECK(st_cterm_reset_terminal(f.terminal) == 0);

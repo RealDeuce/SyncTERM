@@ -25,7 +25,15 @@ struct capture {
 	size_t control_size;
 	int transfer_commands;
 	int ignored_commands;
+	unsigned warnings;
 };
+
+static void
+warning(void *context, const char *message)
+{
+	struct capture *capture = context;
+	if (message[0] != '\0') capture->warnings++;
+}
 
 static int
 passthrough(void *context, const uint8_t *bytes, size_t size)
@@ -96,6 +104,7 @@ st_cterm_rip_engine_test_main(void)
 		.command = unknown_command,
 		.control = control,
 		.at_carriage_return_column = at_column,
+		.warning = warning,
 	};
 	struct cterm_rip_engine engine;
 	st_console_t *console = NULL;
@@ -118,11 +127,15 @@ st_cterm_rip_engine_test_main(void)
 	CHECK(memcmp(capture.control, "\x1b[0!", capture.control_size) == 0);
 	CHECK(capture.text_size == 1 && capture.text[0] == 'Z');
 	{
-		const uint8_t unexpected[] = "!|qX\r";
+		const uint8_t unexpected[] = "!|qX|c02\r\n\x1b[31mOK";
 		size_t consumed = 0;
 
 		CHECK(cterm_rip_engine_feed(&engine, unexpected,
-		    sizeof(unexpected) - 1, &consumed) == 1);
+		    sizeof(unexpected) - 1, &consumed) == 0);
+		CHECK(consumed == sizeof(unexpected)-1 && capture.warnings == 1);
+		CHECK(engine.raster.colour == 2);
+		CHECK(capture.text_size == sizeof("Z\x1b[31mOK")-1);
+		CHECK(memcmp(capture.text,"Z\x1b[31mOK",capture.text_size) == 0);
 	}
 	cterm_rip_engine_destroy(&engine);
 	st_console_destroy(console);

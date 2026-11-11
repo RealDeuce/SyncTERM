@@ -165,7 +165,7 @@ partitions_and_errors(void)
 			}
 			const char bad[] = "G#X 12,0,1792,112,7,10000:";
 			size_t used;
-			CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 			CHECK(memcmp(raw, igs->raw_palette, sizeof(raw)) == 0);
 			feed(&f, "G#X 12,0,1792,112,7,");
 			CHECK(st_cterm_reset_terminal(t) == 0 && igs->palette[0] == 0xffffff);

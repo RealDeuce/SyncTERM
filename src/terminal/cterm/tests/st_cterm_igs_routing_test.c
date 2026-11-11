@@ -101,7 +101,7 @@ partitions_and_lifetime(void)
 		CHECK(igs->memory_route == 4 && igs->random_seed == 49);
 	}
 	const char invalid[] = "G#X 14,10000:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == 0);
 	CHECK(igs->memory_route == 4 && used == sizeof(invalid)-1);
 	igs->now_ms = bad_clock; feed(&f,"G#X 14,3:");
 	CHECK(igs->memory_route == 3); igs->now_ms = now;

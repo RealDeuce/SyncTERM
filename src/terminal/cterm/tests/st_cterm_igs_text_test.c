@@ -160,7 +160,7 @@ loops_and_deadlines(void)
 	igs->random_range[0][1] = igs->random_range[1][1] = 255;
 	feed(&f,"G#W r,R,"); CHECK(igs->random_seed == 1); CHECK(st_cterm_finish(f.terminal) == 0 && igs->random_seed == 1);
 	size_t used; const char invalid[] = "G#W 80,10000,A@";
-	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == 0);
 	CHECK(memcmp(igs->shared_text,"NEW\0",4) == 0 && igs->text_deadline == 0);
 	feed(&f,"G#W 80,80,late"); local_ms = igs->text_deadline; feed(&f,"G#M 2:");
 	CHECK(igs->attributes.writing_mode == 2 && memcmp(igs->shared_text,"NEW\0",4) == 0 && igs->text_deadline == 0);

@@ -143,7 +143,7 @@ partitions_and_errors(void)
 			}
 			const char bad[] = "G#X 1,0,10000:";
 			size_t used;
-			CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 			CHECK(memcmp(raw, igs->raw_palette, sizeof(raw)) == 0);
 			destroy(&f);
 		}

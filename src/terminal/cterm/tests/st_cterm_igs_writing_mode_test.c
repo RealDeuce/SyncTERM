@@ -151,7 +151,7 @@ partitions_and_recovery(void)
 			CHECK(st_cterm_finish(f.terminal) == 0 && igs->attributes.writing_mode == 3);
 			feed(&f, "G#M 4"); local_ms += 5000;
 			CHECK(st_cterm_poll(f.terminal) == 0 && igs->attributes.writing_mode == 3);
-			CHECK(st_cterm_write(f.terminal, "G#M 99999:", 10, &used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal, "G#M 99999:", 10, &used) == 0);
 			CHECK(igs->attributes.writing_mode == 3);
 			feed(&f, "G#M 4:"); CHECK(igs->attributes.writing_mode == 4);
 			feed(&f, "G#M ");

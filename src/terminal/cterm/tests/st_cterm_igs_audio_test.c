@@ -159,15 +159,18 @@ parser(void)
 	CHECK(f.terminal->igs_engine->audio->patches[5][0] == st_igs_gist_patches[5][0]);
 	feed(&f,"G#b 20,0,5,0,0,0"); local_ms += 5000; CHECK(st_cterm_poll(f.terminal) == 0);
 	CHECK(f.terminal->igs_engine->audio->patches[5][0] == st_igs_gist_patches[5][0]);
-	/* Reject unsafe edits at the wire boundary, preserving both the source
-	 * and unread suffix; a subsequent ordinary write recovers normally. */
+	/* Reject unsafe edits while preserving the source and passing the tail
+	 * through to the terminal in the same write. */
 	struct cterm_igs *bad = f.terminal->igs_engine; bad->math[0] = -1;
 	const char invalid[] = "G#b 20,1,0,0],0,0,1:TAIL"; size_t used;
 	st_igs_test_calls = 0;
-	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == IO_ERROR_OUT_OF_RANGE);
-	CHECK(used == sizeof(invalid)-5 && st_igs_test_calls == 0);
+	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == 0);
+	CHECK(used == sizeof(invalid)-1 && st_igs_test_calls == 0);
 	CHECK(bad->audio->patches[0][0] == st_igs_gist_patches[0][0]);
-	feed(&f,invalid+used);
+	struct st_console_cell tail[4];
+	const struct st_console_rect rect = {0,0,4,1};
+	CHECK(st_console_read_cells(f.console,&rect,tail,4) == 0);
+	for (size_t i = 0; i < 4; ++i) CHECK(tail[i].glyph == (unsigned char)"TAIL"[i]);
 	/* Random selector arity previews do not consume the real source twice. */
 	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
 	struct cterm_igs *igs = f.terminal->igs_engine;

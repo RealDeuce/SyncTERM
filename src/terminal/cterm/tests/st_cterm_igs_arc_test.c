@@ -161,12 +161,12 @@ recovery_and_lifetime(void)
 			feed(&f,partial[i]); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0);
 		}
 		const char bad[] = "G#K 1,2,3,4,10000:";
-		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 		for (unsigned invalid = 0; invalid < 3; ++invalid) {
 			igs->attributes.line_type = invalid ? 1 : 8; igs->attributes.line_width = invalid == 1 ? 2 : invalid == 2 ? 40 : 1;
 			struct cterm_igs_attributes attrs; memcpy(&attrs,&igs->attributes,sizeof(attrs)); bool last = igs->last_line;
 			const char rejected[] = "G#K 80,80,17,0,90:";
-			CHECK(st_cterm_write(f.terminal,rejected,sizeof(rejected)-1,&used) == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(st_cterm_write(f.terminal,rejected,sizeof(rejected)-1,&used) == 0);
 			CHECK(memcmp(&attrs,&igs->attributes,sizeof(attrs)) == 0 && igs->last_line == last);
 		}
 		struct st_pixel_buffer *after = NULL; CHECK(st_console_get_pixels(&after,f.console,&full,false) == 0);

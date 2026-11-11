@@ -363,6 +363,16 @@ dispatch_command(void *context, int level, int sublevel, uint8_t code,
 	return status == IO_ERROR_NOT_SUPPORTED ? 0 : status;
 }
 
+static void
+forward_warning(void *context, const char *message)
+{
+	struct cterm_rip_engine *engine = context;
+	/* A failed raster operation must not poison the following command. */
+	engine->raster.error = 0;
+	if (engine->host.warning != NULL)
+		engine->host.warning(engine->host.context, message);
+}
+
 static struct cterm_rip_parser_sink
 engine_sink(struct cterm_rip_engine *engine)
 {
@@ -375,6 +385,7 @@ engine_sink(struct cterm_rip_engine *engine)
 		.at_carriage_return_column = at_column,
 		.text_disabled = text_disabled,
 		.music_introducer = music_introducer,
+		.warning = forward_warning,
 	};
 }
 

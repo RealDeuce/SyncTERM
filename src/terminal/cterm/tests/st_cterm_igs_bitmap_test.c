@@ -311,7 +311,7 @@ header_recovery(void)
 		CHECK(!igs->bitmap_loading && igs->random_seed == 178); check_descriptor(&f,4);
 	}
 	const char invalid[] = "G#X 11,0,4,10000:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == 0);
 	CHECK(used == sizeof(invalid)-1 && !igs->bitmap_loading && igs->random_seed == 178);
 	check_image(&f,primary,alternate); check_descriptor(&f,4);
 	feed(&f,"G#X 11,0,1,0:"); CHECK(igs->memory_rect[0][1] == 0);
@@ -330,19 +330,19 @@ errors_and_layout(void)
 	igs->now_ms = bad_clock; CHECK(st_cterm_poll(f.terminal) == IO_ERROR_IO && igs->bitmap_loading && igs->bitmap_received == 17);
 	igs->now_ms = now; CHECK(st_cterm_finish(f.terminal) == 0); check_image(&f,primary,alternate);
 	feed(&f,"G#X 11,2,1:"); igs->now_ms = bad_clock; size_t used;
-	CHECK(st_cterm_write(f.terminal,payload,1,&used) == IO_ERROR_IO && used == 0 && !igs->bitmap_loading);
+	CHECK(st_cterm_write(f.terminal,payload,1,&used) == 0 && used == 1 && !igs->bitmap_loading);
 	igs->now_ms = now; check_image(&f,primary,alternate);
 	igs->now_ms = bad_clock; const char header[] = "G#X 11,2,1:";
-	CHECK(st_cterm_write(f.terminal,header,sizeof(header)-1,&used) == IO_ERROR_IO && used == sizeof(header)-1 && !igs->bitmap_loading);
+	CHECK(st_cterm_write(f.terminal,header,sizeof(header)-1,&used) == 0 && used == sizeof(header)-1 && !igs->bitmap_loading);
 	igs->now_ms = now;
 	igs->memory[0]->pixels->primary[0] = ST_PIXEL_COLOR_RGB_TAG;
-	feed(&f,header); CHECK(st_cterm_write(f.terminal,payload,1,&used) == IO_ERROR_INVALID_FORMAT && used == 0);
+	feed(&f,header); CHECK(st_cterm_write(f.terminal,payload,1,&used) == 0 && used == 1);
 	CHECK(!igs->bitmap_loading && igs->memory[0]->pixels->primary[0] == ST_PIXEL_COLOR_RGB_TAG);
 	prepare_image(&f,primary,alternate);
 	const struct st_console_rect full = {0,0,igs->width,igs->height}; seed(&f,&full,769,768);
 	igs->memory[0]->pixels->primary[32] = ST_PIXEL_COLOR_RGB_TAG;
 	feed(&f,"G#X 11,1,1:"); write_bytes(&f,payload,1);
-	CHECK(st_cterm_finish(f.terminal) == IO_ERROR_INVALID_FORMAT && !igs->bitmap_loading);
+	CHECK(st_cterm_finish(f.terminal) == 0 && !igs->bitmap_loading);
 	check_screen(&f,primary,alternate,1,false);
 	prepare_image(&f,primary,alternate);
 	feed(&f,"G#X 11,2,0:"); write_bytes(&f,payload,16);

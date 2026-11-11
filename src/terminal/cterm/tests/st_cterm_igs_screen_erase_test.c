@@ -227,11 +227,11 @@ partitions_and_recovery(void)
 	CHECK(st_cterm_poll(t) == 0 && t->igs_engine->random_seed == UINT32_C(0xbb40e62e));
 	const char bad[] = "G#s 10000:";
 	size_t used;
-	CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 	CHECK(t->xpos == 4 && t->ypos == 3 && t->accumulator == NULL);
 	t->screen.error = IO_ERROR_IO;
 	const char clear[] = "G#s 4:";
-	CHECK(st_cterm_write(t, clear, sizeof(clear) - 1, &used) == IO_ERROR_IO);
+	CHECK(st_cterm_write(t, clear, sizeof(clear) - 1, &used) == 0);
 	CHECK(t->xpos == 4 && t->ypos == 3 && t->sequence != 0);
 	feed(&f, "E");
 	CHECK(t->xpos == 1 && t->ypos == 1 && t->accumulator == NULL);

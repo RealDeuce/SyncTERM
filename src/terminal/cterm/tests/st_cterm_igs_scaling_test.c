@@ -223,7 +223,7 @@ partitions_and_recovery(void)
 			CHECK(st_cterm_finish(f.terminal) == 0 && igs->scaling_mode == 2);
 			feed(&f, "G#g 1"); local_ms += 5000;
 			CHECK(st_cterm_poll(f.terminal) == 0 && igs->scaling_mode == 2);
-			CHECK(st_cterm_write(f.terminal, "G#g 99999:", 10, &used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal, "G#g 99999:", 10, &used) == 0);
 			feed(&f, "G#g 0:");
 			CHECK(igs->scaling_mode == 0);
 			destroy(&f);

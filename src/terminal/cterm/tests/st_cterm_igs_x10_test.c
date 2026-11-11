@@ -10,6 +10,48 @@ position(const struct cterm_igs *igs, int x1, int y1, int x2, int y2)
 }
 
 static void
+warning(void *context, enum st_cterm_log_level level, const char *message)
+{
+	unsigned *count = context;
+	CHECK(level == ST_CTERM_LOG_WARNING && message[0] != '\0');
+	++*count;
+}
+
+static void
+rejected_input(void)
+{
+	/* Rejected graphics must not prevent the following VT52 parser, or a
+	 * subsequent graphics command, from receiving its part of the stream. */
+	const char *wires[] = {"G#X>5,0:\x1bHOKG#X>10,17,23:",
+	    "G#P>10000,1:\x1bHOKG#X>10,17,23:", "G#X>10,+2,3:\x1bHOKG#X>10,17,23:"};
+	for (size_t w = 0; w < sizeof(wires)/sizeof(*wires); ++w)
+	for (size_t split = 0; split <= strlen(wires[w])+1; ++split) {
+		const char *wire = wires[w];
+		struct fixture f; create(&f,0,false);
+		unsigned warnings = 0;
+		f.terminal->api_log_level = ST_CTERM_LOG_WARNING;
+		f.terminal->api_diagnostic = warning;
+		f.terminal->api_diagnostic_context = &warnings;
+		size_t used, size = strlen(wire);
+		if (split == size+1) {
+			for (size_t i = 0; i < size; ++i)
+				CHECK(st_cterm_write(f.terminal,wire+i,1,&used) == 0 && used == 1);
+		} else {
+			CHECK(st_cterm_write(f.terminal,wire,split,&used) == 0 && used == split);
+			CHECK(st_cterm_write(f.terminal,wire+split,size-split,&used) == 0 && used == size-split);
+		}
+		struct st_console_cell cells[2];
+		const struct st_console_rect area = {0,0,2,1};
+		CHECK(st_console_read_cells(f.console,&area,cells,2) == 0);
+		CHECK(cells[0].glyph == 'O' && cells[1].glyph == 'K');
+		/* X5 may gain an implementation; malformed operands must always warn. */
+		if (w != 0) CHECK(warnings != 0);
+		position(f.terminal->igs_engine,0,0,17,23);
+		destroy(&f);
+	}
+}
+
+static void
 coordinates(void)
 {
 	const int values[] = {0,1,100,5000,9999};
@@ -73,8 +115,8 @@ dispatch_and_arrays(void)
 				CHECK(prefix > 0 && (size_t)prefix+sizeof("1234:M 1:") <= sizeof(wire));
 				memcpy(wire+prefix,"1234:M 1:",sizeof("1234:M 1:"));
 				size_t used;
-				CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used) == IO_ERROR_NOT_SUPPORTED);
-				CHECK(used == (size_t)prefix && igs->attributes.writing_mode == 4);
+				CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used) == 0);
+				CHECK(used == strlen(wire) && igs->attributes.writing_mode == 4);
 				position(igs,10,20,30,40);
 			}
 		}
@@ -138,14 +180,14 @@ partitions_and_recovery(void)
 					feed(&f,partial[p]); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0); position(igs,sx,sy,ex,ey);
 				}
 				const char bad[] = "G#X 10,1,10000:";
-				CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+				CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 				position(igs,sx,sy,ex,ey);
 				igs->random_seed = UINT32_C(0x8602185b);
 				feed(&f,"G#X r,1,"); CHECK(st_cterm_finish(f.terminal) == 0);
 				CHECK(igs->random_seed == UINT32_C(0x8602185b)); position(igs,sx,sy,ex,ey);
 				igs->random_seed = UINT32_C(0x07a8735b);
 				const char unsupported[] = "G#X r:";
-				CHECK(st_cterm_write(f.terminal,unsupported,sizeof(unsupported)-1,&used) == IO_ERROR_NOT_SUPPORTED);
+				CHECK(st_cterm_write(f.terminal,unsupported,sizeof(unsupported)-1,&used) == 0);
 				CHECK(igs->random_seed == UINT32_C(0x900)); position(igs,sx,sy,ex,ey);
 				feed(&f,"G#X 10,10,20:");
 				feed(&f,"G#X 10,1,"); CHECK(st_cterm_reset_terminal(f.terminal) == 0); position(igs,0,0,0,0);
@@ -182,5 +224,5 @@ lifetime(void)
 
 int st_cterm_igs_x10_test_main(void)
 {
-	coordinates(); dispatch_and_arrays(); partitions_and_recovery(); lifetime(); return 0;
+	rejected_input(); coordinates(); dispatch_and_arrays(); partitions_and_recovery(); lifetime(); return 0;
 }

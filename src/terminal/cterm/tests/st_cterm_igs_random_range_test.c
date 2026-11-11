@@ -126,11 +126,11 @@ partitions_and_recovery(void)
 			CHECK(memcmp(saved, igs->random_range, sizeof(saved)) == 0 && igs->random_seed == 218);
 		}
 		const char bad[] = "G#X 2,10,10,10000:"; size_t used;
-		CHECK(st_cterm_write(f.terminal, bad, sizeof(bad) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal, bad, sizeof(bad) - 1, &used) == 0);
 		CHECK(igs->random_range[0][0] == 0 && igs->random_range[0][1] == 255);
 		igs->random_range[0][1] = 50;
 		const char impossible[] = "G#X 2,100,r:";
-		CHECK(st_cterm_write(f.terminal, impossible, sizeof(impossible) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal, impossible, sizeof(impossible) - 1, &used) == 0);
 		CHECK(igs->random_range[0][0] == 0 && igs->random_range[0][1] == 50 && igs->random_seed == 218);
 		feed(&f, "G#X 2,2,3:");
 		for (unsigned operation = 0; operation < 6; ++operation) {

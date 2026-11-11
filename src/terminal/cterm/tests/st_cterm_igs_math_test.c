@@ -68,9 +68,9 @@ bounds_and_clear(void)
 		igs->math[0] = (int16_t)index;
 		const char wire[] = "G#X 13,0,37,0]:"; size_t used;
 		int status = st_cterm_write(f.terminal, wire, sizeof(wire)-1, &used);
-		CHECK(status == (index >= 0 && index < 128 ? 0 : IO_ERROR_OUT_OF_RANGE));
+		CHECK(status == 0);
 		CHECK(used == sizeof(wire)-1);
-		if (status == 0) CHECK(igs->math[index] == 37);
+		if (index >= 0 && index < 128) CHECK(igs->math[index] == 37);
 	}
 	static const int ranges[][2] = {{0,127},{3,7},{7,3},{127,127},{128,127},{32767,32767},
 	    {0,32767},{0,-1},{127,128},{-1,7},{INT16_MIN,127}};
@@ -80,7 +80,7 @@ bounds_and_clear(void)
 		int16_t saved[128]; memcpy(saved, igs->math, sizeof(saved));
 		const char wire[] = "G#X 13,6,0],1]:"; size_t used;
 		int status = st_cterm_write(f.terminal, wire, sizeof(wire)-1, &used);
-		CHECK(status == (ranges[r][0] < 0 ? IO_ERROR_OUT_OF_RANGE : 0));
+		CHECK(status == 0);
 		for (unsigned i = 0; i < 128; ++i) {
 			bool cleared = ranges[r][0] >= 0 && (int)i >= (ranges[r][0] > 127 ? 127 : ranges[r][0])
 			    && (int)i <= ranges[r][1];
@@ -90,7 +90,7 @@ bounds_and_clear(void)
 	for (int op = 4; op <= 5; ++op) {
 		char wire[40]; (void)snprintf(wire,sizeof(wire),"G#X 13,%d,7,0,127:",op);
 		igs->math[127] = 123; size_t used;
-		CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used) == 0);
 		CHECK(used == strlen(wire) && igs->math[127] == 123);
 	}
 	feed(&f,"G#X>13,8:M>2:X>13,7,2,9999:M 3:");
@@ -270,11 +270,11 @@ prefix_and_recovery(void)
 	CHECK(used == sizeof(prefix)-1 && igs->math_printing && strcmp((const char *)igs->shared_text,"-7") == 0);
 	igs->now_ms = now; feed(&f,"40,60:"); CHECK(!igs->math_printing);
 	const char bad[] = "G#X 13,7,1,0,40,10000:";
-	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 	CHECK(!igs->math_printing && igs->shared_text_size == 2);
 	for (unsigned kind = 0; kind < 2; ++kind) {
 		char wire[40]; (void)snprintf(wire,sizeof(wire),"G#X 13,7,%u,128,",kind);
-		CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used) == 0);
 		CHECK(used == strlen(wire) && !igs->math_printing && igs->shared_text_size == 2);
 	}
 	static const char *partial[] = {"G#X 13,0,37,", "G#X 13,1,1,2,", "G#X 13,6,0,"};

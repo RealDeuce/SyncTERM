@@ -971,8 +971,10 @@ command(void *context, const struct st_graphics_command_view *view)
 			status = view->code == 'F' ? cterm_igs_flood(igs,values[0],values[1])
 			    : view->code == 'f' ? cterm_igs_polygon(igs, values+1, (size_t)count)
 			    : cterm_igs_polyline(igs, values+1, (size_t)count);
-		if (status == 0 && igs->loop_mode != 1)
-			status = cterm_igs_flow(igs, true);
+		if (!igs->reset_pending && igs->loop_mode != 1) {
+			int flow_status = cterm_igs_flow(igs, true);
+			if (status == 0) status = flow_status;
+		}
 		return status;
 	}
 	case 'D': {
@@ -1267,11 +1269,25 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 		    input == NULL ? NULL : input + *used, size - *used, &consumed);
 		igs->feeding = false;
 		*used += consumed;
-		if (!igs->reset_pending)
-			break;
-		cterm_igs_reset(igs);
-		if (status == IO_ERROR_INTERRUPTED)
+		bool reset = igs->reset_pending;
+		if (reset) {
+			cterm_igs_reset(igs);
+			if (status == IO_ERROR_INTERRUPTED) status = 0;
+		}
+		if (status != 0 && status != IO_ERROR_IN_PROGRESS) {
+			/* The grammar has cancelled the rejected command. Its unread
+			 * suffix still belongs to the input stream: run it through this
+			 * stage again so ordinary bytes reach the base terminal parser. */
+			cterm_log(igs->terminal, ST_CTERM_LOG_WARNING,
+			    "IGS input rejected (%d); continuing stream", status);
+			cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
+			igs->pattern_loading = false;
+			igs->pattern_slot = 0;
+			igs->math_printing = false;
+			cterm_igs_bitmap_cancel(igs);
 			status = 0;
+		}
+		else if (!reset) break;
 	} while (status == 0 && *used < size);
 	if (status == IO_ERROR_IN_PROGRESS)
 		status = 0;
@@ -1328,6 +1344,11 @@ cterm_igs_finish(struct cterm_igs *igs)
 	igs->feeding = false;
 	if (status == IO_ERROR_PROTOCOL) {
 		cterm_log(igs->terminal, ST_CTERM_LOG_WARNING, "Discarded incomplete IGS command");
+		status = 0;
+	}
+	else if (status != 0 && status != IO_ERROR_INTERRUPTED) {
+		cterm_log(igs->terminal, ST_CTERM_LOG_WARNING,
+		    "IGS input rejected at end of stream (%d)", status);
 		status = 0;
 	}
 	if (igs->reset_pending) {

@@ -32,13 +32,10 @@ static size_t write_bytes(struct fixture *f, const void *bytes, size_t count)
 {
 	size_t used; CHECK(st_cterm_write(f->terminal,bytes,count,&used) == 0); return used;
 }
-static void error_wire(struct fixture *f, const char *wire, int expected)
+static void rejected_wire(struct fixture *f, const char *wire)
 {
-	size_t used; int status=st_cterm_write(f->terminal,wire,strlen(wire),&used);
-	/* The receive boundary owns reporting versus log-and-continue policy.
-	 * N's rejection and retained side effects are checked independently. */
-	if (status!=0 && status!=expected) fprintf(stderr,"%s: status %d used %zu count %d\n",wire,status,used,f->terminal->igs_engine->music->count);
-	CHECK(status==0 || status==expected);
+	size_t used;
+	CHECK(st_cterm_write(f->terminal,wire,strlen(wire),&used)==0 && used==strlen(wire));
 }
 static void load(struct fixture *f, int op, const uint8_t *bytes, size_t count)
 {
@@ -80,7 +77,7 @@ static void loads(void)
 	/* Capacity is enforced after publishing the count, without overwriting data. */
 	igs->math[0]=10002;
 	CHECK(cterm_igs_music_load(igs,10002)==IO_ERROR_OUT_OF_RANGE);
-	error_wire(&f,"G#N 0,0]:",IO_ERROR_OUT_OF_RANGE);
+	rejected_wire(&f,"G#N 0,0]:");
 	CHECK(m->count==10002 && !m->loading && !m->command && memcmp(m->bytes,payload,256)==0);
 	igs->math[0]=CTERM_IGS_MUSIC_BYTES; feed(&f,"G#N 0,0]:");
 	for(size_t i=0;i<sizeof(m->bytes);++i) { uint8_t byte=(uint8_t)i; CHECK(write_bytes(&f,&byte,1)==1); }
@@ -129,12 +126,12 @@ static void chip(void)
 	feed(&f,"G#N 6,3,3:"); feed(&f,"G#N 6,0,1666:"); CHECK(reply_count==0);
 	igs->math[0]=-1;
 	CHECK(cterm_igs_music_execute(igs,-1,1)==IO_ERROR_OUT_OF_RANGE);
-	error_wire(&f,"G#N 6,0],1:",IO_ERROR_OUT_OF_RANGE); CHECK(!m->command);
+	rejected_wire(&f,"G#N 6,0],1:"); CHECK(!m->command);
 	/* The final retained record is safe; no padded out-of-buffer fetch. */
 	memcpy(m->bytes+9984,(uint8_t[]){125,0,0,0,0,0},6);
 	feed(&f,"G#N 6,1664,1665:"); flow_pair();
 	m->count=10001; memset(m->bytes,0,sizeof(m->bytes)); st_igs_test_calls=0;
-	error_wire(&f,"G#N 5:",IO_ERROR_OUT_OF_RANGE);
+	rejected_wire(&f,"G#N 5:");
 	CHECK(!m->playing && !m->command); flow_pair();
 	/* Empty N4 still enters flow, independent of MIDI enable. */
 	load(&f,4,NULL,0); flow_pair(); CHECK(m->midi_enabled==1);
@@ -207,7 +204,7 @@ static void boundaries(void)
 	igs->now_ms=now; poll_due(&f); CHECK(!m->playing && st_igs_test_stop_count==3); flow_pair();
 	/* Raw acquisition errors retain the count and previous accepted stores. */
 	cterm_igs_audio_destroy(igs); igs->now_ms=failed_now;
-	error_wire(&f,"G#N 0,7:",IO_ERROR_IO); CHECK(m->count==7 && !m->command && m->bytes[0]==255);
+	rejected_wire(&f,"G#N 0,7:"); CHECK(m->count==7 && !m->command && m->bytes[0]==255);
 	igs->now_ms=now;
 	/* Full reset clears retained bytes, both lengths, flag and paused input. */
 	m->script_length=9; m->midi_enabled=255; feed(&f,"G#N 5:");

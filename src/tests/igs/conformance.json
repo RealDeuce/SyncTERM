@@ -323,10 +323,13 @@
         "local incomplete-header input deadline"
       ],
       "tests": [
-        "cterm_igs_input"
+        "cterm_igs_input",
+        "cterm_igs_x10",
+        "syncterm_behavior_session_modes"
       ],
       "verification": [
-        "Native FreeBSD /usr/bin/cc Release: full CMake build passed; all 24 CTerm tests passed; term_rip_encoding_consistency, term_key_forward, term_rip_v110a_wire and syncterm_graphics_scrollback passed."
+        "Native FreeBSD /usr/bin/cc Release: full CMake build passed; all 24 CTerm tests passed; term_rip_encoding_consistency, term_key_forward, term_rip_v110a_wire and syncterm_graphics_scrollback passed.",
+        "Native FreeBSD /usr/bin/cc Release CMake configure/full build passed without warnings. All 92 selected CTest checks have passing verification across the regression run and focused followups, including every native CTerm IGS/RIP test, shared grammar/images, term/key forwarding, RIP wire CP437/UTF-8 and X10/bitmap/music application fixtures. Split/bytewise rejected input recovers into base VT52/ANSI and later graphics; unsafe b edits preserve the patch and render the TAIL suffix in the same write. Session fixtures retain both connection directions with popups enabled/disabled; subsequent real EOF still shows the normal notice. The unchanged Ignite KM-2ENT.IG completed headless playback with AudioModes=0 and MidiModes=0."
       ],
       "commit": "c19dbad",
       "limitations": [
@@ -350,7 +353,9 @@
         "syncterm_igs_palette",
         "syncterm_igs_hollow",
         "syncterm_igs_fill",
-        "syncterm_igs_type"
+        "syncterm_igs_type",
+        "cterm_igs_x10",
+        "syncterm_behavior_session_modes"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -459,7 +464,7 @@
       "operations": [
         "Read one unscaled selector without clamping; out-of-range words consume no selector payload and perform no store/service/reply before normal chaining",
         "Reuse shared fixed-prefix and dynamic-tail descriptions for selector payloads; effect-free preview includes selector numeric state and real random operands commit once",
-        "Selectors 0, 1, 2, 7, 8, 10, 11, 12, 13, 14 and 15 implemented; pending valid 0..15 handlers return NOT_SUPPORTED after the selector, leaving their payload unread"
+        "Selectors 0, 1, 2, 7, 8, 10, 11, 12, 13, 14 and 15 implemented; pending valid 0..15 handlers warn after the selector; the adapter cancels the rejected grammar and continues the unread suffix through graphics/plain input without ending the session"
       ],
       "tests": [
         "cterm_igs_x10",

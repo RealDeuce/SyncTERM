@@ -156,7 +156,7 @@ partitions_and_recovery(void)
 			feed(&f, "G#H 1"); local_ms += 5000;
 			CHECK(st_cterm_poll(f.terminal) == 0); triple(igs, 1, 1, false);
 			const char invalid[] = "G#H 99999:";
-			CHECK(st_cterm_write(f.terminal, invalid, sizeof(invalid) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal, invalid, sizeof(invalid) - 1, &used) == 0);
 			triple(igs, 1, 1, false);
 			feed(&f, "G#H 1:"); triple(igs, 0, 2, true);
 			feed(&f, "G#H "); CHECK(st_cterm_reset_terminal(f.terminal) == 0); triple(igs, 1, 1, true);

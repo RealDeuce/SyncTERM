@@ -194,7 +194,7 @@ partitions_and_recovery(void)
 				CHECK(memcmp(requested, igs->requested_palette, sizeof(requested)) == 0);
 			}
 			const char invalid[] = "G#S 0,7,7,99999:";
-			CHECK(st_cterm_write(f.terminal, invalid, sizeof(invalid) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal, invalid, sizeof(invalid) - 1, &used) == 0);
 			CHECK(memcmp(complete, igs->palette, sizeof(complete)) == 0);
 			feed(&f, "G#S 0,0,0,0:"); CHECK(igs->palette[0] == 0);
 			feed(&f, "G#S 0,7,"); CHECK(st_cterm_reset_terminal(f.terminal) == 0);

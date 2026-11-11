@@ -164,7 +164,7 @@ lifetime(void)
 		CHECK(st_cterm_poll(t) == 0 && wrapping(t) && igs->random_seed == 1);
 		const char bad[] = "G#w 10000:";
 		size_t used;
-		CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 		CHECK(wrapping(t) && t->accumulator == NULL);
 		feed(&f, "G#I>0:I>1:I>2:I>3:I 4:");
 		char same[32];
@@ -197,7 +197,7 @@ lifetime(void)
 		feed(&f, "\033w");
 		t->screen.error = IO_ERROR_IO;
 		const char on[] = "G#w 1:";
-		CHECK(st_cterm_write(t, on, sizeof(on) - 1, &used) == IO_ERROR_IO);
+		CHECK(st_cterm_write(t, on, sizeof(on) - 1, &used) == 0);
 		CHECK(!wrapping(t) && t->accumulator != NULL && t->sequence != 0);
 		feed(&f, "v");
 		CHECK(wrapping(t));

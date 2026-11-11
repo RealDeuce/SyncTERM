@@ -240,7 +240,7 @@ partitions_and_errors(void)
 	feed(&f,"G#n 2,1,10,60,1"); CHECK(st_cterm_finish(f.terminal) == 0 && st_igs_test_calls == 0);
 	feed(&f,"G#n 2,1,10,60,1"); local_ms += 5000; CHECK(st_cterm_poll(f.terminal) == 0 && st_igs_test_calls == 0);
 	const char invalid[] = "G#n 0,0,15,60,10000,4:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == IO_ERROR_OUT_OF_RANGE && st_igs_test_calls == 0);
+	CHECK(st_cterm_write(f.terminal,invalid,sizeof(invalid)-1,&used) == 0 && st_igs_test_calls == 0);
 	feed(&f,"G#M 1:"); request(&f,(int[]){0,0,15,60,32767,0});
 	CHECK(st_cterm_finish(f.terminal) == 0 && !st_cterm_input_paused(f.terminal));
 	CHECK(!st_igs_gist_active(&f.terminal->igs_engine->audio->gist));

@@ -92,6 +92,12 @@ through the other protocol's parser. Sharing this insertion point does not
 require migrating RIP into the new IGS-family grammar. Preserve existing
 wire-encoding, hook, capture and intentional semantic-input bypass contracts.
 
+Rejected graphics commands must log warnings and continue the input stream,
+not escape as session failures. Preserve completed effects and forward the
+unclaimed suffix through the normal graphics/text stages without replaying
+already consumed bytes. Cover recovery into ANSI/VT52, following graphics
+commands and continued bidirectional connection use.
+
 IGS owns per-terminal parser/interpreter state, two indexed memory images,
 logical/physical routing, palette and drawing attributes, text, console and
 overlays. SyncTERM's existing bitmap framebuffer is the authoritative screen.
@@ -931,10 +937,11 @@ service call or reply. Chaining then follows the common parser contract.
 References: 22/19 and IG221.TXT's X10 and g manual entries.
 
 The X dispatcher remains in progress: only selector 10 is implemented in
-this step. A valid selector 0..15 whose handler is still pending returns
-NOT_SUPPORTED after its selector, leaving following payload unread. This
-explicit development failure avoids presenting missing handlers as native
-no-ops. The X command must not be marked complete until all sixteen selector
+this step. A valid selector 0..15 whose handler is still pending reports
+NOT_SUPPORTED after its selector. The stream adapter now logs that rejection
+as a warning and continues the unread payload through normal input handling.
+Missing handlers are not counted as implemented native no-ops. The X command
+must not be marked complete until all sixteen selector
 handlers and shared dispatch/loop behavior are finished.
 
 X10 updates only the remembered endpoint. It preserves the start pair,

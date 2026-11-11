@@ -161,7 +161,7 @@ scaling_and_lifetime(void)
 			feed(&f,partial[i]); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0);
 		}
 		const char bad[] = "G#Q 1,2,3,10000:";
-		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 		struct st_pixel_buffer *after = NULL; CHECK(st_console_get_pixels(&after,f.console,&full,false) == 0);
 		CHECK(memcmp(before->primary,after->primary,(size_t)igs->width*igs->height*sizeof(*before->primary)) == 0);
 		CHECK(memcmp(before->alternate,after->alternate,(size_t)igs->width*igs->height*sizeof(*before->alternate)) == 0);
@@ -173,7 +173,7 @@ scaling_and_lifetime(void)
 			struct cterm_igs_attributes attrs; memcpy(&attrs,&igs->attributes,sizeof(attrs));
 			bool last = igs->last_line;
 			const char rejected[] = "G#Q 80,80,17,9:";
-			CHECK(st_cterm_write(f.terminal,rejected,sizeof(rejected)-1,&used) == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(st_cterm_write(f.terminal,rejected,sizeof(rejected)-1,&used) == 0);
 			CHECK(memcmp(&attrs,&igs->attributes,sizeof(attrs)) == 0 && igs->last_line == last && igs->draw_x == 37);
 			CHECK(st_console_get_pixels(&after,f.console,&full,false) == 0);
 			CHECK(memcmp(before->primary,after->primary,(size_t)igs->width*igs->height*sizeof(*before->primary)) == 0);

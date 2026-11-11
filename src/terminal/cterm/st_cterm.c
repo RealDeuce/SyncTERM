@@ -1715,6 +1715,12 @@ rip_host_command(void *context, int level, int sublevel,
 }
 
 static void
+rip_warning(void *context, const char *message)
+{
+	cterm_log(context, ST_CTERM_LOG_WARNING, "%s", message);
+}
+
+static void
 emit_response(const char *bytes, size_t size, void *context)
 {
 	st_cterm_t *terminal = context;
@@ -2255,6 +2261,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			.at_carriage_return_column = rip_at_column,
 			.text_disabled = rip_text_disabled,
 			.music_introducer = rip_music_introducer,
+			.warning = rip_warning,
 		};
 
 		terminal->rip_engine = calloc(1, sizeof(*terminal->rip_engine));

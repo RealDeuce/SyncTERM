@@ -273,7 +273,7 @@ input_and_scaling(void)
 			CHECK(st_console_read_cells(f.console,&text,cells,2) == 0 && cells[0].glyph == 'A' && cells[1].glyph == 'B');
 			feed(&f,"G#P 10,"); CHECK(st_cterm_finish(f.terminal) == 0 && igs->draw_x == 40);
 			feed(&f,"G#P 10,"); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0 && igs->draw_x == 40);
-			CHECK(st_cterm_write(f.terminal,"G#P 10000,1:",strlen("G#P 10000,1:"),&used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal,"G#P 10000,1:",strlen("G#P 10000,1:"),&used) == 0);
 			CHECK(igs->draw_x == 40);
 			feed(&f,"G#g>1:P 5000,5000:");
 			CHECK(igs->draw_x == (resolution == 0 ? 160 : 320) && igs->draw_y == (resolution == 2 ? 200 : 100));

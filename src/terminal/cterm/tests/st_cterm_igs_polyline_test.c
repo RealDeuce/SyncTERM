@@ -201,7 +201,7 @@ flow_and_recovery(void)
 	feed(&f,"G#z r,40,"); local_ms += 5001; CHECK(st_cterm_poll(f.terminal) == 0);
 	CHECK(igs->random_seed == 1 && r.count == 0);
 	size_t used; const char bad[] = "G#z 2,40,60,80,10000:";
-	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE && r.count == 0);
+	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0 && r.count == 0);
 	const struct st_console_rect untouched = {0,0,320,200}; struct st_pixel_buffer *blank = NULL;
 	CHECK(st_console_get_pixels(&blank,f.console,&untouched,false) == 0);
 	for (size_t i = 0; i < 320u*200; ++i) CHECK(blank->primary[i] == 768 && blank->alternate[i] == 768);
@@ -222,8 +222,8 @@ flow_and_recovery(void)
 	r.count = 0; r.action = 0;
 	igs->attributes.line_width = 2;
 	const char rejected[] = "G#z 2,40,60,80,60:";
-	CHECK(st_cterm_write(f.terminal,rejected,sizeof(rejected)-1,&used) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(r.count == 1 && r.bytes[0] == 19); igs->attributes.line_width = 1;
+	CHECK(st_cterm_write(f.terminal,rejected,sizeof(rejected)-1,&used) == 0);
+	CHECK(r.count == 2 && r.bytes[0] == 19 && r.bytes[1] == 17); igs->attributes.line_width = 1;
 	r.count = 0;
 	feed(&f,"G#z 2,40,"); CHECK(st_cterm_reset_terminal(f.terminal) == 0); CHECK(r.count == 0);
 	feed(&f,"G#z 2,40,60,80,60:"); CHECK(r.count == 2);

@@ -96,6 +96,27 @@ neither protocol's payloads are passed through the other protocol's parser.
 Their grammars remain separate; RIP need not migrate into the shared
 IGS-family grammar to use the same insertion point.
 
+Rejected IGS commands are warnings, not session errors. The CTerm adapter
+cancels the rejected grammar and its incremental payload work, retains
+completed effects, and continues with the unread suffix in the same call.
+Ordinary bytes in that suffix reach VT52/text handling; subsequent graphics
+introducers remain recognizable. Unsupported X selectors likewise leave
+their unrecognized payload to the following input stages. Successful pauses
+still retain their unread suffix until resumed. Failed `z`/`f`/`F` drawing
+releases serial XOFF with XON unless a reset took ownership of cancellation.
+Native X10 tests cover every
+split and bytewise recovery into VT52 and another IGS command; the
+`syncterm_behavior_session_modes` fixture verifies both directions of the
+live connection and the normal notice on subsequent remote EOF.
+
+Verified with the native FreeBSD Release CMake build using `/usr/bin/cc`,
+without compiler warnings. All 92 selected CTest checks have passing results
+across the regression run and focused followups, including RIP wire fixtures,
+all native CTerm IGS tests, shared grammar/images, term forwarding and the
+X10/bitmap/music application fixtures. The unsafe sound-edit test explicitly
+checks the following `TAIL` text in the same write. The unchanged Ignite
+`KM-2ENT.IG` also completed headless playback with physical audio disabled.
+
 Required integration tests cover mixed ordinary text/control input, split
 graphics introducers, payloads containing control-looking bytes, and reset/
 disconnect recovery at this boundary, while preserving existing encoding,
@@ -663,7 +684,7 @@ descriptors reuse shared fixed-prefix and dynamic-tail descriptions. T and X
 share effect-free arity preview; real random operands advance once at
 complete numeric execution or entry to a stateful payload reader.
 X0, X1, X2, X7, X8, X10, X11, X12, X13, X14 and X15 are implemented so far. Other valid selectors
-return NOT_SUPPORTED after the selector and leave payload unread; those
+log a warning after the selector and pass the remaining stream onward; those
 handlers and full X dispatch/loop conformance remain pending.
 
 X10 sets only the remembered end pair, preserving the start, attributes,
@@ -2168,7 +2189,7 @@ and test counts are recorded in src/tests/igs/gist-vectors.json.
 
 ## Deliberate corrections
 
-The parser reports a bounded failure and cancels its pending command on
+The reusable byte grammar reports a bounded failure and cancels its pending command on
 invalid grammar/resource use. Bytes already delivered to text or completed
 command callbacks remain delivered, and `consumed` identifies the unread
 suffix. The next feed begins attention scanning unless a successfully

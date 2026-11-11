@@ -139,7 +139,7 @@ lifetime(void)
 			feed(&f,partial[i]); local_ms += 5001; CHECK(st_cterm_poll(t) == 0);
 			CHECK(t->xpos == 4 && t->ypos == 3 && igs->random_seed == 1 && t->accumulator == NULL);
 		}
-		size_t used; const char bad[] = "G#m r,10000:"; CHECK(st_cterm_write(t,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+		size_t used; const char bad[] = "G#m r,10000:"; CHECK(st_cterm_write(t,bad,sizeof(bad)-1,&used) == 0);
 		CHECK(t->xpos == 4 && t->ypos == 3 && igs->random_seed == 1);
 		igs->loop_mode = 1; feed(&f,"G#m 3,0:"); CHECK(t->xpos == 5 && t->ypos == 3); igs->loop_mode = 0;
 		feed(&f,"G#I>0:I>1:I 2:"); CHECK(t->xpos == 5 && t->ypos == 3);
@@ -153,7 +153,7 @@ lifetime(void)
 		CHECK(t->xpos == (resolution == 2 ? 5 : 1) && t->ypos == (resolution == 2 ? 3 : 1));
 		igs->random_range[0][1] = igs->random_range[1][1] = 255;
 		t->screen.codepage = ST_CODEPAGE_CP437; t->screen.error = IO_ERROR_IO; t->lf_expand = true;
-		const char command[] = "G#m r,R:"; CHECK(st_cterm_write(t,command,sizeof(command)-1,&used) == IO_ERROR_IO);
+		const char command[] = "G#m r,R:"; CHECK(st_cterm_write(t,command,sizeof(command)-1,&used) == 0);
 		CHECK(igs->random_seed == UINT32_C(0x5eb5ca17) && t->accumulator != NULL && t->sequence != 0);
 		CHECK(t->screen.codepage == ST_CODEPAGE_CP437 && t->lf_expand);
 		CHECK(st_cterm_reset_terminal(t) == 0); feed(&f,"G#p>3,2:m 0,0:"); CHECK(t->xpos == 1 && t->ypos == 1);

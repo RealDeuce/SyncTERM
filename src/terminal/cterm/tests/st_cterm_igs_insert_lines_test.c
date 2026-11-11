@@ -142,7 +142,7 @@ partitions_and_recovery(void)
 	CHECK(st_cterm_poll(t) == 0 && t->igs_engine->random_seed == UINT32_C(0xbb40e62e));
 	const char bad[] = "G#i r,10000:";
 	size_t used;
-	CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_cterm_write(t, bad, sizeof(bad) - 1, &used) == 0);
 	check_cell(&f, 3, 0, 'A');
 	CHECK(t->xpos == 4 && t->ypos == 1 && t->accumulator == NULL);
 
@@ -151,7 +151,7 @@ partitions_and_recovery(void)
 	CHECK(st_cterm_scrollback_size(t, &columns, &before) == 0);
 	t->screen.error = IO_ERROR_IO;
 	const char command[] = "G#i 0,2:";
-	CHECK(st_cterm_write(t, command, sizeof(command) - 1, &used) == IO_ERROR_IO);
+	CHECK(st_cterm_write(t, command, sizeof(command) - 1, &used) == 0);
 	CHECK(t->xpos == 4 && t->ypos == 1 && t->sequence != 0);
 	check_cell(&f, 3, 0, 'A');
 	feed(&f, "I");

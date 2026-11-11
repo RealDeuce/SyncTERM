@@ -183,7 +183,7 @@ partitions_and_arity(void)
 					CHECK(memcmp(&saved, &igs->attributes, sizeof(saved)) == 0);
 				}
 				const char invalid[] = "G#T 1,7,99999:";
-				CHECK(st_cterm_write(f.terminal, invalid, sizeof(invalid) - 1, &used) == IO_ERROR_OUT_OF_RANGE);
+				CHECK(st_cterm_write(f.terminal, invalid, sizeof(invalid) - 1, &used) == 0);
 				CHECK(memcmp(&saved, &igs->attributes, sizeof(saved)) == 0);
 				feed(&f, "G#T 1,2,3:"); CHECK(igs->attributes.marker_type == 2 && igs->attributes.marker_height == 33);
 				feed(&f, "G#T 2,"); CHECK(st_cterm_reset_terminal(f.terminal) == 0);

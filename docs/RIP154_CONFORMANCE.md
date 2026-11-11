@@ -6,6 +6,15 @@ recognizes only its own CSI `!`, `0!`, `1!` and `2!` forms, passing unrelated CS
 forms to ANSI handling. SkyPix commands do not activate a RIP graphics engine.
 Historical RIP captures and their exclusions remain unchanged.
 
+RIP command/control failures log warnings and continue at the existing wire
+boundary. A rejected command before `|` does not swallow the following command;
+following ordinary ANSI/text bytes continue through the base parser. A failed
+raster operation clears its error latch before the next command. Native
+`cterm_rip_engine` and `cterm_rip_variables` tests cover command and prompt
+failures, including EOF/reset flushing. `syncterm_behavior_session_modes`
+checks continued bidirectional connection use after a missing RIP scene and
+the normal disconnect notice on later remote EOF.
+
 Enable `ST_CONSOLE_TEST` and run:
 
 ```sh

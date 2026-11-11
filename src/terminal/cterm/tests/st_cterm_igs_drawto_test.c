@@ -116,11 +116,11 @@ partitions_and_recovery(void)
 				CHECK(st_cterm_poll(f.terminal) == 0); position(igs,10,20,30,40);
 			}
 			const char bad[] = "G#D 1,10000:";
-			CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == IO_ERROR_OUT_OF_RANGE);
+			CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used) == 0);
 			position(igs,10,20,30,40);
 			igs->attributes.line_width = 2;
 			const char failed[] = "G#D 1,2:";
-			CHECK(st_cterm_write(f.terminal,failed,sizeof(failed)-1,&used) == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(st_cterm_write(f.terminal,failed,sizeof(failed)-1,&used) == 0);
 			position(igs,10,20,30,40); igs->attributes.line_width = 1;
 			struct st_pixel_buffer *after = NULL;
 			CHECK(st_console_get_pixels(&after,f.console,&area,false) == 0);

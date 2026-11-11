@@ -10,6 +10,7 @@
 #include "io_error.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -44,7 +45,7 @@ slide(struct cterm_rip_parser *parser, uint8_t byte)
 }
 
 static int
-push(struct cterm_rip_parser *parser, uint8_t byte)
+append_byte(struct cterm_rip_parser *parser, uint8_t byte)
 {
 	if (parser->length > SIZE_MAX - 2)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -76,6 +77,26 @@ clear_command(struct cterm_rip_parser *parser)
 	parser->length = 0;
 	if (parser->command != NULL)
 		parser->command[0] = 0;
+}
+
+static void
+warn(const struct cterm_rip_parser_sink *sink, const char *operation, int status)
+{
+	char message[128];
+	(void)snprintf(message, sizeof(message), "RIP %s rejected (%d)", operation, status);
+	if (sink->warning != NULL) sink->warning(sink->context, message);
+}
+
+static int
+push(struct cterm_rip_parser *parser,
+    const struct cterm_rip_parser_sink *sink, uint8_t byte)
+{
+	int status = append_byte(parser, byte);
+	if (status != 0) {
+		warn(sink, "command buffer", status);
+		clear_command(parser);
+	}
+	return 0;
 }
 
 static bool
@@ -171,9 +192,17 @@ dispatch_command(struct cterm_rip_parser *parser,
 	}
 	if (sink->boundary != NULL)
 		status = sink->boundary(sink->context);
-	if (status == 0 && sink->command != NULL)
+	if (status == 0 && sink->command != NULL) {
 		status = sink->command(sink->context, level, sublevel, code,
 		    (const char *)&parser->command[index]);
+		if (status != 0) {
+			char operation[80];
+			(void)snprintf(operation, sizeof(operation),
+			    "command level=%d sublevel=%d code=0x%02X", level, sublevel, (unsigned)code);
+			warn(sink, operation, status);
+			status = 0;
+		}
+	}
 	clear_command(parser);
 	return status;
 }
@@ -256,8 +285,13 @@ feed_escape(struct cterm_rip_parser *parser,
 	    && parser->escape[2] <= '2'))) {
 		parser->escape[parser->escape_length++] = byte;
 		status = sink->boundary == NULL ? 0 : sink->boundary(sink->context);
-		if (status == 0 && sink->control != NULL)
+		if (status == 0 && sink->control != NULL) {
 			status = sink->control(sink->context, parser->escape, parser->escape_length);
+			if (status != 0) {
+				warn(sink, "control", status);
+				status = 0;
+			}
+		}
 		if (parser->escape_length == 4 && parser->escape[2] == '1')
 			parser->enabled = false;
 		parser->escape_length = 0;
@@ -311,7 +345,7 @@ feed_one(struct cterm_rip_parser *parser,
 		return feed_escape(parser, sink, byte);
 	if (parser->length == 0) {
 		if (accept_introducer(parser, sink, byte))
-			return push(parser, byte);
+			return push(parser, sink, byte);
 		return emit_plain(parser, sink, byte);
 	}
 	if (parser->length == 1 && byte != '|'
@@ -339,12 +373,12 @@ feed_one(struct cterm_rip_parser *parser,
 	}
 	if (byte == '|') {
 		if (trailing_backslashes(parser) & 1)
-			return push(parser, byte);
+			return push(parser, sink, byte);
 		parser->command_terminated_cr = false;
 		status = dispatch_command(parser, sink);
-		return status == 0 ? push(parser, '|') : status;
+		return status == 0 ? push(parser, sink, '|') : status;
 	}
-	return push(parser, byte);
+	return push(parser, sink, byte);
 }
 
 int
