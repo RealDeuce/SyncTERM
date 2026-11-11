@@ -3793,3 +3793,5 @@ b/n. Native n took 0.34 seconds; application n took 25.87 seconds. The sound
 foundation stays in progress for N and MIDI integration. Buffered music,
 remaining loops/selectors and final acceptance are unfinished. References:
 chapters 06/23/57/182; prior b completion commit 53d1e31.
+
+Completion commit for n: 4f868b5. The goal remains active at 53/63.

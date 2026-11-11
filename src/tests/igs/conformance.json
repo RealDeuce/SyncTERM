@@ -2761,7 +2761,7 @@
       "verification": [
         "The native n test failed at the missing trigger before implementation. Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 32 selected CTest checks passed in 86.51 seconds: shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application b/n. Native n took 0.34 seconds and its application fixture 25.87 seconds, including 235 independent helper cases and 306 coherent all-mode/encoding/status captures. Physical audio/MIDI were disabled; PCM tests use the device-free pull runtime. All 63 ordered command IDs, 53 completed entries, active test registrations/dependencies/references, original-data identities and independent note fixture provenance/counts were validated. No auditory/device/reference-waveform coverage is claimed."
       ],
-      "commit": null
+      "commit": "4f868b5"
     },
     {
       "id": "N",
