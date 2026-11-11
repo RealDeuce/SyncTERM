@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
+#include "cterm_igs_audio.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
@@ -246,6 +247,18 @@ type_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+effect_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	int selector = -1;
+	int status = preview_first(context,view,&selector);
+	size_t count = selector == 20 ? 7 : selector == 22 || selector == 23 ? 2 : 1;
+	*result = status == 0 && view->count < count ? unscaled_parameters[0]
+	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	return status;
+}
+
+static int
 text_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
@@ -349,6 +362,7 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 
 static const struct st_graphics_command commands[] = {
 	{'G', unscaled_parameters, 2, grab_next},
+	{'b', unscaled_parameters, 1, effect_next},
 	{'I', unscaled_parameters, 1, NULL},
 	{'R', unscaled_parameters, 2, NULL},
 	{'g', unscaled_parameters, 1, NULL},
@@ -782,6 +796,7 @@ command(void *context, const struct st_graphics_command_view *view)
 			return status;
 	}
 	switch (view->code) {
+	case 'b': return cterm_igs_audio_effect(igs,values,view->count);
 	case 'G': return cterm_igs_grab(igs,values,view->count);
 	case 'I': return cterm_igs_initialize(igs, values[0]);
 	case 'R': return cterm_igs_resolution(igs, values[0], values[1]);
@@ -1096,6 +1111,7 @@ cterm_igs_destroy(struct cterm_igs *igs)
 {
 	if (igs == NULL)
 		return;
+	cterm_igs_audio_destroy(igs);
 	st_graphics_parser_destroy(igs->parser);
 	st_igs_image_destroy(igs->memory[0]);
 	st_igs_image_destroy(igs->memory[1]);
@@ -1119,6 +1135,7 @@ cterm_igs_reset(struct cterm_igs *igs)
 			cterm_render_record_error(igs->terminal, status);
 	}
 	cancel_input(igs);
+	cterm_igs_audio_destroy(igs);
 	memset(igs->warned, 0, sizeof(igs->warned));
 	cterm_render_record_error(igs->terminal, cterm_igs_state_reset(igs));
 }
@@ -1132,6 +1149,8 @@ cterm_igs_paused(const struct cterm_igs *igs)
 bool
 cterm_igs_handle_key(struct cterm_igs *igs)
 {
+	if (igs != NULL && !igs->terminal->quiet)
+		cterm_render_record_error(igs->terminal,cterm_igs_audio_console(igs,true));
 	if (igs != NULL && igs->palette_rotation.active && !igs->palette_rotation.key) {
 		igs->palette_rotation.key = true;
 		return true;
@@ -1150,6 +1169,8 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	*used = 0;
 	if (igs->feeding)
 		return IO_ERROR_BUSY;
+	status = cterm_igs_audio_poll(igs);
+	if (status != 0) return status;
 	if (cterm_igs_paused(igs))
 		return 0;
 	if (igs->text_deadline != 0) {
@@ -1205,6 +1226,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 {
 	if (igs->feeding)
 		return 0;
+	cterm_igs_audio_stop(igs);
 	if (cterm_igs_paused(igs)) {
 		int status = 0;
 		if (igs->timed_pause) {
@@ -1243,6 +1265,8 @@ cterm_igs_finish(struct cterm_igs *igs)
 int
 cterm_igs_poll(struct cterm_igs *igs)
 {
+	int audio_status = cterm_igs_audio_poll(igs);
+	if (audio_status != 0) return audio_status;
 	uint64_t now;
 	if (igs->sweep.active) {
 		int status = igs->now_ms(&now);

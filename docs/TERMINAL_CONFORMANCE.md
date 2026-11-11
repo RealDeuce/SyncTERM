@@ -249,7 +249,13 @@ callback, using the existing consumer and device-free pull runtime.
 PSG tests add literal register/envelope/gate/noise expectations, rational
 local-sample phase/frequency checks, DC probes/filter tails, partition
 invariance and all 20 original GIST patches. No foreign clock or reference
-PCM-byte identity is required. IGS session/audio integration remains pending.
+PCM-byte identity is required. The b command now adds editable source/saved
+patch banks, exact trigger counts, restoration and stop-all, through a dedicated
+session stream shared by GIST and console sounds. Disabled audio advances on
+local deadlines without PCM; fast phase/noise jumps prevent replay on re-enable.
+Native input/lifecycle/error tests and 198 coherent application captures cover
+all ST modes, Atari ST/CP437/UTF-8 and status choices, with physical audio/MIDI
+off. n/N and MIDI integration remain pending; no audible/device coverage is claimed.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

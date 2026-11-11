@@ -31,5 +31,8 @@ void st_igs_psg_levels(const struct st_igs_psg *, uint8_t levels[3]);
 /* Initialized, caller-owned state; output has room for 2*frame_count signed
  * 16-bit samples. No allocation, device access, timer or thread ownership. */
 void st_igs_psg_render(struct st_igs_psg *, int16_t *stereo, size_t frame_count);
+/* Advance unheard local frames without PCM or filter work. Generator state
+ * matches render; discard filter history so re-enable cannot replay a tail. */
+void st_igs_psg_skip(struct st_igs_psg *, uint64_t frame_count);
 
 #endif

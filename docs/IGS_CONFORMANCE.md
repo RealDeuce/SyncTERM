@@ -49,6 +49,8 @@ VT52 state, including byte wrapping and pending-sequence composition.
 selector rules through that same VT52 state.
 `r` adds one-shot cursor save and restore shared with raw VT52 j and k.
 `k` adds counted cursor visibility and serial destructive backspace.
+`b` adds editable effects, saved patch restoration, immediate stop and local
+GIST/PSG/console audio with session ownership and muted progression.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -60,8 +62,8 @@ required. Original bugs and memory/overflow accidents are corrected safely
 and will be listed here with tests. Historical delivery profiles, BIG and
 CONDOR implementations are outside this goal.
 
-Tested GIST software-voice/register and PSG synthesis components are available;
-IGS session ownership and b/n/N command/audio integration remain unfinished.
+GIST/PSG synthesis, shared console sound and b session integration are tested.
+n/N command/music and MIDI integration remain unfinished.
 Audio will implement GIST/PSG behavior and use SyncTERM MIDI facilities.
 Sound tests check functionality and lifecycle, without requiring identical PCM
 or reference-render comparisons. Listening is deferred to manual testing
@@ -2278,7 +2280,108 @@ the final full build had no warnings. All 14 selected CTest checks passed in
 13.41 seconds: igs_psg, igs_gist, igs_image, shared parser/stream, audio source,
 mixer, runtime and synthesis, music player, APC/SkyPix audio, CTerm and term.
 igs_psg takes about 0.1 second. The live-source component is committed as
-2ed84d7. The sound foundation stays in progress and the command ledger stays
-at 51/63: IGS session ownership, disabled-audio progression, console sound
-interaction and b/n/N integration are still pending. No auditory or physical
+2ed84d7. The command ledger at that component boundary was 51/63. Session ownership, disabled-audio
+progression, console interaction and b integration are completed below;
+n/N and MIDI integration remain pending. No auditory or physical
 audio-device coverage is claimed. References: chapters 53/54/56/57.
+
+
+### b: editable effects and session audio
+
+The b command is complete: 52/63 command entries are now implemented and
+independently tested. Its unscaled selector uses the shared parser's existing
+fixed prefix and dynamic parameter descriptions: one field ordinarily, seven
+for b20 and two for b22/b23. Arity previews copy numeric state; real operands,
+including rejected random samples, advance once at execution. No sound policy
+is added to the reusable parser or another VT52 parser.
+
+Twenty mutable 56-word source patches and twenty separate saved records are
+copied once when a session first needs sound. Identical original effects 3/11
+keep distinct records. Source edits and restoration do not change an already
+copied GIST voice. I/R graphics changes retain sound state; full reset and
+reconnect discard it and establish fresh original banks. b22 reads the current
+saved record, rather than substituting constants. The safe port has no native
+accessory-open counter or memory-escape recapture mechanism.
+
+Selectors above 23 become effect 0; negative selectors are no-ops. Effects
+0..4 call GIST once when multiplier is zero, otherwise max(0,signed-low-word
+(multiplier*200)) times; effects 5..19 call once. Each invocation receives the
+current source pointer, automatic voice, volume/pitch -1 and priority 1. A
+rejected voice allocation does not end the loop. These are immediate trigger
+calls with no added wait, throughput delay or foreign CPU timing. b23 retains
+all signed words <=16, including negatives, and maps larger values to 5.
+
+b20 consumes play/patch/word/negative/thousands/ones, caps positive patch/word/
+thousands to 19/55/32, constructs and optionally negates the defined 16-bit
+word, and stores it before optional playback. A negative patch does nothing.
+A negative word for a valid patch rejects with OUT_OF_RANGE after consuming
+the arguments, with no store or play and the unread suffix preserved. This
+corrects native RAM/code/MMIO escapes, including wrapped -32768/-32767 aliases.
+b21 immediately stops A/B/C in order without resetting noise or oscillator
+phases. b22 defaults invalid patch choices to 0 and restores only that source.
+Neither operation clears unrelated music or effects streams.
+
+A session-owned audio model feeds one shared PSG from GIST and the original
+US TOS 1.04 BEL/keyclick tables. A dedicated lazy stream uses the ordinary
+-12dB effects base and the existing audio consumer. It remains continuous
+after effects finish, preserving generator phases and filter tails, until
+EOF/reset/disconnect or output disable quiesces it. It does not use CTerm's
+shared FX/music streams, start a worker or block serial input. The consumer
+acquires the model mutex after mixer/stream locks; the owner releases that
+mutex before every audio/runtime API and destroys the stream before freeing
+its callback context.
+
+Local sample fractions schedule GIST at 200 updates/second. The fixed console
+tables are serviced at 50/second, initially after 15ms, following GIST when
+both are due. New console triggers obey quiet and the driver's post-update
+active-voice audio gate. A previously accepted console table still writes
+the shared PSG while a new effect suppresses further triggers. Bell/click
+preserve R7's upper bits; click writes R13 before R11/R12 and retains B/C gains.
+Only these used fixed tables are needed; no arbitrary Dosound pointer/memory
+interpreter, GPIO wiring or foreign keyboard-repeat service is introduced.
+
+Disabled/stopped/unavailable output opens no device and retains command/edit
+behavior. Local monotonic elapsed time advances software control and PSG
+phases without generating discarded PCM. Cumulative ceiling conversion avoids
+delaying an exact 5ms deadline another millisecond. Closed-form local phase
+reduction and GF(2) noise jumps handle 64-bit unheard frame spans, including
+long idle periods on a 32-bit host. Unheard filter history is discarded, so
+expired envelopes/tails do not replay on re-enable. Clock failures, rollback
+and unrepresentable intervals return bounded errors; device failures preserve
+logical playback and source edits. A failed clock read while switching from
+PCM consumption to local deadlines leaves the new anchor pending, preventing
+double-counting when the clock recovers. EOF stops voices and the stream while
+retaining current source banks; full reset frees the model.
+
+The native cterm_igs_audio test checks 140 effect/multiplier profiles, every
+signed multiplier word, all 1120 patch edit positions, clamps/word arithmetic,
+priority rejection, stop order and independent mutable/saved/copied records.
+It covers all input partitions and bytewise input, random arity, partial/
+invalid/EOF/timeout recovery and exact unread-suffix ownership. Local pull
+checks cover 221/220-frame note boundaries, shared console/GIST output, mute/
+re-enable without old sounds, I/R/source persistence, independent FX survival,
+model allocation/backend/clock errors and concurrent pull/edit/restore/reset/
+shutdown. The PSG component additionally compares fast unheard advancement
+with rendering and checks subdivision of maximum 64-bit intervals.
+
+The application fixture checks 198 coherent control-bitmap captures across
+all ST resolutions, Atari ST/CP437/UTF-8 and both status-line choices. Original
+patch words come from a pinned independent extraction in effect-vectors.json;
+expected scene glyphs/palettes are existing independent fixtures. Each capture
+combines locked sound state with exact indexed/RGB pixels, cells, palette and
+cursor. Include separate identical-patch edits, source restoration/clamps,
+short muted effect expiry, graphic initialization, active disconnect and fresh
+reconnect. AudioModes=0 and MidiModes=0 prevent physical output; native PCM
+checks use the device-free pull runtime. No auditory/device or reference-PCM
+waveform coverage is claimed.
+
+Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed;
+the final full build had no warnings. All 30 selected CTest checks passed in
+59.47 seconds: shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/
+synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b,
+CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and the b
+application fixture. Native b took 0.27 seconds; PSG 0.13 seconds; application
+b 19.73 seconds. The prior PSG component completion commit is 8dad5c7.
+The sound foundation stays in progress for n/N and MIDI integration; those
+commands and the remaining loops/selectors/final acceptance are unfinished.
+References: chapters 06/24/53/55/56/57.

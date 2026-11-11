@@ -79,6 +79,7 @@ endif()
 
 add_library(st_cterm STATIC
 	cterm_igs.c
+	cterm_igs_audio.c
 	cterm_igs_state.c
 	cterm_igs_math.c
 	cterm_igs_blit.c
@@ -711,6 +712,18 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_igs_sweep COMMAND st_terminal_tests st_cterm_igs_sweep_test)
 	set_tests_properties(cterm_igs_sweep PROPERTIES TIMEOUT 120)
+	add_executable(st_cterm_igs_audio_test tests/st_cterm_igs_audio_test.c
+		tests/st_cterm_igs_audio_bindings.c)
+	target_link_libraries(st_cterm_igs_audio_test PRIVATE st_cterm st_igs syncterm_threads)
+	set_target_properties(st_cterm_igs_audio_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_igs_audio_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_igs_audio_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_igs_audio COMMAND st_cterm_igs_audio_test)
+	set_tests_properties(cterm_igs_audio PROPERTIES TIMEOUT 30)
 	option(ST_CTERM_TEST_EXTERNAL_ASSETS "Use optional external RIP test assets" ON)
 	# These replay/inventory tools are built explicitly for external comparisons.
 	add_executable(st_cterm_apc_replay EXCLUDE_FROM_ALL tests/st_cterm_apc_replay.c)

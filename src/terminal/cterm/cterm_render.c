@@ -11,6 +11,7 @@
 #include "cterm_internal.h"
 #include "cterm_skypix.h"
 #include "cterm_vt52.h"
+#include "cterm_igs_audio.h"
 
 #include "io_error.h"
 #include "st_base64.h"
@@ -418,6 +419,10 @@ cterm_render_set_custom_cursor(struct cterminal *cterm,
 void
 cterm_render_beep(struct cterminal *cterm)
 {
+	if (cterm->igs_engine != NULL) {
+		cterm_render_record_error(cterm,cterm_igs_audio_console(cterm->igs_engine,false));
+		return;
+	}
 	audio_engine_t *engine = NULL;
 	if (cterm->screen.audio != NULL
 	    && st_audio_runtime_acquire(cterm->screen.audio, &engine) == 0)

@@ -54,6 +54,7 @@ registers(void)
 	st_igs_psg_write(&p,16,255); st_igs_psg_write(&p,UINT_MAX,255);
 	same_state(&p,&before);
 	st_igs_psg_render(&p,NULL,0); same_state(&p,&before);
+	st_igs_psg_skip(&p,0); same_state(&p,&before);
 	/* Exact local-frame period conversions, including zero-equals-one. */
 	for (unsigned i = 0; i < 3; ++i)
 		for (unsigned word = 0; word < 4096; ++word) {
@@ -258,11 +259,12 @@ partitions(void)
 		{0,1,221},{1,0,17},{6,0,45},{7,0x3f,87},{14,0x3f,7},{15,0xff,0},
 		{13,9,701},{8,0,220},{9,0,220},{10,0,4096},{16,255,1}
 	};
-	struct st_igs_psg a,b; st_igs_psg_init(&a); st_igs_psg_init(&b);
+	struct st_igs_psg a,b,c; st_igs_psg_init(&a); st_igs_psg_init(&b); st_igs_psg_init(&c);
 	uint32_t random = UINT32_C(0x494753);
 	for (size_t i = 0; i < sizeof(operations)/sizeof(*operations); ++i) {
 		const struct operation *op = &operations[i];
 		st_igs_psg_write(&a,op->reg,op->value); st_igs_psg_write(&b,op->reg,op->value);
+		st_igs_psg_write(&c,op->reg,op->value);
 		int16_t whole[8192],parts[8192];
 		st_igs_psg_render(&a,whole,op->frames);
 		for (unsigned offset = 0; offset < op->frames;) {
@@ -273,7 +275,22 @@ partitions(void)
 		}
 		CHECK(memcmp(whole,parts,2*op->frames*sizeof(*whole)) == 0);
 		same_state(&a,&b);
+		st_igs_psg_skip(&c,op->frames);
+		struct st_igs_psg unheard = a; unheard.low = unheard.previous_low = unheard.high = 0;
+		same_state(&c,&unheard);
 	}
+	static const uint32_t seeds[] = {0,1,0x12000,0x1ffff};
+	for (unsigned i = 0; i < 4; ++i) {
+		st_igs_psg_init(&a); a.lfsr = seeds[i]; a.envelope = 31*i;
+		a.elapsed[3] = 88200-1; b = a;
+		discard(&a,65536); st_igs_psg_skip(&b,65536);
+		a.low = a.previous_low = a.high = 0; same_state(&a,&b);
+	}
+	/* Very long unheard spans must take bounded work and preserve all
+	 * generator state under subdivision, including complete LFSR periods. */
+	st_igs_psg_init(&a); st_igs_psg_write(&a,11,255); st_igs_psg_write(&a,12,255); b = a;
+	st_igs_psg_skip(&a,UINT64_MAX); st_igs_psg_skip(&b,UINT64_MAX-17); st_igs_psg_skip(&b,17);
+	same_state(&a,&b);
 }
 
 static void

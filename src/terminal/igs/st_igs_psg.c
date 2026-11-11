@@ -143,3 +143,62 @@ st_igs_psg_render(struct st_igs_psg *p, int16_t *stereo, size_t frame_count)
 		stereo[2*i] = value; stereo[2*i+1] = value;
 	}
 }
+
+static uint32_t
+transform(const uint32_t matrix[17], uint32_t bits)
+{
+	uint32_t result = 0;
+	for (unsigned i = 0; i < 17; ++i) if (bits & (1u << i)) result ^= matrix[i];
+	return result;
+}
+
+static uint32_t
+noise_skip(uint32_t bits, unsigned shifts)
+{
+	/* Exponentiate the linear recurrence over GF(2). This skips waveform
+	 * edges directly, including very long muted intervals, without running
+	 * a master-clock loop or allocating another timing subsystem. */
+	uint32_t power[17], next[17];
+	for (unsigned i = 0; i < 17; ++i) {
+		uint32_t value = 1u << i;
+		power[i] = (value >> 1) ^ ((value & 1) ? 0x12000u : 0);
+	}
+	while (shifts != 0) {
+		if (shifts & 1) bits = transform(power,bits);
+		shifts >>= 1;
+		if (shifts == 0) break;
+		for (unsigned i = 0; i < 17; ++i) next[i] = transform(power,power[i]);
+		for (unsigned i = 0; i < 17; ++i) power[i] = next[i];
+	}
+	return bits;
+}
+
+void
+st_igs_psg_skip(struct st_igs_psg *p, uint64_t frame_count)
+{
+	if (frame_count == 0) return;
+	for (unsigned i = 0; i < 5; ++i) {
+		if (p->elapsed[i] >= p->duration[i]) { p->elapsed[i] = 0; edge(p,i); }
+		unsigned repeat = i < 3 ? 2 : i == 3 ? 131071 : 64;
+		uint64_t modulus = (uint64_t)p->duration[i]*repeat;
+		/* Reduction before multiplication bounds even UINT64_MAX frames.
+		 * The largest product here is below 2^57. */
+		uint64_t span = (frame_count%modulus)*FRAME_PARTS+p->elapsed[i];
+		unsigned edges = (unsigned)((span/p->duration[i])%repeat);
+		uint64_t until = i == 4 && p->envelope < 32
+		    ? (uint64_t)p->duration[i]*(32-p->envelope)-p->elapsed[i]
+		    : p->duration[i]-p->elapsed[i];
+		bool reached = frame_count >= (until+FRAME_PARTS-1)/FRAME_PARTS;
+		p->elapsed[i] = (uint32_t)(span%p->duration[i]);
+		if (i < 3) { if (edges & 1) p->tone[i] = !p->tone[i]; }
+		else if (i == 3 && reached) {
+			unsigned shifts = edges == 0 ? repeat : edges;
+			p->lfsr = noise_skip(p->lfsr,shifts-1); edge(p,3);
+		}
+		else if (i == 4) {
+			if (p->envelope < 32 && !reached) p->envelope += edges;
+			else p->envelope = 32+(p->envelope+edges+32)%64;
+		}
+	}
+	p->low = p->previous_low = p->high = 0;
+}

@@ -45,7 +45,10 @@
     "voice-stop filter tail without phase reset",
     "long-to-short period carry",
     "PCM/state invariance under varied partitions at fixed register-write sample positions",
-    "all original GIST patches composed at converted 200 updates/second local sample positions"
+    "all original GIST patches composed at converted 200 updates/second local sample positions",
+    "unheard generator-state advance equivalent to rendering, with filter history discarded",
+    "GF(2) noise jumps including zero seed and complete sequence periods",
+    "bounded 64-bit unheard sample intervals invariant under subdivision"
   ],
   "limitations": [
     "No auditory, physical device or reference-PCM waveform comparison.",
