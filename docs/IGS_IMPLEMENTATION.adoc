@@ -4140,6 +4140,8 @@ stay unfinished; the full goal remains active.
 
 == X4 zone definitions (complete)
 
+Implementation commit: `542fbb4`.
+
 Reference: chapter21, serial block $0020da..$0022b8, with chapter20's XON
 helper and chapter27's later `<` consumer. X4 owns48 zones, each with four
 signed rectangle words plus length and80 retained bytes. Initial rectangles/

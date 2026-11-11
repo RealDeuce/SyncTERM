@@ -2610,3 +2610,5 @@ state/auxiliary/music, CTerm ANSI/VT52/keyboard, RIP, SkyPix, term, Wren and
 application X3/X4/X5/N. Native X4 took0.26s and the432-capture application run
 28.26s. The ledger is57/63 complete; X dispatch, `<` and final acceptance remain
 unfinished.
+
+Completion commit for X4: 542fbb4. The goal remains active at57/63.
