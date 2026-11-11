@@ -5,6 +5,7 @@
 #include "cterm_igs_fonts.h"
 #include "cterm.h"
 #include "cterm_render.h"
+#include "st_igs_image.h"
 #include "io_error.h"
 
 #include <string.h>
@@ -432,6 +433,12 @@ cterm_igs_state_init(struct cterm_igs *igs)
 int
 cterm_igs_state_reset(struct cterm_igs *igs)
 {
+	for (unsigned i = 0; i < 2; ++i) {
+		st_igs_image_destroy(igs->memory[i]);
+		igs->memory[i] = NULL;
+	}
+	memset(igs->memory_rect,0,sizeof(igs->memory_rect));
+	memset(igs->memory_view,0,sizeof(igs->memory_view));
 	igs->attributes = igs->saved_attributes;
 	memset(igs->patterns, 0, sizeof(igs->patterns));
 	memset(igs->math, 0, sizeof(igs->math));

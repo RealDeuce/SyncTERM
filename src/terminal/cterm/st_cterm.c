@@ -2888,25 +2888,13 @@ resize_parser_geometry(st_cterm_t *terminal, int columns, int rows,
 static int
 prepare_igs_images(struct cterm_igs *igs, unsigned planes, struct st_igs_image *next[2])
 {
-	uint8_t *native = NULL;
 	int status = 0;
 	for (unsigned i = 0; i < 2 && status == 0; ++i) {
-		if (igs->memory[i] == NULL || igs->memory[i]->planes == planes)
-			continue;
-		if (native == NULL) {
-			native = malloc(ST_IGS_IMAGE_BYTES);
-			if (native == NULL)
-				return IO_ERROR_OUT_OF_MEMORY;
-		}
-		/* Preserve native contents at this format boundary. Prepare both
-		 * indexed replacements before committing console or image changes. */
-		status = st_igs_image_export(igs->memory[i], 0, native, ST_IGS_IMAGE_BYTES);
-		if (status == 0)
-			status = st_igs_image_create(&next[i], planes);
-		if (status == 0)
-			status = st_igs_image_import(next[i], 0, native, ST_IGS_IMAGE_BYTES);
+		if (igs->memory[i] == NULL || igs->memory[i]->planes == planes) continue;
+		/* Prepare both indexed replacements before committing console or
+		 * image changes. Preserve primary and alternate native-byte meaning. */
+		status = st_igs_image_clone_layout(&next[i], igs->memory[i], planes);
 	}
-	free(native);
 	return status;
 }
 

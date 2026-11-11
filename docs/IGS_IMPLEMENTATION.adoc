@@ -15,7 +15,7 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t and q commands and X0, X1, X2, X7, X10, X12 and X13 selectors are
+The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q and G commands and X0, X1, X2, X7, X10, X12 and X13 selectors are
 implemented and independently tested natively and through the control bitmap
 application backend. Profile/menu/Wren selection
 is available. Other commands remain pending. Parser-only tests do not establish
@@ -3014,4 +3014,104 @@ application X7/X13 regressions. Native and application X13 took 1.01 and
 in the final full build, which had no warnings. Ledger IDs, references,
 dependencies, active tests, 24 source-derived scene vectors and pinned
 font/ROM/oracle identities were checked. The ledger records 46 complete
-entries. Completion commit will be recorded by the next step.
+entries. Completion commit `d40d84b`.
+
+
+=== G indexed raster transfers
+
+G uses two unscaled operation/logic fields and typed X/Y coordinates with
+operation-dependent arity: eight values for G0/G3/G4, six for G1, four for
+G2 or a negative operation. The adapter's shared parameter data and private
+arity preview preserve ordinary framing, g scaling, array substitutions,
+random evaluation order and input-partition ownership. Arithmetic/geometry
+policy stays in cterm_igs_blit.c, outside the generic wire parser.
+
+The complete route matrix is implemented independently of X14's still-pending
+wire selector. G0 routes 0/1 copy screen to screen and leave the selected
+memory descriptor aliased to the screen until the next G rebuild. G1 routes
+0/1 capture to that memory; routes 2/3 copy memory0->1 / memory1->0; routes
+4/5 update remembered capture coordinates without copying. G2/G3 routes 0/1
+replay memory to screen, routes 2/3 copy memory1->0 / memory0->1, and routes
+4/5 copy screen to memory0/1. G4 routes 0/1 copy within one memory. Other
+routes and negative operations issue no copy. X14 application routing will
+be verified in its own next step; native G tests supply all route words.
+
+G1 remembers upper-clamped source coordinates before negative coordinates
+are replaced by zero. Captures keep their original coordinates, including
+padding, rather than packing the region at zero. Each G reconstructs both
+memory views from those remembered rectangles: descriptive width/height
+are differences without +1, while word width is trunc(width/16)+1, capped
+above at 40. Only word width supplies the actual row stride. Logical image
+width/height do not clip accesses within the full decoded allocation. G2
+routes 0/1 restore the remembered source and reconstruct destination maxima
+after preliminary limits; routes 4/5 retain the destination-style rectangle.
+Screen endpoints/origins use the actual current resolution, independently
+of g's captured scaling resolution. Corner ordering follows VDI109.
+
+All sixteen logic functions operate directly on physical indices. Logic
+above 15 selects replace (3); negative logic rejects at the native raster
+boundary without pixel changes. Logical drawing mode, pens, patterns,
+Drawto pairs, console parsing/cursor, palette and last-line state are not
+changed by G. Clipping applies to screen destinations; memory forms use
+capacity bounds. A two-group indexed source cache preserves shifted overlap
+and carried fringes without a whole-source snapshot, planar conversion or
+persistent planar surface. Row-alias traversal is tested against the
+independent addressed software-copy model. Bank ordering is stable memory0,
+memory1, logical screen, representing the ordinary accessory memory layout
+without foreign process pointers or runtime memory corruption.
+
+The existing indexed image owns the entire native 32000-byte capacity.
+Memory capture now preserves an optional alternate host blink phase; native
+imports update both phases and exports use the primary phase. R's existing
+format-change transaction prepares both phase-preserving image replacements
+before committing a display or image change. Bytes are decoded/encoded only
+at those layout/import/export boundaries; ordinary G blits never do it.
+I leaves images and capture coordinates intact; full reset/reconnect clear
+both buffers, views and remembered coordinates to deterministic defaults.
+
+Only G0 and G1/G2/G3 routes 0/1 honor q's second-copy control. A nonzero
+control repeats using fresh source/destination contents and the same caller
+rectangle. Controls <=1 repeat immediately; larger controls suspend input
+for control-1 local sync units through the existing deadline/poll path, then
+execute the second copy before resuming the chain. G4 and routes >=2 never
+repeat. No XOFF/XON or historical throughput delay is added. EOF/reset cancel
+a pending repeat, retaining completed work. Clock/backend failures stop at
+the completed-copy boundary and release pending ownership safely.
+
+Deliberate safe geometry corrections reject G operations above 4 and G2
+routes 2/3, whose native paths use unread stack coordinates. No uninitialized
+foreign frame words are invented. Active nonpositive strides, unequal
+unclipped extents and out-of-capacity memory accesses fail before pixel
+writes. Wide host-derived extents avoid accidental native word overflow.
+The host screen/status boundary always applies, and source clipping retains
+source/destination displacement. Foreign RGB/palette values in active native
+regions fail safely; no host UI row is captured or overwritten. Zero-filled
+new images replace uninitialized accessory buffer contents. Foreign MFDB
+reserved words, inquiry arrays, pointer aliases and CPU/fault events are
+outside the intended portable serial contract.
+
+Native coverage includes 12,096 independent dual-phase screen-copy cases
+across all operations, source/destination phases, widths, overlap directions,
+ST modes and status choices, plus 480 pinned native-model memory overlap/
+row-alias cases. Additional tests cover all route/operation combinations,
+unrebased capture/replay and metadata, local repeat timing/live re-reads,
+EOF/reset/backend/clock failures, every focused split and bytewise input,
+invalid/partial/timeout recovery, typed scaling, status isolation, explicit
+clip bounds and I/R/reset lifetime. Component tests verify both-phase native
+layout conversion and partial import/export behavior. Ordinary tests use
+checked-in vectors, never ROMs or an external reference tree.
+
+References: 18, 19, 22, 70, 71 and IG221.TXT's G command entry.
+
+The application fixture passed 126 coherent captures across all display,
+encoding and status choices. The initial native G test failed before
+implementation. Native FreeBSD Release configure and full builds with
+/usr/bin/cc passed without warnings after the separate in-progress SkyPix
+symbol issue cleared. All 18 selected CTest checks passed in 30.53 seconds,
+including shared parser, indexed images/pixels, CTerm ANSI/VT52, RIP parser,
+SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native
+and application G took 3.16 and 24.71 seconds. Ledger IDs, references,
+dependencies, active tests and pinned font/ROM/oracle identities were checked.
+Parallel SkyPix/console changes are excluded from the IGS commit. The ledger
+records 47 complete entries. Completion commit will be recorded by the next
+step.

@@ -29,6 +29,12 @@ struct cterm_igs_attributes {
 	int text_face, text_align_h, text_align_v;
 };
 
+struct cterm_igs_memory_view {
+	int width, height, word_width;
+	unsigned planes;
+	bool screen;
+};
+
 struct cterm_igs {
 	struct cterminal *terminal;
 	struct st_graphics_parser *parser;
@@ -68,6 +74,11 @@ struct cterm_igs {
 	int random_range[2][2];
 	/* Each slot owns a distinct indexed image, preserving its native bytes. */
 	struct st_igs_image *memory[2];
+	int memory_rect[2][4];
+	struct cterm_igs_memory_view memory_view[2];
+	/* Only a starred G route can own a second copy across a local wait. */
+	bool copy_pending;
+	int copy_logic, copy_source, copy_destination, copy_points[8];
 	/* Local monotonic milliseconds; injectable for deadline tests. */
 	int (*now_ms)(uint64_t *);
 	uint64_t input_deadline, text_deadline;
@@ -110,6 +121,8 @@ int cterm_igs_math_write(struct cterm_igs *, int operation, int a, int b, int in
 int cterm_igs_math_clear(struct cterm_igs *, int first, int last);
 int cterm_igs_math_format(struct cterm_igs *, int index);
 int cterm_igs_math_console(struct cterm_igs *, int index);
+int cterm_igs_grab(struct cterm_igs *, const int *, size_t count);
+int cterm_igs_grab_resume(struct cterm_igs *);
 int cterm_igs_rectangle(struct cterm_igs *, int x1, int y1, int x2, int y2);
 int cterm_igs_box(struct cterm_igs *, int x1, int y1, int x2, int y2, bool rounded);
 int cterm_igs_rounded_outline(struct cterm_igs *, int x1, int y1, int x2, int y2);

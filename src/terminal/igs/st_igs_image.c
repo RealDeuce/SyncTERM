@@ -15,7 +15,7 @@ static int
 validate(const struct st_igs_image *image, size_t offset, size_t count)
 {
 	if (image == NULL || !valid_planes(image->planes) || image->pixels == NULL
-	    || image->pixels->primary == NULL || image->pixels->alternate != NULL
+	    || image->pixels->primary == NULL
 	    || image->pixels->height != 1
 	    || image->pixels->width != (ST_IGS_IMAGE_BYTES * 8u) / image->planes)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -26,7 +26,9 @@ validate(const struct st_igs_image *image, size_t offset, size_t count)
 	for (size_t i = offset; i < offset + count; ++i) {
 		size_t first = (i / (2 * image->planes)) * 16 + (i % 2) * 8;
 		for (size_t bit = 0; bit < 8; ++bit) {
-			if (image->pixels->primary[first + bit] >= (1u << image->planes))
+			if (image->pixels->primary[first + bit] >= (1u << image->planes)
+			    || (image->pixels->alternate != NULL
+			    && image->pixels->alternate[first + bit] >= (1u << image->planes)))
 				return IO_ERROR_INVALID_FORMAT;
 		}
 	}
@@ -84,6 +86,10 @@ st_igs_image_import(struct st_igs_image *image, size_t offset,
 		for (unsigned bit = 0; bit < 8; ++bit) {
 			uint32_t *pixel = &image->pixels->primary[first + bit];
 			*pixel = (*pixel & ~mask) | (((bytes[i] >> (7 - bit)) & 1u) << plane);
+			if (image->pixels->alternate != NULL) {
+				pixel = &image->pixels->alternate[first + bit];
+				*pixel = (*pixel & ~mask) | (((bytes[i] >> (7 - bit)) & 1u) << plane);
+			}
 		}
 	}
 	return 0;
@@ -112,34 +118,48 @@ st_igs_image_export(const struct st_igs_image *image, size_t offset,
 }
 
 int
+st_igs_image_clone_layout(struct st_igs_image **result,
+    const struct st_igs_image *image, unsigned planes)
+{
+	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*result = NULL;
+	if (!valid_planes(planes)) return IO_ERROR_INVALID_ARGUMENT;
+	int status = validate(image, 0, ST_IGS_IMAGE_BYTES);
+	if (status != 0) return status;
+	struct st_igs_image *next = NULL;
+	status = st_igs_image_create(&next, planes);
+	if (status != 0) return status;
+	if (image->pixels->alternate != NULL)
+		status = st_pixel_buffer_ensure_alternate(next->pixels);
+	uint8_t *native = malloc(ST_IGS_IMAGE_BYTES);
+	if (native == NULL) status = IO_ERROR_OUT_OF_MEMORY;
+	for (unsigned phase = 0; status == 0 && phase < (image->pixels->alternate == NULL ? 1u : 2u); ++phase) {
+		/* Borrow one phase for format conversion, only at a layout edge. */
+		struct st_pixel_buffer source = *image->pixels, destination = *next->pixels;
+		if (phase != 0) { source.primary = source.alternate; destination.primary = destination.alternate; }
+		source.alternate = destination.alternate = NULL;
+		const struct st_igs_image from = {.pixels = &source, .planes = image->planes};
+		struct st_igs_image to = {.pixels = &destination, .planes = planes};
+		status = st_igs_image_export(&from, 0, native, ST_IGS_IMAGE_BYTES);
+		if (status == 0) status = st_igs_image_import(&to, 0, native, ST_IGS_IMAGE_BYTES);
+	}
+	free(native);
+	if (status != 0) { st_igs_image_destroy(next); return status; }
+	*result = next;
+	return 0;
+}
+
+int
 st_igs_image_replane(struct st_igs_image *image, unsigned planes)
 {
-	struct st_igs_image next = {0};
-	uint8_t *native;
-	int status;
-	if (!valid_planes(planes))
-		return IO_ERROR_INVALID_ARGUMENT;
-	status = validate(image, 0, 0);
-	if (status != 0)
-		return status;
-	if (planes == image->planes)
-		return 0;
-	native = malloc(ST_IGS_IMAGE_BYTES);
-	if (native == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	status = st_igs_image_export(image, 0, native, ST_IGS_IMAGE_BYTES);
-	if (status == 0)
-		status = st_pixel_buffer_create(&next.pixels,
-		    (ST_IGS_IMAGE_BYTES * 8u) / planes, 1, false);
-	next.planes = planes;
-	if (status == 0)
-		status = st_igs_image_import(&next, 0, native, ST_IGS_IMAGE_BYTES);
-	free(native);
-	if (status != 0) {
-		st_pixel_buffer_destroy(next.pixels);
-		return status;
-	}
+	if (!valid_planes(planes)) return IO_ERROR_INVALID_ARGUMENT;
+	int status = validate(image, 0, 0);
+	if (status != 0 || planes == image->planes) return status;
+	struct st_igs_image *next = NULL;
+	status = st_igs_image_clone_layout(&next, image, planes);
+	if (status != 0) return status;
 	st_pixel_buffer_destroy(image->pixels);
-	*image = next;
+	*image = *next;
+	free(next);
 	return 0;
 }

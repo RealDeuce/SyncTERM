@@ -209,6 +209,11 @@ output through the existing renderers. Native exhaustive word/index tests
 and 144 coherent application captures check arithmetic, safe division and
 bounds, staged W/X7 buffer reuse, typed coordinates, exact pixels/cells/RGB,
 input partitions, recovery and reconnect, with audio and MIDI off.
+`G` adds all sixteen indexed Boolean screen/memory transfer operations,
+retained capture coordinates and stride views, phase-preserving images and
+local second-copy deadlines. Independent native pixel/row-alias vectors and
+coherent application scenes cover capture/replay, hidden memory edits,
+clipping/status protection, input recovery and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

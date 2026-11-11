@@ -10,6 +10,7 @@ perimeter together. `A` selects fill styles and copies/generates user patterns.
 `P` draws the selected marker and updates the remembered Drawto endpoint.
 `L` draws thin/wide lines with patterns, caps and arrowheads, remembering the
 original requested start/end coordinates.
+`G` adds indexed screen/memory Boolean transfers and retained image views.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
 X dispatch is in progress: `X0` scatters markers with persistent color cycling.
@@ -1774,6 +1775,66 @@ Pinned independent glyph/effect oracles and literal decimal results check
 cells, both indexed phases, palette and RGB, rotations/effects, normalized
 coordinates, Drawto retention, no replies and partial disconnect/reconnect.
 Audio/MIDI are disabled; no device/audio coverage is claimed.
+
+### G indexed raster transfers
+
+`cterm_igs_grab`, `igs_image` and `syncterm_igs_grab` cover G0 screen copies,
+G1 capture, G2 replay, G3 explicit memory pieces and G4 memory self-copies.
+Two unscaled fields precede typed X/Y coordinates; dynamic arity shares
+existing descriptor data. Header effects publish after complete acquisition.
+G uses actual resolution limits while g retains its own coordinate snapshot.
+
+Both memory banks retain their capture coordinates and full decoded native
+capacity. G rebuilds their separate width/height/word-stride/plane views on
+every call. Capture coordinates are not rebased and descriptive width/height
+do not clip addresses inside the allocation. G0 leaves its selected memory
+descriptor as a screen alias until the next G; G1 routes 4/5 update capture
+coordinates despite making no raster call. Native tests cover the complete
+operation/route matrix. X14 wire routing and its application scenes follow
+in the next command step.
+
+All sixteen Boolean operations use physical indices in both host blink
+phases. Logic above 15 selects replace; negative logic leaves pixels alone.
+Screen destinations use workstation clipping. A two-group indexed source
+cache preserves shifted overlap and row aliases; there is no per-blit
+native-plane conversion or whole-source snapshot. Source/destination bank
+ordering is memory0, memory1, logical screen, representing ordinary accessory
+allocation without a foreign pointer/memory model. G preserves Drawto,
+last-line ownership, graphics attributes, palette and console state.
+
+Captured memory can retain an alternate host blink phase. Native imports
+update both phases; native exports select primary. Existing R format-edge
+conversion now preserves both phases transactionally. I preserves buffers
+and capture coordinates; reset/reconnect clear both and their transient views.
+Native images continue to retain 32000 bytes of decoded capacity and padding.
+
+Only screen copies and capture/replay/piece routes 0/1 support q's second
+copy. Nonzero controls <=1 repeat immediately; larger controls wait control-1
+local sync units through the existing pause/poll path, then copy current
+pixels before releasing the input chain. G4 and routes >=2 do not repeat.
+EOF/reset cancel pending copies; backend/clock errors retain completed
+copies and cancel pending ownership. G adds no flow-control output or
+old-hardware throughput delay.
+
+Safe deviations reject operations above 4 and G2 routes 2/3, which otherwise
+use unread native frame words; reject nonpositive active strides, unequal
+unclipped extents and out-of-capacity accesses; use wide derived extents
+instead of accidental word overflow; initialize new images to zero; and
+protect the physical host canvas/status boundary even with clipping off.
+Source clipping preserves displacement. Foreign RGB/palette values in
+active native regions fail safely. Foreign MFDB/inquiry scratch/reserved
+words, stdio/process pointer aliases and CPU faults are not modeled.
+
+Native tests independently check 12,096 complete dual-phase screen scenes
+and 480 source-derived native-model memory scenes, including shifted/self
+copies and aliased rows. They also check routes, unrebased captures/views,
+repeat timing and fresh reads, parser partitions/bytewise input, scaling,
+status/clipping, malformed/partial/EOF/timeout, errors and I/R/reset lifetime.
+The application fixture combines all sixteen logic functions with literal
+font masks, capture/replay, hidden memory edits, delayed repeats, normalized
+coordinates, status edges and partial disconnect/reconnect, with audio/MIDI
+disabled. Each frame checks cells, indices in both phases, palette/RGB,
+cursor, Drawto and memory-view/pending-copy state together.
 
 ## Deliberate corrections
 

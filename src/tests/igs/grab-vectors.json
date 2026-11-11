@@ -1,0 +1,19 @@
+{
+  "provenance": {
+    "generator": "src/tests/igs/generate_grab_vectors.py",
+    "references": [
+      "18-raster-transfer-commands.adoc",
+      "70-native-raster-forms.adoc",
+      "71-native-software-copy.adoc"
+    ],
+    "method": "Original fixed addressed software-copy data model and literal tables; no opcode execution or SyncTERM output. Compare indexed residues, including source-cache overlap and destination row aliases.",
+    "checksum": "FNV-1a64 over the first 512 physical indices, one byte per index, separately for memory0/1.",
+    "rom_sha256": "1d08153c15f3e9c010ce9fdd172e082854f31bc5f35d558843f3ed409e9c52f1",
+    "model_sha256": {
+      "spec_tos104_software_copy.py": "817759c41e99c835b57abc011d42e245c7bcca4ae3f284c33e40382feea8552b",
+      "spec_tos104_raster_forms.py": "750a0a7b527ad70963c31a9a6520aac1ee303eda2d2531858504c86de516e8ab",
+      "verify_tos104_raster_forms.py": "b67b9cc76c8d5848bfffe108ea1b12b374495ee9b067267fcec101fffd17f8b4"
+    },
+    "cases": 480
+  }
+}

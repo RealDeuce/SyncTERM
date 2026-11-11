@@ -121,6 +121,21 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 			(void)snprintf(name, sizeof(name), "cterm.igs_user_fill_%u", i);
 			st_console_test_number(app, name, igs->attributes.user_fill[i]);
 		}
+		for (unsigned bank = 0; bank < 2; ++bank) {
+			char name[64];
+			static const char *const coordinates[] = {"x1","y1","x2","y2"};
+			for (unsigned i = 0; i < 4; ++i) {
+				(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_%s",bank,coordinates[i]);
+				st_console_test_number(app,name,igs->memory_rect[bank][i]);
+			}
+			(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_word_width",bank);
+			st_console_test_number(app,name,igs->memory_view[bank].word_width);
+			(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_screen",bank);
+			st_console_test_number(app,name,igs->memory_view[bank].screen);
+			(void)snprintf(name,sizeof(name),"cterm.igs_memory%u_planes",bank);
+			st_console_test_number(app,name,igs->memory_view[bank].planes);
+		}
+		st_console_test_number(app,"cterm.igs_copy_pending",igs->copy_pending);
 		st_console_test_number(app, "cterm.igs_shared_text_size", (int64_t)igs->shared_text_size);
 		st_console_test_number(app, "cterm.igs_text_counter", (int64_t)igs->text_counter);
 		st_console_test_number(app, "cterm.igs_text_deadline", (int64_t)igs->text_deadline);

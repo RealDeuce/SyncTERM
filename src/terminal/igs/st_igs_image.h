@@ -16,13 +16,18 @@ struct st_igs_image {
 	 * has 64000/128000/256000 physical indices for 4/2/1 planes. G's current
 	 * descriptor supplies the row stride/view; it does not resize storage.
 	 * The image owns this buffer. Consumers may edit indices in range but
-	 * must not replace the buffer, geometry or plane count directly. */
+	 * must not replace the buffer, geometry or plane count directly. A host
+	 * capture may acquire an alternate blink phase through st_pixels. Native
+	 * imports write both phases; native exports select the primary phase. */
 	struct st_pixel_buffer *pixels;
 	unsigned planes;
 };
 
 int st_igs_image_create(struct st_igs_image **result, unsigned planes);
 void st_igs_image_destroy(struct st_igs_image *);
+/* Prepare an owned copy in a new layout, preserving both host phases. */
+int st_igs_image_clone_layout(struct st_igs_image **result,
+	const struct st_igs_image *, unsigned planes);
 
 /* Native offsets/counts are bytes in ST interleaved big-endian plane words.
  * Partial imports preserve other bits; payloads need not be group-aligned.

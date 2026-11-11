@@ -273,6 +273,19 @@ counted_points_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static int
+grab_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	int operation;
+	int status = preview_first(context,view,&operation);
+	if (status != 0) return status;
+	size_t count = operation == 0 || operation == 3 || operation == 4 ? 8 : operation == 1 ? 6 : 4;
+	*result = view->count < count ? point_parameters[(view->count-2)%2]
+	    : (struct st_graphics_parameter){.kind = ST_GRAPHICS_END};
+	return 0;
+}
+
+static int
 extended_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
@@ -306,6 +319,7 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static const struct st_graphics_command commands[] = {
+	{'G', unscaled_parameters, 2, grab_next},
 	{'I', unscaled_parameters, 1, NULL},
 	{'R', unscaled_parameters, 2, NULL},
 	{'g', unscaled_parameters, 1, NULL},
@@ -359,6 +373,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->pattern_loading = false;
 	igs->pattern_slot = 0;
 	igs->math_printing = false;
+	igs->copy_pending = false;
 	igs->reset_pending = false;
 }
 
@@ -720,6 +735,7 @@ command(void *context, const struct st_graphics_command_view *view)
 			return status;
 	}
 	switch (view->code) {
+	case 'G': return cterm_igs_grab(igs,values,view->count);
 	case 'I': return cterm_igs_initialize(igs, values[0]);
 	case 'R': return cterm_igs_resolution(igs, values[0], values[1]);
 	case 'g': cterm_igs_set_scaling(igs, values[0]); return 0;
@@ -1168,6 +1184,13 @@ cterm_igs_poll(struct cterm_igs *igs)
 		if (status != 0 || now < igs->wait_deadline)
 			return status;
 		if (igs->pending_resolution < 0) {
+			if (igs->copy_pending) {
+				igs->feeding = true;
+				status = cterm_igs_grab_resume(igs);
+				igs->feeding = false;
+				if (igs->reset_pending) { cterm_igs_reset(igs); return status; }
+				if (status != 0) { cancel_input(igs); return status; }
+			}
 			igs->wait_deadline = 0;
 			return st_graphics_parser_resume(igs->parser);
 		}

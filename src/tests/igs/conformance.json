@@ -69,7 +69,8 @@
         "native import/export at arbitrary byte boundaries",
         "indexed full-capacity storage including padding/retained contents",
         "plane-layout reinterpretation at format changes only",
-        "invalid-operation retention"
+        "invalid-operation retention",
+        "G captures may acquire an alternate host blink phase. Native import updates both phases, export selects primary, and clone/replane preserves each phase independently for transactional R mode changes. Keep the full decoded capacity and stride views without per-blit conversions."
       ],
       "tests": [
         "igs_image",
@@ -77,7 +78,8 @@
         "graphics_protocol_parser"
       ],
       "verification": [
-        "cmake -S . -B build; cmake --build build --target st_igs_image_test -j 4; CTest igs_image, st_pixels and graphics_protocol_parser passed on native FreeBSD /usr/bin/cc Release."
+        "cmake -S . -B build; cmake --build build --target st_igs_image_test -j 4; CTest igs_image, st_pixels and graphics_protocol_parser passed on native FreeBSD /usr/bin/cc Release.",
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings after the transient parallel SkyPix unresolved-symbol issue was fixed in that separate work. All 18 selected CTest checks passed in 30.53 seconds, including shared parser, indexed images/pixels, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native and application G took 3.16 and 24.71 seconds. G covers 12096 independent dual-phase screen cases, 480 source-derived native-model memory cases and 126 coherent application captures. All 63 ledger IDs with 47 complete entries, active tests, dependencies/references and pinned font/ROM/oracle identities were checked. Parallel SkyPix/console changes are excluded from the IGS commit."
       ],
       "commit": "3fe002a"
     },
@@ -179,7 +181,10 @@
         "cterm_igs_scatter",
         "syncterm_igs_scatter",
         "cterm_igs_math",
-        "syncterm_igs_math"
+        "syncterm_igs_math",
+        "cterm_igs_grab",
+        "igs_image",
+        "syncterm_igs_grab"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -230,7 +235,8 @@
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 15 selected CTest checks passed in 90.91 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X10/X12 and application A/X7 regressions. Native X7 and application X7 took 0.26 and 17.09 seconds. After adding final clock-failure assertions, another full build and the focused native X7 test passed in 0.32 seconds. Verified all 63 ledger IDs with 43 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings. All 17 selected CTest checks passed in 87.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/A/W/X1/X7/X10/X12 and application A/X2 regressions. Native and application X2 took 0.35 and 17.97 seconds. After adding explicit R retention checks, another full build and focused native X2 test passed in 0.56 seconds. Verified all 63 ledger IDs with 44 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
         "The native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 20 selected CTest checks passed in 72.71 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/C/P/B/U/X1/X2/X7/X10/X12 and application P/X0 regressions. Native and application X0 took 2.16 and 17.79 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Verified all 63 ledger IDs with 45 complete entries, active test registrations, references, dependencies and pinned glyph/ROM identities.",
-        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 18 selected CTest checks passed in 68.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/W/X0/X1/X2/X7/X10/X12 and application X7/X13 regressions. Native and application X13 took 1.01 and 19.11 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Validated all 63 ledger IDs with 46 complete entries, active test registrations, dependencies, references, 24 source-derived scene vectors and pinned font/ROM/oracle identities."
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 18 selected CTest checks passed in 68.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/W/X0/X1/X2/X7/X10/X12 and application X7/X13 regressions. Native and application X13 took 1.01 and 19.11 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Validated all 63 ledger IDs with 46 complete entries, active test registrations, dependencies, references, 24 source-derived scene vectors and pinned font/ROM/oracle identities.",
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings after the transient parallel SkyPix unresolved-symbol issue was fixed in that separate work. All 18 selected CTest checks passed in 30.53 seconds, including shared parser, indexed images/pixels, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native and application G took 3.16 and 24.71 seconds. G covers 12096 independent dual-phase screen cases, 480 source-derived native-model memory cases and 126 coherent application captures. All 63 ledger IDs with 47 complete entries, active tests, dependencies/references and pinned font/ROM/oracle identities were checked. Parallel SkyPix/console changes are excluded from the IGS commit."
       ],
       "commit": null,
       "operations": [
@@ -279,7 +285,8 @@
         "X7 loads persistent source patterns through shared text-reader state and descriptor parameters, with per-row publication, prefix ownership, safe cancellation and independent A4 active copies.",
         "X2 updates both random ranges through ordered private numeric state shared by arity and execution; sampling covers one full relevant period and maximum-bound repair keeps a valid singleton.",
         "X0 shares the P marker raster primitive while retaining independent Drawto state. Byte sampling, ninth-pass fallback, persistent cycles and nonzero-cache restoration use the existing indexed backend and common RNG.",
-        "X13 provides bounded signed-word arithmetic and decimal console/graphical output. Typed dynamic arity shares coordinate descriptors; staged shared-window formatting owns its numeric prefix without rerolling random operands, adding a second VT52 parser, or entering W text-reader flow/deadlines."
+        "X13 provides bounded signed-word arithmetic and decimal console/graphical output. Typed dynamic arity shares coordinate descriptors; staged shared-window formatting owns its numeric prefix without rerolling random operands, adding a second VT52 parser, or entering W text-reader flow/deadlines.",
+        "G uses two retained indexed image banks with explicit capture/stride/plane views, all16 Boolean functions, a two-group overlap cache and local repeated-copy deadlines. Both host phases survive capture and transactional layout conversion at R boundaries; ordinary blits do not convert native bytes."
       ],
       "limitations": [
         "Most rendering, coordinate/input/audio commands and complete lifecycle acceptance remain pending."
@@ -2365,7 +2372,7 @@
       "verification": [
         "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. All 18 selected CTest checks passed in 68.19 seconds, including shared parser, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/W/X0/X1/X2/X7/X10/X12 and application X7/X13 regressions. Native and application X13 took 1.01 and 19.11 seconds. Initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. Validated all 63 ledger IDs with 46 complete entries, active test registrations, dependencies, references, 24 source-derived scene vectors and pinned font/ROM/oracle identities."
       ],
-      "commit": "recorded by the next completed step"
+      "commit": "d40d84b"
     },
     {
       "id": "G",
@@ -2373,16 +2380,47 @@
       "references": [
         "18-raster-transfer-commands.adoc",
         "19-extended-math-sweeps.adoc",
-        "22-palette-bitmap-x-dispatch.adoc"
+        "22-palette-bitmap-x-dispatch.adoc",
+        "70-native-raster-forms.adoc",
+        "71-native-software-copy.adoc"
       ],
       "order": 47,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-indexed-images",
+        "igs-preansi-input",
+        "igs-state-raster-timing",
+        "g",
+        "q",
+        "I",
+        "R"
+      ],
+      "operations": [
+        "Acquire unscaled operation/logic followed by typed X/Y coordinates using shared descriptor data and effect-free dynamic arity. G0/G3/G4 consume eight values, G1 six, G2 and negative operations four. Publish only complete headers; preserve scalar/array/random evaluation order and input partitions.",
+        "Implement the complete screen/memory route matrix for both indexed banks. Retain upper-clamped capture coordinates before nonnegative rectangle limits, rebuild both views on every G, preserve unrebased coordinates and full padding/capacity, and derive stride from trunc(width/16)+1 with the native upper cap. G0 leaves a screen descriptor alias until the next G; G1 routes4/5 retain capture coordinates without a copy.",
+        "Apply all sixteen Boolean operations directly to physical indices, with upper logic fallback to replace and negative logic no-op. Preserve Drawto, attributes, palette, last-line ownership and console state. Honor destination-screen clipping, VDI corner ordering and actual-resolution limits independently of g snapshot classes. Use a two-group indexed source cache to preserve shifted self-copy fringes and live row-alias traversal, without per-blit plane conversion or a whole-source snapshot.",
+        "Preserve optional alternate host blink phases in captured images. Native imports update both phases and exports use primary. Existing R format-edge transactions now prepare phase-preserving indexed replacements for both banks. I preserves images/coordinates; reset/reconnect clear images, views and transient copy ownership.",
+        "Honor q repeat control only for G0 and G1/G2/G3 routes0/1. Reacquire current pixels for the second call using the same rectangle; controls<=1 repeat immediately and larger controls use control-1 existing local sync units before resuming the parser chain. G4 and routes>=2 never repeat. Cancel pending repeats safely on EOF/reset/clock/backend error, retaining completed work and adding no flow/throughput delay.",
+        "Check 12096 independently modeled dual-phase screen cases across all Boolean operations, phase alignments, widths, overlap directions, ST modes and status choices; 480 pinned original-model memory self/cross-copy and row-alias cases; complete route matrix; unrebased captures/views; exact repeats/deadlines/live reads; typed g1/g2 and captured-resolution behavior; source/destination capacity/status/clipping; every focused split/bytewise input; exact random seed advancement; malformed/partial/EOF/timeout/clock/backend recovery; I/R/reset lifetime and both-phase layout/import/export.",
+        "Check 126 coherent application captures across all ST modes, Atari ST/CP437/UTF-8 and status choices, with audio/MIDI off. Compose all16 logic operations using literal font masks and independent bit truth tables; verify capture/replay, hidden memory edits, delayed repeats, normalized coordinates, status edges, exact cells/indices/palette/RGB, Drawto and memory-view/pending-copy state, no replies and partial disconnect/reconnect."
+      ],
+      "tests": [
+        "cterm_igs_grab",
+        "igs_image",
+        "syncterm_igs_grab"
+      ],
+      "deviations": [
+        "Reject operations above4 and G2 routes2/3 after the documented four-argument prefix instead of reading uninitialized native stack coordinates. Negative operations and unsupported routes remain no-copy paths.",
+        "Use wide derived geometry instead of accidental word overflow. Reject nonpositive active strides, mismatched unclipped extents and out-of-capacity memory accesses before pixel writes. Preserve descriptive metadata and completed command effects while preventing foreign memory escapes.",
+        "Always protect the physical host canvas/status boundary and preserve displacement when clipping screen sources. Reject foreign RGB/palette values in active native regions. New images and full-reset contents are deterministic zeroes instead of uninitialized accessory bytes.",
+        "Use stable logical bank ordering memory0<memory1<screen for traversal, representing ordinary accessory allocation without foreign process pointers or a whole machine model. Do not model MFDB reserved/inquiry scratch, foreign aliases, CPU/physical bus faults or service-time memory interference.",
+        "EOF/reset or host errors cancel pending repeated copies, retain completed work and release parser ownership. Host captures additionally preserve both blink phases; native serialization uses the primary phase. X14 wire routing and containing-loop integration are verified in their own subsequent entries."
+      ],
+      "verification": [
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed without warnings after the transient parallel SkyPix unresolved-symbol issue was fixed in that separate work. All 18 selected CTest checks passed in 30.53 seconds, including shared parser, indexed images/pixels, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/t/q/X13 and application R/X13/G regressions. Native and application G took 3.16 and 24.71 seconds. G covers 12096 independent dual-phase screen cases, 480 source-derived native-model memory cases and 126 coherent application captures. All 63 ledger IDs with 47 complete entries, active tests, dependencies/references and pinned font/ROM/oracle identities were checked. Parallel SkyPix/console changes are excluded from the IGS commit."
+      ],
+      "commit": "recorded by the next completed step"
     },
     {
       "id": "X14",

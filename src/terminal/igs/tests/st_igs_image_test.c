@@ -110,6 +110,33 @@ retained_storage(void)
 }
 
 static int
+captured_phases(void)
+{
+	struct st_igs_image *image = NULL, *copy = NULL;
+	CHECK(st_igs_image_create(&image,4) == 0);
+	CHECK(st_pixel_buffer_ensure_alternate(image->pixels) == 0);
+	image->pixels->primary[0] = 1; image->pixels->alternate[0] = 8;
+	CHECK(st_igs_image_clone_layout(&copy,image,1) == 0);
+	/* A four-plane pixel at bit15 goes to bit15 of its own native word. */
+	CHECK(copy->pixels->primary[0] == 1 && copy->pixels->alternate[0] == 0);
+	CHECK(copy->pixels->primary[48] == 0 && copy->pixels->alternate[48] == 1);
+	CHECK(st_igs_image_replane(copy,4) == 0);
+	CHECK(copy->pixels->primary[0] == 1 && copy->pixels->alternate[0] == 8);
+	const uint8_t byte = 0xff;
+	CHECK(st_igs_image_import(copy,0,&byte,1) == 0);
+	CHECK(copy->pixels->primary[0] == 1 && copy->pixels->alternate[0] == 9);
+	CHECK(copy->pixels->primary[7] == 1 && copy->pixels->alternate[7] == 1);
+	uint8_t output = 0;
+	CHECK(st_igs_image_export(copy,0,&output,1) == 0 && output == 0xff);
+	copy->pixels->alternate[0] = ST_PIXEL_COLOR_RGB_TAG;
+	struct st_igs_image *invalid = NULL;
+	CHECK(st_igs_image_clone_layout(&invalid,copy,2) == IO_ERROR_INVALID_FORMAT && invalid == NULL);
+	CHECK(st_igs_image_clone_layout(NULL,copy,2) == IO_ERROR_INVALID_ARGUMENT);
+	st_igs_image_destroy(copy); st_igs_image_destroy(image);
+	return 0;
+}
+
+static int
 input_partitions(void)
 {
 	/* This is preservation/partition coverage, not a generated pixel golden.
@@ -141,6 +168,7 @@ main(void)
 {
 	CHECK(literal_layout() == 0);
 	CHECK(retained_storage() == 0);
+	CHECK(captured_phases() == 0);
 	CHECK(input_partitions() == 0);
 	return 0;
 }
