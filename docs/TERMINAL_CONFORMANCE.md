@@ -233,6 +233,11 @@ untouched phase pixels. Native tests check exact damage, canvas/stride boundarie
 transparent glyph revision and exhaustive brush minterms/masks; application tests
 check literal corner clipping. See the SkyPix raster implementation notes for the
 remaining restoration, depth and scrolling snapshots.
+The RoF caller-header regression retains a native font-reset baseline across
+horizontal ANSI movement, so the following line cannot erase the lower glyph
+rows. Literal complete-scene expectations cover both phases, variants,
+CP437/UTF-8, status choices and 640x200/640x400; native tests cover every input
+split and horizontal/vertical movement aliases.
 Status reserves a row inside the selected mode without changing resolution,
 aspect or system grid: 640x200 remains 80x25, 640x400 remains 80x50. Current,
 Custom and non-Amiga modes (including 80x43's six padding pixels) have literal

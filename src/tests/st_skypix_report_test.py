@@ -40,6 +40,48 @@ def expected_scene(height):
     return scene
 
 
+def caller_header_alignment(peer, client, height):
+    # Literal Pearl/8 strikes independently read from the native TextFont
+    # CharLoc/CharData tables (SHA256 016eb38c63fdb7d5b20ca279b3c718f31c671e1a8ea64eb9d348c7b240080bb0).
+    rows = {c: bytes.fromhex(bits) for c, bits in {
+        'L': 'c0c0c0c0c0c0fe00', 'o': '00007cc6c6c67c00', 'g': '00007ec6c67e067c',
+        'i': '1800381818181800', 'n': '0000fcc6c6c6c600', ' ': '0000000000000000',
+        'H': 'c6c6c6fec6c6c600', 'a': '00007c067ec67e00', 'd': '06067ec6c6c67e00',
+        'l': '3818181818181800', 'e': '00007cc6fec07c00', 'c': '00007cc6c0c67c00',
+        't': '30307c3030303000', '/': '03060c183060c000', 'G': '7cc6c0cec6c67c00',
+        'r': '0000fcc6c0c0c000', 'u': '0000c6c6c6c67c00', 'p': '0000fcc6c6fcc0c0',
+        '-': '0000007e00000000',
+    }.items()}
+    expected = [512] * (640 * height)
+    for x, y, text, pen in ((0, 36, 'Login ', 517), (48, 36, 'Handle', 514),
+                            (152, 36, 'Location/Group', 516), (0, 44, '-' * 79, 515)):
+        for index, c in enumerate(text):
+            for dy, row in enumerate(rows[c]):
+                for dx in range(8):
+                    if row & (128 >> dx):
+                        expected[(y + dy) * 640 + x + index * 8 + dx] = pen
+    # Public RoF header ordering, reduced to the font/position transitions
+    # and first columns. The screenshot's first two words must share the
+    # later columns' strike, even after CSI 7 C and the next line's erase.
+    wire = (b'\x1bc\x1b[?25l\x1b[10;15!Ruby.font!\x1b[19;0;11!'
+            b'\x1b[10;0!\x1b[99!\r\n\x1b[0;33m\r\n\r\n'
+            b'\x1b[36mLogin \x1b[37mHandle\x1b[7C\x1b[32mLocation/Group'
+            b'\r\n\x1b[31m' + b'-' * 79)
+    for repeat in range(2):
+        peer.sendall(wire + b'\x1b[5n')
+        reply = b''
+        while len(reply) < 4:
+            part = peer.recv(4 - len(reply))
+            assert part, reply
+            reply += part
+        assert reply == b'\x1b[0n', reply
+        frame = client.capture()
+        check_pixel_planes(frame, expected, start=frame.metadata['pixel_top'] * 640,
+                           context=('caller header', height, repeat))
+        assert (frame.metadata['cursor_x'], frame.metadata['cursor_y']) == (79, 5)
+        assert tuple(frame.palette[512:518]) == (0, 0x1111ff, 0xdddddd, 0xff0000, 0x00ff11, 0x33aaff)
+
+
 def font_parameters(peer, client, kick, height):
     # Native Opal/9 A/B rows independently decoded with amitools from the
     # pinned Workbench inputs. A advances 10, B advances 8; bearings are zero.
@@ -141,6 +183,7 @@ def run(executable, reports, kick, encoding, status, mode_height):
                 check_pixel_planes(frame, expected, start=start, context=(kick, encoding, status))
                 assert frame.application['cterm.graphics_mode'] == (3 if kick == '1.3' else 4)
                 font_parameters(peer, client, kick, height)
+                caller_header_alignment(peer, client, height)
                 peer.shutdown(socket.SHUT_RDWR)
                 client.wait_text('Disconnected: Enter exits, F1 details')
                 client.key('enter')

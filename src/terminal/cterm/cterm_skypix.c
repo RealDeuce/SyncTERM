@@ -665,6 +665,12 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 	bool control = size == 1 && (first == '\r' || first == '\n');
 	bool backspace = size == 1 && first == 8;
 	bool ansi = size >= 3 && first == 27 && bytes[1] == '[';
+	bool horizontal = ansi && strchr("CDGIZ`aj", final) != NULL;
+	bool vertical = ansi && strchr("ABYdek", final) != NULL;
+	/* Private/intermediate CSI forms can share a final with cursor motion. */
+	for (size_t i = 2; (horizontal || vertical) && i + 1 < size; ++i)
+		if (bytes[i] != ';' && (bytes[i] < '0' || bytes[i] > '9'))
+			horizontal = vertical = false;
 	bool redraw = control || backspace || (size == 1 && first == 12) ||
 		(ansi && final != 'n' && final != 's') || (first == 27 && !ansi);
 	if (first < 32 || first == 127) {
@@ -679,11 +685,16 @@ static int text(void *context, const uint8_t *bytes, size_t size)
 	size_t used;
 	s->presented = false;
 	status = cterm_input_write(s->terminal, bytes, size, &used, CTERM_INPUT_WIRE);
-	bool moved = x != s->terminal->xpos || y != s->terminal->ypos ||
-		placements != s->terminal->cursor_position_changes;
+	bool placed = placements != s->terminal->cursor_position_changes;
+	bool moved = x != s->terminal->xpos || y != s->terminal->ypos || placed;
 	if (!s->presented && (s->custom || s->positioned || s->native_default) && moved) {
-		s->x = (s->terminal->xpos - 1) * (int)s->cell_width;
-		s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->font);
+		/* Native text can sit between cell boundaries after positioning or
+		 * a font change. Moving one cell axis must not round the other one;
+		 * explicit full cursor placement still establishes both coordinates. */
+		if (!vertical || x != s->terminal->xpos)
+			s->x = (s->terminal->xpos - 1) * (int)s->cell_width;
+		if (!horizontal || y != s->terminal->ypos)
+			s->y = (s->terminal->ypos - 1) * (int)s->cell_height - font_descent(s->font);
 	} else if (!s->custom && !s->positioned && !s->native_default && moved)
 		sync_cursor(s);
 	if (status == 0 && redraw) status = draw_cursor(s);

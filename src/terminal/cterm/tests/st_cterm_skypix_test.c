@@ -731,6 +731,61 @@ static void report_ordering_tests(st_cterm_t *t)
 	}
 	free(expected);
 }
+static void movement_alignment_tests(st_cterm_t *t)
+{
+	/* Public RoF caller-header ordering: Ruby/15 at Y=11, reset to Pearl/8,
+	 * three CR/LFs, text, then CSI 7 C. The text strike starts at Y=36,
+	 * between cell rows. A horizontal move must not round it up to Y=32. */
+	static const char wire[] = "\x1b[10;15!Ruby.font!\x1b[19;0;11!\x1b[10;0!\x1b[99!"
+		"\r\n\x1b[0;33m\r\n\r\n\x1b[15;2!A\x1b[7CB\r\nB";
+	static const unsigned rows[2][8] = {
+		{0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0},
+		{0xfc, 0xc6, 0xc6, 0xfc, 0xc6, 0xc6, 0xfc, 0}
+	};
+	for (unsigned utf8 = 0; utf8 < 2; ++utf8) {
+		CHECK(st_cterm_set_encoding(t, utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+			ST_CODEPAGE_CP437) == 0);
+		for (size_t split = 0; split <= sizeof(wire); ++split) {
+			CHECK(reset_without_cursor(t) == 0);
+			feed(t, "\f");
+			size_t used, size = sizeof(wire) - 1;
+			if (split <= size) {
+				CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
+				CHECK(st_cterm_write(t, wire + split, size - split, &used) == 0 && used == size - split);
+			} else for (size_t i = 0; i < size; ++i)
+				CHECK(st_cterm_write(t, wire + i, 1, &used) == 0 && used == 1);
+			CHECK(st_cterm_finish(t) == 0);
+			CHECK(t->skypix_engine->x == 8 && t->skypix_engine->y == 43);
+			const struct st_console_rect area = {0, 32, 80, 24};
+			struct st_pixel_buffer *image = NULL;
+			CHECK(st_console_get_pixels(&image, t->screen.console, &area, false) == 0);
+			for (unsigned y = 0; y < 24; ++y) for (unsigned x = 0; x < 80; ++x) {
+				bool ink = (x < 8 && y >= 4 && y < 12 && (rows[0][y - 4] & (128u >> x)))
+					|| (x >= 64 && x < 72 && y >= 4 && y < 12 && (rows[1][y - 4] & (128u >> (x - 64))))
+					|| (x < 8 && y >= 12 && y < 20 && (rows[1][y - 12] & (128u >> x)));
+				CHECK(image->primary[y * 80 + x] == (ink ? 514u : 512u));
+				CHECK(image->alternate[y * 80 + x] == (ink ? 514u : 512u));
+			}
+			st_pixel_buffer_destroy(image);
+		}
+		static const struct { const char *wire; int x, y; } moves[] = {
+			{"\x1b[C", 16, 35}, {"\x1b[D", 0, 35}, {"\x1b[3G", 16, 35},
+			{"\x1b[3`", 16, 35}, {"\x1b[a", 16, 35}, {"\x1b[j", 0, 35},
+			{"\x1b[I", 64, 35}, {"\x1b[Z", 0, 35},
+			{"\x1b[A", 13, 23}, {"\x1b[B", 13, 39}, {"\x1b[6d", 13, 39},
+			{"\x1b[e", 13, 39}, {"\x1b[k", 13, 23},
+			{"\x1b[5;2H", 8, 31}, {"\x1b[5;2f", 8, 31},
+			{"\x1b[E", 0, 39}, {"\x1b[F", 0, 23}
+		};
+		for (size_t i = 0; i < sizeof(moves) / sizeof(*moves); ++i) {
+			feed(t, "\x1b[19;13;35!");
+			feed(t, moves[i].wire);
+			CHECK(t->skypix_engine->x == moves[i].x && t->skypix_engine->y == moves[i].y);
+		}
+	}
+	CHECK(st_cterm_set_encoding(t, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
+	CHECK(reset_without_cursor(t) == 0);
+}
 static void brush_logic_tests(st_cterm_t *t)
 {
 	/* Enumerate all source/destination colour pairs. Expected results use
@@ -908,6 +963,7 @@ static void engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	depth_tests(t);
 	brush_tests(t);
 	brush_logic_tests(t);
+	movement_alignment_tests(t);
 	short_delay_tests(t);
 	report_ordering_tests(t);
 	CHECK(st_cterm_resize(t, 100, geometry.rows) == IO_ERROR_NOT_SUPPORTED);
