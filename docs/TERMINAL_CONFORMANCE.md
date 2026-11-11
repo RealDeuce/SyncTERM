@@ -150,6 +150,10 @@ mode initialization and reconnect.
 inversion in the presenter. Native input cases and 180 coherent application
 captures cover blink, movement, drawing under the cursor and serial
 destructive backspace through the pending VT52 state.
+`v` controls Atari reverse video through the same VT52 handlers. Its 336
+native scenes and 72 coherent application captures cover pending escape
+and parameter states, retained text and graphics, raw background on
+scroll, and reset and reconnect.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

@@ -44,6 +44,8 @@ model_byte(struct model *m, uint8_t byte)
 		else if (byte == 'C' && m->x+1 < m->columns) ++m->x;
 		else if (byte == 'D' && m->x != 0) --m->x;
 		else if (byte == 'H') m->x = m->y = 0;
+		else if (byte == 'p') m->reverse = true;
+		else if (byte == 'q') m->reverse = false;
 		else if (byte == 'j') {
 			m->saved_x = m->x;
 			m->saved_y = m->y;
