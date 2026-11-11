@@ -1,0 +1,23 @@
+{
+  "generator": "src/tests/igs/generate_note_vectors.py",
+  "references": [
+    "23-note-music-commands.adoc",
+    "06-audio.adoc",
+    "57-gist-caller-apis.adoc"
+  ],
+  "source_sha256": {
+    "docs/igs/note-command-vectors.json": "1f8fec4920c75c4c962369bb2312839106c10ddd262eedaa62207612188e64c8",
+    "tools/spec_igs_extended_controls.py": "9ecdb6ec1863fd6d658fba5b889a48f8963625aa079171529996e27e419e9c48",
+    "tools/spec_igs_extended_images.py": "1035bc9d108c0b3942788ecc5cae3ed1c1146cdeda52d4ea7c4bfb0a2a85e373",
+    "tools/spec_igs_extended_math.py": "ec9005d2a06a973df3dea02551e867dd45a7697be5948cd2fdb7ef3155b1ac2e",
+    "tools/spec_igs_extended_payloads.py": "861b23df9d75650ff0ae0dc10be04fbd3275986c90ae899c8816f7742ed9851a",
+    "tools/spec_igs_graphics_commands.py": "b721e9fa2ce7e85d4ac50280c392c735464d0be7b1284966f7b80037432a6211",
+    "tools/spec_igs_note_commands.py": "bb9d08ac465af6d986bf68863370270c63f98eaecd84728ba65e0fb97b1622cb",
+    "tools/spec_igs_raster_commands.py": "868364d0e4b2ab470138f0e802740b30e2a318116422f3e0d7f5cf3b64616092",
+    "tools/spec_igs_readers.py": "870c0f901d87aecfdb27617349d5f6e7b2068061ced1ef7969b02fcb646fec70"
+  },
+  "cases": 235,
+  "seed": "0x4947534e",
+  "method": "Seven explicit n rows, six fields at 18 signed-word boundaries, all original effects and 100 stable random requests. Independent Context.note emits normalized callee words and GIST call actions; no Atari execution or SyncTERM output.",
+  "timing_policy": "Local monotonic deadlines at 200 units/second. Correct the native low-word wrap early exit; do not reproduce foreign clock/interrupt/bus timing. Any one key ends the delay and still performs stop. Zero delay samples the start but does not suspend/poll a key."
+}

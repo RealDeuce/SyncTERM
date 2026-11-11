@@ -387,7 +387,9 @@
         "24-effect-patch-command.adoc",
         "53-ym2149-digital-state.adoc",
         "54-canonical-psg-pcm.adoc",
-        "55-native-tos-sound-timer.adoc"
+        "55-native-tos-sound-timer.adoc",
+        "23-note-music-commands.adoc",
+        "182-delivery-note-and-wait-commands.adoc"
       ],
       "dependencies": [
         "igs-state-raster-timing"
@@ -395,14 +397,15 @@
       "operations": [
         "Tested GIST software-voice/register core: three independent copied 56-word records and six accumulators; original 20-patch/85-pitch/16-factor data pinned to source identities, preserving separate identical-effect 3/11 rows. Component commit: 4e5e0a0.",
         "Automatic voice/priority allocation, stop-before-source-read and forward copy, original pitch folding, tone/noise disable and mixer masking, fixed gain, selected stop and scheduled release. Source edits do not change an active copied voice; stop does not reset oscillator phases.",
-        "Explicit C,B,A envelope update calls, driven later by converted local sample/deadline positions. No clock origin/timer/free-running foreign counter. Signed fixed-point envelopes, symmetric reflection, tone carry/replacement, duration/release sequencing and raw conversions emit ordered PSG bytes with masked register state.",
+        "Explicit C,B,A envelope update calls, driven by callers at converted local sample/deadline positions. No clock origin/timer/free-running foreign counter. Signed fixed-point envelopes, symmetric reflection, tone carry/replacement, duration/release sequencing and raw conversions emit ordered PSG bytes with masked register state.",
         "1044 independent immutable-field update vectors and 160 full API vectors plus exhaustive 65536 pitch/control words, original-patch lifetimes, safe factor indexing, aliases/copy ownership, priority/stop/release and raw shared-noise/gain order. Tests use checked-in data, no external files, physical audio or PCM reference.",
         "Live PCM sources are requested by the existing mixer consumer, using its fixed-format gain/clipping and device acknowledgment path. Sources have explicit attach/activate/clear/detach ownership; callbacks are quiesced before detach, stream destruction or engine stop. There is no new worker or synthesis queue ahead of consumption. Component commit: 2ed84d7.",
         "Tested PSG renderer in the local 44100Hz signed-16-bit stereo sample domain: masked registers, independent tones, shared 17-bit old-bit-output noise, all envelope shapes, fixed/envelope DAC levels, gate behavior and period-zero aliases. Exact fractions of local frames carry oscillator phases; unchanged R13 writes retrigger only the shared envelope. No foreign clock, tick loop or bus timeline. Component commit: 8dad5c7.",
         "Integrates waveform-edge amplitudes over each local output frame before normalization, then applies documented carried low-pass/DC-block histories. Original logarithmic single-channel data is pinned; mixing sums channel amplitudes rather than using the reference nonlinear 3-channel/48kHz PCM profile. Tests cover all masks/period words, literal digital expectations, rational phase/frequency bounds, DC amplitude/decay, split rendering and all 20 original GIST patches at converted 200-updates/second sample positions.",
         "A session-owned model now shares one PSG between GIST and original TOS 1.04 BEL/keyclick tables. The existing audio consumer pulls a dedicated continuous chip stream at the normal -12dB effects base; no shared FX/music stream, new worker, foreign clock or CPU/interrupt/bus schedule. A model mutex protects voice/PSG state, with all audio/runtime APIs outside it; detach/destruction quiesces the callback before freeing context.",
         "Local sample fractions schedule GIST at 200 updates/second and console service at 50/second, first console service at 15ms, with GIST preceding a coincident console service. New BEL/click obey the post-update active-voice gate; a previously accepted table still overwrites shared PSG registers. Quiet suppresses console triggers. A stopped/unavailable/disabled output retains logical command behavior and edits, while local monotonic time advances control and generator phases without PCM. Exact rational phase reduction and GF(2) noise jumps handle unheard 64-bit frame spans; discard unheard filter history to prevent replaying old tails.",
-        "b0..23 parser and session integration are complete. EOF/disconnect stops the chip source and voices while retaining source patches for the current terminal; full reset/reconnect discards the model and recreates original mutable/saved banks. I/R graphics changes preserve sound state. Native tests include disabled output, two idle days, backend/model allocation/clock failures, policy re-enable without stale envelopes, independent FX survival and concurrent pull/edit/restore/reset/shutdown. Application captures observe locked sound state together with pixels/cells/palette/cursor."
+        "b0..23 parser and session integration are complete. EOF/disconnect stops the chip source and voices while retaining source patches for the current terminal; full reset/reconnect discards the model and recreates original mutable/saved banks. I/R graphics changes preserve sound state. Native tests include disabled output, two idle days, backend/model allocation/clock failures, policy re-enable without stale envelopes, independent FX survival and concurrent pull/edit/restore/reset/shutdown. Application captures observe locked sound state together with pixels/cells/palette/cursor.",
+        "n now reuses the same session patches/GIST/PSG through a shared six-argument note helper for future N byte records. Explicit priority-7 voice/volume/pitch overrides, sentinel effect 125 and nonpositive pitch, sustained notes, release/stop order, local interruptible deadlines, error/EOF/reset lifecycle and zero-delay ordering are independently tested without adding an audio/clock subsystem."
       ],
       "tests": [
         "igs_gist",
@@ -410,20 +413,23 @@
         "st_audio",
         "igs_psg",
         "cterm_igs_audio",
-        "syncterm_igs_effect"
+        "syncterm_igs_effect",
+        "cterm_igs_note",
+        "syncterm_igs_note"
       ],
       "deviations": [
         "Edited dynamic volume-factor indices are bounded to 0..15 at use, preserving the stored word and other defined raw conversions rather than reading outside the host table. No native code/RAM/MMIO escape or installer/bus model.",
         "Host synthesis choices: summed logarithmic channel amplitudes, local 44100Hz waveform-edge integration and documented low-pass/DC filtering, rather than the separate canonical 48kHz nonlinear reference PCM. Register writes take effect at local sample boundaries; a shortened period behind carried phase resolves one overdue edge at the next sample. No CPU/bus/sub-sample write timestamp model or machine GPIO effects. These choices do not impose a reference PCM-byte or listening gate."
       ],
       "limitations": [
-        "n/N note/music commands and existing-MIDI integration remain pending. No auditory or physical-device coverage is claimed."
+        "Buffered N commands and existing-MIDI integration remain pending. No auditory or physical-device coverage is claimed."
       ],
       "verification": [
         "Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. Generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 13 selected CTest checks passed in 8.18 seconds: igs_gist, indexed images, shared parser/stream, audio mixer/synthesis, music player, APC/SkyPix audio, X8/X15, CTerm and term. igs_gist took 0.01 seconds, checking 1044 independent update records, 160 complete API records, 65536 pitch/control words and all 20 original automatic patch lifetimes, plus literal ordering/ownership/safe-bound cases. Validated all 63 command IDs with 51 complete entries, references/dependencies/active test registrations, fixture inventories and all four original-data/oracle hashes. No command completion or PSG/PCM/audible/native-device coverage is claimed; this is a complete GIST record/register component within the still-in-progress sound foundation.",
         "Native FreeBSD Release CMake configure and full build passed; final full build had no warnings. Ten selected CTest checks passed, including live producer samples, short/invalid returns, pending acknowledgments and late acknowledgments after clear, source replacement, data-ready wakeup, concurrent detach/destruction/stop with an in-flight callback, stopped-engine rejection and pull-runtime wrappers. Existing mixer, synthesis, music, APC/SkyPix audio, GIST, CTerm and term checks also passed. No physical audio or b/n/N session integration is claimed.",
         "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 14 selected CTest checks passed in 13.41 seconds: igs_psg, igs_gist, igs_image, shared parser/stream, st_audio_source, st_audio_mixer, st_audio, st_audio_synthesis, music_player, APC/SkyPix audio, CTerm and term. The standalone PSG check runs in about 0.1 second with literal/closed-form expectations, 4096 register writes, 12288 tone-period/phase profiles, 65536 envelope-period words, 32 noise periods, all 16 envelope shapes at 2400 local sample positions each, 32768 gate/level profiles, 32 DAC probes, manual shared-noise trace, source-partition invariance and all 20 original GIST patches. No command status advances; 51/63 remain complete. Source identities and synthesis choices are recorded in src/tests/igs/psg-synthesis.json.",
-        "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 30 selected CTest checks passed in 59.47 seconds, covering shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and the b application fixture. cterm_igs_audio took 0.27 seconds, igs_psg 0.13 seconds and syncterm_igs_effect 19.73 seconds. The application fixture passed 198 coherent captures across all three ST modes, Atari ST/CP437/UTF-8 and both status choices, with AudioModes=0 and MidiModes=0. No external runtime assets or physical audio were used. Independent original-data fingerprints and active test registrations are validated; 52/63 command entries are complete."
+        "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 30 selected CTest checks passed in 59.47 seconds, covering shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and the b application fixture. cterm_igs_audio took 0.27 seconds, igs_psg 0.13 seconds and syncterm_igs_effect 19.73 seconds. The application fixture passed 198 coherent captures across all three ST modes, Atari ST/CP437/UTF-8 and both status choices, with AudioModes=0 and MidiModes=0. No external runtime assets or physical audio were used. Independent original-data fingerprints and active test registrations are validated; 52/63 command entries are complete.",
+        "The native n test failed at the missing trigger before implementation. Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 32 selected CTest checks passed in 86.51 seconds: shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application b/n. Native n took 0.34 seconds and its application fixture 25.87 seconds, including 235 independent helper cases and 306 coherent all-mode/encoding/status captures. Physical audio/MIDI were disabled; PCM tests use the device-free pull runtime. All 63 ordered command IDs, 53 completed entries, active test registrations/dependencies/references, original-data identities and independent note fixture provenance/counts were validated. No auditory/device/reference-waveform coverage is claimed."
       ],
       "commit": null
     }
@@ -2720,15 +2726,41 @@
       "references": [
         "06-audio.adoc",
         "23-note-music-commands.adoc",
-        "24-effect-patch-command.adoc"
+        "24-effect-patch-command.adoc",
+        "57-gist-caller-apis.adoc",
+        "182-delivery-note-and-wait-commands.adoc"
       ],
       "order": 53,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "igs-sound"
+      ],
+      "operations": [
+        "Six fixed unscaled numeric arguments share the existing parameter descriptions and pre-ANSI parser stage: effect, voice, volume, pitch, delay, stop. A reusable note helper normalizes private copies, preserving caller operands and all mutable/saved patch words for N byte-note reuse.",
+        "Negative effect becomes 0; effect >19 becomes 19 except 125. Clamp voice/volume to 0..2/0..15, pitch only above 255, negative delay to 0 and stop to 0..4. Trigger the current mutable source once with explicit voice/volume/pitch and priority 7 only for positive pitch and effect !=125. Priority rejection does not skip delay/stop; no b multiplier applies.",
+        "Trigger precedes a mandatory local start sample, even for zero delay. Positive waits convert each 200Hz unit to 5 monotonic milliseconds, suspend input with exact unread-suffix ownership and end at the deadline or after one arbitrary local key. Zero/negative delay completes synchronously and consumes no key. No sync-wait/flow-control/MIDI output or separate clock domain.",
+        "After the wait, action 0 leaves voices alone; 1/2 release/stop the selected voice; 3/4 release/stop A,B,C in order. Release schedules the GIST release transition rather than immediate silence. Pitched notes retain GIST sustained control independent of the helper delay and source duration. A consumed Ctrl-C/Ctrl-X/+ ends only this helper delay, preserving outer-loop state.",
+        "EOF/disconnect cancels the pending wait, stops the shared chip and quiesces its callback; reset/reconnect clears note state and recreates fresh source banks. Clock/deadline construction failures retain completed trigger actions without inventing a stop; a transient clock error while polling preserves the pending wait/key for retry. Backend-disabled/failed output retains logical note and stop behavior.",
+        "235 independently generated normalization/GIST-call cases include seven explicit source fixtures, six fields at eighteen signed boundaries, all twenty source patches and one hundred fixed-seed requests. Literal tests cover trigger/start/stop order, no source/caller mutation, mutable b20/b22 interaction, priorities, rejection, all stop forms, actual release PCM, exact deadlines and corrected low-word wrap.",
+        "Native tests cover all input partitions/bytewise/chained reads, random and array operands, all ST modes/status/scaling choices, arbitrary keys and subsequent forwarding, partial/invalid/EOF/timeout/reset recovery, clock/model/backend errors, maximum deadlines and unchanged dual-phase pixels/cursor/palette. 306 coherent application captures cover all ST modes, Atari ST/CP437/UTF-8 and status choices, source-bank ownership, sustained/released/stopped voices, queued-input resumption, key consumption/forwarding and active disconnect/fresh reconnect, with physical audio/MIDI off."
+      ],
+      "tests": [
+        "cterm_igs_note",
+        "igs_gist",
+        "igs_psg",
+        "st_audio_source",
+        "syncterm_igs_note"
+      ],
+      "deviations": [
+        "Correct native low-word clock-wrap early completion. Use a checked 64-bit local monotonic deadline at delay*5ms; no foreign clock sampling origin, tick counter, busy wait, CPU/interrupt/bus timing or hardware throughput model. A zero-delay request still samples the local start once but never suspends for a poll.",
+        "Native helper clock reads cannot report host clock failures. The port preserves completed trigger/stop actions on construction/service errors, clears unarmed waits, and retains an already pending wait/key across transient poll errors; EOF/reset provides explicit immediate cleanup. No elapsed stop is fabricated on a failed deadline.",
+        "Full reset/reconnect and EOF intentionally cancel pending work and stop the session chip. Buffered N replay/outer-key-abort policy remains pending with N; the shared helper does not itself abort an outer loop or emit MIDI all-notes-off."
+      ],
+      "verification": [
+        "The native n test failed at the missing trigger before implementation. Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 32 selected CTest checks passed in 86.51 seconds: shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n, CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application b/n. Native n took 0.34 seconds and its application fixture 25.87 seconds, including 235 independent helper cases and 306 coherent all-mode/encoding/status captures. Physical audio/MIDI were disabled; PCM tests use the device-free pull runtime. All 63 ordered command IDs, 53 completed entries, active test registrations/dependencies/references, original-data identities and independent note fixture provenance/counts were validated. No auditory/device/reference-waveform coverage is claimed."
+      ],
       "commit": null
     },
     {

@@ -51,6 +51,8 @@ selector rules through that same VT52 state.
 `k` adds counted cursor visibility and serial destructive backspace.
 `b` adds editable effects, saved patch restoration, immediate stop and local
 GIST/PSG/console audio with session ownership and muted progression.
+`n` adds priority-7 notes, local key/deadline waits and selected/all release or
+stop through the same mutable patches and shared PSG.
 Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
@@ -62,9 +64,9 @@ required. Original bugs and memory/overflow accidents are corrected safely
 and will be listed here with tests. Historical delivery profiles, BIG and
 CONDOR implementations are outside this goal.
 
-GIST/PSG synthesis, shared console sound and b session integration are tested.
-n/N command/music and MIDI integration remain unfinished.
-Audio will implement GIST/PSG behavior and use SyncTERM MIDI facilities.
+GIST/PSG synthesis, shared console sound and b/n session integration are tested.
+Buffered N/music and MIDI integration remain unfinished.
+Audio implements GIST/PSG behavior; buffered music will use SyncTERM MIDI facilities.
 Sound tests check functionality and lifecycle, without requiring identical PCM
 or reference-render comparisons. Listening is deferred to manual testing
 after implementation; no auditory coverage is claimed by silent fixtures.
@@ -2282,7 +2284,7 @@ mixer, runtime and synthesis, music player, APC/SkyPix audio, CTerm and term.
 igs_psg takes about 0.1 second. The live-source component is committed as
 2ed84d7. The command ledger at that component boundary was 51/63. Session ownership, disabled-audio
 progression, console interaction and b integration are completed below;
-n/N and MIDI integration remain pending. No auditory or physical
+n is completed below; N/MIDI integration remains pending. No auditory or physical
 audio-device coverage is claimed. References: chapters 53/54/56/57.
 
 
@@ -2382,8 +2384,91 @@ synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b,
 CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and the b
 application fixture. Native b took 0.27 seconds; PSG 0.13 seconds; application
 b 19.73 seconds. The prior PSG component completion commit is 8dad5c7.
-The sound foundation stays in progress for n/N and MIDI integration; those
-commands and the remaining loops/selectors/final acceptance are unfinished.
+The sound foundation stays in progress for N and MIDI integration; n is
+completed below. Remaining loops/selectors/final acceptance are unfinished.
 References: chapters 06/24/53/55/56/57.
 
-Completion commit for b: 53d1e31. The goal remains active at 52/63.
+Completion commit for b: 53d1e31 (52/63 at that step).
+
+
+### n: shared notes and interruptible local waits
+
+The n command is complete, bringing the ledger to 53/63. Six unscaled
+arguments use the existing shared parser descriptions: effect, voice, volume,
+pitch, delay and stop. The session audio component exposes the same helper
+for later N byte-note records. It normalizes private copies and leaves caller
+values, mutable patches and saved snapshots unchanged; playback reads current
+b20-edited sources rather than a separate bank or note-specific oscillator.
+
+Clear negative effect to 0 and cap effects above 19 to 19, preserving the
+no-trigger sentinel 125. Clamp voice to 0..2, volume to 0..15, pitch only above
+255, negative delay to 0 and stop to 0..4. Positive pitch and effect !=125 call
+GIST once with the explicit voice/volume/pitch and priority 7. Other requests
+still wait and stop. Rejected allocation does not skip those stages. b's
+multiplier does not apply; the source's duration is not replaced by the delay.
+Pitched GIST control remains sustained until a later release/stop action.
+
+Trigger precedes the local start sample, including for zero delay. A positive
+delay becomes a checked monotonic deadline at five milliseconds per unit and
+suspends the parser without consuming queued following bytes. A zero or
+negative delay completes synchronously and does not consume a key. Correct
+the native low-word clock-wrap early exit: crossing the old wrap boundary
+does not shorten the local delay. There is no busy wait, sync-wait conversion,
+flow-control wrapper, foreign clock/counter or CPU/interrupt schedule.
+
+One key of any value ends a pending delay; Ctrl-C, Ctrl-X and + are ordinary
+cancellation keys here. The key is consumed, the stop action still runs, and
+outer-loop state is retained. A later key is forwarded normally. Stop 0 does
+nothing; 1/2 release/stop the selected voice; 3/4 release/stop A,B,C in order.
+Release schedules GIST's duration/release transition and does not immediately
+zero gain. No MIDI all-notes-off or clearing of unrelated streams is added.
+The owner holds only voice/stop/key state alongside its existing local wait
+deadline; the audio consumer continues independently under the model mutex.
+
+A clock/deadline-construction failure retains completed trigger actions
+without fabricating an elapsed stop or leaving an unarmed wait. A transient
+clock error while polling retains the pending deadline/key for retry. EOF/
+disconnect cancels the wait and stops the chip; reset/reconnect clears its
+state and source ownership. Disabled/unavailable audio still honors logical
+notes, deadlines and stop actions without opening a device. The common stream,
+muted phase advancement and callback-quiescence implementation is reused.
+
+The cterm_igs_note CTest failed at the absent trigger before implementation.
+Its 235 immutable cases come from the independent note-helper contract: seven
+explicit fixtures, all six fields at eighteen signed-word boundaries, all
+twenty source patches and one hundred fixed-seed requests. They check private
+normalization, source/caller ownership, priority-7 arguments, mandatory start
+sample and exact release/stop calls. Literal cases verify mutable source and
+b22/copy independence, b priority rejection, release PCM, 221/220 local sample
+boundaries, every stop action, maximum deadlines and the corrected wrap edge.
+
+Additional tests cover all input partitions, bytewise/chained input, random/
+array operands, unscaled constants in every scaling mode, and unchanged pixels,
+palette, cursor and drawing state in all ST modes/status choices. They exercise
+arbitrary key forms, deadline/key coincidence, later forwarding, EOF/timeout/
+invalid/reset recovery, allocation/backend failures, clock failures before and
+after trigger, retained key retry and maximum timestamp handling. Expected
+helper data and source identities are in note-vectors.json; ordinary tests
+need no external source tree, ROM or historical executable.
+
+The application fixture adds 306 coherent control-bitmap captures across all
+ST modes, Atari ST/CP437/UTF-8 and both status choices. A literal editable patch
+with a two-unit source duration demonstrates sustained control independent of
+note delay, effect-125/zero-pitch no-trigger behavior, selected/all release and
+stop, normalization, long key-cancelled waits and queued-input resumption.
+Captured voice fields and source-bank fingerprints share each frame with exact
+indexed/RGB pixels, cells, palette and cursor. A consumed + never reaches the
+host; a key after completion does. Active disconnect and fresh reconnect check
+clean note/bank ownership. AudioModes=0 and MidiModes=0 disable physical output;
+PCM functionality is tested separately through the device-free pull runtime.
+No auditory, physical-device or reference-waveform coverage is claimed.
+
+Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed;
+the final full build had no warnings. All 32 selected CTest checks passed in
+86.51 seconds: shared parser/stream, GIST/PSG/images, audio mixer/source/runtime/
+synthesis, music, APC/SkyPix audio, IGS input/I/R/g/cursor/t/q/math/X8/X15/b/n,
+CTerm ANSI/VT52/keyboard, RIP parser, SkyPix, term/key forwarding and application
+b/n. Native n took 0.34 seconds; application n took 25.87 seconds. The sound
+foundation stays in progress for N and MIDI integration. Buffered music,
+remaining loops/selectors and final acceptance are unfinished. References:
+chapters 06/23/57/182; prior b completion commit 53d1e31.

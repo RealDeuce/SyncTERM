@@ -363,6 +363,7 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 static const struct st_graphics_command commands[] = {
 	{'G', unscaled_parameters, 2, grab_next},
 	{'b', unscaled_parameters, 1, effect_next},
+	{'n', unscaled_parameters, 6, NULL},
 	{'I', unscaled_parameters, 1, NULL},
 	{'R', unscaled_parameters, 2, NULL},
 	{'g', unscaled_parameters, 1, NULL},
@@ -413,6 +414,7 @@ cancel_input(struct cterm_igs *igs)
 	igs->pending_resolution = -1;
 	igs->pending_palette = 0;
 	igs->timed_pause = igs->pause_key = false;
+	igs->note = (struct cterm_igs_note){0};
 	igs->pattern_loading = false;
 	igs->pattern_slot = 0;
 	igs->math_printing = false;
@@ -797,6 +799,7 @@ command(void *context, const struct st_graphics_command_view *view)
 	}
 	switch (view->code) {
 	case 'b': return cterm_igs_audio_effect(igs,values,view->count);
+	case 'n': return cterm_igs_audio_note_begin(igs,values);
 	case 'G': return cterm_igs_grab(igs,values,view->count);
 	case 'I': return cterm_igs_initialize(igs, values[0]);
 	case 'R': return cterm_igs_resolution(igs, values[0], values[1]);
@@ -1143,7 +1146,7 @@ cterm_igs_reset(struct cterm_igs *igs)
 bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
-	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause);
+	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause || igs->note.active);
 }
 
 bool
@@ -1151,6 +1154,10 @@ cterm_igs_handle_key(struct cterm_igs *igs)
 {
 	if (igs != NULL && !igs->terminal->quiet)
 		cterm_render_record_error(igs->terminal,cterm_igs_audio_console(igs,true));
+	if (igs != NULL && igs->note.active && !igs->note.key) {
+		igs->note.key = true;
+		return true;
+	}
 	if (igs != NULL && igs->palette_rotation.active && !igs->palette_rotation.key) {
 		igs->palette_rotation.key = true;
 		return true;
@@ -1268,6 +1275,12 @@ cterm_igs_poll(struct cterm_igs *igs)
 	int audio_status = cterm_igs_audio_poll(igs);
 	if (audio_status != 0) return audio_status;
 	uint64_t now;
+	if (igs->note.active) {
+		int status = igs->now_ms(&now);
+		if (status != 0 || (!igs->note.key && now < igs->wait_deadline)) return status;
+		status = cterm_igs_audio_note_end(igs);
+		return status == 0 ? st_graphics_parser_resume(igs->parser) : status;
+	}
 	if (igs->sweep.active) {
 		int status = igs->now_ms(&now);
 		if (status != 0 || now < igs->wait_deadline) return status;

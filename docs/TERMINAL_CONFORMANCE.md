@@ -255,7 +255,12 @@ session stream shared by GIST and console sounds. Disabled audio advances on
 local deadlines without PCM; fast phase/noise jumps prevent replay on re-enable.
 Native input/lifecycle/error tests and 198 coherent application captures cover
 all ST modes, Atari ST/CP437/UTF-8 and status choices, with physical audio/MIDI
-off. n/N and MIDI integration remain pending; no audible/device coverage is claimed.
+off. The n helper adds private normalization, priority-7 mutable-patch notes,
+local deadline/key waits and selected/all release/stop, with 235 independent
+helper cases and 306 coherent all-mode/encoding/status application captures.
+It corrects low-word clock-wrap early exits and preserves source/caller state,
+queued input and key ownership. N and MIDI integration remain pending; no
+audible/device coverage is claimed.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented

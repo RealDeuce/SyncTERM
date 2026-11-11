@@ -3,6 +3,10 @@
 #ifndef CTERM_IGS_AUDIO_H
 #define CTERM_IGS_AUDIO_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "audio.h"
 #include "st_igs_gist.h"
 #include "st_igs_psg.h"
@@ -28,6 +32,10 @@ struct cterm_igs_audio {
 	unsigned console_pending;
 };
 int cterm_igs_audio_effect(struct cterm_igs *, const int *, size_t count);
+/* Shared numeric/byte-note helper. A positive local delay suspends its owner;
+ * the owner consumes one key or reaches the deadline, then calls end. */
+int cterm_igs_audio_note_begin(struct cterm_igs *, const int values[6]);
+int cterm_igs_audio_note_end(struct cterm_igs *);
 int cterm_igs_audio_console(struct cterm_igs *, bool click);
 int cterm_igs_audio_poll(struct cterm_igs *);
 void cterm_igs_audio_stop(struct cterm_igs *);

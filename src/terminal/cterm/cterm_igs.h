@@ -57,6 +57,12 @@ struct cterm_igs_sweep {
 	unsigned wait;
 };
 
+struct cterm_igs_note {
+	/* Parser-owner state; the audio consumer never reads the pending wait. */
+	bool active, key;
+	int voice, stop;
+};
+
 struct cterm_igs {
 	struct cterminal *terminal;
 	struct st_graphics_parser *parser;
@@ -82,6 +88,7 @@ struct cterm_igs {
 	int requested_palette[16][3];
 	struct cterm_igs_palette_rotation palette_rotation;
 	struct cterm_igs_sweep sweep;
+	struct cterm_igs_note note;
 	int draw_x, draw_y, scaling_mode, scaling_resolution;
 	int draw_start_x, draw_start_y;
 	/* Last-segment ownership survives native polygon/cap compositions. */

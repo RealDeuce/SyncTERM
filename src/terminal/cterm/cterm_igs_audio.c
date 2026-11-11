@@ -8,6 +8,7 @@
 #include "st_console_test.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 _Static_assert(ST_IGS_PSG_RATE == AUDIO_SAMPLE_RATE, "IGS audio rate");
@@ -245,6 +246,76 @@ cterm_igs_audio_console(struct cterm_igs *igs, bool click)
 	return cterm_igs_audio_poll(igs);
 }
 
+static void
+note_stop(struct cterm_igs_audio *a, int voice, int action)
+{
+	if (action == 1) st_igs_gist_release(&a->gist,voice);
+	else if (action == 2) st_igs_gist_stop(&a->gist,voice);
+	else if (action == 3 || action == 4) {
+		for (int i = 0; i < 3; ++i) {
+			if (action == 3) st_igs_gist_release(&a->gist,i);
+			else st_igs_gist_stop(&a->gist,i);
+		}
+	}
+}
+
+int
+cterm_igs_audio_note_end(struct cterm_igs *igs)
+{
+	struct cterm_igs_audio *a = igs->audio;
+	if (a == NULL || !igs->note.active) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&a->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	note_stop(a,igs->note.voice,igs->note.stop);
+	(void)st_mutex_unlock(&a->mutex);
+	igs->note = (struct cterm_igs_note){0}; igs->wait_deadline = 0;
+	return 0;
+}
+
+int
+cterm_igs_audio_note_begin(struct cterm_igs *igs, const int v[6])
+{
+	if (v == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (igs->note.active) return IO_ERROR_BUSY;
+	int status = create(igs);
+	if (status == 0) status = cterm_igs_audio_poll(igs);
+	if (status != 0) return status;
+	if (igs->audio == NULL || igs->reset_pending) return IO_ERROR_INTERRUPTED;
+	int effect = v[0] < 0 ? 0 : v[0] > 19 && v[0] != 125 ? 19 : v[0];
+	int voice = v[1] < 0 ? 0 : v[1] > 2 ? 2 : v[1];
+	int volume = v[2] < 0 ? 0 : v[2] > 15 ? 15 : v[2];
+	int pitch = v[3] > 255 ? 255 : v[3];
+	int delay = v[4] < 0 ? 0 : v[4];
+	int stop = v[5] < 0 ? 0 : v[5] > 4 ? 4 : v[5];
+	struct cterm_igs_audio *a = igs->audio;
+	if (st_mutex_lock(&a->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	if (pitch > 0 && effect != 125) {
+		(void)st_igs_gist_on(&a->gist,a->patches[effect],voice,volume,pitch,7);
+		a->running = true;
+	}
+	(void)st_mutex_unlock(&a->mutex);
+	/* Preserve trigger -> start sample -> delay -> stop ordering, including
+	 * the start sample for zero delay. Completed triggers survive a host
+	 * clock/deadline error; no elapsed stop action is fabricated. */
+	uint64_t now;
+	status = igs->now_ms(&now);
+	uint64_t duration = (uint64_t)delay*5;
+	if (status == 0 && duration > UINT64_MAX-now) status = IO_ERROR_OUT_OF_RANGE;
+	if (status != 0) return status;
+	if (delay != 0) {
+		igs->note = (struct cterm_igs_note){.active = true,.voice = voice,.stop = stop};
+		igs->wait_deadline = now+duration;
+	}
+	else {
+		if (st_mutex_lock(&a->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+		note_stop(a,voice,stop);
+		(void)st_mutex_unlock(&a->mutex);
+	}
+	status = cterm_igs_audio_poll(igs);
+	if (status != 0) { igs->note = (struct cterm_igs_note){0}; igs->wait_deadline = 0; return status; }
+	if (igs->audio == NULL || igs->reset_pending) return IO_ERROR_INTERRUPTED;
+	return delay != 0 ? IO_ERROR_IN_PROGRESS : 0;
+}
+
 void
 cterm_igs_audio_stop(struct cterm_igs *igs)
 {
@@ -285,6 +356,10 @@ inspect_patch_bank(uint16_t bank[ST_IGS_GIST_PATCHES][ST_IGS_GIST_WORDS])
 void
 cterm_igs_audio_inspect(const struct cterm_igs *igs, struct st_console_test_application *app)
 {
+	st_console_test_number(app,"cterm.igs_note_active",igs->note.active);
+	st_console_test_number(app,"cterm.igs_note_key",igs->note.key);
+	st_console_test_number(app,"cterm.igs_note_voice",igs->note.voice);
+	st_console_test_number(app,"cterm.igs_note_stop",igs->note.stop);
 	struct cterm_igs_audio *sound = igs->audio;
 	st_console_test_number(app,"cterm.igs_sound_present",sound != NULL);
 	if (sound != NULL && st_mutex_lock(&sound->mutex) == ST_THREAD_SUCCESS) {
@@ -295,7 +370,21 @@ cterm_igs_audio_inspect(const struct cterm_igs *igs, struct st_console_test_appl
 		st_console_test_number(app,"cterm.igs_sound_running",sound->running);
 		st_console_test_number(app,"cterm.igs_sound_console",sound->console_allowed);
 		unsigned voices = 0;
-		for (unsigned i = 0; i < 3; ++i) if (sound->gist.voice[i].parameters[0] != 0) voices |= 1u << i;
+		for (unsigned i = 0; i < 3; ++i) {
+			const struct st_igs_gist_voice *v = &sound->gist.voice[i];
+			if (v->parameters[0] != 0) voices |= 1u << i;
+			char name[64];
+			(void)snprintf(name,sizeof(name),"cterm.igs_sound_voice%u_duration",i);
+			st_console_test_number(app,name,v->parameters[0]);
+			(void)snprintf(name,sizeof(name),"cterm.igs_sound_voice%u_priority",i);
+			st_console_test_number(app,name,v->priority);
+			(void)snprintf(name,sizeof(name),"cterm.igs_sound_voice%u_control",i);
+			st_console_test_number(app,name,v->control);
+			(void)snprintf(name,sizeof(name),"cterm.igs_sound_voice%u_volume",i);
+			st_console_test_number(app,name,v->parameters[3]);
+			(void)snprintf(name,sizeof(name),"cterm.igs_sound_voice%u_phase",i);
+			st_console_test_number(app,name,v->parameters[4]);
+		}
 		st_console_test_number(app,"cterm.igs_sound_voices",voices);
 		(void)st_mutex_unlock(&sound->mutex);
 	}
