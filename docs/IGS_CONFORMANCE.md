@@ -60,8 +60,8 @@ required. Original bugs and memory/overflow accidents are corrected safely
 and will be listed here with tests. Historical delivery profiles, BIG and
 CONDOR implementations are outside this goal.
 
-A tested GIST software-voice/register engine is available as a foundation;
-PSG synthesis and b/n/N command/audio integration remain unfinished.
+Tested GIST software-voice/register and PSG synthesis components are available;
+IGS session ownership and b/n/N command/audio integration remain unfinished.
 Audio will implement GIST/PSG behavior and use SyncTERM MIDI facilities.
 Sound tests check functionality and lifecycle, without requiring identical PCM
 or reference-render comparisons. Listening is deferred to manual testing
@@ -2102,7 +2102,7 @@ is recorded in `src/tests/igs/sweep-vectors.json`.
 
 ### GIST software-voice foundation
 
-The next sound step begins with a tested GIST software-voice engine in
+The sound foundation includes a tested GIST software-voice engine in
 st_igs. It owns three copied 56-word parameter records, their six envelope/
 modulation accumulators and a masked PSG-register mirror. Original 20-patch,
 85-pitch and 16-factor tables are checked in with source fingerprints. The
@@ -2148,10 +2148,10 @@ reach completion under bounded test observation. No elapsed host waits or
 PCM matching supply expected results; ordinary tests require no external
 reference tree or ROM.
 
-This is a sound-foundation step. PSG synthesis, audio-stream ownership and
-shutdown, console sound interaction and b/n/N command integration remain
-unfinished. No command status is advanced and no PCM, audible or physical
-audio-device coverage is claimed by these register/record tests. References:
+These GIST record/register tests alone do not establish waveform synthesis
+or session/audio lifecycle behavior; later foundation steps below track
+those responsibilities. No command status is advanced. These register/record
+tests claim no PCM, audible or physical audio-device coverage. References:
 chapters 06, 56, 57 and the b caller contract in chapter 24. Source identities
 and test counts are recorded in src/tests/igs/gist-vectors.json.
 
@@ -2215,8 +2215,8 @@ acknowledgment and clear/replacement behavior, and data-ready wakeup. Predicate-
 gated concurrent tests prove detach, destruction and stop cannot return while
 a callback still uses its context. st_audio checks the public wrappers with
 literal expected PCM through the device-free pull runtime and verifies clear
-and stopped-runtime behavior. These tests cover the audio infrastructure;
-PSG synthesis, session ownership and b/n/N integration remain pending.
+and stopped-runtime behavior. These tests cover the audio infrastructure; PSG synthesis and IGS session
+responsibilities are tracked separately below.
 
 Native FreeBSD Release CMake configure and full build passed; the final build
 had no warnings. All ten selected CTest checks passed: st_audio_source,
@@ -2225,3 +2225,60 @@ cterm_apc_audio, cterm_skypix_audio, cterm and term. No command count advances
 and no physical audio-device or audible coverage is claimed. The GIST engine
 component is committed as 4e5e0a0; the sound foundation remains in progress
 with 51/63 command entries complete.
+
+
+### PSG synthesis foundation
+
+st_igs now contains a device-free PSG renderer for SyncTERM's native signed
+16-bit stereo at 44100 frames/second. It carries three tone phases and the
+shared noise/envelope phases as exact fractions of one local output frame.
+Period conversions use the nominal tone/envelope and noise frequency
+relationships at the write/use sites. No clock origin, foreign tick loop,
+CPU timestamp or bus schedule exists. Render calls advance generators even
+when their output is gated or their gain is zero.
+
+Masked registers preserve raw zero words, treating period zero as one at use.
+Ordinary writes preserve phase, output bits and noise state. Each R13 write,
+even an unchanged shape, restarts the shared envelope alone. Separate low/high
+period writes immediately update the currently composed period. If a shorter
+period lies behind carried elapsed phase, one overdue edge resolves at the
+next local output sample; this is an explicit sample-boundary approximation,
+not a claim of native sub-sample bus timing. GPIO registers store bytes only.
+
+The renderer implements the shared 17-bit old-bit-output Galois noise sequence,
+all 16 envelope shapes with repeated endpoints, fixed-to-5-bit level mapping
+and the tone/noise gates. Both inputs disabled leave a constant level, allowing
+software gain changes and DC filtering. Muting, stopping a GIST voice or writing
+a period does not reseed noise or reset another oscillator.
+
+Waveform edges are integrated over each local output frame, using the pinned
+single-channel logarithmic amplitudes. Their sum is normalized to the signed
+16-bit range, followed by a carried mild low-pass and DC blocker. Mono output
+is duplicated to stereo. Mix/filter arithmetic and source fingerprints are
+explicit in src/tests/igs/psg-synthesis.json. These are host synthesis choices;
+the separate canonical nonlinear three-channel/48kHz reference PCM profile
+is not a byte-identity target. The goal does not require reference waveform
+comparison or manual listening as a completion gate.
+
+The standalone igs_psg CTest checks 4096 masked register writes, ignored
+addresses, 12288 tone-period/phase profiles, every 16-bit envelope-period word,
+all noise periods and zero/one equivalence. Literal D/U/L/H blocks check all
+16 envelope shapes at 2400 local sample positions each; 32768 gate/level
+profiles, 32 independently calculated DC amplitude probes and a hand-derived
+shared-noise trace cover output selection. Functional checks cover each tone's
+1000Hz output, settled DC rejection, filter tail after stop, unchanged-shape
+retrigger, reduced-period carry and exact partition invariance at fixed local
+register-write positions. All 20 original GIST patches produce PCM with
+updates translated to alternating 221/220 local-frame intervals; stop retains
+phase and the filter tail settles. Ordinary tests need no external tree,
+ROM, sound device, reference PCM capture or host-time waits.
+
+Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed;
+the final full build had no warnings. All 14 selected CTest checks passed in
+13.41 seconds: igs_psg, igs_gist, igs_image, shared parser/stream, audio source,
+mixer, runtime and synthesis, music player, APC/SkyPix audio, CTerm and term.
+igs_psg takes about 0.1 second. The live-source component is committed as
+2ed84d7. The sound foundation stays in progress and the command ledger stays
+at 51/63: IGS session ownership, disabled-audio progression, console sound
+interaction and b/n/N integration are still pending. No auditory or physical
+audio-device coverage is claimed. References: chapters 53/54/56/57.

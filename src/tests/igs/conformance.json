@@ -384,7 +384,9 @@
         "06-audio.adoc",
         "56-gist-interrupt-voices.adoc",
         "57-gist-caller-apis.adoc",
-        "24-effect-patch-command.adoc"
+        "24-effect-patch-command.adoc",
+        "53-ym2149-digital-state.adoc",
+        "54-canonical-psg-pcm.adoc"
       ],
       "dependencies": [
         "igs-state-raster-timing"
@@ -394,22 +396,27 @@
         "Automatic voice/priority allocation, stop-before-source-read and forward copy, original pitch folding, tone/noise disable and mixer masking, fixed gain, selected stop and scheduled release. Source edits do not change an active copied voice; stop does not reset oscillator phases.",
         "Explicit C,B,A envelope update calls, driven later by converted local sample/deadline positions. No clock origin/timer/free-running foreign counter. Signed fixed-point envelopes, symmetric reflection, tone carry/replacement, duration/release sequencing and raw conversions emit ordered PSG bytes with masked register state.",
         "1044 independent immutable-field update vectors and 160 full API vectors plus exhaustive 65536 pitch/control words, original-patch lifetimes, safe factor indexing, aliases/copy ownership, priority/stop/release and raw shared-noise/gain order. Tests use checked-in data, no external files, physical audio or PCM reference.",
-        "Live PCM sources are requested by the existing mixer consumer, using its fixed-format gain/clipping and device acknowledgment path. Sources have explicit attach/activate/clear/detach ownership; callbacks are quiesced before detach, stream destruction or engine stop. There is no new worker or synthesis queue ahead of consumption."
+        "Live PCM sources are requested by the existing mixer consumer, using its fixed-format gain/clipping and device acknowledgment path. Sources have explicit attach/activate/clear/detach ownership; callbacks are quiesced before detach, stream destruction or engine stop. There is no new worker or synthesis queue ahead of consumption. Component commit: 2ed84d7.",
+        "Tested PSG renderer in the local 44100Hz signed-16-bit stereo sample domain: masked registers, independent tones, shared 17-bit old-bit-output noise, all envelope shapes, fixed/envelope DAC levels, gate behavior and period-zero aliases. Exact fractions of local frames carry oscillator phases; unchanged R13 writes retrigger only the shared envelope. No foreign clock, tick loop or bus timeline.",
+        "Integrates waveform-edge amplitudes over each local output frame before normalization, then applies documented carried low-pass/DC-block histories. Original logarithmic single-channel data is pinned; mixing sums channel amplitudes rather than using the reference nonlinear 3-channel/48kHz PCM profile. Tests cover all masks/period words, literal digital expectations, rational phase/frequency bounds, DC amplitude/decay, split rendering and all 20 original GIST patches at converted 200-updates/second sample positions."
       ],
       "tests": [
         "igs_gist",
         "st_audio_source",
-        "st_audio"
+        "st_audio",
+        "igs_psg"
       ],
       "deviations": [
-        "Edited dynamic volume-factor indices are bounded to 0..15 at use, preserving the stored word and other defined raw conversions rather than reading outside the host table. No native code/RAM/MMIO escape or installer/bus model."
+        "Edited dynamic volume-factor indices are bounded to 0..15 at use, preserving the stored word and other defined raw conversions rather than reading outside the host table. No native code/RAM/MMIO escape or installer/bus model.",
+        "Host synthesis choices: summed logarithmic channel amplitudes, local 44100Hz waveform-edge integration and documented low-pass/DC filtering, rather than the separate canonical 48kHz nonlinear reference PCM. Register writes take effect at local sample boundaries; a shortened period behind carried phase resolves one overdue edge at the next sample. No CPU/bus/sub-sample write timestamp model or machine GPIO effects. These choices do not impose a reference PCM-byte or listening gate."
       ],
       "limitations": [
-        "PSG synthesis, PCM streaming/ownership/lifecycle, console sound interaction and b/n/N command integration remain pending. Register/record tests claim no PCM/audible/device coverage."
+        "IGS session audio ownership/lifecycle, disabled-audio progression, console sound interaction and b/n/N command integration remain pending. Component tests claim no audible/physical-device/reference-waveform coverage."
       ],
       "verification": [
         "Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed. Generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 13 selected CTest checks passed in 8.18 seconds: igs_gist, indexed images, shared parser/stream, audio mixer/synthesis, music player, APC/SkyPix audio, X8/X15, CTerm and term. igs_gist took 0.01 seconds, checking 1044 independent update records, 160 complete API records, 65536 pitch/control words and all 20 original automatic patch lifetimes, plus literal ordering/ownership/safe-bound cases. Validated all 63 command IDs with 51 complete entries, references/dependencies/active test registrations, fixture inventories and all four original-data/oracle hashes. No command completion or PSG/PCM/audible/native-device coverage is claimed; this is a complete GIST record/register component within the still-in-progress sound foundation.",
-        "Native FreeBSD Release CMake configure and full build passed; final full build had no warnings. Ten selected CTest checks passed, including live producer samples, short/invalid returns, pending acknowledgments and late acknowledgments after clear, source replacement, data-ready wakeup, concurrent detach/destruction/stop with an in-flight callback, stopped-engine rejection and pull-runtime wrappers. Existing mixer, synthesis, music, APC/SkyPix audio, GIST, CTerm and term checks also passed. No physical audio or b/n/N session integration is claimed."
+        "Native FreeBSD Release CMake configure and full build passed; final full build had no warnings. Ten selected CTest checks passed, including live producer samples, short/invalid returns, pending acknowledgments and late acknowledgments after clear, source replacement, data-ready wakeup, concurrent detach/destruction/stop with an in-flight callback, stopped-engine rejection and pull-runtime wrappers. Existing mixer, synthesis, music, APC/SkyPix audio, GIST, CTerm and term checks also passed. No physical audio or b/n/N session integration is claimed.",
+        "Native FreeBSD Release CMake configure and full build with /usr/bin/cc passed; final full build had no warnings. All 14 selected CTest checks passed in 13.41 seconds: igs_psg, igs_gist, igs_image, shared parser/stream, st_audio_source, st_audio_mixer, st_audio, st_audio_synthesis, music_player, APC/SkyPix audio, CTerm and term. The standalone PSG check runs in about 0.1 second with literal/closed-form expectations, 4096 register writes, 12288 tone-period/phase profiles, 65536 envelope-period words, 32 noise periods, all 16 envelope shapes at 2400 local sample positions each, 32768 gate/level profiles, 32 DAC probes, manual shared-noise trace, source-partition invariance and all 20 original GIST patches. No command status advances; 51/63 remain complete. Source identities and synthesis choices are recorded in src/tests/igs/psg-synthesis.json."
       ],
       "commit": null
     }

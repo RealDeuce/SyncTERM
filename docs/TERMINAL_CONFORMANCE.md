@@ -242,11 +242,14 @@ waits, across all ST modes/encodings/status choices with audio/MIDI off.
 The GIST software-voice foundation adds standalone register/record tests:
 1044 independent envelope cases, 160 API cases, all pitch/control words and
 original-patch lifetime checks. These do not establish PCM playback or b/n/N
-command support; synthesis and session/audio integration remain unfinished.
+command support; PSG synthesis has separate functional tests below.
 Live audio-source tests additionally cover sample delivery and acknowledgment,
 clear/detach and concurrent stream destruction/engine stop with an active
-callback, using the existing consumer and device-free pull runtime. PSG
-synthesis and IGS session/audio integration remain pending.
+callback, using the existing consumer and device-free pull runtime.
+PSG tests add literal register/envelope/gate/noise expectations, rational
+local-sample phase/frequency checks, DC probes/filter tails, partition
+invariance and all 20 original GIST patches. No foreign clock or reference
+PCM-byte identity is required. IGS session/audio integration remains pending.
 Other drawing, loops and sound remain pending; see the IGS ledger for details.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
