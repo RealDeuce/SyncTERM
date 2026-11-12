@@ -435,3 +435,6 @@ owners. Normal keyboard positions1..129 and producer lengths1..80 keep their
 ordinary count/data semantics; unsafe foreign-neighbor aliases are not modeled.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed.
+
+Keyboard/zone collection operator dependency commit: `5e24fd6`.
+Native < integration and the full45-entry goal remain in progress.
