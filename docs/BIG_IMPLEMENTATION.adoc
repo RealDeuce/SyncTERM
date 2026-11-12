@@ -482,3 +482,6 @@ remain pending. I stays in progress, R has no wire entry yet, and completed
 command count remains0/45. No completion claim relies on helper-only tests.
 
 Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction.
+
+Initial native input/I binding completion commit: `b829b11`. Full I command
+acceptance and application selection remain pending.
