@@ -182,7 +182,7 @@
             "syncterm_rip154_raster_CP437",
             "syncterm_rip154_raster_UTF-8"
           ],
-          "commit": null
+          "commit": "a79aa88"
         }
       ]
     },
@@ -224,7 +224,7 @@
             "big_state",
             "big_profile"
           ],
-          "commit": null
+          "commit": "a79aa88"
         }
       ]
     },

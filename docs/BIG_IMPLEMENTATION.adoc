@@ -427,3 +427,6 @@ CP437/UTF-8 RIP raster capture tests passed in14.24s. Strengthened cached-mode
 failure expectations were rebuilt and `big_state` passed separately. The
 shared-BGI and state/page foundations remain in progress; no command is
 complete (0/45).
+
+I/R state/profile and shared EGA data completion commit: `a79aa88`.
+Live command/backend integration remains pending.
