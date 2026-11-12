@@ -530,3 +530,6 @@ draws from the moved point. Full indexed/text/palette/point/cursor/reply/RGB
 expectations retain all three modes, CP437/UTF-8 and status choices.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.49s, including the expanded cterm_big_line in1.13s. The BIG application fixture passed in55.70s with938 coherent scenes. Only BIG-specific tests ran; the final full regression suite remains deferred. Native m integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending.
+
+Native m graphics-point integration commit: `08e9991`.
+Page/image/audio composition and the full45-entry goal remain in progress.
