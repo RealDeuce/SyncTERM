@@ -10,6 +10,7 @@
 struct st_big_control {
 	struct { uint16_t mode, count[2]; uint8_t byte[2]; } flow;
 	struct { uint16_t count; uint8_t pending, append_cr, payload[ST_BIG_REPLY_CAPACITY]; } input;
+	struct { uint16_t step_x, step_y; } pointer;
 	struct { uint16_t command, did_loop; uint8_t gang_marker, gang[129]; } frame;
 };
 enum st_big_output_kind { ST_BIG_OUTPUT_XON, ST_BIG_OUTPUT_XOFF, ST_BIG_OUTPUT_REPLY };

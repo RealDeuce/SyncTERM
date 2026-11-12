@@ -18,8 +18,21 @@ static const struct st_graphics_dialect dialect = {
 	.chain = '>', .number_digits = 4,
 };
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
+static int extended_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
-	{'g',scalar,1,NULL},{'&',NULL,0,NULL}};
+	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
+
+static int extended_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *parameter)
+{
+	(void)context;
+	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+	*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	if ((uint16_t)view->arguments[0].value==6 && view->count<3)
+		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER,
+		    .axis=view->count==1?ST_GRAPHICS_X:ST_GRAPHICS_Y};
+	return 0;
+}
 
 static struct cterm_big *owner(void *context)
 {
@@ -71,7 +84,13 @@ static void body_entry(struct cterm_big *big, const struct st_graphics_command_v
 static int field(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
-	body_entry(owner(context),view);
+	struct cterm_big *big=owner(context); body_entry(big,view);
+	/* X6 commits X before entering Y, even if Y later waits or fails. */
+	if (view->code=='X' && view->count==2 && view->arguments[0].has_value
+	    && (uint16_t)view->arguments[0].value==6) {
+		if (!view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
+		big->control.pointer.step_x=(uint16_t)view->arguments[1].value;
+	}
 	return st_big_numeric_field(context,view,parameter);
 }
 static int palette(void *context, size_t first, const uint8_t *codes, size_t count, bool bulk)
@@ -175,6 +194,27 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='g') {
 		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		big->numeric.context.scaling=(uint16_t)view->arguments[0].value;
+		return begin_footer(big,view);
+	}
+	if (view->code=='X') {
+		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		uint16_t selector=(uint16_t)view->arguments[0].value;
+		if (selector==6) {
+			if (view->count!=3 || !view->arguments[2].has_value) return IO_ERROR_PROTOCOL;
+			big->control.pointer.step_y=(uint16_t)view->arguments[2].value;
+			if (st_big_number_signed(big->control.pointer.step_x)<1) big->control.pointer.step_x=1;
+			if (st_big_number_signed(big->control.pointer.step_y)<1) big->control.pointer.step_y=1;
+			if (st_big_number_signed(big->control.pointer.step_x)>15) big->control.pointer.step_x=15;
+			if (st_big_number_signed(big->control.pointer.step_y)>15) big->control.pointer.step_y=15;
+		} else if (selector<=8) {
+			/* Retain the existing unsupported-command fallback until the
+			 * other known selectors have their own implemented operators. */
+			unsigned mask=1u<<('X'%8);
+			if ((big->warned['X'/8]&mask)==0) {
+				big->warned['X'/8]|=(uint8_t)mask;
+				cterm_log(big->terminal,ST_CTERM_LOG_WARNING,"Unsupported BIG X selector %u",(unsigned)selector);
+			}
+		}
 		return begin_footer(big,view);
 	}
 	const struct st_big_state_sink sink = {big,install,palette,page};
@@ -404,7 +444,7 @@ int cterm_big_create(struct cterminal *t)
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
 	const struct st_graphics_parser_config config = {
 		.dialect = &dialect, .commands = commands, .command_count = sizeof(commands)/sizeof(commands[0]),
-		.max_arguments = 1,
+		.max_arguments = 3,
 	};
 	if (status == 0) status = st_graphics_parser_create(&big->parser,&config);
 	if (status != 0) { cterm_big_destroy(big); return status; }
@@ -436,6 +476,8 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	if (big == NULL) return;
 	st_console_test_number(app, "cterm.big_resolution", big->numeric.context.resolution);
 	st_console_test_number(app, "cterm.big_scaling", big->numeric.context.scaling);
+	st_console_test_number(app, "cterm.big_step_x", big->control.pointer.step_x);
+	st_console_test_number(app, "cterm.big_step_y", big->control.pointer.step_y);
 	st_console_test_number(app, "cterm.big_hollow", big->state.application.hollow);
 	st_console_test_number(app, "cterm.big_bgi_width", big->state.bgi.width);
 	st_console_test_number(app, "cterm.big_bgi_height", big->state.bgi.height);

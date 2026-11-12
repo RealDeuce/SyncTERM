@@ -318,7 +318,9 @@
         "Independent native wire test failed before R registration. Every split/bytewise CP437/UTF-8/status case checks literal original ROM A/block scenes across the whole indexed surface, geometry/cursor/cells, same-mode reinstall, full-WORD/negative normalization, class0 g3 ownership, retained owners, raw deferred replies, stored wire R1..3 and EOF/reset/timeout. Injected driver/max-mode/state return cases preserve cache-versus-surface distinctions.70 added coherent application scenes exercise1/3/2/repeated2/invalid258 using dirty sentinels and no post-R ED; the fixture now covers168 scenes. Full image/page/input/drawing/music composition remains pending; R is not marked complete.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed.",
         "Independent native g expectation failed before registration. Every split/bytewise CP437/UTF-8/status cases check complete258/ffff/8001 storage, no point/cursor/reset effect, overlong zero, own class0 parsing, I/R lifetime, timeout versus partial EOF/reset, delayed stored g1/2/3 and raw deferred replies. Real wire g/R state drives production numeric probes: Y5->8/11, class0/1 and mismatched/arbitrary flags retain5; rejected R3/cache3 works with an EGA surface. No synthetic coordinate command or drawing consumer is claimed.70 added coherent unchanged-scene g captures bring the application fixture to238 scenes, including I1/R retention. Coordinate/input/music integration remains pending; g is not marked complete.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed.",
+        "Native split/bytewise CP437/UTF-8/status cases check defaults/full-WORD clamps, separate BGI/console points, immediate raw X during Y wait, current-X mutation before clamping, I/R retention, unknown selectors/replies, EOF/reset/timeout. Actual wire Y5 gives8/11 under g2/R2 and g3/R3; loop endpoints after selector/X transfer later fields to wire, while final stored Y5 remains5.70 new step/default/retention scenes bring application coverage to308 coherent scenes. Interactive pointer input, X4-clear integration and music/audio composition remain pending; X6 is not marked complete.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
       ],
       "commit": null,
       "steps": [
@@ -408,6 +410,19 @@
           ],
           "commit": "efc438d",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed."
+        },
+        {
+          "id": "wire-extended-dispatch-and-step-rates",
+          "status": "complete",
+          "tests": [
+            "big_number",
+            "big_numeric",
+            "big_control",
+            "cterm_big_resolution",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
         }
       ]
     },
@@ -431,19 +446,33 @@
     {
       "id": "X",
       "order": 0,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages"
       ],
       "references": [
-        "52-extended-control-command-acceptance.adoc"
+        "52-extended-control-command-acceptance.adoc",
+        "51-state-and-position-command-acceptance.adoc",
+        "73-global-readers-and-loops-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
+      "operations": [
+        "One unscaled full-WORD selector through the shared parser; exact6 dynamically adds class1 X and class2 Y fields.",
+        "Unknown9/ffff/0106 performs no invented argument drain/default clamp/own response and retains shared repeat/chain/deferred-reply semantics.",
+        "Only X6 currently implements its selected operator; the other known selectors retain the explicit unsupported diagnostic/fallback until implemented. Parent completion requires all nine children."
+      ],
+      "tests": [
+        "big_numeric",
+        "big_control",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "Independent wire X6 ownership expectation failed before registration. Native tests now cover splits/bytewise CP437/UTF-8/status, exact selector6 versus full-WORD unknowns, repeated unknown selection and deferred replies. Other known selectors are not accepted implementations; X stays in progress.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
+      ],
       "commit": null
     },
     {
@@ -536,7 +565,8 @@
       "deviations": [],
       "verification": [
         "Independent native g expectation failed before registration. Every split/bytewise CP437/UTF-8/status cases check complete258/ffff/8001 storage, no point/cursor/reset effect, overlong zero, own class0 parsing, I/R lifetime, timeout versus partial EOF/reset, delayed stored g1/2/3 and raw deferred replies. Real wire g/R state drives production numeric probes: Y5->8/11, class0/1 and mismatched/arbitrary flags retain5; rejected R3/cache3 works with an EGA surface. No synthetic coordinate command or drawing consumer is claimed.70 added coherent unchanged-scene g captures bring the application fixture to238 scenes, including I1/R retention. Coordinate/input/music integration remains pending; g is not marked complete.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed.",
+        "Live X6 now consumes class1/class2 through the production grammar. Native and coherent application cases verify g2 Y5->8, g3 Y5->11, mismatched/full-flag bypass and stored-versus-wire seams. This establishes a real coordinate-valued consumer, with no drawing primitive acceptance claimed."
       ],
       "commit": null
     },
@@ -1123,7 +1153,7 @@
     {
       "id": "X6",
       "order": 35,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1131,12 +1161,27 @@
         "application-integration"
       ],
       "references": [
-        "51-state-and-position-command-acceptance.adoc"
+        "51-state-and-position-command-acceptance.adoc",
+        "32-input-zones-and-deferred-replies.adoc",
+        "73-global-readers-and-loops-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
+      "operations": [
+        "Application control steps default12/6, retained by I/R/frame entry; class1 X is stored before the class2 Y wait, then Y is stored before four ordered signed clamps.",
+        "Clamps reread current X<1,Y<1,X>15,Y>15, producing1..15 only after completed Y acquisition; incomplete EOF/reset preserves committed raw X.",
+        "No point/cursor movement or host mouse-speed operation. Real g2/R2 and g3/R3 class2 acquisition, stored bypass and source-to-wire transitions; interactive pointer consumer still pending."
+      ],
+      "tests": [
+        "big_number",
+        "big_numeric",
+        "big_control",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "Native split/bytewise CP437/UTF-8/status cases check defaults/full-WORD clamps, separate BGI/console points, immediate raw X during Y wait, current-X mutation before clamping, I/R retention, unknown selectors/replies, EOF/reset/timeout. Actual wire Y5 gives8/11 under g2/R2 and g3/R3; loop endpoints after selector/X transfer later fields to wire, while final stored Y5 remains5.70 new step/default/retention scenes bring application coverage to308 coherent scenes. Interactive pointer input, X4-clear integration and music/audio composition remain pending; X6 is not marked complete.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
+      ],
       "commit": null
     },
     {

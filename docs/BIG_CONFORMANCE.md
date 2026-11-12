@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R/g operations run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R/g/X6 operations run
 through native CTerm. Drawing, sound and complete command acceptance remain
 in progress.
 
@@ -316,3 +316,26 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Wire g/scaling selection integration commit: `efc438d`.
 Live coordinate consumers and the full45-entry goal remain in progress.
+
+## X dispatch and X6 steps
+
+X uses an unscaled full-WORD selector. Exact6 acquires class1 X then class2 Y;
+unknown selectors consume no guessed extension operands and retain shared
+repeat/chain/reply behavior. Other known selectors are explicitly unsupported,
+not accepted implementations. Parent X cannot complete before all nine children.
+
+X6 stores X before Y waits, stores Y on return, then performs four ordered
+signed checks to1..15 against current fields. Application steps initialize
+to12/6 and survive I/R/frame entry. EOF/reset can retain an unclamped X
+prefix. No point movement or host mouse-speed change is made. Interactive
+keyboard/mouse pointer acquisition remains pending.
+
+Native expectations failed before registration and now cover splits/bytewise,
+encodings/status, WORD clamps, defaults/points/lifetime, partial/current
+stores, source transitions, unknown selectors, replies and EOF/reset/timeout.
+Live g2/R2 and g3/R3 X6 Y5 produces8 and11; stored Y5 stays5, even when its
+read ends the loop.70 added application scenes bring coherent coverage to308,
+checking exact retained pixels/fonts/palettes/cells/cursor alongside step state.
+X6 and the parent remain in progress; full command acceptance remains0/45.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.

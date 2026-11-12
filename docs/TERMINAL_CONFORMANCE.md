@@ -91,6 +91,15 @@ surface semantics; this does not claim a live coordinate drawing consumer.
 70 added coherent g scenes (238 total) check complete flags and I1/R
 retention with the unchanged full scene. Full command acceptance remains pending.
 
+X dispatch/X6 now provide a live class2 consumer: exact full-WORD selector6,
+immediate X store before Y, current-field signed clamps,12/6 defaults and
+I/R/partial-input lifetime. Native cases cover split/bytewise encodings/status,
+points/cursor, unknown selectors/continuation/replies and source-to-wire
+transitions. Actual g2/g3 X6 Y5 gives8/11; stored Y5 bypasses that scaling.
+70 added coherent step scenes (308 total) retain exact scene pixels and state.
+Other X selectors and interactive pointer input remain pending; X completes
+only after all nine selectors. No full command or physical-device claim is made.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

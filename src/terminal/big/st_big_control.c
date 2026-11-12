@@ -20,6 +20,7 @@ void st_big_control_init(struct st_big_control *c)
 	if (c == NULL) return;
 	memset(c,0,sizeof(*c)); c->flow.mode=1;
 	c->flow.count[0]=c->flow.count[1]=1; c->flow.byte[0]=17; c->flow.byte[1]=19;
+	c->pointer.step_x=12; c->pointer.step_y=6;
 	st_big_control_enter(c);
 }
 void st_big_flow_begin(struct st_big_flow_reader *r, const struct st_big_control *c, bool on)

@@ -161,4 +161,83 @@ static void mode_return_paths(void)
 	CHECK(f.resizes==2 && b->numeric.context.resolution==1 && b->state.bgi.viewport[0]==0 && b->state.bgi.y==0);
 	destroy(&f);
 }
-int main(void) { partitions(); retained_and_normalized(); source_and_recovery(); mode_return_paths(); return 0; }
+static void extended_ownership(void)
+{
+	const char wire[]="I#X 6,0,20:Z";
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status)
+		for (size_t split=0;split<sizeof(wire);++split) {
+			struct fixture f; create(&f,utf8,status);
+			struct cterm_big *b=f.terminal->big_engine;
+			CHECK(b->control.pointer.step_x==12 && b->control.pointer.step_y==6);
+			string(&f,"\033[10;20H");
+			b->state.bgi.x=19; b->state.bgi.y=27;
+			feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split);
+			CHECK(f.terminal->xpos==21 && f.terminal->ypos==10 && f.resizes==1 && f.size==0);
+			CHECK(b->state.bgi.x==19 && b->state.bgi.y==27);
+			CHECK(b->control.pointer.step_x==1 && b->control.pointer.step_y==15);
+			destroy(&f);
+		}
+	struct fixture f; create(&f,false,false);
+	for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1);
+	CHECK(f.terminal->big_engine->control.pointer.step_x==1 && f.terminal->big_engine->control.pointer.step_y==15);
+	destroy(&f);
+}
+static void extended_prefix_and_unknown(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#X 6,0,");
+	CHECK(b->control.pointer.step_x==0 && b->control.pointer.step_y==6);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->control.pointer.step_x==0 && b->control.pointer.step_y==6);
+	string(&f,"I#X 6,20,"); CHECK(b->control.pointer.step_x==20 && b->control.pointer.step_y==6);
+	/* The later clamps read current global X rather than reassigning the
+	 * earlier packet value after the waiting Y read returns. */
+	b->control.pointer.step_x=0; string(&f,"5:");
+	CHECK(b->control.pointer.step_x==1 && b->control.pointer.step_y==5);
+	string(&f,"I#X 6,+1,x:"); CHECK(b->control.pointer.step_x==1 && b->control.pointer.step_y==1);
+	string(&f,"I#X 6,257,258:"); CHECK(b->control.pointer.step_x==15 && b->control.pointer.step_y==15);
+	string(&f,"I#I 1:I#I 0:I#R 1:");
+	CHECK(b->control.pointer.step_x==15 && b->control.pointer.step_y==15);
+	static const char *unknown[]={"I#X 9:Z","I#X 262:Z","I#X +1:Z"};
+	for (size_t i=0;i<sizeof(unknown)/sizeof(unknown[0]);++i) {
+		string(&f,"\033[H"); string(&f,unknown[i]);
+		CHECK(f.terminal->xpos==2 && b->control.pointer.step_x==15 && b->control.pointer.step_y==15);
+	}
+	string(&f,"I#& 0,2,1,0,X@1,9:");
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && f.size==2 && f.output[0]==19 && f.output[1]==17);
+	string(&f,"I#"); b->control.input.pending=1; b->control.input.count=2;
+	b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"X>9,"); CHECK(b->control.input.pending==1 && f.size==2);
+	string(&f,"~ "); CHECK(f.size==4 && f.output[2]==0 && f.output[3]==255);
+	destroy(&f);
+}
+static void extended_numeric_sources(void)
+{
+	struct fixture f; create(&f,true,true); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#R 2:I#g 2:I#X 6,5,5:"); CHECK(b->control.pointer.step_x==5 && b->control.pointer.step_y==8);
+	string(&f,"I#R 3:I#g 3:I#X 6,5,5:"); CHECK(b->control.pointer.step_x==5 && b->control.pointer.step_y==11);
+	string(&f,"I#R 2:I#X 6,5,5:"); CHECK(b->control.pointer.step_x==5 && b->control.pointer.step_y==5);
+	string(&f,"I#g 258:I#X 6,5,5:"); CHECK(b->control.pointer.step_y==5);
+	string(&f,"I#R 3:I#g 3:");
+	/* Stored selector ends the loop; both step reads now own wire bytes. */
+	string(&f,"I#& 0,1,1,0,X@1,6:4,5:");
+	CHECK(b->numeric.loop.active==0 && b->control.pointer.step_x==4 && b->control.pointer.step_y==11);
+	/* Stored X ends the loop; only Y comes from the scaled wire reader. */
+	string(&f,"I#& 0,1,1,0,X@2,6,5:5:");
+	CHECK(b->numeric.loop.active==0 && b->control.pointer.step_x==5 && b->control.pointer.step_y==11);
+	/* The final stored Y bypasses ordinary scaling, despite g3/cache3. */
+	string(&f,"I#& 0,1,1,0,X@3,6,5,5:");
+	CHECK(b->numeric.loop.active==0 && b->control.pointer.step_x==5 && b->control.pointer.step_y==5);
+	CHECK(f.size==6 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11",6)==0);
+	string(&f,"I#X 6,0,5"); CHECK(b->control.pointer.step_x==0 && b->control.pointer.step_y==5);
+	local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->control.pointer.step_x==1 && b->control.pointer.step_y==11 && f.bells==1);
+	string(&f,"I#X 6,16,5"); CHECK(st_cterm_reset_terminal(f.terminal)==0);
+	CHECK(b->control.pointer.step_x==16 && b->control.pointer.step_y==11);
+	string(&f,"I#X 6,5,5:"); CHECK(b->control.pointer.step_x==5 && b->control.pointer.step_y==11);
+	destroy(&f);
+}
+int main(void)
+{
+	partitions(); retained_and_normalized(); source_and_recovery(); mode_return_paths();
+	extended_ownership(); extended_prefix_and_unknown(); extended_numeric_sources(); return 0;
+}

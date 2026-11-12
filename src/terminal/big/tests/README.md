@@ -157,3 +157,12 @@ production numeric callbacks and independent Y5 expectations8/11, including
 a rejected R3/cache3 while the surface remains350 lines. No synthetic
 coordinate command is registered. The application fixture adds70 unchanged-
 scene g captures (238 total); live coordinate consumers remain separate work.
+
+The live X6 cases in `cterm_big_resolution` now use actual class1/class2
+operands through full-WORD X dispatch. Independent expectations cover12/6
+defaults, split/bytewise CP437/UTF-8/status, signed1..15 clamps, no point/
+cursor movement, X's raw prefix before Y waits, changed-current-X clamping,
+I/R/EOF/reset/timeout, unknown selectors/repeats/replies and source-to-wire
+seams after selector or X. Actual g3/cache3 Y5 becomes11, but final stored
+Y5 stays5. The application fixture adds70 step/default/retention scenes,
+308 coherent total; pointer acquisition and the other X selectors remain pending.

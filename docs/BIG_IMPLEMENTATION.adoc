@@ -18,7 +18,7 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-BIG mode6 is selectable with native I0/I1/R indexed-console effects and g,
+BIG mode6 is selectable with native I0/I1/R indexed-console effects, g and X6,
 wire & setup, source/footer replay and local stored-loop keys. Drawing commands, sound and full
 command acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -815,3 +815,45 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Wire g/scaling selection integration commit: `efc438d`.
 Live coordinate consumers and the full45-entry goal remain in progress.
+
+=== X dispatch and X6 keyboard-step state
+
+X now owns one unscaled full-WORD selector through the shared parser. Exact6
+adds class1 X and class2 Y fields using pure dynamic arity; no low-byte match
+or default-selector clamp is used. Unknown9/ffff/0106 consumes only its
+selector and follows normal repeat/chain/deferred-reply handling, without
+inventing more operands or an own response. Other known selectors0..5/7/8
+remain explicitly unsupported with the existing diagnostic/fallback policy;
+their real operators are still required. Parent X stays in progress until
+all nine child entries are implemented and accepted.
+
+X6 commits its X WORD at Y-field entry, before a blocked/failed Y acquisition.
+After Y returns it commits Y, then performs the four ordered signed field
+checks: X<1, Y<1, X>15, Y>15. These read current fields rather than atomically
+clamping a saved pair. Default steps12/6 live in the application control
+owner, independent of temporary native key queues. I/R/frame entry preserve
+them; EOF/reset retains an already stored, possibly unclamped X prefix and
+does not fabricate Y. This command neither moves a graphics/console point
+nor changes host mouse speed. Keyboard steps remain independent from the
+accepted direct mouse-coordinate behavior; pointer acquisition is not yet
+implemented. X4-clear retention still needs its future input implementation.
+
+Independent native wire-ownership expectations failed before registration.
+`cterm_big_resolution` now covers split/bytewise CP437/UTF-8/status, default
+and full-WORD clamps, console/BGI-point retention, unclamped X while Y waits,
+current-X changes during that wait, EOF/reset/timeout prefixes, I/R lifetime,
+unknown selector/repeat/chain and counted deferred replies. Actual wire
+g2/R2 X6(5,5) gives(5,8); g3/R3 gives(5,11), while mismatched/full flags
+retain5. Stored selector or X can end the loop and hand following fields
+back to the wire; a final stored Y5 bypasses ordinary g3 scaling and stays5.
+These are now live class2 consumer tests, rather than only reader probes.
+
+70 new coherent X6/default/retention scenes bring the application fixture
+to308 scenes. They read full step state with exact indexed ROM pixels,
+palettes/cells/cursor/mode state and RGB samples in the same capture. Earlier
+initial-mode, I/R/g, loop/cancellation and reconnect coverage remains. No
+graphics kernel is duplicated: X6 has only its original WORD/state operator,
+as reference83's map requires. Input, the remaining X selectors, drawing
+and audio/music composition remain pending; full command acceptance0/45.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.
