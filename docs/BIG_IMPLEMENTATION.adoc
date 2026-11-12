@@ -359,3 +359,6 @@ The native Release build passed without compiler/source diagnostics. All 12
 selected BIG/shared-parser/IGS scaling/time CTest checks passed in 1.48 seconds;
 `big_numeric` completed in 0.00 seconds. BIG mode/command dispatch is not yet
 selectable; no command completion is claimed.
+
+Numeric source/deadline callback completion commit: `b25b1e8`. The live BIG
+terminal-mode binding and graphics/command implementation remain pending.

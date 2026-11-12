@@ -144,7 +144,7 @@
           "tests": [
             "big_numeric"
           ],
-          "commit": null,
+          "commit": "b25b1e8",
           "verification": "Native Release build and all12 selected checks passed in1.48s. Live terminal-mode/event-loop binding remains a separate pending integration step."
         }
       ]
