@@ -1,5 +1,5 @@
 // Drive shipped settings actions without a physical display or keyboard.
-import "syncterm" for Key, KeyEvent, AddressFamily
+import "syncterm" for Key, KeyEvent, AddressFamily, Screen, ScreenMode, Surface
 import "syncterm_menu" for Menu
 import "menu_settings_ui" for SettingsMenu
 import "menu_theme_editor" for ThemeEditor
@@ -9,6 +9,16 @@ import "menu_ui" for MenuUi
 import "ui_app" for App
 import "ui_list" for ListView
 import "ui_popup" for Alert
+import "ui_widget" for Widget, Rect
+import "ui_draw" for Painter
+
+class ModePaintProbe is Widget {
+  construct new(x, y) {
+    super()
+    bounds = Rect.new(x, y, 1, 1)
+  }
+  onPaint_() { Painter.text(surface, 0, 0, "Z", style("default")) }
+}
 
 class SettingsTestApp is App {
   construct new(actions) {
@@ -67,6 +77,35 @@ class SettingsMenuTest {
     testInvalidNames_()
     testEncryption_()
     testThemeFilenames_()
+    testCurrentScreenMode_()
+  }
+
+  static testCurrentScreenMode_() {
+    Screen.checked_(Menu.setScreenMode(ScreenMode.c80x25))
+    for (mode in [ScreenMode.cga80x25, ScreenMode.atariSt80x25Mono,
+                  ScreenMode.c80x25]) {
+      // Keep the character grid unchanged while replacing the font bank.
+      // A backdrop marker must not survive the host's screen clear either.
+      var seed = Surface.new(1, 1)
+      seed.cellAt(0, 0).ch = "Q"
+      Screen.checked_(Screen.putRect(seed, 80, 25))
+      var app = SettingsTestApp.new([row_(Menu.screenModes[mode])])
+      var root = ModePaintProbe.new(2, 2)
+      var modal = ModePaintProbe.new(5, 5)
+      app.root.add(root)
+      app.pushModal(modal)
+      app.popStatus("Z")
+      app.drawAll_()
+      SettingsMenu.screenMode_(app)
+      app.drawAll_()
+      for (widget in [root, modal]) {
+        var expected = Painter.template("Z", widget.style("default"))
+        check_(widget.surface.cellAt(0, 0).eqContent(expected),
+            "Current screen mode must repaint every widget with the new font")
+      }
+      check_(Screen.checked_(Screen.readRect(80, 25, 80, 25)).cellAt(0, 0).ch == " ",
+          "Current screen mode must discard the old backdrop")
+    }
   }
   static testProgram_() {
     var before = Menu.settings
