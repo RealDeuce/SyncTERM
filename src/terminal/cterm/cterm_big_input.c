@@ -69,7 +69,7 @@ int cterm_big_input_read(void *context, uint8_t *value)
 
 int cterm_big_input_forward(struct cterm_big *big)
 {
-	if (cterm_big_input_owned(big) || big->footer_active) return 0;
+	if (cterm_big_input_owned(big) || big->footer_active || big->zone.phase!=CTERM_BIG_ZONE_OFF) return 0;
 	struct cterm_big_input *input=&big->input;
 	while (input->count!=0) {
 		struct cterm_key key=take(input); input->replaying=true;

@@ -97,8 +97,18 @@ I/R/partial-input lifetime. Native cases cover split/bytewise encodings/status,
 points/cursor, unknown selectors/continuation/replies and source-to-wire
 transitions. Actual g2/g3 X6 Y5 gives8/11; stored Y5 bypasses that scaling.
 70 added coherent step scenes (308 total) retain exact scene pixels and state.
-Other X selectors and interactive pointer input remain pending; X completes
+Remaining X selectors and interactive pointer input remain pending; X completes
 only after all nine selectors. No full command or physical-device claim is made.
+
+X4 implements counted opaque zone loading, immediate coordinate stores,
+special clear/loopback ids, live lengths, retained tails, conditional XON and
+fresh per-helper deadlines, including its extra discarded read. Native tests
+cover split/bytewise input, source/scaling/flow/prefix/error/reset/EOF and
+bounded corruption.84 coherent session scenes (392 total) check zone data
+and lifetimes with exact unchanged scene pixels/cells/palette/cursor/state.
+Pointer hit testing and interactive acquisition remain pending. Negative ids
+and actual table escapes fail at the accessed boundary, preserving accepted
+prefixes instead of overwriting foreign DOS state.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

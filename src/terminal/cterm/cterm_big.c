@@ -28,6 +28,12 @@ static int extended_next(void *context, const struct st_graphics_command_view *v
 	(void)context;
 	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 	*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	if ((uint16_t)view->arguments[0].value==4 && view->count<7) {
+		if (view->count>=2 && st_big_zone_id((uint16_t)view->arguments[1].value)>=9997) return 0;
+		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
+		if (view->count>=2 && view->count<=5)
+			parameter->axis=view->count%2==0?ST_GRAPHICS_X:ST_GRAPHICS_Y;
+	}
 	if ((uint16_t)view->arguments[0].value==6 && view->count<3)
 		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER,
 		    .axis=view->count==1?ST_GRAPHICS_X:ST_GRAPHICS_Y};
@@ -85,6 +91,11 @@ static int field(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
 	struct cterm_big *big=owner(context); body_entry(big,view);
+	if (view->code=='X' && view->count>=1 && view->arguments[0].has_value
+	    && (uint16_t)view->arguments[0].value==4) {
+		int status=cterm_big_zone_field(big,view);
+		if (status!=0) return status;
+	}
 	/* X6 commits X before entering Y, even if Y later waits or fails. */
 	if (view->code=='X' && view->count==2 && view->arguments[0].has_value
 	    && (uint16_t)view->arguments[0].value==6) {
@@ -199,7 +210,10 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='X') {
 		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		uint16_t selector=(uint16_t)view->arguments[0].value;
-		if (selector==6) {
+		if (selector==4) {
+			int status=cterm_big_zone_begin(big,view);
+			if (status!=0) return status;
+		} else if (selector==6) {
 			if (view->count!=3 || !view->arguments[2].has_value) return IO_ERROR_PROTOCOL;
 			big->control.pointer.step_y=(uint16_t)view->arguments[2].value;
 			if (st_big_number_signed(big->control.pointer.step_x)<1) big->control.pointer.step_x=1;
@@ -255,6 +269,7 @@ static void cancel(struct cterm_big *big)
 	big->numeric.loop.active=0; big->numeric.loop.command_read=false;
 	memset(&big->input,0,sizeof(big->input));
 	memset(&big->setup,0,sizeof(big->setup)); big->text.active=0;
+	memset(&big->zone,0,sizeof(big->zone));
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -328,6 +343,19 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->zone.phase!=CTERM_BIG_ZONE_OFF) {
+			size_t accepted; bool complete;
+			status=cterm_big_zone_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,
+			    &output_budget,&body_budget,&complete); *used+=accepted;
+			if (status!=0) break;
+			if (complete) {
+				const struct st_graphics_command_view view={.chained=big->zone.chained};
+				status=begin_footer(big,&view);
+				if (status!=IO_ERROR_IN_PROGRESS) break;
+				status=0; advance_needed=true; continue;
+			}
+			break;
+		}
 		if (big->setup.phase!=CTERM_BIG_SETUP_OFF) {
 			size_t accepted; bool complete;
 			status=cterm_big_setup_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,
@@ -376,19 +404,19 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 			if (expired) {
 				if (available!=0) ++*used;
 				status=end_pair(big,&sink);
-				if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF)) { status=0; continue; }
+				if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF)) { status=0; continue; }
 				if (status!=0) break;
 				continue;
 			}
 		}
 		size_t accepted;
 		status=st_graphics_parser_feed(big->parser,&sink,input,available,&accepted); *used+=accepted;
-		if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF)) { status=0; continue; }
+		if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF)) { status=0; continue; }
 		if (status!=0) break;
 		if (big->pair_wait && header==2) {
 			status=pair_expired(big,&expired);
 			if (status==0 && expired) status=end_pair(big,&sink);
-			if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF)) { status=0; continue; }
+			if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF)) { status=0; continue; }
 			if (status!=0) break;
 		}
 	}
@@ -409,7 +437,8 @@ int cterm_big_poll(struct cterm_big *big)
 }
 bool cterm_big_paused(const struct cterm_big *big)
 {
-	return big != NULL && (big->footer_active || big->setup.cooperative || big->setup.phase==CTERM_BIG_SETUP_FLOW
+	return big != NULL && (big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
+	    || big->footer_active || big->setup.cooperative || big->setup.phase==CTERM_BIG_SETUP_FLOW
 	    || (big->setup.phase==CTERM_BIG_SETUP_TEXT && big->setup.stream.phase==ST_BIG_STREAM_FLOW)
 	    || (big->gang_selecting && !big->gang_wire)
 	    || big->numeric.field.phase == ST_BIG_NUMERIC_SELECT
@@ -444,7 +473,7 @@ int cterm_big_create(struct cterminal *t)
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
 	const struct st_graphics_parser_config config = {
 		.dialect = &dialect, .commands = commands, .command_count = sizeof(commands)/sizeof(commands[0]),
-		.max_arguments = 3,
+		.max_arguments = 7,
 	};
 	if (status == 0) status = st_graphics_parser_create(&big->parser,&config);
 	if (status != 0) { cterm_big_destroy(big); return status; }
@@ -478,6 +507,18 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_scaling", big->numeric.context.scaling);
 	st_console_test_number(app, "cterm.big_step_x", big->control.pointer.step_x);
 	st_console_test_number(app, "cterm.big_step_y", big->control.pointer.step_y);
+	st_console_test_number(app, "cterm.big_zone_active", big->zone.phase!=CTERM_BIG_ZONE_OFF);
+	st_console_test_number(app, "cterm.big_zone_loopback", big->control.zones.loopback);
+	static const char *const coordinates[]={"cterm.big_zone0_x1","cterm.big_zone0_y1",
+	    "cterm.big_zone0_x2","cterm.big_zone0_y2"};
+	for (size_t i=0;i<4;++i) st_console_test_number(app,coordinates[i],big->control.zones.rectangles[0][i]);
+	uint32_t prefix=0, tail=0;
+	for (unsigned i=0;i<4;++i) {
+		prefix|=(uint32_t)big->control.zones.payload[i]<<(8*i);
+		tail|=(uint32_t)big->control.zones.payload[4+i]<<(8*i);
+	}
+	st_console_test_number(app, "cterm.big_zone0_prefix", prefix);
+	st_console_test_number(app, "cterm.big_zone0_tail", tail);
 	st_console_test_number(app, "cterm.big_hollow", big->state.application.hollow);
 	st_console_test_number(app, "cterm.big_bgi_width", big->state.bgi.width);
 	st_console_test_number(app, "cterm.big_bgi_height", big->state.bgi.height);

@@ -423,6 +423,20 @@
           ],
           "commit": "b94c237",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
+        },
+        {
+          "id": "wire-counted-zone-producer",
+          "status": "complete",
+          "tests": [
+            "big_number",
+            "big_numeric",
+            "big_control",
+            "big_stream",
+            "cterm_big_resolution",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed."
         }
       ]
     },
@@ -455,12 +469,13 @@
       "references": [
         "52-extended-control-command-acceptance.adoc",
         "51-state-and-position-command-acceptance.adoc",
-        "73-global-readers-and-loops-acceptance.adoc"
+        "73-global-readers-and-loops-acceptance.adoc",
+        "64-input-and-zone-command-acceptance.adoc"
       ],
       "operations": [
-        "One unscaled full-WORD selector through the shared parser; exact6 dynamically adds class1 X and class2 Y fields.",
+        "One unscaled full-WORD selector through the shared parser; exact6 dynamically adds class1 X/class2 Y, and exact4 adds its id-dependent zone fields.",
         "Unknown9/ffff/0106 performs no invented argument drain/default clamp/own response and retains shared repeat/chain/deferred-reply semantics.",
-        "Only X6 currently implements its selected operator; the other known selectors retain the explicit unsupported diagnostic/fallback until implemented. Parent completion requires all nine children."
+        "X4 and X6 implement their selected operators; the other known selectors retain the explicit unsupported diagnostic/fallback until implemented. Parent completion requires all nine children."
       ],
       "tests": [
         "big_numeric",
@@ -471,7 +486,8 @@
       "deviations": [],
       "verification": [
         "Independent wire X6 ownership expectation failed before registration. Native tests now cover splits/bytewise CP437/UTF-8/status, exact selector6 versus full-WORD unknowns, repeated unknown selection and deferred replies. Other known selectors are not accepted implementations; X stays in progress.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.",
+        "X4 counted loading and its three specials now use the same dispatch/source/footer path; pointer/hit testing and the remaining selectors remain pending."
       ],
       "commit": null
     },
@@ -1180,14 +1196,15 @@
       "deviations": [],
       "verification": [
         "Native split/bytewise CP437/UTF-8/status cases check defaults/full-WORD clamps, separate BGI/console points, immediate raw X during Y wait, current-X mutation before clamping, I/R retention, unknown selectors/replies, EOF/reset/timeout. Actual wire Y5 gives8/11 under g2/R2 and g3/R3; loop endpoints after selector/X transfer later fields to wire, while final stored Y5 remains5.70 new step/default/retention scenes bring application coverage to308 coherent scenes. Interactive pointer input, X4-clear integration and music/audio composition remain pending; X6 is not marked complete.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.",
+        "X4 rectangle clearing now has an explicit native assertion that application keyboard steps remain unchanged; pointer interaction remains pending."
       ],
       "commit": null
     },
     {
       "id": "X4",
       "order": 36,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1195,12 +1212,33 @@
         "application-integration"
       ],
       "references": [
-        "64-input-and-zone-command-acceptance.adoc"
+        "32-input-zones-and-deferred-replies.adoc",
+        "64-input-and-zone-command-acceptance.adoc",
+        "73-global-readers-and-loops-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Application-owned48 rectangles and48 contiguous81-byte payload records initialize to zero, loopback0; I/R/frame entry preserve them and X6 steps.",
+        "Full signed id normalization, independent9999 rectangle clear/9998 loopback set/9997 clear; ordinary X/Y/X/Y fields store immediately before the next acquisition, with no sorting/clipping/drawing.",
+        "Signed length1..80 clamp/store before exact-current-loop1 conditional XON; fresh per-helper deadlines after any flow wait, live unsigned lengths, opaque raw data, retained tails and one unconditional extra discarded read.",
+        "Per-poll work yields without truncation; accepted stores survive error/reset/EOF. Already admitted loop keys wait for the body/footer while ordinary raw loading does not claim local keys. Pointer acquisition/hit testing remains pending."
+      ],
+      "tests": [
+        "big_number",
+        "big_numeric",
+        "big_control",
+        "big_stream",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Negative ids fail OUT_OF_RANGE at their first coordinate store, after acquiring X1, instead of overwriting unrelated DOS/modem state. No clamp to47 or negative-slot allocation.",
+        "Corrupt lengths may cross records inside the flat3888-byte payload owner; the first actual table escape fails after consuming that helper byte, preserving previous stores. No whole-table prevalidation, rollback or repaired live length."
+      ],
+      "verification": [
+        "Independent opaque-wire expectations failed against the previous fallback. Native split/bytewise CP437/UTF-8/status cases verify zero tables, specials, clamps/scaling, each immediate coordinate, I/R/step lifetime, source-to-wire early-XON gates, raw NUL/ff/fake commands, retained tails, live length changes, extra-read latching, cross-record stores, bounded escapes, 80-byte budget resumption, per-call/late-ready timeouts, blocked-flow deadline ordering and reset/EOF prefixes.",
+        "84 added coherent application scenes bring coverage to392, checking scaled rectangles, fake I#R bytes, NUL/ff, retained shorter-definition tails, I/R and special lifetimes together with exact unchanged indexed planes, fonts/cells/palette/cursor/state and RGB samples. Pointer selection/marker and music composition remain pending; X4 is not marked fully accepted.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed."
+      ],
       "commit": null
     },
     {

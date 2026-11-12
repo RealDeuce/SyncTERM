@@ -20,6 +20,16 @@ struct cterm_big_setup {
 	struct st_big_stream_reader stream;
 	struct st_big_flow_reader flow;
 };
+enum cterm_big_zone_phase { CTERM_BIG_ZONE_OFF, CTERM_BIG_ZONE_FLOW,
+	CTERM_BIG_ZONE_NEXT, CTERM_BIG_ZONE_READ };
+struct cterm_big_zone {
+	enum cterm_big_zone_phase phase;
+	int32_t id;
+	size_t index;
+	bool extra, chained, cooperative;
+	struct st_big_stream_reader stream;
+	struct st_big_flow_reader flow;
+};
 enum { CTERM_BIG_INPUT_KEYS = 64 };
 struct cterm_big_input {
 	struct cterm_key keys[CTERM_BIG_INPUT_KEYS];
@@ -38,6 +48,7 @@ struct cterm_big {
 	struct cterm_big_input input;
 	struct st_big_text text;
 	struct cterm_big_setup setup;
+	struct cterm_big_zone zone;
 	bool footer_active, starting_body, gang_selecting, gang_wire;
 	uint64_t pair_deadline, pair_sample;
 	bool pair_wait, pair_body, feeding, reset_pending;
@@ -51,4 +62,7 @@ int cterm_big_input_read(void *, uint8_t *);
 int cterm_big_input_forward(struct cterm_big *);
 void cterm_big_setup_begin(struct cterm_big *);
 int cterm_big_setup_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, size_t *, size_t *, bool *);
+int cterm_big_zone_field(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_zone_begin(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_zone_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, size_t *, size_t *, bool *);
 #endif

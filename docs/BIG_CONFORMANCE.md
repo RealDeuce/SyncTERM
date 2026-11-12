@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R/g/X6 operations run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R/g/X4/X6 operations run
 through native CTerm. Drawing, sound and complete command acceptance remain
 in progress.
 
@@ -342,3 +342,31 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 X dispatch/X6 keyboard-step integration commit: `b94c237`.
 Other X selectors, pointer input and the full45-entry goal remain in progress.
+
+## X4 counted zone loading
+
+X4 now implements ordinary definitions and all three special ids, retaining
+its application zone/payload/loopback owner across I/R and frame entry.
+Coordinates commit one at a time; class2 uses ordinary g scaling while stored
+values bypass it. Lengths signed-clamp to1..80. Only exact current loop1
+requests an early XON after the length store, before fresh raw deadlines.
+Payloads are opaque, including NUL/ff/I#, with retained tails and one extra
+unconditionally discarded helper read. Live lengths are reread between calls;
+an already admitted extra read stays a discard. Work budgets yield without
+truncation. Reset/EOF preserve completed stores without inventing a tail.
+
+The original negative-id DOS-memory overwrite is replaced by OUT_OF_RANGE
+at the first coordinate store, after consuming X1. A corrupt unsigned length
+may cross records within the flat3888-byte payload table; an actual escape
+fails after consuming that helper byte, preserving the accepted prefix.
+
+Independent wire expectations failed before implementation. Native tests
+cover partitions/bytewise input, encodings/status, initial zero tables,
+specials/steps/lifetimes, clamps/scaling/source changes, deadlines/flow waits,
+partial errors/reset/EOF, live lengths, retained tails and bounded corruption.
+84 additional coherent application scenes bring coverage to392, checking zone
+state and opaque data alongside the complete unchanged indexed scene, cells,
+palette/cursor/mode and RGB samples. Pointer acquisition/hit testing and music
+composition remain pending; neither X4 nor parent X is fully accepted yet.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed.

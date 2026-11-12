@@ -8,6 +8,11 @@ enum { FLOW_OFF, FLOW_CHECK, FLOW_READY, FLOW_SEND, FLOW_DONE, FLOW_FAILED };
 enum { FOOTER_OFF, FOOTER_REPEAT, FOOTER_FLOW, FOOTER_RESET, FOOTER_REPLY,
 	FOOTER_CHECK, FOOTER_READY, FOOTER_SEND, FOOTER_CR, FOOTER_CR_SEND,
 	FOOTER_DONE, FOOTER_FAILED };
+int32_t st_big_zone_id(uint16_t word)
+{
+	int32_t id=st_big_number_signed(word);
+	return id>47 && id!=9999 && id!=9998 && id!=9997?47:id;
+}
 void st_big_control_enter(struct st_big_control *c)
 {
 	if (c == NULL) return;

@@ -7,10 +7,15 @@
 #include <stddef.h>
 #include <stdint.h>
 #define ST_BIG_REPLY_CAPACITY 256
+enum { ST_BIG_ZONE_COUNT = 48, ST_BIG_ZONE_BYTES = 81,
+	ST_BIG_ZONE_DATA_SIZE = ST_BIG_ZONE_COUNT * ST_BIG_ZONE_BYTES };
 struct st_big_control {
 	struct { uint16_t mode, count[2]; uint8_t byte[2]; } flow;
 	struct { uint16_t count; uint8_t pending, append_cr, payload[ST_BIG_REPLY_CAPACITY]; } input;
 	struct { uint16_t step_x, step_y; } pointer;
+	/* Flat counted records preserve in-table cross-record byte access. */
+	struct { uint16_t rectangles[ST_BIG_ZONE_COUNT][4], loopback;
+		uint8_t payload[ST_BIG_ZONE_DATA_SIZE]; } zones;
 	struct { uint16_t command, did_loop; uint8_t gang_marker, gang[129]; } frame;
 };
 enum st_big_output_kind { ST_BIG_OUTPUT_XON, ST_BIG_OUTPUT_XOFF, ST_BIG_OUTPUT_REPLY };
@@ -40,6 +45,7 @@ struct st_big_footer {
 	int error;
 };
 void st_big_control_init(struct st_big_control *);
+int32_t st_big_zone_id(uint16_t);
 /* New interpreter frame only; application flow/input owners survive I/R. */
 void st_big_control_enter(struct st_big_control *);
 void st_big_flow_begin(struct st_big_flow_reader *, const struct st_big_control *, bool on);

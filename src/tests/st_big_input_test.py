@@ -25,7 +25,7 @@ A = ((0x30, 0x78, 0xcc, 0xcc, 0xfc, 0xcc, 0xcc, 0),
 PROFILES = (("CGA80x25", 200, 8, 25), ("EGA80x25", 350, 14, 25), ("80x30", 480, 16, 30))
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6)):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -38,6 +38,12 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
     assert s["cterm.big_scaling"] == scaling
     assert (s["cterm.big_step_x"], s["cterm.big_step_y"]) == steps
+    assert not s["cterm.big_zone_active"]
+    if zones is None:
+        zones = ((0, 0, 0, 0), 0, 0, 0)
+    coordinates, loopback, prefix, tail = zones
+    assert tuple(s[f"cterm.big_zone0_{field}"] for field in ("x1", "y1", "x2", "y2")) == coordinates
+    assert (s["cterm.big_zone_loopback"], s["cterm.big_zone0_prefix"], s["cterm.big_zone0_tail"]) == (loopback, prefix, tail)
     if loop_state is not None:
         assert (s["cterm.big_loop_current"], s["cterm.big_loop_count"],
                 s["cterm.big_loop_index"], s["cterm.big_no_parameters"]) == loop_state
@@ -180,6 +186,30 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             with (root / "replies.bin").open("ab") as log: log.write(reply)
                             check(client.wait_text(token), target, status, True, token,
                                   scaling=scaling, steps=steps)
+                        # Counted payloads include fake commands, NUL and ff;
+                        # the extra helper result is discarded without validation.
+                        zones = (
+                            (b"I#X 4,0,10,20,30,40,6:I#R 1:!", (10, 47, 30, 95), 0, 0x52234906, 0x003a3120),
+                            (b"I#X 4,0,1,2,3,4,2:\0\xff@", (1, 4, 3, 9), 0, 0x52ff0002, 0x003a3120),
+                            (b"I#X 4,9998:", (1, 4, 3, 9), 1, 0x52ff0002, 0x003a3120),
+                            (b"I#R 3:" + stamp, (1, 4, 3, 9), 1, 0x52ff0002, 0x003a3120),
+                            (b"I#X 4,9999:", (65535, 65535, 65535, 65535), 1, 0x52ff0002, 0x003a3120),
+                            (b"I#X 4,9997:", (65535, 65535, 65535, 65535), 0, 0x52ff0002, 0x003a3120),
+                        )
+                        for index, (command, coordinates, loopback, prefix, tail) in enumerate(zones):
+                            token = f"ZONES{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), 3, status, True, token, scaling=3, steps=(1, 1),
+                                  zones=(coordinates, loopback, prefix, tail))
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

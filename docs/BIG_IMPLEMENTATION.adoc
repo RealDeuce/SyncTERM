@@ -822,7 +822,7 @@ X now owns one unscaled full-WORD selector through the shared parser. Exact6
 adds class1 X and class2 Y fields using pure dynamic arity; no low-byte match
 or default-selector clamp is used. Unknown9/ffff/0106 consumes only its
 selector and follows normal repeat/chain/deferred-reply handling, without
-inventing more operands or an own response. Other known selectors0..5/7/8
+inventing more operands or an own response. Other known selectors0..3/5/7/8
 remain explicitly unsupported with the existing diagnostic/fallback policy;
 their real operators are still required. Parent X stays in progress until
 all nine child entries are implemented and accepted.
@@ -836,7 +836,7 @@ them; EOF/reset retains an already stored, possibly unclamped X prefix and
 does not fabricate Y. This command neither moves a graphics/console point
 nor changes host mouse speed. Keyboard steps remain independent from the
 accepted direct mouse-coordinate behavior; pointer acquisition is not yet
-implemented. X4-clear retention still needs its future input implementation.
+implemented. The X4 producer below also preserves these steps when clearing zones.
 
 Independent native wire-ownership expectations failed before registration.
 `cterm_big_resolution` now covers split/bytewise CP437/UTF-8/status, default
@@ -860,3 +860,48 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 X dispatch/X6 keyboard-step integration commit: `b94c237`.
 Other X selectors, pointer input and the full45-entry goal remain in progress.
+
+== X4 counted zone producer
+
+References32/64 supply the complete producer schedule. X4 now dynamically
+acquires an unscaled full-WORD id, then ordinary class1/class2/class1/class2
+coordinates and an unscaled length. Each coordinate commits before entering
+the next acquisition. Signed ids above47 normalize to47 except9999/9998/9997;
+the three specials consume no further fields.9999 writesffff to all192
+rectangle WORDs only;9998/9997 set/clear loopback. Initial rectangles and all
+3888 payload bytes are zero, with loopback0, as the original loaded/BSS data
+requires. I/R/frame entry retain the application zone owner and X6 steps.
+
+Ordinary lengths signed-clamp to1..80 before storing the low byte. Exact
+current loop1 gates conditional XON after the length store; a loop ending
+inside that numeric read omits the early XON. Its output may wait without
+starting the first raw deadline. Each auxiliary read then uses a fresh local
+deadline and the existing late-ready-byte/SPACE/BEL policy. Read and store
+exactly the current unsigned length, retaining old suffix bytes, then perform
+one extra opaque read whose result is discarded without delimiter validation.
+Once admitted, that extra read remains a discard if the live length changes.
+NUL, ff and embedded I# commands remain data. A64-result work budget yields
+cooperatively without truncating payloads; ordinary raw waits still accept
+wire bytes. No new graphics kernel or foreign clock is required.
+
+Safe-port corrections: a negative id fails with OUT_OF_RANGE at its first
+coordinate store, after reading X1, instead of overwriting foreign modem/DOS
+state. Corrupted lengths may cross records inside the flat3888-byte payload
+owner; the first actual escape fails after consuming that helper byte, keeping
+prior stores. No negative-id clamp, tail clearing, transactional rollback or
+preemptive length repair is introduced. Reset/EOF discard acquisition state
+without fabricating data, erasing accepted prefixes or clearing zone storage.
+
+The independent opaque-wire test failed against the earlier fallback.
+Native coverage includes every split/bytewise input with both encodings/status
+choices, all initial data, specials, signed/WORD bounds, class2 g2/g3 scaling,
+source-to-wire flow gates, prefix/error/reset/EOF, live length growth, retained
+suffixes, cross-record writes and bounded escapes. Tests also cover blocked
+XON, its deadline ordering, reset during output, full80-byte cooperative
+resumption and independently expiring data/discard reads.84 new coherent
+application scenes bring coverage to392, checking opaque fake commands,
+NUL/ff, scaled rectangles, shorter retained tails, I/R and specials alongside
+unchanged indexed/RGB scene data. Pointer hit testing/marker input and music
+composition remain pending; X4 and X remain in progress, full acceptance0/45.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed.

@@ -11,7 +11,7 @@
 struct fixture {
 	st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal;
 	unsigned resizes, bells;
-	bool status;
+	bool status, block_on, reset_on;
 	uint32_t heights[32]; uint8_t output[64]; size_t size;
 };
 static uint64_t local_ns;
@@ -236,8 +236,163 @@ static void extended_numeric_sources(void)
 	string(&f,"I#X 6,5,5:"); CHECK(b->control.pointer.step_x==5 && b->control.pointer.step_y==11);
 	destroy(&f);
 }
+/* X4 expectations transcribed from chapter32/64, including the extra read. */
+static void zone_wire_ownership(void)
+{
+	static const uint8_t wire[]="I#X 4,0,1,2,3,4,6:I#R 3:!Z";
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status)
+		for (size_t split=0;split<sizeof(wire);++split) {
+			struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+			for (size_t i=0;i<ST_BIG_ZONE_COUNT;++i)
+				for (size_t j=0;j<4;++j) CHECK(b->control.zones.rectangles[i][j]==0);
+			for (size_t i=0;i<ST_BIG_ZONE_DATA_SIZE;++i) CHECK(b->control.zones.payload[i]==0);
+			CHECK(b->control.zones.loopback==0);
+			string(&f,"\033[10;20H"); feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split);
+			CHECK(f.resizes==1 && f.terminal->xpos==21 && f.terminal->ypos==10 && f.size==0);
+			for (size_t j=0;j<4;++j) CHECK(b->control.zones.rectangles[0][j]==j+1);
+			CHECK(memcmp(b->control.zones.payload,"\6I#R 3:",7)==0 && b->zone.phase==CTERM_BIG_ZONE_OFF);
+			destroy(&f);
+		}
+	struct fixture f; create(&f,false,false);
+	for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1);
+	CHECK(f.terminal->xpos==2 && f.terminal->big_engine->control.zones.payload[6]==':');
+	destroy(&f);
+}
+static void zone_prefixes_and_specials(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#X 4,0,10,"); CHECK(b->control.zones.rectangles[0][0]==10 && b->control.zones.rectangles[0][1]==0);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->control.zones.rectangles[0][0]==10);
+	string(&f,"I#R 2:I#g 2:I#X 4,0,10,5,1,7,6:abcdef!");
+	static const uint16_t r2[]={10,8,1,12};
+	CHECK(memcmp(b->control.zones.rectangles[0],r2,sizeof(r2))==0);
+	string(&f,"I#R 3:I#g 3:I#X 4,0,1,5,3,5,2:");
+	CHECK(b->control.zones.payload[0]==2 && b->zone.phase==CTERM_BIG_ZONE_READ);
+	static const uint8_t raw[]={0,255,'@'}; feed(&f,raw,sizeof(raw));
+	static const uint16_t r3[]={1,11,3,11};
+	CHECK(memcmp(b->control.zones.rectangles[0],r3,sizeof(r3))==0);
+	CHECK(memcmp(b->control.zones.payload,"\2\0\xff" "cdef",7)==0);
+	string(&f,"I#X 4,9998:I#I 1:I#I 0:I#R 2:");
+	CHECK(b->control.zones.loopback==1 && memcmp(b->control.zones.rectangles[0],r3,sizeof(r3))==0);
+	string(&f,"I#X 4,9999:");
+	for (size_t i=0;i<ST_BIG_ZONE_COUNT;++i)
+		for (size_t j=0;j<4;++j) CHECK(b->control.zones.rectangles[i][j]==65535);
+	CHECK(b->control.zones.loopback==1 && memcmp(b->control.zones.payload,"\2\0\xff" "cdef",7)==0);
+	string(&f,"I#X 4,9997:"); CHECK(b->control.zones.loopback==0);
+	/* Special ids take no coordinates or raw bytes. */
+	string(&f,"\033[HI#X 4,9999:Z"); CHECK(f.terminal->xpos==2);
+	string(&f,"I#g 0:I#X 4,257,1,2,3,4,0:A!");
+	CHECK(b->control.zones.rectangles[47][0]==1 && b->control.zones.payload[47*81]==1 && b->control.zones.payload[47*81+1]=='A');
+	string(&f,"I#X 4,0,7,8,9,10,+1:B!"); CHECK(b->control.zones.payload[0]==1 && b->control.zones.payload[1]=='B');
+	string(&f,"I#X 4,0,11,12,13,"); CHECK(st_cterm_reset_terminal(f.terminal)==0);
+	CHECK(b->control.zones.rectangles[0][0]==11 && b->control.zones.rectangles[0][2]==13 && b->control.zones.payload[1]=='B');
+	/* Negative ids fail at the first actual store, after reading X1 only. */
+	const char bad[]="I#X 4,+1,9,8,7,6,1:A!"; size_t used;
+	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used)==IO_ERROR_OUT_OF_RANGE && used==strlen("I#X 4,+1,9,"));
+	CHECK(b->control.zones.rectangles[47][0]==1 && b->zone.phase==CTERM_BIG_ZONE_OFF);
+	string(&f,"I#X 4,0,1,2,3,4,255:"); CHECK(b->control.zones.payload[0]==80);
+	for (unsigned i=0;i<80;++i) { uint8_t byte=(uint8_t)i; feed(&f,&byte,1); }
+	CHECK(b->zone.phase==CTERM_BIG_ZONE_READ);
+	for (unsigned i=0;i<80;++i) CHECK(b->control.zones.payload[i+1]==i);
+	string(&f,"!Z"); CHECK(b->zone.phase==CTERM_BIG_ZONE_OFF);
+	destroy(&f);
+}
+static void zone_live_lengths_and_bounds(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#X 4,0,1,2,3,4,1:"); b->control.zones.payload[0]=3;
+	string(&f,"ABC!Z"); CHECK(memcmp(b->control.zones.payload,"\3ABC",4)==0 && f.terminal->xpos==2);
+	string(&f,"\033[HI#X 4,0,1,2,3,4,1:A"); CHECK(b->zone.extra);
+	b->control.zones.payload[0]=3; string(&f,"BC");
+	CHECK(b->control.zones.payload[2]=='B' && f.terminal->xpos==2); /* B discarded, C ordinary. */
+	/* Cross-record writes remain inside the flat table, including lengths. */
+	string(&f,"I#X 4,0,1,2,3,4,1:"); b->control.zones.payload[0]=82;
+	for (unsigned i=0;i<82;++i) string(&f,"Q");
+	CHECK(b->control.zones.payload[81]=='Q' && b->control.zones.payload[82]=='Q'); string(&f,"!");
+	string(&f,"I#X 4,47,1,2,3,4,1:"); b->control.zones.payload[47*81]=255;
+	for (unsigned i=0;i<80;++i) string(&f,"R");
+	size_t used; CHECK(st_cterm_write(f.terminal,"ST",2,&used)==IO_ERROR_OUT_OF_RANGE && used==1);
+	CHECK(b->control.zones.payload[ST_BIG_ZONE_DATA_SIZE-1]=='R' && b->zone.phase==CTERM_BIG_ZONE_OFF);
+	/* A full payload yields at a work budget, without truncating data. */
+	string(&f,"I#X 4,0,1,2,3,4,80:"); uint8_t raw[82]; memset(raw,'K',80); raw[80]='!'; raw[81]='Z';
+	CHECK(st_cterm_write(f.terminal,raw,sizeof(raw),&used)==IO_ERROR_IN_PROGRESS && used==64 && st_cterm_input_paused(f.terminal));
+	feed(&f,raw+used,sizeof(raw)-used);
+	for (size_t i=1;i<=80;++i) CHECK(b->control.zones.payload[i]=='K');
+	CHECK(b->zone.phase==CTERM_BIG_ZONE_OFF && !st_cterm_input_paused(f.terminal));
+	destroy(&f);
+}
+static int zone_ready(void *context, enum st_big_output_kind kind)
+{
+	struct cterm_big *b=context; struct fixture *f=b->terminal->api_output_context;
+	if (kind!=ST_BIG_OUTPUT_XON) return 0;
+	if (f->reset_on) { CHECK(st_cterm_reset_terminal(f->terminal)==0); return IO_ERROR_INTERRUPTED; }
+	return f->block_on?IO_ERROR_IN_PROGRESS:0;
+}
+static void zone_sources_and_flow(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#R 3:I#g 3:I#& 0,1,1,0,X@7,4,0,1,2,3,4,2:AB!Z");
+	static const uint16_t coords[]={1,2,3,4};
+	CHECK(memcmp(b->control.zones.rectangles[0],coords,sizeof(coords))==0);
+	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0 && memcmp(b->control.zones.payload,"\2AB",3)==0);
+	string(&f,"I#& 0,1,1,0,X@8,4,0,1,2,3,4,2,99:CD!Z");
+	CHECK(f.size==5 && memcmp(f.output+2,"\x13\x11\x11",3)==0 && memcmp(b->control.zones.payload,"\2CD",3)==0);
+	b->control_io.ready=zone_ready; f.block_on=true;
+	const char blocked[]="I#& 0,1,1,0,X@8,4,0,1,2,3,4,2,99:"; size_t used;
+	CHECK(st_cterm_write(f.terminal,blocked,sizeof(blocked)-1,&used)==IO_ERROR_IN_PROGRESS && used==sizeof(blocked)-1);
+	CHECK(f.size==6 && f.output[5]==19 && b->control.zones.payload[0]==2 && st_cterm_input_paused(f.terminal));
+	local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS*2;
+	/* Flow gate was taken already; changing loop does not remove its XON.
+	 * The first auxiliary deadline starts after output becomes ready. */
+	b->numeric.loop.active=0; f.block_on=false; CHECK(st_cterm_poll(f.terminal)==0);
+	CHECK(f.size==7 && f.output[6]==17 && f.bells==0 && b->zone.phase==CTERM_BIG_ZONE_READ);
+	string(&f,"EF!Z"); CHECK(f.size==8 && f.output[7]==17 && f.bells==0 && memcmp(b->control.zones.payload,"\2EF",3)==0);
+	f.reset_on=true;
+	CHECK(st_cterm_write(f.terminal,blocked,sizeof(blocked)-1,&used)==0 && used==sizeof(blocked)-1);
+	CHECK(f.size==9 && f.output[8]==19 && b->zone.phase==CTERM_BIG_ZONE_OFF && !st_cterm_input_paused(f.terminal));
+	CHECK(b->control.zones.payload[0]==2 && b->control.zones.payload[1]=='E');
+	destroy(&f);
+}
+static void zone_chain_and_key_ownership(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#"); b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='r';
+	string(&f,"X>4,0,1,2,3,4,1:A!");
+	CHECK(b->control.input.pending==1 && f.size==0 && b->zone.phase==CTERM_BIG_ZONE_OFF);
+	string(&f,"X 4,9998:"); CHECK(f.size==1 && f.output[0]=='r' && b->control.zones.loopback==1);
+	string(&f,"I#X 6,4,9:I#X 4,9999:");
+	CHECK(b->control.pointer.step_x==4 && b->control.pointer.step_y==9);
+	string(&f,"I#X 4,0,1,2,3,4,1:");
+	/* Raw loading itself never claims local keys. Previously admitted loop
+	 * events stay queued until the body/footer has finished. */
+	CHECK(!cterm_big_input_owned(b));
+	CHECK(st_cterm_handle_key(f.terminal,'z',0) && f.size==2 && f.output[1]=='z');
+	b->numeric.loop.active=1;
+	CHECK(st_cterm_handle_key(f.terminal,'a',0) && b->input.count==1 && f.size==2);
+	b->numeric.loop.active=0;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->input.count==1 && f.size==2);
+	string(&f,"B!"); CHECK(b->input.count==0 && f.size==3 && f.output[2]=='a');
+	destroy(&f);
+}
+static void zone_timeouts_and_eof(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#X 4,0,1,2,3,4,2:A"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	/* A late ready byte is consumed but replaced by SPACE. */
+	string(&f,"B"); CHECK(b->control.zones.payload[1]=='A' && b->control.zones.payload[2]==' ' && f.bells==1);
+	CHECK(b->zone.extra && b->zone.phase==CTERM_BIG_ZONE_READ);
+	local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0 && f.bells==2 && b->zone.phase==CTERM_BIG_ZONE_OFF);
+	b->numeric.context.auto_mode=true; string(&f,"I#X 4,0,1,2,3,4,1:"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->control.zones.payload[1]==' ' && f.bells==2 && b->zone.extra);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->zone.phase==CTERM_BIG_ZONE_OFF && f.bells==2);
+	string(&f,"I#X 4,0,9,8,7,6,2:T"); CHECK(st_cterm_finish(f.terminal)==0);
+	CHECK(b->control.zones.payload[0]==2 && b->control.zones.payload[1]=='T' && b->control.zones.payload[2]==' ');
+	string(&f,"I#X 4,9998:"); CHECK(b->control.zones.loopback==1);
+	destroy(&f);
+}
 int main(void)
 {
 	partitions(); retained_and_normalized(); source_and_recovery(); mode_return_paths();
-	extended_ownership(); extended_prefix_and_unknown(); extended_numeric_sources(); return 0;
+	extended_ownership(); extended_prefix_and_unknown(); extended_numeric_sources(); zone_wire_ownership(); zone_prefixes_and_specials(); zone_live_lengths_and_bounds();
+	zone_sources_and_flow(); zone_chain_and_key_ownership(); zone_timeouts_and_eof(); return 0;
 }
