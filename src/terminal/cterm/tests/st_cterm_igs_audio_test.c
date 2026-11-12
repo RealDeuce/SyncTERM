@@ -236,13 +236,13 @@ pcm_and_console(void)
 		CHECK(a->psg.registers[11] == 0x80 && a->psg.registers[12] == 1);
 		/* The user preference suppresses clicks without suppressing BEL. */
 		st_cterm_set_atari_st_key_clicks(f.terminal, false);
-		CHECK(!cterm_igs_handle_key(f.terminal->igs_engine, &(struct cterm_igs_key){0}));
+		CHECK(!cterm_igs_handle_key(f.terminal->igs_engine, &(struct cterm_key){0}));
 		CHECK(a->console_pending == 0);
 		feed(&f,"\a"); CHECK(a->console_pending == 1);
 		CHECK(st_audio_runtime_pull(runtime,out,441) == 0);
 		CHECK(st_audio_runtime_pull(runtime,out,221) == 0);
 		st_cterm_set_atari_st_key_clicks(f.terminal, true);
-		CHECK(!cterm_igs_handle_key(f.terminal->igs_engine, &(struct cterm_igs_key){0}));
+		CHECK(!cterm_igs_handle_key(f.terminal->igs_engine, &(struct cterm_key){0}));
 		CHECK(a->console_pending == 2);
 		CHECK(st_audio_runtime_pull(runtime,out,441) == 0);
 		CHECK(st_audio_runtime_pull(runtime,out,221) == 0);
@@ -263,7 +263,7 @@ pcm_and_console(void)
 		CHECK(audio_stream_buffered_frames(f.terminal->fx_stream) == SIZE_MAX);
 		st_cterm_set_atari_st_key_clicks(f.terminal, false);
 		CHECK(st_cterm_reset_terminal(f.terminal) == 0 && f.terminal->igs_engine->audio == NULL);
-		CHECK(!cterm_igs_handle_key(f.terminal->igs_engine, &(struct cterm_igs_key){0}));
+		CHECK(!cterm_igs_handle_key(f.terminal->igs_engine, &(struct cterm_key){0}));
 		CHECK(f.terminal->igs_engine->audio == NULL);
 		CHECK(st_audio_runtime_pull(runtime,out,1) == 0 && out[0] > 0 && out[1] < 0);
 		destroy(&f); st_audio_runtime_destroy(runtime);

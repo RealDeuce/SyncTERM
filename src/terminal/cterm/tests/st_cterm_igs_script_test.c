@@ -79,7 +79,7 @@ static void literal_loads(void)
 	static const uint8_t binary[] = {'G','#',0,3,24,13,10,255,'|','|','}','Z'};
 	for (size_t split = 0; split <= sizeof(binary); ++split) {
 		prepare(igs);
-		igs->input.keys[0] = (struct cterm_igs_key){.local = 3};
+		igs->input.keys[0] = (struct cterm_key){.local = 3};
 		igs->input.key_count = 1;
 		fragments(igs, binary, sizeof(binary), split, 11);
 		CHECK(igs->music->script_length == 7 && igs->input.key_count == 1);

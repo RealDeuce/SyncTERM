@@ -72,15 +72,15 @@ int cterm_igs_collect_resume(struct cterm_igs *igs)
 	int status=0;
 	if (c->type<=1) {
 		while (!c->ready && igs->input.key_count!=0 && status==0) {
-			struct cterm_igs_key key=igs->input.keys[igs->input.key_first];
+			struct cterm_key key=igs->input.keys[igs->input.key_first];
 			(void)cterm_igs_take_key(igs);
 			/* Extended BIOS words are compared intact, never narrowed to an
 			 * ASCII byte. Non-BMP host text has no native keyboard word. */
-			int value=key.kind==CTERM_IGS_KEY_TEXT && key.value>UINT16_MAX?0:(int)(int16_t)key.local;
+			int value=key.kind==CTERM_KEY_TEXT && key.value>UINT16_MAX?0:(int)(int16_t)key.local;
 			/* The host's extended Delete identifier has the native ASCII
 			 * result127 (also shifted), or31 under Control. Other extended
 			 * key words still retain their full-word comparison above. */
-			if (key.kind==CTERM_IGS_KEY_NORMAL && key.value==ST_CONSOLE_KEY_DELETE
+			if (key.kind==CTERM_KEY_NORMAL && key.value==ST_CONSOLE_KEY_DELETE
 			    && (key.modifiers&(ST_CONSOLE_MODIFIER_ALT|ST_CONSOLE_MODIFIER_GUI))==0)
 				value=(key.modifiers&ST_CONSOLE_MODIFIER_CONTROL)!=0?31:127;
 			status=keyboard(igs,value);

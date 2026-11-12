@@ -66,7 +66,7 @@ static void evaluator(void)
 	CHECK(cterm_igs_loop_value(igs,&value)==IO_ERROR_IN_PROGRESS && value==999 && igs->loop.index==0 && igs->loop.first==0);
 	local_ms+=49;CHECK(cterm_igs_loop_value(igs,&value)==IO_ERROR_IN_PROGRESS && igs->loop.first==0);
 	++local_ms;CHECK(cterm_igs_loop_value(igs,&value)==0 && value==0 && igs->loop_mode==1);
-	igs->input.keys[0]=(struct cterm_igs_key){.local=3};igs->input.key_first=0;igs->input.key_count=1;
+	igs->input.keys[0]=(struct cterm_key){.local=3};igs->input.key_first=0;igs->input.key_count=1;
 	CHECK(cterm_igs_loop_value(igs,&value)==0 && value==1 && igs->loop_mode==0 && igs->loop_kind=='Z' && igs->input.key_count==0);
 	igs->loop=(struct cterm_igs_loop){.current=0,.to=1,.step=1,.count=1,.delay=-1,.operands={-32767}};
 	igs->loop_mode=1;igs->loop_kind=',';local_ms=1000;

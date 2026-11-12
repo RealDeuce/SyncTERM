@@ -172,6 +172,17 @@ static void holds(void)
 	CHECK(cterm_igs_input_activate(igs)==0 && key_count==1 && keys[0]==13); release(&f);
 	destroy(&f);
 }
+static void codepage_replay(void)
+{
+	struct fixture f; setup(&f);
+	CHECK(st_cterm_set_encoding(f.terminal,ST_CTERM_ENCODING_CODEPAGE,ST_CODEPAGE_CP437)==0);
+	load(&f,1,0,1,(uint8_t[]){'a','b'},2);
+	CHECK(mouse(&f,4) && key_count==1 && keys[0]=='a');
+	CHECK(st_cterm_handle_text_key(f.terminal,0x212b) && key_count==1);
+	release(&f);
+	CHECK(key_count==2 && keys[1]==0x8f); /* ANGSTROM SIGN -> A RING -> CP437. */
+	destroy(&f);
+}
 static void partitions(void)
 {
 	static const uint8_t wire[]={'G','#','X','>','3',',','2',',','0',',','0',',','1','2',':',
@@ -199,4 +210,4 @@ static void partitions(void)
 		st_pixel_buffer_destroy(p); destroy(&f);
 	}
 }
-int main(void) { stores(); holds(); partitions(); return 0; }
+int main(void) { stores(); holds(); codepage_replay(); partitions(); return 0; }

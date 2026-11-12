@@ -50,8 +50,16 @@ CTerm fixture covers actual repeated/gang bodies with shared numeric sources,
 source-to-wire seams, bounded work, output origins and reset/EOF recovery.
 The optional shared-parser unknown-command handler owns the same accepted
 suspension boundary without guessing payload. Application captures check
-unknown chaining and final footer state. &/< wire setup, native key ownership,
+unknown chaining and final footer state. &/< wire setup,
 text-source composition and audio synchronization remain pending.
+
+Native `cterm_big` key tests cover stored-loop delay probes and post-value
+03/18 cancellation, zero/scan ordering across distinct readiness/read
+boundaries, all native key entry kinds, CP437 conversion and UTF-8/modifier
+replay. BIG/IGS share native event replay with separate protocol consumers.
+Unread keys retain order behind finishing flow; saturation stays local;
+reset/EOF and callback reset discard unread work. These fixtures inject
+stored setup and do not claim & wire or physical keyboard/pointer coverage.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

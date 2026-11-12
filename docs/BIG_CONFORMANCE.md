@@ -197,7 +197,36 @@ unsafe foreign stack/address escapes. A malformed count fails at the first
 out-of-range access after retaining its emitted prefix. Reset/EOF clears
 pending work without fabricating data or running drawing defaults.
 
-Wire setup for &/<, native keyboard ownership, text-source composition and
+Wire setup for &/<, text-source composition and
 music synchronization remain pending. No command is marked complete (0/45).
 
 Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All90 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session CTest checks passed in104.50s. BIG/IGS coherent application tests both passed in14.64s; the BIG fixture covers84 scenes. The strengthened post-flow pair-deadline case passed with big_control/cterm_big in2.59s. All9 final focused shared-parser/BIG/IGS checks passed in2.54s after appending the optional callback to preserve prior member offsets.
+
+## Native stored-loop keys
+
+Production numeric callbacks now observe native keys while an exact loop1
+interpreter owns local acquisition. Delay probes do not consume; the later
+checkpoint consumes one byte after calculation. Raw03/18 ends repetition
+without dropping that result or its boundary/index/final-r effects. Other
+bytes do not cancel. Extended keys return zero followed by a pending scan;
+the pending DOS scan does not itself count as a new BIOS-ready event.
+
+IGS and BIG share native event identity and replay, with separate local
+protocol consumers/queues. BIG consumed text uses CP437, raw C0 values and
+question-mark substitution for unmappable Unicode. Unused events preserve
+normal codepage/UTF-8/modifier handling and wait behind pending footer work.
+Shared replay normalizes codepage fallback text before conversion; both BIG
+and IGS independently expect ANGSTROM SIGN to become CP437 byte8f.
+Reset/EOF/error clears events/scans; callback reset stops accepted-prefix
+replay. Saturation of64 events drops new local keys with a warning instead
+of leaking them remotely. These are explicit bounded native adapter policies,
+not foreign interrupt or arbitrary device-state emulation.
+
+`cterm_big` independently checks cancellation/current-value application,
+non-cancelling endpoints, zero/scan readiness order, all four native entry
+kinds, Unicode non-truncation/normalization, function-key modifiers, blocked
+XON, queue saturation and reset/EOF/replay recovery. The added test failed
+before implementation. Stored fixtures still inject setup state; & wire
+production and interactive pointer/device/audio coverage remain pending.
+
+Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed.

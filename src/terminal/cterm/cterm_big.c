@@ -201,6 +201,7 @@ static void cancel(struct cterm_big *big)
 	big->footer_active=big->gang_selecting=big->gang_wire=big->starting_body=false;
 	big->control.input.pending=0; big->control.frame.command=big->control.frame.did_loop=0;
 	big->numeric.loop.active=0; big->numeric.loop.command_read=false;
+	memset(&big->input,0,sizeof(big->input));
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -327,6 +328,10 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 			if (status!=0) break;
 		}
 	}
+	if (status==0 || status==IO_ERROR_IN_PROGRESS) {
+		int forwarded=cterm_big_input_forward(big);
+		if (forwarded!=0) status=forwarded;
+	}
 	big->feeding=false;
 	if (big->reset_pending) { cancel(big); if (status==IO_ERROR_INTERRUPTED) status=0; }
 	if (status!=0 && status!=IO_ERROR_IN_PROGRESS) cancel(big);
@@ -366,7 +371,8 @@ int cterm_big_create(struct cterminal *t)
 	struct cterm_big *big = calloc(1,sizeof(*big));
 	if (big == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	big->terminal = t;
-	const struct st_big_numeric_io io = {.context = big, .bell = bell};
+	const struct st_big_numeric_io io = {.context = big, .bell = bell,
+	    .peek_key = cterm_big_input_peek, .read_key = cterm_big_input_read};
 	int status = st_big_numeric_init(&big->numeric,&io);
 	st_big_state_init(&big->state); st_big_control_init(&big->control);
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};

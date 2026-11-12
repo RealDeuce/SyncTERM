@@ -1833,7 +1833,7 @@ cterm_igs_paused(const struct cterm_igs *igs)
 }
 
 bool
-cterm_igs_handle_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
+cterm_igs_handle_key(struct cterm_igs *igs, const struct cterm_key *key)
 {
 	if (igs != NULL && igs->input.replaying) return false;
 	if (igs != NULL && !igs->terminal->quiet)

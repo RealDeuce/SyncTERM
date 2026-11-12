@@ -18,8 +18,9 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-The BIG graphics mode, rendering and sound are not yet available. The
-implementation ledger is
+BIG mode6 is selectable with native I0/I1 indexed-console effects, source/
+footer replay and local stored-loop keys. Drawing commands, sound and full
+command acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
 == Standalone implementation contract
@@ -605,3 +606,56 @@ Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/so
 
 Control/footer/replay and accepted unknown-command integration completion
 commit: `93eeae8`. Native key ownership and remaining wire-command work stay open.
+
+=== Native stored-loop keyboard integration
+
+BIG's numeric callbacks now probe/read native local keys while an exact
+loop1 interpreter owns acquisition. The checkpoint follows calculation:
+03/18 clears loop0 but the calculated value still reaches the command and
+its boundary/index/final-r tail. Other bytes are consumed without cancelling.
+Delay readiness does not consume a key. No receive-stream byte is mistaken
+for local keyboard input. An inherited loop flag outside the interpreter,
+or a noncanonical active value, cannot capture normal terminal keys.
+
+Native events retain their entry kind, scalar/byte/scan value and modifiers.
+The shared `cterm_key` representation/replay path also serves IGS, without
+sharing protocol-specific consumption or queues. BIG converts consumed text
+to local CP437 even on UTF-8 links; C0 input stays raw. Unicode unavailable
+in that keyboard repertoire becomes a non-cancelling question mark rather
+than a truncated control byte. Unconsumed events retain their original
+encoding path, including normal UTF-8 normalization and function-key modifiers.
+The shared replay fallback also normalizes previously unencodable codepage
+text before encoding: ANGSTROM SIGN becomes A RING, CP437 byte8f, as in the
+ordinary session path. Unencodable normalized graphemes notify rather than
+leaking UTF-8 bytes to a codepage connection. An IGS hold/release expectation
+independently checks that same shared-path correction.
+
+An extended native key returns zero first and leaves a pending scan byte.
+That DOS-byte tail is distinct from BIOS-key readiness: it cannot itself
+shorten another loop delay. The next admitted real event makes the probe
+ready, then getch consumes the old scan byte before the newer event. This
+models the normal service boundary with local event ownership; it does not
+implement BIOS/DOS interrupts or arbitrary foreign keyboard/unget state.
+A partially consumed extended event is never replayed as a complete key.
+
+Unread events return through the normal terminal key path after the local
+consumer and any pending footer finish, in order and without recapture.
+Later arrivals cannot overtake that unread queue. Reset/EOF/error discards
+queued events and pending scans. Reset from an output callback stops replay
+after its accepted prefix. The owner-only bounded queue admits64 events;
+saturation discards new events with one warning per saturation episode,
+retaining admitted order and preventing local keys from leaking to the BBS.
+These Unicode/overflow choices are explicit native safe-port policies.
+
+Independent `cterm_big` expectations were added before implementation and
+failed against the previous live path. They cover both cancellation keys,
+the still-executed I1 result, delay wakeups, zero/scan ordering, ordinary/
+codepage/text/doorway keys, Unicode non-truncation, UTF-8 normalization,
+modifiers, non-cancelling endpoint completion, blocked finishing XON,
+queue saturation, reset/EOF and reset during replay. The fixture seeds
+stored state and drives public native key APIs; it does not claim & wire
+setup, physical keyboard devices, pointer acquisition or audible playback.
+Wire &/< setup, text-source composition and music synchronization remain
+pending. The full goal stays active and no command is newly complete.
+
+Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed.

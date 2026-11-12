@@ -10,12 +10,10 @@
 #include "st_console_test.h"
 #include "io_error.h"
 #include "st_cterm.h"
-#include "st_utf8.h"
-#include "st_unicode_text.h"
 #include <stdlib.h>
 #include <string.h>
 
-bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
+bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_key *key)
 {
 	struct cterm_igs_input *m = &igs->input;
 	if ((!igs->script.active && !igs->script.starting && !igs->script.cooperative && !igs->script.loading && !igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active && !igs->collect.active && !igs->loop.run && !igs->loop.initializing) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
@@ -39,29 +37,11 @@ int cterm_igs_forward_keys(struct cterm_igs *igs)
 	 * Replay their original entry point, preserving encoding/modifiers and
 	 * suppressing a second console click for the same physical event. */
 	while (m->key_count != 0) {
-		struct cterm_igs_key key = m->keys[m->key_first];
+		struct cterm_key key = m->keys[m->key_first];
 		(void)cterm_igs_take_key(igs); m->replaying = true;
-		switch (key.kind) {
-		case CTERM_IGS_KEY_NORMAL: (void)st_cterm_handle_key(igs->terminal, (uint16_t)key.value, key.modifiers); break;
-		case CTERM_IGS_KEY_CODEPAGE: (void)st_cterm_handle_codepage_key(igs->terminal, (uint8_t)key.value); break;
-		case CTERM_IGS_KEY_TEXT:
-			if (!st_cterm_handle_text_key(igs->terminal, key.value)
-			    && igs->terminal->wire_encoding == ST_CTERM_ENCODING_UTF8) {
-				/* The normal session owner sends unhandled Unicode text.
-				 * Replayed events have already left that call frame. */
-				char utf8[4], *normalized = NULL; size_t size = 0;
-				ptrdiff_t length = st_utf8_encode_one(utf8, sizeof(utf8), key.value);
-				int status = length < 0 ? (int)length
-				    : st_unicode_text_normalize(&normalized, &size, utf8, (size_t)length, NULL);
-				if (status == 0 && igs->terminal->keystroke_cb != NULL)
-					igs->terminal->keystroke_cb(normalized, size, igs->terminal->keystroke_cbdata);
-				free(normalized);
-				if (status != 0) { m->replaying = false; return status; }
-			}
-			break;
-		case CTERM_IGS_KEY_DOORWAY: (void)st_cterm_handle_doorway_key(igs->terminal, (uint8_t)key.value); break;
-		}
+		int status=cterm_key_replay(igs->terminal,&key);
 		m->replaying = false;
+		if (status!=0) return status;
 		if (igs->reset_pending) return IO_ERROR_INTERRUPTED;
 	}
 	return 0;

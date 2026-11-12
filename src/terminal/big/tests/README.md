@@ -81,7 +81,12 @@ Y 5 values 5/11 and final random ownership after loop termination. The parser
 fixtures bind the actual callbacks (no test replacement reader), test every
 split/bytewise source seam, and verify raw payload ownership, partial clock
 error counts, EOF and fresh-field recovery. Native event-loop wakeups and
-keyboard-device mapping remain application integration tests to add later.
+physical keyboard-device coverage remain application integration tests to add
+later. The native `cterm_big` fixture now binds real key entry points to these
+callbacks: independent expectations cover post-value03/18 cancellation,
+non-cancelling bytes, delay probes, extended zero/pending-scan boundaries,
+CP437/UTF-8/doorway/modifier replay, Unicode non-truncation, saturation and
+reset/EOF/callback-reset prefixes. Setup is still injected until & is wired.
 
 
 `st_big_state_test.c` takes I/R call order and lifetimes from chapters 27,

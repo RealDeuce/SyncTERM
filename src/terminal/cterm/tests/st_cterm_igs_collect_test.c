@@ -29,7 +29,7 @@ static void expect(const void *bytes,size_t count)
 }
 static void key(struct fixture *f,int value)
 {
-	CHECK(cterm_igs_handle_key(f->terminal->igs_engine,&(struct cterm_igs_key){.kind=CTERM_IGS_KEY_NORMAL,.value=(uint16_t)value,.local=value}));
+	CHECK(cterm_igs_handle_key(f->terminal->igs_engine,&(struct cterm_key){.kind=CTERM_KEY_NORMAL,.value=(uint16_t)value,.local=value}));
 	CHECK(st_cterm_poll(f->terminal)==0);
 }
 static bool mouse(struct fixture *f,int x,int y,unsigned buttons)

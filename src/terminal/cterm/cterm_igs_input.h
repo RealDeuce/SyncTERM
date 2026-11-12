@@ -7,14 +7,7 @@
 #include <stdint.h>
 struct cterm_igs;
 struct st_console_event;
-/* Preserve entry kind and encoding while N or a mouse hold owns input. */
-enum cterm_igs_key_kind { CTERM_IGS_KEY_NORMAL, CTERM_IGS_KEY_CODEPAGE,
-	CTERM_IGS_KEY_TEXT, CTERM_IGS_KEY_DOORWAY };
-struct cterm_igs_key {
-	enum cterm_igs_key_kind kind;
-	uint32_t value, modifiers;
-	int local;
-};
+#include "cterm_key.h"
 
 enum { CTERM_IGS_MACRO_BYTES = 80, CTERM_IGS_INPUT_KEYS = 64, CTERM_IGS_ZONES = 48 };
 struct cterm_igs_zone {
@@ -34,7 +27,7 @@ struct cterm_igs_input {
 	uint64_t zone_deadline;
 	/* Terminal-owner state, never accessed by a worker. Native TOS bits:
 	 * left=1/right=2. X3 waits for all buttons up; X6 waits for !=1. */
-	struct cterm_igs_key keys[CTERM_IGS_INPUT_KEYS];
+	struct cterm_key keys[CTERM_IGS_INPUT_KEYS];
 	size_t key_first, key_count;
 	bool replaying;
 	uint8_t left_mode;
@@ -43,7 +36,7 @@ struct cterm_igs_input {
 	unsigned buttons;
 	bool held, suspended, sending, suppressed;
 };
-bool cterm_igs_buffer_key(struct cterm_igs *, const struct cterm_igs_key *);
+bool cterm_igs_buffer_key(struct cterm_igs *, const struct cterm_key *);
 int cterm_igs_take_key(struct cterm_igs *);
 int cterm_igs_forward_keys(struct cterm_igs *);
 int cterm_igs_input_reset(struct cterm_igs *);

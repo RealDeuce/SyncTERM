@@ -158,7 +158,7 @@ void cterm_igs_input_inspect(const struct cterm_igs *, struct st_console_test_ap
 void cterm_igs_music_inspect(const struct cterm_igs *, struct st_console_test_application *);
 int cterm_igs_echo_backspace(struct cterm_igs *);
 bool cterm_igs_paused(const struct cterm_igs *);
-bool cterm_igs_handle_key(struct cterm_igs *, const struct cterm_igs_key *);
+bool cterm_igs_handle_key(struct cterm_igs *, const struct cterm_key *);
 int cterm_igs_initialize(struct cterm_igs *, int operation);
 void cterm_igs_set_scaling(struct cterm_igs *, int mode);
 void cterm_igs_set_pen(struct cterm_igs *, int kind, int pen);

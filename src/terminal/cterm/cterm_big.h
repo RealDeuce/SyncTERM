@@ -8,6 +8,8 @@
 struct cterminal;
 enum { CTERM_BIG_PALETTE_FIRST = 800 };
 struct cterm_big;
+struct cterm_key;
+bool cterm_big_handle_key(struct cterm_big *, const struct cterm_key *);
 struct st_console_test_application;
 void cterm_big_inspect(const struct cterm_big *, struct st_console_test_application *);
 int cterm_big_create(struct cterminal *);
