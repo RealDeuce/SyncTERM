@@ -19,6 +19,8 @@ one pixel horizontally and two vertically; heavy strokes expand by one pixel
 on either side, to three horizontally and four vertically. Horizontal
 strokes use row 4 at 8x8 and row 7 at 8x16 (zero-based); vertical light
 strokes use columns 3 and 4. The original three diagonal glyphs are retained.
+Dashed strokes retain UNSCII's original dash lengths, gaps and phase across
+cell boundaries; only their perpendicular thickness and position change.
 The project-owned overrides retain the BSD-2-Clause copyright notice.
 The 8x14 fallback continues to use the built-in CP437 font.
 
@@ -33,8 +35,9 @@ python3 src/tests/st_box_drawing_test.py build/bin/syncterm UTF-8 \
     --reports build/reports/test-control --preview-dir /tmp/box-drawing
 ```
 
-This saves PPM captures from the bitmap control backend without opening a
-window or enabling physical audio.
+This saves native, unscaled PPM cell-plane captures (640x200 at 8x8 and
+640x400 at 8x16), before display scaling or aspect correction. It uses the
+bitmap control backend without opening a window or enabling physical audio.
 
 # SyncTERM Emoji
 

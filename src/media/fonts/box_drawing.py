@@ -44,7 +44,7 @@ def box_arms(name):
     return arms
 
 
-def box_bitmap(name, height):
+def box_bitmap(name, height, source):
     # CP437's horizontal centre is row 4 at 8x8 and row 7 at 8x16.
     # Its vertical light stroke occupies columns 3 and 4. Heavy strokes
     # expand by one pixel on each side: three rows or four columns.
@@ -87,18 +87,18 @@ def box_bitmap(name, height):
             rectangle(x, top, x + 1, bottom)
 
     if " DASH " in name:
-        count = next(value for word, value in (
-            ("DOUBLE", 2), ("TRIPLE", 3), ("QUADRUPLE", 4)) if word in name)
-        length = 8 if "HORIZONTAL" in name else height
-        # One-pixel interior gaps; both cell edges retain ink so repeating
-        # characters have the same joins as solid lines.
-        for index in range(1, count):
-            gap = length * index // count
-            if "HORIZONTAL" in name:
-                for y in range(height):
-                    rows[y] &= ~(0x80 >> gap)
-            else:
-                rows[gap] = 0
+        # Keep UNSCII's dash lengths, gaps and phase across cell boundaries.
+        # Only the stroke's perpendicular thickness and position change.
+        if "HORIZONTAL" in name:
+            mask = 0
+            for row in source:
+                mask |= row
+            for y in range(height):
+                rows[y] &= mask
+        else:
+            for y in range(height):
+                if source[y] == 0:
+                    rows[y] = 0
     return bytes(rows)
 
 
@@ -112,4 +112,4 @@ def match_cp437(glyphs, root, height):
         if codepoint in originals:
             glyphs[codepoint] = originals[codepoint]
         elif "DIAGONAL" not in name:
-            glyphs[codepoint] = box_bitmap(name, height)
+            glyphs[codepoint] = box_bitmap(name, height, glyphs[codepoint])

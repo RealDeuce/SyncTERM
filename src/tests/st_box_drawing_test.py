@@ -38,7 +38,8 @@ EXPECTED = {
         '━': '000000ffffff0000', '┃': '3c3c3c3c3c3c3c3c',
         '┍': '0000001f1f1f1818', '┎': '000000003f3c3c3c',
         '╭': '00000000070c1818', '╼': '0000000fff0f0000',
-        '┄': '00000000db000000',
+        '┄': '00000000dd000000', '┆': '1818001818180018',
+        '┈': '00000000aa000000', '╌': '0000000099000000',
     },
     16: {
         '─': '00000000000000ff0000000000000000',
@@ -53,9 +54,26 @@ EXPECTED = {
         '┎': '000000000000003f3c3c3c3c3c3c3c3c',
         '╭': '00000000000000070c18181818181818',
         '╼': '0000000000000fff0f00000000000000',
-        '┄': '00000000000000db0000000000000000',
+        '┄': '00000000000000dd0000000000000000',
+        '┆': '18180018181800181818001818180018',
+        '┈': '00000000000000aa0000000000000000',
+        '╌': '00000000000000990000000000000000',
     },
 }
+
+
+def save_raw_pixels(frame, path):
+    """Export the native cell plane, before aspect correction or display scaling."""
+    m = frame.metadata
+    width = m['columns'] * m['cell_width']
+    height = m['rows'] * m['cell_height']
+    rgb = bytearray()
+    for y in range(height):
+        start = (m['pixel_top'] + y) * m['plane_width']
+        for pixel in frame.primary[start:start + width]:
+            pixel = pixel if pixel & 0x80000000 else frame.palette[pixel]
+            rgb.extend(((pixel >> 16) & 255, (pixel >> 8) & 255, pixel & 255))
+    path.write_bytes(f'P6\n{width} {height}\n255\n'.encode('ascii') + rgb)
 
 
 def run(executable, encoding, reports, preview_dir=None, preview_only=False):
@@ -90,7 +108,7 @@ def run(executable, encoding, reports, preview_dir=None, preview_only=False):
                             assert observed == pixels, (encoding, height, char, repetition, alternate)
                 if preview_dir is not None and repetition == 0:
                     preview_dir.mkdir(parents=True, exist_ok=True)
-                    frame.save_image(preview_dir / f'boxes-{encoding}-{height}.ppm')
+                    save_raw_pixels(frame, preview_dir / f'boxes-{encoding}-{height}.ppm')
 
 
 if __name__ == '__main__':
