@@ -602,3 +602,6 @@ completion remains0/45. This is a completed control/footer integration step,
 not a claim of full protocol or auditory acceptance.
 
 Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All90 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session CTest checks passed in104.50s. BIG/IGS coherent application tests both passed in14.64s; the BIG fixture covers84 scenes. The strengthened post-flow pair-deadline case passed with big_control/cterm_big in2.59s. All9 final focused shared-parser/BIG/IGS checks passed in2.54s after appending the optional callback to preserve prior member offsets.
+
+Control/footer/replay and accepted unknown-command integration completion
+commit: `93eeae8`. Native key ownership and remaining wire-command work stay open.
