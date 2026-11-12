@@ -69,18 +69,41 @@
     },
     {
       "id": "big-numeric-state",
-      "status": "not-started",
+      "status": "in-progress",
       "operations": [
         "BIG WORD digit slots, destructive continuations, special bytes, random/loop sources and source-specific deadlines.",
         "Original software/default-precision scaling, including g3 Y5->11, with exact finite integer adapters and explicit WORD reduction."
       ],
-      "tests": [],
+      "tests": [
+        "big_number"
+      ],
       "references": [
-        "01-scope-evidence.adoc"
+        "05-numeric-reader.adoc",
+        "21-loops-gangs-and-substitution.adoc",
+        "34-numeric-words-and-exact-y-scaling.adoc",
+        "73-global-readers-and-loops-acceptance.adoc",
+        "code-evidence.adoc:04f3:0f26..11b1,144c..14e8"
       ],
       "deviations": [],
-      "verification": [],
-      "commit": null
+      "verification": [
+        "Ordinary acquisition implemented and exercised through the shared parser. 54 literal vectors cover every split/bytewise input, destructive continuations, consumed delimiters, ordered auxiliary controls, encoded expressions, NUL/FF, scaling gates and signed wrapping.",
+        "All 65536 WORD inputs match an independent original binary-rational multiplier oracle across 30 scale/resolution/class combinations each; 16-bit digit-count wrap verified across bulk, bytewise and boundary chunks.",
+        "Explicit owner timeout events preserve ordinary zero versus auxiliary SPACE/BEL/auto behavior, ready-byte consumption, retained slots and fresh acquisition boundaries. No foreign clock or scheduling thread exists in the component.",
+        "Stored-loop evaluation, final random expansion and application-local deadline scheduling remain pending.",
+        "Native CMake Release build, /usr/bin/cc, build/; no compiler/source diagnostics. All six selected BIG/shared-parser/IGS scaling CTest checks passed in 1.59s."
+      ],
+      "commit": null,
+      "steps": [
+        {
+          "id": "ordinary-acquisition",
+          "status": "complete",
+          "tests": [
+            "big_number"
+          ],
+          "commit": null,
+          "verification": "Native Release build and all six selected checks passed; big_number completes in 0.01s."
+        }
+      ]
     },
     {
       "id": "shared-bgi",

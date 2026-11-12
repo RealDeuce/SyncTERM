@@ -14,8 +14,10 @@ inventory has 36 top-level commands including X dispatch and nine X selectors:
 restrictions and CONDOR implementation are excluded. The reference's 64
 accepted research requirements are not 45 completed SyncTERM commands.
 
-The unlimited goal is active. Its CGA 80x25 prerequisite is complete; BIG parsing,
-rendering and sound are not yet available. The implementation ledger is
+The unlimited goal is active. CGA 80x25 and the shared numeric-reader
+boundary are complete; ordinary BIG numeric acquisition is implemented.
+The BIG graphics mode, rendering and sound are not yet available. The
+implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
 == Standalone implementation contract
@@ -200,6 +202,35 @@ failed against the original parser before the implementation was added.
 The native Release build passed without compiler diagnostics; the build tool
 emitted existing generated-dependency clock-skew warnings. All 69 selected
 CTest checks passed in 107.57 seconds: four shared-parser tests, the native
-IGS tests, RIP parser and SkyPix. BIG-specific numeric semantics remain
-pending; this completes only the shared reader boundary.
+IGS tests, RIP parser and SkyPix. This completes only the shared reader
+boundary; the ordinary BIG reader is recorded below.
 Completion commit: `d1b7e12`.
+
+=== Ordinary BIG numeric acquisition
+
+`src/terminal/big/st_big_number.c` implements the ordinary four-slot reader:
+WORD count/wrap, destructive weighting, consumed nondigits, two discarded
+continuation bytes, ordered x/y/r auxiliary reads, expression encodings and
+original finite scaling before controls. It returns encoded WORDs; final
+random expansion and stored-loop evaluation remain separate pending owners.
+
+`big_number` has 54 independently transcribed literal vectors, each tested
+at every split and bytewise. A two-limb exact rational multiplication using
+the original binary64 numerator checks all 65536 WORD inputs across 30
+scale/resolution/class combinations. Large uninterrupted inputs exercise
+count wrap without growing storage. The actual reader is tested through the
+shared parser with chaining, signed results, supplied-value bypass, timeout
+completion and EOF recovery.
+
+Timeout notification is an explicit event from the eventual application
+owner's local deadline. A ready byte is consumed before timeout substitution:
+ordinary reads use zero, auxiliary reads use SPACE. Auxiliary BEL is suppressed
+in auto mode; ordinary BEL is retained. Each acquisition requires a freshly
+armed owner deadline. This component owns no foreign clock or scheduling
+thread, and cancel/EOF never fabricate a timeout. Application deadline
+scheduling is still pending, as are loop evaluation and final random expansion.
+
+The native Release build passed without compiler/source diagnostics. All six
+selected BIG/shared-parser/IGS scaling checks passed in 1.59 seconds;
+`big_number` completed in 0.01 seconds. Fixture provenance and limitations
+are recorded in `src/terminal/big/tests/README.md`.

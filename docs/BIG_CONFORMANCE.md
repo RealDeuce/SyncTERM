@@ -41,4 +41,17 @@ WORD rules while sharing attention framing, chaining, parameters and command
 suspension. Supplied loop values bypass the wire reader. Tests use an opaque
 synthetic reader to check partitions, byte ownership, input-free deadlines,
 waits, dynamic arity, errors and recovery. All 69 selected native parser,
-IGS, RIP and SkyPix checks passed. BIG numeric semantics remain pending.
+IGS, RIP and SkyPix checks passed. The ordinary BIG reader is recorded below.
+
+## Ordinary numeric acquisition
+
+The BIG component implements destructive four-WORD digit construction,
+continuations, consumed delimiters, ordered auxiliary controls and expression
+encodings. Its finite Y scaling retains original g3 Y 5 to 11 behavior.
+`big_number` checks 54 literal cases at every split/bytewise input, all 65536
+WORD values against an independent binary-rational oracle, digit-count wrap,
+explicit timeout/BEL policy, shared-parser integration and EOF/reset recovery.
+
+This component consumes explicit timeout events; application-local deadline
+scheduling, stored-loop evaluation and final random expansion remain pending.
+The BIG graphics mode is not yet selectable; command completion remains 0/45.
