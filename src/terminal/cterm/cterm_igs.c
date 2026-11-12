@@ -481,6 +481,7 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static const struct st_graphics_command commands[] = {
+	{'&', unscaled_parameters, 4, cterm_igs_loop_next},
 	{'<', unscaled_parameters, 3, NULL},
 	{'?', unscaled_parameters, 1, query_next},
 	{'G', unscaled_parameters, 2, grab_next},
@@ -533,6 +534,7 @@ static void
 cancel_input(struct cterm_igs *igs)
 {
 	igs->reset_pending = false;
+	cterm_render_record_error(igs->terminal,cterm_igs_loop_cancel(igs));
 	cterm_render_record_error(igs->terminal,cterm_igs_collect_cancel(igs));
 	cterm_render_record_error(igs->terminal,cterm_igs_query_cancel(igs));
 	cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
@@ -624,9 +626,13 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 	    || argument->kind != ST_GRAPHICS_NUMBER
 	    || argument->axis < ST_GRAPHICS_UNSCALED || argument->axis > ST_GRAPHICS_Y)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (argument->has_value) {
+		if (argument->value<INT16_MIN || argument->value>INT16_MAX) return IO_ERROR_OUT_OF_RANGE;
+		*result=argument->value;return 0;
+	}
 	const struct st_graphics_operand *operand = &argument->operand;
 	int value;
-	if (operand->operation != ST_GRAPHICS_VALUE)
+	if (operand->operation != ST_GRAPHICS_VALUE && !igs->loop.initializing)
 		return IO_ERROR_PROTOCOL;
 	switch (operand->source) {
 	case ST_GRAPHICS_CONSTANT:
@@ -639,8 +645,13 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 			value = igs->math[value > 127 ? 127 : value];
 		break;
 	}
+	case ST_GRAPHICS_LOOP_X:
+	case ST_GRAPHICS_LOOP_Y:
+		if (!igs->loop.initializing) return IO_ERROR_PROTOCOL;
+		value=operand->source==ST_GRAPHICS_LOOP_X?-32767:-32766;break;
 	case ST_GRAPHICS_RANDOM_R:
 	case ST_GRAPHICS_RANDOM_R2: {
+		if (igs->loop.loading) {value=operand->source==ST_GRAPHICS_RANDOM_R?-32765:-32764;break;}
 		unsigned which = operand->source == ST_GRAPHICS_RANDOM_R ? 0 : 1;
 		int lower = igs->random_range[which][0], upper = igs->random_range[which][1];
 		if (lower > upper || upper < 0 || lower > 32767 || upper > 32767)
@@ -662,6 +673,13 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 	}
 	default:
 		return IO_ERROR_PROTOCOL;
+	}
+	if (operand->operation!=ST_GRAPHICS_VALUE) {
+		if (operand->operation==ST_GRAPHICS_STEP_PLUS) value=-value;
+		else if (operand->operation==ST_GRAPHICS_STEP_MINUS) value=-10000-value;
+		else if (operand->operation==ST_GRAPHICS_MINUS_STEP) value=-20000-value;
+		else return IO_ERROR_PROTOCOL;
+		if (value<INT16_MIN || value>INT16_MAX) return IO_ERROR_OUT_OF_RANGE;
 	}
 	*result = value;
 	return 0;
@@ -750,6 +768,8 @@ field_entry(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
 	struct cterm_igs *igs = context;
+	int loop_status=cterm_igs_loop_field(igs,view,parameter);
+	if (loop_status!=0 || view->code=='&') return loop_status;
 	if (view->code == 'N') {
 		if (view->count == 0) return 0;
 		struct cterm_igs_music *m = igs->music;
@@ -1329,28 +1349,36 @@ execute_command(void *context, const struct st_graphics_command_view *view)
 	}
 }
 
-/* Only the outer attention loop samples the macro button. Chained
- * commands retain their byte ownership until the chain ends. */
+/* Only the outer attention loop samples macro buttons and sends < data. */
+static int
+end_entry(struct cterm_igs *igs, bool chained)
+{
+	if (chained) return 0;
+	int status=cterm_igs_collect_send(igs);
+	if (status==0) status=cterm_igs_input_activate(igs);
+	if (status==0 && (igs->input.held || igs->input.left_held)) {
+		igs->input.suspended=true;status=IO_ERROR_IN_PROGRESS;
+	} else if (status==0) status=cterm_igs_forward_keys(igs);
+	return status;
+}
+
 static int
 command(void *context, const struct st_graphics_command_view *view)
 {
-	struct cterm_igs *igs = context;
-	int status = execute_command(context, view);
-	if (status == 0 && !view->chained) {
-		status = cterm_igs_collect_send(igs);
-		if (status == 0) status = cterm_igs_input_activate(igs);
-		if (status == 0 && (igs->input.held || igs->input.left_held)) {
-			igs->input.suspended = true;
-			status = IO_ERROR_IN_PROGRESS;
-		}
-		else if (status == 0) status = cterm_igs_forward_keys(igs);
+	struct cterm_igs *igs=context;
+	if (view->code=='&' && igs->loop.initializing) return cterm_igs_loop_begin(igs,view);
+	int status=execute_command(context,view);
+	if (igs->loop.run) {
+		if (status==0) {igs->loop.next=true;return IO_ERROR_IN_PROGRESS;}
+		return status;
 	}
-	return status;
+	return status==0?end_entry(igs,view->chained):status;
 }
 
 static int
 resume_parser(struct cterm_igs *igs)
 {
+	if (igs->loop.run) {igs->loop.next=true;return 0;}
 	int status = st_graphics_parser_resume(igs->parser);
 	if (status == 0 && !st_graphics_parser_in_command(igs->parser)) {
 		bool feeding=igs->feeding; igs->feeding=true;
@@ -1407,7 +1435,48 @@ static struct st_graphics_parser_sink
 sink(struct cterm_igs *igs)
 {
 	return (struct st_graphics_parser_sink){.context = igs, .text = text, .boundary = boundary,
-	    .command = command, .unknown = unknown, .field = field_entry, .raw = raw};
+	    .command = command, .unknown = unknown, .field = field_entry, .raw = raw, .number = cterm_igs_loop_number};
+}
+
+/* Serialized owner pump. A budget yields locally; it never limits the total
+ * number of valid protocol iterations or creates another clock/parser. */
+static int
+drive_parser(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used)
+{
+	struct cterm_igs_loop *l=&igs->loop;
+	struct st_graphics_parser_sink callbacks=sink(igs);
+	*used=0;l->work=0;l->cooperative=false;
+	unsigned iterations=0;
+	for (;;) {
+		if (l->run && l->next) {
+			if (!l->initial && (igs->loop_mode!=1 || !l->bad)) {
+				bool chained=l->chained;
+				int status=cterm_igs_loop_end(igs);
+				if (status==0) status=end_entry(igs,chained);
+				if (status==0) status=st_graphics_parser_resume(igs->parser);
+				if (status!=0) return status;
+			} else {l->initial=false;l->next=false;l->selecting=true;l->bad=false;}
+		}
+		if (l->run && l->selecting) {
+			if (iterations++>=64) {l->cooperative=true;return IO_ERROR_IN_PROGRESS;}
+			int code=l->target;
+			if (l->ganged) {
+				int selector;int status=cterm_igs_loop_value(igs,&selector);
+				if (status!=0) return status;
+				code=l->gang[selector<0 || selector>127?0:(size_t)selector];
+			}
+			l->command=(uint8_t)code;
+			int status=code=='&'?IO_ERROR_NOT_SUPPORTED:st_graphics_parser_start_command(igs->parser,&callbacks,(uint8_t)code,l->chained);
+			l->selecting=false;
+			if (status==IO_ERROR_NOT_SUPPORTED) {unknown(igs,(uint8_t)code);l->next=true;continue;}
+			if (status!=0) return status;
+		}
+		size_t consumed=0;
+		int status=st_graphics_parser_feed(igs->parser,&callbacks,bytes==NULL?NULL:bytes+*used,size-*used,&consumed);
+		*used+=consumed;
+		if (status==IO_ERROR_IN_PROGRESS && l->run && l->next) continue;
+		return status;
+	}
 }
 
 int
@@ -1511,7 +1580,7 @@ bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
 	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause || igs->note.active
-	    || (igs->music != NULL && igs->music->playing) || igs->input.held || igs->input.left_held || igs->input.suspended || igs->query.active || igs->collect.active);
+	    || (igs->music != NULL && igs->music->playing) || igs->input.held || igs->input.left_held || igs->input.suspended || igs->query.active || igs->collect.active || igs->loop.next || igs->loop.selecting || igs->loop.waiting || igs->loop.cooperative);
 }
 
 bool
@@ -1523,6 +1592,12 @@ cterm_igs_handle_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 	if (igs != NULL && igs->note.active && !igs->note.key) {
 		igs->note.key = true;
 		return true;
+	}
+	/* An async body owns its first key before the enclosing loop's next
+	 * numeric poll. Later keys remain available to that outer poll. */
+	if (igs != NULL && igs->loop.run) {
+		if (igs->timed_pause && !igs->pause_key) {igs->pause_key=true;return true;}
+		if (igs->palette_rotation.active && !igs->palette_rotation.key) {igs->palette_rotation.key=true;return true;}
 	}
 	if (igs != NULL && cterm_igs_buffer_key(igs, key)) {
 		if (igs->collect.active && !igs->feeding)
@@ -1562,10 +1637,8 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	}
 	do {
 		size_t consumed = 0;
-		struct st_graphics_parser_sink callbacks = sink(igs);
 		igs->feeding = true;
-		status = st_graphics_parser_feed(igs->parser, &callbacks,
-		    input == NULL ? NULL : input + *used, size - *used, &consumed);
+		status = drive_parser(igs,input==NULL?NULL:input+*used,size-*used,&consumed);
 		igs->feeding = false;
 		*used += consumed;
 		bool reset = igs->reset_pending;
@@ -1579,6 +1652,8 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 			 * stage again so ordinary bytes reach the base terminal parser. */
 			cterm_log(igs->terminal, ST_CTERM_LOG_WARNING,
 			    "IGS input rejected (%d); continuing stream", status);
+			cterm_render_record_error(igs->terminal,cterm_igs_loop_cancel(igs));
+			st_graphics_parser_cancel(igs->parser);
 			cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
 			cterm_igs_input_cancel_reader(igs);
 			igs->collect.configuring=false;
@@ -1673,6 +1748,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 			status = 0;
 	}
 	cterm_igs_input_cancel(igs);
+	(void)cterm_igs_loop_cancel(igs);
 	(void)cterm_igs_collect_cancel(igs);
 	igs->query.configuring=false;
 	igs->input_deadline = igs->text_deadline = 0;
@@ -1691,6 +1767,14 @@ cterm_igs_poll(struct cterm_igs *igs)
 	int audio_status = cterm_igs_audio_poll(igs);
 	if (audio_status != 0) return audio_status;
 	if (igs->input.sending) return 0;
+	if (igs->loop.run && !igs->feeding && igs->input.key_count!=0) {
+		/* A key queued before the body started is still available to its
+		 * own poll. N retains its distinct inner/outer FIFO policy. */
+		bool *key=igs->note.active && !igs->music->playing?&igs->note.key
+		    : igs->timed_pause?&igs->pause_key
+		    : igs->palette_rotation.active?&igs->palette_rotation.key:NULL;
+		if (key!=NULL && !*key) {(void)cterm_igs_take_key(igs);*key=true;}
+	}
 	if (igs->collect.active) {
 		if (igs->reset_pending) { cterm_igs_reset(igs); return 0; }
 		igs->feeding=true;
@@ -1800,6 +1884,14 @@ cterm_igs_poll(struct cterm_igs *igs)
 		}
 		return resume_parser(igs);
 	}
+	if (igs->loop.run && (igs->loop.next || igs->loop.selecting || igs->loop.waiting || igs->loop.cooperative)) {
+		size_t used;igs->feeding=true;
+		int status=drive_parser(igs,NULL,0,&used);igs->feeding=false;
+		if (igs->reset_pending) {cterm_igs_reset(igs);return status==IO_ERROR_INTERRUPTED?0:status;}
+		if (status==IO_ERROR_IN_PROGRESS) status=0;
+		if (status!=0) {cancel_input(igs);return status;}
+		return 0;
+	}
 	if (cterm_igs_paused(igs)) {
 		int status = igs->now_ms(&now);
 		if (status != 0 || now < igs->wait_deadline)
@@ -1873,6 +1965,7 @@ cterm_igs_poll(struct cterm_igs *igs)
 		status = st_graphics_parser_feed(igs->parser,&callbacks,&marker,1,&used);
 		igs->feeding = false;
 		if (igs->reset_pending) { cterm_igs_reset(igs); return status == IO_ERROR_INTERRUPTED ? 0 : status; }
+		if (status == IO_ERROR_IN_PROGRESS) status = 0;
 		if (status != 0) { cancel_input(igs); return status; }
 		igs->input_deadline = igs->bitmap_loading ? igs->bitmap_deadline
 		    : st_graphics_parser_in_command(igs->parser)

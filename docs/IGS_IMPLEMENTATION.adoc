@@ -4509,3 +4509,95 @@ self-contained and physical audio/MIDI are disabled. All63 command entries
 remain unchanged (60 complete); active tests/dependencies/references were
 validated. The shared source mechanism is complete; &/X9 and final acceptance
 remain pending, and the full goal stays active.
+
+== & stored-operand loops and gang dispatch (complete)
+
+Chapters11/13 specify one shared loop state. Stage four unscaled header
+words in read order, raw command, optional text and exact128-byte gang
+snapshot, raw kind, signed count clamped1..2048 and all stored operands.
+Cache each accepted header/count/operand before the next read, preserving
+array/RNG order. r/R remain encoded while loading; shared text, math, saved
+coordinate and varying state are retained where the original setup retains
+them. Fixed & inside a body is an unknown target, not recursive setup.
+
+Actual numeric calls use the shared source callback and mark evaluated
+values explicitly. Keep first-varying stepping, reverse-distance y, all
+three sequential relative-constant tests, XOR passes, no-parameter stepping,
+last-index bounds, local key consumption and final-W Z reuse. A terminating
+operand is still returned; later numeric fields in that same command switch
+to ordinary wire acquisition. Stored values are neither rescaled nor
+reevaluated by next/arity previews or the execution callback.
+
+One owner pump selects existing command descriptors without synthesized
+framing and preserves the enclosing chain bit. Gang selectors themselves
+consume operands; invalid signed indices normalize to0. The gang snapshot
+retains bytes beyond the new NUL. Unknown fixed commands execute no reader
+and can preserve loop mode across serial entries; unknown gang choices have
+already executed their selector reader and can continue. Async body
+completion returns to this same owner before iteration/common exit. No new
+parser or independently stackable loop state is added.
+
+At operand index zero, convert the protocol's200 delay units/second to a
+local monotonic deadline (5ms per unsigned word unit), retaining field
+ownership while waiting. Available local keys wake the delay; numeric calls
+consume one key and Ctrl-C/Ctrl-X clear the loop. Other keys consumed at that
+poll stay local. Work budgets yield cooperatively to the existing terminal
+owner, with no total iteration limit, foreign clock, old-device throughput
+wait or worker. Reject signed-word coordinate/step/relative overflow rather
+than reproducing accidental wrap and nonterminating trajectories; observation
+counters saturate rather than introducing accidental wrap-dependent control.
+Flow/text primitive flags without any configured operand array still leave
+numeric fields with their ordinary wire owner; a completed & always has a
+nonempty clamped array.
+
+Existing response transport owns setup XOFF/common-exit XON and readiness.
+Keep W/@ first-reader flow, raw auxiliary payload ownership and live flow
+configuration. Send deferred < data after the enclosing dispatch exits;
+repeated collections replace pending data. Keys/serial suffixes stay behind
+their current owner. EOF/reset/error cancels loop, readers and input/pointers
+through existing cleanup, balances setup flow and cannot resume stale
+arguments. X9 source integration remains pending and must share these same
+loop globals, with its file-specific flow/echo/exit rules.
+
+cterm_igs_loop checks literal independent numeric traces, complete dual-phase
+marker/glyph scenes, fixed/gang/relative/XOR/no-parameter cases, retained gang
+tails, mid-command wire reads, dynamic X13, suppressed/expanded randomness,
+W reuse/@ strings, opaque raw X3, full2048 operand capacity, local waits,
+cooperative key cancellation, partial setup/RNG/EOF/timeout/reset and reentrant
+flow callbacks. All focused splits and bytewise input cover18 native profiles
+and54 scaling variants. syncterm_igs_loop adds846 coherent captures over the
+same18 application profiles: literal marker/US glyph expectations, palette,
+indices/RGB/cells/state and exact real socket flow/replies. Include repeated
+< replacement, delay wake/abort and active-loop disconnect/fresh reconnect.
+Ordinary fixtures are self-contained; physical audio/MIDI are disabled.
+Source identities and handwritten vectors: src/tests/igs/loop-command-vectors.json.
+
+Additional native cases verify unsigned and saturated deadlines, checked
+arithmetic/error recovery with exact unread suffixes, one actual RNG call
+through dynamic arity, and interactive query/zone bodies with pointer cleanup.
+An independent failing t-body case caught outer key buffering stealing inner
+helper cancellation; pause/palette helpers now retain first-key ownership.
+
+Native FreeBSD Release configure/full builds with /usr/bin/cc passed. The
+final full build had zero diagnostics after early existing generated-
+dependency timestamp warnings. The initial missing-handler wire test failed
+before implementation. All80 selected checks passed in298.40s, including all
+registered native IGS tests, shared parser/source/stream, console/bitmap/control,
+ANSI/VT52/keyboard, RIP, SkyPix, term/key forwarding, BBS list/profile, Wren
+and application loop/flow/music/pattern load. Loop application coverage passed
+all846 coherent captures in48.81s. An intermediate full relink passed14 affected
+checks in8.30s; extended native loop checks then passed in0.42s.
+Checked all63 unique ordered IDs,61 completed entries, active tests/dependencies/
+references and pinned source identities. X9's file source integration, parent
+X and final acceptance remain pending; the full goal stays active.
+
+Final input-ownership review added already queued keys to the inner helper
+case. Its independent t regression failed before the fix. Active pause,
+palette and standalone note waits now consume their first queued key before
+the outer numeric poll; N retains its distinct FIFO policy. A real &/n
+composition uses a pull audio runtime: seven queued keys feed six numeric
+polls, then cancel/stop the note without forwarding a key or physical audio.
+After the final warning-free full build, all16 affected checks passed in
+49.52s: loop846 captures in49.45s, application music25.31s, native loop0.39s
+and native note0.41s. Command completion remains61/63; X9, parent X and final
+acceptance stay pending.

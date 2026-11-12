@@ -315,7 +315,11 @@ and cleanup on EOF/reset/error.
 
 Shared graphics-parser tests additionally cover source-supplied typed numbers,
 retryable waits and exact handoff to wire fields, plus direct/chained command
-selection and suspended-view ownership. IGS `&` execution remains pending.
+selection and suspended-view ownership. IGS `&` now uses these sources for
+stored-operand and gang execution, with local deadlines, cooperative input
+service and exact handoff to wire fields when the loop ends mid-command.
+Independent native traces/scenes and846 coherent application captures cover
+flow, text/raw ownership, deferred replies, cancellation and reconnect.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

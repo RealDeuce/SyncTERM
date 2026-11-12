@@ -67,7 +67,8 @@ MIDI and note helpers.
 `?` adds immediate version/cursor/pixel/resolution replies and interactive
 character-cursor or marker/GEM mouse queries, with indexed pointer cleanup
 and retained press/release semantics. `<` adds keyboard/zone collection and
-chain-deferred replies. Other commands remain pending.
+chain-deferred replies. `&` adds stored-operand/gang loops, mixed wire fields
+and cooperative local waits. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -2818,3 +2819,57 @@ Active tests/dependencies/references were validated. All63 command entries
 are unchanged, with60 complete; the full goal remains active.
 
 Parser source support commit: 4adf6fa. The goal remains active at60/63.
+
+## Stored-operand loops and gang dispatch (`&`)
+
+Chapters11/13 add staged unscaled setup, a raw target or retained128-byte gang,
+raw kind, count clamped1..2048 and stored typed operands. Preserve accepted
+prefixes, shared text/math state and suppressed r/R load values. Numeric
+source calls implement varying/reverse-distance/relative/XOR/constant stepping,
+last-index termination, local key consumption and final-W text reuse. A final
+operand still reaches its command; subsequent fields switch to the wire.
+Typed values are not scaled or evaluated twice.
+
+The existing descriptors and one parser execute every body. Gang selection
+is a numeric call with invalid indices normalized to0 and old bytes after
+NUL preserved. Unknown fixed/gang targets keep their distinct reader and exit
+semantics; fixed & never recursively initializes. Async completion returns
+to the loop owner. Local monotonic deadlines implement200 delay units/second;
+cooperative budgets keep long loops responsive without a total iteration
+limit, foreign clocks, throughput waits or new workers. Ctrl-C/Ctrl-X cancel
+at an actual numeric poll. Reject accidental arithmetic overflow and saturate
+observation counters. Mode flags without a configured array supply no stored
+values; canonical & always creates a nonempty array.
+
+Existing flow helpers balance setup/exit, retaining W/@ and raw-reader flow
+rules. Deferred < replies wait for the enclosing dispatch; repeated collection
+replaces pending bytes. EOF/reset/error clears active execution and reader
+ownership. X9's file-source integration and final acceptance remain pending.
+
+`cterm_igs_loop` checks independent literal evaluator traces, dual-phase
+marker/glyph scenes, split/bytewise input over18 profiles/54 scaling variants,
+fixed/gang/XOR/relative/mixed-wire arity, retained gang text, RNG, W/@/raw X3,
+2048 operands, delays, cooperative cancellation and partial/error/EOF/reset
+paths. `syncterm_igs_loop` supplies846 coherent all-profile captures with
+independent glyph/palette/index/RGB/state expectations and real socket
+flow/replies, repeated < replacement, key wake/abort and reconnect. Headless
+fixtures disable physical audio/MIDI; vectors and source identities are in
+`src/tests/igs/loop-command-vectors.json`.
+
+Native FreeBSD Release configure/full builds passed using `/usr/bin/cc`;
+the final full build was warning-free. All80 selected checks passed in298.40s,
+including all native IGS tests and846 loop captures in48.81s. A failing inner
+pause-key case preceded its ownership fix; final pause/palette cases pass.
+An intermediate full relink passed14 affected checks in8.30s. Extended
+native loop checks passed in0.42s, also checking unsigned/saturated
+deadlines, checked-error suffix recovery, exact RNG and mouse query/zone bodies.
+Ledger/tests/references/source identities were validated. The ledger is61/63
+complete; X9, parent X and final acceptance remain pending.
+
+The final queued-key regression also preceded its fix: active pause/palette/
+standalone note helpers consume keys already waiting after numeric polls,
+while N retains its distinct FIFO handling. A real &/n case uses pull audio
+and proves note stop/cancellation without physical output. After the final
+warning-free build, all16 affected checks passed in49.52s, including846 loop
+captures in49.45s, application music in25.31s, native loop in0.39s and native
+note in0.41s. The full goal remains active at61/63.

@@ -204,7 +204,9 @@
         "cterm_igs_palette_rotation",
         "syncterm_igs_palette_rotation",
         "cterm_igs_sweep",
-        "syncterm_igs_sweep"
+        "syncterm_igs_sweep",
+        "cterm_igs_loop",
+        "syncterm_igs_loop"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -370,7 +372,9 @@
         "cterm_igs_query",
         "syncterm_igs_query",
         "cterm_igs_collect",
-        "syncterm_igs_collect"
+        "syncterm_igs_collect",
+        "cterm_igs_loop",
+        "syncterm_igs_loop"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -3125,15 +3129,64 @@
       "phase": "loops-scripts",
       "references": [
         "13-dispatch-loops.adoc",
-        "21-extended-payloads.adoc"
+        "11-reader-state.adoc",
+        "21-extended-payloads.adoc",
+        "loop-vectors.json"
       ],
       "order": 61,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "<",
+        "?",
+        "W",
+        "X3",
+        "X4",
+        "X7",
+        "X11",
+        "X13"
+      ],
+      "operations": [
+        "Stage unscaled FROM/TO/STEP/DELAY in acquisition order, raw target, optional exact128-byte gang snapshot including retained bytes after NUL, raw kind, signed count clamped1..2048 and encoded stored operands. Preserve shared text/math/saved state; suppress RNG only while loading operands; cache accepted prefixes so array/random operands advance once.",
+        "Evaluate stored numeric fields through the shared typed-source callback without rescaling or reevaluation. Preserve first-varying stepping, reverse-distance y, sequential relative constant tests, XOR passes, no-parameter stepping, exact last-index bounds, key consumption and final-W Z reuse. If an argument clears loop mode, later fields of that same command come from the wire.",
+        "Reuse the existing command descriptors and one parser for fixed and gang-selected bodies, with original outer chain ownership. Gang selection itself evaluates an operand; normalize invalid indices to0. Unknown fixed targets (including fixed &) do not read operands or recursively initialize, and can retain loop mode for the next entry. Async body completion returns to the same loop owner.",
+        "Convert each index-zero delay directly to local monotonic milliseconds at200 units/second, with injected local time in tests and key wakeup. Bound per-pump work cooperatively without a total iteration limit, extra thread, foreign tick/cycle/interrupt domain or hardware throughput wait. Ctrl-C/Ctrl-X stop on an actual numeric poll; other local keys consumed there remain local.",
+        "Balance setup XOFF/common-exit XON through existing response transport and current flow configuration. Keep W/@ text flow, raw auxiliary payload ownership, pending < replacement and final reply ordering. EOF/reset/error cancels work and reader state, restores active input/pointers through existing cleanup, and does not resume stale body arguments.",
+        "Independent numeric traces and complete dual-phase marker/glyph scenes cover fixed/gang/relative/XOR/no-parameter execution, retained gang tails, mixed stored/wire command completion, dynamic X13/query arity with exact one-call RNG seed, W reuse/@ strings, opaque X3 payloads,2048 operands, unsigned/saturated local deadlines, arithmetic/error recovery, inner pause/palette key ownership and interactive query/zone bodies. Focused splits/bytewise input span18 native profiles/54 scaling variants. Application846 coherent all-profile captures check glyph/palette/index/RGB/cells/state, raw socket flow/replies, deferred < replacement, delay wake/abort and active disconnect/reconnect.",
+        "Async body helpers own both newly arriving and already queued keys before the outer numeric poll. Native composition tests cover pause/palette cancellation and a pull-audio n body with seven queued keys, proving six numeric polls then inner note cancellation/stop. N retains its separate inner/outer FIFO handling."
+      ],
+      "tests": [
+        "cterm_igs_loop",
+        "syncterm_igs_loop",
+        "graphics_protocol_source",
+        "graphics_protocol_parser",
+        "graphics_protocol_stream",
+        "cterm_igs_text",
+        "cterm_igs_bitmap",
+        "cterm_igs_flow",
+        "cterm_igs_query",
+        "cterm_igs_collect",
+        "cterm_igs_music",
+        "cterm_igs_note",
+        "cterm_igs_palette_rotation",
+        "cterm_igs_sweep",
+        "cterm",
+        "term",
+        "wren_host"
+      ],
+      "deviations": [
+        "Reject overflowing signed-word coordinate/relative/step arithmetic instead of reproducing accidental wrapping and potentially nonterminating foreign-word sequences. Saturate varying/first/pass observation counters rather than allowing accidental counter wrap to change control flow. Preserve intended bounded signed operand arithmetic and sequential constant operations.",
+        "Use local monotonic deadlines (5ms per delay unit), with no old clock low-word wrap or polling throughput. Yield after a bounded amount of owner work so long loops remain cancellable; the budget is not a total-iteration limit. Existing host key FIFO capacity/overflow and response/spy transport policies remain.",
+        "Invalid or incomplete setup/body grammar is safely rejected/cancelled, retaining the exact unread wire suffix under existing parser recovery. Do not emulate escaped native memory, uninitialized locals, partial foreign address-map aliases or recursive independent loop-state stacks. X9 source integration remains pending and must share this global IGS loop state.",
+        "A mode flag without a configured operand array supplies no stored numeric source and retains wire ownership; every canonical & setup constructs a nonempty1..2048 array. This keeps primitive flow/text policy independent of source availability without emulating invalid native array memory."
+      ],
+      "verification": [
+        "Native FreeBSD Release CMake configure/full builds with /usr/bin/cc passed. Early existing generated-dependency future-timestamp/clock-skew warnings were absent from the final full build, which had zero diagnostics. The initial missing-handler wire test failed before implementation.",
+        "All80 selected CTest checks passed in298.40s, including every registered cterm_igs_* test, shared parser/source/stream, console/bitmap/control, ANSI/VT52/keyboard, RIP, SkyPix, term/key forwarding, BBS list/profile, Wren and application loop/flow/music/pattern-load regressions. syncterm_igs_loop passed846 coherent captures in48.81s, across all18 display/encoding/status profiles.",
+        "Independent failing loop/t tests demonstrated both new-event and prequeued-key ownership gaps before their fixes. Intermediate full-relink verification passed14 affected checks in8.30s; added boundary, exact-RNG and query/zone body cases passed the focused native test. Final queued-key ownership also covers standalone note waits and preserves N FIFO policy.",
+        "After the final warning-free full build, all16 affected CTest checks passed in49.52s. The loop application matrix passed846 coherent captures in49.45s and the music application test passed in25.31s. Native loop took0.39s; the native note suite, including a real & body with queued-key cancellation on a pull audio runtime, took0.41s. No physical audio/device coverage is claimed.",
+        "Validated63 unique ordered IDs,61 completed command entries, registered active tests/dependencies/references and pinned source identities. Ordinary tests are self-contained and disable physical audio/MIDI. X9 source integration, parent X dispatch completion and final acceptance remain unfinished; the full goal stays active."
+      ],
       "commit": null
     },
     {

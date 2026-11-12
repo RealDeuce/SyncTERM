@@ -313,4 +313,19 @@ pixels_and_muted(void)
 		}
 }
 
-int main(void) { vectors(); waits_and_keys(); mutable_and_priority(); pcm_release(); partitions_and_errors(); pixels_and_muted(); return 0; }
+static void
+queued_loop_note(void)
+{
+	struct fixture f; create(&f,0,false); st_audio_runtime_t *runtime=prepare(&f); clear(&f);
+	struct cterm_igs *igs=f.terminal->igs_engine; igs->flow_mode=0;
+	feed(&f,"G#& 0,1,1,0,n,6,");
+	for (unsigned i=0;i<7;++i) CHECK(st_cterm_handle_key(f.terminal,(uint16_t)('a'+i),0));
+	feed(&f,"0,2,15,60,100,2:");
+	CHECK(igs->loop.run && igs->note.active && igs->input.key_count==1 && st_igs_test_calls==1);
+	CHECK(st_cterm_poll(f.terminal)==0 && !igs->note.active && igs->input.key_count==0);
+	CHECK(st_igs_test_stop_count==1 && st_igs_test_stops[0]==2 && forwarded==0);
+	CHECK(st_cterm_poll(f.terminal)==0 && !igs->loop.run && igs->loop_mode==0 && forwarded==0);
+	destroy(&f); st_audio_runtime_destroy(runtime);
+}
+
+int main(void) { vectors(); waits_and_keys(); mutable_and_priority(); pcm_release(); partitions_and_errors(); pixels_and_muted(); queued_loop_note(); return 0; }

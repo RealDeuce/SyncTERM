@@ -1,0 +1,312 @@
+{
+  "schema_version": 1,
+  "provenance": "Handwritten expected operand traces and literal pixels/replies derived from chapters11/13 and their static service model. Original US TOS 8x8 A rows are literal independent glyph data. No expectations are generated from SyncTERM or Atari execution; existing console glyph/palette assets are reused.",
+  "references": [
+    {
+      "path": "docs/igs/13-dispatch-loops.adoc",
+      "sha256": "298f9a6dddbd73d35ef8e7969adda55bc467cf10d65cb5e60caa2bbceaf34c98"
+    },
+    {
+      "path": "docs/igs/11-reader-state.adoc",
+      "sha256": "787f73c09bd21e327c4cb357d781fd57223715ed48a38d2e0e895a547f6be7e0"
+    },
+    {
+      "path": "tools/spec_igs_loop.py",
+      "sha256": "17676fe8cd8c07335a36766645e652c5121f16ddf687b33d9129ba3c3e275900"
+    },
+    {
+      "path": "docs/igs/loop-vectors.json",
+      "sha256": "f0856d2083c7a86e807c3b98e1e27c37d040588a689cbfdb72fed7e14af00f1e"
+    }
+  ],
+  "tests": [
+    "cterm_igs_loop",
+    "syncterm_igs_loop"
+  ],
+  "native_graphics_profiles": 18,
+  "native_scaling_variants": 54,
+  "application_graphics_profiles": 18,
+  "physical_audio": false,
+  "physical_midi": false,
+  "external_runtime_assets": false,
+  "raster_cases": [
+    {
+      "name": "ascending",
+      "wire": "G#& 40,42,1,0,P,2,x,80:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          41,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "xor",
+      "wire": "G#M>3:& 40,42,1,0,P|2,x,80:",
+      "points": [
+        [
+          42,
+          80
+        ]
+      ],
+      "mode": 3,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "reverse-distance",
+      "wire": "G#& 4,0,2,0,P,2,y,80:",
+      "points": [
+        [
+          0,
+          80
+        ],
+        [
+          2,
+          80
+        ],
+        [
+          4,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "plus-relative",
+      "wire": "G#& 40,42,1,0,P,2,+3,80:",
+      "points": [
+        [
+          43,
+          80
+        ],
+        [
+          44,
+          80
+        ],
+        [
+          45,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "minus-relative",
+      "wire": "G#& 40,42,1,0,P,2,-3,80:",
+      "points": [
+        [
+          37,
+          80
+        ],
+        [
+          38,
+          80
+        ],
+        [
+          39,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "bang-relative",
+      "wire": "G#& 0,2,1,0,P,2,!3,80:",
+      "points": [
+        [
+          1,
+          80
+        ],
+        [
+          2,
+          80
+        ],
+        [
+          3,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "gang",
+      "wire": "G#& 40,42,1,0,>P?@,3,0,x,80:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          41,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "unknown-gang-final-wire",
+      "wire": "G#& 0,1,1,0,>~P@,1,x:13,80:",
+      "points": [
+        [
+          13,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "mid-command-wire",
+      "wire": "G#& 40,40,1,0,P,1,x:80:",
+      "points": [
+        [
+          40,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "dynamic-math",
+      "wire": "G#& 40,42,1,0,X,4,13,0,x,0:G#P 0],80:",
+      "points": [
+        [
+          42,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "query-replies",
+      "wire": "G#& 0,2,1,0,?,1,0:",
+      "points": [],
+      "mode": 1,
+      "reply": "\u00132.212.21\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "unscaled-stored-points",
+      "wire": "G#g>1:& 40,42,1,0,P,2,x,80:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          41,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "retained-text",
+      "wire": "G#W 40,100,A@\u001bEG#p 3,2:AG#& 40,56,8,0,W,2,x,100:",
+      "points": [],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": [
+        40,
+        48,
+        56
+      ]
+    },
+    {
+      "name": "new-text",
+      "wire": "G#& 40,56,8,0,W@2,x,100:A@A@A@",
+      "points": [],
+      "mode": 1,
+      "reply": "\u0013\u0011\u0011",
+      "glyphs": [
+        40,
+        48,
+        56
+      ]
+    },
+    {
+      "name": "opaque-raw",
+      "wire": "G#& 0,2,1,0,X,5,3,2,1,0,2:G#!\u0000X!",
+      "points": [],
+      "mode": 1,
+      "reply": "\u0013\u0011\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "unknown-fixed-retained-state",
+      "wire": "G#& 0,0,1,0,~,1,x:G#M ",
+      "points": [],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "async-body",
+      "wire": "G#& 0,2,1,0,q,1,x:",
+      "points": [],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    },
+    {
+      "name": "local-delay",
+      "wire": "G#& 40,42,1,1,P,2,x,80:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          41,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "mode": 1,
+      "reply": "\u0013\u0011",
+      "glyphs": []
+    }
+  ],
+  "application_captures": 846,
+  "command_split_positions": 21
+}

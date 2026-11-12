@@ -18,7 +18,7 @@
 bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 {
 	struct cterm_igs_input *m = &igs->input;
-	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active && !igs->collect.active) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
+	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active && !igs->collect.active && !igs->loop.run && !igs->loop.initializing) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
 	m->keys[(m->key_first + m->key_count) % CTERM_IGS_INPUT_KEYS] = *key;
 	++m->key_count;
 	return true;
@@ -350,6 +350,13 @@ void cterm_igs_input_inspect(const struct cterm_igs *igs, struct st_console_test
 	st_console_test_number(app, "cterm.igs_left_mode", input->left_mode);
 	st_console_test_number(app, "cterm.igs_left_held", input->left_held);
 	st_console_test_number(app, "cterm.igs_left_configuring", input->left_configuring);
+#define LOOP_FIELD(name) st_console_test_number(app, "cterm.igs_loop_" #name, igs->loop.name)
+	LOOP_FIELD(run);LOOP_FIELD(initializing);LOOP_FIELD(waiting);LOOP_FIELD(cooperative);
+	LOOP_FIELD(current);LOOP_FIELD(to);LOOP_FIELD(step);LOOP_FIELD(index);LOOP_FIELD(count);LOOP_FIELD(loaded);
+	LOOP_FIELD(first);LOOP_FIELD(pass);LOOP_FIELD(command);LOOP_FIELD(ganged);
+#undef LOOP_FIELD
+	st_console_test_number(app,"cterm.igs_loop_mode",igs->loop_mode);
+	st_console_test_number(app,"cterm.igs_loop_kind",igs->loop_kind);
 	st_console_test_number(app, "cterm.igs_collect_active", igs->collect.active);
 	st_console_test_number(app, "cterm.igs_collect_pending", igs->collect.pending);
 	st_console_test_number(app, "cterm.igs_collect_count", igs->collect.count);
