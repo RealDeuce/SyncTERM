@@ -2,6 +2,9 @@
 
 `generated/st_unifont_data.c` is built from GNU Unifont 18.0.01 with UNSCII
 8x16 glyphs overlaid on matching codepoints. UNSCII wins on duplicates.
+Before the overlay, SyncTERM applies the CP437-compatible box drawing
+overrides described in `../fonts/UPSTREAM.md`. These retain their
+BSD-2-Clause copyright notice; the original CP437 font remains unchanged.
 The modified font's primary name is **SyncTERM Unicode**.
 
 GNU Unifont 18.0.01 offers the GNU GPL version 2 or later with the GNU font

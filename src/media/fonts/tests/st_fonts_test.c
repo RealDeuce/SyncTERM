@@ -18,6 +18,62 @@
 	} \
 } while (false)
 
+static void
+check_box_drawing(const struct st_console_font *font)
+{
+	struct st_console_font cp437;
+	size_t count = 0;
+
+	CHECK(st_builtin_font_get(0, 8, font->height, &cp437));
+	for (size_t i = 0; i < cp437.mapping_count; ++i) {
+		const struct st_console_font_mapping *original = &cp437.mapping[i];
+
+		if (original->codepoint < 0x2500 || original->codepoint > 0x257f)
+			continue;
+		bool found = false;
+		for (size_t j = 0; j < font->mapping_count; ++j) {
+			const struct st_console_font_mapping *entry = &font->mapping[j];
+
+			if (entry->codepoint != original->codepoint)
+				continue;
+			CHECK(entry->glyph < font->glyph_count);
+			CHECK(memcmp(font->bitmap + entry->glyph * font->glyph_stride,
+			    cp437.bitmap + original->glyph * cp437.glyph_stride,
+			    cp437.glyph_stride) == 0);
+			found = true;
+			break;
+		}
+		CHECK(found);
+		++count;
+	}
+	CHECK(count == 40);
+	/* Independent pixel expectations for the new fallback-only strokes. */
+	count = 0;
+	for (size_t i = 0; i < font->mapping_count; ++i) {
+		const struct st_console_font_mapping *entry = &font->mapping[i];
+		size_t centre = font->height == 8 ? 4 : 7;
+
+		if (entry->codepoint != 0x2501 && entry->codepoint != 0x250d
+		    && entry->codepoint != 0x256d)
+			continue;
+		CHECK(entry->glyph < font->glyph_count);
+		const uint8_t *bitmap = font->bitmap + entry->glyph * font->glyph_stride;
+		++count;
+		for (size_t y = 0; y < font->height; ++y) {
+			uint8_t expected;
+
+			if (entry->codepoint == 0x2501)
+				expected = y >= centre - 1 && y <= centre + 1 ? 0xff : 0;
+			else if (entry->codepoint == 0x250d)
+				expected = y < centre - 1 ? 0 : y <= centre + 1 ? 0x1f : 0x18;
+			else
+				expected = y < centre ? 0 : y == centre ? 0x07 : y == centre + 1 ? 0x0c : 0x18;
+			CHECK(bitmap[y] == expected);
+		}
+	}
+	CHECK(count == 3);
+}
+
 int
 st_fonts_test_main(void)
 {
@@ -89,6 +145,8 @@ st_fonts_test_main(void)
 	char glyph_text[4];
 	size_t glyph_text_size;
 
+	check_box_drawing(&st_unscii_8_font);
+	check_box_drawing(&st_unscii_16_font);
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_register_static_font(console, &st_unscii_8_font,
 	    &font8) == 0);

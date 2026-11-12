@@ -13,6 +13,19 @@ endif()
 if(BUILD_TESTING)
 	find_package(Python3 COMPONENTS Interpreter QUIET)
 	if(Python3_Interpreter_FOUND)
+		add_test(NAME box_drawing_generator COMMAND ${Python3_EXECUTABLE}
+			${CMAKE_CURRENT_SOURCE_DIR}/tests/test_box_drawing.py)
+		if(ST_CONSOLE_TEST)
+			foreach(_encoding CP437 UTF-8)
+				add_test(NAME syncterm_box_drawing_${_encoding}
+					COMMAND ${Python3_EXECUTABLE}
+					${CMAKE_CURRENT_SOURCE_DIR}/../../tests/st_box_drawing_test.py
+					$<TARGET_FILE:syncterm_app> ${_encoding}
+					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
+				set_tests_properties(syncterm_box_drawing_${_encoding}
+					PROPERTIES TIMEOUT 90 LABELS "font")
+			endforeach()
+		endif()
 		add_test(NAME emoji_raster_generator COMMAND ${Python3_EXECUTABLE}
 			${CMAKE_CURRENT_SOURCE_DIR}/tests/test_emoji_raster.py)
 		set_tests_properties(emoji_raster_generator PROPERTIES SKIP_RETURN_CODE 77)

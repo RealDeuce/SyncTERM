@@ -9,6 +9,33 @@ SyncTERM uses the public-domain option; the upstream notice is retained in
 
 Exact source URLs and SHA-256 digests are recorded in `update_fonts.py`.
 
+`box_drawing.py` applies SyncTERM's CP437-compatible box drawing overrides
+before generating the 8x8 and 8x16 banks and before overlaying UNSCII on
+Unifont. All 40 box drawing characters present in CP437 borrow the exact
+rasters from built-in selector zero in `st_builtin_font_data.c`; that source
+and its byte glyphs are unchanged. Additional light, heavy, mixed-weight,
+dashed and rounded boxes use the same stroke positions. Light strokes are
+one pixel horizontally and two vertically; heavy strokes expand by one pixel
+on either side, to three horizontally and four vertically. Horizontal
+strokes use row 4 at 8x8 and row 7 at 8x16 (zero-based); vertical light
+strokes use columns 3 and 4. The original three diagonal glyphs are retained.
+The project-owned overrides retain the BSD-2-Clause copyright notice.
+The 8x14 fallback continues to use the built-in CP437 font.
+
+The `box_drawing_generator` and `fonts` CTests check independent reference
+rasters and exact agreement with CP437. With the control backend enabled,
+`syncterm_box_drawing_CP437` and `syncterm_box_drawing_UTF-8` check rendered
+cells and both pixel phases at 8x8 and 8x16, including reset. For a visual
+sample from the application, run:
+
+```
+python3 src/tests/st_box_drawing_test.py build/bin/syncterm UTF-8 \
+    --reports build/reports/test-control --preview-dir /tmp/box-drawing
+```
+
+This saves PPM captures from the bitmap control backend without opening a
+window or enabling physical audio.
+
 # SyncTERM Emoji
 
 `generated/st_emoji_data.c` contains **SyncTERM Emoji**, rasterized from the
