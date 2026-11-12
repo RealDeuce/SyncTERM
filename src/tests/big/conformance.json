@@ -39,21 +39,32 @@
         "21 selected CTest checks passed in 37.74s, including all listed tests, terminal/RIP/SkyPix and session regressions.",
         "syncterm_cga_mode: eight coherent CP437/UTF-8 scene captures across status visibility and reconnects, plus startup/return geometry; exact indexed blink planes, cells, cursor, palette, replies and composed RGB interior samples."
       ],
-      "commit": null
+      "commit": "571d429"
     },
     {
       "id": "graphics-parser",
-      "status": "not-started",
+      "status": "complete",
       "operations": [
-        "Reuse framing/typed parameters/raw ownership/source continuations; optional BIG incremental numeric collector with exact consumed/completed/suspended results.",
-        "Keep existing IGS behavior and separate RIP/SkyPix grammars."
+        "Optional incremental read_number callback after the supplied-value source declines; explicit accepted bytes, evaluated value/completion and suspension.",
+        "Empty-input polling permits owner-managed local deadlines; command suspension remains separate. Field entry runs once; source-supplied values bypass wire acquisition.",
+        "Opaque custom numeric bytes, chaining, dynamic raw arity, cancellation/EOF and invalid callback result recovery; unchanged IGS default numeric grammar."
       ],
-      "tests": [],
+      "tests": [
+        "graphics_protocol_parser",
+        "graphics_protocol_stream",
+        "graphics_protocol_source",
+        "graphics_protocol_number"
+      ],
       "references": [
-        "01-scope-evidence.adoc"
+        "05-numeric-reader.adoc",
+        "34-numeric-words-and-exact-y-scaling.adoc"
       ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "Independent opaque-reader test failed against the original parser before implementation.",
+        "Native CMake Release build, /usr/bin/cc, build/; no compiler/source diagnostics (existing generated-dependency clock-skew warnings).",
+        "All 69 selected CTest checks passed in 107.57s: four graphics_protocol tests, native cterm_igs tests, cterm_rip_parser and cterm_skypix."
+      ],
       "commit": null
     },
     {
@@ -974,5 +985,12 @@
       "verification": [],
       "commit": null
     }
-  ]
+  ],
+  "source_identity": {
+    "executable": "BIG 1.03 terminal",
+    "size": 248206,
+    "sha256": "edc9e2280d822d41361a11f622d8a70e16ada4e792a4944a77cc26af532f4a1c",
+    "manual_label": "1.02",
+    "reference": "72-target-profile-acceptance.adoc"
+  }
 }

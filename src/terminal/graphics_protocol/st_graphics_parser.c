@@ -350,6 +350,30 @@ raw_bytes(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink,
 	return status;
 }
 
+static int
+read_number(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink,
+    const uint8_t *bytes, size_t size, size_t *accepted, bool *complete)
+{
+	int value = 0;
+	*accepted = 0;
+	*complete = false;
+	int status = sink->read_number(sink->context, &p->view, &p->parameter,
+	    bytes, size, accepted, &value, complete);
+	if (*accepted > size) {
+		*accepted = 0;
+		return IO_ERROR_PROTOCOL;
+	}
+	if ((*complete && status != 0)
+	    || (status == 0 && size != 0 && *accepted == 0 && !*complete))
+		return IO_ERROR_PROTOCOL;
+	if (status == 0 && *complete) {
+		append_field(p);
+		p->arguments[p->view.count-1].has_value = true;
+		p->arguments[p->view.count-1].value = value;
+	}
+	return status;
+}
+
 int
 st_graphics_parser_end_bytes(st_graphics_parser_t *p,
     const struct st_graphics_parser_sink *sink)
@@ -495,8 +519,19 @@ st_graphics_parser_feed(st_graphics_parser_t *p,
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (;;) {
 		status = advance(p, sink);
-		if (status != 0 || *consumed == size)
+		if (status != 0)
 			break;
+		if (p->state == FIELD && p->field_active
+		    && p->parameter.kind == ST_GRAPHICS_NUMBER && sink->read_number != NULL) {
+			size_t accepted, available = size-*consumed;
+			bool complete;
+			status = read_number(p, sink, available == 0 ? NULL : bytes+*consumed,
+			    available, &accepted, &complete);
+			*consumed += accepted;
+			if (status != 0 || (!complete && *consumed == size)) break;
+			continue;
+		}
+		if (*consumed == size) break;
 		if (p->state == OUTSIDE && p->prefix_size == 0
 		    && bytes[*consumed] != p->config.dialect->attention[0]) {
 			size_t start = *consumed;

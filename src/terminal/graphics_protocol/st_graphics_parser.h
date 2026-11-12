@@ -107,7 +107,7 @@ struct st_graphics_parser_config {
 struct st_graphics_parser_sink {
 	void *context;
 	int (*text)(void *, const uint8_t *, size_t);
-	/* text/boundary/field/raw/next are synchronous; command and number may yield.
+	/* text/boundary/field/raw/next are synchronous; command/number/read_number may yield.
 	 * Callbacks must not reenter the parser. A boundary commits pending text
 	 * before acquiring a command. */
 	int (*boundary)(void *);
@@ -129,6 +129,20 @@ struct st_graphics_parser_sink {
 	 * Views are borrowed; callbacks must not reenter the parser. */
 	int (*number)(void *, const struct st_graphics_command_view *,
 	    const struct st_graphics_parameter *, int *value, bool *supplied);
+	/* Optional wire NUMBER reader, used only after number declines a field.
+	 * The owner initializes its reader in field(); it owns numeric grammar,
+	 * arithmetic and deadlines. Report accepted bytes even on error/yield.
+	 * On success, complete=true appends an already evaluated value; otherwise
+	 * consume input or wait for more bytes. IN_PROGRESS requires complete=false
+	 * and preserves this field; retry on feed(), never resume(). The callback
+	 * also receives empty input, allowing local deadlines/source waits to end
+	 * a field without fabricating wire bytes. Zero progress with nonempty input
+	 * and neither completion nor yield is a protocol error. Views are borrowed;
+	 * callbacks must not reenter. Cancel/EOF never call this reader to complete
+	 * a partial value. Keep this callback stable throughout a wire field. */
+	int (*read_number)(void *, const struct st_graphics_command_view *,
+	    const struct st_graphics_parameter *, const uint8_t *, size_t size,
+	    size_t *accepted, int *value, bool *complete);
 	/* Optional incremental BYTES consumer. Offset is relative to this field;
 	 * data remains opaque and is also retained for the final argument view.
 	 * Report accepted bytes even on error. A successful callback must make

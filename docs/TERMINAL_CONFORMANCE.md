@@ -1,5 +1,11 @@
 # Terminal conformance coverage
 
+The shared graphics parser supports an optional owner-defined numeric reader.
+`graphics_protocol_number` checks opaque byte ownership, every split, signed
+values, supplied-value bypass, input-free completion, waits, raw arity and
+error/EOF/cancel recovery. The existing IGS reader remains the default;
+BIG-specific numeric semantics are still pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

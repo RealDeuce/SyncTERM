@@ -3,12 +3,16 @@
 
 == Goal and current state
 
-Implement complete, fully enabled BIG1.03 terminal graphics in SyncTERM,
-using ~/IGS/docs/big/ as the authoritative reference. The implementation
-inventory has36 top-level commands including X dispatch and nine X selectors:
+Implement complete, fully enabled BIG 1.03 terminal graphics in SyncTERM,
+using ~/IGS/docs/big/ as the authoritative reference. The BIG 1.03 executable
+is 248206 bytes,
+SHA256 `edc9e2280d822d41361a11f622d8a70e16ada4e792a4944a77cc26af532f4a1c`;
+the bundled manual labels itself 1.02. BF 1.02 is a distinct excluded target.
+The implementation
+inventory has 36 top-level commands including X dispatch and nine X selectors:
 45 entries. BF file-viewer behavior, the original DOS client UI, demo
-restrictions and CONDOR implementation are excluded. The reference's64
-accepted research requirements are not45 completed SyncTERM commands.
+restrictions and CONDOR implementation are excluded. The reference's 64
+accepted research requirements are not 45 completed SyncTERM commands.
 
 The unlimited goal is active. Its CGA 80x25 prerequisite is complete; BIG parsing,
 rendering and sound are not yet available. The implementation ledger is
@@ -23,61 +27,61 @@ from an IGS command with the same letter, accepted syntax or a registered
 callback. Establish X dispatch early; finish the parent entry only after
 X0..X8 are implemented and accepted.
 
-=== First step: CGA80x25
+=== First step: CGA 80x25
 
-Add normal PC CGA80x25 (INI CGA80x25):80x25 cells,8x8 font bank,640x200
-raster,4:3 display aspect,existing PC palette/blink,default attribute07 and
-cursor scanlines6..7. Preserve ordinary PC font selection and existing
-80x25 behavior. The original IBM5160 BIOS sets cursor mode0607; this mode
+Add normal PC CGA 80x25 (INI `CGA80x25`): 80x25 cells, 8x8 font bank, 640x200
+raster, 4:3 display aspect, existing PC palette/blink, default attribute 07 and
+cursor scanlines 6..7. Preserve ordinary PC font selection and existing
+80x25 behavior. The original IBM 5160 BIOS sets cursor mode 0607; this mode
 does not require emulating the CGA device or changing existing font data.
 
-Append ST_SCREEN_MODE_CGA_80X25 as stable ID32 and expose
+Append ST_SCREEN_MODE_CGA_80X25 as stable ID 32 and expose
 ScreenMode.cga80x25. Existing mode IDs remain unchanged. Present CGA
 immediately before EGA in startup/settings/session/BBS and canvas choices.
 Keep Menu.screenModes as an ID-indexed name catalog; add ordered
-Menu.screenModeChoices [value,label] rows. Canvas choices retain actual
+Menu.screenModeChoices [value, label] rows. Canvas choices retain actual
 mode values, independent of row position. Verify persistence and native
 geometry as well as menu presentation.
 
 === Graphics mode, storage and timing
 
-Add BIG(1.03) as graphics mode6 and GraphicsMode.big103. Default to
-VGA-capable behavior,CP437,640x350 and the supplied IBM VGA console-font/
-palette profile. R1 is640x200/80x25/8x8; R2 is640x350/80x25/8x14;
-R3 is640x480/80x30/8x16. BGI graphical text has separate font metrics.
+Add BIG(1.03) as graphics mode 6 and GraphicsMode.big103. Default to
+VGA-capable behavior, CP437, 640x350 and the supplied IBM VGA console-font/
+palette profile. R1 is 640x200/80x25/8x8; R2 is 640x350/80x25/8x14;
+R3 is 640x480/80x30/8x16. BGI graphical text has separate font metrics.
 Resolution changes use existing window-size preservation behavior.
 
 Use the existing indexed bitmap framebuffer and indexed off-screen pages/
-images. Preserve capacity,padding,stride and separate active/visual/memory
+images. Preserve capacity, padding, stride and separate active/visual/memory
 page ownership. Convert native image formats at import/export/layout
-boundaries,not each blit. Add no persistent planar framebuffer. Follow BIG's
+boundaries, not each blit. Add no persistent planar framebuffer. Follow BIG's
 interpreter-local page/image variables and retained application state rather
 than importing IGS's different lifetimes.
 
 Translate protocol waits and music scheduling into existing local monotonic
-deadlines or audio sample timing. Add no foreign system-clock domains,BIOS
+deadlines or audio sample timing. Add no foreign system-clock domains, BIOS
 interrupt execution or hardware throughput delays. Sound oscillator/envelope
 state advances through local sample timing. Muted operation must still make
 logical progress.
 
-Preserve normal BIG byte consumption,WORD results,pixels,palettes,fonts,
-state,replies and ordinary quirks. Use bounded resources and checked host
-arithmetic; document safe corrections to memory corruption,uninitialized
+Preserve normal BIG byte consumption, WORD results, pixels, palettes, fonts,
+state, replies and ordinary quirks. Use bounded resources and checked host
+arithmetic; document safe corrections to memory corruption, uninitialized
 state and unsafe failures. Defined protocol WORD reductions use explicit
 arithmetic rather than host undefined behavior.
 
 === Original numeric rounding
 
-Retain the original chapter34 software/default64-bit-significand result.
-In particular g3 at resolution3 maps Y5 to11,not12. The exact finite
-adapter is g2:truncate_toward_zero(7*n/4); g3:zero for n0,otherwise
-sign(n)*floor((12*abs(n)-1)/5),followed by the defined low16 result.
+Retain the original chapter 34 software/default 64-bit-significand result.
+In particular g3 at resolution 3 maps Y 5 to 11, not 12. The exact finite
+adapter is g2: `truncate_toward_zero(7*n/4)`; g3: zero when `n == 0`,
+otherwise `sign(n)*floor((12*abs(n)-1)/5)`, followed by the defined low 16-bit result.
 Use a wide magnitude for -32768. This preserves original numeric results
 without an x87 implementation or a foreign floating environment.
 
-BIG owns its four-slot destructive WORD reduction,continuation and special
-byte consumption,substitution and timeout policy. Do not reuse IGS's
-four-digit rejection,CR/LF skip,uppercase R or array-lookup grammar. Supplied
+BIG owns its four-slot destructive WORD reduction, continuation and special
+byte consumption, substitution and timeout policy. Do not reuse IGS's
+four-digit rejection, CR/LF skip, uppercase R or array-lookup grammar. Supplied
 loop values bypass wire acquisition and scaling. Dynamic arity must not
 repeat numeric side effects or random draws.
 
@@ -86,15 +90,15 @@ repeat numeric side effects or random draws.
 BIG I# and chaining enter the same pre-ANSI insertion point as IGS and RIP.
 Ordinary bytes continue to base emulation; payloads remain opaque. Extend
 the reusable graphics parser with an optional incremental numeric-reader
-interface reporting explicit consumption,completion and suspension. Keep
-BIG arithmetic,deadlines and source policy outside the generic grammar.
+interface reporting explicit consumption, completion and suspension. Keep
+BIG arithmetic, deadlines and source policy outside the generic grammar.
 Preserve IGS behavior and separate RIP/SkyPix grammars.
 
-Revalidate chapter83's reuse findings against current source. Extract narrow
+Revalidate chapter 83's reuse findings against current source. Extract narrow
 shared BGI kernels and matching tables actually used by RIP and BIG. Retain
-BIG-specific clipping adapters,stroke schedules,flood/curve algorithms,
-state,pages and image semantics where whole native entries differ. Use
-original BIG bitmap/font data and four V100 CHR assets,not newer RIP fonts.
+BIG-specific clipping adapters, stroke schedules, flood/curve algorithms,
+state, pages and image semantics where whole native entries differ. Use
+original BIG bitmap/font data and four V100 CHR assets, not newer RIP fonts.
 Retain imported provenance and notices. Do not rewrite a whole raster
 library or import unused APIs to obtain a matching lower kernel.
 
@@ -111,11 +115,11 @@ event also account for coalesced motion.
 A valid left press arms selection; left-button release invokes the same
 click/confirm action at the current software pointer position. Preserve
 keyboard confirm/cancel behavior and emit at most one selection. UI-handled,
-disabled,status/outside presses must not arm a later click; wheel-up remains
-local scrollback. Reset,EOF and cancellation clear armed/pending selection
+disabled, status/outside presses must not arm a later click; wheel-up remains
+local scrollback. Reset, EOF and cancellation clear armed/pending selection
 so a later release cannot affect another acquisition. Use existing session
 event ownership and pointer save-under cleanup. Keep BIG's pointer shapes,
-zones,hit testing and deferred replies distinct from IGS's wire semantics.
+zones, hit testing and deferred replies distinct from IGS's wire semantics.
 
 X6 controls keyboard steps and never quantizes direct mouse coordinates.
 
@@ -123,49 +127,49 @@ X6 controls keyboard steps and never quantizes direct mouse coordinates.
 
 Implement PC-speaker effects/notes and AdLib register-stream playback through
 the existing audio mixer and local sample timing. Use a bounded C17
-YM3812-only adaptation of the pinned BSD ymfm algorithms,retaining notices
-and only the required OPL2 functionality. BIG N is AdLib playback,not MIDI
-translation. Test synthesis,state,muted progression,cancellation,reset and
+YM3812-only adaptation of the pinned BSD ymfm algorithms, retaining notices
+and only the required OPL2 functionality. BIG N is AdLib playback, not MIDI
+translation. Test synthesis, state, muted progression, cancellation, reset and
 teardown. Bit-identical reference PCM and manual listening are not gates;
 provide a manual audio checklist when implementation is complete.
 
 == Work and verification discipline
 
-Maintain this document,link:BIG_CONFORMANCE.md[BIG conformance],the command
-ledger and TERMINAL_CONFORMANCE.md with references/identities,operations,
-dependencies,tests,deviations,verification and reachable completion commits.
-The ledger records foundations separately from the45 command entries.
+Maintain this document, link:BIG_CONFORMANCE.md[BIG conformance], the command
+ledger and TERMINAL_CONFORMANCE.md with references/identities, operations,
+dependencies, tests, deviations, verification and reachable completion commits.
+The ledger records foundations separately from the 45 command entries.
 Introduce dependencies when needed; do not commit incomplete checkpoints.
 
 Add independent expected results before subtle behavior changes. Cover
-native parser partitions/bytewise input,overlong/special/raw data,WORD-domain
-rounding,boundaries,partial effects,timeouts/errors,cancellation and replay.
+native parser partitions/bytewise input, overlong/special/raw data, WORD-domain
+rounding, boundaries, partial effects, timeouts/errors, cancellation and replay.
 Use coherent control-bitmap application captures for all three resolutions,
-CP437/UTF8,status choices,pixels/fonts/palettes/cells/replies/state,graphics/
-console interactions,pages,input and reset/EOF/disconnect/reconnect. Include
-mixed keyboard/mouse movement,stationary-button observations,drag/release,
+CP437/UTF8, status choices, pixels/fonts/palettes/cells/replies/state, graphics/
+console interactions, pages, input and reset/EOF/disconnect/reconnect. Include
+mixed keyboard/mouse movement, stationary-button observations, drag/release,
 duplicate confirm prevention and UI/disabled/outside/reset suppression.
 
-Expected data must be independently source-derived,never generated from the
+Expected data must be independently source-derived, never generated from the
 emulator under test. Check in necessary fixtures with provenance so ordinary
-tests need no external reference tree,ROM or DOS executable. Disable physical
+tests need no external reference tree, ROM or DOS executable. Disable physical
 audio/MIDI in headless fixtures. Clear inherited display/session variables
 and use private Xvfb for X11 tests.
 
-Follow AGENTS.md:C17,target-based standalone CMake,one native configuration,
+Follow AGENTS.md:C17, target-based standalone CMake, one native configuration,
 no Wine/compiler matrix or legacy-tree edits. Preserve parallel SkyPix work;
-stage reviewed owned changes,commit verified steps and never push.
+stage reviewed owned changes, commit verified steps and never push.
 
-Finish only when all45 entries and required foundations are implemented
-without stubs,every active ledger test passes,deviations/checklist are
-supplied,and final BIG/IGS/ANSI/VT52/RIP/SkyPix/profile/Wren/audio/graphics-
+Finish only when all 45 entries and required foundations are implemented
+without stubs, every active ledger test passes, deviations/checklist are
+supplied, and final BIG/IGS/ANSI/VT52/RIP/SkyPix/profile/Wren/audio/graphics-
 lifecycle regressions pass.
 
 == Verification records
 
 === CGA mode
 
-The initial native contract failed because stable mode32 did not exist.
+The initial native contract failed because stable mode 32 did not exist.
 The native Release build (`build/`, `/usr/bin/cc`) passes without compiler
 diagnostics. All 21 selected CTest checks passed in 37.74 seconds, including
 mode descriptors, startup/session geometry, settings/BBS persistence, Wren
@@ -175,4 +179,26 @@ catalogs and terminal/RIP/SkyPix regressions.
 across status visibility and reconnects, plus startup/return geometry. It
 checks exact indexed blink planes, cells, cursor, palette, replies and
 composed RGB samples inside flat regions (fractional scaling filters edges).
-No BIG command completion is claimed by this prerequisite.
+CGA completion commit: `571d429`. No BIG command completion is claimed by
+this prerequisite.
+
+=== Shared numeric-reader boundary
+
+The optional `read_number` sink runs after the existing supplied-number
+source declines a field. It reports accepted bytes, an evaluated integer
+and completion, or suspends acquisition without consuming the unread suffix.
+The parser invokes field entry once and never retries an accepted command.
+Input-free polling supports reader-owned local deadlines; cancel/EOF cannot
+fabricate a value. Absent this callback, the existing IGS grammar is retained.
+
+`graphics_protocol_number` uses an independent opaque three-byte reader,
+not a substitute BIG implementation. It covers all input splits and bytewise
+feeds, evaluated signed values, supplied-value bypass, chain boundaries,
+dynamic raw arity, no-input completion, field versus command waits, invalid
+callback results, exact error consumption and cancel/EOF recovery. The test
+failed against the original parser before the implementation was added.
+The native Release build passed without compiler diagnostics; the build tool
+emitted existing generated-dependency clock-skew warnings. All 69 selected
+CTest checks passed in 107.57 seconds: four shared-parser tests, the native
+IGS tests, RIP parser and SkyPix. BIG-specific numeric semantics remain
+pending; this completes only the shared reader boundary.
