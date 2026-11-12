@@ -4276,6 +4276,8 @@ commands and final acceptance stay pending; the full goal remains active.
 
 == ? version/cursor/pixel/resolution queries (complete)
 
+Implementation commit: `18f97f3`.
+
 Reference: chapter26 serial $003634..$003bae and the original US TOS AES
 forms/bindings in chapters73/74. Shared numeric descriptions own one unscaled
 selector and a second unscaled word only for1/2. Cache accepted interactive

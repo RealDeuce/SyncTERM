@@ -2735,3 +2735,5 @@ After correcting the native fixture to cover all16 horizontal alignments,
 the rebuilt query test passed in1.14s with768 form cases. The ledger, active
 tests, source hashes and original form inputs were validated. The ledger is
 59/63 complete; parent X, remaining commands and final acceptance are pending.
+
+Completion commit for `?`: 18f97f3. The goal remains active at59/63.

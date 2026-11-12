@@ -3055,7 +3055,7 @@
         "Corrected native form fixture interior X positions to cover all16 distinct horizontal alignments; focused cterm_igs_query passed in1.14s after rebuilding, covering768 independent form/depth/status/alignment/edge cases. Claimed-release coordinate regression was demonstrated failing before its fix.",
         "Validated63 unique ordered command IDs,59 completed entries, registered tests, dependencies/references, pinned source identities and all8 original mouse form inputs. Ordinary native/application tests require no external reference tree; physical audio/MIDI are disabled. Parent X, remaining commands and final acceptance remain unfinished."
       ],
-      "commit": null
+      "commit": "18f97f3"
     },
     {
       "id": "<",
