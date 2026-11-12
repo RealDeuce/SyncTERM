@@ -54,6 +54,7 @@ words(void)
 				t->negative = reverse != 0; t->attr = reverse ? 0x4d : 0xd4;
 				t->fg_color = 768+((reverse ? 13u : 4u) & mask); t->bg_color = 768+((reverse ? 4u : 13u) & mask);
 				igs->math[0] = (int16_t)selector; igs->math[1] = (int16_t)color;
+				uint32_t final = literal_words(igs, (int[]){selector, color}, 2);
 				feed(&f,"G#c 0],1]:");
 				uint16_t fg = 0x1234, bg = 0xabcd, raw = (uint16_t)((uint8_t)color-32);
 				if (selector == 1) fg = raw;
@@ -61,7 +62,7 @@ words(void)
 				CHECK(t->vt52_foreground == fg && t->vt52_background == bg);
 				CHECK(t->fg_color == 768+((reverse ? bg : fg) & mask) && t->bg_color == 768+((reverse ? fg : bg) & mask));
 				CHECK(t->negative == (reverse != 0) && (t->accumulator != NULL) == (selector < 0));
-				CHECK(igs->math[0] == selector && igs->math[1] == color && igs->random_seed == 1 && igs->pattern_seed == 0);
+				CHECK(igs->math[0] == selector && igs->math[1] == color && igs->random_seed == final && igs->pattern_seed == 0);
 				CHECK(igs->input_deadline == 0 && igs->text_deadline == 0 && t->xpos == 1 && t->ypos == 1);
 			}
 		CHECK(memcmp(&before,&igs->attributes,sizeof(before)) == 0 && memcmp(palette,igs->palette,sizeof(palette)) == 0);

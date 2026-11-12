@@ -7,6 +7,7 @@ arithmetic(struct fixture *f, int operation, int a, int b)
 {
 	struct cterm_igs *igs = f->terminal->igs_engine;
 	igs->math[0] = (int16_t)a; igs->math[1] = (int16_t)b;
+	uint32_t final = literal_words(igs, (int[]){a, b}, operation == 0 ? 1 : 2);
 	int64_t expected = a;
 	switch (operation) {
 	case 1: expected += b; break;
@@ -23,6 +24,7 @@ arithmetic(struct fixture *f, int operation, int a, int b)
 	(void)snprintf(wire, sizeof(wire), operation == 0 ? "G#X 13,0,0],127:"
 	    : "G#X 13,%d,0],1],127:", operation);
 	feed(f, wire);
+	CHECK(igs->random_seed == final);
 	CHECK(igs->math[127] == expected && igs->math[0] == a && igs->math[1] == b);
 }
 
@@ -66,10 +68,12 @@ bounds_and_clear(void)
 	struct cterm_igs *igs = f.terminal->igs_engine;
 	for (int index = INT16_MIN; index <= INT16_MAX; ++index) {
 		igs->math[0] = (int16_t)index;
+		uint32_t final = literal_words(igs, &index, 1);
 		const char wire[] = "G#X 13,0,37,0]:"; size_t used;
 		int status = st_cterm_write(f.terminal, wire, sizeof(wire)-1, &used);
 		CHECK(status == 0);
 		CHECK(used == sizeof(wire)-1);
+		CHECK(igs->random_seed == final);
 		if (index >= 0 && index < 128) CHECK(igs->math[index] == 37);
 	}
 	static const int ranges[][2] = {{0,127},{3,7},{7,3},{127,127},{128,127},{32767,32767},

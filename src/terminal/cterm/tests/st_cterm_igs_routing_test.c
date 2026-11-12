@@ -33,7 +33,9 @@ matrix(void)
 			}
 			if (resolution == 0 && !status)
 				for (int word = INT16_MIN; word <= INT16_MAX; ++word) {
+					uint32_t final = literal_words(igs, &word, 1);
 					igs->math[0] = (int16_t)word; feed(&f,"G#X 14,0]:");
+					CHECK(igs->random_seed == final);
 					CHECK(igs->memory_route == (word > 5 ? 0 : word));
 				}
 			CHECK(memcmp(&attributes,&igs->attributes,sizeof(attributes)) == 0);

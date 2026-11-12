@@ -46,7 +46,9 @@ group_case(struct fixture *f, int group, const int colors[4])
 	igs->math[0] = (int16_t)group;
 	for (unsigned i = 0; i < 4; ++i)
 		igs->math[i + 1] = (int16_t)colors[i];
+	uint32_t final = literal_words(igs, (int[]){group, colors[0], colors[1], colors[2], colors[3]}, 5);
 	feed(f, empty ? "G#X 12,0]:" : "G#X 12,0],1],2],3],4]:");
+	CHECK(igs->random_seed == final);
 	CHECK(memcmp(raw, igs->raw_palette, sizeof(raw)) == 0);
 	CHECK(memcmp(realized, igs->palette, sizeof(realized)) == 0);
 	CHECK(memcmp(saved, igs->saved_palette, sizeof(saved)) == 0);

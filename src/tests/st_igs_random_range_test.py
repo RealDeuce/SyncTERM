@@ -22,11 +22,12 @@ def run(executable, reports, resolution, encoding, status):
                 with (root / "wire.bin").open("ab") as log: log.write(wire)
                 peer.sendall(wire)
 
-            def inspect(marker, bounds):
-                frame = client.wait_for(lambda f: f.application.get("cterm.igs_draw_x") == marker)
+            def inspect(marker, bounds, seed=1, y=777):
+                frame = client.wait_for(lambda f: f.application.get("cterm.igs_draw_x") == marker
+                                        and f.application.get("cterm.igs_draw_y") == y)
                 assert tuple(frame.application[f"cterm.igs_{name}"] for name in
                              ("r_lower", "r_upper", "R_lower", "R_upper")) == bounds
-                assert frame.application["cterm.igs_random_seed"] == 1
+                assert frame.application["cterm.igs_random_seed"] == seed
                 check(frame, resolution, status, 4, "A", False, False, False)
 
             def disconnect(peer):
@@ -56,6 +57,26 @@ def run(executable, reports, resolution, encoding, status):
                 client.wait_for(lambda f: f.application.get("connected") == 1); client.resize(1280, 960)
                 send(peer, setup + b"G#X 10,2000,777:")
                 inspect(2000, (0, 199, 0, 199))
+                # References 11/19/124: construct encoded words through normal
+                # X13 arithmetic. All operands used to construct them are
+                # positive until the final subtract writes its destination.
+                words = (b"G#X>13,3,6553,5,0:X>13,2,0,0],0:"
+                         b"X>13,3,8191,4,1:X>13,2,0,1],1:"
+                         b"X>13,3,8191,4,2:X>13,2,0,2],2:"
+                         b"X>13,3,6553,5,3:X 13,2,0,3],3:")
+                send(peer, words + b"G#X>2,0,0,255:X>2,10,11:g>2:X 3],0],1]:")
+                # Independent Random recurrence from seed 1: first [10,11]
+                # candidate is 10 on draw146; next is 10 after13 draws;
+                # R then accepts byte41. Previewing X must consume no draws.
+                inspect(10, (10, 11, 0, 255), 0x98ec2961, 41)
+                send(peer, b"G#& 0,0,1,0,X,3,10,0],1]:")
+                inspect(11, (10, 11, 0, 255), 0x8792c229, 194)
+                send(peer, b"G#X 10,0],1]:")
+                inspect(10, (10, 11, 0, 255), 0xd8ea7fd2, 127)
+                peer.settimeout(2)
+                flow = b""
+                while len(flow) < 2: flow += peer.recv(2-len(flow))
+                assert flow == b"\x13\x11", flow
                 disconnect(peer)
 
 

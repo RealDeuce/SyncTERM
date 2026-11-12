@@ -640,6 +640,37 @@ scale_number(const struct cterm_igs *igs, enum st_graphics_axis axis, unsigned v
 }
 
 int
+cterm_igs_random_tail(struct cterm_igs *igs, int *result)
+{
+	int value = *result;
+	/* The reader tests r, then R, once each after all other evaluation.
+	 * A generated R sentinel reaches the second test; r is never revisited.
+	 * Stored-operand acquisition retains both encodings without drawing. */
+	for (unsigned which = 0; which < 2 && !igs->loop.loading; ++which) {
+		if (value != -32765 + (int)which)
+			continue;
+		int lower = igs->random_range[which][0], upper = igs->random_range[which][1];
+		if (lower > upper || upper < 0 || lower > 32767 || upper > 32767)
+			return IO_ERROR_OUT_OF_RANGE;
+		bool found = false;
+		/* Low 16/24 seed bits have full periods 2^16/2^24. Checking one
+		 * period cannot falsely reject a valid byte/word interval. */
+		unsigned limit = upper < 256 ? 65536u : 16777216u;
+		for (unsigned tries = 0; tries < limit; ++tries) {
+			unsigned raw = cterm_igs_random(igs);
+			unsigned word = raw & 0xffff;
+			value = upper < 256 ? (int)(raw & 255)
+			    : word >= 32768 ? (int)word - 65536 : (int)word;
+			if (value >= lower && value <= upper) { found = true; break; }
+		}
+		if (!found)
+			return IO_ERROR_OUT_OF_RANGE;
+	}
+	*result = value;
+	return 0;
+}
+
+int
 cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argument *argument, int *result)
 {
 	if (igs == NULL || argument == NULL || result == NULL
@@ -670,27 +701,9 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 		if (!igs->loop.initializing) return IO_ERROR_PROTOCOL;
 		value=operand->source==ST_GRAPHICS_LOOP_X?-32767:-32766;break;
 	case ST_GRAPHICS_RANDOM_R:
-	case ST_GRAPHICS_RANDOM_R2: {
-		if (igs->loop.loading) {value=operand->source==ST_GRAPHICS_RANDOM_R?-32765:-32764;break;}
-		unsigned which = operand->source == ST_GRAPHICS_RANDOM_R ? 0 : 1;
-		int lower = igs->random_range[which][0], upper = igs->random_range[which][1];
-		if (lower > upper || upper < 0 || lower > 32767 || upper > 32767)
-			return IO_ERROR_OUT_OF_RANGE;
-		bool found = false;
-		/* Low 16/24 seed bits have full periods 2^16/2^24. Checking one
-		 * period cannot falsely reject a valid byte/word interval. */
-		unsigned limit = upper < 256 ? 65536u : 16777216u;
-		for (unsigned tries = 0; tries < limit; ++tries) {
-			unsigned raw = cterm_igs_random(igs);
-			unsigned word = raw & 0xffff;
-			value = upper < 256 ? (int)(raw & 255)
-			    : word >= 32768 ? (int)word - 65536 : (int)word;
-			if (value >= lower && value <= upper) { found = true; break; }
-		}
-		if (!found)
-			return IO_ERROR_OUT_OF_RANGE;
+	case ST_GRAPHICS_RANDOM_R2:
+		value = operand->source == ST_GRAPHICS_RANDOM_R ? -32765 : -32764;
 		break;
-	}
 	default:
 		return IO_ERROR_PROTOCOL;
 	}
@@ -701,6 +714,9 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 		else return IO_ERROR_PROTOCOL;
 		if (value<INT16_MIN || value>INT16_MAX) return IO_ERROR_OUT_OF_RANGE;
 	}
+	int status = cterm_igs_random_tail(igs, &value);
+	if (status != 0)
+		return status;
 	*result = value;
 	return 0;
 }

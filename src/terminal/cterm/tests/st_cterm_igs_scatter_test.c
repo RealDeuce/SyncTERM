@@ -156,10 +156,11 @@ cycles_and_limits(void)
 	struct cterm_igs *igs = f.terminal->igs_engine;
 	igs->attributes.marker_pen = 3;
 	for (int word = INT16_MIN; word <= INT16_MAX; ++word) {
+		uint32_t final = literal_words(igs, &word, 1);
 		igs->math[0] = (int16_t)word;
 		feed(&f, "G#X 0,0],0,0,0,0:");
 		CHECK(igs->marker_cycle == word && igs->marker_cycle_restart == word);
-		CHECK(igs->attributes.marker_pen == 3 && igs->random_seed == 1);
+		CHECK(igs->attributes.marker_pen == 3 && igs->random_seed == final);
 	}
 	feed(&f, "G#X 0,40,40,255,255,2:");
 	CHECK(igs->marker_cycle == -32767 && igs->marker_cycle_restart == INT16_MAX);

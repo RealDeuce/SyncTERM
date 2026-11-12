@@ -40,7 +40,9 @@ raw_case(struct fixture *f, int index, int color)
 	}
 	igs->math[0] = (int16_t)index;
 	igs->math[1] = (int16_t)color;
+	uint32_t final = literal_words(igs, (int[]){index, color}, 2);
 	feed(f, "G#X 1,0],1]:");
+	CHECK(igs->random_seed == final);
 	CHECK(memcmp(raw, igs->raw_palette, sizeof(raw)) == 0);
 	CHECK(memcmp(realized, igs->palette, sizeof(realized)) == 0);
 	CHECK(memcmp(saved, igs->saved_palette, sizeof(saved)) == 0);

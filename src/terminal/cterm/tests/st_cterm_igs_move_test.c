@@ -17,6 +17,7 @@ normal_case(struct fixture *f, int selector, int count, unsigned x, unsigned y)
 	cterm_set_position(t,(int)x+1,(int)y+1);
 	CHECK(t->xpos == (int)x+1 && t->ypos == (int)y+1);
 	igs->math[0] = (int16_t)selector; igs->math[1] = (int16_t)count;
+	uint32_t final = literal_words(igs, (int[]){selector, count}, 2);
 	feed(f,"G#m 0],1]:");
 	/* Algebraic normal-state oracle; no production console dispatch calls. */
 	unsigned n = count > 0 ? (unsigned)count : 1;
@@ -31,7 +32,7 @@ normal_case(struct fixture *f, int selector, int count, unsigned x, unsigned y)
 		    igs->resolution,t->width,t->height,igs->scaling_mode,selector,count,t->xpos,t->ypos,x+1,y+1);
 	CHECK(t->xpos == (int)x+1 && t->ypos == (int)y+1);
 	CHECK((t->accumulator != NULL) == (kind < 0 && (n & 1) != 0));
-	CHECK(igs->math[0] == selector && igs->math[1] == count && igs->random_seed == 1 && igs->pattern_seed == 0);
+	CHECK(igs->math[0] == selector && igs->math[1] == count && igs->random_seed == final && igs->pattern_seed == 0);
 	CHECK(igs->input_deadline == 0 && igs->text_deadline == 0 && igs->wait_deadline == 0);
 }
 

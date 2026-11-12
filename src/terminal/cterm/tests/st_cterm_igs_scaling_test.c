@@ -3,6 +3,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_igs.h"
+#include "cterm_igs_loop.h"
 #include "st_cterm.h"
 #include "st_graphics_parser.h"
 #include "io_error.h"
@@ -230,11 +231,135 @@ partitions_and_recovery(void)
 		}
 }
 
+static void
+random_tail(void)
+{
+	/* Reference 11: two ordered tests after lookup and relative encoding.
+	 * Seeds invert Random's odd multiplier; the next states are 0x800300
+	 * and 0x800400. The following byte candidates are 135 and 180. */
+	static const struct {
+		int encoded; uint32_t seed; int lower, upper, expected; uint32_t final;
+	} cases[] = {
+		{-32765, UINT32_C(0x62683a5b), INT16_MIN, INT16_MAX, 180, UINT32_C(0x1a18b401)},
+		{-32765, UINT32_C(0xe40e955b), INT16_MIN, INT16_MAX, -32765, UINT32_C(0x00800300)},
+		{-32764, UINT32_C(0xe40e955b), INT16_MIN, INT16_MAX, -32765, UINT32_C(0x00800300)},
+		{-32764, UINT32_C(0x62683a5b), INT16_MIN, INT16_MAX, -32764, UINT32_C(0x00800400)},
+	};
+	for (unsigned resolution = 0; resolution < 3; ++resolution) {
+		struct fixture f; create(&f, resolution);
+		struct cterm_igs *igs = f.terminal->igs_engine;
+		feed(&f, "G#g 2:");
+		for (size_t i = 0; i < sizeof(cases)/sizeof(*cases); ++i)
+			for (unsigned source = 0; source < 4; ++source) {
+				igs->math[0] = (int16_t)cases[i].encoded;
+				igs->random_seed = cases[i].seed;
+				unsigned which = cases[i].encoded == -32765 ? 0 : 1;
+				igs->random_range[0][0] = igs->random_range[1][0] = 0;
+				igs->random_range[0][1] = igs->random_range[1][1] = 255;
+				igs->random_range[which][0] = cases[i].lower;
+				igs->random_range[which][1] = cases[i].upper;
+				if (source < 2) {
+					CHECK(value(igs, 0, ST_GRAPHICS_Y, source == 0 ? ST_GRAPHICS_ARRAY
+					    : which == 0 ? ST_GRAPHICS_RANDOM_R : ST_GRAPHICS_RANDOM_R2) == cases[i].expected);
+				} else {
+					igs->loop = (struct cterm_igs_loop){.count = 1, .to = 1, .step = 1,
+					    .operands = {(int16_t)cases[i].encoded}, .no_parameters = true};
+					if (source == 3) {
+						igs->loop.current = igs->loop.to = cases[i].encoded;
+						igs->loop.operands[0] = -32767;
+						igs->loop.no_parameters = false;
+					}
+					igs->loop_mode = 1;
+					int result = 777;
+					CHECK(cterm_igs_loop_value(igs, &result) == 0 && result == cases[i].expected);
+					igs->loop_mode = 0;
+				}
+				CHECK(igs->random_seed == cases[i].final);
+			}
+		igs->loop.initializing = igs->loop.loading = true;
+		igs->random_seed = 1;
+		for (unsigned r = 0; r < 2; ++r) {
+			igs->math[0] = (int16_t)(-32765 + (int)r);
+			CHECK(value(igs, 0, ST_GRAPHICS_Y, ST_GRAPHICS_ARRAY) == igs->math[0]);
+			CHECK(value(igs, 0, ST_GRAPHICS_Y, r == 0 ? ST_GRAPHICS_RANDOM_R : ST_GRAPHICS_RANDOM_R2) == igs->math[0]);
+		}
+		igs->loop.loading = false;
+		struct st_graphics_argument a = {.kind = ST_GRAPHICS_NUMBER, .axis = ST_GRAPHICS_Y,
+		    .operand = {.source = ST_GRAPHICS_RANDOM_R, .operation = ST_GRAPHICS_STEP_PLUS}};
+		int result = 777;
+		CHECK(cterm_igs_argument_value(igs, &a, &result) == 0 && result == 32765 && igs->random_seed == 1);
+		/* Encoding an array value can itself create the random sentinel. */
+		a.operand.source = ST_GRAPHICS_ARRAY;
+		igs->random_range[0][0] = igs->random_range[1][0] = 0;
+		igs->random_range[0][1] = igs->random_range[1][1] = 255;
+		const enum st_graphics_operand_operation operations[] = {
+			ST_GRAPHICS_STEP_PLUS, ST_GRAPHICS_STEP_MINUS, ST_GRAPHICS_MINUS_STEP};
+		for (unsigned op = 0; op < 3; ++op) {
+			igs->math[0] = (int16_t)(op == 0 ? 32765 : op == 1 ? 22764 : 12765);
+			a.operand.operation = operations[op]; igs->random_seed = 1;
+			CHECK(cterm_igs_argument_value(igs, &a, &result) == 0 && result == 230 && igs->random_seed == UINT32_C(0xbb40e62e));
+		}
+		igs->loop.initializing = false;
+		a.has_value = true; a.value = -32765;
+		CHECK(cterm_igs_argument_value(igs, &a, &result) == 0 && result == -32765 && igs->random_seed == UINT32_C(0xbb40e62e));
+		a.has_value = false; a.operand.operation = ST_GRAPHICS_VALUE;
+		igs->math[0] = -32765;
+		igs->random_range[0][0] = 2; igs->random_range[0][1] = 1;
+		result = 777;
+		CHECK(cterm_igs_argument_value(igs, &a, &result) == IO_ERROR_OUT_OF_RANGE && result == 777);
+		CHECK(igs->random_seed == UINT32_C(0xbb40e62e));
+		igs->random_seed = UINT32_C(0x62683a5b);
+		igs->random_range[0][0] = INT16_MIN; igs->random_range[0][1] = INT16_MAX;
+		igs->random_range[1][0] = 2; igs->random_range[1][1] = 1;
+		CHECK(cterm_igs_argument_value(igs, &a, &result) == IO_ERROR_OUT_OF_RANGE && result == 777);
+		CHECK(igs->random_seed == UINT32_C(0x00800400));
+		destroy(&f);
+	}
+}
+
+static void
+random_tail_partitions(void)
+{
+	const char *wires[] = {"AG#g>2:X>3],0],1]:M 2:B", "AG#&>0,0,1,0,X,3,10,0],1]:M 2:B"};
+	for (unsigned resolution = 0; resolution < 3; ++resolution) {
+		struct fixture f; create(&f, resolution);
+		struct cterm_igs *igs = f.terminal->igs_engine;
+		for (unsigned which = 0; which < 2; ++which) {
+			size_t size = strlen(wires[which]);
+			for (size_t split = 0; split <= size + 1; ++split) {
+				CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+				igs->math[0] = igs->math[3] = -32765;
+				igs->math[1] = igs->math[2] = -32764;
+				igs->random_seed = 69;
+				igs->random_range[0][1] = igs->random_range[1][1] = 255;
+				size_t used;
+				if (split > size) {
+					for (size_t i = 0; i < size; ++i)
+						CHECK(st_cterm_write(f.terminal, wires[which] + i, 1, &used) == 0 && used == 1);
+				} else {
+					CHECK(st_cterm_write(f.terminal, wires[which], split, &used) == 0 && used == split);
+					CHECK(st_cterm_write(f.terminal, wires[which] + split, size - split, &used) == 0 && used == size - split);
+				}
+				/* Seed 69 yields byte candidates 10,83,69. Dynamic X10
+				 * consumes all three once; the literal loop selector only two. */
+				CHECK(igs->draw_x == (which == 0 ? 83 : 10) && igs->draw_y == (which == 0 ? 69 : 83));
+				CHECK(igs->random_seed == (which == 0 ? UINT32_C(0x665c4520) : UINT32_C(0xc9c253fb)));
+				CHECK(igs->attributes.writing_mode == 2 && !igs->loop.run && igs->loop_mode == 0);
+				struct st_console_cell cells[2]; const struct st_console_rect area = {0,0,2,1};
+				CHECK(st_console_read_cells(f.console, &area, cells, 2) == 0 && cells[0].glyph == 'A' && cells[1].glyph == 'B');
+			}
+		}
+		destroy(&f);
+	}
+}
+
 int
 st_cterm_igs_scaling_test_main(void)
 {
 	vectors_and_capture();
 	typed_reader();
+	random_tail();
+	random_tail_partitions();
 	partitions_and_recovery();
 	return 0;
 }

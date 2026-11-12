@@ -60,6 +60,30 @@ static void feed(struct fixture *f, const char *wire)
 	CHECK(status == 0 && used == strlen(wire));
 }
 
+/* Exhaustive command tests need literal signed words, including the two
+ * encodings recognized by the common numeric tail (reference 11). For one
+ * such operand, pin its helper to return that same word. r is not retested;
+ * R is the last test. These seeds independently invert the reference-124
+ * multiplier, producing next states 0x800300 and 0x800400. No parser bypass
+ * or random suppression is used. Return the independently expected state. */
+static inline uint32_t
+literal_words(struct cterm_igs *igs, const int *values, size_t count)
+{
+	uint32_t final = 1;
+	igs->random_seed = 1;
+	for (size_t i = 0; i < count; ++i) {
+		if (values[i] != -32765 && values[i] != -32764)
+			continue;
+		CHECK(final == 1);
+		unsigned r = values[i] == -32765 ? 0 : 1;
+		igs->random_range[r][0] = INT16_MIN;
+		igs->random_range[r][1] = INT16_MAX;
+		igs->random_seed = r == 0 ? UINT32_C(0xe40e955b) : UINT32_C(0x62683a5b);
+		final = r == 0 ? UINT32_C(0x00800300) : UINT32_C(0x00800400);
+	}
+	return final;
+}
+
 static void
 seed(struct fixture *f, const struct st_console_rect *rect, unsigned primary, unsigned alternate)
 {

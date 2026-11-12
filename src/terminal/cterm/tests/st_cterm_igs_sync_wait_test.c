@@ -42,9 +42,11 @@ wait_case(struct fixture *f, int word)
 	struct cterm_igs *igs = f->terminal->igs_engine;
 	igs->double_step = 7;
 	igs->math[0] = (int16_t)word;
+	uint32_t final = literal_words(igs, &word, 1);
 	local_ms = 1999;
 	feed(f, "G#q 0]:");
 	CHECK(st_cterm_input_paused(f->terminal));
+	CHECK(igs->random_seed == final);
 	unsigned count = word > 9994 || word < 1 ? 1 : word > 180 ? 180 : (unsigned)word;
 	uint64_t duration = ((uint64_t)(count + 1) * 1000 + igs->sync_wait_hz - 1) / igs->sync_wait_hz;
 	CHECK(igs->wait_deadline == 1999 + duration);

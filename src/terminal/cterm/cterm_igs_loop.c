@@ -160,10 +160,7 @@ int cterm_igs_loop_value(struct cterm_igs *igs,int *result)
 	if(l->index==l->count-1 && ((l->step>=1 && l->current>=l->to) || (l->step<0 && l->current<=l->to))) igs->loop_mode=0;
 	if(igs->loop_kind!='@' && igs->loop_mode==0 && l->command=='W') igs->loop_kind='Z';
 	l->index=(l->index+1)%l->count;l->delay_started=false;l->bad=true;
-	for(unsigned r=0;r<2;++r) if(value==(-32765+(int)r)) {
-		const struct st_graphics_argument a={.kind=ST_GRAPHICS_NUMBER,.operand={.source=r==0?ST_GRAPHICS_RANDOM_R:ST_GRAPHICS_RANDOM_R2}};
-		status=cterm_igs_argument_value(igs,&a,&value);if(status!=0) return status;
-	}
+	status=cterm_igs_random_tail(igs,&value);if(status!=0) return status;
 	*result=value;return 0;
 }
 int cterm_igs_loop_number(void *context,const struct st_graphics_command_view *v,const struct st_graphics_parameter *p,int *value,bool *supplied)

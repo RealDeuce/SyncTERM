@@ -200,6 +200,8 @@ int cterm_igs_ellipse(struct cterm_igs *, int x, int y, int x_radius, int y_radi
 int cterm_igs_arc(struct cterm_igs *, int x, int y, int radius, int begin_degrees, int end_degrees);
 int cterm_igs_ellarc(struct cterm_igs *, int x, int y, int x_radius, int y_radius, int begin_degrees, int end_degrees);
 uint32_t cterm_igs_random(struct cterm_igs *);
+/* Common ordered r/R substitution after wire or stored-operand evaluation. */
+int cterm_igs_random_tail(struct cterm_igs *, int *result);
 /* Apply the descriptor's axis to a decimal constant/index. Lookup and random
  * results are returned as values, without a second coordinate transform. */
 int cterm_igs_argument_value(struct cterm_igs *,

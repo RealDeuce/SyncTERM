@@ -59,6 +59,21 @@ matrix(void)
 		st_pixel_buffer_destroy(b);
 		for (unsigned raw = 0; raw <= UINT16_MAX; ++raw) {
 			int word = raw < 32768 ? (int)raw : (int)raw-65536;
+			/* Exercise each sentinel as a literal result in each role. Three
+			 * encoded inputs together instead mean three independent draws. */
+			if (word == -32765 || word == -32764) {
+				for (unsigned role = 0; role < 3; ++role) {
+					int args[3] = {0,9,0}; args[role] = word;
+					for (unsigned i = 0; i < 3; ++i) igs->math[i] = (int16_t)args[i];
+					uint32_t final = literal_words(igs, args, 3);
+					struct cterm_igs_attributes before = igs->attributes;
+					feed(&f,"G#E 0],1],2]:"); check_state(igs,&before,args[0],args[1],args[2]);
+					CHECK(igs->random_seed == final);
+					for (unsigned i = 0; i < 3; ++i) CHECK(igs->math[i] == args[i]);
+				}
+				continue;
+			}
+			igs->random_seed = 1;
 			igs->math[0] = igs->math[1] = igs->math[2] = (int16_t)word;
 			struct cterm_igs_attributes before = igs->attributes;
 			feed(&f,"G#E 0],1],2]:"); check_state(igs,&before,word,word,word);

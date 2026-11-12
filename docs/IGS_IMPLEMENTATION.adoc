@@ -17,9 +17,10 @@ The user's port policy below takes precedence over historical fidelity gates.
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
 All47 top-level commands and all16 selectors now have implementations and
 focused native/control-bitmap application coverage. Profile/menu/Wren
-selection is available. Parent X acceptance remains open for the common
-numeric-reader audit, including the random tail after array lookup. The
-ledger is62/63 complete; the final full-goal acceptance audit is unfinished.
+selection is available. The shared numeric reader now applies the ordered
+r/R tail after array lookup, relative encoding and loop evaluation. Parent X
+dispatch acceptance is complete; the ledger is63/63 complete. The final
+full-goal foundation/integration acceptance audit is unfinished.
 Parser-only checks do not establish rendering, sound or session conformance.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
 
@@ -4749,4 +4750,63 @@ Physical audio/MIDI are disabled in fixtures; no external IGS tree, ROM or
 historical executable is needed at runtime. The manual audio checklist is
 provided in IGS_CONFORMANCE.md and is not a development listening gate.
 
-Dispatch correction commit: 0e72d64. Common-reader and final goal acceptance remain open.
+Dispatch correction commit: 0e72d64. Common-reader and final goal acceptance remained open at that step.
+
+=== Common numeric return tail and parent X acceptance
+
+Chapter11 places two independent tests after collection/postprocessing or
+stored-loop evaluation: replace -32765 through r, then replace -32764 through
+R. A result of r can therefore invoke R; neither test repeats and an R result
+cannot return to r. The shared IGS return helper now implements that ordering
+for decimal/array operands and loop results. Relative encodings are applied
+before these tests, operand loading suppresses both, and already-evaluated
+source values bypass all further numeric processing. Axis scaling still
+applies to decimal constants/indices before lookup, never to loaded/random
+results. This policy stays outside the reusable graphics parser.
+
+The new native reader test failed before the correction. It covers lookup,
+lexical operands, stored random encodings and evaluated loop coordinates;
+r-to-R cascading and all non-revisited combinations have literal final seeds.
+It also checks all three relative encodings, load suppression, supplied-value
+ownership, invalid intervals with unchanged output, and failure of R after
+a successful r draw. Every split and bytewise wire input exercises dynamic
+X10 selection through an array and the same array encodings in stored loops
+in all three modes. Exact seed/endpoint/cell checks detect duplicate draws
+by dynamic arity previews or command execution.
+
+Existing exhaustive command matrices retain every signed-word result. For
+the two encoded words they use independently inverted Random seeds and a
+valid full signed interval so the helper returns the intended literal word;
+the production parser is still exercised. E tests each encoded word in each
+role separately. X2's exhaustive input matrix instead expects its actual
+random substitution and uses a valid R interval for that input. No word is
+silently omitted and no production test bypass or suppression hook is added.
+
+The X2 application fixture now has180 coherent captures across18 profiles,
+including54 new captures for array-selected X10, ordinary array operands and
+stored loops. X13 arithmetic builds the sentinel words over the wire. Literal
+source-derived Random states verify effect-free preview, one evaluation and
+no second scaling; full indexed phases, console cells, palette and composed
+RGB remain independently checked. The loop contributes exactly one XOFF/XON
+pair. Audio and MIDI are disabled in these headless fixtures.
+
+Reference identities used for this correction:
+
+* 11-reader-state.adoc: 787f73c09bd21e327c4cb357d781fd57223715ed48a38d2e0e895a547f6be7e0
+* 19-extended-math-sweeps.adoc: 9590c70fb049ab3b6bfd869dcc42e7a6db3487bb92ca3db1d8cc681c1446a147
+* 124-native-random-source.adoc: 97f1aa591888cd77e8336996bfef343c19d2abae26260d5233492482bd170d1c
+
+All47 top-level commands and16 X selectors have completed per-command
+acceptance (63/63 ledger entries). Final foundation/integration review and
+the full-goal regression acceptance remain open.
+
+Native FreeBSD Release /usr/bin/cc CMake configure and full build passed.
+Initial generated-dependency timestamp warnings cleared in the final full
+and fixture builds, which had zero diagnostics. All84 distinct checks have
+passing verification across the native run and focused reruns, the180-capture
+X2 application run (18.50s), and the17-test X/loop application dispatch run
+(561.15s, including native reader). Final native reader/E/X2 checks passed in
+5.98s. All63 ordered IDs, active CTest registrations, dependencies and source
+references were validated. Current ledger operations/deviations no longer
+describe completed X5/loop/script/input integrations as future work; historical
+verification records and completion commits are retained.

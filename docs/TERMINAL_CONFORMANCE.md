@@ -15,12 +15,17 @@ file-style readers/flow, shared loop state, local input and cancellation.
 The shared parser explicitly supports source-ended text and accepted return
 boundaries without a second parser. Application X9 covers972 coherent captures
 across18 profiles, including script scenes, waits/key ownership and reconnects.
-Parent X dispatch acceptance and final IGS goal acceptance remain pending.
+Parent X dispatch acceptance is complete; final IGS goal acceptance remains pending.
 Serial/file dispatch regression coverage now includes independent X8 requested
 snapshot banks, shared raw snapshots, file X11 error retention, source-specific
 X0 restore and F/f/z/t/N flow, and invalid-T direct chain exits. Expanded X9
-coverage has972 coherent application captures; the common numeric random tail
-after array lookup and final full-goal regression acceptance remain open.
+coverage has972 coherent application captures. The common numeric reader now
+performs the ordered r/R tests after array lookup, relative encoding and loop
+evaluation, preserves stored-load suppression and avoids re-evaluating supplied
+values. Native tests retain exhaustive signed-word coverage with independently
+pinned sentinel results. The X2 application test adds54 coherent captures
+across18 profiles for dynamic array selectors, operands and loops with literal
+Random states. Final full-goal foundation/integration acceptance remains open.
 The CTerm input adapter has native ST geometry/encoding/status and lifecycle
 coverage. IGS is selectable through profiles, menus and Wren. `I` and `R` have
 native selector/state/deadline coverage and coherent application bitmap checks

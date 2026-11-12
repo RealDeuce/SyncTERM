@@ -13,8 +13,10 @@ original requested start/end coordinates.
 `G` adds indexed screen/memory Boolean transfers and retained image views.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
-All16 X handlers are present; parent X's common numeric-reader acceptance is
-still in progress. `X0` scatters markers with persistent color cycling.
+All16 X handlers and parent X dispatch acceptance are complete. The common
+numeric reader applies the ordered r/R tail after array lookup, relative
+encoding and loop evaluation. Final goal foundation/integration acceptance
+is still in progress. `X0` scatters markers with persistent color cycling.
 `X1` changes a raw physical palette register,
 and `X12` changes four consecutive physical registers. `X5` configures the
 flow mode, custom XON/XOFF bytes and signed repeat counts without emitting
@@ -23,7 +25,7 @@ an opaque right-button macro, sends it once with optional CR and pauses serial
 acquisition until all buttons release; retained input and local UI/Wren routing
 share the existing owner/event paths. `X4` defines48 retained zone rectangles
 and raw payloads, clears rectangle bounds and controls strict loopback for the
-future `<` consumer. `X6` configures left-only release CR/CRLF, retaining
+`<` consumer. `X6` configures left-only release CR/CRLF, retaining
 right-only handoff into X3 and owner-managed serial/key waits. `X7` loads source
 pattern slots for later A4 selection. `X2` configures both random ranges.
 `X13` provides bounded signed-word math and console/graphical decimal output.
@@ -69,7 +71,8 @@ MIDI and note helpers.
 character-cursor or marker/GEM mouse queries, with indexed pointer cleanup
 and retained press/release semantics. `<` adds keyboard/zone collection and
 chain-deferred replies. `&` adds stored-operand/gang loops, mixed wire fields
-and cooperative local waits. Other commands remain pending.
+and cooperative local waits. All47 top-level handlers and16 X selectors have
+per-command acceptance; final foundation/integration acceptance remains open.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -2987,6 +2990,44 @@ random tail after an array lookup returning an r/R sentinel. Final full-goal
 acceptance, including foundation and integration review, is not complete.
 
 Dispatch correction commit: 0e72d64. Common-reader and final goal acceptance remain open.
+
+### Common numeric return tail and parent X acceptance
+
+The numeric reader now performs chapter11's two ordered tests after lookup,
+relative encoding or loop evaluation: r (-32765), then R (-32764). r can
+produce the R encoding and trigger its helper; no earlier test is revisited.
+Stored-operand loading retains both encodings without draws. Values supplied
+by a source are already evaluated, and neither they nor lookup/random results
+receive a second coordinate transform. One IGS helper serves wire and loop
+evaluation; Atari numeric policy remains outside the shared parser.
+
+The new native regression failed before correction. Literal seeds cover all
+cascade/non-revisit outcomes, lexical/array/stored/evaluated-coordinate paths,
+all relative encodings, suppression, supplied values and failures before/after
+a draw. Every split and bytewise input checks dynamic array-selected X10 and
+stored-loop execution in all modes, with exact endpoint/RNG/cell assertions.
+Existing exhaustive command tests preserve every signed-word result by pinning
+the two encoded inputs to valid helper results; no cases are removed. X2's
+exhaustive input matrix expects actual substitution instead. The independent
+source identities are recorded in IGS_IMPLEMENTATION.adoc.
+
+The X2 application fixture passes180 coherent captures across18 profiles,
+including54 added array-selector/operand/loop frames. X13 arithmetic creates
+the encodings over the wire; literal Random states detect extra evaluations
+and index/random rescaling. Both indexed phases, cells, palette, RGB and the
+single loop XOFF/XON pair are checked with physical audio/MIDI disabled.
+
+Parent X and all63 command/selector entries are complete. Final foundation,
+integration and full-goal regression acceptance remain unfinished.
+
+Native FreeBSD Release /usr/bin/cc CMake configure/full build passed; final
+full and fixture builds had zero diagnostics. All84 distinct checks have
+passing latest results across native and focused runs, X2 application180
+captures (18.50s), and X/loop application dispatch (17 tests,561.15s including
+native reader). Final reader/E/X2 native tests passed in5.98s. All63 unique
+ordered entries, dependencies/references and active test registrations were
+validated; obsolete pending-integration notes in current ledger fields were
+reconciled while historical verification was retained.
 
 ### Manual audio checklist
 

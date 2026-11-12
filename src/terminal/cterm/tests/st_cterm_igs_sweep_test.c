@@ -166,7 +166,9 @@ waits_and_bounds(void)
 	igs->attributes.line_width = 2;
 	for (int axis = INT16_MIN; axis <= INT16_MAX; ++axis) {
 		if (axis == 0 || axis == 1) continue;
+		uint32_t final = literal_words(igs, &axis, 1);
 		request(&f,(int[9]){3,4,5,6,axis,0,1,1,60}); position(igs,(int[4]){3,4,5,6});
+		CHECK(igs->random_seed == final);
 	}
 	igs->attributes.line_width = 1;
 	request(&f,(int[9]){30000,30000,30008,30000,0,30002,1,3,1});

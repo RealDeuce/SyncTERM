@@ -9,15 +9,23 @@ range_case(struct fixture *f, int first, int second, int third)
 	igs->random_range[0][0] = 10; igs->random_range[0][1] = 20;
 	igs->random_range[1][0] = 15; igs->random_range[1][1] = 14;
 	igs->math[0] = (int16_t)first; igs->math[1] = (int16_t)second; igs->math[2] = (int16_t)third;
+	igs->random_seed = 1;
+	uint32_t final = 1;
+	/* Exhaustive first-word inputs include both random encodings. Make
+	 * R's interval valid for that case; the first accepted byte in either
+	 * [10,20] or [15,20] is 20 on call 25. */
+	int retained_upper = first == -32764 ? 20 : 14;
+	igs->random_range[1][1] = retained_upper;
+	if (first == -32765 || first == -32764) { first = 20; final = UINT32_C(0x3adc14f6); }
 	int lower = first < 0 ? 0 : first;
 	bool extra = lower == second;
-	int expected[2][2] = {{lower, second == first ? 20 : second}, {extra ? lower : 15, extra ? third : 14}};
+	int expected[2][2] = {{lower, second == first ? 20 : second}, {extra ? lower : 15, extra ? third : retained_upper}};
 	for (unsigned i = 0; i < 2; ++i)
 		if (expected[i][1] < expected[i][0])
 			expected[i][1] = expected[i][0] == INT16_MAX ? INT16_MAX : expected[i][0] + 1;
 	feed(f, extra ? "G#X 2,0],1],2]:" : "G#X 2,0],1]:");
 	CHECK(memcmp(expected, igs->random_range, sizeof(expected)) == 0);
-	CHECK(igs->random_seed == 1 && igs->text_deadline == 0 && igs->wait_deadline == 0);
+	CHECK(igs->random_seed == final && igs->text_deadline == 0 && igs->wait_deadline == 0);
 }
 
 static void

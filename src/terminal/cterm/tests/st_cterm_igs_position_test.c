@@ -42,10 +42,11 @@ words(void)
 				int word = exhaustive ? INT16_MIN+(int)i : i < 768 ? (int)i-256 : i == 768 ? INT16_MIN : INT16_MAX;
 				int column = role == 0 ? word : 300, row = role == 1 ? word : 400;
 				igs->math[0] = (int16_t)column; igs->math[1] = (int16_t)row;
+				uint32_t final = literal_words(igs, (int[]){column, row}, 2);
 				feed(&f,"G#p 0],1]:");
 				CHECK(t->xpos == (int)coordinate(column,(unsigned)t->width)+1 && t->ypos == (int)coordinate(row,(unsigned)t->height)+1);
 				CHECK(t->accumulator == NULL && igs->math[0] == column && igs->math[1] == row);
-				CHECK(igs->random_seed == 1 && igs->pattern_seed == 0 && igs->input_deadline == 0 && igs->text_deadline == 0);
+				CHECK(igs->random_seed == final && igs->pattern_seed == 0 && igs->input_deadline == 0 && igs->text_deadline == 0);
 			}
 		}
 		CHECK(memcmp(&before,&igs->attributes,sizeof(before)) == 0 && memcmp(palette,igs->palette,sizeof(palette)) == 0);
