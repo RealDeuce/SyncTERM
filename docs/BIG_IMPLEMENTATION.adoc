@@ -529,3 +529,6 @@ I remains in progress and the command completion count remains0/45. The
 shared-BGI, numeric and page foundations retain their remaining obligations.
 
 Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Nine selected native tests passed in26.42s, including full wren_host, bbs_list, term, connection, screen_mode, app_session_mode and BIG state/profile/input checks. Four application regressions passed in13.53s: BIG input, IGS init/editor, CGA mode and BBS setters. After adding the unsupported-profile case, cterm_big and syncterm_big_input passed again in14.23s; the application test checks84 independently expected scenes across28 connections plus editor persistence.
+
+BBS/Wren selection and coherent application input completion commit: `6730b09`.
+Full I command acceptance and the remaining45-entry work stay open.
