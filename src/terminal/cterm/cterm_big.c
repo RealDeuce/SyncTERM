@@ -45,7 +45,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'B',line,4,bar_next},
 	{'F',flood,3,NULL},
 	{'m',move,2,move_next},
-	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},
+	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},{'H',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
 
 static bool marker_kind(const struct st_graphics_command_view *view)
@@ -348,6 +348,11 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		big->numeric.context.scaling=(uint16_t)view->arguments[0].value;
 		return begin_footer(big,view);
+	}
+	if (view->code=='H') {
+		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		int status=st_big_state_hollow(&big->state,(uint16_t)view->arguments[0].value);
+		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='M') {
 		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;

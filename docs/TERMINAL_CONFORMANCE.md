@@ -238,6 +238,15 @@ coverage to1316, including solid/checker/empty F and rejected X4 followed by
 valid graphics/ANSI/DSR on the same connection. Z and page/padding/configured
 buffer composition remain pending. Routine verification stays BIG-specific.
 
+BIG H now acquires one class0 value, stores the full WORD and clamps only
+signed negatives to0. All65536 WORDs and retained state under uninstalled
+BGI/old errors have independent expectations. Native partitions/profiles,
+whole indexed planes, prefix/timeout/reset/EOF, I/R lifetimes and blocked/
+deferred replies are covered.28 coherent application scenes bring BIG to
+1344, verifying H256/negative0 while retaining complete scene/state/replies/
+diagnostics and RGB. Z/O/Q/V/Y consumer composition and final full-suite
+acceptance remain pending; routine tests remain BIG-specific.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

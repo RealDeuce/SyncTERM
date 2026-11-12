@@ -842,6 +842,29 @@
             "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending."
           ],
           "commit": "e2f363e"
+        },
+        {
+          "id": "native-hollow-state",
+          "status": "complete",
+          "operations": [
+            "H class0 acquisition; store the full WORD then reload for signed-negative clamp to0, without an upper/boolean/byte clamp or BGI operation.",
+            "Loaded0; acquisition/EOF/reset prefixes retain previous H, I resets after its selector, R/entry/footer retain H. Shared source/repetition/chaining/replies keep their ordering.",
+            "65536 independent WORD cases retain every other application/BGI/frame field, including uninstalled/old-error state. Native partitions/profile/state/pixels, timeouts, loop and blocked/deferred reply lifecycles.",
+            "28 new coherent full-scene application captures,1344 total, verify H256 and negative H returning0 while retaining all existing pixels/text/palette/points/fill/cursor/replies/RGB and rejection diagnostics."
+          ],
+          "tests": [
+            "big_state",
+            "cterm_big",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "43-hollow-command-and-dispatch-review.adoc",
+            "51-state-and-position-command-acceptance.adoc"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1134,19 +1157,33 @@
     {
       "id": "H",
       "order": 8,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages"
       ],
       "references": [
+        "43-hollow-command-and-dispatch-review.adoc",
         "51-state-and-position-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
+      "operations": [
+        "Native H scalar class0 acquisition, full WORD store and signed negative reload/clamp; no upper clamp or own BGI/point/fill/palette/audio operation.",
+        "Retain normal source/timeout/EOF/reset and I/R/entry/footer lifetimes, repeats/chaining/deferred replies.",
+        "Pending Z/O/Q/V/Y consumer and remaining global composition acceptance."
+      ],
+      "tests": [
+        "big_state",
+        "cterm_big",
+        "syncterm_big_input"
+      ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "All65536 WORDs independently expected, including32767/32768/65535 boundaries; every other state byte retained under uninstalled/old-BGI-error state.",
+        "Native every split/default profile and bytewise all three modes/encodings/status settings with full indexed blink planes and retained application/BGI state. Prefix/EOF/reset/timeout, I/R retention/reset, source/repetition and pending/blocked reply lifecycle are checked. The H wire case failed before registration.",
+        "28 new coherent scenes,1344 total, independently check H256 and signed-negative0 while retaining complete prior pixels/cells/palette/state/points/cursor/flow/replies/diagnostics and composed RGB. Consumer/global composition remains pending.",
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending."
+      ],
       "commit": null
     },
     {

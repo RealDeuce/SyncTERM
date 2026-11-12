@@ -645,9 +645,63 @@ static void scaling_sources_and_footer(void)
 	string(&f,"~ "); CHECK(f.output_size==4 && f.output[2]==0 && f.output[3]==255);
 	destroy(&f);
 }
+static void hollow_partitions(void)
+{
+	static const struct { const char *word; uint16_t expected; } cases[]={
+		{"0",0},{"1",1},{"2",2},{"128",128},{"256",256},{"258",258},{"9999",9999},{"+1",0}};
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+		f.terminal->api_size_changed=NULL;
+		for (unsigned mode=1;mode<=3;++mode) for (size_t c=0;c<sizeof(cases)/sizeof(cases[0]);++c) {
+			char wire[32]; snprintf(wire,sizeof(wire),"I#H %s:\033[2;3H",cases[c].word);
+			size_t size=strlen(wire), splits=mode==2 && !utf8 && !status?size+1:0;
+			for (size_t split=0;split<=splits;++split) {
+				char reset[16]; snprintf(reset,sizeof(reset),"I#R %u:",mode); string(&f,reset);
+				b->state.application.hollow=7;
+				struct st_big_state expected; memcpy(&expected,&b->state,sizeof(expected)); expected.application.hollow=cases[c].expected;
+				if (split==splits) for (size_t i=0;i<size;++i) feed(&f,wire+i,1);
+				else { feed(&f,wire,split); string(&f,wire+split); }
+				CHECK(b->state.application.hollow==cases[c].expected && b->state.bgi.error==0 && b->last_error==0);
+				CHECK(memcmp(&expected,&b->state,sizeof(expected))==0);
+				const struct st_console_rect r={0,0,640,b->state.bgi.height}; struct st_pixel_buffer *p=NULL;
+				CHECK(st_console_get_pixels(&p,f.console,&r,false)==0);
+				for (size_t i=0;i<(size_t)r.width*r.height;++i) CHECK(p->primary[i]==800 && p->alternate[i]==800);
+				st_pixel_buffer_destroy(p);
+				CHECK(f.terminal->xpos==3 && f.terminal->ypos==2 && f.output_size==0);
+			}
+		}
+		destroy(&f);
+	}
+}
+static void hollow_lifecycle(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#H 2:I#H 0"); CHECK(st_cterm_finish(f.terminal)==0 && b->state.application.hollow==2);
+	string(&f,"I#H "); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->state.application.hollow==0 && f.bells==1);
+	string(&f,"I#H 256:I#H "); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->state.application.hollow==256);
+	string(&f,"I#H 128:I#R 2:"); CHECK(b->state.application.hollow==128);
+	string(&f,"I#I 1"); CHECK(b->state.application.hollow==128);
+	string(&f,":"); CHECK(b->state.application.hollow==0);
+	string(&f,"I#H 256:I#I 2:"); CHECK(b->state.application.hollow==0);
+	string(&f,"I#g 3:I#H 5:"); CHECK(b->state.application.hollow==5);
+	b->state.bgi.state=0; b->state.bgi.error=-11; string(&f,"I#H 258:");
+	CHECK(b->state.application.hollow==258 && b->state.bgi.error==-11 && b->last_error==0); b->state.bgi.state=3;
+	string(&f,"I#& 0,3,1,0,H@1,x:");
+	CHECK(b->state.application.hollow==3 && b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.output_size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	f.output_size=0; b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"I#H>256:"); CHECK(b->state.application.hollow==256 && b->control.input.pending==1 && f.output_size==0);
+	string(&f,"~ "); CHECK(f.output_size==2 && memcmp(f.output,"\0\xff",2)==0);
+	/* A blocked footer follows the committed H store. */
+	f.output_size=0; b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='K'; f.block_output=true;
+	const char wire[]="I#H 2:"; size_t used;
+	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==IO_ERROR_IN_PROGRESS && used==sizeof(wire)-1 && b->state.application.hollow==2 && b->footer_active);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->state.application.hollow==2 && !b->control.input.pending && f.output_size==0);
+	destroy(&f);
+}
 int main(void)
 {
-	rejection_recovery(); partitions(); framing_and_state(); deadlines_and_recovery(); reply_and_footer();
+	hollow_partitions(); hollow_lifecycle(); rejection_recovery(); partitions(); framing_and_state(); deadlines_and_recovery(); reply_and_footer();
 	stored_repetition(); gang_source_seams(); footer_wait_reset();
 	local_keys(); local_key_bytes(); local_key_lifecycle(); local_key_return(); wire_loops();
 	wire_setup_prefixes(); wire_setup_keys(); wire_setup_flow_lifecycle(); wire_setup_bounds(); wire_setup_sources();

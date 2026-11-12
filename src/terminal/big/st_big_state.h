@@ -62,4 +62,7 @@ int st_big_state_resolution(struct st_big_state *, uint16_t requested,
 int st_big_state_write_mode(struct st_big_state *, uint16_t requested);
 /* C stores an application WORD after both reads; no installed BGI effect. */
 int st_big_state_color(struct st_big_state *, uint16_t selector, uint16_t color);
+/* H stores the full WORD, reloads it for the signed negative clamp, and
+ * has no BGI operation or upper clamp. */
+int st_big_state_hollow(struct st_big_state *, uint16_t requested);
 #endif

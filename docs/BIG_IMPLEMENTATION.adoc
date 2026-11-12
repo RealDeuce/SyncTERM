@@ -1841,3 +1841,35 @@ the end.
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending.
 
 Native F and nonfatal command recovery commit: `e2f363e`.
+
+=== Native H hollow-state selection
+
+H now reads exactly one class0 WORD through the production numeric owner,
+stores the full application value, then reloads it for a signed-negative
+clamp to0. There is no upper, boolean or BYTE clamp. This body neither calls
+BGI nor changes points, fill, colours, palettes or sound. H256 remains256;
+any future consumer must test the full WORD for zero. The C owner is
+serialized and bounded; no unsafe DOS computed alias or interrupt model is
+introduced between its ordinary store and reload.
+
+Loaded H is0. Incomplete acquisition/EOF/reset does not perform the store.
+A completed timeout returns the ordinary reader's value. I resets H only
+after its selector acquisition; R, ordinary entry and footer retain it.
+The common source/repetition/chaining/flow/reply machinery follows the store,
+so a blocked or discarded reply does not undo it.
+
+`big_state` independently expects all65536 input WORDs and checks all other
+application/BGI/frame bytes unchanged, including uninstalled BGI and an old
+error. `cterm_big` tests every split/default profile and bytewise all three
+modes/encodings/status settings with full indexed blink planes and retained
+state, plus prefix/EOF/reset/timeout, I/R lifetimes, unscaled class0, supplied
+source repetition and deferred/blocked reply cancellation. The initial H
+wire case failed before registration.28 new coherent application scenes,
+1344 total, verify H256 and signed-negative0 alongside the whole retained
+scene, cells/palette/points/fill/cursor/replies/diagnostics and composed RGB.
+
+Native H acquisition/state integration is implemented. Z/O/Q/V/Y consumers
+and remaining global composition stay pending. Routine tests remain
+BIG-specific; the full suite remains deferred until the goal's end.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending.

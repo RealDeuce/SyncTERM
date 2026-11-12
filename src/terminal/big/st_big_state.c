@@ -172,3 +172,10 @@ int st_big_state_color(struct st_big_state *s, uint16_t selector, uint16_t color
 	s->application.colors[selector] = color;
 	return 0;
 }
+int st_big_state_hollow(struct st_big_state *s, uint16_t requested)
+{
+	if (s==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	s->application.hollow=requested;
+	if (st_big_number_signed(s->application.hollow)<0) s->application.hollow=0;
+	return 0;
+}

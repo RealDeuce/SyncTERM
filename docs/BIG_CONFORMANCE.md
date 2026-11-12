@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/M/T attributes, m movement, P markers, L/D/d lines, B bars/boxes and F fills run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/H/M/T attributes, m movement, P markers, L/D/d lines, B bars/boxes and F fills run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -811,3 +811,23 @@ only BIG tests run during development and the final full suite is deferred.
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending.
 
 Native F and nonfatal command recovery commit: `e2f363e`.
+
+## Native H hollow-state selection
+
+H now reads one class0 value, stores the full WORD and reloads it for a
+signed-negative clamp to0. Nonnegative values have no upper clamp;256 stays
+256. It has no BGI/point/fill/colour/palette/audio operation. Loaded0,
+incomplete/EOF/reset/timeout prefixes, I's post-selector reset and R/entry/
+footer retention follow the original43/51 callers. Repetition, flow,
+chaining and blocked/deferred replies use the common footer after the store.
+
+`big_state` checks all65536 WORD values and every other retained state byte,
+including uninstalled BGI and an old error. Native tests check partitions,
+all modes/encodings/status states, full indexed planes, acquisition and
+reply lifetimes.28 added coherent scenes bring coverage to1344, proving
+H256 and negative0 preserve the complete prior pixels/text/palette/points/
+fill/cursor/replies/RGB and rejection diagnostics. The H wire case failed
+before registration. Native H is implemented; its Z/O/Q/V/Y consumers and
+full45-entry acceptance remain pending. Verification stays BIG-specific.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending.

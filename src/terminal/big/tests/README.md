@@ -330,3 +330,14 @@ poll recovery.70 new application captures (1316 total) add solid/checker/
 empty fills and same-connection rejection recovery, with complete retained
 indexed/text/palette/state/points/cursor/replies/diagnostics and RGB samples.
 Page/padding/configured buffers, Z and global composition remain pending.
+
+`big_state` independently checks all65536 H WORDs: negatives become0 and
+nonnegative values retain all bits, without an upper clamp. Every other
+application/BGI/frame byte stays unchanged even with BGI uninstalled and an
+old error. `cterm_big` adds every split/default profile and bytewise all
+three modes/encodings/status settings, full indexed planes/retained state,
+prefix/timeout/EOF/reset, I/R lifetimes, class0 scaling, source/repetition
+and blocked/deferred reply cleanup. The H wire case failed before its
+registration.28 new coherent application captures (1344 total) prove
+H256/negative0 retain the prior scene, text/palette/points/fill/cursor/replies/
+diagnostics and RGB. H's Z/O/Q/V/Y consumers remain separate pending steps.

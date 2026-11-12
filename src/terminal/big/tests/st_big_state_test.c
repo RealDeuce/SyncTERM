@@ -210,7 +210,19 @@ static int application_colors(void)
 	CHECK(st_big_state_color(NULL,0,1)==IO_ERROR_INVALID_ARGUMENT);
 	return 0;
 }
+static int hollow_words(void)
+{
+	struct fixture f; prepare(&f); f.state.bgi.state=0; f.state.bgi.error=-11;
+	for (uint32_t word=0;word<65536;++word) {
+		struct st_big_state expected; memcpy(&expected,&f.state,sizeof(expected));
+		expected.application.hollow=word<32768?(uint16_t)word:0;
+		CHECK(st_big_state_hollow(&f.state,(uint16_t)word)==0);
+		CHECK(memcmp(&expected,&f.state,sizeof(expected))==0 && f.count==0);
+	}
+	CHECK(st_big_state_hollow(NULL,1)==IO_ERROR_INVALID_ARGUMENT);
+	return 0;
+}
 int main(void)
 {
-	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); return 0;
+	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); CHECK(hollow_words() == 0); return 0;
 }
