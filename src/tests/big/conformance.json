@@ -864,7 +864,7 @@
           "verification": [
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending."
           ],
-          "commit": null
+          "commit": "3b46c71"
         }
       ]
     },
@@ -1184,7 +1184,7 @@
         "28 new coherent scenes,1344 total, independently check H256 and signed-negative0 while retaining complete prior pixels/cells/palette/state/points/cursor/flow/replies/diagnostics and composed RGB. Consumer/global composition remains pending.",
         "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending."
       ],
-      "commit": null
+      "commit": "3b46c71"
     },
     {
       "id": "T",

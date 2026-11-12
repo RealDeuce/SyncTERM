@@ -831,3 +831,5 @@ before registration. Native H is implemented; its Z/O/Q/V/Y consumers and
 full45-entry acceptance remain pending. Verification stays BIG-specific.
 
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending.
+
+Native H state/wire integration commit: `3b46c71`.
