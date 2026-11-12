@@ -202,3 +202,4 @@ emitted existing generated-dependency clock-skew warnings. All 69 selected
 CTest checks passed in 107.57 seconds: four shared-parser tests, the native
 IGS tests, RIP parser and SkyPix. BIG-specific numeric semantics remain
 pending; this completes only the shared reader boundary.
+Completion commit: `d1b7e12`.
