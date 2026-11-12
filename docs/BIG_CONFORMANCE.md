@@ -668,3 +668,6 @@ paths and remaining global composition are pending. Only BIG-specific tests
 run during iteration; the final full suite remains deferred.
 
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending.
+
+Original opaque bar primitive commit: `44b6e10`.
+Wire B/bar3d and remaining full45-entry composition stay in progress.
