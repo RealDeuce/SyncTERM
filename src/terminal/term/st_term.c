@@ -746,6 +746,10 @@ write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
 	    && session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 	    || session->config.encoding == ST_CTERM_ENCODING_UTF8) {
 		status = st_cterm_write(session->cterm, bytes, size, &consumed);
+		/* An accepted asynchronous command can pause after this byte.
+		 * The pump retains the following bytes and polls its owner. */
+		if (status==IO_ERROR_IN_PROGRESS && consumed==size
+		    && st_cterm_input_paused(session->cterm)) return 0;
 		return status == 0 && consumed != size ? IO_ERROR_IO : status;
 	}
 	status = st_term_rip_wire_to_utf8(unicode, sizeof(unicode),

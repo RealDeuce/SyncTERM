@@ -376,9 +376,189 @@ static void local_key_return(void)
 	CHECK(st_cterm_finish(f.terminal)==0);
 	destroy(&f);
 }
+static void wire_loop_scene(struct fixture *f)
+{
+	struct cterm_big *b=f->terminal->big_engine;
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3);
+	CHECK(b->numeric.loop.count==1 && b->numeric.loop.words[0]==1 && b->numeric.loop.no_parameters==1);
+	CHECK(b->numeric.loop.random_suppression==0 && b->control.frame.did_loop==0);
+	CHECK(b->state.application.marker==7 && f->resizes==1 && f->terminal->xpos==2);
+	CHECK(f->output_size==2 && f->output[0]==19 && f->output[1]==17);
+	CHECK(f->origins[0]==ST_CTERM_OUTPUT_RESPONSE && f->origins[1]==ST_CTERM_OUTPUT_RESPONSE);
+}
+static void wire_loops(void)
+{
+	static const char wire[]="I#& 0,3,1,0,I@1,1:Z";
+	for (size_t split=0;split<sizeof(wire);++split) {
+		struct fixture f; create(&f,split%2,split%3==0);
+		f.terminal->big_engine->state.application.marker=7;
+		feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split);
+		wire_loop_scene(&f); destroy(&f);
+	}
+	struct fixture f; create(&f,false,false); f.terminal->big_engine->state.application.marker=7;
+	for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1);
+	wire_loop_scene(&f);
+	/* Gang text is followed immediately by the raw loop type. */
+	string(&f,"I#& 0,2,1,0,>I@@2,0,1:Z");
+	struct cterm_big *b=f.terminal->big_engine;
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && b->numeric.loop.count==2);
+	CHECK(b->control.frame.gang[0]=='I' && b->control.frame.gang[1]==0);
+	CHECK(f.output_size==4 && f.output[2]==19 && f.output[3]==17 && f.terminal->xpos==3);
+	/* Initial & owns setup; a stored target & only reaches the common body. */
+	string(&f,"I#& 0,2,1,0,&@1,1:Z");
+	CHECK(b->numeric.loop.active==1 && b->numeric.loop.current==0 && b->numeric.loop.words[0]==1);
+	CHECK(f.output_size==6 && f.output[4]==19 && f.output[5]==17 && f.terminal->xpos==4);
+	CHECK(st_cterm_finish(f.terminal)==0);
+	destroy(&f);
+}
+static void wire_setup_prefixes(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	b->numeric.loop.to=91; b->numeric.loop.type='Z'; b->numeric.loop.random_suppression=1;
+	string(&f,"I#& 7,");
+	CHECK(b->numeric.loop.current==7 && b->numeric.loop.to==91 && b->numeric.loop.type=='Z' && b->numeric.loop.random_suppression==1);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->numeric.loop.current==7 && b->numeric.loop.random_suppression==1);
+	b->numeric.loop.random_suppression=0;
+	string(&f,"I#& 3,0,2,0,&@1,1:");
+	CHECK(b->numeric.loop.step==65534 && b->numeric.loop.origin==3 && b->numeric.loop.active==1);
+	string(&f,"I#& 3,0,0,0,&@1,1:");
+	CHECK(b->numeric.loop.step==1 && b->numeric.loop.current==3 && b->numeric.loop.active==1);
+	CHECK(st_cterm_finish(f.terminal)==0);
+	/* The old Z type makes gang text reuse the shared buffer before raw @. */
+	memcpy(b->text.bytes,"~~~",4); b->numeric.loop.type='Z';
+	string(&f,"I#& 0,1,1,0,>@1,1:");
+	CHECK(memcmp(b->text.bytes,"~~~",4)==0 && memcmp(b->control.frame.gang,"~~~",4)==0 && b->text.count==0);
+	/* Embedded NUL ends the copy, while the text reader consumed through @. */
+	string(&f,"I#"); b->control.frame.gang[2]='~';
+	static const uint8_t binary[]={'&',' ','0',',','1',',','1',',','0',',','>','I',0,'W','@','@','1',',','2',':'};
+	feed(&f,binary,sizeof(binary));
+	CHECK(b->text.count==3 && memcmp(b->text.bytes,"I\0W",4)==0);
+	CHECK(b->control.frame.gang[0]=='I' && b->control.frame.gang[1]==0 && b->control.frame.gang[2]=='~');
+	/* The cap leaves @ for the raw type instead of draining it as text. */
+	string(&f,"I#& 0,1,1,0,>"); uint8_t cap[128]; memset(cap,'I',sizeof(cap)); feed(&f,cap,sizeof(cap));
+	string(&f,"@1,0:1:");
+	CHECK(b->text.count==128 && b->control.frame.gang[127]=='I' && b->control.frame.gang[128]==0);
+	/* Auxiliary timeout consumes the late target but substitutes SPACE. */
+	string(&f,"I#& 0,1,1,0,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	string(&f,"I"); CHECK(b->numeric.loop.command==' ' && f.bells==1);
+	string(&f,"@1,1:"); CHECK(b->numeric.loop.active==1 && b->numeric.loop.current==0);
+	CHECK(st_cterm_finish(f.terminal)==0);
+	/* A partial-pair timeout still enters initial & setup, not selected &. */
+	string(&f,"I#&"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->setup.phase==CTERM_BIG_SETUP_HEADER && f.bells==2);
+	string(&f,"0,1,1,0,I@1,1:"); CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==1);
+	destroy(&f);
+}
+static void wire_setup_keys(void)
+{
+	for (unsigned late=0;late<2;++late) {
+		struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+		string(&f,late?"I#& 0,2,1,0,I@2,1":"I#& 0,2,1,0,I@2");
+		CHECK(st_cterm_handle_key(f.terminal,late?24:3,0) && f.output_size==0);
+		string(&f,late?":Z":",Z");
+		CHECK(b->numeric.loop.words[0]==late && b->numeric.loop.words[1]==0);
+		CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && f.terminal->xpos==2);
+		CHECK(f.output_size==2 && f.output[0]==19 && f.output[1]==17);
+		CHECK(f.resizes==(late?3u:5u)); /* Zero-filled slots still execute I0. */
+		destroy(&f);
+	}
+	struct fixture f; create(&f,true,false); struct cterm_big *b=f.terminal->big_engine; size_t used;
+	CHECK(st_cterm_write(f.terminal,"I#& 0,1000,1,100,I@1,1:",23,&used)==IO_ERROR_IN_PROGRESS && used==23);
+	CHECK(b->numeric.loop.current==0 && f.output_size==1 && f.output[0]==19);
+	CHECK(st_cterm_handle_key(f.terminal,3,0) && st_cterm_handle_text_key(f.terminal,'k'));
+	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==1 && b->numeric.loop.active==0);
+	CHECK(f.output_size==3 && memcmp(f.output,"\x13\x11k",3)==0);
+	destroy(&f);
+}
+static void wire_setup_flow_lifecycle(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; size_t used;
+	f.block_output=true;
+	const char *wire="I#& 1,1,1,0,I@1,x:";
+	CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used)==IO_ERROR_IN_PROGRESS && used==strlen(wire));
+	CHECK(b->numeric.loop.active==1 && b->numeric.loop.no_parameters==1 && b->numeric.loop.words[0]==0x8001);
+	CHECK(b->control.frame.did_loop==1 && b->numeric.loop.random_suppression==0 && f.output_size==0);
+	f.block_output=false; CHECK(st_cterm_poll(f.terminal)==0);
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.no_parameters==0 && f.output_size==2 && f.resizes==1);
+	/* EOF/reset while loading retains acquired prefixes, without a body. */
+	static const char *partial[]={"I#& 7,","I#& 0,1,1,0,","I#& 0,1,1,0,>ABC","I#& 0,1,1,0,I@2,1:"};
+	for (size_t i=0;i<sizeof(partial)/sizeof(partial[0]);++i) {
+		string(&f,partial[i]); CHECK(st_cterm_handle_key(f.terminal,3,0));
+		CHECK(st_cterm_finish(f.terminal)==0 && b->setup.phase==CTERM_BIG_SETUP_OFF && b->numeric.loop.active==0);
+		CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==2 && b->text.active==0);
+	}
+	b->numeric.loop.random_suppression=0;
+	f.reset_output=true; string(&f,"I#& 0,1,1,0,I@1,0:");
+	CHECK(!f.reset_output && b->setup.phase==CTERM_BIG_SETUP_OFF && b->numeric.loop.active==0 && f.resizes==1);
+	CHECK(f.output_size==3 && f.output[2]==19);
+	destroy(&f);
+}
+static void pump(struct fixture *f, const char *wire, size_t size)
+{
+	size_t consumed=0;
+	for (unsigned turns=0;consumed<size || st_cterm_input_paused(f->terminal);++turns) {
+		CHECK(turns<1000);
+		if (st_cterm_input_paused(f->terminal)) CHECK(st_cterm_poll(f->terminal)==0);
+		else {
+			size_t used; int status=st_cterm_write(f->terminal,wire+consumed,size-consumed,&used);
+			CHECK(status==0 || status==IO_ERROR_IN_PROGRESS); CHECK(used!=0 || st_cterm_input_paused(f->terminal));
+			consumed+=used;
+		}
+	}
+}
+static void wire_setup_bounds(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	b->numeric.loop.words[1]=0x55;
+	string(&f,"I#& 0,1,1,0,&@0,1:");
+	CHECK(b->numeric.loop.count==1 && b->numeric.loop.words[0]==1 && b->numeric.loop.words[1]==0x55);
+	string(&f,"I#& 0,1,1,0,&@x,1:"); CHECK(b->numeric.loop.count==1 && b->numeric.loop.words[1]==0x55);
+	char large[4200]; const char *header="I#& 0,1,1,0,&@2050,";
+	size_t size=strlen(header); memcpy(large,header,size);
+	for (unsigned i=0;i<2048;++i) { large[size++]='1'; large[size++]=i==2047?':':','; }
+	large[size++]='Z'; pump(&f,large,size);
+	CHECK(b->numeric.loop.count==2048 && b->numeric.loop.active==1 && b->numeric.loop.current==0 && f.terminal->xpos==2);
+	for (size_t i=0;i<2048;++i) CHECK(b->numeric.loop.words[i]==1);
+	CHECK(f.output_size==6 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11",6)==0);
+	CHECK(st_cterm_finish(f.terminal)==0);
+	/* Corrupted text without a terminator cannot copy into adjacent state. */
+	memset(b->text.bytes,'Q',sizeof(b->text.bytes)); b->numeric.loop.type='Z';
+	size_t used;
+	CHECK(st_cterm_write(f.terminal,"I#& 7,1,1,0,>",13,&used)==IO_ERROR_OUT_OF_RANGE && used==13);
+	CHECK(b->numeric.loop.current==7 && b->control.frame.gang[0]==0 && b->numeric.loop.active==0);
+	destroy(&f);
+}
+static void wire_setup_sources(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	b->numeric.random_from=b->numeric.random_to=0;
+	string(&f,"I#& r,1,1,0,&@1,r:");
+	CHECK(b->numeric.loop.current==0 && b->numeric.random_state==0x015a4e36);
+	CHECK(b->numeric.loop.words[0]==0x8003 && b->numeric.loop.no_parameters==1 && b->numeric.loop.random_suppression==0);
+	b->numeric.loop.random_suppression=1; b->numeric.random_state=1;
+	string(&f,"I#& r,1,1,0,&@1,r:");
+	CHECK(b->numeric.loop.current==0x8003 && b->numeric.loop.origin==0x8003 && b->numeric.random_state==1);
+	CHECK(st_cterm_finish(f.terminal)==0);
+	/* Raw NUL/typeff retain byte identity inside the interpreter. */
+	static const uint8_t raw[]={'I','#','&',' ','0',',','1',',','1',',','0',',',0,255,'1',',','1',':'};
+	feed(&f,raw,sizeof(raw)); CHECK(b->numeric.loop.command==0 && b->numeric.loop.active==1);
+	CHECK(st_cterm_finish(f.terminal)==0);
+	/* Whole-call text expiry copies the bounded old suffix, without a new NUL. */
+	memcpy(b->text.bytes,"OLD",4); b->numeric.loop.type=' ';
+	string(&f,"I#& 0,1,1,0,>~"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->setup.phase==CTERM_BIG_SETUP_TYPE && f.bells==1);
+	CHECK(b->text.count==1 && memcmp(b->text.bytes,"~LD",4)==0 && memcmp(b->control.frame.gang,"~LD",4)==0);
+	string(&f,"@1,0:"); CHECK(b->numeric.loop.active==0);
+	/* A timed-out pair still publishes I as the repeated body identifier. */
+	string(&f,"I#& 0,2,1,0,&@1,1:"); string(&f,"I#I");
+	local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==2 && b->numeric.loop.active==0 && f.bells==2);
+	destroy(&f);
+}
 int main(void)
 {
 	partitions(); framing_and_state(); deadlines_and_recovery(); reply_and_footer();
 	stored_repetition(); gang_source_seams(); footer_wait_reset();
-	local_keys(); local_key_bytes(); local_key_lifecycle(); local_key_return(); return 0;
+	local_keys(); local_key_bytes(); local_key_lifecycle(); local_key_return(); wire_loops();
+	wire_setup_prefixes(); wire_setup_keys(); wire_setup_flow_lifecycle(); wire_setup_bounds(); wire_setup_sources(); return 0;
 }

@@ -33,8 +33,8 @@ callbacks and actual I0/I1 indexed-console effects. Independent CP437/UTF-8/
 status/split fixtures check IBM8x14 glyph rows, full-block pixels, palette,
 cursor, frame locals, ff/NUL ownership, late-byte deadlines and EOF/reset/
 semantic-hook recovery. Shared parser header-completion tests cover retained
-identifiers, chaining, suspension and error prefixes. Wire setup for &/<,
-native key ownership and complete command acceptance remain pending.
+identifiers, chaining, suspension and error prefixes. Wire & and native key integration are recorded below. < input production
+and complete command acceptance remain pending.
 
 BIG is selectable as profile/Wren value6. BBS codec and Wren tests preserve
 previous values, cover its presets and property bounds, and persist entries/
@@ -50,16 +50,29 @@ CTerm fixture covers actual repeated/gang bodies with shared numeric sources,
 source-to-wire seams, bounded work, output origins and reset/EOF recovery.
 The optional shared-parser unknown-command handler owns the same accepted
 suspension boundary without guessing payload. Application captures check
-unknown chaining and final footer state. &/< wire setup,
-text-source composition and audio synchronization remain pending.
+unknown chaining and final footer state. Wire &/text acquisition is covered
+below; W rendering, < production and audio synchronization remain pending.
 
 Native `cterm_big` key tests cover stored-loop delay probes and post-value
 03/18 cancellation, zero/scan ordering across distinct readiness/read
 boundaries, all native key entry kinds, CP437 conversion and UTF-8/modifier
 replay. BIG/IGS share native event replay with separate protocol consumers.
 Unread keys retain order behind finishing flow; saturation stays local;
-reset/EOF and callback reset discard unread work. These fixtures inject
-stored setup and do not claim & wire or physical keyboard/pointer coverage.
+reset/EOF and callback reset discard unread work. The standalone key cases inject
+stored setup; wire & coverage is recorded below. Physical keyboard/pointer
+coverage is not claimed.
+
+Wire & setup is now covered by `big_stream`, `cterm_big` and the expanded
+application fixture. Independent expectations cover immediate header/raw/
+text/table stores, original suppression/step/count/source semantics, load-
+abort zero filling, publication before XOFF,2048 actual stored slots, gang
+copy bounds and fixed/selected-& bodies. Local auxiliary/text deadlines
+preserve late-byte, cap/NUL/reuse/timeout ownership. Partial-pair timeouts
+retain body entry. The session adapter recognizes full accepted pauses and
+retains following bytes. The98 coherent application scenes include56 fixed/
+gang loops and14 native Ctrl-C delayed loops with exact flow, current-value
+effects and resumed buffered bytes. No physical audio/device or full command
+acceptance is claimed; <, W rendering and music synchronization remain pending.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

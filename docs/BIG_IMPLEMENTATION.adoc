@@ -18,8 +18,8 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-BIG mode6 is selectable with native I0/I1 indexed-console effects, source/
-footer replay and local stored-loop keys. Drawing commands, sound and full
+BIG mode6 is selectable with native I0/I1 indexed-console effects, wire &
+setup, source/footer replay and local stored-loop keys. Drawing commands, sound and full
 command acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -662,3 +662,75 @@ Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/so
 
 Native stored-loop key ownership/shared replay completion commit: `b89275f`.
 Wire &/< setup and the rest of the full goal remain active.
+
+=== Wire & setup and shared auxiliary/text readers
+
+The initial & pair now enters its complete native setup operator. It clears
+loop0, reads/stores FROM/TO/STEP/DELAY immediately with the production class0
+numeric callbacks, applies signed descending WORD negation/exact-zero step
+repair, and acquires the raw target, optional gang text, raw type and clamped
+P1..2048. Old type, random suppression, RNG history and unused table suffixes
+survive until the specific original stores. Header/P r can expand under old
+suppression0; table r stays8003 under the later suppression1 store.
+
+Every table slot probes local input before acquisition. Raw03/18 latches a
+load abort, zero-fills that and subsequent slots without more numeric reads,
+and continues probing. The last acquired prefix is retained. Publication
+still sets loop1/counters/did_loop, clears suppression/first-text state and
+calls XOFF BEFORE varying-word classification. A blocked XOFF exposes that
+publication prefix and runs no body. The common body then uses the same
+fixed/gang source paths as ordinary replay. Selected & skips setup, and
+gang selectors retain their previous-command/final-W ordering. No source
+suffix is drained, records inferred, hidden total loop limit imposed or
+failed prefix rolled back. Per-poll slot/body budgets bound local work.
+
+`st_big_stream` implements the actual auxiliary and graphical-text readers
+needed by setup and future W/raw consumers. Each auxiliary acquisition gets
+its own local deadline; a late ready byte is consumed, then overridden by
+SPACE, with auto policy affecting BEL only. Text uses one entry deadline,
+filters only @/CR/LF, retains embedded NUL/ff, caps at128 stored bytes and
+normally adds NUL (an empty normal read becomes literal @). Timeout is
+tested after byte handling and does not add NUL; late @ can terminate and
+notify. Reuse/typeZ and loop-@ first-pass XON retain original bookkeeping,
+flow ordering and whole-call timing. These are local monotonic policies,
+without foreign clock/interrupt emulation.
+
+Text has129 owned bytes including the normal terminator. Gang storage also
+has129 bytes so a full128-byte copy includes its NUL while selectors remain
+0..127. Copying stops after the first NUL, preserving the same-frame suffix.
+A damaged buffer with no NUL in its owned extent reports a bounded error
+before copying instead of scanning/corrupting adjacent DOS memory. Timeout
+otherwise preserves the actual acquired/stale suffix. EOF/reset clears
+reader activity and native keys without adding terminators, completing a
+field, running drawing defaults or erasing committed application prefixes.
+
+Pair timeout now retains body-entry bookkeeping as well as the identifier:
+an incomplete & pair still starts setup, and an incomplete I pair can repeat
+I rather than an obsolete frame identifier. The session adapter accepts
+IN_PROGRESS only when the entire submitted byte was consumed and CTerm is
+paused; it retains following wire bytes and polls the command owner. Other
+errors/short acceptance still follow the existing failure path. The new
+delayed-loop application case exposed the prior fatal-pause propagation
+before this correction.
+
+Independent `big_stream` fixtures cover split text, embedded bytes, cap/
+terminator ownership, stale timeout suffixes, late ready bytes, auto policy,
+reuse/Z/first-pass flow, counter wrap, backwards clocks and idempotence.
+`cterm_big` adds every-split/bytewise wire loops, gangs and retained copy
+suffixes,128-byte gangs, header/step/P prefixes and clamps, all2048 actual
+table slots with cooperative yielding, inherited suppression/RNG history,
+raw bytes, partial-pair/body timing, load/runtime cancellation, blocked XOFF,
+bounded malformed copy and EOF/reset/output-callback prefixes. The initial
+wire expectation failed against the earlier implementation.
+
+`syncterm_big_input` now checks98 coherent scenes: the original84 font/pixel/
+palette/cell/state scenes include56 fixed/gang wire loops and exact flow
+replies;14 additional delayed-loop scenes deliver native Ctrl-C and verify
+the executed current value, no remote cancellation byte, finishing XON and
+resumption of buffered terminal bytes. Partial & EOF and menu restoration
+are covered alongside the original reconnect cases. Physical audio/MIDI
+stay disabled. W rendering, < input production, music entry synchronization
+and the other command bodies remain pending; I/& remain in progress and
+full command completion stays0/45.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed.

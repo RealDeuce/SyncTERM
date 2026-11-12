@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its input/I operations run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I operations run
 through native CTerm. Drawing, sound and complete command acceptance remain
 in progress.
 
@@ -55,7 +55,7 @@ explicit timeout/BEL policy, shared-parser integration and EOF/reset recovery.
 
 The leaf reader consumes explicit timeout events; the numeric source
 callbacks below provide local deadline and final-r composition. Live terminal
-event-loop scheduling remains pending.
+event-loop scheduling is covered by the native/wire integration below.
 The leaf-reader tests do not claim command completion; the selectable mode
 and its application coverage are recorded below. Completion remains 0/45.
 
@@ -80,7 +80,7 @@ unscaled stored Y 5 versus wire Y 5->11, final-r ownership and EOF recovery.
 The component rejects invalid count/index accesses instead of following
 escaped DOS addresses. It preserves valid WORD overflow and pending source
 state. Complete & acquisition/dispatch, native key mapping and application
-local-deadline scheduling remain pending; command completion remains 0/45.
+local-deadline scheduling are covered below; command completion remains 0/45.
 
 ## Numeric source and deadline callbacks
 
@@ -93,8 +93,8 @@ waits, dynamic raw arity, split/bytewise source changes and EOF recovery.
 The portable policy uses nominal 18.2 wait units/second, converted directly to
 monotonic ns; numeric timeout is 4010989011ns. It owns no foreign clock, BIOS
 phase or IRQ state. The real project clock is exercised without sleeping.
-All 12 selected native checks passed in 1.48s. Live BIG terminal-mode/event-loop
-and command integration remain pending; command completion remains 0/45.
+All 12 selected native checks passed in 1.48s. Live BIG mode and event-loop integration
+are covered below; full command completion remains 0/45.
 
 ## I/R state and video profiles
 
@@ -103,8 +103,8 @@ then active page, application tail), palette-only I1, signed full-WORD
 normalization, R mode mapping, returning rejection and partial host failures.
 It distinguishes application attributes, BGI defaults, cached resolution and
 interpreter-local page/palette owners. I/R retain custom pattern slots and
-private font ratios. Actual indexed storage and live command binding remain
-pending; these component tests do not complete I or R.
+private font ratios. Complete indexed page/image storage and R wire binding remain
+pending; I binding is covered below. These components do not complete I or R.
 
 `big_profile` pins the three 640-pixel modes, console rows/font heights,
 4:3 aspect and per-plane page pitches. Existing font0 banks match the supplied
@@ -140,8 +140,8 @@ fixtures check literal IBM8x14 glyph rows, full-block pixels in both blink
 phases, palette/cursor state, deadlines, random suspension, EOF/reset and
 reset from a semantic callback. Physical audio is absent.
 
-Common loop/gang/flow/reply footer integration is recorded below. Native key
-binding and the &/< wire producers remain pending. I is
+Common loop/gang/flow/reply footer, native keys and & wire setup are recorded
+below. < production and music synchronization remain pending. I is
 in progress; no complete BIG command is claimed (0/45).
 
 Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction.
@@ -168,7 +168,7 @@ are disabled; these checks make no audio or full-command-completion claim.
 Mode installation now registers/selects each exact ROM console bank, with at
 most one new registration per size in a terminal owner. The application uses
 a narrow read-only inspection callback; BIG state stays private to CTerm.
-All wire commands except the current I operations still need implementation,
+Wire commands other than the current I/& operations still need implementation,
 and full I acceptance remains pending (0/45 complete).
 
 Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Nine selected native tests passed in26.42s, including full wren_host, bbs_list, term, connection, screen_mode, app_session_mode and BIG state/profile/input checks. Four application regressions passed in13.53s: BIG input, IGS init/editor, CGA mode and BBS setters. After adding the unsupported-profile case, cterm_big and syncterm_big_input passed again in14.23s; the application test checks84 independently expected scenes across28 connections plus editor persistence.
@@ -197,8 +197,7 @@ unsafe foreign stack/address escapes. A malformed count fails at the first
 out-of-range access after retaining its emitted prefix. Reset/EOF clears
 pending work without fabricating data or running drawing defaults.
 
-Wire setup for &/<, text-source composition and
-music synchronization remain pending. No command is marked complete (0/45).
+< production, W rendering and music synchronization remain pending. No command is marked complete (0/45).
 
 Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All90 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session CTest checks passed in104.50s. BIG/IGS coherent application tests both passed in14.64s; the BIG fixture covers84 scenes. The strengthened post-flow pair-deadline case passed with big_control/cterm_big in2.59s. All9 final focused shared-parser/BIG/IGS checks passed in2.54s after appending the optional callback to preserve prior member offsets.
 
@@ -226,7 +225,39 @@ not foreign interrupt or arbitrary device-state emulation.
 non-cancelling endpoints, zero/scan readiness order, all four native entry
 kinds, Unicode non-truncation/normalization, function-key modifiers, blocked
 XON, queue saturation and reset/EOF/replay recovery. The added test failed
-before implementation. Stored fixtures still inject setup state; & wire
-production and interactive pointer/device/audio coverage remain pending.
+before implementation. The standalone key fixtures inject setup state; wire & is covered below.
+Interactive pointer/device/audio coverage remains pending.
 
 Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed.
+
+## Wire loops and auxiliary/text sources
+
+Initial & now performs immediate header stores, original step normalization,
+raw target/type acquisition, bounded gang copy, P1..2048 table loading and
+local load-abort zero filling. It publishes counters/loop1 and clears random
+suppression before XOFF, then classifies varying words and enters the existing
+common body. Selected & skips setup. Header/P inherited suppression, stored r,
+RNG history and unused table suffixes retain their distinct lifetimes.
+
+The shared BIG auxiliary/text component preserves local per-read versus
+whole-call deadlines, late-byte consumption, SPACE/auto/BEL policy, text
+reuse/Z/first-pass XON,128 stored bytes plus NUL, opaque embedded bytes and
+unterminated timeout suffixes. Gang selectors still use0..127;129-byte gang
+storage includes a full string's NUL. Missing NUL in the owned text extent
+fails before unsafe copying, preserving completed setup prefixes.
+
+`big_stream` and `cterm_big` independently verify split/cap/timeouts/reuse,
+all2048 table slots, bounded work, raw types, header/step/count stores,
+suppression/RNG history, fixed/gang bodies, setup cancellation that still
+executes zero slots, runtime cancellation, partial-pair entry, blocked XOFF
+and EOF/reset/callback recovery. The initial wire case failed before support.
+
+The application fixture checks98 coherent scenes, including56 fixed/gang
+wire loops and14 delayed-loop Ctrl-C cases with exact19/17 flow replies,
+current-value effects, no leaked cancellation and buffered-tail resumption.
+This caught a session adapter bug treating a fully accepted paused command
+as fatal; only full acceptance with a paused owner is now normalized there.
+< production, W rendering and music synchronization remain pending. No
+additional full command completion is claimed (0/45).
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed.

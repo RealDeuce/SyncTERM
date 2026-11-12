@@ -18,7 +18,7 @@ static const struct st_graphics_dialect dialect = {
 	.chain = '>', .number_digits = 4,
 };
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
-static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL}};
+static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'&',NULL,0,NULL}};
 
 static struct cterm_big *owner(void *context)
 {
@@ -58,14 +58,14 @@ static int boundary(void *context)
 	if (status != 0) return status;
 	big->pair_deadline = UINT64_MAX-sample < ST_BIG_NUMERIC_TIMEOUT_NS
 	    ? UINT64_MAX : sample+ST_BIG_NUMERIC_TIMEOUT_NS;
-	big->pair_sample = sample; big->pair_wait = true;
+	big->pair_sample = sample; big->pair_wait = big->pair_body = true;
 	return 0;
 }
 static void body_entry(struct cterm_big *big, const struct st_graphics_command_view *view)
 {
-	if (!big->pair_wait) return;
+	if (!big->pair_body) return;
 	big->control.frame.command=view->code; big->numeric.loop.command_read=false;
-	big->pair_wait=false;
+	big->pair_wait=big->pair_body=false;
 }
 static int field(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
@@ -165,7 +165,12 @@ static int begin_footer(struct cterm_big *big, const struct st_graphics_command_
 }
 static int command(void *context, const struct st_graphics_command_view *view)
 {
-	struct cterm_big *big = owner(context); body_entry(big,view);
+	struct cterm_big *big = owner(context); bool initial=big->pair_body; body_entry(big,view);
+	if (view->code=='&') {
+		if (!initial) return begin_footer(big,view);
+		big->footer.chained=view->chained; cterm_big_setup_begin(big);
+		return IO_ERROR_IN_PROGRESS;
+	}
 	const struct st_big_state_sink sink = {big,install,palette,page};
 	if (view->code != 'I' || view->count != 1 || !view->arguments[0].has_value)
 		return IO_ERROR_PROTOCOL;
@@ -197,11 +202,12 @@ static struct st_graphics_parser_sink callbacks(struct cterm_big *big)
 static void cancel(struct cterm_big *big)
 {
 	st_graphics_parser_cancel(big->parser); st_big_numeric_cancel(&big->numeric);
-	big->pair_wait = big->reset_pending = false;
+	big->pair_wait = big->pair_body = big->reset_pending = false;
 	big->footer_active=big->gang_selecting=big->gang_wire=big->starting_body=false;
 	big->control.input.pending=0; big->control.frame.command=big->control.frame.did_loop=0;
 	big->numeric.loop.active=0; big->numeric.loop.command_read=false;
 	memset(&big->input,0,sizeof(big->input));
+	memset(&big->setup,0,sizeof(big->setup)); big->text.active=0;
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -275,6 +281,17 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->setup.phase!=CTERM_BIG_SETUP_OFF) {
+			size_t accepted; bool complete;
+			status=cterm_big_setup_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,
+			    &output_budget,&body_budget,&complete); *used+=accepted;
+			if (status!=0) break;
+			if (complete) {
+				status=begin_repeat(big,&sink); if (status!=0) break;
+				advance_needed=true; continue;
+			}
+			break;
+		}
 		if (big->footer_active) {
 			enum st_big_footer_action action;
 			status=st_big_footer_poll(&big->footer,&big->numeric.loop,&big->control,
@@ -312,19 +329,19 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 			if (expired) {
 				if (available!=0) ++*used;
 				status=end_pair(big,&sink);
-				if (status==IO_ERROR_IN_PROGRESS && big->footer_active) { status=0; continue; }
+				if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF)) { status=0; continue; }
 				if (status!=0) break;
 				continue;
 			}
 		}
 		size_t accepted;
 		status=st_graphics_parser_feed(big->parser,&sink,input,available,&accepted); *used+=accepted;
-		if (status==IO_ERROR_IN_PROGRESS && big->footer_active) { status=0; continue; }
+		if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF)) { status=0; continue; }
 		if (status!=0) break;
 		if (big->pair_wait && header==2) {
 			status=pair_expired(big,&expired);
 			if (status==0 && expired) status=end_pair(big,&sink);
-			if (status==IO_ERROR_IN_PROGRESS && big->footer_active) { status=0; continue; }
+			if (status==IO_ERROR_IN_PROGRESS && (big->footer_active || big->setup.phase!=CTERM_BIG_SETUP_OFF)) { status=0; continue; }
 			if (status!=0) break;
 		}
 	}
@@ -345,7 +362,9 @@ int cterm_big_poll(struct cterm_big *big)
 }
 bool cterm_big_paused(const struct cterm_big *big)
 {
-	return big != NULL && (big->footer_active || (big->gang_selecting && !big->gang_wire)
+	return big != NULL && (big->footer_active || big->setup.cooperative || big->setup.phase==CTERM_BIG_SETUP_FLOW
+	    || (big->setup.phase==CTERM_BIG_SETUP_TEXT && big->setup.stream.phase==ST_BIG_STREAM_FLOW)
+	    || (big->gang_selecting && !big->gang_wire)
 	    || big->numeric.field.phase == ST_BIG_NUMERIC_SELECT
 	    || big->numeric.field.phase == ST_BIG_NUMERIC_WIRE_STORED
 	    || big->numeric.field.phase == ST_BIG_NUMERIC_WIRE_RANDOM);
@@ -377,7 +396,7 @@ int cterm_big_create(struct cterminal *t)
 	st_big_state_init(&big->state); st_big_control_init(&big->control);
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
 	const struct st_graphics_parser_config config = {
-		.dialect = &dialect, .commands = commands, .command_count = 1,
+		.dialect = &dialect, .commands = commands, .command_count = sizeof(commands)/sizeof(commands[0]),
 		.max_arguments = 1,
 	};
 	if (status == 0) status = st_graphics_parser_create(&big->parser,&config);
@@ -416,6 +435,11 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_active_page", big->state.active_page);
 	st_console_test_number(app, "cterm.big_visual_page", big->state.visual_page);
 	st_console_test_number(app, "cterm.big_loop_active", big->numeric.loop.active);
+	st_console_test_number(app, "cterm.big_loop_current", big->numeric.loop.current);
+	st_console_test_number(app, "cterm.big_loop_count", big->numeric.loop.count);
+	st_console_test_number(app, "cterm.big_loop_index", big->numeric.loop.index);
+	st_console_test_number(app, "cterm.big_no_parameters", big->numeric.loop.no_parameters);
+	st_console_test_number(app, "cterm.big_setup_active", big->setup.phase!=CTERM_BIG_SETUP_OFF);
 	st_console_test_number(app, "cterm.big_pair_wait", big->pair_wait);
 	st_console_test_number(app, "cterm.big_footer_active", big->footer_active);
 	st_console_test_number(app, "cterm.big_reply_pending", big->control.input.pending);

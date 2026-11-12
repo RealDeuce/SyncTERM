@@ -34,7 +34,8 @@ chaining, input-free timeout completion and partial-field EOF recovery.
 
 The tests require no external documentation tree, ROM, DOS program, graphics
 display or physical audio device. Stored-loop evaluation, final random
-expansion and application deadline scheduling have separate pending owners.
+expansion and application deadline scheduling have separate owners covered
+by the later component/integration fixtures below.
 
 
 `st_big_random_test.c` uses chapter 33 and `controls-examples.json` seed and
@@ -80,13 +81,14 @@ RNG suspension/suppression, exact-loop1 common-tail recheck, mixed stored/wire
 Y 5 values 5/11 and final random ownership after loop termination. The parser
 fixtures bind the actual callbacks (no test replacement reader), test every
 split/bytewise source seam, and verify raw payload ownership, partial clock
-error counts, EOF and fresh-field recovery. Native event-loop wakeups and
-physical keyboard-device coverage remain application integration tests to add
-later. The native `cterm_big` fixture now binds real key entry points to these
-callbacks: independent expectations cover post-value03/18 cancellation,
+error counts, EOF and fresh-field recovery. Wire/session wakeups are covered
+by the application integration below; physical keyboard-device coverage is
+not claimed. The native `cterm_big` fixture now binds real key entry points
+to these callbacks: independent expectations cover post-value03/18 cancellation,
 non-cancelling bytes, delay probes, extended zero/pending-scan boundaries,
 CP437/UTF-8/doorway/modifier replay, Unicode non-truncation, saturation and
-reset/EOF/callback-reset prefixes. Setup is still injected until & is wired.
+reset/EOF/callback-reset prefixes. Those standalone key cases inject setup;
+additional wire & cases are covered below.
 
 
 `st_big_state_test.c` takes I/R call order and lifetimes from chapters 27,
@@ -119,3 +121,21 @@ to verify original read order, latched arguments, completed prefixes and errors.
 The bounded reply test emits positions1..255 before rejecting position256;
 it does not infer safety from a preclamped total. No fixture runs a foreign
 UART, clock or DOS program. CTerm/application integration is checked separately.
+
+`st_big_stream_test.c` uses chapters7/8/62/64/73's literal auxiliary/text
+ownership. Every split covers CR/LF filtering, embedded NUL/ff and attention
+bytes, normal empty @ and exact128-byte completion without draining @.
+Independent deadline cases retain OLD's suffix after overwriting only its
+first byte, consume/notify on late @, distinguish auxiliary SPACE/auto policy,
+reject backwards samples and check completion idempotence. The loop/type
+entry matrix and blocked first-pass XON verify reuse and whole-call timing.
+
+Live `cterm_big` setup tests use those production readers and wire &, including
+header/step/P stores, inherited random suppression/history, clamped P with
+all2048 actual table words, untouched suffixes, bounded setup/body work,
+gang copy through NUL/retained tail, raw byte identity, load abort that still
+executes zero slots, runtime keys, blocked XOFF publication, stale text,
+partial-pair/body identity and reset/EOF/callback prefixes. The coherent
+application fixture adds fixed/gang wire loops and delayed native Ctrl-C
+with exact flow, retained scene/current result and buffered-tail resumption.
+None of these fixtures need external reference files, devices or audio.

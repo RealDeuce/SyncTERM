@@ -7,9 +7,9 @@
 
 bool cterm_big_input_owned(const struct cterm_big *big)
 {
-	return big!=NULL && big->numeric.loop.active==1
+	return big!=NULL && (big->setup.phase!=CTERM_BIG_SETUP_OFF || (big->numeric.loop.active==1
 	    && st_graphics_parser_in_command(big->parser)
-	    && (!big->footer_active || big->numeric.loop.command_read);
+	    && (!big->footer_active || big->numeric.loop.command_read)));
 }
 
 bool cterm_big_handle_key(struct cterm_big *big, const struct cterm_key *key)

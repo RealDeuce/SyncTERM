@@ -91,7 +91,8 @@
         "big_number",
         "big_random",
         "big_loop",
-        "big_numeric"
+        "big_numeric",
+        "big_stream"
       ],
       "references": [
         "05-numeric-reader.adoc",
@@ -120,7 +121,9 @@
         "Stored evaluator: independent literal sequences, ordinary source fallback, 16-bit coordinates/pass/cumulative counters, reachable 2048-word/32-pass counter wrap, ordered expressions, delay/key/RNG suspension prefixes, text markers, invalid indices and error/reset behavior pass in big_loop. Shared-parser partitions/bytewise input verify stored Y5 bypasses scaling while later wire Y5 becomes11, delay ownership, final RNG ownership after loop termination and EOF recovery.",
         "Stored-evaluator step: native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All eight BIG/shared-parser/IGS scaling checks passed in 1.73s; big_loop completed in 0.01s.",
         "Production numeric parser callbacks compose ordinary/stored input, final random expansion, local byte/loop deadlines and key checkpoints. big_numeric verifies per-byte rearming, exact local boundaries, ready-byte timeout consumption, BEL-before-construction effects, auto suppression, retained delayed-key reads, ordinary/stored final-r waits, common-tail loop recheck, raw dynamic arity, all split/bytewise mid-command source changes and exact clock-error consumption/EOF recovery. It also exercises the project monotonic clock without sleeping or physical audio.",
-        "Source/deadline step: native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All12 selected BIG/shared-parser/IGS scaling/time checks passed in1.48s; big_numeric completed in0.00s."
+        "Source/deadline step: native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All12 selected BIG/shared-parser/IGS scaling/time checks passed in1.48s; big_numeric completed in0.00s.",
+        "st_big_stream binds auxiliary/text readers to production numeric/loop/flow state: per-call versus whole-text monotonic deadlines, ready-byte timeout order, auto/BEL,128-byte caps, empty @, embedded NUL/ff, stale suffixes, reuse/Z, first-pass XON and idempotence. Independent split/cap/deadline/reuse/flow/error expectations pass; live & uses the same component.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
       ],
       "commit": null,
       "steps": [
@@ -159,6 +162,16 @@
           ],
           "commit": "b25b1e8",
           "verification": "Native Release build and all12 selected checks passed in1.48s. Live terminal-mode/event-loop binding remains a separate pending integration step."
+        },
+        {
+          "id": "auxiliary-and-text-stream-readers",
+          "status": "complete",
+          "tests": [
+            "big_stream",
+            "cterm_big"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
         }
       ]
     },
@@ -259,7 +272,8 @@
         "wren_menu_contract",
         "syncterm_behavior_bbs_setters",
         "syncterm_big_input",
-        "big_control"
+        "big_control",
+        "big_stream"
       ],
       "references": [
         "01-scope-evidence.adoc",
@@ -272,7 +286,11 @@
         "21-loops-gangs-and-substitution.adoc",
         "32-input-zones-and-deferred-replies.adoc",
         "33-extended-dispatch-ranges-and-flow.adoc",
-        "31-inquiry-pause-and-console-position.adoc"
+        "31-inquiry-pause-and-console-position.adoc",
+        "07-text-and-speaker.adoc",
+        "62-graphical-text-command-acceptance.adoc",
+        "65-loop-command-acceptance.adoc",
+        "73-global-readers-and-loops-acceptance.adoc"
       ],
       "deviations": [
         "Explicit terminal EOF flushes ordinary held attention text and cancels incomplete headers/fields without running defaults; it does not emulate DOS process/file-viewer teardown.",
@@ -280,7 +298,8 @@
         "Fresh interpreter-frame gang suffix bytes are zero-initialized instead of retaining uninitialized DOS stack data.",
         "Bound reply payload to256 positions, including zero,129 keyboard bytes and all255 byte-counted zone positions. Fail only when an actual read would escape, retaining completed output prefixes and original signed/wrapped count predicates.",
         "Local queued transport owns readiness; no FOSSIL port/status or DOS capture UI model. Byte/body budgets yield cooperatively without truncating counts or imposing a total loop limit. Reset/EOF stops pending replay/footer work and clears pending replies without running defaults or resending accepted bytes.",
-        "Native consumed text maps to CP437 with question-mark fallback for unmappable Unicode; raw C0 identity is retained. A bounded64-event queue drops newest events on saturation with a warning, preserving admitted order and local ownership. No arbitrary foreign interrupt/unget/device state is emulated."
+        "Native consumed text maps to CP437 with question-mark fallback for unmappable Unicode; raw C0 identity is retained. A bounded64-event queue drops newest events on saturation with a warning, preserving admitted order and local ownership. No arbitrary foreign interrupt/unget/device state is emulated.",
+        "Native text/gang storage has129 owned bytes including the normal128-byte text terminator; selectors remain0..127. An unterminated damaged shared buffer fails a bounded scan before gang copying instead of escaping into foreign adjacent memory. Normal copies retain the same-frame suffix. Per-poll setup-slot budgets yield without truncating P or imposing a total loop limit."
       ],
       "verification": [
         "Native CTerm API mode6 uses the shared pre-ANSI insertion and I#/chain grammar, production BIG numeric callbacks, indexed console and shared EGA palette. I0/I1 live effects are covered by independent CP437/UTF-8/status/every-split/bytewise glyph, pixel, palette and cursor expectations.",
@@ -292,7 +311,9 @@
         "Common repeat-before-footer order, finishing XON, SPACE/X cleanup, chain deferral, counted input and fixed/gang replay are integrated into live CTerm with production numeric callbacks. Independent tests cover both WORD count domains,32767 actual flow bytes, live reads, raw replies, accepted waits, budget yields, source-to-wire seams, retained frame locals, output origin, reset/EOF and post-flow pair deadlines. &/< wire setup, native keys, text-source and music synchronization remain pending. No full command completion is claimed.",
         "Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All90 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session CTest checks passed in104.50s. BIG/IGS coherent application tests both passed in14.64s; the BIG fixture covers84 scenes. The strengthened post-flow pair-deadline case passed with big_control/cterm_big in2.59s. All9 final focused shared-parser/BIG/IGS checks passed in2.54s after appending the optional callback to preserve prior member offsets.",
         "Native stored-loop keys now use production numeric callbacks. Independent cterm_big expectations failed before implementation and cover03/18 cancellation after calculation, non-cancelling bytes/endpoints, zero/pending-scan readiness, native event kinds, Unicode non-truncation/normalization, modifiers, blocked finishing flow, queue saturation and reset/EOF/callback-reset replay. State-injected setup does not claim & wire, pointer or physical device coverage.",
-        "Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed."
+        "Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed.",
+        "Initial wire & now performs ordered header/raw/text/P/table acquisition, inherited suppression/RNG semantics, load-abort zero fill, loop publication before XOFF, post-flow classification and common-body dispatch. Independent native tests include all2048 actual slots, split input, partial effects, selected &, zero/ff raw bytes, gang copy/suffix bounds, source/timeouts/cancel/reset/EOF. The initial wire case failed before implementation. Delayed real-session loops exposed and verified the fix for fatal propagation of full accepted pauses. The expanded application fixture checks98 coherent scenes,56 fixed/gang loops and14 Ctrl-C delayed loops with exact flow/current-value/buffered-tail results. W rendering, < production and music entry synchronization remain pending; no full command completion is claimed.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
       ],
       "commit": null,
       "steps": [
@@ -344,6 +365,20 @@
           ],
           "commit": "b89275f",
           "verification": "Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed."
+        },
+        {
+          "id": "wire-loop-setup-and-session-pauses",
+          "status": "complete",
+          "tests": [
+            "big_stream",
+            "cterm_big",
+            "term",
+            "term_key_forward",
+            "syncterm_big_input",
+            "syncterm_igs_init"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
         }
       ]
     },
@@ -405,7 +440,8 @@
       "deviations": [],
       "verification": [
         "I0/I1 body, native/app indexed-console effects and common footer/replay paths are implemented and tested. Production source fixtures cover repetition/gang selection/source-to-wire seams and deferred replies; &/< wire producers, native key ownership and music synchronization remain pending. This entry is not complete.",
-        "Stored-loop native keys now reach the post-value checkpoint with ordered unread-event replay. &/< wire production, text-source and music integration remain pending; this entry remains in progress."
+        "Stored-loop native keys now reach the post-value checkpoint with ordered unread-event replay. &/< wire production, text-source and music integration remain pending; this entry remains in progress.",
+        "Wire & now supplies fixed/gang I values and native cancellation in real sessions: coherent captures check repeated I1 retention and the current I1 result after Ctrl-C, flow and buffered-tail resumption. Full entry/music synchronization and remaining input/render/audio composition are still pending."
       ],
       "commit": null
     },
@@ -1179,19 +1215,41 @@
     {
       "id": "&",
       "order": 43,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages"
       ],
       "references": [
-        "65-loop-command-acceptance.adoc"
+        "65-loop-command-acceptance.adoc",
+        "07-text-and-speaker.adoc",
+        "21-loops-gangs-and-substitution.adoc",
+        "62-graphical-text-command-acceptance.adoc",
+        "73-global-readers-and-loops-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Immediate header/WORD normalization, auxiliary target/type, gang text/copy and P1..2048 collection with inherited type/suppression/RNG lifetime.",
+        "Local load-abort zero fill, loop/counter publication before setup XOFF, post-flow scan and fixed/gang body entry; selected & never recursively initializes.",
+        "Native serialized source/flow waits, bounded work, stale text/copy boundaries, error/EOF/reset prefixes and real-session accepted-pause resumption."
+      ],
+      "tests": [
+        "big_number",
+        "big_random",
+        "big_loop",
+        "big_numeric",
+        "big_control",
+        "big_stream",
+        "cterm_big",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native text/gang storage has129 owned bytes including the normal128-byte text terminator; selectors remain0..127. An unterminated damaged shared buffer fails a bounded scan before gang copying instead of escaping into foreign adjacent memory. Normal copies retain the same-frame suffix. Per-poll setup-slot budgets yield without truncating P or imposing a total loop limit."
+      ],
+      "verification": [
+        "Initial wire & now performs ordered header/raw/text/P/table acquisition, inherited suppression/RNG semantics, load-abort zero fill, loop publication before XOFF, post-flow classification and common-body dispatch. Independent native tests include all2048 actual slots, split input, partial effects, selected &, zero/ff raw bytes, gang copy/suffix bounds, source/timeouts/cancel/reset/EOF. The initial wire case failed before implementation. Delayed real-session loops exposed and verified the fix for fatal propagation of full accepted pauses. The expanded application fixture checks98 coherent scenes,56 fixed/gang loops and14 Ctrl-C delayed loops with exact flow/current-value/buffered-tail results. W rendering, < production and music entry synchronization remain pending; no full command completion is claimed.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
+      ],
       "commit": null
     },
     {
