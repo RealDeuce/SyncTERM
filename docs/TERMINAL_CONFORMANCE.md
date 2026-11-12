@@ -121,6 +121,14 @@ indexed scene/state/reply oracles. Pointer/page binding and remaining command
 composition stay pending. Routine development tests are BIG-only; final goal
 verification retains the full regression suite.
 
+`big_collect` adds independently tested keyboard/zone collection operators:
+all WORD type/options values,129-byte/count-wrap storage, raw bytes, echo
+prefixes, signed first-hit/default/strict zones, unsigned cross-cell copies,
+bounded failures and exact replies through the existing footer. Literal
+movement vectors check X6 WORD overflow and asymmetric clamps. Native <
+framing/echo/keyboard/mouse/pointer integration remains pending; the new
+component tests do not claim bitmap or physical-device input coverage.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

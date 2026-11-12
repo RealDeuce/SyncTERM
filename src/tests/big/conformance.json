@@ -489,6 +489,16 @@
           ],
           "commit": "a2d67a7",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
+        },
+        {
+          "id": "keyboard-and-zone-collection-operators",
+          "status": "complete",
+          "tests": [
+            "big_collect",
+            "big_control"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed."
         }
       ]
     },
@@ -1279,13 +1289,15 @@
         "big_numeric",
         "big_control",
         "cterm_big_resolution",
-        "syncterm_big_input"
+        "syncterm_big_input",
+        "big_collect"
       ],
       "deviations": [],
       "verification": [
         "Native split/bytewise CP437/UTF-8/status cases check defaults/full-WORD clamps, separate BGI/console points, immediate raw X during Y wait, current-X mutation before clamping, I/R retention, unknown selectors/replies, EOF/reset/timeout. Actual wire Y5 gives8/11 under g2/R2 and g3/R3; loop endpoints after selector/X transfer later fields to wire, while final stored Y5 remains5.70 new step/default/retention scenes bring application coverage to308 coherent scenes. Interactive pointer input, X4-clear integration and music/audio composition remain pending; X6 is not marked complete.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.",
-        "X4 rectangle clearing now has an explicit native assertion that application keyboard steps remain unchanged; pointer interaction remains pending."
+        "X4 rectangle clearing now has an explicit native assertion that application keyboard steps remain unchanged; pointer interaction remains pending.",
+        "The new collection component checks literal movement vectors using current full-WORD steps, wrap and asymmetric clamps; native keyboard/mouse pointer delivery remains pending."
       ],
       "commit": null
     },
@@ -1316,7 +1328,8 @@
         "big_control",
         "big_stream",
         "cterm_big_resolution",
-        "syncterm_big_input"
+        "syncterm_big_input",
+        "big_collect"
       ],
       "deviations": [
         "Negative ids fail OUT_OF_RANGE at their first coordinate store, after acquiring X1, instead of overwriting unrelated DOS/modem state. No clamp to47 or negative-slot allocation.",
@@ -1325,14 +1338,15 @@
       "verification": [
         "Independent opaque-wire expectations failed against the previous fallback. Native split/bytewise CP437/UTF-8/status cases verify zero tables, specials, clamps/scaling, each immediate coordinate, I/R/step lifetime, source-to-wire early-XON gates, raw NUL/ff/fake commands, retained tails, live length changes, extra-read latching, cross-record stores, bounded escapes, 80-byte budget resumption, per-call/late-ready timeouts, blocked-flow deadline ordering and reset/EOF prefixes.",
         "84 added coherent application scenes bring coverage to392, checking scaled rectangles, fake I#R bytes, NUL/ff, retained shorter-definition tails, I/R and special lifetimes together with exact unchanged indexed planes, fonts/cells/palette/cursor/state and RGB samples. Pointer selection/marker and music composition remain pending; X4 is not marked fully accepted.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed.",
+        "The new collection component consumes initial/defined/corrupted zone data with signed first-hit/default/strict tests, unsigned cross-cell lengths and bounded prefixes. Native pointer selection remains pending."
       ],
       "commit": null
     },
     {
       "id": "<",
       "order": 37,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1341,12 +1355,30 @@
         "shared-bgi"
       ],
       "references": [
-        "64-input-and-zone-command-acceptance.adoc"
+        "32-input-zones-and-deferred-replies.adoc",
+        "64-input-and-zone-command-acceptance.adoc",
+        "81-global-input-queues-zones-and-replies-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Collection component entry after the third read: pending1/count0 with retained payload/append, exact2 discard-with-echo and3 discard-without-ordinary-echo, other full-WORD options retained.",
+        "Raw keyboard byte classification, signed-positive repetition/CR termination,129 accepted positions, DEL WORD underflow, conditional BS, increment-before-store, position0 and retained deleted tails; ordered synchronous ordinary/deletion echo requests.",
+        "Signed inclusive first-hit zone lookup, nonzero strict BEL/retry versus default47, unsigned lengths through255 with live counted copies across the flat source table, no80/129 consumer clamp or NUL stop.",
+        "Literal X6 WORD direction/overflow/asymmetric-clamp operators and composition with existing counted/footer/chain/append/replacement semantics. Native < registration, immediate append field, keyboard/mouse event ordering, echo renderer and pointer draw/cleanup remain pending."
+      ],
+      "tests": [
+        "big_collect",
+        "big_control"
+      ],
+      "deviations": [
+        "Escaped keyboard stores fail after incrementing the original count; escaped flat zone-source reads fail at the actual access after retaining count/copied prefix. No saturation, prevalidation or rollback.",
+        "Corrupted zone counts130..255 use the existing native256-byte reply owner instead of overwriting original adjacent DOS syrup/loop/filename fields. Unsafe foreign-neighbor aliases are not modeled.",
+        "Native pointer integration uses actual direction/mouse events; idle and unknown extended scans are neutral instead of reproducing the original helper's uninitialized/inherited foreign-SI drift. Keyboard/mouse/release integration remains pending.",
+        "Unexpected asynchronous echo returns become protocol errors, retaining prior stores/echo requests and preventing prefix replay."
+      ],
+      "verification": [
+        "big_collect independently checks all 65,536 type WORDs and all 65,536 options WORDs,129/130 limits, DEL/BS/count wrap/position0, raw00/48/control/high bytes, retained tails, count changes and echo failure prefixes. Signed zones cover initial zero cells, inclusive overlaps, reversed/ffff rectangles, strict/default miss, literal NUL/pipe/tilde replies, unsigned255-byte cross-record copies and last-cell bounds. Actual footer composition checks chaining/replacement/append and exact replies; literal direction vectors cover raw step overflow and asymmetric clamps. Cancellation and invalid calls preserve application state. Native input/bitmap/application acceptance is not claimed.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed."
+      ],
       "commit": null
     },
     {

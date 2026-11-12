@@ -409,3 +409,29 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) and final focuse
 
 Shared thin-line/BIG polymarker and wire T/P integration commit: `a2d67a7`.
 Interactive input, page binding and the full45-entry goal remain in progress.
+
+## Keyboard and zone collection operators
+
+`big_collect` implements < entry/options/count semantics, raw keyboard byte
+handling and signed first-hit/default/strict zone lookup as a component.
+It preserves the129-byte keyboard bound, DEL underflow/position0, deleted
+tails, unsigned255-byte zone copies, ordered echo requests and existing
+counted deferred replies. Actual escaped accesses fail at the store/read
+boundary with prior count/data/echo prefixes retained. Errors latch and
+unexpected asynchronous echo requests fail instead of replaying prefixes.
+
+Independent tests exercise all 65,536 type and option WORDs, count/deletion/
+control/high-byte cases, reply/chaining/replacement, full-byte zone data,
+signed overlaps, corrupt-length prefixes, cancellation and literal X6 movement
+vectors. Native < framing/echo/event/pointer integration is still pending;
+this does not claim keyboard/mouse or bitmap application acceptance.
+Native pointer integration will use actual event order and neutral idle/unknown
+input rather than reconstructing the original helper's uninitialized foreign
+SI drift. The accepted keyboard/mouse/release behavior remains unchanged.
+
+Corrupted zone lengths130..255 use the existing bounded256-byte native reply
+owner instead of overwriting the original adjacent DOS syrup/loop/filename
+owners. Normal keyboard positions1..129 and producer lengths1..80 keep their
+ordinary count/data semantics; unsafe foreign-neighbor aliases are not modeled.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed.

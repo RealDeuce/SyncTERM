@@ -129,6 +129,10 @@ event ownership and pointer save-under cleanup. Keep BIG's pointer shapes,
 zones, hit testing and deferred replies distinct from IGS's wire semantics.
 
 X6 controls keyboard steps and never quantizes direct mouse coordinates.
+Native direction events drive movement; idle input and unknown extended
+scans must not move the pointer. This is the native adaptation of the original
+helper's uninitialized/inherited foreign SI, including idle drift after X4
+or gang selection. No foreign register context or busy polling is simulated.
 
 === Sound
 
@@ -594,7 +598,7 @@ A malformed WORD count that actually reaches position256 reports a bounded
 error after its completed prefix; negative/wrapped counts are not clamped.
 Ordinary raw data and current-state read order are retained.
 
-`big_control` has independently derived flow/footer expectations, all65536
+`big_control` has independently derived flow/footer expectations, all 65,536
 WORD count predicates for both helpers, an actual32767-byte bounded-batch
 flow, raw counted replies, live count/byte/CR changes, admitted-iteration waits,
 latched send bytes, errors and completion idempotence. `cterm_big` checks live
@@ -992,3 +996,58 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) and final focuse
 
 Shared thin-line/BIG polymarker and wire T/P integration commit: `a2d67a7`.
 Interactive input, page binding and the full45-entry goal remain in progress.
+
+== Keyboard and zone collection core
+
+`st_big_collect` now owns the original < storage operators from32/64/81,
+independent of native event delivery and drawing. Its entry follows the
+third argument: pending1/count0 with retained payload/append bytes, exact
+options2 discard-with-echo and3 discard-without-ordinary-echo. Other full
+WORD options retain their nonzero echo predicate. Type2 selects zones;
+all other types perform at least one byte read, signed-positive types
+continue, and CR sets type0. Native acquisition/append-field publication,
+echo rendering and pointer binding remain to be connected to the parser.
+
+Keyboard processing retains the1-based129-byte bound, unconditional DEL
+count wrap, conditional signed-positive BS decrement, increment-before-store,
+retained deleted tails and position0 after DEL-at-zero then printable input.
+Controls/high bytes are ignored for storage and can finish one-read types;
+00/48 in a string remains raw input yielding H, not an arrow. Ordinary echo
+and SPACE/BS deletion requests are synchronous ordered callbacks, independent
+of ANSI/VT52 parsing. A failed second deletion request retains its accepted
+SPACE prefix. Errors latch until a new frame; cancellation drops only the
+component frame, leaving accepted application input state for its caller to
+preserve or clear pending as appropriate.
+
+Zone lookup uses signed inclusive first-hit comparisons with no corner sort,
+translation or disabled-cell flag. Strict miss requests BEL/retry; default
+miss selects47 even for a cleared rectangle. Selected unsigned lengths are
+copied literally1..255, including NUL and bytes across following zone cells.
+The producer's80 clamp and keyboard129 bound are not repeated. The same
+existing counted footer sends the collected data, defers it while chaining,
+replaces pending collections and appends CR only under its existing gates.
+Explicit direction events use current X6 WORD steps and the original asymmetric
+signed clamps, including negative right/down overflow and wrapped subtraction.
+
+Safe storage correction: an actually escaped keyboard store fails only after
+its count increment; the first escaped zone source read fails after retaining
+its earlier copied prefix/count. No count saturation, whole-copy validation,
+tail clearing, NUL termination or transactional rollback is added. Unexpected
+asynchronous echo requests fail as protocol errors to prevent partial replay.
+
+`big_collect` independently covers all 65,536 type WORD and all 65,536
+options WORD,129/130 limits, raw extended bytes, control/high bytes, DEL/BS,
+count wrap/position0, retained suffixes, echo/error prefixes, live count changes,
+strict/default/overlapping/reversed/negative-coordinate zones, unsigned255
+cross-cell copies and last-cell bounds. It composes collection with the real
+footer for exact replies, chaining/replacement and append CR. Cancellation,
+invalid calls and literal boundary/overflow movement vectors are covered.
+This component completes a dependency, not native < acquisition or full command
+acceptance; coherent application coverage remains the earlier784 scenes.
+
+Corrupted zone lengths130..255 use the existing bounded256-byte native reply
+owner instead of overwriting the original adjacent DOS syrup/loop/filename
+owners. Normal keyboard positions1..129 and producer lengths1..80 keep their
+ordinary count/data semantics; unsafe foreign-neighbor aliases are not modeled.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed.
