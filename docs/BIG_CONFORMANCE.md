@@ -289,3 +289,6 @@ Full G storage/input/drawing/music composition is still pending; R remains
 in progress, with no new full command acceptance claimed (0/45).
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed.
+
+Wire R/native resolution binding integration commit: `0e3835c`.
+R and the full45-entry goal remain in progress.
