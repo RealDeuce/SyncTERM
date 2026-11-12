@@ -6,6 +6,7 @@
  */
 
 #include "cterm_rip_raster.h"
+#include "st_bgi_data.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_fonts.h"
 #include "cterm_rip_icon_file.h"
@@ -23,73 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-static const uint16_t      ega_palette[64][3] = {
-	{0, 0, 0},
-	{0, 0, 0xaaaa},
-	{0, 0xaaaa, 0},
-	{0, 0xaaaa, 0xaaaa},
-	{0xaaaa, 0, 0},
-	{0xaaaa, 0, 0xaaaa},
-	{0xaaaa, 0xaaaa, 0},
-	{0xaaaa, 0xaaaa, 0xaaaa},
-	{0, 0, 0x5555},
-	{0, 0, 0xffff},
-	{0, 0xaaaa, 0x5555},            // 10
-	{0, 0xaaaa, 0xffff},
-	{0xaaaa, 0, 0x5555},
-	{0xaaaa, 0, 0xffff},
-	{0xaaaa, 0xaaaa, 0x5555},
-	{0xaaaa, 0xaaaa, 0xffff},
-	{0, 0x5555, 0},
-	{0, 0x5555, 0xaaaa},
-	{0, 0xffff, 0},
-	{0, 0xffff, 0xaaaa},
-	{0xaaaa, 0x5555, 0},            // 20
-	{0xaaaa, 0x5555, 0xaaaa},
-	{0xaaaa, 0xffff, 0},
-	{0xaaaa, 0xffff, 0xaaaa},
-	{0, 0x5555, 0x5555},
-	{0, 0x5555, 0xffff},
-	{0, 0xffff, 0x5555},
-	{0, 0xffff, 0xffff},
-	{0xaaaa, 0x5555, 0x5555},
-	{0xaaaa, 0x5555, 0xffff},
-	{0xaaaa, 0xffff, 0x5555},       // 30
-	{0xaaaa, 0xffff, 0xffff},
-	{0x5555, 0, 0},
-	{0x5555, 0, 0xaaaa},
-	{0x5555, 0xaaaa, 0},
-	{0x5555, 0xaaaa, 0xaaaa},
-	{0xffff, 0, 0},
-	{0xffff, 0, 0xaaaa},
-	{0xffff, 0xaaaa, 0},
-	{0xffff, 0xaaaa, 0xaaaa},
-	{0x5555, 0, 0x5555},            // 40
-	{0x5555, 0, 0xffff},
-	{0x5555, 0xaaaa, 0x5555},
-	{0x5555, 0xaaaa, 0xffff},
-	{0xffff, 0, 0x5555},
-	{0xffff, 0, 0xffff},
-	{0xffff, 0xaaaa, 0x5555},
-	{0xffff, 0xaaaa, 0xffff},
-	{0x5555, 0x5555, 0},
-	{0x5555, 0x5555, 0xaaaa},
-	{0x5555, 0xffff, 0},            // 50
-	{0x5555, 0xffff, 0xaaaa},
-	{0xffff, 0x5555, 0},
-	{0xffff, 0x5555, 0xaaaa},
-	{0xffff, 0xffff, 0},
-	{0xffff, 0xffff, 0xaaaa},
-	{0x5555, 0x5555, 0x5555},
-	{0x5555, 0x5555, 0xffff},
-	{0x5555, 0xffff, 0x5555},
-	{0x5555, 0xffff, 0xffff},
-	{0xffff, 0x5555, 0x5555},       // 60
-	{0xffff, 0x5555, 0xffff},
-	{0xffff, 0xffff, 0x5555},
-	{0xffff, 0xffff, 0xffff}
-};
 
 static const uint8_t       default_mapped[256][3] = {
 	{0, 0, 0}, {0, 0, 42}, {0, 42, 0}, {0, 42, 42}, {42, 0, 0}, {42, 0, 42},
@@ -135,10 +69,6 @@ static const uint8_t       default_mapped[256][3] = {
 	{63, 36, 0}, {63, 36, 21}, {63, 36, 42}, {63, 36, 63}, {63, 45, 0}, {63, 45, 21},
 	{63, 45, 42}, {63, 45, 63}, {63, 54, 0}, {63, 54, 21}, {63, 54, 42}, {63, 54, 63},
 	{63, 63, 0}, {63, 63, 21}, {63, 63, 42}, {63, 63, 63}
-};
-
-static const uint8_t initial_ega_palette[16] = {
-	0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63
 };
 
 /* Keep the legacy table verbatim, including its documented slash direction. */
@@ -326,7 +256,7 @@ cterm_rip_raster_init(struct cterm_rip_raster *rip, st_console_t *console)
 	rip->fill_style = 1;
 	memcpy(rip->fill_pattern, rip_fill_patterns[1], 8);
 	memcpy(rip->palette, initial_colour_indexes, sizeof(rip->palette));
-	memcpy(rip->master_palette, initial_ega_palette,
+	memcpy(rip->master_palette, st_bgi_ega_defaults,
 	    sizeof(rip->master_palette));
 	set_master_palette(rip);
 	return rip->error;
@@ -483,7 +413,7 @@ set_master_palette(struct cterm_rip_raster *rip)
 
 	if (rip->error != 0) return;
 	for (size_t i = 0; i < 16; i++) {
-		const uint16_t *rgb16 = ega_palette[rip->master_palette[i]];
+		const uint16_t *rgb16 = st_bgi_ega_colors[rip->master_palette[i]];
 		colours[rip->palette[i] - 16] = ((uint32_t)(rgb16[0] >> 8) << 16)
 		    | ((uint32_t)(rgb16[1] >> 8) << 8) | (rgb16[2] >> 8);
 	}
@@ -1582,7 +1512,7 @@ cterm_rip_raster_reset_windows(struct cterm_rip_raster *rip)
 	rip->viewport.ex = 639;
 	rip->viewport.ey = 349;
 	rip->borders = true;
-	memcpy(rip->master_palette, initial_ega_palette,
+	memcpy(rip->master_palette, st_bgi_ega_defaults,
 	    sizeof(rip->master_palette));
 	set_master_palette(rip);
 	erase_view(rip);

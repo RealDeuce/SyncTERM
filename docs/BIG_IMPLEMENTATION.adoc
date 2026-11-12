@@ -362,3 +362,68 @@ selectable; no command completion is claimed.
 
 Numeric source/deadline callback completion commit: `b25b1e8`. The live BIG
 terminal-mode binding and graphics/command implementation remain pending.
+
+
+=== I/R logical state, video profiles and shared EGA data
+
+`st_big_state.c` separates application attributes/custom patterns, installed
+BGI defaults, numeric resolution cache and interpreter-local page/palette
+owners. Chapter27/54/80's ordinary VGA I/R operations are implemented against
+synchronous backend callbacks. This is state composition, not complete wire
+command or framebuffer implementation. Indexed page/image storage and live
+terminal binding remain pending; I and R remain uncompleted ledger entries.
+
+I0 clears H before the branches, runs admitted mode installation/defaults
+then the explicit defaults pass, sets physical visual0 then active0, and only
+then publishes the application marker/color/fill/write/cache tail. I1 clears
+H and performs sixteen ascending individual palette setters without mode,
+viewport or unrelated attribute resets. R normalizes the signed full WORD,
+retains the driver3 downgrade when a later driver9 check runs, updates the
+cache even after a returning mode rejection, and ends with the full viewport.
+I/R retain application custom patterns, interpreter page/image/palette owners,
+loop/RNG state and private font ratios. Host failures keep completed prefixes.
+
+The three immutable profiles retain BIOS AL0e/10/12, 640x200/350/480,
+80x25/25/30 cells, 8x8/14/16 console fonts, 4:3 display aspect and per-plane
+page pitches 0x4000/0x8000/0x9600. A profile's page pitch is layout metadata,
+not a new persistent planar framebuffer. The existing selector0 console
+banks match the supplied original ROM files byte for byte:
+
+[cols="1,2,4",options="header"]
+|===
+|Height |Reference data file |SHA256
+|8 |data/IBM-EGA-ROM-8x8.bin |75c79a7e7fa423dda67ec6d6d76cec86b63f85677726368750c75b0920ddf319
+|14 |data/IBM-EGA-ROM-8x14.bin |657ca6588b6bf729f0ed71a3d3c781a465bd30cdfb11eb5fc7e27594c0717ea1
+|16 |data/IBM-VGA-ROM-8x16.bin |a8bad6fd78475a6bc2a05438c19207a9bb8c0f4f4099f60384e158cdc3eba580
+|===
+
+These are BIOS console glyphs, not BIG W's distinct graphical bitmap/font
+pipeline or its four V100 CHR assets. No bundled font data changed. The
+original96-byte DS00bb restore table is retained in `st_big_fill_restore`:
+`data/restored-user-fill-patterns.bin`, SHA256
+`de22d2481ea21ce9f5b44f0a5e66309976a20b3adf0a82a09af8b5a6c35fe2f2`.
+
+The complete64-entry EGA RGB16 table and sixteen default pen codes were
+extracted verbatim from current RIP into `st_bgi`. Both consumers now use
+those same immutable arrays. Chapter26/83's six-bit colour formula independently
+checks every channel; no whole RIP reset/state operation is reused. Other
+kernel and graphical font comparisons remain obligations of later commands.
+
+Safe-port corrections: interpreter entry takes a defined X8 local-palette
+snapshot of the current BGI cache instead of retaining uninitialized stack
+bytes; I/R do not refresh that snapshot. A host backend failure stops at the
+reached prefix without rollback or later stores; an asynchronous callback
+result is rejected because these operations are synchronous. Defaults while
+graphics are uninstalled report a nonfatal protocol error instead of exiting
+SyncTERM. Normal returning legacy mode rejections retain their cache behavior.
+
+`big_state` checks literal call order, all full-WORD normalization branches,
+retained owners, driver changes, state2 returns, rejected-mode cache stores
+and host errors. `big_profile` checks all profile values, complete font/pattern
+identities, default codes and the independent EGA bit formula. The native
+Release CMake build (`build/`, `/usr/bin/cc`) passed without compiler/source
+diagnostics. All18 selected native checks passed in1.92s; both coherent
+CP437/UTF-8 RIP raster capture tests passed in14.24s. Strengthened cached-mode
+failure expectations were rebuilt and `big_state` passed separately. The
+shared-BGI and state/page foundations remain in progress; no command is
+complete (0/45).

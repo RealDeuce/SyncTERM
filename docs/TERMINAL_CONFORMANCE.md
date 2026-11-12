@@ -20,6 +20,14 @@ checkpoints and exact partial error consumption; split-input/raw/EOF fixtures
 cover ownership and recovery. BIG command dispatch and live terminal event-loop
 integration remain pending.
 
+`big_state` checks the I/R logical reset order, retained application/frame
+owners, palette-only I1, cached versus installed resolution and host-failure
+prefixes. `big_profile` checks all three video/font profiles against original
+ROM identities, the restored custom patterns and the shared 64-colour EGA
+table. RIP now consumes that same immutable palette data; its native tests
+and coherent CP437/UTF-8 raster captures passed. Indexed page/image storage,
+live backend binding and BIG command completion remain pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

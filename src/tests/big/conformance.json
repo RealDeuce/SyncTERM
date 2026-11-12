@@ -151,33 +151,82 @@
     },
     {
       "id": "shared-bgi",
-      "status": "not-started",
+      "status": "in-progress",
       "operations": [
         "Revalidate current-source reuse and share only matching data/kernels actually consumed by RIP/BIG.",
         "BIG-specific raster adapters and original bitmap/four V100 CHR assets."
       ],
-      "tests": [],
+      "tests": [
+        "big_profile",
+        "cterm_rip_raster",
+        "cterm_rip_live",
+        "syncterm_rip154_raster_CP437",
+        "syncterm_rip154_raster_UTF-8"
+      ],
       "references": [
-        "01-scope-evidence.adoc"
+        "26-palettes-rotation-and-native-reuse.adoc",
+        "83-global-native-reuse-and-implementation-map.adoc"
       ],
       "deviations": [],
-      "verification": [],
-      "commit": null
+      "verification": [
+        "The current RIP EGA RGB16 table and default pen-code initializer bodies match the extracted st_bgi data exactly. Every channel is independently checked from its six colour-bit weights; default codes are literal. RIP native and coherent CP437/UTF-8 raster regressions passed. Other kernels and original graphical fonts remain pending."
+      ],
+      "commit": null,
+      "steps": [
+        {
+          "id": "shared-ega-data",
+          "status": "complete",
+          "tests": [
+            "big_profile",
+            "cterm_rip_raster",
+            "syncterm_rip154_raster_CP437",
+            "syncterm_rip154_raster_UTF-8"
+          ],
+          "commit": null
+        }
+      ]
     },
     {
       "id": "big-state-pages",
-      "status": "not-started",
+      "status": "in-progress",
       "operations": [
         "Indexed visible framebuffer and off-screen pages/images; explicit capacity/padding/stride and active/visual/memory ownership.",
         "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes."
       ],
-      "tests": [],
-      "references": [
-        "01-scope-evidence.adoc"
+      "tests": [
+        "big_state",
+        "big_profile"
       ],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "references": [
+        "27-initialization-resolution-and-state.adoc",
+        "54-initialize-and-resolution-command-acceptance.adoc",
+        "47-bios-glyphs-teletype-and-console-routing.adoc",
+        "48-bios-video-mode-registers-pages-and-dac.adoc",
+        "77-global-modes-and-driver-bindings-acceptance.adoc",
+        "80-global-state-and-lifetime-acceptance.adoc"
+      ],
+      "deviations": [
+        "X8 frame-local palette receives a defined interpreter-entry snapshot of current BGI cache instead of uninitialized stack bytes; I/R do not refresh it.",
+        "Host backend errors stop at completed prefixes without rollback or later stores; IN_PROGRESS is invalid for synchronous state callbacks. Uninstalled defaults reports nonfatal protocol failure instead of exiting SyncTERM."
+      ],
+      "verification": [
+        "big_state independently checks I0 mode/default/default/visual/active/application order, I1 palette-only calls, full-WORD normalization, driver3 downgrade, independent changed-driver checks, returning mode rejection/cache publication, retained application/frame/font-ratio state and host failure prefixes.",
+        "big_profile checks all three BIOS mode/geometry/font/aspect/page-pitch profiles. Existing selector0 console fonts match supplied ROM bytes; complete font/pattern identities and source provenance are retained in BIG_IMPLEMENTATION.adoc and fixture README.",
+        "Native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All18 selected native tests passed in1.92s; both coherent RIP raster capture tests passed in14.24s. Strengthened big_state cache failure tests passed after rebuild.",
+        "Indexed page/image storage, native backend binding and I/R wire command acceptance remain pending. No BIG command completion is claimed."
+      ],
+      "commit": null,
+      "steps": [
+        {
+          "id": "ir-state-and-video-profiles",
+          "status": "complete",
+          "tests": [
+            "big_state",
+            "big_profile"
+          ],
+          "commit": null
+        }
+      ]
     },
     {
       "id": "application-integration",

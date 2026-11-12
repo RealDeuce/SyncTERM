@@ -82,3 +82,22 @@ fixtures bind the actual callbacks (no test replacement reader), test every
 split/bytewise source seam, and verify raw payload ownership, partial clock
 error counts, EOF and fresh-field recovery. Native event-loop wakeups and
 keyboard-device mapping remain application integration tests to add later.
+
+
+`st_big_state_test.c` takes I/R call order and lifetimes from chapters 27,
+54 and 80. Literal expectations distinguish normal I0's MBBVA sequence,
+I1's sixteen ascending palette calls, state2 early returns, full-WORD
+normalization, driver3 R3 downgrade and cached resolution stores after a
+returning rejection. Independent driver checks and host failure prefixes are
+tested without generating expectations from the implementation. No indexed
+page storage, rendering or complete command dispatch is claimed.
+
+`st_big_profile_test.c` takes BIOS mode, page pitch, geometry and console font
+facts from chapters 47, 48 and 77. The three full font banks are pinned by
+FNV-1a64 values independently calculated from the original ROM files, not
+from SyncTERM. They match existing font0 banks byte for byte. The restore
+patterns likewise have an independent full-data identity. Chapter 26/83's
+64-colour EGA table is checked against the individual red/green/blue bit
+weights; the sixteen default codes are literal. Full SHA256 identities and
+the source paths are retained in docs/BIG_IMPLEMENTATION.adoc. No external
+ROM/reference installation is required to run these tests.

@@ -93,3 +93,30 @@ monotonic ns; numeric timeout is 4010989011ns. It owns no foreign clock, BIOS
 phase or IRQ state. The real project clock is exercised without sleeping.
 All 12 selected native checks passed in 1.48s. Live BIG terminal-mode/event-loop
 and command integration remain pending; command completion remains 0/45.
+
+## I/R state and video profiles
+
+`big_state` checks logical I0 reset order (mode, two defaults passes, visual
+then active page, application tail), palette-only I1, signed full-WORD
+normalization, R mode mapping, returning rejection and partial host failures.
+It distinguishes application attributes, BGI defaults, cached resolution and
+interpreter-local page/palette owners. I/R retain custom pattern slots and
+private font ratios. Actual indexed storage and live command binding remain
+pending; these component tests do not complete I or R.
+
+`big_profile` pins the three 640-pixel modes, console rows/font heights,
+4:3 aspect and per-plane page pitches. Existing font0 banks match the supplied
+IBM ROM bytes exactly; no substitute or new console font is needed. Original
+BIG restored custom patterns are retained. The complete EGA colour table and
+default pen map are now shared with RIP, with independent bit-formula checks.
+BIG's separate graphical bitmap/CHR fonts still need their own integration.
+
+Safe-port corrections define the formerly uninitialized X8 frame-local
+palette as a snapshot at interpreter entry, stop at completed prefixes on host
+backend failures, and report uninstalled-graphics defaults as a nonfatal error
+instead of exiting the application. These do not add resets to ordinary I/R.
+
+The native Release build passed without compiler/source diagnostics. All 18
+selected native checks passed in 1.92s, and both coherent RIP raster capture
+tests passed in 14.24s. The strengthened cached-resolution failure checks also
+passed separately. BIG remains unselectable; completion remains 0/45.
