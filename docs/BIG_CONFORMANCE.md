@@ -313,3 +313,6 @@ palette/cells/cursor in one capture. Coordinate drawing consumers, input and
 audio/music composition remain pending; g is in progress (0/45 complete).
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed.
+
+Wire g/scaling selection integration commit: `efc438d`.
+Live coordinate consumers and the full45-entry goal remain in progress.
