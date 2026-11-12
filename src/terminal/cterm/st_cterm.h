@@ -144,7 +144,7 @@ struct st_cterm_config {
 	enum st_cterm_encoding encoding;
 	/* Graphics require a bitmap console. RIP/SkyPix/BIG require ANSI-BBS; IGS
 	 * requires Atari ST VT52 and native ST geometry. RIP needs at least
-	 * 640x350 pixels; BIG starts at 640x350 with 8x14 console cells; SkyPix
+	 * 640x350 pixels; BIG defaults to 640x350 with 8x14 console cells; SkyPix
 	 * uses the selected canvas and wire encoding. */
 	enum st_cterm_graphics_mode graphics_mode;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */

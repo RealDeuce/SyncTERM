@@ -21,6 +21,7 @@ class MenuTest {
     testEditorClear_()
     testDiscovery_()
     testSkyPixSettings_()
+    testBigSettings_()
     return [__pass, __fail]
   }
 
@@ -35,6 +36,7 @@ class MenuTest {
     testEditorClear_()
     testDiscovery_()
     testSkyPixSettings_()
+    testBigSettings_()
     testDefaultsRejectScripts_()
     testEditorScripts_()
     testPersistence_()
@@ -65,6 +67,35 @@ class MenuTest {
   static pane_(scripts, changes) {
     return ScriptListPane.new(FakeApp.new(), scripts,
         Fn.new { changes[0] = changes[0] + 1 })
+  }
+
+  static testBigSettings_() {
+    var d = {"graphics": 0, "screenMode": 27, "encoding": 28,
+        "font": Menu.fontsCatalog[44][1], "noStatus": true}
+    BbsEditor.changeGraphics_(d, 6)
+    check_(d["graphics"] == 6 && d["screenMode"] == 23 &&
+        d["encoding"] == 0 && d["font"] == Menu.fontsCatalog[0][1],
+        "BIG starts with EGA, CP437 and original IBM font")
+    for (mode in [32, 23, 4]) {
+      BbsEditor.changeScreen_(d, mode)
+      BbsEditor.changeEncoding_(d, 255)
+      check_(d["graphics"] == 6 && d["screenMode"] == mode &&
+          d["encoding"] == 255 && d["font"] == Menu.fontsCatalog[0][1],
+          "BIG keeps its supported initial modes and UTF-8")
+      BbsEditor.changeEncoding_(d, 0)
+      check_(d["graphics"] == 6 && d["encoding"] == 0,
+          "BIG retains CP437")
+    }
+    BbsEditor.changeScreen_(d, 24)
+    check_(d["graphics"] == 0 && d["screenMode"] == 24,
+        "A screen outside BIG modes selects ordinary emulation")
+    BbsEditor.changeGraphics_(d, 6)
+    BbsEditor.changeEncoding_(d, 12)
+    check_(d["graphics"] == 0 && d["encoding"] == 12,
+        "Another codepage selects ordinary emulation")
+    BbsEditor.changeGraphics_(d, 6)
+    BbsEditor.changeFont_(d, Menu.fontsCatalog[1][1])
+    check_(d["graphics"] == 0, "Another console font leaves BIG")
   }
 
   static testSkyPixSettings_() {

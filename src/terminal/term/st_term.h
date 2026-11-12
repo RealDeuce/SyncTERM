@@ -114,6 +114,8 @@ enum st_cterm_encoding st_term_profile_encoding(
 	const struct st_profile *profile);
 enum st_cterm_graphics_mode st_term_profile_graphics_mode(
 	const struct st_profile *profile);
+/* BIG accepts CGA/EGA/80x30 initial modes, otherwise its EGA default. */
+enum st_screen_mode st_term_profile_screen_mode(const struct st_profile *);
 int st_term_session_create(st_term_session_t **result,
 	const struct st_term_config *config);
 void st_term_session_destroy(st_term_session_t **session);

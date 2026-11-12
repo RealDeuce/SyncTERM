@@ -238,22 +238,34 @@
       ],
       "tests": [
         "cterm_big",
-        "graphics_protocol_parser"
+        "graphics_protocol_parser",
+        "bbs_list",
+        "term",
+        "wren_host",
+        "wren_menu_contract",
+        "syncterm_behavior_bbs_setters",
+        "syncterm_big_input"
       ],
       "references": [
         "01-scope-evidence.adoc",
         "08-terminal-and-viewer-readers.adoc",
         "43-hollow-command-and-dispatch-review.adoc",
-        "54-initialize-and-resolution-command-acceptance.adoc"
+        "54-initialize-and-resolution-command-acceptance.adoc",
+        "44-startup-configuration-and-feature-profiles.adoc",
+        "47-bios-glyphs-teletype-and-console-routing.adoc",
+        "48-bios-video-mode-registers-pages-and-dac.adoc"
       ],
       "deviations": [
-        "Explicit terminal EOF flushes ordinary held attention text and cancels incomplete headers/fields without running defaults; it does not emulate DOS process/file-viewer teardown."
+        "Explicit terminal EOF flushes ordinary held attention text and cancels incomplete headers/fields without running defaults; it does not emulate DOS process/file-viewer teardown.",
+        "SyncTERM frontend policy accepts explicit CGA/EGA/80x30 initial profiles and defaults Current/unsupported saved modes to EGA without rewriting the profile. BIG uses original CP437 IBM console banks and optional UTF-8 conversion instead of the DOS configuration UI."
       ],
       "verification": [
         "Native CTerm API mode6 uses the shared pre-ANSI insertion and I#/chain grammar, production BIG numeric callbacks, indexed console and shared EGA palette. I0/I1 live effects are covered by independent CP437/UTF-8/status/every-split/bytewise glyph, pixel, palette and cursor expectations.",
         "Pair/header deadlines preserve acquired identifiers, consume late ready bytes before substitution, retain numeric digits, reject backwards samples and never complete on EOF. Shared random waits pause wire input while native polls continue; EOF/reset and semantic-hook reset recovery are checked.",
         "Profile/menu/Wren selection, coherent application captures, native key ownership and complete loop/gang/flow/deferred-reply footer remain pending. No command completion is claimed.",
-        "Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction."
+        "Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction.",
+        "BIG (1.03) profile/Wren value6 is selectable and persists without changing older values. Editor presets/allowed modes/encodings, property bounds and supported/unsupported initial-mode mapping have independent tests. Real application scenes cover all three initial modes, both encodings, status/reconnect, I1 retention, I0 clearing, exact ROM glyph banks after transitions, complete blink planes/palette/cells/cursor/RGB samples, DSR replies, partial EOF and menu restore. Application captures caught and verified the fix for a CGA8-row bank stretched to14 rows after I0. Full loop/gang/flow/reply footer and native key ownership remain pending; no command completion claimed.",
+        "Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Nine selected native tests passed in26.42s, including full wren_host, bbs_list, term, connection, screen_mode, app_session_mode and BIG state/profile/input checks. Four application regressions passed in13.53s: BIG input, IGS init/editor, CGA mode and BBS setters. After adding the unsupported-profile case, cterm_big and syncterm_big_input passed again in14.23s; the application test checks84 independently expected scenes across28 connections plus editor persistence."
       ],
       "commit": null,
       "steps": [
@@ -265,6 +277,20 @@
             "graphics_protocol_parser"
           ],
           "commit": "b829b11"
+        },
+        {
+          "id": "bbs-wren-selection-and-application-input",
+          "status": "complete",
+          "tests": [
+            "bbs_list",
+            "term",
+            "wren_host",
+            "wren_menu_contract",
+            "syncterm_behavior_bbs_setters",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Nine selected native tests passed in26.42s, including full wren_host, bbs_list, term, connection, screen_mode, app_session_mode and BIG state/profile/input checks. Four application regressions passed in13.53s: BIG input, IGS init/editor, CGA mode and BBS setters. After adding the unsupported-profile case, cterm_big and syncterm_big_input passed again in14.23s; the application test checks84 independently expected scenes across28 connections plus editor persistence."
         }
       ]
     },

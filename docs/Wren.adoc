@@ -5856,6 +5856,7 @@ character).
 | `skypix13` | 3 | Practical SkyPix dialect, with Kickstart 1.3 rendering.
 | `skypix31` | 4 | Practical SkyPix dialect, with Kickstart 3.1 rendering.
 | `igs221` | 5 | IGS 2.21 Atari ST graphics; see link:IGS_CONFORMANCE.md[coverage].
+| `big103` | 6 | BIG 1.03 terminal graphics; see link:BIG_CONFORMANCE.md[current coverage].
 |===
 
 Selecting IGS presets Atari ST 40x25 (320x200), Atari ST encoding and font.
@@ -5863,6 +5864,16 @@ The ST 80x25 colour and monochrome modes are also available. UTF-8 can be
 selected while retaining ST glyphs. IGS and RIP enter the same pre-ANSI
 receive stage; ordinary bytes continue to the selected base emulation.
 `Profile.graphics` stores this mode and `CTerm.graphicsMode` reports it.
+
+Selecting BIG presets `ScreenMode.ega80x25` (640x350), CP437 and the original
+IBM console font. `ScreenMode.cga80x25` (640x200) and `ScreenMode.c80x30`
+(640x480) are also supported initial profiles; UTF-8 retains the CP437 glyph
+mapping. An unsupported or Current profile starts in EGA without rewriting
+the saved profile. BIG mode installation selects the exact 8x8, 8x14 or 8x16
+ROM bank. A different console font/codepage or unsupported screen choice in
+the editor switches back to ordinary emulation. BIG shares the same pre-ANSI
+receive insertion as IGS/RIP. Implementation is in progress; the coverage
+ledger distinguishes working I operations from incomplete command acceptance.
 
 SkyPix is selected before connecting, independently of RIP. Both variants use
 the practical protocol recorded in link:SKYPIX_CONFORMANCE.md[SkyPix conformance],

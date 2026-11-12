@@ -1,8 +1,8 @@
 # BIG 1.03 conformance
 
-BIG terminal implementation is in progress. The completed first prerequisite adds
-CGA 80x25. BIG input/I operations are available through the native CTerm API;
-BBS profile/menu selection, drawing and sound remain pending.
+BIG (1.03) is selectable in BBS profiles and Wren. Its input/I operations run
+through native CTerm. Drawing, sound and complete command acceptance remain
+in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -56,7 +56,8 @@ explicit timeout/BEL policy, shared-parser integration and EOF/reset recovery.
 The leaf reader consumes explicit timeout events; the numeric source
 callbacks below provide local deadline and final-r composition. Live terminal
 event-loop scheduling remains pending.
-The BIG graphics mode is not yet selectable; command completion remains 0/45.
+The leaf-reader tests do not claim command completion; the selectable mode
+and its application coverage are recorded below. Completion remains 0/45.
 
 ## Shared random core
 
@@ -139,8 +140,35 @@ fixtures check literal IBM8x14 glyph rows, full-block pixels in both blink
 phases, palette/cursor state, deadlines, random suspension, EOF/reset and
 reset from a semantic callback. Physical audio is absent.
 
-The complete loop/gang/flow/reply footer, native key binding, BBS profile and
-menu/Wren selection, and coherent application captures remain pending. I is
+The complete loop/gang/flow/reply footer and native key binding remain pending.
+Profile/menu/Wren selection and application captures are recorded below. I is
 in progress; no complete BIG command is claimed (0/45).
 
 Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction.
+
+
+## BBS/Wren selection and application input captures
+
+`Graphics=BIG (1.03)` and `GraphicsMode.big103` use stable value6; previous
+values remain unchanged. The editor presets EGA, CP437 and the original IBM
+font, permits CGA/EGA/80x30 initial modes and UTF-8, and persists the choices.
+Current or unsupported saved modes use EGA without changing the saved profile.
+The terminal advertises the active system grid and uses ANSI as its base.
+
+`syncterm_big_input` checks
+editor selection/persistence and coherent full native bitmap scenes across
+all three initial resolutions, both encodings, status visibility and reconnect.
+It compares independent literal IBM A rows, complete full-block/blink rasters,
+EGA palette, cells, cursor, state and ANSI DSR replies, plus flat composed-RGB
+samples and menu restoration. Current and unsupported presets exercise the
+EGA fallback. I0 clears to the350-line mode; a following scene checks the
+actual14-row font rather than a stretched8-row glyph. Physical audio/MIDI
+are disabled; these checks make no audio or full-command-completion claim.
+
+Mode installation now registers/selects each exact ROM console bank, with at
+most one new registration per size in a terminal owner. The application uses
+a narrow read-only inspection callback; BIG state stays private to CTerm.
+All wire commands except the current I operations still need implementation,
+and full I loop/flow/reply acceptance remains pending (0/45 complete).
+
+Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Nine selected native tests passed in26.42s, including full wren_host, bbs_list, term, connection, screen_mode, app_session_mode and BIG state/profile/input checks. Four application regressions passed in13.53s: BIG input, IGS init/editor, CGA mode and BBS setters. After adding the unsupported-profile case, cterm_big and syncterm_big_input passed again in14.23s; the application test checks84 independently expected scenes across28 connections plus editor persistence.

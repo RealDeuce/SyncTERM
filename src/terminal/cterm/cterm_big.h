@@ -2,22 +2,14 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #ifndef CTERM_BIG_H_
 #define CTERM_BIG_H_
-#include "st_big_numeric.h"
-#include "st_big_state.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 struct cterminal;
 enum { CTERM_BIG_PALETTE_FIRST = 800 };
-struct cterm_big {
-	struct cterminal *terminal;
-	struct st_graphics_parser *parser;
-	struct st_big_numeric numeric;
-	struct st_big_state state;
-	uint64_t pair_deadline, pair_sample;
-	bool pair_wait, feeding, reset_pending;
-	uint8_t warned[32];
-};
+struct cterm_big;
+struct st_console_test_application;
+void cterm_big_inspect(const struct cterm_big *, struct st_console_test_application *);
 int cterm_big_create(struct cterminal *);
 void cterm_big_destroy(struct cterm_big *);
 void cterm_big_reset(struct cterm_big *);

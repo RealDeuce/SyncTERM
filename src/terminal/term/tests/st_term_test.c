@@ -1138,7 +1138,21 @@ st_term_test_main(void)
 	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_RIP_3);
 	profile.graphics_mode = ST_GRAPHICS_IGS_221;
 	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_IGS_221);
+	profile.graphics_mode = ST_GRAPHICS_BIG_103;
+	CHECK(st_term_profile_graphics_mode(&profile) == ST_CTERM_GRAPHICS_BIG_103);
+	CHECK(st_term_profile_screen_mode(NULL) == ST_SCREEN_MODE_CURRENT);
+	const enum st_screen_mode inputs[] = {ST_SCREEN_MODE_CURRENT, ST_SCREEN_MODE_80X25,
+		ST_SCREEN_MODE_CGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_80X30,
+		ST_SCREEN_MODE_VGA_80X25, ST_SCREEN_MODE_ATARIST_40X25, ST_SCREEN_MODE_CUSTOM};
+	const enum st_screen_mode expected[] = {ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25,
+		ST_SCREEN_MODE_CGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_80X30,
+		ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25, ST_SCREEN_MODE_EGA_80X25};
+	for (size_t i=0;i<sizeof(inputs)/sizeof(*inputs);++i) {
+		profile.screen_mode=inputs[i]; CHECK(st_term_profile_screen_mode(&profile)==expected[i]);
+	}
 	profile.graphics_mode = ST_GRAPHICS_NONE;
+	CHECK(st_term_profile_screen_mode(&profile)==ST_SCREEN_MODE_CUSTOM);
+	profile.screen_mode=ST_SCREEN_MODE_CURRENT;
 	profile.connection_type = ST_CONNECTION_TELNET;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);
 	profile.connection_type = ST_CONNECTION_SHELL;

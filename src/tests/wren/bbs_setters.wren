@@ -91,7 +91,7 @@ if (true) {
 if (true) {
   import "syncterm" for GraphicsMode
   import "syncterm_menu" for Menu
-  for (mode in [GraphicsMode.skypix13, GraphicsMode.skypix31, GraphicsMode.igs221, GraphicsMode.none, GraphicsMode.v1, GraphicsMode.v3]) {
+  for (mode in [GraphicsMode.skypix13, GraphicsMode.skypix31, GraphicsMode.igs221, GraphicsMode.big103, GraphicsMode.none, GraphicsMode.v1, GraphicsMode.v3]) {
     var entry = Menu.entries[0]
     entry.profile.graphics = mode
     if (entry.save() != null || Menu.load(null) != null || Menu.entries[0].profile.graphics != mode) Fiber.abort("entry graphics persistence")
@@ -127,4 +127,15 @@ if (true) {
   if (entry.save() != null || Menu.load(null) != null) Fiber.abort("SkyPix preferences save")
   var profile = Menu.entries[0].profile
   if (profile.screenMode != 3 || profile.encoding != 255 || profile.amigaFont != "Ruby.font" || profile.amigaFontSize != 12) Fiber.abort("SkyPix preferences reload")
+}
+
+if (true) {
+  import "menu_bbs_editor" for BbsEditor
+  var draft = {"graphics": 0, "encoding": 28, "screenMode": 27,
+               "font": "Atari ST", "noStatus": false}
+  BbsEditor.changeGraphics_(draft, 6)
+  if (draft["screenMode"] != 23 || draft["encoding"] != 0 || draft["font"] != "Codepage 437 English") Fiber.abort("BIG preset")
+  BbsEditor.changeScreen_(draft, 32)
+  BbsEditor.changeEncoding_(draft, 255)
+  if (draft["graphics"] != 6 || draft["screenMode"] != 32 || draft["font"] != "Codepage 437 English") Fiber.abort("BIG choices")
 }

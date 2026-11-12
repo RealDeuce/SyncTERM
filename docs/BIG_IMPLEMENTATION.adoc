@@ -485,3 +485,47 @@ Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/so
 
 Initial native input/I binding completion commit: `b829b11`. Full I command
 acceptance and application selection remain pending.
+
+
+=== BBS/Wren selection and coherent application input
+
+BIG(1.03) is now selectable as stable profile/graphics value6 and
+`GraphicsMode.big103`. Existing values and INI spellings remain unchanged.
+The BBS codec, property bounds, menu catalog, editor presets and Wren
+constant/persistence tests cover the new value. Selecting BIG presets EGA,
+CP437 and selector0's original IBM font. The editor allows initial CGA32,
+EGA23 and80x30 value4, plus CP437 or UTF-8. Choosing an incompatible mode,
+encoding or font leaves BIG for ordinary terminal emulation.
+
+SyncTERM frontend policy: explicit CGA/EGA/80x30 initial profiles are honored;
+Current/unsupported profiles use EGA before connection setup. This does not
+rewrite the stored profile or reproduce the original DOS configuration UI.
+BIG uses the original IBM console glyph mapping (including UTF-8 conversion)
+and advertises the active system grid. The three live profiles install exact
+ROM fonts with bounded per-owner caches, never scaled neighbouring strikes.
+I0 continues to install the350-line mode independent of that initial choice.
+Graphical text metrics/assets remain separate and pending.
+
+A coherent application fixture caught a native integration defect: after
+starting in CGA, I0 left the8-row font scaled to14 rows. Installing the exact
+ROM bank fixes it; the unchanged independent14-row A expectation now passes.
+The font data itself is unchanged. BIG's public CTerm header now exposes only
+its narrow operations; private numeric/state structures remain internal.
+A read-only test inspection copies state inside the existing bitmap capture.
+
+`src/tests/st_big_input_test.py` drives real BBS editor, raw connections,
+ANSI/BIG parsing and teardown. Each immutable capture contains related cells,
+both complete indexed blink planes, palette, cursor, native/graphics state
+and composed RGB. The oracle uses literal source ROM rows/default EGA RGBs,
+not images rendered by SyncTERM. All three profiles, CP437/UTF-8, status,
+reconnect, I1 retention, I0 clearing/exact font installation, DSR replies,
+partial-field EOF and menu restoration are covered. Additional Current and
+unsupported-profile cases check the EGA fallback. Audio/MIDI are disabled
+and inherited desktop display variables are cleared by the control fixture.
+
+Application selection/input is a completed integration step. Full loop/gang/
+flow/deferred-reply footer and native keyboard ownership remain pending;
+I remains in progress and the command completion count remains0/45. The
+shared-BGI, numeric and page foundations retain their remaining obligations.
+
+Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Nine selected native tests passed in26.42s, including full wren_host, bbs_list, term, connection, screen_mode, app_session_mode and BIG state/profile/input checks. Four application regressions passed in13.53s: BIG input, IGS init/editor, CGA mode and BBS setters. After adding the unsupported-profile case, cterm_big and syncterm_big_input passed again in14.23s; the application test checks84 independently expected scenes across28 connections plus editor persistence.

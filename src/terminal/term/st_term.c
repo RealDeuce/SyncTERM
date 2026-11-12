@@ -105,7 +105,22 @@ st_term_profile_graphics_mode(const struct st_profile *profile)
 	case ST_GRAPHICS_SKYPIX_13: return ST_CTERM_GRAPHICS_SKYPIX_13;
 	case ST_GRAPHICS_SKYPIX_31: return ST_CTERM_GRAPHICS_SKYPIX_31;
 	case ST_GRAPHICS_IGS_221: return ST_CTERM_GRAPHICS_IGS_221;
+	case ST_GRAPHICS_BIG_103: return ST_CTERM_GRAPHICS_BIG_103;
 	default: return ST_CTERM_GRAPHICS_OFF;
+	}
+}
+
+enum st_screen_mode
+st_term_profile_screen_mode(const struct st_profile *profile)
+{
+	if (profile == NULL) return ST_SCREEN_MODE_CURRENT;
+	enum st_screen_mode mode = (enum st_screen_mode)profile->screen_mode;
+	if (profile->graphics_mode != ST_GRAPHICS_BIG_103) return mode;
+	switch (mode) {
+	case ST_SCREEN_MODE_CGA_80X25:
+	case ST_SCREEN_MODE_EGA_80X25:
+	case ST_SCREEN_MODE_80X30: return mode;
+	default: return ST_SCREEN_MODE_EGA_80X25;
 	}
 }
 
@@ -225,8 +240,9 @@ st_term_connect_profile(st_connection_t **result,
 	    || !st_profile_encoding_valid(profile->encoding))
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_profile effective;
-	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31) {
-		/* Advertise the active mode's system grid. Native Amiga text
+	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31
+	    || profile->graphics_mode == ST_GRAPHICS_BIG_103) {
+		/* Advertise the active mode's system grid. Native graphics text
 		 * metrics are independent of that grid and the wire encoding. */
 		effective = *profile;
 		effective.screen_mode = ST_SCREEN_MODE_CURRENT;
@@ -311,7 +327,8 @@ st_term_session_create(st_term_session_t **result,
 		.fonts = config->fonts,
 		.audio = config->audio,
 		.hyperlinks = config->hyperlinks,
-		.emulation = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13 || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
+		.emulation = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13 || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
+		    || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
 		    ? ST_CTERM_ANSI_BBS : profile_emulation(config->screen_mode),
 		.encoding = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
 		    ? ST_CTERM_ENCODING_UTF8 : config->encoding,

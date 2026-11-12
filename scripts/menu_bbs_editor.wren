@@ -937,7 +937,9 @@ class BbsEditor {
         "SkyPix font choices come from Amiga Font Management. " +
         "IGS 2.21 uses Atari ST modes and the Atari ST font. Its initial preset is " +
         "320x200 and Atari ST encoding. The 640x200 colour and 640x400 monochrome modes " +
-        "and UTF-8 encoding are also available."
+        "and UTF-8 encoding are also available. BIG 1.03 starts with EGA 640x350, " +
+        "CP437 and the original IBM console font. CGA 640x200, 640x480 and UTF-8 " +
+        "are also available. Commands are being implemented; see BIG conformance coverage."
   }
 
   static logFileHelp_() {
@@ -1064,6 +1066,12 @@ class BbsEditor {
       d["encoding"] = encoding
       return
     }
+    if (d["graphics"] == 6 && (encoding == 0 || encoding == 255)) {
+      d["encoding"] = encoding
+      selectFont_(d, 0)
+      return
+    }
+    if (d["graphics"] == 6) d["graphics"] = 0
     if (d["graphics"] == 5 && (encoding == 28 || encoding == 255)) {
       d["encoding"] = encoding
       selectFont_(d, 44)
@@ -1090,6 +1098,12 @@ class BbsEditor {
       d["screenMode"] = mode
       return
     }
+    if (d["graphics"] == 6 && (mode == 32 || mode == 23 || mode == 4)) {
+      d["screenMode"] = mode
+      selectFont_(d, 0)
+      return
+    }
+    if (d["graphics"] == 6) d["graphics"] = 0
     if (d["graphics"] == 5 && family_(mode) == 4) {
       d["screenMode"] = mode
       selectFont_(d, 44)
@@ -1144,6 +1158,7 @@ class BbsEditor {
       }
     }
     d["font"] = name
+    if (d["graphics"] == 6 && index != 0) d["graphics"] = 0
     if (d["graphics"] == 1 && index != 45) d["graphics"] = 0
     if (family_(d["screenMode"]) != 0 && !(d["graphics"] == 5 && index == 44)) d["graphics"] = 0
   }
@@ -1155,7 +1170,11 @@ class BbsEditor {
       d["screenMode"] = 30
       d["encoding"] = 17
     }
-    if (version == 5) {
+    if (version == 6) {
+      d["screenMode"] = 23
+      d["encoding"] = 0
+      selectFont_(d, 0)
+    } else if (version == 5) {
       d["screenMode"] = 27
       d["encoding"] = 28
       selectFont_(d, 44)
@@ -1424,6 +1443,7 @@ class BbsEditor {
     }
 
     var screenChoices = skyPix_(d["graphics"]) ? Menu.canvasModes : Menu.screenModeChoices
+    if (d["graphics"] == 6) screenChoices = [32, 23, 4].map {|m| [m, Menu.screenModes[m]] }.toList
     if (d["graphics"] == 5) screenChoices = (27..29).map {|m| [m, Menu.screenModes[m]] }.toList
     var screenName = MenuUi.rowName(screenChoices, d["screenMode"])
     rows.add(row_("Screen Mode", screenName,

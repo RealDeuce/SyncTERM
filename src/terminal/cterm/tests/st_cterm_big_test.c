@@ -1,7 +1,7 @@
 /* Independent BIG live I/framing expectations: references8/27/43/54. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
-#include "cterm_big.h"
+#include "cterm_big_internal.h"
 #include "st_cterm.h"
 #include "io_error.h"
 #include <stdio.h>

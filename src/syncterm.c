@@ -42,6 +42,7 @@
 #if ST_CONSOLE_TEST
 #include "cterm.h"
 #include "cterm_igs.h"
+#include "cterm_big.h"
 #include "cterm_skypix.h"
 #endif
 
@@ -80,6 +81,7 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 		st_console_test_number(app, "cterm.skypix_sample_period", sky->audio.period);
 		st_console_test_number(app, "cterm.skypix_playing", sky->audio.playing);
 	}
+	cterm_big_inspect(st_term_session_cterm(owner->session)->big_engine,app);
 	const struct cterm_igs *igs = st_term_session_cterm(owner->session)->igs_engine;
 	if (igs != NULL) {
 		cterm_igs_audio_inspect(igs,app);
@@ -928,7 +930,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 {
 	const struct st_screen_mode_descriptor *mode;
 	enum st_screen_mode session_mode
-	    = (enum st_screen_mode)profile->screen_mode;
+	    = st_term_profile_screen_mode(profile);
 	st_font_catalog_t *fonts = NULL;
 	st_connection_t *connection = NULL;
 	st_term_session_t *session = NULL;
@@ -958,7 +960,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	uint8_t selector = 0;
 	int status;
 
-	if (profile->screen_mode == ST_SCREEN_MODE_CURRENT) {
+	if (session_mode == ST_SCREEN_MODE_CURRENT) {
 		status = st_wren_host_get_screen_mode(host, &session_mode);
 		if (status != 0)
 			return status;
@@ -973,7 +975,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	connection_log_open(&connection_ui);
 	if (mode != NULL)
 		selector = mode->font_selector;
-	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31) {
+	if (profile->graphics_mode == ST_GRAPHICS_SKYPIX_13 || profile->graphics_mode == ST_GRAPHICS_SKYPIX_31
+	    || profile->graphics_mode == ST_GRAPHICS_BIG_103) {
 		selector = 0;
 		status = st_font_catalog_create(&fonts, console);
 	}
@@ -1030,7 +1033,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.rip_transfer_context = &connected,
 		.apc_directory = cache_directory,
 		.application_version = application_title,
-		.codepage = profile->encoding == ST_PROFILE_ENCODING_UTF8
+		.codepage = profile->graphics_mode == ST_GRAPHICS_BIG_103 ? ST_CODEPAGE_CP437
+		    : profile->encoding == ST_PROFILE_ENCODING_UTF8
 		    ? st_font_catalog_codepage(fonts, selector)
 		    : (enum st_codepage)profile->encoding,
 		.font_selector = selector,
@@ -1216,7 +1220,7 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 			fprintf(stderr, "SyncTERM: Amiga default font unavailable (%d); using fallback\n",
 					status);
 	}
-	status = st_wren_host_begin_session_mode(host, (enum st_screen_mode)profile->screen_mode);
+	status = st_wren_host_begin_session_mode(host, st_term_profile_screen_mode(profile));
 	int restore_status;
 
 	if (status == 0)

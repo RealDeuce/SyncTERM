@@ -1,6 +1,7 @@
 /* BIG1.03 terminal I#/pair acquisition and I command (references8/27/54). */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "cterm_big.h"
+#include "cterm_big_internal.h"
+#include "st_console_test.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
@@ -100,10 +101,28 @@ static int install(void *context, const struct st_big_mode *mode)
 		.wrap = true, .blink_mode = ST_CONSOLE_BLINK_PC,
 		.preserve_window_size = true,
 	};
-	int status = st_console_get_scaling_mode(t->screen.console,&config.scaling_mode);
+	unsigned slot=mode->resolution-1;
+	int status=0;
+	if (!big->console_font_valid[slot]) {
+		struct st_console_font font;
+		if (!st_big_console_font(mode->resolution,&font)) return IO_ERROR_NOT_FOUND;
+		status=st_console_register_static_font(t->screen.console,&font,&big->console_fonts[slot]);
+		if (status != 0) return status;
+		big->console_font_valid[slot]=true;
+	}
+	status = st_console_get_scaling_mode(t->screen.console,&config.scaling_mode);
 	if (status == 0) status = st_console_get_color_emoji(t->screen.console,&config.color_emoji);
 	if (status == 0) status = cterm_reconfigure_console(t,&config);
 	if (status != 0) return status;
+	/* BIOS mode installation selects the original bank. A previously active
+	 * size must not be stretched, nor a retained remote font substituted. */
+	uint16_t identifier=big->console_fonts[slot];
+	t->screen.font_identifiers[0]=identifier; t->screen.font_valid[0]=true;
+	t->screen.font_codepages[0]=ST_CODEPAGE_CP437; t->screen.codepage=ST_CODEPAGE_CP437;
+	t->screen.fonts=(struct st_console_font_selection){.normal=identifier, .bright=identifier,
+	    .blink=identifier, .bright_blink=identifier};
+	for (size_t i=0;i<5;++i) t->screen.selectors[i]=0;
+	for (size_t i=0;i<4;++i) t->altfont[i]=0;
 	cterm_text_forget(t); st_unicode_presentation_reset(t->screen.unicode);
 	t->accumulator = t->saved_accumulator = NULL; t->sequence = 0;
 	t->escbuf[0] = 0; t->negative = false;
@@ -258,7 +277,37 @@ int cterm_big_create(struct cterminal *t)
 	cterm_start(t);
 	status = cterm_render_take_error(t);
 	const struct st_big_state_sink sink = {big,install,palette,page};
-	if (status == 0) status = st_big_state_install(&big->state,2,&sink);
+	unsigned resolution = 2;
+	uint32_t width, height, columns, rows, cw, ch;
+	if (status == 0) status = st_console_pixel_size(t->screen.console,&width,&height);
+	if (status == 0) status = st_console_size(t->screen.console,&columns,&rows);
+	if (status == 0) status = st_console_cell_pixel_size(t->screen.console,&cw,&ch);
+	if (status == 0) {
+		for (unsigned i=1;i<=3;++i) {
+			const struct st_big_mode *mode=st_big_mode(i);
+			if (width==mode->width && height==mode->height && columns==mode->columns
+			    && rows==mode->rows && cw==8 && ch==mode->cell_height) resolution=i;
+		}
+		status = st_big_state_install(&big->state,resolution,&sink);
+		if (status == 0) big->numeric.context.resolution=(uint8_t)resolution;
+	}
 	if (status != 0) { t->big_engine = NULL; cterm_big_destroy(big); }
 	return status;
 }
+
+#if ST_CONSOLE_TEST
+void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_application *app)
+{
+	if (big == NULL) return;
+	st_console_test_number(app, "cterm.big_resolution", big->numeric.context.resolution);
+	st_console_test_number(app, "cterm.big_hollow", big->state.application.hollow);
+	st_console_test_number(app, "cterm.big_bgi_width", big->state.bgi.width);
+	st_console_test_number(app, "cterm.big_bgi_height", big->state.bgi.height);
+	st_console_test_number(app, "cterm.big_memory_page", big->state.memory_page);
+	st_console_test_number(app, "cterm.big_active_page", big->state.active_page);
+	st_console_test_number(app, "cterm.big_visual_page", big->state.visual_page);
+	st_console_test_number(app, "cterm.big_loop_active", big->numeric.loop.active);
+	st_console_test_number(app, "cterm.big_pair_wait", big->pair_wait);
+}
+
+#endif

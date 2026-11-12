@@ -41,7 +41,7 @@ static const char *log_levels[] = {
 static const char *address_families[] = {
 	"PerDNS", "IPv4", "IPv6", "HappyEyeballs", NULL
 };
-static const char *graphics_modes[] = { "Off", "RIPv1", "RIPv3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)", "IGS (2.21)", NULL };
+static const char *graphics_modes[] = { "Off", "RIPv1", "RIPv3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)", "IGS (2.21)", "BIG (1.03)", NULL };
 static const char *parities[] = { "None", "Even", "Odd", NULL };
 static const char *tls_versions[] = { "Unknown", "TLS1.2", "TLS1.3", NULL };
 

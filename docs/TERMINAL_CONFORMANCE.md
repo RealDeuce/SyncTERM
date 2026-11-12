@@ -33,8 +33,16 @@ callbacks and actual I0/I1 indexed-console effects. Independent CP437/UTF-8/
 status/split fixtures check IBM8x14 glyph rows, full-block pixels, palette,
 cursor, frame locals, ff/NUL ownership, late-byte deadlines and EOF/reset/
 semantic-hook recovery. Shared parser header-completion tests cover retained
-identifiers, chaining, suspension and error prefixes. BBS/menu/Wren selection,
-full loop/flow/reply footers and complete command acceptance remain pending.
+identifiers, chaining, suspension and error prefixes. Full loop/flow/reply
+footers and complete command acceptance remain pending.
+
+BIG is selectable as profile/Wren value6. BBS codec and Wren tests preserve
+previous values, cover its presets and property bounds, and persist entries/
+defaults. `syncterm_big_input` uses coherent control-bitmap captures for all
+three initial profiles, CP437/UTF-8, status and reconnect, I0/I1 effects,
+exact original console fonts, both indexed blink planes, palette/cells/cursor,
+DSR replies, RGB samples, fallback profiles and menu restoration. Physical
+audio/MIDI are disabled. Complete command acceptance remains0/45.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

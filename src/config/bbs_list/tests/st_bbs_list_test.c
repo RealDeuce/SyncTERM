@@ -150,8 +150,8 @@ check_complete_profile_roundtrip(void)
 static int
 check_graphics_codec(void)
 {
-	static const char *const names[]={"Off","RIPv1","RIPv3","SkyPix (Kick 1.3)","SkyPix (Kick 3.1)","IGS (2.21)"};
-	for (int mode=0;mode<=ST_GRAPHICS_IGS_221;++mode) {
+	static const char *const names[]={"Off","RIPv1","RIPv3","SkyPix (Kick 1.3)","SkyPix (Kick 3.1)","IGS (2.21)","BIG (1.03)"};
+	for (int mode=0;mode<=ST_GRAPHICS_BIG_103;++mode) {
 		ini_document_t *document=NULL;
 		struct st_profile profile, decoded;
 		st_profile_init(&profile); profile.graphics_mode=mode;

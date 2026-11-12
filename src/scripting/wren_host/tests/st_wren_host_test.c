@@ -5483,7 +5483,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	CHECK(wrenInterpret(host->vm, "amiga_font_contract",
 	    "import \"syncterm_menu\" for Menu, MenuError, AmigaFontFamily\n"
 	    "import \"syncterm\" for GraphicsMode\n"
-	    "if (GraphicsMode.skypix13 != 3 || GraphicsMode.skypix31 != 4 || GraphicsMode.igs221 != 5 || Menu.graphicsModes.count != 6) Fiber.abort(\"graphics modes\")\n"
+	    "if (GraphicsMode.skypix13 != 3 || GraphicsMode.skypix31 != 4 || GraphicsMode.igs221 != 5 || GraphicsMode.big103 != 6 || Menu.graphicsModes.count != 7) Fiber.abort(\"graphics modes\")\n"
 	    "var catalog = Menu.amigaFonts\n"
 	    "if (catalog.count != 11) Fiber.abort(\"compiled Amiga families\")\n"
 	    "var strikes = 0\n"
@@ -5499,6 +5499,18 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "mutate.try()\n"
 	    "if (mutate.error == null) Fiber.abort(\"writable Amiga metadata\")\n"
 	    ) == WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(host->vm, "big_profile_contract",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"syncterm\" for GraphicsMode\n"
+	    "if (Menu.graphicsModes[6][0] != 6 || Menu.graphicsModes[6][1] != \"BIG (1.03)\") Fiber.abort(\"BIG catalog\")\n"
+	    "var profile = Menu.entries[0].profile\n"
+	    "var saved = profile.graphics\n"
+	    "profile.graphics = GraphicsMode.big103\n"
+	    "if (profile.graphics != 6) Fiber.abort(\"BIG property\")\n"
+	    "var bad = Fiber.new { profile.graphics = 7 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || profile.graphics != 6) Fiber.abort(\"BIG property bounds\")\n"
+	    "profile.graphics = saved\n") == WREN_RESULT_SUCCESS);
 	CHECK(host->bbs_model.count != 0);
 	size_t key_size;
 	CHECK(st_wren_bbs_model_search_key(&host->bbs_model,
