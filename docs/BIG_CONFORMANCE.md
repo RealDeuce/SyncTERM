@@ -735,3 +735,7 @@ remaining global composition and full45-entry acceptance stay pending.
 Routine verification remains BIG-only; the final full suite is deferred.
 
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and focused builds were clean. All20 BIG-specific native CTest checks passed in17.62s. The application fixture passed in67.91s (test67.87s),1246 coherent scenes including84 new B scenes. Final live-attribute-prefix cases passed in cterm_big_bar in1.47s (test1.40s). No non-BIG tests ran; the final full suite remains deferred. Native B/bar3d/indexed point-read integration is implemented; page/image/curve/audio and full45-entry composition remain pending.
+
+Native B/bar3d/indexed-point-read integration commit: `93e76fd`.
+Final explicit-standard-header build was clean; big_bar3d and cterm_big_bar
+passed together in1.45s. Remaining full45-entry composition stays in progress.
