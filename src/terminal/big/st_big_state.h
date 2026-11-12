@@ -56,4 +56,6 @@ int st_big_state_resolution(struct st_big_state *, uint16_t requested,
 	uint8_t *cache, const struct st_big_state_sink *);
 /* M's WORD normalization, installed mode first, application cache on return. */
 int st_big_state_write_mode(struct st_big_state *, uint16_t requested);
+/* C stores an application WORD after both reads; no installed BGI effect. */
+int st_big_state_color(struct st_big_state *, uint16_t selector, uint16_t color);
 #endif

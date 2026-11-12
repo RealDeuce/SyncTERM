@@ -167,6 +167,15 @@ COPY dots under M3 and R's actual0/cache1 split with unchanged full scene,
 palette, points, cursor and exact replies. Global page/image/audio composition
 and final full-suite verification remain pending; routine tests are BIG-only.
 
+BIG C stores one of four full application colour WORDs after both class0
+reads, without installing BGI state or drawing. Exhaustive selector/colour
+checks and native split/source/lifetime/partial-input cases preserve delayed
+line/marker/fill/text ownership.56 new coherent scenes bring coverage to1050,
+observing application WORDs, public draw BYTE, device pen and installed fill
+with complete indexed planes/text/palette/points/cursor/replies; coloured
+swatch interiors also verify composed RGB. Fill/text consumers, page/image/
+audio and final full-suite verification remain pending; routine tests are BIG-only.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

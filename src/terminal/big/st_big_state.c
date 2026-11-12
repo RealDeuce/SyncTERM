@@ -161,3 +161,10 @@ int st_big_state_write_mode(struct st_big_state *s, uint16_t requested)
 	s->application.write_mode = mode;
 	return 0;
 }
+int st_big_state_color(struct st_big_state *s, uint16_t selector, uint16_t color)
+{
+	if (s == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_big_number_signed(selector) < 0 || st_big_number_signed(selector) > 3) selector = 0;
+	s->application.colors[selector] = color;
+	return 0;
+}

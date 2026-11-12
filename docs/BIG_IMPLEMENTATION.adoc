@@ -23,7 +23,7 @@ wire & setup, source/footer replay and local stored-loop keys. T attributes
 and P marker drawing now run through a shared thin BGI kernel with BIG
 adapters, as do native L/D/d line commands. Native m graphics-point movement
 and < keyboard/hybrid pointer input are integrated, along with native M
-writing-mode selection. Other drawing commands,
+writing-mode selection and C application colour selection. Other drawing commands,
 page/image binding, sound and full command
 acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -1298,3 +1298,55 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native M writing-mode integration commit: `5bfa8a8`.
 Page/image/audio composition and the full45-entry goal remain in progress.
+
+=== Native C application colours
+
+C now acquires selector and colour as two independent class0 WORDs. Only
+after both reads return does the component normalize signed selectors
+outside0..3 to marker0 and store the full colour WORD. The four slots remain
+marker, line, fill and graphical W text. Invalid selectors do not skip the
+second acquisition. Incomplete EOF/reset makes no C store; a real numeric
+timeout supplies its normal value, and reset during timeout notification
+prevents the later command tail.
+
+C performs no BGI dispatch, colour reduction, palette write, point movement,
+pattern/fill installation or raster operation. It can store a colour with
+uninstalled BGI and retains old errors/installed state. Future consumers read
+their own application slot at their specified times. Existing L/D/d select
+line colour before acquiring coordinates; P and its marker helper preserve
+their separate installed-versus-current colour reads. WORD291 therefore
+remains291 in the line slot but later installs public draw BYTE23hex and
+device pen3. WORD261 remains in the marker slot and yields pen5. Fill/text
+C stores do not repaint or replace installed BGI fill/draw state.
+
+I1 and R retain all four application colours, even when R reinstalls default
+BGI colour/fill. I0 resets all four to15 through its existing ordered path.
+Stored selector/colour values bypass ordinary scaling; a source may finish
+after the selector and give the following colour read back to the wire.
+Both class0 fields remain unscaled under g3/R3. Common repeat/chain/counted
+deferred replies remain in use, with no own response.
+
+`big_state` independently checks all65,536 selectors with an unchanged full
+colour WORD, then all65,536 colour WORDs in each of the four valid slots.
+Other slots and installed state/error/point owners remain intact, including
+uninstalled BGI. `cterm_big_line` adds every-split/default-profile and
+bytewise/all mode/encoding/status cases for line/marker reductions and
+delayed fill/text slots, full-WORD invalid selectors, delayed second read,
+EOF/reset/timeout/callback reset, class0/stored-to-wire ownership, counted
+deferred replies, I1/R retention, I0 reset and uninstalled storage. The first
+wire expectation failed before C registration. Original unsafe foreign
+stack/register/DOS-memory aliases are not reproduced by native parameter
+ownership; ordinary independent field/store ordering remains preserved.
+
+56 new coherent application scenes bring coverage to1050. They check
+independent line/marker pens, retained colour WORDs, fill/text stores without
+installation, and full-WORD selector258 falling back to marker0. All scenes
+now observe the four application colours, public draw BYTE, device pen and
+installed fill attributes together with both complete indexed blink planes,
+ROM text/cells, palette, points/cursor/state and exact replies. The added
+scenes also check composed cyan RGB inside an independently authored3x3
+swatch. All three modes, encodings and status choices remain covered with
+physical audio/MIDI disabled. Fill/text consumers, page/image/audio and final
+full-suite acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending.

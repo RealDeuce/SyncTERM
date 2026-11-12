@@ -204,3 +204,15 @@ pointer cached-mode restoration after completion/EOF/reset and I0.56 new
 application scenes (994 total) independently expect XOR lines to cancel,
 M3 dots to copy, R actual0/cache1 and invalid258 normalizing0. Both mode
 owners are now checked in every coherent scene; physical audio remains off.
+
+C cases use chapter50's complete two-read/store caller and hand-derived
+delayed-colour examples. `big_state` checks all selector WORDs and all colour
+WORDs per valid slot independently, with separate installed state and old
+errors retained even when BGI is uninstalled. Native cases add split/bytewise
+mode/encoding/status, full-WORD fallback, consumer BYTE/pen reductions,
+delayed second fields, EOF/reset/timeout/reset callbacks, g3/source seams,
+deferred replies and I1/R/I0 lifetime.56 application scenes (1050 total)
+use literal coloured candidates and a3x3 cyan RGB swatch, observe all four
+application colour WORDs plus installed draw/device/fill owners, and retain
+the existing full indexed/text/palette/state/reply oracle. No raster output
+from SyncTERM is used to generate expectations.

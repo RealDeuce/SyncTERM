@@ -284,6 +284,15 @@
           ],
           "commit": "5bfa8a8",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body)."
+        },
+        {
+          "id": "application-colour-state",
+          "status": "complete",
+          "tests": [
+            "big_state"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -566,6 +575,20 @@
           ],
           "commit": "5bfa8a8",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body)."
+        },
+        {
+          "id": "native-application-colours",
+          "status": "complete",
+          "tests": [
+            "big_state",
+            "big_numeric",
+            "big_control",
+            "big_draw",
+            "cterm_big_line",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -756,7 +779,7 @@
     {
       "id": "C",
       "order": 5,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -765,10 +788,29 @@
       "references": [
         "50-attribute-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Acquire selector and colour independently as class0 WORDs before signed0..3 selector normalization; invalid selectors target marker0 and still require the second read. Store the complete colour WORD in marker/line/fill/graphical-text application slots.",
+        "No own BGI dispatcher, colour/pen reduction, palette, point, pattern/fill installation or pixel effect. C succeeds with uninstalled BGI and retains old errors and installed colours/fill. Existing line/marker consumers read and reduce their own later values.",
+        "I1 and R retain all four application colour WORDs; I0 resets all four to15. Both fields are unscaled under g3/R3; stored values bypass wire/scaling and may transfer later fields to wire after source completion.",
+        "Use common repeat/chain/counted deferred replies with no own response. Incomplete EOF/reset makes no store, real timeout substitutes normally, and callback reset prevents the later command tail. Fill/text consumers and other global page/image/audio composition remain pending."
+      ],
+      "tests": [
+        "big_state",
+        "big_numeric",
+        "big_control",
+        "big_draw",
+        "cterm_big_line",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native parameter ownership preserves ordinary independent reads and post-acquisition normalization/store; unsafe original stack/register/DOS-memory aliases that mutate foreign locals are not modeled. C introduces no BGI dispatch or uninstalled-error path."
+      ],
+      "verification": [
+        "Independent native wire expectation failed before C registration. big_state checks all65,536 selectors with a full unchanged colour, then all65,536 colour WORDs in each valid slot independently. Other slots, installed/error/point state and successful uninstalled storage are verified, plus null rejection.",
+        "Native every-split/default-profile and bytewise/all modes/CP437/UTF-8/status cases verify line and marker WORD-to-BYTE/pen reduction, separate delayed fill/text slots, full-WORD258 fallback, delayed second read, EOF/reset/timeout/callback reset, class0 g3, stored/wire seams, varying selectors0..3 with exact flow, chain/deferred replies, I1/R retention, I0 reset and uninstalled storage.",
+        "56 new coherent scenes bring the application oracle to1050: independent line/marker pens, retained WORD291/261/ffff, fill/text stores without installation and selector258 fallback. All scenes now check four application colour WORDs, public draw BYTE/device pen and installed fill with complete indexed blink planes, ROM text/cells, palette, points/cursor/state and exact replies. New scenes additionally verify composed cyan RGB inside a literal3x3 swatch; all modes/encodings/statuses are covered with physical audio/MIDI off.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending."
+      ],
       "commit": null
     },
     {

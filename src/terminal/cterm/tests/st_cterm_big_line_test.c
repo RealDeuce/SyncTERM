@@ -359,9 +359,74 @@ static void writing_mode_sources_and_failures(void)
 	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==1 && b->state.application.write_mode==1);
 	destroy(&f);
 }
+static void color_partitions(void)
+{
+	static const struct dot line_color[]={{100,60,803,803},{101,60,803,803},{102,60,803,803}};
+	static const struct dot marker_color[]={{100,60,805,805}};
+	static const struct dot unchanged_line[]={{100,60,815,815},{101,60,815,815},{102,60,815,815}};
+	static const struct { const char *wire; const struct dot *dots; size_t count; uint16_t colors[4],draw_color,x; } requests[]={
+		{"I#C>1,291:L 100,60,102,60:\033[2;3H",line_color,3,{15,291,15,15},0x23,102},
+		{"I#C>258,261:P 100,60:\033[2;3H",marker_color,1,{261,15,15,15},5,100},
+		{"I#C>2,31:C>3,+1:L 100,60,102,60:\033[2;3H",unchanged_line,3,{15,15,31,65535},15,102},
+	};
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	for (size_t c=0;c<sizeof(requests)/sizeof(requests[0]);++c)
+		for (size_t split=0;split<=strlen(requests[c].wire);++split) {
+			reset_mode(&f,2); for (size_t i=0;i<4;++i) b->state.application.colors[i]=15;
+			feed(&f,requests[c].wire,split); string(&f,requests[c].wire+split);
+			CHECK(memcmp(b->state.application.colors,requests[c].colors,sizeof(requests[c].colors))==0);
+			CHECK(b->state.bgi.color==requests[c].draw_color && b->state.bgi.device_color==(requests[c].draw_color&15));
+			CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==15 && f.terminal->xpos==3 && f.terminal->ypos==2 && f.size==0);
+			canvas(&f,requests[c].dots,requests[c].count); point(&f,requests[c].x,60);
+		}
+	destroy(&f);
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		create(&f,utf8,status); b=f.terminal->big_engine;
+		for (unsigned resolution=1;resolution<=3;++resolution) for (size_t c=0;c<sizeof(requests)/sizeof(requests[0]);++c) {
+			reset_mode(&f,resolution); for (size_t i=0;i<4;++i) b->state.application.colors[i]=15;
+			for (size_t i=0;i<strlen(requests[c].wire);++i) feed(&f,requests[c].wire+i,1);
+			CHECK(memcmp(b->state.application.colors,requests[c].colors,sizeof(requests[c].colors))==0);
+			CHECK(b->state.bgi.color==requests[c].draw_color && b->state.bgi.device_color==(requests[c].draw_color&15));
+			canvas(&f,requests[c].dots,requests[c].count); point(&f,requests[c].x,60);
+			CHECK(f.terminal->xpos==3 && f.terminal->ypos==2 && f.size==0);
+		}
+		destroy(&f);
+	}
+}
+static void color_prefixes_sources_and_lifetime(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	const uint16_t initial[]={11,12,13,14}; memcpy(b->state.application.colors,initial,sizeof(initial));
+	b->state.bgi.color=b->state.bgi.device_color=9; b->state.bgi.error=-11;
+	string(&f,"I#C 9,"); CHECK(memcmp(b->state.application.colors,initial,sizeof(initial))==0 && b->state.bgi.color==9);
+	string(&f,"31:"); CHECK(b->state.application.colors[0]==31 && b->state.application.colors[1]==12 && b->state.bgi.color==9 && b->state.bgi.fill_color==15);
+	string(&f,"I#C 0,+1:I#C 3,291"); CHECK(st_cterm_finish(f.terminal)==0 && b->state.application.colors[0]==65535 && b->state.application.colors[3]==14);
+	string(&f,"I#C 1,"); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->state.application.colors[1]==12);
+	string(&f,"I#C 1,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.application.colors[1]==0);
+	string(&f,"I#C 2,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==2 && b->state.application.colors[2]==13);
+	string(&f,"I#R 3:I#g 3:I#C 1,5:"); CHECK(b->state.application.colors[1]==5 && b->state.bgi.color==15);
+	string(&f,"I#& 0,1,1,0,C@2,1,291:"); CHECK(b->state.application.colors[1]==291);
+	string(&f,"I#& 0,1,1,0,C@1,2:5:"); CHECK(b->state.application.colors[2]==5 && f.size==4 && memcmp(f.output,"\x13\x11\x13\x11",4)==0);
+	string(&f,"I#& 0,3,1,0,C@2,x,291:");
+	for (size_t i=0;i<4;++i) CHECK(b->state.application.colors[i]==291);
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.size==6 && memcmp(f.output+4,"\x13\x11",2)==0);
+	b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255; b->control.input.append_cr=1;
+	string(&f,"I#C>1,9:"); CHECK(f.size==6 && b->control.input.pending==1 && b->state.bgi.color==15);
+	string(&f,"~ "); CHECK(f.size==9 && memcmp(f.output+6,"\0\xff\r",3)==0);
+	string(&f,"I#C 0,261:I#C 2,31:I#C 3,+1:I#I 1:I#R 1:");
+	const uint16_t retained[]={261,9,31,65535}; CHECK(memcmp(b->state.application.colors,retained,sizeof(retained))==0);
+	CHECK(b->state.bgi.color==15 && b->state.bgi.fill_color==15 && b->state.bgi.error==-11);
+	string(&f,"I#I 0:"); for (size_t i=0;i<4;++i) CHECK(b->state.application.colors[i]==15);
+	b->state.bgi.state=0; b->state.bgi.color=b->state.bgi.device_color=9;
+	string(&f,"I#C 1,8:"); CHECK(b->state.application.colors[1]==8 && b->state.bgi.color==9 && b->state.bgi.device_color==9 && b->state.bgi.error==-11);
+	canvas(&f,NULL,0); CHECK(f.size==9 && f.terminal->xpos==1);
+	destroy(&f);
+}
 int main(void)
 {
 	partitions_and_profiles(); color_and_waiting_prefix(); repeat_and_deferred_reply(); clipping_and_thickness();
 	sources_scaling_and_deadlines(); point_owners_xor_and_failures(); move_state_and_origin(); move_sources_and_replies(); move_cancellation_and_failure();
-	writing_mode_partitions(); writing_mode_sources_and_failures(); return 0;
+	writing_mode_partitions(); writing_mode_sources_and_failures(); color_partitions(); color_prefixes_sources_and_lifetime(); return 0;
 }

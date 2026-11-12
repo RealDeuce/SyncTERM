@@ -188,7 +188,29 @@ static int writing_modes(void)
 	CHECK(st_big_state_write_mode(NULL,2)==IO_ERROR_INVALID_ARGUMENT);
 	return 0;
 }
+static int application_colors(void)
+{
+	struct st_big_state s; st_big_state_init(&s);
+	s.bgi.state=0; s.bgi.error=-11; s.bgi.color=9; s.bgi.fill_color=3; s.bgi.ddo_x=777;
+	/* Four application WORDs are separate from installed graphics state.
+	 * Invalid full-WORD selectors target marker0, without byte truncation. */
+	for (unsigned selector=0;selector<=65535;++selector) {
+		for (size_t i=0;i<4;++i) s.application.colors[i]=(uint16_t)(100+i);
+		CHECK(st_big_state_color(&s,(uint16_t)selector,0xbeef)==0);
+		for (size_t i=0;i<4;++i) CHECK(s.application.colors[i]==(i==(selector<4?selector:0)?0xbeef:(uint16_t)(100+i)));
+		CHECK(s.bgi.state==0 && s.bgi.error==-11 && s.bgi.color==9 && s.bgi.fill_color==3 && s.bgi.ddo_x==777);
+	}
+	for (uint16_t selector=0;selector<4;++selector) {
+		for (size_t i=0;i<4;++i) s.application.colors[i]=(uint16_t)(100+i);
+		for (unsigned word=0;word<=65535;++word) {
+			CHECK(st_big_state_color(&s,selector,(uint16_t)word)==0);
+			for (size_t i=0;i<4;++i) CHECK(s.application.colors[i]==(i==selector?word:(uint16_t)(100+i)));
+		}
+	}
+	CHECK(st_big_state_color(NULL,0,1)==IO_ERROR_INVALID_ARGUMENT);
+	return 0;
+}
 int main(void)
 {
-	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); return 0;
+	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); return 0;
 }

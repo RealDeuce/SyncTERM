@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, M/T attributes, m movement, P markers and L/D/d lines run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, C/M/T attributes, m movement, P markers and L/D/d lines run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -560,3 +560,29 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native M writing-mode integration commit: `5bfa8a8`.
 Page/image/audio composition and the full45-entry goal remain in progress.
+
+## Native C application colours
+
+C reads selector/colour as class0 WORDs, then normalizes signed selectors
+outside0..3 to marker0 and stores the entire colour WORD. It calls no BGI
+setter, so installed colours/fill, errors, palette, points and pixels stay
+unchanged even with uninstalled BGI. Line/marker consumers reduce their own
+later values: line WORD291 installs draw BYTE23hex/device pen3, while marker
+WORD261 yields pen5. Fill/text stores remain delayed. I1/R retain the slots;
+I0 resets all four to15. Both reads occur for invalid selectors; incomplete
+EOF/reset does not store, actual timeouts substitute normally, and common
+source/chain/replies stay in use.
+
+`big_state` checks every selector and every colour WORD in each valid slot
+independently. Native wire cases cover every split/default profile, bytewise
+all modes/encodings/statuses, delayed stores, reductions, invalid/full words,
+source/g3, replies, lifetime and partial/error recovery. The first wire test
+failed before implementation.56 new coherent scenes bring coverage to1050
+with independent line/marker pens, delayed fill/text stores and selector258.
+Every scene now checks all four application WORDs, public draw colour,
+device pen and installed fill along with complete indexed/text/palette/
+point/cursor/reply state. New scenes additionally verify composed cyan RGB
+inside a solid swatch. Remaining fill/text, page/image/audio composition and
+final full-suite verification remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending.

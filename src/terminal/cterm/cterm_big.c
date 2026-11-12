@@ -38,7 +38,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
 	{'m',move,2,move_next},
-	{'M',scalar,1,NULL},
+	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
 
 static bool marker_kind(const struct st_graphics_command_view *view)
@@ -315,6 +315,11 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='M') {
 		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		int status=st_big_state_write_mode(&big->state,(uint16_t)view->arguments[0].value);
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='C') {
+		if (view->count!=2 || !view->arguments[0].has_value || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
+		int status=st_big_state_color(&big->state,(uint16_t)view->arguments[0].value,(uint16_t)view->arguments[1].value);
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='X') {
@@ -661,6 +666,11 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_marker", big->state.application.marker);
 	st_console_test_number(app, "cterm.big_marker_size", big->state.application.marker_size);
 	st_console_test_number(app, "cterm.big_color", big->state.bgi.color);
+	static const char *const colors[]={"cterm.big_marker_color","cterm.big_line_color","cterm.big_fill_color","cterm.big_text_color"};
+	for (size_t i=0;i<4;++i) st_console_test_number(app,colors[i],big->state.application.colors[i]);
+	st_console_test_number(app, "cterm.big_device_color", big->state.bgi.device_color);
+	st_console_test_number(app, "cterm.big_bgi_fill_style", big->state.bgi.fill_style);
+	st_console_test_number(app, "cterm.big_bgi_fill_color", big->state.bgi.fill_color);
 	st_console_test_number(app, "cterm.big_write_mode", big->state.bgi.write_mode);
 	st_console_test_number(app, "cterm.big_cached_write_mode", big->state.application.write_mode);
 	st_console_test_number(app, "cterm.big_point_x", big->state.bgi.x);
