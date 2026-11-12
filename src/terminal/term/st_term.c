@@ -976,7 +976,8 @@ handle_event(st_term_session_t *session,
 	case ST_CONSOLE_EVENT_RESIZE: {
 		if (session->config.graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
 		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
-		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_IGS_221) return 0;
+		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_IGS_221
+		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_BIG_103) return 0;
 		uint32_t capabilities;
 		int status;
 

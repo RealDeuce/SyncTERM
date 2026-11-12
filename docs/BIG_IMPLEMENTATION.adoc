@@ -430,3 +430,55 @@ complete (0/45).
 
 I/R state/profile and shared EGA data completion commit: `a79aa88`.
 Live command/backend integration remains pending.
+
+
+=== Initial live CTerm input and I binding
+
+The native CTerm API now accepts `ST_CTERM_GRAPHICS_BIG_103` (value6) with
+ANSI-BBS and a bitmap console. It installs the640x350/80x25/8x14 indexed
+profile and shared EGA palette. BIG sits beside IGS/RIP before the base parser;
+ordinary CP437/UTF-8 bytes pass through the existing ANSI input path. Profile
+persistence, menu/Wren selection and coherent application captures remain
+pending, so this is not yet a selectable BBS graphics mode.
+
+`cterm_big.c` uses the shared attention/chain grammar and the production BIG
+numeric callbacks. Outerff is discarded without disturbing a held I; ff and
+NUL inside interpreter acquisition retain byte ownership. New I# entries
+reset frame-local pages/palette snapshots; chained pairs retain them. Unknown
+pairs consume only their header and preserve chaining. Unsupported commands
+warn once per identifier; no guessed payload is drained.
+
+The shared parser exposes remaining header bytes and explicit source-owner
+header completion. BIG alone owns the local pair deadline and notification.
+A pair timeout retains an acquired identifier and disables chaining; a late
+ready chain byte is consumed before being overridden. A missing identifier
+uses0 (unknown). Numeric fields start their own fresh deadlines, with no
+empty-input poll inserted ahead of an already-ready numeric byte. Digit
+slots survive timeout; it is a substituted nondigit, not a discarded prefix.
+No foreign clock or periodic timer is added.
+
+I now invokes the tested I0/I1 state operations against the actual indexed
+console. I0 installs/clears the350-line profile; I1 publishes the shared
+palette without clearing pixels or moving the base console cursor. Console
+geometry/history/status plumbing is separate from protocol defaults. Shared
+source waits suspend wire input while session polls continue. Reset from a
+semantic input callback defers parser cancellation until callback return.
+EOF cancels partial headers/fields without running defaults; explicit EOF
+flushes ordinary held attention text. This is a defined terminal teardown
+policy, not the original DOS process/file-viewer shutdown model.
+
+`cterm_big` uses literal independent glyph/palette/cursor expectations across
+CP437/UTF-8, status reservation, every input split and bytewise delivery. It
+covers I0 clearing versus I1 retention, full header ownership, ff/NUL, chain/
+frame locals, late-byte pair/numeric deadlines, retained digits, empty pairs,
+backwards local samples, pending random sources, EOF/reset and semantic-hook
+reset. Physical audio is absent. Shared-parser tests separately verify header
+completion with an absent/present identifier, chaining, suspension, errors
+and rejected-state preservation.
+
+This is the initial live input foundation. Complete loop/gang repetition,
+flow/deferred-reply footer, native key ownership and application selection
+remain pending. I stays in progress, R has no wire entry yet, and completed
+command count remains0/45. No completion claim relies on helper-only tests.
+
+Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction.

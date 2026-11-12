@@ -599,3 +599,34 @@ st_graphics_parser_finish(st_graphics_parser_t *p,
 	st_graphics_parser_cancel(p);
 	return status;
 }
+
+unsigned
+st_graphics_parser_header_remaining(const st_graphics_parser_t *p)
+{
+	if (p == NULL) return 0;
+	return p->state == COMMAND ? (p->config.dialect->chain_indicator ? 2u : 1u)
+	    : p->state == CHAIN ? 1u : 0u;
+}
+
+int
+st_graphics_parser_complete_header(st_graphics_parser_t *p,
+    const struct st_graphics_parser_sink *sink, uint8_t missing_code, bool chained)
+{
+	if (p == NULL || !valid_sink(sink)) return IO_ERROR_INVALID_ARGUMENT;
+	if (!st_graphics_parser_header_remaining(p)) return IO_ERROR_BUSY;
+	/* A chained source may still owe its text boundary. Finish it before
+	 * selecting any fallback, just as the ordinary byte path does. */
+	int status = advance(p,sink);
+	if (status == 0) {
+		if (p->state == COMMAND) {
+			p->view.code = missing_code;
+			p->command = find_command(p,missing_code);
+		}
+		p->view.chained = chained;
+		p->state = FIELD;
+		size_t used;
+		return st_graphics_parser_feed(p,sink,NULL,0,&used);
+	}
+	st_graphics_parser_cancel(p);
+	return status;
+}

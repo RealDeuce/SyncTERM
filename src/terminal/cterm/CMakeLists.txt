@@ -78,6 +78,7 @@ int main(void)
 endif()
 
 add_library(st_cterm STATIC
+	cterm_big.c
 	cterm_igs.c
 	cterm_igs_music.c
 	cterm_igs_input.c
@@ -128,7 +129,7 @@ target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
 	st_audio st_music st_base64 st_time st_utf8 st_unicode_text st_session_history)
 target_link_libraries(st_cterm PRIVATE st_amiga_font st_fonts syncterm_threads
-	st_graphics_protocol st_igs st_bgi st_screen_mode
+	st_graphics_protocol st_igs st_big st_bgi st_screen_mode
 	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_string_util syncterm_filesystem
 	syncterm_path syncterm_ini)
@@ -146,6 +147,17 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_cterm_big_test tests/st_cterm_big_test.c)
+	target_link_libraries(st_cterm_big_test PRIVATE st_cterm st_big)
+	set_target_properties(st_cterm_big_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_big_test PRIVATE /W4)
+	else()
+		target_compile_options(st_cterm_big_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME cterm_big COMMAND st_cterm_big_test)
+	set_tests_properties(cterm_big PROPERTIES TIMEOUT 30)
+
 	syncterm_add_test_case(st_terminal_tests st_cterm_igs_input_test tests/st_cterm_igs_input_test.c)
 	target_link_libraries(st_cterm_igs_input_test PRIVATE st_cterm st_graphics_protocol st_igs)
 	set_target_properties(st_cterm_igs_input_test PROPERTIES

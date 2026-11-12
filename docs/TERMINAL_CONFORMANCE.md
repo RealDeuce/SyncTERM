@@ -17,8 +17,8 @@ values, suspension prefixes and error/EOF recovery.
 The `big_numeric` callbacks compose those sources with local
 deadlines, ordinary final-r expansion, native clock access, delayed-key
 checkpoints and exact partial error consumption; split-input/raw/EOF fixtures
-cover ownership and recovery. BIG command dispatch and live terminal event-loop
-integration remain pending.
+cover ownership and recovery. Initial native CTerm input integration is
+covered below; full application/command acceptance remains pending.
 
 `big_state` checks the I/R logical reset order, retained application/frame
 owners, palette-only I1, cached versus installed resolution and host-failure
@@ -27,6 +27,14 @@ ROM identities, the restored custom patterns and the shared 64-colour EGA
 table. RIP now consumes that same immutable palette data; its native tests
 and coherent CP437/UTF-8 raster captures passed. Indexed page/image storage,
 live backend binding and BIG command completion remain pending.
+
+`cterm_big` checks the native pre-ANSI BIG path with production numeric
+callbacks and actual I0/I1 indexed-console effects. Independent CP437/UTF-8/
+status/split fixtures check IBM8x14 glyph rows, full-block pixels, palette,
+cursor, frame locals, ff/NUL ownership, late-byte deadlines and EOF/reset/
+semantic-hook recovery. Shared parser header-completion tests cover retained
+identifiers, chaining, suspension and error prefixes. BBS/menu/Wren selection,
+full loop/flow/reply footers and complete command acceptance remain pending.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

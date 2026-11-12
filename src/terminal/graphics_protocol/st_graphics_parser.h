@@ -213,5 +213,14 @@ int st_graphics_parser_end_text(st_graphics_parser_t *,
 int st_graphics_parser_finish(st_graphics_parser_t *,
 	const struct st_graphics_parser_sink *);
 bool st_graphics_parser_in_command(const st_graphics_parser_t *);
+/* Remaining header bytes: identifier and optional chain (0..2). */
+unsigned st_graphics_parser_header_remaining(const st_graphics_parser_t *);
+/* Source-owner header completion (for example, after a local pair deadline).
+ * Preserve an acquired identifier; missing_code is used only before any
+ * identifier arrived. The owner supplies the final chain choice. No wire
+ * bytes or field values are synthesized. Invalid states leave grammar intact;
+ * otherwise normal field/command work runs, including suspension/errors. */
+int st_graphics_parser_complete_header(st_graphics_parser_t *,
+	const struct st_graphics_parser_sink *, uint8_t missing_code, bool chained);
 
 #endif

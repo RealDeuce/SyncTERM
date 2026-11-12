@@ -230,19 +230,43 @@
     },
     {
       "id": "application-integration",
-      "status": "not-started",
+      "status": "in-progress",
       "operations": [
         "BIG graphics mode6, profiles/menu/Wren, CP437/UTF8, shared pre-ANSI insertion, status/scrollback and reset/EOF/reconnect.",
         "Hybrid pointer: keyboard/X6 movement plus native mouse movement; no OS-pointer warp. Stationary mouse/button observations preserve keyboard position.",
         "Valid left press arms a release-triggered shared click action; preserve keyboard confirm, prevent duplicate/ghost selections, honor local UI/disabled/status/outside policy."
       ],
-      "tests": [],
-      "references": [
-        "01-scope-evidence.adoc"
+      "tests": [
+        "cterm_big",
+        "graphics_protocol_parser"
       ],
-      "deviations": [],
-      "verification": [],
-      "commit": null
+      "references": [
+        "01-scope-evidence.adoc",
+        "08-terminal-and-viewer-readers.adoc",
+        "43-hollow-command-and-dispatch-review.adoc",
+        "54-initialize-and-resolution-command-acceptance.adoc"
+      ],
+      "deviations": [
+        "Explicit terminal EOF flushes ordinary held attention text and cancels incomplete headers/fields without running defaults; it does not emulate DOS process/file-viewer teardown."
+      ],
+      "verification": [
+        "Native CTerm API mode6 uses the shared pre-ANSI insertion and I#/chain grammar, production BIG numeric callbacks, indexed console and shared EGA palette. I0/I1 live effects are covered by independent CP437/UTF-8/status/every-split/bytewise glyph, pixel, palette and cursor expectations.",
+        "Pair/header deadlines preserve acquired identifiers, consume late ready bytes before substitution, retain numeric digits, reject backwards samples and never complete on EOF. Shared random waits pause wire input while native polls continue; EOF/reset and semantic-hook reset recovery are checked.",
+        "Profile/menu/Wren selection, coherent application captures, native key ownership and complete loop/gang/flow/deferred-reply footer remain pending. No command completion is claimed.",
+        "Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction."
+      ],
+      "commit": null,
+      "steps": [
+        {
+          "id": "initial-native-input-and-i-binding",
+          "status": "complete",
+          "tests": [
+            "cterm_big",
+            "graphics_protocol_parser"
+          ],
+          "commit": null
+        }
+      ]
     },
     {
       "id": "big-audio",
@@ -282,7 +306,7 @@
     {
       "id": "I",
       "order": 1,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -292,9 +316,15 @@
         "54-initialize-and-resolution-command-acceptance.adoc"
       ],
       "operations": [],
-      "tests": [],
+      "tests": [
+        "big_state",
+        "big_profile",
+        "cterm_big"
+      ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "Logical I0/I1 state and live native indexed-console binding are implemented. Complete loop/gang/flow/reply footer and coherent application acceptance remain pending; this entry is not complete."
+      ],
       "commit": null
     },
     {

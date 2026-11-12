@@ -14,6 +14,7 @@
 #include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
 #include "cterm_igs.h"
+#include "cterm_big.h"
 #include "cterm_vt52.h"
 #include "st_igs_image.h"
 #include "st_session_history.h"
@@ -2077,8 +2078,12 @@ initialize_render_state(struct cterm_render_state *screen,
 	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31) {
 		for (unsigned i = 0; i < 16; ++i) screen->mode_palette[i] = (uint16_t)(CTERM_SKYPIX_PALETTE_FIRST+i);
 	}
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103) {
+		for (unsigned i = 0; i < 16; ++i) screen->mode_palette[i] = CTERM_BIG_PALETTE_FIRST+i;
+	}
 	screen->capabilities = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
+	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
+	    || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
 	    ? capabilities & ~ST_CONSOLE_CAP_EXTENDED_PALETTE : capabilities;
 	screen->wscroll = 1;
 	return 0;
@@ -2105,7 +2110,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	    || config->encoding < ST_CTERM_ENCODING_UTF8
 	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE
 	    || config->graphics_mode < ST_CTERM_GRAPHICS_OFF
-	    || config->graphics_mode > ST_CTERM_GRAPHICS_IGS_221
+	    || config->graphics_mode > ST_CTERM_GRAPHICS_BIG_103
 	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF
 	        && config->graphics_mode != ST_CTERM_GRAPHICS_IGS_221
 	        && config->emulation != ST_CTERM_ANSI_BBS)
@@ -2320,6 +2325,10 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		status = cterm_igs_create(terminal);
 		if (status != 0) { st_cterm_destroy(&terminal); return status; }
 	}
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103) {
+		status = cterm_big_create(terminal);
+		if (status != 0) { st_cterm_destroy(&terminal); return status; }
+	}
 	*result = terminal;
 	return 0;
 }
@@ -2333,6 +2342,8 @@ st_cterm_destroy(st_cterm_t **terminal)
 		return;
 	scrollback = (*terminal)->scrollback;
 	(void)st_cterm_finish(*terminal);
+	cterm_big_destroy((*terminal)->big_engine);
+	(*terminal)->big_engine = NULL;
 	cterm_igs_destroy((*terminal)->igs_engine);
 	(*terminal)->igs_engine = NULL;
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
@@ -2649,6 +2660,8 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->skypix_engine != NULL)
 		return cterm_skypix_feed(terminal->skypix_engine, bytes, size, consumed);
+	if (terminal->big_engine != NULL)
+		return cterm_big_feed(terminal->big_engine, bytes, size, consumed);
 	if (terminal->igs_engine != NULL)
 		return cterm_igs_feed(terminal->igs_engine, bytes, size, consumed);
 	if (terminal->rip_engine != NULL)
@@ -2660,7 +2673,8 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 bool
 st_cterm_input_paused(st_cterm_t *terminal)
 {
-	return terminal != NULL && (cterm_igs_paused(terminal->igs_engine)
+	return terminal != NULL && (cterm_big_paused(terminal->big_engine)
+	    || cterm_igs_paused(terminal->igs_engine)
 	    || (terminal->skypix_engine != NULL && cterm_skypix_paused(terminal->skypix_engine)));
 }
 
@@ -2684,6 +2698,8 @@ st_cterm_poll(st_cterm_t *terminal)
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_apc_poll(terminal);
+	if (terminal->big_engine != NULL)
+		return cterm_big_poll(terminal->big_engine);
 	if (terminal->igs_engine != NULL)
 		return cterm_igs_poll(terminal->igs_engine);
 	if (terminal->skypix_engine != NULL) {
@@ -2736,7 +2752,8 @@ st_cterm_finish(st_cterm_t *terminal)
 
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = terminal->igs_engine != NULL ? cterm_igs_finish(terminal->igs_engine)
+	status = terminal->big_engine != NULL ? cterm_big_finish(terminal->big_engine)
+	    : terminal->igs_engine != NULL ? cterm_igs_finish(terminal->igs_engine)
 	    : terminal->skypix_engine != NULL ? cterm_skypix_finish(terminal->skypix_engine)
 	    : terminal->rip_engine == NULL ? 0 : cterm_rip_engine_flush(terminal->rip_engine);
 	if (status == 0)
@@ -2778,8 +2795,10 @@ st_cterm_prepare_disconnect(st_cterm_t *terminal)
 int
 st_cterm_reset_terminal(st_cterm_t *terminal)
 {
-	if (terminal != NULL)
+	if (terminal != NULL) {
 		cterm_igs_reset(terminal->igs_engine);
+		cterm_big_reset(terminal->big_engine);
+	}
 	int status = st_cterm_finish(terminal);
 
 	if (status != 0)
@@ -2891,6 +2910,42 @@ resize_parser_geometry(st_cterm_t *terminal, int columns, int rows,
 		terminal->screen.provisional_y = last_y;
 	cterm_apply_window(terminal);
 	cterm_set_position(terminal, cursor_x, cursor_y);
+}
+
+int
+cterm_reconfigure_console(struct cterminal *t, const struct st_console_config *config)
+{
+	if (t == NULL || config == NULL || config->columns == 0 || config->columns > INT_MAX
+	    || config->rows > INT_MAX || config->rows <= t->api_reserved_rows
+	    + (t->status_display_type >= 1 ? 1u : 0u)) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_console_cell *history = NULL;
+	struct st_pixel_buffer **history_pixels = NULL;
+	int status = t->backlines == 0 ? 0 : resize_scrollback(t,config->columns,
+	    config->cell_width,config->cell_height,&history,&history_pixels);
+	if (status == 0) status = st_console_reconfigure(t->screen.console,config);
+	if (status != 0) {
+		free(history); st_history_free_pixels(history_pixels,(size_t)t->backlines);
+		return status;
+	}
+	free(t->scrollback); st_history_free_pixels(t->backpixels,(size_t)t->backlines);
+	t->scrollback = history; t->backpixels = history_pixels;
+	t->backwidth = (int)config->columns; t->backstart = 0;
+	t->backpos = t->backfilled == t->backlines ? 0 : t->backfilled;
+	resize_parser_geometry(t,(int)config->columns,
+	    (int)(config->rows-t->api_reserved_rows-(t->status_display_type >= 1 ? 1u : 0u)),1,1);
+	if (t->status_sub != NULL) {
+		memcpy(t->status_sub->screen.mode_palette,t->screen.mode_palette,sizeof(t->screen.mode_palette));
+		cterm_render_attribute_colours(t->status_sub,t->status_sub->attr,
+		    &t->status_sub->fg_color,&t->status_sub->bg_color);
+		t->status_sub->y = t->y+t->height;
+		resize_parser_geometry(t->status_sub,(int)config->columns,1,1,1);
+		cterm_text_forget(t->status_sub);
+		st_unicode_presentation_reset(t->status_sub->screen.unicode);
+	}
+	if (t->api_size_changed != NULL)
+		t->api_size_changed(t->api_size_context,config->columns,(uint32_t)t->height,
+		    config->pixel_width,config->pixel_height);
+	return cterm_render_take_error(t);
 }
 
 static int
@@ -3014,7 +3069,8 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
-	if ((terminal->skypix_engine != NULL || terminal->igs_engine != NULL)
+	if ((terminal->skypix_engine != NULL || terminal->igs_engine != NULL
+	    || terminal->big_engine != NULL)
 	    && (columns != (uint32_t)terminal->width || terminal_rows != (uint32_t)terminal->height))
 		return IO_ERROR_NOT_SUPPORTED;
 	/* Geometry commits the old placement, but is not end-of-input for

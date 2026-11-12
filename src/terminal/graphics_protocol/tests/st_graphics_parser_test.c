@@ -475,9 +475,52 @@ field_entries(void)
 	st_graphics_parser_destroy(p); return 0;
 }
 
+/* Owner completion is an explicit header event, not input-byte injection. */
+static int
+header_completion(void)
+{
+	for (size_t split = 0; split <= 3; ++split) {
+		st_graphics_parser_t *p = NULL; struct capture c = {0};
+		struct st_graphics_parser_sink s = sink(&c); size_t used;
+		CHECK(create(&p,&igs,16,1024) == 0);
+		CHECK(!st_graphics_parser_header_remaining(p));
+		CHECK(st_graphics_parser_complete_header(p,&s,'Q',false) == IO_ERROR_BUSY);
+		CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"G#s",split,&used) == 0 && used == split);
+		CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"G#s"+split,3-split,&used) == 0 && used == 3-split);
+		CHECK(st_graphics_parser_header_remaining(p));
+		CHECK(st_graphics_parser_complete_header(p,&s,'Q',false) == 0);
+		CHECK(!st_graphics_parser_header_remaining(p) && c.commands == 0);
+		CHECK(st_graphics_parser_complete_header(p,&s,'Q',false) == IO_ERROR_BUSY);
+		CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"7:tail",6,&used) == 0 && used == 6);
+		CHECK(c.commands == 1 && c.codes[0] == 's' && c.operands[0].value == 7);
+		CHECK(c.text_size == 4 && memcmp(c.text,"tail",4) == 0 && c.boundaries == 1);
+		/* No identifier: use the explicit fallback and honor chaining. */
+		CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"G#",2,&used) == 0);
+		CHECK(st_graphics_parser_complete_header(p,&s,'Q',true) == 0);
+		CHECK(c.commands == 2 && c.codes[1] == 'Q' && st_graphics_parser_header_remaining(p));
+		CHECK(st_graphics_parser_complete_header(p,&s,'@',false) == 0);
+		CHECK(c.unknown == 1 && !st_graphics_parser_in_command(p));
+		/* Accepted suspension retains its own return boundary. */
+		c.suspend = true;
+		CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"G#Q",3,&used) == 0);
+		CHECK(st_graphics_parser_complete_header(p,&s,0,false) == IO_ERROR_IN_PROGRESS);
+		CHECK(!st_graphics_parser_header_remaining(p) && c.commands == 3);
+		CHECK(st_graphics_parser_complete_header(p,&s,0,false) == IO_ERROR_BUSY);
+		CHECK(st_graphics_parser_resume(p) == 0);
+		/* A callback error cancels, with its completed effect retained. */
+		c.suspend = false; c.fail = IO_ERROR_IO;
+		CHECK(st_graphics_parser_feed(p,&s,(const uint8_t *)"G#Q",3,&used) == 0);
+		CHECK(st_graphics_parser_complete_header(p,&s,0,false) == IO_ERROR_IO);
+		CHECK(!st_graphics_parser_in_command(p) && c.commands == 4);
+		st_graphics_parser_destroy(p);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(header_completion() == 0);
 	CHECK(field_entries() == 0);
 	CHECK(literal_examples() == 0);
 	CHECK(readers() == 0);

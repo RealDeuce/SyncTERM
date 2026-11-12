@@ -1,7 +1,8 @@
 # BIG 1.03 conformance
 
 BIG terminal implementation is in progress. The completed first prerequisite adds
-CGA 80x25; BIG framing, drawing and sound are not yet selectable.
+CGA 80x25. BIG input/I operations are available through the native CTerm API;
+BBS profile/menu selection, drawing and sound remain pending.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -120,3 +121,26 @@ The native Release build passed without compiler/source diagnostics. All 18
 selected native checks passed in 1.92s, and both coherent RIP raster capture
 tests passed in 14.24s. The strengthened cached-resolution failure checks also
 passed separately. BIG remains unselectable; completion remains 0/45.
+
+
+## Initial live input integration
+
+Native CTerm graphics mode6 now runs BIG at640x350, before ANSI parsing at
+the same insertion point as IGS/RIP. The shared parser owns I#/chaining and
+the production numeric callbacks own WORD acquisition. Outerff filtering,
+NUL pairs, retained frame locals, unknown headers and owner-completed pair
+timeouts are covered. A ready byte is consumed before timeout substitution;
+previous numeric digits survive the substituted nondigit.
+
+I's tested state operations now reach the actual indexed console: I0 installs
+and clears the350-line profile, while I1 changes palette entries and retains
+pixels, cursor and unrelated state. Native CP437/UTF-8/status/split-input
+fixtures check literal IBM8x14 glyph rows, full-block pixels in both blink
+phases, palette/cursor state, deadlines, random suspension, EOF/reset and
+reset from a semantic callback. Physical audio is absent.
+
+The complete loop/gang/flow/reply footer, native key binding, BBS profile and
+menu/Wren selection, and coherent application captures remain pending. I is
+in progress; no complete BIG command is claimed (0/45).
+
+Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction.

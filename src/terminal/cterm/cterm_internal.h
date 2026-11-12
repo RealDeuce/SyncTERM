@@ -460,6 +460,9 @@ cterm_seq_defaults_apply(const struct cterminal *cterm)
 	return cterm->seq_param_count == 0 && !cterm->seq_consumed_any;
 }
 
+/* Console/history/status plumbing; protocol defaults remain with the owner. */
+int cterm_reconfigure_console(struct cterminal *, const struct st_console_config *);
+
 typedef void (*cterm_handler_fn)(struct cterminal *cterm, int *speed);
 
 #endif /* _CTERM_INTERNAL_H_ */
