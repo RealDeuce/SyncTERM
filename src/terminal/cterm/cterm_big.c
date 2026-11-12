@@ -18,7 +18,7 @@ static const struct st_graphics_dialect dialect = {
 	.chain = '>', .number_digits = 4,
 };
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
-static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'&',NULL,0,NULL}};
+static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},{'&',NULL,0,NULL}};
 
 static struct cterm_big *owner(void *context)
 {
@@ -172,10 +172,11 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		return IO_ERROR_IN_PROGRESS;
 	}
 	const struct st_big_state_sink sink = {big,install,palette,page};
-	if (view->code != 'I' || view->count != 1 || !view->arguments[0].has_value)
+	if ((view->code!='I' && view->code!='R') || view->count!=1 || !view->arguments[0].has_value)
 		return IO_ERROR_PROTOCOL;
-	int status=st_big_state_initialize(&big->state,(uint16_t)view->arguments[0].value,
-	    &big->numeric.context.resolution,&sink);
+	int status=view->code=='I'
+	    ?st_big_state_initialize(&big->state,(uint16_t)view->arguments[0].value,&big->numeric.context.resolution,&sink)
+	    :st_big_state_resolution(&big->state,(uint16_t)view->arguments[0].value,&big->numeric.context.resolution,&sink);
 	return status==0?begin_footer(big,view):status;
 }
 static void unknown(void *context, uint8_t code)

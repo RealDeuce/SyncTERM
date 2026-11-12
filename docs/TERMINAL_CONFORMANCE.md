@@ -74,6 +74,15 @@ gang loops and14 native Ctrl-C delayed loops with exact flow, current-value
 effects and resumed buffered bytes. No physical audio/device or full command
 acceptance is claimed; <, W rendering and music synchronization remain pending.
 
+Wire R is covered by `cterm_big_resolution` and70 additional coherent
+application scenes (168 total). Independent native split/bytewise CP437/
+UTF-8/status cases check all three full indexed ROM scenes, geometry/cursor,
+same-mode reinstall, full-WORD normalization, class0 source ownership,
+retained application/frame/ratio state, deferred replies, stored R1..3,
+returning-error/cache prefixes and EOF/reset/timeout. Application sentinels
+precede R and fresh glyphs follow without ED, verifying clear/default/font
+transitions in the same capture. Complete command acceptance remains pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

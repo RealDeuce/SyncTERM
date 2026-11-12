@@ -273,7 +273,8 @@
         "syncterm_behavior_bbs_setters",
         "syncterm_big_input",
         "big_control",
-        "big_stream"
+        "big_stream",
+        "cterm_big_resolution"
       ],
       "references": [
         "01-scope-evidence.adoc",
@@ -313,7 +314,9 @@
         "Native stored-loop keys now use production numeric callbacks. Independent cterm_big expectations failed before implementation and cover03/18 cancellation after calculation, non-cancelling bytes/endpoints, zero/pending-scan readiness, native event kinds, Unicode non-truncation/normalization, modifiers, blocked finishing flow, queue saturation and reset/EOF/callback-reset replay. State-injected setup does not claim & wire, pointer or physical device coverage.",
         "Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed.",
         "Initial wire & now performs ordered header/raw/text/P/table acquisition, inherited suppression/RNG semantics, load-abort zero fill, loop publication before XOFF, post-flow classification and common-body dispatch. Independent native tests include all2048 actual slots, split input, partial effects, selected &, zero/ff raw bytes, gang copy/suffix bounds, source/timeouts/cancel/reset/EOF. The initial wire case failed before implementation. Delayed real-session loops exposed and verified the fix for fatal propagation of full accepted pauses. The expanded application fixture checks98 coherent scenes,56 fixed/gang loops and14 Ctrl-C delayed loops with exact flow/current-value/buffered-tail results. W rendering, < production and music entry synchronization remain pending; no full command completion is claimed.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed.",
+        "Independent native wire test failed before R registration. Every split/bytewise CP437/UTF-8/status case checks literal original ROM A/block scenes across the whole indexed surface, geometry/cursor/cells, same-mode reinstall, full-WORD/negative normalization, class0 g3 ownership, retained owners, raw deferred replies, stored wire R1..3 and EOF/reset/timeout. Injected driver/max-mode/state return cases preserve cache-versus-surface distinctions.70 added coherent application scenes exercise1/3/2/repeated2/invalid258 using dirty sentinels and no post-R ED; the fixture now covers168 scenes. Full image/page/input/drawing/music composition remains pending; R is not marked complete.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed."
       ],
       "commit": null,
       "steps": [
@@ -379,6 +382,18 @@
           ],
           "commit": "b12aa6f",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
+        },
+        {
+          "id": "wire-resolution-mode-binding",
+          "status": "complete",
+          "tests": [
+            "cterm_big_resolution",
+            "big_state",
+            "big_profile",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed."
         }
       ]
     },
@@ -448,19 +463,36 @@
     {
       "id": "R",
       "order": 2,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages"
       ],
       "references": [
-        "54-initialize-and-resolution-command-acceptance.adoc"
+        "54-initialize-and-resolution-command-acceptance.adoc",
+        "27-initialization-resolution-and-state.adoc",
+        "47-bios-glyphs-teletype-and-console-routing.adoc",
+        "48-bios-video-mode-registers-pages-and-dac.adoc",
+        "80-global-state-and-lifetime-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
+      "operations": [
+        "One full-WORD unscaled class0 argument; signed invalid requests normalize1; driver3 downgrade and driver9 mapped installation without same-mode shortcut.",
+        "Existing native indexed/font/profile installation and original BGI defaults; application/frame/custom-ratio/numeric/RNG owners retained.",
+        "Post-return cache publication and unconditional installed-dimension viewport/point tail, including returning rejection/state2/unknown driver; shared footer/replies/source waits and EOF/reset recovery."
+      ],
+      "tests": [
+        "big_state",
+        "big_profile",
+        "big_numeric",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "Independent native wire test failed before R registration. Every split/bytewise CP437/UTF-8/status case checks literal original ROM A/block scenes across the whole indexed surface, geometry/cursor/cells, same-mode reinstall, full-WORD/negative normalization, class0 g3 ownership, retained owners, raw deferred replies, stored wire R1..3 and EOF/reset/timeout. Injected driver/max-mode/state return cases preserve cache-versus-surface distinctions.70 added coherent application scenes exercise1/3/2/repeated2/invalid258 using dirty sentinels and no post-R ED; the fixture now covers168 scenes. Full image/page/input/drawing/music composition remains pending; R is not marked complete.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed."
+      ],
       "commit": null
     },
     {

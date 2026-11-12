@@ -119,6 +119,24 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                         assert reply == expected, reply
                         with (root / "replies.bin").open("ab") as log: log.write(b"\x13" + reply)
                         check(client.wait_text(token), 2, status, True, token, (1, 1, 0, 1))
+                        for index, (request, target) in enumerate(((1, 1), (3, 3), (2, 2), (2, 2), (258, 1))):
+                            token = f"RES{index}_{target}"
+                            # The old coloured sentinel must disappear because
+                            # R clears, including a repeated same-mode request.
+                            # No ED follows R; new A uses its default attribute.
+                            wire = (b"\x1b[8;41H\x1b[35;44;5mX" + f"I#R {request}:".encode()
+                                    + b"\x1b[13;13HA\x1b[4;3H\x1b[31;44;5m" + block
+                                    + b"\x1b[0m\x1b[H" + token.encode() + b"\x1b[6n")
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), target, status, True, token)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

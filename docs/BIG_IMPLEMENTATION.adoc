@@ -18,8 +18,8 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-BIG mode6 is selectable with native I0/I1 indexed-console effects, wire &
-setup, source/footer replay and local stored-loop keys. Drawing commands, sound and full
+BIG mode6 is selectable with native I0/I1 and R indexed-console effects,
+wire & setup, source/footer replay and local stored-loop keys. Drawing commands, sound and full
 command acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -737,3 +737,44 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Wire & setup/shared auxiliary-text reader integration commit: `b12aa6f`.
 Full command acceptance and the complete goal remain in progress.
+
+=== Wire R mode binding
+
+R now consumes one unscaled class0 WORD through the same shared pre-ANSI
+grammar, numeric sources and footer as I. It calls the existing separately
+verified resolution operator. Signed requests outside1..3 become1, with no
+low-byte selection or same-mode shortcut. Normal driver9 installs640x200/
+80x25/8x8,640x350/80x25/8x14 or640x480/80x30/8x16 using the exact original
+console font banks. Driver3 downgrades3 to2 before any later driver test.
+The existing installation path retains the physical window-size policy.
+
+R retains application hollow/marker/colours/fill/cached-write, patterns,
+custom font ratios, numeric/scaling/RNG/loop state and interpreter page/
+palette locals. Installed BGI defaults and physical clear are distinct from
+those application owners. A returning rejected mode or state2 early return
+still publishes the requested cache and runs the full-surface viewport/point
+tail against the installed dimensions. An unknown driver skips mode/cache
+stores but still runs that tail. Native failures continue to stop at their
+completed prefix through the existing state operator.
+
+Independent `cterm_big_resolution` expectations failed on the old absent R
+binding before implementation. They cover every split and bytewise input,
+both encodings/status choices, exact A/block ROM pixels across the whole
+indexed surface, cells/colours, geometry/cursor, same-mode installation,
+full-WORD/encoded-negative normalization, g3 class0 ownership, retained
+application/frame/ratio/source state, deferred raw replies, wire-loop R1..3,
+partial EOF/reset and timeout recovery. Injected driver/max-mode/state cases
+check downgrade, cache-versus-surface mismatch and returning-error prefixes.
+Callback rows are the drawable terminal rows; console geometry separately
+checks the full25/30 rows, including status ownership.
+
+The coherent application fixture now checks168 scenes. Its70 added R scenes
+exercise1/3/2/repeated2/invalid258 transitions in both encodings and status
+choices. Each places a coloured sentinel before R, then emits fresh ROM A/
+block glyphs without ED afterward: one capture proves clearing, defaults,
+correct new font/geometry, complete blink planes, palette/cells/cursor/state
+and RGB samples. Existing wire-loop/cancellation/reconnect cases remain.
+G image/page storage, drawing, < input production and music/audio entry
+composition remain pending, so R stays in progress and full completion0/45.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed.

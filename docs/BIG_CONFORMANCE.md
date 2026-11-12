@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I operations run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R operations run
 through native CTerm. Drawing, sound and complete command acceptance remain
 in progress.
 
@@ -264,3 +264,28 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Wire & setup/shared auxiliary-text reader integration commit: `b12aa6f`.
 Full command acceptance and the complete goal remain in progress.
+
+## Wire R modes
+
+R uses one unscaled full-WORD argument and the established state operator,
+with no same-mode shortcut. Normal VGA resolutions1/2/3 select the200/350/480
+pixel surfaces and original8/14/16-row ROM banks. Driver3 downgrade, returning
+rejection/state2 cache publication and the unconditional viewport/point tail
+remain separate from physical installation. Application attributes, custom
+patterns/ratios, numeric/RNG/flow state and frame locals survive R.
+
+`cterm_big_resolution` failed before binding R and now independently checks
+split/bytewise CP437/UTF-8/status cases, full indexed A/block scenes, geometry/
+font/cell/cursor state, same-mode reinstall, invalid full WORDs, class0 g3
+ownership, retained owners, deferred replies, wire-loop R1..3 and partial
+EOF/reset/timeout. Injected driver/max-mode/state cases retain cache/surface
+mismatches and completed return prefixes.
+
+The expanded application fixture checks168 coherent scenes;70 new R scenes
+cover1/3/2/repeated2/invalid258, each with a preexisting coloured sentinel and
+new glyphs without a post-R clear. Exact indexed blink planes, ROMs, palettes,
+cells/cursor/state and RGB samples check transitions/defaults and erasure.
+Full G storage/input/drawing/music composition is still pending; R remains
+in progress, with no new full command acceptance claimed (0/45).
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed.

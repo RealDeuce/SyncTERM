@@ -139,3 +139,13 @@ partial-pair/body identity and reset/EOF/callback prefixes. The coherent
 application fixture adds fixed/gang wire loops and delayed native Ctrl-C
 with exact flow, retained scene/current result and buffered-tail resumption.
 None of these fixtures need external reference files, devices or audio.
+
+`cterm_big_resolution` binds the actual wire R to the state operator. Literal
+ROM rows and complete indexed scenes cover every input split/bytewise,
+CP437/UTF-8/status and all three geometries. Further cases distinguish
+same-mode reinstall, full-WORD normalization, unscaled g3 arguments,
+application versus installed defaults, frame/ratio/source retention, counted
+replies, stored R1..3, partial EOF/reset/timeout and returning mode failure.
+The application fixture adds70 independent R transition scenes with a dirty
+sentinel and no subsequent ED. Its168 coherent captures include the earlier
+fixed/gang/input-cancellation and reconnect cases, with physical audio off.
