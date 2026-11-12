@@ -3029,6 +3029,8 @@ ordered entries, dependencies/references and active test registrations were
 validated; obsolete pending-integration notes in current ledger fields were
 reconciled while historical verification was retained.
 
+Common-reader and parent X completion commit: 7b6c552. Final goal acceptance remains open.
+
 ### Manual audio checklist
 
 These listening checks are a post-implementation checklist, not automated

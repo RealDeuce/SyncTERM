@@ -4810,3 +4810,5 @@ X2 application run (18.50s), and the17-test X/loop application dispatch run
 references were validated. Current ledger operations/deviations no longer
 describe completed X5/loop/script/input integrations as future work; historical
 verification records and completion commits are retained.
+
+Common-reader and parent X completion commit: 7b6c552. Final goal acceptance remains open.
