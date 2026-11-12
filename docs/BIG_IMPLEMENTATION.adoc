@@ -311,3 +311,6 @@ mapping and real application deadline scheduling remain pending.
 The native Release build (`build/`, `/usr/bin/cc`) passed without compiler/
 source diagnostics. All eight selected BIG/shared-parser/IGS scaling CTest
 checks passed in 1.73 seconds; `big_loop` completed in 0.01 seconds.
+
+Stored-evaluator completion commit: `547291e`. Application source/deadline
+integration and full command dispatch remain pending.

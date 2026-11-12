@@ -129,7 +129,7 @@
           "tests": [
             "big_loop"
           ],
-          "commit": null,
+          "commit": "547291e",
           "verification": "Native Release build and all eight selected checks passed in 1.73s; big_loop completes in 0.01s."
         }
       ]
