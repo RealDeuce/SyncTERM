@@ -1530,3 +1530,68 @@ Native CMake Release configure/full build and final focused build (/usr/bin/cc, 
 
 Original opaque bar primitive commit: `44b6e10`.
 Wire B/bar3d and remaining full45-entry composition stay in progress.
+
+=== Original shared point producer
+
+`st_big_producer_emit` implements DDO0615..0699 from chapters13/58/59 and
+`rectangle-code.adoc`. This is the shared dependency of bar3d's lower move/
+line gates and the curve point stages. Mode0 returns carry clear without
+work. Any nonzero mode other than2 uses the original run collector and
+returns carry set. Mode2 attempts a physical point and returns carry clear,
+even on clipping rejection. Public, DDO and device CP are not assigned by
+the producer itself; each reached caller owns its subsequent point tail.
+
+The collector compares candidates with the run's FIRST point. A repeat at
+run length1 is suppressed; a repeat after a longer run appends that point
+and8001/8001, then clears run length. Other points append even if equal to
+the immediately preceding point. Run length increments as a WORD BEFORE
+the unsigned count/capacity check. Original capacity overflow sets BGI-6,
+retains the earlier scratch/run changes and returns normally. It neither
+rolls back nor becomes a global native error gate. Marker words are data
+to this producer, not parsed at acquisition.
+
+Binding records configured WORD bytes/6 independently of actual borrowed
+native storage extent, matching DDO025f..0282;4096 bytes gives682 entries.
+Stage0 sets mode1/count0/run0 without clearing first-point scratch or buffer.
+Original fixed-segment wrap/heap aliases are replaced by checked native
+entry access. A native extent error retains accepted prefixes and stops
+before later marker/reset tails; it is distinct from BGI capacity overflow.
+This component does not allocate or flush the curve buffer; those lifecycle
+and flush owners remain part of the later curve composition.
+
+Mode2 loads current draw BYTE into DL before the original mixed unsigned-
+upper/signed-lower point clip. Rejection retains AX/BX/CX and the changed DL.
+An accepted point uses physical coordinates, COPY and the low logical pen
+without translating origin again or applying line pattern/width/XOR. In the
+normal sixteen-pen device profile, addressing returns BX=X&7 and
+CX=(mask<<8)|colourBYTE, retaining DX's high byte. Unbatched cleanup returns
+AX0f02. A batched point instead returns the active segment high byte with
+the actual pre-write plane byte in AL. These changed CX/DX words matter to
+later bar3d projection, in addition to the known AX/BX coordinate quirk.
+
+The batched byte read is a synchronous boundary callback for the selected
+read plane and byte-aligned physical X/Y. Native integration will reconstruct
+that one byte from indexed storage. No persistent planar surface, foreign
+controller emulator or cycle clock is introduced. The producer's borrowed
+pixel/read callbacks expose host I/O only; all clip, colour, carry/register
+and collector decisions are implemented here. Native failures stop at their
+reached register/write prefix. Unexpected asynchronous returns become
+protocol errors; invalid native geometry/plane/storage is checked. Other
+controller profiles are not claimed by this component.
+
+New `big_producer` expectations preceded implementation. They cover all
+producer mode bytes and configured buffer-size WORDs, literal run/marker and
+duplicate sequences, run wrap, first/closing-marker overflow, native failures
+before either closing append, retained old errors and all point owners.
+Literal point returns cover every X bit phase, batched/unbatched paths,
+all read/colour BYTEs, rejected points with DL prefix, physical viewport
+coordinates, read-before-write ordering, captured inputs and synchronous
+error prefixes. Native failures retain changed coordinate registers;
+retries explicitly resubmit the requested coordinates.
+
+No native wire B or curve binding is added by this step. The lower emission
+gates, bar3d schedule, native indexed read boundary, allocation/flush and
+remaining global composition are pending. Routine verification stays
+BIG-only; unchanged application scenes are not rerun for this component.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All18 BIG-specific native CTest checks passed in15.75s. Final expanded big_producer checks passed in0.10s (test0.01s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound component; final full-suite verification remains deferred. Native indexed byte-read binding, lower gates/bar3d/curve and global composition remain pending.

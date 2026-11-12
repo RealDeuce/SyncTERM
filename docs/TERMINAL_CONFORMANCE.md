@@ -203,6 +203,14 @@ indexed failures retain the accepted prefix. No wire B binding is claimed;
 its bar3d and input/attribute paths remain pending. Iteration stays BIG-only,
 with the full suite deferred until the end of the goal.
 
+BIG's shared DDO point producer has independent `big_producer` coverage for
+all mode bytes/configured buffer-size WORDs, first-point duplicate/8001 marker
+rules, run wrap and original versus native failure prefixes. Point mode2
+retains carry-clear rejection and actual AX/BX/CX/DX returns, including the
+batched pre-write-byte boundary. It leaves all point owners unchanged;
+no native B/curve binding or planar framebuffer is claimed. Native read-byte,
+bar3d and curve composition remain pending; routine tests stay BIG-only.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

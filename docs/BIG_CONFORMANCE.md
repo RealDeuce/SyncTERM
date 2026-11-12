@@ -671,3 +671,30 @@ Native CMake Release configure/full build and final focused build (/usr/bin/cc, 
 
 Original opaque bar primitive commit: `44b6e10`.
 Wire B/bar3d and remaining full45-entry composition stay in progress.
+
+## Shared point producer
+
+`st_big_producer_emit` now implements DDO0615's mode0 carry-clear bypass,
+nonzero/non2 run collector and mode2 physical point return. The collector
+retains first-point duplicate suppression, repeated non-first points,
+8001 closing markers, WORD run wrap and pre-check increments. Original
+capacity overflow sets BGI-6 and returns normally; checked native extent
+failures stop before later tails. Configured bytes/6 capacity, actual
+borrowed storage and stage0 reset have separate owners.
+
+Mode2 returns carry clear on acceptance or rejection, loads DL before
+clipping, and preserves the actual changed AX/BX/CX/DX point-return words.
+Unbatched AX0f02 differs from batched segment-high/pre-write-byte AL. The
+batched byte comes through a synchronous host-read boundary for later
+indexed integration; no planar framebuffer is added. The producer does
+not move graphics CP and ignores line XOR/pattern/width for its point.
+
+`big_producer` independently checks all mode bytes/configured buffer-size
+WORDs, literal duplicate/marker schedules, overflow/error prefixes, all
+bit phases/read/colour BYTEs, physical clipping, point owners, captured
+input and synchronous callbacks. This remains component coverage: native
+read-byte integration, lower emission gates, bar3d, buffer allocation/flush,
+wire B and the remaining curve/global composition are pending. Only BIG
+tests run during iteration; the full suite remains deferred.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All18 BIG-specific native CTest checks passed in15.75s. Final expanded big_producer checks passed in0.10s (test0.01s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound component; final full-suite verification remains deferred. Native indexed byte-read binding, lower gates/bar3d/curve and global composition remain pending.

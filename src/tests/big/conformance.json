@@ -184,7 +184,8 @@
         "BIG-specific raster adapters and original bitmap/four V100 CHR assets.",
         "Shared extracted st_bgi_thin_line candidate/pattern walker and four builtin pattern words; RIP keeps its clip/thickness/state, BIG supplies original fixed-slope WORD clips, stroke expansion, points and polymarker schedules.",
         "Share the unchanged twelve8x8 fill masks through st_bgi_fill_patterns; BIG retains separate original selection, validation, copy/cache/default state and indexed tile representation.",
-        "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. No wire B/bar3d binding yet."
+        "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. No wire B/bar3d binding yet.",
+        "Original DDO0615 point producer shared by future bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns; no wire binding yet."
       ],
       "tests": [
         "big_profile",
@@ -194,7 +195,8 @@
         "syncterm_rip154_raster_UTF-8",
         "big_draw",
         "big_fill",
-        "big_bar"
+        "big_bar",
+        "big_producer"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -207,11 +209,16 @@
         "50-attribute-command-acceptance.adoc",
         "23-rectangles-bars-and-clear.adoc",
         "59-rectangle-clear-and-flood-command-acceptance.adoc",
-        "rectangle-code.adoc:DDO0152..0179,1309..1397;EGAVGA07a4..0871"
+        "rectangle-code.adoc:DDO0152..0179,1309..1397;EGAVGA07a4..0871",
+        "13-curves-and-native-reuse.adoc",
+        "58-marker-and-spray-command-acceptance.adoc",
+        "rectangle-code.adoc:DDO0615..0699;EGAVGA point addressing/cleanup",
+        "bgi-layer-code.adoc:DDO025f..0282,04dd..04ee"
       ],
       "deviations": [
         "BIG clip signed-division overflow or a detected nonterminating WORD clip cycle fails OUT_OF_RANGE. Uninstalled draw dispatch uses the existing protocol-error boundary; native pixel/index escapes and unexpected asynchronous sink returns stop without rolling back accepted prefixes.",
-        "Direct bars expand each original masked byte left-to-right in the indexed sink; zero-mask latch exchanges/controller cleanup have no indexed effect in the supported normal COPY/all-plane profile. Invalid native geometry/pen escapes fail before output; native sink failures retain accepted prefixes."
+        "Direct bars expand each original masked byte left-to-right in the indexed sink; zero-mask latch exchanges/controller cleanup have no indexed effect in the supported normal COPY/all-plane profile. Invalid native geometry/pen escapes fail before output; native sink failures retain accepted prefixes.",
+        "Producer buffers are bounded borrowed native entries with configured bytes/6 capacity separate from actual extent; unsafe original fixed-segment wrap/heap aliases are rejected at the reached native access. Mode2 is the normal sixteen-pen COPY/all-plane profile; batched pre-write plane bytes are read at a synchronous indexed boundary, without a planar shadow/controller emulator."
       ],
       "verification": [
         "The current RIP EGA RGB16 table and default pen-code initializer bodies match the extracted st_bgi data exactly. Every channel is independently checked from its six colour-bit weights; default codes are literal. RIP native and coherent CP437/UTF-8 raster regressions passed. Other kernels and original graphical fonts remain pending.",
@@ -272,6 +279,31 @@
           "verification": [
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending."
           ]
+        },
+        {
+          "id": "original-shared-point-producer",
+          "status": "complete",
+          "operations": [
+            "Mode0 carry-clear bypass; every nonzero/non2 mode collects using FIRST-point duplicate rules, repeated other points and 8001 closing markers.",
+            "WORD run increment before unsigned capacity check; original overflow sets BGI-6 and returns normally, native extent failures stop at accepted prefixes before later tails.",
+            "Configured bytes/6 capacity and stage0 mode1/count0/run0 without clearing scratch or buffer.",
+            "Mode2 loads DL before physical clip; carry-clear acceptance/rejection, COPY pen, actual AX/BX/CX/DX returns including batched segment-high/pre-write AL byte; no point-owner assignment.",
+            "Current RIP arc_add/full_ellipse were inspected: dynamically grown storage and previous-point/one-duplicate sweep policy differ; no whole collector/curve reuse. Existing shared mask/line data and thin stepping remain shared."
+          ],
+          "tests": [
+            "big_producer"
+          ],
+          "references": [
+            "13-curves-and-native-reuse.adoc",
+            "58-marker-and-spray-command-acceptance.adoc",
+            "59-rectangle-clear-and-flood-command-acceptance.adoc",
+            "rectangle-code.adoc:DDO0615..0699",
+            "bgi-layer-code.adoc:DDO025f..0282,04dd..04ee"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All18 BIG-specific native CTest checks passed in15.75s. Final expanded big_producer checks passed in0.10s (test0.01s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound component; final full-suite verification remains deferred. Native indexed byte-read binding, lower gates/bar3d/curve and global composition remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1266,17 +1298,21 @@
       ],
       "operations": [
         "Direct-bar primitive implemented with original WORD/clip/pass/state semantics; not yet registered on the wire.",
-        "Pending complete five/six-field routing, attribute prefix timing and all bar3d producer/orientation/depth/top paths."
+        "Pending complete five/six-field routing, attribute prefix timing and all bar3d producer/orientation/depth/top paths.",
+        "Shared point producer dependency implemented independently, including collector and mode2 register clobbers; native binding/lower gates/bar3d remain pending."
       ],
       "tests": [
-        "big_bar"
+        "big_bar",
+        "big_producer"
       ],
       "deviations": [
         "Normal indexed profile preserves original byte-pass order with left-to-right per-pixel expansion; native sink errors stop without rollback."
       ],
       "verification": [
         "Independent literal clip/pass traces, every row mask/endpoint phase, all pens under line COPY/XOR, absolute phase, stale tile/current pen, row/pen lifetime, unchanged points and failure prefixes. Primitive coverage only; no B wire/bar3d or new application capture acceptance claimed.",
-        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending."
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending.",
+        "Component checks cover all producer mode bytes and configured buffer-size WORDs, literal first-point/run/marker/overflow/native-prefix cases, every point phase/read/colour BYTE and actual carry/AX/BX/CX/DX. No B/curve/native byte-read acceptance claimed.",
+        "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All18 BIG-specific native CTest checks passed in15.75s. Final expanded big_producer checks passed in0.10s (test0.01s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound component; final full-suite verification remains deferred. Native indexed byte-read binding, lower gates/bar3d/curve and global composition remain pending."
       ],
       "commit": null
     },

@@ -268,3 +268,16 @@ point owners/state, old errors, accepted-prefix failures and synchronous
 sink rules are checked. No expected pixels come from an emulator or external
 reference executable. This is primitive coverage, with no B wire/bar3d or
 new coherent application coverage claimed.
+
+`big_producer` uses addressed DDO0615..0699/025f..0282 and EGAVGA point
+addressing/cleanup in chapters13/58/59. Literal sequences distinguish a
+first-point repeat from repeated non-first points and check8001 markers.
+All256 mode bytes and65536 configured buffer-size WORDs are checked. Cases cover
+WORD run wrap, original capacity overflow, native extent errors before the
+closing point or marker and exact reached scratch/register tails. Point
+returns are literal across all bit phases and both batch paths; every byte
+value is checked as read AL/colour DL, retaining CX/DX effects, old errors
+and all point owners. A host fixture supplies pre-write bytes and checks
+read-before-write, current physical clipping, captured values and failures.
+It does not emulate a controller, allocate/flush buffers or claim native
+indexed read/B/curve integration or new coherent application scenes.

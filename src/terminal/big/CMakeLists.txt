@@ -13,7 +13,7 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	foreach(part IN ITEMS number random loop numeric state profile control stream draw collect fill bar)
+	foreach(part IN ITEMS number random loop numeric state profile control stream draw collect fill bar producer)
 		add_executable(st_big_${part}_test tests/st_big_${part}_test.c)
 		target_link_libraries(st_big_${part}_test PRIVATE st_big)
 		set_target_properties(st_big_${part}_test PROPERTIES

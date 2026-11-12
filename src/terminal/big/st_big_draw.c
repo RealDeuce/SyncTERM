@@ -1,6 +1,7 @@
-/* BIG point/line/marker/bar adapters, references12/22/23/51/57/58/59/64/83. */
+/* BIG drawing/producer adapters, references12/13/22/23/51/57/58/59/64/83. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_draw.h"
+#include "st_big_producer.h"
 #include "st_big_number.h"
 #include "st_bgi_line.h"
 #include "st_bgi_data.h"
@@ -144,6 +145,77 @@ static int output_pixel(const struct st_big_draw_sink *sink, uint16_t x, uint16_
 {
 	int status=sink->pixel(sink->context,x,y,pen,xor_mode);
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
+int st_big_producer_bind(struct st_big_producer *p, struct st_big_producer_point *points, size_t storage_count, uint16_t bytes)
+{
+	if (p==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	p->points=points; p->storage_count=storage_count; p->capacity=(uint16_t)(bytes/6);
+	return 0;
+}
+int st_big_producer_start(struct st_big_producer *p)
+{
+	if (p==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	p->mode=1; p->count=p->run_length=0;
+	return 0;
+}
+static int producer_append(struct st_big_producer *p, struct st_big_state *s, const struct st_big_producer_registers *r)
+{
+	/* The original increments the WORD run length even on overflow. */
+	p->run_length=(uint16_t)(p->run_length+1u);
+	if (p->count>=p->capacity) { s->bgi.error=-6; return 0; }
+	if (p->points==NULL || p->count>=p->storage_count) return IO_ERROR_OUT_OF_RANGE;
+	p->points[p->count].x=r->ax;
+	p->points[p->count].y=r->bx;
+	p->count=(uint16_t)(p->count+1u);
+	return 0;
+}
+int st_big_producer_emit(struct st_big_producer *p, struct st_big_state *s,
+    struct st_big_producer_registers *r, const struct st_big_producer_sink *sink, bool *suppressed)
+{
+	if (p==NULL || s==NULL || r==NULL || suppressed==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*suppressed=false;
+	int status=installed(s); if (status!=0) return status;
+	if (p->mode==0) return 0;
+	if (p->mode!=2) {
+		*suppressed=true;
+		if (p->run_length==0) { p->first_x=r->ax; p->first_y=r->bx; }
+		else if (r->ax==p->first_x && r->bx==p->first_y) {
+			if (p->run_length==1) return 0;
+			status=producer_append(p,s,r); if (status!=0) return status;
+			r->ax=r->bx=0x8001;
+			status=producer_append(p,s,r); if (status!=0) return status;
+			p->run_length=0; return 0;
+		}
+		return producer_append(p,s,r);
+	}
+	/* Producer2 loads DL even when point clipping rejects the request.
+	 * Both rejected and returning builtin point paths leave carry clear. */
+	uint8_t color=(uint8_t)s->bgi.color;
+	r->dx=(uint16_t)((r->dx&0xff00u)|color);
+	uint16_t b[4]; bounds(s,b);
+	if (!inside(b,r->ax,r->bx)) return 0;
+	uint16_t x=r->ax, y=r->bx;
+	if (x>=s->bgi.width || y>=s->bgi.height) return IO_ERROR_OUT_OF_RANGE;
+	if (sink==NULL || sink->drawing.pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	/* The only retained hardware values here are the point's observable
+	 * returned WORDs. Pixel storage remains indexed; a batched pre-read
+	 * byte is supplied at that boundary, not kept in a planar shadow. */
+	bool batch=p->batch;
+	r->ax=p->video_segment;
+	r->bx=(uint16_t)(x&7);
+	r->cx=(uint16_t)(((0x80u>>(x&7))<<8)|color);
+	if (batch) {
+		if (p->read_plane>3) return IO_ERROR_OUT_OF_RANGE;
+		if (sink->read_byte==NULL) return IO_ERROR_INVALID_ARGUMENT;
+		uint8_t byte;
+		status=sink->read_byte(sink->read_context,(uint16_t)(x&0xfff8u),y,p->read_plane,&byte);
+		if (status!=0) return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+		r->ax=(uint16_t)((r->ax&0xff00u)|byte);
+	}
+	status=output_pixel(&sink->drawing,x,y,(uint8_t)(color&15),false);
+	if (status!=0) return status;
+	if (!batch) r->ax=0x0f02;
+	return 0;
 }
 /* A native indexed write has no planar latches or observable zero-mask
  * exchange. Expand each original byte pass left-to-right; failures retain
