@@ -19,8 +19,9 @@ All47 top-level commands and all16 selectors now have implementations and
 focused native/control-bitmap application coverage. Profile/menu/Wren
 selection is available. The shared numeric reader now applies the ordered
 r/R tail after array lookup, relative encoding and loop evaluation. Parent X
-dispatch acceptance is complete; the ledger is63/63 complete. The final
-full-goal foundation/integration acceptance audit is unfinished.
+dispatch acceptance is complete; the ledger is63/63 complete. All six required
+foundations and the final integration/acceptance audit are complete. The two
+removed planar/clock experiments remain superseded and are not acceptance gates.
 Parser-only checks do not establish rendering, sound or session conformance.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
 
@@ -254,6 +255,10 @@ work; never push without an explicit request. Superseded experiments are not
 required foundations or completion gates.
 
 == Completed steps
+
+These entries retain the historical scope, counts and pending dependencies at
+each completion commit. The overview, current ledger fields and final goal
+acceptance record describe the completed implementation.
 
 === Shared parser foundation
 
@@ -4812,3 +4817,66 @@ describe completed X5/loop/script/input integrations as future work; historical
 verification records and completion commits are retained.
 
 Common-reader and parent X completion commit: 7b6c552. Final goal acceptance remains open.
+
+== Final goal acceptance (2026-11-12)
+
+The replacement goal is complete: all47 top-level commands,16 X selectors
+and six required foundations have implementation and passing acceptance
+evidence. Every command has a recorded completion commit. The two superseded
+planar/clock experiments have no remaining source/build targets or active test
+gate. No required command or selector is a stub.
+
+The closing review checked the actual source, command ledger, parameter/source
+ownership and current tests against the standalone goal and reference chapters
+159/201/202/206/208/210. The reference's broader twelve-engine, inherited native
+machine state and canonical PCM audit is distinct from this goal's intended
+2.21 serial/software-graphics target, initialized safe port state, existing host
+services, local deadlines/sample timing and functional sound acceptance. The
+goal's declared scope and documented bug corrections remain unchanged.
+
+[cols="2,5",options="header"]
+|===
+|Requirement |Closing evidence
+|Commands and data |All63 ordered command/selector entries are complete; all126 IGS native/application CTest checks pass. Literal/source-derived pixels, fonts, palette/state/replies, partitions, boundaries, raw acquisition, partial effects, cancellation, loops and live scripts remain independently checked.
+|Parser and integration boundary |The reusable graphics parser owns framing, typed fields, raw ownership and source continuations without raster/audio policy. Shared fixed signatures/metadata serve IGS commands and X selectors. IGS and RIP enter st_cterm_write before base ANSI/VT52; payload, semantic bypass and ordinary-byte behavior retain focused/native and end-to-end coverage. SkyPix keeps its own grammar.
+|Framebuffer and images |The existing indexed bitmap is authoritative. Both retained image banks preserve capacity, padding, phases and explicit layout/stride metadata. Native conversion occurs at import/export/layout boundaries; ordinary Boolean blits use physical indices. Source/build inventory contains no superseded planar framebuffer or clock component.
+|Time and sound |Protocol waits use existing local monotonic deadlines or audio sample positions, with injected boundary/error checks. Sync waits use60 units/second and note timing200 units/second. GIST/PSG, console sounds, notes, MIDI/streaming and teardown pass functional/synthesis tests; the manual checklist is supplied without claiming audible-device or canonical-PCM equivalence.
+|Application lifecycle |Profiles/menu/Wren, all ST modes and Atari ST/CP437/UTF-8 captures, palette, keyboard/mouse, status/scrollback, reset, EOF/disconnect/reconnect and source cancellation have current acceptance. The final menu help describes the available IGS modes rather than an unfinished feature.
+|Preservation |Final ANSI/VT52, RIP, SkyPix, profiles, Wren, audio, transport and graphics-lifecycle regressions pass. Commits contain the reviewed IGS changes; no publishing/push occurred.
+|===
+
+Verification used one native FreeBSD /usr/bin/cc Release CMake configuration
+with BUILD_TESTING=ON and ST_CONSOLE_TEST=ON. Configure and full build passed;
+generated-dependency timestamp messages in the initial build cleared on repeat,
+and the final full build had zero diagnostics. All230 distinct CTest checks
+have passing latest results, including every63 native and63 application IGS
+check:
+
+* Closing X/loop dispatch run:17 checks in561.15s; X2 application180 coherent
+  captures in18.50s.
+* Cross-feature/native run:160 checks in199.40s, including ANSI/VT52, RIP,
+  SkyPix, profiles, Wren, audio, transport and graphics lifecycle.
+* Remaining IGS applications:46 checks in581.48s with four parallel jobs.
+* Native X11/pixels/mode changes/XRender:4 checks in4.84s on a private
+  1024x768x24 Xvfb server. Inherited display/session variables were cleared
+  before startup; the owned server was stopped afterward.
+* After rebuilding the final menu help, Wren host/menu contract, profile,
+  BBS setters and session-mode checks passed again:5 checks in29.14s.
+* Final ledger cross-check:st_pixels, st_scaler and st_console passed in0.23s.
+  Every active test named by every completed foundation/command has a passing
+  closing result.
+
+All headless fixtures disable physical audio/MIDI. Ordinary tests use checked-in
+data and do not require ~/IGS/, ROMs or historical executables. The final
+inventory review verifies63 unique ordered IDs, exactly47 top-level commands
+and X0..X15, active registrations, dependency/reference paths, and reachable
+completion commits. Historical verification records remain intact.
+
+Closing reference identities:
+
+* 159-target-profile-acceptance.adoc: 712f94d6a5267136cfb1dd474aff179e01bd33766e335cb323622ac80a339d16
+* 201-initial-and-workstation-state-acceptance.adoc: d0202bb93a2ede8299d97bd6de9294a10df3681722dd15ee65623e28f2273c3a
+* 202-observable-clock-acceptance.adoc: 00d414e0a997f51649edbdbb4f51f2f4c5b49c4b2d29815eea80f9af7cc1bf48
+* 206-malformed-input-and-failure-contract.adoc: a6b760e41aaaf45387c88eb0347dc92416351d67d82383ac064383a704f428c3
+* 208-source-traceability.adoc: b50d681adc8c1863cd730d96863a055006b4c49922588216056f9cd38966c6a7
+* 210-final-completeness-audit.adoc: 67ad66436a6fc9291994bf0edba0e5b577f036c25399dd9fa02808fc6a9a4084

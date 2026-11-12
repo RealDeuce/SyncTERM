@@ -15,7 +15,8 @@ file-style readers/flow, shared loop state, local input and cancellation.
 The shared parser explicitly supports source-ended text and accepted return
 boundaries without a second parser. Application X9 covers972 coherent captures
 across18 profiles, including script scenes, waits/key ownership and reconnects.
-Parent X dispatch acceptance is complete; final IGS goal acceptance remains pending.
+All63 command entries, six required foundations and final IGS goal acceptance
+are complete; the removed planar/clock experiments remain superseded.
 Serial/file dispatch regression coverage now includes independent X8 requested
 snapshot banks, shared raw snapshots, file X11 error retention, source-specific
 X0 restore and F/f/z/t/N flow, and invalid-T direct chain exits. Expanded X9
@@ -25,7 +26,12 @@ evaluation, preserves stored-load suppression and avoids re-evaluating supplied
 values. Native tests retain exhaustive signed-word coverage with independently
 pinned sentinel results. The X2 application test adds54 coherent captures
 across18 profiles for dynamic array selectors, operands and loops with literal
-Random states. Final full-goal foundation/integration acceptance remains open.
+Random states. Final acceptance has230 distinct passing CTest checks, including
+all126 IGS native/application checks, ANSI/VT52, RIP, SkyPix, profiles, Wren,
+audio, graphics lifecycle and four native X11 checks on a private Xvfb display.
+The final native FreeBSD Release CMake build has zero diagnostics. Physical
+audio/MIDI were disabled in headless fixtures; the
+[manual audio checklist](IGS_CONFORMANCE.md#manual-audio-checklist) is supplied.
 The CTerm input adapter has native ST geometry/encoding/status and lifecycle
 coverage. IGS is selectable through profiles, menus and Wren. `I` and `R` have
 native selector/state/deadline coverage and coherent application bitmap checks
@@ -36,11 +42,11 @@ display scaling, with native bitmap/scaler and private X11 window checks.
 `g` has literal coordinate-reader/state tests and coherent application checks
 for captured resolution, I/R preservation, reset/reconnect and no immediate
 scene or window effect. Its documented normalized mapping corrects the
-original integer-division bug; drawing and loop execution remain pending.
+original integer-division bug; drawing and stored-loop tests also exercise it.
 `M` has native mode-selection/reset/input-boundary tests and coherent bitmap
 checks for an unchanged scene, palette and window, across ST geometries,
-Atari ST/CP437/UTF-8 and status choices. Primitive-specific use of the writing
-mode remains part of the pending drawing tests. `C` covers independent
+Atari ST/CP437/UTF-8 and status choices. Primitive-specific raster tests cover
+the writing modes during drawing. `C` covers independent
 graphical-pen selection, depth-specific validation, requested marker cache,
 I/R preservation, split/error recovery and coherent unchanged application
 scenes in the same mode/encoding/status matrix. `S` adds literal component,
@@ -79,8 +85,8 @@ chains, text overlays and bottom edges in the same mode/encoding/status matrix.
 `X10` adds non-drawing origin selection with intended X/Y scaling (correcting
 the original binary's 0/1 reader classes), retained start/clip/raster state,
 once-only random-selector arity and input/lifecycle checks. Coherent scenes
-also check a following D. X dispatch remains in progress: out-of-range
-selectors are no-ops; pending valid selectors fail without consuming payload.
+also check a following D. X dispatch covers all16 selectors; out-of-range
+selectors are one-argument no-ops with normal chaining and no payload.
 `z` adds connected polylines with segment phase/XOR ownership, native wide joins
 and multivertex arrow shortening. Its independent 1,692-case native matrix,
 literal input/lifecycle/flow checks and coherent application scenes cover all
@@ -304,11 +310,11 @@ serial suffix and queued original key events. Literal native coverage and423
 coherent all-mode/encoding/status application captures check exact raw bytes,
 unchanged pixels/palettes/glyphs, local/Wren mouse routing, UTF-8 key replay and
 disconnect/reconnect with physical audio/MIDI disabled. N and X3 share the
-owner-side input queue. Other commands, loops and input remain pending; see
-the IGS ledger for details.
+owner-side input queue. Complete command, loop and input coverage is recorded
+in the IGS ledger.
 X4 adds48 retained zone definitions, individual scaled coordinate stores,
 signed-word length clamping, raw auxiliary loads/discard and strict-loopback
-controls for the future `<` consumer. Native literal tests plus432 coherent
+controls for the `<` consumer. Native literal tests plus432 coherent
 all-mode/encoding/status application captures verify opaque data, unchanged
 scenes, queued keys and EOF/reconnect, sharing X3's auxiliary service with
 physical sound/MIDI disabled. Negative zone memory escapes are rejected.

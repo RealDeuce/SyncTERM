@@ -936,7 +936,8 @@ class BbsEditor {
         "original Amiga rendering differences; tested Kick 2.04 matches 3.1. " +
         "SkyPix font choices come from Amiga Font Management. " +
         "IGS 2.21 uses Atari ST modes and the Atari ST font. Its initial preset is " +
-        "320x200 and Atari ST encoding. IGS support is under development; see IGS_CONFORMANCE.md."
+        "320x200 and Atari ST encoding. The 640x200 colour and 640x400 monochrome modes " +
+        "and UTF-8 encoding are also available."
   }
 
   static logFileHelp_() {

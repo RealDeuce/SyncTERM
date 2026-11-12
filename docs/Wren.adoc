@@ -5849,7 +5849,7 @@ character).
                     extended; **not** bug-compatible with v1.54.
 | `skypix13` | 3 | Practical SkyPix dialect, with Kickstart 1.3 rendering.
 | `skypix31` | 4 | Practical SkyPix dialect, with Kickstart 3.1 rendering.
-| `igs221` | 5 | IGS 2.21, under development; see link:IGS_CONFORMANCE.md[coverage].
+| `igs221` | 5 | IGS 2.21 Atari ST graphics; see link:IGS_CONFORMANCE.md[coverage].
 |===
 
 Selecting IGS presets Atari ST 40x25 (320x200), Atari ST encoding and font.

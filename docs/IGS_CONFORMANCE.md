@@ -1,6 +1,7 @@
 # IGS 2.21 conformance
 
-IGS implementation is in progress. The application-selectable IGS 2.21 mode
+IGS 2.21 command and integration acceptance is complete for the target below.
+The application-selectable IGS 2.21 mode
 implements `I`'s six initialization selectors and `R` resolution selection.
 `g` configures coordinate scaling and its captured resolution. `M` selects the
 workstation writing mode; `C` selects independent graphical pens and `S`
@@ -15,8 +16,8 @@ original requested start/end coordinates.
 both remembered pairs, preserving native Drawto chaining.
 All16 X handlers and parent X dispatch acceptance are complete. The common
 numeric reader applies the ordered r/R tail after array lookup, relative
-encoding and loop evaluation. Final goal foundation/integration acceptance
-is still in progress. `X0` scatters markers with persistent color cycling.
+encoding and loop evaluation. All63 command entries and six required
+foundations are complete. `X0` scatters markers with persistent color cycling.
 `X1` changes a raw physical palette register,
 and `X12` changes four consecutive physical registers. `X5` configures the
 flow mode, custom XON/XOFF bytes and signed repeat counts without emitting
@@ -3030,6 +3031,37 @@ validated; obsolete pending-integration notes in current ledger fields were
 reconciled while historical verification was retained.
 
 Common-reader and parent X completion commit: 7b6c552. Final goal acceptance remains open.
+
+### Final goal acceptance (2026-11-12)
+
+All47 top-level commands,16 X selectors and six required foundations are
+complete. The two removed planar/clock experiments remain superseded. Closing
+review checked the actual source and test expectations against the standalone
+goal and chapters159/201/202/206/208/210; identities and requirement-specific
+findings are recorded in IGS_IMPLEMENTATION.adoc. This is the declared intended
+2.21 serial/software-graphics port with documented safe bug corrections and
+functional sound acceptance.
+
+One native FreeBSD /usr/bin/cc Release CMake configure/full build passed; the
+final full build had zero diagnostics after generated-dependency timestamp
+messages cleared on repeat. All230 distinct CTest checks have passing latest
+results, including all126 IGS native/application checks and final ANSI/VT52,
+RIP, SkyPix, profiles, Wren, audio, transport and graphics-lifecycle regressions.
+The160-check cross-feature/native run took199.40s; the46 remaining IGS
+application checks took581.48s with four parallel jobs. Four native X11 checks
+passed in4.84s on a private Xvfb display with inherited display variables
+cleared. After the final help-text build, Wren host/menu contract, profiles,
+BBS setters and session modes passed again (5 checks,29.14s).
+The final ledger cross-check also ran st_pixels, st_scaler and st_console
+(3 checks,0.23s); every active test named by every completed entry has a
+passing closing result.
+
+All63 unique ordered command entries have reachable completion commits;
+active test registrations, dependencies, reference paths and removal of the
+superseded source/build targets are checked. Tests use checked-in independent
+data without external IGS/ROM/executable requirements. Physical audio/MIDI are
+disabled in headless fixtures. The manual audio checklist below is supplied;
+automated acceptance does not claim audible-device or canonical-PCM equivalence.
 
 ### Manual audio checklist
 
