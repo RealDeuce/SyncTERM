@@ -525,10 +525,10 @@ class SettingsMenu {
         Menu.currentScreenMode, screenModeHelp_())
     if (mode != null) {
       var result = Menu.setScreenMode(mode)
-      // A failure can still follow a change to one logical console.
-      app.invalidateScreenState()
       if (result is Error) {
         Alert.show(app, "Screen Mode", result.message)
+      } else {
+        app.invalidateCursorState()
       }
     }
   }

@@ -7892,10 +7892,6 @@ Methods of interest:
   cursor directly.  The next draw reapplies the shape, visibility, and
   colour requested by the focused widget instead of trusting the App's
   cached state.
-* `invalidateScreenState()` — call after applying a screen mode. Discards
-  the backbuffer and backdrop and repaints the complete root, status, and
-  modal widget trees with the current fonts on the next draw, including
-  when the character grid is unchanged. Also invalidates the cursor cache.
 +
 [source,wren]
 ----

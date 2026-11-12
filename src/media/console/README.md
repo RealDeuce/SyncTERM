@@ -208,6 +208,17 @@ slots are occupied, a new registration replaces the least recently used slot,
 succeeds, and reports the local replacement on standard error.  Existing cells
 are not dirtied merely because that local slot was replaced.
 
+Built-in font sizes share a `raster_family` identity. When retained cells
+refer to a different size, the bitmap renderer uses a registered strike in
+that family matching the current cell geometry. A common prefix of narrow
+glyph indexes preserves legacy byte artwork; other glyphs are translated
+through scalar/cluster mappings or the corresponding replacement glyph.
+This also applies to the Unicode presentation fallback across mode changes.
+Installing a matching strike invalidates retained text automatically, while
+explicit pixel graphics and the cells' font/glyph identities stay intact.
+Fonts without a family, or without a compatible mapped glyph at the new
+size, retain the existing raster scaling behavior.
+
 An eight-pixel glyph occupies one cell and a sixteen-pixel glyph occupies two.
 Mapped glyph width comes from font data. Missing-cluster replacement width
 comes from the Unicode 18 grapheme and width data, never the process locale or

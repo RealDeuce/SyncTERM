@@ -54,6 +54,73 @@ struct pixel_edit_test {
 	int status;
 };
 
+static void
+test_font_raster_variants(void)
+{
+	static const char family = 0;
+	static const uint8_t original_bitmap[] = {0x80, 0x80, 0x18, 0x24, 0x7e, 0x66, 1, 1};
+	static const uint8_t current_bitmap[] = {0x3c, 0x42, 0x81, 0x66};
+	static const struct st_console_font_mapping original_mapping[] = {{'Z', 1}};
+	static const struct st_console_font_mapping current_mapping[] = {{'Z', 2}};
+	static const struct st_console_font_cluster_mapping original_cluster[] = {
+		{.text = "Z\xef\xb8\x8f", .text_size = 4, .glyph = 2},
+	};
+	static const struct st_console_font_cluster_mapping current_cluster[] = {
+		{.text = "Z\xef\xb8\x8f", .text_size = 4, .glyph = 1},
+	};
+	struct st_console_font original = {
+		.bitmap = original_bitmap, .bitmap_size = sizeof(original_bitmap),
+		.width = 8, .height = 2, .glyph_count = 4, .row_stride = 1, .glyph_stride = 2,
+		.mapping = original_mapping, .mapping_count = 1, .raster_family = &family,
+		.cluster_mapping = original_cluster, .cluster_mapping_count = 1, .decode_error_glyph = 3,
+	};
+	const struct st_console_font current = {
+		.bitmap = current_bitmap, .bitmap_size = sizeof(current_bitmap),
+		.width = 8, .height = 1, .glyph_count = 4, .row_stride = 1, .glyph_stride = 1,
+		.mapping = current_mapping, .mapping_count = 1, .raster_family = &family,
+		.cluster_mapping = current_cluster, .cluster_mapping_count = 1, .decode_error_glyph = 3,
+	};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {.columns = 6, .rows = 1,
+		.cell_width = 8, .cell_height = 1};
+	const struct st_console_rect row = {0, 0, 6, 1};
+	const struct st_console_rect area = {0, 0, 48, 1};
+	struct st_console_cell cells[6];
+	st_console_t *console = NULL;
+	struct st_pixel_buffer *pixels = NULL;
+	uint16_t identifier, frozen, variant;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_register_static_font(console, &original, &identifier) == 0);
+	original.raster_family = NULL;
+	CHECK(st_console_register_static_font(console, &original, &frozen) == 0);
+	for (size_t i = 0; i < 6; ++i)
+		cells[i] = (struct st_console_cell){.font = identifier, .glyph_font = identifier,
+			.glyph = 1, .foreground = 7, .background = 1};
+	cells[1].glyph = 2;
+	cells[2].font = cells[2].glyph_font = frozen;
+	cells[3].glyph = 0;
+	cells[4].glyph = 3;
+	CHECK(st_console_write_complete_cells(console, &row, cells, 6) == 0);
+	CHECK(st_console_set_pixel(console, 40, 0, 4) == 0);
+	CHECK(st_console_present(console) == 0);
+	/* Matching variants may have different glyph indexes. Their registration
+	 * must invalidate the raster cache without overwriting explicit graphics. */
+	CHECK(st_console_register_static_font(console, &current, &variant) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
+	static const uint8_t expected_rows[] = {0x81, 0x42, 0x18, 0x3c, 0x66, 0x18};
+	for (size_t x = 0; x < 48; ++x) {
+		uint32_t expected = (expected_rows[x / 8] & (0x80u >> (x % 8))) != 0 ? 7 : 1;
+		if (x == 40)
+			expected = 4;
+		CHECK(pixels->primary[x] == expected && pixels->alternate[x] == expected);
+	}
+	CHECK(st_console_cell_at(console, 0)->glyph_font == identifier);
+	CHECK(st_console_cell_at(console, 0)->glyph == 1);
+	st_pixel_buffer_destroy(pixels);
+	st_console_destroy(console);
+}
+
 static int
 edit_test_pixel(void *context, const struct st_pixel_buffer *pixels,
 	struct st_console_rect *changed)
@@ -1188,5 +1255,6 @@ main(void)
 	test_pixel_cursor_overlay();
 	test_modify_pixels();
 	test_pixel_raster_cache();
+	test_font_raster_variants();
 	return 0;
 }

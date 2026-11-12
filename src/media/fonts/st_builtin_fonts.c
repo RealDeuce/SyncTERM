@@ -124,6 +124,8 @@ st_builtin_font_get(size_t selector, uint32_t width, uint32_t height,
 		.mapping_count = record->mapping_count,
 		.fallback_glyph = '?',
 		.wide_fallback_glyph = ST_CONSOLE_FONT_NO_WIDE_FALLBACK,
+		.raster_family = record,
+		.raster_common_glyphs = 256,
 	};
 	return true;
 }

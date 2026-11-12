@@ -156,6 +156,7 @@ st_console_set_full_surface_scroll(st_console_t *console, bool enabled)
 
 struct font_cache {
 	const struct st_console_font *font;
+	const struct st_console_font *source;
 	uint16_t identifier;
 	bool valid;
 	bool tall_pixels;
@@ -175,13 +176,17 @@ struct fast_cell {
 
 static const struct st_console_font *
 cached_font(st_console_t *console, struct font_cache *cache,
-	uint16_t identifier)
+	uint16_t identifier, uint32_t *glyph)
 {
 	if (!cache->valid || cache->identifier != identifier) {
-		cache->font = st_console_font_locked(console, identifier);
+		cache->source = st_console_font_locked(console, identifier);
+		cache->font = st_console_font_raster_variant_locked(console, cache->source);
 		cache->identifier = identifier;
 		cache->valid = true;
 	}
+	if (cache->source != cache->font
+	    && !st_console_font_remap_glyph(cache->source, cache->font, glyph))
+		return cache->source;
 	return cache->font;
 }
 
@@ -194,8 +199,9 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell,
 	st_console_effective_cell_locked(console, cell, &effective);
 	cell = &effective;
 	uint16_t glyph_font = st_console_cell_glyph_font(cell);
+	uint32_t glyph_index = cell->glyph;
 	const struct st_console_font *font = cached_font(console, font_cache,
-	    glyph_font);
+	    glyph_font, &glyph_index);
 	const uint8_t *glyph;
 	uint32_t glyph_width;
 	size_t row_stride;
@@ -203,9 +209,9 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell,
 	uint32_t background = cell->background;
 
 	if (font == NULL || !st_console_font_glyph(font,
-	    cell->glyph, &glyph, &glyph_width, &row_stride)
+	    glyph_index, &glyph, &glyph_width, &row_stride)
 	    || (console->color_emoji
-	    && st_console_font_color_glyph(font, cell->glyph) != NULL)
+	    && st_console_font_color_glyph(font, glyph_index) != NULL)
 	    || glyph_width != 8 || font->height != console->cell_height
 	    || console->cell_width != 8
 	    || (cell->flags & (ST_CONSOLE_CELL_SEPARATED
@@ -412,6 +418,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	bool draw_glyph = true;
 	bool hidden;
 	uint16_t glyph_font;
+	uint32_t glyph_index;
 
 	if (row_scale == ROW_SCALE_BOTTOM) {
 		if ((cell->flags & ST_CONSOLE_CELL_TERMINAL_FONT) != 0)
@@ -423,16 +430,17 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	st_console_effective_cell_locked(console, source, &effective);
 	source = &effective;
 	glyph_font = st_console_cell_glyph_font(source);
-	font = draw_glyph ? cached_font(console, font_cache, glyph_font) : NULL;
+	glyph_index = source->glyph;
+	font = draw_glyph ? cached_font(console, font_cache, glyph_font, &glyph_index) : NULL;
 	if (font != NULL && !st_console_font_glyph(font,
-	    source->glyph, &glyph, &glyph_width,
+	    glyph_index, &glyph, &glyph_width,
 	    &glyph_row_stride))
 		font = NULL;
 	if (font != NULL && glyph_width == font->width * 2
 	    && (source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		glyph_x = font->width;
 	if (console->color_emoji && font != NULL)
-		color = st_console_font_color_glyph(font, source->glyph);
+		color = st_console_font_color_glyph(font, glyph_index);
 	if (color != NULL && color->tall_rgba != NULL && font_cache->tall_pixels) {
 		selected_color = *color;
 		selected_color.rgba = color->tall_rgba;

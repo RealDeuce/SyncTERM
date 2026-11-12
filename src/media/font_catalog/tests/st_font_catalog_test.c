@@ -62,6 +62,94 @@ static int check_amiga_descenders(void)
 }
 
 static int
+check_mode_change_retained_cells(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	struct st_console_config config = {
+		.columns = 3, .rows = 2, .cell_width = 8, .cell_height = 16,
+	};
+	const struct st_console_rect cells = {0, 0, 3, 2};
+	static const struct {
+		uint32_t width;
+		uint32_t height;
+		uint8_t z[16];
+	} modes[] = {
+		/* Literal CP437 Z rows from the pinned 8x8/14/16 font strikes. */
+		{8, 8, {0xfe, 0xc6, 0x8c, 0x18, 0x32, 0x66, 0xfe, 0}},
+		{8, 14, {0, 0, 0xfe, 0xc6, 0x8c, 0x18, 0x30, 0x60,
+		    0xc2, 0xc6, 0xfe, 0, 0, 0}},
+		{9, 16, {0, 0, 0xfe, 0xc6, 0x86, 0x0c, 0x18, 0x30,
+		    0x60, 0xc2, 0xc6, 0xfe, 0, 0, 0, 0}},
+		{8, 16, {0, 0, 0xfe, 0xc6, 0x86, 0x0c, 0x18, 0x30,
+		    0x60, 0xc2, 0xc6, 0xfe, 0, 0, 0, 0}},
+	};
+	st_console_t *console = NULL;
+	st_font_catalog_t *catalog = NULL;
+	struct st_console_cell retained[6], actual[6];
+	uint16_t identifier;
+	uint8_t columns;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(st_font_catalog_create(&catalog, console) == 0);
+	CHECK(st_font_catalog_identifier(catalog, 0, &identifier));
+	struct st_console_cell z = {.font = identifier, .foreground = 7,
+		.background = 1, .flags = ST_CONSOLE_CELL_BLINK};
+	CHECK(st_console_font_lookup(console, identifier, 'Z', &z.glyph_font,
+	    &z.glyph, &columns) == 0);
+	CHECK(st_console_fill(console, &cells, &z) == 0);
+	/* Retain a Unicode glyph owned by the presentation fallback as well.
+	 * Its full-block artwork is a solid rectangle in every strike, while
+	 * its resolved glyph index differs between the font banks. */
+	uint16_t fallback;
+	CHECK(st_console_get_fallback_font(console, 8, 16, &fallback) == 0);
+	CHECK(st_console_font_lookup(console, fallback, UINT32_C(0x2588),
+	    &z.glyph_font, &z.glyph, &columns) == 0);
+	const struct st_console_rect last = {2, 1, 1, 1};
+	CHECK(st_console_write_complete_cells(console, &last, &z, 1) == 0);
+	CHECK(st_console_read_cells(console, &cells, retained, 3) == 0);
+	st_font_catalog_destroy(catalog);
+	for (size_t mode = 0; mode < sizeof(modes) / sizeof(modes[0]); ++mode) {
+		config.cell_width = modes[mode].width;
+		config.cell_height = modes[mode].height;
+		config.video_flags = config.cell_width == 9 ? ST_CONSOLE_VIDEO_EXPAND : 0;
+		CHECK(st_console_reconfigure(console, &config) == 0);
+		/* Resubmit the exact saved cells, including their original font IDs.
+		 * Register the current strikes afterwards to test cache invalidation. */
+		CHECK(st_console_write_complete_cells(console, &cells, retained, 3) == 0);
+		CHECK(st_console_present(console) == 0);
+		CHECK(st_font_catalog_create(&catalog, console) == 0);
+		CHECK(st_console_read_cells(console, &cells, actual, 3) == 0);
+		for (size_t i = 0; i < 6; ++i) {
+			CHECK(actual[i].font == retained[i].font);
+			CHECK(actual[i].glyph_font == retained[i].glyph_font);
+			CHECK(actual[i].glyph == retained[i].glyph);
+		}
+		struct st_pixel_buffer *pixels = NULL;
+		const struct st_console_rect area = {0, 0, 3 * config.cell_width, 2 * config.cell_height};
+		CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
+		for (uint32_t y = 0; y < area.height; ++y)
+			for (uint32_t x = 0; x < area.width; ++x) {
+				uint32_t column = x % config.cell_width;
+				uint32_t expected = (modes[mode].z[y % config.cell_height]
+				    & (0x80u >> column)) != 0 ? 7 : 1;
+				if (x >= 2 * config.cell_width && y >= config.cell_height && column < 8)
+					expected = 7;
+				CHECK(pixels->primary[y * area.width + x] == expected);
+				CHECK(pixels->alternate[y * area.width + x] == 1);
+			}
+		st_pixel_buffer_destroy(pixels);
+		/* Newly painted cells can coexist with cells retained from startup. */
+		CHECK(st_font_catalog_identifier(catalog, 0, &retained[0].font));
+		CHECK(st_console_font_lookup(console, retained[0].font, 'Z',
+		    &retained[0].glyph_font, &retained[0].glyph, &columns) == 0);
+		st_font_catalog_destroy(catalog);
+	}
+	st_console_destroy(console);
+	return 0;
+}
+
+static int
 check_small_font_tofu(uint32_t height)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -144,6 +232,7 @@ int
 st_font_catalog_test_main(void)
 {
 	CHECK(check_amiga_descenders()==0);
+	CHECK(check_mode_change_retained_cells() == 0);
 	CHECK(check_small_font_tofu(8) == 0);
 	CHECK(check_small_font_tofu(14) == 0);
 	CHECK(check_small_font_tofu(16) == 0);

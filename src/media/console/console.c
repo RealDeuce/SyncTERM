@@ -2398,6 +2398,7 @@ font_valid(const struct st_console_font *font)
 		return false;
 	total = (uint64_t)font->glyph_count + font->wide_glyph_count;
 	if (total > UINT32_MAX || font->fallback_glyph >= font->glyph_count
+	    || font->raster_common_glyphs > font->glyph_count
 	    || font->decode_error_glyph >= font->glyph_count
 	    || (font->wide_fallback_glyph != ST_CONSOLE_FONT_NO_WIDE_FALLBACK
 	    && (font->wide_fallback_glyph < font->glyph_count
@@ -2569,6 +2570,76 @@ font_lookup_cluster_exact(const struct st_console_font *font,
 		}
 	}
 	return false;
+}
+
+static bool
+font_matches_raster(const st_console_t *console, const struct st_console_font *font)
+{
+	uint32_t width = console->cell_width;
+
+	/* VGA's ninth column is composed after the eight-pixel font raster. */
+	if (width == 9 && (console->video_flags & ST_CONSOLE_VIDEO_EXPAND) != 0)
+		width = 8;
+	return font->width == width && font->height == console->cell_height;
+}
+
+const struct st_console_font *
+st_console_font_raster_variant_locked(st_console_t *console,
+	const struct st_console_font *font)
+{
+	if (font == NULL || font->raster_family == NULL
+	    || font_matches_raster(console, font))
+		return font;
+	for (size_t i = array_list_count(console->fonts); i > 0; --i) {
+		const struct st_console_font_registration *candidate = console->fonts[i - 1];
+
+		if (candidate->font.raster_family == font->raster_family
+		    && font_matches_raster(console, &candidate->font))
+			return st_console_font_locked(console, candidate->identifier);
+	}
+	return font;
+}
+
+bool
+st_console_font_remap_glyph(const struct st_console_font *source,
+	const struct st_console_font *destination, uint32_t *glyph)
+{
+	uint32_t translated;
+	uint8_t columns = *glyph < source->glyph_count ? 1 : 2;
+	uint8_t mapped_columns;
+
+	if (source == destination || (*glyph < source->raster_common_glyphs
+	    && *glyph < destination->raster_common_glyphs))
+		return true;
+	for (size_t i = 0; i < source->mapping_count; ++i) {
+		if (source->mapping[i].glyph == *glyph
+		    && font_lookup_exact(destination, source->mapping[i].codepoint,
+		    &translated, &mapped_columns) && mapped_columns == columns) {
+			*glyph = translated;
+			return true;
+		}
+	}
+	for (size_t i = 0; i < source->cluster_mapping_count; ++i) {
+		const struct st_console_font_cluster_mapping *mapping = &source->cluster_mapping[i];
+
+		if (mapping->glyph == *glyph
+		    && font_lookup_cluster_exact(destination, mapping->text,
+		    mapping->text_size, &translated)
+		    && (translated < destination->glyph_count ? 1 : 2) == columns) {
+			*glyph = translated;
+			return true;
+		}
+	}
+	if (*glyph == source->fallback_glyph)
+		*glyph = destination->fallback_glyph;
+	else if (*glyph == source->decode_error_glyph)
+		*glyph = destination->decode_error_glyph;
+	else if (*glyph == source->wide_fallback_glyph
+	    && destination->wide_fallback_glyph != ST_CONSOLE_FONT_NO_WIDE_FALLBACK)
+		*glyph = destination->wide_fallback_glyph;
+	else
+		return false;
+	return true;
 }
 
 static const struct st_console_font_registration *
@@ -2950,10 +3021,26 @@ register_font(st_console_t *console, const struct st_console_font *font,
 		fprintf(stderr, "SyncTERM: font registry full; replacing "
 		    "least-recently-used font in slot %u\n", assigned);
 	}
+	/* Installing a matching strike changes how saved cells are rasterized,
+	 * even though their immutable font/glyph fields have not changed. */
+	result = 0;
+	if (font->raster_family != NULL
+	    && font_matches_raster(console, font)) {
+		for (size_t i = 0; i < array_list_count(console->fonts); ++i) {
+			const struct st_console_font_registration *other = console->fonts[i];
+
+			if (other->font.raster_family == font->raster_family
+			    && (other->font.width != font->width || other->font.height != font->height)) {
+				st_console_invalidate_text_locked(console);
+				result = st_console_finish_change_locked(console);
+				break;
+			}
+		}
+	}
 	(void)st_rwlock_unlock(&console->state_lock);
 	font_registration_free(evicted);
 	*identifier = assigned;
-	return 0;
+	return result;
 }
 
 int

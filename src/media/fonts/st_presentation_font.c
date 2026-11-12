@@ -481,5 +481,12 @@ int
 st_presentation_font_create_fallback(struct st_presentation_font *result,
 	const struct st_console_font *base)
 {
-	return create_presentation(result, base, true);
+	static const char fallback_family = 0;
+	int status = create_presentation(result, base, true);
+
+	if (status == 0) {
+		result->font.raster_family = &fallback_family;
+		result->font.raster_common_glyphs = 0;
+	}
+	return status;
 }

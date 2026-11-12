@@ -195,6 +195,13 @@ struct st_console_font {
 	uint32_t fallback_glyph;
 	uint32_t wide_fallback_glyph;
 	uint32_t decode_error_glyph;
+	/* Optional process-lifetime identity shared by sizes of the same font.
+	 * The bitmap renderer selects a registered variant matching the cell
+	 * geometry without changing retained cells' font/glyph identities.
+	 * This many initial narrow glyph indexes have identical meanings in
+	 * every variant; other glyphs are translated through their mappings. */
+	const void *raster_family;
+	uint32_t raster_common_glyphs;
 };
 
 #define ST_CONSOLE_FONT_NO_WIDE_FALLBACK UINT32_C(0)
@@ -654,7 +661,8 @@ int st_console_get_palette(st_console_t *console, uint16_t first,
 /* Returns canonical startup values without consulting mutable console state. */
 int st_console_get_default_palette(uint16_t first, uint32_t *rgb,
 	uint32_t count);
-/* Registration affects later lookups and writes, not retained cells. */
+/* Registration preserves retained cell content. A matching raster-family
+ * variant also invalidates retained text for the bitmap renderer. */
 int st_console_register_static_font(st_console_t *console,
 	const struct st_console_font *font, uint16_t *identifier);
 int st_console_register_font_copy(st_console_t *console,

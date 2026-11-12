@@ -493,17 +493,6 @@ class App {
   }
   cursorShapeCache_ { _cursorShape }
 
-  // Mode changes replace the console's font registrations even when the
-  // character grid is unchanged. Repaint retained cells against those fonts
-  // and capture the cleared screen instead of restoring the old backdrop.
-  invalidateScreenState() {
-    _surface = null
-    _surfaceSize = null
-    _backdrop = null
-    markAllDirty_()
-    invalidateCursorState()
-  }
-
   // ----- Context help (F1) ---------------------------------------
   //
   // Walk from the foreground widget tree's focused leaf up through
