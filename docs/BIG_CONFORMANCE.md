@@ -617,3 +617,6 @@ pending. Only BIG tests run during iteration; RIP regressions and the full
 suite remain deferred.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending.
+
+Native A fill/shared-mask/indexed-cache integration commit: `3e0da7e`.
+Rendering consumers, X1 edits and remaining full45-entry composition stay in progress.
