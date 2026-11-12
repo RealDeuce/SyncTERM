@@ -1129,3 +1129,6 @@ sample, including across acquisitions; they do not fabricate motion from cell
 coordinates or make a later stationary button report undo a keyboard move.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All13 BIG-specific native CTest checks passed in15.17s. The BIG application fixture passed in51.42s with826 coherent scenes; final missing-pixel/history and failure-cleanup cases are additionally covered by the native suite. Only BIG-specific tests ran for this step; the full regression suite remains deferred until goal completion. Native < framing/keyboard/hybrid-pointer/echo/reply integration is implemented. Global page/image and audio composition, physical input/audio and full45-entry acceptance remain pending.
+
+Native < keyboard/hybrid pointer integration commit: `03e4edc`.
+Page/image/audio composition and the full45-entry goal remain in progress.
