@@ -4431,3 +4431,79 @@ IGS raster/math/audio/music. Checked all63 unique ordered IDs,60 completed
 entries, active tests/dependencies/references and pinned source identities.
 X9's source echo, parent X, remaining commands and final acceptance stay
 pending; the full goal remains active.
+
+== Shared parser sources for stored-operand loops (complete foundation)
+
+Chapter13's & dispatcher reuses ordinary command readers, and chapter11's
+numeric loop can clear loop mode during an argument call. Later arguments
+in that same command then come from the wire. A loop body also selects a
+command without receiving another attention/command/chain pair. These two
+requirements need source ownership in the shared grammar before the Atari
+loop evaluator can use it.
+
+The optional number callback supplies an already evaluated int or declines
+an entire numeric field to the wire reader. A supplied argument explicitly
+marks has_value/value, retaining its kind and axis without parsing synthetic
+decimal bytes or reevaluating/scaling the result. A waiting source yields
+IN_PROGRESS with no wire consumption, then retries on feed (including zero
+input); field entry still runs once. Once declined, a partial token remains
+owned by the wire even if an external source becomes available later.
+Provider failures cancel grammar, preserving the exact unread suffix.
+
+start_command selects an existing descriptor at idle or replaces an accepted
+suspended command, with explicit code/chain from the source owner. It performs
+the normal boundary once and begins field work on the next feed. Unknown
+codes, active partial framing/fields and failed boundaries preserve the old
+grammar/view ownership. Successful replacement ends the old borrowed view;
+accepted commands are not executed twice. Text/BYTES payloads remain opaque
+and bounded, including incremental raw early-end and zero-byte fields.
+
+The parser owns no loop arithmetic, Atari words, command iteration, clock,
+worker or key policy. graphics_protocol_source independently tests mixed
+source/wire splits and bytewise input, delayed numeric retries, full int
+bounds, dynamic arity, opaque text/NUL/raw payloads, early-end ownership,
+EOF/cancel/errors/limits, direct and chained commands, suspended-view lifetime
+and failed selection. Existing parser/stream tests retain wire-only coverage.
+This completes the source mechanism only: & setup/evaluation/gang execution,
+local deadlines, flow and input integration remain pending. The command ledger
+stays60/63 complete and the full goal remains active.
+
+=== Remaining & integration at this boundary
+
+The loop owner must stage FROM/TO/STEP/DELAY, raw target, optional retained
+128-byte gang, raw kind and clamped1..2048 operand count in native acquisition
+order. Stored operands retain substitutions and relative encodings without
+random expansion or coordinate rescaling. Commit accepted prefixes once;
+next/arity previews must not advance the operand index, RNG or local input.
+
+Each actual numeric field may take one stored operand. A local deadline at
+index zero converts the protocol's200 delay units/second at that use site;
+source waiting resumes the same field, with no foreign ticking domain. The
+owner handles stepping, varying/XOR passes, bounds and key consumption. If
+that field ends the loop, later numeric fields in the same descriptor use
+ordinary wire acquisition. W/@/final-Z text handling remains at its real
+reader position; gang selectors themselves consume an operand and can end
+the loop before the selected command's remaining fields.
+
+Run selected body commands through start_command after the prior command has
+been accepted, preserving the outer chain bit. Synchronous and asynchronous
+body completion must return to one loop owner before another iteration or
+the common exit. Yield cooperatively so long/nonprogressing loops can service
+host input and cancellation; do not add an arbitrary total iteration count,
+foreign polling delay or a second command parser. Unknown fixed targets and
+unknown gang choices need their distinct reader/bad-command exit semantics.
+Keep XOFF/XON, deferred < output, queued keys and EOF/reset/error cleanup at
+the enclosing dispatch boundary. X9 later shares this same IGS loop state;
+it must not invent an independent stack of operand arrays/indices.
+
+Native FreeBSD Release CMake configure/full builds with /usr/bin/cc passed.
+The final full build had zero diagnostics after early existing generated-
+dependency timestamp warnings. The new mixed-source test failed before the
+implementation. All30 selected CTest checks passed in154.92s: source/parser/
+stream, IGS input/scaling/text/X7/X11/X13/flow/query/collection/X3/X4/X6/music/
+I/R, ANSI/VT52/keyboard, RIP, SkyPix, term/key forwarding, BBS list/profile,
+Wren and application text/bitmap/flow/pattern load. Ordinary fixtures are
+self-contained and physical audio/MIDI are disabled. All63 command entries
+remain unchanged (60 complete); active tests/dependencies/references were
+validated. The shared source mechanism is complete; &/X9 and final acceptance
+remain pending, and the full goal stays active.

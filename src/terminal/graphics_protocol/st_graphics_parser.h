@@ -54,6 +54,10 @@ struct st_graphics_parameter {
 };
 
 struct st_graphics_argument {
+	/* A supplied NUMBER has already been evaluated by the source owner;
+	 * its operand is unused and must not be scaled/evaluated a second time. */
+	bool has_value;
+	int value;
 	enum st_graphics_argument_kind kind;
 	enum st_graphics_axis axis;
 	struct st_graphics_operand operand;
@@ -100,7 +104,7 @@ struct st_graphics_parser_config {
 struct st_graphics_parser_sink {
 	void *context;
 	int (*text)(void *, const uint8_t *, size_t);
-	/* text/boundary/field/raw/next are synchronous; only command may return IN_PROGRESS.
+	/* text/boundary/field/raw/next are synchronous; command and number may yield.
 	 * Callbacks must not reenter the parser. A boundary commits pending text
 	 * before acquiring a command. */
 	int (*boundary)(void *);
@@ -113,6 +117,15 @@ struct st_graphics_parser_sink {
 	 * The prior-argument view and parameter are borrowed for this call. */
 	int (*field)(void *, const struct st_graphics_command_view *,
 	    const struct st_graphics_parameter *);
+	/* Optional source for an already evaluated NUMBER, after field entry.
+	 * Return zero with supplied=true to append value without consuming wire
+	 * bytes. Zero/false assigns the entire field to the wire reader, with
+	 * no further number calls for that field. IN_PROGRESS/false yields and
+	 * retries this callback on feed(), without repeating field entry.
+	 * Other errors cancel grammar; no value is appended on an error/yield.
+	 * Views are borrowed; callbacks must not reenter the parser. */
+	int (*number)(void *, const struct st_graphics_command_view *,
+	    const struct st_graphics_parameter *, int *value, bool *supplied);
 	/* Optional incremental BYTES consumer. Offset is relative to this field;
 	 * data remains opaque and is also retained for the final argument view.
 	 * Report accepted bytes even on error. A successful callback must make
@@ -144,7 +157,16 @@ int st_graphics_parser_begin(st_graphics_parser_t *,
 int st_graphics_parser_feed(st_graphics_parser_t *,
 	const struct st_graphics_parser_sink *, const uint8_t *, size_t,
 	size_t *consumed);
+/* Resume an accepted command; a waiting number source retries on feed(). */
 int st_graphics_parser_resume(st_graphics_parser_t *);
+/* Start a known command whose code/chain were acquired by the source owner.
+ * At OUTSIDE (without a held attention prefix) or SUSPENDED only. Replacing
+ * an accepted suspended command ends its borrowed view's lifetime. Calls
+ * boundary once; command/field work starts on the next feed(), including
+ * feed(NULL,0). An unknown code returns NOT_SUPPORTED without changing the
+ * grammar. Boundary errors also leave grammar/view ownership unchanged. */
+int st_graphics_parser_start_command(st_graphics_parser_t *,
+	const struct st_graphics_parser_sink *, uint8_t code, bool chained);
 /* Explicit owner policy may end an active BYTES field with the bytes already
  * accepted, then run normal field/command completion. This does not fabricate
  * payload or change finish()'s rejection of incomplete commands. */

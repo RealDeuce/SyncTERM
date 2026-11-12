@@ -20,7 +20,7 @@ struct st_graphics_parser {
 	uint8_t *payload;
 	size_t payload_size, field_start, field_size;
 	struct st_graphics_parameter parameter;
-	bool field_active, boundary_needed;
+	bool field_active, boundary_needed, number_requested;
 	enum number_state number_state;
 	unsigned continuation_left, digits;
 	bool number_invalid;
@@ -55,6 +55,7 @@ st_graphics_parser_cancel(st_graphics_parser_t *p)
 	p->payload_size = 0;
 	p->field_active = false;
 	p->boundary_needed = false;
+	p->number_requested = false;
 }
 
 int
@@ -144,6 +145,41 @@ st_graphics_parser_begin(st_graphics_parser_t *p,
 	return 0;
 }
 
+static const struct st_graphics_command *
+find_command(const st_graphics_parser_t *p, uint8_t code)
+{
+	for (size_t i = 0; i < p->config.command_count; ++i) {
+		if (p->config.commands[i].code == code)
+			return &p->config.commands[i];
+	}
+	return NULL;
+}
+
+int
+st_graphics_parser_start_command(st_graphics_parser_t *p,
+    const struct st_graphics_parser_sink *sink, uint8_t code, bool chained)
+{
+	if (p == NULL || !valid_sink(sink))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if ((p->state != OUTSIDE && p->state != SUSPENDED) || p->prefix_size != 0)
+		return IO_ERROR_BUSY;
+	const struct st_graphics_command *command = find_command(p, code);
+	if (command == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	int status = sink->boundary == NULL ? 0
+	    : synchronous_status(sink->boundary(sink->context));
+	if (status != 0)
+		return status;
+	/* Commit selection only after validation/boundary. A failed selection
+	 * preserves the suspended view and its borrowed payload. */
+	st_graphics_parser_cancel(p);
+	p->view.code = code;
+	p->view.chained = chained;
+	p->command = command;
+	p->state = FIELD;
+	return 0;
+}
+
 static void
 after_command(st_graphics_parser_t *p)
 {
@@ -196,8 +232,30 @@ advance(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink)
 					return status;
 			}
 		}
-		if (p->state != FIELD || p->field_active)
+		if (p->state != FIELD)
 			return 0;
+		if (p->field_active) {
+			if (p->parameter.kind == ST_GRAPHICS_NUMBER && !p->number_requested) {
+				bool supplied = false;
+				int value = 0;
+				status = sink->number == NULL ? 0 : sink->number(sink->context,
+				    &p->view, &p->parameter, &value, &supplied);
+				if (status == IO_ERROR_IN_PROGRESS && supplied)
+					return IO_ERROR_PROTOCOL;
+				if (status != 0)
+					return status;
+				if (supplied) {
+					append_field(p);
+					p->arguments[p->view.count-1].has_value = true;
+					p->arguments[p->view.count-1].value = value;
+					continue;
+				}
+				/* Once declined, this field belongs to the wire even if
+				 * the owner changes its source during a partial token. */
+				p->number_requested = true;
+			}
+			return 0;
+		}
 		if (p->command == NULL) {
 			if (sink->unknown != NULL)
 				sink->unknown(sink->context, p->view.code);
@@ -232,6 +290,7 @@ advance(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink)
 			return IO_ERROR_OUT_OF_RANGE;
 		p->parameter = parameter;
 		p->field_active = true;
+		p->number_requested = false;
 		p->field_start = p->payload_size;
 		p->field_size = 0;
 		p->number_state = DIGITS;
@@ -242,11 +301,9 @@ advance(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink)
 			status = synchronous_status(sink->field(sink->context, &p->view, &p->parameter));
 			if (status != 0) return status;
 		}
-		if (parameter.kind == ST_GRAPHICS_BYTES && parameter.size == 0) {
+		if (parameter.kind == ST_GRAPHICS_BYTES && parameter.size == 0)
 			append_field(p);
-			continue;
-		}
-		return 0;
+		/* Offer a NUMBER source before consuming even the first wire byte. */
 	}
 }
 
@@ -431,13 +488,7 @@ st_graphics_parser_feed(st_graphics_parser_t *p,
 			break;
 		case COMMAND:
 			p->view.code = byte;
-			p->command = NULL;
-			for (size_t i = 0; i < p->config.command_count; ++i) {
-				if (p->config.commands[i].code == byte) {
-					p->command = &p->config.commands[i];
-					break;
-				}
-			}
+			p->command = find_command(p, byte);
 			p->state = p->config.dialect->chain_indicator ? CHAIN : FIELD;
 			break;
 		case CHAIN:

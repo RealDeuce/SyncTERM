@@ -25,17 +25,21 @@
       "status": "complete",
       "tests": [
         "graphics_protocol_parser",
-        "graphics_protocol_stream"
+        "graphics_protocol_stream",
+        "graphics_protocol_source"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc, existing Release CMake configuration: graphics_protocol_parser passed.",
         "All 47 top-level commands and 16 X selectors checked against the local reference command index; all listed source chapters exist.",
         "cmake -S . -B build; cmake --build build -j 4: full native application build passed. Existing build-tree timestamp/clock-skew warnings were emitted; the new C sources compiled without warnings.",
-        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit."
+        "The new native test failed before implementation. Native FreeBSD Release configure and full CMake builds with /usr/bin/cc passed; initial generated-dependency clock-skew warnings cleared in the final full build, which had no warnings. All 24 selected regression tests passed in 65.05 seconds, including shared parser/stream, indexed images, CTerm ANSI/VT52, RIP parser, SkyPix, term, I/R/input/g/q/W/X7/X10/X13/G/X14 and application R/G/X7/X14. Native X11 took 1.80 seconds. Application X11 separately passed 191 coherent captures in 45.30 seconds, including binary Telnet escaping and a real local receive timeout. All 63 IDs with 49 complete entries, references/dependencies, active tests and pinned font/ROM identities were validated. Parallel graphics/dependency/emoji changes are excluded from this IGS commit.",
+        "Source-supplied numeric/direct-command support: the new mixed-source test failed before implementation. Native FreeBSD Release CMake configure/full builds with /usr/bin/cc passed; the final full build had zero diagnostics after early existing generated-dependency future-timestamp warnings. All30 selected CTest checks passed in154.92s, including graphics_protocol_source/parser/stream, IGS input/scaling/text/X7/X11/X13/flow/query/collection/X3/X4/X6/music/I/R, CTerm ANSI/VT52/keyboard, RIP, SkyPix, term/key forwarding, profiles/BBS list, Wren and application text/bitmap/flow/pattern load. All63 command entries are unchanged (60 complete), active tests/dependencies/references validated, and physical audio/MIDI are disabled in headless fixtures. This verifies the generic source mechanism; & and X9 execution remain pending."
       ],
       "commit": "87a116f",
       "operations": [
-        "Optional synchronous incremental BYTES consumer with per-field offset and explicit accepted-byte/early-end ownership; bounded opaque final payload remains available. Explicit owner end_bytes performs field/command completion; finish still rejects incomplete grammar. No raster/timing policy in shared parser."
+        "Optional synchronous incremental BYTES consumer with per-field offset and explicit accepted-byte/early-end ownership; bounded opaque final payload remains available. Explicit owner end_bytes performs field/command completion; finish still rejects incomplete grammar. No raster/timing policy in shared parser.",
+        "Optional number source supplies an already evaluated int (has_value/value) or assigns the entire field to wire acquisition. IN_PROGRESS waits retry on feed without consuming wire or repeating field entry; errors cancel grammar with exact unread suffix. Partial wire fields cannot switch owners. No arithmetic/timing/iteration policy in the shared parser.",
+        "Explicit start_command reuses known descriptors and boundaries at idle or replaces an accepted suspended command without synthetic framing. Unknown codes, active partial framing/fields and boundary failures preserve grammar and borrowed views; successful replacement ends the old view lifetime. Existing text/BYTES/raw/empty-field behavior remains."
       ]
     },
     {

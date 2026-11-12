@@ -2791,3 +2791,28 @@ were validated. The ledger is60/63 complete; parent X, remaining commands,
 X9 file-source echo and final acceptance remain pending.
 
 Completion commit for `<`: fab4fda. The goal remains active at60/63.
+
+## Stored-operand source support in the shared parser
+
+Chapters11/13 require a loop to supply evaluated numeric values and then
+hand later fields of the same command back to the wire. The shared grammar
+now supports that per-field handoff, explicit typed values and retryable
+source waits without wire consumption or repeated field entry. Direct command
+selection reuses the existing descriptors and boundaries without invented
+framing bytes, including replacement of an accepted suspended command.
+Failed selections preserve pending grammar and borrowed views.
+
+`graphics_protocol_source` independently covers split/bytewise handoff,
+source retries, signed int bounds, dynamic fields, text/NUL/raw opacity,
+early-end suffixes, zero-byte fields, EOF/cancel/errors/limits, direct/chained
+commands and suspended-view lifetimes. The parser adds no Atari arithmetic,
+loop executor, clocks or workers. This is supporting parser functionality;
+`&` execution remains pending and the command ledger stays60/63 complete.
+
+Native FreeBSD Release configure/full builds passed using `/usr/bin/cc`;
+the final full build was warning-free. The mixed-source test failed before
+implementation. All30 selected CTest checks passed in154.92s, including the
+source/parser/stream tests, native IGS/ANSI/VT52/RIP/SkyPix, term/input,
+profile/Wren and application text/bitmap/flow/pattern-load regressions.
+Active tests/dependencies/references were validated. All63 command entries
+are unchanged, with60 complete; the full goal remains active.

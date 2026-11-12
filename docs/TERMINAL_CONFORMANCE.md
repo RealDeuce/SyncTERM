@@ -313,6 +313,10 @@ mouse forms share indexed pointer rendering with `?`. It retains129 printable
 bytes, exact press-zone selection and strict retry, with safe Delete bounds
 and cleanup on EOF/reset/error.
 
+Shared graphics-parser tests additionally cover source-supplied typed numbers,
+retryable waits and exact handoff to wire fields, plus direct/chained command
+selection and suspended-view ownership. IGS `&` execution remains pending.
+
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
 both variants with status on/off, Latin-1/CP437/UTF-8, configurable pixel canvases,
