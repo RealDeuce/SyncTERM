@@ -261,3 +261,6 @@ as fatal; only full acceptance with a paused owner is now normalized there.
 additional full command completion is claimed (0/45).
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed.
+
+Wire & setup/shared auxiliary-text reader integration commit: `b12aa6f`.
+Full command acceptance and the complete goal remain in progress.
