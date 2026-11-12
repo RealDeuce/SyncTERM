@@ -15,7 +15,8 @@ restrictions and CONDOR implementation are excluded. The reference's 64
 accepted research requirements are not 45 completed SyncTERM commands.
 
 The unlimited goal is active. CGA 80x25 and the shared numeric-reader
-boundary are complete; ordinary BIG numeric acquisition is implemented.
+boundary are complete; ordinary BIG numeric acquisition and the shared RNG
+core are implemented.
 The BIG graphics mode, rendering and sound are not yet available. The
 implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -234,3 +235,31 @@ The native Release build passed without compiler/source diagnostics. All six
 selected BIG/shared-parser/IGS scaling checks passed in 1.59 seconds;
 `big_number` completed in 0.01 seconds. Fixture provenance and limitations
 are recorded in `src/terminal/big/tests/README.md`.
+
+Ordinary-reader completion commit: `9ece34e`.
+
+=== Shared random generator
+
+`st_big_random.c` preserves the original WORD seed, shared 32-bit state and
+LCG output. The rejection helper multiplies each generated value by signed
+TO and divides by 32768 with truncation, then compares against both signed
+bounds. It does not add FROM or normalize bounds; a positive upper bound is
+unreachable and equal positive or negative-TO ranges can remain pending.
+
+The helper processes a bounded owner-requested batch, yielding with its
+advanced state when no candidate is accepted. Later polls supply current
+bounds without reseeding or a total retry cap. This scheduling adaptation
+allows the eventual terminal owner to process cancellation/reset/shutdown;
+it does not change accepted values or the sequence of random draws. Numeric
+r, X0 and speaker effects must share one application-owned state. Their
+caller-specific seeding, suppression and final expansion are still pending.
+
+`big_random` checks literal original seed/state/candidate examples, all
+32768 outputs through inverse-selected predecessor states, signed bounds,
+zero-budget and invalid calls, and equivalent streams under different poll
+partitions. Application seed-time conversion and RNG integration are not
+claimed by these component tests.
+
+The native Release build passed without compiler/source diagnostics. All seven
+selected BIG/shared-parser/IGS scaling CTest checks passed in 1.57 seconds;
+`big_number` and `big_random` each completed in 0.01 seconds.

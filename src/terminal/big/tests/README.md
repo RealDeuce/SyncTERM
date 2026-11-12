@@ -35,3 +35,13 @@ chaining, input-free timeout completion and partial-field EOF recovery.
 The tests require no external documentation tree, ROM, DOS program, graphics
 display or physical audio device. Stored-loop evaluation, final random
 expansion and application deadline scheduling have separate pending owners.
+
+
+`st_big_random_test.c` uses chapter 33 and `controls-examples.json` seed and
+range facts. Its seed-zero/seed-one/state-maximum expectations are literal
+arithmetic derivations. The multiplier inverse `0x2925141d` is checked by its
+modulo-2^32 identity, then selects a predecessor for every possible 15-bit
+rand output. The range checks cover all outputs independently of random
+sampling. Poll partition tests verify exact state advancement through rejected
+attempts and resumption after bounds change. No DOS seed-time conversion,
+command integration or physical audio behavior is claimed.

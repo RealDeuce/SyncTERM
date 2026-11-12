@@ -55,3 +55,12 @@ explicit timeout/BEL policy, shared-parser integration and EOF/reset recovery.
 This component consumes explicit timeout events; application-local deadline
 scheduling, stored-loop evaluation and final random expansion remain pending.
 The BIG graphics mode is not yet selectable; command completion remains 0/45.
+
+## Shared random core
+
+The original WORD seed, 32-bit LCG and signed rejection helper are implemented.
+`big_random` checks literal seed/state cases, all 32768 output values, signed
+bounds, rejected-attempt state advancement and partition-independent polls.
+Unreachable ranges yield cooperatively without a total retry cap or bound
+repair. Numeric r, X0 and effects still need their shared application owner,
+seed-time conversion and caller-specific integration; no command is complete.

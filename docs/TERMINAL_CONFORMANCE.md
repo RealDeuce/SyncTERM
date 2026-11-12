@@ -8,7 +8,10 @@ error/EOF/cancel recovery. The existing IGS reader remains the default.
 The BIG ordinary reader now covers destructive WORD construction and exact
 finite scaling in `big_number`: 54 literal split-input cases, all WORDs
 against a binary-rational oracle, count wrap, timeout/BEL events and recovery.
-BIG loop/random evaluation and application deadline scheduling remain pending.
+The shared RNG core is checked in `big_random` against all 32768 outputs,
+signed rejection bounds and equivalent state streams under different poll
+partitions. BIG stored-loop evaluation, caller-specific random expansion and
+application deadline scheduling remain pending.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

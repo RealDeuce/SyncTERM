@@ -75,22 +75,28 @@
         "Original software/default-precision scaling, including g3 Y5->11, with exact finite integer adapters and explicit WORD reduction."
       ],
       "tests": [
-        "big_number"
+        "big_number",
+        "big_random"
       ],
       "references": [
         "05-numeric-reader.adoc",
         "21-loops-gangs-and-substitution.adoc",
         "34-numeric-words-and-exact-y-scaling.adoc",
         "73-global-readers-and-loops-acceptance.adoc",
-        "code-evidence.adoc:04f3:0f26..11b1,144c..14e8"
+        "code-evidence.adoc:04f3:0f26..11b1,144c..14e8",
+        "33-extended-dispatch-ranges-and-flow.adoc"
       ],
-      "deviations": [],
+      "deviations": [
+        "Scheduling adaptation: rejection executes bounded owner-requested work batches and yields IN_PROGRESS, retaining shared state and fresh bounds on the next poll. No total retry limit, implicit reseed or bound repair is added; unreachable ranges remain pending until owner cancellation/reset or a range change."
+      ],
       "verification": [
         "Ordinary acquisition implemented and exercised through the shared parser. 54 literal vectors cover every split/bytewise input, destructive continuations, consumed delimiters, ordered auxiliary controls, encoded expressions, NUL/FF, scaling gates and signed wrapping.",
         "All 65536 WORD inputs match an independent original binary-rational multiplier oracle across 30 scale/resolution/class combinations each; 16-bit digit-count wrap verified across bulk, bytewise and boundary chunks.",
         "Explicit owner timeout events preserve ordinary zero versus auxiliary SPACE/BEL/auto behavior, ready-byte consumption, retained slots and fresh acquisition boundaries. No foreign clock or scheduling thread exists in the component.",
         "Stored-loop evaluation, final random expansion and application-local deadline scheduling remain pending.",
-        "Native CMake Release build, /usr/bin/cc, build/; no compiler/source diagnostics. All six selected BIG/shared-parser/IGS scaling CTest checks passed in 1.59s."
+        "Native CMake Release build, /usr/bin/cc, build/; no compiler/source diagnostics. All six selected BIG/shared-parser/IGS scaling CTest checks passed in 1.59s.",
+        "Shared WORD-seeded 32-bit LCG and signed rejection helper implemented. Literal seed/state/candidate cases, all 32768 outputs, rejected-attempt state advancement, zero/equal/inverted/negative bounds, zero-budget/error preservation and partition-independent polls pass in big_random.",
+        "RNG step: native CMake Release build passed with no compiler/source diagnostics; all seven BIG/shared-parser/IGS scaling checks passed in 1.57s. Both BIG tests take 0.01s each."
       ],
       "commit": null,
       "steps": [
@@ -100,8 +106,17 @@
           "tests": [
             "big_number"
           ],
-          "commit": null,
+          "commit": "9ece34e",
           "verification": "Native Release build and all six selected checks passed; big_number completes in 0.01s."
+        },
+        {
+          "id": "shared-rng",
+          "status": "complete",
+          "tests": [
+            "big_random"
+          ],
+          "commit": null,
+          "verification": "Native Release build and all seven selected checks passed in 1.57s; big_random completes in 0.01s."
         }
       ]
     },
