@@ -4603,3 +4603,106 @@ After the final warning-free full build, all16 affected checks passed in
 49.52s: loop846 captures in49.45s, application music25.31s, native loop0.39s
 and native note0.41s. Command completion remains61/63; X9, parent X and final
 acceptance stay pending.
+
+=== X9 shared loading and nested-script execution
+
+X9 has a raw loader in cterm_igs_script.c, descriptor/dispatcher integration
+and owner-driven execution through the existing parser. Native and coherent
+application acceptance passed. Command completion is62/63; parent X dispatch
+acceptance and final goal acceptance remain pending.
+
+The loader uses the existing 10001-byte N/script allocation and independent
+script length. It stores both pipes, consumes but never stores the following
+lookahead, preserves holes after a failed lookahead, and preserves all old
+suffix bytes. The final decrement excludes the last payload position, as
+specified in chapters21/173. Capacity is checked after lookahead, so a failed
+lookahead at the boundary permits length10000. An empty payload retains
+length0 instead of the original escaped-memory U32 underflow. Clear is
+conditional on nonzero script length and inactive script execution; it
+clears exactly10001 bytes and N's stored byte count. Loads do not clear the
+music count, poll local abort keys, or send flow-control bytes. Each serial
+raw slot uses a local5000ms receive deadline and the existing console BEL
+path; timeout replaces that slot with space. Cancellation preserves stores
+and the current length.
+
+The shared parser gains explicit end_text, analogous to end_bytes. It
+appends only acquired TEXT payload, marks ended_early on that argument,
+and runs normal field/command completion. Empty literal-terminator syntax
+does not invent a character on this explicit source end. Ordinary finish
+still rejects incomplete text. This is needed for file-style NUL/EOF text
+acquisition, where the shared text buffer retains its prior suffix rather
+than gaining a new NUL. The source owner uses it at file NUL/text EOF;
+Atari source policy stays outside the shared grammar.
+
+Selector/operation prefixes are committed once before raw entry. The same
+command parser runs a serialized source owner, preserving only the accepted
+caller's return boundary. Generic take/restore_continuation retain chaining
+without copying arguments, payload or grammar. The live shared N/script
+buffer is read without copying. Recursive X9 operations are guarded while
+other commands can overwrite that allocation. Shared & numeric state remains
+live rather than gaining a loop stack; only the enclosing serial dispatch's
+return/flow boundary is saved. Script attention follows chapter13/173, with
+its own help gate, no destructive-backspace expansion, no final held-G flush,
+and command/chain NUL handling. File & has no setup/final flow calls or
+serial new-text-counter reset. File dispatch clears loop mode when the
+graphics entry exits, and its deferred < epilogue echoes each transmitted
+live byte/CR to the local console. File X3/X4/N/X11 acquisitions have no
+serial receive clock or timeout substitution. Ordinary script passes
+consume a queued local key:
+Ctrl-S waits specifically for Ctrl-Q, including after Ctrl-C; ordinary
+Ctrl-C aborts a bounded script. Existing command waits and interactive input
+retain their own key ownership. Source EOF/error/reset/disconnect unwind
+ownership without fabricated payload, unsafe reads or a second parser.
+Truncated numeric/raw fields and command pairs cancel the file entry safely
+and return to the actual caller boundary; no repeated synthetic zero words
+are supplied. File text still completes early with its retained suffix and
+an explicit EOF acquisition count. Unread wire suffix bytes retain their
+original owner. These invalid-input corrections do not change the intended
+bounded serial/script behavior or the existing shared indexed framebuffer.
+
+Initial acquisition/source-support verification: native FreeBSD Release CMake
+configure with /usr/bin/cc and full builds passed. The final full build
+had no warnings or errors. The new loader and source-ended-text tests
+each failed at their missing implementation before the corresponding code
+was added. All67 selected checks passed in106.40s, including all63 registered
+native IGS checks, the three shared parser/source/stream checks and CTerm.
+This includes the new isolated loader in0.10s and source-ended text in the
+stream check. That initial stage left the command incomplete at61/63.
+
+Full X9 verification: native FreeBSD /usr/bin/cc Release configure and full
+builds passed. The final full build and extended fixture build had no
+warnings/errors. The first X9 wire test failed at its missing loader before
+integration. All67 selected native checks passed in111.12s, including all
+registered native IGS checks, the shared parser/source/stream and CTerm.
+Final extended native X9 checks passed in0.43s, including every wire split
+and bytewise input across18 profiles times three scaling settings, US console
+bytes, GG#/held G, non-destructive file Backspace, shared/nested & operands,
+literal loader holes/capacity/clear, typed random prefix, file NUL/EOF text,
+opaque N/X3/X11 data, live buffer mutation during a reply, Ctrl-S/Q/C and
+async query/resolution waits, deferred < echo, EOF and reset during a reply.
+Saved serial-loop flow is balanced exactly once on completion/cancellation.
+
+Application X9 passed666 coherent captures in42.17s across all18 profiles.
+Its13 handwritten cases check literal points, gang/ordinary loops, text,
+guarded recursion, arrays, XOR, multiple attention entries, waits, shared N
+and raw X3; additional captures check unchanged load-only output, inner wait
+key ownership and disconnect/reconnect/query recovery. Expected indexed dual
+phases, RGB/palette, console cells and parser state come from one capture.
+The checked-in script-command-vectors.json retains independent provenance
+and five pinned source hashes. No test needs an external IGS tree or audio
+device. All18 related native/application regressions passed in115.71s,
+including application loop/music/macro/zone/collection/query. Source-ended
+text and accepted continuation tests cover the generic parser independently.
+X9 is complete; parent X and final goal acceptance remain unfinished.
+
+Final source-owner review added a combined work budget across short X9
+calls, including returns to a serial & body or another caller in one wire
+batch. It yields after64 source switches per pump without limiting total
+iterations. A pending accepted call retains local keys and unread wire
+suffix. Both budget/key regressions failed before their fixes. Final
+warning-free full build and all68 acceptance checks passed in135.80s:
+all native IGS, shared parser/source/stream, CTerm and application X9.
+The application check passed666 coherent captures in42.17s, including130
+short held-G sources inside one serial loop with one XOFF/XON lifetime.
+Native X9 passed in0.52s (0.49s standalone), including independent caller
+batches and US console/Backspace checks. The ledger remains62/63 complete.

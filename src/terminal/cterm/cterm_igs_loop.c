@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs.h"
 #include "cterm_igs_loop.h"
+#include "cterm_igs_music.h"
 #include "st_graphics_parser.h"
 #include "io_error.h"
 #include <limits.h>
@@ -81,7 +82,12 @@ int cterm_igs_loop_field(struct cterm_igs *igs,const struct st_graphics_command_
 	if(l->ganged && v->count==6) {
 		const struct st_graphics_argument *a=&v->arguments[5];
 		if(a->size>128) return IO_ERROR_PROTOCOL;
-		memcpy(igs->shared_text,a->bytes,a->size);igs->shared_text[a->size]=0;igs->shared_text_size=a->size;
+		memcpy(igs->shared_text,a->bytes,a->size);
+		if(!a->ended_early) {igs->shared_text[a->size]=0;igs->shared_text_size=a->size;}
+		else {
+			igs->shared_text_size=0;
+			while(igs->shared_text_size<128 && igs->shared_text[igs->shared_text_size]!=0) ++igs->shared_text_size;
+		}
 		memcpy(l->gang,igs->shared_text,sizeof(l->gang));igs->text_deadline=0;
 	}
 	size_t ci=count_index(l);
@@ -92,7 +98,7 @@ int cterm_igs_loop_field(struct cterm_igs *igs,const struct st_graphics_command_
 		l->count=clamp_count(value);l->original=l->current;l->loading=true;
 	}
 	int status=l->loading?store_operand(igs,v):0;
-	if(status==0 && p->kind==ST_GRAPHICS_TEXT) {
+	if(status==0 && p->kind==ST_GRAPHICS_TEXT && !igs->script.active) {
 		uint64_t now;status=igs->now_ms(&now);
 		if(status==0) igs->text_deadline=now>UINT64_MAX-5000?UINT64_MAX:now+5000;
 	}
@@ -107,10 +113,11 @@ int cterm_igs_loop_begin(struct cterm_igs *igs,const struct st_graphics_command_
 	l->loading=l->initializing=false;l->index=0;l->first=l->pass=0;
 	l->no_parameters=true;
 	for(size_t i=0;i<l->count;++i) if(varying(l->operands[i])) l->no_parameters=false;
-	igs->loop_mode=1;igs->text_counter=0;
-	l->run=l->next=l->initial=l->did_flow=true;l->chained=v->chained;l->bad=false;
+	igs->loop_mode=1;
+	if(!igs->script.active) igs->text_counter=0;
+	l->run=l->next=l->initial=true;l->did_flow=!igs->script.active;l->chained=v->chained;l->bad=false;
 	l->command=l->target;
-	status=cterm_igs_flow(igs,false);
+	status=l->did_flow?cterm_igs_flow(igs,false):0;
 	return status==0?IO_ERROR_IN_PROGRESS:status;
 }
 int cterm_igs_loop_value(struct cterm_igs *igs,int *result)

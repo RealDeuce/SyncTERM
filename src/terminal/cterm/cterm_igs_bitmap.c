@@ -53,8 +53,8 @@ cterm_igs_bitmap_begin(struct cterm_igs *igs, int operation, int section)
 	if (igs->bitmap_size == 0) return 0;
 	int status = image(igs);
 	uint64_t now;
-	if (status == 0) status = igs->now_ms(&now);
-	if (status == 0) igs->bitmap_deadline = deadline(now);
+	if (status == 0 && !igs->script.active) status = igs->now_ms(&now);
+	if (status == 0 && !igs->script.active) igs->bitmap_deadline = deadline(now);
 	return status;
 }
 
@@ -65,11 +65,11 @@ cterm_igs_bitmap_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size,
 	*accepted = 0; *end = false;
 	if (!igs->bitmap_loading || size == 0 || size > igs->bitmap_size-igs->bitmap_received)
 		return IO_ERROR_PROTOCOL;
-	uint64_t now;
-	int status = igs->now_ms(&now);
+	uint64_t now=0;
+	int status = igs->script.active ? 0 : igs->now_ms(&now);
 	if (status != 0) return status;
-	bool expired = now >= igs->bitmap_deadline;
-	if (expired || igs->bitmap_errors > 2) {
+	bool expired = !igs->script.active && now >= igs->bitmap_deadline;
+	if (expired || (!igs->script.active && igs->bitmap_errors > 2)) {
 		uint8_t byte = bytes[0];
 		if (expired) {
 			byte = '*';
@@ -94,7 +94,7 @@ cterm_igs_bitmap_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size,
 		igs->bitmap_received += remaining;
 		*accepted += remaining;
 	}
-	igs->bitmap_deadline = deadline(now);
+	igs->bitmap_deadline = igs->script.active?0:deadline(now);
 	return 0;
 }
 

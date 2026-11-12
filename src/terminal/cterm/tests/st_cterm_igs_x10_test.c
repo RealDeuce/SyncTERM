@@ -107,19 +107,12 @@ dispatch_and_arrays(void)
 				igs->math[0] = (int16_t)invalid[i];
 				feed(&f,"G#X 0]:"); position(igs,10,20,30,40);
 			}
-			/* X9 remains pending. Rejection cancels the graphics chain, so
-			 * the following M remains ordinary input, not a graphics command. */
-			const unsigned pending[] = {9};
-			for (size_t s = 0; s < sizeof(pending)/sizeof(*pending); ++s) {
-				unsigned selector = pending[s];
-				int prefix = snprintf(wire,sizeof(wire),"G#X>%u,",selector);
-				CHECK(prefix > 0 && (size_t)prefix+sizeof("1234:M 1:") <= sizeof(wire));
-				memcpy(wire+prefix,"1234:M 1:",sizeof("1234:M 1:"));
-				size_t used;
-				CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used) == 0);
-				CHECK(used == strlen(wire) && igs->attributes.writing_mode == 4);
-				position(igs,10,20,30,40);
-			}
+			/* X9's unsupported operation has its one-word no-op arity and
+			 * preserves the real chain boundary. All selectors now exist. */
+			feed(&f,"G#X>9,1234:M 1:");
+			CHECK(igs->attributes.writing_mode == 1);
+			position(igs,10,20,30,40);
+			feed(&f,"G#M 4:");
 		}
 		for (unsigned i = 0; i < 128; ++i) igs->math[i] = (int16_t)(1000+i);
 		igs->math[0] = -300; igs->math[1] = -123; igs->math[2] = -456; igs->math[127] = -2222;

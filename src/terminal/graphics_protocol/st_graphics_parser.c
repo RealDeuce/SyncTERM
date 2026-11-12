@@ -200,6 +200,28 @@ st_graphics_parser_resume(st_graphics_parser_t *p)
 	return 0;
 }
 
+int
+st_graphics_parser_take_continuation(st_graphics_parser_t *p,
+    struct st_graphics_continuation *continuation)
+{
+	if (p == NULL || continuation == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (p->state != SUSPENDED) return IO_ERROR_BUSY;
+	continuation->chained = p->view.chained;
+	st_graphics_parser_cancel(p);
+	return 0;
+}
+
+int
+st_graphics_parser_restore_continuation(st_graphics_parser_t *p,
+    const struct st_graphics_continuation *continuation)
+{
+	if (p == NULL || continuation == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (p->state != OUTSIDE || p->prefix_size != 0) return IO_ERROR_BUSY;
+	p->view.chained = continuation->chained;
+	p->state = SUSPENDED;
+	return 0;
+}
+
 static void
 append_field(st_graphics_parser_t *p)
 {
@@ -337,6 +359,20 @@ st_graphics_parser_end_bytes(st_graphics_parser_t *p,
 		return IO_ERROR_INVALID_ARGUMENT;
 	append_field(p);
 	int status = advance(p,sink);
+	if (status != 0 && status != IO_ERROR_IN_PROGRESS) st_graphics_parser_cancel(p);
+	return status;
+}
+
+int
+st_graphics_parser_end_text(st_graphics_parser_t *p,
+    const struct st_graphics_parser_sink *sink)
+{
+	if (p == NULL || !valid_sink(sink) || p->state != FIELD || !p->field_active
+	    || p->parameter.kind != ST_GRAPHICS_TEXT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	append_field(p);
+	p->arguments[p->view.count-1].ended_early = true;
+	int status = advance(p, sink);
 	if (status != 0 && status != IO_ERROR_IN_PROGRESS) st_graphics_parser_cancel(p);
 	return status;
 }

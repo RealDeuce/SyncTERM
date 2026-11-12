@@ -84,7 +84,21 @@ The existing music worker now supports continuous raw MIDI writes with
 retained framing/held voices and bounded software rendering; native
 `music_decode` and `music_stream` checks cover this component.
 N now integrates that worker and the shared six-byte note helper.
-Nested X9 script execution remains pending.
+X9 command acceptance passed. `cterm_igs_script` tests the
+shared-buffer loader and guarded clear, including every split, bytewise
+binary input, discarded lookahead/retained holes, both capacity outcomes,
+safe empty-length handling, local receive deadlines, cancellation and N
+storage sharing. X9 is enabled in the dispatcher and executes the live
+allocation through the existing parser, retaining the real caller's return
+boundary and shared loop state. Native checks cover recursive guards,
+file-mode flow/text/raw differences, local pause/abort, async waits,
+deferred input echo and EOF/reset recovery, plus every wire split across
+18 profiles and three scaling settings. `syncterm_igs_script` adds666
+coherent application captures across those18 profiles. The shared parser's explicit
+`end_text` operation preserves acquired payload and marks `ended_early`;
+`graphics_protocol_stream` covers empty/partial text, chain continuation,
+normal termination/limits, suspension, rejection and borrowed-view lifetime.
+Generic continuation checks cover nested-source return/chain ownership.
 Audio implements GIST/PSG behavior; buffered music uses SyncTERM MIDI facilities.
 Sound tests check functionality and lifecycle, without requiring identical PCM
 or reference-render comparisons. Listening is deferred to manual testing
@@ -2875,3 +2889,66 @@ captures in49.45s, application music in25.31s, native loop in0.39s and native
 note in0.41s. The full goal remains active at61/63.
 
 Completion commit for `&`: 1bfcfb1. The goal remains active at61/63.
+
+### X9: shared script/music loading and guarded execution
+
+X9 reads its unscaled operation with a committed selector/operand prefix,
+so random operands are evaluated once despite dynamic arity and split input.
+Operation0 loads the existing10001-byte N/script allocation. Both pipes are
+stored; terminator lookahead is consumed/discarded, failed lookahead leaves
+retained holes, and capacity is checked after that lookahead. The native
+final decrement excludes the last payload byte; fixtures use an explicit
+padding byte. Empty `||}` retains length0 safely. Loads retain old suffix,
+music count and cursors, do not poll local abort keys or send flow bytes,
+and use local5000ms receive deadlines for serial slots. Operation2 clears
+the fixed allocation and N count only for a nonempty script outside execution.
+
+Operation1 executes the live allocation through a serialized file attention
+owner and the existing graphics parser. Generic accepted continuations keep
+the actual caller's chain boundary while ending the old borrowed view; no
+argument snapshot, second parser or loop operand stack is created. Nested
+X9 load/execute/clear still reads its operation and clears the help gate,
+but is otherwise guarded. Other commands can modify the shared allocation.
+The file path shares command descriptions, typed operands and shared & state.
+File & omits serial setup/final flow calls and new-text-counter reset; file
+graphics-entry exit clears global loop mode. Deferred < replies echo live
+sent bytes and CR through the existing VT52 console after the whole chain.
+
+File text ends at NUL/EOF without appending a new NUL, preserving its old
+suffix. File X3/X4/N/X11 raw readers do not use serial receive clocks or
+timeout substitutions. Ordinary source bytes use US Atari console semantics
+through the existing VT52 parser, with no destructive-backspace expansion
+or final held-G flush. Command/chain NUL skips the body after acquiring both
+words. Each outer pass consumes one local keyboard word; Ctrl-S waits for
+exactly Ctrl-Q, including after Ctrl-C. Ordinary Ctrl-C ends a bounded source.
+Inner waits, notes and interactive queries/collection retain key ownership.
+Async completion and EOF/reset/error/disconnect unwind readers and saved
+serial flow once, preserving the real caller boundary and unread wire bytes.
+
+Safety corrections reject allocation escapes and counter overflow, retain
+zero for the native empty-load underflow, and cancel truncated numeric/raw
+fields or command pairs rather than supplying repeated artificial zero
+words. File text still completes early with an explicit EOF acquisition count.
+
+Native FreeBSD Release configure/full builds with /usr/bin/cc passed; final
+builds had no warnings/errors. All67 selected native checks passed in111.12s.
+Final extended native X9 passed in0.43s, including all splits/bytewise input
+across54 mode/encoding/status/scaling variants, literal US console output,
+loader/clear/guard/capacity/deadline cases, nested shared loops, opaque bitmap
+loads, live callback mutation, query/resolution waits and reset during reply.
+Application X9 passed666 coherent captures in42.17s across18 profiles using
+13 handwritten scene vectors plus load-only, wait/key and reconnect checks.
+Related18 native/application regressions passed in115.71s. Indexed phases,
+RGB/palette, cells and state share one coherent capture. The source-vector
+artifact pins five source identities and uses no external runtime assets.
+Headless tests disable physical audio/MIDI and claim no auditory coverage.
+The ledger is62/63 complete; parent X and final goal acceptance remain pending.
+
+Final source-switch review also verifies cooperative yields across130 short
+calls inside a serial loop and across independent callers, with no total
+iteration cutoff. A pending accepted call retains its local key and wire
+suffix. Budget/key regressions failed before their fixes. After the final
+warning-free full build, all68 acceptance checks passed in135.80s, including
+all native IGS tests and all666 application captures in42.17s. Native X9
+passed in0.52s (0.49s standalone). Parent X and final goal acceptance remain
+unfinished.

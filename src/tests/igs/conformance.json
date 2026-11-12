@@ -483,7 +483,7 @@
       "operations": [
         "Read one unscaled selector without clamping; out-of-range words consume no selector payload and perform no store/service/reply before normal chaining",
         "Reuse shared fixed-prefix and dynamic-tail descriptions for selector payloads; effect-free preview includes selector numeric state and real random operands commit once",
-        "Selectors 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14 and 15 implemented; pending valid 0..15 handlers warn after the selector; the adapter cancels the rejected grammar and continues the unread suffix through graphics/plain input without ending the session"
+        "All sixteen selectors (0..15) have handlers using shared fixed-prefix/dynamic descriptions; out-of-range selectors retain one-argument no-op arity. X9 now owns its raw load and live nested source. Parent X dispatch acceptance remains in progress."
       ],
       "tests": [
         "cterm_igs_x10",
@@ -515,7 +515,9 @@
         "cterm_igs_zone",
         "syncterm_igs_zone",
         "cterm_igs_left_mouse",
-        "syncterm_igs_left_mouse"
+        "syncterm_igs_left_mouse",
+        "cterm_igs_script",
+        "syncterm_igs_script"
       ],
       "deviations": [],
       "verification": [
@@ -3194,15 +3196,46 @@
       "phase": "loops-scripts",
       "references": [
         "13-dispatch-loops.adoc",
-        "21-extended-payloads.adoc"
+        "21-extended-payloads.adoc",
+        "173-delivery-script-entry.adoc"
       ],
       "order": 62,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "igs-preansi-input",
+        "N",
+        "&",
+        "<",
+        "?"
+      ],
+      "operations": [
+        "Read an unscaled operation once, including random/array operands; selector and operation prefixes commit once before raw entry. Unsupported operations are no-ops with normal chaining and help cleanup.",
+        "Operation 0 incrementally loads the existing 10001-byte shared N/script allocation with an independent script length: both pipes are stored, lookahead is consumed/discarded, failed lookahead retains holes, capacity is checked after lookahead and the final decrement excludes the last logical position. Preserve prior suffix, music count, cursors and local keys; no loader flow bytes.",
+        "Operation 2 clears exactly 10001 shared bytes and N byte count only for a nonempty script outside script execution. Empty-length and recursively guarded branches retain storage. All operation paths clear the help gate.",
+        "Operation 1 reads the live shared allocation without copying, through a serialized file attention owner and the existing command parser. Save only the real caller chain/dispatch/flow return boundary; no second parser or loop operand stack. Recursive X9 load/execute/clear reads its operation but is rejected.",
+        "File attention outputs US TOS console bytes through the existing VT52 parser, handles GG#/held G and command/chain NUL, omits destructive-backspace expansion and polls one local word after an outer pass. Ctrl-S waits for exactly Ctrl-Q, ignoring Ctrl-C during that wait; ordinary Ctrl-C aborts a bounded script.",
+        "File text ends at NUL/EOF without a new trailing NUL and retains the old shared suffix; generic end_text carries acquired payload and ended_early. File raw X3/X4/N/X11 readers have no serial receive clock or timeout substitution. Payload stays opaque and N shares the live allocation.",
+        "File & uses the same operand array/index, random/math/text state and gang dispatcher, without serial setup/final flow calls or new-text-counter reset. File graphics-entry exit clears loop mode. Deferred < replies echo each live transmitted byte and optional CR to the local console after the whole chain.",
+        "Translate waits into local deadlines, preserve async helper key ownership, and yield cooperatively without a total iteration limit. EOF/error/reset/disconnect unwind readers and saved serial flow exactly once; restore the actual caller boundary and preserve unread wire ownership without fabricated payload or unsafe reads."
+      ],
+      "tests": [
+        "cterm_igs_script",
+        "syncterm_igs_script",
+        "graphics_protocol_stream",
+        "graphics_protocol_source",
+        "cterm_igs_x10"
+      ],
+      "deviations": [
+        "The empty ||} load retains length zero instead of the original U32 underflow that permits escaped-memory script execution.",
+        "Truncated numeric/raw fields and command/chain pairs cancel the file entry safely and return to the real caller boundary rather than manufacturing repeated zero helper words. File text still completes early with its retained suffix and explicit EOF acquisition count. Reject allocation-bound escapes and avoid accidental counter overflow."
+      ],
+      "verification": [
+        "Native FreeBSD /usr/bin/cc Release CMake configure and full builds passed; final full build and final native fixture build had no warnings/errors. New loader, end_text and wire X9 tests failed at missing implementation before their code was added. All 67 selected native checks passed in 111.12s, including all registered native IGS tests, shared parser/source/stream and CTerm.",
+        "Final extended native X9 passed in 0.43s: literal loader outcomes/capacity/retention/guard/clear/deadline/cancellation, opaque bytes, shared N and X11 import, live callback mutation, source-derived RNG rejection seed, shared/nested & operands and exact serial flow, file text NUL/EOF, command/chain NUL, deferred input echo, q/t/query/resolution continuation, Ctrl-S/Q/C ownership, EOF/reset and reentrant reply reset. Every split and bytewise wire across 18 mode/encoding/status profiles times three scaling settings also checks US console bytes, GG#/final held G and non-destructive file Backspace.",
+        "Real transport/control-bitmap application X9 passed all 666 coherent captures in 42.17s across all 18 profiles: 13 handwritten raster/text/raw/script cases, unchanged load-only scene, source wait/key cancellation, queries and disconnect/reconnect. Related 18 checks passed in 115.71s, including native parser/input/loop/music/note/query/collection/macro/zone plus application loop/music/macro/zone/collection/query. Fixtures disable physical audio/MIDI; no auditory coverage claimed. Five pinned source identities and active registrations checked. Parent X and final goal acceptance remain unfinished.",
+        "Final source-switch fairness/key-ownership regressions failed before their fixes. After the final warning-free full build, all 68 acceptance checks passed in 135.80s, including all registered native IGS tests, shared parser/source/stream, CTerm and all 666 application X9 captures. Native X9 took 0.52s in that run (0.49s standalone). Short sources yield across an enclosing serial loop and independent caller batches, retain keys while an accepted call is pending, complete every intended iteration, preserve unread suffix and balance flow once. Ledger is 62/63 complete; parent X and final goal audit remain pending."
+      ],
       "commit": null
     }
   ]

@@ -70,6 +70,7 @@ int cterm_igs_music_load(struct cterm_igs *igs, int count)
 	if (count > CTERM_IGS_MUSIC_BYTES) return IO_ERROR_OUT_OF_RANGE;
 	m->loading = count > 0;
 	if (!m->loading) return 0;
+	if (igs->script.active) {m->receive_deadline=0;return 0;}
 	uint64_t now;
 	int status = igs->now_ms(&now);
 	if (status == 0) m->receive_deadline = receive_deadline(now);
@@ -81,10 +82,10 @@ int cterm_igs_music_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t si
 	struct cterm_igs_music *m = igs->music;
 	*accepted = 0; *end = false;
 	if (!m->loading || size > (size_t)m->local_count - m->received) return IO_ERROR_PROTOCOL;
-	uint64_t now;
-	int status = igs->now_ms(&now);
+	uint64_t now=0;
+	int status = igs->script.active ? 0 : igs->now_ms(&now);
 	if (status != 0) return status;
-	bool expired = now >= m->receive_deadline;
+	bool expired = !igs->script.active && now >= m->receive_deadline;
 	if (expired && size != 0) {
 		const uint8_t bell = 7;
 		status = cterm_vt52_output(igs->terminal, &bell, 1);
@@ -102,7 +103,7 @@ int cterm_igs_music_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t si
 			break;
 		}
 	}
-	m->receive_deadline = receive_deadline(now);
+	m->receive_deadline = igs->script.active?0:receive_deadline(now);
 	return 0;
 }
 static int complete(struct cterm_igs *igs)
@@ -112,7 +113,7 @@ static int complete(struct cterm_igs *igs)
 	m->receive_deadline = 0; igs->wait_deadline = 0;
 	int status = end_flow(igs);
 	if (status != 0) return status;
-	return cterm_igs_forward_keys(igs);
+	return igs->script.active?0:cterm_igs_forward_keys(igs);
 }
 static int midi_byte(struct cterm_igs *igs, uint8_t byte)
 {
@@ -217,6 +218,10 @@ void cterm_igs_music_inspect(const struct cterm_igs *igs, struct st_console_test
 	st_console_test_number(app, "cterm.igs_music_buffer", hash);
 	st_console_test_number(app, "cterm.igs_music_count", m->count);
 	st_console_test_number(app, "cterm.igs_script_length", m->script_length);
+#define SCRIPT_FIELD(name) st_console_test_number(app,"cterm.igs_script_" #name,igs->script.name)
+	SCRIPT_FIELD(active); SCRIPT_FIELD(loading); SCRIPT_FIELD(received);
+	SCRIPT_FIELD(cursor); SCRIPT_FIELD(parsed); SCRIPT_FIELD(paused); SCRIPT_FIELD(cooperative);
+#undef SCRIPT_FIELD
 	st_console_test_number(app, "cterm.igs_midi_enabled", m->midi_enabled);
 	st_console_test_number(app, "cterm.igs_music_loading", m->loading);
 	st_console_test_number(app, "cterm.igs_music_received", (int64_t)m->received);

@@ -17,6 +17,7 @@ struct capture {
 	size_t stop, limit;
 	int fail;
 	bool zero, overflow, immediate, suspend;
+	bool early;
 	const uint8_t *borrowed;
 };
 
@@ -72,6 +73,16 @@ static int
 command(void *context, const struct st_graphics_command_view *view)
 {
 	struct capture *c = context; ++c->commands;
+	if (view->code == 'T') {
+		CHECK(view->count == 1 && view->arguments[0].kind == ST_GRAPHICS_TEXT);
+		c->payload_size = view->arguments[0].size;
+		CHECK(c->payload_size <= sizeof(c->payload));
+		if (c->payload_size != 0) memcpy(c->payload, view->arguments[0].bytes, c->payload_size);
+		c->early = view->arguments[0].ended_early;
+		c->borrowed = view->arguments[0].bytes;
+		return c->fail != 0 ? c->fail : c->suspend ? IO_ERROR_IN_PROGRESS : 0;
+	}
+	for (size_t i = 0; i < view->count; ++i) CHECK(!view->arguments[i].ended_early);
 	if (view->code == 'Z') {
 		CHECK(view->count == 2 && view->arguments[0].size == 3 && view->arguments[1].size == 2);
 		CHECK(memcmp(view->arguments[0].bytes,"\0G#",3) == 0 && memcmp(view->arguments[1].bytes,">\033",2) == 0);
@@ -91,7 +102,9 @@ command(void *context, const struct st_graphics_command_view *view)
 
 static const struct st_graphics_parameter number[] = {{.kind = ST_GRAPHICS_NUMBER}};
 static const struct st_graphics_parameter pair[] = {{.kind = ST_GRAPHICS_BYTES,.size = 3},{.kind = ST_GRAPHICS_BYTES,.size = 2}};
-static const struct st_graphics_command commands[] = {{'V',number,1,next},{'M',number,1,NULL},{'Z',pair,2,NULL}};
+static const struct st_graphics_parameter string[] = {{.kind = ST_GRAPHICS_TEXT, .size = 5,
+    .terminator = '@', .skip_crlf = true, .empty_is_terminator = true}};
+static const struct st_graphics_command commands[] = {{'V',number,1,next},{'M',number,1,NULL},{'Z',pair,2,NULL},{'T',string,1,NULL}};
 static const uint8_t attention[] = {'G','#'};
 static const struct st_graphics_dialect dialect = {.attention = attention,.attention_size = 2,
     .chain_indicator = true,.chain = '>',.number_skip_crlf = true,.number_digits = 4};
@@ -100,7 +113,7 @@ static int
 create(st_graphics_parser_t **p, struct st_graphics_parser_sink *sink, struct capture *c, size_t capacity)
 {
 	const struct st_graphics_parser_config config = {.dialect = &dialect,.commands = commands,
-	    .command_count = 3,.max_arguments = 8,.max_payload = capacity};
+	    .command_count = sizeof(commands)/sizeof(*commands),.max_arguments = 8,.max_payload = capacity};
 	*sink = (struct st_graphics_parser_sink){.context = c,.text = text,.command = command,.field = field,.raw = raw};
 	return st_graphics_parser_create(p,&config);
 }
@@ -199,8 +212,83 @@ owner_end_and_suspend(void)
 	st_graphics_parser_destroy(p); return 0;
 }
 
+static int
+owner_text_end(void)
+{
+	static const uint8_t wire[] = "G#T>ab\r\n#";
+	for (size_t split = 0; split < sizeof(wire); ++split) {
+		st_graphics_parser_t *p = NULL; struct capture c = {0}; struct st_graphics_parser_sink s; size_t used;
+		CHECK(create(&p, &s, &c, 512) == 0);
+		CHECK(st_graphics_parser_feed(p, &s, wire, split, &used) == 0 && used == split);
+		CHECK(st_graphics_parser_feed(p, &s, wire+split, sizeof(wire)-1-split, &used) == 0 && used == sizeof(wire)-1-split);
+		CHECK(c.commands == 0 && c.fields == 1 && c.text_size == 0);
+		CHECK(st_graphics_parser_end_text(p, &s) == 0);
+		CHECK(c.commands == 1 && c.early && c.payload_size == 3 && memcmp(c.payload, "ab#", 3) == 0);
+		CHECK(st_graphics_parser_end_text(p, &s) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"M 2:TAIL", 8, &used) == 0 && used == 8);
+		CHECK(c.commands == 2 && c.text_size == 4 && memcmp(c.text, "TAIL", 4) == 0);
+		st_graphics_parser_destroy(p);
+	}
+	/* Explicit empty end does not invent the dialect's literal @. Ordinary
+	 * termination and reaching the length limit retain their normal meaning. */
+	for (unsigned mode = 0; mode < 4; ++mode) {
+		st_graphics_parser_t *p = NULL; struct capture c = {0}; struct st_graphics_parser_sink s; size_t used;
+		CHECK(create(&p, &s, &c, 5) == 0);
+		CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"G#T ", 4, &used) == 0 && used == 4);
+		if (mode == 0) CHECK(st_graphics_parser_end_text(p, &s) == 0);
+		else if (mode == 1) CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"@", 1, &used) == 0 && used == 1);
+		else if (mode == 2) CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"abcde", 5, &used) == 0 && used == 5);
+		else {
+			CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"a\0b", 3, &used) == 0 && used == 3);
+			CHECK(st_graphics_parser_end_text(p, &s) == 0);
+		}
+		CHECK(c.commands == 1 && c.early == (mode == 0 || mode == 3));
+		CHECK(c.payload_size == ((size_t[]){0,1,5,3})[mode]);
+		if (mode == 1) CHECK(c.payload[0] == '@');
+		if (mode == 2) CHECK(memcmp(c.payload, "abcde", 5) == 0);
+		if (mode == 3) CHECK(memcmp(c.payload, "a\0b", 3) == 0);
+		CHECK(st_graphics_parser_end_text(p, &s) == IO_ERROR_INVALID_ARGUMENT);
+		st_graphics_parser_destroy(p);
+	}
+	/* An accepted callback keeps its early-ended view through suspension;
+	 * an error cancels it, leaving future input available to ordinary text. */
+	for (unsigned error = 0; error < 2; ++error) {
+		st_graphics_parser_t *p = NULL; struct capture c = {.suspend = !error, .fail = error ? IO_ERROR_IO : 0};
+		struct st_graphics_parser_sink s; size_t used;
+		CHECK(create(&p, &s, &c, 5) == 0);
+		CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"G#T abc", 7, &used) == 0 && used == 7);
+		CHECK(st_graphics_parser_end_text(p, &s) == (error ? IO_ERROR_IO : IO_ERROR_IN_PROGRESS));
+		CHECK(c.commands == 1 && c.early && c.payload_size == 3);
+		if (!error) {
+			CHECK(memcmp(c.borrowed, "abc", 3) == 0);
+			CHECK(st_graphics_parser_end_text(p, &s) == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"TAIL", 4, &used) == IO_ERROR_IN_PROGRESS && used == 0);
+			CHECK(st_graphics_parser_resume(p) == 0);
+		}
+		CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"TAIL", 4, &used) == 0 && used == 4);
+		CHECK(c.commands == 1 && c.text_size == 4 && memcmp(c.text, "TAIL", 4) == 0);
+		st_graphics_parser_destroy(p);
+	}
+	/* Source policy must opt in. finish() still rejects a truncated TEXT;
+	 * end_text cannot terminate a number or a raw field. */
+	st_graphics_parser_t *p = NULL; struct capture c = {0}; struct st_graphics_parser_sink s; size_t used;
+	CHECK(create(&p, &s, &c, 512) == 0);
+	CHECK(st_graphics_parser_end_text(NULL, &s) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_graphics_parser_end_text(p, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"G#V ", 4, &used) == 0);
+	CHECK(st_graphics_parser_end_text(p, &s) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"3:a", 3, &used) == 0);
+	CHECK(st_graphics_parser_end_text(p, &s) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"bc", 2, &used) == 0 && c.commands == 1);
+	CHECK(st_graphics_parser_feed(p, &s, (const uint8_t *)"G#T abc", 7, &used) == 0);
+	CHECK(st_graphics_parser_finish(p, &s) == IO_ERROR_PROTOCOL && c.commands == 1);
+	st_graphics_parser_destroy(p);
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(partitions() == 0); CHECK(early_end_and_errors() == 0); CHECK(owner_end_and_suspend() == 0); return 0;
+	CHECK(partitions() == 0); CHECK(early_end_and_errors() == 0); CHECK(owner_end_and_suspend() == 0);
+	CHECK(owner_text_end() == 0); return 0;
 }

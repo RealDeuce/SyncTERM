@@ -237,8 +237,48 @@ static int suspended_selection(void)
 	CHECK(c.arguments[1][0].has_value && c.arguments[1][0].value==-9 && c.fields==3 && c.numbers==2 && !st_graphics_parser_in_command(p));
 	st_graphics_parser_destroy(p);return 0;
 }
+static int continuations(void)
+{
+	for (unsigned chained=0;chained<2;++chained) {
+		st_graphics_parser_t *p=NULL;struct st_graphics_parser_sink sink;struct capture c={.suspend=true};size_t used;
+		struct st_graphics_continuation parent={.chained=!chained};
+		CHECK(create(&p,&sink,&c,8)==0);
+		CHECK(st_graphics_parser_take_continuation(p,&parent)==IO_ERROR_BUSY && parent.chained==!chained);
+		const char *wire=chained?"G#T>0:ab@TAIL":"G#T 0:ab@TAIL";
+		CHECK(st_graphics_parser_feed(p,&sink,(const uint8_t *)wire,strlen(wire),&used)==IO_ERROR_IN_PROGRESS && used==9);
+		CHECK(c.commands==1 && c.borrowed_size==2 && memcmp(c.borrowed,"ab",2)==0);
+		CHECK(st_graphics_parser_restore_continuation(p,&parent)==IO_ERROR_BUSY && memcmp(c.borrowed,"ab",2)==0);
+		CHECK(st_graphics_parser_take_continuation(p,&parent)==0 && parent.chained==(bool)chained);
+		CHECK(!st_graphics_parser_in_command(p));
+		c.suspend=false;
+		CHECK(feed(p,&sink,"G#S 7:",6)==0 && c.commands==2);
+		CHECK(st_graphics_parser_restore_continuation(p,&parent)==0);
+		CHECK(st_graphics_parser_feed(p,&sink,(const uint8_t *)"TAIL",4,&used)==IO_ERROR_IN_PROGRESS && used==0);
+		CHECK(c.commands==2 && c.text_size==0);
+		CHECK(st_graphics_parser_resume(p)==0);
+		if(chained) CHECK(feed(p,&sink,"S 2:",4)==0 && c.commands==3 && c.arguments[2][0].operand.value==2);
+		CHECK(feed(p,&sink,"TAIL",4)==0 && c.text_size==4 && memcmp(c.text,"TAIL",4)==0);
+		st_graphics_parser_destroy(p);
+	}
+	st_graphics_parser_t *p=NULL;struct st_graphics_parser_sink sink;struct capture c={0};
+	struct st_graphics_continuation parent={.chained=true};
+	CHECK(create(&p,&sink,&c,8)==0);
+	CHECK(st_graphics_parser_take_continuation(NULL,&parent)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_graphics_parser_take_continuation(p,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_graphics_parser_restore_continuation(NULL,&parent)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_graphics_parser_restore_continuation(p,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(feed(p,&sink,"G",1)==0);
+	CHECK(st_graphics_parser_restore_continuation(p,&parent)==IO_ERROR_BUSY);
+	CHECK(feed(p,&sink,"#S 2",4)==0);
+	CHECK(st_graphics_parser_take_continuation(p,&parent)==IO_ERROR_BUSY && parent.chained);
+	CHECK(st_graphics_parser_restore_continuation(p,&parent)==IO_ERROR_BUSY);
+	CHECK(feed(p,&sink,":",1)==0 && c.commands==1 && c.arguments[0][0].operand.value==2);
+	st_graphics_parser_destroy(p);
+	return 0;
+}
+
 int main(void)
 {
 	CHECK(mixed_partitions()==0);CHECK(waits_and_fallback()==0);CHECK(payloads_and_errors()==0);
-	CHECK(direct_commands()==0);CHECK(suspended_selection()==0);return 0;
+	CHECK(direct_commands()==0);CHECK(suspended_selection()==0);CHECK(continuations()==0);return 0;
 }

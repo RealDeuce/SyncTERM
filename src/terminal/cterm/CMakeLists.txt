@@ -84,6 +84,7 @@ add_library(st_cterm STATIC
 	cterm_igs_mouse.c
 	cterm_igs_collect.c
 	cterm_igs_loop.c
+	cterm_igs_script.c
 	cterm_igs_audio.c
 	cterm_igs_state.c
 	cterm_igs_math.c
@@ -806,6 +807,17 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_igs_loop COMMAND st_cterm_igs_loop_test)
 	set_tests_properties(cterm_igs_loop PROPERTIES TIMEOUT 30)
+	add_executable(st_cterm_igs_script_test tests/st_cterm_igs_script_test.c)
+	target_link_libraries(st_cterm_igs_script_test PRIVATE st_cterm st_igs)
+	set_target_properties(st_cterm_igs_script_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_igs_script_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_igs_script_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_igs_script COMMAND st_cterm_igs_script_test)
+	set_tests_properties(cterm_igs_script PROPERTIES TIMEOUT 30)
 	add_executable(st_cterm_igs_music_test tests/st_cterm_igs_music_test.c
 		tests/st_cterm_igs_audio_bindings.c)
 	target_link_libraries(st_cterm_igs_music_test PRIVATE st_cterm st_igs syncterm_threads)

@@ -126,9 +126,19 @@ int cterm_igs_collect_send(struct cterm_igs *igs)
 		if (igs->terminal->keystroke_cb!=NULL)
 			igs->terminal->keystroke_cb(&byte,1,igs->terminal->keystroke_cbdata);
 		if (igs->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (igs->script.active) {
+			/* File dispatch rereads the byte after serial output. */
+			status=echo(igs,&c->bytes[i],1);
+			if (status!=0) break;
+		}
 	}
-	if (status==0 && c->append_cr!=0 && igs->terminal->keystroke_cb!=NULL)
-		igs->terminal->keystroke_cb("\r",1,igs->terminal->keystroke_cbdata);
+	if (status==0 && c->append_cr!=0) {
+		if (igs->terminal->keystroke_cb!=NULL)
+			igs->terminal->keystroke_cb("\r",1,igs->terminal->keystroke_cbdata);
+		if (igs->script.active && !igs->reset_pending) {
+			const uint8_t cr=13; status=echo(igs,&cr,1);
+		}
+	}
 	igs->input.sending=sending;
 	return igs->reset_pending?IO_ERROR_INTERRUPTED:status;
 }

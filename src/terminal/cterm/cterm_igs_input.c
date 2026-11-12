@@ -18,7 +18,7 @@
 bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 {
 	struct cterm_igs_input *m = &igs->input;
-	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active && !igs->collect.active && !igs->loop.run && !igs->loop.initializing) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
+	if ((!igs->script.active && !igs->script.starting && !igs->script.cooperative && !igs->script.loading && !igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active && !igs->collect.active && !igs->loop.run && !igs->loop.initializing) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
 	m->keys[(m->key_first + m->key_count) % CTERM_IGS_INPUT_KEYS] = *key;
 	++m->key_count;
 	return true;
@@ -97,6 +97,7 @@ int cterm_igs_zone_control(struct cterm_igs *igs, int zone)
 }
 static int auxiliary_begin(struct cterm_igs *igs, uint64_t *due)
 {
+	if (igs->script.active) { *due=0; return 0; }
 	int status = igs->loop_mode == 1 ? cterm_igs_flow(igs, true) : 0;
 	/* The first auxiliary read starts after any flow output/readiness. */
 	uint64_t now;
@@ -132,10 +133,10 @@ static int auxiliary_bytes(struct cterm_igs *igs, uint8_t *destination, size_t l
 {
 	*accepted = 0;
 	if (*received > length || size > length+1-*received) return IO_ERROR_PROTOCOL;
-	uint64_t now;
-	int status = igs->now_ms(&now);
+	uint64_t now=0;
+	int status = igs->script.active ? 0 : igs->now_ms(&now);
 	if (status != 0) return status;
-	bool expired = now >= *due;
+	bool expired = !igs->script.active && now >= *due;
 	if (expired && size != 0) {
 		const uint8_t bell = 7;
 		status = cterm_vt52_output(igs->terminal, &bell, 1);
@@ -145,7 +146,7 @@ static int auxiliary_bytes(struct cterm_igs *igs, uint8_t *destination, size_t l
 		if (*received < length) destination[*received] = expired && *accepted == 0 ? ' ' : bytes[*accepted];
 		++*received; ++*accepted;
 	}
-	*due = deadline(now);
+	*due = igs->script.active?0:deadline(now);
 	return 0;
 }
 int cterm_igs_macro_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size, size_t *accepted)

@@ -44,6 +44,7 @@ static int bitmap_next(void *, const struct st_graphics_command_view *, struct s
 static int zone_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int macro_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int flow_mode_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int script_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int unscaled_tail_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command extended_commands[] = {
 	{0, point_parameters, 4, unscaled_tail_next},
@@ -55,6 +56,7 @@ static const struct st_graphics_command extended_commands[] = {
 	{6, unscaled_parameters, 1, NULL},
 	{7, unscaled_parameters, 1, pattern_load_next},
 	{8, unscaled_parameters, 4, NULL},
+	{9, unscaled_parameters, 1, script_next},
 	{10, point_parameters, 2, NULL},
 	{11, unscaled_parameters, 2, bitmap_next},
 	{12, unscaled_parameters, 1, palette_group_next},
@@ -72,6 +74,19 @@ preview_first(void *context, const struct st_graphics_command_view *view, int *v
 		return IO_ERROR_PROTOCOL;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	return cterm_igs_argument_value(&preview, &view->arguments[0], value);
+}
+
+static int
+script_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	struct cterm_igs *igs=context;
+	int operation=igs->script.operation;
+	int status=igs->script.operand_ready?0:preview_first(context,view,&operation);
+	*result=operation==0 && !igs->script.active && view->count==1
+	    ? (struct st_graphics_parameter){.kind=ST_GRAPHICS_BYTES,.size=10001}
+	    : (struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	return status;
 }
 
 static int
@@ -445,7 +460,9 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 	int selector;
 	struct cterm_igs preview = *(struct cterm_igs *)context;
 	int status = 0;
-	if (preview.input.left_configuring)
+	if (preview.script.configuring)
+		selector = 9;
+	else if (preview.input.left_configuring)
 		selector = 6;
 	else if (preview.input.zone_configuring)
 		selector = 4;
@@ -535,6 +552,7 @@ cancel_input(struct cterm_igs *igs)
 {
 	igs->reset_pending = false;
 	cterm_render_record_error(igs->terminal,cterm_igs_loop_cancel(igs));
+	cterm_render_record_error(igs->terminal,cterm_igs_script_cancel(igs));
 	cterm_render_record_error(igs->terminal,cterm_igs_collect_cancel(igs));
 	cterm_render_record_error(igs->terminal,cterm_igs_query_cancel(igs));
 	cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
@@ -733,8 +751,13 @@ store_text(struct cterm_igs *igs, const struct st_graphics_argument *text)
 	if (text->kind != ST_GRAPHICS_TEXT || text->size > 128)
 		return IO_ERROR_PROTOCOL;
 	memcpy(igs->shared_text, text->bytes, text->size);
-	igs->shared_text[text->size] = 0;
-	igs->shared_text_size = text->size;
+	if (!text->ended_early) {
+		igs->shared_text[text->size] = 0; igs->shared_text_size = text->size;
+	} else {
+		igs->shared_text_size = 0;
+		while (igs->shared_text_size < 128 && igs->shared_text[igs->shared_text_size] != 0)
+			++igs->shared_text_size;
+	}
 	return 0;
 }
 
@@ -768,6 +791,7 @@ field_entry(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
 	struct cterm_igs *igs = context;
+	if (igs->script.active) igs->script.text=parameter->kind==ST_GRAPHICS_TEXT;
 	int loop_status=cterm_igs_loop_field(igs,view,parameter);
 	if (loop_status!=0 || view->code=='&') return loop_status;
 	if (view->code == 'N') {
@@ -807,10 +831,23 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 		int selector;
 		int status = cterm_igs_argument_value(&preview, &view->arguments[0], &selector);
 		if (status != 0) return status;
+		if (selector == 9) {
+			igs->random_seed=preview.random_seed;
+			igs->script.configuring=true;
+			igs->script.operand_ready=false;
+		}
 		if (selector == 6) {
 			igs->random_seed = preview.random_seed;
 			igs->input.left_configuring = true;
 		}
+	}
+	if (view->code=='X' && igs->script.configuring && view->count==2) {
+		int status=cterm_igs_argument_value(igs,&view->arguments[1],&igs->script.operation);
+		if (status!=0) return status;
+		igs->script.operand_ready=true;
+		if (igs->script.operation==0 && !igs->script.active && parameter->kind==ST_GRAPHICS_BYTES)
+			return cterm_igs_script_load(igs);
+		return 0;
 	}
 	bool pattern = false;
 	if (view->code == 'X' && view->count >= 2) {
@@ -935,7 +972,7 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 				igs->loop_kind = ' ';
 		}
 	}
-	if ((view->code != 'W' && !pattern) || parameter->kind != ST_GRAPHICS_TEXT) return 0;
+	if ((view->code != 'W' && !pattern) || parameter->kind != ST_GRAPHICS_TEXT || igs->script.active) return 0;
 	uint64_t now;
 	int status = igs->now_ms(&now);
 	if (status != 0) return status;
@@ -1002,6 +1039,20 @@ execute_command(void *context, const struct st_graphics_command_view *view)
 	int values[1+2*CTERM_IGS_MAX_POINTS];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
+	if (view->code=='X' && igs->script.configuring) {
+		struct cterm_igs_script *s=&igs->script;
+		int status=0;
+		if (view->count==2) status=cterm_igs_argument_value(igs,&view->arguments[1],&s->operation);
+		else if (view->count!=3 || s->operation!=0 || s->loading) status=IO_ERROR_PROTOCOL;
+		s->configuring=s->operand_ready=false;s->disabled=false;
+		if (status!=0 || s->active) return status;
+		if (s->operation==2) cterm_igs_script_clear(igs);
+		if (s->operation==1 && igs->music->script_length!=0) {
+			s->starting=true;
+			return IO_ERROR_IN_PROGRESS;
+		}
+		return 0;
+	}
 	if (view->code=='<' && igs->collect.configuring) {
 		int options;
 		igs->collect.configuring=false;
@@ -1354,6 +1405,10 @@ static int
 end_entry(struct cterm_igs *igs, bool chained)
 {
 	if (chained) return 0;
+	if (igs->script.active) {
+		igs->loop_mode=0; igs->loop_kind=' '; igs->loop.ganged=false;
+		return cterm_igs_collect_send(igs);
+	}
 	int status=cterm_igs_collect_send(igs);
 	if (status==0) status=cterm_igs_input_activate(igs);
 	if (status==0 && (igs->input.held || igs->input.left_held)) {
@@ -1368,8 +1423,13 @@ command(void *context, const struct st_graphics_command_view *view)
 	struct cterm_igs *igs=context;
 	if (view->code=='&' && igs->loop.initializing) return cterm_igs_loop_begin(igs,view);
 	int status=execute_command(context,view);
+	if (igs->script.starting) return status;
 	if (igs->loop.run) {
 		if (status==0) {igs->loop.next=true;return IO_ERROR_IN_PROGRESS;}
+		return status;
+	}
+	if (igs->script.active) {
+		if (status==0) {igs->script.ready=true; return IO_ERROR_IN_PROGRESS;}
 		return status;
 	}
 	return status==0?end_entry(igs,view->chained):status;
@@ -1379,6 +1439,7 @@ static int
 resume_parser(struct cterm_igs *igs)
 {
 	if (igs->loop.run) {igs->loop.next=true;return 0;}
+	if (igs->script.active) {igs->script.ready=true;return 0;}
 	int status = st_graphics_parser_resume(igs->parser);
 	if (status == 0 && !st_graphics_parser_in_command(igs->parser)) {
 		bool feeding=igs->feeding; igs->feeding=true;
@@ -1407,6 +1468,12 @@ raw(void *context, const struct st_graphics_command_view *view,
     const uint8_t *bytes, size_t size, size_t *accepted, bool *end)
 {
 	struct cterm_igs *igs = context;
+	if (igs->script.loading) {
+		if (view->code!='X' || parameter->kind!=ST_GRAPHICS_BYTES || offset!=igs->script.received) {
+			*accepted=0; return IO_ERROR_PROTOCOL;
+		}
+		return cterm_igs_script_bytes(igs,bytes,size,accepted,end);
+	}
 	if (view->code == 'N') {
 		if (parameter->kind != ST_GRAPHICS_BYTES || offset != igs->music->received) {
 			*accepted = 0; return IO_ERROR_PROTOCOL;
@@ -1452,6 +1519,7 @@ drive_parser(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used
 			if (!l->initial && (igs->loop_mode!=1 || !l->bad)) {
 				bool chained=l->chained;
 				int status=cterm_igs_loop_end(igs);
+				if (status==0 && igs->script.active) {igs->script.ready=true; return IO_ERROR_IN_PROGRESS;}
 				if (status==0) status=end_entry(igs,chained);
 				if (status==0) status=st_graphics_parser_resume(igs->parser);
 				if (status!=0) return status;
@@ -1475,6 +1543,170 @@ drive_parser(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used
 		int status=st_graphics_parser_feed(igs->parser,&callbacks,bytes==NULL?NULL:bytes+*used,size-*used,&consumed);
 		*used+=consumed;
 		if (status==IO_ERROR_IN_PROGRESS && l->run && l->next) continue;
+		return status;
+	}
+}
+
+/* The file attention owner acquires command/chain words; field grammar and
+ * repeated bodies still use the one shared parser above. Cursor denotes the
+ * next unread byte, equivalent to the native helper's last-byte cursor plus
+ * one. Every byte is fetched from the live music allocation at use time. */
+static int
+drive_script(struct cterm_igs *igs)
+{
+	struct cterm_igs_script *s=&igs->script;
+	struct st_graphics_parser_sink callbacks=sink(igs);
+	s->cooperative=false;
+	for (unsigned work=0;work<1024;++work) {
+		if (igs->reset_pending) return IO_ERROR_INTERRUPTED;
+		if (s->post || s->paused) {
+			int key=cterm_igs_take_key(igs);
+			if (s->paused) {
+				if (key!=17) {
+					if (igs->input.key_count!=0) continue;
+					return IO_ERROR_IN_PROGRESS;
+				}
+				s->paused=false;
+			} else if (key==19) {s->paused=true;continue;}
+			else if (key==3) {
+				size_t total=igs->music->script_length;
+				s->parsed=total==SIZE_MAX?SIZE_MAX:total+1;
+			}
+			s->post=false;
+		}
+		if (s->ready) {
+			int status=end_entry(igs,s->chained);
+			if (status!=0) return status;
+			s->ready=false;
+			st_graphics_parser_cancel(igs->parser);
+			if (s->chained) s->header=true;
+			else s->post=true;
+			continue;
+		}
+		if (s->header) {
+			/* Both acquisitions occur even when the first byte is NUL. An
+			 * incomplete pair is invalid source input, never fabricated RAM. */
+			if (s->cursor>=igs->music->script_length || s->cursor>=CTERM_IGS_MUSIC_BYTES) return IO_ERROR_PROTOCOL;
+			uint8_t code=igs->music->bytes[s->cursor++];++s->parsed;
+			if (s->cursor>=igs->music->script_length || s->cursor>=CTERM_IGS_MUSIC_BYTES) return IO_ERROR_PROTOCOL;
+			uint8_t chain=igs->music->bytes[s->cursor++];++s->parsed;
+			s->chained=chain=='>';s->header=false;s->text=false;
+			if (code==0 || chain==0) {s->ready=true;continue;}
+			int status=st_graphics_parser_start_command(igs->parser,&callbacks,code,s->chained);
+			if (status==IO_ERROR_NOT_SUPPORTED) {unknown(igs,code);s->ready=true;continue;}
+			if (status!=0) return status;
+		}
+		if (st_graphics_parser_in_command(igs->parser)) {
+			size_t used;
+			/* Establish field effects before fetching the next live byte. */
+			int status=drive_parser(igs,NULL,0,&used);
+			if (status==IO_ERROR_IN_PROGRESS) {
+				if (s->ready) continue;
+				return status;
+			}
+			if (status!=0) return status;
+			if (s->cursor>=CTERM_IGS_MUSIC_BYTES && s->cursor<igs->music->script_length) return IO_ERROR_OUT_OF_RANGE;
+			if (s->cursor>=igs->music->script_length) {
+				if (!s->text) return IO_ERROR_PROTOCOL;
+				++s->cursor;++s->parsed;
+				status=st_graphics_parser_end_text(igs->parser,&callbacks);
+			} else {
+				uint8_t byte=igs->music->bytes[s->cursor];
+				if (s->text && byte==0) {
+					++s->cursor;++s->parsed;
+					status=st_graphics_parser_end_text(igs->parser,&callbacks);
+				} else {
+					status=drive_parser(igs,&byte,1,&used);
+					s->cursor+=used;s->parsed+=used;
+				}
+			}
+			if (status==IO_ERROR_IN_PROGRESS) {
+				if (s->ready) continue;
+				return status;
+			}
+			if (status!=0) return status;
+			continue;
+		}
+		if (s->parsed>=igs->music->script_length || s->cursor>=igs->music->script_length) return 0;
+		if (s->cursor>=CTERM_IGS_MUSIC_BYTES) return IO_ERROR_OUT_OF_RANGE;
+		uint8_t byte=igs->music->bytes[s->cursor++];++s->parsed;
+		int status=0;
+		if (s->pending_g && (byte!='#' || s->disabled)) {
+			const uint8_t g='G';status=cterm_vt52_output(igs->terminal,&g,1);
+			if (status==0 && byte!='G') status=cterm_vt52_output(igs->terminal,&byte,1);
+		} else if (!s->pending_g && byte!='G') status=cterm_vt52_output(igs->terminal,&byte,1);
+		bool dispatch=s->pending_g && byte=='#' && !s->disabled;
+		s->pending_g=byte=='G';
+		if (status!=0) return status;
+		if (dispatch) s->header=true;
+		else s->post=true;
+	}
+	s->cooperative=true;
+	return IO_ERROR_IN_PROGRESS;
+}
+
+static int
+return_script(struct cterm_igs *igs,bool failed)
+{
+	struct cterm_igs_script *s=&igs->script;
+	struct st_graphics_continuation continuation={.chained=s->return_chained};
+	bool loop=s->return_loop,flow=s->return_flow;
+	if (failed) {
+		/* Retain accepted stores/output, unwind readers, then return to the
+		 * caller's real boundary. No script bytes leak into the wire parser. */
+		s->return_flow=false;
+		cancel_input(igs);
+		igs->loop_mode=0;
+		if (igs->reset_pending) return IO_ERROR_INTERRUPTED;
+	} else {
+		st_graphics_parser_cancel(igs->parser);
+		s->active=s->starting=s->ready=s->paused=s->cooperative=s->return_flow=false;
+		s->disabled=false;
+	}
+	int status=st_graphics_parser_restore_continuation(igs->parser,&continuation);
+	if (status!=0) return status;
+	if (loop) {
+		igs->loop.run=igs->loop.next=true;igs->loop.initial=false;
+		igs->loop.did_flow=flow;igs->loop.chained=continuation.chained;
+		return 0;
+	}
+	status=end_entry(igs,continuation.chained);
+	return status==0?st_graphics_parser_resume(igs->parser):status;
+}
+
+static int
+drive_input(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used)
+{
+	struct cterm_igs_script *s=&igs->script;
+	*used=0;
+	s->cooperative=false;
+	for (unsigned work=0;;++work) {
+		/* Short sources can return into an enclosing loop or another X9
+		 * in this same wire batch. Their combined owner work also yields. */
+		if (work>=64) {s->cooperative=true;return IO_ERROR_IN_PROGRESS;}
+		if (s->starting) {
+			struct st_graphics_continuation continuation;
+			int status=st_graphics_parser_take_continuation(igs->parser,&continuation);
+			if (status!=0) return status;
+			s->return_chained=continuation.chained;
+			s->return_loop=igs->loop.run;s->return_flow=igs->loop.did_flow;
+			igs->loop.run=igs->loop.next=igs->loop.selecting=igs->loop.waiting=igs->loop.cooperative=igs->loop.did_flow=false;
+			s->starting=false;s->active=true;s->cursor=s->parsed=0;
+			s->ready=s->header=s->pending_g=s->paused=s->post=s->text=false;
+			igs->input_deadline=igs->text_deadline=0;
+		}
+		if (s->active) {
+			int status=drive_script(igs);
+			if (igs->reset_pending) return IO_ERROR_INTERRUPTED;
+			if (status==IO_ERROR_IN_PROGRESS) return status;
+			if (status!=0) cterm_log(igs->terminal,ST_CTERM_LOG_WARNING,"IGS script rejected (%d); returning to caller",status);
+			status=return_script(igs,status!=0);
+			if (status!=0) return status;
+		}
+		size_t consumed;
+		int status=drive_parser(igs,bytes==NULL?NULL:bytes+*used,size-*used,&consumed);
+		*used+=consumed;
+		if (s->starting) continue;
 		return status;
 	}
 }
@@ -1580,7 +1812,7 @@ bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
 	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause || igs->note.active
-	    || (igs->music != NULL && igs->music->playing) || igs->input.held || igs->input.left_held || igs->input.suspended || igs->query.active || igs->collect.active || igs->loop.next || igs->loop.selecting || igs->loop.waiting || igs->loop.cooperative);
+	    || (igs->music != NULL && igs->music->playing) || igs->script.active || igs->script.starting || igs->script.cooperative || igs->input.held || igs->input.left_held || igs->input.suspended || igs->query.active || igs->collect.active || igs->loop.next || igs->loop.selecting || igs->loop.waiting || igs->loop.cooperative);
 }
 
 bool
@@ -1595,7 +1827,7 @@ cterm_igs_handle_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 	}
 	/* An async body owns its first key before the enclosing loop's next
 	 * numeric poll. Later keys remain available to that outer poll. */
-	if (igs != NULL && igs->loop.run) {
+	if (igs != NULL && (igs->loop.run || igs->script.active)) {
 		if (igs->timed_pause && !igs->pause_key) {igs->pause_key=true;return true;}
 		if (igs->palette_rotation.active && !igs->palette_rotation.key) {igs->palette_rotation.key=true;return true;}
 	}
@@ -1638,7 +1870,7 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	do {
 		size_t consumed = 0;
 		igs->feeding = true;
-		status = drive_parser(igs,input==NULL?NULL:input+*used,size-*used,&consumed);
+		status = drive_input(igs,input==NULL?NULL:input+*used,size-*used,&consumed);
 		igs->feeding = false;
 		*used += consumed;
 		bool reset = igs->reset_pending;
@@ -1653,6 +1885,7 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 			cterm_log(igs->terminal, ST_CTERM_LOG_WARNING,
 			    "IGS input rejected (%d); continuing stream", status);
 			cterm_render_record_error(igs->terminal,cterm_igs_loop_cancel(igs));
+			cterm_render_record_error(igs->terminal,cterm_igs_script_cancel(igs));
 			st_graphics_parser_cancel(igs->parser);
 			cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
 			cterm_igs_input_cancel_reader(igs);
@@ -1680,12 +1913,14 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 		igs->math_printing = false;
 		cterm_igs_bitmap_cancel(igs);
 	}
-	if (status == 0 && !igs->feeding && !st_graphics_parser_in_command(igs->parser)) {
+	if (status == 0 && !igs->feeding && !igs->script.active && !st_graphics_parser_in_command(igs->parser)) {
 		igs->feeding=true; status=cterm_igs_collect_send(igs); igs->feeding=false;
 		if (igs->reset_pending) { cterm_igs_reset(igs); if (status==IO_ERROR_INTERRUPTED) status=0; }
 		if (status==0) status = cterm_igs_input_activate(igs);
 	}
-	if (status == 0 && igs->input.zone_loading)
+	if (status == 0 && igs->script.loading)
+		igs->input_deadline = igs->script.deadline;
+	else if (status == 0 && igs->input.zone_loading)
 		igs->input_deadline = igs->input.zone_deadline;
 	else if (status == 0 && igs->input.loading)
 		igs->input_deadline = igs->input.deadline;
@@ -1749,6 +1984,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 	}
 	cterm_igs_input_cancel(igs);
 	(void)cterm_igs_loop_cancel(igs);
+	(void)cterm_igs_script_cancel(igs);
 	(void)cterm_igs_collect_cancel(igs);
 	igs->query.configuring=false;
 	igs->input_deadline = igs->text_deadline = 0;
@@ -1767,7 +2003,7 @@ cterm_igs_poll(struct cterm_igs *igs)
 	int audio_status = cterm_igs_audio_poll(igs);
 	if (audio_status != 0) return audio_status;
 	if (igs->input.sending) return 0;
-	if (igs->loop.run && !igs->feeding && igs->input.key_count!=0) {
+	if ((igs->loop.run || igs->script.active) && !igs->feeding && igs->input.key_count!=0) {
 		/* A key queued before the body started is still available to its
 		 * own poll. N retains its distinct inner/outer FIFO policy. */
 		bool *key=igs->note.active && !igs->music->playing?&igs->note.key
@@ -1816,7 +2052,7 @@ cterm_igs_poll(struct cterm_igs *igs)
 		int status = cterm_igs_input_activate(igs);
 		if (status != 0 || igs->input.held) return status;
 	}
-	if (igs->input.key_count != 0 && !st_graphics_parser_in_command(igs->parser) && !igs->input.loading && !igs->input.zone_loading && !igs->music->loading && !igs->music->playing) {
+	if (igs->input.key_count != 0 && !igs->script.active && !st_graphics_parser_in_command(igs->parser) && !igs->input.loading && !igs->input.zone_loading && !igs->music->loading && !igs->music->playing) {
 		igs->feeding = true;
 		int status = cterm_igs_forward_keys(igs);
 		igs->feeding = false;
@@ -1884,9 +2120,17 @@ cterm_igs_poll(struct cterm_igs *igs)
 		}
 		return resume_parser(igs);
 	}
+	if ((igs->script.active || igs->script.starting || igs->script.cooperative) && igs->wait_deadline==0) {
+		size_t used;igs->feeding=true;
+		int status=drive_input(igs,NULL,0,&used);igs->feeding=false;
+		if (igs->reset_pending) {cterm_igs_reset(igs);return status==IO_ERROR_INTERRUPTED?0:status;}
+		if (status==IO_ERROR_IN_PROGRESS) status=0;
+		if (status!=0) {cancel_input(igs);return status;}
+		return 0;
+	}
 	if (igs->loop.run && (igs->loop.next || igs->loop.selecting || igs->loop.waiting || igs->loop.cooperative)) {
 		size_t used;igs->feeding=true;
-		int status=drive_parser(igs,NULL,0,&used);igs->feeding=false;
+		int status=drive_input(igs,NULL,0,&used);igs->feeding=false;
 		if (igs->reset_pending) {cterm_igs_reset(igs);return status==IO_ERROR_INTERRUPTED?0:status;}
 		if (status==IO_ERROR_IN_PROGRESS) status=0;
 		if (status!=0) {cancel_input(igs);return status;}
@@ -1925,6 +2169,18 @@ cterm_igs_poll(struct cterm_igs *igs)
 			return status;
 		}
 		return resume_parser(igs);
+	}
+	if (igs->script.loading) {
+		int status=igs->now_ms(&now);
+		if (status!=0 || now<igs->script.deadline) return status;
+		const uint8_t space=' ';size_t used;
+		igs->feeding=true;
+		status=drive_input(igs,&space,1,&used);igs->feeding=false;
+		if (igs->reset_pending) {cterm_igs_reset(igs);return status==IO_ERROR_INTERRUPTED?0:status;}
+		if (status==IO_ERROR_IN_PROGRESS) status=0;
+		if (status!=0) {cancel_input(igs);return status;}
+		igs->input_deadline=igs->script.loading?igs->script.deadline:0;
+		return 0;
 	}
 	if (igs->input.loading || igs->input.zone_loading) {
 		int status = igs->now_ms(&now);

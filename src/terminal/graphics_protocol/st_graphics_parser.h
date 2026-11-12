@@ -58,6 +58,9 @@ struct st_graphics_argument {
 	 * its operand is unused and must not be scaled/evaluated a second time. */
 	bool has_value;
 	int value;
+	/* TEXT explicitly ended by its source owner before a delimiter/limit.
+	 * The bytes contain only acquired payload, even for an empty field. */
+	bool ended_early;
 	enum st_graphics_argument_kind kind;
 	enum st_graphics_axis axis;
 	struct st_graphics_operand operand;
@@ -138,6 +141,11 @@ struct st_graphics_parser_sink {
 
 typedef struct st_graphics_parser st_graphics_parser_t;
 
+/* An accepted command's return boundary, without its arguments or payload.
+ * An owner may run a bounded nested source through the same parser, then
+ * restore this boundary. This stores no grammar stack or protocol policy. */
+struct st_graphics_continuation { bool chained; };
+
 /* Config, dialect, descriptors and their arrays are borrowed until destroy.
  * All calls are serialized by the terminal owner. No thread or clock is owned
  * here; the caller implements reader deadlines with cancel(). */
@@ -159,6 +167,14 @@ int st_graphics_parser_feed(st_graphics_parser_t *,
 	size_t *consumed);
 /* Resume an accepted command; a waiting number source retries on feed(). */
 int st_graphics_parser_resume(st_graphics_parser_t *);
+/* Take requires an accepted SUSPENDED command and ends its borrowed view's
+ * lifetime, leaving the parser idle. Restore requires idle with no held
+ * attention prefix and returns to SUSPENDED; resume() then applies the saved
+ * chain boundary. Invalid calls preserve grammar and the output token. */
+int st_graphics_parser_take_continuation(st_graphics_parser_t *,
+	struct st_graphics_continuation *);
+int st_graphics_parser_restore_continuation(st_graphics_parser_t *,
+	const struct st_graphics_continuation *);
 /* Start a known command whose code/chain were acquired by the source owner.
  * At OUTSIDE (without a held attention prefix) or SUSPENDED only. Replacing
  * an accepted suspended command ends its borrowed view's lifetime. Calls
@@ -171,6 +187,12 @@ int st_graphics_parser_start_command(st_graphics_parser_t *,
  * accepted, then run normal field/command completion. This does not fabricate
  * payload or change finish()'s rejection of incomplete commands. */
 int st_graphics_parser_end_bytes(st_graphics_parser_t *,
+	const struct st_graphics_parser_sink *);
+/* End an active TEXT field with exactly the acquired payload and mark its
+ * argument ended_early. No terminator (including empty_is_terminator) is
+ * synthesized. Normal next/command work runs immediately and may yield.
+ * Other states/fields are rejected without changing grammar or ownership. */
+int st_graphics_parser_end_text(st_graphics_parser_t *,
 	const struct st_graphics_parser_sink *);
 /* Explicit source EOF flushes held ordinary attention-prefix text. A partial
  * command is rejected, never completed with fabricated bytes. Not a read flush. */

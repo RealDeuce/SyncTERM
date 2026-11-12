@@ -9,6 +9,13 @@ IGS 2.21 work is tracked separately in [IGS_CONFORMANCE.md](IGS_CONFORMANCE.md)
 and [IGS_IMPLEMENTATION.adoc](IGS_IMPLEMENTATION.adoc). The shared graphics
 byte-parser foundation has native split-input and raw-ownership coverage;
 native image-format tests check indexed storage and boundary conversions.
+X9 native and coherent application acceptance passed. Native tests cover its shared N/script buffer
+loader, guarded execution/clear, retained holes, capacity, local deadlines,
+file-style readers/flow, shared loop state, local input and cancellation.
+The shared parser explicitly supports source-ended text and accepted return
+boundaries without a second parser. Application X9 covers666 coherent captures
+across18 profiles, including script scenes, waits/key ownership and reconnects.
+Parent X dispatch acceptance and final IGS goal acceptance remain pending.
 The CTerm input adapter has native ST geometry/encoding/status and lifecycle
 coverage. IGS is selectable through profiles, menus and Wren. `I` and `R` have
 native selector/state/deadline coverage and coherent application bitmap checks

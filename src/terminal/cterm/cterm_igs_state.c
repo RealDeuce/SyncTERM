@@ -435,6 +435,7 @@ int
 cterm_igs_state_reset(struct cterm_igs *igs)
 {
 	int status = cterm_igs_loop_cancel(igs);
+	if (status == 0) status = cterm_igs_script_cancel(igs);
 	if (status == 0) igs->loop=(struct cterm_igs_loop){0};
 	if (status == 0) status = cterm_igs_collect_cancel(igs);
 	if (status == 0) igs->collect=(struct cterm_igs_collect){0};

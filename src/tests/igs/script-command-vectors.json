@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "provenance": "Handwritten wire commands, literal physical-index points, replies and US TOS 8x8 A rows from chapters 11/13/19/21/173. Expectations are not generated from SyncTERM or historical emulation. Existing independent console glyph/palette assets are reused.",
+  "references": [
+    {
+      "path": "docs/igs/11-reader-state.adoc",
+      "sha256": "787f73c09bd21e327c4cb357d781fd57223715ed48a38d2e0e895a547f6be7e0"
+    },
+    {
+      "path": "docs/igs/13-dispatch-loops.adoc",
+      "sha256": "298f9a6dddbd73d35ef8e7969adda55bc467cf10d65cb5e60caa2bbceaf34c98"
+    },
+    {
+      "path": "docs/igs/21-extended-payloads.adoc",
+      "sha256": "d907f7462d29cad39dd35125816d74c84ce66550ad811f1161369201251a2127"
+    },
+    {
+      "path": "docs/igs/173-delivery-script-entry.adoc",
+      "sha256": "da89645bad4e2ff69f948d0749db81844606892b79a75334069109596f92c1ad"
+    },
+    {
+      "path": "docs/igs/19-extended-math-sweeps.adoc",
+      "sha256": "9590c70fb049ab3b6bfd869dcc42e7a6db3487bb92ca3db1d8cc681c1446a147"
+    }
+  ],
+  "tests": [
+    "cterm_igs_script",
+    "syncterm_igs_script",
+    "graphics_protocol_stream",
+    "graphics_protocol_source"
+  ],
+  "native_graphics_profiles": 18,
+  "native_scaling_variants": 54,
+  "application_graphics_profiles": 18,
+  "application_captures": 666,
+  "physical_audio": false,
+  "physical_midi": false,
+  "external_runtime_assets": false,
+  "raster_cases": [
+    {
+      "name": "point",
+      "wire": "G#P 40,80:",
+      "points": [
+        [
+          40,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "loop",
+      "wire": "G#& 40,42,1,0,P,2,x,80:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          41,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "gang",
+      "wire": "G#& 40,42,1,0,>P?@,3,0,x,80:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          41,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "unknown-loop",
+      "wire": "G#& 0,2,1,0,~,1,x:",
+      "points": [],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "text",
+      "wire": "G#W 80,100,A@",
+      "points": [],
+      "glyphs": [
+        80
+      ],
+      "mode": 1
+    },
+    {
+      "name": "text-eof",
+      "wire": "G#W 80,100,A",
+      "points": [],
+      "glyphs": [
+        80
+      ],
+      "mode": 1
+    },
+    {
+      "name": "guard",
+      "wire": "G#X>9,2:X>9,0:X>9,1:P 40,80:",
+      "points": [
+        [
+          40,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "array",
+      "wire": "G#X>13,0,40,0:P 0],80:",
+      "points": [
+        [
+          40,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "xor",
+      "wire": "G#M>3:P>40,80:P 40,80:",
+      "points": [],
+      "glyphs": [],
+      "mode": 3
+    },
+    {
+      "name": "entries",
+      "wire": "G#P 40,80:G#P 42,80:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "wait",
+      "wire": "G#q>1:P 40,80:",
+      "points": [
+        [
+          40,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "N-write",
+      "wire": "G#N>0,3:XYZP 40,80:",
+      "points": [
+        [
+          40,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    },
+    {
+      "name": "raw-macro",
+      "wire": "G#X>3,2,1,0,2:G#!P 40,80:",
+      "points": [
+        [
+          40,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1
+    }
+  ]
+}
