@@ -15,8 +15,8 @@ restrictions and CONDOR implementation are excluded. The reference's 64
 accepted research requirements are not 45 completed SyncTERM commands.
 
 The unlimited goal is active. CGA 80x25 and the shared numeric-reader
-boundary are complete; ordinary BIG numeric acquisition and the shared RNG
-core are implemented.
+boundary are complete; ordinary BIG numeric acquisition, the shared RNG
+core and stored numeric evaluation are implemented.
 The BIG graphics mode, rendering and sound are not yet available. The
 implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -213,7 +213,8 @@ Completion commit: `d1b7e12`.
 WORD count/wrap, destructive weighting, consumed nondigits, two discarded
 continuation bytes, ordered x/y/r auxiliary reads, expression encodings and
 original finite scaling before controls. It returns encoded WORDs; final
-random expansion and stored-loop evaluation remain separate pending owners.
+wire-reader random expansion and application stored-source integration
+remain separate pending owners.
 
 `big_number` has 54 independently transcribed literal vectors, each tested
 at every split and bytewise. A two-limb exact rational multiplication using
@@ -229,7 +230,7 @@ ordinary reads use zero, auxiliary reads use SPACE. Auxiliary BEL is suppressed
 in auto mode; ordinary BEL is retained. Each acquisition requires a freshly
 armed owner deadline. This component owns no foreign clock or scheduling
 thread, and cancel/EOF never fabricate a timeout. Application deadline
-scheduling is still pending, as are loop evaluation and final random expansion.
+scheduling and application source integration are still pending.
 
 The native Release build passed without compiler/source diagnostics. All six
 selected BIG/shared-parser/IGS scaling checks passed in 1.59 seconds;
@@ -265,5 +266,48 @@ selected BIG/shared-parser/IGS scaling CTest checks passed in 1.57 seconds;
 `big_number` and `big_random` each completed in 0.01 seconds.
 
 Shared-RNG core completion commit: `af72cf0`. The numeric foundation remains
-in progress until stored-loop evaluation and application source/deadline
-integration are accepted. No BIG command completion is claimed.
+in progress until application source/deadline integration is accepted.
+No BIG command completion is claimed.
+
+
+=== Stored numeric evaluator
+
+`st_big_loop.c` implements the original numeric table evaluator and its
+setup step normalization, publication and classification helpers. Publication
+precedes the caller's flow operation; scanning follows it and preserves the
+unused table suffix. The caller still owns the complete & acquisition,
+command/gang selection, shared text, flow and interpreter footer.
+
+Each numeric call selects ordinary versus stored input at entry. Exactly
+loop WORD1 enters evaluation; another nonzero value supplies zero without
+table/delay/index work. Stored values bypass coordinate scaling. Index-zero
+reads reset the varying count once and invoke the owner delay hook, including
+zero/negative delay. The hook receives current duration on each retry; the
+application owner will translate it into local monotonic deadlines and native
+key probes. This component owns no clock, BIOS service or thread.
+
+All stepping/counters and intermediate expression values retain WORD wrap.
+The evaluator preserves literal-before-boundary advancement, FROM-first
+varying values, mirrored y, vertical-bar pairing, overshoot, cumulative-counter
+wrap and the three independent expression transformations. Keyboard
+cancellation occurs after calculation and still performs boundary/index/text-
+marker/final-r work. A suspended random tail keeps ownership even after it
+has cleared loop mode; retries do not repeat prior effects or inspect a new
+suppression flag after entering the helper.
+
+`big_loop` uses literal chapter 21/65/73 expectations, including twelve
+complete stepping/expression sequences and the reachable counter wrap after
+32 passes of 2048 x words. Shared-parser split/bytewise tests switch from
+stored Y 5 to wire Y 5 within one four-argument command and observe values 5
+and 11 respectively. Delay/key/random waits, cancellation, previous-command
+W markers, calculated r sentinels, errors and EOF/reset recovery are covered.
+
+Invalid table count/index is a documented safe-port correction: reject it
+before an out-of-bounds access while retaining prior completed effects.
+Normal WORD wrap, including nonterminating coordinate sequences, is preserved.
+These tests cover the numeric component; & dispatch/setup, native keyboard
+mapping and real application deadline scheduling remain pending.
+
+The native Release build (`build/`, `/usr/bin/cc`) passed without compiler/
+source diagnostics. All eight selected BIG/shared-parser/IGS scaling CTest
+checks passed in 1.73 seconds; `big_loop` completed in 0.01 seconds.

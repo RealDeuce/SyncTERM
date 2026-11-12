@@ -10,8 +10,11 @@ finite scaling in `big_number`: 54 literal split-input cases, all WORDs
 against a binary-rational oracle, count wrap, timeout/BEL events and recovery.
 The shared RNG core is checked in `big_random` against all 32768 outputs,
 signed rejection bounds and equivalent state streams under different poll
-partitions. BIG stored-loop evaluation, caller-specific random expansion and
-application deadline scheduling remain pending.
+partitions. The stored evaluator is checked in `big_loop` with independent sequences,
+reachable counter wrap, source changes within a command, unscaled stored
+values, suspension prefixes and error/EOF recovery. BIG command dispatch,
+caller-specific source/random integration and application deadline scheduling
+remain pending.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

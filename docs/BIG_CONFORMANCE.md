@@ -53,7 +53,7 @@ WORD values against an independent binary-rational oracle, digit-count wrap,
 explicit timeout/BEL policy, shared-parser integration and EOF/reset recovery.
 
 This component consumes explicit timeout events; application-local deadline
-scheduling, stored-loop evaluation and final random expansion remain pending.
+scheduling and caller-specific source/random integration remain pending.
 The BIG graphics mode is not yet selectable; command completion remains 0/45.
 
 ## Shared random core
@@ -64,3 +64,17 @@ bounds, rejected-attempt state advancement and partition-independent polls.
 Unreachable ranges yield cooperatively without a total retry cap or bound
 repair. Numeric r, X0 and effects still need their shared application owner,
 seed-time conversion and caller-specific integration; no command is complete.
+
+## Stored numeric evaluator
+
+`big_loop` covers original stepping, mirrored y, ordered expressions,
+vertical-bar repeats, endpoint and counter WORD wrap, final text markers,
+cancellation and exact delay/key/random suspension prefixes. A full 2048-word
+table runs through 32 passes to prove cumulative-counter wrap. Shared-parser
+partitions and bytewise input verify source changes within one command,
+unscaled stored Y5 versus wire Y5->11, final-r ownership and EOF recovery.
+
+The component rejects invalid count/index accesses instead of following
+escaped DOS addresses. It preserves valid WORD overflow and pending source
+state. Complete & acquisition/dispatch, native key mapping and application
+local-deadline scheduling remain pending; command completion remains 0/45.

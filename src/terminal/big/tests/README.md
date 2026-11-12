@@ -45,3 +45,23 @@ rand output. The range checks cover all outputs independently of random
 sampling. Poll partition tests verify exact state advancement through rejected
 attempts and resumption after bounds change. No DOS seed-time conversion,
 command integration or physical audio behavior is claimed.
+
+
+`st_big_loop_test.c` transcribes or hand-derives expectations from chapter 21,
+`loop-examples.json`, chapter 65, `loop-review-examples.json`, chapter 73 and
+original `04f3:11b2..143b`. Its twelve complete sequences have literal expected
+values, final stepping positions and endpoint state. Publication tests retain
+unused table words and distinguish pre-flow publication from post-flow
+classification. The 2048-x-word fixture reaches the documented cumulative
+counter wrap after 32 table passes; its next value must repeat position31.
+No expected results come from the implementation under test.
+
+Callbacks expose local wait/checkpoint/RNG completion boundaries without
+running clocks or devices. Tests verify completed prefixes survive waits,
+errors and cancellation, including a random tail after loop mode cleared.
+The shared-parser adapter combines the real ordinary and stored readers:
+within one four-coordinate command, stored Y5 stays5 and wire Y5 becomes11.
+Every input split and bytewise feed checks that source boundary and unread
+suffix. Further checks cover pending source input, random resumption and EOF
+recovery. These are component tests, not claims of complete & dispatch,
+application key mapping, native timers, graphics or audible-device coverage.

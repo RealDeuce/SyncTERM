@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-add_library(st_big STATIC st_big_number.c st_big_random.c)
+add_library(st_big STATIC st_big_number.c st_big_random.c st_big_loop.c)
 target_include_directories(st_big PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_big PUBLIC syncterm_io_error)
 set_target_properties(st_big PROPERTIES
@@ -12,7 +12,7 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	foreach(part IN ITEMS number random)
+	foreach(part IN ITEMS number random loop)
 		add_executable(st_big_${part}_test tests/st_big_${part}_test.c)
 		target_link_libraries(st_big_${part}_test PRIVATE st_big)
 		set_target_properties(st_big_${part}_test PROPERTIES
@@ -26,4 +26,5 @@ if(BUILD_TESTING)
 		set_tests_properties(big_${part} PROPERTIES TIMEOUT 20)
 	endforeach()
 	target_link_libraries(st_big_number_test PRIVATE st_graphics_protocol)
+	target_link_libraries(st_big_loop_test PRIVATE st_graphics_protocol)
 endif()

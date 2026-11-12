@@ -76,7 +76,8 @@
       ],
       "tests": [
         "big_number",
-        "big_random"
+        "big_random",
+        "big_loop"
       ],
       "references": [
         "05-numeric-reader.adoc",
@@ -84,19 +85,23 @@
         "34-numeric-words-and-exact-y-scaling.adoc",
         "73-global-readers-and-loops-acceptance.adoc",
         "code-evidence.adoc:04f3:0f26..11b1,144c..14e8",
-        "33-extended-dispatch-ranges-and-flow.adoc"
+        "33-extended-dispatch-ranges-and-flow.adoc",
+        "65-loop-command-acceptance.adoc"
       ],
       "deviations": [
-        "Scheduling adaptation: rejection executes bounded owner-requested work batches and yields IN_PROGRESS, retaining shared state and fresh bounds on the next poll. No total retry limit, implicit reseed or bound repair is added; unreachable ranges remain pending until owner cancellation/reset or a range change."
+        "Scheduling adaptation: rejection executes bounded owner-requested work batches and yields IN_PROGRESS, retaining shared state and fresh bounds on the next poll. No total retry limit, implicit reseed or bound repair is added; unreachable ranges remain pending until owner cancellation/reset or a range change.",
+        "Safety correction: reject invalid stored counts/indices outside the bounded 2048-WORD table before access, preserving earlier completed state effects. No saturation, overshoot clamp, counter-wrap rejection or implicit loop termination is introduced."
       ],
       "verification": [
         "Ordinary acquisition implemented and exercised through the shared parser. 54 literal vectors cover every split/bytewise input, destructive continuations, consumed delimiters, ordered auxiliary controls, encoded expressions, NUL/FF, scaling gates and signed wrapping.",
         "All 65536 WORD inputs match an independent original binary-rational multiplier oracle across 30 scale/resolution/class combinations each; 16-bit digit-count wrap verified across bulk, bytewise and boundary chunks.",
         "Explicit owner timeout events preserve ordinary zero versus auxiliary SPACE/BEL/auto behavior, ready-byte consumption, retained slots and fresh acquisition boundaries. No foreign clock or scheduling thread exists in the component.",
-        "Stored-loop evaluation, final random expansion and application-local deadline scheduling remain pending.",
+        "Application source ownership, wire-reader final random expansion and local deadline scheduling remain pending; stored numeric evaluation is covered by the later step below.",
         "Native CMake Release build, /usr/bin/cc, build/; no compiler/source diagnostics. All six selected BIG/shared-parser/IGS scaling CTest checks passed in 1.59s.",
         "Shared WORD-seeded 32-bit LCG and signed rejection helper implemented. Literal seed/state/candidate cases, all 32768 outputs, rejected-attempt state advancement, zero/equal/inverted/negative bounds, zero-budget/error preservation and partition-independent polls pass in big_random.",
-        "RNG step: native CMake Release build passed with no compiler/source diagnostics; all seven BIG/shared-parser/IGS scaling checks passed in 1.57s. Both BIG tests take 0.01s each."
+        "RNG step: native CMake Release build passed with no compiler/source diagnostics; all seven BIG/shared-parser/IGS scaling checks passed in 1.57s. Both BIG tests take 0.01s each.",
+        "Stored evaluator: independent literal sequences, ordinary source fallback, 16-bit coordinates/pass/cumulative counters, reachable 2048-word/32-pass counter wrap, ordered expressions, delay/key/RNG suspension prefixes, text markers, invalid indices and error/reset behavior pass in big_loop. Shared-parser partitions/bytewise input verify stored Y5 bypasses scaling while later wire Y5 becomes11, delay ownership, final RNG ownership after loop termination and EOF recovery.",
+        "Stored-evaluator step: native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All eight BIG/shared-parser/IGS scaling checks passed in 1.73s; big_loop completed in 0.01s."
       ],
       "commit": null,
       "steps": [
@@ -117,6 +122,15 @@
           ],
           "commit": "af72cf0",
           "verification": "Native Release build and all seven selected checks passed in 1.57s; big_random completes in 0.01s."
+        },
+        {
+          "id": "stored-evaluator",
+          "status": "complete",
+          "tests": [
+            "big_loop"
+          ],
+          "commit": null,
+          "verification": "Native Release build and all eight selected checks passed in 1.73s; big_loop completes in 0.01s."
         }
       ]
     },
