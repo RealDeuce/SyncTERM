@@ -16,7 +16,8 @@ accepted research requirements are not 45 completed SyncTERM commands.
 
 The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
-core and stored numeric evaluation are implemented.
+core, stored numeric evaluation and source/deadline parser callbacks are
+implemented.
 The BIG graphics mode, rendering and sound are not yet available. The
 implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -213,8 +214,8 @@ Completion commit: `d1b7e12`.
 WORD count/wrap, destructive weighting, consumed nondigits, two discarded
 continuation bytes, ordered x/y/r auxiliary reads, expression encodings and
 original finite scaling before controls. It returns encoded WORDs; final
-wire-reader random expansion and application stored-source integration
-remain separate pending owners.
+wire-reader random expansion and stored-source/deadline composition are
+covered by the later numeric source step below.
 
 `big_number` has 54 independently transcribed literal vectors, each tested
 at every split and bytewise. A two-limb exact rational multiplication using
@@ -230,7 +231,8 @@ ordinary reads use zero, auxiliary reads use SPACE. Auxiliary BEL is suppressed
 in auto mode; ordinary BEL is retained. Each acquisition requires a freshly
 armed owner deadline. This component owns no foreign clock or scheduling
 thread, and cancel/EOF never fabricate a timeout. Application deadline
-scheduling and application source integration are still pending.
+scheduling in the live terminal event loop remains pending; the callback
+composition and local-time policy are recorded below.
 
 The native Release build passed without compiler/source diagnostics. All six
 selected BIG/shared-parser/IGS scaling checks passed in 1.59 seconds;
@@ -253,7 +255,8 @@ bounds without reseeding or a total retry cap. This scheduling adaptation
 allows the eventual terminal owner to process cancellation/reset/shutdown;
 it does not change accepted values or the sequence of random draws. Numeric
 r, X0 and speaker effects must share one application-owned state. Their
-caller-specific seeding, suppression and final expansion are still pending.
+caller-specific seeding and live terminal integration remain pending.
+Numeric suppression/final expansion are composed by the source step below.
 
 `big_random` checks literal original seed/state/candidate examples, all
 32768 outputs through inverse-selected predecessor states, signed bounds,
@@ -266,7 +269,7 @@ selected BIG/shared-parser/IGS scaling CTest checks passed in 1.57 seconds;
 `big_number` and `big_random` each completed in 0.01 seconds.
 
 Shared-RNG core completion commit: `af72cf0`. The numeric foundation remains
-in progress until application source/deadline integration is accepted.
+in progress until the live terminal-mode source/deadline binding is accepted.
 No BIG command completion is claimed.
 
 
@@ -314,3 +317,45 @@ checks passed in 1.73 seconds; `big_loop` completed in 0.01 seconds.
 
 Stored-evaluator completion commit: `547291e`. Application source/deadline
 integration and full command dispatch remain pending.
+
+
+=== Numeric sources and local deadlines
+
+`st_big_numeric.c` provides the actual shared-parser field, supplied-number
+and wire-number callbacks. It composes the ordinary reader, stored evaluator
+and shared RNG while retaining field ownership across yields. Wire selection
+stays latched; the common tail still checks exact loop1 after ordinary
+acquisition. Final-r work precedes command completion even after loop mode
+cleared. Nonnumeric field entry ends numeric ownership without resetting
+application loop/RNG state. Rendering I/R defaults must not reinitialize it.
+
+The portable timing policy translates nominal 18.2 wait units per second
+(91/5) directly into local monotonic nanoseconds. Numeric timeout is the first
+integral ns beyond 73 nominal units: 4010989011ns. Every byte or auxiliary
+acquisition starts a fresh deadline after its effects. A late ready byte is
+consumed before its timeout substitution; BEL occurs before construction and
+scaling. Loop delay converts the current signed duration on each poll from
+the same local start. Zero/negative delay still samples/probes; available keys
+shorten delay without being consumed there. Only checkpoint bytes03/18 cancel.
+A pending key read retries without another peek.
+
+The default clock is the existing `st_time_monotonic_ns`; tests can supply
+local samples. There is no periodic foreign counter, BIOS/IRQ/midnight state
+or hardware-phase emulation. This is an explicit portable timing adaptation,
+not a claim of vintage tick-phase equivalence. Deadline addition saturates;
+backwards/error samples fail without losing accepted byte counts or rolling
+back earlier effects. RNG retries have bounded work batches and no total cap.
+EOF/cancel ends the field without fabricating input or reseeding shared state.
+
+`big_numeric` uses these production callbacks in shared-parser split/bytewise
+fixtures, with independent expected values. It covers mixed source/scaling,
+byte/loop deadline boundaries and renewal, timeout/BEL order and owner effects,
+auto suppression, delayed keys, ordinary/stored random waits, dynamic opaque
+raw arity, partial clock failures and EOF recovery. The real project clock
+is smoke-tested without sleeps or physical audio; native key/event-loop
+scheduling remains a live terminal-integration obligation.
+
+The native Release build passed without compiler/source diagnostics. All 12
+selected BIG/shared-parser/IGS scaling/time CTest checks passed in 1.48 seconds;
+`big_numeric` completed in 0.00 seconds. BIG mode/command dispatch is not yet
+selectable; no command completion is claimed.

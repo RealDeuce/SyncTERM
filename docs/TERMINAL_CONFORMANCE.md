@@ -12,9 +12,13 @@ The shared RNG core is checked in `big_random` against all 32768 outputs,
 signed rejection bounds and equivalent state streams under different poll
 partitions. The stored evaluator is checked in `big_loop` with independent sequences,
 reachable counter wrap, source changes within a command, unscaled stored
-values, suspension prefixes and error/EOF recovery. BIG command dispatch,
-caller-specific source/random integration and application deadline scheduling
-remain pending.
+values, suspension prefixes and error/EOF recovery.
+
+The `big_numeric` callbacks compose those sources with local
+deadlines, ordinary final-r expansion, native clock access, delayed-key
+checkpoints and exact partial error consumption; split-input/raw/EOF fixtures
+cover ownership and recovery. BIG command dispatch and live terminal event-loop
+integration remain pending.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

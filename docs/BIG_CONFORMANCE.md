@@ -52,8 +52,9 @@ encodings. Its finite Y scaling retains original g3 Y 5 to 11 behavior.
 WORD values against an independent binary-rational oracle, digit-count wrap,
 explicit timeout/BEL policy, shared-parser integration and EOF/reset recovery.
 
-This component consumes explicit timeout events; application-local deadline
-scheduling and caller-specific source/random integration remain pending.
+The leaf reader consumes explicit timeout events; the numeric source
+callbacks below provide local deadline and final-r composition. Live terminal
+event-loop scheduling remains pending.
 The BIG graphics mode is not yet selectable; command completion remains 0/45.
 
 ## Shared random core
@@ -72,9 +73,23 @@ vertical-bar repeats, endpoint and counter WORD wrap, final text markers,
 cancellation and exact delay/key/random suspension prefixes. A full 2048-word
 table runs through 32 passes to prove cumulative-counter wrap. Shared-parser
 partitions and bytewise input verify source changes within one command,
-unscaled stored Y5 versus wire Y5->11, final-r ownership and EOF recovery.
+unscaled stored Y 5 versus wire Y 5->11, final-r ownership and EOF recovery.
 
 The component rejects invalid count/index accesses instead of following
 escaped DOS addresses. It preserves valid WORD overflow and pending source
 state. Complete & acquisition/dispatch, native key mapping and application
 local-deadline scheduling remain pending; command completion remains 0/45.
+
+## Numeric source and deadline callbacks
+
+`big_numeric` checks the production shared-parser callbacks with per-byte
+local deadlines, stored-source waits, ordinary final-r expansion and exact
+accepted-byte counts on errors. Fixtures cover deadline boundaries/renewal,
+BEL-before-construction effects, late ready bytes, delayed key reads, random
+waits, dynamic raw arity, split/bytewise source changes and EOF recovery.
+
+The portable policy uses nominal 18.2 wait units/second, converted directly to
+monotonic ns; numeric timeout is 4010989011ns. It owns no foreign clock, BIOS
+phase or IRQ state. The real project clock is exercised without sleeping.
+All 12 selected native checks passed in 1.48s. Live BIG terminal-mode/event-loop
+and command integration remain pending; command completion remains 0/45.

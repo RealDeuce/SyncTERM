@@ -60,8 +60,25 @@ Callbacks expose local wait/checkpoint/RNG completion boundaries without
 running clocks or devices. Tests verify completed prefixes survive waits,
 errors and cancellation, including a random tail after loop mode cleared.
 The shared-parser adapter combines the real ordinary and stored readers:
-within one four-coordinate command, stored Y5 stays5 and wire Y5 becomes11.
+within one four-coordinate command, stored Y 5 stays5 and wire Y 5 becomes11.
 Every input split and bytewise feed checks that source boundary and unread
 suffix. Further checks cover pending source input, random resumption and EOF
 recovery. These are component tests, not claims of complete & dispatch,
 application key mapping, native timers, graphics or audible-device coverage.
+
+
+`st_big_numeric_test.c` uses the production parser callbacks. Local-time
+expectations explicitly use the portable 91/5-units-per-second policy, not a
+foreign-machine clock model:73 units first expire at 4010989011ns; one/two
+loop units reach 54945055/109890110ns. Supplied timestamps test both sides of
+boundaries, rearming after each acquisition, saturation and backwards/error
+samples. Separate tests call the real project monotonic backend without sleeps.
+
+Literal expected values cover late-byte consumption, retained weighted slots,
+BEL-before-scaling effects, delayed key reads, raw03/18 cancellation, shared
+RNG suspension/suppression, exact-loop1 common-tail recheck, mixed stored/wire
+Y 5 values 5/11 and final random ownership after loop termination. The parser
+fixtures bind the actual callbacks (no test replacement reader), test every
+split/bytewise source seam, and verify raw payload ownership, partial clock
+error counts, EOF and fresh-field recovery. Native event-loop wakeups and
+keyboard-device mapping remain application integration tests to add later.

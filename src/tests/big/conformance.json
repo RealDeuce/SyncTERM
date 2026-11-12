@@ -77,7 +77,8 @@
       "tests": [
         "big_number",
         "big_random",
-        "big_loop"
+        "big_loop",
+        "big_numeric"
       ],
       "references": [
         "05-numeric-reader.adoc",
@@ -86,22 +87,27 @@
         "73-global-readers-and-loops-acceptance.adoc",
         "code-evidence.adoc:04f3:0f26..11b1,144c..14e8",
         "33-extended-dispatch-ranges-and-flow.adoc",
-        "65-loop-command-acceptance.adoc"
+        "65-loop-command-acceptance.adoc",
+        "19-pc-timer-interrupt-lifecycle.adoc",
+        "20-pc-board-and-bios-profile.adoc"
       ],
       "deviations": [
         "Scheduling adaptation: rejection executes bounded owner-requested work batches and yields IN_PROGRESS, retaining shared state and fresh bounds on the next poll. No total retry limit, implicit reseed or bound repair is added; unreachable ranges remain pending until owner cancellation/reset or a range change.",
-        "Safety correction: reject invalid stored counts/indices outside the bounded 2048-WORD table before access, preserving earlier completed state effects. No saturation, overshoot clamp, counter-wrap rejection or implicit loop termination is introduced."
+        "Safety correction: reject invalid stored counts/indices outside the bounded 2048-WORD table before access, preserving earlier completed state effects. No saturation, overshoot clamp, counter-wrap rejection or implicit loop termination is introduced.",
+        "Portable timing policy: translate nominal 18.2 wait units/second directly to local monotonic nanoseconds, rounding deadlines up. Numeric byte timeout is the first integral ns beyond73 nominal units (4010989011ns); each acquisition rearms after its effects. No BIOS tick phase, midnight state or IRQ/foreign clock domain is reproduced. Saturate deadline addition and reject backwards local samples."
       ],
       "verification": [
         "Ordinary acquisition implemented and exercised through the shared parser. 54 literal vectors cover every split/bytewise input, destructive continuations, consumed delimiters, ordered auxiliary controls, encoded expressions, NUL/FF, scaling gates and signed wrapping.",
         "All 65536 WORD inputs match an independent original binary-rational multiplier oracle across 30 scale/resolution/class combinations each; 16-bit digit-count wrap verified across bulk, bytewise and boundary chunks.",
         "Explicit owner timeout events preserve ordinary zero versus auxiliary SPACE/BEL/auto behavior, ready-byte consumption, retained slots and fresh acquisition boundaries. No foreign clock or scheduling thread exists in the component.",
-        "Application source ownership, wire-reader final random expansion and local deadline scheduling remain pending; stored numeric evaluation is covered by the later step below.",
+        "Numeric source ownership, wire-reader final random expansion and local deadline callbacks are covered by the later component steps below. Live terminal-mode/event-loop integration remains pending.",
         "Native CMake Release build, /usr/bin/cc, build/; no compiler/source diagnostics. All six selected BIG/shared-parser/IGS scaling CTest checks passed in 1.59s.",
         "Shared WORD-seeded 32-bit LCG and signed rejection helper implemented. Literal seed/state/candidate cases, all 32768 outputs, rejected-attempt state advancement, zero/equal/inverted/negative bounds, zero-budget/error preservation and partition-independent polls pass in big_random.",
         "RNG step: native CMake Release build passed with no compiler/source diagnostics; all seven BIG/shared-parser/IGS scaling checks passed in 1.57s. Both BIG tests take 0.01s each.",
         "Stored evaluator: independent literal sequences, ordinary source fallback, 16-bit coordinates/pass/cumulative counters, reachable 2048-word/32-pass counter wrap, ordered expressions, delay/key/RNG suspension prefixes, text markers, invalid indices and error/reset behavior pass in big_loop. Shared-parser partitions/bytewise input verify stored Y5 bypasses scaling while later wire Y5 becomes11, delay ownership, final RNG ownership after loop termination and EOF recovery.",
-        "Stored-evaluator step: native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All eight BIG/shared-parser/IGS scaling checks passed in 1.73s; big_loop completed in 0.01s."
+        "Stored-evaluator step: native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All eight BIG/shared-parser/IGS scaling checks passed in 1.73s; big_loop completed in 0.01s.",
+        "Production numeric parser callbacks compose ordinary/stored input, final random expansion, local byte/loop deadlines and key checkpoints. big_numeric verifies per-byte rearming, exact local boundaries, ready-byte timeout consumption, BEL-before-construction effects, auto suppression, retained delayed-key reads, ordinary/stored final-r waits, common-tail loop recheck, raw dynamic arity, all split/bytewise mid-command source changes and exact clock-error consumption/EOF recovery. It also exercises the project monotonic clock without sleeping or physical audio.",
+        "Source/deadline step: native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All12 selected BIG/shared-parser/IGS scaling/time checks passed in1.48s; big_numeric completed in0.00s."
       ],
       "commit": null,
       "steps": [
@@ -131,6 +137,15 @@
           ],
           "commit": "547291e",
           "verification": "Native Release build and all eight selected checks passed in 1.73s; big_loop completes in 0.01s."
+        },
+        {
+          "id": "numeric-source-deadlines",
+          "status": "complete",
+          "tests": [
+            "big_numeric"
+          ],
+          "commit": null,
+          "verification": "Native Release build and all12 selected checks passed in1.48s. Live terminal-mode/event-loop binding remains a separate pending integration step."
         }
       ]
     },
