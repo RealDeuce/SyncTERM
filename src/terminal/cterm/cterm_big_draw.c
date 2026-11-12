@@ -64,3 +64,31 @@ int cterm_big_pmarker(struct cterm_big *big, uint16_t x, uint16_t y)
 	int status=st_console_modify_pixels(big->terminal->screen.console,marker,&request);
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }
+struct line { struct cterm_big *big; uint8_t code; uint16_t words[4]; };
+static int line(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct line *request=context; struct st_big_state *state=&request->big->state;
+	struct drawing drawing={request->big,pixels,changed};
+	const struct st_big_draw_sink sink={&drawing,pixel};
+	const uint16_t *words=request->words;
+	if (request->code=='L') {
+		int status=st_big_draw_line(state,words,&sink);
+		return status!=0?status:st_big_draw_move(state,words[2],words[3]);
+	}
+	if (request->code=='D') return st_big_draw_to(state,words[0],words[1],&sink);
+	/* The original d negates its Y flag, leaving the Y displacement intact. */
+	uint16_t dx=words[0]!=0?(uint16_t)(0u-words[1]):words[1];
+	return st_big_draw_relative(state,dx,words[3],&sink);
+}
+int cterm_big_draw_line(struct cterm_big *big, const struct st_graphics_command_view *view)
+{
+	if (view->code!='L' && view->code!='D' && view->code!='d') return IO_ERROR_PROTOCOL;
+	if (view->count!=(view->code=='D'?2u:4u)) return IO_ERROR_PROTOCOL;
+	struct line request={.big=big,.code=view->code};
+	for (size_t i=0;i<view->count;++i) {
+		if (!view->arguments[i].has_value) return IO_ERROR_PROTOCOL;
+		request.words[i]=(uint16_t)view->arguments[i].value;
+	}
+	int status=st_console_modify_pixels(big->terminal->screen.console,line,&request);
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}

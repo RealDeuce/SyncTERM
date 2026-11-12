@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=()):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -93,6 +93,8 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
                 for x in range(9):
                     if row & (1 << x):
                         expected[(60 + y - ch) * 640 + 116 + x] = 815
+        for x, y in line_pixels:
+            expected[(y - ch) * 640 + x] = 815
         observed = memoryview(plane)[start:start + len(expected)]
         assert observed.tobytes() == expected.tobytes(), next(
             ((i % 640, i // 640 + ch, actual, want)
@@ -321,6 +323,38 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                         check(client.wait_text(token), resolution, status, True, token, scaling=0, steps=(5, 7),
                               zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
                               graph_point=(89, 67), marker_kind=2)
+                        # Literal chapter57 candidates distinguish L/D endpoint
+                        # order and d's Y-sign defect. R clears only the scene;
+                        # the prior -11 BGI error must not suppress drawing.
+                        line_cases = (
+                            (b"I#T>2,1,1,1,0:L 100,60,107,60:", (107, 60), (1, 1, 1, 0xcccc),
+                             ((102, 60), (103, 60), (106, 60), (107, 60))),
+                            (b"I#P>100,60:T>2,1,1,1,0:D 107,60:", (107, 60), (1, 1, 1, 0xcccc),
+                             ((100, 60), (101, 60), (104, 60), (105, 60))),
+                            (b"I#P>120,60:d 1,4,257,2:", (116, 62), (0, 0, 1, 65535),
+                             ((120, 60), (119, 61), (118, 61), (117, 62), (116, 62))),
+                            (b"I#T>2,0,1,1,1:L 100,60,103,60:", (103, 60), (0, 1, 3, 65535),
+                             ((100, 59), (101, 59), (102, 59), (103, 59),
+                              (100, 60), (101, 60), (102, 60), (103, 60),
+                              (100, 61), (101, 61), (102, 61), (103, 61))),
+                            (b"I#T>2,4,0,1,0:L 100,60,103,60:", (103, 60), (4, 0, 1, 0), ()),
+                        )
+                        for index, (command, point, line, pixels) in enumerate(line_cases):
+                            token = f"LINE{index}"
+                            wire = (f"I#R {resolution}:".encode() + stamp + b"I#T 1,0,1:" + command +
+                                    b"\x1b[H" + token.encode() + b"\x1b[6n")
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=point, line=line, line_pixels=pixels)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

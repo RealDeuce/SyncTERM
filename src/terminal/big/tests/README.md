@@ -166,3 +166,18 @@ I/R/EOF/reset/timeout, unknown selectors/repeats/replies and source-to-wire
 seams after selector or X. Actual g3/cache3 Y5 becomes11, but final stored
 Y5 stays5. The application fixture adds70 step/default/retention scenes,
 308 coherent total; pointer acquisition and the other X selectors remain pending.
+
+`cterm_big_line` wires L/D/d through native CTerm with independent literal
+expectations from chapters12/51/57. Patterncccc selects L's increasing-X
+positions2/3/6/7, while equal-Y D starts at the target and selects5/4/1/0.
+The fixed-slope corner yields two pixels; separately clipped thick sides
+remain visible after a rejected center. Relative d preserves the Y-sign
+defect and distinguishes public target computation from old DDO start.
+Fixtures compare complete indexed blink planes and explicit point prefixes,
+including live colour changes, stored/wire seams, repeats/deferred replies,
+XOR, failure/EOF/reset/timeout and recovery. Every split is checked in the
+default profile, with bytewise input across all three modes, CP437/UTF-8 and
+status choices. The real
+application adds70 independently authored line scenes (896 total) with
+coherent scene/text/palette/state/reply expectations. No reference executable,
+external ROM, physical input or audible device is required.

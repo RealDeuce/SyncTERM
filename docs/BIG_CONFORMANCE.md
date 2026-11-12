@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, T attributes and P markers run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, T attributes, P markers and L/D/d lines run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -479,3 +479,26 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native < keyboard/hybrid pointer integration commit: `03e4edc`.
 Page/image/audio composition and the full45-entry goal remain in progress.
+
+## Native L/D/d lines
+
+L now reads class1/2/1/2, D class1/2 and d class0/1/0/2 through the same
+pre-ANSI parser/source path. Each installs current line colour before the
+first operand; waiting acquisition preserves subsequent installed changes.
+L keeps endpoint order and explicitly moves after drawing. D uses the target
+first and old DDO point second, publishing DDO before clipping and final
+points after return. d negates X for any nonzero flag but retains the original
+Y-sign defect: its flag is negated instead of deltaY. Negative deltaY remains
+negative. Existing WORD/clip/stroke/pattern/indexed COPY/XOR adapters supply
+geometry; no new framebuffer or duplicate rasterizer is introduced.
+
+`cterm_big_line` checks independent literal candidates at every split and
+bytewise, all modes/encodings/status choices, colour prefixes/live changes,
+source/scaling seams, repeated/chained replies, fixed-slope clipping, visible
+thick sides, phase order/restart, invisible point tails, separate public/DDO
+owners, per-plane XOR, partial failures and EOF/reset/timeout recovery. The
+initial wire test failed before registration.70 added coherent application
+scenes bring the oracle to896 with full indexed/text/palette/point/cursor/
+reply/RGB observations; retained BGI error-11 does not suppress lines.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately. Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending.

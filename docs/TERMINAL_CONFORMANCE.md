@@ -140,6 +140,15 @@ to826 full indexed scenes with cells/fonts/palette/cursor/point state and replie
 Remaining page/image/audio composition and final full-suite verification are
 pending; routine tests remain BIG-only.
 
+Native BIG L/D/d now use the existing original clip/stroke/point adapters and
+indexed sink. `cterm_big_line` checks split/bytewise input, colour before
+acquisition, L/D endpoint and pattern order, the relative Y-sign defect,
+source/scaling/repeat/deferred replies, point/error prefixes, per-plane XOR
+and recovery.70 added coherent application scenes bring the oracle to896;
+all modes/encodings/status choices retain full indexed planes, ROM text,
+palette, points, cursor and exact replies. Page/image/audio composition and
+final full-suite verification remain pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

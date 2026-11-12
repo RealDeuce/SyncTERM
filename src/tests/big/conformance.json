@@ -513,6 +513,21 @@
           ],
           "commit": "03e4edc",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All13 BIG-specific native CTest checks passed in15.17s. The BIG application fixture passed in51.42s with826 coherent scenes; final missing-pixel/history and failure-cleanup cases are additionally covered by the native suite. Only BIG-specific tests ran for this step; the full regression suite remains deferred until goal completion. Native < framing/keyboard/hybrid-pointer/echo/reply integration is implemented. Global page/image and audio composition, physical input/audio and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "native-line-commands",
+          "status": "complete",
+          "tests": [
+            "big_draw",
+            "big_number",
+            "big_numeric",
+            "big_state",
+            "big_control",
+            "cterm_big_line",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -807,7 +822,7 @@
     {
       "id": "L",
       "order": 11,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -817,16 +832,35 @@
       "references": [
         "57-line-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Install current application line-colour WORD before the first operand: public low BYTE and installed pen low four bits. No second installation after waiting; retained BGI error-11 does not suppress drawing.",
+        "Read classes1,2,1,2 and pass first endpoint first to the original line adapter; explicit requested-second-endpoint moveto occurs only after normal return, including wholly invisible returning lines.",
+        "Reuse original fixed-slope WORD clip, separate thick strokes and per-stroke pattern phase through the existing indexed sink; COPY/XOR affects distinct pen identities independently in both blink planes.",
+        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails. Global page/image/audio composition remains pending."
+      ],
+      "tests": [
+        "big_draw",
+        "big_number",
+        "big_numeric",
+        "big_state",
+        "big_control",
+        "cterm_big_line",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Existing bounded drawing policy: escaped native indexed accesses, signed divide faults and detected nonterminating WORD clips return errors with completed prefixes retained. Uninstalled dispatch uses protocol error instead of exiting the process; unsafe DOS-neighbor aliases and VGA controller/latch ordering are not modeled."
+      ],
+      "verification": [
+        "Independent native wire expectation failed before registration. Every split at the default profile and bytewise input in all three modes with CP437/UTF-8/status verify L/D endpoint/pattern order and d nonzero sign flags/Y-sign defect/negative Y. Additional literal cases cover colour before waiting/current installed changes, fixed-slope corner, visible thick sides, clipped phase, invisible tails, distinct point owners, stored-to-wire g3 seams, repeated L, chained counted replies, per-plane XOR and partial error/EOF/reset/timeout recovery.",
+        "70 new coherent application scenes bring coverage to896: L/D pattern order, relative Y-sign behavior, thick lines and zero masks retain old BGI error-11. Full indexed blink planes, ROM text/cells, palette, public/DDO/device points, cursor/state, exact replies and composed RGB interior samples are checked together across all mode/encoding/status combinations.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
+      ],
       "commit": null
     },
     {
       "id": "D",
       "order": 12,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -836,16 +870,35 @@
       "references": [
         "57-line-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Install current application line-colour WORD before the first operand: public low BYTE and installed pen low four bits. No second installation after waiting; retained BGI error-11 does not suppress drawing.",
+        "Read classes1,2 and pass translated target first, old DDO point second. Publish DDO target before clip/draw, then device/public point tails only after normal return; requested point survives clipping.",
+        "Reuse original fixed-slope WORD clip, separate thick strokes and per-stroke pattern phase through the existing indexed sink; COPY/XOR affects distinct pen identities independently in both blink planes.",
+        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails. Global page/image/audio composition remains pending."
+      ],
+      "tests": [
+        "big_draw",
+        "big_number",
+        "big_numeric",
+        "big_state",
+        "big_control",
+        "cterm_big_line",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Existing bounded drawing policy: escaped native indexed accesses, signed divide faults and detected nonterminating WORD clips return errors with completed prefixes retained. Uninstalled dispatch uses protocol error instead of exiting the process; unsafe DOS-neighbor aliases and VGA controller/latch ordering are not modeled."
+      ],
+      "verification": [
+        "Independent native wire expectation failed before registration. Every split at the default profile and bytewise input in all three modes with CP437/UTF-8/status verify L/D endpoint/pattern order and d nonzero sign flags/Y-sign defect/negative Y. Additional literal cases cover colour before waiting/current installed changes, fixed-slope corner, visible thick sides, clipped phase, invisible tails, distinct point owners, stored-to-wire g3 seams, repeated L, chained counted replies, per-plane XOR and partial error/EOF/reset/timeout recovery.",
+        "70 new coherent application scenes bring coverage to896: L/D pattern order, relative Y-sign behavior, thick lines and zero masks retain old BGI error-11. Full indexed blink planes, ROM text/cells, palette, public/DDO/device points, cursor/state, exact replies and composed RGB interior samples are checked together across all mode/encoding/status combinations.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
+      ],
       "commit": null
     },
     {
       "id": "d",
       "order": 13,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -855,10 +908,29 @@
       "references": [
         "57-line-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Install current application line-colour WORD before the first operand: public low BYTE and installed pen low four bits. No second installation after waiting; retained BGI error-11 does not suppress drawing.",
+        "Read all four classes0,1,0,2 before sign tests. Any nonzero X flag negates deltaX as a WORD; preserve the original Y-sign defect, leaving deltaY unchanged. Public CP computes the target while old DDO supplies the start; retain ordered post-return public rereads.",
+        "Reuse original fixed-slope WORD clip, separate thick strokes and per-stroke pattern phase through the existing indexed sink; COPY/XOR affects distinct pen identities independently in both blink planes.",
+        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails. Global page/image/audio composition remains pending."
+      ],
+      "tests": [
+        "big_draw",
+        "big_number",
+        "big_numeric",
+        "big_state",
+        "big_control",
+        "cterm_big_line",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Existing bounded drawing policy: escaped native indexed accesses, signed divide faults and detected nonterminating WORD clips return errors with completed prefixes retained. Uninstalled dispatch uses protocol error instead of exiting the process; unsafe DOS-neighbor aliases and VGA controller/latch ordering are not modeled."
+      ],
+      "verification": [
+        "Independent native wire expectation failed before registration. Every split at the default profile and bytewise input in all three modes with CP437/UTF-8/status verify L/D endpoint/pattern order and d nonzero sign flags/Y-sign defect/negative Y. Additional literal cases cover colour before waiting/current installed changes, fixed-slope corner, visible thick sides, clipped phase, invisible tails, distinct point owners, stored-to-wire g3 seams, repeated L, chained counted replies, per-plane XOR and partial error/EOF/reset/timeout recovery.",
+        "70 new coherent application scenes bring coverage to896: L/D pattern order, relative Y-sign behavior, thick lines and zero masks retain old BGI error-11. Full indexed blink planes, ROM text/cells, palette, public/DDO/device points, cursor/state, exact replies and composed RGB interior samples are checked together across all mode/encoding/status combinations.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
+      ],
       "commit": null
     },
     {

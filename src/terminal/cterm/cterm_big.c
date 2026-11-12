@@ -20,13 +20,21 @@ static const struct st_graphics_dialect dialect = {
 };
 static const struct st_graphics_parameter point[] = {
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
+static const struct st_graphics_parameter line[] = {
+	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
+	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
+static const struct st_graphics_parameter relative[] = {
+	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},
+	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
 static const struct st_graphics_parameter input_parameters[] = {
 	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER}};
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
 static int style_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int extended_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
-	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
+	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
+	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
+	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
 
 static bool marker_kind(const struct st_graphics_command_view *view)
 {
@@ -119,8 +127,8 @@ static int field(void *context, const struct st_graphics_command_view *view,
 		big->state.application.marker=(uint8_t)view->arguments[1].value;
 		if (big->state.application.marker>7) big->state.application.marker=7;
 	}
-	if (view->code=='P' && view->count==0) {
-		int status=st_big_draw_color(&big->state,big->state.application.colors[0]);
+	if (view->count==0 && (view->code=='P' || view->code=='L' || view->code=='D' || view->code=='d')) {
+		int status=st_big_draw_color(&big->state,big->state.application.colors[view->code=='P'?0:1]);
 		if (status!=0) return status;
 	}
 	if (view->code=='X' && view->count>=1 && view->arguments[0].has_value
@@ -259,6 +267,10 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	}
 	if (view->code=='P') {
 		int status=cterm_big_draw_p(big,view);
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='L' || view->code=='D' || view->code=='d') {
+		int status=cterm_big_draw_line(big,view);
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='g') {
