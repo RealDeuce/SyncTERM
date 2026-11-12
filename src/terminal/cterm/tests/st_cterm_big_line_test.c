@@ -1,4 +1,4 @@
-/* Independent BIG L/D/d wire expectations: chapters12/51/57. */
+/* Independent BIG m/L/D/d wire expectations: chapters12/51/57. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_big_internal.h"
@@ -81,6 +81,10 @@ static const struct {
 	{"I#T>2,1,1,1,0:L 100,60,107,60:\033[2;3H",absolute,4,107,60},
 	{"I#T>2,1,1,1,0:P>100,60:D 107,60:\033[2;3H",target_first,4,107,60},
 	{"I#P>120,60:d 1,4,257,2:\033[2;3H",relative,5,116,62},
+	{"I#m>256,120,60:m 1,4,257,2:\033[2;3H",NULL,0,116,62},
+	{"I#m>2,+1,60:m 0,2,1,2:\033[2;3H",NULL,0,1,62},
+	{"I#m>2,100,100:m +1,20,1,40:\033[2;3H",NULL,0,80,140},
+	{"I#m>2,100,100:m x,20,1,+2:\033[2;3H",NULL,0,80,98},
 };
 static void partitions_and_profiles(void)
 {
@@ -217,8 +221,85 @@ static void point_owners_xor_and_failures(void)
 	const struct dot recovered[]={{10,20,805,805},{11,20,805,805},{12,20,805,805}}; canvas(&f,recovered,3); point(&f,12,20);
 	destroy(&f);
 }
+static void move_state_and_origin(void)
+{
+	struct fixture f; create(&f,true,true); struct cterm_big *b=f.terminal->big_engine;
+	bool invalid=false; CHECK(st_console_modify_pixels(f.console,seed,&invalid)==0);
+	string(&f,"\033[10;20HI#T 2,1,1,1,1:");
+	b->state.application.marker=7; b->state.application.marker_size=3; b->state.application.colors[3]=4;
+	b->state.application.hollow=7; b->state.application.fill=5; b->state.application.write_mode=1;
+	b->state.bgi.color=b->state.bgi.device_color=6; b->state.bgi.background=9;
+	b->state.bgi.write_mode=1; b->state.bgi.error=-11;
+	string(&f,"I#m 256,120,60:"); point(&f,120,60);
+	const struct dot unchanged[]={{11,20,803,806}}; canvas(&f,unchanged,1);
+	CHECK(f.terminal->xpos==20 && f.terminal->ypos==10 && f.size==0);
+	CHECK(b->state.application.marker==7 && b->state.application.marker_size==3 && b->state.application.colors[3]==4);
+	CHECK(b->state.application.hollow==7 && b->state.application.fill==5 && b->state.application.write_mode==1);
+	CHECK(b->state.bgi.color==6 && b->state.bgi.device_color==6 && b->state.bgi.background==9 && b->state.bgi.write_mode==1);
+	CHECK(b->state.bgi.line_mask==0xcccc && b->state.bgi.ddo_line_width==3 && b->state.bgi.error==-11);
+	b->state.bgi.viewport[0]=2; b->state.bgi.viewport[1]=3;
+	string(&f,"I#m 2,+1,2:");
+	CHECK(b->state.bgi.x==65535 && b->state.bgi.y==2 && b->state.bgi.ddo_x==1 && b->state.bgi.ddo_y==5 && b->state.bgi.device_x==1 && b->state.bgi.device_y==5);
+	string(&f,"I#m 1,1,1,2:");
+	CHECK(b->state.bgi.x==65534 && b->state.bgi.y==4 && b->state.bgi.ddo_x==0 && b->state.bgi.ddo_y==7 && b->state.bgi.device_x==0 && b->state.bgi.device_y==7);
+	string(&f,"I#m 1,2,1,");
+	CHECK(b->state.bgi.x==65534 && b->state.bgi.y==4 && b->state.bgi.ddo_x==0 && b->state.bgi.ddo_y==7);
+	/* Relative m reads current public CP after operands, independently of
+	 * the DDO/device start left by a previous operation. */
+	b->state.bgi.x=100; b->state.bgi.y=200; b->state.bgi.ddo_x=500; b->state.bgi.ddo_y=600;
+	string(&f,"5:");
+	CHECK(b->state.bgi.x==98 && b->state.bgi.y==205 && b->state.bgi.ddo_x==100 && b->state.bgi.ddo_y==208 && b->state.bgi.device_x==100 && b->state.bgi.device_y==208);
+	b->state.bgi.viewport[0]=b->state.bgi.viewport[1]=0;
+	b->state.bgi.x=32767; b->state.bgi.y=65535;
+	string(&f,"I#m 0,1,0,1:"); point(&f,32768,0);
+	canvas(&f,unchanged,1); CHECK(f.terminal->xpos==20 && f.terminal->ypos==10 && f.size==0);
+	destroy(&f);
+}
+static void move_sources_and_replies(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#R 3:I#g 3:I#m 2,5,5:"); point(&f,5,11);
+	string(&f,"I#R 3:I#m 1,2,1,5:"); point(&f,65534,11);
+	string(&f,"I#& 0,1,1,0,m@3,2,7,5:"); point(&f,7,5);
+	string(&f,"I#& 0,1,1,0,m@2,2,7:5:"); point(&f,7,11);
+	string(&f,"I#& 0,1,1,0,m@1,2:7,5:"); point(&f,7,11);
+	string(&f,"I#R 3:I#& 0,1,1,0,m@4,1,2,1,5:"); point(&f,65534,5);
+	string(&f,"I#R 3:I#& 0,1,1,0,m@3,1,2,1:5:"); point(&f,65534,11);
+	string(&f,"I#R 3:I#& 0,2,1,0,m@4,1,x,1,x:"); point(&f,65533,3);
+	CHECK(f.size==12 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11\x13\x11\x13\x11\x13\x11",12)==0);
+	canvas(&f,NULL,0);
+	b->control.input.pending=1; b->control.input.count=2; b->control.input.append_cr=1;
+	b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"I#m>2,10,20:"); CHECK(f.size==12 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==15 && memcmp(f.output+12,"\0\xff\r",3)==0 && b->control.input.pending==0);
+	destroy(&f);
+}
+static void move_cancellation_and_failure(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#m 2,100,100:"); point(&f,100,100);
+	string(&f,"I#m 2,12,"); point(&f,100,100); CHECK(st_cterm_finish(f.terminal)==0); point(&f,100,100);
+	string(&f,"I#m 1,2,1"); CHECK(st_cterm_reset_terminal(f.terminal)==0); point(&f,100,100);
+	string(&f,"I#m 2,12,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1); point(&f,12,0);
+	string(&f,"I#m 1,2,1,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==2); point(&f,10,0);
+	string(&f,"I#m 2,12,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==3); point(&f,10,0);
+	b->state.bgi.state=0; b->state.bgi.color=7; b->state.bgi.error=0;
+	string(&f,"I#m 2,120,"); point(&f,10,0); CHECK(b->state.bgi.error==0 && b->state.bgi.color==7);
+	const char tail[]="60:"; size_t used;
+	CHECK(st_cterm_write(f.terminal,tail,sizeof(tail)-1,&used)==IO_ERROR_PROTOCOL && used==sizeof(tail)-1);
+	point(&f,10,0); CHECK(b->state.bgi.error==-1 && b->state.bgi.color==7 && f.size==0);
+	const char relative_wire[]="I#m 1,2,1,5:";
+	CHECK(st_cterm_write(f.terminal,relative_wire,sizeof(relative_wire)-1,&used)==IO_ERROR_PROTOCOL && used==sizeof(relative_wire)-1);
+	point(&f,10,0); b->state.bgi.state=3;
+	string(&f,"I#m 2,200,300:"); point(&f,200,300); canvas(&f,NULL,0);
+	CHECK(b->state.bgi.error==-1 && b->state.bgi.color==7 && f.size==0);
+	destroy(&f);
+}
 int main(void)
 {
 	partitions_and_profiles(); color_and_waiting_prefix(); repeat_and_deferred_reply(); clipping_and_thickness();
-	sources_scaling_and_deadlines(); point_owners_xor_and_failures(); return 0;
+	sources_scaling_and_deadlines(); point_owners_xor_and_failures(); move_state_and_origin(); move_sources_and_replies(); move_cancellation_and_failure(); return 0;
 }

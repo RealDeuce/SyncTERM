@@ -21,8 +21,9 @@ implemented.
 BIG mode6 is selectable with native I0/I1/R indexed-console effects, g/X4/X6,
 wire & setup, source/footer replay and local stored-loop keys. T attributes
 and P marker drawing now run through a shared thin BGI kernel with BIG
-adapters, as do native L/D/d line commands. Native < keyboard and hybrid
-pointer input are integrated. Other drawing commands, page/image binding, sound and full command
+adapters, as do native L/D/d line commands. Native m graphics-point movement
+and < keyboard/hybrid pointer input are integrated. Other drawing commands,
+page/image binding, sound and full command
 acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -1189,3 +1190,49 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native L/D/d line integration commit: `0ff31e8`.
 Page/image/audio composition and the full45-entry goal remain in progress.
+
+=== Native m graphics-point movement
+
+The pre-ANSI parser now registers m's initial class0 operation and class1 X.
+The dynamic field callback tests the full signed operation WORD: values>1
+request one class2 absolute Y, while values<=1 request class0 signY and
+class2 deltaY. Negative operations therefore retain the four-field relative
+form; nonzero values negate X. All fields finish acquisition before movement.
+Stored operands retain their scaling bypass, including a source ending
+between operation/X/signY and later ordinary wire fields.
+
+The relative body retains the original Y-sign defect: signY is consumed,
+but deltaY is not negated. It reads current public Y then current public X,
+adds WORD deltas, then uses the existing moveto adapter. Public graphics CP
+remains unbounded logical WORDs; lower DDO/device points receive wrapped
+viewport-origin translation before public publication. Relative motion uses
+the current public point after operands rather than the point at command
+entry or the previous DDO/device point. No pixel, colour, style, palette,
+page or BIOS/console cursor operation belongs to m.
+
+The existing native uninstalled-dispatch boundary returns protocol error
+after operand acquisition, with original BGI error-1 and unchanged points;
+it does not exit SyncTERM. An old BGI error does not suppress valid installed
+movement. Normal completion uses the common source/repeat/chain/deferred
+reply path, with no own reply. EOF/reset of a partial command does not move
+the point; a real numeric timeout still returns its acquired substitute.
+
+The existing `cterm_big_line` fixture now checks m alongside its line
+consumers. Independent chapter51 cases cover every split in the default
+profile and bytewise input in all three modes/encodings/status choices,
+three/four-field arity, full-WORD and negative selectors, the Y-sign defect,
+negative deltas, wrapping across both signed and unsigned boundaries,
+changed current CP while waiting, origin translation and independent point
+owners, unchanged indexed planes/attributes/cursor, stored/wire g3 seams,
+repeated relative moves, deferred counted replies, EOF/reset/timeout and
+uninstalled failure/recovery. The first wire case failed before registration.
+
+42 added coherent application scenes bring the oracle to938. Absolute m256
+and relative m1 each change point state without leaving pixels; a following
+D draws from the moved point. Both indexed planes, ROM text/cells, palette,
+all graphics points, console cursor/state, exact replies and RGB samples are
+observed together across all three modes, both encodings and status choices.
+Physical audio/MIDI remain disabled. Page/image/audio composition and final
+full-suite acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.49s, including the expanded cterm_big_line in1.13s. The BIG application fixture passed in55.70s with938 coherent scenes. Only BIG-specific tests ran; the final full regression suite remains deferred. Native m integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending.

@@ -355,6 +355,29 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
                                   zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
                                   graph_point=point, line=line, line_pixels=pixels)
+                        # Chapter51 m has no raster effect. A later D starts
+                        # at the moved point without leaving a P marker dot.
+                        move_cases = (
+                            (f"I#R {resolution}:".encode() + stamp + b"I#m 256,120,60:", (120, 60), ()),
+                            (b"I#m 1,4,1,2:", (116, 62), ()),
+                            (b"I#D 120,62:", (120, 62),
+                             ((116, 62), (117, 62), (118, 62), (119, 62), (120, 62))),
+                        )
+                        for index, (command, point, pixels) in enumerate(move_cases):
+                            token = f"MOVE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=point, line_pixels=pixels)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

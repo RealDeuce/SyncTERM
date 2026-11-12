@@ -181,3 +181,14 @@ status choices. The real
 application adds70 independently authored line scenes (896 total) with
 coherent scene/text/palette/state/reply expectations. No reference executable,
 external ROM, physical input or audible device is required.
+
+The same native fixture checks lowercase m from chapter51's complete caller
+and moveto/moverel listings and hand-derived examples. It distinguishes
+signed operation>1 absolute arity from zero/one/negative relative forms,
+retains the Y-sign defect, and checks WORD/origin/public-versus-lower points,
+live CP after acquisition, unchanged pixels/attributes/console cursor,
+source/scaling seams, repeats/replies and partial failures/recovery. Every
+split is tested in the default profile; bytewise cases cover all three modes
+and both encodings/status choices.42 coherent application scenes (938 total)
+expect no raster change from absolute/relative m, then literal D pixels from
+the new point. Expected scenes are authored independently of SyncTERM.

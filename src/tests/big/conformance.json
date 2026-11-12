@@ -528,6 +528,20 @@
           ],
           "commit": "0ff31e8",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "native-graphics-point-move",
+          "status": "complete",
+          "tests": [
+            "big_draw",
+            "big_number",
+            "big_numeric",
+            "big_control",
+            "cterm_big_line",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.49s, including the expanded cterm_big_line in1.13s. The BIG application fixture passed in55.70s with938 coherent scenes. Only BIG-specific tests ran; the final full regression suite remains deferred. Native m integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -804,19 +818,38 @@
     {
       "id": "m",
       "order": 10,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
-        "big-state-pages"
+        "big-state-pages",
+        "shared-bgi"
       ],
       "references": [
         "51-state-and-position-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Read class0 full-WORD operation and class1 X, then dynamically acquire class2 absolute Y for signed operation>1 or class0 signY/class2 deltaY otherwise. Stored values bypass scaling and can end before later wire fields.",
+        "Relative zero operation retains X; every nonzero relative operation, including signed negatives, negates X as a WORD. Preserve the original Y-sign defect, leaving deltaY unchanged. Read current public Y then X after all operands, independently of old DDO/device points.",
+        "Use the existing unbounded logical moveto adapter: wrap origin translation into DDO/device points before publishing public CP. No own pixels, colour, style, palette, installed-page or console-cursor effects.",
+        "Use the existing source/repeat/chain/deferred-reply footer with no own reply. Partial EOF/reset does not move; actual numeric timeout substitutes normally. Uninstalled dispatch fails only after operands and retains points; old BGI errors do not suppress valid installed movement. Global page/image/audio composition remains pending."
+      ],
+      "tests": [
+        "big_draw",
+        "big_number",
+        "big_numeric",
+        "big_control",
+        "cterm_big_line",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native uninstalled dispatch returns protocol error and BGI error-1 after acquisition instead of terminating SyncTERM through the original DOS graph diagnostic/exit path. Unsafe original stack/register/DOS-memory aliases are not modeled; accepted reader prefixes and prior points remain."
+      ],
+      "verification": [
+        "Independent wire expectation failed before m registration. Native cases cover every split in the default profile and bytewise in all three modes, CP437/UTF-8 and status choices. Literal results distinguish absolute three-field from relative four-field arity, full-WORD and negative selectors, Y-sign defect/negative deltas, signed/unsigned wrap, live public CP after waiting, wrapped origin/lower point owners, unchanged indexed planes/attributes/cursor, g3 stored/wire seams, repeated relative moves, chained counted replies and EOF/reset/timeout/uninstalled failure/recovery.",
+        "42 new coherent application scenes bring the oracle to938: absolute m256 and relative m1 preserve the scene, then D draws literal pixels from the moved point. Both complete indexed blink planes, ROM text/cells, palette, all point owners, console cursor/state, replies and RGB interior samples are observed together across all modes/encodings/statuses, with physical audio/MIDI off.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.49s, including the expanded cterm_big_line in1.13s. The BIG application fixture passed in55.70s with938 coherent scenes. Only BIG-specific tests ran; the final full regression suite remains deferred. Native m integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
+      ],
       "commit": null
     },
     {

@@ -26,19 +26,35 @@ static const struct st_graphics_parameter line[] = {
 static const struct st_graphics_parameter relative[] = {
 	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},
 	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
+static const struct st_graphics_parameter move[] = {
+	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X}};
 static const struct st_graphics_parameter input_parameters[] = {
 	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER}};
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
 static int style_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int move_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int extended_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
+	{'m',move,2,move_next},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
 
 static bool marker_kind(const struct st_graphics_command_view *view)
 {
 	return st_big_number_signed((uint16_t)view->arguments[0].value)<=1;
+}
+static int move_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *parameter)
+{
+	(void)context;
+	if (view->count<2 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+	bool absolute=st_big_number_signed((uint16_t)view->arguments[0].value)>1;
+	*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	if (view->count<(absolute?3u:4u))
+		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER,
+		    .axis=absolute || view->count==3?ST_GRAPHICS_Y:ST_GRAPHICS_UNSCALED};
+	return 0;
 }
 static int style_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *parameter)
@@ -271,6 +287,23 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	}
 	if (view->code=='L' || view->code=='D' || view->code=='d') {
 		int status=cterm_big_draw_line(big,view);
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='m') {
+		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		uint16_t operation=(uint16_t)view->arguments[0].value;
+		bool absolute=st_big_number_signed(operation)>1;
+		if (view->count!=(absolute?3u:4u)) return IO_ERROR_PROTOCOL;
+		for (size_t i=1;i<view->count;++i) if (!view->arguments[i].has_value) return IO_ERROR_PROTOCOL;
+		uint16_t x=(uint16_t)view->arguments[1].value, y=(uint16_t)view->arguments[2].value;
+		if (!absolute) {
+			if (operation!=0) x=(uint16_t)(0u-x);
+			/* Like d, the original negates the Y flag, not deltaY.
+			 * moverel reads current public Y before current public X. */
+			y=(uint16_t)(big->state.bgi.y+(uint16_t)view->arguments[3].value);
+			x=(uint16_t)(big->state.bgi.x+x);
+		}
+		int status=st_big_draw_move(&big->state,x,y);
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='g') {

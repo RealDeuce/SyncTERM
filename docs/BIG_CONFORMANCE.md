@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, T attributes, P markers and L/D/d lines run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, T attributes, m movement, P markers and L/D/d lines run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -505,3 +505,28 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native L/D/d line integration commit: `0ff31e8`.
 Page/image/audio composition and the full45-entry goal remain in progress.
+
+## Native m graphics-point movement
+
+m reads operation/X as classes0/1, then class2 Y for signed operation>1 or
+class0 signY/class2 deltaY otherwise. Negative selectors take the relative
+form and negate X; signY retains the original defect and does not negate Y.
+Relative motion reads current public Y then X after acquisition. The existing
+moveto adapter translates lower DDO/device points by the viewport origin
+with WORD wrapping before publishing the unbounded logical public point.
+It draws nothing and retains colours, styles, palette, installed pages and
+console cursor. Partial EOF/reset leaves points unchanged; native uninstalled failure
+occurs after fields, without a process exit. Common source/repeat/chain and
+counted deferred replies remain in use.
+
+Independent `cterm_big_line` cases cover split/bytewise mode/encoding/status
+input, variable arity, negative/full-WORD selectors, Y-sign and negative-delta
+behavior, wrap boundaries, changed current point during acquisition, origin/
+point ownership, unchanged indexed planes and attributes, g3 stored/wire
+seams, repeats/replies and EOF/reset/timeout/error recovery. The first wire
+case failed before implementation.42 new coherent scenes bring application
+coverage to938: absolute and relative m leave the scene intact, then D
+draws from the moved point. Full indexed/text/palette/point/cursor/reply/RGB
+expectations retain all three modes, CP437/UTF-8 and status choices.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.49s, including the expanded cterm_big_line in1.13s. The BIG application fixture passed in55.70s with938 coherent scenes. Only BIG-specific tests ran; the final full regression suite remains deferred. Native m integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending.

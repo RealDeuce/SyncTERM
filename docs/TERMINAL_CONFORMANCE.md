@@ -149,6 +149,15 @@ all modes/encodings/status choices retain full indexed planes, ROM text,
 palette, points, cursor and exact replies. Page/image/audio composition and
 final full-suite verification remain pending.
 
+BIG m moves the three graphics point owners through existing WORD/origin
+adapters without drawing or moving the console cursor. `cterm_big_line`
+checks variable arity, full/negative selectors, original relative Y-sign
+behavior, source/scaling seams, point/attribute/pixel retention and partial
+failure/recovery.42 added coherent application scenes bring coverage to938:
+absolute/relative m preserve the scene and subsequent D starts at the new
+point. Final global page/image/audio composition and the full suite remain
+pending; routine tests remain BIG-only.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the
