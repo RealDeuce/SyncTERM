@@ -643,3 +643,6 @@ edit/install/restore/resubmit, retained slot bytes and editor ownership plus
 the complete indexed/text/palette/points/cursor/reply/fill-cache/RGB scene.
 
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending.
+
+Native X1 edit/restore integration commit: `3fd8fa6`.
+Rendering consumers and remaining full45-entry composition stay in progress.
