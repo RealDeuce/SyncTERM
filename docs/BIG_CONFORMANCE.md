@@ -698,3 +698,6 @@ wire B and the remaining curve/global composition are pending. Only BIG
 tests run during iteration; the full suite remains deferred.
 
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All18 BIG-specific native CTest checks passed in15.75s. Final expanded big_producer checks passed in0.10s (test0.01s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound component; final full-suite verification remains deferred. Native indexed byte-read binding, lower gates/bar3d/curve and global composition remain pending.
+
+Original shared point producer commit: `404d4c1`.
+Native B/bar3d/curve and remaining full45-entry composition stay in progress.
