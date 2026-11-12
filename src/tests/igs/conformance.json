@@ -3187,7 +3187,7 @@
         "After the final warning-free full build, all16 affected CTest checks passed in49.52s. The loop application matrix passed846 coherent captures in49.45s and the music application test passed in25.31s. Native loop took0.39s; the native note suite, including a real & body with queued-key cancellation on a pull audio runtime, took0.41s. No physical audio/device coverage is claimed.",
         "Validated63 unique ordered IDs,61 completed command entries, registered active tests/dependencies/references and pinned source identities. Ordinary tests are self-contained and disable physical audio/MIDI. X9 source integration, parent X dispatch completion and final acceptance remain unfinished; the full goal stays active."
       ],
-      "commit": null
+      "commit": "1bfcfb1"
     },
     {
       "id": "X9",

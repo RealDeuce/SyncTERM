@@ -4512,6 +4512,8 @@ remain pending, and the full goal stays active.
 
 == & stored-operand loops and gang dispatch (complete)
 
+Implementation commit: `1bfcfb1`.
+
 Chapters11/13 specify one shared loop state. Stage four unscaled header
 words in read order, raw command, optional text and exact128-byte gang
 snapshot, raw kind, signed count clamped1..2048 and all stored operands.
