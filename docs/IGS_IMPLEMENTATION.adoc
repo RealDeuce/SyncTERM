@@ -4350,3 +4350,82 @@ and reran cterm_igs_query: passed in1.14s with all768 form cases. Checked all63
 unique ordered IDs,59 completed entries, registered tests, dependencies,
 references, pinned source hashes and original mouse-form inputs. Parent X,
 remaining commands and final acceptance stay pending; the full goal is active.
+
+== < keyboard and zone input (complete)
+
+Chapter27 specifies three unscaled operands and a deferred chain epilogue.
+Commit append-CR's low byte and the signed type before acquiring each later
+operand, so array/random sources advance once and partial input preserves
+accepted effects. Initialize pending/count only after all three operands.
+Signed types<=0 collect one complete keyboard word;1 collects printable ASCII
+until exact CR. Ignore other controls and extended words without narrowing
+comparisons to a byte. Preserve the actual129-byte payload limit, retained
+buffer suffix and native echo rules. Options2 discards with ordinary echo;
+3 discards without ordinary echo. Backspace always emits the existing VT52
+ESC D,space,ESC D sequence, including silent mode and an empty buffer.
+Clamp Delete at an empty buffer to correct the original underflow and unsafe
+surrounding-memory writes, rather than reproducing a foreign address map.
+
+Types2 and>10 use the current polymarker;3..10 share the query's original
+AES software forms and indexed dual-phase save-under. Mouse collection owns
+input until all buttons release, with no keyboard abort. The polymarker
+stays at its last press position during release; GEM follows release motion.
+Hit-test press coordinates against all48 X4 rectangles in ascending order,
+with inclusive signed bounds and no reordering/scaling/button restriction.
+First hit wins; default miss selects47, strict miss rings the existing console
+BEL and restarts the attempt without rereading operands or reinitializing
+pending/count. Copy binary zone bytes including NUL. Reject corrupt lengths
+above the80 bytes X4 can produce instead of reading neighboring objects.
+Use current viewport samples and local events, with UI/disabled suppression
+and release-anywhere cleanup. Restore actual writing mode, saved pixels and
+prior host visibility on success/EOF/reset/error, including status clipping;
+no native hide counters, unsafe sentinel draw, polling clock or worker.
+
+Keep pending collection until the entire enclosing chain exits, including
+asynchronous tails. Later < replaces the previous pending collection. Clear
+pending before transport callbacks; reread current count/CR after each byte.
+Send local collected input through the existing user-input transport, before
+unused queued keys. The serial transport owns readiness. Source/file echo
+will join this epilogue with X9's pending source integration; ordinary serial
+commands need no file/ROM/runtime dependency. EOF cancels unfinished input
+and pending incomplete chains without inventing a key, click or reply.
+
+cterm_igs_collect covers768 one-key type/value combinations, full-word/control
+boundaries, host normal/shift/Control Delete translation, non-BMP rejection,
+all echo/discard branches,129-byte editing bounds, retained suffix, mutable
+partial operands/RNG, replacement and asynchronous chains, EOF/timeout/reset,
+live count/CR and reentrant transport polling. All48 zone indices, first-hit
+inclusive edges, reversed/empty rectangles, binary NUL payloads, default and
+strict miss, no keyboard mouse-abort, X3/X6 ownership, outside/claimed drag
+suppression, release-anywhere and pointer cleanup are checked. Split and
+bytewise chains cover18 native profiles and54 scaling variants. Adjacent
+query tests independently caught the same outside/newly claimed press issue;
+both acquisition paths now preserve suppression through held movement.
+
+syncterm_igs_collect covers1404 coherent captures across all18 native
+mode/encoding/status profiles. Independent original glyph/palette/form data
+and per-pixel expectations check both indexed phases, RGB, cells and cursor
+from each capture. Real raw sockets plus Wren fences prove deferred replies,
+replacement and no premature bytes. Include host Delete and unconditional
+Backspace echo, all8 AES forms, polymarker/GEM release differences, strict
+retry, disabled forwarding/re-enabled held drags, queued Unicode input and
+held-pointer disconnect/fresh reconnect. Existing audio/MIDI settings disable
+physical output. Reentrant send polling is guarded by the existing sending
+state so queued keys cannot interleave with a payload or its CR. Literal
+coverage and pinned source identities: src/tests/igs/collect-vectors.json.
+
+Native FreeBSD Release CMake configure/full builds with /usr/bin/cc passed.
+Early existing generated-dependency future-timestamp/clock-skew warnings were
+absent from the final full build, which had zero diagnostics. The initial
+missing-handler test failed before implementation. All41 selected checks
+passed in274.39s, including initial1332-capture application coverage. Added
+failing regressions for reentrant reply/key ordering, host Delete translation
+and outside/claimed press suppression, then fixed them. After the final full
+rebuild, all17 affected checks passed in104.64s: collector1404 captures in
+104.59s, query864 captures, native collector0.43s, plus ANSI/VT52/keyboard,
+term/key forwarding and IGS input/I/R/flow/waits/X3/X4/X6. The earlier run also
+covers console/bitmap/control, shared parser/stream, RIP, SkyPix, Wren and
+IGS raster/math/audio/music. Checked all63 unique ordered IDs,60 completed
+entries, active tests/dependencies/references and pinned source identities.
+X9's source echo, parent X, remaining commands and final acceptance stay
+pending; the full goal remains active.

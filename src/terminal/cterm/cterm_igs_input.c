@@ -18,7 +18,7 @@
 bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 {
 	struct cterm_igs_input *m = &igs->input;
-	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
+	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active && !igs->collect.active) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
 	m->keys[(m->key_first + m->key_count) % CTERM_IGS_INPUT_KEYS] = *key;
 	++m->key_count;
 	return true;
@@ -175,6 +175,7 @@ void cterm_igs_input_cancel(struct cterm_igs *igs)
 {
 	struct cterm_igs_input *input = &igs->input;
 	cterm_igs_input_cancel_reader(igs);
+	igs->collect.configuring=false;
 	input->left_held = false;
 	input->held = input->suspended = input->sending = input->suppressed = false;
 	input->buttons = 0;
@@ -260,10 +261,28 @@ bool cterm_igs_mouse(struct cterm_igs *igs, const struct st_console_event *event
 {
 	cterm_igs_mouse_observe(igs, event);
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) return false;
+	if (igs->collect.active) {
+		if (igs->collect.type<=1) return false;
+		int height=igs->terminal->height*(igs->resolution==2?16:8);
+		bool inside=event->data.mouse.pixel_x>=0 && event->data.mouse.pixel_y>=0
+		    && event->data.mouse.pixel_x<(int)igs->width && event->data.mouse.pixel_y<height;
+		if (!inside && !igs->collect.release && igs->input.buttons!=0) igs->input.suppressed=true;
+		if (inside || (igs->collect.release && igs->input.buttons==0)) {
+			bool feeding=igs->feeding; igs->feeding=true;
+			if (igs->input.buttons==0) igs->input.suppressed=false;
+			unsigned buttons=igs->input.suppressed && !igs->collect.release?0:igs->input.buttons;
+			int status=cterm_igs_collect_mouse(igs,igs->input.mouse_x,igs->input.mouse_y,buttons);
+			igs->feeding=feeding;
+			cterm_render_record_error(igs->terminal,status);
+			if (!feeding) cterm_render_record_error(igs->terminal,cterm_igs_poll(igs));
+		}
+		return inside;
+	}
 	if (igs->query.active) {
 		int height=igs->terminal->height*(igs->resolution==2?16:8);
 		bool inside=event->data.mouse.pixel_x>=0 && event->data.mouse.pixel_y>=0
 		    && event->data.mouse.pixel_x<(int)igs->width && event->data.mouse.pixel_y<height;
+		if (!inside && !igs->query.release && igs->input.buttons!=0) igs->input.suppressed=true;
 		if (inside || (igs->query.release && igs->input.buttons==0)) {
 			bool feeding=igs->feeding; igs->feeding=true;
 			if (igs->input.buttons==0) igs->input.suppressed=false;
@@ -292,8 +311,19 @@ bool cterm_igs_mouse(struct cterm_igs *igs, const struct st_console_event *event
 }
 void cterm_igs_mouse_sync(struct cterm_igs *igs, uint32_t buttons)
 {
+	if (igs->collect.active && igs->collect.type>1) {
+		igs->input.buttons=tos_buttons(buttons);
+		if (!igs->collect.release && igs->input.buttons!=0) igs->input.suppressed=true;
+		if (igs->input.buttons==0) igs->input.suppressed=false;
+		if (igs->collect.release && igs->input.buttons==0) {
+			igs->collect.ready=true;
+			if (!igs->feeding) cterm_render_record_error(igs->terminal,cterm_igs_poll(igs));
+		}
+		return;
+	}
 	if (igs->query.active) {
 		igs->input.buttons=tos_buttons(buttons);
+		if (!igs->query.release && igs->input.buttons!=0) igs->input.suppressed=true;
 		if (igs->input.buttons==0) igs->input.suppressed=false;
 		if (igs->query.release && igs->input.buttons==0) {
 			igs->query.x=igs->input.mouse_x; igs->query.y=igs->input.mouse_y;
@@ -320,6 +350,11 @@ void cterm_igs_input_inspect(const struct cterm_igs *igs, struct st_console_test
 	st_console_test_number(app, "cterm.igs_left_mode", input->left_mode);
 	st_console_test_number(app, "cterm.igs_left_held", input->left_held);
 	st_console_test_number(app, "cterm.igs_left_configuring", input->left_configuring);
+	st_console_test_number(app, "cterm.igs_collect_active", igs->collect.active);
+	st_console_test_number(app, "cterm.igs_collect_pending", igs->collect.pending);
+	st_console_test_number(app, "cterm.igs_collect_count", igs->collect.count);
+	st_console_test_number(app, "cterm.igs_collect_type", igs->collect.type);
+	st_console_test_number(app, "cterm.igs_collect_release", igs->collect.release);
 	st_console_test_number(app, "cterm.igs_query_active", igs->query.active);
 	st_console_test_number(app, "cterm.igs_query_selector", igs->query.selector);
 	st_console_test_number(app, "cterm.igs_query_style", igs->query.style);

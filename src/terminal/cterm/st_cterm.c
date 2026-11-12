@@ -3403,7 +3403,8 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 	if (terminal->igs_engine != NULL)
 		return terminal->igs_engine->input.enabled == 1 || terminal->igs_engine->input.left_mode != 0
 		    || terminal->igs_engine->input.held || terminal->igs_engine->input.left_held
-		    || terminal->igs_engine->query.active ? 3 : 0;
+		    || terminal->igs_engine->query.active
+		    || (terminal->igs_engine->collect.active && terminal->igs_engine->collect.type>1) ? 3 : 0;
 	if (terminal->skypix_engine != NULL)
 		return 2;
 	if (terminal->rip_engine != NULL

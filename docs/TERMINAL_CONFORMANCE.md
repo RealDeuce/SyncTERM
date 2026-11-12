@@ -307,6 +307,12 @@ and864 coherent all-profile captures cover overlay cleanup, prior mode/host
 visibility, press versus release state, queued keys and reconnect. Uninitialized
 motion, write-mode restore and malformed decimal bugs are corrected explicitly.
 
+`<` collects keyboard or X4 zone input and defers its raw reply until the
+whole graphics chain exits. Keyboard echo uses the existing VT52 parser;
+mouse forms share indexed pointer rendering with `?`. It retains129 printable
+bytes, exact press-zone selection and strict retry, with safe Delete bounds
+and cleanup on EOF/reset/error.
+
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers
 both variants with status on/off, Latin-1/CP437/UTF-8, configurable pixel canvases,

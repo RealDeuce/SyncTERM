@@ -66,7 +66,8 @@ local waits, flow and distinct inner/outer key handling through those existing
 MIDI and note helpers.
 `?` adds immediate version/cursor/pixel/resolution replies and interactive
 character-cursor or marker/GEM mouse queries, with indexed pointer cleanup
-and retained press/release semantics. Other commands remain pending.
+and retained press/release semantics. `<` adds keyboard/zone collection and
+chain-deferred replies. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -2737,3 +2738,54 @@ tests, source hashes and original form inputs were validated. The ledger is
 59/63 complete; parent X, remaining commands and final acceptance are pending.
 
 Completion commit for `?`: 18f97f3. The goal remains active at59/63.
+
+## Keyboard and zone collection (`<`)
+
+Chapter27 adds one-key, CR-terminated keyboard and mouse-zone input. The
+three unscaled operands retain low-byte CR and signed type as each is read.
+Types<=0 read one complete key word;1 retains up to129 printable bytes.
+Control/extended words do not terminate a string except exact CR. Options2/3
+suppress pending output, with ordinary echo only for2. Backspace always emits
+its native VT52 erase sequence. Delete clamps at zero, correcting native
+memory underflow; payloads retain their suffix and have no NUL terminator.
+
+Mouse types2/>10 use the current polymarker;3..10 share the original AES
+forms with `?`. Retain press coordinates through release, test all48 signed
+inclusive rectangles in order, and copy the first hit's binary payload.
+A miss selects47 by default, or rings console BEL and retries in strict mode.
+No keyboard key aborts mouse selection. Restore pixels, actual mode and prior
+host visibility on completion/cancellation. Reject impossible zone lengths
+above80 instead of reading adjacent native objects. UI/disabled input gates,
+indexed save-under and current viewport/status clipping remain in effect.
+
+The collected reply waits for the enclosing graphics chain to exit; another
+`<` replaces it. Clear pending before output and reread live count/CR after
+each byte. Send through the existing user-input transport before unused queued
+keys. EOF/reset/error cancels unfinished work without fabricating input.
+File-source echo remains part of X9 integration. Physical audio/MIDI are off
+in fixtures; source identities are in `src/tests/igs/collect-vectors.json`.
+
+`cterm_igs_collect` checks768 one-key type/value combinations, full-word
+boundaries, host Delete translation, all echo options and129-byte editing,
+split/bytewise chains over18 profiles and54 scaling variants, mutable partial
+operands/RNG, deferred/replaced/asynchronous replies, EOF/timeout/reset and
+reentrant polling/live-count callbacks. All48 zone indices, inclusive first
+hit, reversed/empty/default/strict cases, NUL payloads, queued keys, X3/X6
+ownership and pointer cleanup are covered. Focused `?` regressions also prove
+outside/newly claimed presses stay suppressed through held movement.
+
+`syncterm_igs_collect` adds1404 coherent all-profile captures with independent
+glyph/palette/index/RGB/state expectations, all8 pointer forms, real raw replies
+and Wren ordering fences. It covers keyboard echo with host Delete/Backspace,
+strict retry, disabled forwarding/re-enabled drags, queued Unicode and held
+pointer EOF/reconnect. Headless fixtures make no auditory/device claims.
+
+Native FreeBSD Release CMake configure/full builds passed using `/usr/bin/cc`;
+the final full build had zero diagnostics after early transient dependency
+timestamp warnings. All41 selected checks passed in274.39s. After the final
+callback/Delete/drag fixes and rebuild, all17 affected checks passed in104.64s,
+including1404 collection captures in104.59s,864 query captures and the native
+collector in0.43s. Independent failures demonstrated each corrected input
+bug. Ledger IDs/order, active tests/dependencies/references and source hashes
+were validated. The ledger is60/63 complete; parent X, remaining commands,
+X9 file-source echo and final acceptance remain pending.

@@ -434,7 +434,9 @@ cterm_igs_state_init(struct cterm_igs *igs)
 int
 cterm_igs_state_reset(struct cterm_igs *igs)
 {
-	int status = cterm_igs_query_cancel(igs);
+	int status = cterm_igs_collect_cancel(igs);
+	if (status == 0) igs->collect=(struct cterm_igs_collect){0};
+	if (status == 0) status = cterm_igs_query_cancel(igs);
 	if (status == 0) igs->query=(struct cterm_igs_query){0};
 	if (status == 0) status = cterm_igs_input_reset(igs);
 	if (status == 0) status = cterm_igs_music_reset(igs);

@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include "cterm_igs_input.h"
 #include "cterm_igs_mouse.h"
+#include "cterm_igs_collect.h"
 
 struct cterminal;
 struct st_graphics_parser;
@@ -74,6 +75,7 @@ struct cterm_igs {
 	struct cterm_igs_music *music;
 	struct cterm_igs_input input;
 	struct cterm_igs_query query;
+	struct cterm_igs_collect collect;
 	unsigned resolution;
 	unsigned saved_resolution;
 	uint32_t width, height;

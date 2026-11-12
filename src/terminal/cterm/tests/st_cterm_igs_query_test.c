@@ -151,6 +151,12 @@ static void boundaries_and_reset(void)
 	CHECK(igs->query.active && !igs->query.release);
 	st_cterm_sync_mouse_buttons(f.terminal,0); CHECK(!igs->query.release && count==0);
 	CHECK(mouse(&f,20,30,1) && mouse(&f,20,30,0)); expect("20,30,1:",8);
+	(void)mouse(&f,100,100,0);feed(&f,"G#? 2,1:");
+	CHECK(!mouse(&f,-1,-1,1));CHECK(mouse(&f,100,100,1) && !igs->query.release);
+	CHECK(mouse(&f,100,100,0) && igs->query.active);
+	st_cterm_sync_mouse_buttons(f.terminal,1);CHECK(mouse(&f,100,100,1) && !igs->query.release);
+	st_cterm_sync_mouse_buttons(f.terminal,0);CHECK(mouse(&f,100,100,1));CHECK(mouse(&f,101,101,0));
+	expect("101,101,1:",10);
 	(void)mouse(&f,100,100,0); feed(&f,"G#? 2,3:"); CHECK(mouse(&f,110,110,1));
 	struct st_console_event claimed={.type=ST_CONSOLE_EVENT_MOUSE};
 	claimed.data.mouse.pixel_x=120; claimed.data.mouse.pixel_y=130;

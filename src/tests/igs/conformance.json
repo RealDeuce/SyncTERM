@@ -363,7 +363,9 @@
         "cterm_igs_left_mouse",
         "syncterm_igs_left_mouse",
         "cterm_igs_query",
-        "syncterm_igs_query"
+        "syncterm_igs_query",
+        "cterm_igs_collect",
+        "syncterm_igs_collect"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -3061,18 +3063,56 @@
       "id": "<",
       "phase": "interaction",
       "references": [
-        "20-extended-controls.adoc",
+        "27-input-command.adoc",
+        "13-dispatch-loops.adoc",
         "21-extended-payloads.adoc",
-        "26-query-command.adoc",
-        "27-input-command.adoc"
+        "65-native-console-input.adoc",
+        "73-native-mouse.adoc",
+        "74-native-mouse-services.adoc",
+        "64-native-keyboard-translation.adoc",
+        "keyboard-contract-data.adoc"
       ],
       "order": 60,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "?",
+        "X4",
+        "X3",
+        "X6",
+        "P"
+      ],
+      "operations": [
+        "Three unscaled signed operands; low-byte CR and signed type are committed before acquiring later fields. Collect one key for signed types<=0, CR-terminated printable keyboard strings for1, polymarker zones for2 or types>10, and original AES forms for3..10. Retain129 payload bytes; exact full-word key comparisons, guarded Delete/Backspace, native echo and unconditional Backspace erase sequence. Options2/3 suppress pending output,3 also disables ordinary echo.",
+        "Mouse collection owns parser/mouse/key input, draws through the shared indexed pointer helper, retains press coordinates through release, and selects the first inclusive X4 rectangle in ascending order. Default miss chooses47; strict miss rings existing console BEL and retries without rereading parameters. Copy exact zone bytes including NUL. Restore pointer/mode/visibility on success and cancellation.",
+        "Keep pending collection and bytes through the enclosing graphics chain. A later < replaces collection and pending state. Send current bytes and optional CR only when the chain exits, clearing pending before callbacks and rereading count/CR after each byte. Collected local input uses the existing user transport, before unused queued keys. No foreign readiness loop, clock, worker or cycle timing.",
+        "Native key and word boundaries, all4 echo/discard branches, exact129-byte cap, 768 one-key type/value combinations, split and bytewise chains over18 profiles/54 scaling variants,48 zone indices, all8 AES forms, binary NUL/first-hit/edge/retry/queued-key/default semantics, partial fields/RNG/EOF/reset/reentrant transport callbacks and live count/CR. Application1404 coherent captures cover all18 profiles, independent glyph/palette/index/RGB/state expectations, raw chain-deferred bytes, host Delete, Backspace, every pointer form, strict retry, disabled forwarding/held-drag suppression, queued Unicode and reconnect.",
+        "Map host normal/shift Delete to native ASCII127 and Control-Delete to31 while comparing other returned key words intact. Reentrant polling during a send cannot forward keys between payload bytes/CR. Outside or newly claimed presses remain suppressed while dragged into both < and ? acquisitions; focused query regressions demonstrate the adjacent fix."
+      ],
+      "tests": [
+        "cterm_igs_collect",
+        "syncterm_igs_collect",
+        "cterm_igs_query",
+        "syncterm_igs_query",
+        "cterm_igs_zone",
+        "syncterm_igs_zone",
+        "cterm_igs_left_mouse",
+        "cterm_igs_macro",
+        "cterm",
+        "term",
+        "wren_host"
+      ],
+      "deviations": [
+        "Clamp Delete at an empty buffer rather than reproducing signed underflow, writes to buffer position0 or surrounding-memory corruption; retain the actual129-byte printable limit and unconditional Backspace console erase. Reject corrupt zone lengths above80 rather than reading neighboring objects; normal X4 producers always store1..80.",
+        "Share query pointer bug corrections: restore the actual prior writing mode and host pointer visibility, use indexed dual-phase save-under with current viewport/status clipping, and do not emulate native hide counters, unsafe sentinel draws, IRQ/VBL/stack/RAM or device-throughput timing. Type>10 deliberately normalizes to the polymarker as in the native input handler.",
+        "Initial pointer sampling uses the current native viewport sample; input is event-driven with no foreign polling delay. UI/disabled presses remain suppressed; keys cannot abort a mouse acquisition. EOF/reset/error cancels unfinished acquisition and pending chains without inventing input or output. File-source echo is deferred to the pending X9 source integration."
+      ],
+      "verification": [
+        "Native FreeBSD Release CMake configure/full builds with /usr/bin/cc passed. Early existing generated-dependency future-timestamp/clock-skew warnings were absent from the final full build, which had zero diagnostics. The initial missing-handler test failed before implementation.",
+        "All41 selected native/application regression checks passed in274.39s, including initial1332-capture collection coverage. Independent failing regressions then verified reentrant callback ordering, host Delete translation and outside-press drag suppression (also in ?); each was fixed and the focused native tests passed.",
+        "After the final full rebuild, all17 affected CTest checks passed in104.64s. syncterm_igs_collect passed1404 coherent captures in104.59s; syncterm_igs_query passed864 captures. Native collector took0.43s in the final run. Final checks also cover CTerm ANSI/VT52/keyboard, term/key forwarding and IGS input/init/resolution/flow/pause/sync/X3/X4/X6. Earlier41-test coverage additionally includes console/bitmap/control, shared parser/stream, RIP, SkyPix, Wren and IGS graphics/audio/music/math.",
+        "Validated63 unique ordered command IDs,60 completed entries, active tests/dependencies/references and pinned source identities. Ordinary fixtures are self-contained with physical audio/MIDI disabled. X9 file-source echo, parent X, remaining commands and final acceptance remain unfinished; the full goal stays active."
+      ],
       "commit": null
     },
     {
