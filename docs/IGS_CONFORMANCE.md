@@ -3063,6 +3063,8 @@ data without external IGS/ROM/executable requirements. Physical audio/MIDI are
 disabled in headless fixtures. The manual audio checklist below is supplied;
 automated acceptance does not claim audible-device or canonical-PCM equivalence.
 
+Final goal acceptance completion commit: 6441324.
+
 ### Manual audio checklist
 
 These listening checks are a post-implementation checklist, not automated
