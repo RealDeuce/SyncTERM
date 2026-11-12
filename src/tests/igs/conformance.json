@@ -3236,7 +3236,7 @@
         "Real transport/control-bitmap application X9 passed all 666 coherent captures in 42.17s across all 18 profiles: 13 handwritten raster/text/raw/script cases, unchanged load-only scene, source wait/key cancellation, queries and disconnect/reconnect. Related 18 checks passed in 115.71s, including native parser/input/loop/music/note/query/collection/macro/zone plus application loop/music/macro/zone/collection/query. Fixtures disable physical audio/MIDI; no auditory coverage claimed. Five pinned source identities and active registrations checked. Parent X and final goal acceptance remain unfinished.",
         "Final source-switch fairness/key-ownership regressions failed before their fixes. After the final warning-free full build, all 68 acceptance checks passed in 135.80s, including all registered native IGS tests, shared parser/source/stream, CTerm and all 666 application X9 captures. Native X9 took 0.52s in that run (0.49s standalone). Short sources yield across an enclosing serial loop and independent caller batches, retain keys while an accepted call is pending, complete every intended iteration, preserve unread suffix and balance flow once. Ledger is 62/63 complete; parent X and final goal audit remain pending."
       ],
-      "commit": null
+      "commit": "e08ebb6"
     }
   ]
 }

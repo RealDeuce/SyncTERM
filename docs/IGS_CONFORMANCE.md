@@ -2952,3 +2952,5 @@ warning-free full build, all68 acceptance checks passed in135.80s, including
 all native IGS tests and all666 application captures in42.17s. Native X9
 passed in0.52s (0.49s standalone). Parent X and final goal acceptance remain
 unfinished.
+
+Completion commit for X9: e08ebb6. Parent X and final goal acceptance remain pending.
