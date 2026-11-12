@@ -18,9 +18,11 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-BIG mode6 is selectable with native I0/I1/R indexed-console effects, g and X6,
-wire & setup, source/footer replay and local stored-loop keys. Drawing commands, sound and full
-command acceptance remain pending (0/45). The implementation ledger is
+BIG mode6 is selectable with native I0/I1/R indexed-console effects, g/X4/X6,
+wire & setup, source/footer replay and local stored-loop keys. T attributes
+and P marker drawing now run through a shared thin BGI kernel with BIG
+adapters. Other drawing commands, interactive input, sound and full command
+acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
 == Standalone implementation contract
@@ -139,6 +141,12 @@ teardown. Bit-identical reference PCM and manual listening are not gates;
 provide a manual audio checklist when implementation is complete.
 
 == Work and verification discipline
+
+During this goal, run only BIG-specific tests for routine development.
+Defer IGS, RIP, SkyPix and other non-BIG regressions to the final full-suite
+verification. This user-requested policy also applies to shared-code steps;
+keep their existing regression coverage for that final run. Native CMake
+configuration/build and focused BIG native/application checks still apply.
 
 Maintain this document, link:BIG_CONFORMANCE.md[BIG conformance], the command
 ledger and TERMINAL_CONFORMANCE.md with references/identities, operations,
@@ -908,3 +916,76 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 X4 counted-zone producer integration commit: `cc974bc`.
 Pointer input/hit testing and the full45-entry goal remain in progress.
+
+== Shared thin drawing, polymarkers and wire T/P
+
+References12/22/51/53/57/58/64/83 were rechecked against current RIP source.
+The matching candidate/pattern loop is now `st_bgi_thin_line`, consumed by
+both RIP line entrypoints and BIG. Four builtin patterns also share one data
+owner. RIP keeps its existing clip/thickness/CP/colour/backend policy.
+BIG retains original signed-WORD translation and fixed initial slope, signed
+subtraction-overflow rejection, truncating intersections and per-stroke phase.
+Width3 expands center/minus/plus from original endpoints before each separate
+clip; a rejected center does not suppress a visible side. The offset distance
+is read after the center and retained for both sides. No planar framebuffer
+or foreign clock was introduced.
+
+BIG now distinguishes public, translated DDO and device points. Requested
+DDO targets publish before drawing, while failed draws skip later device/public
+tails. Relative drawing rereads public CP for its final move. Normal source
+state is serialized; abstract drawing callbacks can change current fields,
+and tests retain the reached prefixes without transaction/rollback.
+
+The direct polymarker helper installs current colour and performs seven
+independent type tests, with separate size loads at the original argument
+sites. It uses the original ray/connected-edge schedules and inherited
+pattern/width/mode. Type0 and invalid types have no helper geometry; type2
+ends at its right ray tip. Type7 reuses the anchor move after its square
+before its first diagonal. Shared endpoints retain their XOR multiplicity.
+
+P installs marker colour before class1 X/class2 Y acquisition. Type0 uses
+its fresh marker colour in an ordinary copied point, independently of line
+XOR/pattern/width. A later independent nonzero test calls the direct helper;
+normal P always moves to its requested anchor, including fully clipped output.
+The indexed console modifier supplies the actual destination, pending-text
+rasterization and accepted-prefix damage. XOR works on distinct pen identifiers
+in each blink plane; equal RGB colours do not collapse pen identity. Native
+backend errors remain separate from BGI errors.
+
+T uses class0 arguments: signed kind<=1 selects marker attributes; larger
+kinds select line attributes. Marker type stores/clamps its low byte before
+size acquisition, whose low byte normalizes to1..8. Line style normalizes
+to0..4, with4 for out-of-range values; factors multiply moduloWORD. Wire
+width0=>1 and1=>3, while2 stays thin. Invalid signed width clears factor2,
+then public validation records-11 without replacing installed attributes.
+Valid installs retain an older error; later drawing is not suppressed.
+I0 resets application marker defaults, while I1/R retain them and R resets
+installed line settings. Field/body callbacks stop at a deferred local reset
+before applying a timed-out command or its remaining attribute tail.
+
+Safe-port boundaries: malformed signed clip-division overflow or a detected
+nonterminating WORD clipping cycle returns OUT_OF_RANGE. Uninstalled drawing
+returns the existing protocol-error boundary instead of invoking DOS exit.
+An accepted coordinate outside the actual native surface, or an unrelated
+stored identifier read by XOR, fails at access with the accepted prefix kept.
+Drawing sinks are synchronous; IN_PROGRESS becomes a protocol error rather
+than leaving an unowned command suspension. These corrections do not clamp
+normal WORD coordinates, erase prior pixels or manufacture point cleanup.
+
+The independent wire dot and early marker-type expectations failed before
+implementation. `big_draw` uses literal traces/masks for all shapes, tie and
+pattern phase, fixed-slope/overflow clips, independent thick sides, XOR visits,
+point-copy semantics, live type/size/distance/CP changes and backend failures.
+Native wire tests cover split/bytewise CP437/UTF-8/status in all three modes,
+colour-before-input/fresh-colour behavior, T normalization/public rejection,
+I/R lifetime, stored-to-wire transitions, g2/g3 versus stored Y, clipped CP,
+partial EOF/reset/timeout and reset during timeout notification.392 additional
+coherent scenes bring the application fixture to784: every marker in all
+three modes plus patterned-square, rejected-width, zero-pattern and width2
+cases, preserving the earlier scene/zone/source oracles. Full indexed blink
+planes, ROM text, palette/cells/cursor, replies and all three point owners
+are observed together. Pointer acquisition, page binding and remaining drawing/
+audio composition remain pending; this is an implemented integration step,
+not full T/P or45-command acceptance.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed.

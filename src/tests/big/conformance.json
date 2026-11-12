@@ -9,7 +9,8 @@
     "timing": "Existing local monotonic deadlines/audio samples; no foreign system clocks/BIOS interrupts/throughput delays.",
     "audio": "Functional synthesis/playback/lifecycle; no canonical-PCM or listening gate; manual checklist required.",
     "pointer": "Keyboard/X6 and native mouse coexist; latest movement wins, stationary button samples do not undo keyboard moves. Left release after a valid press confirms. No OS-pointer warp; preserve keyboard confirm/cancel and suppress UI/disabled/outside/reset/duplicate selections.",
-    "safe_port": "Preserve normal byte/WORD/state/pixel/reply behavior and document checked/bounded corrections to corruption, uninitialized state and unsafe failures."
+    "safe_port": "Preserve normal byte/WORD/state/pixel/reply behavior and document checked/bounded corrections to corruption, uninitialized state and unsafe failures.",
+    "verification": "During goal development run BIG-specific tests only; defer non-BIG regressions, including shared-code regressions, to the final full-suite run. Native CMake build and focused BIG native/coherent application verification remain required."
   },
   "foundations": [
     {
@@ -180,22 +181,31 @@
       "status": "in-progress",
       "operations": [
         "Revalidate current-source reuse and share only matching data/kernels actually consumed by RIP/BIG.",
-        "BIG-specific raster adapters and original bitmap/four V100 CHR assets."
+        "BIG-specific raster adapters and original bitmap/four V100 CHR assets.",
+        "Shared extracted st_bgi_thin_line candidate/pattern walker and four builtin pattern words; RIP keeps its clip/thickness/state, BIG supplies original fixed-slope WORD clips, stroke expansion, points and polymarker schedules."
       ],
       "tests": [
         "big_profile",
         "cterm_rip_raster",
         "cterm_rip_live",
         "syncterm_rip154_raster_CP437",
-        "syncterm_rip154_raster_UTF-8"
+        "syncterm_rip154_raster_UTF-8",
+        "big_draw"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
-        "83-global-native-reuse-and-implementation-map.adoc"
+        "83-global-native-reuse-and-implementation-map.adoc",
+        "12-line-clipping-and-native-reuse.adoc",
+        "22-markers-pixels-and-native-reuse.adoc",
+        "57-line-command-acceptance.adoc",
+        "58-marker-and-spray-command-acceptance.adoc"
       ],
-      "deviations": [],
+      "deviations": [
+        "BIG clip signed-division overflow or a detected nonterminating WORD clip cycle fails OUT_OF_RANGE. Uninstalled draw dispatch uses the existing protocol-error boundary; native pixel/index escapes and unexpected asynchronous sink returns stop without rolling back accepted prefixes."
+      ],
       "verification": [
-        "The current RIP EGA RGB16 table and default pen-code initializer bodies match the extracted st_bgi data exactly. Every channel is independently checked from its six colour-bit weights; default codes are literal. RIP native and coherent CP437/UTF-8 raster regressions passed. Other kernels and original graphical fonts remain pending."
+        "The current RIP EGA RGB16 table and default pen-code initializer bodies match the extracted st_bgi data exactly. Every channel is independently checked from its six colour-bit weights; default codes are literal. RIP native and coherent CP437/UTF-8 raster regressions passed. Other kernels and original graphical fonts remain pending.",
+        "The two RIP candidate loops now consume the extracted original thin loop; literal traces cover all octants, ties, endpoint/phase/order and the builtin pattern words. BIG tests use hand-authored shape masks and XOR visit counts, fixed-slope/WORD overflow clips, independently visible thick sides, live CP/size/type/distance changes and accepted-prefix failures. Existing RIP raster/oracle and ten coherent RIP application suites passed before the user requested BIG-only iteration; no expected captures were changed."
       ],
       "commit": null,
       "steps": [
@@ -209,6 +219,19 @@
             "syncterm_rip154_raster_UTF-8"
           ],
           "commit": "a79aa88"
+        },
+        {
+          "id": "shared-thin-lines-and-big-polymarkers",
+          "status": "complete",
+          "tests": [
+            "big_draw",
+            "cterm_rip_raster",
+            "cterm_rip_oracle",
+            "syncterm_rip154_raster_CP437",
+            "syncterm_rip154_raster_UTF-8"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
         }
       ]
     },
@@ -217,7 +240,8 @@
       "status": "in-progress",
       "operations": [
         "Indexed visible framebuffer and off-screen pages/images; explicit capacity/padding/stride and active/visual/memory ownership.",
-        "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes."
+        "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes.",
+        "Distinct public logical, translated DDO and device points, current line offset distance, public colour and device pen, public style and downstream width/pattern; I/R defaults update the actual drawing state."
       ],
       "tests": [
         "big_state",
@@ -437,6 +461,34 @@
           ],
           "commit": "cc974bc",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed."
+        },
+        {
+          "id": "wire-marker-and-line-attributes",
+          "status": "complete",
+          "tests": [
+            "big_draw",
+            "big_number",
+            "big_numeric",
+            "big_state",
+            "cterm_big_resolution",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
+        },
+        {
+          "id": "wire-marker-drawing",
+          "status": "complete",
+          "tests": [
+            "big_draw",
+            "big_number",
+            "big_numeric",
+            "big_state",
+            "cterm_big_resolution",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
         }
       ]
     },
@@ -679,19 +731,35 @@
     {
       "id": "T",
       "order": 9,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
-        "big-state-pages"
+        "big-state-pages",
+        "shared-bgi"
       ],
       "references": [
         "53-text-and-line-style-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
+      "operations": [
+        "Signed kind<=1 marker branch versus all larger signed line kinds; class0 acquisition, early low-BYTE type store/clamp before size, low-BYTE size1..8 normalization.",
+        "Original line style0..4 normalization, low-WORD factor product, width0=>1/1=>3/2=>2 and invalid-width factor2 clear before public validation.",
+        "Public unsigned rejection records-11 while retaining installed attributes; valid installs preserve older BGI error and publish public attributes before downstream state. I0 resets application markers; I1/R retain them, while R resets line settings.",
+        "Wire source/footer/chain integration and timeout-reset prefix guards; remaining line/text/page/audio consumer composition stays pending."
+      ],
+      "tests": [
+        "big_draw",
+        "big_number",
+        "big_numeric",
+        "big_state",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "Independent early marker-type expectation failed before implementation. Native wire tests cover low-BYTE normalization, signed kind routing, factor257*257=>0201, custom patterns, width remaps/rejection, retained older error, partial stores/EOF, I/R lifetime, stored-source kind/type/size and reset during a size-timeout notification. Coherent scenes exercise every marker selector, a custom patterned square, rejected width followed by valid drawing, zero pattern and width2.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
+      ],
       "commit": null
     },
     {
@@ -772,7 +840,7 @@
     {
       "id": "P",
       "order": 14,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -780,12 +848,32 @@
         "shared-bgi"
       ],
       "references": [
-        "58-marker-and-spray-command-acceptance.adoc"
+        "22-markers-pixels-and-native-reuse.adoc",
+        "57-line-command-acceptance.adoc",
+        "58-marker-and-spray-command-acceptance.adoc",
+        "83-global-native-reuse-and-implementation-map.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Initial current marker-colour installation before class1 X/class2 Y; independent type0/current-colour copy point and nonzero direct-helper predicates, followed by an explicit requested-anchor move.",
+        "Original eight marker forms; direct-helper0/invalid has no geometry and type2 retains its right-ray CP. Seven independent live type tests, separate original size loads, word additions and connected/ray visit order; inherited pattern/width/XOR.",
+        "Copied dots ignore installed line pattern/width/XOR; adapted line strokes preserve clipping/phase/duplicate XOR writes and public/DDO/device point prefixes. Native writes use distinct indexed pens in both blink planes, independent of RGB equality.",
+        "In-place console modifier materializes pending text and keeps accepted damage on errors; errors do not latch as original BGI errors. Source/scaling/chain/EOF/reset/timeout and failure-prefix coverage; interactive pointer, page binding and remaining drawing/audio composition stay pending."
+      ],
+      "tests": [
+        "big_draw",
+        "big_number",
+        "big_numeric",
+        "big_state",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "BIG clip signed-division overflow or a detected nonterminating WORD clip cycle fails OUT_OF_RANGE. Uninstalled draw dispatch uses the existing protocol-error boundary; native pixel/index escapes and unexpected asynchronous sink returns stop without rolling back accepted prefixes."
+      ],
+      "verification": [
+        "Independent wire dot expected pixels failed before implementation. Native every-split/bytewise tests cover all three resolutions, CP437/UTF-8/status with full indexed crosshair scenes and final point owners. Additional cases check colour before waiting, fresh colour for dot/helper, clipped requested CP, stored/source-to-wire Y, g2/g3 scaling, EOF/reset/timeout, independent blink-plane XOR, actual indexed-boundary failures/recovery and reset during a timeout notification.392 additional coherent scenes bring application coverage to784, with all eight marker types in every mode plus line-style/rejection cases. Full command acceptance remains pending.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
+      ],
       "commit": null
     },
     {
@@ -1249,7 +1337,8 @@
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages",
-        "application-integration"
+        "application-integration",
+        "shared-bgi"
       ],
       "references": [
         "64-input-and-zone-command-acceptance.adoc"

@@ -6,6 +6,13 @@ recognizes only its own CSI `!`, `0!`, `1!` and `2!` forms, passing unrelated CS
 forms to ANSI handling. SkyPix commands do not activate a RIP graphics engine.
 Historical RIP captures and their exclusions remain unchanged.
 
+RIP's two thin-line paths now use `st_bgi_thin_line`, extracted from the
+existing candidate/pattern loop. RIP retains clipping, thickness, coordinate
+mapping, colour/XOR, current-point and error policy. BIG uses the same lower
+stepping kernel with its own WORD clipping and marker adapters. The ten
+RIP application suites and native raster/oracle tests passed after extraction;
+historical captures and expected pixels were not regenerated.
+
 RIP command/control failures log warnings and continue at the existing wire
 boundary. A rejected command before `|` does not swallow the following command;
 following ordinary ANSI/text bytes continue through the base parser. A failed

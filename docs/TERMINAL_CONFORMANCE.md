@@ -110,6 +110,17 @@ Pointer hit testing and interactive acquisition remain pending. Negative ids
 and actual table escapes fail at the accessed boundary, preserving accepted
 prefixes instead of overwriting foreign DOS state.
 
+Wire T/P now use the shared thin BGI kernel with original BIG clip/stroke/
+point and polymarker schedules. `big_draw` checks literal shape masks, XOR
+visits, phase/ties, WORD clips, copied dots and failure prefixes. Native wire
+cases cover all modes/encodings/status, T normalization and partial stores,
+P colour-before-input/final CP, source/scaling/EOF/reset/timeout and independent
+blink-plane XOR.392 new coherent scenes (784 total) add all markers in all
+three modes and patterned/rejected/zero-mask/width2 cases to the earlier
+indexed scene/state/reply oracles. Pointer/page binding and remaining command
+composition stay pending. Routine development tests are BIG-only; final goal
+verification retains the full regression suite.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

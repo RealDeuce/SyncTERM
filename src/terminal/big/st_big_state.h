@@ -19,6 +19,9 @@ struct st_big_state {
 		uint32_t width, height;
 		uint16_t viewport[4], clip, x, y, active_page, visual_page;
 		uint16_t color, background, fill_style, fill_color;
+		uint16_t ddo_x, ddo_y, device_x, device_y, line_distance;
+		uint8_t device_color, ddo_line_width;
+		uint16_t device_line_width;
 		uint8_t palette[16], fill_user[8];
 		uint16_t line_style, line_user, line_mask, line_width;
 		uint16_t font, direction, text_size, justify_x, justify_y, write_mode;

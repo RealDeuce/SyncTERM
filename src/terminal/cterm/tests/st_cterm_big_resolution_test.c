@@ -11,12 +11,16 @@
 struct fixture {
 	st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal;
 	unsigned resizes, bells;
-	bool status, block_on, reset_on;
+	bool status, block_on, reset_on, reset_bell;
 	uint32_t heights[32]; uint8_t output[64]; size_t size;
 };
 static uint64_t local_ns;
 static int now(void *context, uint64_t *value) { (void)context; *value=local_ns; return 0; }
-static void bell(void *context) { struct cterm_big *b=context; ++((struct fixture *)b->terminal->api_output_context)->bells; }
+static void bell(void *context)
+{
+	struct cterm_big *b=context; struct fixture *f=b->terminal->api_output_context;
+	++f->bells; if (f->reset_bell) CHECK(st_cterm_reset_terminal(f->terminal)==0);
+}
 static void output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
 {
 	struct fixture *f=context; (void)origin; CHECK(size<=sizeof(f->output)-f->size);
@@ -390,9 +394,140 @@ static void zone_timeouts_and_eof(void)
 	string(&f,"I#X 4,9998:"); CHECK(b->control.zones.loopback==1);
 	destroy(&f);
 }
+static void marker_wire_pixel(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#P 11,12:");
+	const struct st_console_rect rect={0,0,640,350}; struct st_pixel_buffer *pixels=NULL;
+	CHECK(st_console_get_pixels(&pixels,f.console,&rect,false)==0);
+	for (size_t y=0;y<350;++y) for (size_t x=0;x<640;++x) {
+		uint32_t expected=x==11 && y==12?815:800;
+		CHECK(pixels->primary[y*640+x]==expected && pixels->alternate[y*640+x]==expected);
+	}
+	st_pixel_buffer_destroy(pixels);
+	CHECK(b->state.bgi.x==11 && b->state.bgi.y==12 && f.terminal->xpos==1 && f.size==0);
+	destroy(&f);
+}
+static void marker_style_wire(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#T 1,264,"); CHECK(b->state.application.marker==7 && b->state.application.marker_size==1);
+	string(&f,"264:"); CHECK(b->state.application.marker_size==8);
+	string(&f,"I#T 2,1,3,4,0:");
+	CHECK(b->state.bgi.line_mask==0xcccc && b->state.bgi.line_user==12 && b->state.bgi.line_width==1);
+	destroy(&f);
+}
+static void marker_partitions(void)
+{
+	const char wire[]="I#T>1,2,1:P 20,20:";
+	for (unsigned resolution=1;resolution<=3;++resolution)
+		for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status)
+			for (size_t split=0;split<sizeof(wire);++split) {
+				struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+				char mode[16]; snprintf(mode,sizeof(mode),"I#R %u:",resolution); string(&f,mode);
+				feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split);
+				CHECK(b->state.bgi.x==20 && b->state.bgi.y==20 && b->state.bgi.ddo_x==20 && b->state.bgi.device_y==20);
+				CHECK(f.size==0 && f.terminal->xpos==1 && b->state.application.marker==2 && b->state.application.marker_size==1);
+				struct st_pixel_buffer *pixels=NULL; const struct st_console_rect rect={0,0,640,b->state.bgi.height};
+				CHECK(st_console_get_pixels(&pixels,f.console,&rect,false)==0);
+				for (size_t y=0;y<rect.height;++y) for (size_t x=0;x<640;++x) {
+					bool cross=(x==20 && y>=17 && y<=23) || (y==20 && x>=16 && x<=24);
+					CHECK(pixels->primary[y*640+x]==(cross?815u:800u) && pixels->alternate[y*640+x]==(cross?815u:800u));
+				}
+				st_pixel_buffer_destroy(pixels); destroy(&f);
+			}
+	struct fixture f; create(&f,false,false);
+	for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1);
+	CHECK(f.terminal->big_engine->state.bgi.x==20 && f.terminal->big_engine->state.application.marker==2);
+	destroy(&f);
+}
+static void marker_pixel(struct fixture *f, uint32_t x, uint32_t y, uint32_t color)
+{
+	const struct st_console_rect rect={x,y,1,1}; struct st_pixel_buffer *p=NULL;
+	CHECK(st_console_get_pixels(&p,f->console,&rect,false)==0 && p->primary[0]==color && p->alternate[0]==color);
+	st_pixel_buffer_destroy(p);
+}
+static void marker_prefix_sources_and_recovery(void)
+{
+	struct fixture f; create(&f,true,true); struct cterm_big *b=f.terminal->big_engine;
+	b->state.application.colors[0]=5; string(&f,"I#P "); CHECK(b->state.bgi.color==5);
+	b->state.application.colors[0]=9; string(&f,"11,12:"); marker_pixel(&f,11,12,809);
+	CHECK(b->state.bgi.color==5 && b->state.bgi.device_color==5 && b->state.application.colors[1]==15);
+	string(&f,"I#T 1,2,1:"); b->state.application.colors[0]=6; string(&f,"I#P 20,");
+	CHECK(b->state.bgi.color==6); b->state.application.colors[0]=10; string(&f,"20:");
+	CHECK(b->state.bgi.color==10 && b->state.bgi.x==20 && b->state.bgi.y==20); marker_pixel(&f,20,20,810);
+	string(&f,"I#T 1,0,1:I#P +1,10:");
+	CHECK(b->state.bgi.x==65535 && b->state.bgi.ddo_x==65535 && b->state.bgi.device_x==65535);
+	b->state.application.colors[0]=7; string(&f,"I#P 31"); CHECK(st_cterm_finish(f.terminal)==0);
+	CHECK(b->state.bgi.color==7 && b->state.bgi.x==65535); marker_pixel(&f,31,0,800);
+	string(&f,"I#P 32,"); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->state.bgi.x==65535);
+	string(&f,"I#R 2:I#g 2:I#P 5,5:"); marker_pixel(&f,5,8,807);
+	string(&f,"I#R 3:I#g 3:I#P 5,5:"); marker_pixel(&f,5,11,807);
+	string(&f,"I#& 0,1,1,0,P@2,7,5:"); marker_pixel(&f,7,5,807);
+	string(&f,"I#& 0,1,1,0,P@1,9:5:"); marker_pixel(&f,9,11,807);
+	CHECK(f.size==4 && memcmp(f.output,"\x13\x11\x13\x11",4)==0);
+	string(&f,"I#P 12,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.bgi.x==12 && b->state.bgi.y==0); marker_pixel(&f,12,0,807);
+	destroy(&f);
+}
+static void style_normalization_and_lifetime(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#T +1,256,264:"); CHECK(b->state.application.marker==0 && b->state.application.marker_size==8);
+	string(&f,"I#T 0,264,265:"); CHECK(b->state.application.marker==7 && b->state.application.marker_size==1);
+	string(&f,"I#T 1,+1,8:I#T 1,2,");
+	CHECK(b->state.application.marker==2 && b->state.application.marker_size==8 && st_cterm_finish(f.terminal)==0);
+	CHECK(b->state.application.marker==2 && b->state.application.marker_size==8);
+	string(&f,"I#T 257,+1,257,257,2:");
+	CHECK(b->state.bgi.line_style==4 && b->state.bgi.line_user==0x201 && b->state.bgi.line_mask==0x201 && b->state.bgi.line_width==2);
+	string(&f,"I#T 2,0,1,1,0:I#T 2,4,1,1,9:");
+	CHECK(b->state.bgi.error==-11 && b->state.bgi.line_mask==65535 && b->state.bgi.line_width==1);
+	string(&f,"I#T 2,1,1,1,1:"); CHECK(b->state.bgi.line_width==3 && b->state.bgi.ddo_line_width==3 && b->state.bgi.line_mask==0xcccc && b->state.bgi.error==-11);
+	string(&f,"I#T 2,258,257,"); CHECK(st_cterm_finish(f.terminal)==0 && b->state.bgi.line_mask==0xcccc);
+	string(&f,"I#R 1:"); CHECK(b->state.application.marker==2 && b->state.application.marker_size==8 && b->state.bgi.line_width==1 && b->state.bgi.line_mask==65535);
+	string(&f,"I#I 1:"); CHECK(b->state.application.marker==2 && b->state.application.marker_size==8);
+	string(&f,"I#I 0:"); CHECK(b->state.application.marker==0 && b->state.application.marker_size==1);
+	string(&f,"I#& 0,1,1,0,T@3,1,2,1:"); CHECK(b->state.application.marker==2 && b->state.application.marker_size==1 && f.size==2 && f.output[0]==19 && f.output[1]==17);
+	destroy(&f);
+}
+static int seed_marker_pixel(void *context, const struct st_pixel_buffer *p, struct st_console_rect *changed)
+{
+	bool invalid=*(bool *)context;
+	p->primary[20*p->width+20]=invalid?5:803; p->alternate[20*p->width+20]=806;
+	*changed=(struct st_console_rect){20,20,1,1}; return 0;
+}
+static void marker_native_xor_and_failure(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	bool invalid=false; CHECK(st_console_modify_pixels(f.console,seed_marker_pixel,&invalid)==0);
+	b->state.application.colors[0]=5; b->state.bgi.write_mode=1;
+	string(&f,"I#T>1,1,1:P 20,20:");
+	struct st_pixel_buffer *p=NULL; const struct st_console_rect rect={20,20,1,1};
+	CHECK(st_console_get_pixels(&p,f.console,&rect,false)==0 && p->primary[0]==806 && p->alternate[0]==803);
+	st_pixel_buffer_destroy(p);
+	invalid=true; CHECK(st_console_modify_pixels(f.console,seed_marker_pixel,&invalid)==0);
+	const char wire[]="I#P 20,20:"; size_t used;
+	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==IO_ERROR_OUT_OF_RANGE && used==sizeof(wire)-1);
+	CHECK(b->state.bgi.x==20 && b->state.bgi.y==20 && b->state.bgi.ddo_x==24 && b->state.bgi.ddo_y==24 && b->state.bgi.device_x==20);
+	/* COPY recovers without a sticky backend-error latch; marker0 ignores
+	 * the installed line XOR/pattern/width and replaces both blink planes. */
+	string(&f,"I#T>1,0,1:P 20,20:"); marker_pixel(&f,20,20,805);
+	destroy(&f);
+}
+static void marker_reset_during_timeout(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#P 11,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.bgi.x==0 && b->state.bgi.y==0);
+	marker_pixel(&f,11,0,800);
+	string(&f,"I#T 1,4,8:I#T 1,2,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==2 && b->state.application.marker==2 && b->state.application.marker_size==8);
+	destroy(&f);
+}
 int main(void)
 {
-	partitions(); retained_and_normalized(); source_and_recovery(); mode_return_paths();
+	marker_wire_pixel(); marker_style_wire(); marker_partitions(); marker_prefix_sources_and_recovery();
+	style_normalization_and_lifetime(); marker_native_xor_and_failure(); marker_reset_during_timeout(); partitions(); retained_and_normalized(); source_and_recovery(); mode_return_paths();
 	extended_ownership(); extended_prefix_and_unknown(); extended_numeric_sources(); zone_wire_ownership(); zone_prefixes_and_specials(); zone_live_lengths_and_bounds();
 	zone_sources_and_flow(); zone_chain_and_key_ownership(); zone_timeouts_and_eof(); return 0;
 }

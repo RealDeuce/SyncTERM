@@ -6,6 +6,7 @@
 #include "cterm_internal.h"
 #include "cterm_render.h"
 #include "st_bgi_data.h"
+#include "st_big_draw.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
 #include "io_error.h"
@@ -17,11 +18,26 @@ static const struct st_graphics_dialect dialect = {
 	.attention = attention, .attention_size = 2, .chain_indicator = true,
 	.chain = '>', .number_digits = 4,
 };
+static const struct st_graphics_parameter point[] = {
+	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
+static int style_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int extended_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
-	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
+	{'T',scalar,1,style_next},{'P',point,2,NULL},{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
 
+static bool marker_kind(const struct st_graphics_command_view *view)
+{
+	return st_big_number_signed((uint16_t)view->arguments[0].value)<=1;
+}
+static int style_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *parameter)
+{
+	(void)context;
+	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+	*parameter=(struct st_graphics_parameter){.kind=view->count<(marker_kind(view)?3u:5u)?ST_GRAPHICS_NUMBER:ST_GRAPHICS_END};
+	return 0;
+}
 static int extended_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *parameter)
 {
@@ -90,7 +106,17 @@ static void body_entry(struct cterm_big *big, const struct st_graphics_command_v
 static int field(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
-	struct cterm_big *big=owner(context); body_entry(big,view);
+	struct cterm_big *big=owner(context);
+	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+	body_entry(big,view);
+	if (view->code=='T' && view->count==2 && marker_kind(view)) {
+		big->state.application.marker=(uint8_t)view->arguments[1].value;
+		if (big->state.application.marker>7) big->state.application.marker=7;
+	}
+	if (view->code=='P' && view->count==0) {
+		int status=st_big_draw_color(&big->state,big->state.application.colors[0]);
+		if (status!=0) return status;
+	}
 	if (view->code=='X' && view->count>=1 && view->arguments[0].has_value
 	    && (uint16_t)view->arguments[0].value==4) {
 		int status=cterm_big_zone_field(big,view);
@@ -196,11 +222,37 @@ static int begin_footer(struct cterm_big *big, const struct st_graphics_command_
 }
 static int command(void *context, const struct st_graphics_command_view *view)
 {
-	struct cterm_big *big = owner(context); bool initial=big->pair_body; body_entry(big,view);
+	struct cterm_big *big = owner(context);
+	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+	bool initial=big->pair_body; body_entry(big,view);
 	if (view->code=='&') {
 		if (!initial) return begin_footer(big,view);
 		big->footer.chained=view->chained; cterm_big_setup_begin(big);
 		return IO_ERROR_IN_PROGRESS;
+	}
+	if (view->code=='T') {
+		int status=0;
+		if (marker_kind(view)) {
+			if (view->count!=3 || !view->arguments[2].has_value) return IO_ERROR_PROTOCOL;
+			big->state.application.marker_size=(uint8_t)view->arguments[2].value;
+			if (big->state.application.marker_size>8 || big->state.application.marker_size<1) big->state.application.marker_size=1;
+		} else {
+			if (view->count!=5 || !view->arguments[4].has_value) return IO_ERROR_PROTOCOL;
+			int32_t style=st_big_number_signed((uint16_t)view->arguments[1].value);
+			if (style<0 || style>4) style=4;
+			uint16_t width=(uint16_t)view->arguments[4].value;
+			if (width==1) width=3;
+			if (width==0) width=1;
+			int32_t factor=st_big_number_signed((uint16_t)view->arguments[3].value);
+			if (st_big_number_signed(width)<0 || st_big_number_signed(width)>3) factor=0;
+			uint16_t pattern=(uint16_t)(st_big_number_signed((uint16_t)view->arguments[2].value)*factor);
+			status=st_big_draw_style(&big->state,(uint16_t)style,pattern,width);
+		}
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='P') {
+		int status=cterm_big_draw_p(big,view);
+		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='g') {
 		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
@@ -519,6 +571,20 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	}
 	st_console_test_number(app, "cterm.big_zone0_prefix", prefix);
 	st_console_test_number(app, "cterm.big_zone0_tail", tail);
+	st_console_test_number(app, "cterm.big_marker", big->state.application.marker);
+	st_console_test_number(app, "cterm.big_marker_size", big->state.application.marker_size);
+	st_console_test_number(app, "cterm.big_color", big->state.bgi.color);
+	st_console_test_number(app, "cterm.big_point_x", big->state.bgi.x);
+	st_console_test_number(app, "cterm.big_point_y", big->state.bgi.y);
+	st_console_test_number(app, "cterm.big_ddo_x", big->state.bgi.ddo_x);
+	st_console_test_number(app, "cterm.big_ddo_y", big->state.bgi.ddo_y);
+	st_console_test_number(app, "cterm.big_device_x", big->state.bgi.device_x);
+	st_console_test_number(app, "cterm.big_device_y", big->state.bgi.device_y);
+	st_console_test_number(app, "cterm.big_line_style", big->state.bgi.line_style);
+	st_console_test_number(app, "cterm.big_line_user", big->state.bgi.line_user);
+	st_console_test_number(app, "cterm.big_line_width", big->state.bgi.line_width);
+	st_console_test_number(app, "cterm.big_line_mask", big->state.bgi.line_mask);
+	st_console_test_number(app, "cterm.big_bgi_error", big->state.bgi.error);
 	st_console_test_number(app, "cterm.big_hollow", big->state.application.hollow);
 	st_console_test_number(app, "cterm.big_bgi_width", big->state.bgi.width);
 	st_console_test_number(app, "cterm.big_bgi_height", big->state.bgi.height);

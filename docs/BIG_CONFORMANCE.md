@@ -1,8 +1,8 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R/g/X4/X6 operations run
-through native CTerm. Drawing, sound and complete command acceptance remain
-in progress.
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, T attributes and P markers run
+through native CTerm. Remaining drawing, interactive input, sound and complete command acceptance
+remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -373,3 +373,36 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 X4 counted-zone producer integration commit: `cc974bc`.
 Pointer input/hit testing and the full45-entry goal remain in progress.
+
+## T attributes and P marker drawing
+
+RIP and BIG now share the extracted thin candidate/pattern loop and four
+builtin line patterns. BIG keeps original WORD translation, fixed-slope
+clipping, overflow rejection, center/minus/plus thickness and separate public/
+DDO/device points. The direct helper preserves seven live type tests, size
+reads, connected-edge/ray order, inherited line settings and XOR duplicate
+visits. Crosshair ends at its right tip; type0 has no helper geometry.
+
+P selects colour before acquisition, uses class1/2 coordinates, fresh copied
+marker0 pixels, the independent nonzero helper test and a final requested
+anchor move. T publishes the normalized type byte before waiting for size;
+line attributes use low-WORD multiplication and original width remaps.
+Rejected width records BGI-11 and retains installed settings, allowing later
+drawing. Reset during a timeout notification prevents remaining command tails.
+The console backend preserves distinct indexed pens and both blink planes.
+
+Safe corrections replace original divide traps/clip cycles, uninstalled
+DOS exits and actual native pixel escapes with checked errors and retained
+prefixes. Unexpected asynchronous drawing-sink returns are protocol errors.
+Literal `big_draw` expectations cover all shapes/points/XOR/patterns/clip and
+failure cases. Native wire partitions cover modes/encodings/status, sources,
+scaling, partial effects, reset/EOF/timeouts and attribute lifetimes.
+392 new coherent application scenes bring coverage to784, including all eight
+markers in all three modes and pattern/rejection/zero-mask/width2 composition.
+Pointer acquisition, page binding and remaining consumer/audio composition
+remain pending; T/P are still in progress in the full45-entry ledger.
+
+Routine goal development now runs BIG-specific tests only, as requested;
+non-BIG regressions are deferred to the final full-suite verification.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed.

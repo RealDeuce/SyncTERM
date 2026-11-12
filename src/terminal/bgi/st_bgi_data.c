@@ -72,3 +72,5 @@ const uint16_t st_bgi_ega_colors[64][3] = {
 const uint8_t st_bgi_ega_defaults[16] = {
 	0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63
 };
+
+const uint16_t st_bgi_line_patterns[4] = {0xffff,0xcccc,0xfc78,0xf8f8};

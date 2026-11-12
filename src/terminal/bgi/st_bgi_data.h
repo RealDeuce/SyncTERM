@@ -5,4 +5,5 @@
 #include <stdint.h>
 extern const uint16_t st_bgi_ega_colors[64][3];
 extern const uint8_t st_bgi_ega_defaults[16];
+extern const uint16_t st_bgi_line_patterns[4];
 #endif

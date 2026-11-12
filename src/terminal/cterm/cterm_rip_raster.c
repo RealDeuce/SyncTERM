@@ -7,6 +7,7 @@
 
 #include "cterm_rip_raster.h"
 #include "st_bgi_data.h"
+#include "st_bgi_line.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_fonts.h"
 #include "cterm_rip_icon_file.h"
@@ -563,6 +564,13 @@ draw_pixel(struct cterm_rip_raster *rip, int x, int y)
 	set_pixel(rip, x, y, map_colour(rip, colour));
 }
 
+static void line_pixel(void *context, int x, int y) { draw_pixel(context,x,y); }
+struct solid_line_pixel { struct cterm_rip_raster *rip; uint32_t colour; };
+static void solid_line_pixel(void *context, int x, int y)
+{
+	struct solid_line_pixel *target=context; set_pixel(target->rip,x,y,target->colour);
+}
+
 static void draw_line_to(struct cterm_rip_raster *rip, int target_x,
     int target_y, int *ppos);
 
@@ -696,55 +704,8 @@ draw_line_to(struct cterm_rip_raster *rip, int target_x, int target_y, int *ppos
 	// clipped by their recursive draw_line_to calls.
 	bool center_visible = cs_clip_line(rip, &x1, &y1, &x2, &y2);
 
-	if (center_visible) {
-		int *minc, *mins, *mino, *mind;
-		int *maxc, *maxs, *maxe, *maxo, *maxd;
-		int  x, y;
-		int  swap = 0;
-
-		int  dx = abs(x2 - x1);
-		int  dy = abs(y2 - y1);
-
-		if (y2 < y1)
-			swap = 1;
-
-		if (swap) {
-			x = x2; y = y2;
-			x2 = x1; y2 = y1;
-			x1 = x; y1 = y;
-		}
-
-		int xoff = (x2 < x1) ? -1 : 1;
-		int yoff = (y2 < y1) ? -1 : 1;
-
-		if (dx >= dy) {
-			minc = &y; mins = &y1; mino = &yoff; mind = &dy;
-			maxc = &x; maxs = &x1; maxe = &x2; maxo = &xoff; maxd = &dx;
-		}
-		else {
-			minc = &x; mins = &x1; mino = &xoff; mind = &dx;
-			maxc = &y; maxs = &y1; maxe = &y2; maxo = &yoff; maxd = &dy;
-		}
-
-		int de = 2 * *mind - *maxd;
-		int pp = *ppos;
-
-		*minc = *mins;
-
-		for ((*maxc) = *maxs; (((*maxs) < (*maxe)) ? ((*maxc) <= (*maxe)) : ((*maxc) >= (*maxe))); (*maxc) += *maxo) {
-			if (rip->line_pattern & (1 << pp))
-				draw_pixel(rip, x, y);
-			if (de >= 0) {
-				*minc = (*minc) + *mino;
-				de = de - ((2 * *maxd) & INT_MAX);
-			}
-			de = de + ((2 * *mind) & INT_MAX);
-			pp = (pp + 1) & 0x0F;
-			if (*maxs == *maxe)
-				break;
-		}
-		*ppos = pp;
-	}
+	if (center_visible)
+		st_bgi_thin_line(x1,y1,x2,y2,&rip->line_pattern,ppos,line_pixel,rip);
 
 	if (rip->line_width == 3) {
 		rip->line_width = 1;
@@ -798,84 +759,9 @@ set_line_pixels(struct cterm_rip_raster *rip, int x1, int y1, int x2, int y2, ui
 	bool center_visible = cs_clip_line(rip, &x1, &y1, &x2, &y2);
 
 	if (center_visible) {
-		int *minc, *mins, *mino, *mind;
-		int *maxc, *maxs, *maxe, *maxo, *maxd;
-		int  x, y;
-		int  swap = 0;
-		int  dx = abs(x2 - x1);
-		int  dy = abs(y2 - y1);
-
-		// Swap endpoints
-		if (y2 < y1)
-			swap = 1;
-
-		if (swap) {
-			x = x2;
-			y = y2;
-			x2 = x1;
-			y2 = y1;
-			x1 = x;
-			y1 = y;
-		}
-
-		int xoff;
-
-		if (x2 < x1)
-			xoff = -1;
-		else
-			xoff = 1;
-
-		int yoff;
-
-		if (y2 < y1)
-			yoff = -1;
-		else
-			yoff = 1;
-
-		if (dx >= dy) {
-			minc = &y;
-			mins = &y1;
-			mino = &yoff;
-			mind = &dy;
-
-			maxc = &x;
-			maxs = &x1;
-			maxe = &x2;
-			maxo = &xoff;
-			maxd = &dx;
-		}
-		else {
-			minc = &x;
-			mins = &x1;
-			mino = &xoff;
-			mind = &dx;
-
-			maxc = &y;
-			maxs = &y1;
-			maxe = &y2;
-			maxo = &yoff;
-			maxd = &dy;
-		}
-
-		int de = 2 * *mind - *maxd;
-		int ppos = 0;
-
-		*minc = *mins;
-
-		for ((*maxc) = *maxs; (((*maxs) < (*maxe)) ? ((*maxc) <= (*maxe)) : ((*maxc) >= (*maxe))); (*maxc) += *maxo) {
-			if (pat & (1 << ppos))
-				set_pixel(rip, x, y, color);
-			if (de >= 0) {
-				*minc = (*minc) + *mino;
-				de = de - ((2 * *maxd) & INT_MAX);
-			}
-			de = de + ((2 * *mind) & INT_MAX);
-			ppos++;
-			if (ppos == 16)
-				ppos = 0;
-			if (*maxs == *maxe)
-				break;
-		}
+		int phase=0;
+		struct solid_line_pixel target={rip,color};
+		st_bgi_thin_line(x1,y1,x2,y2,&pat,&phase,solid_line_pixel,&target);
 	}
 
 	if (width == 3) {
@@ -3469,9 +3355,6 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
     int level, int sublevel, uint8_t code, const char *arguments,
     bool *handled)
 {
-	static const uint16_t line_patterns[4] = {
-		0xffff, 0xcccc, 0xfc78, 0xf8f8
-	};
 	static const uint8_t four_coords[4] = {2, 2, 2, 2};
 	static const uint8_t style_fields[3] = {2, 4, 2};
 	static const uint8_t fill_fields[2] = {2, 2};
@@ -3925,7 +3808,7 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		count = parse_fields(arguments, style_fields, 3, fields);
 		if (count == 3 && fields[0] <= 4 && fields[2] <= 3) {
 			rip->line_pattern = fields[0] < 4
-			    ? line_patterns[fields[0]] : (uint16_t)fields[1];
+			    ? st_bgi_line_patterns[fields[0]] : (uint16_t)fields[1];
 			rip->line_width = fields[2];
 			rip->line_style = fields[0];
 		}

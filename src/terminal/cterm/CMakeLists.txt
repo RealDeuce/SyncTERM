@@ -79,6 +79,7 @@ endif()
 
 add_library(st_cterm STATIC
 	cterm_big.c
+	cterm_big_draw.c
 	cterm_big_input.c
 	cterm_big_setup.c
 	cterm_big_zones.c
