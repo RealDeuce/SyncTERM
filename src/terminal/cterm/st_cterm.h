@@ -227,7 +227,7 @@ void st_cterm_destroy(st_cterm_t **terminal);
  * before the parser applies the control. consumed is always written.
  * Codepage text is converted at the input boundary and shares UTF-8 text
  * presentation. Counts refer to original input bytes, not converted UTF-8.
- * RIP/IGS command rejections warn and continue with the unread stream;
+ * RIP/IGS/BIG command rejections warn and continue with the unread stream;
  * they do not return command/parser errors to the session owner.
  */
 int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,

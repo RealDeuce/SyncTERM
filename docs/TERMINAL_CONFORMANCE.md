@@ -228,8 +228,15 @@ WORD spans, directional/LIFO/pattern suppression, clipped/inverted probes,
 whole-band plane-mask order, all mask/pen combinations and partial errors.
 The bounded native frontier explicitly corrects unsafe SS:BP underflow;
 overflow preserves pre-push state and reports BGI-7 after pending work.
-F/Z wire/flow, native page/padding/buffer adapters and coherent command
-coverage remain pending. Routine verification stays BIG-specific.
+Native F now binds three-field acquisition, clamps, fill-only attributes,
+current selected border after XOFF, separate live loop tests around paired
+flow and unchanged points. A512-record bounded native frontier and checked
+indexed byte/masked pen writes integrate the kernel with both blink planes.
+Native tests cover partitions/profiles, waits, source/replies, cancellation,
+overflow, error prefixes and recovery.70 added application scenes bring BIG
+coverage to1316, including solid/checker/empty F and rejected X4 followed by
+valid graphics/ANSI/DSR on the same connection. Z and page/padding/configured
+buffer composition remain pending. Routine verification stays BIG-specific.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
@@ -241,10 +248,15 @@ literal full-block rasters in both blink phases, palette/cells/cursor and RGB
 interior samples. Physical audio/MIDI are disabled. This is the first
 prerequisite for [BIG](BIG_CONFORMANCE.md); no BIG commands are claimed yet.
 
-RIP and IGS command rejections are nonfatal warnings at the graphics input
+RIP, IGS and BIG command rejections are nonfatal warnings at the graphics input
 stage. Native recovery tests and `syncterm_behavior_session_modes` verify
 following graphics and ANSI/VT52 handling, continued bidirectional connection
 use, and the normal notice on later remote disconnect.
+BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
+continued same-connection graphics/ANSI/replies and explicit last-error/count
+diagnostics. Its native collection/fill/line/bar fixtures check retained
+failure prefixes with successful terminal input/polls; pending commands,
+sources, flow, replies and deferred pointer errors are cancelled on rejection.
 
 IGS 2.21 work is tracked separately in [IGS_CONFORMANCE.md](IGS_CONFORMANCE.md)
 and [IGS_IMPLEMENTATION.adoc](IGS_IMPLEMENTATION.adoc). The shared graphics

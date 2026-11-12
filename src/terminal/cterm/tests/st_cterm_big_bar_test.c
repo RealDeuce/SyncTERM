@@ -149,7 +149,7 @@ static void prefixes(void)
 	prepare(&f,2); string(&f,"I#C 2,31:I#A 12:I#B 10,10,14,14,0:");
 	CHECK(b->state.bgi.error==-11 && b->state.bgi.color==9 && b->state.bgi.fill_color==15); scene(&f,0,15);
 	prepare(&f,2); b->state.bgi.state=0; size_t used; const char bad[]="I#B 10,10,14,14,+1:";
-	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used)==IO_ERROR_PROTOCOL && used==sizeof(bad)-1);
+	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(bad)-1);
 	CHECK(b->state.bgi.color==9 && b->state.bgi.device_color==15 && b->state.bgi.fill_color==15 && b->state.bgi.error==-1 && !b->bar.active);
 	b->state.bgi.state=3; prepare(&f,2); string(&f,"I#B 10,10,14,14,0:"); scene(&f,0,5);
 	destroy(&f);

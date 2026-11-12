@@ -21,6 +21,9 @@ static const struct st_graphics_dialect dialect = {
 };
 static const struct st_graphics_parameter point[] = {
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
+static const struct st_graphics_parameter flood[] = {
+	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
+	{.kind=ST_GRAPHICS_NUMBER}};
 static const struct st_graphics_parameter line[] = {
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
@@ -40,6 +43,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
 	{'B',line,4,bar_next},
+	{'F',flood,3,NULL},
 	{'m',move,2,move_next},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
@@ -294,6 +298,7 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	}
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
 	if (view->code=='B') return cterm_big_bar_begin(big,view);
+	if (view->code=='F') return cterm_big_flood_begin(big,view);
 	if (view->code=='T') {
 		int status=0;
 		if (marker_kind(view)) {
@@ -437,6 +442,7 @@ static void cancel(struct cterm_big *big)
 	memset(&big->setup,0,sizeof(big->setup)); big->text.active=0;
 	memset(&big->zone,0,sizeof(big->zone));
 	memset(&big->bar,0,sizeof(big->bar));
+	memset(&big->flood,0,sizeof(big->flood));
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -500,9 +506,9 @@ static int gang_selector(struct cterm_big *big, const struct st_graphics_parser_
 }
 static bool body_pending(const struct cterm_big *big)
 {
-	return big->footer_active || big->collect.active || big->bar.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
+	return big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
 }
-int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t *used)
+static int drive(struct cterm_big *big, const void *data, size_t size, size_t *used)
 {
 	if (used==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	*used=0;
@@ -514,6 +520,18 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->flood.active) {
+			bool complete;
+			status=cterm_big_flood_poll(big,&output_budget,&complete);
+			if (status!=0) break;
+			if (complete) {
+				const struct st_graphics_command_view view={.chained=big->flood.chained};
+				status=begin_footer(big,&view);
+				if (status!=IO_ERROR_IN_PROGRESS) break;
+				status=0; advance_needed=true; continue;
+			}
+			break;
+		}
 		if (big->bar.active) {
 			size_t accepted; bool complete;
 			status=cterm_big_bar_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,&complete);
@@ -622,26 +640,50 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 	}
 	big->feeding=false;
 	if (big->reset_pending) { cancel(big); if (status==IO_ERROR_INTERRUPTED) status=0; }
-	if (status!=0 && status!=IO_ERROR_IN_PROGRESS) cancel(big);
 	return status;
+}
+static void reject(struct cterm_big *big, int status)
+{
+	big->last_error=status; ++big->rejected_commands;
+	cterm_log(big->terminal,ST_CTERM_LOG_WARNING,"BIG input rejected (%d); continuing stream",status);
+	cancel(big);
+	/* Pointer and legacy text callbacks can also latch the same failure.
+	 * It belongs to this rejected operation, not the next session poll. */
+	(void)cterm_render_take_error(big->terminal);
+}
+int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t *used)
+{
+	if (used==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*used=0;
+	if (big==NULL || (data==NULL && size!=0)) return IO_ERROR_INVALID_ARGUMENT;
+	if (big->feeding) return IO_ERROR_BUSY;
+	int deferred=cterm_render_take_error(big->terminal);
+	if (deferred!=0) reject(big,deferred);
+	for (;;) {
+		bool pending=body_pending(big) || big->pair_wait || big->gang_selecting || st_graphics_parser_in_command(big->parser);
+		size_t accepted=0;
+		int status=drive(big,data==NULL?NULL:(const uint8_t *)data+*used,size-*used,&accepted);
+		*used+=accepted;
+		deferred=cterm_render_take_error(big->terminal);
+		if ((status==0 || status==IO_ERROR_IN_PROGRESS) && deferred!=0) status=deferred;
+		if (status==0 || status==IO_ERROR_IN_PROGRESS) return status;
+		reject(big,status);
+		if (*used==size) return 0;
+		/* A pending continuation may fail before reading the next byte;
+		 * retry that byte after cancellation. A failing ordinary-byte sink
+		 * with no progress must consume its rejected byte to avoid a spin. */
+		if (accepted==0 && !pending) ++*used;
+	}
 }
 int cterm_big_poll(struct cterm_big *big)
 {
 	if (big==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	/* Mouse callbacks cannot return an error status through their bool API.
-	 * Deliver their deferred rendering failure on the next poll or write. */
-	int status=cterm_render_take_error(big->terminal);
-	if (status!=0) return status;
-	size_t used; status=cterm_big_feed(big,NULL,0,&used);
-	if (status==0 || status==IO_ERROR_IN_PROGRESS) {
-		int rendered=cterm_render_take_error(big->terminal);
-		if (rendered!=0) return rendered;
-	}
+	size_t used; int status=cterm_big_feed(big,NULL,0,&used);
 	return status==IO_ERROR_IN_PROGRESS?0:status;
 }
 bool cterm_big_paused(const struct cterm_big *big)
 {
-	return big != NULL && (big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
+	return big != NULL && (big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
 	    || big->footer_active || big->setup.cooperative || big->setup.phase==CTERM_BIG_SETUP_FLOW
 	    || (big->setup.phase==CTERM_BIG_SETUP_TEXT && big->setup.stream.phase==ST_BIG_STREAM_FLOW)
 	    || (big->gang_selecting && !big->gang_wire)
@@ -655,9 +697,12 @@ int cterm_big_finish(struct cterm_big *big)
 	if (big->feeding) { big->reset_pending = true; return 0; }
 	struct st_graphics_parser_sink sink = callbacks(big);
 	int status = st_graphics_parser_finish(big->parser,&sink);
-	cancel(big);
 	/* Remote EOF discards incomplete commands; no timeout or default stores. */
-	return status == IO_ERROR_PROTOCOL || status == IO_ERROR_IN_PROGRESS ? 0 : status;
+	if (status!=0 && status!=IO_ERROR_PROTOCOL && status!=IO_ERROR_IN_PROGRESS) reject(big,status);
+	else cancel(big);
+	status=cterm_render_take_error(big->terminal);
+	if (status!=0) reject(big,status);
+	return 0;
 }
 void cterm_big_destroy(struct cterm_big *big)
 {
@@ -674,6 +719,7 @@ int cterm_big_create(struct cterminal *t)
 	const struct st_big_numeric_io io = {.context = big, .bell = bell,
 	    .peek_key = cterm_big_input_peek, .read_key = cterm_big_input_read};
 	int status = st_big_numeric_init(&big->numeric,&io);
+	if (status==0) status=st_big_flood_bind(&big->flood_work,big->flood_records,CTERM_BIG_FLOOD_RECORDS,CTERM_BIG_FLOOD_RECORDS);
 	st_big_state_init(&big->state); st_big_control_init(&big->control);
 	big->producer.video_segment=0xa000;
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
@@ -736,6 +782,9 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_fill_selection", big->state.application.fill);
 	st_console_test_number(app, "cterm.big_pattern_active", big->fill_edit.active);
 	st_console_test_number(app, "cterm.big_bar_active", big->bar.active);
+	st_console_test_number(app, "cterm.big_flood_active", big->flood.active);
+	st_console_test_number(app, "cterm.big_last_error", big->last_error);
+	st_console_test_number(app, "cterm.big_rejected_commands", big->rejected_commands);
 	uint32_t custom_prefix=0, custom_tail=0;
 	for (unsigned i=0;i<4;++i) {
 		custom_prefix|=(uint32_t)big->state.application.patterns[0][i]<<(8*i);

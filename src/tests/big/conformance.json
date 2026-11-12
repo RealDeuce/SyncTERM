@@ -11,7 +11,8 @@
     "pointer": "Keyboard/X6 and native mouse coexist; latest movement wins, stationary button samples do not undo keyboard moves. Left release after a valid press confirms. No OS-pointer warp; preserve keyboard confirm/cancel and suppress UI/disabled/outside/reset/duplicate selections.",
     "safe_port": "Preserve normal byte/WORD/state/pixel/reply behavior and document checked/bounded corrections to corruption, uninitialized state and unsafe failures.",
     "verification": "During goal development run BIG-specific tests only; defer non-BIG regressions, including shared-code regressions, to the final full-suite run. Native CMake build and focused BIG native/coherent application verification remain required.",
-    "rendering": "Render synchronously without periodic work-budget yields; no blocking I/O/readiness/time waits in framebuffer updates. Memory callbacks complete synchronously or fail; protocol acquisition/flow waits remain outside updates."
+    "rendering": "Render synchronously without periodic work-budget yields; no blocking I/O/readiness/time waits in framebuffer updates. Memory callbacks complete synchronously or fail; protocol acquisition/flow waits remain outside updates.",
+    "errors": "BIG command errors are nonfatal warnings: cancel pending parser/source/input/flow/footer state, preserve accepted state/pixels and continue unread pre-ANSI input, including poll/deferred pointer/EOF recovery. Last-error/rejection-count diagnostics remain observable; connection failures retain their independent handling."
   },
   "foundations": [
     {
@@ -453,7 +454,8 @@
         "BIG graphics mode6, profiles/menu/Wren, CP437/UTF8, shared pre-ANSI insertion, status/scrollback and reset/EOF/reconnect.",
         "Hybrid pointer: keyboard/X6 movement plus native mouse movement; no OS-pointer warp. Stationary mouse/button observations preserve keyboard position.",
         "Valid left press arms a release-triggered shared click action; preserve keyboard confirm, prevent duplicate/ghost selections, honor local UI/disabled/status/outside policy.",
-        "Native stored-loop BIOS-ready/getch adaptation, post-value key cancellation and ordered unread native-event replay shared with IGS."
+        "Native stored-loop BIOS-ready/getch adaptation, post-value key cancellation and ordered unread native-event replay shared with IGS.",
+        "Nonfatal BIG command recovery at the graphics owner: cancel pending work, retain accepted prefixes, process unread bytes and contain poll/deferred-pointer/EOF errors with last-error/count diagnostics."
       ],
       "tests": [
         "cterm_big",
@@ -792,6 +794,54 @@
             "Final explicit-standard-header build was clean; big_bar3d and cterm_big_bar passed together in1.45s."
           ],
           "commit": "93e76fd"
+        },
+        {
+          "id": "native-boundary-fills",
+          "status": "complete",
+          "operations": [
+            "F class1/2/0 acquisition followed by signed clamps and fill-only attributes; no drawing-colour installation or H gate.",
+            "Independent current loop tests around XOFF/XON; fetch current selected C WORD and current seed after XOFF. Preserve source-ending/repetition/chaining/reply order and cancellation prefixes.",
+            "Checked indexed active visible-page byte reads and masked pen-bit writes on both blink planes; preserve independent alternate bits and all three points.",
+            "512 owner-resident frontier records from nominal4096 logical bytes; explicit bounded capacity replaces unsafe DOS stack/heap placement. Off-screen page/padding/configured resource binding remains pending.",
+            "56 new coherent F scenes retain full previous text/pixels/palette/state/points/cursor/replies/RGB; combined with14 recovery scenes the application fixture now has1316 scenes."
+          ],
+          "tests": [
+            "big_flood",
+            "cterm_big_fill",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "59-rectangle-clear-and-flood-command-acceptance.adoc",
+            "24-flood-fill-and-native-reuse.adoc",
+            "flood-code.adoc"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending."
+          ],
+          "commit": null
+        },
+        {
+          "id": "nonfatal-command-recovery",
+          "status": "complete",
+          "operations": [
+            "BIG command errors no longer propagate to the session pump as fatal errors. Cancel pending parser/numeric/source/input/flow/footer state; preserve accepted pixels and application/BGI state.",
+            "Retry unread input through the same pre-ANSI stage, including a first byte not consumed by a failed continuation. Discard a rejected ordinary byte only when its sink fails without progress.",
+            "Contain poll, deferred pointer and EOF cleanup failures; warnings and last-error/rejection-count inspection retain diagnostics. Connection failures remain separately owned.",
+            "Every split/bytewise negative X4 followed by valid graphics/ANSI/DSR;14 coherent same-connection scenes. Native error-prefix tests retain state/pixel assertions and expect successful terminal input/polls with explicit last-error diagnostics."
+          ],
+          "tests": [
+            "cterm_big",
+            "cterm_big_resolution",
+            "cterm_big_collect",
+            "cterm_big_line",
+            "cterm_big_fill",
+            "cterm_big_bar",
+            "syncterm_big_input"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1423,18 +1473,26 @@
         "flood-examples.json"
       ],
       "operations": [
-        "Original synchronous indexed flood kernel dependency implemented with borrowed bounded records; no F wire binding yet.",
-        "Pending three-field acquisition/clamps/current operation-colour selection, fill prefix, separate live XOFF/XON outside framebuffer updates, native page/padding/resource binding and coherent command tests."
+        "Native three-field class1/2/0 acquisition, signed coordinate/selector clamps, fill-only attribute prefix, no H/setcolor test and current selected C WORD after XOFF.",
+        "Separate live loop tests around XOFF/XON; source-ending/repetition/chaining/deferred replies and normal error prefixes retain exact ordering.",
+        "Original indexed flood bound to checked visible console byte reads and masked pen-bit writes across both blink planes, preserving public/DDO/device points.",
+        "512 explicit owner-resident frontier records from nominal4096 logical bytes, with bounded overflow traversal/delayed BGI-7. Native command errors recover without disconnecting.",
+        "Pending off-screen active/visual page/padding/configured-buffer and remaining global composition acceptance."
       ],
       "tests": [
-        "big_flood"
+        "big_flood",
+        "cterm_big_fill",
+        "cterm_big",
+        "syncterm_big_input"
       ],
       "deviations": [
         "Bounded native frontier replaces unsafe original SS:BP underflow/heap aliases; overflow traversal and delayed BGI-7 are retained, but native capacity is not claimed identical to original heap placement."
       ],
       "verification": [
-        "Independent literal span/queue/pattern/pass expectations, every mask/pen pair, partial plane results, fresh reads/cache snapshots, palette-index identity, clip/narrow/WORD/backing/cursor safety, overflow/errors/interruption and unchanged points. Component coverage only; F/Z native wire/flow/page/resource acceptance remains pending.",
-        "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates."
+        "Independent component spans/queue/pattern/pass order, all mask/pen pairs, partial planes, cache snapshots, palette identity, WORD clips/backing bounds and overflow/error prefixes.",
+        "Native every split/default profile and bytewise all modes/encodings/status; selectors/clamps, H/colour/point preservation, installed prefix/current border/readiness order, independent loop checks, EOF/reset/timeout, source/repetition/replies, bounded exhaustion and host-error recovery.",
+        "70 added coherent application scenes,1316 total, include56 solid/checker/empty F scenes and14 negative-X4 same-connection recovery scenes. Full indexed blink planes, prior text/palette/state/points/cursor, flow/replies, rejection diagnostics and RGB samples are independently expected. No expected pixels are generated from SyncTERM.",
+        "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending."
       ],
       "commit": null
     },

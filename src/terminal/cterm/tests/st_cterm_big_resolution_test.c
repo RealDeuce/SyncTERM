@@ -292,7 +292,7 @@ static void zone_prefixes_and_specials(void)
 	CHECK(b->control.zones.rectangles[0][0]==11 && b->control.zones.rectangles[0][2]==13 && b->control.zones.payload[1]=='B');
 	/* Negative ids fail at the first actual store, after reading X1 only. */
 	const char bad[]="I#X 4,+1,9,8,7,6,1:A!"; size_t used;
-	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used)==IO_ERROR_OUT_OF_RANGE && used==strlen("I#X 4,+1,9,"));
+	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && used==sizeof(bad)-1);
 	CHECK(b->control.zones.rectangles[47][0]==1 && b->zone.phase==CTERM_BIG_ZONE_OFF);
 	string(&f,"I#X 4,0,1,2,3,4,255:"); CHECK(b->control.zones.payload[0]==80);
 	for (unsigned i=0;i<80;++i) { uint8_t byte=(uint8_t)i; feed(&f,&byte,1); }
@@ -315,7 +315,7 @@ static void zone_live_lengths_and_bounds(void)
 	CHECK(b->control.zones.payload[81]=='Q' && b->control.zones.payload[82]=='Q'); string(&f,"!");
 	string(&f,"I#X 4,47,1,2,3,4,1:"); b->control.zones.payload[47*81]=255;
 	for (unsigned i=0;i<80;++i) string(&f,"R");
-	size_t used; CHECK(st_cterm_write(f.terminal,"ST",2,&used)==IO_ERROR_OUT_OF_RANGE && used==1);
+	size_t used; CHECK(st_cterm_write(f.terminal,"ST",2,&used)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && used==2);
 	CHECK(b->control.zones.payload[ST_BIG_ZONE_DATA_SIZE-1]=='R' && b->zone.phase==CTERM_BIG_ZONE_OFF);
 	/* A full payload yields at a work budget, without truncating data. */
 	string(&f,"I#X 4,0,1,2,3,4,80:"); uint8_t raw[82]; memset(raw,'K',80); raw[80]='!'; raw[81]='Z';
@@ -507,7 +507,7 @@ static void marker_native_xor_and_failure(void)
 	st_pixel_buffer_destroy(p);
 	invalid=true; CHECK(st_console_modify_pixels(f.console,seed_marker_pixel,&invalid)==0);
 	const char wire[]="I#P 20,20:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==IO_ERROR_OUT_OF_RANGE && used==sizeof(wire)-1);
+	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && used==sizeof(wire)-1);
 	CHECK(b->state.bgi.x==20 && b->state.bgi.y==20 && b->state.bgi.ddo_x==24 && b->state.bgi.ddo_y==24 && b->state.bgi.device_x==20);
 	/* COPY recovers without a sticky backend-error latch; marker0 ignores
 	 * the installed line XOR/pattern/width and replaces both blink planes. */

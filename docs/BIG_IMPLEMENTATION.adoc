@@ -87,6 +87,11 @@ arithmetic; document safe corrections to memory corruption, uninitialized
 state and unsafe failures. Defined protocol WORD reductions use explicit
 arithmetic rather than host undefined behavior.
 
+BIG command errors must not terminate a terminal session. Cancel pending
+command/source/input/flow state, retain accepted state and pixels, report a
+warning and continue the unread stream through the pre-ANSI stage. Apply the
+same recovery to asynchronous polls, pointer callbacks and EOF cleanup.
+
 === Original numeric rounding
 
 Retain the original chapter 34 software/default 64-bit-significand result.
@@ -1742,8 +1747,8 @@ state change before refusal, accepted pending work continues, and normal
 completion publishes BGI-7 after overflow. Original code122e branches to
 118e/1401, returning from the CURRENT adjacency scan; the other direction
 and queued seeds continue. Native I/O/extent failures stop immediately and
-do not fabricate that unreached BGI return tail. Allocation/default capacity
-and shared buffer lifecycle remain part of the later native F/curve binding.
+do not fabricate that unreached BGI return tail. Native F supplies the default
+capacity below; configured/shared buffer lifecycles remain pending with curves.
 
 Current RIP flood code was reviewed: its fixed492 records, host clip/stride,
 successful-push directional publication, early error/border guards and whole
@@ -1761,14 +1766,76 @@ full-segment cursor cycle, capacities0/1, pre-refusal directional state,
 retained old errors, native failure/interruption prefixes and all point
 owners are covered without an external ROM/reference executable or device.
 
-This is kernel coverage only. F/Z caller acquisition, F flow outside the
-framebuffer update, native indexed/page/padding adapters and coherent command
-scenes remain pending. The unchanged application fixture is not rerun for
-this unbound kernel. Routine tests remain BIG-specific until the final full
-suite; no new command or physical-device acceptance is claimed.
+These tests cover the kernel; the following step records native F caller/
+indexed/flow integration and coherent scenes. Z and page/padding/configured
+buffer composition remain pending. The unchanged application fixture was not
+rerun at the unbound kernel checkpoint. Routine tests remain BIG-specific
+until the final full suite; no physical-device acceptance is claimed.
 
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates.
 
 Synchronous indexed flood kernel commit: `b76f7ef`.
-Native F/Z wire/flow/page/resource and remaining full45-entry composition
-stay in progress.
+Z, configured resources/pages/padding and remaining full45-entry composition
+stay in progress; native F visible-page coverage is recorded below.
+
+=== Native F boundary fill and nonfatal command recovery
+
+F now reads class1 X, class2 Y and class0 operation-colour selector through
+the production numeric/source machinery. After all three return, signed
+negative coordinates clamp to0 and the signed selector clamps to0..3. It
+installs fill attributes, without installing drawing colour or testing H.
+The current loop flag independently controls XOFF before the fill and XON
+after it. The selected full C colour WORD and current seed are fetched after
+XOFF completes. A rejected custom attribute selection or an old BGI error
+does not suppress the fill. Common footer/repetition/chaining/replies retain
+their existing ordering, including source exhaustion on the third field.
+
+The indexed adapter reconstructs each addressed eight-pen primary byte and
+applies mask/plane writes to both blink planes, preserving each plane's
+unselected pen bits. It checks actual storage at the access, keeps damage
+from accepted writes, and leaves public/DDO/device points unchanged. Visible
+page binding uses the existing console; off-screen pages and padding remain
+pending with the page/image dependency. No persistent planar copy is added.
+
+Each native BIG owner contains512 frontier records, matching the nominal
+4096-byte allocation divided by eight logical bytes per record. This is an
+explicit bounded capacity, not an emulation of DOS stack reservations or
+heap placement. Allocation belongs to engine creation and ends at engine
+destruction; cancelled calls retain no live frontier continuation. Overflow
+keeps the kernel's pending-work traversal and delayed BGI-7 return. Configured
+buffer/page lifecycles shared with later G/curve consumers remain pending.
+
+All BIG command failures now recover at the graphics input owner rather
+than returning to the session pump as fatal errors. Recovery cancels pending
+acquisition, source, input, output and footer state without rolling back
+accepted pixels/application/BGI changes. Unread bytes, including a first
+byte not yet examined by a failed continuation, reenter the same pre-ANSI
+stage. A nonprogressing ordinary-byte sink discards its rejected byte to
+avoid retrying forever. Warnings and last-error/rejection-count inspection
+preserve diagnostics. Poll/deferred pointer failures and EOF cleanup use the
+same containment policy; transport failures remain owned by the connection.
+
+`cterm_big_fill` adds every split and bytewise modes/encodings/status cases,
+all four selectors and signed clamps, H/colour/point preservation, attribute
+and current-border ordering around readiness waits, loop-flag changes,
+EOF/reset/timeout, supplied source/repetition/deferred replies, native
+frontier exhaustion, host-error prefixes/recovery, and indexed byte passes
+with independent alternate pens and untouched non-BIG alternate pixels.
+The initial F wire case failed before registration. A separate recovery
+case failed before containment and now preserves following graphics/ANSI/
+replies at every split; earlier native error cases retain prefix/state checks
+while expecting successful terminal input and explicit error diagnostics.
+
+The application fixture adds70 coherent scenes,1316 total: solid/checker/
+empty boundary fills over a prior scene and a rejected negative X4 followed
+by a valid F, ANSI text and a DSR on the same connection. Both indexed blink
+planes, all retained cells/palette/point/fill/cursor state, flow/reply bytes,
+diagnostic count and composed RGB samples come from each coherent capture.
+Expected pixels are authored from24/59, not generated by SyncTERM.
+
+Native F visible-page integration is implemented; Z, page/image/padding/
+configured-buffer/curve/audio composition and full45-entry acceptance remain
+pending. Routine verification remains BIG-specific, with the full suite at
+the end.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending.

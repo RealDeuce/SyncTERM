@@ -164,7 +164,7 @@ static void deadlines_and_recovery(void)
 	CHECK(b->state.application.marker==7 && !b->pair_wait);
 	/* Backwards local pair samples fail and cancel only pending acquisition. */
 	string(&f,"I#I"); --local_ns;
-	CHECK(st_cterm_poll(f.terminal)==IO_ERROR_PROTOCOL && !b->pair_wait && b->state.application.marker==7);
+	CHECK(st_cterm_poll(f.terminal)==0 && b->last_error==IO_ERROR_PROTOCOL && !b->pair_wait && b->state.application.marker==7);
 	++local_ns;
 	/* An unreachable random source pauses wire input but not session polls. */
 	b->numeric.random_from=b->numeric.random_to=1;
@@ -524,9 +524,30 @@ static void wire_setup_bounds(void)
 	/* Corrupted text without a terminator cannot copy into adjacent state. */
 	memset(b->text.bytes,'Q',sizeof(b->text.bytes)); b->numeric.loop.type='Z';
 	size_t used;
-	CHECK(st_cterm_write(f.terminal,"I#& 7,1,1,0,>",13,&used)==IO_ERROR_OUT_OF_RANGE && used==13);
+	CHECK(st_cterm_write(f.terminal,"I#& 7,1,1,0,>",13,&used)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && used==13);
 	CHECK(b->numeric.loop.current==7 && b->control.frame.gang[0]==0 && b->numeric.loop.active==0);
 	destroy(&f);
+}
+static void rejection_recovery(void)
+{
+	static const char wire[]="I#X 4,+1,9,TAIL\033[HI#C>0,5:P 20,20:OK\033[6n";
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+		for (size_t split=0;split<sizeof(wire);++split) {
+			string(&f,"I#R 2:"); f.output_size=0;
+			size_t rejected=b->rejected_commands;
+			if (split==sizeof(wire)-1) for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1);
+			else { feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split); }
+			CHECK(!st_cterm_input_paused(f.terminal) && b->zone.phase==CTERM_BIG_ZONE_OFF);
+			CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==rejected+1);
+			CHECK(b->state.bgi.x==20 && b->state.bgi.y==20 && f.terminal->xpos==3 && f.terminal->ypos==1);
+			CHECK(f.output_size==6 && memcmp(f.output,"\033[1;3R",6)==0);
+			const struct st_console_rect r={20,20,1,1}; struct st_pixel_buffer *p=NULL;
+			CHECK(st_console_get_pixels(&p,f.console,&r,false)==0 && p->primary[0]==805 && p->alternate[0]==805); st_pixel_buffer_destroy(p);
+			CHECK(st_cterm_poll(f.terminal)==0 && st_cterm_finish(f.terminal)==0);
+		}
+		destroy(&f);
+	}
 }
 static void wire_setup_sources(void)
 {
@@ -626,7 +647,7 @@ static void scaling_sources_and_footer(void)
 }
 int main(void)
 {
-	partitions(); framing_and_state(); deadlines_and_recovery(); reply_and_footer();
+	rejection_recovery(); partitions(); framing_and_state(); deadlines_and_recovery(); reply_and_footer();
 	stored_repetition(); gang_source_seams(); footer_wait_reset();
 	local_keys(); local_key_bytes(); local_key_lifecycle(); local_key_return(); wire_loops();
 	wire_setup_prefixes(); wire_setup_keys(); wire_setup_flow_lifecycle(); wire_setup_bounds(); wire_setup_sources();

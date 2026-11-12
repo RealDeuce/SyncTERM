@@ -177,3 +177,101 @@ int cterm_big_bar_poll(struct cterm_big *big, const uint8_t *bytes, size_t size,
 		}
 	}
 }
+static int flood_address(const struct drawing *draw, uint16_t address, size_t *offset)
+{
+	*offset=(size_t)address*8;
+	if (draw->big->reset_pending) return IO_ERROR_INTERRUPTED;
+	size_t count=(size_t)draw->pixels->width*draw->pixels->height;
+	return *offset>count || count-*offset<8?IO_ERROR_OUT_OF_RANGE:0;
+}
+static int flood_read(void *context, uint16_t address, uint8_t pens[8])
+{
+	const struct drawing *draw=context; size_t offset;
+	int status=flood_address(draw,address,&offset); if (status!=0) return status;
+	for (unsigned i=0;i<8;++i) {
+		uint32_t pen=draw->pixels->primary[offset+i];
+		if (pen<CTERM_BIG_PALETTE_FIRST || pen>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
+		pens[i]=(uint8_t)(pen-CTERM_BIG_PALETTE_FIRST);
+	}
+	return 0;
+}
+static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8])
+{
+	struct drawing *draw=context; size_t offset;
+	int status=flood_address(draw,address,&offset); if (status!=0) return status;
+	for (unsigned i=0;i<8;++i) if (mask&(0x80u>>i)) {
+		uint32_t a=pens[i], b=a;
+		if (planes!=15) {
+			a=draw->pixels->primary[offset+i]; b=draw->pixels->alternate[offset+i];
+			if (a<CTERM_BIG_PALETTE_FIRST || a>=CTERM_BIG_PALETTE_FIRST+16
+			    || b<CTERM_BIG_PALETTE_FIRST || b>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
+			a=((a-CTERM_BIG_PALETTE_FIRST)&(15u^planes))|(pens[i]&planes);
+			b=((b-CTERM_BIG_PALETTE_FIRST)&(15u^planes))|(pens[i]&planes);
+		}
+		size_t index=offset+i;
+		status=pixel(draw,(uint16_t)(index%draw->pixels->width),(uint16_t)(index/draw->pixels->width),(uint8_t)a,false);
+		if (status!=0) return status;
+		draw->pixels->alternate[index]=CTERM_BIG_PALETTE_FIRST+b;
+	}
+	return 0;
+}
+struct flood_request { struct cterm_big *big; uint16_t x,y,boundary; };
+static int flood_draw(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct flood_request *request=context;
+	struct drawing drawing={request->big,pixels,changed};
+	const struct st_big_flood_sink sink={&drawing,flood_read,flood_write};
+	return st_big_flood_fill(&request->big->flood_work,&request->big->state,&sink,request->x,request->y,request->boundary);
+}
+int cterm_big_draw_flood(struct cterm_big *big, uint16_t x, uint16_t y, uint16_t boundary)
+{
+	struct flood_request request={big,x,y,boundary};
+	int status=st_console_modify_pixels(big->terminal->screen.console,flood_draw,&request);
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
+int cterm_big_flood_begin(struct cterm_big *big, const struct st_graphics_command_view *view)
+{
+	if (view->count!=3) return IO_ERROR_PROTOCOL;
+	uint16_t words[3];
+	for (size_t i=0;i<3;++i) {
+		if (!view->arguments[i].has_value) return IO_ERROR_PROTOCOL;
+		words[i]=(uint16_t)view->arguments[i].value;
+		if (st_big_number_signed(words[i])<0) words[i]=0;
+	}
+	if (words[2]>3) words[2]=3;
+	big->flood=(struct cterm_big_flood){.x=words[0],.y=words[1],.selector=words[2],.active=true,.chained=view->chained};
+	int status=st_big_fill_apply(&big->state);
+	return status==0?IO_ERROR_IN_PROGRESS:status;
+}
+int cterm_big_flood_poll(struct cterm_big *big, size_t *budget, bool *complete)
+{
+	struct cterm_big_flood *f=&big->flood; *complete=false;
+	for (;;) {
+		if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+		int status;
+		switch (f->phase) {
+		case 0:
+			if (big->numeric.loop.active==0) { st_big_flow_begin(&f->flow,&big->control,false); f->phase=1; }
+			else f->phase=2;
+			break;
+		case 1:
+			status=st_big_flow_poll(&f->flow,&big->control,&big->control_io,budget);
+			if (status!=0) return status;
+			f->phase=2; break;
+		case 2:
+			if (f->selector>=4) return IO_ERROR_OUT_OF_RANGE;
+			status=cterm_big_draw_flood(big,f->x,f->y,big->state.application.colors[f->selector]);
+			if (status!=0) return status;
+			f->phase=3; break;
+		case 3:
+			if (big->numeric.loop.active==0) { st_big_flow_begin(&f->flow,&big->control,true); f->phase=4; }
+			else { f->active=false; *complete=true; return 0; }
+			break;
+		case 4:
+			status=st_big_flow_poll(&f->flow,&big->control,&big->control_io,budget);
+			if (status!=0) return status;
+			f->active=false; *complete=true; return 0;
+		default: return IO_ERROR_PROTOCOL;
+		}
+	}
+}

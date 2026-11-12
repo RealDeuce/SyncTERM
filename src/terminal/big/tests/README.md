@@ -309,4 +309,24 @@ point owners. Equal palette codes for distinct indices do not merge borders.
 The operation is synchronous with no yield/resume budget; native errors
 return their actual prefix. The bounded frontier replaces unsafe original
 SS:BP underflow without claiming exact heap-dependent capacity. F/Z native
-wire/flow/page/resource integration and new coherent scenes remain pending.
+wire/flow/page/resource integration was pending at the kernel checkpoint.
+
+`cterm_big_fill` now binds F's class1/2/0 numeric acquisition, signed clamps,
+fill-only prefix, current border after XOFF and independent live loop tests
+before XOFF/after rendering. Literal full-plane expectations cover all splits
+and modes/encodings/status settings, source/repetition/replies, readiness
+waits, EOF/reset/timeout, bounded exhaustion and host-error recovery. Native
+byte passes preserve separate blink-plane pen bits and untouched alternate
+pixels outside the mask. The native frontier has512 explicit records, based
+on4096 nominal bytes, without reproducing DOS heap/stack placement.
+
+BIG command errors now cancel pending acquisition/source/input/flow/footer
+state and warn without failing terminal input/polls or disconnecting. Tests
+retain accepted state/pixel-prefix assertions and inspect last error/count.
+`cterm_big` checks a rejected negative X4 followed by graphics/ANSI/DSR at
+every split, including bytewise. Fill readiness failures check that the first
+unread byte is retried after cancellation; keyboard/pointer errors check
+poll recovery.70 new application captures (1316 total) add solid/checker/
+empty fills and same-connection rejection recovery, with complete retained
+indexed/text/palette/state/points/cursor/replies/diagnostics and RGB samples.
+Page/padding/configured buffers, Z and global composition remain pending.

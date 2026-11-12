@@ -20,6 +20,8 @@ void cterm_big_inspect(const struct cterm_big *, struct st_console_test_applicat
 int cterm_big_create(struct cterminal *);
 void cterm_big_destroy(struct cterm_big *);
 void cterm_big_reset(struct cterm_big *);
+/* Command failures warn/cancel and resume the unread stream. API misuse is
+ * still an error; IN_PROGRESS retains normal asynchronous ownership. */
 int cterm_big_feed(struct cterm_big *, const void *, size_t, size_t *);
 int cterm_big_poll(struct cterm_big *);
 int cterm_big_finish(struct cterm_big *);

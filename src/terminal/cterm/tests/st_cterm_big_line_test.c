@@ -131,7 +131,7 @@ static void color_and_waiting_prefix(void)
 	string(&f,"I#d 1,2,1"); CHECK(st_cterm_finish(f.terminal)==0); point(&f,12,20);
 	b->state.bgi.state=0; b->state.application.colors[1]=0x127;
 	const char wire[]="I#L 1,2,3,4:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==IO_ERROR_PROTOCOL && used==4);
+	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(wire)-1);
 	CHECK(b->state.bgi.color==0x27 && b->state.bgi.device_color==6 && b->state.bgi.error==-1);
 	destroy(&f);
 }
@@ -208,13 +208,13 @@ static void point_owners_xor_and_failures(void)
 	CHECK(st_console_modify_pixels(f.console,seed,&invalid)==0);
 	b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='R';
 	const char l[]="I#L 10,20,12,20:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,l,sizeof(l)-1,&used)==IO_ERROR_OUT_OF_RANGE && used==sizeof(l)-1);
+	CHECK(st_cterm_write(f.terminal,l,sizeof(l)-1,&used)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && used==sizeof(l)-1);
 	CHECK(f.size==0 && b->control.input.count==1 && b->control.input.payload[1]=='R');
 	const struct dot partial[]={{10,20,805,805},{11,20,5,806}}; canvas(&f,partial,2); point(&f,0,0);
 	/* D publishes DDO target first, but failure skips device/public tails. */
 	b->state.bgi.ddo_x=12; b->state.bgi.ddo_y=20;
 	const char d[]="I#D 10,20:";
-	CHECK(st_cterm_write(f.terminal,d,sizeof(d)-1,&used)==IO_ERROR_OUT_OF_RANGE && used==sizeof(d)-1);
+	CHECK(st_cterm_write(f.terminal,d,sizeof(d)-1,&used)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && used==sizeof(d)-1);
 	CHECK(b->state.bgi.x==0 && b->state.bgi.y==0 && b->state.bgi.device_x==0 && b->state.bgi.ddo_x==10 && b->state.bgi.ddo_y==20);
 	/* Recovery uses COPY without inheriting a sticky rendering failure. */
 	b->state.bgi.write_mode=0; string(&f,"I#L 10,20,12,20:");
@@ -289,10 +289,10 @@ static void move_cancellation_and_failure(void)
 	b->state.bgi.state=0; b->state.bgi.color=7; b->state.bgi.error=0;
 	string(&f,"I#m 2,120,"); point(&f,10,0); CHECK(b->state.bgi.error==0 && b->state.bgi.color==7);
 	const char tail[]="60:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,tail,sizeof(tail)-1,&used)==IO_ERROR_PROTOCOL && used==sizeof(tail)-1);
+	CHECK(st_cterm_write(f.terminal,tail,sizeof(tail)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(tail)-1);
 	point(&f,10,0); CHECK(b->state.bgi.error==-1 && b->state.bgi.color==7 && f.size==0);
 	const char relative_wire[]="I#m 1,2,1,5:";
-	CHECK(st_cterm_write(f.terminal,relative_wire,sizeof(relative_wire)-1,&used)==IO_ERROR_PROTOCOL && used==sizeof(relative_wire)-1);
+	CHECK(st_cterm_write(f.terminal,relative_wire,sizeof(relative_wire)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(relative_wire)-1);
 	point(&f,10,0); b->state.bgi.state=3;
 	string(&f,"I#m 2,200,300:"); point(&f,200,300); canvas(&f,NULL,0);
 	CHECK(b->state.bgi.error==-1 && b->state.bgi.color==7 && f.size==0);
@@ -353,7 +353,7 @@ static void writing_mode_sources_and_failures(void)
 	b->state.bgi.state=0; b->state.bgi.write_mode=9; b->state.application.write_mode=7; b->state.bgi.error=0;
 	string(&f,"I#M "); CHECK(b->state.bgi.error==0 && b->state.bgi.write_mode==9 && b->state.application.write_mode==7);
 	const char tail[]="2:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,tail,sizeof(tail)-1,&used)==IO_ERROR_PROTOCOL && used==sizeof(tail)-1);
+	CHECK(st_cterm_write(f.terminal,tail,sizeof(tail)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(tail)-1);
 	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==9 && b->state.application.write_mode==7 && f.size==3);
 	b->state.bgi.state=3; string(&f,"I#M 3:");
 	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==1 && b->state.application.write_mode==1);

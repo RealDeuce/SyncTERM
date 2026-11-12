@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/M/T attributes, m movement, P markers, L/D/d lines and B bars/boxes run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/M/T attributes, m movement, P markers, L/D/d lines, B bars/boxes and F fills run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -765,13 +765,47 @@ persistent planar framebuffer is introduced.
 combination, partial plane results, cache snapshots, palette-index identity,
 edge/inverted/narrow probes, fresh reads, pending-boundary continuation,
 overflow and failure/interruption prefixes, recovery and unchanged points.
-This is component coverage; F/Z wire/flow, native page/padding/buffer binding
-and coherent command captures remain pending. The unchanged application
-fixture is not rerun for the unbound kernel. Only BIG tests run during
-iteration, with the full suite deferred until the end.
+These are component checks; the following section records native F wire/flow
+binding and coherent captures. Z and page/padding/configured-buffer binding
+remain pending. The unchanged application fixture was not rerun at the
+unbound kernel checkpoint. Only BIG tests run during iteration, with the
+full suite deferred until the end.
 
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates.
 
 Synchronous indexed flood kernel commit: `b76f7ef`.
-Native F/Z wire/flow/page/resource and remaining full45-entry composition
-stay in progress.
+Z, configured resources/pages/padding and remaining full45-entry composition
+stay in progress; native F visible-page coverage is recorded below.
+
+## Native F and nonfatal BIG input errors
+
+F now binds production class1/2/0 acquisition, signed coordinate/selector
+clamps, fill-only attribute installation, current selected C colour after
+XOFF and independent live loop tests around XOFF/XON. H and drawing colour
+do not gate it. It uses the indexed flood kernel in the visible console,
+with checked byte reads, masked pen-bit writes on both blink planes and
+unchanged public/DDO/device points.512 native frontier records represent
+the nominal4096 logical bytes; bounded capacity intentionally replaces
+unsafe DOS stack/heap placement. Off-screen page/padding/configured buffer
+composition and Z remain pending.
+
+Command errors are nonfatal warnings. They cancel pending parser/source/
+input/flow/footer work, retain accepted state/pixels and process unread
+bytes normally, including the first unread byte of a failed continuation.
+Poll/deferred pointer errors and EOF cleanup cannot turn these rejections
+into session failures. Last-error/rejection-count inspection preserves
+diagnostics. Invalid API calls and actual connection failures retain their
+own error handling.
+
+Native tests cover every split/default profile and bytewise all modes,
+encodings/status states, selectors/clamps, current state across readiness
+waits, loop/source/reply ordering, EOF/reset/timeout, bounded overflow,
+host-error prefixes, recovery and independent indexed blink-plane writes.
+The previously failing F and rejection-recovery cases pass.70 additional
+application scenes bring coverage to1316, checking solid/checker/empty
+fills and a negative X4 followed by F, ANSI and DSR on the same connection.
+Each capture checks full retained indexed/text/palette/state/points/cursor,
+diagnostics, replies and composed RGB. Full45-entry acceptance remains0/45;
+only BIG tests run during development and the final full suite is deferred.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending.

@@ -11,6 +11,16 @@
 #include "st_big_collect.h"
 #include "st_big_fill.h"
 #include "st_big_bar3d.h"
+#include "st_big_flood.h"
+/* Nominal 4096-byte flood workspace, eight bytes per logical record.
+ * Native bounds replace the original placement-dependent DOS stack guard. */
+enum { CTERM_BIG_FLOOD_RECORDS = 4096 / 8 };
+struct cterm_big_flood {
+	uint16_t x, y, selector;
+	unsigned phase;
+	bool active, chained;
+	struct st_big_flow_reader flow;
+};
 struct cterm_big_bar {
 	uint16_t points[4], kind;
 	unsigned phase;
@@ -88,6 +98,11 @@ struct cterm_big {
 	struct st_big_fill_edit fill_edit;
 	struct st_big_producer producer;
 	struct cterm_big_bar bar;
+	struct cterm_big_flood flood;
+	struct st_big_flood flood_work;
+	struct st_big_flood_record flood_records[CTERM_BIG_FLOOD_RECORDS];
+	int last_error;
+	size_t rejected_commands;
 	bool footer_active, starting_body, gang_selecting, gang_wire;
 	uint64_t pair_deadline, pair_sample;
 	bool pair_wait, pair_body, feeding, reset_pending;
@@ -117,4 +132,7 @@ int cterm_big_draw_p(struct cterm_big *, const struct st_graphics_command_view *
 int cterm_big_draw_line(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, bool *);
+int cterm_big_draw_flood(struct cterm_big *, uint16_t x, uint16_t y, uint16_t boundary);
+int cterm_big_flood_begin(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_flood_poll(struct cterm_big *, size_t *budget, bool *complete);
 #endif

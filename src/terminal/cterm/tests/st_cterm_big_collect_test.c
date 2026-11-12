@@ -136,7 +136,7 @@ static void keyboard_raw_bounds_sources_and_reset(void)
 	string(&f,"I#< 0,1,0:"); CHECK(b->control.input.count==1 && b->control.input.payload[1]=='H'); key(&f,13); CHECK(f.size==1 && f.output[0]=='H');
 	f.size=0; string(&f,"I#< 0,1,0:"); key(&f,127); key(&f,'A'); key(&f,13); CHECK(f.size==0 && b->control.input.payload[0]=='A');
 	string(&f,"I#< 0,1,0:"); key(&f,127); key(&f,127);
-	CHECK(st_cterm_handle_key(f.terminal,'B',0)); CHECK(st_cterm_poll(f.terminal)==IO_ERROR_OUT_OF_RANGE && b->control.input.count==65535 && !b->collect.active && !b->control.input.pending);
+	CHECK(st_cterm_handle_key(f.terminal,'B',0)); CHECK(st_cterm_poll(f.terminal)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && b->control.input.count==65535 && !b->collect.active && !b->control.input.pending);
 	string(&f,"I#< 0,1,0:"); key(&f,'C'); CHECK(st_cterm_finish(f.terminal)==0 && !b->collect.active && b->control.input.payload[1]=='C' && f.size==0);
 	string(&f,"I#< 0,1,0:"); key(&f,'D'); CHECK(st_cterm_reset_terminal(f.terminal)==0 && !b->collect.active && b->control.input.payload[1]=='D' && f.size==0);
 	string(&f,"I#& 0,2,1,0,<@3,0,0,0:"); CHECK(b->collect.active); key(&f,'A'); CHECK(b->collect.active && f.size==1 && f.output[0]==19);
@@ -229,7 +229,7 @@ static void failure_and_destroy_cleanup(void)
 	string(&f,"I#T 1,2,1:I#< 0,2,0:");
 	CHECK(st_console_modify_pixels(f.console,invalid_pixel,NULL)==0);
 	CHECK(mouse(&f,50,60,0,ST_CONSOLE_MOUSE_MOVE));
-	CHECK(st_cterm_poll(f.terminal)==IO_ERROR_OUT_OF_RANGE && !b->collect.active && !b->control.input.pending && f.size==0);
+	CHECK(st_cterm_poll(f.terminal)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && !b->collect.active && !b->control.input.pending && f.size==0);
 	bool visible=false; CHECK(st_console_get_pointer_visible(f.console,&visible)==0 && visible && b->state.bgi.write_mode==0);
 	string(&f,"I#< 0,0,0:"); key(&f,'Z'); CHECK(f.size==1 && f.output[0]=='Z');
 	destroy(&f);

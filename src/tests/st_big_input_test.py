@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0)):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -50,6 +50,8 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_collect_active"] and not s["cterm.big_pointer_active"]
     assert not s["cterm.big_pattern_active"]
     assert not s["cterm.big_bar_active"]
+    assert not s["cterm.big_flood_active"]
+    assert (s["cterm.big_last_error"], s["cterm.big_rejected_commands"]) == rejections
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
     assert s["cterm.big_scaling"] == scaling
@@ -569,6 +571,37 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   colors=(7, 291, 5, 65535), graph_color=35, colored_pixels=bar_pixels,
                                   rgb_sample=(164, 68, 0xaa00aa) if 1 <= index <= 4 else (101, 61, 0xaaaa),
                                   fill=fill, selected_fill=selected, fill_pixels=tile)
+                        # BIG24/59 authored boundary/interior results, retaining
+                        # the complete preceding scene and independent CPs.
+                        flood_cases = (
+                            (b"I#C>1,15:C>2,3:A>1:B>200,64,208,72,1:C>0,271:C>2,5:C 1,291:", 3, (1, 3), 1, (0x33333333,) * 8),
+                            (b"I#F 204,68,0:", 5, (1, 5), 1, (0x55555555,) * 8),
+                            (b"I#A>12:F 204,68,0:", None, (12, 5), 12, checker),
+                            (b"I#A>0:F 204,68,0:", 0, (0, 5), 0, (0,) * 8),
+                            (b"I#X 4,+1,9,TAILI#F 204,68,0:", 0, (0, 5), 0, (0,) * 8),
+                        )
+                        for index, (command, interior, fill, selected, tile) in enumerate(flood_cases):
+                            region = tuple((x, y, 15 if x in (200, 208) or y in (64, 72)
+                                            else (5 if (x + y) % 2 == 0 else 0) if interior is None else interior)
+                                           for y in range(64, 73) for x in range(200, 209))
+                            token = f"FLOOD{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = (b"\x13\x11" if index else b"") + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(124, 60), lower_points=((208, 72), (208, 72)),
+                                  colors=(271, 291, 5, 65535), graph_color=15, colored_pixels=bar_pixels + region,
+                                  rgb_sample=(204, 68, 0xaa00aa) if index == 1 else (101, 61, 0xaaaa),
+                                  fill=fill, selected_fill=selected, fill_pixels=tile,
+                                  rejections=(-12, 1) if index == 4 else (0, 0))
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")
