@@ -20,6 +20,7 @@
 #endif
 
 #include <locale.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1171,6 +1172,79 @@ check_escape_event(st_console_t *console)
 	return 0;
 }
 
+struct clipboard_reader {
+	st_console_t *console;
+	atomic_bool done;
+	char *text;
+	int status;
+};
+
+static int
+clipboard_read(void *context)
+{
+	struct clipboard_reader *reader = context;
+	reader->status = st_console_get_clipboard_text(reader->console, &reader->text);
+	atomic_store(&reader->done, true);
+	return 0;
+}
+
+static int
+check_clipboard_wait_presentation(st_console_t *console)
+{
+	Display *display = XOpenDisplay(NULL);
+	CHECK(display != NULL);
+	Window owner = XCreateSimpleWindow(display, DefaultRootWindow(display), 0, 0, 1, 1, 0, 0, 0);
+	XSetSelectionOwner(display, XA_PRIMARY, owner, CurrentTime);
+	XSync(display, False);
+	for (unsigned outcome = 0; outcome < 3; ++outcome) {
+		struct clipboard_reader reader = {.console = console};
+		st_thread_t thread;
+		XEvent request;
+		bool received = false;
+		atomic_init(&reader.done, false);
+		CHECK(st_thread_create(&thread, clipboard_read, &reader) == ST_THREAD_SUCCESS);
+		for (unsigned attempt = 0; attempt < 200 && !received; ++attempt) {
+			while (XPending(display) != 0 && !received) {
+				XNextEvent(display, &request);
+				received = request.type == SelectionRequest;
+			}
+			if (!received) {
+				struct pollfd fd = {.fd = ConnectionNumber(display), .events = POLLIN};
+				(void)poll(&fd, 1, 10);
+			}
+		}
+		CHECK(received && !atomic_load(&reader.done));
+		/* The foreign owner deliberately withholds its response. A complete
+		 * presentation must still finish before the clipboard read returns. */
+		CHECK(st_console_set_pixel(console, 0, 0, ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3 + outcome)) == 0);
+		CHECK(st_console_present(console) == 0);
+		CHECK(!atomic_load(&reader.done));
+		if (outcome != 2) {
+			XEvent reply = {.xselection = {
+				.type = SelectionNotify, .display = display,
+				.requestor = request.xselectionrequest.requestor,
+				.selection = request.xselectionrequest.selection,
+				.target = request.xselectionrequest.target,
+				.time = request.xselectionrequest.time,
+				.property = outcome == 0 ? request.xselectionrequest.property : None,
+			}};
+			if (outcome == 0)
+				XChangeProperty(display, reply.xselection.requestor, reply.xselection.property,
+				    reply.xselection.target, 8, PropModeReplace, (const unsigned char *)"delayed", 7);
+			XSendEvent(display, reply.xselection.requestor, False, 0, &reply);
+			XFlush(display);
+		}
+		CHECK(st_thread_join(thread, NULL) == ST_THREAD_SUCCESS);
+		CHECK(reader.status == (outcome == 0 ? 0 : outcome == 1
+		    ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_TIMED_OUT));
+		if (outcome == 0) CHECK(strcmp(reader.text, "delayed") == 0);
+		st_console_free_text(reader.text);
+	}
+	XDestroyWindow(display, owner);
+	XCloseDisplay(display);
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1252,6 +1326,7 @@ main(int argc, char **argv)
 	CHECK(st_console_get_clipboard_text(first, &clipboard) == 0);
 	CHECK(strcmp(clipboard, "second: \xf0\x9f\x99\x82") == 0);
 	st_console_free_text(clipboard);
+	CHECK(check_clipboard_wait_presentation(first) == 0);
 
 	st_console_destroy(second);
 	st_console_destroy(first);

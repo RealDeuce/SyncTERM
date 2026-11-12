@@ -385,6 +385,8 @@ test_clipboard_send(void)
 		(void)close(descriptors[0]);
 		source_send(
 		    &state, NULL, "text/plain;charset=utf-8", descriptors[1]);
+		service_clipboard_sends(&state);
+		if (state.clipboard_sends != NULL) _exit(3);
 		_exit(0);
 	}
 	CHECK(waitpid(child, &status, 0) == child);
@@ -413,6 +415,8 @@ test_clipboard_send(void)
 		    == ST_THREAD_SUCCESS);
 		source_send(
 		    &state, NULL, "text/plain;charset=utf-8", descriptors[1]);
+		while (state.clipboard_sends != NULL)
+			service_clipboard_sends(&state);
 		CHECK(st_thread_join(thread, NULL) == ST_THREAD_SUCCESS);
 		CHECK(reader.used == length);
 		CHECK(memcmp(source, destination, length) == 0);
@@ -427,6 +431,8 @@ static struct {
 	unsigned int regular_sets, utf8, plain;
 	uint32_t regular_serial;
 	bool invalid;
+	struct state *hold_state;
+	int held_fd;
 } clipboard_calls;
 
 static void
@@ -478,7 +484,14 @@ clipboard_marshal(struct wl_proxy *proxy, uint32_t opcode,
 		const char *mime = va_arg(args, const char *);
 		int fd = va_arg(args, int);
 		const char *text = "clipboard peer";
-		if (strcmp(mime, "text/plain;charset=utf-8") != 0
+		if (clipboard_calls.hold_state != NULL) {
+			struct state *state = clipboard_calls.hold_state;
+			(void)st_mutex_lock(&state->mutex);
+			clipboard_calls.held_fd = dup(fd);
+			(void)st_condition_broadcast(&state->changed);
+			(void)st_mutex_unlock(&state->mutex);
+		}
+		else if (strcmp(mime, "text/plain;charset=utf-8") != 0
 		    || write(fd, text, strlen(text)) != (ssize_t)strlen(text))
 			clipboard_calls.invalid = true;
 	} else {
@@ -495,6 +508,7 @@ test_clipboard_protocol(void)
 	struct state state = {
 		.data_manager = (struct wl_data_device_manager *)(uintptr_t)1,
 		.data_device = (struct wl_data_device *)(uintptr_t)2,
+		.wake = {-1, -1},
 	};
 	char *result = NULL;
 	int display_pair[2];
@@ -529,6 +543,110 @@ test_clipboard_protocol(void)
 	CHECK(!clipboard_calls.invalid);
 	CHECK(close(display_pair[0]) == 0 && close(display_pair[1]) == 0);
 	st_wayland_api = saved;
+	return 0;
+}
+
+static int
+one_command(void *context)
+{
+	pending(context);
+	return 0;
+}
+
+static int
+test_clipboard_wait_commands(void)
+{
+	struct st_wayland_api saved = st_wayland_api;
+	for (unsigned outcome = 0; outcome < 3; ++outcome) {
+		struct state state;
+		struct offer offer = {.object = (struct wl_data_offer *)(uintptr_t)10, .utf8 = true};
+		char *text = NULL;
+		struct command read_command = {.type = CMD_GET_CLIPBOARD, .data.text_result = &text};
+		struct command activate = {.type = CMD_ACTIVATE, .data.console = NULL};
+		int display_pair[2];
+		st_thread_t worker_thread;
+		struct timespec deadline;
+
+		CHECK(prepare_worker_state(&state, display_pair) == 0);
+		CHECK(st_mutex_init(&state.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+		CHECK(st_condition_init(&state.changed) == ST_THREAD_SUCCESS);
+		memset(&clipboard_calls, 0, sizeof(clipboard_calls));
+		clipboard_calls.hold_state = &state;
+		clipboard_calls.held_fd = -1;
+		st_wayland_api.proxy_marshal_flags = clipboard_marshal;
+		st_wayland_api.proxy_get_version = fake_get_version;
+		state.selection_offer = &offer;
+		state.command = &read_command;
+		CHECK(write(state.wake[1], "x", 1) == 1);
+		CHECK(st_thread_create(&worker_thread, one_command, &state) == ST_THREAD_SUCCESS);
+		CHECK(st_time_utc_deadline_after_ms(&deadline, 3000) == 0);
+		CHECK(st_mutex_lock(&state.mutex) == ST_THREAD_SUCCESS);
+		while (clipboard_calls.held_fd < 0)
+			CHECK(st_condition_timedwait(&state.changed, &state.mutex, &deadline) == ST_THREAD_SUCCESS);
+		CHECK(st_mutex_unlock(&state.mutex) == ST_THREAD_SUCCESS);
+		/* Use the same native queue as PRESENT, without a real compositor. */
+		CHECK(submit(&state, &activate) == 0);
+		CHECK(st_mutex_lock(&state.mutex) == ST_THREAD_SUCCESS);
+		CHECK(!read_command.done);
+		CHECK(st_mutex_unlock(&state.mutex) == ST_THREAD_SUCCESS);
+		if (outcome == 0) CHECK(write(clipboard_calls.held_fd, "delayed", 7) == 7);
+		if (outcome != 2) CHECK(close(clipboard_calls.held_fd) == 0);
+		CHECK(st_thread_join(worker_thread, NULL) == ST_THREAD_SUCCESS);
+		CHECK(read_command.done && read_command.result == (outcome == 2 ? IO_ERROR_TIMED_OUT : 0));
+		if (outcome != 2) CHECK(strcmp(text, outcome == 0 ? "delayed" : "") == 0);
+		else CHECK(close(clipboard_calls.held_fd) == 0);
+		CHECK(state.command == NULL && !clipboard_calls.invalid);
+		free(text);
+		st_condition_destroy(&state.changed);
+		st_mutex_destroy(&state.mutex);
+		close_worker_state(&state, display_pair);
+	}
+	st_wayland_api = saved;
+	return 0;
+}
+
+static int
+test_clipboard_stalled_send(void)
+{
+	for (unsigned shutdown = 0; shutdown < 2; ++shutdown) {
+		struct state state = {0};
+		int descriptors[2];
+		state.clipboard = malloc(1024 * 1024 + 1);
+		CHECK(state.clipboard != NULL);
+		memset(state.clipboard, 'x', 1024 * 1024);
+		state.clipboard[1024 * 1024] = 0;
+		CHECK(pipe(descriptors) == 0);
+		source_send(&state, NULL, "text/plain;charset=utf-8", descriptors[1]);
+		CHECK(state.clipboard_sends != NULL);
+		/* The receiver never consumes its pipe. Servicing must return, and
+		 * the transfer owns a snapshot independent of clipboard replacement. */
+		free(state.clipboard); state.clipboard = NULL;
+		service_clipboard_sends(&state);
+		CHECK(state.clipboard_sends != NULL);
+		if (shutdown) objects_destroy(&state);
+		else {
+			state.clipboard_sends->started = now_ms() - 2000;
+			service_clipboard_sends(&state);
+		}
+		CHECK(state.clipboard_sends == NULL);
+		CHECK(fcntl(descriptors[1], F_GETFD) == -1 && errno == EBADF);
+		CHECK(close(descriptors[0]) == 0);
+	}
+	{
+		struct state state = {.clipboard = copy_text("x")};
+		int descriptors[17][2];
+		CHECK(state.clipboard != NULL);
+		for (size_t i = 0; i < 17; ++i) {
+			CHECK(pipe(descriptors[i]) == 0);
+			source_send(&state, NULL, "text/plain;charset=utf-8", descriptors[i][1]);
+		}
+		CHECK(fcntl(descriptors[16][1], F_GETFD) == -1 && errno == EBADF);
+		objects_destroy(&state);
+		for (size_t i = 0; i < 17; ++i) {
+			CHECK(fcntl(descriptors[i][1], F_GETFD) == -1 && errno == EBADF);
+			CHECK(close(descriptors[i][0]) == 0);
+		}
+	}
 	return 0;
 }
 
@@ -787,6 +905,8 @@ main(void)
 	CHECK(test_pointer_surface_coordinates() == 0);
 	CHECK(test_clipboard_send() == 0);
 	CHECK(test_clipboard_protocol() == 0);
+	CHECK(test_clipboard_wait_commands() == 0);
+	CHECK(test_clipboard_stalled_send() == 0);
 	CHECK(test_worker_completion() == 0);
 	CHECK(test_scaling_command() == 0);
 	CHECK(test_pointer_shapes() == 0);

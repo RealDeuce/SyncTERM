@@ -1425,6 +1425,7 @@ struct deferred_present_state {
 	st_mutex_t mutex;
 	st_condition_t changed;
 	unsigned int calls;
+	bool clipboard_entered, clipboard_release;
 };
 
 static int
@@ -1538,6 +1539,76 @@ test_deferred_batch_presentation(void)
 		CHECK(st_condition_timedwait(&state.changed, &state.mutex,
 		    &deadline) == ST_THREAD_SUCCESS);
 	(void)st_mutex_unlock(&state.mutex);
+	st_console_destroy(console);
+	st_condition_destroy(&state.changed);
+	st_mutex_destroy(&state.mutex);
+}
+
+static int
+blocked_clipboard(st_console_display_t *display, char **result)
+{
+	struct deferred_present_state *state = display->backend_state;
+
+	CHECK(st_mutex_lock(&state->mutex) == ST_THREAD_SUCCESS);
+	state->clipboard_entered = true;
+	CHECK(st_condition_broadcast(&state->changed) == ST_THREAD_SUCCESS);
+	while (!state->clipboard_release)
+		CHECK(st_condition_wait(&state->changed, &state->mutex) == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_unlock(&state->mutex) == ST_THREAD_SUCCESS);
+	*result = malloc(6);
+	CHECK(*result != NULL);
+	memcpy(*result, "ready", 6);
+	return 0;
+}
+
+static int
+read_blocked_clipboard(void *context)
+{
+	char *text = NULL;
+	CHECK(st_console_get_clipboard_text(context, &text) == 0);
+	CHECK(strcmp(text, "ready") == 0);
+	free(text);
+	return 0;
+}
+
+static void
+test_clipboard_wait_presentation(void)
+{
+	static const struct st_console_backend_ops ops = {
+		.presents_pixels = true, .deferred_present = true,
+		.present = record_deferred_present, .get_clipboard_text = blocked_clipboard,
+	};
+	st_console_t *console = create_headless(2, 1);
+	struct deferred_present_state state = {0};
+	struct timespec deadline;
+	st_thread_t reader;
+	unsigned int before;
+
+	CHECK(st_mutex_init(&state.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&state.changed) == ST_THREAD_SUCCESS);
+	console->display->backend_ops = &ops;
+	console->display->backend_state = &state;
+	CHECK(st_console_start_presentation_worker(console) == 0);
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	deadline.tv_sec += 3;
+	CHECK(st_mutex_lock(&state.mutex) == ST_THREAD_SUCCESS);
+	while (state.calls == 0)
+		CHECK(st_condition_timedwait(&state.changed, &state.mutex, &deadline) == ST_THREAD_SUCCESS);
+	before = state.calls;
+	CHECK(st_mutex_unlock(&state.mutex) == ST_THREAD_SUCCESS);
+	CHECK(st_thread_create(&reader, read_blocked_clipboard, console) == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_lock(&state.mutex) == ST_THREAD_SUCCESS);
+	while (!state.clipboard_entered)
+		CHECK(st_condition_timedwait(&state.changed, &state.mutex, &deadline) == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_unlock(&state.mutex) == ST_THREAD_SUCCESS);
+	CHECK(st_console_write_utf8(console, "X", 1) == 0);
+	CHECK(st_mutex_lock(&state.mutex) == ST_THREAD_SUCCESS);
+	while (state.calls == before)
+		CHECK(st_condition_timedwait(&state.changed, &state.mutex, &deadline) == ST_THREAD_SUCCESS);
+	state.clipboard_release = true;
+	CHECK(st_condition_broadcast(&state.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_unlock(&state.mutex) == ST_THREAD_SUCCESS);
+	CHECK(st_thread_join(reader, NULL) == ST_THREAD_SUCCESS);
 	st_console_destroy(console);
 	st_condition_destroy(&state.changed);
 	st_mutex_destroy(&state.mutex);
@@ -3276,6 +3347,7 @@ main(void)
 	test_concurrent_writers();
 	test_deferred_presentation();
 	test_deferred_batch_presentation();
+	test_clipboard_wait_presentation();
 	test_unicode_wide_cells();
 	test_wide_window_row_operations();
 	test_wide_window_cached_scroll();

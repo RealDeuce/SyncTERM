@@ -132,6 +132,14 @@ struct xkb_api {
 					enum xkb_state_component);
 };
 
+struct clipboard_send {
+	int fd;
+	char *text;
+	size_t size, sent;
+	uint32_t started;
+	struct clipboard_send *next;
+};
+
 struct state {
 	/* Only the backend thread changes or dereferences this pointer. */
 	st_console_t *console;
@@ -141,6 +149,8 @@ struct state {
 	st_mutex_t mutex;
 	st_condition_t changed;
 	struct command *command;
+	/* Owned and serviced only by the backend thread; closed on teardown. */
+	struct clipboard_send *clipboard_sends;
 	int wake[2];
 	int start_status;
 	bool started, stop, failed, configured, pointer_visible, close_posted;
@@ -1063,32 +1073,78 @@ static void source_target(void *d, struct wl_data_source *s, const char *m)
 	(void)s;
 	(void)m;
 }
+
+static char *copy_text(const char *text);
+
+static void
+close_clipboard_send(struct clipboard_send *send)
+{
+	(void)close(send->fd);
+	free(send->text);
+	free(send);
+}
+
+static void
+service_clipboard_sends(struct state *state)
+{
+	struct clipboard_send **link = &state->clipboard_sends;
+	sigset_t blocked;
+
+	if (*link == NULL) return;
+	if (sigemptyset(&blocked) != 0 || sigaddset(&blocked, SIGPIPE) != 0
+	    || pthread_sigmask(SIG_BLOCK, &blocked, NULL) != 0)
+		while (*link != NULL) {
+			struct clipboard_send *send = *link;
+			*link = send->next;
+			close_clipboard_send(send);
+		}
+	while (*link != NULL) {
+		struct clipboard_send *send = *link;
+		bool finished = (uint32_t)(now_ms() - send->started) >= 2000;
+		if (!finished) {
+			/* One bounded, non-blocking write per transfer and UI tick. */
+			size_t count = send->size - send->sent;
+			if (count > 65536) count = 65536;
+			ssize_t n = write(send->fd, send->text + send->sent, count);
+			if (n > 0) { send->sent += (size_t)n; send->started = now_ms(); }
+			else if (n < 0 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
+				finished = true;
+			finished = finished || send->sent == send->size;
+		}
+		if (finished) {
+			*link = send->next;
+			close_clipboard_send(send);
+		}
+		else link = &send->next;
+	}
+}
+
 static void source_send(void *data,
 			struct wl_data_source *source,
 			const char *mime,
 			int32_t fd)
 {
 	struct state *state = data;
-	sigset_t blocked;
-	size_t sent = 0,
-	       length = state->clipboard == NULL ? 0 : strlen(state->clipboard);
+	size_t count = 0;
 	(void)source;
 	(void)mime;
-	if (sigemptyset(&blocked) != 0 || sigaddset(&blocked, SIGPIPE) != 0
-	    || pthread_sigmask(SIG_BLOCK, &blocked, NULL) != 0) {
+	for (struct clipboard_send *send = state->clipboard_sends; send != NULL; send = send->next)
+		++count;
+	int flags = fcntl(fd, F_GETFL);
+	if (count >= 16 || state->clipboard == NULL || flags < 0
+	    || fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0) {
 		(void)close(fd);
 		return;
 	}
-	while (sent < length) {
-		ssize_t n = write(fd, state->clipboard + sent, length - sent);
-		if (n > 0)
-			sent += (size_t)n;
-		else if (n < 0 && errno == EINTR)
-			continue;
-		else
-			break;
+	struct clipboard_send *send = calloc(1, sizeof(*send));
+	char *text = copy_text(state->clipboard);
+	if (send == NULL || text == NULL) {
+		free(send); free(text); (void)close(fd);
+		return;
 	}
-	(void)close(fd);
+	*send = (struct clipboard_send){.fd = fd, .text = text,
+		.size = strlen(text), .started = now_ms(), .next = state->clipboard_sends};
+	state->clipboard_sends = send;
 }
 static void source_cancelled(void *data, struct wl_data_source *source)
 {
@@ -1255,10 +1311,12 @@ static int set_clipboard(struct state *state, const char *text)
 	return 0;
 }
 
+static void pending(struct state *s);
+
 static int get_clipboard(struct state *state, char **result)
 {
 	int pipes[2];
-	struct pollfd fds[2];
+	struct pollfd fds[3];
 	char *text = NULL;
 	size_t used = 0, capacity = 0;
 	const char *mime =
@@ -1282,7 +1340,9 @@ static int get_clipboard(struct state *state, char **result)
 	fds[0] = (struct pollfd){.fd = pipes[0], .events = POLLIN};
 	fds[1] = (struct pollfd){.fd = wl_display_get_fd(state->display),
 				 .events = POLLIN};
+	fds[2] = (struct pollfd){.fd = state->wake[0], .events = POLLIN};
 	for (;;) {
+		service_clipboard_sends(state);
 		if (used == capacity) {
 			size_t next = capacity ? capacity * 2 : 4096;
 			char *p;
@@ -1300,14 +1360,17 @@ static int get_clipboard(struct state *state, char **result)
 			text = p;
 			capacity = next;
 		}
-		int ready = poll(fds, 2, 25);
-		if (ready < 0 && errno != EINTR) {
+		int ready = poll(fds, 3, 25);
+		if (ready < 0) {
+			if (errno == EINTR) continue;
 			free(text);
 			(void)close(pipes[0]);
 			return IO_ERROR_IO;
 		}
 		if (fds[1].revents & POLLIN)
 			(void)wl_display_dispatch(state->display);
+		if (fds[2].revents & POLLIN)
+			pending(state);
 		if (fds[0].revents & (POLLIN | POLLHUP)) {
 			ssize_t n =
 			    read(pipes[0], text + used, capacity - used);
@@ -1535,6 +1598,11 @@ static const struct wl_registry_listener registry_listener = {
 
 static void objects_destroy(struct state *s)
 {
+	while (s->clipboard_sends != NULL) {
+		struct clipboard_send *send = s->clipboard_sends;
+		s->clipboard_sends = send->next;
+		close_clipboard_send(send);
+	}
 	if (s->xkb_state)
 		s->xkb.state_unref(s->xkb_state);
 	if (s->xkb_keymap)
@@ -1856,6 +1924,12 @@ static void pending(struct state *s)
 		;
 	(void)st_mutex_lock(&s->mutex);
 	c = s->command;
+	if (c != NULL && c->type == CMD_GET_CLIPBOARD) {
+		/* Leave the slot available to the presentation worker while the
+		 * foreign clipboard owner writes its pipe. The caller owns c. */
+		s->command = NULL;
+		(void)st_condition_broadcast(&s->changed);
+	}
 	(void)st_mutex_unlock(&s->mutex);
 	if (!c)
 		return;
@@ -1863,7 +1937,8 @@ static void pending(struct state *s)
 	(void)st_mutex_lock(&s->mutex);
 	c->result = result;
 	c->done = true;
-	s->command = NULL;
+	if (s->command == c)
+		s->command = NULL;
 	(void)st_condition_broadcast(&s->changed);
 	(void)st_mutex_unlock(&s->mutex);
 }
@@ -1884,6 +1959,7 @@ static int worker_loop(struct state *s)
 	while (!s->stop) {
 		int ready;
 
+		service_clipboard_sends(s);
 		if (wl_display_dispatch_pending(s->display) < 0)
 			return IO_ERROR_IO;
 		if (s->repeat_key && s->repeat_rate > 0 &&

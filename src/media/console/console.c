@@ -4066,10 +4066,19 @@ display_host_call(st_console_display_t *display, const char *text,
 		result = display->backend_ops->set_clipboard_text == NULL
 		    ? IO_ERROR_NOT_SUPPORTED
 		    : display->backend_ops->set_clipboard_text(display, text);
-	else if (operation == 1)
-		result = display->backend_ops->get_clipboard_text == NULL
-		    ? IO_ERROR_NOT_SUPPORTED
-		    : display->backend_ops->get_clipboard_text(display, text_result);
+	else if (operation == 1) {
+		if (display->backend_ops->get_clipboard_text == NULL)
+			result = IO_ERROR_NOT_SUPPORTED;
+		else {
+			/* The lifecycle lock pins the backend. Clipboard owners may
+			 * take seconds to answer; native command queues serialize the
+			 * request while presentation continues through backend_mutex. */
+			(void)st_mutex_unlock(&display->backend_mutex);
+			result = display->backend_ops->get_clipboard_text(display, text_result);
+			(void)st_mutex_unlock(&display->lifecycle_mutex);
+			return result;
+		}
+	}
 	else if (operation == 2)
 		result = display->backend_ops->open_url == NULL
 		    ? IO_ERROR_NOT_SUPPORTED

@@ -32,6 +32,13 @@ Multi-console applications create a display explicitly and use
 outlive its attached consoles.  The owner must prevent new calls and allow
 active calls to return before destroying either object.
 
+Clipboard reads retain the display lifecycle lock while releasing the backend
+lock, so a slow external owner cannot exclude presentation. X11 and Wayland
+clipboard wait loops service their native command queues, including pending
+presentations. Command storage remains owned by its synchronous caller until
+completion; detaching a clipboard command frees only the queue slot. Native
+tests cover delayed success, refusal/EOF, timeout and continued presentation.
+
 Desktop applications link the `st_console_main` target.  Its interface
 definition renames the application's `main(int, char **)`, while the target
 supplies the real process entry point.  The real main thread owns SDL and
@@ -74,6 +81,13 @@ requests server-side decorations before committing its toplevel. The compositor
 may decline the request; no client-side frame is drawn. Generated core,
 xdg-shell, viewporter, and optional extension stubs are build-tree products of
 `wayland-scanner`, not checked-in sources.
+
+Outgoing Wayland clipboard data is copied into at most 16 owned transfers.
+The backend worker services each with bounded non-blocking writes and closes
+stalled transfers after two seconds without progress. Clipboard replacement
+does not change an accepted transfer; backend teardown closes outstanding
+descriptors and frees their snapshots. A recipient that stops reading cannot
+block the native event loop.
 
 The GDI backend owns a window and message thread per display.  Presenter
 damage becomes a clipped invalidation, while retained XRGB pixels let normal

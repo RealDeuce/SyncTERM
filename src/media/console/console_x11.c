@@ -1305,6 +1305,7 @@ latin1_to_utf8(const unsigned char *source, size_t length)
 static bool utf8_next(const unsigned char **current,
 	const unsigned char *end, uint32_t *result);
 static void handle_event(struct x11_state *state, XEvent *event);
+static void process_pending_command(struct x11_state *state);
 
 static unsigned char *
 utf8_to_latin1(const char *source, size_t *result_length)
@@ -1365,7 +1366,7 @@ get_clipboard(struct x11_state *state, char **result)
 {
 	Window owner = state->api.get_selection_owner(state->display,
 	    state->selection_atom);
-	struct pollfd descriptor;
+	struct pollfd descriptors[2];
 	uint32_t start;
 
 	if (owner == None)
@@ -1383,8 +1384,10 @@ get_clipboard(struct x11_state *state, char **result)
 	    state->utf8_string != None ? state->utf8_string : XA_STRING,
 	    state->clipboard_property, state->window, CurrentTime);
 	(void)state->api.flush(state->display);
-	descriptor.fd = state->api.connection_number(state->display);
-	descriptor.events = POLLIN;
+	descriptors[0] = (struct pollfd){
+		.fd = state->api.connection_number(state->display), .events = POLLIN,
+	};
+	descriptors[1] = (struct pollfd){.fd = state->wake_pipe[0], .events = POLLIN};
 	start = milliseconds_now();
 	while (milliseconds_now() - start < UINT32_C(2000)) {
 		while (state->api.pending(state->display) != 0) {
@@ -1399,7 +1402,8 @@ get_clipboard(struct x11_state *state, char **result)
 			}
 			handle_event(state, &event);
 		}
-		(void)poll(&descriptor, 1, 25);
+		if (poll(descriptors, 2, 25) > 0 && (descriptors[1].revents & POLLIN) != 0)
+			process_pending_command(state);
 	}
 	return IO_ERROR_TIMED_OUT;
 }
@@ -2323,7 +2327,8 @@ complete_command(struct x11_state *state, struct x11_command *command,
 	(void)st_mutex_lock(&state->mutex);
 	command->result = result;
 	command->done = true;
-	state->command = NULL;
+	if (state->command == command)
+		state->command = NULL;
 	(void)st_condition_broadcast(&state->changed);
 	(void)st_mutex_unlock(&state->mutex);
 }
@@ -2338,6 +2343,12 @@ process_pending_command(struct x11_state *state)
 		;
 	(void)st_mutex_lock(&state->mutex);
 	command = state->command;
+	if (command != NULL && command->type == X11_COMMAND_GET_CLIPBOARD) {
+		/* The clipboard wait services subsequent presentation commands.
+		 * Its caller still owns command until complete_command signals it. */
+		state->command = NULL;
+		(void)st_condition_broadcast(&state->changed);
+	}
 	(void)st_mutex_unlock(&state->mutex);
 	if (command != NULL)
 		complete_command(state, command, process_command(state, command));
