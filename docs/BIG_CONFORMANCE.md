@@ -557,3 +557,6 @@ indexed/text/palette/points/cursor/replies/RGB remain coherent. Other image/
 page/audio composition and final full-suite verification remain pending.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body).
+
+Native M writing-mode integration commit: `5bfa8a8`.
+Page/image/audio composition and the full45-entry goal remain in progress.
