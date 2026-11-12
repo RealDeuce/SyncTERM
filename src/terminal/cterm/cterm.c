@@ -83,9 +83,13 @@ void
 cterm_respond(struct cterminal *cterm, const char *data, size_t len)
 {
 	if (cterm->response_cb) {
+		/* Transport backpressure must not hold a rendering transaction. */
+		int hold = cterm_render_hold_update(cterm);
+		(void)cterm_render_set_hold_update(cterm, 0);
 		cterm->response_cb(data, len, cterm->response_cbdata);
 		if(cterm->log==CTERM_LOG_RAW && cterm->logfile != NULL)
 			fwrite(data, len, 1, cterm->logfile);
+		(void)cterm_render_set_hold_update(cterm, hold);
 	}
 }
 

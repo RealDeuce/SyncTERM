@@ -424,9 +424,13 @@ cterm_render_beep(struct cterminal *cterm)
 		return;
 	}
 	audio_engine_t *engine = NULL;
+	int hold = cterm_render_hold_update(cterm);
+	/* audio_beep drains its stream, including the platform-beep fallback. */
+	(void)cterm_render_set_hold_update(cterm, 0);
 	if (cterm->screen.audio != NULL
 	    && st_audio_runtime_acquire(cterm->screen.audio, &engine) == 0)
 		(void)audio_beep(engine, 440.0, 100);
+	(void)cterm_render_set_hold_update(cterm, hold);
 }
 
 void

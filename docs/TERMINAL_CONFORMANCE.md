@@ -786,13 +786,17 @@ Every case must recover known cells, margins and cursor coordinates and answer a
 query. TCP write boundaries are not parser chunk boundaries: the existing
 `cterm_text` C tests retain exhaustive split/bytewise decoder coverage.
 
-`cterm_music_render` holds foreground ANSI playback in a pull-only audio
-runtime while the real presentation worker flushes independent pixel damage
+`cterm_music_render` holds foreground ANSI playback, APC audio waits on
+channels 0, 1, 2 and 15, BEL playback, response output and application APC
+hooks while the real presentation worker flushes independent pixel damage
 and renders both cursor blink phases through the shared bitmap presenter.
 CP437 and UTF-8 cases retain bytewise music input and following-text ordering,
 then check normal completion, flush cancellation, audio shutdown and reset
-recovery. These are native headless rendering tests, without physical audio
-or MIDI output.
+recovery. APC dispatch closes the active parser display's batch before cache
+I/O or callbacks, including APCs routed from the status display to its parent.
+BEL and response callbacks likewise release their batch for playback or
+transport backpressure. These are native headless rendering tests using
+pull-only audio, without physical audio or MIDI output.
 
 `cterm_numeric` uses a pull-only audio runtime to check long ANSI music
 parameters without opening a physical device. It covers leading zeroes,

@@ -802,12 +802,18 @@ cterm_handle_st(struct cterminal *cterm, int *speed)	/* ESC \ (String Terminator
 	switch (cterm->string) {
 		case CTERM_STRING_APC: {
 			struct cterminal *owner = cterm;
+			int hold = cterm_render_hold_update(cterm);
 
+			/* APC can wait for audio, cache I/O, or an application hook.
+			 * Release the active display's batch, including status APCs
+			 * whose handler belongs to the parent terminal. */
+			(void)cterm_render_set_hold_update(cterm, 0);
 			while (owner->parent != NULL) owner = owner->parent;
 			if (!cterm_apc_dispatch(owner, cterm->strbuf, cterm->strbuflen)
 			    && owner->api_apc != NULL)
 				owner->api_apc(owner->api_apc_context,
 				    cterm->strbuf, cterm->strbuflen);
+			(void)cterm_render_set_hold_update(cterm, hold);
 			break;
 		}
 		case CTERM_STRING_DCS:
