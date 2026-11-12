@@ -2816,3 +2816,5 @@ source/parser/stream tests, native IGS/ANSI/VT52/RIP/SkyPix, term/input,
 profile/Wren and application text/bitmap/flow/pattern-load regressions.
 Active tests/dependencies/references were validated. All63 command entries
 are unchanged, with60 complete; the full goal remains active.
+
+Parser source support commit: 4adf6fa. The goal remains active at60/63.

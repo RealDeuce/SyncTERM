@@ -4434,6 +4434,8 @@ pending; the full goal remains active.
 
 == Shared parser sources for stored-operand loops (complete foundation)
 
+Parser support commit: `4adf6fa`.
+
 Chapter13's & dispatcher reuses ordinary command readers, and chapter11's
 numeric loop can clear loop mode during an argument call. Later arguments
 in that same command then come from the wire. A loop body also selects a
