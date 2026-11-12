@@ -406,3 +406,6 @@ Routine goal development now runs BIG-specific tests only, as requested;
 non-BIG regressions are deferred to the final full-suite verification.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed.
+
+Shared thin-line/BIG polymarker and wire T/P integration commit: `a2d67a7`.
+Interactive input, page binding and the full45-entry goal remain in progress.
