@@ -586,3 +586,6 @@ inside a solid swatch. Remaining fill/text, page/image/audio composition and
 final full-suite verification remain pending.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending.
+
+Native C application-colour integration commit: `e34a731`.
+Fill/text, page/image/audio composition and the full45-entry goal remain in progress.
