@@ -222,6 +222,15 @@ opaque/XOR/box/top scenes with existing complete text/pixels/palette/points/
 fill/cursor/replies/RGB observations. Page/image/curve/audio composition and
 full45-entry acceptance remain pending; routine tests remain BIG-only.
 
+BIG's flood kernel is synchronous without periodic work-budget yields;
+framebuffer callbacks must not block or wait. `big_flood` checks original
+WORD spans, directional/LIFO/pattern suppression, clipped/inverted probes,
+whole-band plane-mask order, all mask/pen combinations and partial errors.
+The bounded native frontier explicitly corrects unsafe SS:BP underflow;
+overflow preserves pre-push state and reports BGI-7 after pending work.
+F/Z wire/flow, native page/padding/buffer adapters and coherent command
+coverage remain pending. Routine verification stays BIG-specific.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

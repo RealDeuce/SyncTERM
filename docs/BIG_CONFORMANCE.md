@@ -739,3 +739,35 @@ Native CMake Release configure/full build and final focused builds (/usr/bin/cc,
 Native B/bar3d/indexed-point-read integration commit: `93e76fd`.
 Final explicit-standard-header build was clean; big_bar3d and cterm_big_bar
 passed together in1.45s. Remaining full45-entry composition stays in progress.
+
+## Synchronous indexed flood kernel
+
+`st_big_flood_fill` now implements original WORD seed/clip/boundary handling,
+right-then-left spans, UP-before-DOWN LIFO, previous-span containment and
+already-correct-pattern suppression. Zero pattern rows retain unconditional
+directional propagation. Clip endpoints narrow adjacency, inverted scans
+still probe, and popped boundary seeds still follow their left-span path.
+Style0/1 versus cached-pattern mode, absolute phase, opaque pen0 holes and
+whole-band plane-mask write order have separate owners. Line XOR and RGB
+palette aliases do not change the indexed comparisons or COPY result.
+
+Rendering is synchronous, with no work-budget yields or blocking waits in
+framebuffer updates. Callback failures retain accepted prefixes; unexpected
+IN_PROGRESS is a protocol error. WORD addresses use checked native backing,
+and a repeated right-byte cursor fails OUT_OF_RANGE instead of hanging.
+Borrowed bounded records replace unsafe SS:BP underflow, explicitly changing
+the heap-placement-dependent capacity. Refusal preserves pre-push state,
+finishes the other direction/pending work and reports BGI-7 on normal return.
+Native failures skip unreached tails. No DOS stack/controller/interrupt or
+persistent planar framebuffer is introduced.
+
+`big_flood` checks literal masks/spans/pass order/pixels, every mask/pen
+combination, partial plane results, cache snapshots, palette-index identity,
+edge/inverted/narrow probes, fresh reads, pending-boundary continuation,
+overflow and failure/interruption prefixes, recovery and unchanged points.
+This is component coverage; F/Z wire/flow, native page/padding/buffer binding
+and coherent command captures remain pending. The unchanged application
+fixture is not rerun for the unbound kernel. Only BIG tests run during
+iteration, with the full suite deferred until the end.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates.

@@ -10,7 +10,8 @@
     "audio": "Functional synthesis/playback/lifecycle; no canonical-PCM or listening gate; manual checklist required.",
     "pointer": "Keyboard/X6 and native mouse coexist; latest movement wins, stationary button samples do not undo keyboard moves. Left release after a valid press confirms. No OS-pointer warp; preserve keyboard confirm/cancel and suppress UI/disabled/outside/reset/duplicate selections.",
     "safe_port": "Preserve normal byte/WORD/state/pixel/reply behavior and document checked/bounded corrections to corruption, uninitialized state and unsafe failures.",
-    "verification": "During goal development run BIG-specific tests only; defer non-BIG regressions, including shared-code regressions, to the final full-suite run. Native CMake build and focused BIG native/coherent application verification remain required."
+    "verification": "During goal development run BIG-specific tests only; defer non-BIG regressions, including shared-code regressions, to the final full-suite run. Native CMake build and focused BIG native/coherent application verification remain required.",
+    "rendering": "Render synchronously without periodic work-budget yields; no blocking I/O/readiness/time waits in framebuffer updates. Memory callbacks complete synchronously or fail; protocol acquisition/flow waits remain outside updates."
   },
   "foundations": [
     {
@@ -186,7 +187,8 @@
         "Share the unchanged twelve8x8 fill masks through st_bgi_fill_patterns; BIG retains separate original selection, validation, copy/cache/default state and indexed tile representation.",
         "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. No wire B/bar3d binding yet.",
         "Original DDO0615 point producer shared by future bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns; no wire binding yet.",
-        "Original public/DDO bar3d composition: unsigned public sort/lower move, signed inverted inset/second clip, old-point-first front/extrusion, wrapped depth/orientation/top BYTE, producer effects and current tuple tail."
+        "Original public/DDO bar3d composition: unsigned public sort/lower move, signed inverted inset/second clip, old-point-first front/extrusion, wrapped depth/orientation/top BYTE, producer effects and current tuple tail.",
+        "Synchronous original indexed flood: WORD spans, UP/DOWN LIFO, directional/containment/pattern suppression, byte-band plane passes and accepted-prefix errors over borrowed bounded records."
       ],
       "tests": [
         "big_profile",
@@ -198,7 +200,8 @@
         "big_fill",
         "big_bar",
         "big_producer",
-        "big_bar3d"
+        "big_bar3d",
+        "big_flood"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -215,12 +218,16 @@
         "13-curves-and-native-reuse.adoc",
         "58-marker-and-spray-command-acceptance.adoc",
         "rectangle-code.adoc:DDO0615..0699;EGAVGA point addressing/cleanup",
-        "bgi-layer-code.adoc:DDO025f..0282,04dd..04ee"
+        "bgi-layer-code.adoc:DDO025f..0282,04dd..04ee",
+        "24-flood-fill-and-native-reuse.adoc",
+        "flood-code.adoc:DDO012a..0148;EGAVGA0eaa..1452",
+        "flood-examples.json"
       ],
       "deviations": [
         "BIG clip signed-division overflow or a detected nonterminating WORD clip cycle fails OUT_OF_RANGE. Uninstalled draw dispatch uses the existing protocol-error boundary; native pixel/index escapes and unexpected asynchronous sink returns stop without rolling back accepted prefixes.",
         "Direct bars expand each original masked byte left-to-right in the indexed sink; zero-mask latch exchanges/controller cleanup have no indexed effect in the supported normal COPY/all-plane profile. Invalid native geometry/pen escapes fail before output; native sink failures retain accepted prefixes.",
-        "Producer buffers are bounded borrowed native entries with configured bytes/6 capacity separate from actual extent; unsafe original fixed-segment wrap/heap aliases are rejected at the reached native access. Mode2 is the normal sixteen-pen COPY/all-plane profile; batched pre-write plane bytes are read at a synchronous indexed boundary, without a planar shadow/controller emulator."
+        "Producer buffers are bounded borrowed native entries with configured bytes/6 capacity separate from actual extent; unsafe original fixed-segment wrap/heap aliases are rejected at the reached native access. Mode2 is the normal sixteen-pen COPY/all-plane profile; batched pre-write plane bytes are read at a synchronous indexed boundary, without a planar shadow/controller emulator.",
+        "Flood frontier capacity is an explicit bounded native record view, replacing unsafe absolute SS:BP underflow/heap aliases without claiming identical heap-dependent overflow depth. Checked native memory/index/bit errors and a full repeated right-byte cursor return OUT_OF_RANGE at reached prefixes; no foreign stack/controller/interrupt emulator or planar shadow."
       ],
       "verification": [
         "The current RIP EGA RGB16 table and default pen-code initializer bodies match the extracted st_bgi data exactly. Every channel is independently checked from its six colour-bit weights; default codes are literal. RIP native and coherent CP437/UTF-8 raster regressions passed. Other kernels and original graphical fonts remain pending.",
@@ -328,6 +335,31 @@
             "Final explicit-standard-header build was clean; big_bar3d and cterm_big_bar passed together in1.45s."
           ],
           "commit": "93e76fd"
+        },
+        {
+          "id": "synchronous-indexed-flood-kernel",
+          "status": "complete",
+          "operations": [
+            "Single synchronous fill call, no periodic work budget or begin/poll/cancel API; callbacks cannot block/wait, IN_PROGRESS is a protocol error.",
+            "WORD origin/mixed seed clip/low boundary nibble, stored indices distinct from RGB, all three point owners retained; old BGI errors neither gate nor clear.",
+            "Right then left, clipped adjacency shrink, at-least-one inverted probe, popped-boundary left continuation, UP/DOWN LIFO and previous-span WORD containment.",
+            "Expected-pattern fresh-read suppression versus unconditional zero-row directional seeds; fixed solid pen versus live row loads of installed latched tile; opaque absolute COPY.",
+            "Collect boundary-free byte bands before four ordered plane-mask writes; preserve pre-refusal flags/global state, continue pending work, BGI-7 on normal overflow return only.",
+            "Reviewed current RIP flood: fixed492/int bounds/post-success directional flag/whole alternate-plane sync differ; retain BIG adapter and shared immutable fill data."
+          ],
+          "tests": [
+            "big_flood"
+          ],
+          "references": [
+            "24-flood-fill-and-native-reuse.adoc",
+            "59-rectangle-clear-and-flood-command-acceptance.adoc",
+            "flood-code.adoc:EGAVGA0eaa..1452",
+            "flood-examples.json"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1377,7 +1409,7 @@
     {
       "id": "F",
       "order": 18,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1385,12 +1417,25 @@
         "shared-bgi"
       ],
       "references": [
-        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+        "59-rectangle-clear-and-flood-command-acceptance.adoc",
+        "24-flood-fill-and-native-reuse.adoc",
+        "flood-code.adoc",
+        "flood-examples.json"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Original synchronous indexed flood kernel dependency implemented with borrowed bounded records; no F wire binding yet.",
+        "Pending three-field acquisition/clamps/current operation-colour selection, fill prefix, separate live XOFF/XON outside framebuffer updates, native page/padding/resource binding and coherent command tests."
+      ],
+      "tests": [
+        "big_flood"
+      ],
+      "deviations": [
+        "Bounded native frontier replaces unsafe original SS:BP underflow/heap aliases; overflow traversal and delayed BGI-7 are retained, but native capacity is not claimed identical to original heap placement."
+      ],
+      "verification": [
+        "Independent literal span/queue/pattern/pass expectations, every mask/pen pair, partial plane results, fresh reads/cache snapshots, palette-index identity, clip/narrow/WORD/backing/cursor safety, overflow/errors/interruption and unchanged points. Component coverage only; F/Z native wire/flow/page/resource acceptance remains pending.",
+        "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates."
+      ],
       "commit": null
     },
     {

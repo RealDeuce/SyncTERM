@@ -75,6 +75,12 @@ interrupt execution or hardware throughput delays. Sound oscillator/envelope
 state advances through local sample timing. Muted operation must still make
 logical progress.
 
+Rendering operations run synchronously without periodic work-budget yields.
+Framebuffer updates must not block on I/O, readiness or time waits. Keep
+those protocol acquisition/flow waits outside the update; memory rendering
+callbacks complete synchronously or return an error. Local deadlines remain
+appropriate for actual protocol waits and audio scheduling.
+
 Preserve normal BIG byte consumption, WORD results, pixels, palettes, fonts,
 state, replies and ordinary quirks. Use bounded resources and checked host
 arithmetic; document safe corrections to memory corruption, uninitialized
@@ -1680,3 +1686,85 @@ Native CMake Release configure/full build and final focused builds (/usr/bin/cc,
 Native B/bar3d/indexed-point-read integration commit: `93e76fd`.
 Final explicit-standard-header build was clean; big_bar3d and cterm_big_bar
 passed together in1.45s. Remaining full45-entry composition stays in progress.
+
+=== Synchronous indexed flood kernel
+
+`st_big_flood_fill` implements the public seed/normal16-pen boundary and
+original EGAVGA0eaa..1452 traversal from chapters24/59. Both seed coordinates
+receive WORD origin addition even with clipping disabled. The DDO mixed
+unsigned-upper/signed-lower check precedes device workspace setup. Boundary
+comparison uses the low four stored pen bits of the full supplied WORD;
+palette RGB aliases do not merge different stored indices. Existing BGI
+errors do not gate successful work or clear on success. All three point
+owners remain unchanged.
+
+The kernel is one synchronous operation. It has no begin/poll/cancel API,
+work budget, sleep, clock or periodic yield. Its borrowed memory callbacks
+must not block or wait while a framebuffer update is held. A callback error
+or interruption returns at its accepted prefix; IN_PROGRESS from a callback
+is a protocol error. A subsequent explicit fill starts a new operation over
+the retained pixels. Native byte addresses and cursor increments preserve
+WORD wrap; actual backing/index/bit accesses are checked. A complete repeated
+right-byte cursor fails OUT_OF_RANGE rather than reproducing an unsafe hang.
+
+Spans write right from the seed, then left from seed-1. Clipped endpoints
+are painted but narrow the later adjacency bounds by one pixel. An inverted
+adjacency interval still probes at least once, and accesses remain actual
+active-page addresses rather than a viewport-sized snapshot. Only the
+initial seed gets a boundary early-out: a pending seed that became a
+boundary still follows the original left-span continuation.
+
+UP is scanned/pushed before DOWN; pending seeds are LIFO. First-point,
+directional flags, previous-span WORD containment and global directional
+state follow the original branches. Nonzero pattern rows suppress already-
+correct candidates, so a matching row can prevent propagation to a connected
+row beyond it. Zero row-plane OR takes the unconditional directional path,
+including empty masks or pen0. The OR covers the full installed row, even
+bits outside the current span. Boundary and expected-pen tests use distinct
+fresh reads. No visited bitmap/BFS substitutes for these rules.
+
+Style0 is constant0; style1 snapshots the current device fill pen. Other
+styles use the installed colour-latched indexed tile, with entry-time
+all-zero reduction and fresh row loads at the original sites. A later tuple
+change does not retile or change a captured solid pen. Absolute X/Y phase,
+opaque zero holes and COPY behavior are independent of retained line XOR.
+Boundary-free full bytes are collected before their writes; four ordered
+plane-mask passes cover the whole band, rather than finishing each byte
+before moving to the next. The byte callback updates logical pen bits at
+the indexed boundary. There is no persistent planar framebuffer.
+
+The frontier is borrowed native records with an explicit capacity and actual
+storage extent. This intentionally replaces the original unsafe absolute
+SS:BP guard, which could overwrite preceding heap/global memory; it is not
+an exact DOS heap-placement, call-stack or interrupt model. Native capacity
+is not presented as the original fixed492 records. Flags/global directional
+state change before refusal, accepted pending work continues, and normal
+completion publishes BGI-7 after overflow. Original code122e branches to
+118e/1401, returning from the CURRENT adjacency scan; the other direction
+and queued seeds continue. Native I/O/extent failures stop immediately and
+do not fabricate that unreached BGI return tail. Allocation/default capacity
+and shared buffer lifecycle remain part of the later native F/curve binding.
+
+Current RIP flood code was reviewed: its fixed492 records, host clip/stride,
+successful-push directional publication, early error/border guards and whole
+alternate-plane synchronization differ. BIG retains its own WORD traversal
+and ordered writes. The already-shared immutable fill data remains shared;
+no unchanged whole RIP flood is claimed as a general implementation.
+
+`big_flood` uses independent literal spans, byte-pass traces and final pens
+from24/59. It checks LIFO order, already-correct suppression, empty rows,
+absolute diagonal phase, all256 masks/all16 pens through byte shortcuts,
+intermediate pens11/9/13 over old10 before completion to5, current pen versus
+stale tile, row/entry snapshots, fresh reads and pending-boundary behavior.
+Clip-edge shrink, inverted/narrow scans, checked backing escape, a malformed
+full-segment cursor cycle, capacities0/1, pre-refusal directional state,
+retained old errors, native failure/interruption prefixes and all point
+owners are covered without an external ROM/reference executable or device.
+
+This is kernel coverage only. F/Z caller acquisition, F flow outside the
+framebuffer update, native indexed/page/padding adapters and coherent command
+scenes remain pending. The unchanged application fixture is not rerun for
+this unbound kernel. Routine tests remain BIG-specific until the final full
+suite; no new command or physical-device acceptance is claimed.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates.
