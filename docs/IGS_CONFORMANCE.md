@@ -2986,6 +2986,8 @@ Parent X remains open: the common numeric reader still needs chapter11's
 random tail after an array lookup returning an r/R sentinel. Final full-goal
 acceptance, including foundation and integration review, is not complete.
 
+Dispatch correction commit: 0e72d64. Common-reader and final goal acceptance remain open.
+
 ### Manual audio checklist
 
 These listening checks are a post-implementation checklist, not automated

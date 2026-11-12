@@ -4748,3 +4748,5 @@ All10 pinned source identities, registrations and vector counts are checked.
 Physical audio/MIDI are disabled in fixtures; no external IGS tree, ROM or
 historical executable is needed at runtime. The manual audio checklist is
 provided in IGS_CONFORMANCE.md and is not a development listening gate.
+
+Dispatch correction commit: 0e72d64. Common-reader and final goal acceptance remain open.
