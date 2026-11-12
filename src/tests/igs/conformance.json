@@ -3113,7 +3113,7 @@
         "After the final full rebuild, all17 affected CTest checks passed in104.64s. syncterm_igs_collect passed1404 coherent captures in104.59s; syncterm_igs_query passed864 captures. Native collector took0.43s in the final run. Final checks also cover CTerm ANSI/VT52/keyboard, term/key forwarding and IGS input/init/resolution/flow/pause/sync/X3/X4/X6. Earlier41-test coverage additionally includes console/bitmap/control, shared parser/stream, RIP, SkyPix, Wren and IGS graphics/audio/music/math.",
         "Validated63 unique ordered command IDs,60 completed entries, active tests/dependencies/references and pinned source identities. Ordinary fixtures are self-contained with physical audio/MIDI disabled. X9 file-source echo, parent X, remaining commands and final acceptance remain unfinished; the full goal stays active."
       ],
-      "commit": null
+      "commit": "fab4fda"
     },
     {
       "id": "&",

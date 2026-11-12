@@ -4353,6 +4353,8 @@ remaining commands and final acceptance stay pending; the full goal is active.
 
 == < keyboard and zone input (complete)
 
+Implementation commit: `fab4fda`.
+
 Chapter27 specifies three unscaled operands and a deferred chain epilogue.
 Commit append-CR's low byte and the signed type before acquiring each later
 operand, so array/random sources advance once and partial input preserves
