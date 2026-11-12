@@ -275,6 +275,15 @@
             "big_profile"
           ],
           "commit": "a79aa88"
+        },
+        {
+          "id": "writing-mode-state",
+          "status": "complete",
+          "tests": [
+            "big_state"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body)."
         }
       ]
     },
@@ -542,6 +551,21 @@
           ],
           "commit": "08e9991",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.49s, including the expanded cterm_big_line in1.13s. The BIG application fixture passed in55.70s with938 coherent scenes. Only BIG-specific tests ran; the final full regression suite remains deferred. Native m integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "native-writing-mode",
+          "status": "complete",
+          "tests": [
+            "big_state",
+            "big_numeric",
+            "big_control",
+            "big_draw",
+            "cterm_big_line",
+            "cterm_big_collect",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body)."
         }
       ]
     },
@@ -694,7 +718,7 @@
     {
       "id": "M",
       "order": 4,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -703,10 +727,30 @@
       "references": [
         "50-attribute-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Acquire one unscaled class0 WORD. Preserve3=>2, wrapping decrement and signed0..1 clamp: only original inputs2/3 select XOR1; all others COPY0.",
+        "Update the installed line-mode bit before the application cached mode on normal return. Retain old BGI error; no own pixels, points, colour/style, palette or installed-page effect. Do not apply a global XOR to independent point/fill/text/image consumers.",
+        "R reinstalls actual COPY while retaining cache; I1 retains both, pointer cleanup restores CURRENT cache after temporary XOR, and I0 resets both. Existing line/marker indexed operators and standalone P COPY remain distinct.",
+        "Use common numeric source/repeat/chain/counted deferred replies without an own reply. EOF/reset of incomplete input skips the setter; real numeric timeout substitutes normally. Uninstalled dispatch fails after acquisition without changing either mode; installed recovery retains old BGI error. Remaining global page/image/audio composition is pending."
+      ],
+      "tests": [
+        "big_state",
+        "big_numeric",
+        "big_control",
+        "big_draw",
+        "cterm_big_line",
+        "cterm_big_collect",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native uninstalled dispatch returns protocol error and BGI error-1 instead of the original DOS diagnostic/process exit, retaining accepted reader prefixes and both previous modes. Unsafe original driver/register/DOS-memory aliases and VGA controller/latch ordering are outside the bounded native state representation."
+      ],
+      "verification": [
+        "Both native wire expectations failed before M registration. big_state now checks every input WORD against the independent2/3 predicate, including decrement wraps/legacy3, prior errors, unrelated-state retention and uninstalled/null failure.",
+        "Native every-split/default-profile and bytewise/all mode/encoding/status cases verify repeated XOR cancellation versus COPY, wire-selected XOR on distinct indexed blink pens, full/negative words, unscaled g3 input, stored repetition, chain/deferred replies, EOF/reset/timeout and uninstalled prefixes/recovery. Native input cases verify M/I1/R, cached-mode restoration after pointer completion/EOF/reset, then I0.",
+        "56 new coherent scenes bring the application oracle to994: M2 lines cancel, M3 repeated dots still copy, R leaves actual0/cache1, and invalid258 selects0. Every scene now checks both mode owners with complete indexed blink planes, ROM text/cells, palette, points/cursor/state, exact replies and RGB interiors across all modes/encodings/statuses; physical audio/MIDI are disabled.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body)."
+      ],
       "commit": null
     },
     {

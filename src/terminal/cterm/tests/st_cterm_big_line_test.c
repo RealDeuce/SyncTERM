@@ -199,7 +199,7 @@ static void point_owners_xor_and_failures(void)
 	const struct dot separate[]={{12,18,815,815},{11,19,815,815},{10,20,815,815},{9,21,815,815},{8,22,815,815}};
 	canvas(&f,separate,5); point(&f,12,18);
 	reset_mode(&f,2); bool invalid=false; CHECK(st_console_modify_pixels(f.console,seed,&invalid)==0);
-	b->state.application.colors[1]=5; b->state.bgi.write_mode=1;
+	b->state.application.colors[1]=5; string(&f,"I#M 2:");
 	string(&f,"I#L 10,20,12,20:");
 	const struct dot xor_dots[]={{10,20,805,805},{11,20,806,803},{12,20,805,805}};
 	canvas(&f,xor_dots,3); point(&f,12,20);
@@ -298,8 +298,70 @@ static void move_cancellation_and_failure(void)
 	CHECK(b->state.bgi.error==-1 && b->state.bgi.color==7 && f.size==0);
 	destroy(&f);
 }
+static void writing_mode_partitions(void)
+{
+	static const struct { const char *wire; uint16_t mode; } requests[]={
+		{"I#M>2:L>100,60,102,60:L 100,60,102,60:\033[2;3H",1},
+		{"I#M>3:L>100,60,102,60:L 100,60,102,60:\033[2;3H",1},
+		{"I#M>258:L>100,60,102,60:L 100,60,102,60:\033[2;3H",0},
+	};
+	const struct dot copied[]={{100,60,815,815},{101,60,815,815},{102,60,815,815}};
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	for (size_t c=0;c<sizeof(requests)/sizeof(requests[0]);++c)
+		for (size_t split=0;split<=strlen(requests[c].wire);++split) {
+			reset_mode(&f,2); b->state.bgi.error=-11;
+			feed(&f,requests[c].wire,split); string(&f,requests[c].wire+split);
+			CHECK(b->state.bgi.write_mode==requests[c].mode && b->state.application.write_mode==requests[c].mode && b->state.bgi.error==-11);
+			canvas(&f,requests[c].mode?NULL:copied,requests[c].mode?0:3); point(&f,102,60);
+			CHECK(f.terminal->xpos==3 && f.terminal->ypos==2 && f.size==0);
+		}
+	destroy(&f);
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		create(&f,utf8,status); b=f.terminal->big_engine;
+		for (unsigned resolution=1;resolution<=3;++resolution) for (size_t c=0;c<sizeof(requests)/sizeof(requests[0]);++c) {
+			reset_mode(&f,resolution);
+			for (size_t i=0;i<strlen(requests[c].wire);++i) feed(&f,requests[c].wire+i,1);
+			CHECK(b->state.bgi.write_mode==requests[c].mode && b->state.application.write_mode==requests[c].mode);
+			canvas(&f,requests[c].mode?NULL:copied,requests[c].mode?0:3); point(&f,102,60);
+			CHECK(f.terminal->xpos==3 && f.terminal->ypos==2 && f.size==0);
+		}
+		destroy(&f);
+	}
+}
+static void writing_mode_sources_and_failures(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#m 2,100,60:");
+	static const struct { const char *word; uint16_t mode; } requests[]={
+		{"0",0},{"1",0},{"2",1},{"3",1},{"4",0},{"256",0},{"258",0},{"+1",0},{"x",0}};
+	for (size_t i=0;i<sizeof(requests)/sizeof(requests[0]);++i) {
+		b->state.bgi.write_mode=b->state.application.write_mode=(uint16_t)(1-requests[i].mode);
+		char wire[24]; snprintf(wire,sizeof(wire),"I#M %s:",requests[i].word); string(&f,wire);
+		CHECK(b->state.bgi.write_mode==requests[i].mode && b->state.application.write_mode==requests[i].mode);
+		point(&f,100,60); canvas(&f,NULL,0); CHECK(f.size==0 && f.terminal->xpos==1);
+	}
+	string(&f,"I#M 2"); CHECK(st_cterm_finish(f.terminal)==0 && b->state.bgi.write_mode==0 && b->state.application.write_mode==0);
+	string(&f,"I#M 2:"); string(&f,"I#M "); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->state.bgi.write_mode==1 && b->state.application.write_mode==1);
+	string(&f,"I#M "); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.bgi.write_mode==0 && b->state.application.write_mode==0);
+	string(&f,"I#R 3:I#g 3:I#M 2:"); CHECK(b->state.bgi.write_mode==1 && b->state.application.write_mode==1);
+	string(&f,"I#& 2,4,1,0,M@1,x:");
+	CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0 && b->numeric.loop.active==0 && b->numeric.loop.current==4 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='R';
+	string(&f,"I#M>1:"); CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0 && f.size==2);
+	string(&f,"~ "); CHECK(f.size==3 && f.output[2]=='R');
+	b->state.bgi.state=0; b->state.bgi.write_mode=9; b->state.application.write_mode=7; b->state.bgi.error=0;
+	string(&f,"I#M "); CHECK(b->state.bgi.error==0 && b->state.bgi.write_mode==9 && b->state.application.write_mode==7);
+	const char tail[]="2:"; size_t used;
+	CHECK(st_cterm_write(f.terminal,tail,sizeof(tail)-1,&used)==IO_ERROR_PROTOCOL && used==sizeof(tail)-1);
+	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==9 && b->state.application.write_mode==7 && f.size==3);
+	b->state.bgi.state=3; string(&f,"I#M 3:");
+	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==1 && b->state.application.write_mode==1);
+	destroy(&f);
+}
 int main(void)
 {
 	partitions_and_profiles(); color_and_waiting_prefix(); repeat_and_deferred_reply(); clipping_and_thickness();
-	sources_scaling_and_deadlines(); point_owners_xor_and_failures(); move_state_and_origin(); move_sources_and_replies(); move_cancellation_and_failure(); return 0;
+	sources_scaling_and_deadlines(); point_owners_xor_and_failures(); move_state_and_origin(); move_sources_and_replies(); move_cancellation_and_failure();
+	writing_mode_partitions(); writing_mode_sources_and_failures(); return 0;
 }

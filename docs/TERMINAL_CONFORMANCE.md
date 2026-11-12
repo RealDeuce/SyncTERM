@@ -158,6 +158,15 @@ absolute/relative m preserve the scene and subsequent D starts at the new
 point. Final global page/image/audio composition and the full suite remain
 pending; routine tests remain BIG-only.
 
+BIG M selects the installed line-writing bit and then updates the application
+cache; only inputs2/3 select XOR. `big_state` independently checks all65,536
+WORDs. Native tests verify split/bytewise input, COPY/XOR pixels, source/flow/
+failure prefixes and M/I1/R/pointer/I0 lifetime.56 coherent scenes bring the
+application oracle to994, observing both mode owners, XOR line cancellation,
+COPY dots under M3 and R's actual0/cache1 split with unchanged full scene,
+palette, points, cursor and exact replies. Global page/image/audio composition
+and final full-suite verification remain pending; routine tests are BIG-only.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

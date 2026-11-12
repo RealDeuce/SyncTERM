@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, T attributes, m movement, P markers and L/D/d lines run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, M/T attributes, m movement, P markers and L/D/d lines run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -533,3 +533,27 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native m graphics-point integration commit: `08e9991`.
 Page/image/audio composition and the full45-entry goal remain in progress.
+
+## Native M writing mode
+
+M acquires one class0 WORD, normalizes only2/3 to XOR1 and all other inputs
+to COPY0, changes the installed bit, then stores the application cache after
+normal return. It does not draw or clear prior BGI errors. Existing raster
+consumers keep their own operators: line strokes use the mode, while P dots
+still copy. R restores actual COPY while retaining cache; I1 retains both,
+pointer cleanup restores current cache, and I0 resets both. Uninstalled
+dispatch returns native protocol error before either mode changes, preserving
+reader prefixes and BGI error-1. Common repeat/chain/replies remain in use.
+
+`big_state` exhaustively checks all65,536 WORDs against the independent2/3
+predicate. Native wire cases check partitions/bytewise mode/encoding/status,
+XOR cancellation versus COPY, distinct blink-plane pens, invalid/full/negative
+requests, class0/source/flow, partial EOF/reset/timeout and failure/recovery.
+Input tests exercise M/I1/R and cached-mode restoration after normal pointer
+completion, EOF and reset, then I0. Both initial wire tests failed before
+registration.56 added coherent application scenes bring coverage to994 with
+exact line/dot pixels and both mode owners, including R's0/1 split. Full
+indexed/text/palette/points/cursor/replies/RGB remain coherent. Other image/
+page/audio composition and final full-suite verification remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body).

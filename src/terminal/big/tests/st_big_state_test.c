@@ -166,7 +166,29 @@ static int failures_and_entry(void)
 	CHECK(f.state.saved_palette[7] == 0x1234 && f.state.application.marker == 7);
 	return 0;
 }
+static int writing_modes(void)
+{
+	struct st_big_state s; st_big_state_init(&s);
+	s.bgi.error=-11; s.bgi.color=9; s.bgi.ddo_x=777;
+	/* Independent normalization oracle: exactly these two original inputs
+	 * select XOR, including the legacy3 alias and all decrement wraps. */
+	for (unsigned word=0;word<=65535;++word) {
+		s.bgi.write_mode=9; s.application.write_mode=7;
+		CHECK(st_big_state_write_mode(&s,(uint16_t)word)==0);
+		uint16_t expected=word==2 || word==3?1:0;
+		CHECK(s.bgi.write_mode==expected && s.application.write_mode==expected);
+		CHECK(s.bgi.error==-11 && s.bgi.color==9 && s.bgi.ddo_x==777);
+	}
+	s.bgi.state=0; s.bgi.write_mode=9; s.application.write_mode=7;
+	const uint16_t requests[]={0,1,2,3,32768,32769,65535};
+	for (size_t i=0;i<sizeof(requests)/sizeof(requests[0]);++i) {
+		CHECK(st_big_state_write_mode(&s,requests[i])==IO_ERROR_PROTOCOL);
+		CHECK(s.bgi.write_mode==9 && s.application.write_mode==7 && s.bgi.error==-1);
+	}
+	CHECK(st_big_state_write_mode(NULL,2)==IO_ERROR_INVALID_ARGUMENT);
+	return 0;
+}
 int main(void)
 {
-	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); return 0;
+	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); return 0;
 }

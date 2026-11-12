@@ -148,3 +148,16 @@ int st_big_state_resolution(struct st_big_state *s, uint16_t requested, uint8_t 
 	viewport(s);
 	return 0;
 }
+int st_big_state_write_mode(struct st_big_state *s, uint16_t requested)
+{
+	if (s == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t mode = requested == 3 ? 2 : requested;
+	mode = (uint16_t)(mode-1u);
+	if (st_big_number_signed(mode) < 0 || st_big_number_signed(mode) > 1) mode = 0;
+	if (s->bgi.state == 0) { s->bgi.error = -1; return IO_ERROR_PROTOCOL; }
+	/* The original setter only retains the device's AL&1 line-mode bit.
+	 * Individual raster consumers decide whether to use it. */
+	s->bgi.write_mode = mode;
+	s->application.write_mode = mode;
+	return 0;
+}

@@ -192,3 +192,15 @@ split is tested in the default profile; bytewise cases cover all three modes
 and both encodings/status choices.42 coherent application scenes (938 total)
 expect no raster change from absolute/relative m, then literal D pixels from
 the new point. Expected scenes are authored independently of SyncTERM.
+
+M cases derive from chapter50's complete command/setter/device listings and
+its hand-derived attribute examples. `big_state` checks all65,536 WORDs using
+the independent predicate input2-or3, while retaining unrelated state/old
+errors and checking uninstalled/null rejection. Native line cases cover every
+split/default profile and bytewise/all mode/encoding/status combinations,
+XOR cancellation versus COPY, distinct blink-plane pens, class0/source/flow,
+EOF/reset/timeout and failure prefixes. Native input cases check M/I1/R,
+pointer cached-mode restoration after completion/EOF/reset and I0.56 new
+application scenes (994 total) independently expect XOR lines to cancel,
+M3 dots to copy, R actual0/cache1 and invalid258 normalizing0. Both mode
+owners are now checked in every coherent scene; physical audio remains off.

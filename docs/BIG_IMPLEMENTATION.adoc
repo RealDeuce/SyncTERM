@@ -22,7 +22,8 @@ BIG mode6 is selectable with native I0/I1/R indexed-console effects, g/X4/X6,
 wire & setup, source/footer replay and local stored-loop keys. T attributes
 and P marker drawing now run through a shared thin BGI kernel with BIG
 adapters, as do native L/D/d line commands. Native m graphics-point movement
-and < keyboard/hybrid pointer input are integrated. Other drawing commands,
+and < keyboard/hybrid pointer input are integrated, along with native M
+writing-mode selection. Other drawing commands,
 page/image binding, sound and full command
 acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -1239,3 +1240,58 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native m graphics-point integration commit: `08e9991`.
 Page/image/audio composition and the full45-entry goal remain in progress.
+
+=== Native M writing-mode selection
+
+M now acquires one unscaled class0 WORD through the pre-ANSI parser and
+calls the component state operator. The operator retains the original
+normalization:3 becomes2, decrement wraps to a WORD, then signed values
+outside0..1 become0. Exactly original inputs2 and3 select XOR1; all other
+65,534 WORDs select COPY0. The installed device bit changes first, and only
+normal return reaches the application cached-mode store. An old BGI error
+neither suppresses the setter nor gets cleared.
+
+The setter itself does not repaint, move points or change colours/styles,
+palette or pages. Line and marker-stroke consumers continue to apply the
+retained bit through their existing indexed COPY/XOR operators; standalone
+P dots keep their independent COPY behavior. The native implementation adds
+no global framebuffer XOR switch. Other fill, text and image consumers keep
+their separately specified operators as those commands are implemented.
+
+R reinstalls actual COPY while retaining the cached application mode. I1
+retains both mode owners. Native pointer acquisition temporarily selects XOR,
+and its existing normal/error/reset/EOF tail restores the CURRENT application
+cache; it can therefore reactivate XOR after R. I0 resets both mode owners.
+M itself uses common source/repeat/chain and counted deferred replies and
+emits no own response. Partial EOF/reset does not run the setter, while
+numeric timeout still supplies a value through the ordinary reader.
+
+Uninstalled dispatch retains both old modes and sets BGI error-1 after the
+operand has returned; the native protocol-error boundary replaces the original
+DOS diagnostic/process exit. Earlier reader effects remain accepted, and
+valid installed M can recover while retaining the old BGI error. Unsafe
+foreign driver/register/DOS-memory aliases remain outside the bounded native
+state representation.
+
+`big_state` checks all65,536 input WORDs against the independent predicate
+input2-or3, including decrement wrap, legacy3, prior errors, unchanged
+unrelated state and uninstalled/null failure. `cterm_big_line` checks every
+split in the default profile and bytewise input across all modes/encodings/
+status choices; repeated XOR lines cancel, while COPY lines remain. It also
+checks wire-selected XOR on distinct indexed blink pens, full-WORD and
+negative requests, class0 g3 ownership, stored repetition, chained counted
+replies, partial EOF/reset/timeout and uninstalled prefixes/recovery.
+`cterm_big_collect` adds wire M/I1/R and pointer restoration on normal
+completion, EOF and reset, followed by I0. Both native wire expectations
+failed before M registration.
+
+56 new coherent application scenes bring the oracle to994. They verify M2
+line cancellation, M3 with repeated COPY dots, R's actual0/cache1 split,
+and invalid full-WORD258 returning both modes to0. Every application scene
+now observes both mode owners alongside both complete indexed planes, ROM
+text/cells, palette, points, console cursor/state, exact replies and RGB
+samples. All three modes, both encodings and status choices remain covered;
+physical audio/MIDI are disabled. Global page/image/audio composition and
+final full-suite acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body).

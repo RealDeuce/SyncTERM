@@ -254,8 +254,24 @@ static void stale_mouse_generation(void)
 	CHECK(!b->collect.active && f.size==2);
 	destroy(&f);
 }
+static void wire_writing_mode_lifetime(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#M 2:I#I 1:"); CHECK(b->state.bgi.write_mode==1 && b->state.application.write_mode==1);
+	string(&f,"I#R 2:I#I 1:I#T 1,2,1:"); CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==1);
+	string(&f,"I#< 0,2,0:"); key(&f,13);
+	CHECK(!b->collect.active && b->state.bgi.write_mode==1 && b->state.application.write_mode==1 && f.size==0); canvas(&f,false,0,0);
+	string(&f,"I#M 1:I#< 0,2,0:"); CHECK(b->state.bgi.write_mode==1 && b->state.application.write_mode==0);
+	key(&f,13); CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0); canvas(&f,false,0,0);
+	string(&f,"I#M 3:I#R 2:I#< 0,2,0:"); CHECK(st_cterm_finish(f.terminal)==0);
+	CHECK(b->state.bgi.write_mode==1 && b->state.application.write_mode==1); canvas(&f,false,0,0);
+	string(&f,"I#R 2:I#< 0,2,0:"); CHECK(st_cterm_reset_terminal(f.terminal)==0);
+	CHECK(b->state.bgi.write_mode==1 && b->state.application.write_mode==1); canvas(&f,false,0,0);
+	string(&f,"I#I 0:"); CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0 && f.size==0);
+	destroy(&f);
+}
 int main(void)
 {
 	one_key(); partitions_and_prefixes(); keyboard_echo_and_replay(); keyboard_raw_bounds_sources_and_reset();
-	hybrid_pointer(); mouse_suppression_and_confirmation(); strict_retry_private_scan_and_cleanup(); early_key_and_mouse_overflow(); failure_and_destroy_cleanup(); stale_mouse_generation(); return 0;
+	hybrid_pointer(); mouse_suppression_and_confirmation(); strict_retry_private_scan_and_cleanup(); early_key_and_mouse_overflow(); failure_and_destroy_cleanup(); stale_mouse_generation(); wire_writing_mode_lifetime(); return 0;
 }

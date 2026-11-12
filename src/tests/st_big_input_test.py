@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=()):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0)):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -60,6 +60,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert (s["cterm.big_zone_loopback"], s["cterm.big_zone0_prefix"], s["cterm.big_zone0_tail"]) == (loopback, prefix, tail)
     assert (s["cterm.big_line_style"], s["cterm.big_line_user"], s["cterm.big_line_width"], s["cterm.big_line_mask"]) == line
     assert s["cterm.big_bgi_error"] == graph_error
+    assert (s["cterm.big_write_mode"], s["cterm.big_cached_write_mode"]) == writing
     point = ((0, 0) if marker is None else (120, 64)) if graph_point is None else graph_point
     for domain in ("point", "ddo", "device"):
         assert (s[f"cterm.big_{domain}_x"], s[f"cterm.big_{domain}_y"]) == point
@@ -378,6 +379,33 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
                                   zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
                                   graph_point=point, line_pixels=pixels)
+                        # M affects line consumers; standalone P dots still
+                        # copy. R clears the installed mode but retains cache.
+                        writing_cases = (
+                            (f"I#R {resolution}:".encode() + stamp +
+                             b"I#M>2:L>100,60,102,60:L 100,60,102,60:", (102, 60), (1, 1), ()),
+                            (b"I#M>3:P>120,60:P 120,60:", (120, 60), (1, 1), ((120, 60),)),
+                            (f"I#R {resolution}:".encode() + stamp +
+                             b"I#L>100,60,102,60:L 100,60,102,60:", (102, 60), (0, 1),
+                             ((100, 60), (101, 60), (102, 60))),
+                            (b"I#M>258:L>100,60,102,60:L 100,60,102,60:", (102, 60), (0, 0),
+                             ((100, 60), (101, 60), (102, 60))),
+                        )
+                        for index, (command, point, writing, pixels) in enumerate(writing_cases):
+                            token = f"WRITING{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=point, line_pixels=pixels, writing=writing)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")
