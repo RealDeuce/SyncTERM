@@ -502,3 +502,6 @@ scenes bring the oracle to896 with full indexed/text/palette/point/cursor/
 reply/RGB observations; retained BGI error-11 does not suppress lines.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately. Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending.
+
+Native L/D/d line integration commit: `0ff31e8`.
+Page/image/audio composition and the full45-entry goal remain in progress.
