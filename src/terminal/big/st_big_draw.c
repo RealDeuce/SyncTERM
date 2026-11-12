@@ -1,4 +1,4 @@
-/* BIG line and polymarker schedules, references12/22/51/57/58/64/83. */
+/* BIG point/line/marker/bar adapters, references12/22/23/51/57/58/59/64/83. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_draw.h"
 #include "st_big_number.h"
@@ -85,6 +85,27 @@ rejected:
 	for (size_t i=0;i<4;++i) p[i]=UINT16_MAX;
 	return 0;
 }
+int st_big_draw_bar_clip(const uint16_t b[4], uint16_t p[4], bool *visible)
+{
+	if (b==NULL || p==NULL || visible==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*visible=false;
+	for (size_t axis=0;axis<2;++axis) {
+		if (signed_word(p[axis])>=signed_word(p[axis+2])) {
+			uint16_t temp=p[axis]; p[axis]=p[axis+2]; p[axis+2]=temp;
+		}
+	}
+	/* DDO1309 rejects before clamping. Keep the paired tests, including
+	 * their behavior with inverted bounds; line clipping is different. */
+	for (size_t axis=0;axis<2;++axis) {
+		if (signed_word(p[axis])<signed_word(b[axis]) && signed_word(p[axis+2])<signed_word(b[axis])) return 0;
+		if (signed_word(p[axis])>signed_word(b[axis+2]) && signed_word(p[axis+2])>signed_word(b[axis+2])) return 0;
+	}
+	for (size_t i=0;i<4;++i) {
+		if (signed_word(p[i])<signed_word(b[i%2])) p[i]=b[i%2];
+		else if (signed_word(p[i])>signed_word(b[i%2+2])) p[i]=b[i%2+2];
+	}
+	*visible=true; return 0;
+}
 static int installed(struct st_big_state *s)
 {
 	if (s->bgi.state!=0) return 0;
@@ -123,6 +144,60 @@ static int output_pixel(const struct st_big_draw_sink *sink, uint16_t x, uint16_
 {
 	int status=sink->pixel(sink->context,x,y,pen,xor_mode);
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
+/* A native indexed write has no planar latches or observable zero-mask
+ * exchange. Expand each original byte pass left-to-right; failures retain
+ * the accepted pixel prefix, including cleared middle spans. */
+static int bar_byte(const struct st_big_draw_sink *sink, uint16_t x, uint16_t y, uint8_t mask, uint8_t pen)
+{
+	for (unsigned bit=0;bit<8;++bit) if ((mask&(0x80u>>bit))!=0) {
+		int status=output_pixel(sink,(uint16_t)(x+bit),y,pen,false);
+		if (status!=0) return status;
+	}
+	return 0;
+}
+static int bar_edge(const struct st_big_draw_sink *sink, uint16_t x, uint16_t y, uint8_t edge, uint8_t row, uint8_t pen)
+{
+	int status=bar_byte(sink,x,y,(uint8_t)(edge&row),pen);
+	return status!=0?status:bar_byte(sink,x,y,(uint8_t)(edge&~row),0);
+}
+int st_big_draw_bar(struct st_big_state *s, const uint16_t requested[4], const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || requested==NULL || sink==NULL || sink->pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=installed(s); if (status!=0) return status;
+	uint16_t p[4], b[4];
+	for (size_t i=0;i<4;++i) p[i]=(uint16_t)(requested[i]+s->bgi.viewport[i%2]);
+	bounds(s,b); bool visible;
+	status=st_big_draw_bar_clip(b,p,&visible); if (status!=0 || !visible) return status;
+	/* The raw bar sorts UNSIGNED, after the signed DDO clip. */
+	for (size_t axis=0;axis<2;++axis) if (p[axis]>p[axis+2]) {
+		uint16_t temp=p[axis]; p[axis]=p[axis+2]; p[axis+2]=temp;
+	}
+	for (size_t i=0;i<4;++i) if (p[i]>=(i%2==0?s->bgi.width:s->bgi.height)) return IO_ERROR_OUT_OF_RANGE;
+	uint8_t pen=s->bgi.device_fill_color;
+	if (pen>15) return IO_ERROR_OUT_OF_RANGE;
+	unsigned first=p[0]/8, last=p[2]/8;
+	uint8_t left=(uint8_t)(0xffu>>(p[0]&7)), right=(uint8_t)(0xffu<<(7-(p[2]&7)));
+	for (uint32_t y=p[1];y<=p[3];++y) {
+		/* EGAVGA latches the pen once per bar, the mask once per row. */
+		uint8_t row=s->bgi.fill_pattern[y&7];
+		status=bar_edge(sink,(uint16_t)(first*8),(uint16_t)y,first==last?(uint8_t)(left&right):left,row,pen);
+		if (status!=0) return status;
+		if (first==last) continue;
+		/* Nonsolid middles clear the WHOLE span before any foreground
+		 * exchanges. A row-major final-colour loop loses that prefix. */
+		for (unsigned byte=first+1;byte<last;++byte) {
+			status=bar_byte(sink,(uint16_t)(byte*8),(uint16_t)y,255,row==255?pen:0);
+			if (status!=0) return status;
+		}
+		if (row!=255) for (unsigned byte=first+1;byte<last;++byte) {
+			status=bar_byte(sink,(uint16_t)(byte*8),(uint16_t)y,row,pen);
+			if (status!=0) return status;
+		}
+		status=bar_edge(sink,(uint16_t)(last*8),(uint16_t)y,right,row,pen);
+		if (status!=0) return status;
+	}
+	return 0;
 }
 int st_big_draw_point(struct st_big_state *s, uint16_t x, uint16_t y, uint16_t color, const struct st_big_draw_sink *sink)
 {

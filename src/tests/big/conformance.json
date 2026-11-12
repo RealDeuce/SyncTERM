@@ -183,7 +183,8 @@
         "Revalidate current-source reuse and share only matching data/kernels actually consumed by RIP/BIG.",
         "BIG-specific raster adapters and original bitmap/four V100 CHR assets.",
         "Shared extracted st_bgi_thin_line candidate/pattern walker and four builtin pattern words; RIP keeps its clip/thickness/state, BIG supplies original fixed-slope WORD clips, stroke expansion, points and polymarker schedules.",
-        "Share the unchanged twelve8x8 fill masks through st_bgi_fill_patterns; BIG retains separate original selection, validation, copy/cache/default state and indexed tile representation."
+        "Share the unchanged twelve8x8 fill masks through st_bgi_fill_patterns; BIG retains separate original selection, validation, copy/cache/default state and indexed tile representation.",
+        "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. No wire B/bar3d binding yet."
       ],
       "tests": [
         "big_profile",
@@ -192,7 +193,8 @@
         "syncterm_rip154_raster_CP437",
         "syncterm_rip154_raster_UTF-8",
         "big_draw",
-        "big_fill"
+        "big_fill",
+        "big_bar"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -202,10 +204,14 @@
         "57-line-command-acceptance.adoc",
         "58-marker-and-spray-command-acceptance.adoc",
         "11-bgi-drawing-layers.adoc",
-        "50-attribute-command-acceptance.adoc"
+        "50-attribute-command-acceptance.adoc",
+        "23-rectangles-bars-and-clear.adoc",
+        "59-rectangle-clear-and-flood-command-acceptance.adoc",
+        "rectangle-code.adoc:DDO0152..0179,1309..1397;EGAVGA07a4..0871"
       ],
       "deviations": [
-        "BIG clip signed-division overflow or a detected nonterminating WORD clip cycle fails OUT_OF_RANGE. Uninstalled draw dispatch uses the existing protocol-error boundary; native pixel/index escapes and unexpected asynchronous sink returns stop without rolling back accepted prefixes."
+        "BIG clip signed-division overflow or a detected nonterminating WORD clip cycle fails OUT_OF_RANGE. Uninstalled draw dispatch uses the existing protocol-error boundary; native pixel/index escapes and unexpected asynchronous sink returns stop without rolling back accepted prefixes.",
+        "Direct bars expand each original masked byte left-to-right in the indexed sink; zero-mask latch exchanges/controller cleanup have no indexed effect in the supported normal COPY/all-plane profile. Invalid native geometry/pen escapes fail before output; native sink failures retain accepted prefixes."
       ],
       "verification": [
         "The current RIP EGA RGB16 table and default pen-code initializer bodies match the extracted st_bgi data exactly. Every channel is independently checked from its six colour-bit weights; default codes are literal. RIP native and coherent CP437/UTF-8 raster regressions passed. Other kernels and original graphical fonts remain pending.",
@@ -245,6 +251,27 @@
           ],
           "commit": "3e0da7e",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "original-opaque-bar-primitive",
+          "status": "complete",
+          "operations": [
+            "Translate both corners as WORDs before signed sorting/paired reject/lower-first clamp; retain inverted-bound behavior, then raw unsigned sort.",
+            "Inclusive absolute active-mask/current-pen COPY, opaque pen0 holes, edge foreground then background, full middle clear before foreground; no line XOR/thickness/point changes.",
+            "Reviewed current RIP bar: final mask equation matches, but its combined clipping/scaling/row-major writes do not implement original BIG passes. Shared mask data retained."
+          ],
+          "tests": [
+            "big_bar"
+          ],
+          "references": [
+            "23-rectangles-bars-and-clear.adoc",
+            "59-rectangle-clear-and-flood-command-acceptance.adoc",
+            "rectangle-code.adoc:DDO1309..1397;EGAVGA07a4..0871"
+          ],
+          "commit": null,
+          "verification": [
+            "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending."
+          ]
         }
       ]
     },
@@ -1225,7 +1252,7 @@
     {
       "id": "B",
       "order": 17,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1233,12 +1260,24 @@
         "shared-bgi"
       ],
       "references": [
-        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+        "59-rectangle-clear-and-flood-command-acceptance.adoc",
+        "23-rectangles-bars-and-clear.adoc",
+        "rectangle-code.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Direct-bar primitive implemented with original WORD/clip/pass/state semantics; not yet registered on the wire.",
+        "Pending complete five/six-field routing, attribute prefix timing and all bar3d producer/orientation/depth/top paths."
+      ],
+      "tests": [
+        "big_bar"
+      ],
+      "deviations": [
+        "Normal indexed profile preserves original byte-pass order with left-to-right per-pixel expansion; native sink errors stop without rollback."
+      ],
+      "verification": [
+        "Independent literal clip/pass traces, every row mask/endpoint phase, all pens under line COPY/XOR, absolute phase, stale tile/current pen, row/pen lifetime, unchanged points and failure prefixes. Primitive coverage only; no B wire/bar3d or new application capture acceptance claimed.",
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending."
+      ],
       "commit": null
     },
     {

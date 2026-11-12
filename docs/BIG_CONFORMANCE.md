@@ -646,3 +646,25 @@ Native CMake Release configure/full build and final focused build (/usr/bin/cc, 
 
 Native X1 edit/restore integration commit: `3fd8fa6`.
 Rendering consumers and remaining full45-entry composition stay in progress.
+
+## Original opaque bar primitive
+
+`st_big_draw_bar` now supplies original WORD translation, signed rectangle
+sort/reject/clamp and raw unsigned sorting. It uses the current device fill
+pen and active absolute8x8 mask rather than the latched tile. Holes copy pen0;
+line XOR/style/width are ignored, and all three point owners remain unchanged.
+Edge foreground/background and middle clear/foreground passes retain their
+original order. The native indexed adapter expands masked bytes left-to-right
+and retains accepted prefixes on errors; it does not emulate planar latches
+or add a planar framebuffer. Escaping native geometry/pen values are rejected.
+
+`big_bar` independently checks literal clip/pass traces, every mask byte and
+endpoint phase, absolute diagonal rows, all pens, wrapped/inverted geometry,
+current pen versus stale cache, row-read lifetime, unchanged state and native
+failure prefixes. Current RIP bar reuse was reviewed; its matching mask data
+remain shared, while its combined clipping/scaling/output differs from BIG.
+This primitive has no wire binding yet. B's complete bar3d/input/attribute
+paths and remaining global composition are pending. Only BIG-specific tests
+run during iteration; the final full suite remains deferred.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending.

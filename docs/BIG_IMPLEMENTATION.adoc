@@ -1472,3 +1472,58 @@ Native CMake Release configure/full build and final focused build (/usr/bin/cc, 
 
 Native X1 edit/restore integration commit: `3fd8fa6`.
 Rendering consumers and remaining full45-entry composition stay in progress.
+
+=== Original opaque bar primitive
+
+`st_big_draw_bar` implements the direct bar operator from chapters11/23/59,
+`rectangle-code.adoc` DDO0152..0179/1309..1397 and EGAVGA07a4..0871.
+Both requested corners receive WORD origin addition before signed sorting,
+paired rejection tests and lower-first clamping. The reached raw operator
+then sorts unsigned. Clipping disabled still retains origin translation.
+Inverted bounds preserve the original tests rather than becoming an invented
+empty viewport. Accepted coordinates outside native storage fail OUT_OF_RANGE
+before raster access. Rejection leaves sorted endpoints and all point owners
+unchanged; an old BGI error does not suppress an otherwise valid bar.
+
+The raw operator consumes the active eight-row mask and current device fill
+pen, independently of application selection, public fill colour and the
+colour-latched indexed tile. The pen is read once per bar and the mask once
+per absolute row; X bit80 and Y row phase are absolute. Pattern holes copy
+pen0, including over nonzero pixels. Line pattern, thickness and XOR do not
+change the bar. Public, DDO and device points are all preserved.
+
+Each original edge foreground pass precedes its zero-background pass.
+Single-byte edges combine both masks; adjacent edge bytes have no middle.
+Solid middle bytes copy the pen directly. Nonsolid middles clear the whole
+span before their foreground passes; final right-edge passes follow. The
+native indexed adapter expands each masked byte left-to-right. Planar latch
+reads, zero-mask exchanges and controller cleanup have no additional indexed
+effect in the supported COPY/all-plane profile; no planar framebuffer or
+controller emulator is introduced. A native sink failure stops at its actual
+accepted pixel prefix without rollback or a fabricated BGI error. Unexpected
+asynchronous sink returns are protocol errors.
+
+Current RIP `cterm_rip_raster_bar` was reviewed against chapter83 and the
+native comparison in23/59. Its inclusive opaque absolute mask expression
+matches the final image, but its own sort/clip/scaling, one-pass pixel order
+and whole-operation error boundary cannot supply BIG's ordered passes.
+The matching immutable masks remain shared through `st_bgi_fill_patterns`;
+no duplicate protocol state or speculative common bar adapter is added.
+
+New `big_bar` expectations were written before the operator existed. Literal
+clips include signed extrema, wrapped translation, inverted bounds and
+unsigned raw sorting; literal traces distinguish all edge/middle schedules.
+The mask truth table covers every row byte and both endpoint phases across
+one to four byte rectangles. Independent diagonal rows check absolute X/Y
+phase. Tests also cover every pen under COPY/XOR, opaque zeros, stale tile
+versus current pen, rejected installation, row/pen read lifetimes, distinct
+point owners, pending errors and native failure prefixes.
+
+This is a complete reusable primitive, with no wire B registration yet.
+Full B acceptance still requires its attribute/read prefixes and all bar3d
+producer paths; Z/F/curve consumers and page/image/audio composition remain
+pending. Routine verification remains BIG-only; the unchanged application
+fixture is not rerun for this unbound primitive, and the final full suite
+remains deferred.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending.

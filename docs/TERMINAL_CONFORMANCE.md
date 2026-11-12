@@ -195,6 +195,14 @@ and editor ownership to existing full indexed/text/palette/points/cursor/
 fill-cache/replies/RGB captures. Remaining consumers/global composition and
 the final full suite remain pending; routine tests stay BIG-only.
 
+BIG's original direct-bar primitive now has independent WORD clip, literal
+pass-order and exhaustive row-mask/endpoint-phase tests in `big_bar`. Opaque
+holes copy pen0; the current device pen/active mask are distinct from the
+latched tile, line XOR is ignored, and all point owners are preserved. Native
+indexed failures retain the accepted prefix. No wire B binding is claimed;
+its bar3d and input/attribute paths remain pending. Iteration stays BIG-only,
+with the full suite deferred until the end of the goal.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the
