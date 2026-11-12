@@ -342,7 +342,7 @@
             "term_key_forward",
             "cterm_igs_macro"
           ],
-          "commit": null,
+          "commit": "b89275f",
           "verification": "Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All91 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session checks passed in406.40s; both coherent BIG/IGS application tests passed in25.60s. After the shared codepage-normalization correction and final full rebuild, all16 focused BIG/IGS keyboard/session checks passed in17.02s. No physical keyboard/pointer/audio or & wire acceptance is claimed."
         }
       ]
