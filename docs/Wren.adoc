@@ -4283,7 +4283,7 @@ logic. Terminal operations are available in the connected VM.
 
 | Mouse state
 | `mouseMode` (effective native protocol: 0 = off,
-  1 = RIP, 2 = SkyPix, 3 = IGS, 9 = X10, 1000/1002/1003 = the tracking modes),
+  1 = RIP, 2 = SkyPix, 3 = IGS, 4 = BIG pointer, 9 = X10, 1000/1002/1003 = the tracking modes),
   `mouseSgrPixels` (Bool — true when DECSET 1016 SGR pixel-position
   reporting is active),
   `mouseDisabled` / `mouseDisabled = b` (Bool — disables forwarding
@@ -4389,7 +4389,7 @@ arguments or native resources.
 
 | `CTerm.mouseMode`
 | Read-only effective native mouse protocol: `0` (off), `1` (RIP),
-  `2` (SkyPix), `3` (IGS), `9` (X10), `1000/1002/1003` (the XTerm tracking modes).
+  `2` (SkyPix), `3` (IGS), `4` (BIG pointer), `9` (X10), `1000/1002/1003` (the XTerm tracking modes).
   Used by the default status bar to light the "M" indicator. SkyPix is
   available without a host enable command; Alt/Command-O or Toggle Remote
   Mouse in the online menu controls `mouseDisabled`. A disabled indicator
@@ -4409,9 +4409,16 @@ arguments or native resources.
   activate either behavior; release is accepted anywhere. IGS keeps wheel-up
   local for scrollback.
 
+  BIG reports mode `4` while `<` pointer acquisition is active. Keyboard
+  steps and native mouse movement share its software pointer; stationary
+  button samples preserve the keyboard position. Left-button release after
+  a valid press confirms the current point. UI-handled/disabled/outside
+  samples disarm selection; wheel-up remains local. BIG's selected zone data
+  follows its deferred counted-reply path, not an ANSI mouse report.
+
 | `CTerm.mouseSgrPixels`
 | Read-only Bool; true while DECSET 1016 is the active SGR pixel-position
-  reporting mode. False for IGS and SkyPix. SkyPix controller reports use their
+  reporting mode. False for IGS, SkyPix and an active BIG pointer. SkyPix controller reports use their
   own pixel-coordinate format even if an ANSI mouse mode was requested.
 
 | `CTerm.doorwayMode`, `CTerm.doorwayMode = b`

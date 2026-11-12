@@ -80,6 +80,8 @@ endif()
 add_library(st_cterm STATIC
 	cterm_big.c
 	cterm_big_draw.c
+	cterm_big_collect.c
+	cterm_big_mouse.c
 	cterm_big_input.c
 	cterm_big_setup.c
 	cterm_big_zones.c
@@ -171,6 +173,16 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_big_resolution COMMAND st_cterm_big_resolution_test)
 	set_tests_properties(cterm_big_resolution PROPERTIES TIMEOUT 30)
+	add_executable(st_cterm_big_collect_test tests/st_cterm_big_collect_test.c)
+	target_link_libraries(st_cterm_big_collect_test PRIVATE st_cterm st_big)
+	set_target_properties(st_cterm_big_collect_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_big_collect_test PRIVATE /W4)
+	else()
+		target_compile_options(st_cterm_big_collect_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME cterm_big_collect COMMAND st_cterm_big_collect_test)
+	set_tests_properties(cterm_big_collect PROPERTIES TIMEOUT 30)
 	set_tests_properties(cterm_big PROPERTIES TIMEOUT 30)
 
 	syncterm_add_test_case(st_terminal_tests st_cterm_igs_input_test tests/st_cterm_igs_input_test.c)

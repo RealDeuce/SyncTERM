@@ -8,6 +8,7 @@
 #include "st_big_control.h"
 #include "cterm_key.h"
 #include "st_big_stream.h"
+#include "st_big_collect.h"
 enum cterm_big_setup_phase { CTERM_BIG_SETUP_OFF, CTERM_BIG_SETUP_HEADER,
 	CTERM_BIG_SETUP_TARGET, CTERM_BIG_SETUP_TEXT, CTERM_BIG_SETUP_TYPE,
 	CTERM_BIG_SETUP_COUNT, CTERM_BIG_SETUP_KEY, CTERM_BIG_SETUP_WORD,
@@ -31,11 +32,37 @@ struct cterm_big_zone {
 	struct st_big_flow_reader flow;
 };
 enum { CTERM_BIG_INPUT_KEYS = 64 };
+struct cterm_big_mouse_sample {
+	int32_t x,y;
+	uint32_t buttons;
+	uint64_t generation;
+	bool allowed;
+};
+struct cterm_big_event {
+	bool mouse;
+	union { struct cterm_key key; struct cterm_big_mouse_sample sample; } data;
+};
 struct cterm_big_input {
-	struct cterm_key keys[CTERM_BIG_INPUT_KEYS];
+	struct cterm_big_event events[CTERM_BIG_INPUT_KEYS];
 	size_t first, count;
 	uint8_t scan;
 	bool scan_pending, replaying, overflow;
+};
+struct cterm_big_collect {
+	struct st_big_collect reader;
+	bool active, chained, pointer, shown, host_saved, host_visible;
+	bool confirming, extended, armed, mouse_known, mouse_lost, scan_pending;
+	uint8_t scan;
+	uint16_t x,y, old_x,old_y;
+	int32_t mouse_x,mouse_y;
+	uint32_t buttons;
+	uint64_t generation;
+};
+struct cterm_big_mouse {
+	int32_t x,y, known_x,known_y;
+	uint32_t buttons;
+	uint64_t generation;
+	bool observed, pending, owned, known;
 };
 struct cterm_big {
 	struct cterminal *terminal;
@@ -49,6 +76,8 @@ struct cterm_big {
 	struct st_big_text text;
 	struct cterm_big_setup setup;
 	struct cterm_big_zone zone;
+	struct cterm_big_collect collect;
+	struct cterm_big_mouse mouse;
 	bool footer_active, starting_body, gang_selecting, gang_wire;
 	uint64_t pair_deadline, pair_sample;
 	bool pair_wait, pair_body, feeding, reset_pending;
@@ -56,6 +85,15 @@ struct cterm_big {
 	uint16_t console_fonts[3];
 	bool console_font_valid[3];
 };
+bool cterm_big_input_push(struct cterm_big *, const struct cterm_big_event *);
+bool cterm_big_input_take(struct cterm_big *, struct cterm_big_event *);
+void cterm_big_mouse_flush(struct cterm_big *);
+uint8_t cterm_big_key_byte(const struct cterm_key *, uint8_t *scan, bool *extended);
+int cterm_big_collect_begin(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_collect_poll(struct cterm_big *, size_t *budget, bool *complete);
+int cterm_big_collect_cancel(struct cterm_big *);
+int cterm_big_collect_sample(struct cterm_big *, const struct cterm_big_mouse_sample *);
+int cterm_big_pmarker(struct cterm_big *, uint16_t x, uint16_t y);
 bool cterm_big_input_owned(const struct cterm_big *);
 int cterm_big_input_peek(void *, bool *);
 int cterm_big_input_read(void *, uint8_t *);

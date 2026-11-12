@@ -33,8 +33,8 @@ callbacks and actual I0/I1 indexed-console effects. Independent CP437/UTF-8/
 status/split fixtures check IBM8x14 glyph rows, full-block pixels, palette,
 cursor, frame locals, ff/NUL ownership, late-byte deadlines and EOF/reset/
 semantic-hook recovery. Shared parser header-completion tests cover retained
-identifiers, chaining, suspension and error prefixes. Wire & and native key integration are recorded below. < input production
-and complete command acceptance remain pending.
+identifiers, chaining, suspension and error prefixes. Wire & and native key/input integration are recorded below; complete command
+acceptance remains pending.
 
 BIG is selectable as profile/Wren value6. BBS codec and Wren tests preserve
 previous values, cover its presets and property bounds, and persist entries/
@@ -128,6 +128,17 @@ bounded failures and exact replies through the existing footer. Literal
 movement vectors check X6 WORD overflow and asymmetric clamps. Native <
 framing/echo/keyboard/mouse/pointer integration remains pending; the new
 component tests do not claim bitmap or physical-device input coverage.
+
+Native < now owns its three fields and local acquisition, retaining buffered
+wire tails until completion. `cterm_big_collect` checks early append/key state,
+raw getch/private scans, literal echo/wrap/deletion, counted replies/loop/chain,
+pointer XOR/helper points, keyboard/mouse order and stationary reports,
+UI/disabled/outside/status suppression, stale/overflow events and normal/error/
+reset/EOF/destruction cleanup. Native mouse mode4 exposes active BIG pointer
+ownership.42 coherent keyboard/echo/hybrid scenes bring the application oracle
+to826 full indexed scenes with cells/fonts/palette/cursor/point state and replies.
+Remaining page/image/audio composition and final full-suite verification are
+pending; routine tests remain BIG-only.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

@@ -3461,6 +3461,7 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 		    || terminal->igs_engine->input.held || terminal->igs_engine->input.left_held
 		    || terminal->igs_engine->query.active
 		    || (terminal->igs_engine->collect.active && terminal->igs_engine->collect.type>1) ? 3 : 0;
+	if (cterm_big_pointer_active(terminal->big_engine)) return 4;
 	if (terminal->skypix_engine != NULL)
 		return 2;
 	if (terminal->rip_engine != NULL
@@ -3480,7 +3481,7 @@ bool
 st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal)
 {
 	return terminal != NULL && terminal->skypix_engine == NULL && terminal->igs_engine == NULL
-	    && (terminal->api_mouse_modes & MOUSE_SGR_PIXELS) != 0;
+	    && !cterm_big_pointer_active(terminal->big_engine) && (terminal->api_mouse_modes & MOUSE_SGR_PIXELS) != 0;
 }
 
 bool
@@ -4514,6 +4515,11 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 	changed = terminal->api_mouse_buttons ^ event->data.mouse.buttons;
 	terminal->api_mouse_buttons = event->data.mouse.buttons;
 	if (terminal->igs_engine != NULL) return cterm_igs_mouse(terminal->igs_engine, event);
+	if (terminal->big_engine != NULL) {
+		bool owned=cterm_big_pointer_active(terminal->big_engine);
+		bool handled=cterm_big_mouse(terminal->big_engine,event);
+		if (owned) return handled;
+	}
 	if (terminal->skypix_engine != NULL) {
 		const struct cterm_skypix *sky = terminal->skypix_engine;
 		/* JR-Comm reports SELECTDOWN in raw canvas pixels, independent
@@ -4621,8 +4627,10 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 void
 st_cterm_observe_mouse(st_cterm_t *terminal, const struct st_console_event *event)
 {
-	if (terminal != NULL && event != NULL && event->type == ST_CONSOLE_EVENT_MOUSE && terminal->igs_engine != NULL)
-		cterm_igs_mouse_observe(terminal->igs_engine, event);
+	if (terminal != NULL && event != NULL && event->type == ST_CONSOLE_EVENT_MOUSE) {
+		if (terminal->igs_engine != NULL) cterm_igs_mouse_observe(terminal->igs_engine,event);
+		if (terminal->big_engine != NULL) cterm_big_mouse_observe(terminal->big_engine,event);
+	}
 }
 
 void
@@ -4631,6 +4639,7 @@ st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons)
 	if (terminal != NULL) {
 		terminal->api_mouse_buttons = buttons;
 		if (terminal->igs_engine != NULL) cterm_igs_mouse_sync(terminal->igs_engine, buttons);
+		if (terminal->big_engine != NULL) cterm_big_mouse_sync(terminal->big_engine,buttons);
 	}
 }
 

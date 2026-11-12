@@ -21,7 +21,8 @@ implemented.
 BIG mode6 is selectable with native I0/I1/R indexed-console effects, g/X4/X6,
 wire & setup, source/footer replay and local stored-loop keys. T attributes
 and P marker drawing now run through a shared thin BGI kernel with BIG
-adapters. Other drawing commands, interactive input, sound and full command
+adapters. Native < keyboard and hybrid pointer input are integrated. Other
+drawing commands, page/image binding, sound and full command
 acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -120,12 +121,12 @@ separately from the software pointer; changed valid coordinates on a button
 event also account for coalesced motion.
 
 A valid left press arms selection; left-button release invokes the same
-click/confirm action at the current software pointer position. Preserve
-keyboard confirm/cancel behavior and emit at most one selection. UI-handled,
+click/confirm action at the current software pointer position. Enter confirms through the original result-value wait; host cancellation
+cleans up, and other pointer keys remain nonconfirming. Emit at most one selection. UI-handled,
 disabled, status/outside presses must not arm a later click; wheel-up remains
 local scrollback. Reset, EOF and cancellation clear armed/pending selection
 so a later release cannot affect another acquisition. Use existing session
-event ownership and pointer save-under cleanup. Keep BIG's pointer shapes,
+event ownership and pointer cleanup through BIG's original XOR marker draw/erase helper. Keep BIG's pointer shapes,
 zones, hit testing and deferred replies distinct from IGS's wire semantics.
 
 X6 controls keyboard steps and never quantizes direct mouse coordinates.
@@ -1054,3 +1055,77 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Keyboard/zone collection operator dependency commit: `5e24fd6`.
 Native < integration and the full45-entry goal remain in progress.
+
+== Native < acquisition and hybrid pointer
+
+The native pre-ANSI parser now registers all three class0 < operands. The
+append-CR low byte commits immediately before type acquisition; pending/count
+replacement occurs after options returns. Keys are owned once the < body
+begins, including while operands wait. A suspended collection retains following
+wire bytes until native input completes, then uses the existing source/footer/
+repeat/chain/reply path. The keyboard path calls the existing byte-sized getch
+adapter, retaining its private scan-byte/readiness distinction,129-byte bound,
+DEL behavior and raw extended bytes. Partial EOF/reset preserves accepted
+append/count/payload prefixes and drops pending input without inventing bytes.
+
+Echo requests use the literal native console writer and selected window/style,
+with immediate wrapping and separate SPACE/BS/BEL handling. They do not feed
+synthetic bytes through ANSI or VT52. Keyboard pointer decoding instead reads
+actual queued events and its own extended-byte state; it bypasses the private
+getch scan byte. Only exact type2 takes this path. Enter starts the original
+result5 wait, whose first non5 result is consumed without movement; native
+idle then finishes the confirmation. Unrecognized pointer keys do not cancel
+or move it. Terminal reset, EOF and shutdown perform native cancellation.
+
+Pointer entry selects XOR and fixed318,98, then calls the direct polymarker
+helper, retaining its no-geometry type0, crosshair current point and inherited
+pattern/width/colour/duplicate visits. Movement erases the old helper shape and
+draws the new one only after the saved anchor changes. Keyboard steps retain
+WORD arithmetic and asymmetric clamps. Mouse positions use native pixels
+inside the drawable terminal, independent of X6. Last mouse samples are
+separate from the software anchor, so stationary button reports preserve a
+keyboard move; changed coordinates on a button report include coalesced motion.
+No OS-pointer warp or framebuffer save-under is introduced.
+
+A single bounded event queue preserves key/mouse delivery order. A valid left
+press arms release confirmation at the current software anchor. Observation
+and synchronization hooks classify UI-consumed/disabled/outside/status samples
+as nonselecting; these still update button/sample history and disarm selection.
+Wheel-up stays local. Acquisition generations reject stale mouse events. If
+mouse history overflows, already queued mouse samples are suppressed and a
+fresh observed press is required; admitted keys keep their order. Numeric
+consumers/replay retain their prior keyboard/private-scan semantics.
+
+Selection erases the marker, restores the CURRENT cached application writing
+mode, restores saved host-pointer visibility, then runs the collection component's
+signed first-hit/default/strict zone lookup and counted copy. Strict miss
+requests BEL and restarts at fixed318,98 after mode restoration. Reset, EOF,
+error and destruction also restore native pointer ownership/visibility. A failed
+partial draw retains its accepted pixel prefix without replaying its incomplete
+erase. Asynchronous mouse/rendering failures are delivered on the next native
+poll or write; the old BGI error remains a distinct owner.
+
+The effective native mouse mode is4 only while a BIG pointer is active. The
+existing front end then forwards those events rather than treating them as
+ordinary text/link selection. SGR pixel reporting is false during acquisition;
+base ANSI mouse handling remains available outside it. The Wren API documents
+this additive mode value; no new Wren parser or event dispatcher was added.
+
+`cterm_big_collect` covers partitions/bytewise CP437/UTF-8/status, early keys/
+append publication, buffered tails, echo/deletion/immediate wrap, discarded
+options,129-byte output budgets, raw/private scan bytes, underflow bounds,
+looped replacement/flow, strict retry, normal and failed pointer pixels, mixed
+keyboard/mouse/stationary reports, UI/disabled/status/outside suppression,
+generation/overflow handling, and reset/EOF/destruction cleanup.42 additional
+coherent application scenes bring coverage to826, including exact keyboard
+and echo replies plus hybrid movement/release in all three modes with both
+encodings/status choices. Complete indexed planes, ROM text/cells/palette,
+point owners/cursor/state and RGB samples remain in each scene oracle. Full
+page/image and audio composition remain pending; full command acceptance is
+still tracked separately from this completed native integration.
+
+Mouse observations without pixel coordinates retain the last known pixel
+sample, including across acquisitions; they do not fabricate motion from cell
+coordinates or make a later stationary button report undo a keyboard move.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All13 BIG-specific native CTest checks passed in15.17s. The BIG application fixture passed in51.42s with826 coherent scenes; final missing-pixel/history and failure-cleanup cases are additionally covered by the native suite. Only BIG-specific tests ran for this step; the full regression suite remains deferred until goal completion. Native < framing/keyboard/hybrid-pointer/echo/reply integration is implemented. Global page/image and audio composition, physical input/audio and full45-entry acceptance remain pending.

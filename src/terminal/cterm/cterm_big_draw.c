@@ -37,12 +37,13 @@ static int pixel(void *context, uint16_t x, uint16_t y, uint8_t pen, bool xor_mo
 	}
 	return 0;
 }
-struct marker { struct cterm_big *big; uint16_t x,y; };
+struct marker { struct cterm_big *big; uint16_t x,y; bool direct; };
 static int marker(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct marker *marker=context; struct cterm_big *big=marker->big;
 	struct drawing drawing={big,pixels,changed};
 	const struct st_big_draw_sink sink={&drawing,pixel};
+	if (marker->direct) return st_big_draw_marker(&big->state,marker->x,marker->y,&sink);
 	int status=0;
 	if (big->state.application.marker==0)
 		status=st_big_draw_point(&big->state,marker->x,marker->y,big->state.application.colors[0],&sink);
@@ -53,7 +54,13 @@ static int marker(void *context, const struct st_pixel_buffer *pixels, struct st
 int cterm_big_draw_p(struct cterm_big *big, const struct st_graphics_command_view *view)
 {
 	if (view->count!=2 || !view->arguments[0].has_value || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
-	struct marker request={big,(uint16_t)view->arguments[0].value,(uint16_t)view->arguments[1].value};
+	struct marker request={.big=big,.x=(uint16_t)view->arguments[0].value,.y=(uint16_t)view->arguments[1].value};
+	int status=st_console_modify_pixels(big->terminal->screen.console,marker,&request);
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
+int cterm_big_pmarker(struct cterm_big *big, uint16_t x, uint16_t y)
+{
+	struct marker request={.big=big,.x=x,.y=y,.direct=true};
 	int status=st_console_modify_pixels(big->terminal->screen.console,marker,&request);
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }

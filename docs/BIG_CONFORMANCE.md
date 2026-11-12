@@ -1,8 +1,8 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, T attributes and P markers run
-through native CTerm. Remaining drawing, interactive input, sound and complete command acceptance
-remain in progress.
+through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
+page/image binding, sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -438,3 +438,41 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Keyboard/zone collection operator dependency commit: `5e24fd6`.
 Native < integration and the full45-entry goal remain in progress.
+
+## Native < keyboard and hybrid pointer acquisition
+
+All three class0 operands now run through native CTerm, including early
+append-CR publication and pending/count replacement after options. Keyboard
+ownership starts during operand acquisition. Following wire bytes wait for
+local input, then resume through the shared loop/chain/counted footer.
+Literal native echo preserves the selected console window/style and wraps
+immediately; no ANSI/VT52 parser receives synthetic echo bytes.
+
+The direct polymarker path provides fixed318,98/XOR pointer entry, original
+shape/current-point/visit behavior, keyboard X6 steps and current cached-mode
+restoration. Ordered native mouse and key events share the software anchor;
+stationary button reports preserve keyboard movement, while valid motion uses
+unquantized drawable pixels. A valid left press arms release confirmation.
+UI/disabled/status/outside samples disarm it, wheel-up stays local, generation
+checks suppress stale samples and overflow requires a fresh press. Enter
+retains the result-value wait; private getch scan bytes remain independent.
+
+Normal selection restores the marker/mode/host pointer before signed zone
+lookup; strict miss BEL restarts the fixed origin. Reset/EOF/error/destruction
+restore ownership/visibility without fabricating a reply or replaying partial
+draws. Deferred mouse errors reach the next poll/write. Effective mouse mode4
+exposes acquisition to existing front ends; Wren documentation is updated.
+
+Native tests cover split input, partial state, raw keys, echo, replies/flow,
+source replacement, buffered tails, pointer pixels, private scans, mixed
+movement, suppression/stale/overflow cases and failure/teardown.42 added
+coherent application scenes bring coverage to826 and verify real keyboard/
+echo replies and hybrid releases across the three modes/encodings/statuses.
+Page/image and audio composition remain pending; full acceptance stays in the
+45-entry ledger. These bitmap tests do not claim physical input/audio coverage.
+
+Mouse observations without pixel coordinates retain the last known pixel
+sample, including across acquisitions; they do not fabricate motion from cell
+coordinates or make a later stationary button report undo a keyboard move.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All13 BIG-specific native CTest checks passed in15.17s. The BIG application fixture passed in51.42s with826 coherent scenes; final missing-pixel/history and failure-cleanup cases are additionally covered by the native suite. Only BIG-specific tests ran for this step; the full regression suite remains deferred until goal completion. Native < framing/keyboard/hybrid-pointer/echo/reply integration is implemented. Global page/image and audio composition, physical input/audio and full45-entry acceptance remain pending.

@@ -351,7 +351,7 @@ void st_cterm_set_music_mode(st_cterm_t *terminal, int mode);
 /* Local keyboard preference; terminal reset does not change it. Default true. */
 void st_cterm_set_atari_st_key_clicks(st_cterm_t *terminal, bool enabled);
 bool st_cterm_atascii_inverse(const st_cterm_t *terminal);
-/* Effective protocol: 0 off, 1 RIP, 2 SkyPix, 3 IGS, 9 X10, 1000/1002/1003 XTerm. */
+/* Effective protocol: 0 off, 1 RIP, 2 SkyPix, 3 IGS, 4 BIG pointer, 9 X10, 1000/1002/1003 XTerm. */
 int st_cterm_mouse_mode(const st_cterm_t *terminal);
 bool st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal);
 bool st_cterm_bracketed_paste(const st_cterm_t *terminal);

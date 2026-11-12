@@ -499,6 +499,20 @@
           ],
           "commit": "5e24fd6",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed."
+        },
+        {
+          "id": "native-local-collection-and-hybrid-pointer",
+          "status": "complete",
+          "tests": [
+            "big_collect",
+            "big_control",
+            "big_draw",
+            "big_numeric",
+            "cterm_big_collect",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All13 BIG-specific native CTest checks passed in15.17s. The BIG application fixture passed in51.42s with826 coherent scenes; final missing-pixel/history and failure-cleanup cases are additionally covered by the native suite. Only BIG-specific tests ran for this step; the full regression suite remains deferred until goal completion. Native < framing/keyboard/hybrid-pointer/echo/reply integration is implemented. Global page/image and audio composition, physical input/audio and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -1290,14 +1304,16 @@
         "big_control",
         "cterm_big_resolution",
         "syncterm_big_input",
-        "big_collect"
+        "big_collect",
+        "cterm_big_collect"
       ],
       "deviations": [],
       "verification": [
         "Native split/bytewise CP437/UTF-8/status cases check defaults/full-WORD clamps, separate BGI/console points, immediate raw X during Y wait, current-X mutation before clamping, I/R retention, unknown selectors/replies, EOF/reset/timeout. Actual wire Y5 gives8/11 under g2/R2 and g3/R3; loop endpoints after selector/X transfer later fields to wire, while final stored Y5 remains5.70 new step/default/retention scenes bring application coverage to308 coherent scenes. Interactive pointer input, X4-clear integration and music/audio composition remain pending; X6 is not marked complete.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.",
         "X4 rectangle clearing now has an explicit native assertion that application keyboard steps remain unchanged; pointer interaction remains pending.",
-        "The new collection component checks literal movement vectors using current full-WORD steps, wrap and asymmetric clamps; native keyboard/mouse pointer delivery remains pending."
+        "The new collection component checks literal movement vectors using current full-WORD steps, wrap and asymmetric clamps; native keyboard/mouse pointer delivery remains pending.",
+        "Native pointer keyboard movement now consumes X6 rates, while native mouse pixels remain unquantized. Coherent hybrid captures use5/7 keyboard steps, verify stationary-button preservation and selection at the keyboard-adjusted anchor; application/window/pointer ownership cleanup is separately checked."
       ],
       "commit": null
     },
@@ -1329,7 +1345,8 @@
         "big_stream",
         "cterm_big_resolution",
         "syncterm_big_input",
-        "big_collect"
+        "big_collect",
+        "cterm_big_collect"
       ],
       "deviations": [
         "Negative ids fail OUT_OF_RANGE at their first coordinate store, after acquiring X1, instead of overwriting unrelated DOS/modem state. No clamp to47 or negative-slot allocation.",
@@ -1339,7 +1356,8 @@
         "Independent opaque-wire expectations failed against the previous fallback. Native split/bytewise CP437/UTF-8/status cases verify zero tables, specials, clamps/scaling, each immediate coordinate, I/R/step lifetime, source-to-wire early-XON gates, raw NUL/ff/fake commands, retained tails, live length changes, extra-read latching, cross-record stores, bounded escapes, 80-byte budget resumption, per-call/late-ready timeouts, blocked-flow deadline ordering and reset/EOF prefixes.",
         "84 added coherent application scenes bring coverage to392, checking scaled rectangles, fake I#R bytes, NUL/ff, retained shorter-definition tails, I/R and special lifetimes together with exact unchanged indexed planes, fonts/cells/palette/cursor/state and RGB samples. Pointer selection/marker and music composition remain pending; X4 is not marked fully accepted.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed.",
-        "The new collection component consumes initial/defined/corrupted zone data with signed first-hit/default/strict tests, unsigned cross-cell lengths and bounded prefixes. Native pointer selection remains pending."
+        "The new collection component consumes initial/defined/corrupted zone data with signed first-hit/default/strict tests, unsigned cross-cell lengths and bounded prefixes. Native pointer selection remains pending.",
+        "Native < now consumes real X4 definitions and deferred raw NUL/pipe/tilde payloads, including default/strict selection, retry and lifecycle cleanup. The coherent hybrid scene checks raw M/NUL/Z replies and retained zone data in all three modes; global page/audio composition remains pending."
       ],
       "commit": null
     },
@@ -1360,24 +1378,33 @@
         "81-global-input-queues-zones-and-replies-acceptance.adoc"
       ],
       "operations": [
-        "Collection component entry after the third read: pending1/count0 with retained payload/append, exact2 discard-with-echo and3 discard-without-ordinary-echo, other full-WORD options retained.",
-        "Raw keyboard byte classification, signed-positive repetition/CR termination,129 accepted positions, DEL WORD underflow, conditional BS, increment-before-store, position0 and retained deleted tails; ordered synchronous ordinary/deletion echo requests.",
-        "Signed inclusive first-hit zone lookup, nonzero strict BEL/retry versus default47, unsigned lengths through255 with live counted copies across the flat source table, no80/129 consumer clamp or NUL stop.",
-        "Literal X6 WORD direction/overflow/asymmetric-clamp operators and composition with existing counted/footer/chain/append/replacement semantics. Native < registration, immediate append field, keyboard/mouse event ordering, echo renderer and pointer draw/cleanup remain pending."
+        "Native pre-ANSI registration of three class0 operands; low-BYTE append-CR publication before type, keyboard ownership during numeric acquisition, and pending/count replacement after options. Buffered wire tails wait for local completion.",
+        "Raw byte-sized getch collection with129 accepted positions, DEL wrap/position0, conditional BS, retained tails, full-WORD type/options and synchronous literal native echo with SPACE/BS/BEL and immediate wrap; no synthetic ANSI/VT52 echo input.",
+        "Original direct-polymarker pointer entry at318,98/XOR, current X6 WORD steps/asymmetric clamps, separate anchor versus graphics CP, Enter result-value wait, cached application mode restoration and signed first-hit/default/strict zone copy/retry.",
+        "Ordered key/mouse events; direct unquantized drawable pixels, independent last-known mouse samples, coalesced button motion and stationary-button preservation of keyboard moves. Valid left press arms release confirmation; UI/disabled/outside/status samples disarm, wheel-up stays local.",
+        "Generation-tagged mouse samples, bounded queue overflow requiring a fresh press, preserved private getch scan ownership, source-loop/chain/counted deferred replies and replacement. Reset/EOF/error/destroy clean up native pointer ownership without fabricating replies or replaying partial draws.",
+        "Effective native mouse mode4 and Wren documentation expose active BIG pointer ownership through existing front ends. Deferred mouse rendering failures reach the next poll/write; page/image and audio composition remain pending."
       ],
       "tests": [
         "big_collect",
-        "big_control"
+        "big_control",
+        "big_draw",
+        "big_numeric",
+        "cterm_big_collect",
+        "syncterm_big_input"
       ],
       "deviations": [
         "Escaped keyboard stores fail after incrementing the original count; escaped flat zone-source reads fail at the actual access after retaining count/copied prefix. No saturation, prevalidation or rollback.",
         "Corrupted zone counts130..255 use the existing native256-byte reply owner instead of overwriting original adjacent DOS syrup/loop/filename fields. Unsafe foreign-neighbor aliases are not modeled.",
-        "Native pointer integration uses actual direction/mouse events; idle and unknown extended scans are neutral instead of reproducing the original helper's uninitialized/inherited foreign-SI drift. Keyboard/mouse/release integration remains pending.",
-        "Unexpected asynchronous echo returns become protocol errors, retaining prior stores/echo requests and preventing prefix replay."
+        "Native pointer input uses actual direction/mouse events; idle and unknown extended scans are neutral instead of reproducing the original helper's uninitialized/inherited foreign-SI drift.",
+        "Unexpected asynchronous echo returns become protocol errors, retaining prior stores/echo requests and preventing prefix replay.",
+        "Native mouse release confirmation is the accepted keyboard/mouse extension. Pointer selection uses no OS warp or framebuffer save-under; native host visibility/mode are restored on cancellation/error as well as normal completion. Missing pixel samples retain known history; cell coordinates never approximate pixels. Full queue mouse-history loss disarms selection and requires a fresh observed press."
       ],
       "verification": [
         "big_collect independently checks all 65,536 type WORDs and all 65,536 options WORDs,129/130 limits, DEL/BS/count wrap/position0, raw00/48/control/high bytes, retained tails, count changes and echo failure prefixes. Signed zones cover initial zero cells, inclusive overlaps, reversed/ffff rectangles, strict/default miss, literal NUL/pipe/tilde replies, unsigned255-byte cross-record copies and last-cell bounds. Actual footer composition checks chaining/replacement/append and exact replies; literal direction vectors cover raw step overflow and asymmetric clamps. Cancellation and invalid calls preserve application state. Native input/bitmap/application acceptance is not claimed.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All12 BIG-specific native CTest checks passed in15.49s. After strengthening cancellation/invalid-call and printable-boundary checks, the final focused build and big_collect passed in0.11s (test body0.04s). This component introduces no native terminal behavior; the unchanged784-scene application fixture was not rerun. Native < framing, echo/event delivery and pointer cleanup remain pending; no native input/bitmap/audio acceptance is claimed.",
+        "Native every-split/bytewise CP437/UTF-8/status tests verify early append/key ownership, buffered tails, echo/wrap/deletion, discarded options,129-byte footer budgets, private scans, count escapes/recovery, looped replacement/flow, strict retry, pointer pixels/current mode/points, mixed motion/stationary buttons, UI/disabled/status/outside/missing-pixel suppression, stale generations, queue overflow and reset/EOF/error/destruction cleanup.42 new coherent application scenes bring the fixture to826; exact keyboard/echo/raw-zone replies, full indexed scene/cell/font/palette/point/cursor state and hybrid movement/release are checked in the real executable across all modes/encodings/status choices. No physical input/audio or complete global page/audio acceptance is claimed.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All13 BIG-specific native CTest checks passed in15.17s. The BIG application fixture passed in51.42s with826 coherent scenes; final missing-pixel/history and failure-cleanup cases are additionally covered by the native suite. Only BIG-specific tests ran for this step; the full regression suite remains deferred until goal completion. Native < framing/keyboard/hybrid-pointer/echo/reply integration is implemented. Global page/image and audio composition, physical input/audio and full45-entry acceptance remain pending."
       ],
       "commit": null
     },

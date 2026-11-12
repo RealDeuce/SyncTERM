@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -47,6 +47,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert (s["cterm.x"], s["cterm.y"], s["cterm.bottom_margin"]) == (len(token) + 1, 1, rows - int(status))
     assert not m["cursor_visible"] and not s["cterm.big_pair_wait"]
     assert s["cterm.big_loop_type"] == 32 and not s["cterm.big_footer_active"]
+    assert not s["cterm.big_collect_active"] and not s["cterm.big_pointer_active"]
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
     assert s["cterm.big_scaling"] == scaling
@@ -59,10 +60,11 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert (s["cterm.big_zone_loopback"], s["cterm.big_zone0_prefix"], s["cterm.big_zone0_tail"]) == (loopback, prefix, tail)
     assert (s["cterm.big_line_style"], s["cterm.big_line_user"], s["cterm.big_line_width"], s["cterm.big_line_mask"]) == line
     assert s["cterm.big_bgi_error"] == graph_error
-    point = (0, 0) if marker is None else (120, 64)
+    point = ((0, 0) if marker is None else (120, 64)) if graph_point is None else graph_point
     for domain in ("point", "ddo", "device"):
         assert (s[f"cterm.big_{domain}_x"], s[f"cterm.big_{domain}_y"]) == point
-    assert (s["cterm.big_marker"], s["cterm.big_marker_size"]) == (0 if marker is None else marker[0], 1)
+    kind = (0 if marker is None else marker[0]) if marker_kind is None else marker_kind
+    assert (s["cterm.big_marker"], s["cterm.big_marker_size"]) == (kind, 1)
     assert s["cterm.big_color"] == 15
     if loop_state is not None:
         assert (s["cterm.big_loop_current"], s["cterm.big_loop_count"],
@@ -264,6 +266,61 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             with (root / "replies.bin").open("ab") as log: log.write(reply)
                             check(client.wait_text(token), target, status, True, token, scaling=0, steps=(1, 1),
                                   zones=zone_state, marker=(kind, rows), line=line, graph_error=error)
+                        # Wire tails remain buffered until local acquisition
+                        # completes; replies precede their DSR fence exactly.
+                        for index, (command, text_reply) in enumerate(((b"I#< 1,0,0:", b"A\r"),
+                                                                      (b"\x1b[13;13HI#< 1,1,1:", b"\r"))):
+                            token = f"INPUT{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            client.wait_for(lambda f: f.application.get("cterm.big_collect_active") == 1)
+                            client.text("A")
+                            if index:
+                                client.key("backspace")
+                                client.key("enter")
+                            expected = text_reply + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), 3, status, True, token, scaling=0, steps=(1, 1), zones=zone_state,
+                                  marker=(2, MARKERS[2]), line=(0, 1, 2, 65535), graph_error=-11)
+                        token = "HYBRID"
+                        wire = (f"I#R {resolution}:I#g 0:".encode() + stamp +
+                                b"I#X 4,0,0,0,639,479,3:M\0Z!I#X 4,9997:I#T 1,2,1:I#X 6,5,7:I#< 0,2,0:" +
+                                b"\x1b[H" + token.encode() + b"\x1b[6n")
+                        with (root / "wire.bin").open("ab") as log: log.write(wire)
+                        peer.sendall(wire)
+                        active = client.wait_for(lambda f: f.application.get("cterm.big_pointer_active") == 1)
+                        assert (active.application["cterm.big_pointer_x"], active.application["cterm.big_pointer_y"]) == (318, 98)
+                        def move(action, buttons):
+                            m = client.capture().metadata
+                            ox = m["destination_x"] + 161 * m["destination_width"] // 1280
+                            oy = m["destination_y"] + 121 * m["destination_height"] // (2 * PROFILES[resolution - 1][1])
+                            client.mouse(ox, oy, action=action, buttons=buttons)
+                        move(0, 0)
+                        client.wait_for(lambda f: f.application.get("cterm.big_pointer_x") == 80)
+                        client.key("right")
+                        client.wait_for(lambda f: f.application.get("cterm.big_pointer_x") == 85)
+                        move(1, 1)
+                        armed = client.wait_for(lambda f: f.application.get("cterm.big_pointer_armed") == 1)
+                        assert armed.application["cterm.big_pointer_x"] == 85
+                        client.key("down")
+                        client.wait_for(lambda f: f.application.get("cterm.big_pointer_y") == 67)
+                        move(1, 0)
+                        expected = b"M\0Z" + f"\x1b[1;{len(token) + 1}R".encode()
+                        reply = b""
+                        while len(reply) < len(expected):
+                            data = peer.recv(len(expected) - len(reply)); assert data, reply
+                            reply += data
+                        assert reply == expected, reply
+                        with (root / "replies.bin").open("ab") as log: log.write(reply)
+                        check(client.wait_text(token), resolution, status, True, token, scaling=0, steps=(5, 7),
+                              zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                              graph_point=(89, 67), marker_kind=2)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")
