@@ -621,6 +621,41 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   colors=(271, 291, 5, 65535), graph_color=15, colored_pixels=bar_pixels + region,
                                   rgb_sample=(101, 61, 0xaaaa), fill=(0, 5), selected_fill=0, fill_pixels=(0,) * 8,
                                   rejections=(-12, 1), hollow=hollow)
+                        rectangle_pixels = bar_pixels + region
+                        rectangle_cases = (
+                            (b"I#H>256:C>1,15:C>2,3:A>1:Z 240,64,248,72:", 0, 256, (0, 0), (1, 3), 1, (0x33333333,) * 8),
+                            (b"I#H>0:C>2,5:Z 240,64,248,72:", 5, 0, (0, 0), (1, 5), 1, (0x55555555,) * 8),
+                            (b"I#A>12:Z 240,64,248,72:", None, 0, (0, 0), (12, 5), 12, checker),
+                            (b"I#H>256:M>2:Z 240,64,248,72:", None, 256, (1, 1), (12, 5), 12, checker),
+                            (b"I#H>0:M>1:A>0:Z 240,64,248,72:", 0, 0, (0, 0), (0, 5), 0, (0,) * 8),
+                            (b"I#H>256:Z 248,64,240,72:", 0, 256, (0, 0), (0, 5), 0, (0,) * 8),
+                        )
+                        for index, (command, interior, hollow, writing, fill, selected, tile) in enumerate(rectangle_cases):
+                            region = []
+                            for y in range(64, 73):
+                                for x in range(240, 249):
+                                    edge = x in (240, 248) or y in (64, 72)
+                                    corner = x in (240, 248) and y in (64, 72)
+                                    pen = (0 if index == 3 and not corner else 15) if edge else ((5 if (x + y) % 2 == 0 else 0) if interior is None else interior)
+                                    region.append((x, y, pen))
+                            token = f"RECTANGLE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(124, 60), lower_points=((208, 72), (208, 72)),
+                                  colors=(271, 15, 3 if index == 0 else 5, 65535), graph_color=15,
+                                  colored_pixels=rectangle_pixels + tuple(region), writing=writing,
+                                  rgb_sample=(244, 68, 0xaa00aa) if index == 1 else (101, 61, 0xaaaa),
+                                  fill=fill, selected_fill=selected, fill_pixels=tile, hollow=hollow, rejections=(-12, 1))
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

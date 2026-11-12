@@ -216,17 +216,46 @@ static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t pl
 	return 0;
 }
 struct flood_request { struct cterm_big *big; uint16_t x,y,boundary; };
+static int fill_region(struct drawing *drawing, uint16_t x, uint16_t y, uint16_t boundary)
+{
+	const struct st_big_flood_sink sink={drawing,flood_read,flood_write};
+	return st_big_flood_fill(&drawing->big->flood_work,&drawing->big->state,&sink,x,y,boundary);
+}
 static int flood_draw(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct flood_request *request=context;
 	struct drawing drawing={request->big,pixels,changed};
-	const struct st_big_flood_sink sink={&drawing,flood_read,flood_write};
-	return st_big_flood_fill(&request->big->flood_work,&request->big->state,&sink,request->x,request->y,request->boundary);
+	return fill_region(&drawing,request->x,request->y,request->boundary);
 }
 int cterm_big_draw_flood(struct cterm_big *big, uint16_t x, uint16_t y, uint16_t boundary)
 {
 	struct flood_request request={big,x,y,boundary};
 	int status=st_console_modify_pixels(big->terminal->screen.console,flood_draw,&request);
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
+struct rectangle { struct cterm_big *big; uint16_t points[4]; };
+static int rectangle(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct rectangle *request=context; struct cterm_big *big=request->big;
+	struct drawing drawing={big,pixels,changed};
+	const struct st_big_draw_sink sink={&drawing,pixel};
+	int status=st_big_draw_rectangle(&big->state,request->points,&sink);
+	if (status!=0 || big->state.application.hollow!=0) return status;
+	uint16_t boundary=big->state.application.colors[1];
+	uint16_t y=(uint16_t)(request->points[1]+1u), x=(uint16_t)(request->points[0]+1u);
+	return fill_region(&drawing,x,y,boundary);
+}
+int cterm_big_draw_z(struct cterm_big *big, const struct st_graphics_command_view *view)
+{
+	if (view->count!=4) return IO_ERROR_PROTOCOL;
+	struct rectangle request={.big=big};
+	for (size_t i=0;i<4;++i) {
+		if (!view->arguments[i].has_value) return IO_ERROR_PROTOCOL;
+		request.points[i]=(uint16_t)view->arguments[i].value;
+	}
+	int status=st_big_draw_color(&big->state,big->state.application.colors[1]);
+	if (status==0) status=st_big_fill_apply(&big->state);
+	if (status==0) status=st_console_modify_pixels(big->terminal->screen.console,rectangle,&request);
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }
 int cterm_big_flood_begin(struct cterm_big *big, const struct st_graphics_command_view *view)

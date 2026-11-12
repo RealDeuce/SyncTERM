@@ -412,6 +412,19 @@ int st_big_draw_line(struct st_big_state *s, const uint16_t p[4], const struct s
 	for (size_t i=0;i<4;++i) q[i]=(uint16_t)(p[i]+s->bgi.viewport[i%2]);
 	return strokes(s,q,sink);
 }
+int st_big_draw_rectangle(struct st_big_state *s, const uint16_t p[4], const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || p==NULL || sink==NULL || sink->pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	const uint16_t x=p[0],y=p[1];
+	uint16_t edge[]={x,y,p[2],y};
+	int status=st_big_draw_line(s,edge,sink); if (status!=0) return status;
+	edge[0]=p[2]; edge[1]=y; edge[2]=p[2]; edge[3]=p[3];
+	status=st_big_draw_line(s,edge,sink); if (status!=0) return status;
+	edge[0]=p[2]; edge[1]=p[3]; edge[2]=x; edge[3]=p[3];
+	status=st_big_draw_line(s,edge,sink); if (status!=0) return status;
+	edge[0]=x; edge[1]=p[3]; edge[2]=x; edge[3]=y;
+	return st_big_draw_line(s,edge,sink);
+}
 static int lower_to(struct st_big_state *s, uint16_t x, uint16_t y, const struct st_big_draw_sink *sink)
 {
 	int status=installed(s); if (status!=0) return status;

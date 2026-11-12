@@ -1875,3 +1875,44 @@ BIG-specific; the full suite remains deferred until the goal's end.
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending.
 
 Native H state/wire integration commit: `3b46c71`.
+
+=== Native Z outline and conditional flood
+
+Z now acquires all four class1/2/1/2 coordinates before installing current
+line colour and fill. It issues the original four absolute standalone edges,
+without sorting or moving public/DDO/device points. The rectangle primitive
+captures first X/Y on entry and reads later X2/Y2 arguments before each edge.
+Each edge uses the existing original WORD translation/clipping/thick strokes
+and shared thin-line kernel, restarting pattern phase and including corners.
+Upper-Y normalization applies to each raw stroke; equal-Y order is retained.
+
+After the outline, the current full H WORD decides whether to flood. Exactly
+zero fetches the current full C line-colour boundary, then computes first
+Y+1 and first X+1 with WORD wrap. There is no normalized-interior seed, direct
+bar substitution or own XOFF/XON. It uses the existing checked indexed flood
+adapter and bounded512-record workspace. Rejected custom fill retains the
+previous installed fill. Errors keep completed outlines/pixel prefixes and
+recover through the nonfatal graphics owner; source/repetition/footer/reply
+ordering stays shared. Off-screen pages/padding/configured buffers remain
+pending with their existing dependencies.
+
+`big_draw` adds literal edge/pattern traces, raw upper-Y normalization,
+inclusive XOR corner/four-visit degenerate effects, live argument reads,
+unchanged state/points and callback failures. `cterm_big_bar` covers every
+split/default profile and bytewise all modes/encodings/status settings with
+full blink planes: H0/1/256, solid/checker, reversed outside seed, zero-area
+XOR, clipping and wrapped seeds, thick borders blocking the first seed and
+zero-pattern outlines escaping to the viewport. Prefix/EOF/reset/timeout,
+current attributes, source/g3/repetition/deferred replies, full boundary271,
+rejected fill, overflow and host/uninstalled failures retain independent
+state/pixel expectations. The initial Z wire case failed before registration.
+
+84 coherent application scenes bring coverage to1428: H256 outlines,
+solid/checker/empty fills, XOR corner parity and reversed hollow outlines,
+retaining the whole prior text/pixels/palette/points/fill/cursor/replies/
+diagnostics and composed RGB. Native Z visible-page integration and H's Z
+consumer are implemented; other H consumers, page/image/padding/configured
+buffers, curves/audio and full45-entry composition remain pending. Routine
+verification stays BIG-specific until the final full suite.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing generated-dependency clock-skew notices remain in the full build; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending.

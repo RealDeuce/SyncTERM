@@ -341,3 +341,18 @@ and blocked/deferred reply cleanup. The H wire case failed before its
 registration.28 new coherent application captures (1344 total) prove
 H256/negative0 retain the prior scene, text/palette/points/fill/cursor/replies/
 diagnostics and RGB. H's Z/O/Q/V/Y consumers remain separate pending steps.
+
+`big_draw` now checks the original public rectangle's four standalone edges,
+literal pattern trace (including raw upper-Y ordering), repeated XOR corners
+and degenerate four visits. First-corner capture/live later arguments,
+unchanged state/points and callback errors have separate expectations.
+`cterm_big_bar` binds Z with every split/default profile and bytewise modes/
+encodings/status, full indexed blink planes and original attribute timing.
+It checks H0/1/256, solid/checker, outside reversed seed, clipping/WORD seed
+wrap, thick borders rejecting the seed, zero-pattern escape, source/g3/loops/
+replies, EOF/reset/timeout, bounded exhaustion and host-error prefix recovery.
+84 coherent application scenes (1428 total) add H256 outlines, solid/checker/
+empty floods, XOR edge/corner parity and reversed hollow outlines, preserving
+the full previous text/pixels/palette/state/points/cursor/replies/diagnostics/
+RGB. Expected pixels come from23/24/57/59 deductions. Z visible-page and H's
+Z consumer are implemented; remaining page/buffer/global composition is pending.

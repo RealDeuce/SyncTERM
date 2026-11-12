@@ -247,6 +247,15 @@ deferred replies are covered.28 coherent application scenes bring BIG to
 diagnostics and RGB. Z/O/Q/V/Y consumer composition and final full-suite
 acceptance remain pending; routine tests remain BIG-specific.
 
+BIG Z now composes four standalone outline strokes with the existing indexed
+flood, gated after outline by the full H WORD. It preserves all point owners,
+uses the wrapped first-corner seed and adds no own flow calls. Component and
+native checks cover order/phase, H0/256, reversed/clipped/wrapped/degenerate/
+thick/pattern/XOR cases and acquisition/source/error recovery.84 coherent
+scenes bring BIG coverage to1428 with complete prior scene/state/replies/
+diagnostics/RGB observations. Page/padding/configured buffers and global
+composition remain pending; only BIG tests run during development.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

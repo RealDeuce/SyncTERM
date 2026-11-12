@@ -43,6 +43,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
 	{'B',line,4,bar_next},
+	{'Z',line,4,NULL},
 	{'F',flood,3,NULL},
 	{'m',move,2,move_next},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},{'H',scalar,1,NULL},
@@ -299,6 +300,10 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
 	if (view->code=='B') return cterm_big_bar_begin(big,view);
 	if (view->code=='F') return cterm_big_flood_begin(big,view);
+	if (view->code=='Z') {
+		int status=cterm_big_draw_z(big,view);
+		return status==0?begin_footer(big,view):status;
+	}
 	if (view->code=='T') {
 		int status=0;
 		if (marker_kind(view)) {

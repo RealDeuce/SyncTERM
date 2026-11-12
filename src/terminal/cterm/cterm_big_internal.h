@@ -130,6 +130,7 @@ int cterm_big_zone_begin(struct cterm_big *, const struct st_graphics_command_vi
 int cterm_big_zone_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, size_t *, size_t *, bool *);
 int cterm_big_draw_p(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_draw_line(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_draw_z(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, bool *);
 int cterm_big_draw_flood(struct cterm_big *, uint16_t x, uint16_t y, uint16_t boundary);

@@ -1,4 +1,4 @@
-/* Independent B wire/area/point expectations, original BIG23/59. */
+/* Independent B/Z wire/area/point expectations, original BIG23/59. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_big_internal.h"
@@ -189,4 +189,119 @@ static void scaling_and_repetition(void)
 	CHECK(!b->bar.active && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
 	destroy(&f);
 }
-int main(void) { partitions(); prefixes(); sources_and_reply(); scaling_and_repetition(); return 0; }
+static void rectangle_scene(struct fixture *f, unsigned kind, unsigned border, unsigned fill)
+{
+	const struct st_console_rect r={0,0,640,f->terminal->big_engine->state.bgi.height}; struct st_pixel_buffer *p=NULL;
+	CHECK(st_console_get_pixels(&p,f->console,&r,false)==0);
+	for (unsigned y=0;y<r.height;++y) for (unsigned x=0;x<r.width;++x) {
+		unsigned pen=kind==3 || kind==8?fill:0;
+		bool inside=x>10 && x<14 && y>10 && y<14;
+		bool edge=x>=10 && x<=14 && y>=10 && y<=14 && !inside;
+		if (kind<=4 || kind==10) {
+			if (edge) pen=kind==4 && (x==10 || x==14) && (y==10 || y==14)?0:border;
+			if (inside) pen=kind==1?fill:kind==2?((x+y)%2==0?fill:0):kind==10 && y==11?fill:0;
+		}
+		if (kind==6 && ((x<=4 && (y==10 || y==14)) || (x==4 && y>=10 && y<=14))) pen=border;
+		if (kind==7 && ((x>=10 && x<=14 && ((y>=9 && y<=11) || (y>=13 && y<=15)))
+		    || (y>=10 && y<=14 && ((x>=9 && x<=11) || (x>=13 && x<=15))))) pen=border;
+		if (kind==9 && x>=10 && x<=14 && y<=10 && (x==10 || x==14 || y==0 || y==10)) pen=border;
+		if (kind==11 && x<=4 && y>=10 && y<=14) pen=x==4 || y==10 || y==14?border:fill;
+		if (kind==12 && x>=10 && x<=14 && y<=4) pen=x==10 || x==14 || y==4?border:fill;
+		if (kind==13 && x>=10 && x<=14 && y>=11 && y<=14) pen=x==10 || x==14 || y==11 || y==14?border:fill;
+		size_t i=(size_t)y*r.width+x;
+		if (p->primary[i]!=800+pen || p->alternate[i]!=800+pen) fprintf(stderr,"rectangle%u pixel%u,%u got%u/%u expected%u\n",kind,x,y,p->primary[i],p->alternate[i],800+pen);
+		CHECK(p->primary[i]==800+pen && p->alternate[i]==800+pen);
+	}
+	st_pixel_buffer_destroy(p);
+}
+static void rectangle_partitions(void)
+{
+	static const struct { const char *setup,*wire; unsigned shape; } cases[]={
+		{"","I#Z 10,10,14,14:\033[2;3H",0},
+		{"I#H 0:","I#Z 10,10,14,14:\033[2;3H",1},
+		{"I#H 256:","I#Z 10,10,14,14:\033[2;3H",0},
+		{"I#H 0:I#A 12:","I#Z 10,10,14,14:\033[2;3H",2},
+		{"I#H 0:","I#Z 14,10,10,14:\033[2;3H",3},
+		{"I#M 2:","I#Z 10,10,14,14:\033[2;3H",4},
+		{"I#M 2:","I#Z 12,12,12,12:\033[2;3H",5},
+		{"","I#Z +1,10,4,14:\033[2;3H",6},
+		{"I#H 0:I#T 2,0,0,0,1:","I#Z 10,10,14,14:\033[2;3H",7},
+		{"I#H 0:I#T 2,4,0,1,0:","I#Z 10,10,14,14:\033[2;3H",8},
+		{"I#H 0:","I#Z +1,10,4,14:\033[2;3H",11},
+		{"I#H 0:","I#Z 10,+1,14,4:\033[2;3H",12},
+	};
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+		for (unsigned mode=1;mode<=3;++mode) for (size_t c=0;c<sizeof(cases)/sizeof(cases[0]);++c) {
+			size_t size=strlen(cases[c].wire), splits=mode==2 && !utf8 && !status?size+1:0;
+			for (size_t split=0;split<=splits;++split) {
+				prepare(&f,mode); string(&f,cases[c].setup); b->state.bgi.error=-11;
+				if (split==splits) for (size_t i=0;i<size;++i) feed(&f,cases[c].wire+i,1);
+				else { feed(&f,cases[c].wire,split); string(&f,cases[c].wire+split); }
+				CHECK(b->state.bgi.color==9 && b->state.bgi.fill_color==5 && b->state.bgi.error==-11 && b->last_error==0);
+				CHECK(f.terminal->xpos==3 && f.terminal->ypos==2 && f.size==0);
+				points(&f,31,32,31,32); rectangle_scene(&f,cases[c].shape,9,5);
+			}
+		}
+		destroy(&f);
+	}
+}
+static int corrupt_flood_byte(void *context, const struct st_pixel_buffer *p, struct st_console_rect *r)
+{
+	(void)context; size_t i=11*p->width+8; p->primary[i]=42; p->alternate[i]=43;
+	*r=(struct st_console_rect){8,11,1,1}; return 0;
+}
+static void rectangle_prefixes_and_sources(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	prepare(&f,2); string(&f,"I#Z 10,10,14,");
+	CHECK(b->state.bgi.color==15 && b->state.bgi.fill_color==15);
+	CHECK(st_cterm_finish(f.terminal)==0); rectangle_scene(&f,5,9,5);
+	string(&f,"I#Z 10,10,14,"); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->state.bgi.color==15);
+	string(&f,"I#Z 10,10,14,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.bgi.color==9 && b->state.bgi.fill_color==5);
+	rectangle_scene(&f,9,9,5); points(&f,31,32,31,32);
+	prepare(&f,2); string(&f,"I#Z 10,10,14,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->state.bgi.color==15 && b->state.bgi.fill_color==15); rectangle_scene(&f,5,9,5); f.reset_bell=false;
+	string(&f,"I#Z 10,10,14,"); b->state.application.hollow=256; b->state.application.colors[1]=7; b->state.application.colors[2]=6;
+	string(&f,"14:"); rectangle_scene(&f,0,7,6);
+	CHECK(b->state.bgi.color==7 && b->state.bgi.fill_color==6); points(&f,31,32,31,32);
+	/* A full border WORD is not an invented max-colour validation. */
+	prepare(&f,2); string(&f,"I#H 0:I#C 1,271:I#Z 10,10,14,14:"); rectangle_scene(&f,1,15,5);
+	/* Rejected custom fill retains the previous installed solid15. */
+	prepare(&f,2); string(&f,"I#H 0:I#C 2,31:I#A 12:I#Z 10,10,14,14:");
+	CHECK(b->state.bgi.error==-11 && b->state.bgi.fill_color==15); rectangle_scene(&f,1,9,15);
+	prepare(&f,2); string(&f,"I#H 0:"); b->flood_work.capacity=0; string(&f,"I#Z 10,10,14,14:");
+	CHECK(b->state.bgi.error==-7 && b->flood_work.overflow && f.size==0); rectangle_scene(&f,10,9,5); b->flood_work.capacity=CTERM_BIG_FLOOD_RECORDS;
+	prepare(&f,2); b->state.bgi.state=0; string(&f,"I#Z 10,10,14,14:");
+	CHECK(b->last_error==IO_ERROR_PROTOCOL && b->state.bgi.color==9 && b->state.bgi.device_color==15 && b->state.bgi.fill_color==15 && b->state.bgi.error==-1);
+	rectangle_scene(&f,5,9,5); b->state.bgi.state=3;
+	prepare(&f,2); string(&f,"I#Z 10,10,14,14:"); rectangle_scene(&f,0,9,5);
+	/* A failed flood keeps the completed outline and no session-fatal error. */
+	prepare(&f,2); string(&f,"I#H 0:"); CHECK(st_console_modify_pixels(f.console,corrupt_flood_byte,NULL)==0);
+	string(&f,"I#Z 10,10,14,14:"); CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && f.size==0);
+	const struct st_console_rect outline={10,10,5,5}; struct st_pixel_buffer *prefix=NULL;
+	CHECK(st_console_get_pixels(&prefix,f.console,&outline,false)==0);
+	for (unsigned y=0;y<5;++y) for (unsigned x=0;x<5;++x) {
+		unsigned pen=x==0 || x==4 || y==0 || y==4?9:0;
+		CHECK(prefix->primary[y*5+x]==800+pen && prefix->alternate[y*5+x]==800+pen);
+	}
+	st_pixel_buffer_destroy(prefix); points(&f,31,32,31,32);
+	prepare(&f,2); string(&f,"I#H 0:I#Z 10,10,14,14:"); rectangle_scene(&f,1,9,5);
+	prepare(&f,3); string(&f,"I#g 3:I#H 0:I#Z 10,5,14,6:"); rectangle_scene(&f,13,9,5); points(&f,31,32,31,32);
+	/* Supplied coordinate fields bypass g3 and end the source on Y2. */
+	prepare(&f,3); string(&f,"I#g 3:I#H 0:I#& 0,1,1,0,Z@4,10,10,14,14:");
+	rectangle_scene(&f,1,9,5); points(&f,31,32,31,32);
+	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0 && b->numeric.loop.active==0);
+	f.size=0; prepare(&f,2); string(&f,"I#& 0,2,1,0,Z@4,x,10,x,12:");
+	CHECK(f.size==2 && b->numeric.loop.current==2 && b->numeric.loop.active==0);
+	const struct st_console_rect r={0,10,3,3}; struct st_pixel_buffer *p=NULL;
+	CHECK(st_console_get_pixels(&p,f.console,&r,false)==0);
+	for (unsigned i=0;i<9;++i) CHECK(p->primary[i]==809 && p->alternate[i]==809); st_pixel_buffer_destroy(p);
+	points(&f,31,32,31,32);
+	f.size=0; prepare(&f,2); b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"I#H>0:Z>10,10,14,14:"); CHECK(f.size==0 && b->control.input.pending==1); rectangle_scene(&f,1,9,5);
+	string(&f,"~ "); CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255);
+	destroy(&f);
+}
+int main(void) { rectangle_partitions(); rectangle_prefixes_and_sources(); partitions(); prefixes(); sources_and_reply(); scaling_and_repetition(); return 0; }

@@ -189,7 +189,8 @@
         "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. No wire B/bar3d binding yet.",
         "Original DDO0615 point producer shared by future bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns; no wire binding yet.",
         "Original public/DDO bar3d composition: unsigned public sort/lower move, signed inverted inset/second clip, old-point-first front/extrusion, wrapped depth/orientation/top BYTE, producer effects and current tuple tail.",
-        "Synchronous original indexed flood: WORD spans, UP/DOWN LIFO, directional/containment/pattern suppression, byte-band plane passes and accepted-prefix errors over borrowed bounded records."
+        "Synchronous original indexed flood: WORD spans, UP/DOWN LIFO, directional/containment/pattern suppression, byte-band plane passes and accepted-prefix errors over borrowed bounded records.",
+        "Original public rectangle four absolute standalone lines with captured first corner/live later arguments, fresh phases and inclusive XOR corners; reuse existing BIG clipping/strokes and shared thin line kernel, preserve all point owners."
       ],
       "tests": [
         "big_profile",
@@ -865,6 +866,33 @@
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending."
           ],
           "commit": "3b46c71"
+        },
+        {
+          "id": "native-outlined-rectangles",
+          "status": "complete",
+          "operations": [
+            "Four class1/2/1/2 coordinate reads before current line colour and fill installation; hollow still installs both attributes and draws the outline.",
+            "Four absolute standalone edges in original order, captured X1/Y1 and current later X2/Y2, fresh pattern/clip/thick strokes, inclusive repeated corners, no sorting or public/DDO/device point assignment.",
+            "Current full H WORD decides flood after outline. Current full line-colour boundary then WORD(firstY+1),WORD(firstX+1), with no seed normalization or own XOFF/XON.",
+            "Use the existing indexed flood adapter and bounded512-record owner workspace. Command errors retain accepted outlines/pixels and recover without disconnecting; common source/repetition/footer/replies remain in use."
+          ],
+          "tests": [
+            "big_draw",
+            "big_flood",
+            "cterm_big_bar",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "59-rectangle-clear-and-flood-command-acceptance.adoc",
+            "23-rectangles-bars-and-clear.adoc",
+            "rectangle-code.adoc:BIG1553..15c5;BGI11bd..1212",
+            "57-line-command-acceptance.adoc",
+            "24-flood-fill-and-native-reuse.adoc"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing generated-dependency clock-skew notices remain in the full build; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1170,7 +1198,7 @@
       "operations": [
         "Native H scalar class0 acquisition, full WORD store and signed negative reload/clamp; no upper clamp or own BGI/point/fill/palette/audio operation.",
         "Retain normal source/timeout/EOF/reset and I/R/entry/footer lifetimes, repeats/chaining/deferred replies.",
-        "Pending Z/O/Q/V/Y consumer and remaining global composition acceptance."
+        "Z now tests the full WORD after its outline, with H256 retaining hollow behavior; O/Q/V/Y consumers and remaining global composition acceptance are pending."
       ],
       "tests": [
         "big_state",
@@ -1182,7 +1210,8 @@
         "All65536 WORDs independently expected, including32767/32768/65535 boundaries; every other state byte retained under uninstalled/old-BGI-error state.",
         "Native every split/default profile and bytewise all three modes/encodings/status settings with full indexed blink planes and retained application/BGI state. Prefix/EOF/reset/timeout, I/R retention/reset, source/repetition and pending/blocked reply lifecycle are checked. The H wire case failed before registration.",
         "28 new coherent scenes,1344 total, independently check H256 and signed-negative0 while retaining complete prior pixels/cells/palette/state/points/cursor/flow/replies/diagnostics and composed RGB. Consumer/global composition remains pending.",
-        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending."
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending.",
+        "Z native and coherent application consumers now distinguish H0 from full-WORD H256, retaining the H cache and complete state/pixel/reply observations."
       ],
       "commit": "3b46c71"
     },
@@ -1432,7 +1461,7 @@
     {
       "id": "Z",
       "order": 16,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1440,12 +1469,35 @@
         "shared-bgi"
       ],
       "references": [
-        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+        "59-rectangle-clear-and-flood-command-acceptance.adoc",
+        "23-rectangles-bars-and-clear.adoc",
+        "rectangle-code.adoc:BIG1553..15c5;BGI11bd..1212",
+        "57-line-command-acceptance.adoc",
+        "24-flood-fill-and-native-reuse.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Four class1/2/1/2 coordinate reads before current line colour and fill installation; hollow still installs both attributes and draws the outline.",
+        "Four absolute standalone edges in original order, captured X1/Y1 and current later X2/Y2, fresh pattern/clip/thick strokes, inclusive repeated corners, no sorting or public/DDO/device point assignment.",
+        "Current full H WORD decides flood after outline. Current full line-colour boundary then WORD(firstY+1),WORD(firstX+1), with no seed normalization or own XOFF/XON.",
+        "Use the existing indexed flood adapter and bounded512-record owner workspace. Command errors retain accepted outlines/pixels and recover without disconnecting; common source/repetition/footer/replies remain in use.",
+        "Pending off-screen page/padding/configured buffer and remaining global composition acceptance."
+      ],
+      "tests": [
+        "big_draw",
+        "big_flood",
+        "cterm_big_bar",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "The existing bounded native frontier replaces unsafe DOS SS:BP/heap aliases. Native storage/arithmetic failures retain their accepted prefix and cancel pending command work without ending the terminal session."
+      ],
+      "verification": [
+        "Independent literal standalone pattern trace, upper-Y edge normalization, XOR corner parity/four-visit degenerate point, live later arguments with captured first corner, retained points/state and callback failures.",
+        "Native every split/default profile and bytewise all modes/encodings/status, full indexed blink planes: H0/1/256, solid/checker, reversed outside seed, zero-area XOR, clipped/WORD-wrapped seeds, thick border blocking the seed and zero-pattern outline escaping to the viewport.",
+        "Acquisition/EOF/reset/timeout and current attributes, supplied/unscaled fields, g3 Y5->11, repetition/deferred replies, full boundary271, rejected custom fill, native overflow and host/uninstalled-error prefix recovery. The Z wire case failed before registration.",
+        "84 new coherent scenes,1428 total, preserve all previous text/pixels/palette/state/points/fill/cursor/replies/diagnostics/RGB while adding H256 outline, solid/checker/empty flood, XOR edge/corner parity and reversed hollow outline. Expected pixels are authored independently.",
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing generated-dependency clock-skew notices remain in the full build; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
+      ],
       "commit": null
     },
     {

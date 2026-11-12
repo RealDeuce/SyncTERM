@@ -1,4 +1,4 @@
-/* Literal line/marker expectations derived from BIG12/22/57/58, not a renderer. */
+/* Literal line/marker/rectangle expectations from BIG12/22/23/57/58/59. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_draw.h"
 #include "st_bgi_line.h"
@@ -13,6 +13,7 @@ struct fixture {
 	uint8_t pixels[64*64];
 	uint16_t trace[4096][2]; size_t count, fail_at;
 	unsigned mutate; int fail_status;
+	uint16_t *rectangle_args;
 };
 static void init(struct fixture *f)
 {
@@ -31,6 +32,10 @@ static int pixel(void *context, uint16_t x, uint16_t y, uint8_t pen, bool xor_mo
 		if (f->mutate==2) { f->state.bgi.x=20; f->state.bgi.y=30; }
 		if (f->mutate==3) f->state.bgi.line_distance=2;
 		if (f->mutate==4) f->state.application.marker_size=2;
+		if (f->mutate==5) {
+			f->rectangle_args[0]=f->rectangle_args[1]=20;
+			f->rectangle_args[2]=f->rectangle_args[3]=12;
+		}
 	}
 	return 0;
 }
@@ -189,4 +194,47 @@ static void live_markers(void)
 	CHECK(st_big_draw_marker(&f.state,10,10,&out)==0 && f.state.application.marker_size==2);
 	CHECK(f.pixels[14*64+14]==5 && f.pixels[18*64+2]==5 && f.pixels[26*64+10]==5);
 }
-int main(void) { shared_lines(); clipping(); markers(); points_and_lines(); styles(); live_markers(); return 0; }
+static void rectangles(void)
+{
+	struct fixture f; init(&f); struct st_big_draw_sink out=sink(&f);
+	f.state.bgi.device_color=5; f.state.bgi.x=1; f.state.bgi.y=2; f.state.bgi.ddo_x=3; f.state.bgi.ddo_y=4;
+	f.state.bgi.device_x=5; f.state.bgi.device_y=6; f.state.bgi.error=-11;
+	struct st_big_state expected; memcpy(&expected,&f.state,sizeof(expected));
+	uint16_t p[]={6,6,14,14}; f.state.bgi.line_mask=0xcccc; expected.bgi.line_mask=0xcccc;
+	static const uint16_t trace[][2]={{8,6},{9,6},{12,6},{13,6},{14,8},{14,9},{14,12},{14,13},
+	    {12,14},{11,14},{8,14},{7,14},{6,8},{6,9},{6,12},{6,13}};
+	int status=st_big_draw_rectangle(&f.state,p,&out);
+	if (status!=0 || f.count!=16 || memcmp(f.trace,trace,sizeof(trace))!=0) {
+		fprintf(stderr,"rectangle trace status%d count%zu:",status,f.count);
+		for (size_t i=0;i<f.count;++i) fprintf(stderr," %u,%u",f.trace[i][0],f.trace[i][1]);
+		fputc('\n',stderr);
+	}
+	CHECK(status==0 && f.count==16 && memcmp(f.trace,trace,sizeof(trace))==0);
+	CHECK(memcmp(&expected,&f.state,sizeof(expected))==0);
+	init(&f); out=sink(&f); f.state.bgi.device_color=5; f.state.bgi.write_mode=1;
+	memset(f.pixels,3,sizeof(f.pixels)); const uint16_t box[]={10,10,12,12};
+	CHECK(st_big_draw_rectangle(&f.state,box,&out)==0 && f.count==12);
+	for (unsigned y=0;y<64;++y) for (unsigned x=0;x<64;++x) {
+		bool middle=(x==11 && (y==10 || y==12)) || (y==11 && (x==10 || x==12));
+		CHECK(f.pixels[y*64+x]==(middle?6:3));
+	}
+	f.count=0; const uint16_t dot[]={10,10,10,10};
+	CHECK(st_big_draw_rectangle(&f.state,dot,&out)==0 && f.count==4 && f.pixels[10*64+10]==3);
+	for (size_t i=0;i<4;++i) CHECK(f.trace[i][0]==10 && f.trace[i][1]==10);
+	/* Later arguments stay live, while entry X1/Y1 are captured. */
+	init(&f); out=sink(&f); p[0]=p[1]=6; p[2]=p[3]=14; f.mutate=5; f.rectangle_args=p;
+	CHECK(st_big_draw_rectangle(&f.state,p,&out)==0 && f.count==30);
+	CHECK(f.trace[8][0]==14 && f.trace[8][1]==6 && f.trace[9][0]==12 && f.trace[9][1]==6);
+	CHECK(f.trace[15][0]==12 && f.trace[15][1]==12 && f.trace[16][0]==12 && f.trace[16][1]==12);
+	/* Chapter57 orders the final vertical edge upper-Y first. */
+	CHECK(f.trace[22][0]==6 && f.trace[22][1]==12 && f.trace[23][0]==6 && f.trace[23][1]==6);
+	CHECK(f.trace[29][0]==6 && f.trace[29][1]==12);
+	init(&f); out=sink(&f); f.fail_at=3;
+	CHECK(st_big_draw_rectangle(&f.state,box,&out)==IO_ERROR_IO && f.count==3);
+	f.count=0; f.fail_status=IO_ERROR_IN_PROGRESS;
+	CHECK(st_big_draw_rectangle(&f.state,box,&out)==IO_ERROR_PROTOCOL && f.count==3);
+	f.count=0; f.fail_at=SIZE_MAX; f.state.bgi.state=0;
+	CHECK(st_big_draw_rectangle(&f.state,box,&out)==IO_ERROR_PROTOCOL && f.count==0 && f.state.bgi.error==-1);
+	CHECK(st_big_draw_rectangle(NULL,box,&out)==IO_ERROR_INVALID_ARGUMENT && st_big_draw_rectangle(&f.state,NULL,&out)==IO_ERROR_INVALID_ARGUMENT);
+}
+int main(void) { shared_lines(); clipping(); markers(); points_and_lines(); styles(); live_markers(); rectangles(); return 0; }
