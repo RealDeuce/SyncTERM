@@ -110,6 +110,7 @@ cterm_igs_palette_rotation_begin(struct cterm_igs *igs, int first, int last, int
 {
 	struct cterm_igs_palette_rotation *c = &igs->palette_rotation;
 	cterm_igs_palette_rotation_cancel(igs);
+	int (*snapshot)[3] = igs->script.active ? c->file_snapshot : c->snapshot;
 	memset(c->query,0,sizeof(c->query));
 	c->raw = first > 15 || last > 15;
 	if (c->raw) {
@@ -120,7 +121,7 @@ cterm_igs_palette_rotation_begin(struct cterm_igs *igs, int first, int last, int
 		/* Capture both namespaces, even when this command selected raw. */
 		bool raw = c->raw; c->raw = false;
 		for (int i = 0; i < 16; ++i) {
-			query(igs,i,c->snapshot[i]);
+			query(igs,i,snapshot[i]);
 			c->registers[i] = igs->raw_palette[i]&0x777;
 		}
 		c->raw = raw;
@@ -128,7 +129,7 @@ cterm_igs_palette_rotation_begin(struct cterm_igs *igs, int first, int last, int
 	if (times == 0) {
 		for (int i = 0; i < 16; ++i) {
 			int status = c->restore_raw ? cterm_igs_palette_register(igs,i,c->registers[i])
-			    : cterm_igs_palette_pen(igs,i,c->snapshot[i][0],c->snapshot[i][1],c->snapshot[i][2]);
+			    : cterm_igs_palette_pen(igs,i,snapshot[i][0],snapshot[i][1],snapshot[i][2]);
 			if (status != 0) return status;
 			if (igs->reset_pending) return IO_ERROR_INTERRUPTED;
 		}

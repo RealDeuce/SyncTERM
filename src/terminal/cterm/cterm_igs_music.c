@@ -204,8 +204,8 @@ int cterm_igs_music_execute(struct cterm_igs *igs, int first, int end)
 	if (!m->midi && !chip && !range) return complete(igs);
 	m->index = m->midi ? 1 : range ? first * 6 : 0;
 	m->end = range ? end * 6 : m->local_count;
-	m->playing = m->flow = true;
-	int status = cterm_igs_flow(igs, false);
+	m->playing = true; m->flow = !igs->script.active;
+	int status = m->flow ? cterm_igs_flow(igs, false) : 0;
 	return status == 0 ? cterm_igs_music_resume(igs) : status;
 }
 

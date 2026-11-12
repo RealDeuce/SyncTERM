@@ -44,8 +44,9 @@ struct cterm_igs_memory_view {
 };
 
 struct cterm_igs_palette_rotation {
-	/* X8's serial snapshots and restore choice survive I/R and cancellation. */
-	int snapshot[16][3];
+	/* X8 has distinct serial/file VDI snapshots; raw registers and restore
+	 * choice are shared. All survive I/R and cancellation. */
+	int snapshot[16][3], file_snapshot[16][3];
 	uint16_t registers[16];
 	bool restore_raw;
 	/* A queried value belongs to the write after the next local sync wait. */
@@ -91,7 +92,7 @@ struct cterm_igs {
 	/* X13 has formatted the shared buffer and owns its numeric prefix. */
 	bool math_printing;
 	/* X11 owns its complete numeric prefix during incremental raw input. */
-	bool bitmap_loading;
+	bool bitmap_loading, bitmap_serial;
 	int bitmap_operation, bitmap_section;
 	size_t bitmap_offset, bitmap_size, bitmap_received;
 	unsigned bitmap_errors;

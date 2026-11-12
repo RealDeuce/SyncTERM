@@ -14,7 +14,7 @@ from syncterm_fixture import cell_at, check_pixel_planes
 # No reference image is produced by SyncTERM or a historical emulator.
 A_ROWS=(0x18,0x3c,0x66,0x66,0x7e,0x66,0x66,0)
 VECTORS=json.loads((Path(__file__).parent/'igs/script-command-vectors.json').read_text())
-CASES=tuple((v['name'],v['wire'].encode('latin1'),v['points'],v['glyphs'],v['mode'])
+CASES=tuple((v['name'],v['wire'].encode('latin1'),v['points'],v['glyphs'],v['mode'],v.get('reply','').encode('latin1'))
             for v in VECTORS['raster_cases'])
 CAPTURES=0
 
@@ -44,7 +44,7 @@ def run(executable,reports,resolution,encoding,status):
                     actual+=part
                 assert actual==expected,(actual,expected)
 
-            def inspect(frame,case=None,active=False):
+            def inspect(frame,case=None,active=False,palette=None):
                 global CAPTURES
                 state=frame.application;meta=frame.metadata
                 assert bool(state['cterm.igs_script_active'])==active
@@ -53,7 +53,7 @@ def run(executable,reports,resolution,encoding,status):
                 assert (state['cterm.x'],state['cterm.y'])==(5,3)
                 assert not meta['cursor_visible']
                 assert state['cterm.igs_writing_mode']==(case[4] if case else 1)
-                assert tuple(frame.palette[768:784])==tuple(initial(resolution))
+                assert tuple(frame.palette[768:784])==tuple(initial(resolution) if palette is None else palette)
                 expected=array('I',[768])*(width*drawable)
                 samples={(24+x,2*ch+y) for y in range(ch) for x in range(8)}
                 for y,bits in enumerate(DATA['fonts'][str(ch)]['65']):
@@ -75,11 +75,11 @@ def run(executable,reports,resolution,encoding,status):
                     assert frame.rgb[oy*meta['output_width']+ox]&0xffffff==frame.palette[expected[y*width+x]]
                 CAPTURES+=1
 
-            def scene(peer,wire=b'',reply=b'',case=None):
+            def scene(peer,wire=b'',reply=b'',case=None,palette=None):
                 nonlocal marker
                 marker+=1;send(peer,wire+f'G#g>0:X 10,{marker},777:'.encode())
                 frame=client.wait_for(lambda f:f.application.get('cterm.igs_draw_x')==marker)
-                inspect(frame,case);read(peer,reply);return frame
+                inspect(frame,case,palette=palette);read(peer,reply);return frame
 
             def baseline(peer):
                 scene(peer,b'G#X>3,0:g>0:E>0,9,0:M 1:\x1bEG#p 3,2:A')
@@ -102,7 +102,15 @@ def run(executable,reports,resolution,encoding,status):
                 frame=scene(peer,b'G#X 9,0:G#P 40,80:!||}')
                 assert frame.application['cterm.igs_script_length']==len(b'G#P 40,80:')
                 for case in CASES:
-                    baseline(peer);scene(peer,script(case[1]),case=case)
+                    baseline(peer);scene(peer,script(case[1]),reply=case[5],case=case)
+                # Serial/file requested-colour snapshots are independent;
+                # the final serial restore must recover the initial palette.
+                baseline(peer);scene(peer,b'G#X 8,1,1,1,1:')
+                red=list(initial(resolution))
+                if resolution!=2:red[mask]=0xff0000
+                scene(peer,b'G#S 1,7,0,0:'+script(b'G#X 8,1,1,1,1:'),palette=red)
+                scene(peer,b'G#S 1,0,0,7:'+script(b'G#X 8,0,0,0,0:'),palette=red)
+                scene(peer,b'G#X 8,0,0,0,0:')
                 # A held final G emits nothing on each call. Many short
                 # sources yield across their enclosing serial loop and
                 # retain the caller's single XOFF/XON lifetime and suffix.
@@ -112,11 +120,11 @@ def run(executable,reports,resolution,encoding,status):
                 # chain then continue without forwarding that local key.
                 baseline(peer);send(peer,script(b'G#t>30:P 40,80:'))
                 frame=client.wait_for(lambda f:f.application.get('cterm.igs_script_active')==1)
-                inspect(frame,active=True);read(peer,b'\x13')
-                client.text('x');scene(peer,reply=b'\x11',case=CASES[0])
+                inspect(frame,active=True);client.key('f8');read(peer,b'STATE 0 false false\n')
+                client.text('x');scene(peer,case=CASES[0]);client.key('f8');read(peer,b'STATE 0 false false\n')
                 baseline(peer);send(peer,script(b'G#t>30:P 40,80:'))
                 frame=client.wait_for(lambda f:f.application.get('cterm.igs_script_active')==1)
-                inspect(frame,active=True);read(peer,b'\x13');disconnect(peer)
+                inspect(frame,active=True);client.key('f8');read(peer,b'STATE 0 false false\n');disconnect(peer)
             client.key('enter')
             with listener.accept()[0] as peer:
                 peer.settimeout(5);setup(peer)
@@ -130,5 +138,5 @@ if __name__=='__main__':
     for resolution in range(3):
         for encoding in ('ATARI-ST','CP437','UTF-8'):
             for status in (False,True):run(args.executable,args.reports,resolution,encoding,status)
-    assert CAPTURES==666,CAPTURES
+    assert CAPTURES==972,CAPTURES
     print(f'{CAPTURES} coherent script captures',flush=True)

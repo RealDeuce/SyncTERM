@@ -13,7 +13,8 @@ original requested start/end coordinates.
 `G` adds indexed screen/memory Boolean transfers and retained image views.
 `D` draws from the remembered end and copies its requested new endpoint to
 both remembered pairs, preserving native Drawto chaining.
-X dispatch is in progress: `X0` scatters markers with persistent color cycling.
+All16 X handlers are present; parent X's common numeric-reader acceptance is
+still in progress. `X0` scatters markers with persistent color cycling.
 `X1` changes a raw physical palette register,
 and `X12` changes four consecutive physical registers. `X5` configures the
 flow mode, custom XON/XOFF bytes and signed repeat counts without emitting
@@ -2954,3 +2955,73 @@ passed in0.52s (0.49s standalone). Parent X and final goal acceptance remain
 unfinished.
 
 Completion commit for X9: e08ebb6. Parent X and final goal acceptance remain pending.
+
+### Serial/file dispatch audit corrections
+
+File/script X8 has its own requested-colour snapshot bank; the raw hardware
+snapshot and restore selector remain shared with serial X8. Tests capture
+different palettes on the two paths, restore both, cross-restore raw snapshots
+and verify I retention/full-reset clearing. File X11 retains the serial
+receive-error count on success and cancellation; provenance is captured at
+acquisition entry so source unwinding cannot clear the wrong state. The next
+serial load still observes and clears that count at its documented boundary.
+File X0 restores a nonzero cached marker pen after successful zero-extent
+setup, while serial setup bypasses the restore.
+
+F/f/z/t and N playback use XOFF/XON only on the serial path. File N owns no
+flow lifetime that could escape on cancellation. Reply fences now explicitly
+reject stray flow bytes during file rendering, waits and empty MIDI/note
+playback. Invalid T kind performs one numeric read and jumps directly to
+chain postprocessing, preserving remaining stored operands instead of
+repeating its body. Native tests cover both serial retention and file chaining.
+
+The new regressions failed before correction. Native FreeBSD Release CMake
+configure/full build with /usr/bin/cc passed without warnings. All83 distinct
+checks passed across the82-test native/X-selector application run in298.47s
+and script application run in52.35s. All16 selectors have native/application
+checks. Native script/dispatch took0.63s (0.68s standalone); script application
+coverage is972 coherent captures across18 profiles with19 literal scene cases
+and10 pinned source references. Physical audio/MIDI remain off in fixtures.
+Parent X remains open: the common numeric reader still needs chapter11's
+random tail after an array lookup returning an r/R sentinel. Final full-goal
+acceptance, including foundation and integration review, is not complete.
+
+### Manual audio checklist
+
+These listening checks are a post-implementation checklist, not automated
+development gates. Headless bitmap/PCM tests do not establish audible-device
+coverage. Enable the desired audio/MIDI output and record the operating
+system, output backend/device and MIDI soundfont with the results.
+
+- [ ] In a fresh IGS session, check console BEL and the configured Atari
+  keyboard click, including quiet/disabled settings. Check that cancellation
+  or switching settings leaves no stuck tone.
+- [ ] Audition `G#b 0:` through `G#b 19:` individually. Confirm effect
+  playback and envelope/noise variation, then check `G#b 21:` immediate stop.
+  Exercise patch edit/restore with `b20`/`b22` using a known patch fixture;
+  restored playback should recover that fixture's sound.
+- [ ] Check pitched notes with `G#n 0,0,10,60,100,2:` and
+  `G#n 0,0,10,72,100,2:`. The pitched component should rise for the second
+  note; each requested wait is about half a second. Repeat with different
+  volumes and voices0,1,2.
+- [ ] Start overlapping voices with zero delay/stop0. Compare selected-voice
+  release/stop1/2 and all-voice release/stop3/4, using a patch with a release
+  envelope. A release may decay; an immediate stop should end the selected
+  activity. Use `G#n 125,0,0,0,0,4:` to stop all three voices.
+- [ ] Exercise N4's six-byte note records, then N5 replay and an N6 subrange.
+  Check record ordering, retained data and overlap. Check local key timing:
+  a key consumed by an inner note ends its wait and applies its stop action;
+  it does not also abort the outer N loop. Ctrl-C/X at an outer playback poll
+  aborts that loop; `+` shifts by one byte there.
+- [ ] In a fresh MIDI-enabled session, send `G#N 1,12:` followed by the raw
+  bytes `90 00 3c 00 64 64 80 00 3c 00 00 00` (hex). This is a channel1
+  note-on at middle C, about half a second of delay, then note-off. Check N2
+  replay, the configured soundfont and separate MIDI/PCM enable settings.
+  A sender must transmit actual bytes, not the printed hex characters.
+- [ ] Repeat note and MIDI playback alongside graphics and console output,
+  then reset/disconnect during an active wait and reconnect. Confirm no stuck
+  voices, leaked MIDI notes, stale playback or loss of subsequent input.
+- [ ] Repeat representative effects/notes in all three ST modes and in an
+  X9 script. File-path playback keeps the same sound/timing policy while
+  omitting serial-only flow-control bytes. Record any audible difference;
+  bit-identical PCM or waveform/perceptual matching is not required.

@@ -331,8 +331,95 @@ static void source_storage(void)
 	memcpy(igs->music->bytes+first+sizeof(expected),"M 4:",4);
 	igs->music->script_length=(uint32_t)(first+sizeof(expected)+4);
 	igs->bitmap_errors=3;igs->now_ms=bad_clock;run(&f);igs->now_ms=now;
-	CHECK(!igs->script.active && igs->attributes.writing_mode==4 && igs->bitmap_errors==0);
+	/* File X11 bypasses serial receive errors and does not clear them. */
+	CHECK(!igs->script.active && igs->attributes.writing_mode==4 && igs->bitmap_errors==3);
 	CHECK(st_igs_image_export(igs->memory[0],0,actual,sizeof(actual))==0 && memcmp(actual,expected,sizeof(actual))==0);
+	/* A truncated file load preserves its accepted stores and the old
+	 * serial error count when the source owner unwinds its reader. */
+	static const uint8_t partial[]="G#X 11,2,1:A";
+	memcpy(igs->music->bytes,partial,sizeof(partial)-1);igs->music->script_length=sizeof(partial)-1;run(&f);
+	CHECK(!igs->script.active && !igs->bitmap_loading && igs->bitmap_errors==3);
+	CHECK(st_igs_image_export(igs->memory[0],0,actual,1)==0 && actual[0]=='A');
+	/* The next serial load still observes that threshold after its first
+	 * store, then clears it at its own serial byte-phase completion. */
+	feed(&f,"G#X 11,2,1:Z");
+	CHECK(!igs->bitmap_loading && igs->bitmap_errors==0);
+	CHECK(st_igs_image_export(igs->memory[0],0,actual,1)==0 && actual[0]=='Z');
+	destroy(&f);
+}
+static void file_snapshots(void)
+{
+	for(unsigned mode=0;mode<3;++mode) {
+		struct fixture f;create(&f,mode,false);struct cterm_igs *igs=f.terminal->igs_engine;
+		CHECK(cterm_igs_palette_pen(igs,1,100,200,300)==0);feed(&f,"G#X 8,1,1,1,1:");
+		CHECK(cterm_igs_palette_pen(igs,1,400,500,600)==0);upload(&f,"G#X 8,1,1,1,1:");run(&f);
+		CHECK(cterm_igs_palette_pen(igs,1,700,800,900)==0);upload(&f,"G#X 8,0,0,0,0:");run(&f);
+		CHECK(igs->requested_palette[1][0]==400 && igs->requested_palette[1][1]==500 && igs->requested_palette[1][2]==600);
+		feed(&f,"G#X 8,0,0,0,0:");
+		CHECK(igs->requested_palette[1][0]==100 && igs->requested_palette[1][1]==200 && igs->requested_palette[1][2]==300);
+		/* I retains both separate requested-colour snapshots. */
+		feed(&f,"G#I 2:");upload(&f,"G#X 8,0,0,0,0:");run(&f);
+		CHECK(igs->requested_palette[1][0]==400 && igs->requested_palette[1][2]==600);
+		feed(&f,"G#X 8,0,0,0,0:");CHECK(igs->requested_palette[1][0]==100);
+		/* Hardware snapshot and raw/VDI restore selector are shared across
+		 * the two paths, even though their requested-colour arrays differ. */
+		CHECK(cterm_igs_palette_register(igs,7,0x123)==0);feed(&f,"G#X 8,16,16,1,1:");
+		CHECK(cterm_igs_palette_register(igs,7,0x456)==0);upload(&f,"G#X 8,0,0,0,0:");run(&f);
+		CHECK(igs->raw_palette[7]==0x123 && !igs->palette_rotation.restore_raw);
+		CHECK(cterm_igs_palette_register(igs,7,0x234)==0);upload(&f,"G#X 8,16,16,1,1:");run(&f);
+		CHECK(cterm_igs_palette_register(igs,7,0x567)==0);feed(&f,"G#X 8,0,0,0,0:");
+		CHECK(igs->raw_palette[7]==0x234 && !igs->palette_rotation.restore_raw);
+		CHECK(st_cterm_reset_terminal(f.terminal)==0);
+		CHECK(cterm_igs_palette_pen(igs,1,700,800,900)==0);upload(&f,"G#X 8,0,0,0,0:");run(&f);
+		CHECK(igs->requested_palette[1][0]==0 && igs->requested_palette[1][1]==0 && igs->requested_palette[1][2]==0);
+		destroy(&f);
+	}
+}
+static void file_scatter(void)
+{
+	for(unsigned mode=0;mode<3;++mode) {
+		struct fixture f;create(&f,mode,false);struct cterm_igs *igs=f.terminal->igs_engine;
+		igs->marker_pen_cache=1;cterm_igs_set_marker_color(igs,0);
+		feed(&f,"G#X 0,3,0,0,0,0:");
+		CHECK(igs->attributes.marker_pen==(mode==2?1:0));
+		cterm_igs_set_marker_color(igs,0);uint32_t seed=igs->random_seed;
+		upload(&f,"G#X 0,3,0,0,0,0:");run(&f);
+		CHECK(igs->attributes.marker_pen==1 && igs->random_seed==seed);
+		CHECK(igs->marker_cycle==(mode==2?0:3) && igs->marker_cycle_restart==(mode==2?0:3));
+		destroy(&f);
+	}
+}
+static void file_flow(void)
+{
+	static const char *const scripts[]={"G#t 0:","G#F 9999,9999:",
+	    "G#f 3,9999,9999,9998,9999,9999,9998:","G#z 2,40,80,42,80:",
+	    "G#N>0,0:N 2:","G#N 4,0:"};
+	struct fixture f;create(&f,0,false);struct cterm_igs *igs=f.terminal->igs_engine;
+	f.terminal->response_cb=response;
+	for(size_t i=0;i<sizeof(scripts)/sizeof(*scripts);++i) {
+		responses=0;upload(&f,scripts[i]);run(&f);
+		if(responses!=0) fprintf(stderr,"file flow case%zu emitted %u bytes\n",i,responses);
+		CHECK(!igs->script.active && responses==0 && !igs->music->flow && !igs->timed_pause);
+	}
+	destroy(&f);
+}
+static void invalid_type_exit(void)
+{
+	struct fixture f;create(&f,0,false);struct cterm_igs *igs=f.terminal->igs_engine;
+	f.terminal->response_cb=response;responses=0;
+	/* Invalid T kind jumps directly to chain postprocessing, even if its
+	 * one numeric read left an enclosing & loop active. */
+	feed(&f,"G#& 0,3,1,0,T,2,0,4:");
+	CHECK(!igs->loop.run && igs->loop_mode==1 && igs->loop.current==1 && igs->loop.index==1);
+	CHECK(responses==2 && output[0]==19 && output[1]==17);
+	CHECK(st_cterm_reset_terminal(f.terminal)==0);responses=0;
+	/* The remaining stored operand belongs to the next chained command.
+	 * Its own M readers finish the loop before the literal 3: is echoed. */
+	upload(&f,"G#&>0,3,1,0,T,2,0,4:M 3:");run(&f);
+	CHECK(!igs->script.active && !igs->loop.run && igs->loop_mode==0 && igs->attributes.writing_mode==4);
+	CHECK(responses==0 && igs->loop.current==3);
+	const struct st_console_rect row={0,0,2,1};struct st_console_cell cells[2];
+	CHECK(st_console_read_cells(f.console,&row,cells,2)==0 && cells[0].glyph=='3' && cells[1].glyph==':');
 	destroy(&f);
 }
 static bool mouse(struct fixture *f,int x,int y,unsigned buttons)
@@ -445,6 +532,6 @@ static void cooperative_sources(void)
 }
 int main(void)
 {
-	literal_loads(); capacity(); clear_cancel_and_deadlines(); wire_execution();fields_and_loops();waits_and_keys();source_storage();asynchronous_owners();partitions();cooperative_sources();
+	literal_loads(); capacity(); clear_cancel_and_deadlines(); wire_execution();fields_and_loops();waits_and_keys();source_storage();file_snapshots();file_scatter();file_flow();invalid_type_exit();asynchronous_owners();partitions();cooperative_sources();
 	return 0;
 }

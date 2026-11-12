@@ -13,9 +13,14 @@ X9 native and coherent application acceptance passed. Native tests cover its sha
 loader, guarded execution/clear, retained holes, capacity, local deadlines,
 file-style readers/flow, shared loop state, local input and cancellation.
 The shared parser explicitly supports source-ended text and accepted return
-boundaries without a second parser. Application X9 covers666 coherent captures
+boundaries without a second parser. Application X9 covers972 coherent captures
 across18 profiles, including script scenes, waits/key ownership and reconnects.
 Parent X dispatch acceptance and final IGS goal acceptance remain pending.
+Serial/file dispatch regression coverage now includes independent X8 requested
+snapshot banks, shared raw snapshots, file X11 error retention, source-specific
+X0 restore and F/f/z/t/N flow, and invalid-T direct chain exits. Expanded X9
+coverage has972 coherent application captures; the common numeric random tail
+after array lookup and final full-goal regression acceptance remain open.
 The CTerm input adapter has native ST geometry/encoding/status and lifecycle
 coverage. IGS is selectable through profiles, menus and Wren. `I` and `R` have
 native selector/state/deadline coverage and coherent application bitmap checks

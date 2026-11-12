@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "provenance": "Handwritten wire commands, literal physical-index points, replies and US TOS 8x8 A rows from chapters 11/13/19/21/173. Expectations are not generated from SyncTERM or historical emulation. Existing independent console glyph/palette assets are reused.",
+  "provenance": "Handwritten wire commands, literal physical-index points, replies and US TOS 8x8 A rows from the pinned command/reader/dispatch references. Serial/file snapshot, receive-counter, flow and T early-exit expectations come from their addressed IG221.ACC paths. Expectations are not generated from SyncTERM or historical emulation. Existing independent console glyph/palette assets are reused.",
   "references": [
     {
       "path": "docs/igs/11-reader-state.adoc",
@@ -21,6 +21,26 @@
     {
       "path": "docs/igs/19-extended-math-sweeps.adoc",
       "sha256": "9590c70fb049ab3b6bfd869dcc42e7a6db3487bb92ca3db1d8cc681c1446a147"
+    },
+    {
+      "path": "docs/igs/15-graphics-commands.adoc",
+      "sha256": "d2d62473b0029ed166a99bb6ce6c6db4e2a7a447ab6310dd6f4776f9bcf87e74"
+    },
+    {
+      "path": "docs/igs/16-state-timing-commands.adoc",
+      "sha256": "b2ac8f25c74bf5e8de8edb83bcf2b1ea73f49f6f325cf3a2f485270eaf93385f"
+    },
+    {
+      "path": "docs/igs/20-extended-controls.adoc",
+      "sha256": "afb69eb0fc1ae4954084b825fcd6958b705b5505fa1b2d3d518d27bf72bee85a"
+    },
+    {
+      "path": "docs/igs/22-palette-bitmap-x-dispatch.adoc",
+      "sha256": "2366956363f67b75c9abbfbbd37d00cec199615992f4c81d642b377a1c1ef799"
+    },
+    {
+      "path": "docs/igs/23-note-music-commands.adoc",
+      "sha256": "fecd34328ca348617dceefdb4c23b2eb2feefd599b6a7554d613eb510d535e80"
     }
   ],
   "tests": [
@@ -32,7 +52,7 @@
   "native_graphics_profiles": 18,
   "native_scaling_variants": 54,
   "application_graphics_profiles": 18,
-  "application_captures": 666,
+  "application_captures": 972,
   "physical_audio": false,
   "physical_midi": false,
   "external_runtime_assets": false,
@@ -196,6 +216,66 @@
       ],
       "glyphs": [],
       "mode": 1
+    },
+    {
+      "name": "file-flood-flow",
+      "wire": "G#F>9999,9999:?>0:",
+      "points": [],
+      "glyphs": [],
+      "mode": 1,
+      "reply": "2.21"
+    },
+    {
+      "name": "file-polygon-flow",
+      "wire": "G#f>3,9999,9999,9998,9999,9999,9998:?>0:",
+      "points": [],
+      "glyphs": [],
+      "mode": 1,
+      "reply": "2.21"
+    },
+    {
+      "name": "file-polyline-flow",
+      "wire": "G#z>2,40,80,42,80:?>0:",
+      "points": [
+        [
+          40,
+          80
+        ],
+        [
+          41,
+          80
+        ],
+        [
+          42,
+          80
+        ]
+      ],
+      "glyphs": [],
+      "mode": 1,
+      "reply": "2.21"
+    },
+    {
+      "name": "file-midi-flow",
+      "wire": "G#N>0,0:N>2:?>0:",
+      "points": [],
+      "glyphs": [],
+      "mode": 1,
+      "reply": "2.21"
+    },
+    {
+      "name": "file-note-flow",
+      "wire": "G#N>4,0:?>0:",
+      "points": [],
+      "glyphs": [],
+      "mode": 1,
+      "reply": "2.21"
+    },
+    {
+      "name": "invalid-T-chain",
+      "wire": "G#&>0,3,1,0,T,2,0,4:M ",
+      "points": [],
+      "glyphs": [],
+      "mode": 4
     }
   ]
 }

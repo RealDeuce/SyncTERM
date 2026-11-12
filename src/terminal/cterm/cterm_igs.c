@@ -64,6 +64,8 @@ static const struct st_graphics_command extended_commands[] = {
 	{14, unscaled_parameters, 1, NULL},
 	{15, unscaled_parameters, 9, NULL},
 };
+_Static_assert(sizeof(extended_commands)/sizeof(*extended_commands)==16,
+    "IGS X dispatch requires all sixteen selectors");
 
 /* Dynamic arity inspects a private numeric-state copy. Real operands,
  * including a random selector/kind, advance once at execution. */
@@ -725,7 +727,7 @@ end_pause(struct cterm_igs *igs)
 	igs->timed_pause = igs->pause_key = false;
 	igs->wait_deadline = 0;
 	/* Exit uses the current loop and flow settings, independently of entry. */
-	return igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, true);
+	return igs->script.active || igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, true);
 }
 
 static int
@@ -741,7 +743,7 @@ begin_pause(struct cterm_igs *igs, int seconds)
 	igs->wait_deadline = now + duration;
 	igs->timed_pause = true;
 	igs->pause_key = false;
-	status = igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, false);
+	status = igs->script.active || igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, false);
 	return status == 0 ? IO_ERROR_IN_PROGRESS : status;
 }
 
@@ -1278,12 +1280,12 @@ execute_command(void *context, const struct st_graphics_command_view *view)
 		int count = view->code == 'F' ? 0 : point_count(values[0], view->code == 'f' ? 1 : 2);
 		if (view->count != (view->code == 'F' ? 2 : 1+(size_t)count*2))
 			return IO_ERROR_PROTOCOL;
-		int status = igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, false);
+		int status = igs->script.active || igs->loop_mode == 1 ? 0 : cterm_igs_flow(igs, false);
 		if (status == 0)
 			status = view->code == 'F' ? cterm_igs_flood(igs,values[0],values[1])
 			    : view->code == 'f' ? cterm_igs_polygon(igs, values+1, (size_t)count)
 			    : cterm_igs_polyline(igs, values+1, (size_t)count);
-		if (!igs->reset_pending && igs->loop_mode != 1) {
+		if (!igs->reset_pending && !igs->script.active && igs->loop_mode != 1) {
 			int flow_status = cterm_igs_flow(igs, true);
 			if (status == 0) status = flow_status;
 		}
@@ -1367,12 +1369,8 @@ execute_command(void *context, const struct st_graphics_command_view *view)
 			igs->draw_x = values[1]; igs->draw_y = values[2];
 			return 0;
 		}
-		if (values[0] >= 0 && values[0] <= 15) {
-			cterm_log(igs->terminal, ST_CTERM_LOG_WARNING,
-			    "Unsupported IGS X selector %d", values[0]);
-			return IO_ERROR_NOT_SUPPORTED;
-		}
-		/* Out-of-range selectors have native one-argument no-op arity. */
+		/* All sixteen selectors are handled above. Out-of-range words
+		 * have native one-argument no-op arity. */
 		return 0;
 	case 'T':
 		if (values[0] < 1 || values[0] > 2)
@@ -1423,6 +1421,9 @@ command(void *context, const struct st_graphics_command_view *view)
 	struct cterm_igs *igs=context;
 	if (view->code=='&' && igs->loop.initializing) return cterm_igs_loop_begin(igs,view);
 	int status=execute_command(context,view);
+	/* Invalid T kind jumps to chain postprocessing without testing the
+	 * repeated-body predicate, even when its reader left loop mode set. */
+	if (status==0 && view->code=='T' && view->count==1) igs->loop.bad=false;
 	if (igs->script.starting) return status;
 	if (igs->loop.run) {
 		if (status==0) {igs->loop.next=true;return IO_ERROR_IN_PROGRESS;}

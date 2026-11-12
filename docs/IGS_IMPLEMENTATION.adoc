@@ -15,13 +15,12 @@ The primary reference is ~/IGS/docs/igs/; chapters 01, 02, 109, 159, 201,
 The user's port policy below takes precedence over historical fidelity gates.
 
 The executable coverage ledger is link:../src/tests/igs/conformance.json[conformance.json].
-The I, R, g, M, C, S, H, A, T, P, L, D, z, Z, B, U, O, Q, K, J, V, Y, f, F, E, W, c, p, m, r, k, v, w, l, s, d, i, t, q, G, b, n and N commands and X0, X1, X2, X5, X7, X8, X10, X11, X12, X13, X14 and X15 selectors are
-implemented and independently tested natively and through the control bitmap
-application backend. Profile/menu/Wren selection
-is available. Other commands remain pending. Parser-only tests do not establish
-command, rendering or sound support. X dispatch is in progress, with X0, X1, X2, X5, X7, X8, X10, X11, X12, X13, X14 and X15
-implemented; the complete X command remains unfinished until every selector
-and its dispatch behavior have passed.
+All47 top-level commands and all16 selectors now have implementations and
+focused native/control-bitmap application coverage. Profile/menu/Wren
+selection is available. Parent X acceptance remains open for the common
+numeric-reader audit, including the random tail after array lookup. The
+ledger is62/63 complete; the final full-goal acceptance audit is unfinished.
+Parser-only checks do not establish rendering, sound or session conformance.
 CTerm IGS input routing shares RIP's pre-ANSI receive insertion point.
 
 == Standalone goal summary
@@ -4708,3 +4707,44 @@ Native X9 passed in0.52s (0.49s standalone), including independent caller
 batches and US console/Backspace checks. The ledger remains62/63 complete.
 
 Completion commit for X9: e08ebb6. Parent X and final goal acceptance remain pending.
+
+=== Serial/file dispatch audit corrections
+
+The complete X dispatch review checked chapters15/16/20/22/23 against the
+shared execution paths. New independent regressions exposed source-specific
+state and flow that the initial X9 compositions had not covered:
+
+* X8 now has separate serial/file requested-colour snapshot banks. Hardware
+  snapshots and the raw/VDI restore flag remain shared. I/R retain both banks;
+  full terminal reset clears both. Native and application tests capture
+  different palettes on each path, then restore each without cross-over.
+* X11 captures reader provenance when acquisition begins. File loads do not
+  inspect or clear the serial error counter, including during cancellation
+  after source ownership unwinds. A following serial load still observes
+  that counter after its first store and clears it at serial completion.
+* File X0's successful zero-extent setup restores a nonzero cached marker
+  pen; the serial setup branch still bypasses that restore.
+* F/f/z/t and N playback emit their documented flow pairs only for serial
+  execution. File N owns no serial flow lifetime, so cancellation cannot
+  emit a stray XON after the source flag is cleared.
+* Invalid T kind branches directly to chain postprocessing after its one
+  numeric read, bypassing repeated-& execution. The remaining operand and
+  serial loop flag stay with their real owner; file chaining can consume
+  that remaining operand before its normal file-entry exit clears loop mode.
+
+The obsolete unsupported-X-handler branch is removed; the description table
+contains all16 selectors and has a compile-time count assertion. This does
+not mark parent X or the goal complete: the shared numeric-reader review
+found that array results equal to r/R sentinels still bypass chapter11's
+common random tail. That correction and the final acceptance audit remain.
+
+Native FreeBSD Release /usr/bin/cc configure/full build passed without
+warnings. All83 distinct checks passed across the82-test native/X-selector
+application run in298.47s and script application run in52.35s. Extended
+native script/dispatch checks passed in0.63s (0.68s standalone). The script
+application passed972 coherent captures across18 profiles with19 literal
+scene cases, exact flow/reply fences and independent palette-bank restores.
+All10 pinned source identities, registrations and vector counts are checked.
+Physical audio/MIDI are disabled in fixtures; no external IGS tree, ROM or
+historical executable is needed at runtime. The manual audio checklist is
+provided in IGS_CONFORMANCE.md and is not a development listening gate.

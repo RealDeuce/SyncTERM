@@ -27,8 +27,9 @@ image(struct cterm_igs *igs)
 void
 cterm_igs_bitmap_cancel(struct cterm_igs *igs)
 {
-	if (igs->bitmap_loading) igs->bitmap_errors = 0;
+	if (igs->bitmap_loading && igs->bitmap_serial) igs->bitmap_errors = 0;
 	igs->bitmap_loading = false;
+	igs->bitmap_serial = false;
 	igs->bitmap_deadline = 0;
 	igs->bitmap_offset = igs->bitmap_size = igs->bitmap_received = 0;
 	igs->bitmap_operation = igs->bitmap_section = 0;
@@ -44,6 +45,7 @@ int
 cterm_igs_bitmap_begin(struct cterm_igs *igs, int operation, int section)
 {
 	igs->bitmap_loading = true;
+	igs->bitmap_serial = !igs->script.active;
 	igs->bitmap_operation = operation;
 	igs->bitmap_section = section > 8 ? 8 : section;
 	igs->bitmap_offset = igs->bitmap_section > 0 ? (size_t)(igs->bitmap_section-1)*4000 : 0;
@@ -53,8 +55,8 @@ cterm_igs_bitmap_begin(struct cterm_igs *igs, int operation, int section)
 	if (igs->bitmap_size == 0) return 0;
 	int status = image(igs);
 	uint64_t now;
-	if (status == 0 && !igs->script.active) status = igs->now_ms(&now);
-	if (status == 0 && !igs->script.active) igs->bitmap_deadline = deadline(now);
+	if (status == 0 && igs->bitmap_serial) status = igs->now_ms(&now);
+	if (status == 0 && igs->bitmap_serial) igs->bitmap_deadline = deadline(now);
 	return status;
 }
 
@@ -66,10 +68,10 @@ cterm_igs_bitmap_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size,
 	if (!igs->bitmap_loading || size == 0 || size > igs->bitmap_size-igs->bitmap_received)
 		return IO_ERROR_PROTOCOL;
 	uint64_t now=0;
-	int status = igs->script.active ? 0 : igs->now_ms(&now);
+	int status = igs->bitmap_serial ? igs->now_ms(&now) : 0;
 	if (status != 0) return status;
-	bool expired = !igs->script.active && now >= igs->bitmap_deadline;
-	if (expired || (!igs->script.active && igs->bitmap_errors > 2)) {
+	bool expired = igs->bitmap_serial && now >= igs->bitmap_deadline;
+	if (expired || (igs->bitmap_serial && igs->bitmap_errors > 2)) {
 		uint8_t byte = bytes[0];
 		if (expired) {
 			byte = '*';
@@ -94,7 +96,7 @@ cterm_igs_bitmap_bytes(struct cterm_igs *igs, const uint8_t *bytes, size_t size,
 		igs->bitmap_received += remaining;
 		*accepted += remaining;
 	}
-	igs->bitmap_deadline = igs->script.active?0:deadline(now);
+	igs->bitmap_deadline = igs->bitmap_serial?deadline(now):0;
 	return 0;
 }
 
@@ -102,8 +104,9 @@ int
 cterm_igs_bitmap_complete(struct cterm_igs *igs, int operation, int section)
 {
 	if (section > 8) section = 8;
-	if (operation == 1 || operation == 2) igs->bitmap_errors = 0;
+	if (igs->bitmap_serial && (operation == 1 || operation == 2)) igs->bitmap_errors = 0;
 	igs->bitmap_loading = false;
+	igs->bitmap_serial = false;
 	igs->bitmap_deadline = 0;
 	igs->bitmap_offset = igs->bitmap_size = igs->bitmap_received = 0;
 	igs->bitmap_operation = igs->bitmap_section = 0;

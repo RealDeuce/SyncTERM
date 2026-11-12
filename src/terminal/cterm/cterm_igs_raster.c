@@ -489,6 +489,8 @@ cterm_igs_scatter(struct cterm_igs *igs, int x, int y, int extent_x, int extent_
 	if (extent_x == 0 && extent_y == 0 && igs->resolution < 2) {
 		igs->marker_cycle = igs->marker_cycle_restart = x;
 		/* The serial setup branch bypasses even the cached-pen restore. */
+		if (igs->script.active && igs->marker_pen_cache != 0)
+			cterm_igs_set_marker_color(igs, igs->marker_pen_cache);
 		return 0;
 	}
 	int status = 0;
