@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa)):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -49,6 +49,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert s["cterm.big_loop_type"] == 32 and not s["cterm.big_footer_active"]
     assert not s["cterm.big_collect_active"] and not s["cterm.big_pointer_active"]
     assert not s["cterm.big_pattern_active"]
+    assert not s["cterm.big_bar_active"]
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
     assert s["cterm.big_scaling"] == scaling
@@ -64,7 +65,8 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert (s["cterm.big_write_mode"], s["cterm.big_cached_write_mode"]) == writing
     point = ((0, 0) if marker is None else (120, 64)) if graph_point is None else graph_point
     for domain in ("point", "ddo", "device"):
-        assert (s[f"cterm.big_{domain}_x"], s[f"cterm.big_{domain}_y"]) == point
+        expected_point = point if domain == "point" or lower_points is None else lower_points[0 if domain == "ddo" else 1]
+        assert (s[f"cterm.big_{domain}_x"], s[f"cterm.big_{domain}_y"]) == expected_point
     kind = (0 if marker is None else marker[0]) if marker_kind is None else marker_kind
     assert (s["cterm.big_marker"], s["cterm.big_marker_size"]) == (kind, 1)
     assert s["cterm.big_color"] == graph_color and s["cterm.big_device_color"] == graph_color & 15
@@ -514,6 +516,59 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
                                   graph_point=(124, 60), colors=colors, graph_color=7, colored_pixels=pixels,
                                   rgb_sample=(101, 61, 0xaaaa), fill=fill, selected_fill=selected, fill_pixels=tile, custom0=custom)
+                        # BIG23/59 authored bar/box pixels. These scenes retain
+                        # the preceding console/RGB swatch and separate CPs.
+                        region = {}
+                        side = ((172, 69), (171, 70), (170, 71), (169, 71), (168, 72),
+                                (172, 61), (172, 62), (172, 63), (172, 64), (172, 65),
+                                (172, 66), (172, 67), (172, 68), (172, 69))
+                        top = (tuple((x, 61) for x in range(164, 173))
+                               + ((164, 61), (163, 62), (162, 63), (161, 63), (160, 64),
+                                  (172, 61), (171, 62), (170, 63), (169, 63), (168, 64)))
+                        bar_cases = (
+                            (b"I#B 160,64,168,72,+1:", (0, 0), None, (12, 5), 12, checker),
+                            (b"I#A>1:M>2:B 160,64,168,72,0:", (1, 1), None, (1, 5), 1, (0x55555555,) * 8),
+                            (b"I#B 160,64,168,72,1:", (1, 1), ((168, 72), (168, 72)), (1, 5), 1, (0x55555555,) * 8),
+                            (b"I#M>1:B 160,64,168,72,4,256:", (0, 0), ((172, 61), (168, 72)), (1, 5), 1, (0x55555555,) * 8),
+                            (b"I#B 160,64,168,72,4,257:", (0, 0), ((172, 61), (168, 64)), (1, 5), 1, (0x55555555,) * 8),
+                            (b"I#A>12:B 160,64,168,72,0:", (0, 0), ((172, 61), (168, 64)), (12, 5), 12, checker),
+                        )
+                        for index, (command, writing, lower, fill, selected, tile) in enumerate(bar_cases):
+                            if index == 1:
+                                region.update(((x, y), 5) for y in range(64, 73) for x in range(160, 169))
+                            if index == 2:
+                                for y in range(64, 73):
+                                    for x in range(160, 169):
+                                        if x in (160, 168) or y in (64, 72):
+                                            region[x, y] = 5 if x in (160, 168) and y in (64, 72) else 6
+                            if index == 3:
+                                for y in range(64, 73):
+                                    for x in range(160, 169):
+                                        region[x, y] = 3 if x in (160, 168) or y in (64, 72) else 5
+                                region.update((point, 3) for point in side)
+                            if index == 4:
+                                region.update((point, 3) for point in top)
+                            if index == 5:
+                                region.update(((x, y), 5 if (x + y) % 2 == 0 else 0)
+                                              for y in range(64, 73) for x in range(160, 169))
+                            bar_pixels = pixels + tuple((x, y, pen) for (x, y), pen in region.items())
+                            token = f"BAR{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(124, 60), lower_points=lower, writing=writing,
+                                  colors=(7, 291, 5, 65535), graph_color=35, colored_pixels=bar_pixels,
+                                  rgb_sample=(164, 68, 0xaa00aa) if 1 <= index <= 4 else (101, 61, 0xaaaa),
+                                  fill=fill, selected_fill=selected, fill_pixels=tile)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

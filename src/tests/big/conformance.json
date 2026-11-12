@@ -185,7 +185,8 @@
         "Shared extracted st_bgi_thin_line candidate/pattern walker and four builtin pattern words; RIP keeps its clip/thickness/state, BIG supplies original fixed-slope WORD clips, stroke expansion, points and polymarker schedules.",
         "Share the unchanged twelve8x8 fill masks through st_bgi_fill_patterns; BIG retains separate original selection, validation, copy/cache/default state and indexed tile representation.",
         "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. No wire B/bar3d binding yet.",
-        "Original DDO0615 point producer shared by future bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns; no wire binding yet."
+        "Original DDO0615 point producer shared by future bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns; no wire binding yet.",
+        "Original public/DDO bar3d composition: unsigned public sort/lower move, signed inverted inset/second clip, old-point-first front/extrusion, wrapped depth/orientation/top BYTE, producer effects and current tuple tail."
       ],
       "tests": [
         "big_profile",
@@ -196,7 +197,8 @@
         "big_draw",
         "big_fill",
         "big_bar",
-        "big_producer"
+        "big_producer",
+        "big_bar3d"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -304,6 +306,27 @@
             "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All18 BIG-specific native CTest checks passed in15.75s. Final expanded big_producer checks passed in0.10s (test0.01s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound component; final full-suite verification remains deferred. Native indexed byte-read binding, lower gates/bar3d/curve and global composition remain pending."
           ],
           "commit": "404d4c1"
+        },
+        {
+          "id": "original-bar3d-fallback",
+          "status": "complete",
+          "operations": [
+            "Original inset/front/side/top order and fresh saved-corner/tuple reads; public CP unchanged, separate lower/device CP.",
+            "WORD projection before division, orientation/top BYTE, collector and point-return CX/DX effects, reached native failure prefixes."
+          ],
+          "tests": [
+            "big_bar3d",
+            "cterm_big_bar"
+          ],
+          "references": [
+            "23-rectangles-bars-and-clear.adoc",
+            "59-rectangle-clear-and-flood-command-acceptance.adoc",
+            "rectangle-code.adoc:BGI1cab..1ceb;DDO069a..079c,0378..03d9"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and focused builds were clean. All20 BIG-specific native CTest checks passed in17.62s. The application fixture passed in67.91s (test67.87s),1246 coherent scenes including84 new B scenes. Final live-attribute-prefix cases passed in cterm_big_bar in1.47s (test1.40s). No non-BIG tests ran; the final full suite remains deferred. Native B/bar3d/indexed point-read integration is implemented; page/image/curve/audio and full45-entry composition remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -712,6 +735,29 @@
           ],
           "commit": "3fd8fa6",
           "verification": "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending."
+        },
+        {
+          "id": "native-bars-and-projected-boxes",
+          "status": "complete",
+          "operations": [
+            "Five-field class1/2/1/2/0 B input then current line/fill; independent current kind tests, optional owner-managed class0 top acquisition and current depth on return.",
+            "Opaque direct bar and complete native bar3d; common footer/source/repetition/flow/replies and cancellation without rollback.",
+            "Batched point bytes reconstructed from primary indexed bits in the console transaction; installed mode/page pitch supplies segment return, no planar shadow.",
+            "84 coherent application scenes,1246 total, retaining full scene/state/replies/RGB and distinct point owners."
+          ],
+          "tests": [
+            "big_bar3d",
+            "cterm_big_bar",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "23-rectangles-bars-and-clear.adoc",
+            "59-rectangle-clear-and-flood-command-acceptance.adoc"
+          ],
+          "verification": [
+            "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and focused builds were clean. All20 BIG-specific native CTest checks passed in17.62s. The application fixture passed in67.91s (test67.87s),1246 coherent scenes including84 new B scenes. Final live-attribute-prefix cases passed in cterm_big_bar in1.47s (test1.40s). No non-BIG tests ran; the final full suite remains deferred. Native B/bar3d/indexed point-read integration is implemented; page/image/curve/audio and full45-entry composition remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1294,25 +1340,35 @@
       "references": [
         "59-rectangle-clear-and-flood-command-acceptance.adoc",
         "23-rectangles-bars-and-clear.adoc",
-        "rectangle-code.adoc"
+        "rectangle-code.adoc",
+        "13-curves-and-native-reuse.adoc",
+        "57-line-command-acceptance.adoc",
+        "58-marker-and-spray-command-acceptance.adoc"
       ],
       "operations": [
-        "Direct-bar primitive implemented with original WORD/clip/pass/state semantics; not yet registered on the wire.",
-        "Pending complete five/six-field routing, attribute prefix timing and all bar3d producer/orientation/depth/top paths.",
-        "Shared point producer dependency implemented independently, including collector and mode2 register clobbers; native binding/lower gates/bar3d remain pending."
+        "Implemented native class1/2/1/2/0 acquisition before current line/fill installation, retaining rejected-custom/old-error prefixes.",
+        "Independent current kind0 direct bar/kind1 depth0 bar3d/signed>1 sixth class0 read; negative no geometry, H ignored, current depth after top, low top BYTE.",
+        "Original translated/signed/inverted inset and unsigned public sorting, ordered old-point-first strokes, wrapped projection/orientation, producer/register/point owners and current tuple tail.",
+        "Existing source/footer/flow/reply/deadline/cancel owners; batched read-byte reconstruction at the indexed edge.",
+        "Physical page/image, curve-buffer lifecycle and final full45-entry composition remain pending; native B integration is implemented."
       ],
       "tests": [
         "big_bar",
-        "big_producer"
+        "big_producer",
+        "big_bar3d",
+        "cterm_big_bar",
+        "syncterm_big_input"
       ],
       "deviations": [
-        "Normal indexed profile preserves original byte-pass order with left-to-right per-pixel expansion; native sink errors stop without rollback."
+        "Native indexed masked bytes expand left-to-right; sink errors stop at accepted prefixes without rollback or invented BGI status.",
+        "Batched pre-write plane bytes are reconstructed from primary indexed pixels, with no persistent planar/controller emulation. Invalid indices/planes/storage fail at actual access.",
+        "Only register values observed by bar3d are represented; unsafe foreign stack/heap aliases are not reproduced."
       ],
       "verification": [
-        "Independent literal clip/pass traces, every row mask/endpoint phase, all pens under line COPY/XOR, absolute phase, stale tile/current pen, row/pen lifetime, unchanged points and failure prefixes. Primitive coverage only; no B wire/bar3d or new application capture acceptance claimed.",
-        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and the final focused build was clean. All17 BIG-specific native CTest checks passed in15.55s; the final big_bar check including every pen under COPY/XOR passed in0.23s (test0.17s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound primitive; final full-suite verification remains deferred. Wire B/bar3d and global composition remain pending.",
-        "Component checks cover all producer mode bytes and configured buffer-size WORDs, literal first-point/run/marker/overflow/native-prefix cases, every point phase/read/colour BYTE and actual carry/AX/BX/CX/DX. No B/curve/native byte-read acceptance claimed.",
-        "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All18 BIG-specific native CTest checks passed in15.75s. Final expanded big_producer checks passed in0.10s (test0.01s). No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound component; final full-suite verification remains deferred. Native indexed byte-read binding, lower gates/bar3d/curve and global composition remain pending."
+        "Independent bar3d literal COPY/XOR/pattern/inset/projection/orientation/WORD/top/point/producer/current-tuple/error expectations. Native initial wire expectation failed before registration.",
+        "Every split/default and bytewise/all mode/encoding/status compares complete indexed blink planes; early attributes, sixth-read EOF/timeout/reset/current depth, rejected fill/uninstalled recovery, g3/source/class0, inclusive varying repetition, deferred replies and all four native batched planes.",
+        "84 new coherent scenes,1246 total: negative attributes, COPY under XOR, XOR corners, depth/top with distinct CP, opaque checker holes, full scene/state/replies and composed RGB. No expected pixels are generated from SyncTERM.",
+        "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and focused builds were clean. All20 BIG-specific native CTest checks passed in17.62s. The application fixture passed in67.91s (test67.87s),1246 coherent scenes including84 new B scenes. Final live-attribute-prefix cases passed in cterm_big_bar in1.47s (test1.40s). No non-BIG tests ran; the final full suite remains deferred. Native B/bar3d/indexed point-read integration is implemented; page/image/curve/audio and full45-entry composition remain pending."
       ],
       "commit": null
     },

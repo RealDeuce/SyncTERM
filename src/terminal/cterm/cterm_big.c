@@ -34,10 +34,12 @@ static const struct st_graphics_parameter input_parameters[] = {
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
 static int style_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int move_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int bar_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int extended_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
+	{'B',line,4,bar_next},
 	{'m',move,2,move_next},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
@@ -45,6 +47,14 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 static bool marker_kind(const struct st_graphics_command_view *view)
 {
 	return st_big_number_signed((uint16_t)view->arguments[0].value)<=1;
+}
+static int bar_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *parameter)
+{
+	(void)context;
+	if (view->count<4) return IO_ERROR_PROTOCOL;
+	*parameter=(struct st_graphics_parameter){.kind=view->count==4?ST_GRAPHICS_NUMBER:ST_GRAPHICS_END};
+	return 0;
 }
 static int move_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *parameter)
@@ -283,6 +293,7 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		return IO_ERROR_IN_PROGRESS;
 	}
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
+	if (view->code=='B') return cterm_big_bar_begin(big,view);
 	if (view->code=='T') {
 		int status=0;
 		if (marker_kind(view)) {
@@ -425,6 +436,7 @@ static void cancel(struct cterm_big *big)
 	memset(&big->input,0,sizeof(big->input));
 	memset(&big->setup,0,sizeof(big->setup)); big->text.active=0;
 	memset(&big->zone,0,sizeof(big->zone));
+	memset(&big->bar,0,sizeof(big->bar));
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -488,7 +500,7 @@ static int gang_selector(struct cterm_big *big, const struct st_graphics_parser_
 }
 static bool body_pending(const struct cterm_big *big)
 {
-	return big->footer_active || big->collect.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
+	return big->footer_active || big->collect.active || big->bar.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
 }
 int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t *used)
 {
@@ -502,6 +514,19 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->bar.active) {
+			size_t accepted; bool complete;
+			status=cterm_big_bar_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,&complete);
+			*used+=accepted;
+			if (status!=0) break;
+			if (complete) {
+				const struct st_graphics_command_view view={.chained=big->bar.chained};
+				status=begin_footer(big,&view);
+				if (status!=IO_ERROR_IN_PROGRESS) break;
+				status=0; advance_needed=true; continue;
+			}
+			break;
+		}
 		if (big->collect.active) {
 			bool complete;
 			status=cterm_big_collect_poll(big,&body_budget,&complete);
@@ -650,6 +675,7 @@ int cterm_big_create(struct cterminal *t)
 	    .peek_key = cterm_big_input_peek, .read_key = cterm_big_input_read};
 	int status = st_big_numeric_init(&big->numeric,&io);
 	st_big_state_init(&big->state); st_big_control_init(&big->control);
+	big->producer.video_segment=0xa000;
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
 	const struct st_graphics_parser_config config = {
 		.dialect = &dialect, .commands = commands, .command_count = sizeof(commands)/sizeof(commands[0]),
@@ -709,6 +735,7 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_bgi_fill_color", big->state.bgi.fill_color);
 	st_console_test_number(app, "cterm.big_fill_selection", big->state.application.fill);
 	st_console_test_number(app, "cterm.big_pattern_active", big->fill_edit.active);
+	st_console_test_number(app, "cterm.big_bar_active", big->bar.active);
 	uint32_t custom_prefix=0, custom_tail=0;
 	for (unsigned i=0;i<4;++i) {
 		custom_prefix|=(uint32_t)big->state.application.patterns[0][i]<<(8*i);

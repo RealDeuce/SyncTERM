@@ -211,6 +211,17 @@ batched pre-write-byte boundary. It leaves all point owners unchanged;
 no native B/curve binding or planar framebuffer is claimed. Native read-byte,
 bar3d and curve composition remain pending; routine tests stay BIG-only.
 
+BIG B now implements its five/six-field input and attribute prefixes, opaque
+bars and original bar3d inset/front/side/top schedules. WORD projection,
+top BYTE, orientation, patterns/XOR, producer register effects and distinct
+point owners have independent component/native expectations. Native tests
+cover split/profile, source/scaling/flow/reply and timeout/EOF/reset/error
+prefixes; batched byte reads reconstruct all four planes at the indexed
+boundary.84 coherent application scenes bring coverage to1246, checking
+opaque/XOR/box/top scenes with existing complete text/pixels/palette/points/
+fill/cursor/replies/RGB observations. Page/image/curve/audio composition and
+full45-entry acceptance remain pending; routine tests remain BIG-only.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

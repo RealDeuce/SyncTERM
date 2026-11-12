@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_draw.h"
 #include "st_big_producer.h"
+#include "st_big_bar3d.h"
 #include "st_big_number.h"
 #include "st_bgi_line.h"
 #include "st_bgi_data.h"
@@ -233,12 +234,10 @@ static int bar_edge(const struct st_big_draw_sink *sink, uint16_t x, uint16_t y,
 	int status=bar_byte(sink,x,y,(uint8_t)(edge&row),pen);
 	return status!=0?status:bar_byte(sink,x,y,(uint8_t)(edge&~row),0);
 }
-int st_big_draw_bar(struct st_big_state *s, const uint16_t requested[4], const struct st_big_draw_sink *sink)
+static int bar_translated(struct st_big_state *s, const uint16_t translated[4], const struct st_big_draw_sink *sink)
 {
-	if (s==NULL || requested==NULL || sink==NULL || sink->pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	int status=installed(s); if (status!=0) return status;
-	uint16_t p[4], b[4];
-	for (size_t i=0;i<4;++i) p[i]=(uint16_t)(requested[i]+s->bgi.viewport[i%2]);
+	uint16_t p[4], b[4]; memcpy(p,translated,sizeof(p));
 	bounds(s,b); bool visible;
 	status=st_big_draw_bar_clip(b,p,&visible); if (status!=0 || !visible) return status;
 	/* The raw bar sorts UNSIGNED, after the signed DDO clip. */
@@ -270,6 +269,13 @@ int st_big_draw_bar(struct st_big_state *s, const uint16_t requested[4], const s
 		if (status!=0) return status;
 	}
 	return 0;
+}
+int st_big_draw_bar(struct st_big_state *s, const uint16_t requested[4], const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || requested==NULL || sink==NULL || sink->pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t p[4];
+	for (size_t i=0;i<4;++i) p[i]=(uint16_t)(requested[i]+s->bgi.viewport[i%2]);
+	return bar_translated(s,p,sink);
 }
 int st_big_draw_point(struct st_big_state *s, uint16_t x, uint16_t y, uint16_t color, const struct st_big_draw_sink *sink)
 {
@@ -310,6 +316,94 @@ static int strokes(struct st_big_state *s, const uint16_t *p, const struct st_bi
 	offset=(uint16_t)(offset*2u);
 	side[axis]=(uint16_t)(side[axis]+offset); side[axis+2]=(uint16_t)(side[axis+2]+offset);
 	return thin(s,side,sink);
+}
+/* The bar3d caller observes CX/DX from the producer before the stroke's
+ * saved-register bracket. Its later AX/BX uses are explicitly reloaded
+ * or saved below, so no unused line-return register emulation is needed. */
+static int bar3d_line(struct st_big_state *s, struct st_big_producer *producer,
+    struct st_big_producer_registers *r, const struct st_big_producer_sink *sink)
+{
+	bool suppressed;
+	int status=st_big_producer_emit(producer,s,r,sink,&suppressed);
+	if (status!=0 || suppressed) return status;
+	uint16_t p[]={s->bgi.ddo_x,s->bgi.ddo_y,r->ax,r->bx};
+	s->bgi.ddo_x=r->ax; s->bgi.ddo_y=r->bx;
+	return strokes(s,p,&sink->drawing);
+}
+static int bar3d_move(struct st_big_state *s, struct st_big_producer *producer,
+    struct st_big_producer_registers *r, const struct st_big_producer_sink *sink)
+{
+	bool suppressed;
+	int status=st_big_producer_emit(producer,s,r,sink,&suppressed);
+	if (status!=0 || suppressed) return status;
+	s->bgi.ddo_x=s->bgi.device_x=r->ax; s->bgi.ddo_y=s->bgi.device_y=r->bx;
+	return 0;
+}
+static int bar3d_top(struct st_big_state *s, struct st_big_producer *producer,
+    struct st_big_producer_registers *r, const struct st_big_producer_sink *sink)
+{
+	r->ax=(uint16_t)(s->bgi.bar_corners[0]+r->cx);
+	int status=bar3d_line(s,producer,r,sink); if (status!=0) return status;
+	r->ax=s->bgi.bar_corners[0]; r->bx=s->bgi.bar_corners[3]; uint16_t top=r->bx;
+	status=bar3d_line(s,producer,r,sink); if (status!=0) return status;
+	r->ax=s->bgi.bar_corners[2]; r->bx=top; uint16_t right=r->ax;
+	status=bar3d_move(s,producer,r,sink); if (status!=0) return status;
+	r->ax=(uint16_t)(right+r->cx); r->bx=(uint16_t)(top-r->dx);
+	return bar3d_line(s,producer,r,sink);
+}
+int st_big_draw_bar3d(struct st_big_state *s, const uint16_t p[4], uint16_t depth,
+    uint16_t top, struct st_big_producer *producer, const struct st_big_producer_sink *sink)
+{
+	if (s==NULL || p==NULL || producer==NULL || sink==NULL || sink->drawing.pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=installed(s); if (status!=0) return status;
+	uint16_t left=p[0]<p[2]?p[0]:p[2], right=p[0]<p[2]?p[2]:p[0];
+	uint16_t bottom=p[1]>=p[3]?p[1]:p[3], top_y=p[1]>=p[3]?p[3]:p[1];
+	/* Public selector08 bypasses the producer and leaves library CP alone. */
+	s->bgi.ddo_x=s->bgi.device_x=(uint16_t)(left+s->bgi.viewport[0]);
+	s->bgi.ddo_y=s->bgi.device_y=(uint16_t)(bottom+s->bgi.viewport[1]);
+	s->bgi.bar_corners[2]=(uint16_t)(right+s->bgi.viewport[0]);
+	s->bgi.bar_corners[3]=(uint16_t)(top_y+s->bgi.viewport[1]);
+	s->bgi.bar_corners[0]=s->bgi.ddo_x; s->bgi.bar_corners[1]=s->bgi.ddo_y;
+	left=s->bgi.bar_corners[0]; bottom=s->bgi.bar_corners[1];
+	right=s->bgi.bar_corners[2]; top_y=s->bgi.bar_corners[3];
+	if (signed_word(left)>=signed_word(right)) { uint16_t temp=left; left=right; right=temp; }
+	if (signed_word(bottom)<signed_word(top_y)) { uint16_t temp=bottom; bottom=top_y; top_y=temp; }
+	uint16_t inset[]={(uint16_t)(left+1u),(uint16_t)(bottom-1u),(uint16_t)(right-1u),(uint16_t)(top_y+1u)};
+	status=bar_translated(s,inset,&sink->drawing); if (status!=0) return status;
+	/* Front calls use current saved corners, not the independently sorted
+	 * inset. Each saved BX/AX below mirrors a value the caller reuses. */
+	struct st_big_producer_registers r={.ax=s->bgi.bar_corners[0],.bx=s->bgi.bar_corners[3]};
+	top_y=r.bx;
+	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	r.ax=s->bgi.bar_corners[2]; r.bx=top_y; right=r.ax;
+	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	r.ax=right; r.bx=s->bgi.bar_corners[1]; bottom=r.bx;
+	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	r.ax=s->bgi.bar_corners[0]; r.bx=bottom;
+	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	r.ax=s->bgi.bar_corners[2]; r.bx=s->bgi.bar_corners[1]; right=r.ax;
+	status=bar3d_move(s,producer,&r,sink); if (status!=0) return status;
+	r.ax=right;
+	if (depth!=0) {
+		r.cx=depth; r.dx=(uint16_t)((uint16_t)(depth*3u)>>2);
+		if (s->bgi.orientation!=0) r.cx=(uint16_t)(0u-r.dx);
+		if (s->bgi.orientation!=0 && (uint8_t)top==0) {
+			r.ax=s->bgi.bar_corners[0]; r.bx=s->bgi.bar_corners[3]; left=r.ax; top_y=r.bx;
+			status=bar3d_move(s,producer,&r,sink); if (status!=0) return status;
+			r.ax=(uint16_t)(left+r.cx); r.bx=(uint16_t)(top_y-r.dx); top_y=r.bx;
+			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+			r.ax=(uint16_t)(s->bgi.bar_corners[2]+r.cx); r.bx=top_y;
+			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+		} else {
+			r.ax=(uint16_t)(r.ax+r.cx); r.bx=(uint16_t)(r.bx-r.dx); right=r.ax;
+			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+			r.ax=right; r.bx=(uint16_t)(s->bgi.bar_corners[3]-r.dx); top_y=r.bx;
+			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+			r.bx=top_y;
+			if ((uint8_t)top!=0) { status=bar3d_top(s,producer,&r,sink); if (status!=0) return status; }
+		}
+	}
+	return st_big_draw_color(s,s->bgi.color);
 }
 int st_big_draw_line(struct st_big_state *s, const uint16_t p[4], const struct st_big_draw_sink *sink)
 {

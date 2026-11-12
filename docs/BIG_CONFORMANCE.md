@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/M/T attributes, m movement, P markers and L/D/d lines run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/M/T attributes, m movement, P markers, L/D/d lines and B bars/boxes run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -701,3 +701,37 @@ Native CMake Release configure/full build and final focused builds (/usr/bin/cc,
 
 Original shared point producer commit: `404d4c1`.
 Native B/bar3d/curve and remaining full45-entry composition stay in progress.
+
+## Native B bars and boxes
+
+B acquires four scaled coordinates and unscaled kind before installing
+current line colour/fill. It independently selects direct bar0, depth0
+bar3d1 or signed kind>1 plus a sixth unscaled top read. A waiting sixth
+read retains attributes; current kind supplies depth when that read returns.
+Negative kinds draw nothing, rejected custom fills retain the old installed
+mask/pen, and H/old BGI errors do not suppress geometry. Existing numeric,
+source/deadline, footer/flow/reply and cancellation owners remain in use.
+
+Bar3d preserves unsigned public sorting, lower initial move, signed inset
+and second sort, original stroke phase/order, wrapped depth, orientation,
+top BYTE and all three point owners. Collector and point-return paths use
+the shared producer; changed projection registers are retained. Returning
+colour resubmission uses the current tuple, with no tile rebuild or forced
+line mode. Native errors retain prefixes and skip unreached tails. Batched
+read bytes are reconstructed from PRIMARY indexed bits in the same console
+transaction; no planar framebuffer is added. Physical page/image and curve
+buffer allocation/flush remain separate pending dependencies.
+
+`big_bar3d` checks literal masks/visits/points, projection boundaries,
+collectors, point-register quirks and failures. `cterm_big_bar` compares full
+indexed blink planes at every split/default profile and bytewise across all
+three modes/encodings/status settings, with prefixes/timeout/EOF/reset,
+recovery, current depth, scaling/source/repetition/replies and all four native
+read planes. The initial wire case failed before registration.84 application
+scenes bring coverage to1246, retaining coherent complete scene/state/replies
+and RGB checks while adding XOR corner parity, top/CP changes and opaque
+checker holes over prior nonzero pixels. B integration is implemented;
+remaining global composition and full45-entry acceptance stay pending.
+Routine verification remains BIG-only; the final full suite is deferred.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and focused builds were clean. All20 BIG-specific native CTest checks passed in17.62s. The application fixture passed in67.91s (test67.87s),1246 coherent scenes including84 new B scenes. Final live-attribute-prefix cases passed in cterm_big_bar in1.47s (test1.40s). No non-BIG tests ran; the final full suite remains deferred. Native B/bar3d/indexed point-read integration is implemented; page/image/curve/audio and full45-entry composition remain pending.

@@ -23,7 +23,8 @@ wire & setup, source/footer replay and local stored-loop keys. T attributes
 and P marker drawing now run through a shared thin BGI kernel with BIG
 adapters, as do native L/D/d line commands. Native m graphics-point movement
 and < keyboard/hybrid pointer input are integrated, along with native M
-writing-mode selection, C application colours and A fill installation. Other drawing commands,
+writing-mode selection, C application colours, A fill installation and B
+opaque bars/projected boxes. Other drawing commands,
 page/image binding, sound and full command
 acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -1598,3 +1599,80 @@ Native CMake Release configure/full build and final focused builds (/usr/bin/cc,
 
 Original shared point producer commit: `404d4c1`.
 Native B/bar3d/curve and remaining full45-entry composition stay in progress.
+
+=== Native B bars and projected boxes
+
+B is registered in the same pre-ANSI parser as the other BIG commands.
+Its first four fields use classes1/2/1/2, followed by class0 kind. Only
+after those five values return does it install CURRENT line colour and
+apply CURRENT fill through the existing independent built-in/custom paths.
+A rejected custom fill leaves the older active mask/pen installed while
+the new line colour is already present. Pending older BGI errors do not
+suppress later geometry. H does not select or suppress a B branch.
+
+The body independently tests current kind0 for a direct opaque bar, kind1
+for depth0/top0 bar3d and signed kind>1 for an additional class0 top read.
+Negative kinds retain attributes and draw nothing. The sixth read is an
+owner continuation using the existing numeric reader/source/deadline API.
+Its admitted branch survives a later kind change; returning top uses the
+CURRENT kind as depth without revalidation, and only top's low BYTE controls
+the top edges. Attribute effects survive EOF/reset during that read. The
+normal common footer handles chaining, supplied-value repetition, flow and
+deferred replies. Cancellation clears the acquisition frame without rolling
+back accepted attributes, pixels or graphics point state.
+
+`st_big_draw_bar3d` composes original public unsigned sorting/lower move,
+DDO069a's current saved corners, independently signed-sorted WORD inset,
+the second rectangle sort/clip and exact old-point-first front/side/top
+stroke order. A nominal one-column face can fill outside its X bounds
+after its inverted inset sorts again. Public CP remains unchanged; lower
+and device CP retain their distinct final values. The public initial
+move bypasses the producer; subsequent lower moves/lines use the shared
+producer. Normal collector overflow keeps BGI-6 and continues. Host failures
+stop at the reached prefix without final colour resubmission or point tails.
+
+Depth projection reduces three-times-depth to a WORD before logical division
+by4. Depth21845 gives16383,21846 gives0 and30000 gives6116. The nonzero
+orientation path and top256/257 distinction follow the original schedules.
+Producer2's changed CX/DX are retained across each lower line's saved-register
+bracket, as well as its changed coordinate words. Only register values the
+bar3d caller later reads are represented; no CPU emulator is introduced.
+Every returning bar3d reloads the current draw/fill tuple without rebuilding
+the indexed tile or forcing line style/width/XOR.
+
+The native batched point byte callback reconstructs the requested read-plane
+bits from eight PRIMARY indexed pixels at the boundary. It runs before the
+point write in the same console modification transaction; both blink planes
+receive the resulting point. Current installed mode/page pitch supplies the
+observable segment-high return. Invalid indices/planes/storage fail at the
+actual native access. There is no planar shadow or per-blit conversion.
+Physical-page binding beyond the currently installed page0 remains part of G.
+The curve buffer allocator/flush lifecycle remains a later curve dependency;
+B itself does not allocate or flush that buffer.
+
+New `big_bar3d` literal expectations preceded implementation. They cover
+COPY/XOR corner visits, patterned phase, inverted inset, both orientations,
+top BYTE, wrapped depth boundaries, translated/saved corners, all three CP
+owners, collector markers/overflow, batched/unbatched producer2 register
+effects, current tuple restoration and native failure prefixes. The first
+native `cterm_big_bar` wire expectation failed before B registration.
+Every split/default-profile and bytewise/all three mode/encoding/status
+cases compare both entire indexed planes against independently authored
+flat/outline/side/top/custom/thick scenes. Further native cases cover early
+attributes, EOF on either side of kind, sixth-read timeout/reset callbacks,
+current depth changes, invalid fill/uninstalled prefixes, g3 Y5->11 and
+class0 kind/top, supplied/wire seams, inclusive varying repetition and exact
+deferred replies. All four batched read planes have independent return-word
+checks against the actual indexed backend.
+
+The application fixture adds84 coherent scenes,1246 total: negative kind
+attributes, opaque COPY under line XOR, XOR corner parity, depth/top changes
+with distinct CP owners and checker holes overwriting prior nonzero pixels.
+Each scene keeps the preceding console glyph/blink/text/palette/cursor,
+coloured RGB swatch, fill cache and raw replies in the same capture. New
+solid interiors also verify composed magenta RGB. The control fixture checks
+that B's continuation is idle in every scene. Physical audio/MIDI stay off.
+Native B is implemented; page/image/curve/audio and full45-entry composition
+remain pending. Routine tests stay BIG-only until the final full suite.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and focused builds were clean. All20 BIG-specific native CTest checks passed in17.62s. The application fixture passed in67.91s (test67.87s),1246 coherent scenes including84 new B scenes. Final live-attribute-prefix cases passed in cterm_big_bar in1.47s (test1.40s). No non-BIG tests ran; the final full suite remains deferred. Native B/bar3d/indexed point-read integration is implemented; page/image/curve/audio and full45-entry composition remain pending.
