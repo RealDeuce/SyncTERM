@@ -339,3 +339,6 @@ checking exact retained pixels/fonts/palettes/cells/cursor alongside step state.
 X6 and the parent remain in progress; full command acceptance remains0/45.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.
+
+X dispatch/X6 keyboard-step integration commit: `b94c237`.
+Other X selectors, pointer input and the full45-entry goal remain in progress.
