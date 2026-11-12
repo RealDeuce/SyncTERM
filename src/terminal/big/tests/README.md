@@ -101,3 +101,16 @@ patterns likewise have an independent full-data identity. Chapter 26/83's
 weights; the sixteen default codes are literal. Full SHA256 identities and
 the source paths are retained in docs/BIG_IMPLEMENTATION.adoc. No external
 ROM/reference installation is required to run these tests.
+
+
+`st_big_control_test.c` transcribes footer/flow rules from original chapters
+21,32,33 and43. Literal traces distinguish repeat from finishing XON, type/
+gang cleanup, chain deferral and pending preclear. An independent unsigned
+interval oracle checks all65536 count predicates for signed flow repetition
+and signed WORD(count+1)>index. A real32767-byte flow runs in bounded batches.
+Raw reply expectations include NUL/ff/pipe/tilde and exact CR readiness counts.
+Callbacks alter current counts/data/CR and block before/after byte acquisition
+to verify original read order, latched arguments, completed prefixes and errors.
+The bounded reply test emits positions1..255 before rejecting position256;
+it does not infer safety from a preclamped total. No fixture runs a foreign
+UART, clock or DOS program. CTerm/application integration is checked separately.

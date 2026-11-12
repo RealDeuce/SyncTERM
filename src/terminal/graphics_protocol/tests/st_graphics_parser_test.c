@@ -517,9 +517,49 @@ header_completion(void)
 	return 0;
 }
 
+static int unknown_command(void *context, const struct st_graphics_command_view *view)
+{
+	struct capture *c=context;
+	CHECK(view->count==0 && c->unknown==c->commands+1);
+	return command(context,view);
+}
+static int unknown_completion(void)
+{
+	for (size_t split=0;split<=4;++split) {
+		st_graphics_parser_t *p=NULL; struct capture c={.suspend=true};
+		struct st_graphics_parser_sink s=sink(&c); s.unknown_command=unknown_command; size_t used;
+		CHECK(create(&p,&igs,16,1024)==0);
+		const uint8_t wire[]="G#@>Q tail";
+		/* Feed both sides of every header split; unknown owns only pair. */
+		size_t count=split<4?split:4;
+		CHECK(st_graphics_parser_feed(p,&s,wire,count,&used)==(count==4?IO_ERROR_IN_PROGRESS:0) && used==count);
+		if (count<4) CHECK(st_graphics_parser_feed(p,&s,wire+count,sizeof(wire)-1-count,&used)==IO_ERROR_IN_PROGRESS && used==4-count);
+		CHECK(c.commands==1 && c.codes[0]=='@' && c.unknown==1 && c.text_size==0);
+		CHECK(st_graphics_parser_feed(p,&s,NULL,0,&used)==IO_ERROR_IN_PROGRESS && c.commands==1);
+		CHECK(st_graphics_parser_resume(p)==0); c.suspend=false;
+		CHECK(st_graphics_parser_feed(p,&s,wire+4,sizeof(wire)-5,&used)==0);
+		CHECK(c.commands==2 && c.codes[1]=='Q' && c.text_size==4 && memcmp(c.text,"tail",4)==0);
+		/* Source-selected unknowns retain normal legacy rejection unless opted in. */
+		CHECK(st_graphics_parser_start_command(p,&s,'@',false)==0);
+		c.suspend=true;
+		/* The test callback expects its notification count relative to unknown calls. */
+		c.commands=0; c.unknown=0;
+		CHECK(st_graphics_parser_feed(p,&s,NULL,0,&used)==IO_ERROR_IN_PROGRESS && c.commands==1 && c.unknown==1);
+		CHECK(st_graphics_parser_finish(p,&s)==IO_ERROR_IN_PROGRESS);
+		st_graphics_parser_cancel(p); c.commands=0; c.unknown=0; c.fail=IO_ERROR_IO;
+		CHECK(st_graphics_parser_feed(p,&s,wire,4,&used)==IO_ERROR_IO && used==4 && !st_graphics_parser_in_command(p));
+		CHECK(c.commands==1 && c.unknown==1);
+		s.unknown_command=NULL;
+		CHECK(st_graphics_parser_start_command(p,&s,'@',false)==IO_ERROR_NOT_SUPPORTED);
+		st_graphics_parser_destroy(p);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(unknown_completion() == 0);
 	CHECK(header_completion() == 0);
 	CHECK(field_entries() == 0);
 	CHECK(literal_examples() == 0);

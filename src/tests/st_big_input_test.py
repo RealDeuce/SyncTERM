@@ -32,6 +32,8 @@ def check(frame, resolution, status, seeded, token):
     assert (s["cterm.big_bgi_width"], s["cterm.big_bgi_height"]) == (640, height)
     assert (s["cterm.x"], s["cterm.y"], s["cterm.bottom_margin"]) == (len(token) + 1, 1, rows - int(status))
     assert not m["cursor_visible"] and not s["cterm.big_pair_wait"]
+    assert s["cterm.big_loop_type"] == 32 and not s["cterm.big_footer_active"]
+    assert not s["cterm.big_reply_pending"]
     assert tuple(frame.palette[800:816]) == PALETTE
     assert frame.cell_text(cell_at(frame, 12, 12)) == ("A" if seeded else " ")
     assert frame.cell_text(cell_at(frame, 2, 3)) == ("\u2588" if seeded else " ")
@@ -81,7 +83,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                     seed = b"\x1b[?25l\x1b[0m\x1b[2J\x1b[13;13HA\x1b[4;3H\x1b[31;44;5m" + block + b"\x1b[0m"
                     for step, command in enumerate((b"I#I 1:", b"I#I 0:", b"I#I 1:")):
                         token = f"LIVE{connection}{step}"
-                        wire = (seed if step != 1 else b"") + command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                        wire = (seed if step != 1 else b"") + command + b"I#@>I 1:" + b"\x1b[H" + token.encode() + b"\x1b[6n"
                         with (root / "wire.bin").open("ab") as log: log.write(wire)
                         peer.sendall(wire)
                         expected = f"\x1b[1;{len(token) + 1}R".encode()

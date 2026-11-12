@@ -140,8 +140,8 @@ fixtures check literal IBM8x14 glyph rows, full-block pixels in both blink
 phases, palette/cursor state, deadlines, random suspension, EOF/reset and
 reset from a semantic callback. Physical audio is absent.
 
-The complete loop/gang/flow/reply footer and native key binding remain pending.
-Profile/menu/Wren selection and application captures are recorded below. I is
+Common loop/gang/flow/reply footer integration is recorded below. Native key
+binding and the &/< wire producers remain pending. I is
 in progress; no complete BIG command is claimed (0/45).
 
 Native CMake Release full build (/usr/bin/cc, build/) passed with no compiler/source diagnostics. The broader run passed88 existing BIG/shared-parser/IGS/RIP/SkyPix/terminal/session regressions in105.29s; its initial BIG fixture failure was a wrong assumption that timeout discards prior digits. Chapter5 and independent big_number expectations establish retained slots. The corrected/rebuilt cterm_big and graphics_protocol_parser tests both passed in2.43s (cterm_big2.36s); production behavior was unchanged by that fixture correction.
@@ -169,6 +169,35 @@ Mode installation now registers/selects each exact ROM console bank, with at
 most one new registration per size in a terminal owner. The application uses
 a narrow read-only inspection callback; BIG state stays private to CTerm.
 All wire commands except the current I operations still need implementation,
-and full I loop/flow/reply acceptance remains pending (0/45 complete).
+and full I acceptance remains pending (0/45 complete).
 
 Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Nine selected native tests passed in26.42s, including full wren_host, bbs_list, term, connection, screen_mode, app_session_mode and BIG state/profile/input checks. Four application regressions passed in13.53s: BIG input, IGS init/editor, CGA mode and BBS setters. After adding the unsupported-profile case, cterm_big and syncterm_big_input passed again in14.23s; the application test checks84 independently expected scenes across28 connections plus editor persistence.
+
+
+## Common control/footer integration
+
+The live CTerm owner now performs original repeat-before-footer ordering,
+finishing XON, SPACE/X cleanup, chain deferral and counted input replies after
+recognized and unknown commands. Gang selection consumes the shared numeric
+source before publishing its selected command; it can end looping and leave
+remaining fields to wire input. Repetition retains frame/page locals and
+acquires no new pair deadline. Unknown handlers suspend through a new optional
+shared-parser callback; existing notification-only users retain their behavior.
+
+`big_control` checks both full WORD count domains, an actual32767-byte flow,
+raw NUL/ff/pipe/tilde replies, current count/data/CR reads, readiness/send waits,
+errors and idempotence. `cterm_big` checks real body repetition/gang seams,
+byte/body work budgets, user versus response output, partial effects, reset/
+EOF and pair deadlines after finishing flow. The existing application fixture
+checks unknown chaining and coherent SPACE/footer/pending state in84 scenes.
+
+The native transport queues output; no foreign UART or DOS capture UI is
+reproduced. Defined gang suffix initialization and bounded reply access replace
+unsafe foreign stack/address escapes. A malformed count fails at the first
+out-of-range access after retaining its emitted prefix. Reset/EOF clears
+pending work without fabricating data or running drawing defaults.
+
+Wire setup for &/<, native keyboard ownership, text-source composition and
+music synchronization remain pending. No command is marked complete (0/45).
+
+Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All90 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session CTest checks passed in104.50s. BIG/IGS coherent application tests both passed in14.64s; the BIG fixture covers84 scenes. The strengthened post-flow pair-deadline case passed with big_control/cterm_big in2.59s. All9 final focused shared-parser/BIG/IGS checks passed in2.54s after appending the optional callback to preserve prior member offsets.

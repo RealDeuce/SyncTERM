@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"%s:%d: %s\n",__FILE__,__LINE__,#x); exit(1); } } while (0)
-struct fixture { st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal; unsigned bells; bool reset; };
+struct fixture { st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal; unsigned bells, resizes; bool reset, block_output, reset_output, reset_ready; uint8_t output[1024]; enum st_cterm_output_origin origins[1024]; size_t output_size; };
 static uint64_t local_ns;
 static int clock_ns(void *context, uint64_t *value) { (void)context; *value = local_ns; return 0; }
 static void bell(void *context) { struct cterm_big *b = context; ++((struct fixture *)b->terminal->api_input_filter_context)->bells; }
@@ -17,6 +17,25 @@ static int filter(void *context, uint32_t scalar, bool *consumed, char *replacem
 	struct fixture *f = context; (void)replacement; (void)capacity; *consumed = false; *size = 0;
 	if (f->reset && scalar == '!') { f->reset = false; CHECK(st_cterm_reset_terminal(f->terminal) == 0); *consumed = true; }
 	return 0;
+}
+static void output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
+{
+	struct fixture *f=context;
+	CHECK(size<=sizeof(f->output)-f->output_size);
+	for (size_t i=0;i<size;++i) f->origins[f->output_size+i]=origin;
+	memcpy(f->output+f->output_size,bytes,size); f->output_size+=size;
+	if (f->reset_output) { f->reset_output=false; CHECK(st_cterm_reset_terminal(f->terminal)==0); }
+}
+static void resized(void *context, uint32_t columns, uint32_t rows, uint32_t width, uint32_t height)
+{
+	struct fixture *f=context; (void)rows; CHECK(columns==80 && width==640 && height==350); ++f->resizes;
+}
+static int ready_output(void *context, enum st_big_output_kind kind)
+{
+	struct cterm_big *b=context; struct fixture *f=b->terminal->api_input_filter_context;
+	if (kind==ST_BIG_OUTPUT_REPLY) CHECK(b->control.input.pending==0);
+	if (f->reset_ready) { f->reset_ready=false; CHECK(st_cterm_reset_terminal(f->terminal)==0); }
+	return f->block_output?IO_ERROR_IN_PROGRESS:0;
 }
 static void create(struct fixture *f, bool utf8, bool status)
 {
@@ -29,11 +48,13 @@ static void create(struct fixture *f, bool utf8, bool status)
 		.console=f->console,.fonts=f->fonts,.font_selector=0,.emulation=ST_CTERM_ANSI_BBS,
 		.graphics_mode=ST_CTERM_GRAPHICS_BIG_103,.encoding=utf8?ST_CTERM_ENCODING_UTF8:ST_CTERM_ENCODING_CODEPAGE,
 		.codepage=ST_CODEPAGE_CP437,.quiet=true,.status_line=status,.scrollback_lines=2,
-		.input_filter=filter,.input_filter_context=f,
+		.input_filter=filter,.input_filter_context=f,.output=output,.output_context=f,
+		.size_changed=resized,.size_context=f,
 	};
 	CHECK(st_cterm_create(&f->terminal,&config) == 0);
 	f->terminal->big_engine->numeric.io.now_ns = clock_ns;
 	f->terminal->big_engine->numeric.io.bell = bell;
+	f->terminal->big_engine->control_io.ready=ready_output;
 }
 static void destroy(struct fixture *f)
 {
@@ -165,7 +186,95 @@ static void deadlines_and_recovery(void)
 	string(&f,"I#I 1:"); CHECK(b->state.application.marker==7);
 	destroy(&f);
 }
+static void reply_and_footer(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	b->control.input.pending=1; b->control.input.count=4; b->control.input.append_cr=1;
+	memcpy(b->control.input.payload+1,(uint8_t[]){0,0x7c,0x7e,0xff},4);
+	b->numeric.loop.type='@'; string(&f,"I#I>1:");
+	CHECK(f.output_size==0 && b->control.input.pending==1 && b->numeric.loop.type==' ');
+	string(&f,"@ Z");
+	CHECK(f.output_size==5 && memcmp(f.output,(uint8_t[]){0,0x7c,0x7e,0xff,13},5)==0);
+	CHECK(b->control.input.pending==0 && b->control.frame.command==0 && f.terminal->xpos==2);
+	for (size_t i=0;i<f.output_size;++i) CHECK(f.origins[i]==ST_CTERM_OUTPUT_USER);
+	/* No reader call on an unknown pair means inherited loop1 does not repeat. */
+	string(&f,"I#"); b->numeric.loop.active=1; b->numeric.loop.command_read=true;
+	string(&f,"@ Z"); CHECK(b->numeric.loop.active==1 && f.terminal->xpos==3);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->numeric.loop.active==0);
+	destroy(&f);
+}
+static void stored_repetition(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#"); b->state.memory_page=3; b->control.frame.did_loop=1;
+	b->numeric.loop=(struct st_big_loop){.active=1,.count=1,.step=1,.to=2,.type='@',.words={0x8001}};
+	b->control.input.pending=1; b->control.input.count=2;
+	b->control.input.payload[1]=0; b->control.input.payload[2]=0xff; b->control.input.append_cr=1;
+	string(&f,"I Z");
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && b->numeric.loop.varying_total==3);
+	CHECK(f.resizes==3 && b->state.memory_page==3 && b->numeric.loop.type==' ');
+	CHECK(f.output_size==4 && memcmp(f.output,(uint8_t[]){17,0,0xff,13},4)==0 && f.terminal->xpos==2);
+	CHECK(f.origins[0]==ST_CTERM_OUTPUT_RESPONSE);
+	for (size_t i=1;i<4;++i) CHECK(f.origins[i]==ST_CTERM_OUTPUT_USER);
+	/* Normal large constant loop yields cooperatively without consuming tail. */
+	string(&f,"I#"); b->numeric.loop=(struct st_big_loop){.active=1,.count=1,.step=1,.to=30000,.no_parameters=1,.type='@',.words={1}};
+	b->control.frame.did_loop=1; b->control.input.pending=1; size_t used;
+	CHECK(st_cterm_write(f.terminal,"I ZZ",4,&used)==IO_ERROR_IN_PROGRESS && used==2);
+	CHECK(st_cterm_input_paused(f.terminal) && b->numeric.loop.current==65 && b->control.frame.did_loop==1 && f.output_size==4);
+	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==129 && st_cterm_input_paused(f.terminal));
+	CHECK(st_cterm_finish(f.terminal)==0 && !st_cterm_input_paused(f.terminal) && b->control.input.pending==0 && b->numeric.loop.active==0 && f.output_size==4);
+	destroy(&f);
+}
+static void gang_source_seams(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#"); b->control.frame.gang_marker='>'; b->control.frame.gang[0]='I'; b->control.frame.gang[1]='@'; b->control.frame.did_loop=1;
+	b->numeric.loop=(struct st_big_loop){.active=1,.count=3,.step=1,.to=2,.no_parameters=1,.type=',',.words={1,0,1}};
+	string(&f,"I Z");
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && b->numeric.loop.index==0 && b->numeric.loop.command=='I');
+	CHECK(b->control.frame.gang_marker=='X' && f.output_size==1 && f.output[0]==17 && f.terminal->xpos==2);
+	/* The selector itself ends looping; selected I then reads wire1. */
+	string(&f,"I#"); b->state.application.marker=7; b->control.frame.gang_marker='>'; b->control.frame.gang[0]='I';
+	b->numeric.loop=(struct st_big_loop){.active=1,.count=2,.step=1,.to=1,.no_parameters=1,.type=',',.command='W',.words={1,0}};
+	string(&f,"I 1:Z"); CHECK(b->state.application.marker==7 && b->numeric.loop.active==0 && b->numeric.loop.command=='I' && f.terminal->xpos==3);
+	destroy(&f);
+}
+static void footer_wait_reset(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	b->control.input.pending=1; b->control.input.count=2; memcpy(b->control.input.payload+1,"AB",2);
+	f.block_output=true; size_t used;
+	CHECK(st_cterm_write(f.terminal,"I#I 0:TAIL",10,&used)==IO_ERROR_IN_PROGRESS && used==6);
+	CHECK(f.resizes==2 && b->control.input.pending==0 && st_cterm_input_paused(f.terminal));
+	CHECK(st_cterm_poll(f.terminal)==0 && f.resizes==2 && f.output_size==0);
+	f.block_output=false; CHECK(st_cterm_poll(f.terminal)==0 && !st_cterm_input_paused(f.terminal));
+	CHECK(f.output_size==2 && memcmp(f.output,"AB",2)==0 && f.resizes==2);
+	string(&f,"TAIL"); CHECK(f.terminal->xpos==5);
+	b->control.input.pending=1; b->control.input.count=3; memcpy(b->control.input.payload+1,"XYZ",3);
+	f.reset_output=true;
+	CHECK(st_cterm_write(f.terminal,"I#I 1:TAIL",10,&used)==0 && used==6 && !f.reset_output);
+	CHECK(f.output_size==3 && f.output[2]=='X' && !b->footer_active && b->control.input.pending==0);
+	string(&f,"I#I 1:"); CHECK(f.output_size==3);
+	b->control.input.pending=1; b->control.input.count=1; f.reset_ready=true;
+	CHECK(st_cterm_write(f.terminal,"I#I 1:",6,&used)==0 && used==6);
+	CHECK(f.output_size==3 && !b->footer_active && !f.reset_ready);
+	b->control.input.pending=1; b->control.input.count=1; f.block_output=true;
+	CHECK(st_cterm_write(f.terminal,"I#I 1:",6,&used)==IO_ERROR_IN_PROGRESS && used==6);
+	CHECK(st_cterm_finish(f.terminal)==0 && !st_cterm_input_paused(f.terminal));
+	f.block_output=false; CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==3);
+	/* A chained pair deadline starts after finishing flow has returned. */
+	string(&f,"I#"); b->control.frame.did_loop=1; f.block_output=true;
+	CHECK(st_cterm_write(f.terminal,"I>1:",4,&used)==IO_ERROR_IN_PROGRESS && used==4 && !b->pair_wait);
+	local_ns+=2*ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && !b->pair_wait && f.bells==0);
+	f.block_output=false;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->pair_wait && b->pair_deadline==local_ns+ST_BIG_NUMERIC_TIMEOUT_NS);
+	CHECK(f.output_size==4 && f.output[3]==17 && f.origins[3]==ST_CTERM_OUTPUT_RESPONSE);
+	string(&f,"I 1:"); CHECK(f.bells==0 && !b->pair_wait);
+	destroy(&f);
+}
 int main(void)
 {
-	partitions(); framing_and_state(); deadlines_and_recovery(); return 0;
+	partitions(); framing_and_state(); deadlines_and_recovery(); reply_and_footer();
+	stored_repetition(); gang_source_seams(); footer_wait_reset(); return 0;
 }

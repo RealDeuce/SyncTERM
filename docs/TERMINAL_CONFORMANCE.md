@@ -26,15 +26,15 @@ prefixes. `big_profile` checks all three video/font profiles against original
 ROM identities, the restored custom patterns and the shared 64-colour EGA
 table. RIP now consumes that same immutable palette data; its native tests
 and coherent CP437/UTF-8 raster captures passed. Indexed page/image storage,
-live backend binding and BIG command completion remain pending.
+its remaining native bindings and BIG command completion remain pending.
 
 `cterm_big` checks the native pre-ANSI BIG path with production numeric
 callbacks and actual I0/I1 indexed-console effects. Independent CP437/UTF-8/
 status/split fixtures check IBM8x14 glyph rows, full-block pixels, palette,
 cursor, frame locals, ff/NUL ownership, late-byte deadlines and EOF/reset/
 semantic-hook recovery. Shared parser header-completion tests cover retained
-identifiers, chaining, suspension and error prefixes. Full loop/flow/reply
-footers and complete command acceptance remain pending.
+identifiers, chaining, suspension and error prefixes. Wire setup for &/<,
+native key ownership and complete command acceptance remain pending.
 
 BIG is selectable as profile/Wren value6. BBS codec and Wren tests preserve
 previous values, cover its presets and property bounds, and persist entries/
@@ -43,6 +43,15 @@ three initial profiles, CP437/UTF-8, status and reconnect, I0/I1 effects,
 exact original console fonts, both indexed blink planes, palette/cells/cursor,
 DSR replies, RGB samples, fallback profiles and menu restoration. Physical
 audio/MIDI are disabled. Complete command acceptance remains0/45.
+
+`big_control` checks original repeat/flow/chain/reply ordering, both WORD count
+domains, literal raw bytes, live reads, suspended prefixes and errors. The
+CTerm fixture covers actual repeated/gang bodies with shared numeric sources,
+source-to-wire seams, bounded work, output origins and reset/EOF recovery.
+The optional shared-parser unknown-command handler owns the same accepted
+suspension boundary without guessing payload. Application captures check
+unknown chaining and final footer state. &/< wire setup, native key ownership,
+text-source composition and audio synchronization remain pending.
 
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered

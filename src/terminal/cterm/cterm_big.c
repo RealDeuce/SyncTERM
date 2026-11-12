@@ -49,7 +49,10 @@ static int boundary(void *context)
 	if (status == 0 && big->reset_pending) return IO_ERROR_INTERRUPTED;
 	if (status != 0) return status;
 	/* New attention creates a frame; chaining keeps its page/palette locals. */
-	if (!st_graphics_parser_in_command(big->parser)) st_big_state_enter(&big->state);
+	if (big->starting_body) return 0;
+	if (!st_graphics_parser_in_command(big->parser)) {
+		st_big_state_enter(&big->state); st_big_control_enter(&big->control);
+	}
 	uint64_t sample;
 	status = now(big,&sample);
 	if (status != 0) return status;
@@ -58,10 +61,16 @@ static int boundary(void *context)
 	big->pair_sample = sample; big->pair_wait = true;
 	return 0;
 }
+static void body_entry(struct cterm_big *big, const struct st_graphics_command_view *view)
+{
+	if (!big->pair_wait) return;
+	big->control.frame.command=view->code; big->numeric.loop.command_read=false;
+	big->pair_wait=false;
+}
 static int field(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
 {
-	owner(context)->pair_wait = false;
+	body_entry(owner(context),view);
 	return st_big_numeric_field(context,view,parameter);
 }
 static int palette(void *context, size_t first, const uint8_t *codes, size_t count, bool bulk)
@@ -138,28 +147,50 @@ static int install(void *context, const struct st_big_mode *mode)
 	if (status == 0) status = st_console_modify_pixels(t->screen.console,clear_pixels,NULL);
 	return status;
 }
+static int output_byte(void *context, enum st_big_output_kind kind, uint8_t byte)
+{
+	struct cterm_big *big=context;
+	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+	if (kind==ST_BIG_OUTPUT_REPLY) {
+		if (big->terminal->keystroke_cb!=NULL)
+			big->terminal->keystroke_cb((const char *)&byte,1,big->terminal->keystroke_cbdata);
+	} else cterm_respond(big->terminal,(const char *)&byte,1);
+	return big->reset_pending?IO_ERROR_INTERRUPTED:0;
+}
+static int begin_footer(struct cterm_big *big, const struct st_graphics_command_view *view)
+{
+	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+	st_big_footer_begin(&big->footer,view->chained); big->footer_active=true;
+	return IO_ERROR_IN_PROGRESS;
+}
 static int command(void *context, const struct st_graphics_command_view *view)
 {
-	struct cterm_big *big = owner(context); big->pair_wait = false;
+	struct cterm_big *big = owner(context); body_entry(big,view);
 	const struct st_big_state_sink sink = {big,install,palette,page};
 	if (view->code != 'I' || view->count != 1 || !view->arguments[0].has_value)
 		return IO_ERROR_PROTOCOL;
-	return st_big_state_initialize(&big->state,(uint16_t)view->arguments[0].value,
+	int status=st_big_state_initialize(&big->state,(uint16_t)view->arguments[0].value,
 	    &big->numeric.context.resolution,&sink);
+	return status==0?begin_footer(big,view):status;
 }
 static void unknown(void *context, uint8_t code)
 {
-	struct cterm_big *big = owner(context); big->pair_wait = false;
+	struct cterm_big *big = owner(context);
 	unsigned mask = 1u<<(code%8);
 	if ((big->warned[code/8]&mask) != 0) return;
 	big->warned[code/8] |= (uint8_t)mask;
 	cterm_log(big->terminal,ST_CTERM_LOG_WARNING,"Unsupported BIG command 0x%02x",(unsigned)code);
 }
+static int unknown_command(void *context, const struct st_graphics_command_view *view)
+{
+	struct cterm_big *big=owner(context); body_entry(big,view);
+	return begin_footer(big,view);
+}
 static struct st_graphics_parser_sink callbacks(struct cterm_big *big)
 {
 	return (struct st_graphics_parser_sink){
 		.context = &big->numeric, .text = text, .boundary = boundary,
-		.command = command, .unknown = unknown, .field = field,
+		.command = command, .unknown = unknown, .unknown_command = unknown_command, .field = field,
 		.number = st_big_numeric_number, .read_number = st_big_numeric_read_number,
 	};
 }
@@ -167,6 +198,9 @@ static void cancel(struct cterm_big *big)
 {
 	st_graphics_parser_cancel(big->parser); st_big_numeric_cancel(&big->numeric);
 	big->pair_wait = big->reset_pending = false;
+	big->footer_active=big->gang_selecting=big->gang_wire=big->starting_body=false;
+	big->control.input.pending=0; big->control.frame.command=big->control.frame.did_loop=0;
+	big->numeric.loop.active=0; big->numeric.loop.command_read=false;
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -188,47 +222,114 @@ static int end_pair(struct cterm_big *big, const struct st_graphics_parser_sink 
 	if (big->numeric.io.bell != NULL) big->numeric.io.bell(big->numeric.io.context);
 	return st_graphics_parser_complete_header(big->parser,sink,0,false);
 }
+static int start_body(struct cterm_big *big, const struct st_graphics_parser_sink *sink)
+{
+	big->starting_body=true;
+	int status=st_graphics_parser_start_command(big->parser,sink,
+	    (uint8_t)big->control.frame.command,big->footer.chained);
+	big->starting_body=false;
+	return status;
+}
+static int begin_repeat(struct cterm_big *big, const struct st_graphics_parser_sink *sink)
+{
+	big->numeric.loop.command_read=false;
+	if (big->control.frame.gang_marker=='>') {
+		big->gang_selecting=true; big->gang_wire=false;
+		const struct st_graphics_command_view view={.code=(uint8_t)big->control.frame.command};
+		return st_big_numeric_field(&big->numeric,&view,scalar);
+	}
+	return start_body(big,sink);
+}
+static int gang_selector(struct cterm_big *big, const struct st_graphics_parser_sink *sink,
+    const uint8_t *bytes, size_t size, size_t *accepted)
+{
+	const struct st_graphics_command_view view={.code=(uint8_t)big->control.frame.command};
+	bool complete=false; int value=0, status=0; *accepted=0;
+	if (!big->gang_wire) {
+		status=st_big_numeric_number(&big->numeric,&view,scalar,&value,&complete);
+		if (status!=0) return status;
+		if (!complete) big->gang_wire=true;
+	}
+	if (big->gang_wire) {
+		status=st_big_numeric_read_number(&big->numeric,&view,scalar,bytes,size,accepted,&value,&complete);
+		if (status!=0 || !complete) return status;
+	}
+	int32_t index=st_big_number_signed((uint16_t)value);
+	if (index<0 || index>127) index=0;
+	uint8_t code=big->control.frame.gang[index];
+	/* Selector evaluation sees the previous lp_com until its return. */
+	big->numeric.loop.command=code; big->control.frame.command=code;
+	big->gang_selecting=big->gang_wire=false;
+	return start_body(big,sink);
+}
 int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t *used)
 {
-	if (used == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	*used = 0;
-	if (big == NULL || (data == NULL && size != 0)) return IO_ERROR_INVALID_ARGUMENT;
+	if (used==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*used=0;
+	if (big==NULL || (data==NULL && size!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	if (big->feeding) return IO_ERROR_BUSY;
-	big->feeding = true;
-	const uint8_t *bytes = data; struct st_graphics_parser_sink sink = callbacks(big);
-	int status = 0;
-	if (size == 0) {
-		bool expired = false;
-		if (big->pair_wait) status = pair_expired(big,&expired);
-		if (status == 0 && expired) status = end_pair(big,&sink);
-		else if (status == 0) { size_t accepted; status = st_graphics_parser_feed(big->parser,&sink,NULL,0,&accepted); }
-	}
-	while (status == 0 && *used < size) {
-		/* BIG terminal drops ff only outside interpreter acquisition, without
-		 * disturbing the shared parser's held attention prefix. */
-		if (!st_graphics_parser_in_command(big->parser) && bytes[*used] == 0xff) { ++*used; continue; }
-		unsigned header = st_graphics_parser_header_remaining(big->parser);
-		bool expired = false;
-		if (big->pair_wait && header == 1) {
-			status = pair_expired(big,&expired);
-			if (status != 0) break;
+	big->feeding=true;
+	const uint8_t *bytes=data; struct st_graphics_parser_sink sink=callbacks(big);
+	size_t output_budget=64, body_budget=64;
+	bool advance_needed=size==0; int status=0;
+	for (;;) {
+		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->footer_active) {
+			enum st_big_footer_action action;
+			status=st_big_footer_poll(&big->footer,&big->numeric.loop,&big->control,
+			    &big->control_io,&output_budget,&action);
+			if (status!=0) break;
+			if (action==ST_BIG_FOOTER_REPEAT) {
+				if (body_budget==0) { status=IO_ERROR_IN_PROGRESS; break; }
+				--body_budget; big->footer_active=false;
+				status=begin_repeat(big,&sink);
+			} else {
+				big->footer_active=false;
+				status=st_graphics_parser_resume(big->parser);
+			}
+			if (status!=0) break;
+			advance_needed=true; continue;
+		}
+		size_t available=*used<size?1u:0u;
+		const uint8_t *input=available==0?NULL:bytes+*used;
+		if (big->gang_selecting) {
+			size_t accepted;
+			status=gang_selector(big,&sink,input,available,&accepted); *used+=accepted;
+			if (status!=0) break;
+			if (big->gang_selecting) { if (*used==size) break; continue; }
+			advance_needed=true; continue;
+		}
+		if (available==0 && !advance_needed) break;
+		advance_needed=false;
+		/* ff is an outer-terminal filter, never a field/pair filter. */
+		if (available!=0 && !st_graphics_parser_in_command(big->parser) && input[0]==0xff) { ++*used; continue; }
+		unsigned header=st_graphics_parser_header_remaining(big->parser);
+		bool expired=false;
+		if (big->pair_wait && (available==0 || header==1)) {
+			status=pair_expired(big,&expired);
+			if (status!=0) break;
 			if (expired) {
-				/* A ready chain byte is consumed before timeout overrides it.
-				 * Complete explicitly before the generic parser can dispatch. */
-				++*used; status = end_pair(big,&sink); continue;
+				if (available!=0) ++*used;
+				status=end_pair(big,&sink);
+				if (status==IO_ERROR_IN_PROGRESS && big->footer_active) { status=0; continue; }
+				if (status!=0) break;
+				continue;
 			}
 		}
 		size_t accepted;
-		status = st_graphics_parser_feed(big->parser,&sink,bytes+*used,1,&accepted);
-		*used += accepted;
-		if (status == 0 && big->pair_wait && header == 2) {
-			status = pair_expired(big,&expired);
-			if (status == 0 && expired) status = end_pair(big,&sink);
+		status=st_graphics_parser_feed(big->parser,&sink,input,available,&accepted); *used+=accepted;
+		if (status==IO_ERROR_IN_PROGRESS && big->footer_active) { status=0; continue; }
+		if (status!=0) break;
+		if (big->pair_wait && header==2) {
+			status=pair_expired(big,&expired);
+			if (status==0 && expired) status=end_pair(big,&sink);
+			if (status==IO_ERROR_IN_PROGRESS && big->footer_active) { status=0; continue; }
+			if (status!=0) break;
 		}
 	}
-	big->feeding = false;
-	if (big->reset_pending) { cancel(big); if (status == IO_ERROR_INTERRUPTED) status = 0; }
-	if (status != 0 && status != IO_ERROR_IN_PROGRESS) cancel(big);
+	big->feeding=false;
+	if (big->reset_pending) { cancel(big); if (status==IO_ERROR_INTERRUPTED) status=0; }
+	if (status!=0 && status!=IO_ERROR_IN_PROGRESS) cancel(big);
 	return status;
 }
 int cterm_big_poll(struct cterm_big *big)
@@ -239,7 +340,8 @@ int cterm_big_poll(struct cterm_big *big)
 }
 bool cterm_big_paused(const struct cterm_big *big)
 {
-	return big != NULL && (big->numeric.field.phase == ST_BIG_NUMERIC_SELECT
+	return big != NULL && (big->footer_active || (big->gang_selecting && !big->gang_wire)
+	    || big->numeric.field.phase == ST_BIG_NUMERIC_SELECT
 	    || big->numeric.field.phase == ST_BIG_NUMERIC_WIRE_STORED
 	    || big->numeric.field.phase == ST_BIG_NUMERIC_WIRE_RANDOM);
 }
@@ -251,7 +353,7 @@ int cterm_big_finish(struct cterm_big *big)
 	int status = st_graphics_parser_finish(big->parser,&sink);
 	cancel(big);
 	/* Remote EOF discards incomplete commands; no timeout or default stores. */
-	return status == IO_ERROR_PROTOCOL ? 0 : status;
+	return status == IO_ERROR_PROTOCOL || status == IO_ERROR_IN_PROGRESS ? 0 : status;
 }
 void cterm_big_destroy(struct cterm_big *big)
 {
@@ -266,7 +368,8 @@ int cterm_big_create(struct cterminal *t)
 	big->terminal = t;
 	const struct st_big_numeric_io io = {.context = big, .bell = bell};
 	int status = st_big_numeric_init(&big->numeric,&io);
-	st_big_state_init(&big->state);
+	st_big_state_init(&big->state); st_big_control_init(&big->control);
+	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
 	const struct st_graphics_parser_config config = {
 		.dialect = &dialect, .commands = commands, .command_count = 1,
 		.max_arguments = 1,
@@ -308,6 +411,10 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_visual_page", big->state.visual_page);
 	st_console_test_number(app, "cterm.big_loop_active", big->numeric.loop.active);
 	st_console_test_number(app, "cterm.big_pair_wait", big->pair_wait);
+	st_console_test_number(app, "cterm.big_footer_active", big->footer_active);
+	st_console_test_number(app, "cterm.big_reply_pending", big->control.input.pending);
+	st_console_test_number(app, "cterm.big_reply_count", big->control.input.count);
+	st_console_test_number(app, "cterm.big_loop_type", big->numeric.loop.type);
 }
 
 #endif

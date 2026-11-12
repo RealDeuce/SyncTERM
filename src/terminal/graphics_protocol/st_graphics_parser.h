@@ -151,6 +151,10 @@ struct st_graphics_parser_sink {
 	int (*raw)(void *, const struct st_graphics_command_view *,
 	    const struct st_graphics_parameter *, size_t offset,
 	    const uint8_t *, size_t size, size_t *accepted, bool *end);
+	/* Optional owner handler for an unrecognized identifier, after unknown's
+	 * notification. Receives an empty argument view and the same accepted
+	 * command/yield/resume contract. No payload is guessed or consumed. */
+	int (*unknown_command)(void *, const struct st_graphics_command_view *);
 };
 
 typedef struct st_graphics_parser st_graphics_parser_t;
@@ -193,7 +197,7 @@ int st_graphics_parser_restore_continuation(st_graphics_parser_t *,
  * At OUTSIDE (without a held attention prefix) or SUSPENDED only. Replacing
  * an accepted suspended command ends its borrowed view's lifetime. Calls
  * boundary once; command/field work starts on the next feed(), including
- * feed(NULL,0). An unknown code returns NOT_SUPPORTED without changing the
+ * feed(NULL,0). An unknown code without an unknown_command handler returns NOT_SUPPORTED without changing the
  * grammar. Boundary errors also leave grammar/view ownership unchanged. */
 int st_graphics_parser_start_command(st_graphics_parser_t *,
 	const struct st_graphics_parser_sink *, uint8_t code, bool chained);

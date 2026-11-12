@@ -532,3 +532,73 @@ Native CMake Release build (/usr/bin/cc, build/) passed without compiler/source 
 
 BBS/Wren selection and coherent application input completion commit: `6730b09`.
 Full I command acceptance and the remaining45-entry work stay open.
+
+
+=== Common footer, flow and repeated-body execution
+
+`st_big_control.c` implements the original21/32/33/43 control owners and
+resumable counted output. A footer repeats only for exact loop1 plus a reader
+call; repetition precedes finishing XON, type/gang reset and deferred output.
+Exact did_loop1 clears before the XON helper. Other/inherited loop words do
+not imply that helper. Type becomes SPACE and the gang marker X after loop/
+flow completion. Chaining preserves pending input; a nonchain exit clears
+pending BEFORE its first output and clears only its local command on return.
+Normal BIG return does not unconditionally clear the shared loop WORD.
+
+Flow samples its mode gate once and reloads signed repetition count and byte
+for each admitted request. Deferred input reloads signed WORD(count+1), with
+wrap, before each data iteration; count7fff emits no data. It reads current
+payload only after readiness, increments after accepted output, and checks
+the current append-CR byte after the data loop. CR has no additional readiness
+probe. NUL, ff, pipe and tilde remain literal bytes. A yielded send holds its
+already acquired byte; a yielded readiness check does not retest the admitted
+count. Host errors preserve completed prefixes and do not retry them.
+
+The CTerm owner now runs these operations after both recognized and unknown
+commands. The shared parser's optional unknown_command callback accepts an
+empty argument view and has the same suspension/resume contract as a known
+command. Old notification-only callers are unchanged. Source-selected unknown
+identifiers can opt into that same path without guessed argument drains.
+
+Repeated bodies use the existing parser and production numeric callbacks.
+They keep the interpreter frame/pages/palette locals and skip pair acquisition
+and its deadline. Gang selection consumes a class0 value, signed-clamps to
+0..127 (otherwise0), then publishes the selected BYTE and lp_com AFTER the
+selector returns. A selector may end looping before the selected command's
+remaining fields, transferring them back to wire input. An unknown gang
+selection still has the selector's reader marker and can repeat.
+
+Queued native transport owns actual readiness; no FOSSIL status/port or DOS
+capture UI is emulated. Flow uses automatic-response output, while deferred
+local input uses user output, preserving the session's distinct suppression
+policies. Per-poll byte/body budgets bound work without truncating protocol
+counts or adding a total loop limit. Pair deadlines begin after a blocked
+finishing helper returns. Reset/EOF cancels pending footer/source work, stops
+active replay and clears pending replies, without running defaults or
+re-emitting accepted bytes. Reset from an output/readiness callback defers
+parser cancellation to the owner boundary.
+
+Safe-port corrections: fresh frame gang suffix bytes are defined zero rather
+than uninitialized stack data. Reply storage has256 positions, including the
+unused zero slot,129 keyboard positions and all byte-counted zone positions.
+A malformed WORD count that actually reaches position256 reports a bounded
+error after its completed prefix; negative/wrapped counts are not clamped.
+Ordinary raw data and current-state read order are retained.
+
+`big_control` has independently derived flow/footer expectations, all65536
+WORD count predicates for both helpers, an actual32767-byte bounded-batch
+flow, raw counted replies, live count/byte/CR changes, admitted-iteration waits,
+latched send bytes, errors and completion idempotence. `cterm_big` checks live
+repetition, preserved frame locals, known/unknown/gang return paths, selectors
+that end looping before wire fields, output classification, large-loop yielding,
+output/reset/EOF prefixes and pair-deadline timing. Its state-injected fixtures
+exercise production source and footer code; they do not claim &/< wire setup
+or native keyboard-device coverage. The application capture fixture also
+checks unknown chaining and coherent final footer/type/pending state.
+
+Native key ownership, &/< wire producers, text-source setup and music sync
+remain pending, as do the remaining command bodies. I is still in progress;
+completion remains0/45. This is a completed control/footer integration step,
+not a claim of full protocol or auditory acceptance.
+
+Native CMake Release full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All90 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session CTest checks passed in104.50s. BIG/IGS coherent application tests both passed in14.64s; the BIG fixture covers84 scenes. The strengthened post-flow pair-deadline case passed with big_control/cterm_big in2.59s. All9 final focused shared-parser/BIG/IGS checks passed in2.54s after appending the optional callback to preserve prior member offsets.

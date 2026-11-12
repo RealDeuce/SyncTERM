@@ -164,7 +164,7 @@ st_graphics_parser_start_command(st_graphics_parser_t *p,
 	if ((p->state != OUTSIDE && p->state != SUSPENDED) || p->prefix_size != 0)
 		return IO_ERROR_BUSY;
 	const struct st_graphics_command *command = find_command(p, code);
-	if (command == NULL)
+	if (command == NULL && sink->unknown_command == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	int status = sink->boundary == NULL ? 0
 	    : synchronous_status(sink->boundary(sink->context));
@@ -281,6 +281,11 @@ advance(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink)
 		if (p->command == NULL) {
 			if (sink->unknown != NULL)
 				sink->unknown(sink->context, p->view.code);
+			if (sink->unknown_command != NULL) {
+				status=sink->unknown_command(sink->context,&p->view);
+				if (status==IO_ERROR_IN_PROGRESS) { p->state=SUSPENDED; return status; }
+				if (status!=0) return status;
+			}
 			after_command(p);
 			continue;
 		}
