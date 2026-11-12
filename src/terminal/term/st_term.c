@@ -941,6 +941,7 @@ handle_event(st_term_session_t *session,
 	const struct st_console_event *event,
 	enum st_term_disposition *disposition, bool *finished)
 {
+	st_cterm_observe_mouse(session->cterm, event);
 	if (session->config.event_hook != NULL) {
 		bool consumed;
 		int status = session->config.event_hook(

@@ -4398,7 +4398,9 @@ arguments or native resources.
   other buttons, movement, status-row and UI-handled events do not report.
   Cell-only events without native pixel coordinates are not approximated.
   Wheel-up retains the local scrollback action.
-  IGS reports mode `3` while X3 or X6 is enabled or holding input.
+  IGS reports mode `3` while X3 or X6 is enabled/holding input, or an
+  interactive `?` query owns the mouse. Query clicks are consumed by that
+  query and do not trigger the outer X3/X6 behavior.
   X3 sends the loaded raw macro once on right-only, optionally followed by CR,
   then waits for all buttons to release. X6 waits for a left-only hold to
   change to any other button state before sending CR; only mode byte2 adds

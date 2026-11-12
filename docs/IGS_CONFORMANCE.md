@@ -64,7 +64,9 @@ stop through the same mutable patches and shared PSG.
 `N` adds incremental shared-buffer loads, retained MIDI/chip replay and ranges,
 local waits, flow and distinct inner/outer key handling through those existing
 MIDI and note helpers.
-Other commands remain pending.
+`?` adds immediate version/cursor/pixel/resolution replies and interactive
+character-cursor or marker/GEM mouse queries, with indexed pointer cleanup
+and retained press/release semantics. Other commands remain pending.
 The [implementation goal](IGS_IMPLEMENTATION.adoc) and
 [command ledger](../src/tests/igs/conformance.json) distinguish foundations
 from completed commands.
@@ -2669,3 +2671,67 @@ changing its chain-cancellation expectation. Final X10/native X6 took10.20s/
 complete; X dispatch, remaining commands and final acceptance are unfinished.
 
 Completion commit for X6: 7fb2643. The goal remains active at58/63.
+
+
+## Version, cursor, pixel and resolution queries (`?`)
+
+Chapter26 defines all four branches; chapters73/74 supply the original US
+TOS mouse forms. All operands are unscaled. Query0 replies `2.21` without a
+terminator;3 replies `0:`, `1:` or `2:`. Query1 takes a wait word and returns
+column+31,row+31,buttons+32 (one-based cursor inputs). Query2 takes a style
+word and returns canonical decimal `X,Y,button:`. Unsupported selectors are
+recognized no-ops with one-operand arity. Replies use the existing raw
+response transport, with no XON/XOFF or native readiness-loop emulation.
+
+Immediate1/2 report current cursor/device state. Interactive1 moves the
+existing VT52 cursor once per changed axis per sample; it retains press
+buttons and queries the final cursor after release. Motion during release
+does not move that cursor. Interactive2 styles1/2/negative use the current
+polymarker in physical XOR. It erases/redraws only in the press loop and
+remains at its last press position while acquiring release coordinates.
+Styles3..10 use all eight original US AES forms and hotspots, with exact
+mask/data and native physical palette indices; GEM follows release movement.
+The final reply combines press buttons with release coordinates. Query
+clicks do not trigger outer X3/X6 behavior. The parser and original key FIFO
+retain unread/chained serial input and keys until completion, with replies
+before forwarded keys and the remaining chain before its queued keys.
+
+The indexed framebuffer remains authoritative. Small dual-phase save-under
+restores GEM pixels; raw v_pmarker preserves the P endpoint. Cleanup restores
+the actual prior writing mode and host pointer visibility on success, EOF,
+reset or error. It clips to the current drawable viewport, preserving newly
+reserved UI rows. Frontend pixel state is observed before local hooks/gates,
+without arming gestures; UI/disabled presses stay suppressed and synchronized
+release takes the latest usable position. Position defaults to0,0 until the
+first native viewport sample; cell-only events do not invent pixel positions.
+
+Explicit bug corrections follow the goal: seed character-motion baseline
+from the initial sample rather than uninitialized stack; restore prior mode
+instead of marker height/GEM XOR leak; fix thousands zero padding and cap
+both decimal coordinates to0..9999. Retain native US form mapping (style4 is
+the TOS text form despite the manual label). Reject unsafe styles above10
+instead of dereferencing surrounding/NULL form data. No CPU/IRQ/VBL/hardware
+visibility counters, save guard-word escapes, foreign clocks or throughput
+waits are emulated. Transport EOF never fabricates a click/reply.
+
+`cterm_igs_query` checks literal replies, numeric/style boundaries, state/RNG,
+EOF/timeout/error/reset, all23 partitions and bytewise chains over18 profiles
+and54 scaling variants. All768 form/depth/status/alignment/edge cases compare
+both phases to a separate per-pixel oracle using original74-byte MFORM test
+inputs. Tests also cover marker timing, endpoint/mode/visibility restoration,
+chained keys, query-owned X3/X6 clicks, synchronized release coordinates and
+status-row reservation during cancellation. `syncterm_igs_query` adds864
+coherent all-mode/encoding/status captures with independent glyph/palette/
+index/RGB/state expectations, all eight pointer forms, exact real replies,
+character motion, press/release semantics, Unicode keys and pointer-visible
+EOF/reconnect. Physical audio/MIDI are off. Assets and source identities:
+`src/tests/igs/query-vectors.json`, `src/tests/igs/mouse-forms.json`.
+
+Native FreeBSD Release configure/full builds passed using `/usr/bin/cc`;
+final review and focused builds were warning-free. All39 selected CTest
+checks passed in212.71s, including864 query captures in69.08s, with console,
+shared parser, IGS, ANSI/VT52, RIP, SkyPix, term/input and Wren regressions.
+After correcting the native fixture to cover all16 horizontal alignments,
+the rebuilt query test passed in1.14s with768 form cases. The ledger, active
+tests, source hashes and original form inputs were validated. The ledger is
+59/63 complete; parent X, remaining commands and final acceptance are pending.

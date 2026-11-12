@@ -18,7 +18,7 @@
 bool cterm_igs_buffer_key(struct cterm_igs *igs, const struct cterm_igs_key *key)
 {
 	struct cterm_igs_input *m = &igs->input;
-	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
+	if ((!igs->music->loading && !igs->music->playing && !m->loading && !m->zone_loading && !m->held && !m->left_held && !igs->query.active) || m->key_count == CTERM_IGS_INPUT_KEYS) return false;
 	m->keys[(m->key_first + m->key_count) % CTERM_IGS_INPUT_KEYS] = *key;
 	++m->key_count;
 	return true;
@@ -247,9 +247,34 @@ static void sample(struct cterm_igs *igs, uint32_t buttons)
 	    && (input->buttons == 0 || (input->left_held && input->buttons != 1)))
 		cterm_render_record_error(igs->terminal, cterm_igs_poll(igs));
 }
+void cterm_igs_mouse_observe(struct cterm_igs *igs, const struct st_console_event *event)
+{
+	igs->input.buttons = tos_buttons(event->data.mouse.buttons);
+	int x=event->data.mouse.pixel_x, y=event->data.mouse.pixel_y;
+	int height=igs->terminal->height*(igs->resolution==2?16:8);
+	if (x>=0 && y>=0 && x<(int)igs->width && y<height) {
+		igs->input.mouse_x=x; igs->input.mouse_y=y;
+	}
+}
 bool cterm_igs_mouse(struct cterm_igs *igs, const struct st_console_event *event)
 {
+	cterm_igs_mouse_observe(igs, event);
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) return false;
+	if (igs->query.active) {
+		int height=igs->terminal->height*(igs->resolution==2?16:8);
+		bool inside=event->data.mouse.pixel_x>=0 && event->data.mouse.pixel_y>=0
+		    && event->data.mouse.pixel_x<(int)igs->width && event->data.mouse.pixel_y<height;
+		if (inside || (igs->query.release && igs->input.buttons==0)) {
+			bool feeding=igs->feeding; igs->feeding=true;
+			if (igs->input.buttons==0) igs->input.suppressed=false;
+			unsigned buttons=igs->input.suppressed && !igs->query.release ? 0 : igs->input.buttons;
+			int status=cterm_igs_query_sample(igs,igs->input.mouse_x,igs->input.mouse_y,buttons);
+			igs->feeding=feeding;
+			cterm_render_record_error(igs->terminal,status==IO_ERROR_INTERRUPTED?0:status);
+			if (!feeding) cterm_render_record_error(igs->terminal,cterm_igs_poll(igs));
+		}
+		return inside;
+	}
 	bool was_held = igs->input.held || igs->input.left_held;
 	bool inside = event->data.mouse.pixel_x >= 0 && event->data.mouse.pixel_y >= 0
 	    ? (uint32_t)event->data.mouse.pixel_x < igs->width
@@ -267,6 +292,16 @@ bool cterm_igs_mouse(struct cterm_igs *igs, const struct st_console_event *event
 }
 void cterm_igs_mouse_sync(struct cterm_igs *igs, uint32_t buttons)
 {
+	if (igs->query.active) {
+		igs->input.buttons=tos_buttons(buttons);
+		if (igs->input.buttons==0) igs->input.suppressed=false;
+		if (igs->query.release && igs->input.buttons==0) {
+			igs->query.x=igs->input.mouse_x; igs->query.y=igs->input.mouse_y;
+			igs->query.ready=true;
+			if (!igs->feeding) cterm_render_record_error(igs->terminal,cterm_igs_poll(igs));
+		}
+		return;
+	}
 	/* A press claimed by local UI/disabled forwarding must not fire later
 	 * merely because a command completed while that button remained held. */
 	if (!igs->input.held && !igs->input.left_held && tos_buttons(buttons) != 0) igs->input.suppressed = true;
@@ -285,6 +320,12 @@ void cterm_igs_input_inspect(const struct cterm_igs *igs, struct st_console_test
 	st_console_test_number(app, "cterm.igs_left_mode", input->left_mode);
 	st_console_test_number(app, "cterm.igs_left_held", input->left_held);
 	st_console_test_number(app, "cterm.igs_left_configuring", input->left_configuring);
+	st_console_test_number(app, "cterm.igs_query_active", igs->query.active);
+	st_console_test_number(app, "cterm.igs_query_selector", igs->query.selector);
+	st_console_test_number(app, "cterm.igs_query_style", igs->query.style);
+	st_console_test_number(app, "cterm.igs_query_release", igs->query.release);
+	st_console_test_number(app, "cterm.igs_mouse_x", input->mouse_x);
+	st_console_test_number(app, "cterm.igs_mouse_y", input->mouse_y);
 	uint32_t rectangles = UINT32_C(2166136261), payloads = rectangles;
 	for (size_t i = 0; i < CTERM_IGS_ZONES; ++i) {
 		const struct cterm_igs_zone *zone = &input->zones[i];

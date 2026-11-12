@@ -777,6 +777,7 @@ int st_console_get_clipboard_text(st_console_t *console, char **result);
 void st_console_free_text(char *text);
 int st_console_open_url(st_console_t *console, const char *url);
 int st_console_set_pointer_visible(st_console_t *console, bool visible);
+int st_console_get_pointer_visible(st_console_t *console, bool *visible);
 int st_console_set_pointer_shape(st_console_t *console,
 	enum st_console_pointer_shape shape);
 int st_console_set_fullscreen(st_console_t *console, bool fullscreen);

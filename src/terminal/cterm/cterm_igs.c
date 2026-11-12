@@ -75,6 +75,18 @@ preview_first(void *context, const struct st_graphics_command_view *view, int *v
 }
 
 static int
+query_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *result)
+{
+	struct cterm_igs *igs=context;
+	int selector=igs->query.selector;
+	int status=igs->query.configuring?0:preview_first(context,view,&selector);
+	*result=(selector==1 || selector==2) && view->count==1 ? unscaled_parameters[0]
+	    : (struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	return status;
+}
+
+static int
 zone_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *result)
 {
@@ -469,6 +481,7 @@ extended_next(void *context, const struct st_graphics_command_view *view,
 }
 
 static const struct st_graphics_command commands[] = {
+	{'?', unscaled_parameters, 1, query_next},
 	{'G', unscaled_parameters, 2, grab_next},
 	{'b', unscaled_parameters, 1, effect_next},
 	{'n', unscaled_parameters, 6, NULL},
@@ -519,6 +532,7 @@ static void
 cancel_input(struct cterm_igs *igs)
 {
 	igs->reset_pending = false;
+	cterm_render_record_error(igs->terminal,cterm_igs_query_cancel(igs));
 	cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
 	cterm_igs_input_cancel(igs);
 	st_graphics_parser_cancel(igs->parser);
@@ -750,6 +764,12 @@ field_entry(void *context, const struct st_graphics_command_view *view,
 		}
 		return 0;
 	}
+	if (view->code=='?' && view->count==1) {
+		int selector;
+		int status=cterm_igs_argument_value(igs,&view->arguments[0],&selector);
+		if (status!=0) return status;
+		igs->query.configuring=true; igs->query.selector=selector;
+	}
 	if (view->code == 'X' && view->count == 1) {
 		struct cterm_igs preview = *igs;
 		int selector;
@@ -950,6 +970,13 @@ execute_command(void *context, const struct st_graphics_command_view *view)
 	int values[1+2*CTERM_IGS_MAX_POINTS];
 	if (igs->reset_pending)
 		return IO_ERROR_INTERRUPTED;
+	if (view->code=='?' && igs->query.configuring) {
+		int style;
+		igs->query.configuring=false;
+		if (view->count!=2) return IO_ERROR_PROTOCOL;
+		int status=cterm_igs_argument_value(igs,&view->arguments[1],&style);
+		return status==0?cterm_igs_query_begin(igs,igs->query.selector,style):status;
+	}
 	if (view->code == 'N') {
 		struct cterm_igs_music *m = igs->music;
 		if (!m->command) {
@@ -1050,6 +1077,7 @@ execute_command(void *context, const struct st_graphics_command_view *view)
 			return status;
 	}
 	switch (view->code) {
+	case '?': return cterm_igs_query_begin(igs,values[0],0);
 	case 'b': return cterm_igs_audio_effect(igs,values,view->count);
 	case 'n': return cterm_igs_audio_note_begin(igs,values);
 	case 'G': return cterm_igs_grab(igs,values,view->count);
@@ -1420,6 +1448,7 @@ cterm_igs_destroy(struct cterm_igs *igs)
 {
 	if (igs == NULL)
 		return;
+	(void)cterm_igs_query_cancel(igs);
 	cterm_igs_music_stop(igs);
 	free(igs->music);
 	free(igs->input.zones);
@@ -1457,7 +1486,7 @@ bool
 cterm_igs_paused(const struct cterm_igs *igs)
 {
 	return igs != NULL && (igs->wait_deadline != 0 || igs->timed_pause || igs->note.active
-	    || (igs->music != NULL && igs->music->playing) || igs->input.held || igs->input.left_held || igs->input.suspended);
+	    || (igs->music != NULL && igs->music->playing) || igs->input.held || igs->input.left_held || igs->input.suspended || igs->query.active);
 }
 
 bool
@@ -1523,6 +1552,7 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 			    "IGS input rejected (%d); continuing stream", status);
 			cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
 			cterm_igs_input_cancel_reader(igs);
+			igs->query.configuring=false;
 			igs->flow_configuring = 0;
 			igs->pattern_loading = false;
 			igs->pattern_slot = 0;
@@ -1537,6 +1567,7 @@ cterm_igs_feed(struct cterm_igs *igs, const void *bytes, size_t size, size_t *us
 	if (status != 0) {
 		cterm_render_record_error(igs->terminal, cterm_igs_music_cancel(igs));
 		cterm_igs_input_cancel_reader(igs);
+		igs->query.configuring=false;
 		igs->flow_configuring = 0;
 		igs->pattern_loading = false;
 		igs->pattern_slot = 0;
@@ -1608,6 +1639,7 @@ cterm_igs_finish(struct cterm_igs *igs)
 			status = 0;
 	}
 	cterm_igs_input_cancel(igs);
+	igs->query.configuring=false;
 	igs->input_deadline = igs->text_deadline = 0;
 	igs->flow_configuring = 0;
 	igs->pattern_loading = false;
@@ -1624,6 +1656,17 @@ cterm_igs_poll(struct cterm_igs *igs)
 	int audio_status = cterm_igs_audio_poll(igs);
 	if (audio_status != 0) return audio_status;
 	if (igs->input.sending) return 0;
+	if (igs->query.active) {
+		if (igs->reset_pending) { cterm_igs_reset(igs); return 0; }
+		if (!igs->query.ready) return 0;
+		igs->feeding=true;
+		int status=cterm_igs_query_finish(igs);
+		igs->feeding=false;
+		if (igs->reset_pending) { cterm_igs_reset(igs); return status==IO_ERROR_INTERRUPTED?0:status; }
+		if (status!=0) { cancel_input(igs); return status; }
+		status=st_graphics_parser_resume(igs->parser);
+		if (status!=0) return status;
+	}
 	bool left_finished = false;
 	if (igs->input.left_held && igs->input.buttons != 1) {
 		int status = cterm_igs_left_finish(igs);
@@ -1641,7 +1684,7 @@ cterm_igs_poll(struct cterm_igs *igs)
 		int status = cterm_igs_input_activate(igs);
 		if (status != 0 || igs->input.held) return status;
 	}
-	if (igs->input.key_count != 0 && !igs->input.loading && !igs->input.zone_loading && !igs->music->loading && !igs->music->playing) {
+	if (igs->input.key_count != 0 && !st_graphics_parser_in_command(igs->parser) && !igs->input.loading && !igs->input.zone_loading && !igs->music->loading && !igs->music->playing) {
 		igs->feeding = true;
 		int status = cterm_igs_forward_keys(igs);
 		igs->feeding = false;

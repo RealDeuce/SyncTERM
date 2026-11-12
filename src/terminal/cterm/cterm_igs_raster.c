@@ -462,6 +462,12 @@ draw_marker(struct cterm_igs *igs, int x, int y)
 }
 
 int
+cterm_igs_pmarker(struct cterm_igs *igs, int x, int y)
+{
+	return draw_marker(igs, x, y);
+}
+
+int
 cterm_igs_marker(struct cterm_igs *igs, int x, int y)
 {
 	int status = draw_marker(igs, x, y);

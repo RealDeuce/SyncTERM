@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "cterm_igs_input.h"
+#include "cterm_igs_mouse.h"
 
 struct cterminal;
 struct st_graphics_parser;
@@ -72,6 +73,7 @@ struct cterm_igs {
 	struct cterm_igs_audio *audio;
 	struct cterm_igs_music *music;
 	struct cterm_igs_input input;
+	struct cterm_igs_query query;
 	unsigned resolution;
 	unsigned saved_resolution;
 	uint32_t width, height;
@@ -158,6 +160,7 @@ void cterm_igs_set_type(struct cterm_igs *, int kind, int style, int size);
 void cterm_igs_set_text(struct cterm_igs *, int effects, int points, int rotation);
 unsigned cterm_igs_plane_mask(unsigned resolution);
 unsigned cterm_igs_physical_pen(const struct cterm_igs *, int pen);
+int cterm_igs_pmarker(struct cterm_igs *, int x, int y);
 int cterm_igs_marker(struct cterm_igs *, int x, int y);
 int cterm_igs_scatter(struct cterm_igs *, int x, int y, int extent_x, int extent_y, int count);
 void cterm_igs_set_marker_color(struct cterm_igs *, int pen);

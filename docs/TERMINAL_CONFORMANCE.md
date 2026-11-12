@@ -300,6 +300,12 @@ X3, with shared owner-side key/serial suspension. Native byte/word/split/
 callback/lifetime cases and675 coherent all-profile captures verify raw output
 order, unchanged scenes and Wren/UI/disabled/scrollback/reconnect behavior.
 Only mode byte2 appends LF; initial both-buttons does not enter the left hold.
+`?` adds raw version/cursor/pixel/resolution replies and owned interactive
+cursor/marker/GEM input. All8 original AES forms use indexed save-under and
+exact native masks/hotspots. Native independent form/reply/lifecycle cases
+and864 coherent all-profile captures cover overlay cleanup, prior mode/host
+visibility, press versus release state, queued keys and reconnect. Uninitialized
+motion, write-mode restore and malformed decimal bugs are corrected explicitly.
 
 SkyPix has its own parser and Kick 1.3/3.1 rendering expectations documented
 in [SKYPIX_CONFORMANCE.md](SKYPIX_CONFORMANCE.md). Its application test covers

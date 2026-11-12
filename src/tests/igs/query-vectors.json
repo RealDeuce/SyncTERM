@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "target": "IGS221/IG221.ACC serial / intended US TOS 1.04 software graphics",
+  "provenance": "Handwritten literal reply and event vectors; intended safe bug corrections are explicit. Eight original AES MFORM records are copied from pinned native data into mouse-forms.json and an independent74-byte native test input table. Production code uses separate word masks; independent per-pixel tests decode original bytes. No emulator-generated expected images. Coherent scene checks reuse pinned US TOS glyph/palette data. Ordinary tests need no external reference tree, ROM or original executable.",
+  "references": [
+    {
+      "path": "docs/igs/26-query-command.adoc",
+      "sha256": "a62a7251ef7ea215c121c4f2a7993ecc25e60a7e1ea8567846d42746e86ae752"
+    },
+    {
+      "path": "tools/spec_igs_query_command.py",
+      "sha256": "39618290ea57452ccf9794e0935f4e1e6dd21524ffcd84e00be4618e56b68b9b"
+    },
+    {
+      "path": "docs/igs/73-native-mouse.adoc",
+      "sha256": "c2e153a828bf3578f19310daa6ab7b7c25a5d7ca474f139a7fce46769f7eb8cd"
+    },
+    {
+      "path": "docs/igs/generated/tos104-mouse-forms.json",
+      "sha256": "0b34fc9ef3ffd83a6372b2f2915b34df66d5b5c81e2103413174ecb525daaaf8"
+    },
+    {
+      "path": "IGS221/IG221.ACC",
+      "sha256": "3dfab4e763b35346a1ed2aa0ab05bb1c1b2de06692e26edd16bc205c08a5d9f1"
+    }
+  ],
+  "tests": [
+    "cterm_igs_query",
+    "syncterm_igs_query"
+  ],
+  "aes_forms": 8,
+  "native_form_cases": 768,
+  "signed_style_boundaries": 13,
+  "command_split_positions": 23,
+  "native_graphics_profiles": 18,
+  "native_profile_scaling_variants": 54,
+  "application_graphics_profiles": 18,
+  "application_captures": 864,
+  "physical_audio": false,
+  "physical_midi": false,
+  "external_runtime_assets": false
+}

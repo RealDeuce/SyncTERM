@@ -361,7 +361,9 @@
         "cterm_igs_zone",
         "syncterm_igs_zone",
         "cterm_igs_left_mouse",
-        "syncterm_igs_left_mouse"
+        "syncterm_igs_left_mouse",
+        "cterm_igs_query",
+        "syncterm_igs_query"
       ],
       "verification": [
         "Native FreeBSD /usr/bin/cc Release: cmake -S . -B build and full cmake --build build -j4 passed without compiler warnings.",
@@ -3002,18 +3004,57 @@
       "id": "?",
       "phase": "interaction",
       "references": [
+        "26-query-command.adoc",
         "20-extended-controls.adoc",
         "21-extended-payloads.adoc",
-        "26-query-command.adoc",
-        "27-input-command.adoc"
+        "73-native-mouse.adoc",
+        "74-native-mouse-services.adoc"
       ],
       "order": 59,
-      "status": "pending",
-      "dependencies": [],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "status": "complete",
+      "dependencies": [
+        "shared-parser",
+        "X3",
+        "X4",
+        "X6",
+        "P"
+      ],
+      "operations": [
+        "Unscaled signed selector with one extra unscaled parameter only for1/2. Selector0 returns literal2.21 without terminator;1 returns current column/row plus31 and button word plus32;2 returns decimal pixel coordinates,comma,button low byte plus48,colon;3 returns current resolution byte plus48 and colon. Other selectors are recognized no-ops. Existing response transport owns readiness; replies stay raw under all encodings and no flow is emitted.",
+        "Immediate1/2 sample retained native frontend pointer state. Interactive1 initializes its baseline from the first valid sample, moves the existing VT52 console once per changed axis in left/right/up/down order, retains press buttons and samples final cursor position after all buttons release. Release motion does not move the character cursor.",
+        "Interactive2 styles1/2/negative use current VDI polymarker in physical XOR, erasing/moving only during the press loop and retaining its last press position during release. Styles3..10 render all8 exact US TOS AES forms with original hotspots/mask/data and native palette-index foreground/background. GEM continues following release motion. Replies combine press buttons and final release coordinates.",
+        "Pointer rendering shares raw v_pmarker without P endpoint stores, indexed dual-phase save-under and current viewport/status clipping, restores the prior writing mode and host pointer visibility on success/EOF/reset/error, and never adds planar backing or hardware scheduling. Correct uninitialized first cursor delta, height-as-mode restore/GEM XOR leak and malformed decimal formatting; reject unsafe invalid AES form requests.",
+        "Queries own mouse events and the existing incremental parser until release, suppressing outer X3/X6 gestures. Preserve exact unread/chained serial suffix and original queued keys through completion; output response before unused keys, retaining a chain barrier. Observe pointer position before UI/forwarding gates without arming gestures; UI/disabled presses remain suppressed and synchronized release uses latest coordinates. No new clock, worker, foreign polling or device-throughput delay.",
+        "Independent native literal replies, selector/style/boundary/RNG/partial/error/EOF/reset tests; all768 GEM form/depth/status/alignment/edge cases with separate original74-byte MFORM inputs and a per-pixel oracle; marker/release/mode/visibility/endpoint/status-row cleanup, all23 splits plus bytewise chains over18 graphics profiles and54 scaling variants, mouse/key/chained ownership and noncanonical reply bytes. Application864 coherent all-profile captures combine independent glyph/palette/index/RGB/state checks with all8 pointer forms, motion/release/XOR cleanup, exact raw replies, cursor movement, queued Unicode input and partial/held EOF/reconnect."
+      ],
+      "tests": [
+        "cterm_igs_query",
+        "syncterm_igs_query",
+        "st_console",
+        "st_console_bitmap",
+        "st_console_test_backend",
+        "cterm_igs_left_mouse",
+        "syncterm_igs_left_mouse",
+        "cterm_igs_zone",
+        "syncterm_igs_zone",
+        "cterm_igs_macro",
+        "syncterm_igs_macro",
+        "cterm",
+        "term",
+        "wren_host"
+      ],
+      "deviations": [
+        "Correct clear original bugs per the goal: initialize interactive character-motion baseline from the initial mouse sample rather than uninitialized frame words; restore the actual prior writing mode for both pointer kinds instead of marker height or leaked XOR; format canonical decimal coordinates clamped0..9999 on both axes instead of missing thousands zeros and malformed uncapped Y output.",
+        "Preserve exact original US AES form mapping, including the native text form for style4 despite the manual label. Accept documented styles3..10 and polymarker styles1/2/negative; reject larger unsafe form requests instead of native resource/NULL/RAM escapes. Do not emulate hardware hide counters, IRQ/VBL/packet timing, guard-word memory escapes or raw CPU/ABI behavior.",
+        "Host pointer state is last valid native viewport-pixel sample, initially0,0 until one exists. Do not invent pixels from cell-only events. UI/status/outside presses do not select; release anywhere retains the last valid viewport position when no new native position is available. A host status-row change clips cleanup to the current drawable area. Native host pointer visibility is restored after the software pointer; unsupported host visibility controls do not prevent bitmap rendering.",
+        "Transport EOF/reset/error cancels unfinished interaction and restores pointer/mode without fabricating a click or response. Existing host FIFO bound/overflow policy and response/spy transport policy remain; mutable foreign RAM movement strings, surrounding-memory corruption and hardware throughput waits are outside the intended serial graphics implementation."
+      ],
+      "verification": [
+        "Native FreeBSD Release CMake configure and full builds passed using /usr/bin/cc; final review build and focused alignment rebuild were warning-free after early transient generated-dependency timestamp warnings.",
+        "Missing-handler literal version test failed before implementation. All39 selected CTest checks passed in212.71s, including864 coherent application query captures in69.08s. Regression coverage includes console/bitmap/control backend, shared graphics parser/stream, IGS input/queries/X3/X4/X5/X6/I/R/flow/math/random/pattern/bitmap/palette/waits/audio, ANSI/VT52/keyboard, RIP, SkyPix, term/key forwarding and Wren.",
+        "Corrected native form fixture interior X positions to cover all16 distinct horizontal alignments; focused cterm_igs_query passed in1.14s after rebuilding, covering768 independent form/depth/status/alignment/edge cases. Claimed-release coordinate regression was demonstrated failing before its fix.",
+        "Validated63 unique ordered command IDs,59 completed entries, registered tests, dependencies/references, pinned source identities and all8 original mouse form inputs. Ordinary native/application tests require no external reference tree; physical audio/MIDI are disabled. Parent X, remaining commands and final acceptance remain unfinished."
+      ],
       "commit": null
     },
     {

@@ -3402,7 +3402,8 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 		return 0;
 	if (terminal->igs_engine != NULL)
 		return terminal->igs_engine->input.enabled == 1 || terminal->igs_engine->input.left_mode != 0
-		    || terminal->igs_engine->input.held || terminal->igs_engine->input.left_held ? 3 : 0;
+		    || terminal->igs_engine->input.held || terminal->igs_engine->input.left_held
+		    || terminal->igs_engine->query.active ? 3 : 0;
 	if (terminal->skypix_engine != NULL)
 		return 2;
 	if (terminal->rip_engine != NULL
@@ -4545,6 +4546,13 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 		return false;
 	emit_user(sequence, (size_t)length, terminal);
 	return true;
+}
+
+void
+st_cterm_observe_mouse(st_cterm_t *terminal, const struct st_console_event *event)
+{
+	if (terminal != NULL && event != NULL && event->type == ST_CONSOLE_EVENT_MOUSE && terminal->igs_engine != NULL)
+		cterm_igs_mouse_observe(terminal->igs_engine, event);
 }
 
 void

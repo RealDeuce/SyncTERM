@@ -3886,6 +3886,16 @@ st_console_open_url(st_console_t *console, const char *url)
 }
 
 int
+st_console_get_pointer_visible(st_console_t *console, bool *visible)
+{
+	if (console == NULL || visible == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	*visible = console->pointer_visible;
+	(void)st_rwlock_unlock(&console->state_lock);
+	return 0;
+}
+
+int
 st_console_set_pointer_visible(st_console_t *console, bool visible)
 {
 	int result;
