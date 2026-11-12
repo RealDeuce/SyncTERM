@@ -370,3 +370,6 @@ palette/cursor/mode and RGB samples. Pointer acquisition/hit testing and music
 composition remain pending; neither X4 nor parent X is fully accepted yet.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in9.89s. BIG/IGS/CGA application regressions all passed in29.63s; BIG covers392 coherent scenes, including84 zone scenes. After adding explicit chain/deferred-reply, X4-clear step retention and ordinary/admitted-key ownership checks, the final full build and cterm_big_resolution passed in9.55s. Pointer acquisition/hit testing and music composition remain pending; no full command or physical-device acceptance is claimed.
+
+X4 counted-zone producer integration commit: `cc974bc`.
+Pointer input/hit testing and the full45-entry goal remain in progress.
