@@ -890,9 +890,9 @@
             "24-flood-fill-and-native-reuse.adoc"
           ],
           "verification": [
-            "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing generated-dependency clock-skew notices remain in the full build; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
+            "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Changed objects were verified current; both the full and final focused builds were clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
           ],
-          "commit": null
+          "commit": "89d360a"
         }
       ]
     },
@@ -1496,9 +1496,9 @@
         "Native every split/default profile and bytewise all modes/encodings/status, full indexed blink planes: H0/1/256, solid/checker, reversed outside seed, zero-area XOR, clipped/WORD-wrapped seeds, thick border blocking the seed and zero-pattern outline escaping to the viewport.",
         "Acquisition/EOF/reset/timeout and current attributes, supplied/unscaled fields, g3 Y5->11, repetition/deferred replies, full boundary271, rejected custom fill, native overflow and host/uninstalled-error prefix recovery. The Z wire case failed before registration.",
         "84 new coherent scenes,1428 total, preserve all previous text/pixels/palette/state/points/fill/cursor/replies/diagnostics/RGB while adding H256 outline, solid/checker/empty flood, XOR edge/corner parity and reversed hollow outline. Expected pixels are authored independently.",
-        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing generated-dependency clock-skew notices remain in the full build; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Changed objects were verified current; both the full and final focused builds were clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
       ],
-      "commit": null
+      "commit": "89d360a"
     },
     {
       "id": "B",
