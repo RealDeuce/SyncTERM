@@ -18,7 +18,8 @@ static const struct st_graphics_dialect dialect = {
 	.chain = '>', .number_digits = 4,
 };
 static const struct st_graphics_parameter scalar[] = {{.kind = ST_GRAPHICS_NUMBER}};
-static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},{'&',NULL,0,NULL}};
+static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
+	{'g',scalar,1,NULL},{'&',NULL,0,NULL}};
 
 static struct cterm_big *owner(void *context)
 {
@@ -170,6 +171,11 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		if (!initial) return begin_footer(big,view);
 		big->footer.chained=view->chained; cterm_big_setup_begin(big);
 		return IO_ERROR_IN_PROGRESS;
+	}
+	if (view->code=='g') {
+		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		big->numeric.context.scaling=(uint16_t)view->arguments[0].value;
+		return begin_footer(big,view);
 	}
 	const struct st_big_state_sink sink = {big,install,palette,page};
 	if ((view->code!='I' && view->code!='R') || view->count!=1 || !view->arguments[0].has_value)
@@ -429,6 +435,7 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 {
 	if (big == NULL) return;
 	st_console_test_number(app, "cterm.big_resolution", big->numeric.context.resolution);
+	st_console_test_number(app, "cterm.big_scaling", big->numeric.context.scaling);
 	st_console_test_number(app, "cterm.big_hollow", big->state.application.hollow);
 	st_console_test_number(app, "cterm.big_bgi_width", big->state.bgi.width);
 	st_console_test_number(app, "cterm.big_bgi_height", big->state.bgi.height);

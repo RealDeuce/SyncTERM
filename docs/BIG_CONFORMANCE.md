@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R operations run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup and I/R/g operations run
 through native CTerm. Drawing, sound and complete command acceptance remain
 in progress.
 
@@ -292,3 +292,24 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Wire R/native resolution binding integration commit: `0e3835c`.
 R and the full45-entry goal remain in progress.
+
+## Wire g scaling selection
+
+g stores one complete unscaled WORD, without validation or an immediate BGI
+effect. I0/I1/R retain it. Exact flags2/3 and matching cached modes2/3 govern
+the existing ordinary class2 reader; other flags/classes and stored operands
+do not receive that ordinary scaling.
+
+Native tests failed before registration and now cover split/bytewise input,
+WORD encodings/overlong input, own class0 acquisition, I/R retention,
+partial EOF/reset versus timeout, delayed stored g1/2/3 and deferred replies.
+Wire-acquired state drives the production numeric callbacks: Y5 gives8 or11,
+class0/1 stays5, and a rejected R/cache3 uses g3 even with a350-line surface.
+These are explicit reader probes, not a synthetic live drawing command.
+
+70 added coherent g scenes bring the application fixture to238 scenes,
+checking complete flags, I1/R retention and unchanged indexed pixels/fonts/
+palette/cells/cursor in one capture. Coordinate drawing consumers, input and
+audio/music composition remain pending; g is in progress (0/45 complete).
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed.

@@ -18,7 +18,7 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-BIG mode6 is selectable with native I0/I1 and R indexed-console effects,
+BIG mode6 is selectable with native I0/I1/R indexed-console effects and g,
 wire & setup, source/footer replay and local stored-loop keys. Drawing commands, sound and full
 command acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -781,3 +781,34 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Wire R/native resolution binding integration commit: `0e3835c`.
 R and the full45-entry goal remain in progress.
+
+=== Wire g scaling selection
+
+g now acquires one unscaled class0 operand through the existing grammar/
+numeric sources and stores its complete WORD in the numeric context. It
+does not clamp, transform existing coordinates/pixels, install a BGI mode
+or move a point. Initial g is0; I0/I1/R and input cancellation retain it.
+Exact full values2/3 activate the already implemented ordinary class2 gates
+only with cached resolution2/3 respectively. Other values, class0/1 and
+stored operands bypass those gates. The original finite integer formulas
+and exhaustive WORD-domain numeric oracles remain unchanged.
+
+Independent native cases failed before g registration. They cover every
+split/bytewise input, both encodings/status choices, full258/ffff/8001 values,
+overlong zero, unscaled own acquisition, retention across I/R, timeout versus
+partial EOF/reset, delayed stored g1/2/3 and chained deferred raw replies.
+Actual wire g/R state is then passed to the production numeric callbacks:
+ordinary Y5 becomes8 for g2/cache2 and11 for g3/cache3, while class0/1 and
+mismatched/arbitrary flags retain5. A rejected R3 leaves an EGA surface with
+cache3, proving that the reader uses its cache rather than backend geometry.
+These are production reader probes; no synthetic coordinate command is
+registered, and drawing/coordinate command integration is not claimed.
+
+The application fixture now checks238 coherent scenes. Its70 added g scenes
+verify raw2/3/258/encoded-ffff/0 storage, I1/R retention and unchanged indexed
+ROM scenes/palette/cells/cursor alongside the debug state in one capture.
+All original initial-mode, R, fixed/gang, cancellation and reconnect cases
+remain. Remaining coordinate consumers, < input and music/audio composition
+are still pending; g and full command acceptance remain in progress (0/45).
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed.

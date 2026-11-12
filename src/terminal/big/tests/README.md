@@ -149,3 +149,11 @@ replies, stored R1..3, partial EOF/reset/timeout and returning mode failure.
 The application fixture adds70 independent R transition scenes with a dirty
 sentinel and no subsequent ED. Its168 coherent captures include the earlier
 fixed/gang/input-cancellation and reconnect cases, with physical audio off.
+
+Native wire g cases check full-WORD storage, split/bytewise ownership,
+I0/I1/R retention, delayed stored values, deferred replies and partial
+EOF/reset/timeout. Reader probes use real wire-acquired g/R state with the
+production numeric callbacks and independent Y5 expectations8/11, including
+a rejected R3/cache3 while the surface remains350 lines. No synthetic
+coordinate command is registered. The application fixture adds70 unchanged-
+scene g captures (238 total); live coordinate consumers remain separate work.

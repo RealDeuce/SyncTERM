@@ -555,10 +555,80 @@ static void wire_setup_sources(void)
 	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==2 && b->numeric.loop.active==0 && f.bells==2);
 	destroy(&f);
 }
+static void scaling_probe(struct fixture *f, enum st_graphics_axis axis, int expected)
+{
+	/* Probe the production reader using state acquired by real wire g/R.
+	 * No synthetic coordinate command is registered in the live grammar. */
+	struct st_big_numeric *n=&f->terminal->big_engine->numeric;
+	const struct st_graphics_parameter parameter={.kind=ST_GRAPHICS_NUMBER,.axis=axis};
+	const struct st_graphics_command_view view={0};
+	CHECK(st_big_numeric_field(n,&view,&parameter)==0);
+	int value=0; bool complete=true;
+	CHECK(st_big_numeric_number(n,&view,&parameter,&value,&complete)==0 && !complete);
+	size_t used;
+	CHECK(st_big_numeric_read_number(n,&view,&parameter,(const uint8_t *)"5:",2,&used,&value,&complete)==0);
+	CHECK(complete && used==2 && value==expected); st_big_numeric_cancel(n);
+}
+static void scaling_wire(void)
+{
+	const char wire[]="I#g 258:Z";
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status)
+		for (size_t split=0;split<sizeof(wire);++split) {
+			struct fixture f; create(&f,utf8,status);
+			CHECK(f.terminal->big_engine->numeric.context.scaling==0);
+			string(&f,"\033[10;20H");
+			f.terminal->big_engine->state.bgi.x=19; f.terminal->big_engine->state.bgi.y=27;
+			feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split);
+			CHECK(f.terminal->big_engine->numeric.context.scaling==258 && f.resizes==1 && f.output_size==0);
+			CHECK(f.terminal->xpos==21 && f.terminal->ypos==10);
+			CHECK(f.terminal->big_engine->state.bgi.x==19 && f.terminal->big_engine->state.bgi.y==27);
+			destroy(&f);
+		}
+	struct fixture f; create(&f,true,false); struct cterm_big *b=f.terminal->big_engine;
+	for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1);
+	CHECK(b->numeric.context.scaling==258); scaling_probe(&f,ST_GRAPHICS_Y,5);
+	string(&f,"I#g 2:"); scaling_probe(&f,ST_GRAPHICS_Y,8); scaling_probe(&f,ST_GRAPHICS_X,5);
+	/* Failed R publishes cache3 without installing; g observes that cache. */
+	b->state.bgi.max_mode=1; string(&f,"I#R 3:");
+	CHECK(b->numeric.context.resolution==3 && b->state.bgi.height==350 && f.resizes==1);
+	string(&f,"I#g 3:"); scaling_probe(&f,ST_GRAPHICS_Y,11);
+	scaling_probe(&f,ST_GRAPHICS_UNSCALED,5); scaling_probe(&f,ST_GRAPHICS_X,5);
+	string(&f,"I#g 2:"); CHECK(b->numeric.context.scaling==2); scaling_probe(&f,ST_GRAPHICS_Y,5);
+	string(&f,"I#g +1:"); CHECK(b->numeric.context.scaling==65535); scaling_probe(&f,ST_GRAPHICS_Y,5);
+	string(&f,"I#g x:"); CHECK(b->numeric.context.scaling==0x8001);
+	string(&f,"I#g 12345:"); CHECK(b->numeric.context.scaling==0);
+	string(&f,"I#g 3:"); string(&f,"I#I 1:I#I 0:I#R 2:");
+	CHECK(b->numeric.context.scaling==3 && b->numeric.context.resolution==2);
+	scaling_probe(&f,ST_GRAPHICS_Y,5);
+	string(&f,"I#g 2"); CHECK(b->numeric.context.scaling==3);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->numeric.context.scaling==3);
+	string(&f,"I#g 2"); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->numeric.context.scaling==3);
+	string(&f,"I#g "); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.context.scaling==0 && f.bells==1);
+	destroy(&f);
+}
+static void scaling_sources_and_footer(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; size_t used;
+	const char wire[]="I#& 1,3,1,1,g@1,x:";
+	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==IO_ERROR_IN_PROGRESS && used==sizeof(wire)-1);
+	CHECK(b->numeric.context.scaling==0 && f.output_size==1 && f.output[0]==19);
+	for (unsigned value=1;value<=3;++value) {
+		local_ns+=UINT64_C(1000000000); CHECK(st_cterm_poll(f.terminal)==0);
+		CHECK(b->numeric.context.scaling==value && b->numeric.loop.current==value);
+	}
+	CHECK(b->numeric.loop.active==0 && f.output_size==2 && f.output[1]==17);
+	string(&f,"I#"); b->control.input.pending=1; b->control.input.count=2;
+	b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"g>2:"); CHECK(b->numeric.context.scaling==2 && b->control.input.pending==1 && f.output_size==2);
+	string(&f,"~ "); CHECK(f.output_size==4 && f.output[2]==0 && f.output[3]==255);
+	destroy(&f);
+}
 int main(void)
 {
 	partitions(); framing_and_state(); deadlines_and_recovery(); reply_and_footer();
 	stored_repetition(); gang_source_seams(); footer_wait_reset();
 	local_keys(); local_key_bytes(); local_key_lifecycle(); local_key_return(); wire_loops();
-	wire_setup_prefixes(); wire_setup_keys(); wire_setup_flow_lifecycle(); wire_setup_bounds(); wire_setup_sources(); return 0;
+	wire_setup_prefixes(); wire_setup_keys(); wire_setup_flow_lifecycle(); wire_setup_bounds(); wire_setup_sources();
+	scaling_wire(); scaling_sources_and_footer(); return 0;
 }

@@ -25,7 +25,7 @@ A = ((0x30, 0x78, 0xcc, 0xcc, 0xfc, 0xcc, 0xcc, 0),
 PROFILES = (("CGA80x25", 200, 8, 25), ("EGA80x25", 350, 14, 25), ("80x30", 480, 16, 30))
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -36,6 +36,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None):
     assert s["cterm.big_loop_type"] == 32 and not s["cterm.big_footer_active"]
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
+    assert s["cterm.big_scaling"] == scaling
     if loop_state is not None:
         assert (s["cterm.big_loop_current"], s["cterm.big_loop_count"],
                 s["cterm.big_loop_index"], s["cterm.big_no_parameters"]) == loop_state
@@ -137,6 +138,25 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             assert reply == expected, reply
                             with (root / "replies.bin").open("ab") as log: log.write(reply)
                             check(client.wait_text(token), target, status, True, token)
+                        for index, (request, scaling) in enumerate(((b"2:", 2), (b"3:", 3),
+                                                                   (b"258:", 258), (b"+1:", 65535), (b"0:", 0))):
+                            token = f"SCALE{index}"
+                            # I1 and a same-mode R preserve g. R's clear is
+                            # followed by fresh scene glyphs without ED.
+                            after = b"I#I 1:" if index == 0 else (
+                                b"I#R 1:\x1b[13;13HA\x1b[4;3H\x1b[31;44;5m" + block + b"\x1b[0m"
+                                if index == 1 else b"")
+                            wire = b"I#g " + request + after + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), 1, status, True, token, scaling=scaling)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

@@ -83,6 +83,14 @@ returning-error/cache prefixes and EOF/reset/timeout. Application sentinels
 precede R and fresh glyphs follow without ED, verifying clear/default/font
 transitions in the same capture. Complete command acceptance remains pending.
 
+Wire g stores its full class0 WORD without clamping or drawing. Native
+split/bytewise cases cover encodings/status, special WORDs, I/R lifetime,
+delayed stored values, replies and EOF/reset/timeout. Production numeric
+callbacks probed with wire g/R state retain exact Y5->8/11 and cache-versus-
+surface semantics; this does not claim a live coordinate drawing consumer.
+70 added coherent g scenes (238 total) check complete flags and I1/R
+retention with the unchanged full scene. Full command acceptance remains pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the
