@@ -317,6 +317,17 @@
           ],
           "commit": "3e0da7e",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "retained-custom-pattern-editor",
+          "status": "complete",
+          "tests": [
+            "big_fill",
+            "big_profile",
+            "cterm_big_fill"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending."
         }
       ]
     },
@@ -628,6 +639,20 @@
           ],
           "commit": "3e0da7e",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "wire-custom-fill-patterns",
+          "status": "complete",
+          "tests": [
+            "big_fill",
+            "big_profile",
+            "big_numeric",
+            "big_control",
+            "cterm_big_fill",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending."
         }
       ]
     },
@@ -661,24 +686,29 @@
         "52-extended-control-command-acceptance.adoc",
         "51-state-and-position-command-acceptance.adoc",
         "73-global-readers-and-loops-acceptance.adoc",
-        "64-input-and-zone-command-acceptance.adoc"
+        "64-input-and-zone-command-acceptance.adoc",
+        "50-attribute-command-acceptance.adoc"
       ],
       "operations": [
-        "One unscaled full-WORD selector through the shared parser; exact6 dynamically adds class1 X/class2 Y, and exact4 adds its id-dependent zone fields.",
+        "One unscaled full-WORD selector through the shared parser; exact1 adds slot/alter and conditionally eight class0 rows, exact6 adds class1 X/class2 Y, and exact4 adds its id-dependent zone fields.",
         "Unknown9/ffff/0106 performs no invented argument drain/default clamp/own response and retains shared repeat/chain/deferred-reply semantics.",
-        "X4 and X6 implement their selected operators; the other known selectors retain the explicit unsupported diagnostic/fallback until implemented. Parent completion requires all nine children."
+        "X1, X4 and X6 implement their selected operators; other known selectors retain the explicit unsupported diagnostic/fallback until implemented. Parent completion requires all nine children."
       ],
       "tests": [
         "big_numeric",
         "big_control",
         "cterm_big_resolution",
-        "syncterm_big_input"
+        "syncterm_big_input",
+        "big_fill",
+        "big_profile",
+        "cterm_big_fill"
       ],
       "deviations": [],
       "verification": [
         "Independent wire X6 ownership expectation failed before registration. Native tests now cover splits/bytewise CP437/UTF-8/status, exact selector6 versus full-WORD unknowns, repeated unknown selection and deferred replies. Other known selectors are not accepted implementations; X stays in progress.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.",
-        "X4 counted loading and its three specials now use the same dispatch/source/footer path; pointer/hit testing and the remaining selectors remain pending."
+        "X4 counted loading and its three specials now use the same dispatch/source/footer path; pointer/hit testing and the remaining selectors remain pending.",
+        "X1 now owns conditional slot/alter/row acquisition, immediate edit prefixes, restoration and common source/footer lifetimes. X4/X6 and unknown arities are preserved; other children/global composition remain pending."
       ],
       "commit": null
     },
@@ -888,7 +918,7 @@
         "Built-in style<=11 publishes public style/full colour and lower fill BYTE before installed dispatch, without full-colour validation. Custom query uses the selected16-pen native profile and rejects unsigned colour>15 with BGI error-11 before public/copy/driver changes; rejected application selection remains.",
         "Accepted custom sources copy forward to the library mirror and re-read the original source for the separate driver user copy. Active masks expand at installation to a64-byte8x8 indexed pen tile with colour latching and opaque pen0, rather than a persistent planar cache. Later colour tuples update current device pens without retiling.",
         "Use all twelve unchanged shared st_bgi_fill_patterns masks; RIP references the same table. Defaults now call draw-colour/customFF/solid1 in original order. I1 retains fill; R reinstalls defaults while retaining application selection/colours/custom slots; I0 also resets application selection/colours.",
-        "Use common numeric source/repeat/chain/counted replies, including successful footer completion after custom BGI rejection. Native uninstalled errors preserve public versus driver/cache prefixes. A itself draws nothing; rendering consumers, X1 and global composition remain pending."
+        "Use common numeric source/repeat/chain/counted replies, including successful footer completion after custom BGI rejection. Native uninstalled errors preserve public versus driver/cache prefixes. A itself draws nothing; rendering consumers and global composition remain pending."
       ],
       "tests": [
         "big_fill",
@@ -907,7 +937,8 @@
         "Initial independent A wire expectation failed before registration. The previous RIP initializer and extracted shared initializer match textually and across all96 bytes. big_fill independently checks original literal stock masks, packed slash/checker/empty/solid tiles, every selector WORD and all built-in/custom colour WORDs, delayed edits/resubmission, tuple changes without retiling, valid overlapping source copies with diverging mirror/driver bytes, errors/nulls and distinct uninstalled prefixes.",
         "cterm_big_fill checks every split in the default profile and bytewise in all modes/CP437/UTF-8/status, unchanged full indexed planes/cursor/points, class0/stored sources, repetitions/flow, raw deferred replies after custom rejection, EOF/reset/timeout/callback reset, I1 retention/R user+tile defaults/I0 and uninstalled/recovery prefixes.",
         "56 coherent application scenes bring coverage to1106: built-in31 reduction, rejected custom31 retaining old installed state, accepted custom5 checker, and invalid258/colour256 solid0. All scenes now observe selected/public/lower/device fill and eight literal cached rows with full indexed/text/palette/point/cursor/reply/RGB observations. No bar/flood/sector or physical audio coverage is claimed.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending.",
+        "X1 now supplies wire edits/restores of retained custom rows. Coherent edit/install/restore/resubmit cases verify that only A changes installed tiles; full rendering/global composition remains pending."
       ],
       "commit": null
     },
@@ -1422,7 +1453,7 @@
     {
       "id": "X1",
       "order": 29,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1432,10 +1463,29 @@
       "references": [
         "50-attribute-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Acquire full class0 slot/alter WORDs before normalization. Signed slot outside12..23 becomes12; flag outside0..1 becomes0. Only alter1 requests eight more class0 values; restore and invalid flags leave purported row payloads unread.",
+        "Explicit frame locals preserve a fixed eight-read edit loop. Each completed value immediately stores its low BYTE in the current slot before another read waits/fails; loop-source completion never shortens the loop. A separate final alter==0 test can restore after editing.",
+        "Restore the selected original eight bytes with current-slot reads per access. Change only retained application rows: no BGI dispatch, selection, installed user/active/cache, colour/write/point or pixel effect, even with uninstalled BGI. I0/I1/R retain edited slots; later A submissions install them.",
+        "Use common source/repeat/chain/counted replies. EOF/reset/error clears editor ownership and retains accepted row prefixes. The first bounds/protocol error latches until cancellation/new header; native row capacity is eleven total arguments without changing X4/X6 or unknown selector arities."
+      ],
+      "tests": [
+        "big_fill",
+        "big_profile",
+        "big_numeric",
+        "big_control",
+        "cterm_big_fill",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Escaped post-header row destinations fail at the actual access with OUT_OF_RANGE and accepted prefixes retained. Native frame locals support serialized changes across row calls; unsafe original foreign stack/segment/register aliases are not reproduced. Cancellation clears frame ownership without reverting application rows."
+      ],
+      "verification": [
+        "The independent native X1 partition expectation failed before binding. Component checks cover all65,536 slot WORDs and all65,536 alter WORDs, all12 original restore destinations pinned by big_profile, literal BYTE prefixes, unchanged complete BGI state, live slot/flag changes, fixed-loop edit-then-restore, latched bounds/protocol errors, nulls and cancellation without rollback.",
+        "Native every-split/default-profile and bytewise/all modes/CP437/UTF-8/status cases cover invalid full-WORD headers, special/raw row values, delayed headers/rows, EOF/reset/per-read timeouts and callback reset, g3 class0, source completion after header/first row, eleven supplied fields, repetition/flow, deferred replies, I/R lifetime, uninstalled operation, delayed A and exact live-frame error/recovery prefixes.",
+        "56 new coherent scenes bring application coverage to1162: edit slot0(normalized12) without installation, submit A, restore the source without retiling, then resubmit A. All scenes now observe retained slot12 bytes and inactive editor ownership alongside complete indexed blink planes, ROM text/cells, palette, points/cursor/state, replies, fill owners/literal cached rows and composed cyan RGB.",
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending."
+      ],
       "commit": null
     },
     {

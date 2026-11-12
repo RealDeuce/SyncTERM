@@ -75,3 +75,41 @@ int st_big_fill_select(struct st_big_state *s, uint16_t requested)
 	s->application.fill=requested;
 	return st_big_fill_apply(s);
 }
+int st_big_fill_edit_begin(struct st_big_fill_edit *e, uint16_t slot, uint16_t alter)
+{
+	if (e==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*e=(struct st_big_fill_edit){.slot=slot,.alter=alter,.active=true};
+	if (st_big_number_signed(e->slot)<12 || st_big_number_signed(e->slot)>23) e->slot=12;
+	if (st_big_number_signed(e->alter)<0 || st_big_number_signed(e->alter)>1) e->alter=0;
+	e->editing=e->alter==1;
+	return 0;
+}
+static int edit_error(struct st_big_fill_edit *e, int status) { e->error=status; return status; }
+int st_big_fill_edit_row(struct st_big_fill_edit *e, struct st_big_state *s, uint16_t value)
+{
+	if (e==NULL || s==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (e->error!=0) return e->error;
+	if (!e->active || !e->editing || e->row>=8) return edit_error(e,IO_ERROR_PROTOCOL);
+	if (e->slot<12 || e->slot>23) return edit_error(e,IO_ERROR_OUT_OF_RANGE);
+	s->application.patterns[e->slot-12][e->row]=(uint8_t)value;
+	++e->row;
+	return 0;
+}
+int st_big_fill_edit_finish(struct st_big_fill_edit *e, struct st_big_state *s)
+{
+	if (e==NULL || s==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (e->error!=0) return e->error;
+	if (!e->active || (e->editing && e->row!=8)) return edit_error(e,IO_ERROR_PROTOCOL);
+	/* Independent post-edit test: a changed flag can edit then restore.
+	 * Restoration reloads the current slot for every source/destination. */
+	if (e->alter==0) for (size_t row=0;row<8;++row) {
+		if (e->slot<12 || e->slot>23) return edit_error(e,IO_ERROR_OUT_OF_RANGE);
+		s->application.patterns[e->slot-12][row]=st_big_fill_restore[e->slot-12][row];
+	}
+	e->active=false;
+	return 0;
+}
+void st_big_fill_edit_cancel(struct st_big_fill_edit *e)
+{
+	if (e!=NULL) *e=(struct st_big_fill_edit){0};
+}

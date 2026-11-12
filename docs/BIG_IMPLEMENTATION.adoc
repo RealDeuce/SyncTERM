@@ -18,7 +18,7 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-BIG mode6 is selectable with native I0/I1/R indexed-console effects, g/X4/X6,
+BIG mode6 is selectable with native I0/I1/R indexed-console effects, g/X1/X4/X6,
 wire & setup, source/footer replay and local stored-loop keys. T attributes
 and P marker drawing now run through a shared thin BGI kernel with BIG
 adapters, as do native L/D/d line commands. Native m graphics-point movement
@@ -1419,3 +1419,53 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native A fill/shared-mask/indexed-cache integration commit: `3e0da7e`.
 Rendering consumers, X1 edits and remaining full45-entry composition stay in progress.
+
+=== Native X1 retained custom-pattern editing
+
+Exact X selector1 now acquires slot and alter as class0 WORDs before
+normalization. Signed slots outside12..23 become12; flags outside0..1 become0.
+Only original alter1 requests eight more class0 numbers. Other flags restore
+the selected original row without consuming any purported eight-row payload.
+The native argument capacity grows from7 to11 for selector/slot/flag/eight
+rows; existing X4/X6 and unknown full-WORD selectors retain their arities.
+
+The row editor owns explicit frame locals and a fixed eight-read loop.
+Each completed row immediately stores its low BYTE into the then-current
+slot before another acquisition can wait or fail. Source completion or a
+changed loop mode does not shorten that loop. After all rows, a separate
+current alter==0 test can perform restoration, including an edit followed by
+restore when the flag changed during acquisition. Each store/copy reloads
+the current slot. Invalid post-header slot changes fail at the affected
+access, retaining earlier stores; the first error latches until cancellation
+or a new header. Native cancellation clears only frame ownership, preserving
+accepted application bytes.
+
+Editing and restoration use the original96-byte restore table independently
+pinned by `big_profile`. They do not select A, dispatch BGI, change colour/
+write/point state, or alter library/device user copies, active masks or the
+indexed tile. They also work with uninstalled BGI without changing its error.
+I0/I1/R retain the application custom rows; only a later A submission installs
+the changed or restored pattern. The common repeat/chain/counted-reply path
+still handles completion, while incomplete EOF/reset sends no own reply.
+
+`big_fill` checks all65,536 slot WORDs and all65,536 alter WORDs independently,
+all12 restore destinations, low-BYTE stores and prefixes, unchanged complete
+BGI state, live slot changes, fixed-loop edit-then-restore, latched bounds/
+protocol failures, nulls and cancellation without rollback. `cterm_big_fill`
+adds every-split/default-profile and bytewise/all mode/encoding/status cases,
+invalid full-WORD headers, raw/special values, delayed header/rows, per-read
+timeouts and reset during timeout, uninstalled operation, stored/wire seams
+after the header and first row, all11 supplied values, repetitions/flow,
+deferred replies, I/R lifetime, delayed A installation and live-frame slot/
+flag/error recovery. The first X1 wire expectation failed before binding.
+
+56 additional coherent scenes bring the application oracle to1162. They
+edit slot0 (normalized12) without installing it, submit A, restore the source
+without changing the installed tile, then resubmit A. Every scene now also
+observes retained slot12 bytes and inactive editor ownership. Complete
+indexed planes, ROM text/cells, palette, points/cursor/state, exact replies,
+fill owners/cached rows and existing cyan RGB swatch remain checked together.
+Physical audio/MIDI stay disabled. Fill rendering consumers, text, page/image/
+audio composition and final full-suite acceptance remain pending.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending.

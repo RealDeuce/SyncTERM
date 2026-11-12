@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, A/C/M/T attributes, m movement, P markers and L/D/d lines run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/M/T attributes, m movement, P markers and L/D/d lines run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -620,3 +620,26 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native A fill/shared-mask/indexed-cache integration commit: `3e0da7e`.
 Rendering consumers, X1 edits and remaining full45-entry composition stay in progress.
+
+## Native X1 custom-pattern edits
+
+X1 reads slot/alter before normalization, requests exactly eight class0 row
+values only for alter1 and otherwise restores the selected original row.
+Slots outside12..23 become12; invalid flags become0 without draining row
+payloads. Each low-BYTE store precedes the next acquisition. A fixed edit
+loop survives source changes and a separate final flag test can restore
+after editing. Live frame slots are checked at the actual access; errors
+latch, and cancellation retains accepted application prefixes.
+
+The operation changes no installed/library/device fill state, colour, write
+mode, point or pixel, including with uninstalled BGI. I/R retain edited rows;
+A explicitly installs their later contents. `big_fill` checks full slot/alter
+domains, all restore destinations, prefixes/live locals/error/cancel and
+unchanged BGI state. Native tests cover partitions/bytewise profiles, special
+values, delayed reads/EOF/reset/timeouts, source seams within the eight reads,
+all11 supplied fields, repeats/replies and delayed A. The first wire test
+failed before implementation.56 coherent scenes bring coverage to1162 with
+edit/install/restore/resubmit, retained slot bytes and editor ownership plus
+the complete indexed/text/palette/points/cursor/reply/fill-cache/RGB scene.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending.

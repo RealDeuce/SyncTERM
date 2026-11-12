@@ -72,6 +72,14 @@ static int extended_next(void *context, const struct st_graphics_command_view *v
 	(void)context;
 	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 	*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	if ((uint16_t)view->arguments[0].value==1) {
+		if (view->count<3) *parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
+		else {
+			if (!view->arguments[2].has_value) return IO_ERROR_PROTOCOL;
+			if ((uint16_t)view->arguments[2].value==1 && view->count<11)
+				*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
+		}
+	}
 	if ((uint16_t)view->arguments[0].value==4 && view->count<7) {
 		if (view->count>=2 && st_big_zone_id((uint16_t)view->arguments[1].value)>=9997) return 0;
 		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
@@ -152,6 +160,18 @@ static int field(void *context, const struct st_graphics_command_view *view,
 	if (view->code=='X' && view->count>=1 && view->arguments[0].has_value
 	    && (uint16_t)view->arguments[0].value==4) {
 		int status=cterm_big_zone_field(big,view);
+		if (status!=0) return status;
+	}
+	if (view->code=='X' && view->count>=3 && view->arguments[0].has_value
+	    && (uint16_t)view->arguments[0].value==1) {
+		int status;
+		if (view->count==3) {
+			if (!view->arguments[1].has_value || !view->arguments[2].has_value) return IO_ERROR_PROTOCOL;
+			status=st_big_fill_edit_begin(&big->fill_edit,(uint16_t)view->arguments[1].value,(uint16_t)view->arguments[2].value);
+		} else {
+			if (!view->arguments[view->count-1].has_value) return IO_ERROR_PROTOCOL;
+			status=st_big_fill_edit_row(&big->fill_edit,&big->state,(uint16_t)view->arguments[view->count-1].value);
+		}
 		if (status!=0) return status;
 	}
 	/* X6 commits X before entering Y, even if Y later waits or fails. */
@@ -331,7 +351,16 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='X') {
 		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		uint16_t selector=(uint16_t)view->arguments[0].value;
-		if (selector==4) {
+		if (selector==1) {
+			int status;
+			if (view->count==3 && view->arguments[1].has_value && view->arguments[2].has_value)
+				status=st_big_fill_edit_begin(&big->fill_edit,(uint16_t)view->arguments[1].value,(uint16_t)view->arguments[2].value);
+			else if (view->count==11 && view->arguments[10].has_value)
+				status=st_big_fill_edit_row(&big->fill_edit,&big->state,(uint16_t)view->arguments[10].value);
+			else return IO_ERROR_PROTOCOL;
+			if (status==0) status=st_big_fill_edit_finish(&big->fill_edit,&big->state);
+			if (status!=0) return status;
+		} else if (selector==4) {
 			int status=cterm_big_zone_begin(big,view);
 			if (status!=0) return status;
 		} else if (selector==6) {
@@ -388,6 +417,7 @@ static void cancel(struct cterm_big *big)
 	int status=cterm_big_collect_cancel(big);
 	big->feeding=feeding; cterm_render_record_error(big->terminal,status);
 	st_graphics_parser_cancel(big->parser); st_big_numeric_cancel(&big->numeric);
+	st_big_fill_edit_cancel(&big->fill_edit);
 	big->pair_wait = big->pair_body = big->reset_pending = false;
 	big->footer_active=big->gang_selecting=big->gang_wire=big->starting_body=false;
 	big->control.input.pending=0; big->control.frame.command=big->control.frame.did_loop=0;
@@ -623,7 +653,7 @@ int cterm_big_create(struct cterminal *t)
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
 	const struct st_graphics_parser_config config = {
 		.dialect = &dialect, .commands = commands, .command_count = sizeof(commands)/sizeof(commands[0]),
-		.max_arguments = 7,
+		.max_arguments = 11,
 	};
 	if (status == 0) status = st_graphics_parser_create(&big->parser,&config);
 	if (status != 0) { cterm_big_destroy(big); return status; }
@@ -678,6 +708,14 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_bgi_fill_style", big->state.bgi.fill_style);
 	st_console_test_number(app, "cterm.big_bgi_fill_color", big->state.bgi.fill_color);
 	st_console_test_number(app, "cterm.big_fill_selection", big->state.application.fill);
+	st_console_test_number(app, "cterm.big_pattern_active", big->fill_edit.active);
+	uint32_t custom_prefix=0, custom_tail=0;
+	for (unsigned i=0;i<4;++i) {
+		custom_prefix|=(uint32_t)big->state.application.patterns[0][i]<<(8*i);
+		custom_tail|=(uint32_t)big->state.application.patterns[0][i+4]<<(8*i);
+	}
+	st_console_test_number(app, "cterm.big_custom0_prefix", custom_prefix);
+	st_console_test_number(app, "cterm.big_custom0_tail", custom_tail);
 	st_console_test_number(app, "cterm.big_fill_byte", big->state.bgi.fill_low);
 	st_console_test_number(app, "cterm.big_device_fill_color", big->state.bgi.device_fill_color);
 	st_console_test_number(app, "cterm.big_device_fill_style", big->state.bgi.device_fill_style);

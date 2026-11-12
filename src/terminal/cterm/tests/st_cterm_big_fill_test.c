@@ -112,4 +112,87 @@ static void prefixes_sources_and_errors(void)
 	b->state.bgi.state=3; string(&f,"I#C>2,5:A 12:"); CHECK(b->state.bgi.fill_style==12 && b->state.bgi.fill_color==5 && b->state.bgi.error==-1);
 	blank(&f); CHECK(f.size==7); destroy(&f);
 }
-int main(void) { partitions(); prefixes_sources_and_errors(); return 0; }
+static void edit_partitions(void)
+{
+	static const uint8_t default12[]={0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55};
+	static const struct { const char *wire; unsigned slot; uint8_t rows[8]; } cases[]={
+		{"I#X 1,12,1,128,0,0,0,0,0,0,1:\033[2;3H",0,{128,0,0,0,0,0,0,1}},
+		{"I#X 1,269,1,257,258,+1,0,x,291,511,264:\033[2;3H",0,{1,2,255,0,1,35,255,8}},
+		{"I#X 1,12,257:\033[2;3H",0,{0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55}},
+		{"I#X 1,23,0:\033[2;3H",11,{0x20,0x50,0x8c,0x42,0x22,0x22,0x1e,0}},
+	};
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+		for (unsigned mode=1;mode<=3;++mode) for (size_t c=0;c<sizeof(cases)/sizeof(cases[0]);++c) {
+			size_t size=strlen(cases[c].wire), splits=mode==2 && !utf8 && !status?size+1:0;
+			for (size_t split=0;split<=splits;++split) {
+				char reset[16]; snprintf(reset,sizeof(reset),"I#R %u:",mode); string(&f,reset);
+				memcpy(b->state.application.patterns,st_big_fill_restore,96);
+				memset(b->state.application.patterns[cases[c].slot],0xcc,8);
+				if (split==splits) for (size_t i=0;i<size;++i) feed(&f,cases[c].wire+i,1);
+				else { feed(&f,cases[c].wire,split); string(&f,cases[c].wire+split); }
+				CHECK(memcmp(b->state.application.patterns[cases[c].slot],cases[c].rows,8)==0);
+				for (size_t slot=0;slot<12;++slot) if (slot!=cases[c].slot) CHECK(memcmp(b->state.application.patterns[slot],st_big_fill_restore[slot],8)==0);
+				CHECK(b->state.application.fill==1 && b->state.bgi.fill_style==1 && b->state.bgi.fill_color==15 && b->state.bgi.color==15 && b->state.bgi.error==0);
+				CHECK(b->state.bgi.x==0 && b->state.bgi.ddo_x==0 && b->state.bgi.device_x==0 && f.terminal->xpos==3 && f.terminal->ypos==2 && f.size==0);
+				for (size_t i=0;i<8;++i) CHECK(b->state.bgi.fill_user[i]==255 && b->state.bgi.device_fill_user[i]==255);
+				blank(&f);
+			}
+		}
+		CHECK(memcmp(st_big_fill_restore[0],default12,8)==0); destroy(&f);
+	}
+}
+static void edit_prefixes_and_sources(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	memset(b->state.application.patterns[0],0xcc,8);
+	string(&f,"I#X 1,9,"); CHECK(st_cterm_finish(f.terminal)==0 && b->state.application.patterns[0][0]==0xcc);
+	string(&f,"I#X 1,12,0:I#X 1,12,1,257,258,");
+	CHECK(b->state.application.patterns[0][0]==1 && b->state.application.patterns[0][1]==2 && b->state.application.patterns[0][2]==0xaa);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->state.application.patterns[0][0]==1 && b->state.application.patterns[0][1]==2);
+	string(&f,"I#X 1,12,0:I#X 1,12,1,3,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.application.patterns[0][0]==3 && b->state.application.patterns[0][1]==0x55);
+	f.reset_bell=false; string(&f,"I#X 1,12,1,4,");
+	for (unsigned row=1;row<8;++row) { local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0); }
+	CHECK(f.bells==8 && b->state.application.patterns[0][0]==4);
+	for (size_t i=1;i<8;++i) CHECK(b->state.application.patterns[0][i]==0);
+	string(&f,"I#R 3:I#g 3:I#& 0,1,1,0,X@3,1,12,1:257,258,259,260,261,262,263,264:");
+	for (size_t i=0;i<8;++i) CHECK(b->state.application.patterns[0][i]==i+1);
+	string(&f,"I#& 0,1,1,0,X@4,1,12,1,511:");
+	CHECK(b->fill_edit.active && b->fill_edit.row==1 && b->state.application.patterns[0][0]==255 && b->numeric.loop.active==0);
+	string(&f,"258,259,260,261,262,263,264:");
+	for (size_t i=1;i<8;++i) CHECK(b->state.application.patterns[0][i]==i+1);
+	string(&f,"I#& 0,1,1,0,X@11,1,12,1,128,0,0,0,0,0,0,1:");
+	CHECK(b->state.application.patterns[0][0]==128 && b->state.application.patterns[0][7]==1);
+	string(&f,"I#& 0,2,1,0,X@11,1,12,1,x,x,x,x,x,x,x,x:");
+	for (size_t i=0;i<8;++i) CHECK(b->state.application.patterns[0][i]==2);
+	CHECK(b->numeric.loop.active==0 && f.size==8 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11\x13\x11",8)==0);
+	b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='R';
+	string(&f,"I#X>1,12,0:"); CHECK(f.size==8 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==9 && f.output[8]=='R');
+	string(&f,"I#X 1,12,1,128,0,0,0,0,0,0,1:I#C>2,5:A 12:");
+	CHECK(b->state.bgi.fill_pixels[0]==5 && b->state.bgi.fill_pixels[63]==5);
+	string(&f,"I#X 1,12,0:"); CHECK(b->state.application.patterns[0][0]==0xaa && b->state.bgi.fill_user[0]==128 && b->state.bgi.fill_pixels[63]==5);
+	string(&f,"I#A 12:"); CHECK(b->state.bgi.fill_user[0]==0xaa && b->state.bgi.fill_pixels[0]==5 && b->state.bgi.fill_pixels[1]==0);
+	string(&f,"I#X 1,12,1,1,2,3,4,5,6,7,8:I#I 1:I#R 1:I#I 0:");
+	for (size_t i=0;i<8;++i) CHECK(b->state.application.patterns[0][i]==i+1);
+	b->state.bgi.state=0; b->state.bgi.error=-11; string(&f,"I#X 1,12,0:");
+	CHECK(b->state.application.patterns[0][0]==0xaa && b->state.bgi.error==-11 && b->state.bgi.fill_style==1);
+	blank(&f); CHECK(f.size==9); destroy(&f);
+}
+static void edit_live_frame(void)
+{
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#X 1,12,1,1,"); CHECK(b->fill_edit.active && b->fill_edit.row==1);
+	b->fill_edit.slot=13; b->fill_edit.alter=0;
+	string(&f,"2,3,4,5,6,7,8:");
+	CHECK(!b->fill_edit.active && memcmp(b->state.application.patterns[1],st_big_fill_restore[1],8)==0);
+	CHECK(b->state.application.patterns[0][0]==1 && b->state.application.patterns[0][1]==0x55);
+	string(&f,"I#X 1,12,1,9,"); b->fill_edit.slot=24;
+	const char bad[]="10,TAIL"; size_t used;
+	CHECK(st_cterm_write(f.terminal,bad,sizeof(bad)-1,&used)==IO_ERROR_OUT_OF_RANGE && used==3);
+	CHECK(!b->fill_edit.active && b->state.application.patterns[0][0]==9 && b->state.application.patterns[0][1]==0x55 && b->state.bgi.error==0);
+	string(&f,"I#X 1,12,0:"); CHECK(memcmp(b->state.application.patterns[0],st_big_fill_restore[0],8)==0);
+	blank(&f); CHECK(f.size==0); destroy(&f);
+}
+int main(void) { partitions(); prefixes_sources_and_errors(); edit_partitions(); edit_prefixes_and_sources(); edit_live_frame(); return 0; }

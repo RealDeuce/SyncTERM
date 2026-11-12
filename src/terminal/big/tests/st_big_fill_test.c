@@ -106,4 +106,55 @@ static void errors_and_defaults(void)
 	CHECK(st_big_fill_custom(&s,NULL,5)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_builtin(NULL,1,5)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_big_fill_custom(NULL,stock[0],5)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_apply(NULL)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_select(NULL,1)==IO_ERROR_INVALID_ARGUMENT);
 }
-int main(void) { data_and_owners(); words_and_selection(); errors_and_defaults(); return 0; }
+static void edit_headers_and_restore(void)
+{
+	struct st_big_fill_edit e;
+	for (unsigned word=0;word<=65535;++word) {
+		CHECK(st_big_fill_edit_begin(&e,(uint16_t)word,1)==0);
+		CHECK(e.slot==(word>=12 && word<=23?word:12) && e.alter==1 && e.active && e.editing && e.row==0 && e.error==0);
+		CHECK(st_big_fill_edit_begin(&e,23,(uint16_t)word)==0);
+		CHECK(e.slot==23 && e.alter==(word<2?word:0) && e.editing==(word==1));
+	}
+	struct st_big_state s; st_big_state_init(&s); s.bgi.state=0; s.bgi.error=-11; s.application.fill=7;
+	unsigned char before[sizeof(s.bgi)]; memcpy(before,&s.bgi,sizeof(before));
+	/* big_profile pins the independent original96-byte restore-table hash. */
+	for (uint16_t slot=12;slot<24;++slot) {
+		memset(s.application.patterns,0xcc,96);
+		CHECK(st_big_fill_edit_begin(&e,slot,0)==0 && st_big_fill_edit_finish(&e,&s)==0 && !e.active);
+		for (size_t i=0;i<12;++i) for (size_t row=0;row<8;++row)
+			CHECK(s.application.patterns[i][row]==(i==(size_t)(slot-12)?st_big_fill_restore[i][row]:0xcc));
+		CHECK(s.application.fill==7 && memcmp(before,&s.bgi,sizeof(before))==0);
+	}
+	const uint16_t values[]={257,258,65535,0,32769,291,511,264};
+	static const uint8_t expected[]={1,2,255,0,1,35,255,8};
+	memset(s.application.patterns[0],0xcc,8);
+	CHECK(st_big_fill_edit_begin(&e,12,1)==0);
+	for (size_t row=0;row<8;++row) {
+		CHECK(st_big_fill_edit_row(&e,&s,values[row])==0 && e.row==row+1);
+		for (size_t i=0;i<8;++i) CHECK(s.application.patterns[0][i]==(i<=row?expected[i]:0xcc));
+	}
+	CHECK(st_big_fill_edit_finish(&e,&s)==0 && !e.active && memcmp(before,&s.bgi,sizeof(before))==0 && s.application.fill==7);
+}
+static void edit_live_locals_and_errors(void)
+{
+	struct st_big_state s; st_big_state_init(&s); struct st_big_fill_edit e;
+	CHECK(st_big_fill_edit_begin(&e,12,1)==0 && st_big_fill_edit_row(&e,&s,1)==0);
+	e.slot=13; e.alter=0;
+	for (uint16_t row=1;row<8;++row) CHECK(st_big_fill_edit_row(&e,&s,(uint16_t)(row+1))==0);
+	CHECK(s.application.patterns[1][0]==0x33 && s.application.patterns[1][7]==8 && e.row==8);
+	CHECK(st_big_fill_edit_finish(&e,&s)==0 && memcmp(s.application.patterns[1],st_big_fill_restore[1],8)==0);
+	CHECK(s.application.patterns[0][0]==1 && s.application.patterns[0][1]==0x55);
+	CHECK(st_big_fill_edit_begin(&e,12,1)==0 && st_big_fill_edit_row(&e,&s,9)==0);
+	e.slot=24; CHECK(st_big_fill_edit_row(&e,&s,10)==IO_ERROR_OUT_OF_RANGE && e.row==1 && s.application.patterns[0][0]==9);
+	e.slot=12; CHECK(st_big_fill_edit_row(&e,&s,11)==IO_ERROR_OUT_OF_RANGE && st_big_fill_edit_finish(&e,&s)==IO_ERROR_OUT_OF_RANGE);
+	st_big_fill_edit_cancel(&e); CHECK(!e.active && e.error==0 && s.application.patterns[0][0]==9);
+	CHECK(st_big_fill_edit_begin(&e,12,0)==0); e.slot=65535;
+	CHECK(st_big_fill_edit_finish(&e,&s)==IO_ERROR_OUT_OF_RANGE && s.application.patterns[0][0]==9);
+	CHECK(st_big_fill_edit_begin(&e,12,1)==0 && st_big_fill_edit_row(&e,&s,1)==0);
+	CHECK(st_big_fill_edit_finish(&e,&s)==IO_ERROR_PROTOCOL && st_big_fill_edit_row(&e,&s,2)==IO_ERROR_PROTOCOL);
+	st_big_fill_edit_cancel(&e); CHECK(st_big_fill_edit_row(&e,&s,2)==IO_ERROR_PROTOCOL);
+	CHECK(st_big_fill_edit_begin(NULL,12,1)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_edit_row(NULL,&s,1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_fill_edit_row(&e,NULL,1)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_edit_finish(NULL,&s)==IO_ERROR_INVALID_ARGUMENT && st_big_fill_edit_finish(&e,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	st_big_fill_edit_cancel(NULL);
+}
+int main(void) { data_and_owners(); words_and_selection(); errors_and_defaults(); edit_headers_and_restore(); edit_live_locals_and_errors(); return 0; }

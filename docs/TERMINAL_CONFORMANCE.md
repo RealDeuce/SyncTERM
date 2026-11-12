@@ -185,6 +185,16 @@ with the full indexed/text/palette/points/cursor/replies/RGB scene. Fill
 rendering consumers and remaining global composition are pending; only BIG
 tests run during iteration, with RIP/full regressions deferred to the end.
 
+BIG X1 now edits/restores retained custom rows with conditional arity,
+immediate BYTE prefixes and a fixed eight-read loop across source changes.
+It leaves installed patterns and pixels unchanged until A resubmits them.
+Component/native cases cover full slot/flag domains, restore data, live
+locals, bounds/cancellation, split input, timeouts/source/reply/I/R behavior.
+56 new coherent scenes bring coverage to1162, adding retained slot bytes
+and editor ownership to existing full indexed/text/palette/points/cursor/
+fill-cache/replies/RGB captures. Remaining consumers/global composition and
+the final full suite remain pending; routine tests stay BIG-only.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

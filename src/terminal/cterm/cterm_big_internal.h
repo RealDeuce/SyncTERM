@@ -9,6 +9,7 @@
 #include "cterm_key.h"
 #include "st_big_stream.h"
 #include "st_big_collect.h"
+#include "st_big_fill.h"
 enum cterm_big_setup_phase { CTERM_BIG_SETUP_OFF, CTERM_BIG_SETUP_HEADER,
 	CTERM_BIG_SETUP_TARGET, CTERM_BIG_SETUP_TEXT, CTERM_BIG_SETUP_TYPE,
 	CTERM_BIG_SETUP_COUNT, CTERM_BIG_SETUP_KEY, CTERM_BIG_SETUP_WORD,
@@ -78,6 +79,7 @@ struct cterm_big {
 	struct cterm_big_zone zone;
 	struct cterm_big_collect collect;
 	struct cterm_big_mouse mouse;
+	struct st_big_fill_edit fill_edit;
 	bool footer_active, starting_body, gang_selecting, gang_wire;
 	uint64_t pair_deadline, pair_sample;
 	bool pair_wait, pair_body, feeding, reset_pending;

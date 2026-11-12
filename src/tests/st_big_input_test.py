@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa)):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -48,6 +48,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not m["cursor_visible"] and not s["cterm.big_pair_wait"]
     assert s["cterm.big_loop_type"] == 32 and not s["cterm.big_footer_active"]
     assert not s["cterm.big_collect_active"] and not s["cterm.big_pointer_active"]
+    assert not s["cterm.big_pattern_active"]
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
     assert s["cterm.big_scaling"] == scaling
@@ -70,6 +71,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert tuple(s[f"cterm.big_{name}_color"] for name in ("marker", "line", "fill", "text")) == colors
     assert (s["cterm.big_bgi_fill_style"], s["cterm.big_bgi_fill_color"]) == fill
     assert s["cterm.big_fill_selection"] == selected_fill
+    assert (s["cterm.big_custom0_prefix"], s["cterm.big_custom0_tail"]) == custom0
     assert (s["cterm.big_fill_byte"], s["cterm.big_device_fill_color"], s["cterm.big_device_fill_style"]) == (fill[1] & 255, fill[1] & 15, fill[0])
     assert tuple(s[f"cterm.big_fill_row{row}"] for row in range(8)) == fill_pixels
     if loop_state is not None:
@@ -485,6 +487,33 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
                                   graph_point=(124, 60), colors=colors, graph_color=7, colored_pixels=pixels,
                                   rgb_sample=(101, 61, 0xaaaa), fill=fill, selected_fill=selected, fill_pixels=tile)
+                        # Editing/restoring a retained slot does not install it;
+                        # each following A explicitly resubmits the new rows.
+                        edge = (5, 0, 0, 0, 0, 0, 0, 0x50000000)
+                        checker = (0x05050505, 0x50505050, 0x05050505, 0x50505050,
+                                   0x05050505, 0x50505050, 0x05050505, 0x50505050)
+                        pattern_cases = (
+                            (b"I#X 1,0,1,128,0,0,0,0,0,0,1:", (7, 291, 256, 65535), 1, (1, 256), (0,) * 8, (128, 0x01000000)),
+                            (b"I#C>2,5:A 12:", (7, 291, 5, 65535), 12, (12, 5), edge, (128, 0x01000000)),
+                            (b"I#X 1,12,0:", (7, 291, 5, 65535), 12, (12, 5), edge, (0x55aa55aa, 0x55aa55aa)),
+                            (b"I#A 12:", (7, 291, 5, 65535), 12, (12, 5), checker, (0x55aa55aa, 0x55aa55aa)),
+                        )
+                        for index, (command, colors, selected, fill, tile, custom) in enumerate(pattern_cases):
+                            token = f"PATTERN{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(124, 60), colors=colors, graph_color=7, colored_pixels=pixels,
+                                  rgb_sample=(101, 61, 0xaaaa), fill=fill, selected_fill=selected, fill_pixels=tile, custom0=custom)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")
