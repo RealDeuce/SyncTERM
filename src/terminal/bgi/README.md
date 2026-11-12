@@ -17,6 +17,15 @@ colour/write policy and failure handling. RIP retains its own clipping and
 thickness; BIG supplies its different fixed-slope WORD clip and stroke schedule.
 The four same-index builtin line patterns are shared immutable data too.
 
+The twelve same-index8x8 fill masks now use `st_bgi_fill_patterns` in both
+RIP and BIG. All96 bytes and initializer text match the extracted RIP table;
+BIG chapters11/50/83 identify the original matching masks. `big_fill` checks
+them against an independent literal table. BIG keeps application slots,
+library/driver copies, colour validation and the installed indexed8x8 tile
+in its own adapter. A tuple-colour update does not rebuild that tile. RIP's
+consumers retain their existing state/assignment behavior. Routine goal tests
+are BIG-only; RIP regressions are deferred to final full-suite verification.
+
 `big_draw` checks hand-authored point traces, pattern phase and BIG's literal
 marker masks/XOR visits; RIP's existing raster/oracle/capture expectations
 remain unchanged. BIG protocol/state adapters belong in `../big`, not here.

@@ -23,7 +23,7 @@ wire & setup, source/footer replay and local stored-loop keys. T attributes
 and P marker drawing now run through a shared thin BGI kernel with BIG
 adapters, as do native L/D/d line commands. Native m graphics-point movement
 and < keyboard/hybrid pointer input are integrated, along with native M
-writing-mode selection and C application colour selection. Other drawing commands,
+writing-mode selection, C application colours and A fill installation. Other drawing commands,
 page/image binding, sound and full command
 acceptance remain pending (0/45). The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -1353,3 +1353,66 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native C application-colour integration commit: `e34a731`.
 Fill/text, page/image/audio composition and the full45-entry goal remain in progress.
+
+=== Native A fill installation and indexed pattern cache
+
+A now reads one class0 WORD, stores the raw application selection and calls
+the common fill helper. Signed selections outside0..23 become1. The helper
+keeps separate current-selection tests for built-in0..11 and custom12..23;
+future temporary overrides can resubmit the current application choice.
+Built-in wrappers validate the unsigned style before public stores, but do
+not validate the full colour WORD. They publish public style/colour and the
+lower fill BYTE before installed dispatch. Custom wrappers query the native
+16-pen profile first and reject full unsigned colours>15 with BGI error-11
+before public style/colour/user-copy or driver changes. The application can
+still select12 after a rejected custom submission.
+
+Accepted custom patterns retain an independent library mirror and re-read
+the original eight-byte source for the device user copy. Both use forward
+byte order, including valid overlapping native sources. The active pattern
+is another owner. Its eight rows expand once, with the then-current device
+fill pen, into a64-byte8x8 indexed tile. This replaces the foreign planar
+pattern cache at its installation boundary; it adds no framebuffer or planar
+shadow. Zero mask bits represent opaque pen0. Later colour-tuple changes
+update current device colour without rebuilding the cached tile.
+
+The four full application colour WORDs, public fill style/colour, lower fill
+BYTE, device draw/fill pens, library/device user copies, active mask and cached
+tile remain distinct. Default installation now runs the existing draw-colour
+setter, custom FF8/max15 and solid-style1/max15 in original order. I1 retains
+installed fill; R reinstalls these defaults while retaining application
+selection/colours/custom slots; I0 also resets application selection/colours
+without restoring those slots. Old BGI errors do not suppress valid calls.
+
+The12 same-index fill masks were extracted unchanged from RIP into
+`st_bgi_fill_patterns`; both protocols reference that one table. All96 bytes
+and initializer text match the previous RIP table exactly. `big_fill` checks
+an independent original literal table, rather than using RIP as its oracle.
+RIP's consumers keep their state and assignments; runtime RIP regressions
+remain deferred under the BIG-only iteration policy.
+
+`big_fill` checks all65,536 A selector WORDs and all65,536 colour WORDs for
+both built-in reduction and custom validation, literal slash/checker/empty/
+solid cached rows, delayed application edits, re-submission, independent
+mirror/device copies under real native overlap, current fill-BYTE changes
+without retiling, invalid styles, old errors, null arguments and distinct
+uninstalled prefixes. Built-in uninstalled failure retains public style/
+colour/BYTE changes and old device/cache state; custom uninstalled query
+fails before public/copy changes. Native protocol errors replace the original
+DOS diagnostic/exit; bounded slot access rejects an escape before reading.
+Unsafe foreign segment/register aliases remain outside native ownership.
+
+`cterm_big_fill` adds every-split/default-profile and bytewise/all mode/
+encoding/status tests, unchanged complete indexed planes/cursor/points,
+class0 and stored sources, repetition/flow, deferred replies after rejected
+custom A, partial EOF/reset/timeout/callback reset, I1/R/I0 and installed
+recovery after actual uninstalled errors. Its first wire expectation failed
+before registration.56 new coherent scenes bring application coverage to1106.
+All scenes now observe selected/public/lower/device fill and eight literal
+cached rows with complete indexed planes, ROM text/cells, palette, points,
+cursor/state, exact replies and existing cyan RGB swatch. Physical audio/MIDI
+are disabled. A itself leaves pixels untouched; bar/flood/sector consumers,
+X1 wire edits, text, page/image/audio composition and final full-suite
+acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending.

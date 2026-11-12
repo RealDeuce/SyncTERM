@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -69,6 +69,9 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert s["cterm.big_color"] == graph_color and s["cterm.big_device_color"] == graph_color & 15
     assert tuple(s[f"cterm.big_{name}_color"] for name in ("marker", "line", "fill", "text")) == colors
     assert (s["cterm.big_bgi_fill_style"], s["cterm.big_bgi_fill_color"]) == fill
+    assert s["cterm.big_fill_selection"] == selected_fill
+    assert (s["cterm.big_fill_byte"], s["cterm.big_device_fill_color"], s["cterm.big_device_fill_style"]) == (fill[1] & 255, fill[1] & 15, fill[0])
+    assert tuple(s[f"cterm.big_fill_row{row}"] for row in range(8)) == fill_pixels
     if loop_state is not None:
         assert (s["cterm.big_loop_current"], s["cterm.big_loop_count"],
                 s["cterm.big_loop_index"], s["cterm.big_no_parameters"]) == loop_state
@@ -451,6 +454,37 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
                                   graph_point=point, colors=colors, graph_color=graph_color, colored_pixels=pixels,
                                   rgb_sample=(101, 61, 0xaaaa))
+                        # A installs attributes and its indexed cache without
+                        # repainting. The colour31 custom submission rejects,
+                        # preserving the earlier built-in; built-ins accept256.
+                        fill_cases = (
+                            (b"I#A 3:", (7, 291, 31, 65535), 3, (3, 31),
+                             (0xf0000000, 0x0f000000, 0x00f00000, 0x000f0000,
+                              0x0000f000, 0x00000f00, 0x000000f0, 0x0000000f)),
+                            (b"I#A 12:", (7, 291, 31, 65535), 12, (3, 31),
+                             (0xf0000000, 0x0f000000, 0x00f00000, 0x000f0000,
+                              0x0000f000, 0x00000f00, 0x000000f0, 0x0000000f)),
+                            (b"I#C>2,5:A 12:", (7, 291, 5, 65535), 12, (12, 5),
+                             (0x05050505, 0x50505050, 0x05050505, 0x50505050,
+                              0x05050505, 0x50505050, 0x05050505, 0x50505050)),
+                            (b"I#C>2,256:A 258:", (7, 291, 256, 65535), 1, (1, 256), (0,) * 8),
+                        )
+                        for index, (command, colors, selected, fill, tile) in enumerate(fill_cases):
+                            token = f"FILL{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, True, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(124, 60), colors=colors, graph_color=7, colored_pixels=pixels,
+                                  rgb_sample=(101, 61, 0xaaaa), fill=fill, selected_fill=selected, fill_pixels=tile)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

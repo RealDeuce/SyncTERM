@@ -176,6 +176,15 @@ with complete indexed planes/text/palette/points/cursor/replies; coloured
 swatch interiors also verify composed RGB. Fill/text consumers, page/image/
 audio and final full-suite verification remain pending; routine tests are BIG-only.
 
+BIG A installs distinct public/lower/device fill owners and an indexed8x8
+pattern tile without drawing. Built-in/custom validation, copy order, cached
+colour, error prefixes and I/R lifetime have independent component/native
+tests. RIP and BIG share the unchanged96-byte mask table.56 added coherent
+scenes bring coverage to1106, observing selected fill and literal cached rows
+with the full indexed/text/palette/points/cursor/replies/RGB scene. Fill
+rendering consumers and remaining global composition are pending; only BIG
+tests run during iteration, with RIP/full regressions deferred to the end.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

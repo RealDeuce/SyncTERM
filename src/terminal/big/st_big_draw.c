@@ -103,7 +103,9 @@ int st_big_draw_color(struct st_big_state *s, uint16_t color)
 {
 	s->bgi.color=(uint8_t)color;
 	int status=installed(s); if (status!=0) return status;
-	s->bgi.device_color=(uint8_t)(color&15); return 0;
+	s->bgi.device_color=(uint8_t)(color&15);
+	s->bgi.device_fill_color=(uint8_t)(s->bgi.fill_low&15);
+	return 0;
 }
 int st_big_draw_move(struct st_big_state *s, uint16_t x, uint16_t y)
 {

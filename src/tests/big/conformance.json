@@ -182,7 +182,8 @@
       "operations": [
         "Revalidate current-source reuse and share only matching data/kernels actually consumed by RIP/BIG.",
         "BIG-specific raster adapters and original bitmap/four V100 CHR assets.",
-        "Shared extracted st_bgi_thin_line candidate/pattern walker and four builtin pattern words; RIP keeps its clip/thickness/state, BIG supplies original fixed-slope WORD clips, stroke expansion, points and polymarker schedules."
+        "Shared extracted st_bgi_thin_line candidate/pattern walker and four builtin pattern words; RIP keeps its clip/thickness/state, BIG supplies original fixed-slope WORD clips, stroke expansion, points and polymarker schedules.",
+        "Share the unchanged twelve8x8 fill masks through st_bgi_fill_patterns; BIG retains separate original selection, validation, copy/cache/default state and indexed tile representation."
       ],
       "tests": [
         "big_profile",
@@ -190,7 +191,8 @@
         "cterm_rip_live",
         "syncterm_rip154_raster_CP437",
         "syncterm_rip154_raster_UTF-8",
-        "big_draw"
+        "big_draw",
+        "big_fill"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -198,7 +200,9 @@
         "12-line-clipping-and-native-reuse.adoc",
         "22-markers-pixels-and-native-reuse.adoc",
         "57-line-command-acceptance.adoc",
-        "58-marker-and-spray-command-acceptance.adoc"
+        "58-marker-and-spray-command-acceptance.adoc",
+        "11-bgi-drawing-layers.adoc",
+        "50-attribute-command-acceptance.adoc"
       ],
       "deviations": [
         "BIG clip signed-division overflow or a detected nonterminating WORD clip cycle fails OUT_OF_RANGE. Uninstalled draw dispatch uses the existing protocol-error boundary; native pixel/index escapes and unexpected asynchronous sink returns stop without rolling back accepted prefixes."
@@ -232,6 +236,15 @@
           ],
           "commit": "a2d67a7",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
+        },
+        {
+          "id": "shared-fill-mask-data",
+          "status": "complete",
+          "tests": [
+            "big_fill"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -293,6 +306,17 @@
           ],
           "commit": "e34a731",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "fill-attributes-and-indexed-cache",
+          "status": "complete",
+          "tests": [
+            "big_fill",
+            "big_state",
+            "cterm_big_fill"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -589,6 +613,21 @@
           ],
           "commit": "e34a731",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending."
+        },
+        {
+          "id": "native-fill-selection",
+          "status": "complete",
+          "tests": [
+            "big_fill",
+            "big_state",
+            "big_numeric",
+            "big_control",
+            "big_draw",
+            "cterm_big_fill",
+            "syncterm_big_input"
+          ],
+          "commit": null,
+          "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
         }
       ]
     },
@@ -834,19 +873,42 @@
     {
       "id": "A",
       "order": 7,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
-        "big-state-pages"
+        "big-state-pages",
+        "shared-bgi"
       ],
       "references": [
         "50-attribute-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Read one class0 WORD, store raw application selection, then normalize signed values outside0..23 to1. The common helper keeps separate current-selection built-in/custom tests and supports later re-submission.",
+        "Built-in style<=11 publishes public style/full colour and lower fill BYTE before installed dispatch, without full-colour validation. Custom query uses the selected16-pen native profile and rejects unsigned colour>15 with BGI error-11 before public/copy/driver changes; rejected application selection remains.",
+        "Accepted custom sources copy forward to the library mirror and re-read the original source for the separate driver user copy. Active masks expand at installation to a64-byte8x8 indexed pen tile with colour latching and opaque pen0, rather than a persistent planar cache. Later colour tuples update current device pens without retiling.",
+        "Use all twelve unchanged shared st_bgi_fill_patterns masks; RIP references the same table. Defaults now call draw-colour/customFF/solid1 in original order. I1 retains fill; R reinstalls defaults while retaining application selection/colours/custom slots; I0 also resets application selection/colours.",
+        "Use common numeric source/repeat/chain/counted replies, including successful footer completion after custom BGI rejection. Native uninstalled errors preserve public versus driver/cache prefixes. A itself draws nothing; rendering consumers, X1 and global composition remain pending."
+      ],
+      "tests": [
+        "big_fill",
+        "big_state",
+        "big_numeric",
+        "big_control",
+        "big_draw",
+        "cterm_big_fill",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native16-pen VGA profile uses an indexed8x8 colour-latched pattern tile instead of the original32 expanded planar bytes. It preserves active masks, separate library/driver user copies, opaque zero pens and independent current tuple colour; there is no planar framebuffer.",
+        "Uninstalled dispatch returns protocol error and BGI error-1 instead of DOS diagnostic/exit, retaining reached public style/colour/BYTE/copy versus driver/cache prefixes. A selected-slot escape is rejected at access. Valid overlapping native sources retain original forward copy and source re-read semantics; unsafe foreign segments/register aliases are not modeled."
+      ],
+      "verification": [
+        "Initial independent A wire expectation failed before registration. The previous RIP initializer and extracted shared initializer match textually and across all96 bytes. big_fill independently checks original literal stock masks, packed slash/checker/empty/solid tiles, every selector WORD and all built-in/custom colour WORDs, delayed edits/resubmission, tuple changes without retiling, valid overlapping source copies with diverging mirror/driver bytes, errors/nulls and distinct uninstalled prefixes.",
+        "cterm_big_fill checks every split in the default profile and bytewise in all modes/CP437/UTF-8/status, unchanged full indexed planes/cursor/points, class0/stored sources, repetitions/flow, raw deferred replies after custom rejection, EOF/reset/timeout/callback reset, I1 retention/R user+tile defaults/I0 and uninstalled/recovery prefixes.",
+        "56 coherent application scenes bring coverage to1106: built-in31 reduction, rejected custom31 retaining old installed state, accepted custom5 checker, and invalid258/colour256 solid0. All scenes now observe selected/public/lower/device fill and eight literal cached rows with full indexed/text/palette/point/cursor/reply/RGB observations. No bar/flood/sector or physical audio coverage is claimed.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending."
+      ],
       "commit": null
     },
     {

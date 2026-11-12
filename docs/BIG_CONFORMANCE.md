@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, C/M/T attributes, m movement, P markers and L/D/d lines run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X4/X6, A/C/M/T attributes, m movement, P markers and L/D/d lines run
 through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
 page/image binding, sound and complete command acceptance remain in progress.
 
@@ -589,3 +589,31 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without c
 
 Native C application-colour integration commit: `e34a731`.
 Fill/text, page/image/audio composition and the full45-entry goal remain in progress.
+
+## Native A fill selection
+
+A stores a class0 WORD and the common helper clamps signed values outside
+0..23 to1, then tests current built-in/custom selection separately. Built-ins
+retain full colour WORDs and publish style/colour/lower BYTE before dispatch;
+customs reject unsigned colours>15 before those changes. Accepted custom
+sources have independent forward library/device copies. Active masks expand
+at installation into an8x8 indexed pen tile, preserving colour latching and
+opaque pen0 without a planar shadow. Later tuple-colour changes do not retile.
+I1 retains fill, R restores default userFF/solid15 while retaining application
+owners, and I0 additionally resets application selection/colours. Native
+uninstalled failures retain the original reached public/device/cache prefix.
+
+RIP/BIG now share the twelve immutable same-index masks: all96 bytes and
+initializer text match RIP's previous table. `big_fill` checks independent
+literal masks/tiles, every selector/colour WORD, rejected custom state,
+current colour/cache separation, resubmission and actual bounded overlapping
+source copies. Native A tests cover split/bytewise profiles, source/flow/
+reply/partial/error/lifetime behavior and unchanged complete planes/points/
+cursor. The first wire test failed before registration.56 coherent scenes
+bring coverage to1106, adding selected/public/lower/device fill and cached
+rows to the full indexed/text/palette/points/cursor/replies/RGB oracle.
+Bar/flood/sector consumers, X1 edits and remaining global composition stay
+pending. Only BIG tests run during iteration; RIP regressions and the full
+suite remain deferred.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending.

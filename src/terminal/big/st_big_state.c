@@ -2,6 +2,8 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_state.h"
 #include "st_big_number.h"
+#include "st_big_fill.h"
+#include "st_big_draw.h"
 #include "st_bgi_data.h"
 #include "io_error.h"
 #include <string.h>
@@ -44,9 +46,11 @@ static int defaults(struct st_big_state *s, const struct st_big_state_sink *sink
 		if (status != 0) return status;
 	}
 	s->bgi.background = 0;
-	s->bgi.color = 15; s->bgi.device_color = 15;
-	memset(s->bgi.fill_user,255,8); s->bgi.fill_color = 15;
-	s->bgi.fill_style = 1;
+	static const uint8_t full[8] = {255,255,255,255,255,255,255,255};
+	int status = st_big_draw_color(s,15);
+	if (status == 0) status = st_big_fill_custom(s,full,15);
+	if (status == 0) status = st_big_fill_builtin(s,1,15);
+	if (status != 0) return status;
 	s->bgi.line_style = s->bgi.line_user = 0;
 	s->bgi.line_mask = 0xffff; s->bgi.line_width = 1;
 	s->bgi.ddo_line_width = 1; s->bgi.device_line_width = 1;

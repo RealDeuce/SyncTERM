@@ -216,3 +216,26 @@ use literal coloured candidates and a3x3 cyan RGB swatch, observe all four
 application colour WORDs plus installed draw/device/fill owners, and retain
 the existing full indexed/text/palette/state/reply oracle. No raster output
 from SyncTERM is used to generate expectations.
+
+`big_fill` derives A and its lower built-in/custom wrappers from chapters
+10/11/50/54/83. The stock96 bytes are independently transcribed; literal
+packed pixel rows distinguish slash orientation, checker rows, zero/solid
+masks and foreground pen identity. All selector WORDs and all colour WORDs
+exercise built-in reduction versus unsigned custom rejection. Separate
+application slots, library/driver user copies, active masks and indexed
+tile lifetimes are checked, including current fill BYTE changes without
+retiling, temporary built-in overrides followed by resubmission, valid
+overlapping source copies, old errors and builtin/custom uninstalled prefixes.
+The overlap cases distinguish forward byte order and re-reading the original
+source from copying the library mirror.
+
+`cterm_big_fill` independently expects A wire states at every split/default
+profile and bytewise in all three modes, CP437/UTF-8 and status choices. It
+checks that A leaves both indexed planes/cursor/points intact, class0/stored
+sources and repetition/flow, invalid-custom deferred replies, partial EOF/
+reset/timeout/callback reset, I1/R/I0 defaults and actual uninstalled prefixes.
+The initial wire case failed before registration.56 added coherent scenes
+bring application coverage to1106, comparing selected/public/device fill
+state and literal eight-row cached tiles with the unchanged full indexed,
+ROM text/cells, palette, points/cursor, replies and coloured RGB scene.
+These tests do not claim bar/flood/sector pixels or physical audio coverage.

@@ -7,6 +7,7 @@
 #include "cterm_render.h"
 #include "st_bgi_data.h"
 #include "st_big_draw.h"
+#include "st_big_fill.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
 #include "io_error.h"
@@ -38,7 +39,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
 	{'m',move,2,move_next},
-	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},
+	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
 
 static bool marker_kind(const struct st_graphics_command_view *view)
@@ -320,6 +321,11 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='C') {
 		if (view->count!=2 || !view->arguments[0].has_value || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
 		int status=st_big_state_color(&big->state,(uint16_t)view->arguments[0].value,(uint16_t)view->arguments[1].value);
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='A') {
+		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		int status=st_big_fill_select(&big->state,(uint16_t)view->arguments[0].value);
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='X') {
@@ -671,6 +677,17 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_device_color", big->state.bgi.device_color);
 	st_console_test_number(app, "cterm.big_bgi_fill_style", big->state.bgi.fill_style);
 	st_console_test_number(app, "cterm.big_bgi_fill_color", big->state.bgi.fill_color);
+	st_console_test_number(app, "cterm.big_fill_selection", big->state.application.fill);
+	st_console_test_number(app, "cterm.big_fill_byte", big->state.bgi.fill_low);
+	st_console_test_number(app, "cterm.big_device_fill_color", big->state.bgi.device_fill_color);
+	st_console_test_number(app, "cterm.big_device_fill_style", big->state.bgi.device_fill_style);
+	static const char *const fill_rows[]={"cterm.big_fill_row0","cterm.big_fill_row1","cterm.big_fill_row2","cterm.big_fill_row3",
+	    "cterm.big_fill_row4","cterm.big_fill_row5","cterm.big_fill_row6","cterm.big_fill_row7"};
+	for (size_t row=0;row<8;++row) {
+		uint32_t pixels=0;
+		for (unsigned x=0;x<8;++x) pixels|=(uint32_t)big->state.bgi.fill_pixels[row*8+x]<<(4*x);
+		st_console_test_number(app,fill_rows[row],pixels);
+	}
 	st_console_test_number(app, "cterm.big_write_mode", big->state.bgi.write_mode);
 	st_console_test_number(app, "cterm.big_cached_write_mode", big->state.application.write_mode);
 	st_console_test_number(app, "cterm.big_point_x", big->state.bgi.x);
