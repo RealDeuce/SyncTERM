@@ -154,6 +154,9 @@ if(BUILD_TESTING)
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_policy.cmake")
 	find_package(Python3 QUIET COMPONENTS Interpreter)
 	if(Python3_Interpreter_FOUND)
+		add_test(NAME dependency_parallel COMMAND "${Python3_EXECUTABLE}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_parallel.py"
+			"${CMAKE_COMMAND}" "${PROJECT_BINARY_DIR}/dependency-parallel-tests")
 		add_test(NAME build_macos_bundle COMMAND "${Python3_EXECUTABLE}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/macos_bundle.py"
 			"${CMAKE_COMMAND}" "${PROJECT_BINARY_DIR}/macos-bundle-tests")

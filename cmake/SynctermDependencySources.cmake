@@ -115,6 +115,15 @@ function(syncterm_dependency_source name mode requested_libraries)
 	set(build_target st_build_${lower})
 	set(build_deps)
 	set(build_products)
+	set(job_server_options)
+	set(dep_job_server FALSE)
+	if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
+		# Preserve GNU Make's jobserver through the script/logging wrappers.
+		set(job_server_options BUILD_JOB_SERVER_AWARE TRUE)
+		if(CMAKE_GENERATOR MATCHES "Makefiles")
+			set(dep_job_server TRUE)
+		endif()
+	endif()
 	foreach(config IN LISTS configurations)
 		set(prefix "${CMAKE_BINARY_DIR}/dependencies/${lower}-${version}/${config}")
 		set_property(TARGET ${target} PROPERTY ST_DEP_PREFIX_${config} "${prefix}")
@@ -154,7 +163,7 @@ function(syncterm_dependency_source name mode requested_libraries)
 			CMAKE_GENERATOR CMAKE_GENERATOR_PLATFORM CMAKE_GENERATOR_TOOLSET WIN32 APPLE MSVC)
 			string(APPEND settings "set(${key} [==[${${key}}]==])\n")
 		endforeach()
-		foreach(key name mode kind prefix binary config libraries options dep_prefixes dep_definitions include_suffix)
+		foreach(key name mode kind prefix binary config libraries options dep_prefixes dep_definitions include_suffix dep_job_server)
 			string(APPEND settings "set(${key} [==[${${key}}]==])\n")
 		endforeach()
 		if(CMAKE_CONFIGURATION_TYPES)
@@ -266,12 +275,14 @@ function(syncterm_dependency_source name mode requested_libraries)
 		INSTALL_COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${active_settings}" "-DSOURCE=${active_source}"
 			"-DWORK=${active_work}" -DSTEP=install -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
 		BUILD_BYPRODUCTS ${build_products} DEPENDS ${build_deps}
+		${job_server_options}
 		LOG_DOWNLOAD ON LOG_CONFIGURE ON LOG_BUILD ON LOG_INSTALL ON
 		LOG_OUTPUT_ON_FAILURE ON EXCLUDE_FROM_ALL TRUE)
 	ExternalProject_Add_Step(${build_target} configuration_inputs
 		COMMAND "${CMAKE_COMMAND}" -E true DEPENDEES patch DEPENDERS configure
 		DEPENDS "${active_settings}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Build.cmake"
 			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Recipes.cmake"
+			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Parallel.cmake"
 			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/Patch.cmake"
 			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/dependencies/lock.json")
 	ExternalProject_Add_Step(${build_target} patch_inputs

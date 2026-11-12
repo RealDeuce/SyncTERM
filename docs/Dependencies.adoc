@@ -119,6 +119,17 @@ independently of installed or pinned target libraries.
 PulseAudio and PipeWire source builds also require the platform's gettext/intl
 development contract (which may be part of libc).
 
+With CMake 3.28 or newer and a Makefile generator, dependency builds share
+GNU Make's jobserver instead of starting a separate job budget. This includes
+Ninja-based recipes with Ninja 1.13 or newer and a compatible jobserver
+(GNU Make 4.4's FIFO protocol on POSIX). Otherwise, dependency builds use the
+build-time `CMAKE_BUILD_PARALLEL_LEVEL` environment value, or one worker when
+it is unset or empty. Set it to a positive integer to override that fallback;
+the value applies to each concurrent dependency, so it can multiply the outer
+build's concurrency. A top-level `cmake --build build --parallel N` shares its
+budget through GNU Make's jobserver, but other generators do not forward that
+command-line value to nested builds. OpenSSL's MSVC nmake recipe remains serial.
+
 FluidSynth retains its own configuration and SoundFont requirements. The pinned
 library does not download a SoundFont or copy a user's bank; configure its bank
 through FluidSynth's normal configuration. SyncTERM adds no runtime library
