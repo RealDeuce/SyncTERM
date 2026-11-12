@@ -263,3 +263,7 @@ claimed by these component tests.
 The native Release build passed without compiler/source diagnostics. All seven
 selected BIG/shared-parser/IGS scaling CTest checks passed in 1.57 seconds;
 `big_number` and `big_random` each completed in 0.01 seconds.
+
+Shared-RNG core completion commit: `af72cf0`. The numeric foundation remains
+in progress until stored-loop evaluation and application source/deadline
+integration are accepted. No BIG command completion is claimed.
