@@ -1114,8 +1114,8 @@ cterm_accumulate_doorway(struct cterminal *cterm, unsigned char byte, int *speed
  *
  * Collects bytes into musicbuf until the terminator 0x0E (SO) fires the
  * music playback. Any byte outside the allowed musicchars set aborts
- * the accumulation silently. Pending text is presented before playback,
- * then the rendering batch resumes while the music runs.
+ * the accumulation silently. Keep the rendering batch closed during playback
+ * so a foreground parser wait cannot suppress damage flushes or blinking.
  * ------------------------------------------------------------------------ */
 bool
 cterm_accumulate_music(struct cterminal *cterm, unsigned char byte, int *speed)
@@ -1129,8 +1129,8 @@ cterm_accumulate_music(struct cterminal *cterm, unsigned char byte, int *speed)
 		CURR_XY(&x, &y);
 		cterm_render_set_position(cterm, x, y);
 		cterm_render_set_cursor(cterm, cterm->cursor);
-		(void)cterm_render_set_hold_update(cterm, 1);
 		play_music(cterm);
+		(void)cterm_render_set_hold_update(cterm, 1);
 	}
 	else if (strchr(musicchars, byte) != NULL) {
 		if (strlen((char *)cterm->musicbuf) < sizeof(cterm->musicbuf) - 2)
