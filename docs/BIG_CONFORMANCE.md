@@ -771,3 +771,7 @@ fixture is not rerun for the unbound kernel. Only BIG tests run during
 iteration, with the full suite deferred until the end.
 
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates.
+
+Synchronous indexed flood kernel commit: `b76f7ef`.
+Native F/Z wire/flow/page/resource and remaining full45-entry composition
+stay in progress.
