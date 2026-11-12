@@ -71,7 +71,7 @@ if(BUILD_TESTING)
 	add_test(NAME settings COMMAND st_settings_test)
 
 	add_executable(st_settings_store_test tests/st_settings_store_test.c)
-	target_link_libraries(st_settings_store_test PRIVATE st_settings
+	target_link_libraries(st_settings_store_test PRIVATE st_settings st_profile
 		syncterm_filesystem syncterm_ini st_emoji_catalog)
 	target_compile_definitions(st_settings_store_test PRIVATE
 		ST_SETTINGS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/store-test")

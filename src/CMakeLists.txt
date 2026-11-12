@@ -211,6 +211,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_skypix_report PROPERTIES
 				TIMEOUT 90 LABELS "terminal;conformance;skypix")
+			add_test(NAME syncterm_cga_mode
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_cga_mode_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_cga_mode PROPERTIES
+				TIMEOUT 60 LABELS "terminal;conformance")
 			add_test(NAME syncterm_igs_init
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_init_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

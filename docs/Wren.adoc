@@ -5198,8 +5198,13 @@ duplicate platform-dependent enum tables:
 | Menu member | Result
 
 | `canvasModes`
-| `[ScreenMode, displayName]` rows describing pixel canvases/aspects for the
-  SkyPix editor; text columns/rows derive from the selected Amiga strike.
+| Ordered `[ScreenMode, displayName]` rows describing pixel canvases/aspects
+  for the SkyPix editor; text columns/rows derive from the selected Amiga
+  strike. Use each row's value rather than its position as the mode ID.
+
+| `screenModeChoices`
+| Ordered `[ScreenMode, displayName]` rows for screen-mode pickers. CGA 80x25
+  appears immediately before EGA 80x25; values retain their stable IDs.
 
 | `screenModes`, `cursorStyles`, `scalingModes`
 | Lists of display names indexed by the corresponding numeric setting.
@@ -5795,6 +5800,7 @@ Standard modes encode their dimensions in the name (e.g. `c80x25` =
 | `atariXep80`        | 21   | Atari 8-bit with XEP80 80-column
                                 expansion box.
 | `custom`            | 22   | Custom dimensions configured per-BBS.
+| `cga80x25`          | 32   | CGA 80x25, 640x200 with an 8x8 cell and 4:3 display aspect.
 | `ega80x25`          | 23   | EGA 80×25 with hardware-accurate pixel
                                 aspect (8×14 cell).
 | `vga80x25`          | 24   | VGA 80×25 with hardware-accurate pixel

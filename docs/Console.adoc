@@ -224,6 +224,7 @@ these margins do not scroll.  For example, 80x43 uses 344 text scanlines in a
 |C128 80-column |80x25 |8x8 |640x200 |4:3
 |Atari |40x24 |8x8 |320x192 |4:3
 |Atari XEP80 |80x25 |8x16 |640x400 |4:3
+|CGA 80x25 |80x25 |8x8 |640x200 |4:3
 |EGA 80x25 |80x25 |8x14 |640x350 |4:3
 |VGA 80x25 |80x25 |9x16 |720x400 |4:3
 |Prestel |40x25 |12x20 |480x500 |3077:2400

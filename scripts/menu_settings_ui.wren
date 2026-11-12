@@ -520,9 +520,7 @@ class SettingsMenu {
   }
 
   static screenMode_(app) {
-    var rows = []
-    var names = Menu.screenModes
-    for (i in 1...names.count) rows.add([i, names[i]])
+    var rows = Menu.screenModeChoices.where {|row| row[0] != 0 }.toList
     var mode = MenuUi.choice(app, "Screen Mode", rows,
         Menu.currentScreenMode, screenModeHelp_())
     if (mode != null) {
@@ -883,7 +881,7 @@ class SettingsMenu {
           s.promptSave = !s.promptSave
         } else if (value == 3) {
           var next = pickSetting_(app, "Startup Screen Mode",
-              Menu.screenModes, s.startupMode)
+              Menu.screenModeChoices, s.startupMode)
           if (next != null) s.startupMode = next
         } else if (value == 4) {
           var next = pickSetting_(app, "Video Output Mode",

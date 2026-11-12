@@ -242,6 +242,7 @@ test_mode_geometry(void)
 		uint32_t pixels_x, pixels_y, aspect_x, aspect_y;
 	} expected[] = {
 		{ST_SCREEN_MODE_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 4, 3},
+		{ST_SCREEN_MODE_CGA_80X25, 80, 25, 6, 7, 8, 8, 640, 200, 4, 3},
 		{ST_SCREEN_MODE_AMIGA_640X200, 80, 25, 7, 7, 8, 8, 640, 200, 4, 3},
 		{ST_SCREEN_MODE_AMIGA_640X400, 80, 50, 7, 7, 8, 8, 640, 400, 4, 3},
 		{ST_SCREEN_MODE_LCD_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 8, 5},

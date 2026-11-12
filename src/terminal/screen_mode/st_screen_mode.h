@@ -40,6 +40,8 @@ struct st_screen_mode_descriptor {
 
 size_t st_screen_mode_count(void);
 const struct st_screen_mode_descriptor *st_screen_mode_at(size_t index);
+/* Picker order; the returned descriptor retains its stable mode value. */
+const struct st_screen_mode_descriptor *st_screen_mode_choice_at(size_t index);
 const struct st_screen_mode_descriptor *st_screen_mode_get(
 	enum st_screen_mode mode);
 int st_screen_mode_custom(struct st_screen_mode_descriptor *result,

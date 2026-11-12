@@ -1423,9 +1423,9 @@ class BbsEditor {
            [TLSVersion.tls12, "TLS 1.2 (compatibility)"]]))
     }
 
-    var screenChoices = skyPix_(d["graphics"]) ? Menu.canvasModes : Menu.screenModes
+    var screenChoices = skyPix_(d["graphics"]) ? Menu.canvasModes : Menu.screenModeChoices
     if (d["graphics"] == 5) screenChoices = (27..29).map {|m| [m, Menu.screenModes[m]] }.toList
-    var screenName = (skyPix_(d["graphics"]) || d["graphics"] == 5) ? MenuUi.rowName(screenChoices, d["screenMode"]) : Menu.screenModes[d["screenMode"]]
+    var screenName = MenuUi.rowName(screenChoices, d["screenMode"])
     rows.add(row_("Screen Mode", screenName,
         Fn.new {
       var value = MenuUi.choice(app, "Screen Mode", screenChoices,

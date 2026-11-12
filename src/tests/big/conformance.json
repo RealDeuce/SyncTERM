@@ -1,0 +1,978 @@
+{
+  "schema_version": 1,
+  "target": "Fully enabled BIG1.03 terminal, VGA-capable, supplied IBM VGA console font/palette profile",
+  "reference_root": "~/IGS/docs/big/",
+  "contract": {
+    "scope": "Terminal only; BF, DOS client UI, demo restrictions and CONDOR excluded.",
+    "rounding": "Original chapter34 software/default-precision WORD results, including g3 Y5->11. No x87 emulation.",
+    "framebuffer": "Existing indexed bitmap and indexed pages/images; format conversion at edges, explicit layout/capacity/padding; no persistent planar shadow.",
+    "timing": "Existing local monotonic deadlines/audio samples; no foreign system clocks/BIOS interrupts/throughput delays.",
+    "audio": "Functional synthesis/playback/lifecycle; no canonical-PCM or listening gate; manual checklist required.",
+    "pointer": "Keyboard/X6 and native mouse coexist; latest movement wins, stationary button samples do not undo keyboard moves. Left release after a valid press confirms. No OS-pointer warp; preserve keyboard confirm/cancel and suppress UI/disabled/outside/reset/duplicate selections.",
+    "safe_port": "Preserve normal byte/WORD/state/pixel/reply behavior and document checked/bounded corrections to corruption, uninitialized state and unsafe failures."
+  },
+  "foundations": [
+    {
+      "id": "cga-screen-mode",
+      "status": "complete",
+      "operations": [
+        "Stable CGA ID32; 640x200/80x25/8x8/4:3 PC configuration, cursor6..7.",
+        "Ordered picker catalogs insert CGA before EGA without changing saved/API mode values."
+      ],
+      "tests": [
+        "screen_mode",
+        "app_startup",
+        "settings_store",
+        "bbs_list",
+        "connection",
+        "wren_host",
+        "wren_menu_contract",
+        "wren_settings_runtime",
+        "syncterm_cga_mode"
+      ],
+      "references": [
+        "reference/ibm5160-transcription/XTBIOS.ASM:3514 (MOV CURSOR_MODE,607H)"
+      ],
+      "deviations": [],
+      "verification": [
+        "Native CMake Release build, /usr/bin/cc, build/; no compiler diagnostics.",
+        "21 selected CTest checks passed in 37.74s, including all listed tests, terminal/RIP/SkyPix and session regressions.",
+        "syncterm_cga_mode: eight coherent CP437/UTF-8 scene captures across status visibility and reconnects, plus startup/return geometry; exact indexed blink planes, cells, cursor, palette, replies and composed RGB interior samples."
+      ],
+      "commit": null
+    },
+    {
+      "id": "graphics-parser",
+      "status": "not-started",
+      "operations": [
+        "Reuse framing/typed parameters/raw ownership/source continuations; optional BIG incremental numeric collector with exact consumed/completed/suspended results.",
+        "Keep existing IGS behavior and separate RIP/SkyPix grammars."
+      ],
+      "tests": [],
+      "references": [
+        "01-scope-evidence.adoc"
+      ],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "big-numeric-state",
+      "status": "not-started",
+      "operations": [
+        "BIG WORD digit slots, destructive continuations, special bytes, random/loop sources and source-specific deadlines.",
+        "Original software/default-precision scaling, including g3 Y5->11, with exact finite integer adapters and explicit WORD reduction."
+      ],
+      "tests": [],
+      "references": [
+        "01-scope-evidence.adoc"
+      ],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "shared-bgi",
+      "status": "not-started",
+      "operations": [
+        "Revalidate current-source reuse and share only matching data/kernels actually consumed by RIP/BIG.",
+        "BIG-specific raster adapters and original bitmap/four V100 CHR assets."
+      ],
+      "tests": [],
+      "references": [
+        "01-scope-evidence.adoc"
+      ],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "big-state-pages",
+      "status": "not-started",
+      "operations": [
+        "Indexed visible framebuffer and off-screen pages/images; explicit capacity/padding/stride and active/visual/memory ownership.",
+        "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes."
+      ],
+      "tests": [],
+      "references": [
+        "01-scope-evidence.adoc"
+      ],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "application-integration",
+      "status": "not-started",
+      "operations": [
+        "BIG graphics mode6, profiles/menu/Wren, CP437/UTF8, shared pre-ANSI insertion, status/scrollback and reset/EOF/reconnect.",
+        "Hybrid pointer: keyboard/X6 movement plus native mouse movement; no OS-pointer warp. Stationary mouse/button observations preserve keyboard position.",
+        "Valid left press arms a release-triggered shared click action; preserve keyboard confirm, prevent duplicate/ghost selections, honor local UI/disabled/status/outside policy."
+      ],
+      "tests": [],
+      "references": [
+        "01-scope-evidence.adoc"
+      ],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "big-audio",
+      "status": "not-started",
+      "operations": [
+        "PC-speaker effects/notes and raw AdLib music using existing mixer/local sample timing.",
+        "Bounded C17 YM3812-only adaptation of pinned BSD ymfm algorithms; muted progression, cancel/reset/teardown and manual checklist."
+      ],
+      "tests": [],
+      "references": [
+        "01-scope-evidence.adoc"
+      ],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    }
+  ],
+  "commands": [
+    {
+      "id": "X",
+      "order": 0,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "52-extended-control-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "I",
+      "order": 1,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "54-initialize-and-resolution-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "R",
+      "order": 2,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "54-initialize-and-resolution-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "g",
+      "order": 3,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "51-state-and-position-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "M",
+      "order": 4,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "50-attribute-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "C",
+      "order": 5,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "50-attribute-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "S",
+      "order": 6,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "55-palette-command-and-global-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "A",
+      "order": 7,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "50-attribute-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "H",
+      "order": 8,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "51-state-and-position-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "T",
+      "order": 9,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "53-text-and-line-style-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "m",
+      "order": 10,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "51-state-and-position-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "L",
+      "order": 11,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "57-line-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "D",
+      "order": 12,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "57-line-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "d",
+      "order": 13,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "57-line-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "P",
+      "order": 14,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "58-marker-and-spray-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X0",
+      "order": 15,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "58-marker-and-spray-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "Z",
+      "order": 16,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "B",
+      "order": 17,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "F",
+      "order": 18,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "K",
+      "order": 19,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "61-curve-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "J",
+      "order": 20,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "61-curve-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "O",
+      "order": 21,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "61-curve-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "Q",
+      "order": 22,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "61-curve-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "V",
+      "order": 23,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "61-curve-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "Y",
+      "order": 24,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "61-curve-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "E",
+      "order": 25,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "53-text-and-line-style-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "W",
+      "order": 26,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "62-graphical-text-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "p",
+      "order": 27,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "application-integration"
+      ],
+      "references": [
+        "51-state-and-position-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "s",
+      "order": 28,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "application-integration"
+      ],
+      "references": [
+        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X1",
+      "order": 29,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "50-attribute-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X2",
+      "order": 30,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "52-extended-control-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X3",
+      "order": 31,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "53-text-and-line-style-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "t",
+      "order": 32,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "63-inquiry-and-pause-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "?",
+      "order": 33,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "application-integration"
+      ],
+      "references": [
+        "63-inquiry-and-pause-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X5",
+      "order": 34,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "application-integration"
+      ],
+      "references": [
+        "52-extended-control-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X6",
+      "order": 35,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "application-integration"
+      ],
+      "references": [
+        "51-state-and-position-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X4",
+      "order": 36,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "application-integration"
+      ],
+      "references": [
+        "64-input-and-zone-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "<",
+      "order": 37,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "application-integration"
+      ],
+      "references": [
+        "64-input-and-zone-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "b",
+      "order": 38,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "big-audio"
+      ],
+      "references": [
+        "66-speaker-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "n",
+      "order": 39,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "big-audio"
+      ],
+      "references": [
+        "66-speaker-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "N",
+      "order": 40,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "big-audio"
+      ],
+      "references": [
+        "67-music-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X7",
+      "order": 41,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "big-audio"
+      ],
+      "references": [
+        "52-extended-control-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "X8",
+      "order": 42,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "55-palette-command-and-global-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "&",
+      "order": 43,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages"
+      ],
+      "references": [
+        "65-loop-command-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    },
+    {
+      "id": "G",
+      "order": 44,
+      "status": "not-started",
+      "dependencies": [
+        "graphics-parser",
+        "big-numeric-state",
+        "big-state-pages",
+        "shared-bgi"
+      ],
+      "references": [
+        "56-image-command-and-global-acceptance.adoc"
+      ],
+      "operations": [],
+      "tests": [],
+      "deviations": [],
+      "verification": [],
+      "commit": null
+    }
+  ]
+}

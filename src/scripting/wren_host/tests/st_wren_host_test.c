@@ -5428,7 +5428,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"syncterm\" for ScreenMode\n"
 	    "if (ScreenMode.amiga640x200 != 30 || ScreenMode.amiga640x400 != 31) Fiber.abort(\"Amiga mode constants\")\n"
-	    "if (Menu.screenModes[31] != \"Amiga 640x400\" || Menu.canvasModes[31][0] != 31 || Menu.canvasModes[31][1] != \"640x400 (Amiga 640x400)\") Fiber.abort(\"Amiga mode catalogs\")\n"
+	    "if (Menu.screenModes[31] != \"Amiga 640x400\" || Menu.canvasModes[32][0] != 31 || Menu.canvasModes[32][1] != \"640x400 (Amiga 640x400)\") Fiber.abort(\"Amiga mode catalogs\")\n"
 	    "if (Menu.setScreenMode(ScreenMode.amiga640x400) != null || Menu.currentScreenMode != 31 || Menu.paletteDefaults(31)[0] != 16 || Menu.setScreenMode(1) != null) Fiber.abort(\"Amiga mode selection\")\n"
 	    "var s = Menu.settings\n"
 	    "s.startupMode = ScreenMode.amiga640x400\n"
@@ -5437,6 +5437,32 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "profile.screenMode = ScreenMode.amiga640x400\n"
 	    "if (profile.screenMode != 31) Fiber.abort(\"Amiga profile mode\")\n"
 	    "profile.screenMode = 1\n") == WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(host->vm, "cga_mode_contract",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"syncterm\" for ScreenMode\n"
+	    "if (ScreenMode.cga80x25 != 32 || ScreenMode.ega80x25 != 23 || ScreenMode.vga80x25 != 24) Fiber.abort(\"stable PC modes\")\n"
+	    "var names = Menu.screenModes\n"
+	    "var choices = Menu.screenModeChoices\n"
+	    "var canvases = Menu.canvasModes\n"
+	    "var order = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,32,23,24,25,26,27,28,29,30,31]\n"
+	    "if (names.count != 33 || names[32] != \"CGA 80x25\" || choices.count != 33 || canvases.count != 33) Fiber.abort(\"CGA catalogs\")\n"
+	    "for (i in 0...order.count) {\n"
+	    "  if (choices[i][0] != order[i] || choices[i][1] != names[order[i]] || canvases[i][0] != order[i]) Fiber.abort(\"CGA choice order\")\n"
+	    "}\n"
+	    "if (canvases[23][1] != \"640x200 (CGA 80x25)\") Fiber.abort(\"CGA canvas\")\n"
+	    "choices.clear()\n"
+	    "if (Menu.screenModeChoices.count != 33) Fiber.abort(\"mutable choice catalog\")\n"
+	    "if (Menu.setScreenMode(32) != null || Menu.currentScreenMode != 32 || Menu.paletteDefaults(32)[0] != 16) Fiber.abort(\"CGA selection\")\n"
+	    "var settings = Menu.settings\n"
+	    "var priorStartup = settings.startupMode\n"
+	    "settings.startupMode = 32\n"
+	    "if (settings.save() != null || Menu.settings.startupMode != 32) Fiber.abort(\"CGA startup persistence\")\n"
+	    "var profile = Menu.entries[0].profile\n"
+	    "profile.screenMode = 32\n"
+	    "if (profile.screenMode != 32) Fiber.abort(\"CGA profile\")\n"
+	    "profile.screenMode = 1\n"
+	    "settings.startupMode = priorStartup\n"
+	    "if (settings.save() != null || Menu.setScreenMode(1) != null) Fiber.abort(\"CGA restore\")\n") == WREN_RESULT_SUCCESS);
 	if (wrenInterpret(host->vm, "menu_encryption_contract", encryption_source)
 	    != WREN_RESULT_SUCCESS) {
 		fprintf(stderr, "encryption contract failed: %s\n", host->last_error);

@@ -1771,19 +1771,30 @@ fn_menu_screen_modes(WrenVM *vm)
 	}
 }
 
+static void
+fn_menu_screen_mode_choices(WrenVM *vm)
+{
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
+		const struct st_screen_mode_descriptor *mode = st_screen_mode_choice_at(i);
+		push_row(vm, 0, 1, 2, (double)mode->mode, mode->name);
+	}
+}
+
 static void fn_menu_canvas_modes(WrenVM *vm)
 {
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
 	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
-		const struct st_screen_mode_descriptor *mode = st_screen_mode_at(i);
+		const struct st_screen_mode_descriptor *mode = st_screen_mode_choice_at(i);
 		char label[96];
 		if (mode->mode == ST_SCREEN_MODE_CURRENT || mode->mode == ST_SCREEN_MODE_CUSTOM)
 			(void)snprintf(label, sizeof(label), "%s canvas", mode->name);
 		else
 			(void)snprintf(label, sizeof(label), "%" PRIu32 "x%" PRIu32 " (%s)",
 						   mode->console.pixel_width, mode->console.pixel_height, mode->name);
-		push_row(vm, 0, 1, 2, (double)i, label);
+		push_row(vm, 0, 1, 2, (double)mode->mode, label);
 	}
 }
 
@@ -2945,7 +2956,7 @@ fn_menu_set_screen_mode(WrenVM *vm)
 	int64_t mode;
 
 	if (!slot_integer(vm, 1, ST_SCREEN_MODE_80X25,
-	    ST_SCREEN_MODE_AMIGA_640X400, &mode))
+	    ST_SCREEN_MODE_COUNT - 1, &mode))
 		return;
 	st_wren_screen_result(vm, st_wren_host_set_screen_mode(host,
 	    (enum st_screen_mode)mode), "Menu.setScreenMode");
@@ -3497,7 +3508,7 @@ fn_menu_palette_defaults(WrenVM *vm)
 	int64_t mode;
 
 	if (!slot_integer(vm, 1, ST_SCREEN_MODE_CURRENT,
-	    ST_SCREEN_MODE_AMIGA_640X400, &mode))
+	    ST_SCREEN_MODE_COUNT - 1, &mode))
 		return;
 	if (mode == ST_SCREEN_MODE_CURRENT)
 		mode = host->current_screen_mode;
@@ -3977,7 +3988,7 @@ SETTINGS_FIXED_PROPERTY(shell_term, terminal_type)
 SETTINGS_OWNED_PROPERTY(tls_client_cert, tls_client_certificate)
 SETTINGS_OWNED_PROPERTY(tls_client_key, tls_client_key)
 SETTINGS_NUM_PROPERTY(startup_mode, startup_mode, int, ST_SCREEN_MODE_CURRENT,
-    ST_SCREEN_MODE_AMIGA_640X400)
+    ST_SCREEN_MODE_COUNT - 1)
 SETTINGS_NUM_PROPERTY(output_mode, output_mode, int, 0, INT_MAX)
 SETTINGS_NUM_PROPERTY(cursor_style, default_cursor, int, ST_CURSOR_DEFAULT,
     ST_CURSOR_SOLID_BLOCK)
@@ -4564,7 +4575,7 @@ BBS_NUM_PROPERTY(amigaFontSize, amiga_font_size, uint16_t, 1, UINT16_MAX)
 BBS_NUM_PROPERTY(address_family, address_family, int,
     ST_ADDRESS_FAMILY_UNSPECIFIED, ST_ADDRESS_FAMILY_HAPPY_EYEBALLS)
 BBS_NUM_PROPERTY(screen_mode, screen_mode, int, ST_SCREEN_MODE_CURRENT,
-    ST_SCREEN_MODE_AMIGA_640X400)
+    ST_SCREEN_MODE_COUNT - 1)
 BBS_NUM_PROPERTY(bps_rate, bps_rate, uint32_t, 0, UINT32_MAX)
 BBS_NUM_PROPERTY(xfer_log_level, transfer_log_level, int,
     ST_PROFILE_LOG_EMERGENCY, ST_PROFILE_LOG_DEBUG)
@@ -5115,6 +5126,7 @@ static const struct binding bindings[] = {
 	{"Menu", true, "fontEncoding(_)", fn_menu_font_encoding},
 	{"Menu", true, "logLevels", fn_menu_log_levels},
 	{"Menu", true, "screenModes", fn_menu_screen_modes},
+	{"Menu", true, "screenModeChoices", fn_menu_screen_mode_choices},
 	{"Menu", true, "canvasModes", fn_menu_canvas_modes},
 	{"Menu", true, "outputModes", fn_menu_output_modes},
 	{"Menu", true, "cursorStyles", fn_menu_cursor_styles},

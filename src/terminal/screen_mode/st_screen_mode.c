@@ -184,6 +184,9 @@ static const struct st_screen_mode_descriptor modes[] = {
 	[ST_SCREEN_MODE_CUSTOM] = {
 		.mode = ST_SCREEN_MODE_CUSTOM, .name = "Custom", .ini_name = "Custom",
 	},
+	MODE(ST_SCREEN_MODE_CGA_80X25, "CGA 80x25", "CGA80x25",
+	    PC_CONFIG(80, 25, 6, 7, 8, 640, 200, 4, 3),
+	    ST_SCREEN_PALETTE_COLOUR, 16, 7, 0),
 	MODE(ST_SCREEN_MODE_EGA_80X25, "EGA 80x25", "EGA80x25",
 	    PC_CONFIG(80, 25, 12, 13, 14, 640, 350, 4, 3),
 	    ST_SCREEN_PALETTE_COLOUR, 16, 7, 0),
@@ -217,6 +220,9 @@ static const struct st_screen_mode_descriptor modes[] = {
 		ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK),
 	    ST_SCREEN_PALETTE_ATARI_ST_2, 2, 15, 0),
 };
+
+_Static_assert(sizeof(modes) / sizeof(modes[0]) == ST_SCREEN_MODE_COUNT,
+    "Every screen mode needs a descriptor");
 
 size_t
 st_screen_mode_count(void)
@@ -254,6 +260,18 @@ const struct st_screen_mode_descriptor *
 st_screen_mode_at(size_t index)
 {
 	return index < st_screen_mode_count() ? &modes[index] : NULL;
+}
+
+const struct st_screen_mode_descriptor *
+st_screen_mode_choice_at(size_t index)
+{
+	/* Insert the CGA choice before EGA without renumbering saved/API values.
+	 * Modes appended after CGA retain their ordinary relative order. */
+	if (index == ST_SCREEN_MODE_EGA_80X25)
+		index = ST_SCREEN_MODE_CGA_80X25;
+	else if (index > ST_SCREEN_MODE_EGA_80X25 && index <= ST_SCREEN_MODE_CGA_80X25)
+		--index;
+	return st_screen_mode_at(index);
 }
 
 const struct st_screen_mode_descriptor *

@@ -1849,7 +1849,7 @@ st_wren_host_create(st_wren_host_t **result,
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	host->current_screen_mode = st_settings.startup_mode >= ST_SCREEN_MODE_CURRENT
-	    && st_settings.startup_mode <= ST_SCREEN_MODE_AMIGA_640X400
+	    && st_settings.startup_mode <= ST_SCREEN_MODE_COUNT - 1
 	    ? (enum st_screen_mode)st_settings.startup_mode
 	    : ST_SCREEN_MODE_CURRENT;
 	st_profile_init(&host->selected);

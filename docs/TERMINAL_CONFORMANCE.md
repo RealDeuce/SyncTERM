@@ -1,5 +1,15 @@
 # Terminal conformance coverage
 
+CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
+PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
+screen/canvas pickers without renumbering existing mode values or the
+ID-indexed Wren name catalog. Native mode/startup/settings/profile/connection
+and Wren tests cover geometry, ordering and persistence. `syncterm_cga_mode`
+checks eight coherent CP437/UTF-8, status on/off and reconnect captures with
+literal full-block rasters in both blink phases, palette/cells/cursor and RGB
+interior samples. Physical audio/MIDI are disabled. This is the first
+prerequisite for [BIG](BIG_CONFORMANCE.md); no BIG commands are claimed yet.
+
 RIP and IGS command rejections are nonfatal warnings at the graphics input
 stage. Native recovery tests and `syncterm_behavior_session_modes` verify
 following graphics and ANSI/VT52 handling, continued bidirectional connection

@@ -29,7 +29,18 @@ main(void)
 
 	CHECK(ST_SCREEN_MODE_AMIGA_640X200 == 30);
 	CHECK(ST_SCREEN_MODE_AMIGA_640X400 == 31);
-	CHECK(st_screen_mode_count() == ST_SCREEN_MODE_AMIGA_640X400 + 1U);
+	CHECK(ST_SCREEN_MODE_EGA_80X25 == 23 && ST_SCREEN_MODE_VGA_80X25 == 24);
+	CHECK(ST_SCREEN_MODE_CGA_80X25 == 32);
+	CHECK(st_screen_mode_count() == 33);
+	static const unsigned choices[] = {
+		0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,
+		32,23,24,25,26,27,28,29,30,31};
+	for (size_t i = 0; i < sizeof(choices)/sizeof(*choices); ++i) {
+		mode = st_screen_mode_choice_at(i);
+		CHECK(mode != NULL && (unsigned)mode->mode == choices[i]);
+	}
+	CHECK(st_screen_mode_choice_at(st_screen_mode_count()) == NULL);
+	CHECK(st_screen_mode_choice_at(SIZE_MAX) == NULL);
 	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
 		mode = st_screen_mode_at(i);
 		CHECK(mode != NULL);
@@ -54,6 +65,20 @@ main(void)
 	}
 	CHECK(st_screen_mode_at(st_screen_mode_count()) == NULL);
 	CHECK(st_screen_mode_get((enum st_screen_mode)-1) == NULL);
+	/* New CGA ID is appended; its presentation order is independent. */
+	mode = st_screen_mode_get(ST_SCREEN_MODE_CGA_80X25);
+	CHECK(mode != NULL);
+	CHECK(strcmp(mode->name, "CGA 80x25") == 0);
+	CHECK(strcmp(mode->ini_name, "CGA80x25") == 0);
+	CHECK(mode->console.columns == 80 && mode->console.rows == 25);
+	CHECK(mode->console.cell_width == 8 && mode->console.cell_height == 8);
+	CHECK(mode->console.pixel_width == 640 && mode->console.pixel_height == 200);
+	CHECK(mode->console.aspect_width == 4 && mode->console.aspect_height == 3);
+	CHECK(mode->console.default_cursor.start == 6 && mode->console.default_cursor.end == 7
+	    && mode->console.default_cursor.range == 8);
+	CHECK(mode->console.blink_mode == ST_CONSOLE_BLINK_PC && mode->console.video_flags == 0);
+	CHECK(mode->font_selector == 0 && mode->default_attribute == 7);
+	CHECK(mode->palette == ST_SCREEN_PALETTE_COLOUR && mode->palette_count == 16);
 	mode = st_screen_mode_get(ST_SCREEN_MODE_AMIGA_640X400);
 	CHECK(strcmp(mode->name, "Amiga 640x400") == 0);
 	CHECK(strcmp(mode->ini_name, "Amiga640x400") == 0);

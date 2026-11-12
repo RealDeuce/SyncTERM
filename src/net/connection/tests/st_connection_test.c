@@ -1771,6 +1771,12 @@ main(int argc, char **argv)
 	profile.hide_status = false;
 	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
 	CHECK(geometry.columns == 80 && geometry.rows == 49);
+	profile.screen_mode = ST_SCREEN_MODE_CGA_80X25;
+	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
+	CHECK(geometry.columns == 80 && geometry.rows == 24);
+	profile.hide_status = true;
+	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
+	CHECK(geometry.columns == 80 && geometry.rows == 25);
 	st_profile_dispose(&profile);
 	if (argc == 2 && strcmp(argv[1], "--atomic-output") == 0)
 		return test_atomic_output();

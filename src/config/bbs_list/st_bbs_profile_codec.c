@@ -28,7 +28,7 @@ static const char *screen_modes[] = {
 	"132x30", "132x34", "132x43", "132x50", "132x60", "C64",
 	"C128-40col", "C128-80col", "Atari", "Atari-XEP80", "Custom",
 	"EGA80x25", "VGA80x25", "Prestel", "BBCMicro7", "AtariST40x25",
-	"AtariST80x25", "AtariST80x25Mono", "Amiga640x200", "Amiga640x400", NULL
+	"AtariST80x25", "AtariST80x25Mono", "Amiga640x200", "Amiga640x400", "CGA80x25", NULL
 };
 
 static const char *flow_controls[] = {
