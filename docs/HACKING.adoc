@@ -102,14 +102,27 @@ baseline, see link:performance.adoc[Performance verification].
 
 link:../.gitlab-ci.yml[The pipeline] uses the same runner tags as Synchronet,
 but configures this standalone project with CMake. Each job builds the
-application and all applicable test targets, then runs CTest in the same
-checkout. Configured build trees are neither cached nor moved between jobs:
-tests contain absolute source and fixture paths.
+application and collects downloadable artifacts. Normal push, merge-request,
+and tag pipelines use `SYNCTERM_CI_MODE=build`: `BUILD_TESTING` and
+`ST_CONSOLE_TEST` are disabled, and no tests or private display servers run.
+
+To run the full test matrix, open *Build > Pipelines > New pipeline*, select
+the branch or tag, choose `full-test` in the `SYNCTERM_CI_MODE` dropdown, and
+start the pipeline. This mode builds all applicable test targets and runs
+CTest in each native checkout. It also enables the CI-driver checks and the
+Linux minimal, sanitizer, and mixed-linkage jobs. These extra jobs are absent
+from normal artifact pipelines. A schedule or API-triggered pipeline can
+select the same mode by setting `SYNCTERM_CI_MODE=full-test`. Existing optional
+Clang and Haiku opt-ins still apply. The pipeline name shows the chosen mode.
+
+Configured build trees are neither cached nor moved between jobs: tests
+contain absolute source and fixture paths.
 
 [cols="1,2",options="header"]
 |===
 | Runner tag | Coverage
-| `Linux` | GCC, minimal optional features, combined ASan/UBSan; optional Clang job
+| `Linux` | GCC; full-test adds minimal optional features, combined ASan/UBSan,
+and mixed linkage; optional Clang job
 | `alpine-linux` | Native musl build and tests
 | `RaspberryPi` | Native ARM64 build and tests
 | `FreeBSD` | Native build/tests; Win32 and Win64 MinGW cross-compilation
@@ -148,9 +161,9 @@ Only compiler tools are bootstrapped, not application libraries.
 FreeBSD cross-builds use `/home/admin/mingw-w32` and
 `/home/admin/mingw-w64`; `CI_MINGW_ROOT` can override the selected root.
 They explicitly select `CRYPTO_BACKEND=none` unless overridden, constrain
-library/header/package discovery to the target, and build test executables
-without running them. Their `execution.txt` records this distinction and they
-do not publish a JUnit report.
+library/header/package discovery to the target, and in full-test mode build
+test executables without running them. Their `execution.txt` records this
+distinction and they do not publish a JUnit report.
 Additional target SDK roots can be supplied with `CMAKE_FIND_ROOT_PATH`.
 The toolchain restricts pkg-config metadata to `lib/pkgconfig` and
 `share/pkgconfig` beneath those roots, clearing inherited host search paths.
@@ -181,13 +194,16 @@ pipelines. Other projects sharing those sessions need the same runner-level
 isolation; resource groups are not cross-project locks.
 
 Job artifacts under `build-ci/reports/` retain configure/build/test logs,
-detected capabilities and JUnit results even on failure. Application binaries
-are under `build-ci/artifacts/`. After the test run (or test-target build for
-cross jobs), CI reconfigures the same build tree with `BUILD_TESTING=OFF` and
+detected capabilities and, for native full-test jobs, JUnit results even on
+failure. Application binaries are under `build-ci/artifacts/`. In full-test
+mode, after the test run (or test-target build for cross jobs), CI reconfigures
+the same build tree with `BUILD_TESTING=OFF` and
 `ST_CONSOLE_TEST=OFF` and rebuilds before collecting application binaries.
 The test run retains its original capability report; `artifact-configure.log`,
 `artifact-build.log`, and `artifact-configuration.txt` describe the distributed
-build. These are build outputs, not self-contained release packages with every
+build. Normal build mode configures and builds only once; `configure.log`,
+`build.log`, and `artifact-configuration.txt` describe its distributed build.
+These are build outputs, not self-contained release packages with every
 optional runtime library. Pipeline creation
 covers merge requests, branch pushes, tags, schedules and manual pipelines,
 without duplicating a push pipeline when an MR pipeline is already requested.
@@ -219,7 +235,8 @@ cmake -S ci/tests -B build-ci-check
 ctest --test-dir build-ci-check --output-on-failure --no-tests=error
 ----
 
-To exercise a native CI job locally, use `sh ci/posix.sh`. Select
+To exercise a native artifact job locally, use `sh ci/posix.sh`. Use
+`SYNCTERM_CI_MODE=full-test sh ci/posix.sh` to include the tests. Select
 `CI_PROFILE=minimal` or `CI_PROFILE=sanitizers` and a separate `CI_BUILD_DIR`
 for those variants. The CI helper does not push commits, register runners,
 install system packages or change GitLab project settings.

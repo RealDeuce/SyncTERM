@@ -11,8 +11,14 @@ file(COPY "${CMAKE_CURRENT_LIST_DIR}/fixture/ccache"
 	FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
 	GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 get_filename_component(_parent "${TEST_ROOT}" DIRECTORY)
-foreach(_case IN ITEMS native invalid cleanup-failure)
+foreach(_case IN ITEMS native invalid cleanup-failure build-only)
 	set(_profile "${_case}")
+	set(_mode full-test)
+	if(_case STREQUAL build-only)
+		set(_profile native)
+		# An empty mode exercises the default used by ordinary pipelines.
+		set(_mode "")
+	endif()
 	set(_fail_cleanup 0)
 	if(_case STREQUAL cleanup-failure)
 		set(_profile native)
@@ -36,13 +42,14 @@ foreach(_case IN ITEMS native invalid cleanup-failure)
 		"CI_TEST_FAIL_RUNTIME_CLEANUP=${_fail_cleanup}"
 		"CI_SOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}/fixture"
 		"CI_BUILD_DIR=${_build}" "CI_PROFILE=${_profile}"
+		"SYNCTERM_CI_MODE=${_mode}"
 		"CI_EXTRA_CMAKE_ARGS=" "DISPLAY=:do-not-use"
 		"WAYLAND_DISPLAY=do-not-use" "CTEST_PARALLEL_LEVEL=1"
 		"${_sh}" "${_ci}/posix.sh"
 		RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
 	# Keep nested wrapper diagnostics in the check job's artifact directory.
 	file(COPY "${_build}/reports/" DESTINATION "${_parent}/reports/posix-${_case}")
-	if(_case STREQUAL native)
+	if(_case STREQUAL native OR _case STREQUAL build-only)
 		if(NOT "${_result}" STREQUAL "0")
 			message(FATAL_ERROR "POSIX wrapper: ${_out}\n${_err}")
 		endif()
@@ -50,13 +57,18 @@ foreach(_case IN ITEMS native invalid cleanup-failure)
 		if(_environment MATCHES "do-not-use")
 			message(FATAL_ERROR "POSIX wrapper used an inherited desktop")
 		endif()
-		if(NOT _environment MATCHES "XDG_RUNTIME_DIR: ([^\n]+)")
+		if(_case STREQUAL build-only)
+			if(_environment MATCHES "XDG_RUNTIME_DIR: [^\n]+" OR EXISTS "${_build}/reports/junit.xml")
+				message(FATAL_ERROR "Build-only wrapper started test infrastructure")
+			endif()
+		elseif(NOT _environment MATCHES "XDG_RUNTIME_DIR: ([^\n]+)")
 			message(FATAL_ERROR "POSIX wrapper did not create a private runtime directory")
-		endif()
-		set(_runtime "${CMAKE_MATCH_1}")
-		if(EXISTS "${_runtime}")
-			file(GLOB _leftovers LIST_DIRECTORIES TRUE "${_runtime}/*" "${_runtime}/.[!.]*")
-			message(FATAL_ERROR "POSIX wrapper left ${_runtime} behind: ${_leftovers}\n${_err}")
+		else()
+			set(_runtime "${CMAKE_MATCH_1}")
+			if(EXISTS "${_runtime}")
+				file(GLOB _leftovers LIST_DIRECTORIES TRUE "${_runtime}/*" "${_runtime}/.[!.]*")
+				message(FATAL_ERROR "POSIX wrapper left ${_runtime} behind: ${_leftovers}\n${_err}")
+			endif()
 		endif()
 		if(NOT EXISTS "${_build}/ccache-tmp/fixture-invocations.log")
 			message(FATAL_ERROR "ccache was not exercised outside the runtime directory")

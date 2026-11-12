@@ -4,8 +4,10 @@
 # ccache initializes its default directory before applying environment
 # overrides. Model that side effect as well as the selected temporary path.
 set -eu
-mkdir -p "$XDG_RUNTIME_DIR/ccache-tmp"
-ci_cache_tmp=${CCACHE_TEMPDIR:-"$XDG_RUNTIME_DIR/ccache-tmp"}
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+	mkdir -p "$XDG_RUNTIME_DIR/ccache-tmp"
+fi
+ci_cache_tmp=${CCACHE_TEMPDIR:-"${XDG_RUNTIME_DIR:?}/ccache-tmp"}
 mkdir -p "$ci_cache_tmp"
 printf 'invoked\n' >>"$ci_cache_tmp/fixture-invocations.log"
 exec "$@"

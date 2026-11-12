@@ -11,6 +11,10 @@ if(CMAKE_HOST_WIN32)
 endif()
 
 function(check_case name failure extra profile)
+	set(_mode full-test)
+	if(ARGC GREATER 4)
+		set(_mode "${ARGV4}")
+	endif()
 	set(_build "${TEST_ROOT}/${name}")
 	# Simulate inherited artifacts and a retry of a previously successful job.
 	file(MAKE_DIRECTORY "${_build}/reports" "${_build}/artifacts")
@@ -22,6 +26,7 @@ function(check_case name failure extra profile)
 	execute_process(COMMAND "${CMAKE_COMMAND}" -E env
 		"CI_EXTRA_CMAKE_ARGS=${extra}" "CMAKE_BUILD_PARALLEL_LEVEL=2"
 		"CTEST_PARALLEL_LEVEL=1"
+		"SYNCTERM_CI_MODE=${_mode}"
 		"${CMAKE_COMMAND}" "-DCI_SOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}/fixture"
 		"-DCI_BUILD_DIR=${_build}" "-DCI_PROFILE=${profile}"
 		-P "${_ci}/run.cmake"
@@ -30,9 +35,21 @@ function(check_case name failure extra profile)
 		if(NOT "${_result}" STREQUAL "0")
 			message(FATAL_ERROR "${name}: ${_out}\n${_err}")
 		endif()
-		file(READ "${_build}/reports/junit.xml" _junit)
-		if(NOT _junit MATCHES "fixture_unavailable" OR NOT _junit MATCHES "skipped")
-			message(FATAL_ERROR "${name}: skipped test was lost from JUnit")
+		if(_mode STREQUAL full-test)
+			file(READ "${_build}/reports/junit.xml" _junit)
+			if(NOT _junit MATCHES "fixture_unavailable" OR NOT _junit MATCHES "skipped")
+				message(FATAL_ERROR "${name}: skipped test was lost from JUnit")
+			endif()
+		else()
+			foreach(_log IN ITEMS junit.xml test.log artifact-configure.log artifact-build.log)
+				if(EXISTS "${_build}/reports/${_log}")
+					message(FATAL_ERROR "${name}: build-only mode retained ${_log}")
+				endif()
+			endforeach()
+			file(READ "${_build}/reports/execution.txt" _execution)
+			if(NOT _execution MATCHES "test targets disabled; no tests executed")
+				message(FATAL_ERROR "${name}: build-only execution was not recorded")
+			endif()
 		endif()
 		set(_executable "${_build}/artifacts/syncterm${CMAKE_EXECUTABLE_SUFFIX}")
 		if(CMAKE_HOST_APPLE OR extra MATCHES "CI_FIXTURE_BUNDLE=ON")
@@ -53,7 +70,11 @@ function(check_case name failure extra profile)
 		if(NOT "${_feature_result}" STREQUAL "0" OR NOT _features STREQUAL "test_control=0 testing=0\n")
 			message(FATAL_ERROR "${name}: artifact contains test instrumentation: ${_features}")
 		endif()
-		foreach(_log IN ITEMS artifact-configure artifact-build)
+		set(_logs configure build)
+		if(_mode STREQUAL full-test)
+			list(APPEND _logs artifact-configure artifact-build)
+		endif()
+		foreach(_log IN LISTS _logs)
 			if(NOT EXISTS "${_build}/reports/${_log}.log")
 				message(FATAL_ERROR "${name}: missing ${_log} log")
 			endif()
@@ -100,6 +121,13 @@ endfunction()
 
 check_case(success "" "" native)
 check_case(success "" "-DBUILD_TESTING:STRING=true" native)
+# Reuse a test build for a normal pipeline, then switch back. An explicitly
+# failing fixture proves the build pipeline does not execute tests.
+check_case(success "" "-DCI_FIXTURE_TEST_FAIL=ON;-DBUILD_TESTING=ON;-DST_CONSOLE_TEST=ON" native build)
+check_case(success "" "-DCI_FIXTURE_TEST_FAIL=OFF" native)
+check_case(build-only "" "-DCI_FIXTURE_TEST_FAIL=ON" native build)
+check_case(build-configure-failure configure "-DCI_FIXTURE_CONFIGURE_FAIL=ON" native build)
+check_case(build-build-failure build "-DCI_FIXTURE_BUILD_FAIL=ON" native build)
 check_case(minimal "" "" minimal)
 check_case(bundle "" "-DCI_FIXTURE_BUNDLE=ON" native)
 # Retry the same output directory to cover recursive replacement.
@@ -118,6 +146,7 @@ check_case(artifact-build-failure artifact-build "-DCI_FIXTURE_ARTIFACT_BUILD_FA
 function(check_artifact_failure name option reason)
 	set(_build "${TEST_ROOT}/${name}")
 	execute_process(COMMAND "${CMAKE_COMMAND}" -E env
+		"SYNCTERM_CI_MODE=full-test"
 		"CI_EXTRA_CMAKE_ARGS=-D${option}=ON;-DCI_FIXTURE_BUNDLE=ON" "CMAKE_BUILD_PARALLEL_LEVEL=2"
 		"${CMAKE_COMMAND}" "-DCI_SOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}/fixture"
 		"-DCI_BUILD_DIR=${_build}" -DCI_PROFILE=native
@@ -143,6 +172,7 @@ if(_ninja)
 	set(_saved_generator "$ENV{CMAKE_GENERATOR}")
 	set(ENV{CMAKE_GENERATOR} "Ninja Multi-Config")
 	check_case(multi-config "" "" native)
+	check_case(multi-config "" "" native build)
 	check_case(multi-config-bundle "" "-DCI_FIXTURE_BUNDLE=ON" native)
 	set(ENV{CMAKE_GENERATOR} "${_saved_generator}")
 endif()

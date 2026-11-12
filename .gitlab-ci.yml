@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 workflow:
+  name: 'SyncTERM $SYNCTERM_CI_MODE'
   rules:
+    # A manually selected test pipeline must also work for branches with an MR.
+    - if: '$CI_PIPELINE_SOURCE == "web"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_TAG'
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
@@ -12,6 +15,10 @@ workflow:
 stages: [check, build-test]
 
 variables:
+  SYNCTERM_CI_MODE:
+    value: build
+    options: [build, full-test]
+    description: 'Build downloadable artifacts, or run the full test matrix before collecting artifacts.'
   CMAKE_BUILD_PARALLEL_LEVEL: "4"
   CTEST_PARALLEL_LEVEL: "1"
   CI_BUILD_TYPE: RelWithDebInfo
@@ -33,10 +40,11 @@ default:
     paths:
       - build-ci/reports/
       - build-ci/artifacts/
-    reports:
-      junit: build-ci/reports/junit.xml
 
 include:
+  - local: .gitlab/ci/tests.yml
+    rules:
+      - if: '$SYNCTERM_CI_MODE == "full-test"'
   - local: .gitlab/ci/posix.yml
     inputs: {name: linux-gcc, tag: Linux, cc: gcc, cxx: g++}
   - local: .gitlab/ci/posix.yml
@@ -55,40 +63,21 @@ include:
     inputs: {name: macos-arm64, tag: macOS-aarch64}
   - local: .gitlab/ci/posix.yml
     inputs: {name: linux-minimal, tag: Linux, cc: gcc, cxx: g++, profile: minimal}
+    rules:
+      - if: '$SYNCTERM_CI_MODE == "full-test"'
   - local: .gitlab/ci/posix.yml
     inputs: {name: linux-sanitizers, tag: Linux, cc: gcc, cxx: g++, profile: sanitizers}
+    rules:
+      - if: '$SYNCTERM_CI_MODE == "full-test"'
   - local: .gitlab/ci/posix.yml
     inputs: {name: linux-mixed-linkage, tag: Linux, cc: gcc, cxx: g++, profile: mixed-linkage}
+    rules:
+      - if: '$SYNCTERM_CI_MODE == "full-test"'
   - local: .gitlab/ci/posix.yml
     inputs: {name: mingw32-cross, tag: FreeBSD, profile: mingw32-cross}
   - local: .gitlab/ci/posix.yml
     inputs: {name: mingw64-cross, tag: FreeBSD, profile: mingw64-cross}
   - local: .gitlab/ci/windows.yml
-
-ci-driver-tests:
-  stage: check
-  timeout: 2 hours
-  tags: [Linux]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: &ci_driver_paths
-        - .gitlab-ci.yml
-        - .gitlab/ci/**/*
-        - ci/**/*
-        - cmake/SynctermCStandard.cmake
-        - cmake/SynctermAtomics.cmake
-        - cmake/SynctermCheckC17Source.cmake
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_COMMIT_BEFORE_SHA != "0000000000000000000000000000000000000000"'
-      changes: *ci_driver_paths
-    # Without an explicit base, changes always matches a new branch's first push.
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_COMMIT_BEFORE_SHA == "0000000000000000000000000000000000000000"'
-      changes:
-        compare_to: 'refs/heads/$CI_DEFAULT_BRANCH'
-        paths: *ci_driver_paths
-  script:
-    - cmake -S ci/tests -B build-ci
-    - cmake --build build-ci
-    - ctest --test-dir build-ci --output-on-failure --no-tests=error --output-junit "$CI_PROJECT_DIR/build-ci/reports/junit.xml"
 
 # Job artifacts replace (rather than merge with) default artifacts. These
 # jobs intentionally have no JUnit report because target code is not run.

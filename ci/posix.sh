@@ -45,9 +45,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 unset DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR
 
-case ${CI_PROFILE:-native} in
-mingw32-cross|mingw64-cross|minimal) ;;
-*)
+case ${SYNCTERM_CI_MODE:-build}:${CI_PROFILE:-native} in
+full-test:mingw32-cross|full-test:mingw64-cross|full-test:minimal) ;;
+full-test:*)
 	ci_runtime=$(mktemp -d "${TMPDIR:-/tmp}/syncterm-ci.XXXXXXXX")
 	XDG_RUNTIME_DIR=$ci_runtime
 	export XDG_RUNTIME_DIR

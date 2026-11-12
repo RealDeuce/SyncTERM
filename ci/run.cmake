@@ -11,6 +11,16 @@ foreach(_setting IN ITEMS SOURCE_DIR BUILD_DIR PROFILE BUILD_TYPE)
 		set(CI_${_setting} "$ENV{CI_${_setting}}")
 	endif()
 endforeach()
+if(NOT DEFINED SYNCTERM_CI_MODE)
+	if(NOT "$ENV{SYNCTERM_CI_MODE}" STREQUAL "")
+		set(SYNCTERM_CI_MODE "$ENV{SYNCTERM_CI_MODE}")
+	else()
+		set(SYNCTERM_CI_MODE build)
+	endif()
+endif()
+if(NOT SYNCTERM_CI_MODE STREQUAL build AND NOT SYNCTERM_CI_MODE STREQUAL full-test)
+	message(FATAL_ERROR "Unknown SYNCTERM_CI_MODE: ${SYNCTERM_CI_MODE}")
+endif()
 if(NOT DEFINED CI_SOURCE_DIR)
 	set(CI_SOURCE_DIR "${_project}")
 endif()
@@ -49,7 +59,7 @@ if(_old_apps)
 endif()
 file(WRITE "${_reports}/environment.txt"
 	"Host: ${CMAKE_HOST_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_VERSION}\n"
-	"CMake: ${CMAKE_VERSION}\nProfile: ${CI_PROFILE}\n"
+	"CMake: ${CMAKE_VERSION}\nProfile: ${CI_PROFILE}\nMode: ${SYNCTERM_CI_MODE}\n"
 	"CC: $ENV{CC}\nCXX: $ENV{CXX}\nDISPLAY: $ENV{DISPLAY}\n"
 	"WAYLAND_DISPLAY: $ENV{WAYLAND_DISPLAY}\n")
 file(APPEND "${_reports}/environment.txt"
@@ -87,7 +97,10 @@ function(ci_command name)
 	endforeach()
 endfunction()
 
-set(_options -DST_CONSOLE_TEST=ON -DBUILD_TESTING=ON -DST_CTERM_TEST_EXTERNAL_ASSETS=OFF)
+set(_options -DST_CTERM_TEST_EXTERNAL_ASSETS=OFF)
+if(SYNCTERM_CI_MODE STREQUAL full-test)
+	list(APPEND _options -DST_CONSOLE_TEST=ON -DBUILD_TESTING=ON)
+endif()
 set(_cross FALSE)
 if(CI_PROFILE STREQUAL minimal)
 	list(APPEND _options -DCRYPTO_BACKEND=none -DSYNCTERM_ENABLE_UNIFONT=OFF
@@ -128,12 +141,16 @@ foreach(_language IN ITEMS C CXX)
 endforeach()
 # A CMake list, not shell text: paths containing spaces remain one argument.
 list(APPEND _options $ENV{CI_EXTRA_CMAKE_ARGS})
+if(SYNCTERM_CI_MODE STREQUAL build)
+	# Enforce the artifact policy even when reusing a test tree or extra options.
+	list(APPEND _options -DST_CONSOLE_TEST=OFF -DBUILD_TESTING=OFF)
+endif()
 
 ci_command(configure "${CMAKE_COMMAND}" -S "${CI_SOURCE_DIR}"
 	-B "${CI_BUILD_DIR}" ${_options})
 file(STRINGS "${CI_BUILD_DIR}/CMakeCache.txt" _testing REGEX "^BUILD_TESTING:[^=]+=")
 string(REGEX REPLACE "^[^=]*=" "" _testing "${_testing}")
-if(NOT _testing)
+if(SYNCTERM_CI_MODE STREQUAL full-test AND NOT _testing)
 	message(FATAL_ERROR "CI requires BUILD_TESTING=ON")
 endif()
 file(STRINGS "${CI_BUILD_DIR}/CMakeCache.txt" _capabilities REGEX
@@ -159,7 +176,10 @@ endif()
 ci_command(build "${CMAKE_COMMAND}" --build "${CI_BUILD_DIR}"
 	--config "${CI_BUILD_TYPE}" --parallel "$ENV{CMAKE_BUILD_PARALLEL_LEVEL}")
 
-if(_cross)
+if(SYNCTERM_CI_MODE STREQUAL build)
+	file(WRITE "${_reports}/execution.txt"
+		"Build and artifacts only: test targets disabled; no tests executed.\n")
+elseif(_cross)
 	file(WRITE "${_reports}/execution.txt"
 		"Cross-compilation only: application and test targets built; no target tests executed.\n")
 	message(STATUS "Cross-build complete; target tests were NOT executed")
@@ -188,8 +208,10 @@ endif()
 
 # Reuse the configured dependency/toolchain choices, but rebuild the products
 # without test targets or instrumentation before collecting downloadable files.
-ci_command(artifact-configure "${CMAKE_COMMAND}" -S "${CI_SOURCE_DIR}"
-	-B "${CI_BUILD_DIR}" -DST_CONSOLE_TEST=OFF -DBUILD_TESTING=OFF)
+if(SYNCTERM_CI_MODE STREQUAL full-test)
+	ci_command(artifact-configure "${CMAKE_COMMAND}" -S "${CI_SOURCE_DIR}"
+		-B "${CI_BUILD_DIR}" -DST_CONSOLE_TEST=OFF -DBUILD_TESTING=OFF)
+endif()
 foreach(_option IN ITEMS ST_CONSOLE_TEST BUILD_TESTING)
 	file(STRINGS "${CI_BUILD_DIR}/CMakeCache.txt" _value REGEX "^${_option}:[^=]+=")
 	string(REGEX REPLACE "^[^=]*=" "" _value "${_value}")
@@ -201,8 +223,10 @@ if(EXISTS "${CI_BUILD_DIR}/syncterm-configuration.txt")
 	file(COPY_FILE "${CI_BUILD_DIR}/syncterm-configuration.txt"
 		"${_reports}/artifact-configuration.txt")
 endif()
-ci_command(artifact-build "${CMAKE_COMMAND}" --build "${CI_BUILD_DIR}"
-	--config "${CI_BUILD_TYPE}" --parallel "$ENV{CMAKE_BUILD_PARALLEL_LEVEL}")
+if(SYNCTERM_CI_MODE STREQUAL full-test)
+	ci_command(artifact-build "${CMAKE_COMMAND}" --build "${CI_BUILD_DIR}"
+		--config "${CI_BUILD_TYPE}" --parallel "$ENV{CMAKE_BUILD_PARALLEL_LEVEL}")
+endif()
 
 set(_manifest "${CI_BUILD_DIR}/syncterm-artifacts-${CI_BUILD_TYPE}.txt")
 if(NOT EXISTS "${_manifest}")
