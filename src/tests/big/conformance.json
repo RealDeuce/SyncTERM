@@ -743,7 +743,7 @@
             "126 new coherent application scenes,1946 total, cover initial zero restore, CBW magic capture, both directions/endpoints, negative saved restore, live local-key cancellation and I1 restoration. Complete pixels/cells/palette/local/saved/state/points/fill/pages/cursor/image header/payload/replies and composed RGB are observed together.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s; cterm_big_rotation0.64s. syncterm_big_input passed in101.50s (test101.45s),1946 coherent scenes. No non-BIG tests ran. Native X8 is implemented; N/audio/global45-entry and final regressions stay pending."
           ],
-          "commit": null
+          "commit": "097a486"
         }
       ]
     },

@@ -1098,3 +1098,5 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without
 compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s;
 `cterm_big_rotation` took0.64s. `syncterm_big_input` passed in101.50s
 (test101.45s),1946 coherent scenes. No non-BIG tests ran.
+
+Native X8 implementation commit: `097a486`.
