@@ -462,7 +462,7 @@
             "126 new coherent application scenes bring coverage to2324, checking count0/negative prefixes, repeated point COPY, direct crosshair/square tails, line XOR parity, clipped samples and separate seeded RNG advancement. Complete prior cells/indexed pixels/palette/image/fill/pages/cursor/points/state/replies/RGB remain in one observation.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending."
           ],
-          "commit": null
+          "commit": "94a4fb9"
         }
       ]
     },
