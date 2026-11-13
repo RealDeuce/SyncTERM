@@ -969,6 +969,57 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                 expected_state = ((last_random * 0x015a4e35 + 1) & 0xffffffff) if index == 4 else last_random
                                 assert observed == expected_state, (observed, expected_state)
                             last_random = observed
+                        def spray_shape(kind, x0, y0):
+                            return tuple((x0 - 4 + x, y0 - 4 + y, 15)
+                                         for y, row in enumerate(MARKERS[kind])
+                                         for x in range(9) if row & (1 << x))
+
+                        spray_dot = ((450, 100, 15),)
+                        spray_cross = spray_shape(2, 480, 100)
+                        spray_square = spray_shape(4, 510, 100)
+                        sprays = (
+                            (b"I#X 0,450,100,0,0,0:", 0, (0, 0), 0, 0, (450, 100), ()),
+                            (b"I#X 0,450,100,0,0,+1:", 0, (0, 0), 0, 65535, (450, 100), ()),
+                            (b"I#X 0,450,100,0,0,4:", 0, (0, 0), 0, 4, (450, 100), spray_dot),
+                            (b"I#T>0,2,1:X 0,480,100,0,0,1:", 2, (484, 100), 0, 1, (480, 100), spray_dot + spray_cross),
+                            (b"I#T>0,4,1:X 0,510,100,0,0,1:", 4, (510, 100), 0, 1, (510, 100), spray_dot + spray_cross + spray_square),
+                            (b"I#M>2:T>0,2,1:X 0,480,100,0,0,1:", 2, (484, 100), 1, 1, (480, 100), spray_dot + ((480, 100, 15),) + spray_square),
+                            (b"I#T>0,0,1:X 0,450,100,0,0,2:", 0, (484, 100), 1, 2, (450, 100), spray_dot + ((480, 100, 15),) + spray_square),
+                            (b"I#M>0:X 0,530,100,0,0,0:", 0, (484, 100), 0, 0, (530, 100), spray_dot + ((480, 100, 15),) + spray_square),
+                            (b"I#X 0,+1,+1,0,0,3:", 0, (484, 100), 0, 3, (65535, 65535), spray_dot + ((480, 100, 15),) + spray_square),
+                        )
+                        for index, (command, kind, point, writing, count, origin, pixels) in enumerate(sprays):
+                            token = f"SPRAY{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            before_seconds = int(time.time())
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            after_seconds = int(time.time())
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=point, marker_kind=kind, writing=(writing, writing),
+                                  colors=(271, 15, 5, 65535), graph_color=15, colored_pixels=four_swatches + pixels,
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid))
+                            attempts = count if count < 32768 else 0
+                            assert tuple(frame.application[f"cterm.big_spray_{field}"] for field in
+                                         ("x", "y", "width", "height", "count", "counter")) == (*origin, 0, 0, count, attempts)
+                            states = set()
+                            for seconds in range(before_seconds, after_seconds + 1):
+                                state = seconds & 65535
+                                for _ in range(2 * attempts): state = (state * 0x015a4e35 + 1) & 0xffffffff
+                                states.add(state)
+                            assert frame.application["cterm.big_random_state"] in states
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

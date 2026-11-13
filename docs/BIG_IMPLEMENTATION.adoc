@@ -19,7 +19,7 @@ boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
 BIG mode6 is selectable with native I0/I1/R indexed-console effects,
-g/X1/X2/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
+g/X0/X1/X2/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
@@ -2512,3 +2512,49 @@ global45-entry/final regressions remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All33 BIG-specific native CTests passed in50.47s, including cterm_big_random0.69s. syncterm_big_input passed in114.43s (test114.36s),2198 coherent scenes. No non-BIG tests ran. Native X2 is implemented; X0/speaker/global45-entry and final regressions remain pending.
 
 Native X2 implementation commit: `125d524`.
+
+== Native X0 spray drawing
+
+X0 now follows22/58's complete13d2:05d4..06e0 caller. Selector completion
+installs the current marker colour before the shared local wall-seconds seed
+observation. Origin X/Y and range X/Y are separate class1/2 reads, followed
+by class0 concentration. Each completed operand is retained before the next
+read; counter0 is published only after the fifth completes. X2's existing
+native clock boundary and original shared CRT generator are reused.
+
+A positive signed concentration performs that many attempts. Each samples
+X then Y separately, multiplies by its current signed range WORD, divides
+by32768 with truncation toward zero and retains a WORD displacement. Zero
+ranges still consume both draws. Negative/large ranges are not clamped and
+there is no rejection/resampling for clipping. Each attempt independently
+tests current type0 for a fresh-colour point, then current nonzero type for
+the direct marker helper with freshly recomputed anchor sums. Counter
+increment follows normal drawing return and uses current WORD state.
+
+The existing indexed point and original marker/line adapters do all geometry
+and page routing. Point spray copies regardless of cached line XOR and
+leaves all graphics point owners intact. Crosshair spray ends at its fourth
+ray tip; other valid nonzero types end at the last anchor. Invalid types
+remain colour-only helpers. X0 has no P-style anchor tail, own key poll,
+delay or flow; its common source/repeat/chain/deferred-reply footer remains.
+Nonpositive concentration has no canvas request, sampling or point effect,
+while retaining its colour/seed/argument/counter prefix. Failures retain
+accepted draws/pixels/points and omit later counter/footer effects through
+the existing nonfatal BIG owner.
+
+`big_spray` independently checks literal seeded samples, all65,536 signed
+range WORDs with fixed15-bit samples, all marker tails, zero/negative/max
+normal concentration, fresh type/colour/anchor/counter owners, clipping and
+failure prefixes. Native `cterm_big_spray` checks every default split and
+bytewise all three modes/encodings/status choices, full indexed planes,
+positive/negative ranges, colour-before-seed/partial reads, g2 versus stored
+bypass, r consumption, repeat/chain/replies, hidden-page reveal, lifetimes,
+timeout/error/EOF/reset and nonfatal raster recovery. Nine new scenes per
+profile add126 coherent captures,2324 total. Zero-range point/helper scenes
+have independently authored geometry despite variable local seeds; RNG
+progress is checked separately. Retained pixels/cells/palette/images/fill/
+pages/cursor/points/diagnostics/replies and composed RGB share one capture.
+Native X0 is implemented; speaker/random/global45-entry and final full-suite
+acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending.

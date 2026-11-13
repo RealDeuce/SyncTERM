@@ -98,20 +98,46 @@ static int style_next(void *context, const struct st_graphics_command_view *view
 	*parameter=(struct st_graphics_parameter){.kind=view->count<(marker_kind(view)?3u:5u)?ST_GRAPHICS_NUMBER:ST_GRAPHICS_END};
 	return 0;
 }
+static int reseed(struct cterm_big *big)
+{
+	uint64_t seconds;
+	int status=big->random_seconds(big,&seconds);
+	if (status==IO_ERROR_IN_PROGRESS) return IO_ERROR_PROTOCOL;
+	if (status!=0) return status;
+	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+	st_big_random_seed(&big->numeric.random_state,(uint16_t)seconds);
+	return 0;
+}
 static int extended_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *parameter)
 {
 	struct cterm_big *big=((struct st_big_numeric *)context)->io.context;
 	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 	*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	if ((uint16_t)view->arguments[0].value==0) {
+		if (view->count>1 && !view->arguments[view->count-1].has_value) return IO_ERROR_PROTOCOL;
+		uint16_t value=view->count>1?(uint16_t)view->arguments[view->count-1].value:0;
+		switch (view->count) {
+		case 1: {
+			int status=st_big_draw_color(&big->state,big->state.application.colors[0]);
+			if (status==0) status=reseed(big);
+			if (status!=0) return status;
+			break;
+		}
+		case 2: big->spray.x=value; break;
+		case 3: big->spray.y=value; break;
+		case 4: big->spray.width=value; break;
+		case 5: big->spray.height=value; break;
+		case 6: big->spray.count=value; return 0;
+		default: return IO_ERROR_PROTOCOL;
+		}
+		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER,
+		    .axis=view->count==5?ST_GRAPHICS_UNSCALED:view->count%2?ST_GRAPHICS_X:ST_GRAPHICS_Y};
+		return 0;
+	}
 	if ((uint16_t)view->arguments[0].value==2) {
 		if (view->count==1) {
-			uint64_t seconds;
-			int status=big->random_seconds(big,&seconds);
-			if (status==IO_ERROR_IN_PROGRESS) return IO_ERROR_PROTOCOL;
-			if (status!=0) return status;
-			if (big->reset_pending) return IO_ERROR_INTERRUPTED;
-			st_big_random_seed(&big->numeric.random_state,(uint16_t)seconds);
+			int status=reseed(big); if (status!=0) return status;
 		} else {
 			if (!view->arguments[view->count-1].has_value) return IO_ERROR_PROTOCOL;
 			uint16_t value=(uint16_t)view->arguments[view->count-1].value;
@@ -478,6 +504,10 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='X') {
 		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		uint16_t selector=(uint16_t)view->arguments[0].value;
+		if (selector==0) {
+			int status=cterm_big_draw_spray(big);
+			return status==0?begin_footer(big,view):status;
+		}
 		if (selector==8) return cterm_big_rotation_begin(big,view);
 		if (selector==5) return begin_footer(big,view);
 		if (selector==2) return begin_footer(big,view);
@@ -922,6 +952,12 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_random_state", big->numeric.random_state);
 	st_console_test_number(app, "cterm.big_random_from", big->numeric.random_from);
 	st_console_test_number(app, "cterm.big_random_to", big->numeric.random_to);
+	st_console_test_number(app, "cterm.big_spray_x", big->spray.x);
+	st_console_test_number(app, "cterm.big_spray_y", big->spray.y);
+	st_console_test_number(app, "cterm.big_spray_width", big->spray.width);
+	st_console_test_number(app, "cterm.big_spray_height", big->spray.height);
+	st_console_test_number(app, "cterm.big_spray_count", big->spray.count);
+	st_console_test_number(app, "cterm.big_spray_counter", big->spray.counter);
 	st_console_test_number(app, "cterm.big_flow_on_byte", big->control.flow.byte[0]);
 	st_console_test_number(app, "cterm.big_flow_off_byte", big->control.flow.byte[1]);
 	st_console_test_number(app, "cterm.big_flow_on_count", big->control.flow.count[0]);

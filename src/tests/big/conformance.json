@@ -229,7 +229,8 @@
         "Original DDO0615 point producer shared by future bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns; no wire binding yet.",
         "Original public/DDO bar3d composition: unsigned public sort/lower move, signed inverted inset/second clip, old-point-first front/extrusion, wrapped depth/orientation/top BYTE, producer effects and current tuple tail.",
         "Synchronous original indexed flood: WORD spans, UP/DOWN LIFO, directional/containment/pattern suppression, byte-band plane passes and accepted-prefix errors over borrowed bounded records.",
-        "Original public rectangle four absolute standalone lines with captured first corner/live later arguments, fresh phases and inclusive XOR corners; reuse existing BIG clipping/strokes and shared thin line kernel, preserve all point owners."
+        "Original public rectangle four absolute standalone lines with captured first corner/live later arguments, fresh phases and inclusive XOR corners; reuse existing BIG clipping/strokes and shared thin line kernel, preserve all point owners.",
+        "X0 reuses original direct marker/line and indexed point adapters with separate signed two-draw sampling, live type/counter/anchor tests and caller-specific point tails."
       ],
       "tests": [
         "big_profile",
@@ -243,7 +244,9 @@
         "big_producer",
         "big_bar3d",
         "big_flood",
-        "big_image_paste"
+        "big_image_paste",
+        "big_spray",
+        "cterm_big_spray"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -422,6 +425,44 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
           ],
           "commit": "c1e6c86"
+        },
+        {
+          "id": "native-x0-spray",
+          "status": "complete",
+          "operations": [
+            "Install current marker color, observe local wall seconds and seed the original shared CRT generator before origin X/Y, X/Y ranges and concentration reads. Coordinate classes1/2 scale independently; supplied source WORDs bypass wire scaling. Counter0 follows all five completed reads.",
+            "Each positive signed concentration attempt draws X then Y, multiplies by current signed range WORDs, divides by32768 with truncation toward0 and retains WORD displacements. Zero ranges still consume two draws; no clipping resample, range clamp or rejection helper is used.",
+            "Independent current type0 and nonzero tests perform fresh-color points and direct marker helpers with recomputed anchor sums. Point COPY preserves graphics CP; the direct helper retains its own tail, including crosshair anchor+4s. No P-style final anchor move is added.",
+            "Increment current WORD counter only after successful drawing and signed-compare current count. No own key/time/flow operation occurs in the loop. Nonpositive concentration retains its color/seed/argument/counter prefix without a native canvas request.",
+            "Use existing original marker/line adapters and indexed point/page routing in one native update. Errors retain accepted samples/writes/points and omit subsequent counter/footer tails; common source/repeat/chain/deferred replies and nonfatal recovery remain in force."
+          ],
+          "tests": [
+            "big_spray",
+            "big_random",
+            "big_draw",
+            "cterm_big_spray",
+            "cterm_big_random",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "22-markers-pixels-and-native-reuse.adoc",
+            "58-marker-and-spray-command-acceptance.adoc",
+            "83-global-native-reuse-and-implementation-map.adoc",
+            "marker-review-code.adoc:13d2:05d4..06e0"
+          ],
+          "deviations": [
+            "Reuse the documented native X2 time-domain boundary: local wall time(NULL) seconds provide the low seed WORD, independently of monotonic waits. No foreign DOS calendar/TZ/heap/segment or hardware-throughput clock model is introduced.",
+            "Native owned spray fields start defined and retain reached serialized prefixes. Checked native raster/aperture failures reject nonfatally rather than following foreign memory or terminating the terminal. Ordinary signed range/count/WORD behavior and synchronous complete rendering are retained."
+          ],
+          "verification": [
+            "Independent literal seed1 samples verify positive and negative range truncation and exact eight-draw final state. Every signed range WORD is checked using inverse-selected X32767/Y12747 outputs and independent magnitude division; zero/negative/max32767 concentrations preserve exact attempt behavior.",
+            "All marker0..9 tails, independent type/anchor/color changes, live counter/concentration changes, clipped samples and failed-write prefixes preserve RNG/point/counter ordering. No expected pixel image is generated by the implementation.",
+            "Native every default split and bytewise all mode/encoding/status cases compare complete indexed planes with literal positive/negative points. Partial color-before-time/seed/argument/counter stores, g2 versus stored bypass, shared r advancement, repeat/chain/replies, I/R/EOF/reset/timeout/error lifetimes and fresh defaults are checked.",
+            "Hidden-page spray preserves the visible page until reveal. Direct crosshair spray ends at its ray tip while P returns to its anchor. Invalid aperture state fails after both draws before counter increment and permits following palette/ANSI reply recovery.",
+            "126 new coherent application scenes bring coverage to2324, checking count0/negative prefixes, repeated point COPY, direct crosshair/square tails, line XOR parity, clipped samples and separate seeded RNG advancement. Complete prior cells/indexed pixels/palette/image/fill/pages/cursor/points/state/replies/RGB remain in one observation.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1873,7 +1914,7 @@
     {
       "id": "X0",
       "order": 15,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -1881,12 +1922,39 @@
         "shared-bgi"
       ],
       "references": [
-        "58-marker-and-spray-command-acceptance.adoc"
+        "22-markers-pixels-and-native-reuse.adoc",
+        "58-marker-and-spray-command-acceptance.adoc",
+        "83-global-native-reuse-and-implementation-map.adoc",
+        "marker-review-code.adoc:13d2:05d4..06e0"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Install current marker color, observe local wall seconds and seed the original shared CRT generator before origin X/Y, X/Y ranges and concentration reads. Coordinate classes1/2 scale independently; supplied source WORDs bypass wire scaling. Counter0 follows all five completed reads.",
+        "Each positive signed concentration attempt draws X then Y, multiplies by current signed range WORDs, divides by32768 with truncation toward0 and retains WORD displacements. Zero ranges still consume two draws; no clipping resample, range clamp or rejection helper is used.",
+        "Independent current type0 and nonzero tests perform fresh-color points and direct marker helpers with recomputed anchor sums. Point COPY preserves graphics CP; the direct helper retains its own tail, including crosshair anchor+4s. No P-style final anchor move is added.",
+        "Increment current WORD counter only after successful drawing and signed-compare current count. No own key/time/flow operation occurs in the loop. Nonpositive concentration retains its color/seed/argument/counter prefix without a native canvas request.",
+        "Use existing original marker/line adapters and indexed point/page routing in one native update. Errors retain accepted samples/writes/points and omit subsequent counter/footer tails; common source/repeat/chain/deferred replies and nonfatal recovery remain in force.",
+        "Native X0 is implemented; remaining speaker/global45-entry composition and final regressions stay pending."
+      ],
+      "tests": [
+        "big_spray",
+        "big_random",
+        "big_draw",
+        "cterm_big_spray",
+        "cterm_big_random",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Reuse the documented native X2 time-domain boundary: local wall time(NULL) seconds provide the low seed WORD, independently of monotonic waits. No foreign DOS calendar/TZ/heap/segment or hardware-throughput clock model is introduced.",
+        "Native owned spray fields start defined and retain reached serialized prefixes. Checked native raster/aperture failures reject nonfatally rather than following foreign memory or terminating the terminal. Ordinary signed range/count/WORD behavior and synchronous complete rendering are retained."
+      ],
+      "verification": [
+        "Independent literal seed1 samples verify positive and negative range truncation and exact eight-draw final state. Every signed range WORD is checked using inverse-selected X32767/Y12747 outputs and independent magnitude division; zero/negative/max32767 concentrations preserve exact attempt behavior.",
+        "All marker0..9 tails, independent type/anchor/color changes, live counter/concentration changes, clipped samples and failed-write prefixes preserve RNG/point/counter ordering. No expected pixel image is generated by the implementation.",
+        "Native every default split and bytewise all mode/encoding/status cases compare complete indexed planes with literal positive/negative points. Partial color-before-time/seed/argument/counter stores, g2 versus stored bypass, shared r advancement, repeat/chain/replies, I/R/EOF/reset/timeout/error lifetimes and fresh defaults are checked.",
+        "Hidden-page spray preserves the visible page until reveal. Direct crosshair spray ends at its ray tip while P returns to its anchor. Invalid aperture state fails after both draws before counter increment and permits following palette/ANSI reply recovery.",
+        "126 new coherent application scenes bring coverage to2324, checking count0/negative prefixes, repeated point COPY, direct crosshair/square tails, line XOR parity, clipped samples and separate seeded RNG advancement. Complete prior cells/indexed pixels/palette/image/fill/pages/cursor/points/state/replies/RGB remain in one observation.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending."
+      ],
       "commit": null
     },
     {

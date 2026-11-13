@@ -346,6 +346,17 @@ reads, source changes, WORD wrap/equality, lifetimes and nonfatal errors.
 with unchanged scene/image/state and exact replies. X0/speaker/global45-entry
 and final cross-emulation regressions remain pending.
 
+BIG X0 now installs colour/reseeds before its five incremental reads, scales
+two shared random draws per attempt with signed WORD ranges, and calls the
+existing indexed point/direct-marker adapters. It preserves helper CP tails,
+point COPY, clipping without resampling, zero/negative counts and failure
+prefixes. Independent component/native expectations cover the full signed
+range domain, literal samples, profiles/partitions, hidden pages, source and
+lifetime behavior.126 new coherent scenes bring BIG to2324 with authored
+zero-range geometry, separate RNG checks and the complete retained scene/
+images/state/replies/RGB. Speaker/global45-entry and final regressions remain
+pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

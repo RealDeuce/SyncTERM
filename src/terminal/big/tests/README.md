@@ -499,3 +499,22 @@ one shared LCG draw separately, and retain the complete scene/state/replies.
 Native clock conversion intentionally uses local time(NULL), with no DOS
 calendar/TZ/DST/environment or foreign pointer model. X0/speaker/global and
 final-suite acceptance remain pending.
+
+`big_spray` derives X0 sampling and point/helper tails from the complete22/58
+caller. Seed1's first eight outputs346/130/10982/1090/11656/7117/17595/6415
+supply literal positive/negative sample positions. Inverse predecessor
+42bdebe3 selects X32767/Y12747, allowing every signed range WORD to be
+checked against independent magnitude division. Zero ranges/counts,
+maximum32767 concentration, all marker tails, type/colour/anchor/counter
+changes and failed draw prefixes retain original state/RNG ordering.
+Native `cterm_big_spray` checks split/bytewise profiles, full indexed planes,
+partial reads and colour-before-time, g2 scaling/stored bypass, shared r,
+repeat/chain/replies, I/R/EOF/reset/error lifetimes, hidden-page reveal and
+nonfatal aperture failure.126 new coherent application scenes (2324 total)
+use zero ranges for independently authored point/crosshair/square geometry,
+line XOR parity, point COPY, clipped output and count-prefix behavior.
+Expected RNG states are calculated separately from bounded local wall-second
+seed observations; pixels do not come from the implementation under test.
+Complete prior pixels/cells/palette/image/fill/pages/cursor/points/state/
+replies and RGB remain in one capture. Native X0 is implemented; remaining
+global/final-suite acceptance stays pending.

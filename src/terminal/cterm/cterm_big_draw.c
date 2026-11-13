@@ -98,6 +98,21 @@ int cterm_big_pmarker(struct cterm_big *big, uint16_t x, uint16_t y)
 	struct marker request={.big=big,.x=x,.y=y,.direct=true};
 	return modify(big,marker,&request);
 }
+static int spray(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	struct cterm_big *big=context;
+	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
+	const struct st_big_draw_sink sink={&drawing,pixel};
+	return st_big_draw_spray(&big->state,&big->spray,&big->numeric.random_state,&sink);
+}
+int cterm_big_draw_spray(struct cterm_big *big)
+{
+	/* Counter initialization precedes any native allocation/update. A
+	 * nonpositive concentration has no sampling or canvas request. */
+	big->spray.counter=0;
+	if (st_big_number_signed(big->spray.count)<=0) return 0;
+	return modify(big,spray,big);
+}
 struct line { struct cterm_big *big; uint8_t code; uint16_t words[4]; };
 static int line(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {

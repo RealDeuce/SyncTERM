@@ -6,6 +6,7 @@
 #include "st_big_numeric.h"
 #include "st_big_state.h"
 #include "st_big_palette.h"
+#include "st_big_spray.h"
 #include "st_big_control.h"
 #include "cterm_key.h"
 #include "st_big_stream.h"
@@ -100,6 +101,7 @@ struct cterm_big {
 	 * X2/X0 take only its seconds low WORD for the shared CRT generator. */
 	int (*random_seconds)(void *, uint64_t *);
 	struct st_big_state state;
+	struct st_big_spray spray;
 	struct st_big_control control;
 	struct st_big_flow_settings flow_settings;
 	size_t flow_settings_arguments;
@@ -159,6 +161,7 @@ int cterm_big_zone_field(struct cterm_big *, const struct st_graphics_command_vi
 int cterm_big_zone_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_zone_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, size_t *, size_t *, bool *);
 int cterm_big_draw_p(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_draw_spray(struct cterm_big *);
 int cterm_big_draw_line(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_draw_z(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_begin(struct cterm_big *, const struct st_graphics_command_view *);

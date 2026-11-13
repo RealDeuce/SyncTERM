@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X2/X4/X5/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X4/X5/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
 through native CTerm. Native < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
@@ -1156,3 +1156,27 @@ remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All33 BIG-specific native CTests passed in50.47s, including cterm_big_random0.69s. syncterm_big_input passed in114.43s (test114.36s),2198 coherent scenes. No non-BIG tests ran. Native X2 is implemented; X0/speaker/global45-entry and final regressions remain pending.
 
 Native X2 implementation commit: `125d524`.
+
+## Native X0 spray drawing
+
+X0 installs marker colour and reseeds before five separate coordinate/range/
+concentration reads. Signed concentration controls attempts; each advances
+the shared original generator twice, scales signed ranges with truncation,
+and performs the independent current point/helper predicates. Zero ranges
+still draw twice from the generator; clipping does not resample. The direct
+helper retains its own point tail, and point spray keeps the preceding CP.
+No P-style final move, own delay/key poll or flow is introduced. Existing
+source/chain/repeat/reply, indexed page routing and nonfatal error behavior
+remain in force. Nonpositive count retains its prefix without a canvas call.
+
+`big_spray` checks literal samples, every signed range WORD with fixed draws,
+marker tails, count boundaries, live owners and partial errors. Native
+`cterm_big_spray` covers partitions/profiles, positive/negative sampling,
+coordinate scaling/stored bypass, prefix/lifecycle/error ordering, hidden
+pages, shared r, repetitions and deferred replies.126 new coherent scenes
+bring BIG to2324, comparing zero-range geometry independently of seed time
+with complete retained scene/image/state/replies and RNG advancement.
+Native X0 is implemented; remaining speaker/global45-entry and final-suite
+acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending.
