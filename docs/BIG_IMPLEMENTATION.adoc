@@ -2727,3 +2727,5 @@ fill/page/cursor/reply/RNG scene. Native E is implemented; W rendering,
 global45-entry composition and final full-suite acceptance remain pending.
 
 Native CMake Release configure/full build and final refresh (/usr/bin/cc, build/) passed without compiler/source diagnostics. All40 BIG-specific native CTests passed in47.54s, including big_text_style0.08s and cterm_big_text_style0.51s. syncterm_big_input passed in130.78s (test130.73s),2632 coherent scenes. Initial fixture corrections used BIG +1 for negative1, the three-value E stored-source arity and settled pre-E graphics points; independent font/metric/pixel expectations were retained. No non-BIG tests ran; RIP table regressions and the full suite remain deferred. Native E is implemented; W rendering, global45-entry and final acceptance stay pending.
+
+Native E font selection/style implementation commit: `9dbf75f`.
