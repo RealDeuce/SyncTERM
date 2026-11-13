@@ -1126,3 +1126,5 @@ Native CMake Release configure/full build (/usr/bin/cc, build/) passed without
 compiler/source diagnostics. All32 BIG-specific native CTests passed in45.23s,
 including cterm_big_flow0.73s. syncterm_big_input passed in107.60s
 (test107.54s),2072 coherent scenes. No non-BIG tests ran.
+
+Native X5 implementation commit: `e82e16f`.

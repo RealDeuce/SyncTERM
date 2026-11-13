@@ -1256,7 +1256,7 @@
             "126 new coherent application scenes bring coverage to2072 across all mode/encoding/status cases. Current mode/bytes/counts and exact flow/replies are compared with the full retained cells/indexed pixels/palette/state/points/fill/pages/cursor/image header/payload and composed RGB. All earlier scenes also check default flow settings.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All32 BIG-specific native CTests passed in45.23s, including cterm_big_flow0.73s. syncterm_big_input passed in107.60s (test107.54s),2072 coherent scenes. No non-BIG tests ran. Native X5 is implemented; remaining global45-entry/final-suite acceptance stays pending."
           ],
-          "commit": null
+          "commit": "e82e16f"
         }
       ]
     },
