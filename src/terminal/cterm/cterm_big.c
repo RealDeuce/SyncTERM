@@ -52,6 +52,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'F',flood,3,NULL},
 	{'G',scalar,1,image_next},
 	{'S',input_parameters,2,NULL},
+	{'E',input_parameters,3,NULL},
 	{'m',move,2,move_next},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},{'H',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
@@ -402,6 +403,16 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='F') return cterm_big_flood_begin(big,view);
 	if (view->code=='Z') {
 		int status=cterm_big_draw_z(big,view);
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='E') {
+		uint16_t arguments[3];
+		if (view->count!=3) return IO_ERROR_PROTOCOL;
+		for (size_t i=0;i<3;++i) {
+			if (!view->arguments[i].has_value) return IO_ERROR_PROTOCOL;
+			arguments[i]=(uint16_t)view->arguments[i].value;
+		}
+		int status=st_big_text_e(&big->state,&big->fonts,arguments);
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='S') {
@@ -986,6 +997,23 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_text_selected_size", big->state.bgi.text_selected_size);
 	st_console_test_number(app, "cterm.big_text_scaled_width", big->state.bgi.text_scaled[0]);
 	st_console_test_number(app, "cterm.big_text_scaled_height", big->state.bgi.text_scaled[1]);
+	st_console_test_number(app, "cterm.big_text_ddo_font", big->state.bgi.text_font);
+	st_console_test_number(app, "cterm.big_text_ddo_direction", big->state.bgi.text_direction);
+	st_console_test_number(app, "cterm.big_text_stroke_active", big->state.bgi.text_stroke_active);
+	st_console_test_number(app, "cterm.big_text_suppression", big->state.bgi.text_suppression);
+	st_console_test_number(app, "cterm.big_text_stroke_id", big->state.bgi.text_stroke_id);
+	st_console_test_number(app, "cterm.big_text_stroke_direction", big->state.bgi.text_stroke_direction);
+	st_console_test_number(app, "cterm.big_text_body", big->state.bgi.text_body!=NULL);
+	st_console_test_number(app, "cterm.big_text_header_count", big->state.bgi.text_header[1]+256u*big->state.bgi.text_header[2]);
+	st_console_test_number(app, "cterm.big_text_header_first", big->state.bgi.text_header[4]);
+	st_console_test_number(app, "cterm.big_text_header_cap", big->state.bgi.text_header[8]);
+	st_console_test_number(app, "cterm.big_text_header_desc", big->state.bgi.text_header[10]);
+	st_console_test_number(app, "cterm.big_text_device_font", big->state.bgi.device_text_font);
+	st_console_test_number(app, "cterm.big_text_device_direction", big->state.bgi.device_text_direction);
+	st_console_test_number(app, "cterm.big_text_device_width", big->state.bgi.device_text_dimensions[0]);
+	st_console_test_number(app, "cterm.big_text_device_height", big->state.bgi.device_text_dimensions[1]);
+	st_console_test_number(app, "cterm.big_text_device_mag_x", big->state.bgi.device_text_magnification[0]);
+	st_console_test_number(app, "cterm.big_text_device_mag_y", big->state.bgi.device_text_magnification[1]);
 	for (size_t i=0;i<4;++i) {
 		char name[64];
 		snprintf(name,sizeof(name),"cterm.big_text_saved_ratio%zu",i);

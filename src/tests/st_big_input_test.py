@@ -40,7 +40,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8))):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1)):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -56,13 +56,18 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_rotation_active"]
     assert tuple(s[f"cterm.big_flow_{field}"] for field in ("mode", "on_byte", "off_byte", "on_count", "off_count")) == flow
     assert (s["cterm.big_random_from"], s["cterm.big_random_to"]) == random_bounds
-    assert tuple(s[f"cterm.big_font_{field}"] for field in ("registry_count", "registered_mask", "loaded", "active")) == (10, 15, 0, 0)
+    font, direction, loaded, stroke_id, stroke_direction = font_state
+    assert tuple(s[f"cterm.big_font_{field}"] for field in ("registry_count", "registered_mask", "loaded", "active")) == (10, 15, loaded, int(loaded != 0))
     text_ratios, text_size, text_cache = text_state
-    assert tuple(s[f"cterm.big_text_{field}"] for field in ("font", "direction", "size")) == (0, 0, text_size)
+    assert tuple(s[f"cterm.big_text_{field}"] for field in ("font", "direction", "size")) == (font, direction, text_size)
     assert tuple(s[f"cterm.big_text_{field}"] for field in ("cached_width", "cached_height", "selected_size")) == text_cache
-    assert (s["cterm.big_text_scaled_width"], s["cterm.big_text_scaled_height"]) == (0, 0)
-    for which in ("saved", "effective"):
-        assert tuple(s[f"cterm.big_text_{which}_ratio{i}"] for i in range(4)) == text_ratios
+    assert (s["cterm.big_text_scaled_width"], s["cterm.big_text_scaled_height"]) == text_metrics
+    assert tuple(s[f"cterm.big_text_saved_ratio{i}"] for i in range(4)) == text_ratios
+    assert tuple(s[f"cterm.big_text_effective_ratio{i}"] for i in range(4)) == (text_ratios if text_effective is None else text_effective)
+    assert tuple(s[f"cterm.big_text_{field}"] for field in ("ddo_font", "ddo_direction", "stroke_active", "suppression", "body")) == (font, direction, 255 if font else 0, 65535 if font else 0, int(font != 0))
+    assert (s["cterm.big_text_stroke_id"], s["cterm.big_text_stroke_direction"]) == (stroke_id, stroke_direction)
+    assert tuple(s[f"cterm.big_text_header_{field}"] for field in ("count", "first", "cap", "desc")) == text_header
+    assert tuple(s[f"cterm.big_text_device_{field}"] for field in ("font", "direction", "width", "height", "mag_x", "mag_y")) == text_device
     assert (s["cterm.big_last_error"], s["cterm.big_rejected_commands"]) == rejections
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
@@ -1062,6 +1067,54 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid),
                                   text_state=(ratios, 0, (ratios[1], ratios[2], 0)))
+                            assert frame.application["cterm.big_random_state"] == retained_random
+                        # Literal E/DDO metric/cache expectations from28/30/53.
+                        # Each row retains the complete preceding spray scene.
+                        custom = (2, 1, 3, 2)
+                        bitmap16 = (0, 1, 16, 16, 2, 2)
+                        bitmap8 = (0, 1, 8, 8, 1, 1)
+                        trip = (95, 32, 21, 249)
+                        small = (96, 32, 6, 254)
+                        sans = (126, 1, 21, 249)
+                        gothic = (106, 21, 21, 249)
+                        style_cases = (
+                            (b"I#E 0,2,1:", (0, 1, 0, 255, 0), 2, (16, 16, 8), (0, 0), (1, 1, 1, 1), (1, 1, 1, 1), (0, 0, 0, 0), bitmap16, b""),
+                            (b"I#E 1,1,0:", (1, 0, 1, 1, 0), 1, (16, 16, 1), (16, 16), (1, 1, 1, 1), (3, 5, 3, 5), trip, bitmap16, b""),
+                            (b"I#E 2,2,1:", (2, 1, 2, 2, 1), 2, (5, 5, 2), (5, 5), (1, 1, 1, 1), (2, 3, 2, 3), small, bitmap16, b""),
+                            (b"I#E 3,3,0:", (3, 0, 3, 3, 0), 3, (21, 21, 3), (21, 21), (1, 1, 1, 1), (3, 4, 3, 4), sans, bitmap16, b""),
+                            (b"I#E 4,4,1:", (4, 1, 4, 4, 1), 4, (28, 28, 4), (28, 28), (1, 1, 1, 1), (1, 1, 1, 1), gothic, bitmap16, b""),
+                            (b"I#X 3,2,1,3,2:", (4, 1, 4, 4, 1), 0, (1, 3, 0), (56, 42), custom, custom, gothic, bitmap16, b""),
+                            (b"I#E 1,0,1:", (1, 1, 1, 1, 1), 0, (56, 42, 0), (56, 42), custom, custom, trip, bitmap16, b""),
+                            (b"I#E 0,0,1:", (0, 1, 1, 1, 1), 0, (8, 8, 8), (56, 42), custom, custom, trip, bitmap8, b""),
+                            (b"I#I 1:", (0, 1, 1, 1, 1), 0, (8, 8, 8), (56, 42), custom, custom, trip, bitmap8, b""),
+                            (b"I#E 5,+1,2:", (0, 0, 1, 1, 1), 1, (8, 8, 8), (56, 42), custom, custom, trip, (0, 0, 8, 8, 1, 1), b""),
+                            (b"I#E>2,0,0:S 5,5:", (2, 0, 2, 2, 0), 0, (16, 12, 0), (16, 12), custom, custom, small, (0, 0, 8, 8, 1, 1), b""),
+                            (b"I#& 0,1,1,0,E@3,3,4,1:", (3, 1, 3, 3, 1), 4, (28, 28, 4), (28, 28), custom, (1, 1, 1, 1), sans, (0, 0, 8, 8, 1, 1), b"\x13\x11"),
+                            (b"I#E 0,3,0:", (0, 0, 3, 3, 1), 3, (24, 24, 8), (28, 28), custom, (1, 1, 1, 1), sans, (0, 0, 24, 24, 3, 3), b""),
+                        )
+                        for index, (command, font_state, size, cache, metrics, saved, effective, header, device, prefix) in enumerate(style_cases):
+                            token = f"STYLE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = prefix + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(484, 100), marker_kind=0,
+                                  colors=(271, 15, 5, 65535), graph_color=15, colored_pixels=retained_pixels,
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), text_state=(saved, size, cache),
+                                  font_state=font_state, text_metrics=metrics, text_effective=effective,
+                                  text_header=header, text_device=device)
                             assert frame.application["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.

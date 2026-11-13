@@ -551,3 +551,19 @@ All2450 existing coherent application scenes now also observe count10,
 registered mask0f, loaded0 and inactive body through normal entry/reset/I/R/
 reconnect. These tests cover data, startup registration and format access;
 E selection, W layout/raster and global/final acceptance remain pending.
+
+
+`big_text_style` derives E/public/DDO/device expectations from28/30/53 and
+literal original CHR metrics. All65536 WORDs in each wire slot distinguish
+late clamps from byte truncation; all four fonts/both directions/sizes0..4,
+the ten positive library ratios, custom0, low size BYTE, bitmap fallback,
+magnification and unchanged device state during stroke selection are covered.
+Rebinding independently distinguishes public selected/loaded/active bodies,
+DDO binding/cached id/copied header; bypass, missing/nonplus/truncated bodies
+and first/second metric failures preserve ordered prefixes. Terminal
+`cterm_big_text_style` adds complete splits/profile planes and partial-read,
+timeout/EOF/reset/I/R/reconnect/g3/stored-loop/chain/reply/nonfatal recovery
+coverage.182 new coherent scenes (2632 total) retain the prior full spray
+scene while checking all text/font owners. The expectations come from the
+original instructions and data, not the implementation under test. W glyph
+layout/raster and final global acceptance remain separate.

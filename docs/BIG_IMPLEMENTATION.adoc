@@ -2659,3 +2659,71 @@ provides their actual data, startup producer and bounded shared accessors.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All38 BIG-specific native CTests passed in46.91s; big_font0.01s. syncterm_big_input passed in123.17s (test123.08s),2450 coherent scenes with the additional startup-registry assertions. No non-BIG tests ran. Original data/borrowed startup/common format access are implemented; E selection/W rendering and full global45-entry/final acceptance stay pending.
 
 Original V100 font data/startup implementation commit: `2b1fa26`.
+
+
+== Native E font selection and text style
+
+E now reads font,size,rotation as three class0 WORDs before late independent
+signed normalization to0..4,0..4,0..1 (fallback0,1,0), then calls the setter
+in font,direction,size order. Sources28/30/53 and complete text/style listings
+supply the caller, registry, public/DDO/device order. E has no feature gate
+or own pixel, point, page, palette, image or console-font operation; shared
+footer, chains, stored loops, flow and deferred replies remain in force.
+
+The public selected font, remembered loaded id, active borrowed body, DDO
+font/body/active flag, remembered stroke id, copied header and bitmap device
+style remain separate owners. Repeating the selected font skips registry
+refresh while reinstalling style. Font0 retains loaded/active resources;
+selecting that loaded font afterward republishes its current registry body.
+A same remembered DDO stroke id skips header copying, even after font0 and
+a changed public body. A different stroke id copies16 bytes and clears its
+scan flag. No automatic registry cache invalidation replaces these rules.
+
+Public font/direction/size WORDs publish before lower dispatch. Supplied
+EGAVGA descriptors all have8/8 BGI cell bytes, independent of the console
+8/14/16-pixel fonts. The helper multiplies by the low size BYTE; stroke
+fonts instead pass that byte as selected size. Normal DDO first stores
+font/direction/dimensions/default width8, clears stroke-active/suppression/
+body, then activates a plus body with suppressionffff. Stroke selection
+uses the original positive table (E sizes1..4:3/5,2/3,3/4,1) or saved custom
+ratios for size0. The unchanged positive table now lives once in st_bgi_data
+and is used by both RIP and BIG; RIP index0 remains1/1 and BIG bypasses that
+entry for its saved custom ratios. Metrics use BYTE(cap-descender) and unsigned ratios;
+private aspect10000 remains distinct from per-mode curve aspect. Stroke
+selection leaves bitmap-device dimensions/magnification unchanged.
+
+The bitmap path falls back to8/8 only when incoming width is0. Device style
+masks dimensions with00f8, stores font/direction and derives magnification
+with minimum1 plus its8*mag-2 clipping extents. Nonzero front control bypasses
+DDO processing and installs the device directly. I0/R defaults call the same
+font0/direction0/size1 path, clearing DDO active/binding/suppression and
+restoring device8/8/mag1 while retaining custom/effective ratios, stroke id,
+copied header, scaled metrics and registry/loaded/active resources. I1 retains
+text state. X3 retains installed bitmap magnification while immediately
+changing DDO caches/private ratios and public size0.
+
+Only borrowed native registry resources are in scope. A missing nonloaded
+body falls back with BGI-8/font0/size1 and requested direction; invalid public
+font uses-14. No host path lookup, owned foreign heap, paragraph relocation
+or DOS loader is added. Normal E1..4 always uses the supplied embedded data.
+Checked body/header extents and quotient limits replace original unsafe
+memory/divide failures, retaining reached public/registry/DDO/first-metric
+prefixes and recovering through BIG's existing nonfatal owner. Native
+serialization does not emulate arbitrary foreign instruction/IRQ mutations.
+
+Independent big_text_style tests sweep every WORD in each wire slot and
+check literal metrics for all four old fonts, both directions, sizes0..4,
+all ten positive library ratios, low-byte/public-size separation, custom
+reuse, registry rebinding versus selected/loaded/DDO-header caches, bitmap
+fallback/magnification, control bypass and partial failures. Existing X3
+metric/ratio checks continue unchanged. cterm_big_text_style checks every
+default split and bytewise three-mode/encoding/status cases with complete
+indexed planes, palette/RGB/image/state preservation, blocked final reads,
+timeout/EOF/reset, I1/I0/R/reconnect, g3/stored loops, chains/deferred replies
+and nonfatal source/dispatch recovery.182 new application scenes (2632 total)
+check independent font/header/ratio/metric/device owners in one coherent
+capture with the complete retained spray/image/pixel/cell/palette/point/
+fill/page/cursor/reply/RNG scene. Native E is implemented; W rendering,
+global45-entry composition and final full-suite acceptance remain pending.
+
+Native CMake Release configure/full build and final refresh (/usr/bin/cc, build/) passed without compiler/source diagnostics. All40 BIG-specific native CTests passed in47.54s, including big_text_style0.08s and cterm_big_text_style0.51s. syncterm_big_input passed in130.78s (test130.73s),2632 coherent scenes. Initial fixture corrections used BIG +1 for negative1, the three-value E stored-source arity and settled pre-E graphics points; independent font/metric/pixel expectations were retained. No non-BIG tests ran; RIP table regressions and the full suite remain deferred. Native E is implemented; W rendering, global45-entry and final acceptance stay pending.

@@ -14,7 +14,7 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	foreach(part IN ITEMS number random loop numeric state palette palette_rotation profile control flow_settings stream draw spray text_ratio font collect fill bar producer bar3d flood video image image_paste)
+	foreach(part IN ITEMS number random loop numeric state palette palette_rotation profile control flow_settings stream draw spray text_ratio text_style font collect fill bar producer bar3d flood video image image_paste)
 		add_executable(st_big_${part}_test tests/st_big_${part}_test.c)
 		target_link_libraries(st_big_${part}_test PRIVATE st_big)
 		set_target_properties(st_big_${part}_test PROPERTIES

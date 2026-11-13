@@ -33,6 +33,16 @@ struct st_big_state {
 		uint16_t saved_ratio[4], effective_ratio[4];
 		uint16_t text_cached[2], text_selected_size, text_scaled[2];
 		uint8_t text_control, text_header[16];
+		uint8_t text_font, text_direction, text_stroke_active;
+		uint8_t text_stroke_id, text_stroke_direction;
+		uint16_t text_suppression;
+		/* DDO binding is separate from the public loaded body and copied
+		 * header. Font0 clears this binding but retains the cached id. */
+		const uint8_t *text_body;
+		size_t text_body_size;
+		uint8_t device_text_font, device_text_direction;
+		uint16_t device_text_dimensions[2], device_text_extent[2];
+		uint8_t device_text_magnification[2];
 	} bgi;
 	/* Interpreter-frame values are initialized on entry, not by I/R. */
 	uint16_t memory_page, active_page, visual_page;

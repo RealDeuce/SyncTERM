@@ -4,6 +4,7 @@
 #include "st_big_number.h"
 #include "st_big_fill.h"
 #include "st_big_draw.h"
+#include "st_big_text.h"
 #include "st_bgi_data.h"
 #include "io_error.h"
 #include <string.h>
@@ -55,11 +56,8 @@ static int defaults(struct st_big_state *s, const struct st_big_state_sink *sink
 	s->bgi.line_style = s->bgi.line_user = 0;
 	s->bgi.line_mask = 0xffff; s->bgi.line_width = 1;
 	s->bgi.ddo_line_width = 1; s->bgi.device_line_width = 1;
-	s->bgi.font = s->bgi.direction = 0; s->bgi.text_size = 1;
-	if (s->bgi.text_control==0) {
-		s->bgi.text_cached[0]=s->bgi.text_cached[1]=8;
-		s->bgi.text_selected_size=8;
-	}
+	status=st_big_text_style(s,NULL,0,0,1);
+	if (status!=0) return status;
 	s->bgi.justify_x = 0; s->bgi.justify_y = 2;
 	s->bgi.write_mode = 0;
 	s->bgi.x = s->bgi.y = s->bgi.ddo_x = s->bgi.ddo_y = 0;
@@ -87,6 +85,7 @@ void st_big_state_init(struct st_big_state *s)
 	/* Original DDO1582..1591 ratio words and1592 empty '+' header. */
 	for (size_t i=0;i<4;++i) s->bgi.saved_ratio[i]=s->bgi.effective_ratio[i]=1;
 	s->bgi.text_header[0]='+';
+	s->bgi.text_stroke_id=255;
 	s->bgi.state = 3; s->bgi.driver = 9; s->bgi.mode = 1; s->bgi.max_mode = 2;
 	s->bgi.width = 640; s->bgi.height = 350; s->bgi.line_distance = 1;
 	(void)defaults(s,NULL);

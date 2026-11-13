@@ -1,6 +1,9 @@
-/* EGA data shared by RIP and BIG after exact reference-26/83 comparison. */
+/* BGI data shared by RIP and BIG after exact reference26/28/83 comparison. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_bgi_data.h"
+
+const int st_bgi_stroke_mults[11] = {1, 3, 2, 3, 1, 4, 5, 2, 5, 3, 4};
+const int st_bgi_stroke_divs[11] = {1, 5, 3, 4, 1, 3, 3, 1, 2, 1, 1};
 
 const uint16_t st_bgi_ega_colors[64][3] = {
 	{0, 0, 0},

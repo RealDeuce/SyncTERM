@@ -2330,16 +2330,31 @@
         "30-font-registry-and-resource-lifetimes.adoc"
       ],
       "operations": [
-        "Prerequisite original V100 data and borrowed startup registrations are implemented with bounded common format access. E three-field acquisition, publication/selection/DDO style and W rendering remain pending; no E wire acceptance is claimed."
+        "Three class0 font,size,rotation WORDs are read completely before signed font0..4/size0..4/rotation0..1 normalization; setter reorders size/direction. Common chains, stored sources/repeats, flow and deferred replies apply.",
+        "Borrowed original V100 bindings preserve selected/public, loaded/active registry, DDO binding/id/copied header and bitmap-device owners separately. Repeating selected skips registry refresh; font0 retains loaded/active and cached stroke id/header. Public WORDs precede lower failure.",
+        "Normal DDO stores font/direction/cache/default width8 and clears active/binding/suppression before plus-body activation. Stroke uses original positive ratio table or persistent custom size0 ratios, BYTE(cap-descender) metrics and unchanged private aspect10000; device bitmap state is retained during stroke style.",
+        "Bitmap uses independent8x8 BGI descriptor metrics, low size BYTE, BX0 fallback8/8, dimensions masked00f8 and minimum1 magnification. X3 changes DDO ratios/caches without changing installed bitmap magnification. I0/R select the same font0 style while retaining custom ratios, resource and header owners.",
+        "No own pixels, graphics points, palette, pages, image or console-font change. Native E is implemented; W rendering, global45-entry composition and final regression acceptance remain pending.",
+        "Positive stroke ratio data is extracted unchanged from RIP into st_bgi_data for both consumers; RIP index0 remains1/1 and BIG size0 uses separate saved ratios. Routine RIP regressions remain deferred to the final full suite."
       ],
       "tests": [
+        "big_text_style",
+        "big_text_ratio",
         "big_font",
-        "cterm_big_resolution",
+        "big_state",
+        "cterm_big_text_style",
+        "cterm_big_text_ratio",
         "syncterm_big_input"
       ],
-      "deviations": [],
+      "deviations": [
+        "Only the supplied borrowed native registry is supported. A missing nonloaded body uses BGI-8/font0/size1 with requested direction retained; no remote-controlled host font path/search, owned DOS heap resource, foreign pointer/paragraph relocation or corruption is ported.",
+        "Native body/header extents and metric quotients are checked at reached accesses; errors preserve accepted public/registry/DDO/first-metric prefixes and recover through the nonfatal BIG owner. Serialized native state has no arbitrary foreign instruction or IRQ mutations."
+      ],
       "verification": [
-        "The original-v100-fonts-and-borrowed-startup foundation supplies exact data and constructor registration/state coverage. E command grammar and selection/style tests remain required."
+        "Independent literal original font heights/ratios and complete WORD clamp sweeps cover all four borrowed fonts, both directions, bitmap sizes including0, low-byte/public-size separation, all ten positive library ratios, saved custom reuse, selected/loaded/rebound-body/copied-header caches, bypass and partial failures.",
+        "Terminal fixtures cover every default split and bytewise mode/encoding/status combinations with full indexed planes, palette/RGB/image/state and output checks; blocked final read, timeout/EOF/reset, I1/I0/R/reconnect, g3/stored loops, chains/replies and nonfatal source/dispatch recovery.",
+        "182 new coherent application scenes bring coverage to2632: exact separate public/registry/DDO/device/header/ratio/metric state is checked alongside the complete retained spray scene, pixels/cells/fonts/palette/images/fill/pages/cursor/points/replies/RNG.",
+        "Native CMake Release configure/full build and final refresh (/usr/bin/cc, build/) passed without compiler/source diagnostics. All40 BIG-specific native CTests passed in47.54s, including big_text_style0.08s and cterm_big_text_style0.51s. syncterm_big_input passed in130.78s (test130.73s),2632 coherent scenes. Initial fixture corrections used BIG +1 for negative1, the three-value E stored-source arity and settled pre-E graphics points; independent font/metric/pixel expectations were retained. No non-BIG tests ran; RIP table regressions and the full suite remain deferred. Native E is implemented; W rendering, global45-entry and final acceptance stay pending."
       ],
       "commit": null
     },

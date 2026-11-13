@@ -374,6 +374,17 @@ assert count10, mask0f, loaded0 and inactive body alongside unchanged scene/
 state data. E selection and W rendering remain pending; this data/startup
 coverage does not claim graphical-text conformance.
 
+BIG E now installs original borrowed fonts with separate selected/loaded/
+active/DDO/header/bitmap-device owners, late three-field clamps, original
+positive/custom ratios and BYTE metrics. Font0/I0/R retain resources, custom
+ratios and remembered header/id while resetting bitmap style; I1 retains
+text. Native full-WORD/split/profile/source/lifecycle/error tests and182 new
+coherent application scenes (2632 total) check exact text state alongside
+the retained complete pixels/cells/palette/images/points/pages/replies/RNG.
+Missing resources and unsafe accesses use documented checked nonfatal
+fallbacks. Native E is implemented; W rendering, global45-entry composition
+and final cross-emulation/full-suite acceptance remain pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

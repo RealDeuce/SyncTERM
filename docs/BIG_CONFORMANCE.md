@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
 through native CTerm. Native < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
@@ -1235,3 +1235,31 @@ acceptance is claimed by these data/registration tests.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All38 BIG-specific native CTests passed in46.91s; big_font0.01s. syncterm_big_input passed in123.17s (test123.08s),2450 coherent scenes with the additional startup-registry assertions. No non-BIG tests ran. Original data/borrowed startup/common format access are implemented; E selection/W rendering and full global45-entry/final acceptance stay pending.
 
 Original V100 font data/startup implementation commit: `2b1fa26`.
+
+
+## Native E font selection and text style
+
+E reads all three font,size,rotation values before signed normalization,
+then selects the original borrowed fonts and installs separate public,
+DDO and bitmap-device state. Repeating the selected font skips registry
+refresh. Font0 retains loaded/active resources and remembered DDO header/id;
+reselecting a loaded font republishes its current registry body while a
+same DDO id still skips header refresh. Stroke sizes1..4 use3/5,2/3,3/4,1;
+size0 reuses persistent custom ratios. Positive ratio data is shared with
+RIP through st_bgi_data while preserving its index0 semantics. Original BYTE height metrics and
+bitmap8x8 dimensions/magnification remain distinct from console fonts.
+I0/R use the same bitmap defaults path; I1 retains text state. No own raster,
+point, page, palette, image or console-font operation belongs to E.
+
+Independent big_text_style and native cterm_big_text_style fixtures cover
+complete WORD clamps, original metric values, cache/resource lifetimes,
+bitmap magnification, all split/profile/source/reply/lifecycle paths and
+nonfatal partial errors.182 new coherent application scenes (2632 total)
+check font/registry/DDO/device/header/ratio/metric state alongside all retained
+pixels/cells/palette/images/points/fill/pages/cursor/replies/RNG. Missing
+nonloaded bodies safely fall back with BGI-8/font0/size1 and requested
+direction, without a host font loader. Checked extents/division preserve
+reached prefixes. Native E is implemented; W text rendering, global45-entry
+composition and the final full regression suite remain pending.
+
+Native CMake Release configure/full build and final refresh (/usr/bin/cc, build/) passed without compiler/source diagnostics. All40 BIG-specific native CTests passed in47.54s, including big_text_style0.08s and cterm_big_text_style0.51s. syncterm_big_input passed in130.78s (test130.73s),2632 coherent scenes. Initial fixture corrections used BIG +1 for negative1, the three-value E stored-source arity and settled pre-E graphics points; independent font/metric/pixel expectations were retained. No non-BIG tests ran; RIP table regressions and the full suite remain deferred. Native E is implemented; W rendering, global45-entry and final acceptance stay pending.

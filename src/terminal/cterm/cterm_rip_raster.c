@@ -2175,9 +2175,6 @@ flood_fill(struct cterm_rip_raster *rip, int x, int y, int border)
 	free(state);
 }
 
-static const int stroke_mults[11] = {1, 3, 2, 3, 1, 4, 5, 2, 5, 3, 4};
-static const int stroke_divs[11] = {1, 5, 3, 4, 1, 3, 3, 1, 2, 1, 1};
-
 static int
 stroke_char_width(struct cterm_rip_raster *rip, unsigned char ch)
 {
@@ -2279,8 +2276,8 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 	    + font[0x90 + 2 * (ch - first)]
 	    + (font[0x91 + 2 * (ch - first)] << 8);
 	int magnitude = rip->font_size;
-	int mult = stroke_mults[magnitude];
-	int div = stroke_divs[magnitude];
+	int mult = st_bgi_stroke_mults[magnitude];
+	int div = st_bgi_stroke_divs[magnitude];
 	int height = ((int)(int8_t)font[0x88] - (int)(int8_t)font[0x8a])
 	    * mult / div;
 	int saved_width = rip->line_width;
@@ -2378,8 +2375,8 @@ draw_rip_text(struct cterm_rip_raster *rip, const char *text)
 			    : stroke_char_width(rip, *p);
 		}
 		if (rip->font_number != 0)
-			width = width * stroke_mults[rip->font_size]
-			    / stroke_divs[rip->font_size];
+			width = width * st_bgi_stroke_mults[rip->font_size]
+			    / st_bgi_stroke_divs[rip->font_size];
 		cursor_y = rip->y + width;
 		for (const unsigned char *p = (const unsigned char *)text; *p; p++) {
 			if (*p == '\n')
@@ -2389,8 +2386,8 @@ draw_rip_text(struct cterm_rip_raster *rip, const char *text)
 			draw_rip_char(rip, *p);
 			cursor_y -= rip->font_number == 0 ? 8 * rip->font_size
 			    : stroke_char_width(rip, *p)
-			    * stroke_mults[rip->font_size]
-			    / stroke_divs[rip->font_size];
+			    * st_bgi_stroke_mults[rip->font_size]
+			    / st_bgi_stroke_divs[rip->font_size];
 		}
 		rip->y = start_y;
 		rip->x = start_x + width;
@@ -2421,8 +2418,8 @@ rip_text_width(struct cterm_rip_raster *rip, const char *text)
 		width += rip->font_number == 0 ? 8 * rip->font_size
 		    : stroke_char_width(rip, *p);
 	if (rip->font_number != 0)
-		width = width * stroke_mults[rip->font_size]
-		    / stroke_divs[rip->font_size];
+		width = width * st_bgi_stroke_mults[rip->font_size]
+		    / st_bgi_stroke_divs[rip->font_size];
 	free(converted);
 	return width;
 }
@@ -2439,8 +2436,8 @@ rip_font_height(struct cterm_rip_raster *rip)
 	if (font == NULL || size <= 0x8a)
 		return 0;
 	return ((int)(int8_t)font[0x88] - (int)(int8_t)font[0x8a])
-	    * stroke_mults[rip->font_size]
-	    / stroke_divs[rip->font_size];
+	    * st_bgi_stroke_mults[rip->font_size]
+	    / st_bgi_stroke_divs[rip->font_size];
 }
 
 static void
