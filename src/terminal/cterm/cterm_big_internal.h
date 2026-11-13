@@ -12,6 +12,7 @@
 #include "st_big_fill.h"
 #include "st_big_bar3d.h"
 #include "st_big_flood.h"
+#include "st_big_video.h"
 /* Nominal 4096-byte flood workspace, eight bytes per logical record.
  * Native bounds replace the original placement-dependent DOS stack guard. */
 enum { CTERM_BIG_FLOOD_RECORDS = 4096 / 8 };
@@ -101,6 +102,11 @@ struct cterm_big {
 	struct cterm_big_flood flood;
 	struct st_big_flood flood_work;
 	struct st_big_flood_record flood_records[CTERM_BIG_FLOOD_RECORDS];
+	struct st_pixel_buffer *video_backing;
+	struct st_big_video video;
+	uint16_t video_start;
+	uint8_t video_active_page, video_visual_page;
+	uint16_t video_cursors[4][2];
 	int last_error;
 	size_t rejected_commands;
 	bool footer_active, starting_body, gang_selecting, gang_wire;
@@ -136,4 +142,9 @@ int cterm_big_bar_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, bo
 int cterm_big_draw_flood(struct cterm_big *, uint16_t x, uint16_t y, uint16_t boundary);
 int cterm_big_flood_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_flood_poll(struct cterm_big *, size_t *budget, bool *complete);
+int cterm_big_page(struct cterm_big *, bool visual, uint16_t page);
+int cterm_big_video_prepare(struct cterm_big *);
+void cterm_big_video_reset(struct cterm_big *);
+struct st_big_video_view cterm_big_video_view(const struct cterm_big *, const struct st_pixel_buffer *);
+int cterm_big_video_segment(const struct cterm_big *, uint16_t *segment);
 #endif

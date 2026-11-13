@@ -1969,3 +1969,70 @@ claimed. Routine tests remain BIG-specific until the final full suite.
 Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred.
 
 Indexed video address/window dependency commit: `87cd9b6`.
+
+=== Native active/display pages and G4/G5/G6
+
+G now acquires its class0 operation before rez3's frame-local reset. G4,
+G5 and G6 then acquire a class0 page and apply their original distinct
+full-WORD clamps using the current resolution cache. G4 publishes only
+memory; G5/G6 publish their frame local before the public physical request.
+Neither adds an own response or changes graphics points/attributes. Unknown
+operations still perform the rez3 local reset without a physical request.
+G0..3 image operations remain unsupported, with their complete acquisition/
+codec/buffer/resource composition tracked as the next unfinished G work.
+
+The native BIG owner lazily allocates indexed aperture backing before page
+selection or drawing that needs it. The visible bitmap remains authoritative;
+off-screen/padding addresses use backing. Both blink values survive switches.
+Every existing graphics sink, including pointer markers, L/D/d, B/Z/F and
+batched point reads, now addresses actual active memory. Actual display-start
+and active-page ownership remain separate from interpreter frame selections
+and BGI cache/publication prefixes. Fresh attention resets remembered1/0/0
+without changing physical pages; chains and repeats retain their frame.
+
+Display requests save the old view and load the new view with checked
+accepted prefixes. Actual BIOS stride and BGI pitch remain distinct, including
+R3 active9600/displaya000 and R2 page2's display-start0 alias. Normalized
+wire pages0..3 have separate console cursor banks. Current visual console
+text uses the main native cursor; switching pages saves/restores its position.
+Base-emulator logical cell metadata/ANSI state is retained; graphics-page
+pixels use the existing pixel-managed representation rather than inferred
+character decoding. Page changes do not assign any graphics point owner.
+
+Host status artwork is outside the saved video view. Underlying source rows
+remain addressable in backing, including flood output behind the status UI.
+This keeps page flips and future image captures from manufacturing BBS pixels out of host UI.
+Actual raster mapping is prepared lazily at first memory access within an
+update; stable page metadata is reused without changing clipped/no-pixel
+prefixes. Memory allocation occurs before the console pixel callback.
+
+Successful mode installation (including normal R) clears owned aperture
+pixels and cursor banks and selects physical0. I1 retains pages/pixels/cursors. EOF/reset/parser-error cancellation
+retains reached physical changes and pixels; engine destruction frees the
+backing after input/pointer cleanup. A missing backing extent can fail before
+or after physical display publication, retaining the exact copied prefix.
+Unmapped CPU addresses, corrupted cursor-table indexes outside the four
+reachable banks and host failures reject nonfatally rather than accessing
+DOS RAM or inventing a successful page. No finally restore/response is added.
+
+`big_state` independently tests all65536 requested page WORDs for each
+operation at cache0/1/2/3/255, all256 entry cache BYTEs, local publication,
+receiver-owned physical prefixes, uninstalled state and native failures.
+`cterm_big_pages` adds every split/default profile and bytewise three-mode/
+encoding/status cases, full-WORD/unscaled arguments, physical/frame/chain/
+source/repetition/reply lifetimes, all existing drawing consumers, hidden
+XOR blink values, all four point-read planes, cursor/display aliases, console
+glyphs, R3 stride differences, mode/I1/reset/EOF/timeout behavior, status
+artwork/underlying source rows and both save/load failure prefixes. The first
+wire case failed before G registration. Existing Z whole-page expectations
+now separately retain the hidden source-row result and untouched status UI.
+
+140 new coherent application scenes bring coverage to1568: hidden graphics
+while another page is visible, display/reveal/restoration of prior ROM text,
+blink swatches and geometry, independent frame/physical page state, stored
+page repetition, mode clear and reselected blank pages. Each capture checks
+pixels/cells/palette/points/fill/cursor/replies/diagnostics and composed RGB.
+G4/5/6 native integration is implemented. G0..3 images and remaining global
+45-entry acceptance stay pending; routine tests remain BIG-specific.
+
+Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred.

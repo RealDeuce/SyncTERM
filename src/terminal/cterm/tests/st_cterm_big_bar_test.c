@@ -191,7 +191,10 @@ static void scaling_and_repetition(void)
 }
 static void rectangle_scene(struct fixture *f, unsigned kind, unsigned border, unsigned fill)
 {
-	const struct st_console_rect r={0,0,640,f->terminal->big_engine->state.bgi.height}; struct st_pixel_buffer *p=NULL;
+	struct cterm_big *big=f->terminal->big_engine;
+	const struct st_console_rect r={0,0,640,big->state.bgi.height}; struct st_pixel_buffer *p=NULL;
+	const struct st_big_mode *mode=st_big_mode((unsigned)big->state.bgi.mode+1);
+	unsigned visible=r.height-(f->terminal->status_display_type>=1?mode->cell_height:0);
 	CHECK(st_console_get_pixels(&p,f->console,&r,false)==0);
 	for (unsigned y=0;y<r.height;++y) for (unsigned x=0;x<r.width;++x) {
 		unsigned pen=kind==3 || kind==8?fill:0;
@@ -209,6 +212,12 @@ static void rectangle_scene(struct fixture *f, unsigned kind, unsigned border, u
 		if (kind==12 && x>=10 && x<=14 && y<=4) pen=x==10 || x==14 || y==4?border:fill;
 		if (kind==13 && x>=10 && x<=14 && y>=11 && y<=14) pen=x==10 || x==14 || y==11 || y==14?border:fill;
 		size_t i=(size_t)y*r.width+x;
+		if (y>=visible) {
+			/* The source page continues behind the host status UI. Its
+			 * expected flood result is retained in indexed backing. */
+			CHECK(big->video.count>i && big->video.primary[i]==800+pen && big->video.alternate[i]==800+pen);
+			pen=0;
+		}
 		if (p->primary[i]!=800+pen || p->alternate[i]!=800+pen) fprintf(stderr,"rectangle%u pixel%u,%u got%u/%u expected%u\n",kind,x,y,p->primary[i],p->alternate[i],800+pen);
 		CHECK(p->primary[i]==800+pen && p->alternate[i]==800+pen);
 	}

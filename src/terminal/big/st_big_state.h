@@ -65,4 +65,10 @@ int st_big_state_color(struct st_big_state *, uint16_t selector, uint16_t color)
 /* H stores the full WORD, reloads it for the signed negative clamp, and
  * has no BGI operation or upper clamp. */
 int st_big_state_hollow(struct st_big_state *, uint16_t requested);
+/* G resets interpreter page locals after its operation read in rez3.
+ * G4/5/6 normalize/publish their local after the page read; physical page
+ * state belongs to the sink, reached only by G5/6. */
+void st_big_state_g_entry(struct st_big_state *, uint8_t resolution);
+int st_big_state_g_page(struct st_big_state *, uint16_t operation, uint16_t requested,
+	uint8_t resolution, const struct st_big_state_sink *);
 #endif

@@ -370,3 +370,20 @@ Existing native B tests cover the consumed segment helper. This component
 does not allocate, initialize, convert RGB or emulate a controller/scan clock.
 Native G/page/image/console/presentation and resource bindings remain pending;
 the unchanged application fixture is not rerun for this dependency.
+
+`big_state` now independently checks all65536 G4/G5/G6 page WORDs against
+five resolution-cache cases, all256 entry cache BYTEs, ordered local/device
+publication and error prefixes. `cterm_big_pages` adds every split/default
+profile and bytewise three modes/encodings/status settings, full-WORD/unscaled
+input and source/repeat/reply/EOF/reset/timeout behavior. Active and displayed
+pages differ in literal whole-plane expectations for P/pointer markers,
+L/D/d/B/Z/F, XOR blink tokens and every batched point-read plane. Console
+glyph/cursor banks, R3 active/display offsets, R2 display aliases, mode clears,
+I1 retention, protected status artwork/source rows and exact save/load failure
+prefixes are checked. Earlier Z whole-page cases retain their source-row
+expectations in backing while expecting untouched native status pixels.
+140 coherent application scenes (1568 total) add hidden/revealed graphics,
+restored old ROM text/blink/geometry, explicit frame/physical page inspection,
+source repetition and mode reset, with complete pixels/cells/palette/state/
+points/cursor/replies/diagnostics and RGB. G0..3 image routes and full global
+composition remain pending; this step does not claim complete G acceptance.

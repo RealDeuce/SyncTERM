@@ -39,12 +39,14 @@ static int style_next(void *, const struct st_graphics_command_view *, struct st
 static int move_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int bar_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static int extended_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
+static int image_next(void *, const struct st_graphics_command_view *, struct st_graphics_parameter *);
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
 	{'B',line,4,bar_next},
 	{'Z',line,4,NULL},
 	{'F',flood,3,NULL},
+	{'G',scalar,1,image_next},
 	{'m',move,2,move_next},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},{'H',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
@@ -59,6 +61,15 @@ static int bar_next(void *context, const struct st_graphics_command_view *view,
 	(void)context;
 	if (view->count<4) return IO_ERROR_PROTOCOL;
 	*parameter=(struct st_graphics_parameter){.kind=view->count==4?ST_GRAPHICS_NUMBER:ST_GRAPHICS_END};
+	return 0;
+}
+static int image_next(void *context, const struct st_graphics_command_view *view,
+    struct st_graphics_parameter *parameter)
+{
+	(void)context;
+	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+	uint16_t operation=(uint16_t)view->arguments[0].value;
+	*parameter=(struct st_graphics_parameter){.kind=view->count==1 && operation>=4 && operation<=6?ST_GRAPHICS_NUMBER:ST_GRAPHICS_END};
 	return 0;
 }
 static int move_next(void *context, const struct st_graphics_command_view *view,
@@ -160,6 +171,7 @@ static int field(void *context, const struct st_graphics_command_view *view,
 	struct cterm_big *big=owner(context);
 	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
 	body_entry(big,view);
+	if (view->code=='G' && view->count==1) st_big_state_g_entry(&big->state,big->numeric.context.resolution);
 	if (view->code=='<' && view->count==1) {
 		if (!view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		big->control.input.append_cr=(uint8_t)view->arguments[0].value;
@@ -211,9 +223,7 @@ static int palette(void *context, size_t first, const uint8_t *codes, size_t cou
 }
 static int page(void *context, bool visual, uint16_t value)
 {
-	(void)context; (void)visual;
-	/* I only selects physical page0. G's independent pages come later. */
-	return value == 0 ? 0 : IO_ERROR_NOT_SUPPORTED;
+	return cterm_big_page(context,visual,value);
 }
 static int clear_pixels(void *context, const struct st_pixel_buffer *pixels,
     struct st_console_rect *changed)
@@ -247,6 +257,7 @@ static int install(void *context, const struct st_big_mode *mode)
 	if (status == 0) status = st_console_get_color_emoji(t->screen.console,&config.color_emoji);
 	if (status == 0) status = cterm_reconfigure_console(t,&config);
 	if (status != 0) return status;
+	cterm_big_video_reset(big);
 	/* BIOS mode installation selects the original bank. A previously active
 	 * size must not be stretched, nor a retained remote font substituted. */
 	uint16_t identifier=big->console_fonts[slot];
@@ -302,6 +313,22 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='F') return cterm_big_flood_begin(big,view);
 	if (view->code=='Z') {
 		int status=cterm_big_draw_z(big,view);
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='G') {
+		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		uint16_t operation=(uint16_t)view->arguments[0].value;
+		if (view->count==1) {
+			st_big_state_g_entry(&big->state,big->numeric.context.resolution);
+			if (operation<4 && (big->warned['G'/8]&(1u<<('G'%8)))==0) {
+				big->warned['G'/8]|=(uint8_t)(1u<<('G'%8));
+				cterm_log(big->terminal,ST_CTERM_LOG_WARNING,"Unsupported BIG image operation %u",(unsigned)operation);
+			}
+			return begin_footer(big,view);
+		}
+		if (view->count!=2 || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
+		const struct st_big_state_sink sink={big,install,palette,page};
+		int status=st_big_state_g_page(&big->state,operation,(uint16_t)view->arguments[1].value,big->numeric.context.resolution,&sink);
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='T') {
@@ -718,6 +745,7 @@ void cterm_big_destroy(struct cterm_big *big)
 {
 	if (big == NULL) return;
 	(void)cterm_big_collect_cancel(big);
+	st_pixel_buffer_destroy(big->video_backing);
 	st_graphics_parser_destroy(big->parser); free(big);
 }
 int cterm_big_create(struct cterminal *t)
@@ -831,6 +859,10 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_memory_page", big->state.memory_page);
 	st_console_test_number(app, "cterm.big_active_page", big->state.active_page);
 	st_console_test_number(app, "cterm.big_visual_page", big->state.visual_page);
+	st_console_test_number(app, "cterm.big_physical_active_page", big->video_active_page);
+	st_console_test_number(app, "cterm.big_physical_visual_page", big->video_visual_page);
+	st_console_test_number(app, "cterm.big_display_start", big->video_start);
+	st_console_test_number(app, "cterm.big_video_backing", big->video.count);
 	st_console_test_number(app, "cterm.big_loop_active", big->numeric.loop.active);
 	st_console_test_number(app, "cterm.big_loop_current", big->numeric.loop.current);
 	st_console_test_number(app, "cterm.big_loop_count", big->numeric.loop.count);

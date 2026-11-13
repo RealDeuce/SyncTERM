@@ -265,6 +265,17 @@ precise extent-error prefixes. Native B segment-return expectations remain
 covered; G wire/page/image/console/presentation binding is still pending.
 No additional application scene or hardware/device acceptance is claimed.
 
+BIG G4/G5/G6 now bind remembered memory, actual active and actual visual page
+selection with original BYTE/WORD/resolution/publication rules. All graphics
+consumers and batched reads use indexed active memory; console text/cursor
+uses visual memory with four cursor banks. Both blink values and padding
+persist, while host status artwork stays outside the video view and source
+rows behind it stay in backing. Native tests cover all page WORDs, split/
+profile/source/loop/reply cases, stride/display aliases, mode/I1 lifetimes
+and nonfatal save/load/CPU-extent failures.140 new coherent application scenes
+bring BIG to1568, checking complete retained pixels/cells/palette/state/points/
+cursor/replies/diagnostics/RGB. G0..3 images/global acceptance remain pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

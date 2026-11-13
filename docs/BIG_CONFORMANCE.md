@@ -1,8 +1,8 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/H/M/T attributes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
-through native CTerm. Native < keyboard/hybrid pointer acquisition is integrated. Remaining drawing,
-page/image binding, sound and complete command acceptance remain in progress.
+through native CTerm. Native < keyboard/hybrid pointer acquisition and G4/G5/G6 page selection are integrated. Remaining drawing,
+G0..3 image binding, sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -882,3 +882,33 @@ the unchanged application fixture was not rerun and no new scene is claimed.
 Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred.
 
 Indexed video address/window dependency commit: `87cd9b6`.
+
+## Native G4/G5/G6 pages
+
+Native G4 memory/G5 display/G6 active selection now preserves the original
+operation-return rez3 reset, distinct full-WORD clamps and local publication
+before physical calls. Frame locals, BGI/public prefixes, actual active page
+and actual BIOS display start remain separate. Fresh attention resets frame
+1/0/0 without touching physical pages; chains/repeats retain the frame.
+
+Owned indexed backing and the authoritative visible bitmap retain both
+blink values and padding. P/pointer markers, L/D/d, B/Z/F and batched point
+reads use active memory; console pixels/cursors use visual memory. Four
+normalized cursor banks and BIOS/BGI stride differences/aliases have native
+tests. Logical cell metadata/ANSI state remains with the base emulator and
+pixel-managed graphics. Host status artwork is excluded from saved pages,
+while source pixels behind it remain in backing. Successful mode installation clears backing
+and selects physical0; I1 retains pages and pixels. Error/EOF/reset paths keep accepted
+page/pixel prefixes and recover without a session failure.
+
+Independent tests cover every page WORD, all entry cache BYTEs, partitions/
+profiles, current-resolution/source/loop/reply behavior, every drawing sink,
+distinct hidden XOR blink values, point-read planes, cursor/console routing,
+R3 offset differences, display aliases, mode resets and resource failures.
+140 coherent scenes bring coverage to1568, retaining complete prior scene/
+state/cells/palette/points/cursor/replies/diagnostics/RGB while checking hidden
+draws, reveal, page restoration and mode clear. G0..3 image routes remain
+unsupported and G/full45-entry acceptance stays in progress. Only BIG tests
+run during iteration; final cross-emulation/full-suite verification is deferred.
+
+Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred.

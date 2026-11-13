@@ -10,22 +10,33 @@ struct drawing {
 	struct cterm_big *big;
 	const struct st_pixel_buffer *pixels;
 	struct st_console_rect *changed;
+	struct st_big_video_view view;
+	uint16_t segment;
+	bool mapped;
 };
-static int pixel(void *context, uint16_t x, uint16_t y, uint8_t pen, bool xor_mode)
+static int mapping(struct drawing *draw)
 {
-	struct drawing *draw=context;
+	if (draw->mapped) return 0;
+	int status=cterm_big_video_segment(draw->big,&draw->segment); if (status!=0) return status;
+	/* This memory-only callback is serialized under the console update;
+	 * no page/mode/status changes can occur until it returns. Defer setup
+	 * until first access so clipped/no-pixel requests keep their prefixes. */
+	draw->view=cterm_big_video_view(draw->big,draw->pixels); draw->mapped=true; return 0;
+}
+static int video_read(struct drawing *draw, uint16_t address, uint8_t bit, struct st_big_video_pixel *value)
+{
 	if (draw->big->reset_pending) return IO_ERROR_INTERRUPTED;
-	if (x>=draw->pixels->width || y>=draw->pixels->height) return IO_ERROR_OUT_OF_RANGE;
-	size_t index=(size_t)y*draw->pixels->width+x;
-	uint32_t a=CTERM_BIG_PALETTE_FIRST+pen, b=a;
-	if (xor_mode) {
-		uint32_t first=draw->pixels->primary[index], second=draw->pixels->alternate[index];
-		if (first<CTERM_BIG_PALETTE_FIRST || first>=CTERM_BIG_PALETTE_FIRST+16
-		    || second<CTERM_BIG_PALETTE_FIRST || second>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
-		a=CTERM_BIG_PALETTE_FIRST+((first-CTERM_BIG_PALETTE_FIRST)^pen);
-		b=CTERM_BIG_PALETTE_FIRST+((second-CTERM_BIG_PALETTE_FIRST)^pen);
-	}
-	draw->pixels->primary[index]=a; draw->pixels->alternate[index]=b;
+	int status=mapping(draw); if (status!=0) return status;
+	return st_big_video_read(&draw->big->video,&draw->view,draw->segment,address,bit,value);
+}
+static int video_write(struct drawing *draw, uint16_t address, uint8_t bit, uint32_t a, uint32_t b)
+{
+	if (draw->big->reset_pending) return IO_ERROR_INTERRUPTED;
+	int status=mapping(draw); if (status!=0) return status;
+	size_t visible;
+	status=st_big_video_write(&draw->big->video,&draw->view,draw->segment,address,bit,a,b,&visible);
+	if (status!=0 || visible==SIZE_MAX) return status;
+	uint32_t x=(uint32_t)(visible%draw->pixels->width), y=(uint32_t)(visible/draw->pixels->width);
 	struct st_console_rect *r=draw->changed;
 	if (r->width==0) *r=(struct st_console_rect){x,y,1,1};
 	else {
@@ -38,11 +49,34 @@ static int pixel(void *context, uint16_t x, uint16_t y, uint8_t pen, bool xor_mo
 	}
 	return 0;
 }
+static int pixel(void *context, uint16_t x, uint16_t y, uint8_t pen, bool xor_mode)
+{
+	struct drawing *draw=context; struct st_big_state *s=&draw->big->state;
+	if (x>=s->bgi.width || y>=s->bgi.height) return IO_ERROR_OUT_OF_RANGE;
+	uint16_t address=(uint16_t)((uint32_t)y*(s->bgi.width/8)+x/8); uint8_t bit=(uint8_t)(x%8);
+	uint32_t a=CTERM_BIG_PALETTE_FIRST+pen, b=a;
+	if (xor_mode) {
+		struct st_big_video_pixel value; int status=video_read(draw,address,bit,&value); if (status!=0) return status;
+		uint32_t first=value.primary, second=value.alternate;
+		if (first<CTERM_BIG_PALETTE_FIRST || first>=CTERM_BIG_PALETTE_FIRST+16
+		    || second<CTERM_BIG_PALETTE_FIRST || second>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
+		a=CTERM_BIG_PALETTE_FIRST+((first-CTERM_BIG_PALETTE_FIRST)^pen);
+		b=CTERM_BIG_PALETTE_FIRST+((second-CTERM_BIG_PALETTE_FIRST)^pen);
+	}
+	return video_write(draw,address,bit,a,b);
+}
+static int modify(struct cterm_big *big,
+    int (*edit)(void *, const struct st_pixel_buffer *, struct st_console_rect *), void *context)
+{
+	int status=cterm_big_video_prepare(big);
+	if (status==0) status=st_console_modify_pixels(big->terminal->screen.console,edit,context);
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
 struct marker { struct cterm_big *big; uint16_t x,y; bool direct; };
 static int marker(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct marker *marker=context; struct cterm_big *big=marker->big;
-	struct drawing drawing={big,pixels,changed};
+	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
 	const struct st_big_draw_sink sink={&drawing,pixel};
 	if (marker->direct) return st_big_draw_marker(&big->state,marker->x,marker->y,&sink);
 	int status=0;
@@ -56,20 +90,18 @@ int cterm_big_draw_p(struct cterm_big *big, const struct st_graphics_command_vie
 {
 	if (view->count!=2 || !view->arguments[0].has_value || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
 	struct marker request={.big=big,.x=(uint16_t)view->arguments[0].value,.y=(uint16_t)view->arguments[1].value};
-	int status=st_console_modify_pixels(big->terminal->screen.console,marker,&request);
-	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+	return modify(big,marker,&request);
 }
 int cterm_big_pmarker(struct cterm_big *big, uint16_t x, uint16_t y)
 {
 	struct marker request={.big=big,.x=x,.y=y,.direct=true};
-	int status=st_console_modify_pixels(big->terminal->screen.console,marker,&request);
-	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+	return modify(big,marker,&request);
 }
 struct line { struct cterm_big *big; uint8_t code; uint16_t words[4]; };
 static int line(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct line *request=context; struct st_big_state *state=&request->big->state;
-	struct drawing drawing={request->big,pixels,changed};
+	struct drawing drawing={.big=request->big,.pixels=pixels,.changed=changed};
 	const struct st_big_draw_sink sink={&drawing,pixel};
 	const uint16_t *words=request->words;
 	if (request->code=='L') {
@@ -90,17 +122,19 @@ int cterm_big_draw_line(struct cterm_big *big, const struct st_graphics_command_
 		if (!view->arguments[i].has_value) return IO_ERROR_PROTOCOL;
 		request.words[i]=(uint16_t)view->arguments[i].value;
 	}
-	int status=st_console_modify_pixels(big->terminal->screen.console,line,&request);
-	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+	return modify(big,line,&request);
 }
 static int read_byte(void *context, uint16_t x, uint16_t y, uint8_t plane, uint8_t *byte)
 {
-	const struct drawing *draw=context;
+	struct drawing *draw=context;
 	if (draw->big->reset_pending) return IO_ERROR_INTERRUPTED;
-	if (plane>3 || x>draw->pixels->width || draw->pixels->width-x<8 || y>=draw->pixels->height) return IO_ERROR_OUT_OF_RANGE;
+	const struct st_big_state *s=&draw->big->state;
+	if (plane>3 || x>s->bgi.width || s->bgi.width-x<8 || y>=s->bgi.height) return IO_ERROR_OUT_OF_RANGE;
+	uint16_t address=(uint16_t)((uint32_t)y*(s->bgi.width/8)+x/8);
 	uint8_t value=0;
 	for (unsigned i=0;i<8;++i) {
-		uint32_t pen=draw->pixels->primary[(size_t)y*draw->pixels->width+x+i];
+		struct st_big_video_pixel p; int status=video_read(draw,address,(uint8_t)i,&p); if (status!=0) return status;
+		uint32_t pen=p.primary;
 		if (pen<CTERM_BIG_PALETTE_FIRST || pen>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
 		if (((pen-CTERM_BIG_PALETTE_FIRST)>>plane)&1u) value|=(uint8_t)(0x80u>>i);
 	}
@@ -110,21 +144,19 @@ struct bar { struct cterm_big *big; bool depth; uint16_t size,top; };
 static int bar(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct bar *request=context; struct cterm_big *big=request->big;
-	struct drawing drawing={big,pixels,changed};
+	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
 	const struct st_big_producer_sink sink={.drawing={&drawing,pixel},.read_context=&drawing,.read_byte=read_byte};
 	if (!request->depth) return st_big_draw_bar(&big->state,big->bar.points,&sink.drawing);
 	if (big->producer.mode==2) {
-		const struct st_big_mode *mode=st_big_mode((unsigned)big->state.bgi.mode+1);
-		if (mode==NULL) return IO_ERROR_OUT_OF_RANGE;
-		big->producer.video_segment=st_big_video_active_segment((uint8_t)big->state.bgi.active_page,(uint16_t)(mode->page_bytes/16));
+		int status=cterm_big_video_segment(big,&big->producer.video_segment);
+		if (status!=0) return status;
 	}
 	return st_big_draw_bar3d(&big->state,big->bar.points,request->size,request->top,&big->producer,&sink);
 }
 static int bar_geometry(struct cterm_big *big, bool depth, uint16_t size, uint16_t top)
 {
 	struct bar request={big,depth,size,top};
-	int status=st_console_modify_pixels(big->terminal->screen.console,bar,&request);
-	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+	return modify(big,bar,&request);
 }
 int cterm_big_bar_begin(struct cterm_big *big, const struct st_graphics_command_view *view)
 {
@@ -178,19 +210,12 @@ int cterm_big_bar_poll(struct cterm_big *big, const uint8_t *bytes, size_t size,
 		}
 	}
 }
-static int flood_address(const struct drawing *draw, uint16_t address, size_t *offset)
-{
-	*offset=(size_t)address*8;
-	if (draw->big->reset_pending) return IO_ERROR_INTERRUPTED;
-	size_t count=(size_t)draw->pixels->width*draw->pixels->height;
-	return *offset>count || count-*offset<8?IO_ERROR_OUT_OF_RANGE:0;
-}
 static int flood_read(void *context, uint16_t address, uint8_t pens[8])
 {
-	const struct drawing *draw=context; size_t offset;
-	int status=flood_address(draw,address,&offset); if (status!=0) return status;
+	struct drawing *draw=context;
 	for (unsigned i=0;i<8;++i) {
-		uint32_t pen=draw->pixels->primary[offset+i];
+		struct st_big_video_pixel p; int status=video_read(draw,address,(uint8_t)i,&p); if (status!=0) return status;
+		uint32_t pen=p.primary;
 		if (pen<CTERM_BIG_PALETTE_FIRST || pen>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
 		pens[i]=(uint8_t)(pen-CTERM_BIG_PALETTE_FIRST);
 	}
@@ -198,21 +223,19 @@ static int flood_read(void *context, uint16_t address, uint8_t pens[8])
 }
 static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8])
 {
-	struct drawing *draw=context; size_t offset;
-	int status=flood_address(draw,address,&offset); if (status!=0) return status;
+	struct drawing *draw=context;
 	for (unsigned i=0;i<8;++i) if (mask&(0x80u>>i)) {
 		uint32_t a=pens[i], b=a;
 		if (planes!=15) {
-			a=draw->pixels->primary[offset+i]; b=draw->pixels->alternate[offset+i];
+			struct st_big_video_pixel p; int status=video_read(draw,address,(uint8_t)i,&p); if (status!=0) return status;
+			a=p.primary; b=p.alternate;
 			if (a<CTERM_BIG_PALETTE_FIRST || a>=CTERM_BIG_PALETTE_FIRST+16
 			    || b<CTERM_BIG_PALETTE_FIRST || b>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
 			a=((a-CTERM_BIG_PALETTE_FIRST)&(15u^planes))|(pens[i]&planes);
 			b=((b-CTERM_BIG_PALETTE_FIRST)&(15u^planes))|(pens[i]&planes);
 		}
-		size_t index=offset+i;
-		status=pixel(draw,(uint16_t)(index%draw->pixels->width),(uint16_t)(index/draw->pixels->width),(uint8_t)a,false);
+		int status=video_write(draw,address,(uint8_t)i,CTERM_BIG_PALETTE_FIRST+a,CTERM_BIG_PALETTE_FIRST+b);
 		if (status!=0) return status;
-		draw->pixels->alternate[index]=CTERM_BIG_PALETTE_FIRST+b;
 	}
 	return 0;
 }
@@ -225,20 +248,19 @@ static int fill_region(struct drawing *drawing, uint16_t x, uint16_t y, uint16_t
 static int flood_draw(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct flood_request *request=context;
-	struct drawing drawing={request->big,pixels,changed};
+	struct drawing drawing={.big=request->big,.pixels=pixels,.changed=changed};
 	return fill_region(&drawing,request->x,request->y,request->boundary);
 }
 int cterm_big_draw_flood(struct cterm_big *big, uint16_t x, uint16_t y, uint16_t boundary)
 {
 	struct flood_request request={big,x,y,boundary};
-	int status=st_console_modify_pixels(big->terminal->screen.console,flood_draw,&request);
-	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+	return modify(big,flood_draw,&request);
 }
 struct rectangle { struct cterm_big *big; uint16_t points[4]; };
 static int rectangle(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct rectangle *request=context; struct cterm_big *big=request->big;
-	struct drawing drawing={big,pixels,changed};
+	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
 	const struct st_big_draw_sink sink={&drawing,pixel};
 	int status=st_big_draw_rectangle(&big->state,request->points,&sink);
 	if (status!=0 || big->state.application.hollow!=0) return status;
@@ -256,7 +278,7 @@ int cterm_big_draw_z(struct cterm_big *big, const struct st_graphics_command_vie
 	}
 	int status=st_big_draw_color(&big->state,big->state.application.colors[1]);
 	if (status==0) status=st_big_fill_apply(&big->state);
-	if (status==0) status=st_console_modify_pixels(big->terminal->screen.console,rectangle,&request);
+	if (status==0) status=modify(big,rectangle,&request);
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }
 int cterm_big_flood_begin(struct cterm_big *big, const struct st_graphics_command_view *view)

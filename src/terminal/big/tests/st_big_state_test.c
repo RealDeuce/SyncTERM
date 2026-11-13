@@ -222,7 +222,59 @@ static int hollow_words(void)
 	CHECK(st_big_state_hollow(NULL,1)==IO_ERROR_INVALID_ARGUMENT);
 	return 0;
 }
+struct g_page {
+	struct st_big_state *state;
+	unsigned calls;
+	int status;
+	bool visual;
+	uint16_t value;
+};
+static int g_page(void *context, bool visual, uint16_t value)
+{
+	struct g_page *g=context; ++g->calls; g->visual=visual; g->value=value;
+	CHECK((visual?g->state->visual_page:g->state->active_page)==value);
+	/* The receiver owns device publication, including a failure prefix. */
+	if (visual) g->state->bgi.visual_page=value; else g->state->bgi.active_page=value;
+	return g->status;
+}
+static int g_pages(void)
+{
+	struct st_big_state s; st_big_state_init(&s); s.bgi.error=-11;
+	struct g_page g={.state=&s}; const struct st_big_state_sink sink={.context=&g,.page=g_page};
+	static const uint8_t resolutions[]={0,1,2,3,255};
+	for (size_t r=0;r<sizeof(resolutions);++r) for (unsigned operation=4;operation<=6;++operation) for (uint32_t word=0;word<65536;++word) {
+		uint16_t p=operation==4?(word>=1 && word<=3?(uint16_t)word:1):(word<=3?(uint16_t)word:0);
+		if (resolutions[r]==2 && p>1) p=operation==4?1:0;
+		if (resolutions[r]==3) p=0;
+		struct st_big_state expected; memcpy(&expected,&s,sizeof(expected)); g.calls=0;
+		if (operation==4) expected.memory_page=p;
+		if (operation==5) expected.visual_page=expected.bgi.visual_page=p;
+		if (operation==6) expected.active_page=expected.bgi.active_page=p;
+		CHECK(st_big_state_g_page(&s,(uint16_t)operation,(uint16_t)word,resolutions[r],&sink)==0);
+		CHECK(memcmp(&s,&expected,sizeof(s))==0 && g.calls==(operation==4?0u:1u));
+		if (operation!=4) CHECK(g.visual==(operation==5) && g.value==p);
+	}
+	for (unsigned rez=0;rez<256;++rez) {
+		s.memory_page=3; s.active_page=2; s.visual_page=1;
+		struct st_big_state expected; memcpy(&expected,&s,sizeof(expected));
+		if (rez==3) expected.memory_page=expected.active_page=expected.visual_page=0;
+		st_big_state_g_entry(&s,(uint8_t)rez); CHECK(memcmp(&s,&expected,sizeof(s))==0);
+	}
+	s.bgi.state=0; s.bgi.error=-11; g.calls=0;
+	CHECK(st_big_state_g_page(&s,4,3,1,NULL)==0 && s.memory_page==3 && s.bgi.error==-11);
+	uint16_t old=s.bgi.active_page;
+	CHECK(st_big_state_g_page(&s,6,2,1,&sink)==IO_ERROR_PROTOCOL && s.active_page==2 && s.bgi.active_page==old && s.bgi.error==-1 && g.calls==0);
+	s.bgi.state=3; g.status=IO_ERROR_IO;
+	CHECK(st_big_state_g_page(&s,5,3,1,&sink)==IO_ERROR_IO && s.visual_page==3 && s.bgi.visual_page==3);
+	g.status=IO_ERROR_IN_PROGRESS;
+	CHECK(st_big_state_g_page(&s,6,1,1,&sink)==IO_ERROR_PROTOCOL && s.active_page==1 && s.bgi.active_page==1);
+	CHECK(st_big_state_g_page(NULL,4,0,1,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_state_g_page(&s,3,0,1,&sink)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_state_g_page(&s,5,0,1,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	st_big_state_g_entry(NULL,3);
+	return 0;
+}
 int main(void)
 {
-	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); CHECK(hollow_words() == 0); return 0;
+	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); CHECK(hollow_words() == 0); CHECK(g_pages() == 0); return 0;
 }

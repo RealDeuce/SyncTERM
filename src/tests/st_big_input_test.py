@@ -38,7 +38,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -56,6 +56,9 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
     assert s["cterm.big_scaling"] == scaling
     assert s["cterm.big_hollow"] == hollow
+    assert tuple(s[f"cterm.big_{name}"] for name in ("memory_page", "active_page", "visual_page", "physical_active_page", "physical_visual_page", "display_start")) == pages
+    if backing is not None:
+        assert s["cterm.big_video_backing"] == backing
     assert (s["cterm.big_step_x"], s["cterm.big_step_y"]) == steps
     assert not s["cterm.big_zone_active"]
     if zones is None:
@@ -93,7 +96,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     start = (m["pixel_top"] + ch) * 640
     for plane, block_index in ((frame.primary, 804), (frame.alternate, 801)):
         expected = array("I", [800]) * (640 * (drawable - ch))
-        if seeded:
+        if seeded if seeded_pixels is None else seeded_pixels:
             for y, row in enumerate(A[resolution - 1]):
                 for x in range(8):
                     if row & (128 >> x):
@@ -656,6 +659,47 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   colored_pixels=rectangle_pixels + tuple(region), writing=writing,
                                   rgb_sample=(244, 68, 0xaa00aa) if index == 1 else (101, 61, 0xaaaa),
                                   fill=fill, selected_fill=selected, fill_pixels=tile, hollow=hollow, rejections=(-12, 1))
+                        page0_pixels = rectangle_pixels + tuple(region)
+                        magenta = tuple((x, y, 5) for y in range(64, 73) for x in range(280, 289))
+                        cyan = tuple((x, y, 3) for y in range(64, 73) for x in range(300, 309))
+                        selected = 0 if resolution == 3 else 1
+                        local = 0 if resolution == 3 else 1
+                        display = 0 if resolution == 3 else 0x4000 if resolution == 1 else 0x8000
+                        memory3 = 3 if resolution == 1 else local
+                        page0_drawn = page0_pixels + (magenta if resolution == 3 else ())
+                        page1_drawn = page0_drawn if resolution == 3 else magenta
+                        page_cases = (
+                            (b"I#G 4,3:", (memory3, 0, 0, 0, 0, 0), page0_pixels, True, (0, 5), (0,) * 8, 5, (101, 61, 0xaaaa), b""),
+                            (b"I#G>6,1:C>2,5:A>1:B 280,64,288,72,0:", (local, selected, 0, selected, 0, 0), page0_drawn, True, (1, 5), (0x55555555,) * 8, 5, (101, 61, 0xaaaa), b""),
+                            (b"I#G 5,1:", (local, 0, selected, selected, selected, display), page1_drawn, resolution == 3, (1, 5), (0x55555555,) * 8, 5, (284, 68, 0xaa00aa), b""),
+                            (b"I#G>6,0:C>2,3:B 300,64,308,72,0:", (local, 0, 0, 0, selected, display), page1_drawn + (cyan if resolution == 3 else ()), resolution == 3, (1, 3), (0x33333333,) * 8, 3, (284, 68, 0xaa00aa), b""),
+                            (b"I#G 5,0:", (local, 0, 0, 0, 0, 0), page0_drawn + cyan, True, (1, 3), (0x33333333,) * 8, 3, (304, 68, 0xaaaa), b""),
+                            (b"I#G>6,1:C>2,5:B>280,64,288,72,0:G 5,1:", (local, selected, selected, selected, selected, display), page1_drawn + (cyan if resolution == 3 else ()), resolution == 3, (1, 5), (0x55555555,) * 8, 5, (284, 68, 0xaa00aa), b""),
+                            (b"I#& 0,2,1,0,G@2,4,x:", (2 if resolution == 1 else local, 0, 0, selected, selected, display), page1_drawn + (cyan if resolution == 3 else ()), resolution == 3, (1, 5), (0x55555555,) * 8, 5, (284, 68, 0xaa00aa), b"\x13\x11"),
+                            (b"I#G 5,0:", (local, 0, 0, selected, 0, 0), page0_drawn + cyan, True, (1, 5), (0x55555555,) * 8, 5, (304, 68, 0xaaaa), b""),
+                            (f"I#R {resolution}:".encode(), (1, 0, 0, 0, 0, 0), (), False, (1, 15), (0xffffffff,) * 8, 5, None, b""),
+                            (b"I#G 5,1:", (local, 0, selected, 0, selected, display), (), False, (1, 15), (0xffffffff,) * 8, 5, None, b""),
+                        )
+                        for index, (command, pages, pixels, raster_seeded, fill, tile, fill_cache, rgb, flow) in enumerate(page_cases):
+                            token = f"PAGE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = flow + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            reset = index >= 8
+                            check(client.wait_text(token), resolution, status, not reset, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0) if reset else (124, 60), lower_points=((0, 0), (0, 0)) if reset else ((208, 72), (208, 72)),
+                                  colors=(271, 15, fill_cache, 65535), graph_color=15, colored_pixels=pixels,
+                                  rgb_sample=rgb, fill=fill, selected_fill=0 if index == 0 else 1, fill_pixels=tile,
+                                  hollow=256, rejections=(-12, 1), pages=pages, seeded_pixels=raster_seeded,
+                                  backing=524288 if status or (index > 0 and resolution != 3) else 0)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

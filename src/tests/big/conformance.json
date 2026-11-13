@@ -372,13 +372,19 @@
         "Indexed visible framebuffer and off-screen pages/images; explicit capacity/padding/stride and active/visual/memory ownership.",
         "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes.",
         "Distinct public logical, translated DDO and device points, current line offset distance, public colour and device pen, public style and downstream width/pattern; I/R defaults update the actual drawing state.",
-        "Borrowed indexed VGA-profile aperture storage and authoritative visible windows: actual segment+WORD CPU addresses, independent wrapped display intervals, retained padding, distinct primary/alternate tokens and checked extent/prefix transfers. No persistent planar shadow or redundant authoritative visible copy."
+        "Borrowed indexed VGA-profile aperture storage and authoritative visible windows: actual segment+WORD CPU addresses, independent wrapped display intervals, retained padding, distinct primary/alternate tokens and checked extent/prefix transfers. No persistent planar shadow or redundant authoritative visible copy.",
+        "Native indexed backing/active/display routing for G4/5/6, every existing graphics sink and batched point reads; independent interpreter/device/BIOS page state, four cursor banks, protected host status row, mode clear and serialized resource lifetime."
       ],
       "tests": [
         "big_state",
         "big_profile",
         "big_video",
-        "cterm_big_bar"
+        "cterm_big_bar",
+        "cterm_big_pages",
+        "cterm_big_fill",
+        "cterm_big_line",
+        "cterm_big_collect",
+        "syncterm_big_input"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -474,6 +480,39 @@
             "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred."
           ],
           "commit": "87cd9b6"
+        },
+        {
+          "id": "native-active-and-visual-pages",
+          "status": "complete",
+          "operations": [
+            "G operation-return rez3 local reset, then G4 memory versus G5/G6 visual/active full-WORD normalization/publication before physical calls. Both fields are class0; source/loop/chaining/footer/replies retain their existing behavior.",
+            "Lazy owned indexed aperture backing, explicit active/display selection, actual BGI versus BIOS strides, native display aliases and separate cursor banks for normalized pages0..3. Fresh attention resets frame locals without changing physical pages.",
+            "P/pointer markers, L/D/d, B/Z/F and batched point reads share the checked active-page memory sink. Both blink values and source padding survive page switches; visible memory stays authoritative without a planar shadow.",
+            "Console text uses the visual page and native cursor bank. Pixel-managed terminal cell metadata stays with the base emulator. The host status row is outside the video view; source pixels behind it remain in indexed backing.",
+            "Successful mode installation (including normal R) clears the aperture and cursor banks and selects physical0; I1 retains pixels/pages/cursors. Reset/EOF/error cancellation retains reached page/pixel prefixes; backing is freed with the engine.",
+            "Native G0..3 image routes and packed image/resource composition remain pending."
+          ],
+          "tests": [
+            "big_state",
+            "big_video",
+            "big_profile",
+            "cterm_big_pages",
+            "cterm_big_bar",
+            "cterm_big_fill",
+            "cterm_big_line",
+            "cterm_big_collect",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "25-images-pages-and-native-reuse.adoc",
+            "47-bios-glyphs-teletype-and-console-routing.adoc",
+            "48-bios-video-mode-registers-pages-and-dac.adoc",
+            "56-image-command-and-global-acceptance.adoc"
+          ],
+          "verification": [
+            "Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred."
+          ],
+          "commit": null
         }
       ]
     },
@@ -922,6 +961,31 @@
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Changed objects were verified current; both the full and final focused builds were clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
           ],
           "commit": "89d360a"
+        },
+        {
+          "id": "wire-native-pages",
+          "status": "complete",
+          "tests": [
+            "big_state",
+            "big_video",
+            "big_profile",
+            "cterm_big_pages",
+            "cterm_big_bar",
+            "cterm_big_fill",
+            "cterm_big_line",
+            "cterm_big_collect",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "25-images-pages-and-native-reuse.adoc",
+            "47-bios-glyphs-teletype-and-console-routing.adoc",
+            "48-bios-video-mode-registers-pages-and-dac.adoc",
+            "56-image-command-and-global-acceptance.adoc"
+          ],
+          "verification": [
+            "Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2210,27 +2274,42 @@
         "shared-bgi"
       ],
       "references": [
-        "56-image-command-and-global-acceptance.adoc",
         "25-images-pages-and-native-reuse.adoc",
+        "47-bios-glyphs-teletype-and-console-routing.adoc",
         "48-bios-video-mode-registers-pages-and-dac.adoc",
+        "56-image-command-and-global-acceptance.adoc",
         "76-vga-byte-data-and-display-addresses.adoc"
       ],
       "operations": [
-        "Indexed video address/window dependency implemented: separate active/display starts, visible authority/off-screen backing/padding and checked prefix transfers.",
-        "Pending all seven G wire routes, interpreter versus physical page binding, packed shared-image header/codec/size/crop/Boolean/prefix/retained-tail/resource behavior and full native/coherent command acceptance."
+        "Implemented native G4 memory, G5 visual and G6 active pages with operation-return rez3 frame reset; full WORD clamps, independent current-resolution rules, local publication before lower calls and no own response.",
+        "Physical indexed aperture backing, distinct active segment/display start, cursor banks, status exclusion, source pixels behind UI, retained padding/blink data and native page/mode/failure lifetimes.",
+        "Existing marker/pointer/line/bar/rectangle/flood and batched-byte consumers use actual active memory while text uses actual visual memory. Frame locals reset on fresh attention and persist across chains/repeats independently of physical pages.",
+        "Pending G0/1/2/3 image wire routes, shared packed buffer/header/codec/size/crop/Boolean/retained-tail/resource behavior and remaining full-command/global acceptance. These image operations remain unsupported during this step."
       ],
       "tests": [
+        "big_state",
         "big_video",
         "big_profile",
-        "cterm_big_bar"
+        "cterm_big_pages",
+        "cterm_big_bar",
+        "cterm_big_fill",
+        "cterm_big_line",
+        "cterm_big_collect",
+        "syncterm_big_input"
       ],
       "deviations": [
-        "Checked out-of-aperture/backing accesses reject at their reached prefix instead of accessing DOS RAM or manufacturing video wrap. Only the declared VGA-capable normal sequential/byte-display profile is represented here; no EGA reduced-memory/controller/CRT timing emulator is claimed."
+        "Checked out-of-aperture/backing accesses reject at their reached prefix instead of accessing DOS RAM or manufacturing video wrap. Only the declared VGA-capable normal sequential/byte-display profile is represented here; no EGA reduced-memory/controller/CRT timing emulator is claimed.",
+        "Native console cursor banks are bounded to the four pages reachable through normalized G wire selections. Corrupted out-of-range cursor indexes and unmapped/aperture/backing accesses reject without ending the session. Host status artwork is excluded from emulated video memory, with underlying source rows retained separately."
       ],
       "verification": [
         "Independent literal segment aliases/aperture boundaries, all524288 canonical CPU pen addresses, all WORD pitches with signed/unsigned BYTE cases, and every pen for40 visible interval layouts.",
         "Page padding and R3 active/visual pitch distinction, visible-only/hidden authority, independent blink tokens, wrapped save/load/page preservation, no initialization on bind and precise missing-backing prefixes/null guards. This is address/storage dependency coverage; G wire/page/image/native command behavior remains pending.",
-        "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred."
+        "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred.",
+        "Independent all65536 requested page WORDs for G4/5/6 across resolution cache0/1/2/3/255, all256 G-entry cache BYTEs, publication/receiver/error prefixes and uninstalled-state behavior.",
+        "Native split/bytewise three modes/CP437/UTF8/status cases, full WORD/unscaled arguments, physical-versus-frame lifetime, source/repetition/replies, every drawing consumer, active-page XOR blink values and all four batched read planes.",
+        "Distinct R3 active9600/displaya000 and R2 display alias/page cursor, visual console glyphs, mode clearing/I1 retention, status artwork/hidden rows, EOF/reset/timeout and precise checked failure prefixes/recovery.",
+        "140 new coherent application scenes,1568 total, verify hidden drawing/display reveal, retained prior text/graphics/blink data, page/frame/physical state, mode resets, palette/points/fill/cursor/replies/diagnostics and composed RGB across all modes/encodings/status settings.",
+        "Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred."
       ],
       "commit": null
     }

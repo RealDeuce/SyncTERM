@@ -179,3 +179,21 @@ int st_big_state_hollow(struct st_big_state *s, uint16_t requested)
 	if (st_big_number_signed(s->application.hollow)<0) s->application.hollow=0;
 	return 0;
 }
+void st_big_state_g_entry(struct st_big_state *s, uint8_t resolution)
+{
+	if (s!=NULL && resolution==3) s->memory_page=s->active_page=s->visual_page=0;
+}
+int st_big_state_g_page(struct st_big_state *s, uint16_t operation, uint16_t requested,
+    uint8_t resolution, const struct st_big_state_sink *sink)
+{
+	if (s==NULL || operation<4 || operation>6
+	    || (operation!=4 && (sink==NULL || sink->page==NULL))) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t page=requested;
+	if (st_big_number_signed(page)<(operation==4?1:0) || st_big_number_signed(page)>3) page=operation==4?1:0;
+	if (resolution==2 && page>1) page=operation==4?1:0;
+	if (resolution==3 && st_big_number_signed(page)>0) page=0;
+	if (operation==4) { s->memory_page=page; return 0; }
+	if (operation==5) s->visual_page=page; else s->active_page=page;
+	if (s->bgi.state==0) { s->bgi.error=-1; return IO_ERROR_PROTOCOL; }
+	return synchronous(sink->page(sink->context,operation==5,page));
+}
