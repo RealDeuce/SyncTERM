@@ -865,7 +865,7 @@
             "The expanded application fixture reached its former120-second CTest limit without an assertion failure. Only syncterm_big_input received a180-second bound for2450 full-scene checks; expectations and coverage were retained.",
             "Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending."
           ],
-          "commit": null
+          "commit": "25d2c2f"
         }
       ]
     },
