@@ -357,6 +357,15 @@ zero-range geometry, separate RNG checks and the complete retained scene/
 images/state/replies/RGB. Speaker/global45-entry and final regressions remain
 pending.
 
+BIG X3 now installs custom text ratios after four completed class0 reads.
+Unsigned maxima, returning size0, saved/effective/cache distinctions and
+original1/1 initialization follow the source. No glyph/pixel/point operation
+is added. Independent component/native tests check full input WORD domains,
+partial/error/source/lifetime paths and complete unchanged scene data.
+126 new coherent captures bring BIG to2450, checking text caches/ratios and
+retained scene/images/state/replies/RNG. E/W font rendering, audio/global45-entry
+and final cross-emulation regressions remain pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

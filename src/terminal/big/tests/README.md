@@ -518,3 +518,20 @@ seed observations; pixels do not come from the implementation under test.
 Complete prior pixels/cells/palette/image/fill/pages/cursor/points/state/
 replies and RGB remain in one capture. Native X0 is implemented; remaining
 global/final-suite acceptance stays pending.
+
+`big_text_ratio` derives X3/clamp/public/DDO/custom/metric expectations from
+28/53 and the complete text/style listings. Every WORD runs independently in
+each slot with a full-state oracle. Raw cases distinguish unsigned maximum
+rejection from uninstalled failure, saved zero versus effective denominator1,
+restored original ratios versus returned dimensions, BYTE height wrap,
+front-control bypass, changed callback owners and metric/error prefixes.
+Literal DDO data1582..1591 initializes all ratios1, and the copied header
+starts2b; these replace the former unsupported zero ratio initialization.
+Native `cterm_big_text_ratio` checks splits/profiles, full indexed/RGB/image/
+state preservation, a blocked fourth read, g3/stored source, I1/I0/R retention,
+timeout versus EOF/reset and nonfatal validation/dispatch/source errors.
+126 new coherent application scenes (2450 total) compare custom state while
+retaining all prior spray/image/pixel/cell/palette/point/fill/page/cursor/
+reply/RNG observations; earlier scenes also check initial text state.
+These tests do not claim E/W font rendering or auditory coverage. Native X3
+is implemented; remaining text/audio/global/final acceptance stays pending.

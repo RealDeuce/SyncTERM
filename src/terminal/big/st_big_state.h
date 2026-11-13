@@ -31,6 +31,8 @@ struct st_big_state {
 		uint16_t font, direction, text_size, justify_x, justify_y, write_mode;
 		/* The font0 shortcut does not dispose stroke resources/ratio owners. */
 		uint16_t saved_ratio[4], effective_ratio[4];
+		uint16_t text_cached[2], text_selected_size, text_scaled[2];
+		uint8_t text_control, text_header[16];
 	} bgi;
 	/* Interpreter-frame values are initialized on entry, not by I/R. */
 	uint16_t memory_page, active_page, visual_page;

@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X4/X5/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
 through native CTerm. Native < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
@@ -1182,3 +1182,30 @@ acceptance remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending.
 
 Native X0 implementation commit: `94a4fb9`.
+
+## Native X3 custom text ratios
+
+All four class0 reads precede signed1..4 clamps and immediate ratio
+installation. Physical-max rejection skips dispatch but returns public size0;
+uninstalled/lower failure omits that tail. Normal control caches returned
+dimensions separately from restored original ratio arguments, saves custom
+words and repairs only effective zero denominators. The actual EGAVGA custom
+entry leaves bitmap magnification unchanged. Checked scaled-metric overflow
+retains completed prefixes and rejects nonfatally.
+
+Original loaded ratio arrays now initialize to1/1; the copied header starts2b.
+I1 retains text state; normal I0/R restore font0/public size1 and8/8 private
+bitmap caches while keeping saved/effective ratios. X3 draws/moves nothing
+and preserves console fonts, points, palette, pages and images. E/W rendering
+and borrowed font/resource integration remain separate pending work.
+
+`big_text_ratio` independently checks each full WORD input domain, public
+validation, raw ratio/denominator/header behavior and callback/failure order.
+Native split/bytewise profiles check partial reads, source/default/lifetime
+behavior, errors and complete unchanged indexed pixels/RGB/image/state.
+126 new coherent scenes bring BIG to2450; all earlier scenes also verify
+initial ratio/cache values. New captures retain the complete previous scene
+and RNG alongside exact new text state and replies. Native X3 is implemented;
+remaining text/audio/global45-entry and final regressions stay pending.
+
+Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending.

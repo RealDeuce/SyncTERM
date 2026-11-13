@@ -62,6 +62,8 @@ static void prepare(struct fixture *f)
 	f->state.bgi.font = 3; f->state.bgi.text_size = 4;
 	f->state.bgi.x = 23; f->state.bgi.y = 47;
 	f->state.bgi.saved_ratio[0] = 77; f->state.bgi.effective_ratio[3] = 88;
+	f->state.bgi.text_header[8] = 21; f->state.bgi.text_header[10] = 249;
+	f->state.bgi.text_scaled[0] = 56; f->state.bgi.text_scaled[1] = 42;
 	f->state.memory_page = 3; f->state.active_page = 2; f->state.visual_page = 1;
 	memset(f->state.local_palette,0x5a,sizeof(f->state.local_palette));
 	f->state.saved_palette[7] = 0x1234;
@@ -72,6 +74,8 @@ static int retained(const struct fixture *f)
 	CHECK(f->state.local_palette[0] == 0x5a && f->state.local_palette[16] == 0x5a);
 	CHECK(f->state.saved_palette[7] == 0x1234 && f->state.application.patterns[11][7] == 0x69);
 	CHECK(f->state.bgi.saved_ratio[0] == 77 && f->state.bgi.effective_ratio[3] == 88);
+	CHECK(f->state.bgi.text_header[8] == 21 && f->state.bgi.text_header[10] == 249);
+	CHECK(f->state.bgi.text_scaled[0] == 56 && f->state.bgi.text_scaled[1] == 42);
 	return 0;
 }
 static int defaults(const struct fixture *f, unsigned height)
@@ -83,6 +87,7 @@ static int defaults(const struct fixture *f, unsigned height)
 	CHECK(s->bgi.color == 15 && s->bgi.background == 0 && s->bgi.fill_style == 1 && s->bgi.fill_color == 15);
 	CHECK(s->bgi.line_style == 0 && s->bgi.line_user == 0 && s->bgi.line_mask == 0xffff && s->bgi.line_width == 1);
 	CHECK(s->bgi.font == 0 && s->bgi.direction == 0 && s->bgi.text_size == 1);
+	CHECK(s->bgi.text_cached[0] == 8 && s->bgi.text_cached[1] == 8 && s->bgi.text_selected_size == 8);
 	CHECK(s->bgi.justify_x == 0 && s->bgi.justify_y == 2 && s->bgi.write_mode == 0);
 	for (size_t i = 0; i < 8; ++i) CHECK(s->bgi.fill_user[i] == 255);
 	return 0;

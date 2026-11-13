@@ -8,6 +8,7 @@
 #include "st_bgi_data.h"
 #include "st_big_draw.h"
 #include "st_big_random.h"
+#include "st_big_text.h"
 #include "st_big_fill.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
@@ -186,6 +187,8 @@ static int extended_next(void *context, const struct st_graphics_command_view *v
 		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER,
 		    .axis=view->count==1?ST_GRAPHICS_X:ST_GRAPHICS_Y};
 	if ((uint16_t)view->arguments[0].value==8 && view->count<5)
+		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
+	if ((uint16_t)view->arguments[0].value==3 && view->count<5)
 		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
 	return 0;
 }
@@ -511,6 +514,16 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		if (selector==8) return cterm_big_rotation_begin(big,view);
 		if (selector==5) return begin_footer(big,view);
 		if (selector==2) return begin_footer(big,view);
+		if (selector==3) {
+			if (view->count!=5) return IO_ERROR_PROTOCOL;
+			uint16_t ratios[4];
+			for (size_t i=0;i<4;++i) {
+				if (!view->arguments[i+1].has_value) return IO_ERROR_PROTOCOL;
+				ratios[i]=(uint16_t)view->arguments[i+1].value;
+			}
+			int status=st_big_text_x3(&big->state,ratios,NULL);
+			return status==0?begin_footer(big,view):status;
+		}
 		if (selector==1) {
 			int status;
 			if (view->count==3 && view->arguments[1].has_value && view->arguments[2].has_value)
@@ -958,6 +971,21 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_spray_height", big->spray.height);
 	st_console_test_number(app, "cterm.big_spray_count", big->spray.count);
 	st_console_test_number(app, "cterm.big_spray_counter", big->spray.counter);
+	st_console_test_number(app, "cterm.big_text_font", big->state.bgi.font);
+	st_console_test_number(app, "cterm.big_text_direction", big->state.bgi.direction);
+	st_console_test_number(app, "cterm.big_text_size", big->state.bgi.text_size);
+	st_console_test_number(app, "cterm.big_text_cached_width", big->state.bgi.text_cached[0]);
+	st_console_test_number(app, "cterm.big_text_cached_height", big->state.bgi.text_cached[1]);
+	st_console_test_number(app, "cterm.big_text_selected_size", big->state.bgi.text_selected_size);
+	st_console_test_number(app, "cterm.big_text_scaled_width", big->state.bgi.text_scaled[0]);
+	st_console_test_number(app, "cterm.big_text_scaled_height", big->state.bgi.text_scaled[1]);
+	for (size_t i=0;i<4;++i) {
+		char name[64];
+		snprintf(name,sizeof(name),"cterm.big_text_saved_ratio%zu",i);
+		st_console_test_number(app,name,big->state.bgi.saved_ratio[i]);
+		snprintf(name,sizeof(name),"cterm.big_text_effective_ratio%zu",i);
+		st_console_test_number(app,name,big->state.bgi.effective_ratio[i]);
+	}
 	st_console_test_number(app, "cterm.big_flow_on_byte", big->control.flow.byte[0]);
 	st_console_test_number(app, "cterm.big_flow_off_byte", big->control.flow.byte[1]);
 	st_console_test_number(app, "cterm.big_flow_on_count", big->control.flow.count[0]);

@@ -19,7 +19,7 @@ boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
 BIG mode6 is selectable with native I0/I1/R indexed-console effects,
-g/X0/X1/X2/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
+g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
@@ -2560,3 +2560,51 @@ acceptance remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending.
 
 Native X0 implementation commit: `94a4fb9`.
+
+== Native X3 custom text ratios
+
+X3 now acquires all four class0 ratio WORDs before independent signed1..4
+normalization and immediate custom-style dispatch. The complete caller and
+public/DDO/device paths are28/53/text-code/style-review-code. The public
+setter validates unsigned operands against physical maxima before dispatch;
+a rejected tuple silently skips the lower call and still writes public
+size0. A lower failure leaves the previous public size instead of applying
+a finally-style tail. Old BGI errors do not gate successful calls.
+
+The ordinary EGAVGA negative-direction custom-style entry returns without
+changing bitmap magnification. The DDO front's nonzero control bypasses its
+caches/private ratios; normal control0 caches the returned Xden/Ynum words,
+restores original arguments and saves four ratios. Effective denominators
+repair0 to1 while saved zero values remain0. The selected private size becomes0.
+Metric height uses BYTE(cap-descender) from the current copied16-byte header,
+then independent unsigned WORD multiplication/division. Checked quotient
+bounds replace original integer-divide traps and preserve the reached
+cache/saved/effective/first-metric prefix; public size0 follows full return.
+Serialized device callbacks can expose returned-cache/original-argument
+and failure ordering without a foreign instruction/interrupt timing model.
+
+The literal DDO1582..1591 initial words in text-data.json are all1, not0;
+both native ratio arrays now start1/1 per axis. The initial copied header
+starts2b and otherwise0. Normal font0 defaults restore8/8 DDO dimensions and
+private size8 while retaining custom/effective ratios and copied header.
+I1 preserves the entire text state. No glyph, graphics-point, page, image,
+console-font, repaint or palette operation belongs to X3. Future E/W font
+selection and rendering must consume these separate owners rather than
+resetting them or applying a generic bitmap size0 rule.
+
+`big_text_ratio` checks every WORD independently in each X3 slot against
+complete-state expectations, raw public-max skip versus uninstalled failure,
+zero denominators, sign-bit restoration, returned cache values, current header,
+control bypass and callback/metric failure prefixes. `cterm_big_text_ratio`
+covers every default split and bytewise three modes/encodings/status cases,
+full indexed planes/RGB/image/BGI state, a blocked fourth read, actual timeout,
+EOF/reset, g3/stored sources, I/R lifetimes, deferred replies and nonfatal
+validation/dispatch/source recovery. Nine new application scenes per profile
+add126 coherent captures,2450 total. Earlier scenes now also assert the
+correct initial text ratios/caches, while new scenes preserve the entire
+spray/image/pixel/cell/palette/point/fill/page/cursor/reply/RNG state around
+custom ratios, clamping, I1, chains and stored-source execution. Native X3 is
+implemented; E/W fonts/rendering, audio/global45-entry and final regressions
+remain pending.
+
+Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending.

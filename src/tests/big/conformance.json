@@ -477,7 +477,8 @@
         "Native indexed backing/active/display routing for G4/5/6, every existing graphics sink and batched point reads; independent interpreter/device/BIOS page state, four cursor banks, protected host status row, mode clear and serialized resource lifetime.",
         "Native G0..3 routing and engine-owned retained image storage/cache: format-edge indexed conversion, original image/page/gate/mode prefixes, snapshot overlap, protected UI rows and bounded nonfatal failure lifetimes.",
         "Explicit raw palette-size/cache ownership and public single setter, shared by S and I1/X8; six-bit physical RGB publication preserves indexed image/page identities and independent feature gates.",
-        "Native X8 capture/restore/rotation uses shared raw cache/public setters and explicit local/saved/padding owners; protocol waits and flow use local deadlines outside palette updates."
+        "Native X8 capture/restore/rotation uses shared raw cache/public setters and explicit local/saved/padding owners; protocol waits and flow use local deadlines outside palette updates.",
+        "Native X3 custom text state keeps original initialized saved/effective ratios, returning public size, DDO dimensions/selected size, copied header and checked metrics separate from bitmap magnification and future E/W font resources."
       ],
       "tests": [
         "big_state",
@@ -495,7 +496,9 @@
         "big_palette",
         "cterm_big_palette",
         "big_palette_rotation",
-        "cterm_big_rotation"
+        "cterm_big_rotation",
+        "big_text_ratio",
+        "cterm_big_text_ratio"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -824,6 +827,45 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s; cterm_big_rotation0.64s. syncterm_big_input passed in101.50s (test101.45s),1946 coherent scenes. No non-BIG tests ran. Native X8 is implemented; N/audio/global45-entry and final regressions stay pending."
           ],
           "commit": "097a486"
+        },
+        {
+          "id": "native-x3-custom-ratios",
+          "status": "complete",
+          "operations": [
+            "Acquire four class0 WORDs before independent signed1..4 clamps and immediate custom-style dispatch. No own glyph/pixel/point/page/image/palette or console-font operation; common source/repeat/chain/deferred replies apply.",
+            "Public unsigned physical-max checks precede lower dispatch. Silent rejection assigns no new error and still returns public size0; uninstalled/lower/metric failure omits that returning tail. Old BGI errors do not gate accepted calls.",
+            "Ordinary EGAVGA custom dispatch returns without bitmap magnification changes. Nonzero DDO front control bypasses private caches/ratios; normal control caches returned Xden/Ynum separately from original arguments, saves custom WORDs, selects private size0 and applies effective ratios immediately.",
+            "Effective zero denominators become1 while saved zero words remain0. The custom sign bit is cleared before saving Xnum. Metric height is BYTE(cap-descender) from the copied header; unsigned per-axis scale/truncation preserves ordered metric stores and checked quotient failures.",
+            "Literal initial saved/effective ratio words are1/1 per axis and the empty copied header starts2b. I1 retains text state; normal I0/R font0 defaults reset public size1/private8/8/size8 while retaining custom/effective ratios, header and metrics."
+          ],
+          "tests": [
+            "big_text_ratio",
+            "big_state",
+            "big_numeric",
+            "cterm_big_text_ratio",
+            "cterm_big_resolution",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "28-text-fonts-and-native-reuse.adoc",
+            "53-text-and-line-style-command-acceptance.adoc",
+            "text-code.adoc:13d2:07bf..083e;DDO13c0..148f,15d5..16b2",
+            "style-review-code.adoc:195a:1854..189d,2007..202c",
+            "text-data.json:literal_layer_fields"
+          ],
+          "deviations": [
+            "Public validation uses owned native physical width/height maxima. Arbitrary foreign descriptor pointers/segment aliases or state changes between instructions without a native callback are not modeled. Serialized device callbacks preserve current-owner changes at actual call boundaries, including returned-cache/original-argument distinctions.",
+            "Original integer-divide overflow becomes a checked nonfatal OUT_OF_RANGE at the reached metric store, preserving accepted cache/saved/effective and earlier metric prefixes. The returning size0 tail is omitted on failure. The ordinary device negative-direction early return is implemented directly, not replaced with a bitmap scaling preference."
+          ],
+          "verification": [
+            "Independent full-state expectations sweep all65536 WORDs in each X3 slot. Raw public cases cover physical maxima, zero saved/effective denominators, high-bit restoration, control bypass, returned dimensions versus original ratios, current-header BYTE height wrap and callback/metric failure prefixes.",
+            "Native every default split and bytewise all mode/encoding/status cases retain full BGI state/indexed planes/native RGB/image bytes. A blocked fourth read, real timeout, EOF/reset, g3/stored sources, I1/I0/R retention, deferred replies, validation skips and uninstalled/source errors are independently checked.",
+            "Original literal layer data corrects initial saved/effective ratios from0 to1. Independent state tests preserve copied header and scaled metrics across I/R while resetting only ordinary bitmap caches/selected size. New engines restore initial1/1 ratios and public size1.",
+            "126 new coherent application scenes bring coverage to2450, comparing ratio/cache/public state during clamps, I1, chaining and supplied loops while retaining the entire prior spray/image/pixel/cell/palette/point/fill/page/cursor/reply/RNG scene. Earlier scenes also check initial text state.",
+            "The expanded application fixture reached its former120-second CTest limit without an assertion failure. Only syncterm_big_input received a180-second bound for2450 full-scene checks; expectations and coverage were retained.",
+            "Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1371,12 +1413,15 @@
         "51-state-and-position-command-acceptance.adoc",
         "73-global-readers-and-loops-acceptance.adoc",
         "64-input-and-zone-command-acceptance.adoc",
-        "50-attribute-command-acceptance.adoc"
+        "50-attribute-command-acceptance.adoc",
+        "53-text-and-line-style-command-acceptance.adoc",
+        "55-palette-command-and-global-acceptance.adoc",
+        "58-marker-and-spray-command-acceptance.adoc"
       ],
       "operations": [
-        "One unscaled full-WORD selector through the shared parser; exact1 adds slot/alter and conditionally eight class0 rows, exact6 adds class1 X/class2 Y, and exact4 adds its id-dependent zone fields.",
+        "One unscaled full-WORD selector through the shared parser. Exact0 reads class1/2 spray fields plus class0 count; exact1 conditional pattern rows; exact2 range bounds; exact3 four custom ratios; exact4 id-dependent zone fields; exact5 current-mode flow operands; exact6 class1 X/class2 Y; exact8 four rotation fields.",
         "Unknown9/ffff/0106 performs no invented argument drain/default clamp/own response and retains shared repeat/chain/deferred-reply semantics.",
-        "X1, X4 and X6 implement their selected operators; other known selectors retain the explicit unsupported diagnostic/fallback until implemented. Parent completion requires all nine children."
+        "X0..X6 and X8 implement their selected operators. X7 remains pending its music-progress producer/gate integration; the parent stays in progress until all nine children and global composition are accepted."
       ],
       "tests": [
         "big_numeric",
@@ -1385,14 +1430,20 @@
         "syncterm_big_input",
         "big_fill",
         "big_profile",
-        "cterm_big_fill"
+        "cterm_big_fill",
+        "cterm_big_spray",
+        "cterm_big_random",
+        "cterm_big_text_ratio",
+        "cterm_big_flow",
+        "cterm_big_rotation"
       ],
       "deviations": [],
       "verification": [
         "Independent wire X6 ownership expectation failed before registration. Native tests now cover splits/bytewise CP437/UTF-8/status, exact selector6 versus full-WORD unknowns, repeated unknown selection and deferred replies. Other known selectors are not accepted implementations; X stays in progress.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.",
         "X4 counted loading and its three specials now use the same dispatch/source/footer path; pointer/hit testing and the remaining selectors remain pending.",
-        "X1 now owns conditional slot/alter/row acquisition, immediate edit prefixes, restoration and common source/footer lifetimes. X4/X6 and unknown arities are preserved; other children/global composition remain pending."
+        "X1 now owns conditional slot/alter/row acquisition, immediate edit prefixes, restoration and common source/footer lifetimes. X4/X6 and unknown arities are preserved; other children/global composition remain pending.",
+        "Native selector implementations now cover X0..X6 and X8 through shared acquisition/footer and their focused/coherent fixtures. X3 adds immediate custom text ratios and correct initial1/1 private state. X7/audio/global composition and complete parent acceptance remain pending."
       ],
       "commit": null
     },
@@ -2359,7 +2410,7 @@
     {
       "id": "X3",
       "order": 31,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2367,12 +2418,40 @@
         "shared-bgi"
       ],
       "references": [
-        "53-text-and-line-style-command-acceptance.adoc"
+        "28-text-fonts-and-native-reuse.adoc",
+        "53-text-and-line-style-command-acceptance.adoc",
+        "text-code.adoc:13d2:07bf..083e;DDO13c0..148f,15d5..16b2",
+        "style-review-code.adoc:195a:1854..189d,2007..202c",
+        "text-data.json:literal_layer_fields"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Acquire four class0 WORDs before independent signed1..4 clamps and immediate custom-style dispatch. No own glyph/pixel/point/page/image/palette or console-font operation; common source/repeat/chain/deferred replies apply.",
+        "Public unsigned physical-max checks precede lower dispatch. Silent rejection assigns no new error and still returns public size0; uninstalled/lower/metric failure omits that returning tail. Old BGI errors do not gate accepted calls.",
+        "Ordinary EGAVGA custom dispatch returns without bitmap magnification changes. Nonzero DDO front control bypasses private caches/ratios; normal control caches returned Xden/Ynum separately from original arguments, saves custom WORDs, selects private size0 and applies effective ratios immediately.",
+        "Effective zero denominators become1 while saved zero words remain0. The custom sign bit is cleared before saving Xnum. Metric height is BYTE(cap-descender) from the copied header; unsigned per-axis scale/truncation preserves ordered metric stores and checked quotient failures.",
+        "Literal initial saved/effective ratio words are1/1 per axis and the empty copied header starts2b. I1 retains text state; normal I0/R font0 defaults reset public size1/private8/8/size8 while retaining custom/effective ratios, header and metrics.",
+        "Native X3 is implemented; E/W font/resource/rendering integration, audio/global45-entry and final cross-emulation regressions stay pending."
+      ],
+      "tests": [
+        "big_text_ratio",
+        "big_state",
+        "big_numeric",
+        "cterm_big_text_ratio",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Public validation uses owned native physical width/height maxima. Arbitrary foreign descriptor pointers/segment aliases or state changes between instructions without a native callback are not modeled. Serialized device callbacks preserve current-owner changes at actual call boundaries, including returned-cache/original-argument distinctions.",
+        "Original integer-divide overflow becomes a checked nonfatal OUT_OF_RANGE at the reached metric store, preserving accepted cache/saved/effective and earlier metric prefixes. The returning size0 tail is omitted on failure. The ordinary device negative-direction early return is implemented directly, not replaced with a bitmap scaling preference."
+      ],
+      "verification": [
+        "Independent full-state expectations sweep all65536 WORDs in each X3 slot. Raw public cases cover physical maxima, zero saved/effective denominators, high-bit restoration, control bypass, returned dimensions versus original ratios, current-header BYTE height wrap and callback/metric failure prefixes.",
+        "Native every default split and bytewise all mode/encoding/status cases retain full BGI state/indexed planes/native RGB/image bytes. A blocked fourth read, real timeout, EOF/reset, g3/stored sources, I1/I0/R retention, deferred replies, validation skips and uninstalled/source errors are independently checked.",
+        "Original literal layer data corrects initial saved/effective ratios from0 to1. Independent state tests preserve copied header and scaled metrics across I/R while resetting only ordinary bitmap caches/selected size. New engines restore initial1/1 ratios and public size1.",
+        "126 new coherent application scenes bring coverage to2450, comparing ratio/cache/public state during clamps, I1, chaining and supplied loops while retaining the entire prior spray/image/pixel/cell/palette/point/fill/page/cursor/reply/RNG scene. Earlier scenes also check initial text state.",
+        "The expanded application fixture reached its former120-second CTest limit without an assertion failure. Only syncterm_big_input received a180-second bound for2450 full-scene checks; expectations and coverage were retained.",
+        "Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending."
+      ],
       "commit": null
     },
     {

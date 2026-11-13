@@ -215,7 +215,7 @@ if(BUILD_TESTING)
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_big_input_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_big_input PROPERTIES
-				TIMEOUT 120 LABELS "terminal;conformance;big")
+				TIMEOUT 180 LABELS "terminal;conformance;big")
 			add_test(NAME syncterm_cga_mode
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_cga_mode_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
