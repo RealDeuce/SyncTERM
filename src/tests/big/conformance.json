@@ -381,7 +381,8 @@
           "verification": [
             "Independent literal results and every nibble source/destination pair across all five modes; complete BIG memory/trace/error tests. Non-BIG/RIP regressions remain deferred to the final full suite per user policy; no new RIP runtime coverage is claimed.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
-          ]
+          ],
+          "commit": "c1e6c86"
         }
       ]
     },
@@ -605,7 +606,8 @@
             "All65536 destinations with five origins for both X/Y geometry, all65536 mode WORDs, positive ADD overflow, three physical bottom limits, physical-versus-viewport behavior, initial zero image and cached-source reuse.",
             "Last-byte spill before the next missing source byte, malformed width/height, source/video WORD wrap,131056 destination read/write checkpoints before source cursor wrap in a ffff-height image, missing header/cache/extent and invalid pen/layout/uninstalled/pause errors.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
-          ]
+          ],
+          "commit": "c1e6c86"
         }
       ]
     },

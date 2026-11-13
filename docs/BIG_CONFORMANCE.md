@@ -979,3 +979,5 @@ application image captures are pending. Existing1568 scenes remain unchanged;
 only BIG tests run during development, with full regressions deferred.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending.
+
+Indexed image paste and shared Boolean kernel commit: `c1e6c86`.
