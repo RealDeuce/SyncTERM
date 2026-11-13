@@ -96,6 +96,9 @@ struct cterm_big {
 	struct cterminal *terminal;
 	struct st_graphics_parser *parser;
 	struct st_big_numeric numeric;
+	/* Local wall-clock seed source, synchronous; waits use numeric.io.now_ns.
+	 * X2/X0 take only its seconds low WORD for the shared CRT generator. */
+	int (*random_seconds)(void *, uint64_t *);
 	struct st_big_state state;
 	struct st_big_control control;
 	struct st_big_flow_settings flow_settings;

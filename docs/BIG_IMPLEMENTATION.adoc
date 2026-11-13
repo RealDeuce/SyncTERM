@@ -18,15 +18,14 @@ The unlimited goal is active. CGA 80x25 and the shared numeric-reader
 boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
-BIG mode6 is selectable with native I0/I1/R indexed-console effects, g/X1/X4/X6,
-wire & setup, source/footer replay and local stored-loop keys. T attributes
-and P marker drawing now run through a shared thin BGI kernel with BIG
-adapters, as do native L/D/d line commands. Native m graphics-point movement
-and < keyboard/hybrid pointer input are integrated, along with native M
-writing-mode selection, C application colours, A fill installation and B
-opaque bars/projected boxes. Other drawing commands,
-page/image binding, sound and full command
-acceptance remain pending (0/45). The implementation ledger is
+BIG mode6 is selectable with native I0/I1/R indexed-console effects,
+g/X1/X2/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
+source/footer replay and local stored-loop keys. T attributes, P markers,
+L/D/d lines, m movement, M writing modes, C application colours, A fills,
+B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
+pointer acquisition are integrated. Curves, fonts/graphical text, further
+controls, sound and full command acceptance remain pending (0/45).
+The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
 == Standalone implementation contract
@@ -2469,3 +2468,45 @@ including cterm_big_flow0.73s. syncterm_big_input passed in107.60s
 (test107.54s),2072 coherent scenes. No non-BIG tests ran.
 
 Native X5 implementation commit: `e82e16f`.
+
+== Native X2 random seed and range
+
+X2 follows the complete13d2:0774..07be caller in33/52/controls-code. Its
+selector completion samples time and seeds the shared CRT generator with
+only the low WORD before FROM acquisition. FROM is published raw before
+TO acquisition. After TO is stored, signed-negative current FROM becomes0;
+if signed TO<FROM, TO becomes wrapped FROM+1 with no second repair. Equality
+is retained, including equal positive bounds that cannot satisfy numeric r.
+There is no9999 bound clamp and32767+1 becomes8000.
+
+The native seed observation is local wall-clock seconds from time(NULL),
+separate from monotonic numeric/rotation waits. This is the approved native
+time-domain boundary: it does not reconstruct DOS date/time services,
+historical April/October DST, TZ-name/environment mutation, separate
+midnight observations or foreign heap/segment aliases. A concrete reference
+converted seconds observation can be supplied in a native fixture; its low
+WORD is preserved, including zero. Clock failure rejects nonfatally before
+seeding or bound stores. IN_PROGRESS is invalid for this synchronous source.
+The original generator, rejection arithmetic and seed/read/store order remain
+unchanged; host rand/srand is not used.
+
+New FROM200 against old TO199 can leave TO's r acquisition pending. Polls
+advance the same shared state without reseeding, repair, a retry cap or a
+key/timeout shortcut. Changed bounds can release it. Accepted seed/range
+prefixes survive EOF/reset/error and I/R/attention; new engines restore
+seed1/range0..199. Supplied values bypass wire scaling; internal repetition
+reseeds each reached X2 body and uses the common flow/chain/reply footer.
+
+`big_random` now independently checks every FROM and TO WORD under boundary
+partners, including signed normalization, equality and wrap. Native
+`cterm_big_random` tests every default split and bytewise all profiles,
+real/injected seed sources and high-bit truncation, seed-before-read and raw
+FROM visibility, shared r/source loops, pending rejection/resumption, g3,
+partial EOF/reset/timeout/error, deferred replies, fresh defaults and complete
+unchanged indexed pixels/images/native RGB/BGI state. Nine new application
+scenes per profile add126 coherent captures,2198 total, checking repairs,
+wall-second seed WORDs, single-draw shared numeric r, I1 retention and full
+scene/palette/image/reply/state consistency. X0/speaker consumers and complete
+global45-entry/final regressions remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All33 BIG-specific native CTests passed in50.47s, including cterm_big_random0.69s. syncterm_big_input passed in114.43s (test114.36s),2198 coherent scenes. No non-BIG tests ran. Native X2 is implemented; X0/speaker/global45-entry and final regressions remain pending.

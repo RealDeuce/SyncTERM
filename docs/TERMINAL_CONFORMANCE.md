@@ -337,6 +337,15 @@ checking current settings and exact flow/replies with the full unchanged
 scene/state/images/RGB. Remaining commands/global45-entry and final
 cross-emulation regressions remain pending.
 
+BIG X2 now seeds the shared original generator before either class0 bound
+read, publishes raw FROM before TO, and performs signed repair afterward.
+Local wall seconds supply the low seed WORD; delays retain monotonic time.
+Independent native tests cover full bound domains, partial/pending random
+reads, source changes, WORD wrap/equality, lifetimes and nonfatal errors.
+126 new coherent scenes bring BIG to2198, checking seed/range/RNG progression
+with unchanged scene/image/state and exact replies. X0/speaker/global45-entry
+and final cross-emulation regressions remain pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

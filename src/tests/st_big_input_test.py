@@ -12,6 +12,7 @@ from array import array
 from pathlib import Path
 import socket
 import sys
+import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "testing"))
 from syncterm_fixture import fixture, cell_at, click_text
@@ -39,7 +40,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1)):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199)):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -54,6 +55,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_flood_active"]
     assert not s["cterm.big_rotation_active"]
     assert tuple(s[f"cterm.big_flow_{field}"] for field in ("mode", "on_byte", "off_byte", "on_count", "off_count")) == flow
+    assert (s["cterm.big_random_from"], s["cterm.big_random_to"]) == random_bounds
     assert (s["cterm.big_last_error"], s["cterm.big_rejected_commands"]) == rejections
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
@@ -922,6 +924,51 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), flow=flow)
+                        ranges = (
+                            (b"I#X 2,10,4:", (10, 11), True, 5),
+                            (b"I#X 2,10,10:", (10, 10), True, 5),
+                            (b"I#X 2,+1,+1:", (0, 1), True, 5),
+                            (b"I#X 2,0,0:", (0, 0), True, 5),
+                            (b"I#S 5,r:", (0, 0), False, 0),
+                            (b"I#X 2,200,199:", (200, 201), True, 0),
+                            (b"I#I 1:", (200, 201), False, 5),
+                            (b"I#X 2,0,199:", (0, 199), True, 5),
+                            (b"I#S 5,5:", (0, 199), False, 5),
+                        )
+                        last_random = None
+                        for index, (command, bounds, reseed, color5) in enumerate(ranges):
+                            token = f"RANDOM{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            before_seconds = int(time.time())
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            after_seconds = int(time.time())
+                            codes, physical = list(EGA_CODES), list(PALETTE)
+                            codes[5], physical[5] = color5, PALETTE[color5]
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0), lower_points=((0, 0), (0, 0)),
+                                  colors=(271, 15, 5, 65535), graph_color=15, colored_pixels=four_swatches,
+                                  rgb_sample=(384, 68, physical[5]), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), palette_codes=tuple(codes),
+                                  expected_palette=tuple(physical), random_bounds=bounds)
+                            observed = frame.application["cterm.big_random_state"]
+                            if reseed:
+                                assert observed in {seconds & 65535 for seconds in range(before_seconds, after_seconds + 1)}
+                            else:
+                                expected_state = ((last_random * 0x015a4e35 + 1) & 0xffffffff) if index == 4 else last_random
+                                assert observed == expected_state, (observed, expected_state)
+                            last_random = observed
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

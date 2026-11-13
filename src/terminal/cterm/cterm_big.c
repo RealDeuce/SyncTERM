@@ -7,6 +7,7 @@
 #include "cterm_render.h"
 #include "st_bgi_data.h"
 #include "st_big_draw.h"
+#include "st_big_random.h"
 #include "st_big_fill.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
@@ -14,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static const uint8_t attention[] = {'I','#'};
 static const struct st_graphics_dialect dialect = {
@@ -102,6 +104,26 @@ static int extended_next(void *context, const struct st_graphics_command_view *v
 	struct cterm_big *big=((struct st_big_numeric *)context)->io.context;
 	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 	*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	if ((uint16_t)view->arguments[0].value==2) {
+		if (view->count==1) {
+			uint64_t seconds;
+			int status=big->random_seconds(big,&seconds);
+			if (status==IO_ERROR_IN_PROGRESS) return IO_ERROR_PROTOCOL;
+			if (status!=0) return status;
+			if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+			st_big_random_seed(&big->numeric.random_state,(uint16_t)seconds);
+		} else {
+			if (!view->arguments[view->count-1].has_value) return IO_ERROR_PROTOCOL;
+			uint16_t value=(uint16_t)view->arguments[view->count-1].value;
+			if (view->count==2) big->numeric.random_from=value;
+			else if (view->count==3) {
+				big->numeric.random_to=value;
+				return st_big_random_repair(&big->numeric.random_from,&big->numeric.random_to);
+			} else return IO_ERROR_PROTOCOL;
+		}
+		parameter->kind=ST_GRAPHICS_NUMBER;
+		return 0;
+	}
 	if ((uint16_t)view->arguments[0].value==5) {
 		if (view->count==1) {
 			st_big_flow_settings_begin(&big->flow_settings);
@@ -150,6 +172,16 @@ static int now(struct cterm_big *big, uint64_t *value)
 {
 	return big->numeric.io.now_ns == NULL ? st_time_monotonic_ns(value)
 	    : big->numeric.io.now_ns(big,value);
+}
+static int random_seconds(void *context, uint64_t *value)
+{
+	(void)context;
+	/* time(NULL) is a local wall-clock seed observation. Its low WORD
+	 * feeds the original generator; numeric waits remain monotonic. */
+	time_t seconds=time(NULL);
+	if (seconds==(time_t)-1) return IO_ERROR_IO;
+	*value=(uint64_t)seconds;
+	return 0;
 }
 static void bell(void *context)
 {
@@ -448,6 +480,7 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		uint16_t selector=(uint16_t)view->arguments[0].value;
 		if (selector==8) return cterm_big_rotation_begin(big,view);
 		if (selector==5) return begin_footer(big,view);
+		if (selector==2) return begin_footer(big,view);
 		if (selector==1) {
 			int status;
 			if (view->count==3 && view->arguments[1].has_value && view->arguments[2].has_value)
@@ -813,6 +846,7 @@ int cterm_big_create(struct cterminal *t)
 	struct cterm_big *big = calloc(1,sizeof(*big));
 	if (big == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	big->terminal = t;
+	big->random_seconds=random_seconds;
 	const struct st_big_numeric_io io = {.context = big, .bell = bell,
 	    .peek_key = cterm_big_input_peek, .read_key = cterm_big_input_read};
 	int status = st_big_numeric_init(&big->numeric,&io);
@@ -885,6 +919,9 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_flood_active", big->flood.active);
 	st_console_test_number(app, "cterm.big_rotation_active", big->rotation.active);
 	st_console_test_number(app, "cterm.big_flow_mode", big->control.flow.mode);
+	st_console_test_number(app, "cterm.big_random_state", big->numeric.random_state);
+	st_console_test_number(app, "cterm.big_random_from", big->numeric.random_from);
+	st_console_test_number(app, "cterm.big_random_to", big->numeric.random_to);
 	st_console_test_number(app, "cterm.big_flow_on_byte", big->control.flow.byte[0]);
 	st_console_test_number(app, "cterm.big_flow_off_byte", big->control.flow.byte[1]);
 	st_console_test_number(app, "cterm.big_flow_on_count", big->control.flow.count[0]);

@@ -10,6 +10,9 @@
  * Seed conversion belongs to the caller; original srand takes only a WORD. */
 void st_big_random_seed(uint32_t *state, uint16_t seed);
 uint16_t st_big_random_next(uint32_t *state);
+/* X2's post-TO signed repair, after both bound stores: negative FROM0,
+ * then TO<FROM becomes the wrapped FROM+1 with no second check. */
+int st_big_random_repair(uint16_t *from, uint16_t *to);
 
 /* Try at most budget draws from the shared state with the current signed
  * WORD bounds. On acceptance, write value and return zero. IN_PROGRESS keeps

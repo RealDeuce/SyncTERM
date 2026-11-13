@@ -484,3 +484,18 @@ flow tests verify NUL/ff literals, signed-negative counts and130-byte output
 resumption without duplicate prefixes.126 new application scenes (2072 total)
 observe flow settings/replies with the complete retained scene. Native X5 is
 implemented; remaining global/full-suite acceptance stays pending.
+
+`big_random` additionally derives X2 repair expectations from33/52's signed
+compare/store instructions, sweeping every FROM/TO WORD with boundary partners.
+Native `cterm_big_random` verifies all splits/default profile and bytewise
+three modes/encodings/status choices, full unchanged indexed planes/native
+RGB/BGI state/image data, injected low-WORD wall-second seeds and the actual
+local wall-clock source. Raw FROM/old TO are observed during pending r; polls
+advance the shared stream without a second seed or premature repair. Cases
+cover source loops/g3, supplied32767 wrap, equality, deferred replies,
+timeout versus EOF/reset and nonfatal clock/source errors.126 new application
+scenes (2198 total) bracket seed observations with local wall seconds, check
+one shared LCG draw separately, and retain the complete scene/state/replies.
+Native clock conversion intentionally uses local time(NULL), with no DOS
+calendar/TZ/DST/environment or foreign pointer model. X0/speaker/global and
+final-suite acceptance remain pending.

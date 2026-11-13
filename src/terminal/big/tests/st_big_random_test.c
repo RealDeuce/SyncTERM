@@ -103,6 +103,25 @@ validation(void)
 	CHECK(state == 1 && value == 7);
 	return 0;
 }
+static int
+repair(void)
+{
+	const uint16_t edges[]={0,1,10,199,200,32766,32767,32768,65535};
+	for (unsigned word=0;word<65536;++word) for (size_t i=0;i<sizeof(edges)/sizeof(*edges);++i) {
+		for (unsigned side=0;side<2;++side) {
+			uint16_t from=side?edges[i]:(uint16_t)word, to=side?(uint16_t)word:edges[i];
+			unsigned lower=from<32768?from:0;
+			int upper=to<32768?to:(int)to-65536;
+			uint16_t expected=upper<(int)lower?(uint16_t)(lower+1):to;
+			CHECK(st_big_random_repair(&from,&to)==0 && from==lower && to==expected);
+		}
+	}
+	uint16_t from=32767,to=0;
+	CHECK(st_big_random_repair(&from,&to)==0 && from==32767 && to==32768);
+	CHECK(st_big_random_repair(NULL,&to)==IO_ERROR_INVALID_ARGUMENT && to==32768);
+	CHECK(st_big_random_repair(&from,NULL)==IO_ERROR_INVALID_ARGUMENT && from==32767);
+	return 0;
+}
 
 int
 main(void)
@@ -111,5 +130,6 @@ main(void)
 	CHECK(range_cases() == 0);
 	CHECK(bounded_progress() == 0);
 	CHECK(validation() == 0);
+	CHECK(repair() == 0);
 	return 0;
 }

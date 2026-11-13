@@ -88,14 +88,16 @@
       "status": "in-progress",
       "operations": [
         "BIG WORD digit slots, destructive continuations, special bytes, random/loop sources and source-specific deadlines.",
-        "Original software/default-precision scaling, including g3 Y5->11, with exact finite integer adapters and explicit WORD reduction."
+        "Original software/default-precision scaling, including g3 Y5->11, with exact finite integer adapters and explicit WORD reduction.",
+        "Native X2 reseeds the shared CRT state before raw FROM/TO class0 stores and post-read signed repair, using local wall seconds independently of monotonic acquisition deadlines."
       ],
       "tests": [
         "big_number",
         "big_random",
         "big_loop",
         "big_numeric",
-        "big_stream"
+        "big_stream",
+        "cterm_big_random"
       ],
       "references": [
         "05-numeric-reader.adoc",
@@ -175,6 +177,43 @@
           ],
           "commit": "b12aa6f",
           "verification": "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
+        },
+        {
+          "id": "native-x2-random-range",
+          "status": "complete",
+          "operations": [
+            "Sample local wall-clock seconds and seed the original shared CRT generator from the low WORD before FROM acquisition. No private generator or host rand/srand is used; every reached repeated body reseeds.",
+            "Acquire/publish raw FROM class0 before acquiring/publishing TO class0. Only after both stores, signed-negative FROM becomes0; TO<FROM becomes wrapped FROM+1 with no second repair or upper clamp. Equality remains unchanged.",
+            "TO random substitution sees the new raw FROM and old TO. Pending rejection advances the same shared stream without reseeding or premature normalization, no total retry cap, key cancellation or timeout shortcut; changed owners can release it.",
+            "Preserve supplied/wire transitions, unscaled class0 fields, common repeat/chain/flow/deferred replies and accepted prefixes across I/R/attention/EOF/reset/source errors. A fresh engine restores seed1/range0..199. Wall-clock errors reject before seed/bound stores."
+          ],
+          "tests": [
+            "big_random",
+            "big_numeric",
+            "big_loop",
+            "cterm_big_random",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "33-extended-dispatch-ranges-and-flow.adoc",
+            "52-extended-control-command-acceptance.adoc",
+            "controls-code.adoc:13d2:0774..07be",
+            "21-loops-gangs-and-substitution.adoc",
+            "73-global-readers-and-loops-acceptance.adoc"
+          ],
+          "deviations": [
+            "Native time(NULL) supplies local wall-clock seconds as the seed observation, independently of monotonic waits. No DOS date/time service state, separate midnight observations, historical April/October DST, TZ-name/environment mutation, foreign heap/segment aliases or foreign system clock is modeled. A supplied converted reference-seconds observation retains its exact low WORD in native tests. The original CRT generator, rejection arithmetic and store order remain unchanged.",
+            "Clock/source failure is nonfatal through the existing BIG owner, preserving reached prefixes. IN_PROGRESS is invalid for the synchronous seed source. Pending random rejection yields between bounded draw batches without changing accepted draws or imposing a total cap."
+          ],
+          "verification": [
+            "Independent repair tests sweep every FROM/TO WORD under boundary partners, including signed normalization, retained equality and32767+1 wrapping to8000. Null calls preserve supplied owners.",
+            "Native every default split and bytewise all mode/encoding/status cases retain full BGI state/indexed planes/native RGB/image data. Real local time and injected64-bit observations verify low-WORD seed conversion including zero and seed-before-FROM/read lifetimes.",
+            "TO r visibly holds raw FROM200/old TO3 while polling advances the same shared state without reseeding; changed0/0 bounds release it. FROM r uses the freshly seeded generator and old bounds. Equal positive ranges remain pending, and EOF retains accepted range/draws.",
+            "Internal repetition reseeds each body; class0 g3 and supplied32767 wrap, stored/wire changes, common flow/chaining/deferred replies, I/R/attention retention, timeout substitution, EOF/reset and nonfatal seed/source-clock errors are independently expected.",
+            "126 new coherent application scenes bring coverage to2198. Repairs/equality, local second low-WORD seeds, a separately computed shared LCG draw and I1 retention are checked with complete pixels/cells/palette/state/points/fill/pages/cursor/image header/payload/replies/RGB. Earlier scenes also verify default random bounds.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All33 BIG-specific native CTests passed in50.47s, including cterm_big_random0.69s. syncterm_big_input passed in114.43s (test114.36s),2198 coherent scenes. No non-BIG tests ran. Native X2 is implemented; X0/speaker/global45-entry and final regressions remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2208,19 +2247,45 @@
     {
       "id": "X2",
       "order": 30,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages"
       ],
       "references": [
-        "52-extended-control-command-acceptance.adoc"
+        "33-extended-dispatch-ranges-and-flow.adoc",
+        "52-extended-control-command-acceptance.adoc",
+        "controls-code.adoc:13d2:0774..07be",
+        "21-loops-gangs-and-substitution.adoc",
+        "73-global-readers-and-loops-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Sample local wall-clock seconds and seed the original shared CRT generator from the low WORD before FROM acquisition. No private generator or host rand/srand is used; every reached repeated body reseeds.",
+        "Acquire/publish raw FROM class0 before acquiring/publishing TO class0. Only after both stores, signed-negative FROM becomes0; TO<FROM becomes wrapped FROM+1 with no second repair or upper clamp. Equality remains unchanged.",
+        "TO random substitution sees the new raw FROM and old TO. Pending rejection advances the same shared stream without reseeding or premature normalization, no total retry cap, key cancellation or timeout shortcut; changed owners can release it.",
+        "Preserve supplied/wire transitions, unscaled class0 fields, common repeat/chain/flow/deferred replies and accepted prefixes across I/R/attention/EOF/reset/source errors. A fresh engine restores seed1/range0..199. Wall-clock errors reject before seed/bound stores.",
+        "Native X2 is implemented; remaining X0/speaker consumers, global45-entry composition and final regressions stay pending."
+      ],
+      "tests": [
+        "big_random",
+        "big_numeric",
+        "big_loop",
+        "cterm_big_random",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native time(NULL) supplies local wall-clock seconds as the seed observation, independently of monotonic waits. No DOS date/time service state, separate midnight observations, historical April/October DST, TZ-name/environment mutation, foreign heap/segment aliases or foreign system clock is modeled. A supplied converted reference-seconds observation retains its exact low WORD in native tests. The original CRT generator, rejection arithmetic and store order remain unchanged.",
+        "Clock/source failure is nonfatal through the existing BIG owner, preserving reached prefixes. IN_PROGRESS is invalid for the synchronous seed source. Pending random rejection yields between bounded draw batches without changing accepted draws or imposing a total cap."
+      ],
+      "verification": [
+        "Independent repair tests sweep every FROM/TO WORD under boundary partners, including signed normalization, retained equality and32767+1 wrapping to8000. Null calls preserve supplied owners.",
+        "Native every default split and bytewise all mode/encoding/status cases retain full BGI state/indexed planes/native RGB/image data. Real local time and injected64-bit observations verify low-WORD seed conversion including zero and seed-before-FROM/read lifetimes.",
+        "TO r visibly holds raw FROM200/old TO3 while polling advances the same shared state without reseeding; changed0/0 bounds release it. FROM r uses the freshly seeded generator and old bounds. Equal positive ranges remain pending, and EOF retains accepted range/draws.",
+        "Internal repetition reseeds each body; class0 g3 and supplied32767 wrap, stored/wire changes, common flow/chaining/deferred replies, I/R/attention retention, timeout substitution, EOF/reset and nonfatal seed/source-clock errors are independently expected.",
+        "126 new coherent application scenes bring coverage to2198. Repairs/equality, local second low-WORD seeds, a separately computed shared LCG draw and I1 retention are checked with complete pixels/cells/palette/state/points/fill/pages/cursor/image header/payload/replies/RGB. Earlier scenes also verify default random bounds.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All33 BIG-specific native CTests passed in50.47s, including cterm_big_random0.69s. syncterm_big_input passed in114.43s (test114.36s),2198 coherent scenes. No non-BIG tests ran. Native X2 is implemented; X0/speaker/global45-entry and final regressions remain pending."
+      ],
       "commit": null
     },
     {

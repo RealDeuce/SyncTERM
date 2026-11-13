@@ -16,6 +16,14 @@ st_big_random_next(uint32_t *state)
 	*state = *state*UINT32_C(0x015a4e35)+1;
 	return (uint16_t)((*state>>16)&0x7fff);
 }
+int
+st_big_random_repair(uint16_t *from, uint16_t *to)
+{
+	if (from==NULL || to==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_big_number_signed(*from)<0) *from=0;
+	if (st_big_number_signed(*to)<st_big_number_signed(*from)) *to=(uint16_t)(*from+1u);
+	return 0;
+}
 
 int
 st_big_random_range(uint32_t *state, uint16_t from, uint16_t to,
