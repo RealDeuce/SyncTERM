@@ -56,9 +56,11 @@ static int defaults(struct st_big_state *s, const struct st_big_state_sink *sink
 	s->bgi.line_style = s->bgi.line_user = 0;
 	s->bgi.line_mask = 0xffff; s->bgi.line_width = 1;
 	s->bgi.ddo_line_width = 1; s->bgi.device_line_width = 1;
+	s->bgi.ddo_line_style=0; s->bgi.ddo_line_user=0;
 	status=st_big_text_style(s,NULL,0,0,1);
 	if (status!=0) return status;
 	s->bgi.justify_x = 0; s->bgi.justify_y = 2;
+	s->bgi.text_justify_x=0; s->bgi.text_justify_y=2;
 	s->bgi.write_mode = 0;
 	s->bgi.x = s->bgi.y = s->bgi.ddo_x = s->bgi.ddo_y = 0;
 	s->bgi.device_x = s->bgi.device_y = 0;

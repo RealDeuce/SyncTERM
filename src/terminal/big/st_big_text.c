@@ -2,7 +2,10 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_text.h"
 #include "st_big_font.h"
+#include "st_big_draw.h"
+#include "st_big_number.h"
 #include "st_bgi_data.h"
+#include "st_bgi_chr.h"
 #include "io_error.h"
 #include <string.h>
 static int metrics(struct st_big_state *s)
@@ -145,4 +148,125 @@ int st_big_text_x3(struct st_big_state *s, const uint16_t ratios[4], const struc
 	uint16_t r[4];
 	for (size_t i=0;i<4;++i) r[i]=ratios[i]>=1 && ratios[i]<=4?ratios[i]:1;
 	return st_big_text_custom(s,r,sink);
+}
+static struct st_bgi_chr stroke_font(const struct st_big_state *s)
+{
+	const uint8_t *h=s->bgi.text_header;
+	return (struct st_bgi_chr){s->bgi.text_body,s->bgi.text_body_size,
+	    (uint16_t)(h[1]+256u*h[2]),(uint16_t)(h[5]+256u*h[6]),h[4]};
+}
+static int stroke_metrics(struct st_big_state *s, const struct st_bgi_chr *font, const uint8_t *bytes, uint8_t count)
+{
+	int status=metrics(s); if (status!=0) return status;
+	uint16_t width=0;
+	for (unsigned i=0;i<count;++i) {
+		uint8_t value; status=st_bgi_chr_width(font,bytes[i],&value); if (status!=0) return status;
+		width=(uint16_t)(width+value);
+	}
+	uint16_t denominator=s->bgi.effective_ratio[1];
+	if (denominator==0) return IO_ERROR_OUT_OF_RANGE;
+	uint32_t scaled=(uint32_t)width*s->bgi.effective_ratio[0]/denominator;
+	if (scaled>UINT16_MAX) return IO_ERROR_OUT_OF_RANGE;
+	s->bgi.text_total_width=(uint16_t)scaled; return 0;
+}
+static void stroke_align(struct st_big_state *s)
+{
+	uint16_t extent=s->bgi.text_total_width;
+	if (s->bgi.text_stroke_direction!=0) {
+		extent=s->bgi.text_scaled[1]; s->bgi.ddo_x=(uint16_t)(s->bgi.ddo_x+extent);
+	}
+	uint8_t justify=s->bgi.text_justify_x;
+	if (justify!=0) {
+		if (justify==1) extent=(uint16_t)((extent>>1)-1u);
+		if (s->bgi.orientation!=0) s->bgi.ddo_y=(uint16_t)(s->bgi.ddo_y+extent);
+		else s->bgi.ddo_x=(uint16_t)(s->bgi.ddo_x-extent);
+	}
+	extent=s->bgi.text_stroke_direction!=0?s->bgi.text_total_width:s->bgi.text_scaled[1];
+	justify=s->bgi.text_justify_y;
+	if (justify!=0) {
+		if (justify==1) extent>>=1;
+		if (s->bgi.orientation!=0) s->bgi.ddo_x=(uint16_t)(s->bgi.ddo_x+extent);
+		else s->bgi.ddo_y=(uint16_t)(s->bgi.ddo_y+extent);
+	}
+}
+static int stroke_style(struct st_big_state *s, uint8_t style)
+{
+	s->bgi.ddo_line_style=style; s->bgi.ddo_line_width=1;
+	if (style>4) return IO_ERROR_OUT_OF_RANGE;
+	s->bgi.line_mask=style==4?s->bgi.ddo_line_user:st_bgi_line_patterns[style];
+	s->bgi.device_line_width=1; return 0;
+}
+static int stroke_scale(const struct st_big_state *s, int coordinate, size_t axis, uint16_t *out)
+{
+	int32_t value=coordinate*st_big_number_signed(s->bgi.effective_ratio[2*axis]);
+	uint16_t raw_divisor=s->bgi.effective_ratio[2*axis+1];
+	if (raw_divisor!=1) {
+		int32_t divisor=st_big_number_signed(raw_divisor);
+		if (divisor==0) return IO_ERROR_OUT_OF_RANGE;
+		value/=divisor;
+		if (value<-32768 || value>32767) return IO_ERROR_OUT_OF_RANGE;
+	}
+	/* Divisor1 skips IDIV entirely; the original keeps the low product
+	 * WORD, without a signed-quotient check on that particular path. */
+	*out=(uint16_t)value; return 0;
+}
+static void stroke_advance(struct st_big_state *s)
+{
+	uint16_t x=s->bgi.text_stroke_point[0],y=s->bgi.text_stroke_point[1];
+	uint8_t orientation=s->bgi.orientation&1;
+	if (orientation==s->bgi.text_stroke_direction) {
+		if (orientation!=0) x=(uint16_t)(0u-x);
+	} else { uint16_t swap=x; x=y; y=swap; }
+	s->bgi.ddo_x=(uint16_t)(s->bgi.ddo_x+x); s->bgi.ddo_y=(uint16_t)(s->bgi.ddo_y-y);
+}
+static void stroke_transform(const struct st_big_state *s, uint16_t *x, uint16_t *y)
+{
+	uint8_t orientation=s->bgi.orientation&1;
+	if (orientation==s->bgi.text_stroke_direction) {
+		if (orientation!=0) *x=(uint16_t)(0u-*x);
+		else *y=(uint16_t)(0u-*y);
+	} else { uint16_t swap=*x; *x=(uint16_t)(0u-*y); *y=(uint16_t)(0u-swap); }
+	*x=(uint16_t)(*x+s->bgi.ddo_x); *y=(uint16_t)(*y+s->bgi.ddo_y);
+}
+static int stroke_glyph(struct st_big_state *s, const struct st_bgi_chr *font, uint8_t byte, const struct st_big_draw_sink *sink)
+{
+	s->bgi.text_stroke_point[0]=s->bgi.text_stroke_point[1]=0;
+	struct st_bgi_chr_glyph glyph; int status=st_bgi_chr_program(font,byte,&glyph);
+	if (status!=0 || !glyph.present) return status;
+	for (;;) {
+		struct st_bgi_chr_record record; bool available;
+		status=st_bgi_chr_next(&glyph,&record,&available); if (status!=0) return status;
+		if (!available) return IO_ERROR_PROTOCOL;
+		if (record.opcode==ST_BGI_CHR_END) { stroke_advance(s); return 0; }
+		if (record.opcode==ST_BGI_CHR_IGNORE) continue;
+		uint16_t point[2];
+		status=stroke_scale(s,record.x,0,point); if (status!=0) return status;
+		status=stroke_scale(s,record.y,1,point+1); if (status!=0) return status;
+		uint16_t line[]={point[0],point[1],s->bgi.text_stroke_point[0],s->bgi.text_stroke_point[1]};
+		s->bgi.text_stroke_point[0]=point[0]; s->bgi.text_stroke_point[1]=point[1];
+		if (record.opcode==ST_BGI_CHR_DRAW) {
+			stroke_transform(s,line,line+1); stroke_transform(s,line+2,line+3);
+			status=st_big_draw_physical_line(s,line,sink); if (status!=0) return status;
+		}
+	}
+}
+int st_big_text_stroke_direct(struct st_big_state *s, const uint8_t *bytes, uint8_t count, const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || (bytes==NULL && count!=0) || sink==NULL || sink->pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (s->bgi.text_stroke_id==255 || count==0) return 0;
+	if (s->bgi.state==0) { s->bgi.error=-1; return IO_ERROR_PROTOCOL; }
+	uint8_t saved_style=s->bgi.ddo_line_style, saved_width=s->bgi.ddo_line_width;
+	struct st_bgi_chr font=stroke_font(s);
+	int status=stroke_metrics(s,&font,bytes,count); if (status!=0) return status;
+	stroke_align(s);
+	status=stroke_style(s,0); if (status!=0) return status;
+	for (unsigned i=0;i<count && bytes[i]!=0;++i) {
+		/* Each glyph binds the current DDO body/header, while its record
+		 * stream retains that borrowed binding across line callbacks. */
+		font=stroke_font(s);
+		status=stroke_glyph(s,&font,bytes[i],sink); if (status!=0) return status;
+	}
+	status=stroke_style(s,saved_style); if (status!=0) return status;
+	s->bgi.ddo_line_style=saved_style; s->bgi.ddo_line_width=saved_width;
+	return 0;
 }

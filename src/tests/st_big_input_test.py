@@ -66,6 +66,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert tuple(s[f"cterm.big_text_effective_ratio{i}"] for i in range(4)) == (text_ratios if text_effective is None else text_effective)
     assert tuple(s[f"cterm.big_text_{field}"] for field in ("ddo_font", "ddo_direction", "stroke_active", "suppression", "body")) == (font, direction, 255 if font else 0, 65535 if font else 0, int(font != 0))
     assert (s["cterm.big_text_stroke_id"], s["cterm.big_text_stroke_direction"]) == (stroke_id, stroke_direction)
+    assert tuple(s[f"cterm.big_text_{field}"] for field in ("total_width", "stroke_x", "stroke_y", "justify_x", "justify_y")) == (0, 0, 0, 0, 2)
     assert tuple(s[f"cterm.big_text_header_{field}"] for field in ("count", "first", "cap", "desc")) == text_header
     assert tuple(s[f"cterm.big_text_device_{field}"] for field in ("font", "direction", "width", "height", "mag_x", "mag_y")) == text_device
     assert (s["cterm.big_last_error"], s["cterm.big_rejected_commands"]) == rejections
@@ -86,6 +87,8 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert tuple(s[f"cterm.big_zone0_{field}"] for field in ("x1", "y1", "x2", "y2")) == coordinates
     assert (s["cterm.big_zone_loopback"], s["cterm.big_zone0_prefix"], s["cterm.big_zone0_tail"]) == (loopback, prefix, tail)
     assert (s["cterm.big_line_style"], s["cterm.big_line_user"], s["cterm.big_line_width"], s["cterm.big_line_mask"]) == line
+    assert tuple(s[f"cterm.big_ddo_line_{field}"] for field in ("style", "user", "width")) == line[:3]
+    assert s["cterm.big_device_line_width"] == line[2]
     assert s["cterm.big_bgi_error"] == graph_error
     assert (s["cterm.big_write_mode"], s["cterm.big_cached_write_mode"]) == writing
     point = ((0, 0) if marker is None else (120, 64)) if graph_point is None else graph_point

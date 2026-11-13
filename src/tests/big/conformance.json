@@ -528,6 +528,39 @@
               "sha256": "b784419930e54435f28763e9f4cf2854a785082b9b330e7ac93c0f5590b06814"
             }
           ]
+        },
+        {
+          "id": "direct-stroke-text-layout-and-rendering",
+          "status": "complete",
+          "operations": [
+            "Prerequisite direct stroke-text operator1869 now uses the current DDO anchor, copied header/body, effective ratios and separate cached justification. Complete W acquisition/color-before-text/initial move, bitmap source composition/raster and command wiring remain pending; no W wire acceptance is claimed.",
+            "Shared CHR width/program access is separated to preserve original metric-before-offset failure order. Metrics sum width bytes before unsigned scaling; decoded signed7 coordinates use signed IMUL/IDIV with original divisor1 low-WORD behavior. Per-glyph terminal decoded points advance the DDO anchor independently of metric width.",
+            "Original horizontal/vertical/orientation alignment and endpoint transforms use WORD operations, including center-zero decrement. Physical lines use the existing original fixed-slope clip and shared thin BGI kernel with current pen/XOR; no repeated viewport translation or public/device CP assignment occurs.",
+            "Separate DDO line style/user/width caches preserve public attributes. Glyphs install solid width1; normal tail forwards saved style with current DDO userpattern and device width1, then restores cached style/width only. Reached failures retain earlier metrics/layout/point/pixel/style prefixes and omit that tail.",
+            "Each glyph binds current DDO header/body while its borrowed record stream remains stable across pixel callbacks; opcode1 ignores, missing characters reset the decoded point without output/advance, and zero metric width does not suppress a real program. Literal normal E scanflag0 selects this direct operator; buffered/raw foreign execution is not a new native protocol."
+          ],
+          "tests": [
+            "big_text_stroke",
+            "big_font",
+            "big_draw",
+            "big_text_style",
+            "big_text_ratio",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "62-graphical-text-command-acceptance.adoc"
+          ],
+          "deviations": [
+            "Checked native table/program extents, bounded record traversal and signed/unsigned quotient checks replace foreign memory access/divide traps. Divisor1 preserves original low-product WORD wrapping because the source skips IDIV.",
+            "Only the native direct stroke dependency is implemented in this step. Bitmap sources/raster, initial outtextxy move/scan/count front, stream-reader integration and complete W/global45-entry acceptance remain required."
+          ],
+          "verification": [
+            "Literal original Small A records yield independently authored full masks for AA in both directions and COPY/XOR, measured width7 versus advance6, missing-character behavior and Gothic22 metric0/advance14. Separate public/DDO/device points and line caches are asserted.",
+            "96 direction/orientation/justification cases include byte2 orientation and raw justify3. Zero-width center underflow, current-pattern restoration, callback body rebinding between glyphs, opcode1/nonzero END coordinates, signed negative truncation, divisor1 wrap versus divisor2 trap, counted NUL and metric/program/pixel failure prefixes are checked.",
+            "Existing coherent application scenes additionally check DDO line style/user/width, device width, total text width, decoded point and private justification in the same capture as existing font/ratio/pixel/cell/palette/image/point/page/reply/RNG observations.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All41 BIG-specific native CTests passed in46.83s. Final strengthened big_text_stroke passed in0.07s, including literal pixel/decoded-point failure prefixes and current per-glyph binding checks. syncterm_big_input passed in130.04s (test129.99s),2632 coherent scenes with the additional private-cache assertions. The first focused run exposed a64x64 fixture without matching clip bounds; the fixture now declares that bounded surface, preserving the original glyph/advance expectations. No non-BIG tests ran. Direct stroke layout/rendering is implemented; W bitmap sources/raster/initial move/count/acquisition/wire and full global45-entry/final acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2398,7 +2431,7 @@
     {
       "id": "W",
       "order": 26,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2408,10 +2441,31 @@
       "references": [
         "62-graphical-text-command-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Prerequisite direct stroke-text operator1869 now uses the current DDO anchor, copied header/body, effective ratios and separate cached justification. Complete W acquisition/color-before-text/initial move, bitmap source composition/raster and command wiring remain pending; no W wire acceptance is claimed.",
+        "Shared CHR width/program access is separated to preserve original metric-before-offset failure order. Metrics sum width bytes before unsigned scaling; decoded signed7 coordinates use signed IMUL/IDIV with original divisor1 low-WORD behavior. Per-glyph terminal decoded points advance the DDO anchor independently of metric width.",
+        "Original horizontal/vertical/orientation alignment and endpoint transforms use WORD operations, including center-zero decrement. Physical lines use the existing original fixed-slope clip and shared thin BGI kernel with current pen/XOR; no repeated viewport translation or public/device CP assignment occurs.",
+        "Separate DDO line style/user/width caches preserve public attributes. Glyphs install solid width1; normal tail forwards saved style with current DDO userpattern and device width1, then restores cached style/width only. Reached failures retain earlier metrics/layout/point/pixel/style prefixes and omit that tail.",
+        "Each glyph binds current DDO header/body while its borrowed record stream remains stable across pixel callbacks; opcode1 ignores, missing characters reset the decoded point without output/advance, and zero metric width does not suppress a real program. Literal normal E scanflag0 selects this direct operator; buffered/raw foreign execution is not a new native protocol."
+      ],
+      "tests": [
+        "big_text_stroke",
+        "big_font",
+        "big_draw",
+        "big_text_style",
+        "big_text_ratio",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Checked native table/program extents, bounded record traversal and signed/unsigned quotient checks replace foreign memory access/divide traps. Divisor1 preserves original low-product WORD wrapping because the source skips IDIV.",
+        "Only the native direct stroke dependency is implemented in this step. Bitmap sources/raster, initial outtextxy move/scan/count front, stream-reader integration and complete W/global45-entry acceptance remain required."
+      ],
+      "verification": [
+        "Literal original Small A records yield independently authored full masks for AA in both directions and COPY/XOR, measured width7 versus advance6, missing-character behavior and Gothic22 metric0/advance14. Separate public/DDO/device points and line caches are asserted.",
+        "96 direction/orientation/justification cases include byte2 orientation and raw justify3. Zero-width center underflow, current-pattern restoration, callback body rebinding between glyphs, opcode1/nonzero END coordinates, signed negative truncation, divisor1 wrap versus divisor2 trap, counted NUL and metric/program/pixel failure prefixes are checked.",
+        "Existing coherent application scenes additionally check DDO line style/user/width, device width, total text width, decoded point and private justification in the same capture as existing font/ratio/pixel/cell/palette/image/point/page/reply/RNG observations.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All41 BIG-specific native CTests passed in46.83s. Final strengthened big_text_stroke passed in0.07s, including literal pixel/decoded-point failure prefixes and current per-glyph binding checks. syncterm_big_input passed in130.04s (test129.99s),2632 coherent scenes with the additional private-cache assertions. The first focused run exposed a64x64 fixture without matching clip bounds; the fixture now declares that bounded surface, preserving the original glyph/advance expectations. No non-BIG tests ran. Direct stroke layout/rendering is implemented; W bitmap sources/raster/initial move/count/acquisition/wire and full global45-entry/final acceptance remain pending."
+      ],
       "commit": null
     },
     {

@@ -21,6 +21,9 @@ int st_big_draw_color(struct st_big_state *, uint16_t);
 int st_big_draw_move(struct st_big_state *, uint16_t x, uint16_t y);
 int st_big_draw_point(struct st_big_state *, uint16_t x, uint16_t y, uint16_t color, const struct st_big_draw_sink *);
 int st_big_draw_line(struct st_big_state *, const uint16_t points[4], const struct st_big_draw_sink *);
+/* Already translated direct text stroke: original fixed-slope clipping
+ * and shared thin kernel, no origin addition, width expansion or CP store. */
+int st_big_draw_physical_line(struct st_big_state *, const uint16_t points[4], const struct st_big_draw_sink *);
 /* Four absolute standalone lines, no sorting or point assignment. X1/Y1
  * are captured on entry; later X2/Y2 arguments are read before each edge. */
 int st_big_draw_rectangle(struct st_big_state *, const uint16_t points[4], const struct st_big_draw_sink *);

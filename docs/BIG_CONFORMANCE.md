@@ -1265,3 +1265,25 @@ composition and the final full regression suite remain pending.
 Native CMake Release configure/full build and final refresh (/usr/bin/cc, build/) passed without compiler/source diagnostics. All40 BIG-specific native CTests passed in47.54s, including big_text_style0.08s and cterm_big_text_style0.51s. syncterm_big_input passed in130.78s (test130.73s),2632 coherent scenes. Initial fixture corrections used BIG +1 for negative1, the three-value E stored-source arity and settled pre-E graphics points; independent font/metric/pixel expectations were retained. No non-BIG tests ran; RIP table regressions and the full suite remain deferred. Native E is implemented; W rendering, global45-entry and final acceptance stay pending.
 
 Native E font selection/style implementation commit: `9dbf75f`.
+
+
+## Direct stroke-text prerequisite for W
+
+The native direct stroke primitive now measures the original CHRs, applies
+WORD placement and signed coordinate scaling, draws through the existing
+fixed-slope clip/shared thin kernel, and advances by each terminal decoded
+point. Small AA measures7 but advances6; Gothic22 draws and advances14 with
+metric0. Width lookup and program lookup are separate shared format accesses
+so malformed data fails at its reached prefix. Public/DDO/device points,
+private justification and public/DDO/device line attributes stay independent.
+Normal style restoration leaves device width1 while restoring cached width3.
+
+big_text_stroke uses literal original Small glyph masks plus authored format
+fixtures for both directions/COPY/XOR, placement, missing/zero-width glyphs,
+source bindings, signed/WORD arithmetic, counted NUL and partial failures.
+All2632 existing coherent scenes additionally observe the new cache fields
+with retained full scene/state/replies. This verifies the direct drawing
+prerequisite. W acquisition/initial move/count front, bitmap fonts/raster and
+command wiring remain pending; no W wire completion is claimed.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All41 BIG-specific native CTests passed in46.83s. Final strengthened big_text_stroke passed in0.07s, including literal pixel/decoded-point failure prefixes and current per-glyph binding checks. syncterm_big_input passed in130.04s (test129.99s),2632 coherent scenes with the additional private-cache assertions. The first focused run exposed a64x64 fixture without matching clip bounds; the fixture now declares that bounded surface, preserving the original glyph/advance expectations. No non-BIG tests ran. Direct stroke layout/rendering is implemented; W bitmap sources/raster/initial move/count/acquisition/wire and full global45-entry/final acceptance remain pending.

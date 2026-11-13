@@ -22,7 +22,8 @@ struct st_big_state {
 		uint16_t ddo_x, ddo_y, device_x, device_y, line_distance;
 		uint16_t bar_corners[4];
 		uint8_t orientation;
-		uint8_t device_color, ddo_line_width;
+		uint8_t device_color, ddo_line_style, ddo_line_width;
+		uint16_t ddo_line_user;
 		uint8_t fill_low, device_fill_color, device_fill_style;
 		uint8_t device_fill_user[8], fill_pattern[8], fill_pixels[64];
 		uint16_t device_line_width;
@@ -34,8 +35,10 @@ struct st_big_state {
 		uint16_t text_cached[2], text_selected_size, text_scaled[2];
 		uint8_t text_control, text_header[16];
 		uint8_t text_font, text_direction, text_stroke_active;
+		uint8_t text_justify_x, text_justify_y;
 		uint8_t text_stroke_id, text_stroke_direction;
 		uint16_t text_suppression;
+		uint16_t text_total_width, text_stroke_point[2];
 		/* DDO binding is separate from the public loaded body and copied
 		 * header. Font0 clears this binding but retains the cached id. */
 		const uint8_t *text_body;

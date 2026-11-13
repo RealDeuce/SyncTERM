@@ -175,6 +175,7 @@ static void styles(void)
 		CHECK(f.state.bgi.line_style==style && f.state.bgi.line_user==0x1234 && f.state.bgi.line_width==width);
 		CHECK(f.state.bgi.line_mask==(style==4?0x1234:st_bgi_line_patterns[style]));
 		CHECK(f.state.bgi.ddo_line_width==width && f.state.bgi.device_line_width==width);
+		CHECK(f.state.bgi.ddo_line_style==style && f.state.bgi.ddo_line_user==0x1234);
 	}
 	CHECK(st_big_draw_style(&f.state,0,17,1)==0 && st_big_draw_style(&f.state,4,0,9)==0);
 	CHECK(f.state.bgi.error==-11 && f.state.bgi.line_style==0 && f.state.bgi.line_width==1 && f.state.bgi.line_mask==65535);
@@ -183,6 +184,7 @@ static void styles(void)
 	f.state.bgi.state=0;
 	CHECK(st_big_draw_style(&f.state,2,9,3)==IO_ERROR_PROTOCOL);
 	CHECK(f.state.bgi.line_style==2 && f.state.bgi.line_user==9 && f.state.bgi.line_width==3 && f.state.bgi.line_mask==0xcccc && f.state.bgi.ddo_line_width==2);
+	CHECK(f.state.bgi.ddo_line_style==1 && f.state.bgi.ddo_line_user==7);
 }
 static void live_markers(void)
 {

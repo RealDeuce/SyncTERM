@@ -1003,6 +1003,11 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_text_suppression", big->state.bgi.text_suppression);
 	st_console_test_number(app, "cterm.big_text_stroke_id", big->state.bgi.text_stroke_id);
 	st_console_test_number(app, "cterm.big_text_stroke_direction", big->state.bgi.text_stroke_direction);
+	st_console_test_number(app, "cterm.big_text_total_width", big->state.bgi.text_total_width);
+	st_console_test_number(app, "cterm.big_text_stroke_x", big->state.bgi.text_stroke_point[0]);
+	st_console_test_number(app, "cterm.big_text_stroke_y", big->state.bgi.text_stroke_point[1]);
+	st_console_test_number(app, "cterm.big_text_justify_x", big->state.bgi.text_justify_x);
+	st_console_test_number(app, "cterm.big_text_justify_y", big->state.bgi.text_justify_y);
 	st_console_test_number(app, "cterm.big_text_body", big->state.bgi.text_body!=NULL);
 	st_console_test_number(app, "cterm.big_text_header_count", big->state.bgi.text_header[1]+256u*big->state.bgi.text_header[2]);
 	st_console_test_number(app, "cterm.big_text_header_first", big->state.bgi.text_header[4]);
@@ -1090,6 +1095,10 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_line_style", big->state.bgi.line_style);
 	st_console_test_number(app, "cterm.big_line_user", big->state.bgi.line_user);
 	st_console_test_number(app, "cterm.big_line_width", big->state.bgi.line_width);
+	st_console_test_number(app, "cterm.big_ddo_line_style", big->state.bgi.ddo_line_style);
+	st_console_test_number(app, "cterm.big_ddo_line_user", big->state.bgi.ddo_line_user);
+	st_console_test_number(app, "cterm.big_ddo_line_width", big->state.bgi.ddo_line_width);
+	st_console_test_number(app, "cterm.big_device_line_width", big->state.bgi.device_line_width);
 	st_console_test_number(app, "cterm.big_line_mask", big->state.bgi.line_mask);
 	st_console_test_number(app, "cterm.big_bgi_error", big->state.bgi.error);
 	st_console_test_number(app, "cterm.big_hollow", big->state.application.hollow);

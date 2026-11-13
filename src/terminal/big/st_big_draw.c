@@ -119,6 +119,7 @@ int st_big_draw_style(struct st_big_state *s, uint16_t style, uint16_t pattern, 
 	s->bgi.line_style=style; s->bgi.line_user=pattern; s->bgi.line_width=width;
 	int status=installed(s); if (status!=0) return status;
 	s->bgi.ddo_line_width=(uint8_t)width;
+	s->bgi.ddo_line_style=(uint8_t)style; s->bgi.ddo_line_user=pattern;
 	s->bgi.line_mask=style==4?pattern:st_bgi_line_patterns[style]; s->bgi.device_line_width=width;
 	return 0;
 }
@@ -404,6 +405,11 @@ int st_big_draw_bar3d(struct st_big_state *s, const uint16_t p[4], uint16_t dept
 		}
 	}
 	return st_big_draw_color(s,s->bgi.color);
+}
+int st_big_draw_physical_line(struct st_big_state *s, const uint16_t p[4], const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || p==NULL || sink==NULL || sink->pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=installed(s); return status!=0?status:thin(s,p,sink);
 }
 int st_big_draw_line(struct st_big_state *s, const uint16_t p[4], const struct st_big_draw_sink *sink)
 {

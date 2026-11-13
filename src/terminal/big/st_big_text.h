@@ -4,6 +4,7 @@
 #define ST_BIG_TEXT_H_
 #include "st_big_state.h"
 struct st_big_fonts;
+struct st_big_draw_sink;
 struct st_big_text_sink {
 	void *context;
 	/* Optional serialized device custom-style call. The ordinary EGAVGA
@@ -25,4 +26,10 @@ int st_big_text_x3(struct st_big_state *, const uint16_t ratios[4], const struct
 int st_big_text_style(struct st_big_state *, struct st_big_fonts *, uint16_t font, uint16_t direction, uint16_t size);
 /* E reads font,size,direction completely before independent signed clamps. */
 int st_big_text_e(struct st_big_state *, struct st_big_fonts *, const uint16_t arguments[3]);
+/* Original direct stroke-text operator1869: current DDO anchor/bound body,
+ * cached header/ratios/justification and low-BYTE count. Does not perform
+ * outtextxy's initial move, bitmap placement or public CP publication.
+ * Normal E copies scan flag0. Errors retain reached stores/writes and omit
+ * the returning line-style tail. Device CP remains the initial anchor. */
+int st_big_text_stroke_direct(struct st_big_state *, const uint8_t *, uint8_t count, const struct st_big_draw_sink *);
 #endif

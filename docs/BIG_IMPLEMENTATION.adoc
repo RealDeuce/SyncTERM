@@ -2729,3 +2729,58 @@ global45-entry composition and final full-suite acceptance remain pending.
 Native CMake Release configure/full build and final refresh (/usr/bin/cc, build/) passed without compiler/source diagnostics. All40 BIG-specific native CTests passed in47.54s, including big_text_style0.08s and cterm_big_text_style0.51s. syncterm_big_input passed in130.78s (test130.73s),2632 coherent scenes. Initial fixture corrections used BIG +1 for negative1, the three-value E stored-source arity and settled pre-E graphics points; independent font/metric/pixel expectations were retained. No non-BIG tests ran; RIP table regressions and the full suite remain deferred. Native E is implemented; W rendering, global45-entry and final acceptance stay pending.
 
 Native E font selection/style implementation commit: `9dbf75f`.
+
+
+== Direct stroke-text layout and drawing prerequisite for W
+
+The native st_big_text_stroke_direct operator implements the complete ordinary
+DDO1869 direct path (28/53/62, text-code). It accepts the current DDO anchor,
+borrowed body/copied header, effective ratios and low-BYTE counted string.
+This is a drawing primitive, not W wire acceptance: bitmap source composition,
+bitmap raster, outtextxy initial move/NUL scan/count front and integration
+with the existing text stream reader remain required before registering W.
+
+Separate shared CHR width and program accessors retain metric-before-offset
+failure order; the existing combined glyph accessor keeps its behavior.
+Metrics recompute BYTE(cap-descender) heights, sum eligible width bytes as a
+WORD, then unsigned-scale the sum. Cached header metadata can differ from
+the currently bound body. Direction/orientation/justification use original
+WORD placement, including X-center SHR/DEC and vertical height/width axes.
+Private DDO justification is distinct from public justification. No public
+or device point is assigned by this operator.
+
+MOVE/DRAW signed-seven-bit coordinates use signed ratio multiplication and
+IDIV truncation. Divisor1 skips IDIV and retains the low product WORD; other
+quotients are checked for the original signed16 domain. DRAW installs the
+new decoded point before transforming both endpoints and invoking the
+existing original fixed-slope clip/shared thin BGI kernel. Physical lines
+add no second viewport origin and change no point owner. END advances DDO
+using the last MOVE/DRAW point, not metric width or END coordinates. Missing
+characters reset decodedpoint0 and add no output/advance; zero-width Gothic22
+still emits its real program. Opcode1 is ignored. Each glyph binds current
+DDO body/header while its stream keeps that borrowed binding across line
+callbacks. Ordinary E has already cleared the copied scan flag to0.
+
+DDO line style/userpattern/width now have independent caches. Solid width1
+is installed for glyphs without changing public attributes. Normal return
+requests the saved style with current cached userpattern and device width1,
+then restores only cached style/width. Device width remains1 even when the
+cached/public width is3. Errors preserve reached metric/alignment/decoded
+point/pixel/style prefixes and omit the returning tail. Owned native extents,
+bounded CHR traversal and quotient checks replace unsafe foreign accesses
+and divide traps; no arbitrary CPU/IRQ/foreign heap model is introduced.
+
+big_text_stroke has literal full Small AA masks in both directions and
+COPY/XOR, metric7 versus totaladvance6, missing bytes, Gothic22 metric0 and
+advance14, 96 direction/orientation/justification cases, zero-width center
+underflow, current-pattern restoration and per-glyph binding lifetime. An
+authored program distinguishes signed negative truncation, ignored opcode1,
+nonzero END coordinates, divisor1 wrapping and divisor2 quotient failure.
+Metric/program truncation, counted NUL and every Small A pixel failure
+retain independent prefixes. Existing common-font/line/style tests remain
+in force. All2632 coherent application scenes additionally inspect private
+line caches/device width/text width/decoded point/justification alongside
+the complete prior scene/state/replies. These are primitive and retained
+state checks; W wire and bitmap rendering remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All41 BIG-specific native CTests passed in46.83s. Final strengthened big_text_stroke passed in0.07s, including literal pixel/decoded-point failure prefixes and current per-glyph binding checks. syncterm_big_input passed in130.04s (test129.99s),2632 coherent scenes with the additional private-cache assertions. The first focused run exposed a64x64 fixture without matching clip bounds; the fixture now declares that bounded surface, preserving the original glyph/advance expectations. No non-BIG tests ran. Direct stroke layout/rendering is implemented; W bitmap sources/raster/initial move/count/acquisition/wire and full global45-entry/final acceptance remain pending.

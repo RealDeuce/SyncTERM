@@ -385,6 +385,15 @@ Missing resources and unsafe accesses use documented checked nonfatal
 fallbacks. Native E is implemented; W rendering, global45-entry composition
 and final cross-emulation/full-suite acceptance remain pending.
 
+BIG's direct stroke-text dependency now has literal Small AA COPY/XOR masks,
+metric/decoded-advance distinctions, vertical/orientation/justification,
+missing/zero-width glyphs, current bindings, line-cache restoration and
+failure-prefix coverage in big_text_stroke. Shared CHR width/program accesses
+preserve original failure ordering and shared thin raster reuse is retained.
+All2632 existing coherent scenes additionally assert private line/text caches.
+W bitmap source/raster, stream integration and full command acceptance remain
+pending; these tests do not claim W wire coverage.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

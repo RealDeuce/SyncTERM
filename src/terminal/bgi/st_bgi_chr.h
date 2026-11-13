@@ -24,6 +24,10 @@ struct st_bgi_chr_record { enum st_bgi_chr_opcode opcode; int x,y; };
  * Tables/records are checked at each reached access, preserving decode
  * prefixes. Invalid calls leave output views/records unchanged. */
 int st_bgi_chr_bind(struct st_bgi_chr *, const uint8_t *body, size_t size);
+/* Separate accessors preserve metric-before-program error ordering.
+ * The view may retain metadata copied earlier from a different body. */
+int st_bgi_chr_width(const struct st_bgi_chr *, uint8_t code, uint8_t *width);
+int st_bgi_chr_program(const struct st_bgi_chr *, uint8_t code, struct st_bgi_chr_glyph *);
 /* Original modulo-BYTE code/first and low-count comparison; WORD table
  * addresses and stroke-base addition. A zero metric can still have strokes. */
 int st_bgi_chr_glyph(const struct st_bgi_chr *, uint8_t code, struct st_bgi_chr_glyph *);
