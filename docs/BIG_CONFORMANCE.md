@@ -880,3 +880,5 @@ binding and resource lifetimes remain pending. This is dependency coverage;
 the unchanged application fixture was not rerun and no new scene is claimed.
 
 Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred.
+
+Indexed video address/window dependency commit: `87cd9b6`.
