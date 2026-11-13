@@ -7,10 +7,11 @@ struct st_big_memory_sink {
 	void *context;
 	/* Eight logical pens0..15, MSB first. WORD address wrap belongs to
 	 * the caller; the backend checks actual storage/aperture bounds.
-	 * write replaces selected pen bits (planes) at selected pixels
-	 * (mask), retaining all other bits/pixels. Serialized callbacks must
+	 * write applies COPY0/XOR1/OR2/AND3/NOT-source4 to selected pen bits
+	 * (planes) at selected pixels (mask), independently in both blink
+	 * phases, retaining all other bits/pixels. Serialized callbacks must
 	 * complete synchronously; IN_PROGRESS is a protocol error. */
 	int (*read)(void *, uint16_t address, uint8_t pens[8]);
-	int (*write)(void *, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8]);
+	int (*write)(void *, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8], uint8_t mode);
 };
 #endif

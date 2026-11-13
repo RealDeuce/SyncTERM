@@ -2110,3 +2110,75 @@ are unchanged; routine verification remains BIG-only.
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred.
 
 Image format, indexed cache and ordered capture dependency commit: `0d1d737`.
+
+=== Indexed image paste and shared Boolean kernel
+
+`st_big_image_paste` implements the original public geometry/header operator
+195a:1548..15d6 and the reached DDO/EGAVGA image operator20f9..211b,
+0167..0170,00e0..00e5,0ce6..0e26 from chapters25/56. It uses the indexed
+cache introduced above and the checked original fixed-segment source cursor.
+G0..3 wire acquisition, gates/page routing and native image ownership are
+still pending; this is a paste dependency, not full G acceptance.
+
+Public paste reads width and old height before geometry. It crops height
+using the unsigned WORD minimum of old height and maxY minus the wrapped
+destination-plus-origin Y. A wrapped right end beyond physical maxX rejects
+the entire image. The following X and Y checks use JL directly from ADD:
+the sign of the signed mathematical sum, not the wrapped result's sign.
+The intervening OR clears carry, so its JC cannot reject. There is no upper-Y
+guard or viewport clipping. In particular y348/header-height4/maxY349 pastes
+two rows, y350 retains five, and7fff+1 does not take JL even though the
+result is8000. Header-widthffff/x1 can pass the wrapped right-end comparison.
+
+Acceptance temporarily patches the actual source header height. Dispatch
+then checks installed graphics, the low BYTE of the mode WORD and the
+already imported width layout. A normal return restores the saved height;
+a lower error retains the cropped header and every accepted pixel. This is
+not an unconditional cleanup/transaction. Native callback/cache bindings
+and width remain stable for the call; arbitrary foreign far-argument or
+computed DOS aliases are not host pointers. Missing cache/source extents,
+invalid pens and unsafe mode-table indexes reject at their reached prefix.
+An uninstalled lower call sets BGI-1 after the temporary header store.
+
+The raster loop preserves row, plane3..0 and destination-byte order. Source
+bytes return cached indexed pens, which are aligned with the previous byte's
+tail; only the selected plane is written. Each destination byte gets the
+original latch-read checkpoint before its masked write, including COPY/NOT.
+The last source byte can produce two destination writes without another
+source access. Source and destination cursors wrap independently as WORDs;
+heightffff enters65,536 rows and proceeds until its actual checked source
+boundary. There is no packed decoding or RGB/palette conversion at blit time.
+
+`st_big_memory_sink.write` now carries the Boolean mode: COPY0, XOR1, OR2,
+AND3, NOT-source4. The native adapter applies it to both blink destinations
+independently while preserving unselected plane bits and masked pixels.
+Flood explicitly requests COPY0, retaining its earlier behavior. Normal
+paste does not change application write mode, points, palette, fill or old
+BGI error. Read/write IN_PROGRESS is a synchronous callback protocol error.
+
+Reference83's matched four-bit image operation is extracted into the narrow
+`st_bgi_pixel.h` kernel and used by BIG's native memory adapter and RIP's
+existing indexed image branch. RIP's geometry, snapshot/clipboard lifecycle,
+RGB fallback and token mapping stay in RIP. The shared kernel accepts only
+distinct pen indices0..15 and modes0..4; logical bit permutations commute with
+these five operations. No RIP clipping, image codec or failure policy is
+substituted for BIG's operator. The existing non-BIG regression suite remains
+deferred to goal completion, as requested.
+
+Independent `big_image_paste` tests cover literal D6/S5 results5/3/7/4/10
+and every nibble pair/mode with separate truth tables; complete primary and
+alternate memory for all modes, alignments and byte-boundary widths; exact
+row/plane/read/write masks; every failed read/write in an unaligned cropped
+prefix; temporary header visibility, success restoration and error retention;
+all WORD destinations with representative origins and all65,536 mode WORDs;
+three physical bottom limits, rejected right/negative cases and positive
+ADD overflow; initial uncaptured zero image, retained cached source values,
+last-byte spill before a missing next-plane byte, malformed width/height,
+independent WORD address wrap, invalid pen/layout/header/source extents and
+uninstalled/paused callbacks. The fixture compiled before implementation and
+initially failed to link the missing paste API. Expectations use hand-authored
+plane patterns and Boolean truth tables, not capture output from SyncTERM.
+Native image wiring and coherent application image scenes remain pending;
+the existing1568 scenes are unchanged.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending.

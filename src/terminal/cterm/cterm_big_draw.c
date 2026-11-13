@@ -3,6 +3,7 @@
 #include "cterm_big_internal.h"
 #include "st_big_draw.h"
 #include "st_big_video.h"
+#include "st_bgi_pixel.h"
 #include "cterm.h"
 #include "io_error.h"
 
@@ -221,18 +222,19 @@ static int flood_read(void *context, uint16_t address, uint8_t pens[8])
 	}
 	return 0;
 }
-static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8])
+static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8], uint8_t mode)
 {
 	struct drawing *draw=context;
 	for (unsigned i=0;i<8;++i) if (mask&(0x80u>>i)) {
 		uint32_t a=pens[i], b=a;
-		if (planes!=15) {
+		if (planes!=15 || mode!=0) {
 			struct st_big_video_pixel p; int status=video_read(draw,address,(uint8_t)i,&p); if (status!=0) return status;
 			a=p.primary; b=p.alternate;
 			if (a<CTERM_BIG_PALETTE_FIRST || a>=CTERM_BIG_PALETTE_FIRST+16
 			    || b<CTERM_BIG_PALETTE_FIRST || b>=CTERM_BIG_PALETTE_FIRST+16) return IO_ERROR_OUT_OF_RANGE;
-			a=((a-CTERM_BIG_PALETTE_FIRST)&(15u^planes))|(pens[i]&planes);
-			b=((b-CTERM_BIG_PALETTE_FIRST)&(15u^planes))|(pens[i]&planes);
+			a-=CTERM_BIG_PALETTE_FIRST; b-=CTERM_BIG_PALETTE_FIRST;
+			a=(a&(15u^planes))|(st_bgi_combine_pixel(pens[i],(uint8_t)a,mode)&planes);
+			b=(b&(15u^planes))|(st_bgi_combine_pixel(pens[i],(uint8_t)b,mode)&planes);
 		}
 		int status=video_write(draw,address,(uint8_t)i,CTERM_BIG_PALETTE_FIRST+a,CTERM_BIG_PALETTE_FIRST+b);
 		if (status!=0) return status;

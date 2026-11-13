@@ -203,7 +203,8 @@
         "big_bar",
         "big_producer",
         "big_bar3d",
-        "big_flood"
+        "big_flood",
+        "big_image_paste"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -362,6 +363,25 @@
             "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and final focused builds were clean. All21 BIG-specific native CTest checks passed in15.40s. Final expanded big_flood checks passed in0.08s (test0.01s), including post-overflow pushes and malformed-record guards. No non-BIG tests ran. The unchanged application fixture was not rerun for this unbound kernel; F/Z wire/flow/page/resource binding and final full-suite verification remain pending. Rendering is synchronous without periodic work-budget yields or blocking waits in framebuffer updates."
           ],
           "commit": "b76f7ef"
+        },
+        {
+          "id": "image-boolean-pixel-kernel",
+          "status": "complete",
+          "operations": [
+            "Extract the proved distinct-four-bit COPY/XOR/OR/AND/NOT-source kernel into st_bgi_pixel.h, shared by BIG native memory writes and the existing RIP indexed image branch. Preserve per-protocol geometry/codec/lifecycle/RGB fallback and token mapping."
+          ],
+          "tests": [
+            "big_image_paste"
+          ],
+          "references": [
+            "25-images-pages-and-native-reuse.adoc",
+            "45-planar-controller-and-digital-colour-output.adoc",
+            "83-global-native-reuse-and-implementation-map.adoc"
+          ],
+          "verification": [
+            "Independent literal results and every nibble source/destination pair across all five modes; complete BIG memory/trace/error tests. Non-BIG/RIP regressions remain deferred to the final full suite per user policy; no new RIP runtime coverage is claimed.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
+          ]
         }
       ]
     },
@@ -385,7 +405,8 @@
         "cterm_big_line",
         "cterm_big_collect",
         "syncterm_big_input",
-        "big_image"
+        "big_image",
+        "big_image_paste"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -549,6 +570,42 @@
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred."
           ],
           "commit": "0d1d737"
+        },
+        {
+          "id": "indexed-image-paste",
+          "status": "complete",
+          "operations": [
+            "Original physical right-end rejection, unsigned bottom crop and X/Y ADD-JL SF-xor-OF behavior, including no independent upper-Y or viewport guard.",
+            "Temporary actual source-height store before lower installed/mode/layout dispatch; restore only on normal return. Reached errors retain cropped header and accepted pixels/state.",
+            "Cached indexed source access in original row/plane3..0/byte order, explicit destination latch-read checkpoints, first/last masks, last-source-byte spill without rereading source and independent WORD source/video cursor wrap.",
+            "Low-BYTE dispatch from the public mode WORD; checked unsupported table indexes, invalid pens and image/cache/header extents instead of foreign memory access. Initial zero storage supplies a real1x1 image without a capture-valid flag.",
+            "Shared memory write carries COPY/XOR/OR/AND/NOT-source and applies operations to primary/alternate destinations independently, retaining other plane bits and pixels. Flood explicitly requests COPY0.",
+            "Native G0..3 wire acquisition, gates, mode-read timing, page routing, image ownership/lifetimes and coherent application image scenes remain pending."
+          ],
+          "tests": [
+            "big_image_paste",
+            "big_image",
+            "big_flood",
+            "cterm_big_fill",
+            "cterm_big_bar"
+          ],
+          "references": [
+            "25-images-pages-and-native-reuse.adoc",
+            "56-image-command-and-global-acceptance.adoc",
+            "83-global-native-reuse-and-implementation-map.adoc",
+            "image-code.adoc:195a:1548..15d6,20f9..211b;DDO0167..0170;EGAVGA00e0..00e5,0ce6..0e26"
+          ],
+          "deviations": [
+            "Native image/cache bindings and width remain stable through callbacks; arbitrary constructed foreign far-argument/computed DOS aliases are not native pointers.",
+            "Checked source/cache/header/pen/mode-table boundaries retain preceding accepted effects and reject unsafe foreign-memory access. Native initial storage will be zeroed when ownership is integrated."
+          ],
+          "verification": [
+            "The independent fixture compiled before implementation, then failed to link the missing paste API. Five literal D6/S5 results and all nibble pairs/modes use separate Boolean truth tables.",
+            "Whole primary/alternate memory for all modes/alignments/byte-boundary widths, ordered rows/planes/read-write masks, every failed read/write in an unaligned cropped prefix, header visibility/success restoration/error retention and unchanged point/attribute/palette/write-mode/error owners.",
+            "All65536 destinations with five origins for both X/Y geometry, all65536 mode WORDs, positive ADD overflow, three physical bottom limits, physical-versus-viewport behavior, initial zero image and cached-source reuse.",
+            "Last-byte spill before the next missing source byte, malformed width/height, source/video WORD wrap,131056 destination read/write checkpoints before source cursor wrap in a ffff-height image, missing header/cache/extent and invalid pen/layout/uninstalled/pause errors.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
+          ]
         }
       ]
     },
@@ -2320,7 +2377,7 @@
         "Implemented native G4 memory, G5 visual and G6 active pages with operation-return rez3 frame reset; full WORD clamps, independent current-resolution rules, local publication before lower calls and no own response.",
         "Physical indexed aperture backing, distinct active segment/display start, cursor banks, status exclusion, source pixels behind UI, retained padding/blink data and native page/mode/failure lifetimes.",
         "Existing marker/pointer/line/bar/rectangle/flood and batched-byte consumers use actual active memory while text uses actual visual memory. Frame locals reset on fresh attention and persist across chains/repeats independently of physical pages.",
-        "Implemented image dependency: four-byte header/plane codec, indexed import/source cache, original WORD size query and ordered checked capture. Pending G0/1/2/3 image wire/page/gate/mode/lifetime binding, paste/crop/Boolean writes and full-command/global acceptance; wire image routes remain unsupported in this step."
+        "Implemented image dependencies: four-byte format/indexed cache/WORD size/capture, plus original paste geometry/cropped-header and byte-plane Boolean operator. Pending G0/1/2/3 wire/gate/mode timing/page routing/ownership/lifetime binding and complete command/global acceptance; image wire routes remain unsupported in this step."
       ],
       "tests": [
         "big_state",
@@ -2332,7 +2389,8 @@
         "cterm_big_line",
         "cterm_big_collect",
         "syncterm_big_input",
-        "big_image"
+        "big_image",
+        "big_image_paste"
       ],
       "deviations": [
         "Checked out-of-aperture/backing accesses reject at their reached prefix instead of accessing DOS RAM or manufacturing video wrap. Only the declared VGA-capable normal sequential/byte-display profile is represented here; no EGA reduced-memory/controller/CRT timing emulator is claimed.",
@@ -2350,7 +2408,12 @@
         "Independent all65536 WORD deltas against modular distances with representative other-axis values; literal4/9-pixel byte vectors; all alignments/byte-edge widths and rows in three physical modes.",
         "Every source-read failure in an unaligned capture with complete raw/indexed prefix expectations, shift0 lookahead, uninstalled/invalid-pen/pause errors, old state preservation, retained tails/padding, explicit-import versus cached-read behavior, malformed widths/heights and precise source/destination cursor wrap.",
         "640x350 query0 reaches65528 accepted payload bytes, then fails at allocator-prefix cursor0 after66349 source reads; all16 unreachable owned tail bytes retain prior values. No new native G0..3 or application image acceptance is claimed.",
-        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred."
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred.",
+        "The independent fixture compiled before implementation, then failed to link the missing paste API. Five literal D6/S5 results and all nibble pairs/modes use separate Boolean truth tables.",
+        "Whole primary/alternate memory for all modes/alignments/byte-boundary widths, ordered rows/planes/read-write masks, every failed read/write in an unaligned cropped prefix, header visibility/success restoration/error retention and unchanged point/attribute/palette/write-mode/error owners.",
+        "All65536 destinations with five origins for both X/Y geometry, all65536 mode WORDs, positive ADD overflow, three physical bottom limits, physical-versus-viewport behavior, initial zero image and cached-source reuse.",
+        "Last-byte spill before the next missing source byte, malformed width/height, source/video WORD wrap,131056 destination read/write checkpoints before source cursor wrap in a ffff-height image, missing header/cache/extent and invalid pen/layout/uninstalled/pause errors.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
       ],
       "commit": null
     }

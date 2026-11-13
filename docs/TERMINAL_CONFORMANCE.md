@@ -285,6 +285,16 @@ delta, alignments/rows, partial failures, malformed heights and source/buffer
 wrap expectations. Native G0..3/paste/lifetime integration and application
 image scenes remain pending; existing1568 coherent scenes are unchanged.
 
+BIG's image paste dependency now preserves physical right rejection,
+unsigned bottom crop, ADD/JL flags and temporary header/error prefixes.
+`big_image_paste` uses independent truth tables, full dual-phase memory and
+byte/plane traces, every WORD destination/mode, alignment/boundary/crop cases,
+source/destination wrap and checked partial failures. Indexed source reads
+avoid packed decoding at blits; the Boolean kernel is shared with RIP's
+indexed branch under reference83's matched domain. Native G0..3 ownership/
+wire/page binding and application image scenes remain pending. Non-BIG
+regressions are deferred to the final suite; existing1568 scenes are unchanged.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

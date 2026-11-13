@@ -46,7 +46,7 @@ static int read_byte(const struct flood *f, uint8_t pens[8], uint8_t *boundary)
 }
 static int write_byte(const struct flood *f, uint16_t address, uint8_t mask, uint8_t planes)
 {
-	return synchronous(f->sink->write(f->sink->context,address,mask,planes,f->row));
+	return synchronous(f->sink->write(f->sink->context,address,mask,planes,f->row,0));
 }
 static void step_right(struct flood *f)
 {

@@ -947,3 +947,35 @@ No new coherent scenes or complete G acceptance are claimed by this step.
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred.
 
 Image format, indexed cache and ordered capture dependency commit: `0d1d737`.
+
+## Indexed image paste dependency
+
+`big_image_paste` tests the original physical right-end rejection, unsigned
+bottom crop and ADD/JL flags, with no viewport/upper-Y substitute. The actual
+source header is patched before lower dispatch and restored only on success;
+errors retain the crop and accepted pixels. The device consumes cached
+indices in row/plane3..0/byte order, with a destination read before every
+masked Boolean write. Last-byte spill reuses the same loaded source; source
+and video WORD offsets wrap independently. Missing storage, invalid low-BYTE
+mode indexes, pens and stale width layouts fail at checked native prefixes.
+No packed decoding or RGB conversion occurs during paste.
+
+The shared indexed memory write applies COPY/XOR/OR/AND/NOT-source separately
+to both blink destinations and retains unselected bits. Flood requests COPY.
+The proved four-bit operation from reference83 is shared through
+`st_bgi_pixel.h` with RIP's indexed image branch; RIP's geometry/lifecycle and
+RGB fallback remain its own. This kernel does not replace BIG with RIP paste.
+
+Independent truth-table tests cover all nibble pairs and five modes. Full
+memory/trace cases check all alignments, widths around byte boundaries,
+distinct blink values, row/plane order and masks. Every read/write failure
+of a cropped unaligned prefix checks accepted pixels and the retained source
+header. All WORD destinations against representative origins, all mode WORDs,
+three physical bottoms, overflow/negative/rejected geometry, fresh zero image,
+cached-source reuse, spill-before-source-error, malformed widths/heights,
+cursor wrap and invalid pen/cache/header/dispatch cases have independent
+expectations. Native G0..3 acquisition/page/gate/mode/ownership binding and
+application image captures are pending. Existing1568 scenes remain unchanged;
+only BIG tests run during development, with full regressions deferred.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending.

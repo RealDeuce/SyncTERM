@@ -53,9 +53,10 @@ static int read_byte(void *context, uint16_t address, uint8_t pens[8])
 	if (f->mutate==7 && f->flood.count==1) { f->records[0].bit=8; f->mutate=0; }
 	return 0;
 }
-static int write_byte(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8])
+static int write_byte(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8], uint8_t mode)
 {
 	struct fixture *f=context;
+	CHECK(mode==0);
 	if (f->writes==f->fail_write) return f->failure;
 	CHECK(address<sizeof(f->pixels)/8 && f->writes<4096 && planes>0 && planes<16);
 	f->events[f->writes++]=(struct event){address,mask,planes};

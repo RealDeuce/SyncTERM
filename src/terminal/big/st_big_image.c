@@ -1,7 +1,9 @@
 /* BIG packed image edges over an indexed cache, references25/40/56. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_image.h"
+#include "st_big_number.h"
 #include "io_error.h"
+#include <stdbool.h>
 #include <string.h>
 
 static size_t reachable(const struct st_big_image *image)
@@ -144,5 +146,88 @@ int st_big_image_capture(struct st_big_image *image, struct st_big_state *state,
 		}
 		row=(uint16_t)(row+pitch);
 	}
+	return 0;
+}
+static int write_image_byte(const struct st_big_memory_sink *sink, uint16_t address,
+    uint8_t mask, uint8_t plane, const uint8_t source[8], uint8_t mode)
+{
+	/* Original destination latch read precedes every write, including
+	 * COPY/NOT and partial masks. The adapter applies Boolean operations
+	 * to both native blink values, which can have distinct destinations. */
+	uint8_t destination[8]; int status=sink->read(sink->context,address,destination);
+	if (status!=0) return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+	for (unsigned i=0;i<8;++i) if (destination[i]>15) return IO_ERROR_OUT_OF_RANGE;
+	status=sink->write(sink->context,address,mask,(uint8_t)(1u<<plane),source,mode);
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
+static int paste_rows(struct st_big_image *image, struct st_big_state *state,
+    const struct st_big_memory_sink *sink, uint16_t x, uint16_t y, uint16_t requested)
+{
+	if (state->bgi.state==0) { state->bgi.error=-1; return IO_ERROR_PROTOCOL; }
+	uint8_t mode=(uint8_t)requested;
+	if (mode>4) return IO_ERROR_OUT_OF_RANGE;
+	uint16_t width,height; int status=st_big_image_header(image,&width,&height);
+	if (status!=0) return status;
+	size_t columns=(size_t)width/8+1;
+	if (image->plane_bytes!=columns) return IO_ERROR_PROTOCOL;
+	x=(uint16_t)(x+state->bgi.viewport[0]); y=(uint16_t)(y+state->bgi.viewport[1]);
+	uint16_t pitch=(uint16_t)(state->bgi.width/8);
+	uint16_t row=(uint16_t)((uint32_t)y*pitch+x/8u), cursor=ST_BIG_IMAGE_BASE+4;
+	unsigned shift=x&7u;
+	uint8_t first_mask=(uint8_t)(255u>>shift), last_mask=(uint8_t)(255u<<(7u-((x+width)&7u)));
+	bool spill=(width&7u)+shift>7;
+	for (uint32_t line=0;line<=(uint32_t)height;++line) {
+		for (unsigned plane=4;plane--!=0;) {
+			uint8_t previous[8]={0}; uint16_t address=row;
+			for (size_t byte=0;byte<columns;++byte) {
+				const uint8_t *source; uint8_t source_plane;
+				status=st_big_image_source(image,cursor,&source,&source_plane);
+				if (status!=0) return status;
+				if (source_plane!=plane) return IO_ERROR_PROTOCOL;
+				cursor=(uint16_t)(cursor+1u);
+				for (unsigned i=0;i<8;++i) if (source[i]>15) return IO_ERROR_OUT_OF_RANGE;
+				uint8_t aligned[8];
+				for (unsigned i=0;i<8;++i) aligned[i]=i<shift?previous[8-shift+i]:source[i-shift];
+				uint8_t mask=byte==0?first_mask:255;
+				if (byte+1==columns && !spill) mask&=last_mask;
+				status=write_image_byte(sink,address,mask,(uint8_t)plane,aligned,mode);
+				if (status!=0) return status;
+				address=(uint16_t)(address+1u);
+				if (byte+1==columns && spill) {
+					/* The last loaded byte supplies this spill without another
+					 * source access; a missing next byte cannot suppress it. */
+					for (unsigned i=0;i<8;++i) aligned[i]=i<shift?source[8-shift+i]:0;
+					status=write_image_byte(sink,address,last_mask,(uint8_t)plane,aligned,mode);
+					if (status!=0) return status;
+				}
+				memcpy(previous,source,8);
+			}
+		}
+		row=(uint16_t)(row+pitch);
+	}
+	return 0;
+}
+int st_big_image_paste(struct st_big_image *image, struct st_big_state *state,
+    const struct st_big_memory_sink *sink, uint16_t x, uint16_t y, uint16_t mode)
+{
+	if (image==NULL || state==NULL || sink==NULL || sink->read==NULL || sink->write==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t width,old_height; int status=st_big_image_header(image,&width,&old_height);
+	if (status!=0) return status;
+	uint16_t absolute_y=(uint16_t)(y+state->bgi.viewport[1]);
+	uint16_t remaining=(uint16_t)((uint16_t)(state->bgi.height-1u)-absolute_y);
+	uint16_t cropped=remaining<old_height?remaining:old_height;
+	uint16_t right=(uint16_t)(x+state->bgi.viewport[0]+width);
+	if (right>(uint16_t)(state->bgi.width-1u)) return 0;
+	/* JL immediately after ADD tests SF xor OF, equivalent to a negative
+	 * signed mathematical sum, not a negative wrapped WORD. OR SI,SI then
+	 * clears CF, so the original intervening JC cannot reject a crop. */
+	if (st_big_number_signed(x)+st_big_number_signed(state->bgi.viewport[0])<0) return 0;
+	if (st_big_number_signed(y)+st_big_number_signed(state->bgi.viewport[1])<0) return 0;
+	put_word(image->bytes+2,cropped);
+	status=paste_rows(image,state,sink,x,y,mode);
+	if (status!=0) return status;
+	/* Deliberately not a finally restore: lower failure retains the
+	 * temporary height. Bindings stay stable for the complete operation. */
+	put_word(image->bytes+2,old_height);
 	return 0;
 }

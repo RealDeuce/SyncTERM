@@ -402,3 +402,18 @@ callback pauses and invalid pens have separate checks. No external images
 or emulator-produced expectations are needed. The shared memory sink rename
 also retains `big_flood` and native fill/bar checks. G0..3 acquisition,
 native buffer lifetime/page routing and paste/application scenes are pending.
+
+`big_image_paste` uses literal plane patterns96/3c/5a/c3 and an independent
+five-entry Boolean truth table. It covers every nibble pair, full primary/
+alternate memory across modes/alignments/byte-boundary widths, ordered rows/
+planes/masks, all WORD destinations with representative origins and every
+mode WORD. Cropped header visibility/restoration and every read/write failure
+in a shifted first-row prefix retain independent whole-memory expectations.
+Three physical bottom limits, right/negative rejection, signed ADD overflow,
+the fresh zero image, cache reuse without packed re-decoding, last-byte spill
+before a missing source, malformed width/height, separate source/video WORD
+wrap and invalid extents/pens/layout/dispatch errors are covered. The fixture
+initially compiled but failed to link the unimplemented API. The shared
+four-bit kernel is exercised directly, and flood continues requesting COPY.
+Native G0..3 wiring and application image captures remain pending; no new
+coherent scenes or RIP regression coverage is claimed by this dependency.

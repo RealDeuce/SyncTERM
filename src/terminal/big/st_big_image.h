@@ -41,4 +41,13 @@ int st_big_image_capture(struct st_big_image *, struct st_big_state *,
  * error, including allocator-prefix cursor wrap and truncated payload. */
 int st_big_image_source(const struct st_big_image *, uint16_t cursor,
 	const uint8_t **pens, uint8_t *plane);
+/* Original public paste geometry and device byte/plane order. Right end
+ * rejects the whole image; bottom cropping temporarily changes the header.
+ * Restore old height only after success, retaining the patched value and
+ * earlier pixels on error. Low-BYTE modes0..4 are supported; a reached
+ * invalid dispatch rejects its unsafe table access. The indexed layout
+ * must already be imported; no unpacking at blit time. Callback bindings,
+ * cache and header width must stay stable until return. */
+int st_big_image_paste(struct st_big_image *, struct st_big_state *,
+	const struct st_big_memory_sink *, uint16_t x, uint16_t y, uint16_t mode);
 #endif

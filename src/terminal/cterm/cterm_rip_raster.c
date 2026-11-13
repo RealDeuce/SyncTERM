@@ -8,6 +8,7 @@
 #include "cterm_rip_raster.h"
 #include "st_bgi_data.h"
 #include "st_bgi_line.h"
+#include "st_bgi_pixel.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_fonts.h"
 #include "cterm_rip_icon_file.h"
@@ -927,12 +928,8 @@ combine_pixels(const struct cterm_rip_raster *rip, uint32_t source,
 	 * Keep native indexed pixels packed; RGB fallback retains the legacy
 	 * reverse lookup only for pixels which actually need it. */
 	if (source >= 16 && source < 32 && destination >= 16 && destination < 32) {
-		switch (mode) {
-		case 1: return 16 | ((source ^ destination) & 15);
-		case 2: return source | destination;
-		case 3: return source & destination;
-		default: return source ^ 15;
-		}
+		return 16u|st_bgi_combine_pixel((uint8_t)(source-16),
+		    (uint8_t)(destination-16),(uint8_t)mode);
 	}
 	int image = pixel_colour(rip, source), combined;
 	if (mode == 4)
