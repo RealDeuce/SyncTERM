@@ -140,20 +140,20 @@ static void prefixes_gates_and_errors(void)
 	string(&f,"I#G 2,9,"); CHECK(b->image_mode==9);
 	string(&f,"40,"); CHECK(b->image_mode==9); string(&f,"40:"); CHECK(b->image_mode==0 && b->last_error==0);
 	for (unsigned op=0;op<4;++op) {
-		resolution(&f,2); b->image_gates[op][0]=1; b->image_gates[op][1]=0; b->image_size=777;
+		resolution(&f,2); b->feature_gates[op][0]=1; b->feature_gates[op][1]=0; b->image_size=777;
 		memset(b->image_bytes,0,sizeof(b->image_bytes)); CHECK(st_big_image_import(&b->image)==0);
 		calls=b->image_page_calls;
 		static const char *const wire[]={"I#G 0,9,20,20,20,20,40,40:","I#G 1,9,20,20,20,20:","I#G 2,9,40,40:","I#G 3,9,20,20,20,20,40,40:"};
 		string(&f,wire[op]); CHECK(b->image_page_calls==calls+(op==3?2u:1u));
 		CHECK(b->image_mode==0 && b->image_size==(op==2?777:10) && b->image_bytes[4]==0 && b->video_active_page==0);
-		b->image_gates[op][0]=b->image_gates[op][1]=65535;
+		b->feature_gates[op][0]=b->feature_gates[op][1]=65535;
 	}
 	/* A false gate cannot suppress the earlier query/dispatch failure. */
-	b->image_gates[0][0]=1; b->image_gates[0][1]=0;
+	b->feature_gates[0][0]=1; b->feature_gates[0][1]=0;
 	string(&f,"I#G 0,0,"); b->state.bgi.state=0; b->image_size=777;
 	string(&f,"20,20,20,20,40,40:"); CHECK(b->last_error==IO_ERROR_PROTOCOL && b->image_size==777 && b->state.bgi.error==-1);
-	b->state.bgi.state=3; b->image_gates[0][0]=0;
-	resolution(&f,2); b->image_gates[3][0]=1; b->image_gates[3][1]=0;
+	b->state.bgi.state=3; b->feature_gates[0][0]=0;
+	resolution(&f,2); b->feature_gates[3][0]=1; b->feature_gates[3][1]=0;
 	string(&f,"I#G 3,0,"); calls=b->image_page_calls; b->state.bgi.state=0;
 	string(&f,"20,20,20,20,40,40:"); CHECK(b->image_page_calls==calls+1 && b->video_active_page==0 && b->last_error==IO_ERROR_PROTOCOL);
 	b->state.bgi.state=3;

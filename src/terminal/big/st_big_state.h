@@ -26,7 +26,7 @@ struct st_big_state {
 		uint8_t fill_low, device_fill_color, device_fill_style;
 		uint8_t device_fill_user[8], fill_pattern[8], fill_pixels[64];
 		uint16_t device_line_width;
-		uint8_t palette[16], fill_user[8];
+		uint8_t palette_size, palette[16], fill_user[8];
 		uint16_t line_style, line_user, line_mask, line_width;
 		uint16_t font, direction, text_size, justify_x, justify_y, write_mode;
 		/* The font0 shortcut does not dispose stroke resources/ratio owners. */
@@ -65,6 +65,12 @@ int st_big_state_color(struct st_big_state *, uint16_t selector, uint16_t color)
 /* H stores the full WORD, reloads it for the signed negative clamp, and
  * has no BGI operation or upper clamp. */
 int st_big_state_hollow(struct st_big_state *, uint16_t requested);
+/* Public setpalette, without S's caller gates: initialized/count/sign
+ * rejection is silent, accepted low BYTE/background stores precede the
+ * device callback. Raw cache values are not physical six-bit colours.
+ * Checked cache bounds replace corrupt count-driven foreign accesses. */
+int st_big_state_palette(struct st_big_state *, uint16_t index, uint16_t value,
+	const struct st_big_state_sink *);
 /* G resets interpreter page locals after its operation read in rez3.
  * G4/5/6 normalize/publish their local after the page read; physical page
  * state belongs to the sink, reached only by G5/6. */

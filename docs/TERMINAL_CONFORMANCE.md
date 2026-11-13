@@ -305,6 +305,16 @@ coherent scenes bring BIG to1722 with complete pixels/cells/palette/state/
 points/cursor/pages/replies/header/payload/RGB expectations. Native G images
 are implemented; global45-entry acceptance and final regressions are pending.
 
+BIG S now reads both class0 arguments before its shared feature gates, then
+preserves original count/sign/silent-return and cache-before-device behavior.
+Raw cache bytes remain distinct from six-bit physical palette colors; S0
+changes logical background/palette0 while indexed pixels/images stay intact.
+Independent exhaustive state tests and native split/profile/lifetime/error
+fixtures verify all raw bytes against a separate RGB formula.98 new coherent
+scenes bring BIG to1820, checking live/saved-image recoloring, raw cache,
+silent rejection, capture under palette aliases and I1 restoration alongside
+the complete prior scene/state/replies. X8/global/final regressions are pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

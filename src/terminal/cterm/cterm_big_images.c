@@ -49,13 +49,13 @@ int cterm_big_image_command(struct cterm_big *big, const struct st_graphics_comm
 	}
 	if (operation==2) {
 		big->image_mode=mode(big->image_mode);
-		return big->image_gates[2][0]==big->image_gates[2][1]?cterm_big_draw_image(big,false,words):0;
+		return big->feature_gates[2][0]==big->feature_gates[2][1]?cterm_big_draw_image(big,false,words):0;
 	}
 	int status=0;
 	if (operation==3) status=active(big,big->state.memory_page);
 	if (status==0) status=size_query(big,words);
 	if (status!=0) return status;
-	if (big->image_gates[operation][0]==big->image_gates[operation][1]) {
+	if (big->feature_gates[operation][0]==big->feature_gates[operation][1]) {
 		status=cterm_big_draw_image(big,true,words); if (status!=0) return status;
 		if (operation==0) return cterm_big_draw_image(big,false,words+4);
 		if (operation==1 && big->numeric.context.resolution!=3) {

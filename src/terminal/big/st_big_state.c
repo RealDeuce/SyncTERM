@@ -40,6 +40,7 @@ static int defaults(struct st_big_state *s, const struct st_big_state_sink *sink
 {
 	if (s->bgi.state == 0) { s->bgi.error = -1; return IO_ERROR_PROTOCOL; }
 	viewport(s);
+	s->bgi.palette_size = 16;
 	memcpy(s->bgi.palette,st_bgi_ega_defaults,16);
 	if (sink != NULL) {
 		int status = synchronous(sink->palette(sink->context,0,s->bgi.palette,16,true));
@@ -67,7 +68,7 @@ void st_big_state_enter(struct st_big_state *s)
 	s->memory_page = 1; s->active_page = s->visual_page = 0;
 	/* A defined entry snapshot replaces the original uninitialized X8 local.
 	 * I/R do not refresh it while the interpreter frame remains active. */
-	s->local_palette[0] = 16; memcpy(s->local_palette+1,s->bgi.palette,16);
+	s->local_palette[0] = s->bgi.palette_size; memcpy(s->local_palette+1,s->bgi.palette,16);
 }
 void st_big_state_init(struct st_big_state *s)
 {
@@ -94,10 +95,16 @@ int st_big_state_install(struct st_big_state *s, unsigned resolution, const stru
 	s->bgi.active_page = s->bgi.visual_page = 0;
 	return defaults(s,sink);
 }
-static int single_palette(struct st_big_state *s, size_t pen, uint8_t value, const struct st_big_state_sink *sink)
+int st_big_state_palette(struct st_big_state *s, uint16_t pen, uint16_t value, const struct st_big_state_sink *sink)
 {
+	if (s==NULL || sink==NULL || sink->palette==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (s->bgi.state == 0) return 0;
-	s->bgi.palette[pen] = value;
+	uint16_t maximum=(uint16_t)((unsigned)s->bgi.palette_size-1u);
+	if (pen>maximum || st_big_number_signed(value)<0) return 0;
+	/* Corrupt count bytes can admit foreign cache addresses. Retain the
+	 * original preceding tests, then reject at the actual native extent. */
+	if (pen>=16) return IO_ERROR_OUT_OF_RANGE;
+	s->bgi.palette[pen] = (uint8_t)value;
 	if (pen == 0) s->bgi.background = 0;
 	return synchronous(sink->palette(sink->context,pen,&s->bgi.palette[pen],1,false));
 }
@@ -125,7 +132,7 @@ int st_big_state_initialize(struct st_big_state *s, uint16_t selector, uint8_t *
 	}
 	if (op == 1) {
 		for (size_t i = 0; i < 16; ++i) {
-			int status = single_palette(s,i,st_bgi_ega_defaults[i],sink);
+			int status = st_big_state_palette(s,(uint16_t)i,st_bgi_ega_defaults[i],sink);
 			if (status != 0) return status;
 		}
 	}

@@ -395,7 +395,8 @@
         "Distinct public logical, translated DDO and device points, current line offset distance, public colour and device pen, public style and downstream width/pattern; I/R defaults update the actual drawing state.",
         "Borrowed indexed VGA-profile aperture storage and authoritative visible windows: actual segment+WORD CPU addresses, independent wrapped display intervals, retained padding, distinct primary/alternate tokens and checked extent/prefix transfers. No persistent planar shadow or redundant authoritative visible copy.",
         "Native indexed backing/active/display routing for G4/5/6, every existing graphics sink and batched point reads; independent interpreter/device/BIOS page state, four cursor banks, protected host status row, mode clear and serialized resource lifetime.",
-        "Native G0..3 routing and engine-owned retained image storage/cache: format-edge indexed conversion, original image/page/gate/mode prefixes, snapshot overlap, protected UI rows and bounded nonfatal failure lifetimes."
+        "Native G0..3 routing and engine-owned retained image storage/cache: format-edge indexed conversion, original image/page/gate/mode prefixes, snapshot overlap, protected UI rows and bounded nonfatal failure lifetimes.",
+        "Explicit raw palette-size/cache ownership and public single setter, shared by S and I1/future X8; six-bit physical RGB publication preserves indexed image/page identities and independent feature gates."
       ],
       "tests": [
         "big_state",
@@ -409,7 +410,9 @@
         "syncterm_big_input",
         "big_image",
         "big_image_paste",
-        "cterm_big_images"
+        "cterm_big_images",
+        "big_palette",
+        "cterm_big_palette"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -662,6 +665,45 @@
             "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending."
           ],
           "commit": "4617796"
+        },
+        {
+          "id": "native-s-palette",
+          "status": "complete",
+          "operations": [
+            "Two class0 index/value reads precede original birch/plywood then pine/cone gates, shared with G2/G0; no caller clamp, own flow or private reply. Shared numeric/pre-ANSI/source/repeat/footer behavior is preserved.",
+            "Public setpalette silently rejects uninitialized state, unsigned index beyond U16(sizeBYTE-1), or a signed-negative full WORD. Accepted low-BYTE cache and logical-background0 stores precede device publication; old BGI error is neither a gate nor overwritten.",
+            "Actual BGI palette-size BYTE is initialized by defaults, retained by I1, and copied into defined frame snapshots alongside all16 raw cache bytes. S does not refresh same-frame local palette or saved WORDs; I1 and future X8 internal setters bypass S gates.",
+            "Raw8-bit cache data is separate from physical6-bit mapping through the shared EGA64 table:128 remains80/cache but physical0;262 becomes06/yellow rather than brown14; positive WORD7fff cachesff and maps3f.",
+            "Per-index native palette publication preserves indexed primary/alternate pens, image data, pages, points, fonts and fill. Capturing under aliased RGB colors retains distinct pen identities.",
+            "Checked count-driven native cache bounds and backend failure prefixes recover nonfatally; following S/ANSI/DSR continue. Native S is implemented; X8 and remaining full-command/global45-entry and final regressions stay pending."
+          ],
+          "tests": [
+            "big_palette",
+            "big_state",
+            "cterm_big_palette",
+            "cterm_big_images",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "26-palettes-rotation-and-native-reuse.adoc",
+            "45-planar-controller-and-digital-colour-output.adoc",
+            "55-palette-command-and-global-acceptance.adoc",
+            "83-global-native-reuse-and-implementation-map.adoc",
+            "palette-review-code.adoc:13d2:1012..104b;195a:14b5..14f7,1ea8..1ec6",
+            "palette-code.adoc:EGAVGA0104..0131"
+          ],
+          "deviations": [
+            "Corrupted size bytes retain the original wrapped count/sign tests; an admitted cache index outside the actual16-entry extent then rejects before foreign/wrapped DOS stores. Size0 indexffff therefore rejects rather than altering the adjacent original count byte.",
+            "Native RGB publication uses the declared ordinary VGA-capable six-bit attribute mapping and shared EGA64 RGB table; raw cache bytes retain all8 bits. Arbitrary altered Color Select/DAC/analog output is not a second hardware-emulation requirement."
+          ],
+          "verification": [
+            "Independent all65536 value WORDs for every pen, all65536 index WORDs under six count bytes, all256 size BYTEs at boundary indexes, initialized-state variants, full unrelated-state preservation and cache/background-before-callback error ordering. The public API fixture initially failed to link before implementation.",
+            "Native wire fixture initially failed against unsupported S. Every default split and bytewise all three modes/encodings/status cases preserve consumption, silent rejections, points/pages/images, common ANSI replies and raw cache/local/saved lifetimes.",
+            "All256 raw byte codes in each physical mode use a separate primary/secondary RGB formula; capture/paste keep distinct logical pens even when palette0/5 display the same color. I1 and fresh-engine defaults are checked.",
+            "Late shared gate/count/state checks, disabled gates bypassed by internal I1 setters, class0 g3/stored inclusive loops with exact flow, timeout versus EOF/reset and corrupt-count nonfatal recovery with subsequent S/ANSI/DSR.",
+            "98 new coherent application palette scenes,1820 total, verify raw16-byte cache/size versus physical RGB, existing/saved-image recoloring, signed/index silent no-ops, S0 aliases with recapture, and I1 restoration. Complete indexed planes/cells/palette/points/fill/cursor/pages/replies/diagnostics/image header/payload and RGB remain in one observation.",
+            "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending."
+          ]
         }
       ]
     },
@@ -1367,19 +1409,47 @@
     {
       "id": "S",
       "order": 6,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages"
       ],
       "references": [
-        "55-palette-command-and-global-acceptance.adoc"
+        "26-palettes-rotation-and-native-reuse.adoc",
+        "45-planar-controller-and-digital-colour-output.adoc",
+        "55-palette-command-and-global-acceptance.adoc",
+        "83-global-native-reuse-and-implementation-map.adoc",
+        "palette-review-code.adoc:13d2:1012..104b;195a:14b5..14f7,1ea8..1ec6",
+        "palette-code.adoc:EGAVGA0104..0131"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Two class0 index/value reads precede original birch/plywood then pine/cone gates, shared with G2/G0; no caller clamp, own flow or private reply. Shared numeric/pre-ANSI/source/repeat/footer behavior is preserved.",
+        "Public setpalette silently rejects uninitialized state, unsigned index beyond U16(sizeBYTE-1), or a signed-negative full WORD. Accepted low-BYTE cache and logical-background0 stores precede device publication; old BGI error is neither a gate nor overwritten.",
+        "Actual BGI palette-size BYTE is initialized by defaults, retained by I1, and copied into defined frame snapshots alongside all16 raw cache bytes. S does not refresh same-frame local palette or saved WORDs; I1 and future X8 internal setters bypass S gates.",
+        "Raw8-bit cache data is separate from physical6-bit mapping through the shared EGA64 table:128 remains80/cache but physical0;262 becomes06/yellow rather than brown14; positive WORD7fff cachesff and maps3f.",
+        "Per-index native palette publication preserves indexed primary/alternate pens, image data, pages, points, fonts and fill. Capturing under aliased RGB colors retains distinct pen identities.",
+        "Checked count-driven native cache bounds and backend failure prefixes recover nonfatally; following S/ANSI/DSR continue. Native S is implemented; X8 and remaining full-command/global45-entry and final regressions stay pending."
+      ],
+      "tests": [
+        "big_palette",
+        "big_state",
+        "cterm_big_palette",
+        "cterm_big_images",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Corrupted size bytes retain the original wrapped count/sign tests; an admitted cache index outside the actual16-entry extent then rejects before foreign/wrapped DOS stores. Size0 indexffff therefore rejects rather than altering the adjacent original count byte.",
+        "Native RGB publication uses the declared ordinary VGA-capable six-bit attribute mapping and shared EGA64 RGB table; raw cache bytes retain all8 bits. Arbitrary altered Color Select/DAC/analog output is not a second hardware-emulation requirement."
+      ],
+      "verification": [
+        "Independent all65536 value WORDs for every pen, all65536 index WORDs under six count bytes, all256 size BYTEs at boundary indexes, initialized-state variants, full unrelated-state preservation and cache/background-before-callback error ordering. The public API fixture initially failed to link before implementation.",
+        "Native wire fixture initially failed against unsupported S. Every default split and bytewise all three modes/encodings/status cases preserve consumption, silent rejections, points/pages/images, common ANSI replies and raw cache/local/saved lifetimes.",
+        "All256 raw byte codes in each physical mode use a separate primary/secondary RGB formula; capture/paste keep distinct logical pens even when palette0/5 display the same color. I1 and fresh-engine defaults are checked.",
+        "Late shared gate/count/state checks, disabled gates bypassed by internal I1 setters, class0 g3/stored inclusive loops with exact flow, timeout versus EOF/reset and corrupt-count nonfatal recovery with subsequent S/ANSI/DSR.",
+        "98 new coherent application palette scenes,1820 total, verify raw16-byte cache/size versus physical RGB, existing/saved-image recoloring, signed/index silent no-ops, S0 aliases with recapture, and I1 restoration. Complete indexed planes/cells/palette/points/fill/cursor/pages/replies/diagnostics/image header/payload and RGB remain in one observation.",
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending."
+      ],
       "commit": null
     },
     {

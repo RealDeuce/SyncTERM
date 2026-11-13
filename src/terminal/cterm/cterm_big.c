@@ -47,6 +47,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'Z',line,4,NULL},
 	{'F',flood,3,NULL},
 	{'G',scalar,1,image_next},
+	{'S',input_parameters,2,NULL},
 	{'m',move,2,move_next},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},{'H',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
@@ -219,8 +220,9 @@ static int palette(void *context, size_t first, const uint8_t *codes, size_t cou
 	struct cterm_big *big = context; uint32_t rgb[16]; (void)bulk;
 	if (first > 16 || count > 16-first) return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i = 0; i < count; ++i) {
-		if (codes[i] >= 64) return IO_ERROR_OUT_OF_RANGE;
-		const uint16_t *c = st_bgi_ega_colors[codes[i]];
+		/* Cache bytes retain all eight bits; the ordinary attribute
+		 * palette exposes six data bits in the declared VGA profile. */
+		const uint16_t *c = st_bgi_ega_colors[codes[i]&63u];
 		rgb[i] = (uint32_t)(c[0]>>8)<<16 | (uint32_t)(c[1]>>8)<<8 | (c[2]>>8);
 	}
 	return st_console_set_palette(big->terminal->screen.console,
@@ -318,6 +320,19 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='F') return cterm_big_flood_begin(big,view);
 	if (view->code=='Z') {
 		int status=cterm_big_draw_z(big,view);
+		return status==0?begin_footer(big,view):status;
+	}
+	if (view->code=='S') {
+		if (view->count!=2 || !view->arguments[0].has_value || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
+		int status=0;
+		/* Original birch/plywood then pine/cone tests occur after BOTH
+		 * class0 reads. Internal BGI setters do not inherit these gates. */
+		if (big->feature_gates[2][0]==big->feature_gates[2][1]
+		    && big->feature_gates[0][0]==big->feature_gates[0][1]) {
+			const struct st_big_state_sink sink={.context=big,.palette=palette};
+			status=st_big_state_palette(&big->state,(uint16_t)view->arguments[0].value,
+			    (uint16_t)view->arguments[1].value,&sink);
+		}
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='G') {
@@ -832,6 +847,12 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_flood_active", big->flood.active);
 	st_console_test_number(app, "cterm.big_last_error", big->last_error);
 	st_console_test_number(app, "cterm.big_rejected_commands", big->rejected_commands);
+	st_console_test_number(app, "cterm.big_palette_size", big->state.bgi.palette_size);
+	st_console_test_number(app, "cterm.big_bgi_background", big->state.bgi.background);
+	static const char *const palette_entries[]={"cterm.big_palette0","cterm.big_palette1","cterm.big_palette2","cterm.big_palette3",
+	    "cterm.big_palette4","cterm.big_palette5","cterm.big_palette6","cterm.big_palette7","cterm.big_palette8","cterm.big_palette9",
+	    "cterm.big_palette10","cterm.big_palette11","cterm.big_palette12","cterm.big_palette13","cterm.big_palette14","cterm.big_palette15"};
+	for (size_t i=0;i<16;++i) st_console_test_number(app,palette_entries[i],big->state.bgi.palette[i]);
 	st_console_test_number(app, "cterm.big_image_operation", big->image_operation);
 	st_console_test_number(app, "cterm.big_image_mode", big->image_mode);
 	st_console_test_number(app, "cterm.big_image_size", big->image_size);

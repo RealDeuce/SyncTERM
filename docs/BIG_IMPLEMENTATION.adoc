@@ -2281,3 +2281,82 @@ after that successful cropped paste.
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending.
 
 Native G0..3 image routes and retained ownership commit: `4617796`.
+
+=== Native S and public palette cache/device separation
+
+S now acquires index then value as two class0 WORDs in the shared pre-ANSI
+parser. After both reads, it tests the original birch/plywood pair, then
+pine/cone, and only then calls public setpalette. These are the SAME feature
+pairs used by G2 and G0; the private gate array is named for that shared
+responsibility. No early feature check, caller clamp, private response or
+flow sequence is added. Common source/repeat/footer/reply handling remains
+in place. The complete S caller/public/device instructions are in chapters
+26/55, `palette-review-code.adoc`13d2:1012..104b,195a:14b5..14f7,
+1ea8..1ec6 and `palette-code.adoc` EGAVGA0104..0131; reference83 scopes
+native data/backend reuse.
+
+The public operator is now `st_big_state_palette`, also used by I1 and
+available to later X8 without S's caller gates. State0, index beyond
+U16(sizeBYTE-1), or a signed-negative FULL value WORD returns silently,
+without cache/device/error changes. Old BGI errors do not suppress accepted
+calls. Accepted calls publish the LOW BYTE in the BGI cache, clear the
+logical background pen for index0, then dispatch the raw byte. A callback
+failure retains those preceding stores; IN_PROGRESS is a protocol error.
+
+The BGI cache now owns its actual size BYTE. Defaults publish size16 and
+the original16 bytes; I1 does not replace the size. Defined interpreter-entry
+snapshots copy that current size plus all16 cache bytes. S does not refresh
+the local snapshot or saved WORD palette. Tests retain both owners across
+single/batched setter calls, while later attention snapshots the new cache.
+
+Raw cache bytes and displayed colors remain separate. S5,262 decimal caches
+06 and displays code06 (#aaaa00); S5,128 caches80 and displays code00;
+a supplied positive7fff value WORD cachesff and displays code3f. The native
+palette adapter applies
+only the physical six-bit mask before looking up the already shared EGA64
+table. It does not normalize the cache to63, reject positive values above63,
+or reinterpret the argument as RGB/DAC components. The declared ordinary
+VGA-capable mapping and primary/secondary component weights are in45/48.
+No new controller/retrace/clock or analog-monitor model is introduced.
+
+For corrupted size bytes, the original count/sign tests still happen first.
+An admitted cache index outside the actual16-entry native extent then fails
+at that checked access, before a foreign store/device request. In particular
+size0 retains its wrapped maximumffff rather than an invented maximum0,
+but an indexffff escape is rejected instead of modifying the original
+adjacent count byte through address wrap. This is a documented safe-port
+correction for corrupted cache contexts; ordinary indices0..15 retain their
+original count/sign behavior. Native rejection uses the existing nonfatal
+BIG owner and preserves following S/ANSI/reply processing.
+
+Palette publication uses the existing indexed console backend. Neither
+pixels nor G image data are rewritten: visible and off-screen pen identities,
+both blink values, points, pages, fill and font owners remain intact. I1's
+internal setters bypass the S feature checks, preserving the same boundary
+needed by X8. The overscan path is not selected by S0; its logical background
+becomes pen0 while palette0 can still map to a nonblack displayed color.
+
+`big_palette` independently checks all65,536 value WORDs for each pen,
+all65,536 index WORDs under six cache sizes, every size BYTE at boundary
+indices, initialized/noninitialized state words, full-state preservation,
+raw publication/background-before-callback order and backend error prefixes.
+I1 count ownership, local/saved lifetimes and invalid API arguments are
+separate checks. The fixture initially failed to link the missing public API.
+`cterm_big_palette` failed against the former unsupported wire route, then
+checks every default split and bytewise three modes/encodings/status cases,
+all256 raw byte codes against independently derived RGB, class0 g3/stored
+loops and exact flow/replies. It verifies late gates/current count/state,
+timeout versus EOF/reset, nonfatal corrupt-cache recovery, saved image/point/
+page/pixel preservation, capture under RGB aliases and fresh-engine defaults.
+
+Seven new coherent application scenes per profile add98 scenes,1820 total.
+They check raw size/cache separately from physical RGB, recolor existing and
+saved-image pixels with S128/S63/S262, retain silent negative/index rejections,
+change palette0, capture pen5 while0/5 share the same displayed color, and
+restore I1 defaults without rewriting image indices. Complete indexed planes,
+cells/palette/points/fill/cursor/pages/replies/diagnostics/image header/payload
+and RGB samples remain in one observation. Routine verification stays
+BIG-specific. Native S is implemented; X8 and full45-entry/global composition
+and final cross-emulation regressions remain pending.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending.

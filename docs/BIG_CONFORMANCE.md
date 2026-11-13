@@ -1027,3 +1027,37 @@ then restore its old height349 without a capture-valid flag.
 Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending.
 
 Native G0..3 image routes and retained ownership commit: `4617796`.
+
+## Native S palette command
+
+S reads two class0 WORDs before checking birch/plywood then pine/cone, shared
+with G2/G0. The public setter silently rejects state0, unsigned index beyond
+U16(sizeBYTE-1), or a signed-negative full value. Accepted calls store the
+low BYTE, clear logical background for index0 and then publish to the native
+palette. Old BGI errors are retained and do not gate calls. Backend failures
+retain accepted cache/background stores and recover through the BIG owner.
+
+The actual cache size BYTE is preserved; defaults select16 while I1 does not
+change it. Local frame snapshots copy the current size/raw cache, and S does
+not update saved WORDs or refresh a same-frame local. Internal I1/future X8
+setters bypass S's feature tests. Corrupt count-driven accesses retain the
+original preceding checks, then reject outside the native16-entry extent
+instead of writing foreign adjacent/wrapped DOS data.
+
+Raw values remain distinct from six-bit physical colors:128 caches80 but
+displays0,262 caches06 and displays yellow06 rather than brown14, and positive
+WORD7fff cachesff and displays3f. Native per-index palette publication preserves
+stored pens, both blink values, pages, points and images. S0 changes palette0
+and logical background0, without clearing pixels or selecting overscan.
+
+Independent tests cover every WORD value/index, all cache-size BYTEs and
+boundary/state/sign cases, callback/error ordering and owner lifetimes.
+Native split/profile/source/loop/timeout/EOF/reset/gate/recovery cases verify
+all256 raw bytes with an independent RGB formula and captured images under
+palette aliases.98 new coherent scenes bring coverage to1820, including raw
+cache versus physical RGB, live image recoloring, silent rejections, S0 and
+I1 restoration with complete planes/cells/palette/state/points/pages/replies/
+image data/RGB expectations. S is natively implemented; X8 and remaining
+global45-entry/final-suite acceptance are pending. Routine tests remain BIG-only.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending.

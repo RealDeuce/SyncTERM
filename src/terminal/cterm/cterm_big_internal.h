@@ -110,7 +110,10 @@ struct cterm_big {
 	uint16_t video_cursors[4][2];
 	struct st_big_image image;
 	uint8_t image_bytes[ST_BIG_IMAGE_CAPACITY], image_pens[ST_BIG_IMAGE_PENS];
-	uint16_t image_operation, image_mode, image_size, image_gates[4][2];
+	uint16_t image_operation, image_mode, image_size;
+	/* G0 pine/cone, G1 maple/syrup, G2 birch/plywood, G3 oak/acorn.
+	 * S tests birch then pine after both reads; internal setters do not. */
+	uint16_t feature_gates[4][2];
 	size_t image_page_calls;
 	int last_error;
 	size_t rejected_commands;

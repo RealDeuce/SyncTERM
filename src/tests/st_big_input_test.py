@@ -19,6 +19,7 @@ from syncterm_control import CONTROL
 
 PALETTE = (0, 0xaa, 0xaa00, 0xaaaa, 0xaa0000, 0xaa00aa, 0xaa5500, 0xaaaaaa,
            0x555555, 0x5555ff, 0x55ff55, 0x55ffff, 0xff5555, 0xff55ff, 0xffff55, 0xffffff)
+EGA_CODES = (0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63)
 A = ((0x30, 0x78, 0xcc, 0xcc, 0xfc, 0xcc, 0xcc, 0),
      (0, 0, 0x10, 0x38, 0x6c, 0xc6, 0xc6, 0xfe, 0xc6, 0xc6, 0xc6, 0, 0, 0),
      (0, 0, 0x10, 0x38, 0x6c, 0xc6, 0xc6, 0xfe, 0xc6, 0xc6, 0xc6, 0xc6, 0, 0, 0, 0))
@@ -38,7 +39,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -87,7 +88,9 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     if loop_state is not None:
         assert (s["cterm.big_loop_current"], s["cterm.big_loop_count"],
                 s["cterm.big_loop_index"], s["cterm.big_no_parameters"]) == loop_state
-    assert tuple(frame.palette[800:816]) == PALETTE
+    assert s["cterm.big_palette_size"] == 16 and s["cterm.big_bgi_background"] == 0
+    assert tuple(s[f"cterm.big_palette{index}"] for index in range(16)) == palette_codes
+    assert tuple(frame.palette[800:816]) == expected_palette
     assert frame.cell_text(cell_at(frame, 12, 12)) == ("A" if seeded else " ")
     assert frame.cell_text(cell_at(frame, 2, 3)) == ("\u2588" if seeded else " ")
     if seeded:
@@ -123,7 +126,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     # Flat background interiors avoid differences from fractional edge filtering.
     ox = m["destination_x"] + 500 * 960 // 640
     oy = m["destination_y"] + 2 * ch * 720 // height
-    assert frame.rgb[oy * m["output_width"] + ox] & 0xffffff == 0
+    assert frame.rgb[oy * m["output_width"] + ox] & 0xffffff == expected_palette[0]
     if rgb_sample is not None:
         # Interior of an independently specified solid swatch; all its
         # neighbours agree, avoiding fractional edge-filter differences.
@@ -763,6 +766,51 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   fill_pixels=(int(f"{tile_pen:x}" * 8, 16),) * 8, hollow=0 if index >= 9 else 256,
                                   rejections=(-12, 2 if index == 10 else 1), pages=pages, backing=524288,
                                   image=(639, 349, mode, 0, payload, payload) if index == 10 else (8, 2, mode, 30, payload, payload))
+                        # Cache bytes and physical six-bit colours are
+                        # separate; image pens remain live under recolouring.
+                        def swatch(x0):
+                            return tuple((x, y, 5) for y in range(64, 73) for x in range(x0, x0 + 9))
+
+                        two_swatches = swatch(320) + swatch(340)
+                        three_swatches = two_swatches + swatch(360)
+                        four_swatches = three_swatches + swatch(380)
+                        palette_cases = (
+                            (f"I#R {resolution}:".encode() + b"I#C>2,5:A>1:B>320,64,328,72,0:G 0,0,320,64,328,72,340,64:",
+                             two_swatches, None, None, (344, 68, 0xaa00aa)),
+                            (b"I#S 5,128:", two_swatches, (5, 128), (5, 0), (344, 68, 0)),
+                            (b"I#S>5,63:G 2,0,360,64:", three_swatches, (5, 63), (5, 0xffffff), (364, 68, 0xffffff)),
+                            (b"I#S 5,262:", three_swatches, (5, 6), (5, 0xaaaa00), (344, 68, 0xaaaa00)),
+                            (b"I#S>5,+1:S 16,63:", three_swatches, None, None, (344, 68, 0xaaaa00)),
+                            (b"I#S>0,6:G 0,0,320,64,328,72,380,64:", four_swatches, (0, 6), (0, 0xaaaa00), (384, 68, 0xaaaa00)),
+                            (b"I#I 1:", four_swatches, None, None, (384, 68, 0xaa00aa)),
+                        )
+                        codes, physical = list(EGA_CODES), list(PALETTE)
+                        for index, (command, pixels, cached, mapped, rgb) in enumerate(palette_cases):
+                            if index == 6:
+                                codes, physical = list(EGA_CODES), list(PALETTE)
+                            if cached is not None:
+                                codes[cached[0]] = cached[1]
+                            if mapped is not None:
+                                physical[mapped[0]] = mapped[1]
+                            token = f"PALETTE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            pages = (local if index in (0, 2, 5) else 1, 0, 0, 0, 0, 0)
+                            check(client.wait_text(token), resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0), lower_points=((0, 0), (0, 0)),
+                                  colors=(271, 15, 5, 65535), graph_color=15, colored_pixels=pixels,
+                                  rgb_sample=rgb, fill=(1, 5), selected_fill=1, fill_pixels=(0x55555555,) * 8,
+                                  hollow=0, rejections=(-12, 2), pages=pages, backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), palette_codes=tuple(codes), expected_palette=tuple(physical))
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")
