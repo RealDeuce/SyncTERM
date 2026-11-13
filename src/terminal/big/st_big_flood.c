@@ -8,7 +8,7 @@
 struct flood {
 	struct st_big_flood *work;
 	const struct st_big_state *state;
-	const struct st_big_flood_sink *sink;
+	const struct st_big_memory_sink *sink;
 	uint16_t bounds[4], stride, mode_bottom, top_inverse, bottom_inverse;
 	uint16_t x, inverse_y, address, left, right;
 	uint16_t previous_inverse, previous_left, previous_right;
@@ -174,7 +174,7 @@ static int process_seed(struct flood *f, const struct st_big_flood_record *seed)
 	return 0;
 }
 int st_big_flood_fill(struct st_big_flood *work, struct st_big_state *s,
-    const struct st_big_flood_sink *sink, uint16_t x, uint16_t y, uint16_t boundary)
+    const struct st_big_memory_sink *sink, uint16_t x, uint16_t y, uint16_t boundary)
 {
 	if (work==NULL || s==NULL || sink==NULL || sink->read==NULL || sink->write==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (s->bgi.state==0) { s->bgi.error=-1; return IO_ERROR_PROTOCOL; }

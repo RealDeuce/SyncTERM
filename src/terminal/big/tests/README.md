@@ -387,3 +387,18 @@ restored old ROM text/blink/geometry, explicit frame/physical page inspection,
 source repetition and mode reset, with complete pixels/cells/palette/state/
 points/cursor/replies/diagnostics and RGB. G0..3 image routes and full global
 composition remain pending; this step does not claim complete G acceptance.
+
+`big_image` derives expectations from chapters25/40/56 and the original
+public size/header, DDO start translation and EGAVGA capture instructions.
+It tests every WORD delta using independent modular distances, literal4/9
+pixel encodings, all eight alignments and widths around byte boundaries,
+three physical modes with rows below the visible bottom, explicit import
+and cached source access, retained tails/padding and bounded malformed widths.
+Every read error of a shifted capture retains independently expected raw
+bytes and indexed bits. Shift0 lookahead, WORD source wrap, ffff-height
+body entry, query0 capture through its actual cursor-wrap failure,16
+unreachable owned tail bytes, short/header/cache extents, uninstalled state,
+callback pauses and invalid pens have separate checks. No external images
+or emulator-produced expectations are needed. The shared memory sink rename
+also retains `big_flood` and native fill/bar checks. G0..3 acquisition,
+native buffer lifetime/page routing and paste/application scenes are pending.

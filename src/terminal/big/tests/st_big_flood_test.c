@@ -70,10 +70,10 @@ static int write_byte(void *context, uint16_t address, uint8_t mask, uint8_t pla
 	}
 	return 0;
 }
-static struct st_big_flood_sink sink(struct fixture *f) { return (struct st_big_flood_sink){f,read_byte,write_byte}; }
+static struct st_big_memory_sink sink(struct fixture *f) { return (struct st_big_memory_sink){f,read_byte,write_byte}; }
 static int fill(struct fixture *f, uint16_t x, uint16_t y, uint16_t boundary)
 {
-	struct st_big_flood_sink io=sink(f);
+	struct st_big_memory_sink io=sink(f);
 	return st_big_flood_fill(&f->flood,&f->state,&io,x,y,boundary);
 }
 static void region(struct fixture *f)
@@ -271,7 +271,7 @@ static void overflow_and_errors(void)
 }
 static void clipping_and_interrupt(void)
 {
-	struct fixture f; init(&f); region(&f); struct st_big_flood_sink io=sink(&f);
+	struct fixture f; init(&f); region(&f); struct st_big_memory_sink io=sink(&f);
 	CHECK(fill(&f,65535,4,15)==0 && f.reads==0 && f.writes==0);
 	CHECK(fill(&f,1,1,0x010f)==0 && f.reads==1 && f.writes==0);
 	/* Origin translation remains enabled when clipping is disabled. */

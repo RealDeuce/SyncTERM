@@ -2038,3 +2038,73 @@ G4/5/6 native integration is implemented. G0..3 images and remaining global
 Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred.
 
 Native G4/G5/G6 and indexed page-routing commit: `d736676`.
+
+=== Image format, indexed storage and capture dependency
+
+`st_big_image` supplies the format/storage/capture boundary for the remaining
+G0..3 routes, from chapters25/40/56 and the complete `image-code.adoc`
+195a:1517..1547,1ab0..1b00,20bc..20f8, DDO0167..0170 and
+EGAVGA00cb..00df,04e6..0512,0c77..0ce3. This step does not register G0..3,
+implement paste, or claim full G acceptance.
+
+The borrowed image allocation retains its original65,548-byte capacity and
+B:0004 cursor origin. Only offsets0004..ffff belong to its fixed-segment
+cursor:65,532 bytes are addressable, with16 further owned bytes unreachable.
+There is no huge-pointer carry, allocator-prefix access, capture-valid flag
+or implicit lifetime reset. A native owner will explicitly zero initial
+storage instead of using the original uninitialized RAM; allocation and
+I/R/attention/reset/EOF lifetime binding remain part of native integration.
+Binding itself does not clear caller-supplied bytes.
+
+The first four bytes are little-endian width-minus1 and height-minus1.
+Payload rows contain MSB-first bytes for planes3,2,1,0 with zero unused low
+pixels in captured final bytes. The size query independently retains WORD
+subtraction/sign-bit negation, rounded byte count and product/ADD6 overflow
+to zero. It reserves six bytes, while capture writes only four header bytes
+plus payload. No size-based rejection suppresses capture: a640x350 query0
+still reaches its actual storage boundary and retains the written prefix.
+
+The compatibility byte arena preserves the header, raw cursor checks and
+retained tails. At binding/explicit import/capture header publication, its
+accessible payload is converted to padded indexed rows; successful capture
+stores update the same indexed cache at this format edge. Cache coverage
+includes reachable stale bytes beyond the advertised height and partial
+trailing planes. Source-byte access returns cached pen indices and its plane
+without decoding packed data again. Height does not limit that access.
+The declared196,608-pen cache bounds every WORD width and accessible prefix;
+the import checks the actual supplied cache extent. A failed reimport
+cannot expose a cache tiled for an older header. This representation is an
+image-format boundary, not a planar framebuffer, palette snapshot or RGB
+conversion at each blit.
+
+Capture unsigned-sorts corners and publishes both header words before
+driver dispatch. It translates only the starting point by the viewport
+origin; it does not clip to the viewport or physical bottom. Each row visits
+planes3..0, reading a current source byte and its lookahead even at shift0.
+It restores the source address for every plane, advances row and source
+offsets as WORDs, and processes height-deltaffff as65,536 rows. Native source
+and destination errors retain earlier header/payload/cache changes; a
+wrapped destination cursor reaching allocator prefix0..3 fails at that
+store after its actual source reads. Points, palette, attributes and old
+BGI error remain unchanged on normal capture. Uninstalled graphics reports
+BGI-1 after header publication. Synchronous callback IN_PROGRESS is rejected
+as a protocol error.
+
+The existing flood callback contract is now `st_big_memory_sink` in its own
+small header. Flood and image capture use the same indexed active-byte
+contract; the native flood adapter and raster behavior are unchanged. No
+second framebuffer or additional port/clock/controller model is introduced.
+
+Independent `big_image` tests cover every WORD size delta with modular
+distance expectations, literal4/9-pixel payloads, all source alignments and
+byte-edge widths in three resolutions, source/read/plane order, padded pens,
+retained tails beyond height, explicit import and cache-only source access,
+every read failure of an unaligned capture, exact partial raw/indexed
+changes, uninstalled/invalid-pen/pause errors, checked extents, WORD source
+wrap, ffff-height body entry and the640x350 query0/cursor-wrap prefix.
+Small/missing cache/header bindings fail without exposing stale layouts.
+Native G0..3 acquisition/page/gate/mode/paste/crop/Boolean/lifetime binding
+and coherent application image scenes remain pending. Existing1568 scenes
+are unchanged; routine verification remains BIG-only.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred.

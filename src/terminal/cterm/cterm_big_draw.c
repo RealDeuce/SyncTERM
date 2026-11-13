@@ -242,7 +242,7 @@ static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t pl
 struct flood_request { struct cterm_big *big; uint16_t x,y,boundary; };
 static int fill_region(struct drawing *drawing, uint16_t x, uint16_t y, uint16_t boundary)
 {
-	const struct st_big_flood_sink sink={drawing,flood_read,flood_write};
+	const struct st_big_memory_sink sink={drawing,flood_read,flood_write};
 	return st_big_flood_fill(&drawing->big->flood_work,&drawing->big->state,&sink,x,y,boundary);
 }
 static int flood_draw(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)

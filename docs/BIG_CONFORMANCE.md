@@ -914,3 +914,34 @@ run during iteration; final cross-emulation/full-suite verification is deferred.
 Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred.
 
 Native G4/G5/G6 and indexed page-routing commit: `d736676`.
+
+## Image format and capture dependency
+
+`big_image` covers the original four-byte little-endian header, row/plane
+3..0 packed format and WORD size query independently of capture capacity.
+The65,548-byte borrowed allocation begins at B:0004:65,532 bytes are
+reachable, with16 owned tail bytes beyond the fixed segment. Cursor wrap
+into allocator prefix0..3 fails at its actual access. Capture unsigned-sorts
+corners, writes the header before dispatch, translates only the start and
+reads lookahead even at shift0. It retains ordered partial effects, WORD
+source wrap and body-before-decrement heightffff semantics. A zero size
+query does not suppress capture. Normal calls retain all point/attribute/
+palette/error owners.
+
+Packed data converts at import/capture edges into padded indexed rows,
+including stale tails and partially stored planes. Later source reads return
+cached pens with checked original cursor addresses; they perform no packed
+decoding or RGB conversion. Failed reimports cannot expose the older layout.
+The memory callback contract is shared with flood fill. Native initialization
+will explicitly replace uninitialized DOS RAM with zero bytes; this component
+binds borrowed storage without clearing it or adding a capture-valid flag.
+
+Independent expectations include all WORD size deltas, literal byte vectors,
+all alignments and byte boundaries in three resolutions, every read-error
+prefix of an unaligned capture, retained raw/indexed changes, source/cursor
+wrap, malformed height, header/cache extents and uninstalled/pause/invalid
+pen failures. G0..3 wire routes, native image lifetime/page routing, paste
+geometry/Boolean writes and application image captures remain pending.
+No new coherent scenes or complete G acceptance are claimed by this step.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred.

@@ -276,6 +276,15 @@ and nonfatal save/load/CPU-extent failures.140 new coherent application scenes
 bring BIG to1568, checking complete retained pixels/cells/palette/state/points/
 cursor/replies/diagnostics/RGB. G0..3 images/global acceptance remain pending.
 
+BIG's image dependency now supplies the original WORD size query, four-byte
+header, plane3..0 format and ordered capture over the shared indexed memory
+interface. Conversion occurs at import/capture edges; source-byte reads use
+cached indexed pens, including retained tails, with actual fixed-segment
+cursor/extent checks. `big_image` has independent literal bytes, every size
+delta, alignments/rows, partial failures, malformed heights and source/buffer
+wrap expectations. Native G0..3/paste/lifetime integration and application
+image scenes remain pending; existing1568 coherent scenes are unchanged.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the
