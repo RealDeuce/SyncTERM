@@ -560,7 +560,7 @@
             "Existing coherent application scenes additionally check DDO line style/user/width, device width, total text width, decoded point and private justification in the same capture as existing font/ratio/pixel/cell/palette/image/point/page/reply/RNG observations.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All41 BIG-specific native CTests passed in46.83s. Final strengthened big_text_stroke passed in0.07s, including literal pixel/decoded-point failure prefixes and current per-glyph binding checks. syncterm_big_input passed in130.04s (test129.99s),2632 coherent scenes with the additional private-cache assertions. The first focused run exposed a64x64 fixture without matching clip bounds; the fixture now declares that bounded surface, preserving the original glyph/advance expectations. No non-BIG tests ran. Direct stroke layout/rendering is implemented; W bitmap sources/raster/initial move/count/acquisition/wire and full global45-entry/final acceptance remain pending."
           ],
-          "commit": null
+          "commit": "5c19345"
         }
       ]
     },
