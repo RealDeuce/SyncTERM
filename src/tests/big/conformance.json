@@ -213,7 +213,7 @@
             "126 new coherent application scenes bring coverage to2198. Repairs/equality, local second low-WORD seeds, a separately computed shared LCG draw and I1 retention are checked with complete pixels/cells/palette/state/points/fill/pages/cursor/image header/payload/replies/RGB. Earlier scenes also verify default random bounds.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All33 BIG-specific native CTests passed in50.47s, including cterm_big_random0.69s. syncterm_big_input passed in114.43s (test114.36s),2198 coherent scenes. No non-BIG tests ran. Native X2 is implemented; X0/speaker/global45-entry and final regressions remain pending."
           ],
-          "commit": null
+          "commit": "125d524"
         }
       ]
     },
