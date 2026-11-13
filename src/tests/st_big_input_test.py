@@ -39,7 +39,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1)):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -53,6 +53,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_bar_active"]
     assert not s["cterm.big_flood_active"]
     assert not s["cterm.big_rotation_active"]
+    assert tuple(s[f"cterm.big_flow_{field}"] for field in ("mode", "on_byte", "off_byte", "on_count", "off_count")) == flow
     assert (s["cterm.big_last_error"], s["cterm.big_rejected_commands"]) == rejections
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
@@ -888,6 +889,39 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             assert frame.application["cterm.big_palette_padding"] == 0
                             assert tuple(frame.application[f"cterm.big_local_palette{i}"] for i in range(16)) == tuple(local_codes)
                             assert tuple(frame.application[f"cterm.big_saved_palette{i}"] for i in range(16)) == tuple(saved_codes)
+                        # X5 changes settings without transmitting them.
+                        # Negative X8 count exercises flow without drawing.
+                        flows = (
+                            (b"I#X>5,0:X 8,3,4,+1,0:", (0, 17, 19, 1, 1), b""),
+                            (b"I#X 5,2,256,2:", (2, 0, 19, 2, 1), b""),
+                            (b"I#X 5,3,511,2:", (3, 0, 255, 2, 2), b""),
+                            (b"I#X 8,3,4,+1,0:", (3, 0, 255, 2, 2), b"\xff\xff\0\0"),
+                            (b"I#X 5,2,300,+1:", (2, 44, 255, 65535, 2), b""),
+                            (b"I#X 8,3,4,+1,0:", (2, 44, 255, 65535, 2), b"\xff\xff"),
+                            (b"I#X 5,+1:", (65535, 44, 255, 65535, 2), b""),
+                            (b"I#X 5,4:", (4, 17, 19, 1, 1), b""),
+                            (b"I#X 5,1:", (1, 17, 19, 1, 1), b""),
+                        )
+                        for index, (command, flow, prefix) in enumerate(flows):
+                            token = f"FLOW{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = prefix + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            check(client.wait_text(token), resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0), lower_points=((0, 0), (0, 0)),
+                                  colors=(271, 15, 5, 65535), graph_color=15, colored_pixels=four_swatches,
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), flow=flow)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

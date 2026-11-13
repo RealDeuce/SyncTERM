@@ -470,3 +470,17 @@ and error/EOF/reset prefixes.126 new application scenes (1946 total) retain
 the complete scene while checking both rotations/endpoints, saved negative
 words, live local-key cancellation and I1 restoration. Native X8 is
 implemented; sound/global composition and final regressions remain pending.
+
+`big_flow_settings` derives X5 expectations from the complete33/52 caller.
+All operation WORDs run under loop0/1/2/ffff, and each byte/count WORD runs
+through both custom branches. Full unrelated-state comparisons, live mode
+changes activating both branches/defaults and post-read loop override retain
+the original ordering. The API fixture first failed to link before the reader
+was implemented. Native `cterm_big_flow` checks all splits/default profile
+and bytewise three modes/encodings/status cases, complete indexed planes/
+RGB/image/state preservation, partial reads/EOF/reset/timeout/error,
+g3/stored-wire seams and common loop/chain/deferred replies. Actual X8
+flow tests verify NUL/ff literals, signed-negative counts and130-byte output
+resumption without duplicate prefixes.126 new application scenes (2072 total)
+observe flow settings/replies with the complete retained scene. Native X5 is
+implemented; remaining global/full-suite acceptance stays pending.

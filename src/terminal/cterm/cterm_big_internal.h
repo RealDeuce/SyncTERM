@@ -98,6 +98,8 @@ struct cterm_big {
 	struct st_big_numeric numeric;
 	struct st_big_state state;
 	struct st_big_control control;
+	struct st_big_flow_settings flow_settings;
+	size_t flow_settings_arguments;
 	struct st_big_footer footer;
 	struct st_big_control_sink control_io;
 	struct cterm_big_input input;

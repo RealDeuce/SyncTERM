@@ -755,7 +755,8 @@
         "Hybrid pointer: keyboard/X6 movement plus native mouse movement; no OS-pointer warp. Stationary mouse/button observations preserve keyboard position.",
         "Valid left press arms a release-triggered shared click action; preserve keyboard confirm, prevent duplicate/ghost selections, honor local UI/disabled/status/outside policy.",
         "Native stored-loop BIOS-ready/getch adaptation, post-value key cancellation and ordered unread native-event replay shared with IGS.",
-        "Nonfatal BIG command recovery at the graphics owner: cancel pending work, retain accepted prefixes, process unread bytes and contain poll/deferred-pointer/EOF errors with last-error/count diagnostics."
+        "Nonfatal BIG command recovery at the graphics owner: cancel pending work, retain accepted prefixes, process unread bytes and contain poll/deferred-pointer/EOF errors with last-error/count diagnostics.",
+        "Native X5 incremental flow settings retain post-read loop override, independent mode/byte/count stores and shared native transport/footer semantics across waits and lifecycle boundaries."
       ],
       "tests": [
         "cterm_big",
@@ -768,7 +769,9 @@
         "syncterm_big_input",
         "big_control",
         "big_stream",
-        "cterm_big_resolution"
+        "cterm_big_resolution",
+        "big_flow_settings",
+        "cterm_big_flow"
       ],
       "references": [
         "01-scope-evidence.adoc",
@@ -1217,6 +1220,43 @@
             "Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred."
           ],
           "commit": "d736676"
+        },
+        {
+          "id": "native-x5-flow-settings",
+          "status": "complete",
+          "operations": [
+            "Incremental class0 operation read stores the raw flow-mode WORD, then any nonzero current loop WORD forces1. A loop ending during that read can enable custom operands; an entry-state arity decision is not used.",
+            "Independent current mode2 and mode3 tests acquire the respective XON/XOFF low BYTE before the full count WORD. A selected pair completes despite changed mode; changes during its count can reach later custom/default branches.",
+            "The final independent signed mode>3 test restores bytes17/19 and counts1/1 while retaining the raw mode. Negative modes enable retained settings. Signed counts are not clamped or capped.",
+            "X5 has no own output/raster operation and completes through the shared repeat/chain/deferred-reply footer. Existing flow helpers consume live settings with their accepted-byte/readiness semantics.",
+            "I/R/attention/EOF/reset retain completed mode/byte/count stores; pending acquisition is discarded. Source/clock rejection is nonfatal and retains accepted prefixes. Fresh engines restore initial mode1/default bytes/counts."
+          ],
+          "tests": [
+            "big_flow_settings",
+            "big_control",
+            "big_numeric",
+            "cterm_big_flow",
+            "cterm_big_rotation",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "33-extended-dispatch-ranges-and-flow.adoc",
+            "52-extended-control-command-acceptance.adoc",
+            "controls-code.adoc:13d2:09ab..0a24",
+            "73-global-readers-and-loops-acceptance.adoc"
+          ],
+          "deviations": [
+            "Native output uses the existing serialized transport callback/readiness contract. No foreign FOSSIL ports, interrupts or DOS capture-log aliases are introduced. Whole arbitrary foreign memory aliases remain outside the native owned-state boundary; live native owner changes and ordinary acquisition/store order are retained."
+          ],
+          "verification": [
+            "Independent API expectations first failed to link the missing reader. Every operation WORD runs under loop0/1/2/ffff; every byte/count WORD runs through both custom branches with full unrelated-state comparisons. Live mode changes activate both custom branches and the final defaults, and loop changes prove post-read override.",
+            "Native every default split and bytewise all mode/encoding/status cases retain complete BGI state/indexed planes/native RGB/image bytes while checking dynamic class0 acquisition. Partial operation/byte/count reads, I/R/attention/EOF/reset retention, real timeout substitution, clock-error/nonfatal recovery and fresh-engine defaults are independently expected.",
+            "Stored-wire source seams exercise a loop ending during operation read and loop2 overriding to1; constant supplied records retain the first override and then acquire the final custom pair from wire. g3 class0, chaining and deferred replies are checked.",
+            "Actual X8 flow emits literal NUL/ff custom bytes, suppresses disabled and signed-negative counts, and resumes130 XON bytes across per-poll budgets without repeating its XOFF prefix.",
+            "126 new coherent application scenes bring coverage to2072 across all mode/encoding/status cases. Current mode/bytes/counts and exact flow/replies are compared with the full retained cells/indexed pixels/palette/state/points/fill/pages/cursor/image header/payload and composed RGB. All earlier scenes also check default flow settings.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All32 BIG-specific native CTests passed in45.23s, including cterm_big_flow0.73s. syncterm_big_input passed in107.60s (test107.54s),2072 coherent scenes. No non-BIG tests ran. Native X5 is implemented; remaining global45-entry/final-suite acceptance stays pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2242,7 +2282,7 @@
     {
       "id": "X5",
       "order": 34,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2250,12 +2290,38 @@
         "application-integration"
       ],
       "references": [
-        "52-extended-control-command-acceptance.adoc"
+        "33-extended-dispatch-ranges-and-flow.adoc",
+        "52-extended-control-command-acceptance.adoc",
+        "controls-code.adoc:13d2:09ab..0a24",
+        "73-global-readers-and-loops-acceptance.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Incremental class0 operation read stores the raw flow-mode WORD, then any nonzero current loop WORD forces1. A loop ending during that read can enable custom operands; an entry-state arity decision is not used.",
+        "Independent current mode2 and mode3 tests acquire the respective XON/XOFF low BYTE before the full count WORD. A selected pair completes despite changed mode; changes during its count can reach later custom/default branches.",
+        "The final independent signed mode>3 test restores bytes17/19 and counts1/1 while retaining the raw mode. Negative modes enable retained settings. Signed counts are not clamped or capped.",
+        "X5 has no own output/raster operation and completes through the shared repeat/chain/deferred-reply footer. Existing flow helpers consume live settings with their accepted-byte/readiness semantics.",
+        "I/R/attention/EOF/reset retain completed mode/byte/count stores; pending acquisition is discarded. Source/clock rejection is nonfatal and retains accepted prefixes. Fresh engines restore initial mode1/default bytes/counts.",
+        "Native X5 is implemented; remaining command/global45-entry composition and final cross-emulation regressions stay pending."
+      ],
+      "tests": [
+        "big_flow_settings",
+        "big_control",
+        "big_numeric",
+        "cterm_big_flow",
+        "cterm_big_rotation",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native output uses the existing serialized transport callback/readiness contract. No foreign FOSSIL ports, interrupts or DOS capture-log aliases are introduced. Whole arbitrary foreign memory aliases remain outside the native owned-state boundary; live native owner changes and ordinary acquisition/store order are retained."
+      ],
+      "verification": [
+        "Independent API expectations first failed to link the missing reader. Every operation WORD runs under loop0/1/2/ffff; every byte/count WORD runs through both custom branches with full unrelated-state comparisons. Live mode changes activate both custom branches and the final defaults, and loop changes prove post-read override.",
+        "Native every default split and bytewise all mode/encoding/status cases retain complete BGI state/indexed planes/native RGB/image bytes while checking dynamic class0 acquisition. Partial operation/byte/count reads, I/R/attention/EOF/reset retention, real timeout substitution, clock-error/nonfatal recovery and fresh-engine defaults are independently expected.",
+        "Stored-wire source seams exercise a loop ending during operation read and loop2 overriding to1; constant supplied records retain the first override and then acquire the final custom pair from wire. g3 class0, chaining and deferred replies are checked.",
+        "Actual X8 flow emits literal NUL/ff custom bytes, suppresses disabled and signed-negative counts, and resumes130 XON bytes across per-poll budgets without repeating its XOFF prefix.",
+        "126 new coherent application scenes bring coverage to2072 across all mode/encoding/status cases. Current mode/bytes/counts and exact flow/replies are compared with the full retained cells/indexed pixels/palette/state/points/fill/pages/cursor/image header/payload and composed RGB. All earlier scenes also check default flow settings.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All32 BIG-specific native CTests passed in45.23s, including cterm_big_flow0.73s. syncterm_big_input passed in107.60s (test107.54s),2072 coherent scenes. No non-BIG tests ran. Native X5 is implemented; remaining global45-entry/final-suite acceptance stays pending."
+      ],
       "commit": null
     },
     {

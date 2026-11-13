@@ -2426,3 +2426,44 @@ including cterm_big_rotation0.64s. syncterm_big_input passed in101.50s
 (test101.45s),1946 coherent scenes. No non-BIG tests ran.
 
 Native X8 implementation commit: `097a486`.
+
+== Native X5 flow settings
+
+The complete13d2:09ab..0a24 caller in33/52/controls-code now drives an
+incremental control reader. After its class0 operation returns, X5 stores
+the full WORD mode, then forces1 if the current loop WORD is any nonzero
+value. A loop ending during that read can therefore enable custom operands.
+Mode2 reads/stores the low XON byte before acquiring its full count WORD;
+an independent current-mode3 test then does the same for XOFF. The final
+independent signed mode>3 test restores bytes17/19 and both counts1 while
+retaining the raw mode. Negative modes retain existing custom settings.
+
+The native dynamic-arity callback commits each completed read exactly once
+before selecting the next field. A chosen byte/count pair stays selected
+while a read waits; live mode changes during its count can reach the later
+custom/default branches. No fixed operation switch prereads both operands.
+Counts remain signed WORDs for later transmission, with no normalization
+or new repetition cap. X5 itself transmits nothing and uses the existing
+repeat/chain/deferred-reply footer. I/R/attention/EOF/reset retain completed
+settings; a fresh engine restores startup defaults. Source/clock errors
+retain the preceding mode/byte stores and recover through the nonfatal owner.
+
+`big_flow_settings` independently checks every operation WORD under loop
+states0/1/2/ffff and every character/count WORD for both custom branches,
+plus current-mode changes, post-read override, unrelated state and invalid
+API calls. The fixture first failed to link the missing public API.
+`cterm_big_flow` verifies every default split and bytewise profiles, unchanged
+full indexed planes/native RGB/image/state, late loop/source changes, partial
+EOF/reset versus timeout/error, g3 class0 arguments, loop/chain/deferred
+replies and fresh-engine defaults. Actual X8 calls verify custom NUL/ff flow,
+signed-negative counts and130-byte resumption without duplicate prefixes.
+Nine new application scenes per profile add126 coherent captures,2072 total,
+checking current settings and literal flow bytes alongside the complete
+unchanged scene, palette, state, pages, points, cursor, images and RGB.
+Native X5 is implemented; remaining commands/global45-entry and final
+regressions remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without
+compiler/source diagnostics. All32 BIG-specific native CTests passed in45.23s,
+including cterm_big_flow0.73s. syncterm_big_input passed in107.60s
+(test107.54s),2072 coherent scenes. No non-BIG tests ran.

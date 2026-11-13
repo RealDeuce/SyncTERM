@@ -28,6 +28,54 @@ void st_big_control_init(struct st_big_control *c)
 	c->pointer.step_x=12; c->pointer.step_y=6;
 	st_big_control_enter(c);
 }
+enum { SETTINGS_OFF, SETTINGS_OPERATION, SETTINGS_ON_CHECK, SETTINGS_ON_BYTE,
+	SETTINGS_ON_COUNT, SETTINGS_OFF_CHECK, SETTINGS_OFF_BYTE, SETTINGS_OFF_COUNT,
+	SETTINGS_DEFAULTS, SETTINGS_DONE };
+void st_big_flow_settings_begin(struct st_big_flow_settings *r)
+{
+	if (r!=NULL) r->phase=SETTINGS_OPERATION;
+}
+int st_big_flow_settings_next(struct st_big_flow_settings *r, struct st_big_control *c, bool *read)
+{
+	if (r==NULL || c==NULL || read==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	for (;;) switch (r->phase) {
+	case SETTINGS_OPERATION: case SETTINGS_ON_BYTE: case SETTINGS_ON_COUNT:
+	case SETTINGS_OFF_BYTE: case SETTINGS_OFF_COUNT:
+		*read=true; return 0;
+	case SETTINGS_ON_CHECK:
+		r->phase=c->flow.mode==2?SETTINGS_ON_BYTE:SETTINGS_OFF_CHECK; break;
+	case SETTINGS_OFF_CHECK:
+		r->phase=c->flow.mode==3?SETTINGS_OFF_BYTE:SETTINGS_DEFAULTS; break;
+	case SETTINGS_DEFAULTS:
+		if (st_big_number_signed(c->flow.mode)>3) {
+			c->flow.byte[0]=17; c->flow.byte[1]=19;
+			c->flow.count[0]=1; c->flow.count[1]=1;
+		}
+		r->phase=SETTINGS_DONE; break;
+	case SETTINGS_DONE: *read=false; return 0;
+	default: return IO_ERROR_INVALID_ARGUMENT;
+	}
+}
+int st_big_flow_settings_value(struct st_big_flow_settings *r, struct st_big_control *c,
+	const struct st_big_loop *loop, uint16_t value)
+{
+	if (r==NULL || c==NULL || loop==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	switch (r->phase) {
+	case SETTINGS_OPERATION:
+		c->flow.mode=value;
+		if (loop->active!=0) c->flow.mode=1;
+		r->phase=SETTINGS_ON_CHECK; return 0;
+	case SETTINGS_ON_BYTE:
+		c->flow.byte[0]=(uint8_t)value; r->phase=SETTINGS_ON_COUNT; return 0;
+	case SETTINGS_ON_COUNT:
+		c->flow.count[0]=value; r->phase=SETTINGS_OFF_CHECK; return 0;
+	case SETTINGS_OFF_BYTE:
+		c->flow.byte[1]=(uint8_t)value; r->phase=SETTINGS_OFF_COUNT; return 0;
+	case SETTINGS_OFF_COUNT:
+		c->flow.count[1]=value; r->phase=SETTINGS_DEFAULTS; return 0;
+	default: return IO_ERROR_INVALID_ARGUMENT;
+	}
+}
 void st_big_flow_begin(struct st_big_flow_reader *r, const struct st_big_control *c, bool on)
 {
 	if (r == NULL || c == NULL) return;

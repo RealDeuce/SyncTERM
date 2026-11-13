@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X5/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
 through native CTerm. Native < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
@@ -1100,3 +1100,29 @@ compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s;
 (test101.45s),1946 coherent scenes. No non-BIG tests ran.
 
 Native X8 implementation commit: `097a486`.
+
+## Native X5 flow settings
+
+X5 stores the class0 operation WORD, then tests the current loop WORD; any
+nonzero loop forces mode1. Custom mode2/3 reads publish their byte before
+the count arrives. Independent current-mode checks permit both branches
+and the final signed mode>3 default reset; the raw mode remains unchanged.
+Negative modes retain custom settings, and full count WORDs keep their
+signed transmission behavior. X5 sends no flow itself. Existing helpers
+and the common repeat/chain/deferred-reply footer consume the new settings.
+I/R/attention/EOF/reset preserve completed stores; reconnect starts defaults.
+
+`big_flow_settings` checks all operation WORDs under four loop states and
+all character/count WORDs in both branches, with complete unrelated-state
+comparisons and live branch changes. `cterm_big_flow` verifies splits/profiles,
+partial effects, stored/wire transitions, g3, timeout/EOF/reset/error recovery,
+deferred replies, NUL/ff flow and output resumption.126 new coherent application
+scenes bring BIG to2072, observing settings/literal replies with the unchanged
+indexed image/pixel/cell/palette/point/fill/page/cursor scene and composed RGB.
+Native X5 is implemented; remaining commands/global45-entry and final
+cross-emulation regressions remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without
+compiler/source diagnostics. All32 BIG-specific native CTests passed in45.23s,
+including cterm_big_flow0.73s. syncterm_big_input passed in107.60s
+(test107.54s),2072 coherent scenes. No non-BIG tests ran.

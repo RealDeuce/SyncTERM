@@ -99,9 +99,27 @@ static int style_next(void *context, const struct st_graphics_command_view *view
 static int extended_next(void *context, const struct st_graphics_command_view *view,
     struct st_graphics_parameter *parameter)
 {
-	(void)context;
+	struct cterm_big *big=((struct st_big_numeric *)context)->io.context;
 	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 	*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_END};
+	if ((uint16_t)view->arguments[0].value==5) {
+		if (view->count==1) {
+			st_big_flow_settings_begin(&big->flow_settings);
+			big->flow_settings_arguments=1;
+		} else {
+			if (view->count!=big->flow_settings_arguments+1 || !view->arguments[view->count-1].has_value)
+				return IO_ERROR_PROTOCOL;
+			int status=st_big_flow_settings_value(&big->flow_settings,&big->control,&big->numeric.loop,
+			    (uint16_t)view->arguments[view->count-1].value);
+			if (status!=0) return status;
+			big->flow_settings_arguments=view->count;
+		}
+		bool read;
+		int status=st_big_flow_settings_next(&big->flow_settings,&big->control,&read);
+		if (status!=0) return status;
+		if (read) parameter->kind=ST_GRAPHICS_NUMBER;
+		return 0;
+	}
 	if ((uint16_t)view->arguments[0].value==1) {
 		if (view->count<3) *parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
 		else {
@@ -429,6 +447,7 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		uint16_t selector=(uint16_t)view->arguments[0].value;
 		if (selector==8) return cterm_big_rotation_begin(big,view);
+		if (selector==5) return begin_footer(big,view);
 		if (selector==1) {
 			int status;
 			if (view->count==3 && view->arguments[1].has_value && view->arguments[2].has_value)
@@ -506,6 +525,7 @@ static void cancel(struct cterm_big *big)
 	memset(&big->bar,0,sizeof(big->bar));
 	memset(&big->flood,0,sizeof(big->flood));
 	memset(&big->rotation,0,sizeof(big->rotation));
+	memset(&big->flow_settings,0,sizeof(big->flow_settings)); big->flow_settings_arguments=0;
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -864,6 +884,11 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_bar_active", big->bar.active);
 	st_console_test_number(app, "cterm.big_flood_active", big->flood.active);
 	st_console_test_number(app, "cterm.big_rotation_active", big->rotation.active);
+	st_console_test_number(app, "cterm.big_flow_mode", big->control.flow.mode);
+	st_console_test_number(app, "cterm.big_flow_on_byte", big->control.flow.byte[0]);
+	st_console_test_number(app, "cterm.big_flow_off_byte", big->control.flow.byte[1]);
+	st_console_test_number(app, "cterm.big_flow_on_count", big->control.flow.count[0]);
+	st_console_test_number(app, "cterm.big_flow_off_count", big->control.flow.count[1]);
 	st_console_test_number(app, "cterm.big_rotation_first", big->rotation.colors.first);
 	st_console_test_number(app, "cterm.big_rotation_last", big->rotation.colors.last);
 	st_console_test_number(app, "cterm.big_rotation_count", big->rotation.colors.count);

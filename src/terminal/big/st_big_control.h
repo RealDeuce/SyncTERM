@@ -34,6 +34,18 @@ struct st_big_flow_reader {
 	int error;
 	bool enabled;
 };
+struct st_big_flow_settings {
+	unsigned phase;
+};
+/* X5's incremental class0 body, without its selector or shared footer.
+ * next advances independent current-mode tests/defaults until another read
+ * or completion. value commits one reached read, including the post-read
+ * loop override and byte-before-count prefixes. Neither sends flow bytes.
+ * Owners may change between serialized calls; a selected read stays selected. */
+void st_big_flow_settings_begin(struct st_big_flow_settings *);
+int st_big_flow_settings_next(struct st_big_flow_settings *, struct st_big_control *, bool *read);
+int st_big_flow_settings_value(struct st_big_flow_settings *, struct st_big_control *,
+	const struct st_big_loop *, uint16_t value);
 enum st_big_footer_action { ST_BIG_FOOTER_REPEAT, ST_BIG_FOOTER_CHAIN, ST_BIG_FOOTER_RETURN };
 struct st_big_footer {
 	unsigned phase;
