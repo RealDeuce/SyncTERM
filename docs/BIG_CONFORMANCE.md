@@ -945,3 +945,5 @@ geometry/Boolean writes and application image captures remain pending.
 No new coherent scenes or complete G acceptance are claimed by this step.
 
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred.
+
+Image format, indexed cache and ordered capture dependency commit: `0d1d737`.

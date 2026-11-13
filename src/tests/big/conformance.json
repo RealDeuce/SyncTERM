@@ -547,7 +547,8 @@
             "Every source-read failure in an unaligned capture with complete raw/indexed prefix expectations, shift0 lookahead, uninstalled/invalid-pen/pause errors, old state preservation, retained tails/padding, explicit-import versus cached-read behavior, malformed widths/heights and precise source/destination cursor wrap.",
             "640x350 query0 reaches65528 accepted payload bytes, then fails at allocator-prefix cursor0 after66349 source reads; all16 unreachable owned tail bytes retain prior values. No new native G0..3 or application image acceptance is claimed.",
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All24 BIG-specific native CTest checks passed in16.00s, including big_image in0.53s. Final expanded origin-wrap/full-WORD-width image checks passed in0.58s (test0.52s). No non-BIG tests ran. The unchanged application fixture was not rerun for this library dependency; existing1568 scenes and pending native G0..3/paste/lifetime/global acceptance remain unchanged. Final full-suite verification stays deferred."
-          ]
+          ],
+          "commit": "0d1d737"
         }
       ]
     },
