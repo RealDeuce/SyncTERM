@@ -69,7 +69,7 @@ static int pixel(void *context, uint16_t x, uint16_t y, uint8_t pen, bool xor_mo
 static int modify(struct cterm_big *big,
     int (*edit)(void *, const struct st_pixel_buffer *, struct st_console_rect *), void *context)
 {
-	int status=cterm_big_video_prepare(big);
+	int status=cterm_big_video_prepare(big,false);
 	if (status==0) status=st_console_modify_pixels(big->terminal->screen.console,edit,context);
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }
@@ -211,7 +211,7 @@ int cterm_big_bar_poll(struct cterm_big *big, const uint8_t *bytes, size_t size,
 		}
 	}
 }
-static int flood_read(void *context, uint16_t address, uint8_t pens[8])
+static int memory_read(void *context, uint16_t address, uint8_t pens[8])
 {
 	struct drawing *draw=context;
 	for (unsigned i=0;i<8;++i) {
@@ -222,7 +222,7 @@ static int flood_read(void *context, uint16_t address, uint8_t pens[8])
 	}
 	return 0;
 }
-static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8], uint8_t mode)
+static int memory_write(void *context, uint16_t address, uint8_t mask, uint8_t planes, const uint8_t pens[8], uint8_t mode)
 {
 	struct drawing *draw=context;
 	for (unsigned i=0;i<8;++i) if (mask&(0x80u>>i)) {
@@ -244,8 +244,27 @@ static int flood_write(void *context, uint16_t address, uint8_t mask, uint8_t pl
 struct flood_request { struct cterm_big *big; uint16_t x,y,boundary; };
 static int fill_region(struct drawing *drawing, uint16_t x, uint16_t y, uint16_t boundary)
 {
-	const struct st_big_memory_sink sink={drawing,flood_read,flood_write};
+	const struct st_big_memory_sink sink={drawing,memory_read,memory_write};
 	return st_big_flood_fill(&drawing->big->flood_work,&drawing->big->state,&sink,x,y,boundary);
+}
+struct image_request { struct cterm_big *big; const uint16_t *words; bool capture; };
+static int image_draw(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct image_request *request=context; struct cterm_big *big=request->big;
+	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
+	const struct st_big_memory_sink sink={&drawing,memory_read,memory_write};
+	const uint16_t *words=request->words;
+	if (request->capture) return st_big_image_capture(&big->image,&big->state,&sink,words[0],words[1],words[2],words[3]);
+	return st_big_image_paste(&big->image,&big->state,&sink,words[0],words[1],big->image_mode);
+}
+int cterm_big_draw_image(struct cterm_big *big, bool capture, const uint16_t *words)
+{
+	/* Raw image reads include lookahead and rows outside the visible view.
+	 * Reserve the indexed aperture before entering the console update. */
+	int status=cterm_big_video_prepare(big,true); if (status!=0) return status;
+	struct image_request request={big,words,capture};
+	status=st_console_modify_pixels(big->terminal->screen.console,image_draw,&request);
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }
 static int flood_draw(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {

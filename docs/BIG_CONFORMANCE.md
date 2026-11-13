@@ -981,3 +981,47 @@ only BIG tests run during development, with full regressions deferred.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending.
 
 Indexed image paste and shared Boolean kernel commit: `c1e6c86`.
+
+## Native G0..3 image routes
+
+G now binds all seven routes. Images use dynamic mode/X/Y argument counts
+through the existing numeric/pre-ANSI reader. G0/G1/G2 select local active
+before mode; G3 selects memory only after its full suffix. Mode clamps at
+the original time, including G2 after its destination. Independent gates
+retain preceding page/query prefixes. G1 captures even at cache3 but skips
+its memory paste there; other modes paste at the original first corner and
+restore active only on success. G3 preserves both active calls and its
+false-gate tail. G0 captures before overlapping paste. G2 uses retained bytes
+without a capture-valid flag or size query. Unknown WORD operations retain
+the resolution3 reset without guessed payloads. Normal completion retains
+the common footer/source/flow/reply behavior.
+
+The BIG engine owns the original65,548-byte raw allocation and a bounded
+indexed cache. Defined startup zeros replace uninitialized DOS bytes;
+I/R/attention/EOF/reset/error cleanup retain the image and destruction frees
+it. Fresh reconnects begin with the real1x1 pen0 image. Native memory access
+uses actual active/memory pages with both blink destinations and protected
+status artwork. Source rows behind host UI remain separately addressable.
+Full indexed backing is reserved before the console update; allocation
+failure rejects before image/header mutation. Reached kernel failures keep
+page/header/pixel prefixes and cannot disconnect the session.
+
+Independent native tests cover every default split, bytewise three-mode/
+encoding/status combinations, five modes with distinct blink pixels,
+unaligned patterns, packed bytes, G1/G3 page/corner/cache behavior, all four
+R1 pages, snapshot overlap, gate/mode/query timing, unknown selectors and
+I/R/EOF/reset/reconnect lifetimes. g3 and supplied-coordinate loops, replies,
+failed page/capture/paste prefixes, partial native byte writes and source
+behind UI are checked.154 new coherent application scenes bring coverage to
+1722, preserving complete prior scenes/state/replies while checking image
+operations, stored header/payload, memory staging and R/I1 retention. G's
+native binding is implemented; global composition/final full-suite acceptance
+remains in progress. Routine verification stays BIG-specific.
+
+The last image scene additionally forces a real capture-bound error and
+verifies retained639/349 header, exact rejection count, unchanged full scene
+and subsequent graphics/ANSI/DSR on the live connection. Native tests also
+successfully paste the accepted first200 rows of that failed image after R1,
+then restore its old height349 without a capture-valid flag.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending.

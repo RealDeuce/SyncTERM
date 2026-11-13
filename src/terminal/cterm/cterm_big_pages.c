@@ -17,9 +17,9 @@ static int ensure_backing(struct cterm_big *big)
 	if (status!=0) st_pixel_buffer_destroy(p); else big->video_backing=p;
 	return status;
 }
-int cterm_big_video_prepare(struct cterm_big *big)
+int cterm_big_video_prepare(struct cterm_big *big, bool full_memory)
 {
-	return big->video_start!=0 || big->video_active_page!=0 || big->terminal->status_display_type>=1?ensure_backing(big):0;
+	return full_memory || big->video_start!=0 || big->video_active_page!=0 || big->terminal->status_display_type>=1?ensure_backing(big):0;
 }
 void cterm_big_video_reset(struct cterm_big *big)
 {

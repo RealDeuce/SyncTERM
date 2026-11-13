@@ -295,6 +295,16 @@ indexed branch under reference83's matched domain. Native G0..3 ownership/
 wire/page binding and application image scenes remain pending. Non-BIG
 regressions are deferred to the final suite; existing1568 scenes are unchanged.
 
+BIG now binds G0..3 through the common pre-ANSI numeric parser, preserving
+argument/page/gate/mode prefixes, G1's original-corner/cache3 behavior and
+G3's repeated active selection. An engine-owned image survives I/R/attention/
+EOF/reset and starts defined/zeroed on reconnect. Independent native tests
+cover splits/profiles/loops, overlap, separate pages/blink values, error and
+partial-write prefixes, and indexed source behind protected host UI.154 new
+coherent scenes bring BIG to1722 with complete pixels/cells/palette/state/
+points/cursor/pages/replies/header/payload/RGB expectations. Native G images
+are implemented; global45-entry acceptance and final regressions are pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

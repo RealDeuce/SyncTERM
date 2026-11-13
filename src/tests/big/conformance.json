@@ -394,7 +394,8 @@
         "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes.",
         "Distinct public logical, translated DDO and device points, current line offset distance, public colour and device pen, public style and downstream width/pattern; I/R defaults update the actual drawing state.",
         "Borrowed indexed VGA-profile aperture storage and authoritative visible windows: actual segment+WORD CPU addresses, independent wrapped display intervals, retained padding, distinct primary/alternate tokens and checked extent/prefix transfers. No persistent planar shadow or redundant authoritative visible copy.",
-        "Native indexed backing/active/display routing for G4/5/6, every existing graphics sink and batched point reads; independent interpreter/device/BIOS page state, four cursor banks, protected host status row, mode clear and serialized resource lifetime."
+        "Native indexed backing/active/display routing for G4/5/6, every existing graphics sink and batched point reads; independent interpreter/device/BIOS page state, four cursor banks, protected host status row, mode clear and serialized resource lifetime.",
+        "Native G0..3 routing and engine-owned retained image storage/cache: format-edge indexed conversion, original image/page/gate/mode prefixes, snapshot overlap, protected UI rows and bounded nonfatal failure lifetimes."
       ],
       "tests": [
         "big_state",
@@ -407,7 +408,8 @@
         "cterm_big_collect",
         "syncterm_big_input",
         "big_image",
-        "big_image_paste"
+        "big_image_paste",
+        "cterm_big_images"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -419,7 +421,9 @@
       ],
       "deviations": [
         "X8 frame-local palette receives a defined interpreter-entry snapshot of current BGI cache instead of uninitialized stack bytes; I/R do not refresh it.",
-        "Host backend errors stop at completed prefixes without rollback or later stores; IN_PROGRESS is invalid for synchronous state callbacks. Uninstalled defaults reports nonfatal protocol failure instead of exiting SyncTERM."
+        "Host backend errors stop at completed prefixes without rollback or later stores; IN_PROGRESS is invalid for synchronous state callbacks. Uninstalled defaults reports nonfatal protocol failure instead of exiting SyncTERM.",
+        "Initial native image bytes are explicitly zeroed instead of exposing uninitialized DOS RAM. G2 still executes a real1x1 image before capture, without a capture-valid flag; DOS popup UI is excluded and does not overwrite the buffer.",
+        "Full indexed aperture backing is reserved before entering a console update. A native allocation failure rejects before kernel/header mutation; checked image/cache/aperture/pen errors preserve reached prefixes and cannot terminate the session. Native frame/buffer bindings do not manufacture foreign DOS pointer aliases."
       ],
       "verification": [
         "big_state independently checks I0 mode/default/default/visual/active/application order, I1 palette-only calls, full-WORD normalization, driver3 downgrade, independent changed-driver checks, returning mode rejection/cache publication, retained application/frame/font-ratio state and host failure prefixes.",
@@ -608,6 +612,55 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
           ],
           "commit": "c1e6c86"
+        },
+        {
+          "id": "native-g-image-routes",
+          "status": "complete",
+          "operations": [
+            "All seven G routes are bound: dynamic image arities/classes, operation-return cache3 frame reset, early active-page selection for G0/1/2 versus post-suffix memory selection for G3, and unknown full-WORD selectors without guessed arguments.",
+            "Original mode timing (G2 after destination, others immediately), four independent WORD gate pairs and query/page prefixes before gates; original zero-size capture continues to real bounds without a valid-image flag.",
+            "G0 active capture/paste and overlap snapshot; G1 original-corner memory paste/current-active restore except cache3 capture-only; G2 current-buffer paste; G3 memory capture, active paste and duplicate/false-gate active tail with no finally restoration after errors.",
+            "Engine-owned65548-byte raw image and196608-byte indexed cache, defined startup zeros/uncaptured1x1 pen0, retained I/R/attention/source/EOF/reset/error lifetimes and fresh reconnect ownership.",
+            "Shared checked indexed memory/damage adapter, primary-pen capture, per-blink Boolean paste, true active/memory versus visual routing, status-artwork exclusion with retained underlying source rows, full backing reservation outside console update.",
+            "Common pre-ANSI numeric/source/repeat/flow/footer/replies and nonfatal error containment preserved. Inspector exposes reached operation/mode/query/page calls/header/payload for coherent observations.",
+            "Remaining full45-entry/global composition and final cross-emulation regressions are pending; this step claims native G image binding, not whole-goal completion."
+          ],
+          "tests": [
+            "big_image",
+            "big_image_paste",
+            "big_video",
+            "big_state",
+            "cterm_big_images",
+            "cterm_big_pages",
+            "cterm_big_bar",
+            "cterm_big_fill",
+            "cterm_big_line",
+            "cterm_big_collect",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "25-images-pages-and-native-reuse.adoc",
+            "40-near-far-heaps-and-break-lifetimes.adoc",
+            "47-bios-glyphs-teletype-and-console-routing.adoc",
+            "48-bios-video-mode-registers-pages-and-dac.adoc",
+            "56-image-command-and-global-acceptance.adoc",
+            "image-code.adoc:13d2:1925..1cdb"
+          ],
+          "deviations": [
+            "Initial native image bytes are explicitly zeroed instead of exposing uninitialized DOS RAM. G2 still executes a real1x1 image before capture, without a capture-valid flag; DOS popup UI is excluded and does not overwrite the buffer.",
+            "Full indexed aperture backing is reserved before entering a console update. A native allocation failure rejects before kernel/header mutation; checked image/cache/aperture/pen errors preserve reached prefixes and cannot terminate the session. Native frame/buffer bindings do not manufacture foreign DOS pointer aliases."
+          ],
+          "verification": [
+            "Initial native wire fixture failed against the former unsupported G route. Every split of default-profile commands plus bytewise all three modes/encodings/status settings proves argument consumption, five-mode primary/alternate pixels, literal captured bytes, page calls and ANSI replies.",
+            "Independent complete indexed planes for unaligned two-row patterns, G1 original corner/cache3 capture-only, G3 source staging and duplicate selection, R1 custom memory3/active2/visual routing and snapshot overlap.",
+            "Mode clamp timing, four separate gate pairs, page/query-before-false-gate failures, unknown operation/cache3 behavior and I0/I1/R/attention/EOF/reset/fresh-engine image lifetimes; wire g3 Y5->11 versus unscaled stored-source repeats and exact flow.",
+            "Failed G1 retains memory, failed G3 omits final active call, three accepted native pixel writes survive a partial byte callback error, following graphics/ANSI/replies continue, large zero-size query reaches actual image cursor failure, and corrupt frame memory selection reaches actual aperture rejection.",
+            "All three physical modes capture underlying indexed source rows behind non-BIG status artwork without reading/clobbering UI pixels.",
+            "154 new coherent application scenes,1722 total, verify G0 copy, G2 XOR/OR/AND/NOT, G1 reversed-corner memory routing/cache3 skip, G3 staging and R/I1 image retention with complete cells/fonts/indexed planes/palette/points/fill/cursor/pages/replies/diagnostics/header/payload/RGB. I1 independently clears hollow as in reference27.",
+            "The final live image scene forces a real oversized capture to its buffer boundary, observes the retained639/349 header and one additional nonfatal rejection, and verifies unchanged full scene plus following G2/ANSI/DSR on the same connection in every application profile.",
+            "After a failed large capture, R1/G2 successfully reuses its first200 accepted rows, preserving the old height349 and rejection count with no valid-image flag.",
+            "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending."
+          ]
         }
       ]
     },
@@ -2373,13 +2426,16 @@
         "47-bios-glyphs-teletype-and-console-routing.adoc",
         "48-bios-video-mode-registers-pages-and-dac.adoc",
         "56-image-command-and-global-acceptance.adoc",
-        "76-vga-byte-data-and-display-addresses.adoc"
+        "76-vga-byte-data-and-display-addresses.adoc",
+        "40-near-far-heaps-and-break-lifetimes.adoc"
       ],
       "operations": [
         "Implemented native G4 memory, G5 visual and G6 active pages with operation-return rez3 frame reset; full WORD clamps, independent current-resolution rules, local publication before lower calls and no own response.",
         "Physical indexed aperture backing, distinct active segment/display start, cursor banks, status exclusion, source pixels behind UI, retained padding/blink data and native page/mode/failure lifetimes.",
         "Existing marker/pointer/line/bar/rectangle/flood and batched-byte consumers use actual active memory while text uses actual visual memory. Frame locals reset on fresh attention and persist across chains/repeats independently of physical pages.",
-        "Implemented image dependencies: four-byte format/indexed cache/WORD size/capture, plus original paste geometry/cropped-header and byte-plane Boolean operator. Pending G0/1/2/3 wire/gate/mode timing/page routing/ownership/lifetime binding and complete command/global acceptance; image wire routes remain unsupported in this step."
+        "Implemented G0/1/2/3 dynamic numeric wire routes, early active versus late memory selection, distinct gate/query prefixes, original mode timing/corner/cache3 behavior, repeated G3 selection and common footer/source/reply handling.",
+        "Engine-owned retained image buffer/cache, defined fresh zero image, primary-pen capture and independent dual-blink Boolean paste over actual indexed active/memory pages, including overlap and source behind protected UI.",
+        "All seven native G routes are implemented. Full-command/global45-entry composition and final cross-emulation regression acceptance remain pending."
       ],
       "tests": [
         "big_state",
@@ -2392,11 +2448,14 @@
         "cterm_big_collect",
         "syncterm_big_input",
         "big_image",
-        "big_image_paste"
+        "big_image_paste",
+        "cterm_big_images"
       ],
       "deviations": [
         "Checked out-of-aperture/backing accesses reject at their reached prefix instead of accessing DOS RAM or manufacturing video wrap. Only the declared VGA-capable normal sequential/byte-display profile is represented here; no EGA reduced-memory/controller/CRT timing emulator is claimed.",
-        "Native console cursor banks are bounded to the four pages reachable through normalized G wire selections. Corrupted out-of-range cursor indexes and unmapped/aperture/backing accesses reject without ending the session. Host status artwork is excluded from emulated video memory, with underlying source rows retained separately."
+        "Native console cursor banks are bounded to the four pages reachable through normalized G wire selections. Corrupted out-of-range cursor indexes and unmapped/aperture/backing accesses reject without ending the session. Host status artwork is excluded from emulated video memory, with underlying source rows retained separately.",
+        "Initial native image bytes are explicitly zeroed instead of exposing uninitialized DOS RAM. G2 still executes a real1x1 image before capture, without a capture-valid flag; DOS popup UI is excluded and does not overwrite the buffer.",
+        "Full indexed aperture backing is reserved before entering a console update. A native allocation failure rejects before kernel/header mutation; checked image/cache/aperture/pen errors preserve reached prefixes and cannot terminate the session. Native frame/buffer bindings do not manufacture foreign DOS pointer aliases."
       ],
       "verification": [
         "Independent literal segment aliases/aperture boundaries, all524288 canonical CPU pen addresses, all WORD pitches with signed/unsigned BYTE cases, and every pen for40 visible interval layouts.",
@@ -2415,7 +2474,16 @@
         "Whole primary/alternate memory for all modes/alignments/byte-boundary widths, ordered rows/planes/read-write masks, every failed read/write in an unaligned cropped prefix, header visibility/success restoration/error retention and unchanged point/attribute/palette/write-mode/error owners.",
         "All65536 destinations with five origins for both X/Y geometry, all65536 mode WORDs, positive ADD overflow, three physical bottom limits, physical-versus-viewport behavior, initial zero image and cached-source reuse.",
         "Last-byte spill before the next missing source byte, malformed width/height, source/video WORD wrap,131056 destination read/write checkpoints before source cursor wrap in a ffff-height image, missing header/cache/extent and invalid pen/layout/uninstalled/pause errors.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending.",
+        "Initial native wire fixture failed against the former unsupported G route. Every split of default-profile commands plus bytewise all three modes/encodings/status settings proves argument consumption, five-mode primary/alternate pixels, literal captured bytes, page calls and ANSI replies.",
+        "Independent complete indexed planes for unaligned two-row patterns, G1 original corner/cache3 capture-only, G3 source staging and duplicate selection, R1 custom memory3/active2/visual routing and snapshot overlap.",
+        "Mode clamp timing, four separate gate pairs, page/query-before-false-gate failures, unknown operation/cache3 behavior and I0/I1/R/attention/EOF/reset/fresh-engine image lifetimes; wire g3 Y5->11 versus unscaled stored-source repeats and exact flow.",
+        "Failed G1 retains memory, failed G3 omits final active call, three accepted native pixel writes survive a partial byte callback error, following graphics/ANSI/replies continue, large zero-size query reaches actual image cursor failure, and corrupt frame memory selection reaches actual aperture rejection.",
+        "All three physical modes capture underlying indexed source rows behind non-BIG status artwork without reading/clobbering UI pixels.",
+        "154 new coherent application scenes,1722 total, verify G0 copy, G2 XOR/OR/AND/NOT, G1 reversed-corner memory routing/cache3 skip, G3 staging and R/I1 image retention with complete cells/fonts/indexed planes/palette/points/fill/cursor/pages/replies/diagnostics/header/payload/RGB. I1 independently clears hollow as in reference27.",
+        "The final live image scene forces a real oversized capture to its buffer boundary, observes the retained639/349 header and one additional nonfatal rejection, and verifies unchanged full scene plus following G2/ANSI/DSR on the same connection in every application profile.",
+        "After a failed large capture, R1/G2 successfully reuses its first200 accepted rows, preserving the old height349 and rejection count with no valid-image flag.",
+        "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending."
       ],
       "commit": null
     }

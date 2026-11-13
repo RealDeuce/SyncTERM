@@ -2184,3 +2184,98 @@ the existing1568 scenes are unchanged.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All25 BIG-specific native CTest checks passed in15.47s, including big_image_paste in1.24s and big_image in0.61s. The first focused paste/flood run passed in1.29s (paste1.22s). No non-BIG tests ran; RIP/shared regressions remain deferred to the final full suite. The unchanged application fixture was not rerun for this dependency, and existing1568 scenes are unchanged. Native G0..3 wire/page/gate/mode/ownership/lifetime and full45-entry composition remain pending.
 
 Indexed image paste and shared Boolean kernel commit: `c1e6c86`.
+
+=== Native G0..3 routes and retained image ownership
+
+All seven G routes now have native command bindings. G0/G3 acquire mode and
+six alternating X/Y coordinates, G1 mode and four coordinates, and G2 mode
+and its destination. Operation/mode/page fields are class0. Coordinates use
+the existing class1/class2 numeric reader, including supplied-source bypass,
+original g3 rounding, split/deadline/loop handling and shared pre-ANSI input.
+Unknown full-WORD selectors make no guessed argument/image/page request.
+The operation-return resolution3 frame-page reset still precedes dispatch.
+
+The native command coordinator follows13d2:1925..1cdb in chapters25/56:
+G0/G1/G2 select the current local active page before reading mode. G0/G1/G3
+normalize mode immediately after its read; G2 retains the raw WORD until
+after both destination reads. G0 sizes, tests its gate, captures and pastes
+on active memory. G1 sizes/tests/captures, then at current cache!=3 selects
+memory, pastes at the ORIGINAL first corner and restores current local
+active. Cache3 still captures but omits that memory paste. G2 tests its
+distinct gate and pastes the current buffer without a size/capture/validity
+test. G3 reads its whole suffix before memory selection, then sizes/tests/
+captures, selects active, pastes and selects active AGAIN. Its false-gate
+path still reaches the last active call. Lower errors do not execute a
+finally restore or common footer.
+
+The four gates retain independent WORD pairs for pine/cone, maple/syrup,
+birch/plywood and oak/acorn. Their native fully enabled initial pairs are
+equal. A false gate suppresses only its reached image block, preserving
+earlier reads, page selection and query failures. Size remains the original
+WORD result, including zero; the impossible >ffff guard is not replaced by
+a native preflight limit. G adds no private reply or flow sequence. Normal
+completion uses the existing footer/deferred response/source/repeat logic.
+
+Each BIG engine owns65,548 raw image bytes and196,608 indexed cache bytes in
+its single allocated state. Startup explicitly zeroes them and binds the
+codec: uncaptured G2 therefore pastes a defined1x1 pen0 image. This corrects
+original uninitialized RAM without adding a capture-valid flag. I0/I1/R,
+attention, source setup, EOF, reset and rejected-command cleanup retain the
+allocation and reached bytes. Engine destruction frees them; a reconnect
+gets fresh zeros. The excluded DOS popup does not clobber the protocol image.
+
+The raster adapter shares the indexed memory read/write/damage path with
+flood. It captures primary logical pens and applies paste operations to
+each native blink destination separately; it does not freeze RGB or copy
+source blink alternatives into the packed image. Capture finishes before
+overlapping paste, retaining the original snapshot behavior. Active and
+memory pages remain independent of the visual page and per-page cursors.
+Reserved host status pixels are outside the video view: source rows behind
+them remain in backing and can be captured without reading UI artwork.
+
+Raw image operations reserve the full indexed aperture backing before
+entering the console update, since lookahead/rows may extend beyond the
+visible window even on active0. A native backing-allocation failure rejects
+before the image kernel/header mutation starts; this is an explicit native
+resource prefix, not a foreign heap/controller model. Existing visible
+pixels remain authoritative. Checked mapping/callback/image errors retain
+page/header/pixel prefixes and recover through the nonfatal BIG owner.
+Inspection records operation/mode/size, reached image page calls, current
+header and first payload words for coherent scene tests.
+
+`cterm_big_images` failed against the former unsupported route, then passes
+every default-profile split plus bytewise all modes/encodings/status cases,
+all five image modes with distinct blink values, literal packed capture,
+unaligned two-row patterns and full-plane oracles. It verifies G1's original
+corner/cache3 skip, G3 memory-source/duplicate-tail behavior, all four R1
+pages with remembered3/active2/independent visual selection, and overlap.
+Prefix tests check mode-clamp timing, four separate gate pairs, size-before-
+gate errors and unknown selectors. I0/I1/R/attention/EOF/reset/reconnect,
+g3 Y5->11 versus supplied unscaled coordinates, stored repeats and exact
+flow/ANSI replies have independent expectations.
+
+Native failure cases retain selected memory after failed G1, omit G3's tail
+after failed paste, preserve three accepted pixels of a failed plane-byte
+write, continue following graphics/ANSI input, and reach actual query0 image
+cursor/aperture failures. Status cases capture indexed source rows behind
+non-BIG UI pixels in all three modes, leaving the artwork intact. Image
+points, attributes, palette, old BGI errors and the common input owner retain
+their existing lifetimes.
+
+Eleven new coherent application scenes per profile exercise G0 copy, G2 XOR/
+OR/AND/NOT, G1's reversed original corner and medium/low memory versus cache3
+skip, G3 staging and R/I1 buffer retention. They check full indexed planes,
+cells/fonts/palette/points/fill/cursor/pages/replies/error diagnostics, exact
+header/payload words and flat RGB interiors. I1 also retains its independent
+hollow0 effect. This adds154 scenes,1722 total. G image wire/native binding
+is implemented; remaining global45-entry composition and final regressions
+are still pending, with routine verification restricted to BIG tests.
+
+The final application image scene reaches the actual capture cursor boundary,
+retains its639/349 header and one additional rejection, and verifies the
+unchanged complete scene plus following G2/ANSI/DSR on the same connection.
+Native coverage also reuses the first200 accepted rows of a failed large
+capture after R1, without a validity flag, and restores the old height349
+after that successful cropped paste.
+
+Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending.

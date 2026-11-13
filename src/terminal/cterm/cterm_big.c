@@ -69,7 +69,9 @@ static int image_next(void *context, const struct st_graphics_command_view *view
 	(void)context;
 	if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 	uint16_t operation=(uint16_t)view->arguments[0].value;
-	*parameter=(struct st_graphics_parameter){.kind=view->count==1 && operation>=4 && operation<=6?ST_GRAPHICS_NUMBER:ST_GRAPHICS_END};
+	size_t count=operation==0 || operation==3?8:operation==1?6:operation==2?4:operation<=6?2:1;
+	*parameter=(struct st_graphics_parameter){.kind=view->count<count?ST_GRAPHICS_NUMBER:ST_GRAPHICS_END};
+	if (operation<4 && view->count>=2) parameter->axis=view->count%2==0?ST_GRAPHICS_X:ST_GRAPHICS_Y;
 	return 0;
 }
 static int move_next(void *context, const struct st_graphics_command_view *view,
@@ -171,7 +173,10 @@ static int field(void *context, const struct st_graphics_command_view *view,
 	struct cterm_big *big=owner(context);
 	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
 	body_entry(big,view);
-	if (view->code=='G' && view->count==1) st_big_state_g_entry(&big->state,big->numeric.context.resolution);
+	if (view->code=='G' && view->count>=1) {
+		if (view->count==1) st_big_state_g_entry(&big->state,big->numeric.context.resolution);
+		int status=cterm_big_image_field(big,view); if (status!=0) return status;
+	}
 	if (view->code=='<' && view->count==1) {
 		if (!view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		big->control.input.append_cr=(uint8_t)view->arguments[0].value;
@@ -320,11 +325,12 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		uint16_t operation=(uint16_t)view->arguments[0].value;
 		if (view->count==1) {
 			st_big_state_g_entry(&big->state,big->numeric.context.resolution);
-			if (operation<4 && (big->warned['G'/8]&(1u<<('G'%8)))==0) {
-				big->warned['G'/8]|=(uint8_t)(1u<<('G'%8));
-				cterm_log(big->terminal,ST_CTERM_LOG_WARNING,"Unsupported BIG image operation %u",(unsigned)operation);
-			}
+			big->image_operation=operation;
 			return begin_footer(big,view);
+		}
+		if (operation<4) {
+			int status=cterm_big_image_command(big,view);
+			return status==0?begin_footer(big,view):status;
 		}
 		if (view->count!=2 || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
 		const struct st_big_state_sink sink={big,install,palette,page};
@@ -758,6 +764,9 @@ int cterm_big_create(struct cterminal *t)
 	    .peek_key = cterm_big_input_peek, .read_key = cterm_big_input_read};
 	int status = st_big_numeric_init(&big->numeric,&io);
 	if (status==0) status=st_big_flood_bind(&big->flood_work,big->flood_records,CTERM_BIG_FLOOD_RECORDS,CTERM_BIG_FLOOD_RECORDS);
+	/* Defined native initial storage replaces uninitialized DOS RAM. The
+	 * owned allocation/cache survive I/R, attention, EOF and cancellation. */
+	if (status==0) status=st_big_image_bind(&big->image,big->image_bytes,sizeof(big->image_bytes),big->image_pens,sizeof(big->image_pens));
 	st_big_state_init(&big->state); st_big_control_init(&big->control);
 	big->producer.video_segment=0xa000;
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
@@ -823,6 +832,21 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_flood_active", big->flood.active);
 	st_console_test_number(app, "cterm.big_last_error", big->last_error);
 	st_console_test_number(app, "cterm.big_rejected_commands", big->rejected_commands);
+	st_console_test_number(app, "cterm.big_image_operation", big->image_operation);
+	st_console_test_number(app, "cterm.big_image_mode", big->image_mode);
+	st_console_test_number(app, "cterm.big_image_size", big->image_size);
+	st_console_test_number(app, "cterm.big_image_page_calls", big->image_page_calls);
+	uint16_t image_width=0,image_height=0;
+	(void)st_big_image_header(&big->image,&image_width,&image_height);
+	st_console_test_number(app, "cterm.big_image_width", image_width);
+	st_console_test_number(app, "cterm.big_image_height", image_height);
+	uint32_t image_prefix=0,image_tail=0;
+	for (unsigned i=0;i<4;++i) {
+		image_prefix|=(uint32_t)big->image_bytes[4+i]<<(8*i);
+		image_tail|=(uint32_t)big->image_bytes[8+i]<<(8*i);
+	}
+	st_console_test_number(app, "cterm.big_image_payload0", image_prefix);
+	st_console_test_number(app, "cterm.big_image_payload1", image_tail);
 	uint32_t custom_prefix=0, custom_tail=0;
 	for (unsigned i=0;i<4;++i) {
 		custom_prefix|=(uint32_t)big->state.application.patterns[0][i]<<(8*i);
