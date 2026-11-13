@@ -1211,3 +1211,25 @@ remaining text/audio/global45-entry and final regressions stay pending.
 Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending.
 
 Native X3 implementation commit: `25d2c2f`.
+
+## Original stroke-font data and startup bindings
+
+The four original V100 CHR files are now embedded from pinned checked-in
+bytes, retaining original headers/notices. They are distinct from the newer
+RIP font arrays. BIG initializes ten names/twenty records, registers the
+borrowed assets in4/2/3/1 order, and retains separate loaded/active owners.
+Registration preserves old errors and defers body-plus validation to later
+consumers; bounded native byte views replace source paragraph/segment aliases.
+There is no runtime font-file loading or owned DOS font allocator.
+
+`big_font` checks compiled-data CRCs/configure SHA-256 identities, every glyph,
+all two-byte records, selected literal metrics and terminal moves, register/
+rebind/version rules and malformed bounds/WORD traversal. The shared CHR
+accessor preserves zero-width glyph programs and original BYTE/WORD address
+rules while keeping layout and rendering in protocol consumers. All2450
+existing coherent application scenes additionally verify registry count10,
+mask0f, loaded0 and inactive body with the complete prior pixels/images/state.
+E wire selection and W graphical text remain pending; no glyph-rendering
+acceptance is claimed by these data/registration tests.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All38 BIG-specific native CTests passed in46.91s; big_font0.01s. syncterm_big_input passed in123.17s (test123.08s),2450 coherent scenes with the additional startup-registry assertions. No non-BIG tests ran. Original data/borrowed startup/common format access are implemented; E selection/W rendering and full global45-entry/final acceptance stay pending.

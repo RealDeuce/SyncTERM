@@ -1,6 +1,11 @@
 Except where a file contains a different license notice, original material in
 this directory is licensed as follows:
 
+The original BIG V100 CHR font data retain their 1987 Borland International
+copyright notices in the bundled headers. Their byte identities and source
+provenance are documented in `src/terminal/big/fonts/README.md`; surrounding
+C/CMake code has its own license notices.
+
 All builds include SyncTERM Emoji, rasterized from Noto Emoji under the SIL
 Open Font License 1.1. Its copyright notice and full license are retained in
 `src/media/fonts/LICENSE.NOTO-EMOJI` and the in-program Licenses viewer.

@@ -898,6 +898,7 @@ int cterm_big_create(struct cterminal *t)
 	 * owned allocation/cache survive I/R, attention, EOF and cancellation. */
 	if (status==0) status=st_big_image_bind(&big->image,big->image_bytes,sizeof(big->image_bytes),big->image_pens,sizeof(big->image_pens));
 	st_big_state_init(&big->state); st_big_control_init(&big->control);
+	if (status==0) status=st_big_fonts_init(&big->fonts,&big->state.bgi.error);
 	big->producer.video_segment=0xa000;
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};
 	const struct st_graphics_parser_config config = {
@@ -972,6 +973,12 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_spray_count", big->spray.count);
 	st_console_test_number(app, "cterm.big_spray_counter", big->spray.counter);
 	st_console_test_number(app, "cterm.big_text_font", big->state.bgi.font);
+	st_console_test_number(app, "cterm.big_font_registry_count", big->fonts.count);
+	st_console_test_number(app, "cterm.big_font_loaded", big->fonts.loaded);
+	st_console_test_number(app, "cterm.big_font_active", big->fonts.active!=NULL);
+	uint32_t registered_fonts=0;
+	for (size_t i=0;i<ST_BIG_FONT_SLOTS;++i) if (big->fonts.slots[i].body!=NULL) registered_fonts|=UINT32_C(1)<<i;
+	st_console_test_number(app, "cterm.big_font_registered_mask", registered_fonts);
 	st_console_test_number(app, "cterm.big_text_direction", big->state.bgi.direction);
 	st_console_test_number(app, "cterm.big_text_size", big->state.bgi.text_size);
 	st_console_test_number(app, "cterm.big_text_cached_width", big->state.bgi.text_cached[0]);

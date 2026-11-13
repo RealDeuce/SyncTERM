@@ -56,6 +56,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_rotation_active"]
     assert tuple(s[f"cterm.big_flow_{field}"] for field in ("mode", "on_byte", "off_byte", "on_count", "off_count")) == flow
     assert (s["cterm.big_random_from"], s["cterm.big_random_to"]) == random_bounds
+    assert tuple(s[f"cterm.big_font_{field}"] for field in ("registry_count", "registered_mask", "loaded", "active")) == (10, 15, 0, 0)
     text_ratios, text_size, text_cache = text_state
     assert tuple(s[f"cterm.big_text_{field}"] for field in ("font", "direction", "size")) == (0, 0, text_size)
     assert tuple(s[f"cterm.big_text_{field}"] for field in ("cached_width", "cached_height", "selected_size")) == text_cache

@@ -1,0 +1,38 @@
+/* CHR body data access; BIG28/62 and the common encoded format. */
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_bgi_chr.h"
+#include "io_error.h"
+static uint16_t word(const uint8_t *p) { return (uint16_t)(p[0]|(unsigned)p[1]<<8); }
+int st_bgi_chr_bind(struct st_bgi_chr *out, const uint8_t *body, size_t size)
+{
+	if (out==NULL || body==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (size<16) return IO_ERROR_OUT_OF_RANGE;
+	if (body[0]!=0x2b) return IO_ERROR_PROTOCOL;
+	*out=(struct st_bgi_chr){body,size,word(body+1),word(body+5),body[4]};
+	return 0;
+}
+int st_bgi_chr_glyph(const struct st_bgi_chr *font, uint8_t code, struct st_bgi_chr_glyph *out)
+{
+	if (font==NULL || font->body==NULL || out==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint8_t index=(uint8_t)(code-font->first);
+	struct st_bgi_chr_glyph glyph={.body=font->body,.size=font->size,.finished=true};
+	if (index<(uint8_t)font->count) {
+		uint16_t metric=(uint16_t)(16u+2u*font->count+index), address=(uint16_t)(16u+2u*index);
+		if ((size_t)metric>=font->size || (size_t)address>=font->size || font->size-address<2) return IO_ERROR_OUT_OF_RANGE;
+		glyph.width=font->body[metric];
+		glyph.offset=(uint16_t)(font->strokes+word(font->body+address));
+		glyph.present=true; glyph.finished=false;
+	}
+	*out=glyph; return 0;
+}
+int st_bgi_chr_next(struct st_bgi_chr_glyph *glyph, struct st_bgi_chr_record *out, bool *available)
+{
+	if (glyph==NULL || glyph->body==NULL || out==NULL || available==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (glyph->finished) { *available=false; return 0; }
+	if (glyph->records>=32768 || glyph->offset==UINT16_MAX || (size_t)glyph->offset>=glyph->size || glyph->size-glyph->offset<2) return IO_ERROR_OUT_OF_RANGE;
+	uint8_t x=glyph->body[glyph->offset], y=glyph->body[glyph->offset+1u];
+	*out=(struct st_bgi_chr_record){(enum st_bgi_chr_opcode)(2u*(x>>7)+(y>>7)),(int)(x&63)-(int)(x&64),(int)(y&63)-(int)(y&64)};
+	glyph->offset=(uint16_t)(glyph->offset+2u); ++glyph->records;
+	if (out->opcode==ST_BGI_CHR_END) glyph->finished=true;
+	*available=true; return 0;
+}

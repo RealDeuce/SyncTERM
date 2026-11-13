@@ -2610,3 +2610,50 @@ remain pending.
 Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending.
 
 Native X3 implementation commit: `25d2c2f`.
+
+== Original V100 font data and borrowed startup registry
+
+The four complete older CHRs from28/30 are now bundled with their original
+128-byte headers/notices. Font1 Triplex7241,2 Small2138,3 Sans5438 and4
+Gothic8560 bytes retain the pinned SHA-256 identities in
+src/terminal/big/fonts/README.md. They differ from the newer RIP arrays;
+Gothic A width22 and byte22's zero metric/shared14-unit advance are literal
+witnesses. CMake verifies each digest and generates embedded C only inside
+the build tree. Runtime selection requires no font-file search or allocation.
+
+BIG entry initializes the original ten names/twenty records and registers
+borrowed views in the actual4,2,3,1 order. Header magic, marker and independent
+spaced version BYTE comparisons precede the full20-name scan. Success
+preserves an older BGI error and does not invalidate the separate loaded or
+active binding. A zero name can match slot11 without increasing count10.
+Body-plus activation remains a later consumer check, rather than a new
+registration requirement. The native borrowed binding uses a zero-relative
+body view instead of source paragraph alignment/header mutation. Canonical
+supplied offset0/header128 has identical bytes and no original move either.
+Checked native extents replace foreign header accesses. This is the used
+borrowed startup route; unused installuserfont/DOS owned-resource loaders
+are not ported. I/R/parser reset never free or reconstruct the static assets.
+
+A narrow common st_bgi_chr format component provides bounded borrowed body,
+metric/table and two-byte record access for the E/W work. It retains the
+original modulo-BYTE first-code/low-count tests, WORD table/base arithmetic,
+zero-width glyphs with real programs, all four opcodes and signed seven-bit
+coordinates. END is returned once; the consumer retains the last MOVE/DRAW
+point for advance. Each actual access is checked, so a failure preserves
+accepted decode prefixes. Unterminated traversal of the entire WORD address
+space rejects instead of looping forever. There is no glyph layout, point
+movement, pixel output, font selection or foreign CPU/timer model in this
+format component; BIG's caller-specific owners remain separate.
+
+`big_font` verifies compiled bytes with independent CRC-32 constants in
+addition to configure-time source SHA-256, all1024 font/code combinations,
+every65536 two-byte record, literal Small/Gothic metrics/terminal moves,
+registry/rebinding/version behavior, low-count/BYTE/WORD wrap and malformed
+extent/traversal paths. Real BIG initialization now publishes count10,
+registered mask0f, loaded0 and inactive body. All2450 existing coherent
+application scenes assert these owners through mode changes, I/R, parser
+reset/EOF and fresh connections while retaining their full previous scene.
+E acquisition/selection/DDO style and W rendering remain pending; this step
+provides their actual data, startup producer and bounded shared accessors.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All38 BIG-specific native CTests passed in46.91s; big_font0.01s. syncterm_big_input passed in123.17s (test123.08s),2450 coherent scenes with the additional startup-registry assertions. No non-BIG tests ran. Original data/borrowed startup/common format access are implemented; E selection/W rendering and full global45-entry/final acceptance stay pending.

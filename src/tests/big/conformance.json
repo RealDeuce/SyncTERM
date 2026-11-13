@@ -230,7 +230,8 @@
         "Original public/DDO bar3d composition: unsigned public sort/lower move, signed inverted inset/second clip, old-point-first front/extrusion, wrapped depth/orientation/top BYTE, producer effects and current tuple tail.",
         "Synchronous original indexed flood: WORD spans, UP/DOWN LIFO, directional/containment/pattern suppression, byte-band plane passes and accepted-prefix errors over borrowed bounded records.",
         "Original public rectangle four absolute standalone lines with captured first corner/live later arguments, fresh phases and inclusive XOR corners; reuse existing BIG clipping/strokes and shared thin line kernel, preserve all point owners.",
-        "X0 reuses original direct marker/line and indexed point adapters with separate signed two-draw sampling, live type/counter/anchor tests and caller-specific point tails."
+        "X0 reuses original direct marker/line and indexed point adapters with separate signed two-draw sampling, live type/counter/anchor tests and caller-specific point tails.",
+        "Original V100 font bytes/borrowed BIG startup registry and a bounded common CHR format accessor are implemented; old font data remain distinct from newer RIP arrays, with selection/layout/raster in their protocol owners."
       ],
       "tests": [
         "big_profile",
@@ -246,7 +247,8 @@
         "big_flood",
         "big_image_paste",
         "big_spray",
-        "cterm_big_spray"
+        "cterm_big_spray",
+        "big_font"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -463,6 +465,69 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending."
           ],
           "commit": "94a4fb9"
+        },
+        {
+          "id": "original-v100-fonts-and-borrowed-startup",
+          "status": "complete",
+          "operations": [
+            "Bundle all four original V100 CHR files with original headers/notices; configure verifies pinned SHA-256 and emits every byte as C only in the build tree. No runtime font-file dependency or newer RIP substitution.",
+            "Initialize ten names/twenty records and perform actual4,2,3,1 borrowed registrations. Independent header/version/name tests preserve old errors and loaded/active bindings; a zero name can match slot11 without increasing count10. Body-plus activation stays a later check.",
+            "Provide narrow common CHR borrowed-body/metric/stroke accessors with modulo-BYTE first/low-count comparisons, WORD table/base arithmetic, zero-width glyph programs, all four opcodes and signed-seven-bit coordinates. END does not replace the last MOVE/DRAW advance point.",
+            "Check actual accesses and preserve accepted record prefixes; escaped native extents and unterminated WORD traversal reject boundedly. Protocol-specific registry, selection, ratios, layout, points and raster remain separate.",
+            "BIG constructor owns the borrowed registry through I/R/parser reset/EOF and destroys only its native view owner. Initial count10/mask0f/loaded0/inactive body are now visible in coherent captures. E acquisition/style selection and W rendering remain pending."
+          ],
+          "tests": [
+            "big_font",
+            "cterm_big_resolution",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "28-text-fonts-and-native-reuse.adoc",
+            "30-font-registry-and-resource-lifetimes.adoc",
+            "53-text-and-line-style-command-acceptance.adoc",
+            "71-global-fonts-and-patterns-acceptance.adoc",
+            "83-global-native-reuse-and-implementation-map.adoc",
+            "text-data.json:fonts",
+            "font-resource-data.json:font_headers,registry_table"
+          ],
+          "deviations": [
+            "Implement the used borrowed startup subset. Flat bounded body views replace source paragraph/header mutation and foreign pointer aliases; canonical offset0/header128 requires no original copy and retains identical payloads. No unused installuserfont, owned DOS allocator or raw font-file loader is ported.",
+            "Missing marker, escaped native header/table/record extents and unterminated WORD traversal return checked errors instead of following foreign memory. Structural body-plus checks remain separate from registration so failures are not moved earlier than their consumer."
+          ],
+          "verification": [
+            "Configure-time source SHA-256 and independent compiled CRC-32/length checks retain all23,377 bytes of older files, including original headers/notices. Every4x256 font/code pair walks to END; literal Small A and Gothic21/22/A widths/record counts/terminal moves distinguish older assets and zero-width programs.",
+            "Every65536 two-byte record combination checks opcode/signed-seven-bit fields independently. Synthetic low-count/BYTE/WORD wrap, truncated accepted prefixes, resumed reads and one full unterminated WORD traversal verify access/error ordering.",
+            "Borrowed registry tests cover all four startup bindings, ten names/twenty slots, independent spaced version bytes/high-byte indifference, unknown/empty names, late plus validation, checked malformed extents and re-registration without loaded/active invalidation.",
+            "All2450 existing coherent application scenes now additionally assert original startup registry count10/mask0f/loaded0/inactive body through I/R/entry/reset/EOF/reconnect while retaining complete scene/state/image/reply/RGB expectations. These are startup/data checks; E/W glyph rendering is not claimed.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All38 BIG-specific native CTests passed in46.91s; big_font0.01s. syncterm_big_input passed in123.17s (test123.08s),2450 coherent scenes with the additional startup-registry assertions. No non-BIG tests ran. Original data/borrowed startup/common format access are implemented; E selection/W rendering and full global45-entry/final acceptance stay pending."
+          ],
+          "commit": null,
+          "assets": [
+            {
+              "path": "src/terminal/big/fonts/BIG103-Triplex.CHR",
+              "font_id": 1,
+              "bytes": 7241,
+              "sha256": "b687918d590a22273fbb30967e0e50cb9e4ff9d3c3c97591bc6ec5460d655c9a"
+            },
+            {
+              "path": "src/terminal/big/fonts/BIG103-Small.CHR",
+              "font_id": 2,
+              "bytes": 2138,
+              "sha256": "dc51f652a1d863273eb291830b3fba5e283b9dbe65b366b0b9eae02e7b237f08"
+            },
+            {
+              "path": "src/terminal/big/fonts/BIG103-Sans.CHR",
+              "font_id": 3,
+              "bytes": 5438,
+              "sha256": "9bae0df17f137f3b9171f19dde0ebc6090c37677105d3b78ef427e719ddb8036"
+            },
+            {
+              "path": "src/terminal/big/fonts/BIG103-Gothic.CHR",
+              "font_id": 4,
+              "bytes": 8560,
+              "sha256": "b784419930e54435f28763e9f4cf2854a785082b9b330e7ac93c0f5590b06814"
+            }
+          ]
         }
       ]
     },
@@ -2252,7 +2317,7 @@
     {
       "id": "E",
       "order": 25,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2260,12 +2325,22 @@
         "shared-bgi"
       ],
       "references": [
-        "53-text-and-line-style-command-acceptance.adoc"
+        "53-text-and-line-style-command-acceptance.adoc",
+        "28-text-fonts-and-native-reuse.adoc",
+        "30-font-registry-and-resource-lifetimes.adoc"
       ],
-      "operations": [],
-      "tests": [],
+      "operations": [
+        "Prerequisite original V100 data and borrowed startup registrations are implemented with bounded common format access. E three-field acquisition, publication/selection/DDO style and W rendering remain pending; no E wire acceptance is claimed."
+      ],
+      "tests": [
+        "big_font",
+        "cterm_big_resolution",
+        "syncterm_big_input"
+      ],
       "deviations": [],
-      "verification": [],
+      "verification": [
+        "The original-v100-fonts-and-borrowed-startup foundation supplies exact data and constructor registration/state coverage. E command grammar and selection/style tests remain required."
+      ],
       "commit": null
     },
     {

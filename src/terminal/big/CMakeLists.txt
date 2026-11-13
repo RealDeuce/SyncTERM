@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+include("${CMAKE_CURRENT_SOURCE_DIR}/embed_fonts.cmake")
 add_library(st_big STATIC st_big_number.c st_big_random.c st_big_loop.c st_big_numeric.c
-	st_big_profile.c st_big_state.c st_big_palette.c st_big_control.c st_big_stream.c st_big_draw.c st_big_spray.c st_big_text.c st_big_collect.c st_big_fill.c st_big_flood.c st_big_video.c st_big_image.c)
+	st_big_profile.c st_big_state.c st_big_palette.c st_big_control.c st_big_stream.c st_big_draw.c st_big_spray.c st_big_text.c st_big_font.c "${CMAKE_CURRENT_BINARY_DIR}/st_big_font_data.c" st_big_collect.c st_big_fill.c st_big_flood.c st_big_video.c st_big_image.c)
 target_include_directories(st_big PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_big PUBLIC syncterm_io_error st_graphics_protocol PRIVATE st_time st_fonts st_bgi)
 set_target_properties(st_big PROPERTIES
@@ -13,7 +14,7 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	foreach(part IN ITEMS number random loop numeric state palette palette_rotation profile control flow_settings stream draw spray text_ratio collect fill bar producer bar3d flood video image image_paste)
+	foreach(part IN ITEMS number random loop numeric state palette palette_rotation profile control flow_settings stream draw spray text_ratio font collect fill bar producer bar3d flood video image image_paste)
 		add_executable(st_big_${part}_test tests/st_big_${part}_test.c)
 		target_link_libraries(st_big_${part}_test PRIVATE st_big)
 		set_target_properties(st_big_${part}_test PROPERTIES
@@ -33,4 +34,5 @@ if(BUILD_TESTING)
 	target_link_libraries(st_big_draw_test PRIVATE st_bgi)
 	target_link_libraries(st_big_fill_test PRIVATE st_bgi)
 	target_link_libraries(st_big_image_paste_test PRIVATE st_bgi)
+	target_link_libraries(st_big_font_test PRIVATE st_bgi)
 endif()

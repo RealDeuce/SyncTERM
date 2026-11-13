@@ -535,3 +535,19 @@ retaining all prior spray/image/pixel/cell/palette/point/fill/page/cursor/
 reply/RNG observations; earlier scenes also check initial text state.
 These tests do not claim E/W font rendering or auditory coverage. Native X3
 is implemented; remaining text/audio/global/final acceptance stays pending.
+
+`big_font` checks all bytes of the compiled original V100 assets against
+independent CRC-32 values, in addition to pinned source SHA-256 verification
+at configure time. Raw assets/notices and provenance are in fonts/README.md.
+All4x256 glyph/code combinations are walked to END, distinguishing missing
+characters from zero-width glyphs that have real strokes. Literal Small A
+and Gothic21/22/A widths, record counts and terminal MOVE points come from
+the supplied bytes and28/30, not the implementation under test. Every65536
+record pair checks opcode and signed-seven-bit conversion independently.
+Header/version/name/rebinding/error cases retain the borrowed20-slot registry
+and separate loaded/active owners. Synthetic BYTE/WORD wraps, truncated
+prefixes and unterminated traversal verify checked access ordering.
+All2450 existing coherent application scenes now also observe count10,
+registered mask0f, loaded0 and inactive body through normal entry/reset/I/R/
+reconnect. These tests cover data, startup registration and format access;
+E selection, W layout/raster and global/final acceptance remain pending.

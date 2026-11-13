@@ -366,6 +366,14 @@ partial/error/source/lifetime paths and complete unchanged scene data.
 retained scene/images/state/replies/RNG. E/W font rendering, audio/global45-entry
 and final cross-emulation regressions remain pending.
 
+BIG now embeds the four original V100 stroke fonts and registers their
+borrowed bodies at entry. Source SHA-256/compiled CRC checks, every glyph/
+record and malformed-access fixtures verify the separate common CHR format
+accessor and registry lifetimes. All2450 existing coherent scenes additionally
+assert count10, mask0f, loaded0 and inactive body alongside unchanged scene/
+state data. E selection and W rendering remain pending; this data/startup
+coverage does not claim graphical-text conformance.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the
