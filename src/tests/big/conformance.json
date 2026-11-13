@@ -512,7 +512,7 @@
           "verification": [
             "Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred."
           ],
-          "commit": null
+          "commit": "d736676"
         }
       ]
     },
@@ -985,7 +985,7 @@
           "verification": [
             "Native CMake Release configure/full builds and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed page/render objects were verified current. All23 BIG-specific native CTest checks passed in15.16s, including cterm_big_pages in0.74s and cterm_big_bar in5.13s. The final expanded page fixture (including D/d and pointer-marker routing) passed in0.81s (test0.75s). The final application fixture passed in82.37s (test82.24s),1568 coherent scenes including140 new page scenes; its first expanded run also passed in83.20s. No non-BIG tests ran. G4/5/6/native page routing is implemented; G0..3 images and remaining global45-entry composition are pending, with final full-suite verification deferred."
           ],
-          "commit": null
+          "commit": "d736676"
         }
       ]
     },
