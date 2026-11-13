@@ -501,7 +501,7 @@
             "All2450 existing coherent application scenes now additionally assert original startup registry count10/mask0f/loaded0/inactive body through I/R/entry/reset/EOF/reconnect while retaining complete scene/state/image/reply/RGB expectations. These are startup/data checks; E/W glyph rendering is not claimed.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All38 BIG-specific native CTests passed in46.91s; big_font0.01s. syncterm_big_input passed in123.17s (test123.08s),2450 coherent scenes with the additional startup-registry assertions. No non-BIG tests ran. Original data/borrowed startup/common format access are implemented; E selection/W rendering and full global45-entry/final acceptance stay pending."
           ],
-          "commit": null,
+          "commit": "2b1fa26",
           "assets": [
             {
               "path": "src/terminal/big/fonts/BIG103-Triplex.CHR",

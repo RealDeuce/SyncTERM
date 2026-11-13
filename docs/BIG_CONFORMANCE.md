@@ -1233,3 +1233,5 @@ E wire selection and W graphical text remain pending; no glyph-rendering
 acceptance is claimed by these data/registration tests.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All38 BIG-specific native CTests passed in46.91s; big_font0.01s. syncterm_big_input passed in123.17s (test123.08s),2450 coherent scenes with the additional startup-registry assertions. No non-BIG tests ran. Original data/borrowed startup/common format access are implemented; E selection/W rendering and full global45-entry/final acceptance stay pending.
+
+Original V100 font data/startup implementation commit: `2b1fa26`.
