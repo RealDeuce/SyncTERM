@@ -2,9 +2,9 @@
 #include "st_big_profile.h"
 #include "st_builtin_fonts.h"
 static const struct st_big_mode modes[] = {
-	{1,0x0e,640,200,80,25,8,4,3,0x4000},
-	{2,0x10,640,350,80,25,14,4,3,0x8000},
-	{3,0x12,640,480,80,30,16,4,3,0x9600},
+	{1,0x0e,640,200,80,25,8,4,3,0x4000,0x4000},
+	{2,0x10,640,350,80,25,14,4,3,0x8000,0x8000},
+	{3,0x12,640,480,80,30,16,4,3,0x9600,0xa000},
 };
 const struct st_big_mode *st_big_mode(unsigned resolution)
 {

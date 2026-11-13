@@ -12,12 +12,14 @@ int main(void)
 	static const unsigned heights[] = {200,350,480}, cells[] = {8,14,16}, rows[] = {25,25,30};
 	static const uint8_t bios[] = {0x0e,0x10,0x12};
 	static const size_t pitches[] = {16384,32768,38400};
+	static const uint16_t visual_pitches[] = {16384,32768,40960};
 	static const uint64_t hashes[] = {UINT64_C(0xd9dbbc3df2c7b6b6),UINT64_C(0x6496a654283abdd1),UINT64_C(0x6fff41d644f1e76c)};
 	for (unsigned i = 0; i < 3; ++i) {
 		const struct st_big_mode *m = st_big_mode(i+1); struct st_console_font font;
 		CHECK(m != NULL && m->width == 640 && m->height == heights[i] && m->columns == 80 && m->rows == rows[i]);
 		CHECK(m->cell_height == cells[i] && m->page_bytes == pitches[i] && m->aspect_width == 4 && m->aspect_height == 3);
 		CHECK(m->bios_mode == bios[i]);
+		CHECK(m->visual_page_bytes==visual_pitches[i]);
 		CHECK(st_big_console_font(i+1,&font) && font.width == 8 && font.height == cells[i] && font.glyph_count == 256);
 		CHECK(font.row_stride == 1 && font.glyph_stride == cells[i] && font.bitmap_size == cells[i]*256);
 		uint64_t hash = UINT64_C(0xcbf29ce484222325);

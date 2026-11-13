@@ -356,3 +356,17 @@ empty floods, XOR edge/corner parity and reversed hollow outlines, preserving
 the full previous text/pixels/palette/state/points/cursor/replies/diagnostics/
 RGB. Expected pixels come from23/24/57/59 deductions. Z visible-page and H's
 Z consumer are implemented; remaining page/buffer/global composition is pending.
+
+`big_video` checks the borrowed indexed address/window boundary needed by G.
+Literal addresses distinguish CPU aliases, aperture escapes and independent
+display-counter wrap. Every canonical524288 pixel and every pixel for40
+display layouts have independently walked expectations. All WORD pitches
+with signed/unsigned page cases check active-segment and BIOS display-start
+reductions. Tests retain full32-bit primary/alternate tokens, stale visible
+backing, visible-only binding, actual hidden extents, padding and wrapped
+page save/load, with exact partial/error prefixes and unchanged metadata.
+`big_profile` separately expects BIOS4000/8000/a000 versus BGI4000/8000/9600.
+Existing native B tests cover the consumed segment helper. This component
+does not allocate, initialize, convert RGB or emulate a controller/scan clock.
+Native G/page/image/console/presentation and resource bindings remain pending;
+the unchanged application fixture is not rerun for this dependency.

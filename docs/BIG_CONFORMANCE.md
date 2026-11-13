@@ -857,3 +857,26 @@ pending. Routine verification stays BIG-specific.
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Changed objects were verified current; both the full and final focused builds were clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending.
 
 Native Z outline/fill integration commit: `89d360a`.
+
+## Indexed video address/storage dependency
+
+The new borrowed indexed-video component separates CPU segment+WORD
+addressing, physical backing and the authoritative visible bitmap. Visible
+addresses use that bitmap directly; stale backing at those addresses is not
+a second authoritative framebuffer. Off-screen addresses use actual backing,
+with checked aperture/extent failures. Display intervals can wrap separately
+from CPU accesses. Save/load preserves both blink tokens and padding, with
+explicit accepted prefixes and caller-owned view/allocation lifetimes.
+
+Profiles now distinguish BIOS visual4000/8000/a000 from BGI active4000/8000/
+9600. The low-BYTE active helper and signed-BYTE BIOS display-start helper
+retain original WORD reductions; native B point-return segment metadata
+uses the former. No planar shadow, controller or physical timing model is
+introduced. Tests cover literal aliases/bounds, all524288 canonical CPU
+pixels, all WORD pitches with representative page BYTEs, every pixel of40
+display layouts, padding, distinct blink values, view authority, page
+preservation and failure prefixes. G wire/page/image/console/presentation
+binding and resource lifetimes remain pending. This is dependency coverage;
+the unchanged application fixture was not rerun and no new scene is claimed.
+
+Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred.

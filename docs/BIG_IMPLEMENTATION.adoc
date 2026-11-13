@@ -1918,3 +1918,52 @@ verification stays BIG-specific until the final full suite.
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Changed objects were verified current; both the full and final focused builds were clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending.
 
 Native Z outline/fill integration commit: `89d360a`.
+
+=== Indexed video addresses and authoritative visible windows
+
+`st_big_video` supplies the address/storage boundary needed by G's page and
+image paths. Each byte address denotes eight indexed native pixel tokens,
+with bit0 naming its leftmost pixel. These are ordinary primary/alternate
+pixel values, not packed bitplanes or frozen RGB. The component interprets
+no palette or Boolean drawing operation. Actual CPU segment+WORD offset must
+reach A0000..AFFFF; an unmapped access fails at that prefix. A caller's WORD
+offset wrap is distinct from crossing the CPU aperture, and equivalent
+segment/offset pairs reach the same indexed pixels.
+
+The current visible bitmap is authoritative over its display interval.
+Backing entries at those addresses may be stale and are not read or updated
+as a second framebuffer. Outside that interval, actual borrowed backing is
+authoritative. The display interval can wrap its16-bit byte counter, while
+CPU accesses retain their independent aperture check. A visible-only binding
+needs no backing allocation. Ordered save/load operations preserve both
+blink values, padding and other addresses; missing backing stops at its
+accepted pixel prefix. View metadata, allocation and publication belong to
+the caller, with disjoint visible/backing arrays and serialized lifetimes.
+
+Active-page arithmetic uses the low BYTE and BGI paragraph pitch. BIOS
+display-start arithmetic sign-extends the page BYTE before multiplication,
+retaining the low WORD. Profiles now retain BIOS CRT_LEN separately:
+4000/8000/a000 versus BGI4000/8000/9600. Thus R3 page1's CPU base9600 and
+display starta000 cannot collapse to a single native page ID. Existing
+batched B point-return segment calculation consumes the active helper.
+This is the declared VGA-capable normal sequential/byte-display profile;
+it adds no controller, BIOS execution, physical scan clock or EGA reduced-
+memory emulator. Checked missing/unmapped storage replaces unsafe DOS RAM
+access, without inventing video capacity or a modulo CPU aperture.
+
+`big_video` independently checks literal aliases/bounds, every canonical
+524288 CPU pixel address, all WORD pitches with signed/unsigned page cases,
+and every pixel for40 visible-window layouts (empty, one-pixel, ordinary
+screens, full aperture and wrapped starts). It verifies visible authority,
+no redundant copy, distinct blink tokens, page padding, wrapped save/load,
+retained pages and exact error prefixes/guards. `big_profile` checks the
+separate BIOS pitches; native B fixtures retain their indexed/register
+expectations. The component itself neither allocates nor initializes RAM.
+
+G's wire routes, native active/visual/console/presentation routing, page/
+image allocation/lifetimes, packed image conversion and coherent command
+scenes remain pending. The unchanged application fixture is not rerun for
+this address/storage dependency; no new command acceptance or scene is
+claimed. Routine tests remain BIG-specific until the final full suite.
+
+Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred.

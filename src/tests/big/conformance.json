@@ -371,11 +371,14 @@
       "operations": [
         "Indexed visible framebuffer and off-screen pages/images; explicit capacity/padding/stride and active/visual/memory ownership.",
         "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes.",
-        "Distinct public logical, translated DDO and device points, current line offset distance, public colour and device pen, public style and downstream width/pattern; I/R defaults update the actual drawing state."
+        "Distinct public logical, translated DDO and device points, current line offset distance, public colour and device pen, public style and downstream width/pattern; I/R defaults update the actual drawing state.",
+        "Borrowed indexed VGA-profile aperture storage and authoritative visible windows: actual segment+WORD CPU addresses, independent wrapped display intervals, retained padding, distinct primary/alternate tokens and checked extent/prefix transfers. No persistent planar shadow or redundant authoritative visible copy."
       ],
       "tests": [
         "big_state",
-        "big_profile"
+        "big_profile",
+        "big_video",
+        "cterm_big_bar"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -445,6 +448,32 @@
           ],
           "commit": "3fd8fa6",
           "verification": "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending."
+        },
+        {
+          "id": "indexed-video-address-windows",
+          "status": "complete",
+          "operations": [
+            "Explicit A0000..AFFFF CPU aperture check after segment+WORD offset addition; MSB-first byte-to-eight-index mapping, including segment aliases. CPU aperture escape rejects instead of wrapping into fabricated video RAM.",
+            "Visible indexed pixels are authoritative in their display interval, including display-counter wrap. Other addresses use actual borrowed backing; zero backing supports a visible-only binding.",
+            "Separate BGI low-BYTE active-segment and BIOS signed-BYTE display-start arithmetic, actual page pitch/padding and BIOS CRT_LEN metadata (R3 active9600 versus visuala000). The existing batched B point-return segment calculation consumes the helper.",
+            "Ordered save/load into separate borrowed indexed arrays with accepted-prefix extent failures, unchanged view metadata and no resource allocation, pixel conversion, palette interpretation or I/O.",
+            "Native G page/image/console/presentation/resource-lifetime binding remains pending; this component supplies address/storage operations, not a replacement controller/BIOS/scan-clock emulator."
+          ],
+          "tests": [
+            "big_video",
+            "big_profile",
+            "cterm_big_bar"
+          ],
+          "references": [
+            "25-images-pages-and-native-reuse.adoc",
+            "48-bios-video-mode-registers-pages-and-dac.adoc",
+            "56-image-command-and-global-acceptance.adoc",
+            "76-vga-byte-data-and-display-addresses.adoc"
+          ],
+          "verification": [
+            "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2173,7 +2202,7 @@
     {
       "id": "G",
       "order": 44,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2181,12 +2210,28 @@
         "shared-bgi"
       ],
       "references": [
-        "56-image-command-and-global-acceptance.adoc"
+        "56-image-command-and-global-acceptance.adoc",
+        "25-images-pages-and-native-reuse.adoc",
+        "48-bios-video-mode-registers-pages-and-dac.adoc",
+        "76-vga-byte-data-and-display-addresses.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Indexed video address/window dependency implemented: separate active/display starts, visible authority/off-screen backing/padding and checked prefix transfers.",
+        "Pending all seven G wire routes, interpreter versus physical page binding, packed shared-image header/codec/size/crop/Boolean/prefix/retained-tail/resource behavior and full native/coherent command acceptance."
+      ],
+      "tests": [
+        "big_video",
+        "big_profile",
+        "cterm_big_bar"
+      ],
+      "deviations": [
+        "Checked out-of-aperture/backing accesses reject at their reached prefix instead of accessing DOS RAM or manufacturing video wrap. Only the declared VGA-capable normal sequential/byte-display profile is represented here; no EGA reduced-memory/controller/CRT timing emulator is claimed."
+      ],
+      "verification": [
+        "Independent literal segment aliases/aperture boundaries, all524288 canonical CPU pen addresses, all WORD pitches with signed/unsigned BYTE cases, and every pen for40 visible interval layouts.",
+        "Page padding and R3 active/visual pitch distinction, visible-only/hidden authority, independent blink tokens, wrapped save/load/page preservation, no initialization on bind and precise missing-backing prefixes/null guards. This is address/storage dependency coverage; G wire/page/image/native command behavior remains pending.",
+        "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices; changed objects were verified current. All22 BIG-specific native CTest checks passed in15.70s, including big_video in0.27s and cterm_big_bar in3.60s. Expanded address/window checks also passed alone in0.33s (test0.26s). No non-BIG tests ran. The unchanged application fixture was not rerun for this dependency, and no new scenes or G wire/native page/image acceptance are claimed. Active/visual/console/presentation/resource binding and full45-entry composition remain pending; the final full suite remains deferred."
+      ],
       "commit": null
     }
   ],

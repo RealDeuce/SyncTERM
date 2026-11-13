@@ -12,6 +12,7 @@ struct st_big_mode {
 	uint32_t width, height, columns, rows, cell_height;
 	uint32_t aspect_width, aspect_height;
 	size_t page_bytes; /* Per-plane page pitch, including retained padding. */
+	uint16_t visual_page_bytes; /* BIOS CRT_LEN, independent of BGI pitch. */
 };
 const struct st_big_mode *st_big_mode(unsigned resolution);
 /* Borrow exact existing font0 banks; BGI graphical text is a separate font. */

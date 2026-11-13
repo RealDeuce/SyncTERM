@@ -256,6 +256,15 @@ scenes bring BIG coverage to1428 with complete prior scene/state/replies/
 diagnostics/RGB observations. Page/padding/configured buffers and global
 composition remain pending; only BIG tests run during development.
 
+BIG's indexed address/storage dependency now distinguishes active CPU
+segment/WORD addresses from BIOS display-start/padding metadata, using the
+visible bitmap as its authoritative window and borrowed backing elsewhere.
+`big_video` checks every canonical aperture pixel and all pixels in40
+display layouts, original BYTE/WORD arithmetic, padding, blink values and
+precise extent-error prefixes. Native B segment-return expectations remain
+covered; G wire/page/image/console/presentation binding is still pending.
+No additional application scene or hardware/device acceptance is claimed.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

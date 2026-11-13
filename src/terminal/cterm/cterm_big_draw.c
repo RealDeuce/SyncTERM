@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_big_internal.h"
 #include "st_big_draw.h"
+#include "st_big_video.h"
 #include "cterm.h"
 #include "io_error.h"
 
@@ -115,7 +116,7 @@ static int bar(void *context, const struct st_pixel_buffer *pixels, struct st_co
 	if (big->producer.mode==2) {
 		const struct st_big_mode *mode=st_big_mode((unsigned)big->state.bgi.mode+1);
 		if (mode==NULL) return IO_ERROR_OUT_OF_RANGE;
-		big->producer.video_segment=(uint16_t)(0xa000u+(mode->page_bytes/16)*big->state.bgi.active_page);
+		big->producer.video_segment=st_big_video_active_segment((uint8_t)big->state.bgi.active_page,(uint16_t)(mode->page_bytes/16));
 	}
 	return st_big_draw_bar3d(&big->state,big->bar.points,request->size,request->top,&big->producer,&sink);
 }
