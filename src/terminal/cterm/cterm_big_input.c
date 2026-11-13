@@ -7,7 +7,7 @@
 
 bool cterm_big_input_owned(const struct cterm_big *big)
 {
-	return big!=NULL && (big->collect.active || big->setup.phase!=CTERM_BIG_SETUP_OFF
+	return big!=NULL && (big->rotation.active || big->collect.active || big->setup.phase!=CTERM_BIG_SETUP_OFF
 	    || (big->control.frame.command=='<' && !big->footer_active && st_graphics_parser_in_command(big->parser)) || (big->numeric.loop.active==1
 	    && st_graphics_parser_in_command(big->parser)
 	    && (!big->footer_active || big->numeric.loop.command_read)));
@@ -67,6 +67,16 @@ uint8_t cterm_big_key_byte(const struct cterm_key *key, uint8_t *scan, bool *ext
 		value=0; *scan=(uint8_t)((unsigned)key->local>>8); *extended=true;
 	} else value=key->local>=0 && key->local<=0xff?(uint8_t)key->local:'?';
 	return value;
+}
+uint16_t cterm_big_input_status(struct cterm_big *big)
+{
+	discard_mouse(big);
+	if (big->input.count==0) return 0;
+	uint8_t scan=0; bool extended;
+	uint8_t value=cterm_big_key_byte(&big->input.events[big->input.first].data.key,&scan,&extended);
+	/* Retain the distinction between ready-with-AX0 and a nonzero key
+	 * result. A pending private getch scan is not a new ready event. */
+	return extended?(uint16_t)((unsigned)scan<<8):value;
 }
 int cterm_big_input_read(void *context, uint8_t *value)
 {

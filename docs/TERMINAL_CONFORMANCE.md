@@ -315,6 +315,18 @@ scenes bring BIG to1820, checking live/saved-image recoloring, raw cache,
 silent rejection, capture under palette aliases and I1 restoration alongside
 the complete prior scene/state/replies. X8/global/final regressions are pending.
 
+BIG X8 now implements capture/restore and the original inclusive palette
+walks with per-setter snapshots and a stale final wrap. Unsigned millisecond
+delays use local monotonic deadlines; key cancellation follows the full wait.
+Signed WORD count wrap, current flow/loop owners and the common footer are
+preserved. Explicit zero-owned padding replaces the source's uninitialized
+upper-endpoint byte. Independent component/native cases cover all endpoint
+pairs, splits/profiles, keyboard results/scans, flow retries, deadline and
+EOF/reset/error prefixes.126 new coherent application scenes bring BIG to1946,
+checking palette/local/saved/RGB results and unchanged indexed pixels/images
+alongside cells/points/fill/pages/cursor/replies. N/audio/global composition
+and final cross-emulation regressions remain pending.
+
 CGA 80x25 adds a 640x200 PC raster with 80x25 8x8 cells, 4:3 display aspect,
 PC blink and cursor scanlines6..7. Stable mode32 appears before EGA in ordered
 screen/canvas pickers without renumbering existing mode values or the

@@ -12,6 +12,7 @@
 #include "st_unicode_text.h"
 #include "io_error.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 static const uint8_t attention[] = {'I','#'};
@@ -118,6 +119,8 @@ static int extended_next(void *context, const struct st_graphics_command_view *v
 	if ((uint16_t)view->arguments[0].value==6 && view->count<3)
 		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER,
 		    .axis=view->count==1?ST_GRAPHICS_X:ST_GRAPHICS_Y};
+	if ((uint16_t)view->arguments[0].value==8 && view->count<5)
+		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
 	return 0;
 }
 
@@ -425,6 +428,7 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='X') {
 		if (view->count<1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		uint16_t selector=(uint16_t)view->arguments[0].value;
+		if (selector==8) return cterm_big_rotation_begin(big,view);
 		if (selector==1) {
 			int status;
 			if (view->count==3 && view->arguments[1].has_value && view->arguments[2].has_value)
@@ -501,6 +505,7 @@ static void cancel(struct cterm_big *big)
 	memset(&big->zone,0,sizeof(big->zone));
 	memset(&big->bar,0,sizeof(big->bar));
 	memset(&big->flood,0,sizeof(big->flood));
+	memset(&big->rotation,0,sizeof(big->rotation));
 }
 void cterm_big_reset(struct cterm_big *big)
 {
@@ -564,7 +569,7 @@ static int gang_selector(struct cterm_big *big, const struct st_graphics_parser_
 }
 static bool body_pending(const struct cterm_big *big)
 {
-	return big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
+	return big->rotation.active || big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
 }
 static int drive(struct cterm_big *big, const void *data, size_t size, size_t *used)
 {
@@ -578,6 +583,19 @@ static int drive(struct cterm_big *big, const void *data, size_t size, size_t *u
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->rotation.active) {
+			bool complete;
+			const struct st_big_state_sink palette_sink={.context=big,.palette=palette};
+			status=cterm_big_rotation_poll(big,&output_budget,&body_budget,&palette_sink,&complete);
+			if (status!=0) break;
+			if (complete) {
+				const struct st_graphics_command_view view={.chained=big->rotation.chained};
+				status=begin_footer(big,&view);
+				if (status!=IO_ERROR_IN_PROGRESS) break;
+				status=0; advance_needed=true; continue;
+			}
+			break;
+		}
 		if (big->flood.active) {
 			bool complete;
 			status=cterm_big_flood_poll(big,&output_budget,&complete);
@@ -741,7 +759,7 @@ int cterm_big_poll(struct cterm_big *big)
 }
 bool cterm_big_paused(const struct cterm_big *big)
 {
-	return big != NULL && (big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
+	return big != NULL && (big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
 	    || big->footer_active || big->setup.cooperative || big->setup.phase==CTERM_BIG_SETUP_FLOW
 	    || (big->setup.phase==CTERM_BIG_SETUP_TEXT && big->setup.stream.phase==ST_BIG_STREAM_FLOW)
 	    || (big->gang_selecting && !big->gang_wire)
@@ -845,6 +863,21 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_pattern_active", big->fill_edit.active);
 	st_console_test_number(app, "cterm.big_bar_active", big->bar.active);
 	st_console_test_number(app, "cterm.big_flood_active", big->flood.active);
+	st_console_test_number(app, "cterm.big_rotation_active", big->rotation.active);
+	st_console_test_number(app, "cterm.big_rotation_first", big->rotation.colors.first);
+	st_console_test_number(app, "cterm.big_rotation_last", big->rotation.colors.last);
+	st_console_test_number(app, "cterm.big_rotation_count", big->rotation.colors.count);
+	st_console_test_number(app, "cterm.big_rotation_delay", big->rotation.colors.delay);
+	st_console_test_number(app, "cterm.big_rotation_counter", big->rotation.counter);
+	st_console_test_number(app, "cterm.big_local_palette_size", big->state.local_palette[0]);
+	st_console_test_number(app, "cterm.big_palette_padding", big->state.palette_padding);
+	for (size_t i=0;i<16;++i) {
+		char name[64];
+		snprintf(name,sizeof(name),"cterm.big_local_palette%zu",i);
+		st_console_test_number(app,name,big->state.local_palette[i+1]);
+		snprintf(name,sizeof(name),"cterm.big_saved_palette%zu",i);
+		st_console_test_number(app,name,big->state.saved_palette[i]);
+	}
 	st_console_test_number(app, "cterm.big_last_error", big->last_error);
 	st_console_test_number(app, "cterm.big_rejected_commands", big->rejected_commands);
 	st_console_test_number(app, "cterm.big_palette_size", big->state.bgi.palette_size);

@@ -52,6 +52,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_pattern_active"]
     assert not s["cterm.big_bar_active"]
     assert not s["cterm.big_flood_active"]
+    assert not s["cterm.big_rotation_active"]
     assert (s["cterm.big_last_error"], s["cterm.big_rejected_commands"]) == rejections
     assert not s["cterm.big_reply_pending"]
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
@@ -811,6 +812,82 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   rgb_sample=rgb, fill=(1, 5), selected_fill=1, fill_pixels=(0x55555555,) * 8,
                                   hollow=0, rejections=(-12, 2), pages=pages, backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), palette_codes=tuple(codes), expected_palette=tuple(physical))
+                        # Literal caller traces from26/55: extra endpoint
+                        # setters, stale final snapshots and signed saves.
+                        captured = list(EGA_CODES)
+                        captured[2:5] = (7, 10, 20)
+                        captured[8] = 128
+                        saved = captured.copy()
+                        saved[8] = 0xff80
+                        rotated = captured.copy()
+                        rotated[3:5] = (10, 7)
+                        restored = captured.copy()
+                        restored[8] = 5
+                        ascending = restored.copy()
+                        ascending[3:5] = (5, 20)
+                        lower = ascending.copy()
+                        lower[0:2] = (0, 16)
+                        upper = lower.copy()
+                        upper[14:16] = (0, 63)
+                        settled = upper.copy()
+                        settled[3:5] = (7, 7)
+                        local_down = rotated.copy()
+                        local_down[3] = 7
+                        local_up = ascending.copy()
+                        local_up[4] = 5
+                        local_low = lower.copy()
+                        local_low[0] = 16
+                        local_high = upper.copy()
+                        local_high[15] = 0
+                        rotations = (
+                            (b"I#X 8,0,15,0,+1:", [0] * 16, list(EGA_CODES), [0] * 16, False),
+                            (b"I#I 1:I#S>2,7:S>3,10:S>4,20:S>8,128:X 8,1,1,1,1:", captured, captured, saved, False),
+                            (b"I#X 8,3,4,1,0:", rotated, local_down, saved, True),
+                            (b"I#S>8,5:X 8,0,0,0,0:", restored, rotated, saved, False),
+                            (b"I#X 8,4,3,1,0:", ascending, local_up, saved, True),
+                            (b"I#X 8,0,1,1,0:", lower, local_low, saved, True),
+                            (b"I#X 8,15,14,1,0:", upper, local_high, saved, True),
+                            (b"I#X 8,3,4,9999,1:", settled, settled, saved, True),
+                            (b"I#I 1:", list(EGA_CODES), settled, saved, False),
+                        )
+
+                        def ega_rgb(code):
+                            return (85 * (2 * ((code >> 2) & 1) + ((code >> 5) & 1)) << 16
+                                    | 85 * (2 * ((code >> 1) & 1) + ((code >> 4) & 1)) << 8
+                                    | 85 * (2 * (code & 1) + ((code >> 3) & 1)))
+
+                        for index, (command, codes, local_codes, saved_codes, flow) in enumerate(rotations):
+                            token = f"ROTATE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            if index == 7:
+                                client.wait_for(lambda f: f.application.get("cterm.big_rotation_active")
+                                                and f.application.get("cterm.big_rotation_counter", 0) >= 3
+                                                and f.application.get("cterm.big_palette3") == 7
+                                                and f.application.get("cterm.big_palette4") == 7)
+                                client.key(ord("A"))
+                            expected = (b"\x13\x11" if flow else b"") + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            physical = tuple(ega_rgb(code) for code in codes)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0), lower_points=((0, 0), (0, 0)),
+                                  colors=(271, 15, 5, 65535), graph_color=15, colored_pixels=four_swatches,
+                                  rgb_sample=(384, 68, physical[5]), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), palette_codes=tuple(codes), expected_palette=physical)
+                            assert frame.application["cterm.big_local_palette_size"] == 16
+                            assert frame.application["cterm.big_palette_padding"] == 0
+                            assert tuple(frame.application[f"cterm.big_local_palette{i}"] for i in range(16)) == tuple(local_codes)
+                            assert tuple(frame.application[f"cterm.big_saved_palette{i}"] for i in range(16)) == tuple(saved_codes)
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

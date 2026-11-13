@@ -396,7 +396,8 @@
         "Borrowed indexed VGA-profile aperture storage and authoritative visible windows: actual segment+WORD CPU addresses, independent wrapped display intervals, retained padding, distinct primary/alternate tokens and checked extent/prefix transfers. No persistent planar shadow or redundant authoritative visible copy.",
         "Native indexed backing/active/display routing for G4/5/6, every existing graphics sink and batched point reads; independent interpreter/device/BIOS page state, four cursor banks, protected host status row, mode clear and serialized resource lifetime.",
         "Native G0..3 routing and engine-owned retained image storage/cache: format-edge indexed conversion, original image/page/gate/mode prefixes, snapshot overlap, protected UI rows and bounded nonfatal failure lifetimes.",
-        "Explicit raw palette-size/cache ownership and public single setter, shared by S and I1/future X8; six-bit physical RGB publication preserves indexed image/page identities and independent feature gates."
+        "Explicit raw palette-size/cache ownership and public single setter, shared by S and I1/X8; six-bit physical RGB publication preserves indexed image/page identities and independent feature gates.",
+        "Native X8 capture/restore/rotation uses shared raw cache/public setters and explicit local/saved/padding owners; protocol waits and flow use local deadlines outside palette updates."
       ],
       "tests": [
         "big_state",
@@ -412,7 +413,9 @@
         "big_image_paste",
         "cterm_big_images",
         "big_palette",
-        "cterm_big_palette"
+        "cterm_big_palette",
+        "big_palette_rotation",
+        "cterm_big_rotation"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -705,6 +708,42 @@
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending."
           ],
           "commit": "b07e881"
+        },
+        {
+          "id": "native-x8-palette-rotation",
+          "status": "complete",
+          "operations": [
+            "Acquire four class0 WORDs before exact1/1/1/1 cache snapshot and CBW saved-WORD capture, then signed endpoint clamps to15. Ordinary entry keeps its frame snapshot; count0 reads current saved words through the public setter without S gates or local refresh.",
+            "Both independent direction predicates preserve inclusive endpoint writes, a cache getter after each loop setter even on silent rejection, and no getter after the final wrap. Descending index0 reads the size byte; ascending index15 reads explicit owned padding.",
+            "Signed WORD counter0 through count gives N+1 turns for positive N through32766 and no finite automatic end for32767 after wrap. Native unsigned millisecond delay follows the complete turn, then nonzero key-result cancellation/read; ready keys do not shorten the delay.",
+            "XOFF precedes counter initialization when current loop is0; XON independently tests current loop at exit. Current count0 restore is a separate tail test. Flow/getch suspension resumes accepted prefixes, then the common repeat/chain/deferred-reply footer runs.",
+            "Native extended/NUL/private-scan distinctions preserve result-versus-readiness behavior and unread event replay. EOF/reset/backend/deadline failure abandons pending work without synthetic XON or palette restoration; indexed framebuffer/page/image owners remain intact."
+          ],
+          "tests": [
+            "big_palette_rotation",
+            "big_palette",
+            "big_control",
+            "cterm_big_rotation",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "26-palettes-rotation-and-native-reuse.adoc",
+            "55-palette-command-and-global-acceptance.adoc",
+            "83-global-native-reuse-and-implementation-map.adoc",
+            "palette-review-code.adoc:13d2:0a8b..0c64;195a:14f8..1516"
+          ],
+          "deviations": [
+            "The original uninitialized byte beyond the17-byte local is explicit owned padding initialized to0, retained by attention/snapshots/I/R. The existing defined interpreter-entry snapshot also replaces original uninitialized stack data. Escaped local/cache accesses reject at checked native extents instead of following arbitrary foreign segments/pointers.",
+            "Approved local timing policy converts the unsigned delay WORD directly to milliseconds on the local monotonic clock, with saturated deadlines and checked regressions. Original PIT programming prefix/tail is excluded; no foreign clock, BIOS timer, oscillator phase or mixer retiming is added. Native N/audio lifecycle composition remains pending."
+          ],
+          "verification": [
+            "Independent traces cover all256 endpoint pairs, all65536 endpoint WORD clamps, exact magic/sign capture, stale snapshots, negative candidates, current saved words and callbacks enabling both independent directions, with every setter/restore failure prefix.",
+            "Native split/bytewise all mode/encoding/status cases verify raw cache, physical RGB, complete indexed planes and retained image pens/state. Local full-delay/key order, unsignedffff, deadline saturation/regression/error, signed counter wrap, every native key kind/NUL/extended/private scans, blocked reads and unread replay are independent expectations.",
+            "Blocked XOFF retains the old counter until accepted; blocked XON does not repeat palette effects. Changed count0 restores at the tail; current loop changes produce either flow asymmetry. Constant stored-source final records retain original flow changes, class0 g3, chaining and deferred replies. EOF/reset omit synthetic tails.",
+            "126 new coherent application scenes,1946 total, cover initial zero restore, CBW magic capture, both directions/endpoints, negative saved restore, live local-key cancellation and I1 restoration. Complete pixels/cells/palette/local/saved/state/points/fill/pages/cursor/image header/payload/replies and composed RGB are observed together.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s; cterm_big_rotation0.64s. syncterm_big_input passed in101.50s (test101.45s),1946 coherent scenes. No non-BIG tests ran. Native X8 is implemented; N/audio/global45-entry and final regressions stay pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -1427,10 +1466,10 @@
       "operations": [
         "Two class0 index/value reads precede original birch/plywood then pine/cone gates, shared with G2/G0; no caller clamp, own flow or private reply. Shared numeric/pre-ANSI/source/repeat/footer behavior is preserved.",
         "Public setpalette silently rejects uninitialized state, unsigned index beyond U16(sizeBYTE-1), or a signed-negative full WORD. Accepted low-BYTE cache and logical-background0 stores precede device publication; old BGI error is neither a gate nor overwritten.",
-        "Actual BGI palette-size BYTE is initialized by defaults, retained by I1, and copied into defined frame snapshots alongside all16 raw cache bytes. S does not refresh same-frame local palette or saved WORDs; I1 and future X8 internal setters bypass S gates.",
+        "Actual BGI palette-size BYTE is initialized by defaults, retained by I1, and copied into defined frame snapshots alongside all16 raw cache bytes. S does not refresh same-frame local palette or saved WORDs; I1 and X8 internal setters bypass S gates.",
         "Raw8-bit cache data is separate from physical6-bit mapping through the shared EGA64 table:128 remains80/cache but physical0;262 becomes06/yellow rather than brown14; positive WORD7fff cachesff and maps3f.",
         "Per-index native palette publication preserves indexed primary/alternate pens, image data, pages, points, fonts and fill. Capturing under aliased RGB colors retains distinct pen identities.",
-        "Checked count-driven native cache bounds and backend failure prefixes recover nonfatally; following S/ANSI/DSR continue. Native S is implemented; X8 and remaining full-command/global45-entry and final regressions stay pending."
+        "Checked count-driven native cache bounds and backend failure prefixes recover nonfatally; following S/ANSI/DSR continue. Native S and X8 are implemented; remaining full-command/global45-entry and final regressions stay pending."
       ],
       "tests": [
         "big_palette",
@@ -2428,19 +2467,44 @@
     {
       "id": "X8",
       "order": 42,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
         "big-state-pages"
       ],
       "references": [
-        "55-palette-command-and-global-acceptance.adoc"
+        "26-palettes-rotation-and-native-reuse.adoc",
+        "55-palette-command-and-global-acceptance.adoc",
+        "83-global-native-reuse-and-implementation-map.adoc",
+        "palette-review-code.adoc:13d2:0a8b..0c64;195a:14f8..1516"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Acquire four class0 WORDs before exact1/1/1/1 cache snapshot and CBW saved-WORD capture, then signed endpoint clamps to15. Ordinary entry keeps its frame snapshot; count0 reads current saved words through the public setter without S gates or local refresh.",
+        "Both independent direction predicates preserve inclusive endpoint writes, a cache getter after each loop setter even on silent rejection, and no getter after the final wrap. Descending index0 reads the size byte; ascending index15 reads explicit owned padding.",
+        "Signed WORD counter0 through count gives N+1 turns for positive N through32766 and no finite automatic end for32767 after wrap. Native unsigned millisecond delay follows the complete turn, then nonzero key-result cancellation/read; ready keys do not shorten the delay.",
+        "XOFF precedes counter initialization when current loop is0; XON independently tests current loop at exit. Current count0 restore is a separate tail test. Flow/getch suspension resumes accepted prefixes, then the common repeat/chain/deferred-reply footer runs.",
+        "Native extended/NUL/private-scan distinctions preserve result-versus-readiness behavior and unread event replay. EOF/reset/backend/deadline failure abandons pending work without synthetic XON or palette restoration; indexed framebuffer/page/image owners remain intact.",
+        "Native X8 is implemented. N/audio and complete global45-entry composition/final regressions remain pending."
+      ],
+      "tests": [
+        "big_palette_rotation",
+        "big_palette",
+        "big_control",
+        "cterm_big_rotation",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "The original uninitialized byte beyond the17-byte local is explicit owned padding initialized to0, retained by attention/snapshots/I/R. The existing defined interpreter-entry snapshot also replaces original uninitialized stack data. Escaped local/cache accesses reject at checked native extents instead of following arbitrary foreign segments/pointers.",
+        "Approved local timing policy converts the unsigned delay WORD directly to milliseconds on the local monotonic clock, with saturated deadlines and checked regressions. Original PIT programming prefix/tail is excluded; no foreign clock, BIOS timer, oscillator phase or mixer retiming is added. Native N/audio lifecycle composition remains pending."
+      ],
+      "verification": [
+        "Independent traces cover all256 endpoint pairs, all65536 endpoint WORD clamps, exact magic/sign capture, stale snapshots, negative candidates, current saved words and callbacks enabling both independent directions, with every setter/restore failure prefix.",
+        "Native split/bytewise all mode/encoding/status cases verify raw cache, physical RGB, complete indexed planes and retained image pens/state. Local full-delay/key order, unsignedffff, deadline saturation/regression/error, signed counter wrap, every native key kind/NUL/extended/private scans, blocked reads and unread replay are independent expectations.",
+        "Blocked XOFF retains the old counter until accepted; blocked XON does not repeat palette effects. Changed count0 restores at the tail; current loop changes produce either flow asymmetry. Constant stored-source final records retain original flow changes, class0 g3, chaining and deferred replies. EOF/reset omit synthetic tails.",
+        "126 new coherent application scenes,1946 total, cover initial zero restore, CBW magic capture, both directions/endpoints, negative saved restore, live local-key cancellation and I1 restoration. Complete pixels/cells/palette/local/saved/state/points/fill/pages/cursor/image header/payload/replies and composed RGB are observed together.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s; cterm_big_rotation0.64s. syncterm_big_input passed in101.50s (test101.45s),1946 coherent scenes. No non-BIG tests ran. Native X8 is implemented; N/audio/global45-entry and final regressions stay pending."
+      ],
       "commit": null
     },
     {

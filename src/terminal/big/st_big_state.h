@@ -35,6 +35,9 @@ struct st_big_state {
 	/* Interpreter-frame values are initialized on entry, not by I/R. */
 	uint16_t memory_page, active_page, visual_page;
 	uint8_t local_palette[17];
+	/* X8's ascending endpoint reads the byte after the17-byte local.
+	 * Native owned padding starts0; snapshots/I/R leave it unchanged. */
+	uint8_t palette_padding;
 	uint16_t saved_palette[16];
 };
 
@@ -50,6 +53,9 @@ struct st_big_state_sink {
 extern const uint8_t st_big_fill_restore[12][8];
 void st_big_state_init(struct st_big_state *);
 void st_big_state_enter(struct st_big_state *);
+/* Copy the current cache size and16 raw bytes to the interpreter local,
+ * even while graphics is uninstalled. Saved words/padding are untouched. */
+void st_big_state_palette_snapshot(struct st_big_state *);
 /* Constructor/mode primitive: does not assign the application rez cache. */
 int st_big_state_install(struct st_big_state *, unsigned resolution, const struct st_big_state_sink *);
 /* Exact normal I/R caller operations. Cache points at the numeric reader's

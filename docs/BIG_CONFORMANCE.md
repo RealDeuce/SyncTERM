@@ -1,8 +1,8 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6, A/C/H/M/T attributes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
-through native CTerm. Native < keyboard/hybrid pointer acquisition and G4/G5/G6 page selection are integrated. Remaining drawing,
-G0..3 image binding, sound and complete command acceptance remain in progress.
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X1/X4/X6/X8, A/C/H/M/T attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
+through native CTerm. Native < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
+sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -1063,3 +1063,38 @@ global45-entry/final-suite acceptance are pending. Routine tests remain BIG-only
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending.
 
 Native S/public single-palette implementation commit: `b07e881`.
+
+## Native X8 palette rotation
+
+All four class0 fields precede exact1/1/1/1 capture and signed endpoint clamps.
+Saved values sign-extend raw bytes; count0 restores current saved WORDs via
+the shared public setter. Ordinary rotation retains the frame snapshot and
+bypasses S gates. Inclusive endpoint writes, getter-after-setter order and
+the stale final wrap snapshot follow the original caller. Count1 performs
+two turns; the signed WORD counter wraps and count32767 has no finite end.
+
+The original uninitialized byte beyond the local palette becomes an explicit
+zero-initialized owned byte, retained across snapshots/I/R/attention. Checked
+local/cache accesses reject escapes nonfatally. Local monotonic deadlines
+translate the unsigned delay WORD to milliseconds; no foreign timer or
+audio-clock programming is implemented. Each full delay precedes the key
+result check. Extended keys, NUL, pending private scans, blocked reads,
+current loop-dependent flow and independent tail restore remain distinct.
+EOF/reset/error retains accepted colors without synthetic XON/restoration.
+
+`big_palette_rotation` independently verifies every endpoint pair and every
+endpoint WORD clamp, saved/sign/local ownership and failure prefixes.
+`cterm_big_rotation` checks split/bytewise profiles, native RGB/indexed image
+preservation, local delay boundaries and errors, count wrap, keyboard results,
+flow waits/asymmetry, g3/stored sources, chaining and deferred replies.
+126 new application captures bring coverage to1946 coherent scenes across
+all three resolutions, encodings and status visibility. They include live
+keyboard cancellation, both directions and endpoints, signed saved restore
+and I1 restoration with complete state/pixels/images/replies/RGB comparisons.
+Native X8 is implemented; audio/global45-entry and final-suite acceptance
+remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without
+compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s;
+`cterm_big_rotation` took0.64s. `syncterm_big_input` passed in101.50s
+(test101.45s),1946 coherent scenes. No non-BIG tests ran.

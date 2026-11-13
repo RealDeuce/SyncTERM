@@ -2362,3 +2362,65 @@ and final cross-emulation regressions remain pending.
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending.
 
 Native S/public single-palette implementation commit: `b07e881`.
+
+== Native X8 palette capture, restore and rotation
+
+X8 now acquires all four class0 arguments through the shared numeric parser.
+Exact1/1/1/1 snapshots the current size and16 raw bytes and sign-extends each
+colour into the saved WORD palette. Ordinary entry uses the existing frame
+snapshot. Count0 restores current saved WORDs in ascending order; negative
+saved values retain the public setter's silent rejection. Internal setters
+bypass S's caller gates. I/R retain local/saved ownership.
+
+Rotation follows the complete13d2:0a8b..0c64 caller in references26/55 and
+palette-review-code, including both independent direction tests, inclusive
+endpoint writes, a getter after every loop setter even when silently rejected,
+and no getter after the wrap setter. Count1 runs two turns. Signed WORD
+counter comparison and wrap preserve count32767's lack of a finite automatic
+end. Size-byte access at descending index0 remains observable.
+
+Ascending index15 reads beyond the original17-byte local. Native code gives
+that byte explicit owned storage initialized to zero, retained by snapshots,
+I/R and attention. Together with the already defined interpreter-entry
+snapshot, this corrects uninitialized foreign stack reads. Other escaped
+local/cache accesses fail at checked native bounds, retaining accepted stores.
+This is not an arbitrary foreign pointer or segment model.
+
+The native coordinator uses unsigned delay WORD milliseconds translated to
+local monotonic deadlines, saturated on overflow. A full turn precedes its
+full delay, then the key-result check; a ready key never shortens that wait.
+Delay0 still samples the local clock. Clock regression/failure is nonfatal
+command rejection. The original PIT programming prefix/tail is excluded by
+the approved local timing/audio contract: X8 owns no foreign clocks and does
+not stop, reset or retime the native mixer. N/audio/global composition remains
+a later acceptance step.
+
+XOFF completes before counter initialization. XON uses the current loop flag
+at exit; changed loop state can make flow asymmetric. The count0 restore test
+is independent at the tail. Flow readiness and pending getch reads resume
+without repeating accepted effects. Nonzero key-result cancellation consumes
+one local getch result, including an old private scan; a newly ready native
+event can remain for normal replay. Extended-key results cancel even when
+getch returns0; a plain NUL result does not. Fairness between complete turns
+allows indefinitely repeating commands to receive local input. EOF/reset/error
+abandons pending work without finally-style XON or palette restoration.
+Successful completion uses the common loop/chain/deferred-reply footer.
+
+`big_palette_rotation` has independent traces for all256 endpoint pairs,
+every endpoint WORD clamp, magic/sign capture, negative candidates, live
+direction/saved-word changes and each callback failure prefix. Native
+`cterm_big_rotation` covers split/bytewise profiles, RGB and unchanged full
+indexed planes/image data, class0 g3/stored loops, flow asymmetry/retries,
+deferred replies, unsigned/full local delays, wrap, all native key kinds,
+NUL/extended/private scans, blocked reads and deadline/EOF/reset recovery.
+Nine new application scenes per profile add126 scenes,1946 total: initial
+zero restore, magic capture, both directions, negative saved restore,
+both boundary indices, live local-key cancellation and I1 restoration.
+Complete cells/pixels/palette/points/fill/pages/cursor/image/replies and RGB
+are observed together. Native X8 is implemented; complete45-entry/global
+composition and final regressions remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without
+compiler/source diagnostics. All30 BIG-specific native CTests passed in43.61s,
+including cterm_big_rotation0.64s. syncterm_big_input passed in101.50s
+(test101.45s),1946 coherent scenes. No non-BIG tests ran.

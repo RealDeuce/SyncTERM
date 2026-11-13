@@ -62,13 +62,19 @@ static int defaults(struct st_big_state *s, const struct st_big_state_sink *sink
 	s->bgi.device_x = s->bgi.device_y = 0;
 	return 0;
 }
+void st_big_state_palette_snapshot(struct st_big_state *s)
+{
+	if (s == NULL) return;
+	s->local_palette[0] = s->bgi.palette_size;
+	memcpy(s->local_palette+1,s->bgi.palette,16);
+}
 void st_big_state_enter(struct st_big_state *s)
 {
 	if (s == NULL) return;
 	s->memory_page = 1; s->active_page = s->visual_page = 0;
 	/* A defined entry snapshot replaces the original uninitialized X8 local.
 	 * I/R do not refresh it while the interpreter frame remains active. */
-	s->local_palette[0] = s->bgi.palette_size; memcpy(s->local_palette+1,s->bgi.palette,16);
+	st_big_state_palette_snapshot(s);
 }
 void st_big_state_init(struct st_big_state *s)
 {

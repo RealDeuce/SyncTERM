@@ -453,3 +453,20 @@ unchanged full indexed/cell/image/state/point/page/reply data during recoloring,
 silent rejections, palette0 aliases and I1 restoration. Expected data comes
 from the original palette constants/component weights, not the renderer.
 Native S is implemented; X8 and remaining global/final acceptance are pending.
+
+`big_palette_rotation` derives literal setter/getter/wrap expectations from
+the complete X8 caller in26/55/palette-review-code. Every endpoint pair and
+every endpoint WORD clamp, magic CBW capture, negative setter candidates,
+current saved words, independent direction tests and each failure prefix
+are checked without using the implementation to generate expectations.
+Defined entry snapshots and explicit zero padding replace original
+uninitialized stack reads; ordinary stale local behavior is retained.
+`cterm_big_rotation` checks all splits and bytewise native profiles, complete
+indexed planes/image retention and independent physical RGB, local unsigned
+millisecond deadlines, key-after-delay order, count32767 wrap, all native key
+kinds/NUL/extended scans/private scan replay, blocked reads/flow, asymmetric
+loop flags, current count0 tail restore, g3/stored sources, deferred replies
+and error/EOF/reset prefixes.126 new application scenes (1946 total) retain
+the complete scene while checking both rotations/endpoints, saved negative
+words, live local-key cancellation and I1 restoration. Native X8 is
+implemented; sound/global composition and final regressions remain pending.

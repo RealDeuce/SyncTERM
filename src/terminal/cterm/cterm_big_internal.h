@@ -5,6 +5,7 @@
 #include "cterm_big.h"
 #include "st_big_numeric.h"
 #include "st_big_state.h"
+#include "st_big_palette.h"
 #include "st_big_control.h"
 #include "cterm_key.h"
 #include "st_big_stream.h"
@@ -22,6 +23,14 @@ struct cterm_big_flood {
 	unsigned phase;
 	bool active, chained;
 	struct st_big_flow_reader flow;
+};
+struct cterm_big_rotation {
+	struct st_big_palette_rotation colors;
+	struct st_big_flow_reader flow;
+	uint64_t deadline, sample;
+	uint16_t counter;
+	unsigned phase;
+	bool active, chained, sampled;
 };
 struct cterm_big_bar {
 	uint16_t points[4], kind;
@@ -101,6 +110,7 @@ struct cterm_big {
 	struct st_big_producer producer;
 	struct cterm_big_bar bar;
 	struct cterm_big_flood flood;
+	struct cterm_big_rotation rotation;
 	struct st_big_flood flood_work;
 	struct st_big_flood_record flood_records[CTERM_BIG_FLOOD_RECORDS];
 	struct st_pixel_buffer *video_backing;
@@ -135,6 +145,7 @@ int cterm_big_collect_sample(struct cterm_big *, const struct cterm_big_mouse_sa
 int cterm_big_pmarker(struct cterm_big *, uint16_t x, uint16_t y);
 bool cterm_big_input_owned(const struct cterm_big *);
 int cterm_big_input_peek(void *, bool *);
+uint16_t cterm_big_input_status(struct cterm_big *);
 int cterm_big_input_read(void *, uint8_t *);
 int cterm_big_input_forward(struct cterm_big *);
 void cterm_big_setup_begin(struct cterm_big *);
@@ -150,6 +161,9 @@ int cterm_big_bar_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, bo
 int cterm_big_draw_flood(struct cterm_big *, uint16_t x, uint16_t y, uint16_t boundary);
 int cterm_big_flood_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_flood_poll(struct cterm_big *, size_t *budget, bool *complete);
+int cterm_big_rotation_begin(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_rotation_poll(struct cterm_big *, size_t *output_budget, size_t *body_budget,
+	const struct st_big_state_sink *, bool *complete);
 int cterm_big_page(struct cterm_big *, bool visual, uint16_t page);
 int cterm_big_video_prepare(struct cterm_big *, bool full_memory);
 void cterm_big_video_reset(struct cterm_big *);
