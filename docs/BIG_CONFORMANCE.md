@@ -1061,3 +1061,5 @@ image data/RGB expectations. S is natively implemented; X8 and remaining
 global45-entry/final-suite acceptance are pending. Routine tests remain BIG-only.
 
 Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending.
+
+Native S/public single-palette implementation commit: `b07e881`.

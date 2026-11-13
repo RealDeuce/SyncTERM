@@ -703,7 +703,8 @@
             "Late shared gate/count/state checks, disabled gates bypassed by internal I1 setters, class0 g3/stored inclusive loops with exact flow, timeout versus EOF/reset and corrupt-count nonfatal recovery with subsequent S/ANSI/DSR.",
             "98 new coherent application palette scenes,1820 total, verify raw16-byte cache/size versus physical RGB, existing/saved-image recoloring, signed/index silent no-ops, S0 aliases with recapture, and I1 restoration. Complete indexed planes/cells/palette/points/fill/cursor/pages/replies/diagnostics/image header/payload and RGB remain in one observation.",
             "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending."
-          ]
+          ],
+          "commit": "b07e881"
         }
       ]
     },
