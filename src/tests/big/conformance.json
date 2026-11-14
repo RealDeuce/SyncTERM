@@ -2330,7 +2330,8 @@
         "Keep the OPL2 register map,9 two-operator channels/18 operators,4 waveforms with actual YM3812 enable semantics, rhythm/noise, envelopes/keys, timers/status and required CSM behavior. Remove second-bank/extra-channel/operator state, four-operator pairing, OPL3 extra waveforms/NEW mode/chip stereo-panning controls. Route OPL2 mono through normal stereo mixer/channel0 controls and verify independent register/PCM-level/lifecycle expectations.",
         "Native n uses the shared speaker owner on existing channel1 with fixed source gain, local delay deadlines, muted phase advancement and explicit callback quiescence. N integration remains pending.",
         "Continuous-source fade-out flush uses the normal mixer overlay envelope and existing channel1 APC control. Finite callback limits/counts/drain/acknowledgment and clear/replacement/stop ownership are implemented without duration-sized PCM or runtime calibration.",
-        "Native b procedural schedules now share the fixed-gain channel1 source with n, using the user-approved one-sample-per-F profile, muted progression and temporary shared-RNG ownership with explicit completion/cancellation handoff."
+        "Native b procedural schedules now share the fixed-gain channel1 source with n, using the user-approved one-sample-per-F profile, muted progression and temporary shared-RNG ownership with explicit completion/cancellation handoff.",
+        "Continuous S32 PCM in S16 amplitude units carries polyphonic headroom through normal channel gain/summation/final limiting. st_music owns channel0 source handoff, worker/callback quiescence, current/target ramp retention, context-matched detach, muted logical selection and existing busy/volume/fade/flush/wait controls; native N remains unwired."
       ],
       "tests": [
         "big_opl2",
@@ -2343,7 +2344,9 @@
         "big_effect",
         "cterm_big_effect",
         "big_music",
-        "big_music_warm"
+        "big_music_warm",
+        "big_music_pcm",
+        "big_music_channel"
       ],
       "references": [
         "01-scope-evidence.adoc",
@@ -2533,6 +2536,27 @@
             "Native FreeBSD CMake Release configure/full builds and final rebuild (/usr/bin/cc, build/) passed without compiler/source diagnostics. All69 BIG-specific native CTests passed in64.20s. After completing the independent warm timer/status invariants, all5 focused music/warm/Opal/X7 checks passed in0.56s total (big_music0.01s, big_music_warm0.00s, cterm_big_sync0.45s). No physical audio/MIDI, native wire N, music allocation/PCM gain/stream ownership or non-BIG regression acceptance is claimed. The unchanged4102 application scenes were not rerun for this standalone dependency. Full-goal N integration and the goal-final full suite remain pending."
           ],
           "commit": "d417771"
+        },
+        {
+          "id": "wide-pcm-and-channel0-source-ownership",
+          "status": "complete",
+          "operations": [
+            "Continuous S32 PCM in S16 amplitude units carries polyphonic headroom through normal channel gain/summation/final limiting. st_music owns channel0 source handoff, worker/callback quiescence, current/target ramp retention, context-matched detach, muted logical selection and existing busy/volume/fade/flush/wait controls; native N remains unwired."
+          ],
+          "tests": [
+            "big_music_pcm",
+            "big_music_channel"
+          ],
+          "references": [
+            "15-music-buffer-and-playback.adoc",
+            "67-music-command-acceptance.adoc"
+          ],
+          "deviations": [],
+          "verification": [
+            "Independent exhaustive signed16 source equivalence, wide polyphonic/cancellation headroom, literal fade samples, coherent control snapshots, rejected requests, ANSI/live-MIDI handoff, muted selection/opening failure and concurrent callback/worker quiescence, drain cancellation and destruction. Physical audio/MIDI disabled or injected.",
+            "Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All71 BIG-specific native CTests passed in64.18s, including big_music_channel0.01s and big_music_pcm0.07s. No physical audio/MIDI, audible-device tests or non-BIG regressions are claimed. The unchanged4102 application scenes were not rerun for this standalone ownership/headroom dependency. N wire loading/playback, actual resources/progress, fixed OPL2 gain and full-goal acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     }
@@ -4366,13 +4390,16 @@
         "Named st_big_music state reused by st_big_control.music/X7. Resumable record operator preserves value-pointer-first/current reads, full data WORDs, independent ff tests, latched selected I/O, low/high carry, post-write signed endpoint and nonff continuation without running retest.",
         "Finite per-poll work allowance with no total callback cap or synthetic sentinel. Capacity-checked sink distinguishes retained allocated bytes from loaded extent, latches error prefixes and leaves tail/stop policy to its owner.",
         "All175 normal protocol-reached warm register requests in original sparse slot/order, with zero private depth/note-select fields independent of raw chip registers. Do not retain unused linked pitch/instrument APIs/tables or reset chip history.",
-        "Native wire N, raw loading/timing, actual allocated availability, owning channel0 integration/controls, fixed source gain/headroom, background scheduling/progress and lifecycle remain required."
+        "Continuous S32 PCM in S16 amplitude units carries polyphonic headroom through normal channel gain/summation/final limiting. st_music owns channel0 source handoff, worker/callback quiescence, current/target ramp retention, context-matched detach, muted logical selection and existing busy/volume/fade/flush/wait controls; native N remains unwired.",
+        "Native wire N, raw loading/timing, actual allocated availability, source scheduling/progress, fixed OPL2 source gain and lifecycle integration remain required; the owning channel0 interface is independently implemented."
       ],
       "tests": [
         "big_music",
         "big_music_warm",
         "big_opl2",
-        "big_sync"
+        "big_sync",
+        "big_music_pcm",
+        "big_music_channel"
       ],
       "deviations": [
         "Future native memory sink checks owned allocation for each BYTE/WORD instead of emulating arbitrary DOS far-memory reads. Retained in-allocation bytes remain data even beyond loaded length; failures preserve accepted prefix, without zero-filled reads or synthetic terminators.",
@@ -4381,7 +4408,8 @@
       "verification": [
         "New independent tests define original15/12/9-byte callback returns/output/positions, all175 literal warm pairs, pointer/read/output/carry/ff-test mutation sites, all selectors and wide WORD arithmetic, missing markers/retries/error prefixes and X7 progress composition. Real Opal checks distinguish ignored/accepted waveform writes and retained sample/phase/timer/status history.",
         "Native FreeBSD CMake Release configure/full builds and final rebuild (/usr/bin/cc, build/) passed without compiler/source diagnostics. All69 BIG-specific native CTests passed in64.20s. After completing the independent warm timer/status invariants, all5 focused music/warm/Opal/X7 checks passed in0.56s total (big_music0.01s, big_music_warm0.00s, cterm_big_sync0.45s). No physical audio/MIDI, native wire N, music allocation/PCM gain/stream ownership or non-BIG regression acceptance is claimed. The unchanged4102 application scenes were not rerun for this standalone dependency. Full-goal N integration and the goal-final full suite remain pending.",
-        "N record/arithmetic/warm dependency implementation commit: d417771. Native wire loading/playback, actual music resources/progress, owning channel0 controls/fixed gain and full-goal acceptance remain pending."
+        "N record/arithmetic/warm dependency implementation commit: d417771. Native wire loading/playback, actual music resources/progress, owning channel0 controls/fixed gain and full-goal acceptance remain pending.",
+        "Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All71 BIG-specific native CTests passed in64.18s, including big_music_channel0.01s and big_music_pcm0.07s. No physical audio/MIDI, audible-device tests or non-BIG regressions are claimed. The unchanged4102 application scenes were not rerun for this standalone ownership/headroom dependency. N wire loading/playback, actual resources/progress, fixed OPL2 gain and full-goal acceptance remain pending."
       ],
       "commit": null
     },

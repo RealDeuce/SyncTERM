@@ -1572,3 +1572,15 @@ acceptance remain pending.
 Native FreeBSD CMake Release configure/full builds and final rebuild (/usr/bin/cc, build/) passed without compiler/source diagnostics. All69 BIG-specific native CTests passed in64.20s. After completing the independent warm timer/status invariants, all5 focused music/warm/Opal/X7 checks passed in0.56s total (big_music0.01s, big_music_warm0.00s, cterm_big_sync0.45s). No physical audio/MIDI, native wire N, music allocation/PCM gain/stream ownership or non-BIG regression acceptance is claimed. The unchanged4102 application scenes were not rerun for this standalone dependency. Full-goal N integration and the goal-final full suite remain pending.
 
 N record/arithmetic/warm dependency implementation commit: `d417771`. Native wire loading/playback, actual music resources/progress, owning channel0 controls/fixed gain and full-goal acceptance remain pending.
+
+BIG's N foundation now includes continuous signed32 PCM through existing
+channel gain/summation/limiting and an owning st_music source handoff on
+channel0. Queued/device PCM remains signed16. Volume/ramp state, finite
+fade/drain acknowledgment, context-matched quiescent detach and muted logical
+ownership use existing controls. Independent BIG tests cover every signed16
+amplitude, wide headroom/cancellation, literal fades, source/worker quiescence,
+ANSI/live-MIDI takeover, rejected input and failure/shutdown paths. Native N
+wire playback/resources/progress/fixed gain and final full-suite acceptance
+remain pending; no physical device or auditory coverage is claimed.
+
+Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All71 BIG-specific native CTests passed in64.18s, including big_music_channel0.01s and big_music_pcm0.07s. No physical audio/MIDI, audible-device tests or non-BIG regressions are claimed. The unchanged4102 application scenes were not rerun for this standalone ownership/headroom dependency. N wire loading/playback, actual resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.

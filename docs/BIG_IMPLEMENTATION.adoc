@@ -4802,3 +4802,43 @@ availability0, and the full goal/global/final-suite acceptance remain open.
 Native FreeBSD CMake Release configure/full builds and final rebuild (/usr/bin/cc, build/) passed without compiler/source diagnostics. All69 BIG-specific native CTests passed in64.20s. After completing the independent warm timer/status invariants, all5 focused music/warm/Opal/X7 checks passed in0.56s total (big_music0.01s, big_music_warm0.00s, cterm_big_sync0.45s). No physical audio/MIDI, native wire N, music allocation/PCM gain/stream ownership or non-BIG regression acceptance is claimed. The unchanged4102 application scenes were not rerun for this standalone dependency. Full-goal N integration and the goal-final full suite remain pending.
 
 N record/arithmetic/warm dependency implementation commit: `d417771`. Native wire loading/playback, actual music resources/progress, owning channel0 controls/fixed gain and full-goal acceptance remain pending.
+
+== N wide PCM and channel0 ownership foundation
+
+The shared mixer accepts a continuous signed32 stereo source in signed16
+amplitude units. Opal's polyphonic sum can exceed signed16 before source
+normalization/channel gain: carrying it wide avoids premature voice clipping.
+The normal channel gain, summation and final limiter remain authoritative;
+queued buffers and device output remain signed16. Both source setters share
+activation, quiescent replacement, finite fades, cancellation and drain
+acknowledgment. A coherent current/target/remaining volume snapshot permits
+producer handoff without resetting channel controls. This adds no gain
+calibration, audio worker, clock or device.
+
+st_music remains the sole owner of channel0's PCM slot. Its new continuous
+PCM interface cancels older requests and waits for the ANSI/MIDI worker to
+relinquish that slot before attaching a terminal synth to the existing mixer
+consumer. Accepted ANSI/file/live requests quiesce the synth before taking
+over; rejected requests and empty live writes retain it. Context-matched
+detach cannot remove a later producer. Callers serialize attachment/context
+destruction, clear before freeing the context, and never hold callback locks
+while invoking music/audio APIs. The callback must not call those APIs.
+
+Busy/volume/ramp/fade/flush/wait use the existing channel controls. A held
+continuous voice is acknowledged by wait; finite fades wait through backend
+acknowledgment. Logical muted ownership needs no PCM device or MIDI
+selection; its caller advances unheard synthesis. Muted volume changes apply
+their targets immediately. Physical reopening failure cancels old work but
+does not prevent a subsequent muted selection. Context teardown waits for
+in-flight callbacks, including replacement, immediate flush and destruction.
+
+Independent BIG fixtures compare all65536 signed16 amplitudes across source
+formats, wide positive/negative mixing, polyphonic headroom, literal fade
+samples, ramp snapshots and callback failures. Channel0 tests cover unchanged
+slot ownership, current/target ramp retention, ANSI/live-MIDI handoffs,
+rejected input, muted selection, opening failure, blocked worker/source
+callbacks, finite drain cancellation and shutdown. All physical output and
+MIDI are disabled or injected. Native N loading/scheduling, actual buffer
+availability/progress, fixed OPL2 gain and whole-goal acceptance remain open.
+
+Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All71 BIG-specific native CTests passed in64.18s, including big_music_channel0.01s and big_music_pcm0.07s. No physical audio/MIDI, audible-device tests or non-BIG regressions are claimed. The unchanged4102 application scenes were not rerun for this standalone ownership/headroom dependency. N wire loading/playback, actual resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.

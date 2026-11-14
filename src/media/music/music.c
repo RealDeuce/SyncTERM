@@ -1,5 +1,7 @@
-/* Logical channel zero. The mutex owns the FIFO, generation and controls;
- * the worker exclusively owns synthesis and native MIDI calls. */
+/* Logical channel zero. The mutex owns FIFO, generation, controls and source
+ * attachment. The worker owns ANSI/MIDI synthesis; an exclusive external
+ * PCM source runs on the existing mixer consumer instead. Source callbacks
+ * never acquire this mutex or call music/audio APIs. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "music_internal.h"
 #include "st_threads.h"
@@ -30,6 +32,8 @@ struct st_music {
 	st_condition_t changed;
 	st_thread_t thread;
 	bool started, stopping, active, injected, was_file;
+	bool external, external_output, switching;
+	void *source_context; /* Borrowed until quiescent detach, protected by mutex. */
 	uint64_t generation, working_generation, accepted, completed;
 	struct request *head, *tail;
 	size_t requests, storage_bytes;
@@ -74,6 +78,29 @@ static int pcm_locked(st_music_t *m)
 	int result = st_audio_runtime_acquire(m->runtime, &engine);
 	if (result != 0) return result;
 	return audio_stream_create(m->pcm, engine, m->left, m->right);
+}
+static int source_volume_locked(st_music_t *m)
+{
+	if (*m->pcm == NULL) return 0;
+	struct audio_stream_volume state;
+	int status = audio_stream_get_volume_state(*m->pcm,&state);
+	if (status != 0) return status;
+	m->left = m->from_left = state.left_db;
+	m->right = m->from_right = state.right_db;
+	m->target_left = state.target_left_db; m->target_right = state.target_right_db;
+	m->ramp_frames = state.ramp_frames; m->ramp_start = m->clock;
+	m->controls_changed = true;
+	return 0;
+}
+static int clear_source_locked(st_music_t *m)
+{
+	if (!m->external) return 0;
+	/* Quiesce first: the context may be freed as soon as this call returns.
+	 * The volume snapshot carries remaining controls to the next producer. */
+	int status = *m->pcm == NULL ? 0 : audio_stream_set_source(*m->pcm,NULL,NULL);
+	if (status != 0) return status;
+	m->external = m->external_output = false; m->source_context = NULL;
+	return source_volume_locked(m);
 }
 /* Called while idle, under the player mutex. Backend constructors do not
  * invoke the cancellation callback. Failed methods are retried after policy
@@ -513,6 +540,7 @@ void st_music_destroy(st_music_t *m)
 	if (m == NULL) return;
 	st_mutex_lock(&m->mutex);
 	m->stopping = true; ++m->generation; drop_pending(m);
+	(void)clear_source_locked(m);
 	if (*m->pcm != NULL) (void)audio_stream_clear(*m->pcm);
 	st_condition_broadcast(&m->changed);
 	st_mutex_unlock(&m->mutex);
@@ -534,12 +562,14 @@ static int enqueue(st_music_t *m, struct request *r)
 	st_mutex_lock(&m->mutex);
 	int result = 0;
 	if (m->stopping || st_audio_runtime_stopped(m->runtime)) result = IO_ERROR_CANCELLED;
+	else if (m->switching) result = IO_ERROR_BUSY;
 	else if (m->requests == REQUEST_LIMIT || request_storage(r) > NOTE_STORAGE_LIMIT - m->storage_bytes
 	    || m->accepted == UINT64_MAX) result = IO_ERROR_BUSY;
 	else if (!m->started) {
 		if (st_thread_create(&m->thread, worker, m) != ST_THREAD_SUCCESS) result = IO_ERROR_IO;
 		else m->started = true;
 	}
+	if (result == 0) result = clear_source_locked(m);
 	if (result == 0) {
 		r->sequence = ++m->accepted; ++m->requests;
 		m->storage_bytes += request_storage(r);
@@ -603,11 +633,76 @@ int st_music_queue_midi(st_music_t *m, const uint8_t *bytes, size_t count)
 	if (status != 0) discard(r);
 	return status;
 }
+int st_music_set_pcm_source(st_music_t *m, size_t (*source)(void *, int32_t *, size_t), void *context, bool output)
+{
+	if (m == NULL || source == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	st_mutex_lock(&m->mutex);
+	int status = m->stopping || st_audio_runtime_stopped(m->runtime) ? IO_ERROR_CANCELLED
+	    : m->switching ? IO_ERROR_BUSY : 0;
+	if (status != 0) { st_mutex_unlock(&m->mutex); return status; }
+	m->switching = true;
+	status = clear_source_locked(m);
+	if (status == 0) {
+		++m->generation; drop_pending(m);
+		if (*m->pcm != NULL) (void)audio_stream_clear(*m->pcm);
+		st_condition_broadcast(&m->changed);
+		/* Predicate: the old ANSI/MIDI worker no longer owns the PCM slot.
+		 * switching rejects new submissions while this wait releases mutex. */
+		while (m->active) {
+			if (st_condition_wait(&m->changed,&m->mutex) != ST_THREAD_SUCCESS) { status = IO_ERROR_IO; break; }
+		}
+		if (status == 0) m->completed = m->accepted;
+		if (status == 0 && (m->stopping || st_audio_runtime_stopped(m->runtime))) status = IO_ERROR_CANCELLED;
+		if (status == 0 && output) status = pcm_locked(m);
+		if (status == 0) status = source_volume_locked(m);
+		if (status == 0 && output) status = audio_stream_set_source32(*m->pcm,source,context);
+		if (status == 0 && output) status = audio_stream_source_active(*m->pcm,true);
+		if (status == 0) { m->external = true; m->external_output = output; m->source_context = context; }
+		else if (*m->pcm != NULL) (void)audio_stream_set_source(*m->pcm,NULL,NULL);
+	}
+	m->switching = false; st_condition_broadcast(&m->changed);
+	st_mutex_unlock(&m->mutex); return status;
+}
+int st_music_clear_pcm_source(st_music_t *m, void *context)
+{
+	if (m == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	st_mutex_lock(&m->mutex);
+	int status = 0;
+	if (m->external && m->source_context == context) {
+		status = clear_source_locked(m); ++m->generation; st_condition_broadcast(&m->changed);
+	}
+	st_mutex_unlock(&m->mutex); return status;
+}
+bool st_music_pcm_source_active(st_music_t *m, void *context)
+{
+	if (m == NULL) return false;
+	st_mutex_lock(&m->mutex);
+	bool active = m->external && m->external_output && m->source_context == context && !audio_stream_is_idle(*m->pcm);
+	st_mutex_unlock(&m->mutex); return active;
+}
+bool st_music_pcm_source_selected(st_music_t *m, void *context)
+{
+	if (m == NULL) return false;
+	st_mutex_lock(&m->mutex); bool selected = m->external && m->source_context == context;
+	st_mutex_unlock(&m->mutex); return selected;
+}
 int st_music_wait(st_music_t *m)
 {
 	if (m == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	st_mutex_lock(&m->mutex);
 	uint64_t target = m->accepted, generation = m->generation;
+	if (m->external) {
+		if (!m->external_output) { st_mutex_unlock(&m->mutex); return 0; }
+		audio_stream_t *stream = *m->pcm;
+		st_mutex_unlock(&m->mutex);
+		/* The slot remains owned until destroy; its caller must finish all
+		 * waiters first. Detach/replacement cancels this stream drain. */
+		int status = audio_stream_drain(stream);
+		st_mutex_lock(&m->mutex);
+		if (m->generation != generation || m->stopping) status = IO_ERROR_CANCELLED;
+		else if (status == IO_ERROR_BUSY) status = 0; /* Acknowledge held voices. */
+		st_mutex_unlock(&m->mutex); return status;
+	}
 	while (m->completed < target && generation == m->generation && !m->stopping)
 		st_condition_wait(&m->changed, &m->mutex);
 	int result = generation != m->generation || m->stopping ? IO_ERROR_CANCELLED : 0;
@@ -618,7 +713,8 @@ bool st_music_busy(st_music_t *m)
 {
 	if (m == NULL) return false;
 	st_mutex_lock(&m->mutex);
-	bool busy = m->active || m->head != NULL;
+	bool busy = m->active || m->head != NULL
+	    || (m->external && (!m->external_output || audio_stream_buffered_frames(*m->pcm) != 0));
 	st_mutex_unlock(&m->mutex);
 	return busy;
 }
@@ -628,6 +724,12 @@ int st_music_flush(st_music_t *m, size_t fade_frames)
 	st_mutex_lock(&m->mutex);
 	uint64_t cutoff = m->accepted;
 	drop_pending(m);
+	if (m->external) {
+		int status = fade_frames == 0 || !m->external_output
+		    ? IO_ERROR_NOT_SUPPORTED : audio_stream_fade_source(*m->pcm,fade_frames);
+		if (status != 0) { status = clear_source_locked(m); ++m->generation; }
+		st_condition_broadcast(&m->changed); st_mutex_unlock(&m->mutex); return status;
+	}
 	if (fade_frames != 0 && m->active) {
 		m->fading = true; m->fade_frames = fade_frames; m->fade_start = m->clock;
 		m->fade_cutoff = cutoff;
@@ -652,6 +754,19 @@ int st_music_volume(st_music_t *m, float left, float right, size_t ramp)
 	if (m == NULL || !isfinite(left) || !isfinite(right) || left < -192 || right < -192 || left > 96 || right > 96)
 		return IO_ERROR_INVALID_ARGUMENT;
 	st_mutex_lock(&m->mutex);
+	if (m->external) {
+		if (!m->external_output) {
+			m->left = m->from_left = m->target_left = left;
+			m->right = m->from_right = m->target_right = right;
+			m->ramp_frames = 0; m->controls_changed = true;
+			int status = *m->pcm == NULL ? 0 : audio_stream_set_volume(*m->pcm,left,right);
+			st_mutex_unlock(&m->mutex); return status;
+		}
+		int status = audio_stream_ramp_volume(*m->pcm,left,right,
+		    audio_stream_is_idle(*m->pcm) ? 0 : ramp);
+		if (status == 0) status = source_volume_locked(m);
+		st_mutex_unlock(&m->mutex); return status;
+	}
 	m->from_left = m->left; m->from_right = m->right;
 	m->target_left = left; m->target_right = right; m->ramp_start = m->clock;
 	m->ramp_frames = m->active ? ramp : 0;
@@ -668,8 +783,10 @@ int st_music_volume(st_music_t *m, float left, float right, size_t ramp)
 int st_music_get_volume(st_music_t *m, float *left, float *right)
 {
 	if (m == NULL || left == NULL || right == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	st_mutex_lock(&m->mutex); *left = m->left; *right = m->right; st_mutex_unlock(&m->mutex);
-	return 0;
+	st_mutex_lock(&m->mutex);
+	int status = m->external && m->external_output ? source_volume_locked(m) : 0;
+	if (status == 0) { *left = m->left; *right = m->right; }
+	st_mutex_unlock(&m->mutex); return status;
 }
 audio_stream_t *st_music_pcm_stream(st_music_t *m)
 {

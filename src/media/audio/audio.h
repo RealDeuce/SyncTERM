@@ -112,6 +112,12 @@ void audio_stream_destroy(audio_stream_t *stream);
  * attachment. Explicit activation resets any fade and cancels its drains. */
 int audio_stream_set_source(audio_stream_t *,
     size_t (*source)(void *, int16_t *, size_t), void *context);
+/* Same lifecycle/counts as set_source, with signed32 stereo amplitudes in
+ * S16 units. Channel gain and limiting follow summation; no S16 pre-clamp.
+ * Output/queued buffers retain their existing S16 format. Either setter
+ * replaces both source formats; NULL detaches the current source. */
+int audio_stream_set_source32(audio_stream_t *,
+    size_t (*source)(void *, int32_t *, size_t), void *context);
 int audio_stream_source_active(audio_stream_t *, bool active);
 /* Fade an active continuous source and pause it after frame_count frames,
  * without changing channel volume or detaching its caller-owned context.
@@ -150,6 +156,13 @@ int audio_stream_ramp_volume(audio_stream_t *stream,
 	float volume_left_db, float volume_right_db, size_t frame_count);
 int audio_stream_get_volume(audio_stream_t *stream,
 	float *volume_left_db, float *volume_right_db);
+struct audio_stream_volume {
+	float left_db, right_db, target_left_db, target_right_db;
+	size_t ramp_frames;
+};
+/* One coherent current/target/remaining snapshot for producer handoff.
+ * Errors preserve the caller's result. */
+int audio_stream_get_volume_state(audio_stream_t *, struct audio_stream_volume *);
 
 /*
  * Copies the supplied frames and returns before playback completes. A

@@ -20,6 +20,7 @@
 
 struct audio_mixer_buffer {
 	int16_t *frames;
+	const int32_t *wide_frames; /* Borrowed live-source chunk only; never queued. */
 	size_t frame_count;
 	size_t consumed;
 	float volume_left_db;
@@ -58,6 +59,7 @@ struct audio_mixer_stream {
 	uint64_t clear_generation;
 	int status;
 	size_t (*source)(void *, int16_t *, size_t);
+	size_t (*source32)(void *, int32_t *, size_t);
 	void *source_context;
 	bool source_active;
 	size_t source_fade_total, source_fade_elapsed;
@@ -319,17 +321,18 @@ prepare_buffer(struct audio_mixer_buffer **result, int16_t *frames,
 	return 0;
 }
 
-int
-audio_mixer_stream_set_source(audio_mixer_stream_t *stream,
-    size_t (*source)(void *, int16_t *, size_t), void *context)
+static int
+set_source(audio_mixer_stream_t *stream,
+    size_t (*source)(void *, int16_t *, size_t),
+    size_t (*source32)(void *, int32_t *, size_t), void *context)
 {
 	if (stream == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
-	int status = source == NULL ? 0 : stream->status;
+	int status = source == NULL && source32 == NULL ? 0 : stream->status;
 	if (status == 0) {
 		++stream->clear_generation;
 		drop_buffers_locked(stream);
-		stream->source = source; stream->source_context = context;
+		stream->source = source; stream->source32 = source32; stream->source_context = context;
 		stream->source_active = false;
 		stream->source_fade_total = stream->source_fade_elapsed = 0;
 		(void)st_condition_broadcast(&stream->condition);
@@ -339,12 +342,26 @@ audio_mixer_stream_set_source(audio_mixer_stream_t *stream,
 }
 
 int
+audio_mixer_stream_set_source(audio_mixer_stream_t *stream,
+    size_t (*source)(void *, int16_t *, size_t), void *context)
+{
+	return set_source(stream,source,NULL,context);
+}
+
+int
+audio_mixer_stream_set_source32(audio_mixer_stream_t *stream,
+    size_t (*source)(void *, int32_t *, size_t), void *context)
+{
+	return set_source(stream,NULL,source,context);
+}
+
+int
 audio_mixer_stream_source_active(audio_mixer_stream_t *stream, bool active)
 {
 	if (stream == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
 	int status = stream->status;
-	if (status == 0 && active && stream->source == NULL) status = IO_ERROR_INVALID_ARGUMENT;
+	if (status == 0 && active && stream->source == NULL && stream->source32 == NULL) status = IO_ERROR_INVALID_ARGUMENT;
 	if (status == 0) {
 		++stream->clear_generation;
 		stream->source_active = active;
@@ -397,7 +414,7 @@ audio_mixer_stream_append_take(audio_mixer_stream_t *stream,
 		free(buffer);
 		return IO_ERROR_IO;
 	}
-	if (stream->status != 0 || stream->source != NULL) {
+	if (stream->status != 0 || stream->source != NULL || stream->source32 != NULL) {
 		status = stream->status != 0 ? stream->status : IO_ERROR_BUSY;
 		(void)st_mutex_unlock(&stream->mutex);
 		free(buffer);
@@ -633,6 +650,22 @@ audio_mixer_stream_get_volume(audio_mixer_stream_t *stream,
 	return 0;
 }
 
+int
+audio_mixer_stream_get_volume_state(audio_mixer_stream_t *stream, float *left,
+    float *right, float *target_left, float *target_right, size_t *remaining)
+{
+	if (stream == NULL || left == NULL || right == NULL || target_left == NULL
+	    || target_right == NULL || remaining == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	*left = stream->volume_left_db; *right = stream->volume_right_db;
+	*remaining = stream->ramp_total > stream->ramp_elapsed
+	    ? stream->ramp_total - stream->ramp_elapsed : 0;
+	*target_left = *remaining == 0 ? *left : stream->ramp_target_left_db;
+	*target_right = *remaining == 0 ? *right : stream->ramp_target_right_db;
+	(void)st_mutex_unlock(&stream->mutex);
+	return 0;
+}
+
 static int16_t
 fade_gain(const audio_mixer_t *mixer, size_t position, size_t total)
 {
@@ -653,6 +686,21 @@ fade_gain(const audio_mixer_t *mixer, size_t position, size_t total)
 	    + mixer->fade_table[index + 1] * fraction);
 }
 
+static int64_t
+scale_amplitude(int64_t sample, int32_t gain)
+{
+	int64_t product = sample * gain;
+	return product >= 0 ? product / 32768 : -((-product + 32767) / 32768);
+}
+
+static void
+accumulate(int64_t *sum, int64_t value)
+{
+	if (value > 0 && *sum > INT64_MAX - value) *sum = INT64_MAX;
+	else if (value < 0 && *sum < INT64_MIN - value) *sum = INT64_MIN;
+	else *sum += value;
+}
+
 static bool
 mix_buffer(audio_mixer_t *mixer, struct audio_mixer_buffer *buffer,
 	int64_t *accumulator, size_t frames, float left_db, float right_db,
@@ -667,8 +715,8 @@ mix_buffer(audio_mixer_t *mixer, struct audio_mixer_buffer *buffer,
 
 	for (i = 0; i < frames; i++) {
 		int32_t gain = 32767;
-		int32_t left;
-		int32_t right;
+		int64_t left;
+		int64_t right;
 
 		if (buffer->overlay_total > 0
 		    && buffer->overlay_elapsed >= buffer->overlay_total) {
@@ -699,12 +747,11 @@ mix_buffer(audio_mixer_t *mixer, struct audio_mixer_buffer *buffer,
 			gain = (gain * fade_gain(mixer,
 			    buffer->overlay_total - 1 - buffer->overlay_elapsed,
 			    buffer->overlay_total)) >> 15;
-		left = ((int32_t)buffer->frames[buffer->consumed * 2] * gain)
-		    >> 15;
-		right = ((int32_t)buffer->frames[buffer->consumed * 2 + 1]
-		    * gain) >> 15;
-		accumulator[i * 2] += (int64_t)((float)left * left_gain);
-		accumulator[i * 2 + 1] += (int64_t)((float)right * right_gain);
+		left = buffer->wide_frames != NULL ? buffer->wide_frames[buffer->consumed * 2] : buffer->frames[buffer->consumed * 2];
+		right = buffer->wide_frames != NULL ? buffer->wide_frames[buffer->consumed * 2 + 1] : buffer->frames[buffer->consumed * 2 + 1];
+		left = scale_amplitude(left,gain); right = scale_amplitude(right,gain);
+		accumulate(&accumulator[i * 2],(int64_t)((float)left * left_gain));
+		accumulate(&accumulator[i * 2 + 1],(int64_t)((float)right * right_gain));
 		++buffer->consumed;
 		if (buffer->overlay_total > 0)
 			++buffer->overlay_elapsed;
@@ -805,16 +852,23 @@ pull_chunk_locked(audio_mixer_t *mixer, int16_t *output, size_t frames,
 			struct audio_mixer_buffer *marker = calloc(1,sizeof(*marker));
 			if (marker == NULL) stream->status = IO_ERROR_OUT_OF_MEMORY;
 			else {
-				int16_t generated[AUDIO_MIXER_CHUNK_FRAMES*AUDIO_MIXER_CHANNELS];
+				union {
+					int16_t narrow[AUDIO_MIXER_CHUNK_FRAMES*AUDIO_MIXER_CHANNELS];
+					int32_t wide[AUDIO_MIXER_CHUNK_FRAMES*AUDIO_MIXER_CHANNELS];
+				} generated;
 				size_t requested = frames;
 				if (stream->source_fade_total != 0) {
 					size_t left = stream->source_fade_total - stream->source_fade_elapsed;
 					if (requested > left) requested = left;
 				}
-				size_t count = stream->source(stream->source_context,generated,requested);
+				size_t count = stream->source32 != NULL
+				    ? stream->source32(stream->source_context,generated.wide,requested)
+				    : stream->source(stream->source_context,generated.narrow,requested);
 				if (count > requested) stream->status = IO_ERROR_OUT_OF_RANGE;
 				else if (count != 0) {
-					struct audio_mixer_buffer input = {.frames = generated,.frame_count = count,
+					struct audio_mixer_buffer input = {
+					    .frames = stream->source32 == NULL ? generated.narrow : NULL,
+					    .wide_frames = stream->source32 != NULL ? generated.wide : NULL,.frame_count = count,
 					    .overlay_total = stream->source_fade_total,.overlay_elapsed = stream->source_fade_elapsed};
 					size_t written;
 					(void)mix_buffer(mixer,&input,mixer->accumulator,frames,left_db,right_db,&written);

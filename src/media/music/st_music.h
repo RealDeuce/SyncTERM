@@ -61,8 +61,31 @@ int st_music_queue_notes(st_music_t *music, struct st_music_note *notes,
  * writes at the destination/PCM position, without waiting for held voices.
  * A zero-length write is a no-op and does not select/open a destination. */
 int st_music_queue_midi(st_music_t *music, const uint8_t *bytes, size_t count);
+/* Continuous PCM for a terminal synth (e.g. BIG OPL), bypassing MIDI. Replaces
+ * queued/active music, waits for its worker to relinquish PCM, then attaches
+ * to the same owned channel0 stream. Callback format is stereo S32 in S16
+ * amplitude units at AUDIO_SAMPLE_RATE; it runs on the mixer consumer and
+ * must not call music/audio APIs. Short returns deactivate it.
+ *
+ * Context stays caller-owned. Serialize its attach/detach/destruction and
+ * clear with the same context before freeing it. Clear waits for callback
+ * quiescence and does not affect a later producer. Accepted ANSI/file/live
+ * requests also quiesce/detach it; controls/finite fades use the same stream.
+ * Replacement cancels older waits/requests even if PCM opening then fails.
+ * Concurrent submissions during worker handoff return BUSY. No MIDI device
+ * selection, decoding, calibration or additional worker is involved.
+ * output=false selects a logical source without opening PCM; its owner
+ * advances muted state. Busy/volume/flush still work, and inaudible volume
+ * changes apply their target immediately. Reattach with output=true when
+ * physical policy permits. selected reports ownership; active reports PCM. */
+int st_music_set_pcm_source(st_music_t *, size_t (*source)(void *, int32_t *, size_t), void *context, bool output);
+int st_music_clear_pcm_source(st_music_t *, void *context);
+bool st_music_pcm_source_selected(st_music_t *, void *context);
+bool st_music_pcm_source_active(st_music_t *, void *context);
 /* Wait covers requests accepted before the call, not later requests.
- * Cancellation wakes waiters. Idle includes native output and PCM drain. */
+ * Cancellation wakes waiters. Idle includes native output and PCM drain.
+ * A continuous PCM attachment is acknowledged without waiting for held
+ * voices; a finite source fade waits through backend acknowledgment. */
 int st_music_wait(st_music_t *music);
 bool st_music_busy(st_music_t *music);
 int st_music_flush(st_music_t *music, size_t fade_frames);

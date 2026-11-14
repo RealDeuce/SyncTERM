@@ -38,6 +38,10 @@ void audio_mixer_stream_destroy(audio_mixer_stream_t *stream);
  * Activate only after releasing any lock the source callback acquires. */
 int audio_mixer_stream_set_source(audio_mixer_stream_t *,
     size_t (*source)(void *, int16_t *, size_t), void *context);
+/* S32 amplitudes in S16 units, carried wide through gain/summation. Either
+ * setter replaces both formats; lifecycle/activation are shared. */
+int audio_mixer_stream_set_source32(audio_mixer_stream_t *,
+    size_t (*source)(void *, int32_t *, size_t), void *context);
 int audio_mixer_stream_source_active(audio_mixer_stream_t *, bool active);
 /* Fade an active source through the normal overlay envelope, then pause it.
  * Zero pauses immediately; NOT_SUPPORTED leaves non-source streams alone. */
@@ -59,6 +63,8 @@ int audio_mixer_stream_ramp_volume(audio_mixer_stream_t *stream,
     float volume_left_db, float volume_right_db, size_t frame_count);
 int audio_mixer_stream_get_volume(audio_mixer_stream_t *stream,
     float *volume_left_db, float *volume_right_db);
+int audio_mixer_stream_get_volume_state(audio_mixer_stream_t *, float *left,
+    float *right, float *target_left, float *target_right, size_t *remaining);
 
 /* Fills every requested frame and returns the non-silent prefix length. */
 size_t audio_mixer_pull(audio_mixer_t *mixer, int16_t *output,

@@ -422,6 +422,14 @@ audio_stream_set_source(audio_stream_t *stream,
 }
 
 int
+audio_stream_set_source32(audio_stream_t *stream,
+    size_t (*source)(void *, int32_t *, size_t), void *context)
+{
+	return stream == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : audio_mixer_stream_set_source32(stream->mixer_stream,source,context);
+}
+
+int
 audio_stream_source_active(audio_stream_t *stream, bool active)
 {
 	return stream == NULL ? IO_ERROR_INVALID_ARGUMENT
@@ -433,6 +441,17 @@ audio_stream_fade_source(audio_stream_t *stream, size_t frames)
 {
 	return stream == NULL ? IO_ERROR_INVALID_ARGUMENT
 	    : audio_mixer_stream_fade_source(stream->mixer_stream,frames);
+}
+
+int
+audio_stream_get_volume_state(audio_stream_t *stream, struct audio_stream_volume *result)
+{
+	if (stream == NULL || result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct audio_stream_volume state;
+	int status = audio_mixer_stream_get_volume_state(stream->mixer_stream,
+	    &state.left_db,&state.right_db,&state.target_left_db,&state.target_right_db,&state.ramp_frames);
+	if (status == 0) *result = state;
+	return status;
 }
 
 int
