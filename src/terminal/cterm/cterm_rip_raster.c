@@ -10,6 +10,7 @@
 #include "st_bgi_bitmap.h"
 #include "st_bgi_chr.h"
 #include "st_bgi_line.h"
+#include "st_bgi_trig.h"
 #include "st_bgi_pixel.h"
 #include "cterm_rip_asset.h"
 #include "cterm_rip_fonts.h"
@@ -1600,60 +1601,17 @@ bgi_metric(int ax_val, int bx_val)
 	return ax_val + 4000 - bx_val;
 }
 
-static const int16_t bgi_sin_table[91] = {
-	0x0000, 0x023B, 0x0477, 0x06B2, 0x08ED, 0x0B27, 0x0D61, 0x0F99, 0x11D0, 0x1406,
-	0x163A, 0x186C, 0x1A9C, 0x1CCB, 0x1EF7, 0x2120, 0x2348, 0x256C, 0x278D, 0x29AC,
-	0x2BC7, 0x2DDF, 0x2FF3, 0x3203, 0x340F, 0x3618, 0x381C, 0x3A1C, 0x3C17, 0x3E0E,
-	0x4000, 0x41EC, 0x43D4, 0x45B6, 0x4793, 0x496A, 0x4B3C, 0x4D08, 0x4ECD, 0x508D,
-	0x5246, 0x53F9, 0x55A6, 0x574B, 0x58EA, 0x5A82, 0x5C13, 0x5D9C, 0x5F1F, 0x609A,
-	0x620D, 0x6379, 0x64DD, 0x6639, 0x678D, 0x68D9, 0x6A1D, 0x6B59, 0x6C8C, 0x6DB7,
-	0x6ED9, 0x6FF3, 0x7104, 0x720C, 0x730B, 0x7401, 0x74EF, 0x75D3, 0x76AD, 0x777F,
-	0x7847, 0x7906, 0x79BC, 0x7A68, 0x7B0A, 0x7BA3, 0x7C32, 0x7CB8, 0x7D33, 0x7DA5,
-	0x7E0E, 0x7E6C, 0x7EC1, 0x7F0B, 0x7F4C, 0x7F83, 0x7FB0, 0x7FD3, 0x7FEC, 0x7FFB,
-	INT16_MIN,
-};
-
-static int32_t
-bgi_sin32(int angle_deg)
-{
-	int negative = 0;
-	int32_t value;
-
-	angle_deg %= 360;
-	if (angle_deg < 0)
-		angle_deg += 360;
-	if (angle_deg > 180) {
-		angle_deg -= 180;
-		negative = 1;
-	}
-	if (angle_deg > 90)
-		angle_deg = 180 - angle_deg;
-	value = (int32_t)(uint16_t)bgi_sin_table[angle_deg] << 1;
-	return negative ? -value : value;
-}
-
 static int32_t
 bgi_cos32(int angle_deg)
 {
-	return bgi_sin32(angle_deg + 90);
-}
-
-static int16_t
-bgi_trig_mul(int32_t trig32, int16_t radius)
-{
-	uint16_t lo = (uint16_t)(trig32 & 0xffff);
-	uint16_t hi = (uint16_t)((trig32 >> 16) & 0xffff);
-	uint32_t first = (uint32_t)hi * (uint16_t)radius;
-	uint32_t second = (uint32_t)lo * (uint16_t)radius;
-
-	return (int16_t)((first & 0xffff) + (second >> 16));
+	return st_bgi_sin32(angle_deg + 90);
 }
 
 static int
 bgi_arc_limit(int a, int b, int angle_deg)
 {
-	int16_t sx = bgi_trig_mul(bgi_cos32(angle_deg), (int16_t)a);
-	int16_t sy = -bgi_trig_mul(bgi_sin32(angle_deg), (int16_t)b);
+	int16_t sx = st_bgi_trig_mul(bgi_cos32(angle_deg), (int16_t)a);
+	int16_t sy = -st_bgi_trig_mul(st_bgi_sin32(angle_deg), (int16_t)b);
 
 	return bgi_metric(sx, sy);
 }
@@ -1821,15 +1779,15 @@ full_ellipse(struct cterm_rip_raster *rip, int xc, int yc,
 		if (start_angle >= end_angle)
 			sweep_end = end_angle + 360;
 		rip->line_pattern = 0xffff;
-		previous_x = xc + bgi_trig_mul(bgi_cos32(start_angle),
+		previous_x = xc + st_bgi_trig_mul(bgi_cos32(start_angle),
 		    (int16_t)original_x);
-		previous_y = yc - bgi_trig_mul(bgi_sin32(start_angle),
+		previous_y = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle),
 		    (int16_t)original_y);
 		for (int degree = start_angle + 1;
 		    degree <= sweep_end && rip->error == 0; degree++) {
-			int current_x = xc + bgi_trig_mul(bgi_cos32(degree),
+			int current_x = xc + st_bgi_trig_mul(bgi_cos32(degree),
 				(int16_t)original_x);
-			int current_y = yc - bgi_trig_mul(bgi_sin32(degree),
+			int current_y = yc - st_bgi_trig_mul(st_bgi_sin32(degree),
 				(int16_t)original_y);
 
 			if (current_x != previous_x || current_y != previous_y) {
@@ -1905,15 +1863,15 @@ draw_pie(struct cterm_rip_raster *rip, int xc, int yc,
 		sub_start = sub_end;
 	}
 	if (rip->borders && rip->error == 0) {
-		int ex = xc + bgi_trig_mul(bgi_cos32(start_angle),
+		int ex = xc + st_bgi_trig_mul(bgi_cos32(start_angle),
 		    (int16_t)radius_x);
-		int ey = yc - bgi_trig_mul(bgi_sin32(start_angle),
+		int ey = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle),
 		    (int16_t)radius_y);
 
 		cterm_rip_raster_line(rip, xc, yc, ex, ey);
-		ex = xc + bgi_trig_mul(bgi_cos32(end_angle),
+		ex = xc + st_bgi_trig_mul(bgi_cos32(end_angle),
 		    (int16_t)radius_x);
-		ey = yc - bgi_trig_mul(bgi_sin32(end_angle),
+		ey = yc - st_bgi_trig_mul(st_bgi_sin32(end_angle),
 		    (int16_t)radius_y);
 		cterm_rip_raster_line(rip, xc, yc, ex, ey);
 	}

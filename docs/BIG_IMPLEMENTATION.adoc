@@ -27,6 +27,8 @@ pointer acquisition, E font selection, W graphical text, t pauses and ? inquirie
 Curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
+Curve work has started with shared sine/product kernels and BIG scalar adapters;
+K wire/front/recurrence/buffer integration remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -3107,3 +3109,57 @@ acceptance remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full build. All46 BIG-specific native CTests passed in54.96s, including cterm_big_query1.39s. syncterm_big_input passed in153.84s (test153.79s),2982 coherent scenes including98 new inquiry scenes. No non-BIG tests ran; the goal-final full regression suite remains deferred. Native ? request/cache/source/lifecycle integration is verified. Actual music-buffer allocation/publication, audio and global45-entry acceptance remain pending.
 
 Native ? inquiry implementation commit: `6bfc11c`.
+
+== Shared curve data/scalars and BIG arithmetic adapters
+
+K's complete caller and the13/61 curve/aspect/metric/point contracts were
+reviewed, including the circular helper12d9 and0000:49a2..4a66 long arithmetic.
+The scalar prerequisites are now implemented before attempting its command
+front and rendering. No K wire acceptance is claimed by this step.
+
+All91 current RIP Q1.15 sine words match the retained DDO1021..10d5 table.
+Their182 little-endian bytes have SHA256
+`db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51`.
+The table and compatible sine/unsigned-radius partial products now live once
+in st_bgi_trig, and RIP invokes these actual shared kernels. Unsigned8000
+represents positive1.0; the coefficient is signed16.16. No runtime external
+font/ROM/table reference or floating trigonometric generator is required.
+
+BIG converts angle WORDs to signed16 for sine. Cosine wraps WORD+90 before
+conversion: cosine32767 gives64728, while RIP retains its wider addition
+and65046. Product result bits preserve floor scaling rather than signed
+truncation, including+1142*1000->17 and-1142*1000->-18. The common multiply
+uses unsigned bit operations and defined signed-WORD interpretation, without
+negative signed shifts or out-of-range signed conversion.
+
+BIG's separate quadrant metric negates Y as a WORD before choosing its
+signed branch. Thus x0/y8000 yields WORD-26768. Its branch/reduction is not
+RIP's wider metric; the latter and RIP's whole ellipse/pie, clipping, duplicate,
+point/style/error policies remain in the RIP adapter. No whole native curve
+has been imported as an unchanged BIG implementation.
+
+Circular aspect takes unsigned radius times signed aspectX, then signed
+aspectY division and low-WORD return. All possible16-bit operands produce
+a signed32 product/quotient within range, so the exact ordinary operation
+needs no foreign long-arithmetic interpreter. Default20 radii give9/15/20
+for4500/7750/10000 over10000. Zero denominator returns a checked native error
+without publishing output or placing a center; a future caller must retain
+its already accepted attribute prefix. Current mode/aspect state and
+actual caller placement order remain later integration work.
+
+big_curve_scalar first failed against the missing shared interface, then
+checked literal source table values, all65536 angle WORDs, every radius WORD
+against independent signed64 floor-product oracles for coefficient extremes,
+all-coordinate/boundary-axis metric sweeps, literal coalesced/zero/negative/
+wrapped-angle endpoint bits, and every radius in all three aspect profiles.
+Signed aspect/truncation/high-bit/zero/error cases are explicit. These tests
+exercise the common scalar code RIP now calls; they do not claim RIP wire or
+whole-curve conformance. K acquisition/fronts, decimal recurrence, arc records,
+angular buffers, point/batch returns, sector polygon and global acceptance
+remain pending. The2982 application scenes are unchanged and last passed
+with6bfc11c; no new BIG wire behavior makes them relevant to this scalar step.
+RIP and other shared-code regressions remain deferred to the goal-final suite.
+
+Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6 metric and10d7..1141 sine/cosine from the retained32-byte-header driver asset SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8; its table bytes match both pre-change RIP and the moved common data.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending.

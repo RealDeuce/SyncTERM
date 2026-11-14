@@ -1414,3 +1414,25 @@ implemented in the requested order; the full goal remains active.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full build. All46 BIG-specific native CTests passed in54.96s, including cterm_big_query1.39s. syncterm_big_input passed in153.84s (test153.79s),2982 coherent scenes including98 new inquiry scenes. No non-BIG tests ran; the goal-final full regression suite remains deferred. Native ? request/cache/source/lifecycle integration is verified. Actual music-buffer allocation/publication, audio and global45-entry acceptance remain pending.
 
 Native ? inquiry implementation commit: `6bfc11c`.
+
+## Shared curve scalars
+
+RIP and BIG now use one91-word Q1.15 table, scalar sine lookup and unsigned
+radius partial-product kernel. The existing RIP table matches retained DDO
+1021..10d5 exactly (182-byte little-endian SHA256
+`db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51`).
+BIG wraps cosine's WORD+90, keeps its NEG-Y-before-sign-test metric and uses
+unsigned radius/signed aspect arithmetic. RIP retains its wide cosine/metric
+and whole-curve policies. Zero aspect denominator is a checked native error.
+
+big_curve_scalar uses independent literal table/endpoint and wide-rational
+oracles, all angle/radius WORD sweeps, signed boundary metrics and all three
+aspect profiles/error paths. These are complete scalar prerequisites for K;
+its wire/front/recurrence/buffer/point/arc record integration is still pending.
+No BIG application scene or RIP expected image changes in this step; the
+2982 scenes last passed with6bfc11c. RIP and final shared-code regressions
+remain deferred under the goal's BIG-only development test policy.
+
+Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6 metric and10d7..1141 sine/cosine from the retained32-byte-header driver asset SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8; its table bytes match both pre-change RIP and the moved common data.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending.

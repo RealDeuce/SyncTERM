@@ -241,3 +241,12 @@ The tests do not validate physical audio, native mouse cursors, filesystem-wide
 artwork collections, or every interactive template/popup permutation. The existing
 SyncTERM parser's one-way disable behavior is covered by `cterm_rip_parser`;
 this suite does not claim that `ESC [ 2 !` can re-enable it after disable.
+
+RIP's existing91-word Q1.15 table and sine/unsigned-radius product now reside
+once in st_bgi_trig, also used by BIG. Every table word matches the retained
+DDO reference; signed product results have defined WORD interpretation.
+RIP retains its wider cosine addition, metric and complete curve rendering
+policy. BIG's own WORD-angle/metric/aspect adapters do not replace them.
+The new big_curve_scalar test independently checks the actual common kernels;
+RIP-specific wire/raster/capture runs remain deferred to the BIG goal's final
+full regression suite. No RIP capture baseline or expected pixels changed.

@@ -1328,3 +1328,11 @@ partial/error/reset/source/footer composition.98 new coherent BIG application
 scenes bring coverage to2982. Sound availability currently0 reflects the
 pending native music-buffer allocation/playback foundation. No query serial
 flow control or foreign UART/clock model is introduced.
+
+The common BGI component now owns the existing91-word sine table and exact
+sine/unsigned-radius product used by RIP and BIG. BIG adds its own wrapped
+WORD cosine, quadrant metric and unsigned-radius/signed-aspect scalars.
+big_curve_scalar checks independent literal/table/endpoint, exhaustive WORD
+and boundary/error expectations. K wire/rendering integration is pending;
+no BIG scene or RIP capture baseline changed. RIP and other shared-code
+regressions remain deferred until the goal-final full suite.

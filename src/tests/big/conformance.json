@@ -596,6 +596,43 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending."
           ],
           "commit": "a42a00f"
+        },
+        {
+          "id": "shared-curve-scalars",
+          "status": "complete",
+          "operations": [
+            "Move the unchanged91-word Q1.15 sine table and scalar sine/unsigned-radius partial-product kernels from RIP into st_bgi_trig. RIP calls these actual shared kernels; its wide cosine addition, metric, ellipse/pie/front/duplicate/point/error policies remain separate.",
+            "BIG sine converts the angle WORD to signed16 before shared lookup; cosine wraps WORD+90 before that conversion. Shared radius multiplication returns the original low-WORD floor-scaled bit result with defined signed interpretation, including negative coefficients and high-bit radii.",
+            "BIG metric negates Y as a WORD before signed branch selection, then reduces each result to WORD. This preserves the y8000 branch that differs from RIP wide arithmetic.",
+            "Circular aspect uses unsigned radius times signed aspectX, divides by signed aspectY with truncation, and returns the low WORD. The entire argument domain fits signed32 product/quotient. Zero denominator returns a checked native error without publishing output or moving any point.",
+            "Scalar prerequisites only: K/J/O/Q/V/Y acquisition, aspect state lifetime, center placement, arc records, decimal candidates, angular buffers, physical batch/point returns, sector polygon/radial work and command acceptance remain pending."
+          ],
+          "references": [
+            "13-curves-and-native-reuse.adoc",
+            "61-curve-command-acceptance.adoc",
+            "curve-contract-data.json:sine_table;DDO1021..10d5",
+            "curve-review-code.adoc:BIG195a:12d9..12fa;12fb..1325",
+            "loop-code.adoc:BIG0000:49a2..4a66",
+            "native-curve-code.adoc:bgi_sin32;bgi_trig_mul"
+          ],
+          "tests": [
+            "big_curve_scalar"
+          ],
+          "deviations": [
+            "Zero circular aspect denominator returns IO_ERROR_OUT_OF_RANGE, preserving output, instead of executing a foreign INT0/raw exit. The caller must retain its accepted colour/fill prefix and omit later center placement.",
+            "No RIP wide metric or whole ellipse/pie algorithm is substituted for BIG. Runtime BIG mode/aspect owner binding and command fronts remain pending."
+          ],
+          "verification": [
+            "Before extraction, all91 current RIP words matched the retained DDO table exactly. Little-endian182-byte SHA256:db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51. Runtime tests use a literal independently retained table; no floating sine or emulator generates expected data.",
+            "Independent expected APIs first failed to compile against the missing common header. big_curve_scalar checks all65536 sine/cosine angle WORDs, signed extremes/wrapped cosine32767->64728 versus RIP wide65046, exact table/cardinals and host-int extrema modulo handling.",
+            "Every radius WORD is checked against signed64 floor-scaling oracles for zero, positive/negative1-degree/unit and full signed32 coefficient boundaries. Literal+1142*1000->17 versus-1142*1000->-18 and high-bit radius cases retain actual WORD semantics.",
+            "Metric sweeps every coordinate WORD against both-axis signed-boundary sets using an independent quadrant formula with the NEG8000 exception. Literal rounded endpoints include unit0..1, coalesced120/150, zero-radius original endpoints, negative one-degree asymmetry and wrapped high-angle cosine.",
+            "Each radius WORD is checked in all three default aspect profiles; explicit signed aspect/negative denominator/high-bit radius/truncation/zero numerator/zero denominator cases retain independent expected results and unchanged output on error.",
+            "No BIG wire command or expected image changes in this prerequisite step. Existing2982 application scenes were last verified with6bfc11c and were not rerun for these unbound BIG scalars. RIP/shared-code regressions remain deferred to the goal-final full suite per user instruction.",
+            "Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6 metric and10d7..1141 sine/cosine from the retained32-byte-header driver asset SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8; its table bytes match both pre-change RIP and the moved common data.",
+            "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2434,7 +2471,7 @@
     {
       "id": "K",
       "order": 19,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2442,12 +2479,36 @@
         "shared-bgi"
       ],
       "references": [
-        "61-curve-command-acceptance.adoc"
+        "13-curves-and-native-reuse.adoc",
+        "61-curve-command-acceptance.adoc",
+        "curve-contract-data.json:sine_table;DDO1021..10d5",
+        "curve-review-code.adoc:BIG195a:12d9..12fa;12fb..1325",
+        "loop-code.adoc:BIG0000:49a2..4a66",
+        "native-curve-code.adoc:bgi_sin32;bgi_trig_mul"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Move the unchanged91-word Q1.15 sine table and scalar sine/unsigned-radius partial-product kernels from RIP into st_bgi_trig. RIP calls these actual shared kernels; its wide cosine addition, metric, ellipse/pie/front/duplicate/point/error policies remain separate.",
+        "BIG sine converts the angle WORD to signed16 before shared lookup; cosine wraps WORD+90 before that conversion. Shared radius multiplication returns the original low-WORD floor-scaled bit result with defined signed interpretation, including negative coefficients and high-bit radii.",
+        "BIG metric negates Y as a WORD before signed branch selection, then reduces each result to WORD. This preserves the y8000 branch that differs from RIP wide arithmetic.",
+        "Circular aspect uses unsigned radius times signed aspectX, divides by signed aspectY with truncation, and returns the low WORD. The entire argument domain fits signed32 product/quotient. Zero denominator returns a checked native error without publishing output or moving any point.",
+        "Scalar prerequisites only: K/J/O/Q/V/Y acquisition, aspect state lifetime, center placement, arc records, decimal candidates, angular buffers, physical batch/point returns, sector polygon/radial work and command acceptance remain pending."
+      ],
+      "tests": [
+        "big_curve_scalar"
+      ],
+      "deviations": [
+        "Only complete scalar/data prerequisites are implemented; no K wire/pixel acceptance is claimed. Remaining front/core/buffer/point/arc record and global composition must be implemented and independently tested."
+      ],
+      "verification": [
+        "Before extraction, all91 current RIP words matched the retained DDO table exactly. Little-endian182-byte SHA256:db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51. Runtime tests use a literal independently retained table; no floating sine or emulator generates expected data.",
+        "Independent expected APIs first failed to compile against the missing common header. big_curve_scalar checks all65536 sine/cosine angle WORDs, signed extremes/wrapped cosine32767->64728 versus RIP wide65046, exact table/cardinals and host-int extrema modulo handling.",
+        "Every radius WORD is checked against signed64 floor-scaling oracles for zero, positive/negative1-degree/unit and full signed32 coefficient boundaries. Literal+1142*1000->17 versus-1142*1000->-18 and high-bit radius cases retain actual WORD semantics.",
+        "Metric sweeps every coordinate WORD against both-axis signed-boundary sets using an independent quadrant formula with the NEG8000 exception. Literal rounded endpoints include unit0..1, coalesced120/150, zero-radius original endpoints, negative one-degree asymmetry and wrapped high-angle cosine.",
+        "Each radius WORD is checked in all three default aspect profiles; explicit signed aspect/negative denominator/high-bit radius/truncation/zero numerator/zero denominator cases retain independent expected results and unchanged output on error.",
+        "No BIG wire command or expected image changes in this prerequisite step. Existing2982 application scenes were last verified with6bfc11c and were not rerun for these unbound BIG scalars. RIP/shared-code regressions remain deferred to the goal-final full suite per user instruction.",
+        "Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6 metric and10d7..1141 sine/cosine from the retained32-byte-header driver asset SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8; its table bytes match both pre-change RIP and the moved common data.",
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending."
+      ],
       "commit": null
     },
     {
