@@ -3,6 +3,7 @@
 #ifndef ST_BIG_CONTROL_H_
 #define ST_BIG_CONTROL_H_
 #include "st_big_loop.h"
+#include "st_big_music.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -19,7 +20,7 @@ struct st_big_control {
 	struct { uint16_t command, did_loop; uint8_t gang_marker, gang[129]; } frame;
 	/* Serialized playback progress, published by the music owner. Muting
 	 * does not stop progress. The entry gate reads the live shared scratch. */
-	struct { uint16_t sync, position_low, position_high, scratch; uint8_t running; } music;
+	struct st_big_music music;
 };
 struct st_big_sync_reader { bool begun, waiting; };
 /* Snapshot LOW once per acquired pair, even when the flags skip waiting.

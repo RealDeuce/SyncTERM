@@ -41,7 +41,9 @@ aspect conversion versus explicit radii and their distinct reader classes.
 All six curve commands have native wire integration. X7 now has its raw
 WORD setter and resumable pair-entry music-progress gate. Its serialized
 progress interface is tested independently; the audio producer will publish
-real callback progress when N is implemented. The standalone YM3812 core and its full MIT license UI are implemented;
+real callback progress when N is implemented. N now has standalone WORD/slice arithmetic,
+a resumable original record callback and all175 normal warm-reset writes,
+with native loading/playback integration still pending. The standalone YM3812 core and its full MIT license UI are implemented;
 native b effects and n notes/sweeps now use the shared speaker source and channel1.
 N music playback and the goal-final whole-suite acceptance remain pending. Earlier verification sections retain
 their historical completion counts and outstanding-work descriptions; the
@@ -4716,3 +4718,85 @@ full-goal regression/acceptance remain pending.
 Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and real b/t/n session pacing4.06s. syncterm_big_input passed in223.97s total (test223.92s),4102 coherent scenes including56 new b scenes; every earlier expectation remains. The native stored-repeat fixture was corrected to reflect TO being reached during the next operand read before its playback completes. No non-BIG tests or physical audio/MIDI/auditory coverage are claimed. b/n are natively integrated; N playback/resources/progress, the manual checklist and full-goal regression/acceptance remain pending.
 
 Native b procedural-effects integration commit: `534a350`. The full goal remains active for N music/resource/progress integration, the manual checklist and global/final-suite acceptance.
+
+
+== N record state, arithmetic and normal warm-reset writes
+
+The standalone music component now supplies the original mode and pair
+arithmetic, slice/end/start calculations, record callback and normal N4
+register sequence. `st_big_control.music` uses its named state directly, so
+X7 and decoding use the same position/high/low/running/scratch definition.
+The callback owns no buffers, clock, IRQ, thread, mixer or MIDI decoder;
+its checked read/write sink belongs to the future native audio owner.
+
+Selector WORDs outside0..5 select2. Whole/remainder pairs wrap
+whole*1000+remainder to a WORD before the load-length ffff->fffe cap.
+Whole startup end retains original high0/lowWORD(length-1) semantics;
+slice end is3*floor(TO/3)+1 capped to that zeroextended limit. Slice start
+is3*floor(FROM/3)+2 capped downward by signed32 comparison to T-3. There is
+no range sort/lower clamp/alignment repair. Zero/short lengths and negative
+slice results remain represented for the caller's actual gates/checked reads.
+Signed comparisons use defined wide arithmetic rather than implementation-
+defined unsigned-to-signed conversion.
+
+The resumable callback tests running exactly1 on entry; constructs the value
+start offset before rereading the current address position; separately reads
+address BYTE and current value-pointer WORD; performs the independent ff
+checks; retains full SND_data and outputs the reached register/value WORDs;
+then adds low3/highcarry, checks signed T-3 against current position, and
+repeats nonff without retesting running. Consequently a register write can
+clear running yet still be followed by additional writes/reads until ff.
+A boundary delay is replaced by1 only when tail running is0. Running2 skips
+records and can return retained0. Active delay0 is preserved for the future
+local scheduler's immediate continuation, without a forced extra tick.
+
+A per-poll work budget suspends the selected callback, without a total
+record/cycle cap or appended marker. Readiness retries retain the selected
+read offset or pushed output arguments; completed stages and failed prefixes
+are not repeated/rolled back. Current fields can change between serialized
+stages, permitting the reviewed pointer/address/delay/carry ordering to be
+independently checked. Errors latch until a new callback begins. Completion
+retains that callback's returned delay even if state later changes.
+
+The native memory boundary is allocated capacity, not loaded length: bytes
+retained after a short load remain valid data. No out-of-capacity read is
+silently converted to zero or a synthetic ff. A future native buffer sink
+must reject a BYTE/WORD beyond its owned allocation as a nonfatal music error.
+This is the explicit safe correction to arbitrary DOS segment/heap reads;
+there is no foreign memory/segment emulator. The normal tested9-byte example
+reads an existing1234 WORD at allocated offsets9/10 after its loaded ff tail.
+At the allocation edge, the same read pattern retains its accepted register
+prefix and reports a checked failure instead.
+
+The warm helper exposes all175 original requests in order, one request per
+index, without a chip reset or all-register-zero substitute:18 default slots
+with repeated BD/08 and sparse modulator/carrier writes, final SetMode BD,
+SetGParam BD/08, nine A-then-B zero pairs,18 mapped waveform clears and final
+01=20. Normal protocol-reachable private depth/note-select fields stay0;
+raw N writes do not update them. The unrelated linked pitch/instrument APIs
+and their unused F-number/private tables are omitted. A literal independently
+transcribed175-pair fixture checks every request. Actual reduced-Opal tests
+verify that disabled waveform writes remain ignored until the final enable,
+whereas enabled writes clear them, and that warm preserves sample/phase/
+timer/status history while applying its register effects.
+
+`big_music` also checks all65536 selectors; a wide pair matrix; every FROM/TO
+WORD against independent arithmetic expectations; original15/12/9-byte
+callback examples under work budgets1..64; value-pointer-first and current
+reloads, independent ff tests, stable I/O retries, carry between LOW/HIGH,
+signed32 endpoint wrap, active/stopped/noncanonical running states, partial
+write/read errors, missing-marker waits, allocated-boundary failures and X7
+release by real decoder position progress. A stopped callback without position
+movement does not release an already entered X7 wait.
+
+This step does not register wire N or allocate a music buffer. Native raw
+loading/per-byte timeout, enable/start gates, live shared-buffer ownership,
+clock-to-local-sample conversion, channel0 source/volume/busy/fade/flush,
+fixed OPL2 source gain/headroom, EOF/reset/shutdown and actual callback
+publication remain required. The existing st_music API owns its PCM slot;
+the N integration must use a deliberate owning interface there rather than
+mutating that slot behind its worker. ?2 continues to report actual current
+availability0, and the full goal/global/final-suite acceptance remain open.
+
+
+Native FreeBSD CMake Release configure/full builds and final rebuild (/usr/bin/cc, build/) passed without compiler/source diagnostics. All69 BIG-specific native CTests passed in64.20s. After completing the independent warm timer/status invariants, all5 focused music/warm/Opal/X7 checks passed in0.56s total (big_music0.01s, big_music_warm0.00s, cterm_big_sync0.45s). No physical audio/MIDI, native wire N, music allocation/PCM gain/stream ownership or non-BIG regression acceptance is claimed. The unchanged4102 application scenes were not rerun for this standalone dependency. Full-goal N integration and the goal-final full suite remain pending.

@@ -2075,3 +2075,23 @@ N music integration, resources/progress and goal-final acceptance remain open.
 Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and real b/t/n session pacing4.06s. syncterm_big_input passed in223.97s total (test223.92s),4102 coherent scenes including56 new b scenes; every earlier expectation remains. The native stored-repeat fixture was corrected to reflect TO being reached during the next operand read before its playback completes. No non-BIG tests or physical audio/MIDI/auditory coverage are claimed. b/n are natively integrated; N playback/resources/progress, the manual checklist and full-goal regression/acceptance remain pending.
 
 Native b procedural-effects integration commit: `534a350`. The full goal remains active for N music/resource/progress integration, the manual checklist and global/final-suite acceptance.
+
+
+## N arithmetic, callback and warm-reset foundation
+
+N now has standalone selector/pair/slice arithmetic, one named shared state
+with X7 progress, and the original resumable record operator. It retains
+address/value read ordering, full value WORDs, post-write endpoint tests,
+nonff continuation after running clears, boundary delay override and zero
+returns. Missing markers suspend bounded work; capacity failures retain the
+completed prefix. Loaded length does not replace allocated storage bounds.
+
+All175 normal warm writes have a literal independent fixture and actual
+Opal acceptance/state checks, including WSE-gated writes and preserved
+phase/timer/status history. Unused linked instrument/pitch tables are omitted.
+The new component owns no device, buffer, clock, MIDI path or thread. Native
+N loading/playback, actual allocation/progress, channel0 controls/fixed gain
+and goal-final acceptance remain pending; no wire N acceptance is claimed.
+
+
+Native FreeBSD CMake Release configure/full builds and final rebuild (/usr/bin/cc, build/) passed without compiler/source diagnostics. All69 BIG-specific native CTests passed in64.20s. After completing the independent warm timer/status invariants, all5 focused music/warm/Opal/X7 checks passed in0.56s total (big_music0.01s, big_music_warm0.00s, cterm_big_sync0.45s). No physical audio/MIDI, native wire N, music allocation/PCM gain/stream ownership or non-BIG regression acceptance is claimed. The unchanged4102 application scenes were not rerun for this standalone dependency. Full-goal N integration and the goal-final full suite remain pending.
