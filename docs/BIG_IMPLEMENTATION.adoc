@@ -4082,3 +4082,5 @@ checks count<2 before the first Move, so their device point stays at the
 placed center despite radial output. The initial application oracle assumed
 a first-record Move; direct original-source review corrected that expectation
 and added explicit native count/point assertions.
+
+Native Y explicit-sector implementation commit: `d1cd2e7`.
