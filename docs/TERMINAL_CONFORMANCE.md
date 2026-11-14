@@ -1421,3 +1421,9 @@ colour/marker/scratch/WORD-arithmetic/error state, including shared-buffer
 aliases and captured colour restoration. Raw-line requests are distinguished
 from bars; native physical binding and V/Y sector/wire acceptance remain
 pending. No new application scene or non-BIG regression claim is added.
+
+BIG sector buffer stages now compose polygon admission, both fill/outline
+orders and piece closure with current-count subtraction. big_curve_stages
+checks independent indexed scenes, exact call order and mode/count/point/
+error prefixes, including empty fill. V/Y construction, physical binding
+and wire/application acceptance remain pending; no new capture is claimed.

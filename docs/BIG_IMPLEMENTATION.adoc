@@ -32,8 +32,9 @@ Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
 binding and K/J/O/Q wire/page/source/recovery integration. V is the next native
-curve command. Its raw polygon scan converter is implemented and independently
-tested; sector stages, physical span binding and V/Y wire work remain pending.
+curve command. Its raw polygon scan converter, buffer stages2/3 and piece
+closure are implemented and independently tested. Normal/alternate sector
+construction, physical span binding and V/Y wire work remain pending.
 Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -3782,3 +3783,62 @@ The full45-entry/audio/resource and goal-final regressions remain pending.
 Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending.
 
 Sector polygon scan-conversion implementation commit: `c723c44`.
+
+== Sector buffer stages and piece closure
+
+Complete DDO0365..038b,0541..05ee and09af..09e8 were checked directly in the
+original6544-byte asset (excluding its32-byte header), SHA256
+5fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8,
+alongside13/60/61. These lower operators connect existing collection/flush
+and the polygon scan converter; they do not register V or Y.
+
+st_big_curve_polygon_stage implements stage3. It sends8000/8000 through the
+CURRENT producer/Move path, clears producer only after return and admits
+polygon from current unsigned count/capacity only for count>=4 and <capacity.
+A successful append which makes count equal capacity causes a silent polygon
+skip. A later flush can separately report BGI-6; stage3 does not invent it.
+After normal polygon return mode is cleared again. Errors retain reached
+mode/count/scratch/point/colour prefixes without a finally clear.
+
+st_big_curve_sector_stage implements stage2. The metric threshold can set
+sticky before its branch. Sticky terminates and flushes outline FIRST, then
+jumps directly to polygon admission, without a second terminator. Ordinary
+stage2 calls stage3 to fill first, then flushes. Current post-callback count,
+capacity and polygon gate are read at their actual later sites. Empty fill0
+still reaches polygon colour restoration and the outline at that route's
+position. No whole native filled-sector substitute changes this order.
+
+st_big_curve_close_piece implements09af..09e8. With curve_filled0 it performs
+the existing terminate/flush path. Otherwise it submits the current DDO center,
+reloads first record from owned storage even after empty/overflow collection,
+clears run and emits that first point as closure, then calls stage3. It reads
+the CURRENT returned count and unsigned-subtracts3: a borrow skips trim/flush,
+while exactly3 stores0 and still calls ordinary flush. Caller09e9 bookkeeping,
+normal/alternate sector construction and radial/arc-publication tails remain
+separate pending work. No fabricated count>=1 guard changes the first read.
+
+big_curve_stages first failed to link without these operators. Independent
+64x64 indexed grids, literal colour/fill/outline event order and point/count/
+buffer assertions distinguish both schedules. It verifies strict admission,
+full/short/empty capacity, actual terminator Moves in producer0/2, suppressed
+first-point terminators, metric/sticky changes and current post-flush admission.
+Native polygon and line kernels execute in the fixture; normal spans use the
+existing bar adapter and fallback horizontal spans use a test-only adapter.
+This does not claim native physical fallback binding or application output.
+
+A filled triangle independently checks center/first/terminator records,
+half-open fill followed by only the original arc outline, then retained record
+contents after trim. Capacity2/3 and callback-returned count2/3 distinguish
+borrow from stored0. Empty fill0 retains outline/restore calls. Failures in
+append, first-record read, polygon or line callbacks preserve prior pixels and
+separate public/DDO/device owners; a failed flush leaves its reached DDO target.
+Successful mode mutation is cleared after return, while a failing callback's
+mutation remains. No new allocation, framebuffer, clock, flow byte or reply
+is introduced. The unchanged3374 application scenes were not rerun.
+
+V/Y still require normal/alternate sector fronts, normalization and quarter
+pieces, radial/A55 tails, physical span adapters, public wrappers and complete
+wire/fill-restoration/application acceptance. Audio/resource/global45-entry
+and the goal-final full suite remain pending.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending.

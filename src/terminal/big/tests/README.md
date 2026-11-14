@@ -870,3 +870,16 @@ counter cycle. This is no clock or finite geometry budget. Raw fallback span
 requests are verified without claiming physical raw-line pixels, devices or
 V/Y wire integration. Existing3374 application scenes are unchanged/unrerun;
 no expected pixels come from the emulator and no external asset is needed.
+
+big_curve_stages uses complete original DDO0365..038b/0541..05ee/09af..09e8
+and13/60/61. It first failed to link against absent stage operators. Literal
+square/triangle64x64 scenes and event traces distinguish real fill-before-
+outline from sticky outline-before-fill, strict live admission and a single
+terminator. Native polygon/line kernels run through the existing bar and a
+fixture horizontal raw-span adapter; this is not physical fallback coverage.
+Empty fill retains restore/outline calls. Mode0/2 terminators, full/short/
+empty capacities, center/first closure, count2/3 borrow versus stored0,
+post-callback count/capacity/gate changes and mode/point/error/pixel prefixes
+use independent expectations. The unchanged3374 application scenes are not
+rerun for these unbound helpers. Sector fronts, physical adapters, public
+wrappers and V/Y wire/fill-restoration/application acceptance remain pending.

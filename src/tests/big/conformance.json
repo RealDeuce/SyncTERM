@@ -866,6 +866,43 @@
             "Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending."
           ],
           "commit": "c723c44"
+        },
+        {
+          "id": "sector-buffer-stages-and-piece-closure",
+          "status": "complete",
+          "operations": [
+            "Implement DDO stage3 at0546: request8000 terminator through the current producer/Move owner, clear mode only after return, then reread current unsigned count/capacity and admit polygon only for count>=4 and count<capacity. Normal polygon return clears mode again; skipped admission does not invent BGI-6.",
+            "Implement stage2057f: metric>=180 first sets sticky. The sticky branch terminates and flushes outline, then jumps directly to current polygon admission without another terminator. The normal branch runs stage3 polygon first and then flushes with current post-call buffer state. Use the existing producer, polygon and line kernels.",
+            "Implement09af..09e8 piece continuation: unfilled terminates/flushes; filled submits current DDO center, reloads the actual first record even after empty/overflow collection, clears run and submits that closure, invokes stage3, then unsigned-subtracts3 from the current returned count. Borrow skips trim/flush; count3 stores0 and still invokes the ordinary flush.09e9 first-point bookkeeping remains the future arc caller.",
+            "Preserve separate public/DDO/device points, current counts/capacities/gates and accepted scratch/color/pixel prefixes. Errors stop later stages without finally mode or DDO restoration. Native first-record access checks owned storage, not a fabricated count>=1 guard."
+          ],
+          "references": [
+            "13-curves-and-native-reuse.adoc:point stages, collection and flush contracts",
+            "60-sector-polygon-scan-converter.adoc:stage3 admission, stage2 ordering and raw polygon body",
+            "61-curve-command-acceptance.adoc:normal/alternate sector construction and current count/return order",
+            "curve-review-examples.json:sector-count-subtract and sector-stage2-order witnesses",
+            "data/BIG103-BGI-DDO.bin:asset6544 bytes/SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8; complete body0365..038b,0541..05ee,09af..09e8 excluding32-byte header"
+          ],
+          "tests": [
+            "big_curve_stages",
+            "big_polygon",
+            "big_producer",
+            "big_curve_angular",
+            "big_curve_regular"
+          ],
+          "deviations": [
+            "Keep existing indexed/bounded producer and polygon policies; escaped first-record storage fails at the reached read with prior collection/error prefix retained. There is no foreign near-stack/segment model, extra framebuffer, per-command allocation, flow/timing behavior or own wire response.",
+            "Only complete lower stage/continuation helpers are accepted here. Sector normalization/quarter pieces, normal/alternate fronts, radial/A55 tails, native physical polygon span binding, public wrappers and V/Y wire/fill restoration/global acceptance remain pending. Test horizontal fallback spans use a fixture adapter, not a physical/native fallback coverage claim."
+          ],
+          "verification": [
+            "Independent big_curve_stages first failed to link against the missing stage operators. Literal64x64 scenes and ordered color/fill/outline requests verify real polygon-before-outline versus outline-before-polygon behavior, exactly one terminator, indexed line9/fill5 and normal DDO-only flush restoration/device first-Move ownership.",
+            "Strict count/capacity admission distinguishes a successfully appended count==capacity (silent polygon skip) from later flush BGI-6 and an already full collector BGI-6. Short/empty/full buffers, mode0/2 rejected terminator Moves, first-point suppression and mode clearing are independently checked without synthetic record or point repair.",
+            "Empty fill0 still runs the captured color restore at its actual stage position and outlines in either route. Metric sets sticky before branch selection; count/capacity or sticky changes during outline affect later admission/polygon while preserving the already selected ordering. Successful callback mode changes are cleared on normal return; failed callbacks retain them.",
+            "Filled triangle closure appends center/first/terminator, fills the independent half-open triangle, removes3 records and draws only the original arc. Capacity2 versus3 checks borrow versus stored0; returned count2/3 mutation checks current count reload. Unfilled closure, empty first-record access failure, span failures before/after outline, line failure after fill and append-extent failures retain exact counts/modes/DDO/device/color/pixel prefixes.",
+            "No wire or application scene changes; the unchanged3374 coherent scenes last passed with82a3080 and are not replayed for this unbound prerequisite. Non-BIG/shared-code regressions remain deferred to the goal-final full suite.",
+            "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -3177,17 +3214,20 @@
         "polygon-code.adoc"
       ],
       "operations": [
-        "Polygon scan-conversion prerequisite is implemented under shared-bgi/sector-polygon-scan-converter. V caller registration, numeric acquisition, circular sector wrapper, normal/alternate piece construction, stage2/3 admission/fill/outline/radial sequencing and returning fill restoration remain pending."
+        "Raw polygon scan conversion and complete lower buffer stages2/3/piece closure are implemented under shared-bgi prerequisites. V caller registration, numeric acquisition, circular sector wrapper, normal/alternate normalization/quarter pieces, radial/A55 tails, physical span binding and returning fill restoration remain pending."
       ],
       "tests": [
-        "big_polygon"
+        "big_polygon",
+        "big_curve_stages"
       ],
       "deviations": [
         "The native bounded polygon component uses checked extent/division/nontermination failures. This is prerequisite acceptance only, not V wire/pixel/global command acceptance."
       ],
       "verification": [
         "Independent raw polygon/span/color/scratch tests cover the new prerequisite; full V/Y composition has not been implemented or accepted.",
-        "Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending."
+        "Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending.",
+        "Independent native stage/closure composition tests verify current admission, opposite fill/outline order, empty fill and failure/point/count prefixes. Full V/Y front/wire composition remains pending.",
+        "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending."
       ],
       "commit": null
     },

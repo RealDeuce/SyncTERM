@@ -1,6 +1,7 @@
 /* BIG original curve scalars/fronts and indexed producer binding (13/61). */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_curve.h"
+#include "st_big_polygon.h"
 #include "st_big_number.h"
 #include "st_big_producer.h"
 #include "st_bgi_trig.h"
@@ -297,4 +298,77 @@ int st_big_curve_arc(struct st_big_state *state, struct st_big_producer *produce
 	struct st_big_curve_request ellipse=*request;
 	ellipse.radius[0]=radius; ellipse.radius[1]=radius_y;
 	return st_big_curve_ellipse(state,producer,&ellipse,sink,batch);
+}
+
+
+static int terminate(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_producer_sink *sink)
+{
+	struct st_big_producer_registers r={.ax=0x8000,.bx=0x8000};
+	int status=st_big_producer_move(state,producer,&r,sink);
+	if (status==0) producer->mode=0;
+	return status;
+}
+static int polygon_admit(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_polygon_sink *polygon)
+{
+	/* Stage3 and stage2's sticky post-flush jump both start at0549.
+	 * These are live count/capacity reads, not the earlier collector size. */
+	if (producer->count<producer->capacity && producer->count>=4) {
+		producer->mode=0;
+		int status=st_big_polygon_fill(state,producer,polygon);
+		if (status!=0) return status;
+	}
+	producer->mode=0;
+	return 0;
+}
+static int flush(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_producer_sink *sink)
+{
+	uint16_t last_y=0x8000;
+	return st_big_producer_flush(state,producer,sink,&last_y);
+}
+int st_big_curve_polygon_stage(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_producer_sink *sink, const struct st_big_polygon_sink *polygon)
+{
+	if (state==NULL || producer==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=terminate(state,producer,sink);
+	return status!=0?status:polygon_admit(state,producer,polygon);
+}
+int st_big_curve_sector_stage(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_producer_sink *sink, const struct st_big_polygon_sink *polygon)
+{
+	if (state==NULL || producer==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (state->bgi.curve_metric>=180) state->bgi.curve_fallback=255;
+	if (state->bgi.curve_fallback!=0) {
+		int status=terminate(state,producer,sink);
+		if (status==0) status=flush(state,producer,sink);
+		return status!=0?status:polygon_admit(state,producer,polygon);
+	}
+	int status=st_big_curve_polygon_stage(state,producer,sink,polygon);
+	return status!=0?status:flush(state,producer,sink);
+}
+int st_big_curve_close_piece(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_producer_sink *sink, const struct st_big_polygon_sink *polygon)
+{
+	if (state==NULL || producer==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (state->bgi.curve_filled==0) {
+		int status=terminate(state,producer,sink);
+		return status!=0?status:flush(state,producer,sink);
+	}
+	struct st_big_producer_registers r={.ax=state->bgi.ddo_x,.bx=state->bgi.ddo_y};
+	int status=st_big_producer_move(state,producer,&r,sink);
+	if (status!=0) return status;
+	/*09c1 reloads the actual first record even after an empty/overflowed
+	 * collection. Check owned extent, not a synthetic count>=1 guard. */
+	if (producer->points==NULL || producer->storage_count==0) return IO_ERROR_OUT_OF_RANGE;
+	r.ax=producer->points[0].x; r.bx=producer->points[0].y;
+	producer->run_length=0;
+	status=st_big_producer_move(state,producer,&r,sink);
+	if (status==0) status=st_big_curve_polygon_stage(state,producer,sink,polygon);
+	if (status!=0) return status;
+	uint16_t count=producer->count;
+	if (count<3) return 0;
+	producer->count=(uint16_t)(count-3u);
+	return flush(state,producer,sink);
 }

@@ -27,6 +27,7 @@ int st_big_curve_decimal_outline(struct st_big_curve_decimal_frame,
 struct st_big_state;
 struct st_big_producer;
 struct st_big_producer_sink;
+struct st_big_polygon_sink;
 struct st_big_curve_batch_sink {
 	void *context;
 	/* Optional replacement for the built-in sixteen-pen batch methods.
@@ -56,6 +57,22 @@ int st_big_curve_regular_outline(struct st_big_state *, struct st_big_producer *
 int st_big_curve_outline(struct st_big_state *, struct st_big_producer *,
 	uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
 	const struct st_big_producer_sink *, const struct st_big_curve_batch_sink *);
+/* Sector stage3: terminate through the current producer, clear mode, then
+ * admit the current unsigned count only when >=4 and <capacity. Normal
+ * polygon return clears mode again; failures keep reached prefixes. */
+int st_big_curve_polygon_stage(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_producer_sink *, const struct st_big_polygon_sink *);
+/* Sector stage2: metric can set sticky before branch selection. Sticky
+ * terminates/flushes before admission; ordinary stage3 fills then flushes.
+ * Exactly one terminator is requested. Current post-call counts/gates apply. */
+int st_big_curve_sector_stage(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_producer_sink *, const struct st_big_polygon_sink *);
+/*09af..09e8 continuation: unfilled closes/flushes an outline. Filled emits
+ * current DDO center, reloads first record, clears run and emits closure,
+ * calls stage3, then unsigned-subtracts3 from current count and flushes
+ * unless subtraction borrows.09e9 bookkeeping belongs to the arc caller. */
+int st_big_curve_close_piece(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_producer_sink *, const struct st_big_polygon_sink *);
 struct st_big_curve_request {
 	uint16_t center[2], start, end, radius[2];
 };

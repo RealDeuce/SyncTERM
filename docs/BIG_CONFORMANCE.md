@@ -1707,3 +1707,24 @@ pending; this step accepts the polygon prerequisite only.
 Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending.
 
 Sector polygon scan-conversion implementation commit: `c723c44`.
+
+## Sector buffer stages and closure prerequisite
+
+Lower stages3/2 and09af piece closure now compose the existing producer,
+polygon and flush operators. Stage3 terminates once then uses strict current
+count>=4 and count<capacity. Stage2 selects polygon-before-outline or sticky
+outline-before-polygon after its metric test. Filled closure submits center/
+first/terminator, then subtracts3 from current returned count and flushes only
+without borrow. Empty fill keeps the actual restore/outline path. Errors
+retain reached mode/count/point/pixel prefixes without finally restoration.
+
+big_curve_stages independently checks complete indexed square/triangle scenes,
+ordered colour/fill/outline calls, current count/capacity/gates, mode0/2
+terminator Moves, full/short/empty buffers, count2/3 subtraction, empty fill,
+callback mutations and failure prefixes. Test adapters exercise existing bars
+and horizontal fallback requests without claiming native physical fallback
+binding. No new wire command or application scene is added; the unchanged3374
+captures were not replayed. Complete V/Y fronts/radials/wrappers/physical
+binding/wire, audio/global and final regressions remain pending.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending.
