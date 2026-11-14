@@ -20,6 +20,10 @@ bit-identical reference PCM and listening are not development gates.
 The planned BIG audio routing uses logical mixer channel0 for N's synthesized
 OPL2 output and channel1 for b/n PC-speaker effects/notes, including the existing
 channel controls. Audio implementation remains pending.
+BIG source levels must be calibrated to the existing ANSI music/beep output
+at equivalent volume settings. Audio verification must compare representative
+mixed PCM levels and peaks, preserve musical dynamics and check polyphonic
+headroom rather than accepting a source simply because it produces sound.
 
 Interactive acquisition retains the original keyboard pointer/X6 steps and
 adds native mouse movement. The latest movement controls the software pointer;

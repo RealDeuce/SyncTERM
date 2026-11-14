@@ -212,6 +212,13 @@ Route BIG N's synthesized OPL2 output through logical mixer channel0 (music),
 and b/n PC-speaker effects and notes through channel1 (effects). These are
 the existing terminal mixer channels, with their existing volume/fade/flush
 controls. OPL2 synthesis does not pass through the MIDI decoder.
+Calibrate BIG source levels against the existing ANSI music and beep output
+at equivalent channel/master settings, so switching protocols does not cause
+an unintended loudness jump or drop. Use stable source gain while preserving
+encoded note dynamics and relative voice levels. Compare representative
+mixed-output PCM AC RMS and peaks through the actual mixer path, including
+polyphonic OPL2 headroom and clipping checks; matching raw sample peaks alone
+does not establish comparable loudness. Retain the existing volume controls.
 The music-buffer availability WORD read by ?2 is separate from mute/playback.
 Publish it from actual owned-buffer setup/allocation; I/R and query reads
 must not reset or re-probe it. Until a music buffer is installed it is0.

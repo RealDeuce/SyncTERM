@@ -16,7 +16,8 @@
     "fonts": "Use current shared RIP bitmap/CHR font data and common glyph kernels. Historical V100 copies are not required and must not be carried unless actual artwork demonstrates a need. Preserve BIG protocol layout/source/advance rules around shared glyphs; current-version metric/outline differences are intentional.",
     "execution_order": "Native W, t and ? are implemented in the user-requested order. Preserve original dispatch order values; remaining global/audio/final-suite acceptance is pending.",
     "transport": "Use parser backpressure and existing session/connection buffers. No automatic XON/XOFF/custom X5 flow bytes, flow readiness polls, output budget consumption or flow-count waits. Retain X5 numeric/state semantics and real replies. Keep the backlog paced after a pause, with no baud credit bank during the pause or its resume tick; unpaced input resumes in order. Historical verification records retain earlier serial-flow results and are not current transport expectations.",
-    "publishing": "User authorizes pushing all completed branch changes once every non-audio BIG command is implemented and verified, with only b/n/N audio commands pending. Do not push earlier. This is a publishing checkpoint; the full goal, audio work and existing goal-final full-suite requirement remain active."
+    "publishing": "User authorizes pushing all completed branch changes once every non-audio BIG command is implemented and verified, with only b/n/N audio commands pending. Do not push earlier. This is a publishing checkpoint; the full goal, audio work and existing goal-final full-suite requirement remain active.",
+    "audio_levels": "Calibrate BIG OPL2 and speaker source levels against existing ANSI music and beep output at equivalent channel/master settings, avoiding unintended loudness jumps or drops. Use stable source gain preserving encoded dynamics/relative voice levels; verify representative mixed-output PCM AC RMS and peaks through the real mixer, including polyphonic headroom/clipping and existing volume controls."
   },
   "foundations": [
     {
@@ -2312,7 +2313,8 @@
         "PC-speaker effects/notes and raw AdLib music using existing mixer/local sample timing.",
         "Bounded C17 YM3812-only adaptation of pinned BSD ymfm algorithms; muted progression, cancel/reset/teardown and manual checklist.",
         "Publish the retained music_memory WORD from actual native AdLib buffer setup/allocation, independently of playback/mute. ?2 reads this cache without probing/allocating; I/R retain it. The query integration currently reports0 because no audio buffer is installed; allocation/playback lifecycle remains required.",
-        "Route BIG N synthesized OPL2 output through existing logical mixer channel0 (music), and b/n PC-speaker effects/notes through channel1 (effects), using their existing channel controls. OPL2 output does not use the MIDI decoder."
+        "Route BIG N synthesized OPL2 output through existing logical mixer channel0 (music), and b/n PC-speaker effects/notes through channel1 (effects), using their existing channel controls. OPL2 output does not use the MIDI decoder.",
+        "Calibrate BIG OPL2 and speaker source levels against existing ANSI music and beep output at equivalent channel/master settings, avoiding unintended loudness jumps or drops. Use stable source gain preserving encoded dynamics/relative voice levels; verify representative mixed-output PCM AC RMS and peaks through the real mixer, including polyphonic headroom/clipping and existing volume controls."
       ],
       "tests": [],
       "references": [
