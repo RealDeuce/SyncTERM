@@ -365,7 +365,7 @@ static int install(void *context, const struct st_big_mode *mode)
 	cterm_render_attribute_colours(t,t->attr,&t->fg_color,&t->bg_color);
 	cterm_render_set_attribute(t,t->attr);
 	cterm_render_set_colours(t,t->fg_color,t->bg_color);
-	t->cursor = CTERM_CURSOR_HIDDEN; cterm_apply_window(t);
+	cterm_apply_window(t);
 	cterm_render_clear_window(t); cterm_set_position(t,1,1);
 	cterm_render_set_cursor(t,t->cursor);
 	status = cterm_render_take_error(t);

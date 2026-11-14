@@ -1214,7 +1214,8 @@ Native X3 implementation commit: `25d2c2f`.
 
 ## Original stroke-font data and startup bindings
 
-The four original V100 CHR files are now embedded from pinned checked-in
+Historical implementation (superseded by the current-font policy below):
+the four original V100 CHR files were embedded from pinned checked-in
 bytes, retaining original headers/notices. They are distinct from the newer
 RIP font arrays. BIG initializes ten names/twenty records, registers the
 borrowed assets in4/2/3/1 order, and retains separate loaded/active owners.
@@ -1289,3 +1290,30 @@ command wiring remain pending; no W wire completion is claimed.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All41 BIG-specific native CTests passed in46.83s. Final strengthened big_text_stroke passed in0.07s, including literal pixel/decoded-point failure prefixes and current per-glyph binding checks. syncterm_big_input passed in130.04s (test129.99s),2632 coherent scenes with the additional private-cache assertions. The first focused run exposed a64x64 fixture without matching clip bounds; the fixture now declares that bounded surface, preserving the original glyph/advance expectations. No non-BIG tests ran. Direct stroke layout/rendering is implemented; W bitmap sources/raster/initial move/count/acquisition/wire and full global45-entry/final acceptance remain pending.
 
 Direct stroke-text layout/drawing implementation commit: `5c19345`.
+
+
+## Current font policy and shared glyph drawing
+
+BIG now uses the current RIP font data. There is one shared immutable font
+set and common bitmap row expansion/CHR decoding; only protocol placement,
+read order, bounds, advances and error policy remain in adapters. Historical
+V100 files and the separate embedding script are removed. A historical font
+variant will be considered only with artwork demonstrating a need. Current
+font-version metric/outline changes intentionally supersede older numeric
+expectations; preserved historical sections describe past verification.
+
+The complete native bitmap and outtextxy primitives have independent row,
+rotation/magnification/placement/count/bounds/point/failure tests. All four
+BIG font views are pointer-identical to shared current data and retain
+compiled checksums. W stream-reader integration and wire acceptance remain
+pending.
+
+## BIG cursor visibility
+
+BIG no longer hides the cursor unconditionally. Entry keeps the normal
+visible cursor and ANSI show/hide remains effective across R1/R2/R3 and
+I0/I1. Native CP437/UTF-8/status tests cover both visibility states. Existing
+coherent scenes explicitly hide their cursor; connection captures now verify
+that BIG starts with it visible.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending.

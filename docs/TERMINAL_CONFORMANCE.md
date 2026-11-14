@@ -366,7 +366,8 @@ partial/error/source/lifetime paths and complete unchanged scene data.
 retained scene/images/state/replies/RNG. E/W font rendering, audio/global45-entry
 and final cross-emulation regressions remain pending.
 
-BIG now embeds the four original V100 stroke fonts and registers their
+Historical coverage, superseded by the current-font policy below: BIG
+previously embedded the four V100 stroke fonts and registered their
 borrowed bodies at entry. Source SHA-256/compiled CRC checks, every glyph/
 record and malformed-access fixtures verify the separate common CHR format
 accessor and registry lifetimes. All2450 existing coherent scenes additionally
@@ -1287,3 +1288,12 @@ The `extensions` control group checks feature 102 with MIDI disabled, rejected
 cache-path recovery and seven-octave ANSI capture recovery in CP437/UTF-8.
 These tests do not claim native MIDI-device or auditory coverage. MIDI and
 PCM masks are both disabled in shared headless application fixtures.
+
+
+BIG and RIP now share current bitmap/CHR font data and actual glyph kernels.
+Historical V100 copies were removed by user decision; no compatibility font
+variant is required absent artwork demonstrating a need. Font-version metric
+changes are intentional. BIG's bitmap/outtextxy primitives have source-order,
+placement/count/point and failure coverage; W wire integration remains pending.
+BIG also retains normal ANSI cursor visibility through entry and I/R, with
+native visible/hidden and coherent connection/remote-hide checks.

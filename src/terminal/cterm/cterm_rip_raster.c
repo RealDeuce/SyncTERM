@@ -7,6 +7,8 @@
 
 #include "cterm_rip_raster.h"
 #include "st_bgi_data.h"
+#include "st_bgi_bitmap.h"
+#include "st_bgi_chr.h"
 #include "st_bgi_line.h"
 #include "st_bgi_pixel.h"
 #include "cterm_rip_asset.h"
@@ -2194,6 +2196,21 @@ stroke_char_width(struct cterm_rip_raster *rip, unsigned char ch)
 
 static void draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch);
 
+struct rip_bitmap_row { struct cterm_rip_raster *rip; int row,magnitude; };
+static int
+rip_bitmap_pixel(void *context, unsigned column, unsigned row)
+{
+	const struct rip_bitmap_row *draw=context;
+	struct cterm_rip_raster *rip=draw->rip;
+	if (rip->font_vertical)
+		set_pixel(rip,rip->x+draw->row+(int)row-8*draw->magnitude,
+		    rip->y-(int)column-1,map_colour(rip,rip->colour));
+	else set_pixel(rip,rip->x+(int)column,rip->y+draw->row+(int)row,map_colour(rip,rip->colour));
+	/* set_pixel's existing sticky error suppresses later writes. Keep
+	 * this adapter's returning loop/advance behavior unchanged. */
+	return 0;
+}
+
 struct character_draw {
 	struct cterm_rip_raster *rip;
 	unsigned char character;
@@ -2211,7 +2228,7 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 {
 	size_t size;
 	const uint8_t *font;
-	int x, y, start_x, start_y;
+	int y, start_x, start_y;
 
 	if (rip->error != 0 || no_viewport(rip)) return;
 	if (rip->drawing_pixels == NULL) {
@@ -2239,24 +2256,10 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 		for (y = 0; y < 8; y++) {
 			uint8_t bits = font[(size_t)ch * 8 + y];
 
-			for (x = 0; x < 8; x++) {
-				if (!(bits & (0x80 >> x)))
-					continue;
-				for (int dy = 0; dy < magnitude; dy++) {
-					for (int dx = 0; dx < magnitude; dx++) {
-						if (rip->font_vertical)
-							set_pixel(rip,
-							    rip->x + y * magnitude + dy
-							    - 8 * magnitude,
-							    rip->y - x * magnitude - dx - 1,
-							    map_colour(rip, rip->colour));
-						else
-							set_pixel(rip,
-							    rip->x + x * magnitude + dx,
-							    rip->y + y * magnitude + dy,
-							    map_colour(rip, rip->colour));
-					}
-				}
+			if (magnitude>0) {
+				struct rip_bitmap_row draw={rip,y*magnitude,magnitude};
+				int status=st_bgi_bitmap_expand_row(bits,(unsigned)magnitude,(unsigned)magnitude,rip_bitmap_pixel,&draw);
+				if (status!=0) { rip->error=status; return; }
 			}
 		}
 		if (rip->font_vertical)
@@ -2291,11 +2294,10 @@ draw_rip_char(struct cterm_rip_raster *rip, unsigned char ch)
 	    && rip->error == 0) {
 		uint8_t raw_x = font[glyph_offset++];
 		uint8_t raw_y = font[glyph_offset++];
-		int opcode = ((raw_x >> 6) & 2) | ((raw_y >> 7) & 1);
-		int scaled_x = (int8_t)((raw_x & 0x7f)
-		    | ((raw_x & 0x40) ? 0x80 : 0)) * mult / div;
-		int scaled_y = (int8_t)((raw_y & 0x7f)
-		    | ((raw_y & 0x40) ? 0x80 : 0)) * mult / div;
+		struct st_bgi_chr_record record=st_bgi_chr_decode(raw_x,raw_y);
+		int opcode=record.opcode;
+		int scaled_x=record.x*mult/div;
+		int scaled_y=record.y*mult/div;
 		int target_x = start_x + (rip->font_vertical
 		    ? height - scaled_y : scaled_x);
 		int target_y = start_y + (rip->font_vertical

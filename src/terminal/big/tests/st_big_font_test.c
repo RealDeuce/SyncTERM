@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_font.h"
 #include "st_bgi_chr.h"
+#include "st_bgi_data.h"
 #include "io_error.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,15 +16,16 @@ static uint32_t crc(const uint8_t *p, size_t n)
 }
 static void assets_and_all_glyphs(void)
 {
-	const size_t sizes[]={7241,2138,5438,8560};
-	const uint32_t hashes[]={UINT32_C(0xfe5cd6b1),UINT32_C(0xe18c9d7c),UINT32_C(0x06f847c6),UINT32_C(0x48a03304)};
-	const uint16_t counts[]={95,96,126,106},starts[]={32,32,1,21};
+	const size_t sizes[]={16677,5131,13596,18063};
+	const uint32_t hashes[]={UINT32_C(0xba867503),UINT32_C(0x18273c62),UINT32_C(0x18438f9b),UINT32_C(0xb38f8e47)};
+	const uint16_t counts[]={223,223,254,223},starts[]={32,32,1,32};
 	for (unsigned id=1;id<=4;++id) {
 		size_t size=0; const uint8_t *data=st_big_font_data(id,&size);
 		CHECK(data!=NULL && size==sizes[id-1] && crc(data,size)==hashes[id-1]);
+		size_t shared_size; CHECK(data==st_bgi_font_data(id,&shared_size) && shared_size==size);
 		struct st_bgi_chr font; CHECK(st_bgi_chr_bind(&font,data+128,size-128)==0);
 		CHECK(font.count==counts[id-1] && font.first==starts[id-1] && font.strokes==16+3*font.count);
-		CHECK(data[0]==0x50 && data[1]==0x4b && font.body[8]==(id==2?6:21) && font.body[10]==(id==2?254:249));
+		CHECK(data[0]==0x50 && data[1]==0x4b && font.body[8]==(id==1?24:id==2?7:25) && font.body[10]==(id==2?254:249));
 		for (unsigned code=0;code<256;++code) {
 			struct st_bgi_chr_glyph glyph; CHECK(st_bgi_chr_glyph(&font,(uint8_t)code,&glyph)==0);
 			bool present=code>=starts[id-1] && code<starts[id-1]+counts[id-1]; CHECK(glyph.present==present);
@@ -37,8 +39,8 @@ static void assets_and_all_glyphs(void)
 			CHECK(glyph.finished && seen==glyph.records && (present?seen>0:seen==0));
 			if (present) CHECK(record.opcode==ST_BGI_CHR_END);
 			if (id==2 && code==65) CHECK(glyph.width==6 && seen==9 && last.opcode==ST_BGI_CHR_MOVE && last.x==6 && last.y==0);
-			if (id==4 && (code==21 || code==22)) CHECK(glyph.width==(code==21?14:0) && seen==26 && last.x==14 && last.y==0);
-			if (id==4 && code==65) CHECK(glyph.width==22 && seen==51 && last.x==22 && last.y==0);
+			if (id==4 && (code==21 || code==22)) CHECK(!present && seen==0);
+			if (id==4 && code==65) CHECK(glyph.width==26 && seen==49 && last.x==26 && last.y==0);
 		}
 	}
 	for (unsigned id=0;id<65536;++id) if (id==0 || id>4) { size_t size=99; CHECK(st_big_font_data(id,&size)==NULL && size==0); }
@@ -59,15 +61,15 @@ static void original_registry_and_rebinding(void)
 	CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==0 && id==1 && error==-11);
 	CHECK(fonts.slots[0].body==copy+128 && fonts.active==active && fonts.loaded==1);
 	/* Version fields are independent spaced BYTE tests, not a1.1 tuple. */
-	copy[0x62]=2; copy[0x64]=0; copy[0x63]=copy[0x65]=255;
+	copy[0x61]=2; copy[0x63]=0; copy[0x62]=copy[0x64]=255;
 	CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==0 && error==-11);
-	copy[0x62]=0; CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_PROTOCOL && error==-13);
-	copy[0x62]=1; copy[0x64]=2; CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_PROTOCOL && error==-13);
-	memcpy(copy,original,size); memcpy(copy+0x5c,"XXXX",4); CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_PROTOCOL && error==-11);
-	memset(copy+0x5c,0,4); CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==0 && id==11 && fonts.count==10 && error==-11);
+	copy[0x61]=0; CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_PROTOCOL && error==-13);
+	copy[0x61]=1; copy[0x63]=2; CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_PROTOCOL && error==-13);
+	memcpy(copy,original,size); memcpy(copy+0x5b,"XXXX",4); CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_PROTOCOL && error==-11);
+	memset(copy+0x5b,0,4); CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==0 && id==11 && fonts.count==10 && error==-11);
 	memcpy(copy,original,size); copy[128]=0; CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==0);
 	struct st_bgi_chr body; CHECK(st_bgi_chr_bind(&body,fonts.slots[0].body,fonts.slots[0].size)==IO_ERROR_PROTOCOL); /* later plus check */
-	copy[0x5a]=copy[0x5b]=255; const uint8_t *old=fonts.slots[0].body;
+	copy[0x59]=copy[0x5a]=255; const uint8_t *old=fonts.slots[0].body;
 	CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_OUT_OF_RANGE && error==-13 && fonts.slots[0].body==old);
 	CHECK(st_big_font_register(&fonts,copy,1,&error,&id)==IO_ERROR_OUT_OF_RANGE && error==-13);
 	memset(copy,0,size); copy[0]=0x50; copy[1]=0x4b; CHECK(st_big_font_register(&fonts,copy,size,&error,&id)==IO_ERROR_OUT_OF_RANGE);

@@ -1,8 +1,15 @@
 /* Borrowed immutable font registration, original BIG30 startup subset. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_font.h"
+#include "st_bgi_data.h"
 #include "io_error.h"
 #include <string.h>
+const uint8_t *st_big_font_data(unsigned number, size_t *size)
+{
+	if (size==NULL) return NULL;
+	*size=0;
+	return number>=1 && number<=4?st_bgi_font_data(number,size):NULL;
+}
 static int invalid(int *error, int status) { *error=-13; return status; }
 int st_big_font_register(struct st_big_fonts *fonts, const uint8_t *data, size_t size, int *error, uint16_t *id)
 {

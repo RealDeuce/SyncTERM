@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_text.h"
 #include "st_big_font.h"
+#include "st_big_bitmap.h"
 #include "st_big_draw.h"
 #include "st_big_number.h"
 #include "st_bgi_data.h"
@@ -269,4 +270,38 @@ int st_big_text_stroke_direct(struct st_big_state *s, const uint8_t *bytes, uint
 	status=stroke_style(s,saved_style); if (status!=0) return status;
 	s->bgi.ddo_line_style=saved_style; s->bgi.ddo_line_width=saved_width;
 	return 0;
+}
+static void bitmap_align(struct st_big_state *s, uint8_t count)
+{
+	uint16_t x=s->bgi.ddo_x,y=s->bgi.ddo_y;
+	if ((uint8_t)s->bgi.text_suppression==0) {
+		uint8_t justify=s->bgi.text_justify_x;
+		if (s->bgi.text_direction==1 || justify!=0) {
+			uint16_t extent=s->bgi.text_direction==1?s->bgi.text_cached[1]:(uint16_t)(count*s->bgi.text_cached[0]);
+			if (justify==1) extent=(uint16_t)((extent>>1)-1u);
+			x=(uint16_t)(x-extent);
+		}
+	}
+	if ((s->bgi.text_suppression>>8)==0 && s->bgi.text_justify_y!=2) {
+		uint16_t extent=s->bgi.text_direction==1?(uint16_t)(count*s->bgi.text_cached[0]):s->bgi.text_cached[1];
+		if (s->bgi.text_justify_y==1) extent>>=1;
+		y=(uint16_t)(y-extent);
+	}
+	s->bgi.ddo_x=s->bgi.device_x=x; s->bgi.ddo_y=s->bgi.device_y=y;
+}
+int st_big_text_out(struct st_big_state *s, uint16_t x, uint16_t y, const uint8_t *bytes, size_t extent,
+    const struct st_big_bitmap_font *font, const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || bytes==NULL || sink==NULL || sink->pixel==NULL || (font!=NULL && font->row==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	if (s->bgi.state==0) { s->bgi.error=-1; return IO_ERROR_PROTOCOL; }
+	s->bgi.ddo_x=s->bgi.device_x=(uint16_t)(x+s->bgi.viewport[0]);
+	s->bgi.ddo_y=s->bgi.device_y=(uint16_t)(y+s->bgi.viewport[1]);
+	size_t limit=extent<65535?extent:65535;
+	const uint8_t *end=memchr(bytes,0,limit);
+	if (end==NULL) return IO_ERROR_OUT_OF_RANGE;
+	uint8_t count=(uint8_t)(end-bytes);
+	if (count==0) return 0;
+	s->bgi.text_count=count; bitmap_align(s,count);
+	if ((uint8_t)s->bgi.text_suppression==0 && st_big_number_signed(s->bgi.ddo_x)<0) return 0;
+	return s->bgi.text_stroke_active!=0?st_big_text_stroke_direct(s,bytes,count,sink):st_big_text_bitmap(s,bytes,count,font,sink);
 }

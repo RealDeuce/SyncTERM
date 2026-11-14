@@ -1,30 +1,31 @@
-# BIG 1.03 original stroke fonts
+# Shared current BGI fonts
 
-These complete V100 files come from the supplied BIG 1.03 image, retained in
-the local reference book at `~/IGS/docs/big/data/`. Chapter 28 identifies
-glyph/layout data; chapter 30 identifies the borrowed startup registrations.
-The BF 1.02 copies are byte-identical. Their original headers, including
-the 1987 Borland International copyright notices, remain intact. Font data
-retain those notices; the surrounding C/CMake code has its own BSD license.
+BIG and RIP use the same immutable bitmap and CHR font data in
+`../../bgi/st_bgi_bitmap.c` and `../../bgi/st_bgi_fonts.c`. There is one compiled
+font set. BIG selects CHRs1..4 through borrowed views into that shared data;
+RIP continues using bitmap0 and CHRs1..10. The original Borland notices and
+file headers remain with the data.
 
-| Font / wire ID | File bytes | Body bytes | SHA-256 |
-| --- | ---: | ---: | --- |
-| Triplex / 1 | 7241 | 7113 | `b687918d590a22273fbb30967e0e50cb9e4ff9d3c3c97591bc6ec5460d655c9a` |
-| Small / 2 | 2138 | 2010 | `dc51f652a1d863273eb291830b3fba5e283b9dbe65b366b0b9eae02e7b237f08` |
-| Sans / 3 | 5438 | 5310 | `9bae0df17f137f3b9171f19dde0ebc6090c37677105d3b78ef427e719ddb8036` |
-| Gothic / 4 | 8560 | 8432 | `b784419930e54435f28763e9f4cf2854a785082b9b330e7ac93c0f5590b06814` |
+The historical V100 files and their separate embedding script were removed
+at the user's request. Do not carry a compatibility font variant unless
+actual artwork demonstrates that one is needed. No such artwork has been
+identified. Font-version metric/outline changes are intentional; BIG's
+protocol layout, scaling, source acquisition and advance rules stay separate.
 
-All headers are 128 bytes. These are the original older assets, rather
-than the newer arrays used by RIP. Gothic A has metric width 22, and Gothic
-byte 22 has metric width zero but shares byte 21's stroke/advance program.
-Small A has metric width 6 and a separate terminal MOVE to (6, 0).
+| Font / BIG ID | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Triplex / 1 | 16677 | `831963618a5dbf3562e12c3b4b8bab3ed3879143de3c7cd9293be171a44282db` |
+| Small / 2 | 5131 | `ea3f22a9bd93e0fd9e2bb7814ac60543100315aaf4e21dd70204561930095449` |
+| Sans / 3 | 13596 | `edd4db0e5735ce0872d60137819e2b74a590d069be7585269b7b6d675e319bbc` |
+| Gothic / 4 | 18063 | `8620ae9db9dd874b842f67f7153721a5681fef3cd9e99af0fde41f3b1194f183` |
 
-Configuration verifies the pinned SHA-256 values and embeds every byte in C
-generated inside the build tree. There is no runtime font-file dependency,
-DOS font search or disk loader. `big_font` checks independent CRC-32 values
-over the compiled arrays, headers, every glyph and selected literal records.
-The common CHR body/record accessors preserve BYTE/WORD address arithmetic
-and reject escaped native extents or unterminated address cycles. BIG's
-registry, font selection, layout, scaling and raster semantics remain
-separate consumers of that format code. The registry holds borrowed views;
-registration does not invalidate a selected/loaded/active font binding.
+`big_font` checks compiled CRC-32 values, complete header/body access, every
+glyph and shared-data pointer identity. Bitmap data has unchanged SHA-256
+`5e3e76618612db34d3d821f68fb223f3a446eb6fca871a5796e49e533daac032`.
+Its compiled CRC-32 is `f7612cfe`. BIG's zero-to-O source-selection alias
+remains protocol policy; there is no separate historical bitmap table.
+
+Both protocols use the common bitmap row expander and CHR record decoder.
+Their adapters retain their respective layout, bounds, magnification/read
+order, cursor, pen-advance and error rules. No runtime font-file dependency
+or foreign ROM/IVT emulator is added.

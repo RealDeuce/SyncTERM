@@ -20,6 +20,8 @@ struct st_bgi_chr_glyph {
 };
 enum st_bgi_chr_opcode { ST_BGI_CHR_END, ST_BGI_CHR_IGNORE, ST_BGI_CHR_MOVE, ST_BGI_CHR_DRAW };
 struct st_bgi_chr_record { enum st_bgi_chr_opcode opcode; int x,y; };
+/* Shared format decoding, independent of font version/layout/advances. */
+struct st_bgi_chr_record st_bgi_chr_decode(uint8_t x, uint8_t y);
 /* No allocation/copy. Views borrow their byte storage for their lifetime.
  * Tables/records are checked at each reached access, preserving decode
  * prefixes. Invalid calls leave output views/records unchanged. */

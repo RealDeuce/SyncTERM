@@ -44,13 +44,13 @@ static void small_AA(void)
 {
 	/* Original Small A records: M0,0 L0,4 L2,6 L4,4 L4,0
 	 * L4,3 L0,3 M6,0 END. At3/5 these produce this literal mask. */
-	static const uint16_t points[][2]={{20,34},{20,33},{20,32},{21,31},{22,32},{22,33},{22,34},{21,33}};
+	static const uint16_t points[][2]={{20,35},{20,34},{20,33},{21,32},{22,33},{22,34},{22,35},{21,34}};
 	for (unsigned dir=0;dir<2;++dir) for (unsigned xormode=0;xormode<2;++xormode) {
 		struct fixture f; init(&f,2,1,dir); f.s.bgi.write_mode=(uint16_t)xormode;
 		struct st_big_draw_sink io=sink(&f);
 		CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t *)"AA",2,&io)==0);
-		CHECK(f.s.bgi.text_total_width==7 && f.s.bgi.text_scaled[0]==4 && f.s.bgi.text_scaled[1]==4 && f.calls==30);
-		CHECK(f.s.bgi.ddo_x==(dir?24:26) && f.s.bgi.ddo_y==(dir?31:34));
+		CHECK(f.s.bgi.text_total_width==7 && f.s.bgi.text_scaled[0]==5 && f.s.bgi.text_scaled[1]==5 && f.calls==30);
+		CHECK(f.s.bgi.ddo_x==(dir?25:26) && f.s.bgi.ddo_y==(dir?31:35));
 		CHECK(f.s.bgi.text_stroke_point[0]==3 && f.s.bgi.text_stroke_point[1]==0); retained(&f);
 		uint8_t expected[64*64]={0};
 		for (unsigned copy=0;copy<2;++copy) for (size_t i=0;i<sizeof(points)/sizeof(points[0]);++i) {
@@ -58,7 +58,7 @@ static void small_AA(void)
 			unsigned x=points[i][0]+3*copy,y=points[i][1];
 			/* Quarter-turn of the source path about each baseline, with
 			 * source terminal advance along negative device Y. */
-			if (dir) { x=24-(34-points[i][1]); y=37-(points[i][0]-20)-3*copy; }
+			if (dir) { x=25-(35-points[i][1]); y=37-(points[i][0]-20)-3*copy; }
 			expected[y*64+x]=5;
 		}
 		CHECK(memcmp(f.pixels,expected,sizeof(expected))==0);
@@ -82,18 +82,23 @@ static void format_access_order(void)
 static void missing_zero_and_layout(void)
 {
 	struct fixture f; init(&f,2,1,0); struct st_big_draw_sink io=sink(&f);
-	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t[]){1,'A'},2,&io)==0 && f.calls==15 && f.s.bgi.text_total_width==3 && f.s.bgi.ddo_x==23 && f.s.bgi.ddo_y==34);
-	init(&f,4,4,0); io=sink(&f);
-	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t[]){22},1,&io)==0 && f.calls>0 && f.s.bgi.text_total_width==0 && f.s.bgi.ddo_x==34 && f.s.bgi.ddo_y==58);
-	init(&f,4,4,0); io=sink(&f); f.s.bgi.text_justify_x=1;
-	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t[]){22},1,&io)==0 && f.s.bgi.text_total_width==0 && f.s.bgi.ddo_x==35);
+	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t[]){1,'A'},2,&io)==0 && f.calls==15 && f.s.bgi.text_total_width==3 && f.s.bgi.ddo_x==23 && f.s.bgi.ddo_y==35);
+	/* Authored zero-metric program: M0,0 L4,0 M14,0 END. */
+	uint8_t zero[28]={0}; const uint8_t zero_program[]={0x80,0,0x84,0x80,0x8e,0,0,0};
+	memcpy(zero+20,zero_program,8);
+	for (unsigned center=0;center<2;++center) {
+		init(&f,4,4,0); io=sink(&f); f.s.bgi.text_body=zero; f.s.bgi.text_body_size=sizeof(zero);
+		const uint8_t header[16]={'+',1,0,0,22,20,0,0,4}; memcpy(f.s.bgi.text_header,header,16);
+		f.s.bgi.text_justify_x=(uint8_t)center;
+		CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t[]){22},1,&io)==0 && f.calls==5 && f.s.bgi.text_total_width==0 && f.s.bgi.ddo_x==34+center && f.s.bgi.ddo_y==34);
+	}
 	for (unsigned dir=0;dir<2;++dir) for (unsigned orient=0;orient<3;++orient) for (unsigned jx=0;jx<4;++jx) for (unsigned jy=0;jy<4;++jy) {
 		init(&f,2,1,dir); io=sink(&f); f.s.bgi.orientation=(uint8_t)orient;
 		f.s.bgi.text_justify_x=(uint8_t)jx; f.s.bgi.text_justify_y=(uint8_t)jy;
 		CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t *)"AA",2,&io)==0);
-		/* Hand-derived original placement extents: H uses7/4, V4/7.
+		/* Hand-derived original placement extents: H uses7/5, V5/7.
 		 * X-center uses SHR then DEC; Y-center only SHR. */
-		unsigned h=dir?4:7,v=dir?7:4; int x=20+(dir?4:0),y=30;
+		unsigned h=dir?5:7,v=dir?7:5; int x=20+(dir?5:0),y=30;
 		if (jx) { int adjustment=jx==1?(int)(h/2)-1:(int)h; if (orient) y+=adjustment; else x-=adjustment; }
 		if (jy) { int adjustment=jy==1?(int)(v/2):(int)v; if (orient) x+=adjustment; else y+=adjustment; }
 		if ((orient&1)==dir) { x+=dir?-6:6; } else y-=6;
@@ -111,12 +116,12 @@ static void partials_and_lifetimes(void)
 	init(&f,2,1,0); io=sink(&f); f.s.bgi.ddo_line_style=4; f.mutate=true;
 	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t *)"A",1,&io)==0 && f.s.bgi.ddo_line_style==4 && f.s.bgi.line_mask==0x5678 && f.s.bgi.device_line_width==1);
 	/* Original direct endpoints and ascending-Y thin-line order. */
-	static const uint16_t trace[15][2]={{20,32},{20,33},{20,34},{21,31},{20,32},{21,31},{22,32},{22,32},{22,33},{22,34},{22,33},{22,34},{20,33},{21,33},{22,33}};
+	static const uint16_t trace[15][2]={{20,33},{20,34},{20,35},{21,32},{20,33},{21,32},{22,33},{22,33},{22,34},{22,35},{22,34},{22,35},{20,34},{21,34},{22,34}};
 	static const uint16_t decoded[15][2]={{0,2},{0,2},{0,2},{1,3},{1,3},{2,2},{2,2},{2,0},{2,0},{2,0},{2,1},{2,1},{0,1},{0,1},{0,1}};
 	for (size_t fail=1;fail<=15;++fail) {
 		init(&f,2,1,0); io=sink(&f); f.fail_at=fail;
 		CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t *)"A",1,&io)==IO_ERROR_IO && f.calls==fail);
-		CHECK(f.s.bgi.ddo_x==20 && f.s.bgi.ddo_y==34 && f.s.bgi.text_total_width==3);
+		CHECK(f.s.bgi.ddo_x==20 && f.s.bgi.ddo_y==35 && f.s.bgi.text_total_width==3);
 		CHECK(f.s.bgi.ddo_line_style==0 && f.s.bgi.ddo_line_width==1 && f.s.bgi.device_line_width==1 && f.s.bgi.line_style==2 && f.s.bgi.line_width==3);
 		CHECK(memcmp(f.s.bgi.text_stroke_point,decoded[fail-1],sizeof(decoded[0]))==0);
 		uint8_t expected[64*64]={0};
@@ -134,14 +139,14 @@ static void glyph_binding_lifetime(void)
 	uint8_t *replacement=malloc(f.s.bgi.text_body_size); CHECK(replacement!=NULL);
 	memcpy(replacement,f.s.bgi.text_body,f.s.bgi.text_body_size);
 	size_t offset_entry=16+2u*('A'-32);
-	size_t program=304u+replacement[offset_entry]+256u*replacement[offset_entry+1];
+	size_t program=685u+replacement[offset_entry]+256u*replacement[offset_entry+1];
 	CHECK(replacement[program+14]==0x86 && replacement[program+15]==0);
 	replacement[program+14]=0x8a; /* New terminal move10,0 instead of6,0. */
 	f.next_body=replacement; f.next_size=f.s.bgi.text_body_size;
 	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t *)"AA",2,&io)==0 && f.calls==30);
 	/* The first glyph keeps its old bound stream; the second sees the
 	 * changed binding. Advances3+6 differ from6+6 or3+3. */
-	CHECK(f.s.bgi.text_total_width==7 && f.s.bgi.ddo_x==29 && f.s.bgi.ddo_y==34);
+	CHECK(f.s.bgi.text_total_width==7 && f.s.bgi.ddo_x==29 && f.s.bgi.ddo_y==35);
 	CHECK(f.s.bgi.text_stroke_point[0]==6 && f.s.bgi.text_body==replacement);
 	free(replacement);
 }
@@ -171,7 +176,7 @@ static void synthetic_programs(void)
 	f.s.bgi.text_body=short_body; f.s.bgi.text_body_size=2;
 	f.s.bgi.text_header[1]=0xf8; f.s.bgi.text_header[2]=0x7f; f.s.bgi.text_header[4]='A';
 	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t *)"A",1,&io)==IO_ERROR_OUT_OF_RANGE && f.calls==0);
-	CHECK(f.s.bgi.text_total_width==4 && f.s.bgi.ddo_y==34 && f.s.bgi.ddo_line_style==0 && f.s.bgi.text_stroke_point[0]==0);
+	CHECK(f.s.bgi.text_total_width==4 && f.s.bgi.ddo_y==35 && f.s.bgi.ddo_line_style==0 && f.s.bgi.text_stroke_point[0]==0);
 	init(&f,2,1,0); io=sink(&f);
 	CHECK(st_big_text_stroke_direct(&f.s,(const uint8_t[]){'A',0,'A'},3,&io)==0 && f.calls==15 && f.s.bgi.text_total_width==7 && f.s.bgi.ddo_x==23);
 	/* Divisor1 skips IDIV's overflow check and retains the low product;

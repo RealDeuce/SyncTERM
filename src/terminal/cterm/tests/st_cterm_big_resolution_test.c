@@ -524,10 +524,28 @@ static void marker_reset_during_timeout(void)
 	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==2 && b->state.application.marker==2 && b->state.application.marker_size==8);
 	destroy(&f);
 }
+static void cursor_visibility(void)
+{
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		struct fixture f; create(&f,utf8,status); bool visible; enum st_console_cursor_shape shape;
+		CHECK(st_console_get_cursor(f.console,&visible,&shape)==0 && visible);
+		for (unsigned hidden=0;hidden<2;++hidden) {
+			string(&f,hidden?"\033[?25l":"\033[?25h");
+			static const char *requests[]={"I#R 1:","I#R 2:","I#R 3:","I#I 0:","I#I 1:"};
+			for (size_t i=0;i<sizeof(requests)/sizeof(requests[0]);++i) {
+				string(&f,requests[i]);
+				CHECK(st_console_get_cursor(f.console,&visible,&shape)==0 && visible==!hidden);
+				CHECK((f.terminal->cursor==CTERM_CURSOR_HIDDEN)==(hidden!=0));
+			}
+		}
+		string(&f,"\033[?25h"); CHECK(st_console_get_cursor(f.console,&visible,&shape)==0 && visible);
+		destroy(&f);
+	}
+}
 int main(void)
 {
 	marker_wire_pixel(); marker_style_wire(); marker_partitions(); marker_prefix_sources_and_recovery();
 	style_normalization_and_lifetime(); marker_native_xor_and_failure(); marker_reset_during_timeout(); partitions(); retained_and_normalized(); source_and_recovery(); mode_return_paths();
 	extended_ownership(); extended_prefix_and_unknown(); extended_numeric_sources(); zone_wire_ownership(); zone_prefixes_and_specials(); zone_live_lengths_and_bounds();
-	zone_sources_and_flow(); zone_chain_and_key_ownership(); zone_timeouts_and_eof(); return 0;
+	zone_sources_and_flow(); zone_chain_and_key_ownership(); zone_timeouts_and_eof(); cursor_visibility(); return 0;
 }

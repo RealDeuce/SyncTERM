@@ -3,6 +3,10 @@
 #include "st_bgi_chr.h"
 #include "io_error.h"
 static uint16_t word(const uint8_t *p) { return (uint16_t)(p[0]|(unsigned)p[1]<<8); }
+struct st_bgi_chr_record st_bgi_chr_decode(uint8_t x, uint8_t y)
+{
+	return (struct st_bgi_chr_record){(enum st_bgi_chr_opcode)(2u*(x>>7)+(y>>7)),(int)(x&63)-(int)(x&64),(int)(y&63)-(int)(y&64)};
+}
 int st_bgi_chr_bind(struct st_bgi_chr *out, const uint8_t *body, size_t size)
 {
 	if (out==NULL || body==NULL) return IO_ERROR_INVALID_ARGUMENT;
@@ -50,7 +54,7 @@ int st_bgi_chr_next(struct st_bgi_chr_glyph *glyph, struct st_bgi_chr_record *ou
 	if (glyph->finished) { *available=false; return 0; }
 	if (glyph->records>=32768 || glyph->offset==UINT16_MAX || (size_t)glyph->offset>=glyph->size || glyph->size-glyph->offset<2) return IO_ERROR_OUT_OF_RANGE;
 	uint8_t x=glyph->body[glyph->offset], y=glyph->body[glyph->offset+1u];
-	*out=(struct st_bgi_chr_record){(enum st_bgi_chr_opcode)(2u*(x>>7)+(y>>7)),(int)(x&63)-(int)(x&64),(int)(y&63)-(int)(y&64)};
+	*out=st_bgi_chr_decode(x,y);
 	glyph->offset=(uint16_t)(glyph->offset+2u); ++glyph->records;
 	if (out->opcode==ST_BGI_CHR_END) glyph->finished=true;
 	*available=true; return 0;

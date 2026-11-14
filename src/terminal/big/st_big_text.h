@@ -5,6 +5,7 @@
 #include "st_big_state.h"
 struct st_big_fonts;
 struct st_big_draw_sink;
+struct st_big_bitmap_font;
 struct st_big_text_sink {
 	void *context;
 	/* Optional serialized device custom-style call. The ordinary EGAVGA
@@ -32,4 +33,9 @@ int st_big_text_e(struct st_big_state *, struct st_big_fonts *, const uint16_t a
  * Normal E copies scan flag0. Errors retain reached stores/writes and omit
  * the returning line-style tail. Device CP remains the initial anchor. */
 int st_big_text_stroke_direct(struct st_big_state *, const uint8_t *, uint8_t count, const struct st_big_draw_sink *);
+/* Complete native outtextxy ordering: translated initial DDO/device move,
+ * bounded NUL scan, count narrowing, DDO placement and bitmap/stroke output.
+ * Public CP is retained; missing NUL fails after the initial move prefix. */
+int st_big_text_out(struct st_big_state *, uint16_t x, uint16_t y, const uint8_t *, size_t extent,
+	const struct st_big_bitmap_font *, const struct st_big_draw_sink *);
 #endif

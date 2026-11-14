@@ -13,6 +13,14 @@ stepping kernel with its own WORD clipping and marker adapters. The ten
 RIP application suites and native raster/oracle tests passed after extraction;
 historical captures and expected pixels were not regenerated.
 
+RIP's existing bitmap and CHR bytes now reside once in the shared BGI
+component, also used by BIG. The font accessor retains its IDs and borrowed
+views. Both protocols use the common bitmap row expander and CHR record
+decoder; RIP retains its placement, bounds, cursor/advance and sticky-error
+policy. No RIP font bytes or capture expectations changed. This extraction
+has a native build and BIG-focused kernel verification; RIP-specific runs
+remain scheduled for the BIG goal's final full regression suite.
+
 RIP command/control failures log warnings and continue at the existing wire
 boundary. A rejected command before `|` does not swallow the following command;
 following ordinary ANSI/text bytes continue through the base parser. A failed

@@ -168,7 +168,8 @@ def run(executable, reports, resolution, encoding, status, screen=None):
             for connection in range(2):
                 client.key("enter")
                 with listener.accept()[0] as peer:
-                    client.wait_for(lambda f: f.application.get("connected") == 1)
+                    entry_frame = client.wait_for(lambda f: f.application.get("connected") == 1)
+                    assert entry_frame.metadata["cursor_visible"]
                     client.resize(960, 720)
                     block = b"\xdb" if encoding == "CP437" else "\u2588".encode()
                     seed = b"\x1b[?25l\x1b[0m\x1b[2J\x1b[13;13HA\x1b[4;3H\x1b[31;44;5m" + block + b"\x1b[0m"
@@ -1076,24 +1077,24 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                         custom = (2, 1, 3, 2)
                         bitmap16 = (0, 1, 16, 16, 2, 2)
                         bitmap8 = (0, 1, 8, 8, 1, 1)
-                        trip = (95, 32, 21, 249)
-                        small = (96, 32, 6, 254)
-                        sans = (126, 1, 21, 249)
-                        gothic = (106, 21, 21, 249)
+                        trip = (223, 32, 24, 249)
+                        small = (223, 32, 7, 254)
+                        sans = (254, 1, 25, 249)
+                        gothic = (223, 32, 25, 249)
                         style_cases = (
                             (b"I#E 0,2,1:", (0, 1, 0, 255, 0), 2, (16, 16, 8), (0, 0), (1, 1, 1, 1), (1, 1, 1, 1), (0, 0, 0, 0), bitmap16, b""),
-                            (b"I#E 1,1,0:", (1, 0, 1, 1, 0), 1, (16, 16, 1), (16, 16), (1, 1, 1, 1), (3, 5, 3, 5), trip, bitmap16, b""),
-                            (b"I#E 2,2,1:", (2, 1, 2, 2, 1), 2, (5, 5, 2), (5, 5), (1, 1, 1, 1), (2, 3, 2, 3), small, bitmap16, b""),
-                            (b"I#E 3,3,0:", (3, 0, 3, 3, 0), 3, (21, 21, 3), (21, 21), (1, 1, 1, 1), (3, 4, 3, 4), sans, bitmap16, b""),
-                            (b"I#E 4,4,1:", (4, 1, 4, 4, 1), 4, (28, 28, 4), (28, 28), (1, 1, 1, 1), (1, 1, 1, 1), gothic, bitmap16, b""),
-                            (b"I#X 3,2,1,3,2:", (4, 1, 4, 4, 1), 0, (1, 3, 0), (56, 42), custom, custom, gothic, bitmap16, b""),
-                            (b"I#E 1,0,1:", (1, 1, 1, 1, 1), 0, (56, 42, 0), (56, 42), custom, custom, trip, bitmap16, b""),
-                            (b"I#E 0,0,1:", (0, 1, 1, 1, 1), 0, (8, 8, 8), (56, 42), custom, custom, trip, bitmap8, b""),
-                            (b"I#I 1:", (0, 1, 1, 1, 1), 0, (8, 8, 8), (56, 42), custom, custom, trip, bitmap8, b""),
-                            (b"I#E 5,+1,2:", (0, 0, 1, 1, 1), 1, (8, 8, 8), (56, 42), custom, custom, trip, (0, 0, 8, 8, 1, 1), b""),
-                            (b"I#E>2,0,0:S 5,5:", (2, 0, 2, 2, 0), 0, (16, 12, 0), (16, 12), custom, custom, small, (0, 0, 8, 8, 1, 1), b""),
-                            (b"I#& 0,1,1,0,E@3,3,4,1:", (3, 1, 3, 3, 1), 4, (28, 28, 4), (28, 28), custom, (1, 1, 1, 1), sans, (0, 0, 8, 8, 1, 1), b"\x13\x11"),
-                            (b"I#E 0,3,0:", (0, 0, 3, 3, 1), 3, (24, 24, 8), (28, 28), custom, (1, 1, 1, 1), sans, (0, 0, 24, 24, 3, 3), b""),
+                            (b"I#E 1,1,0:", (1, 0, 1, 1, 0), 1, (18, 18, 1), (18, 18), (1, 1, 1, 1), (3, 5, 3, 5), trip, bitmap16, b""),
+                            (b"I#E 2,2,1:", (2, 1, 2, 2, 1), 2, (6, 6, 2), (6, 6), (1, 1, 1, 1), (2, 3, 2, 3), small, bitmap16, b""),
+                            (b"I#E 3,3,0:", (3, 0, 3, 3, 0), 3, (24, 24, 3), (24, 24), (1, 1, 1, 1), (3, 4, 3, 4), sans, bitmap16, b""),
+                            (b"I#E 4,4,1:", (4, 1, 4, 4, 1), 4, (32, 32, 4), (32, 32), (1, 1, 1, 1), (1, 1, 1, 1), gothic, bitmap16, b""),
+                            (b"I#X 3,2,1,3,2:", (4, 1, 4, 4, 1), 0, (1, 3, 0), (64, 48), custom, custom, gothic, bitmap16, b""),
+                            (b"I#E 1,0,1:", (1, 1, 1, 1, 1), 0, (62, 46, 0), (62, 46), custom, custom, trip, bitmap16, b""),
+                            (b"I#E 0,0,1:", (0, 1, 1, 1, 1), 0, (8, 8, 8), (62, 46), custom, custom, trip, bitmap8, b""),
+                            (b"I#I 1:", (0, 1, 1, 1, 1), 0, (8, 8, 8), (62, 46), custom, custom, trip, bitmap8, b""),
+                            (b"I#E 5,+1,2:", (0, 0, 1, 1, 1), 1, (8, 8, 8), (62, 46), custom, custom, trip, (0, 0, 8, 8, 1, 1), b""),
+                            (b"I#E>2,0,0:S 5,5:", (2, 0, 2, 2, 0), 0, (18, 13, 0), (18, 13), custom, custom, small, (0, 0, 8, 8, 1, 1), b""),
+                            (b"I#& 0,1,1,0,E@3,3,4,1:", (3, 1, 3, 3, 1), 4, (32, 32, 4), (32, 32), custom, (1, 1, 1, 1), sans, (0, 0, 8, 8, 1, 1), b"\x13\x11"),
+                            (b"I#E 0,3,0:", (0, 0, 3, 3, 1), 3, (24, 24, 8), (32, 32), custom, (1, 1, 1, 1), sans, (0, 0, 24, 24, 3, 3), b""),
                         )
                         for index, (command, font_state, size, cache, metrics, saved, effective, header, device, prefix) in enumerate(style_cases):
                             token = f"STYLE{index}"

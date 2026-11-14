@@ -36,6 +36,7 @@ struct st_big_state {
 		uint8_t text_control, text_header[16];
 		uint8_t text_font, text_direction, text_stroke_active;
 		uint8_t text_justify_x, text_justify_y;
+		uint8_t text_count;
 		uint8_t text_stroke_id, text_stroke_direction;
 		uint16_t text_suppression;
 		uint16_t text_total_width, text_stroke_point[2];

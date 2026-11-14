@@ -15,8 +15,8 @@ static void init(struct fixture *f)
 }
 static void ordinary(void)
 {
-	/* Literal original metrics: cap-descender BYTE28,8,28,28 and ratios. */
-	static const uint16_t heights[4][5]={{28,16,18,21,28},{8,4,5,6,8},{28,16,18,21,28},{28,16,18,21,28}};
+	/* Literal original metrics: current shared cap-descender BYTE31,9,32,32 and ratios. */
+	static const uint16_t heights[4][5]={{31,18,20,23,31},{9,5,6,6,9},{32,19,21,24,32},{32,19,21,24,32}};
 	for (uint16_t font=0;font<=4;++font) for (uint16_t size=0;size<=4;++size) for (uint16_t dir=0;dir<2;++dir) {
 		struct fixture f; init(&f); struct st_big_state before=f.s;
 		uint16_t args[]={font,size,dir}; CHECK(st_big_text_e(&f.s,&f.fonts,args)==0);
@@ -53,22 +53,22 @@ static void caches_and_custom(void)
 {
 	struct fixture f; init(&f);
 	CHECK(st_big_text_custom(&f.s,(const uint16_t[]){2,1,3,2},NULL)==0);
-	CHECK(st_big_text_style(&f.s,&f.fonts,1,1,0)==0 && f.s.bgi.text_cached[0]==56 && f.s.bgi.text_cached[1]==42);
+	CHECK(st_big_text_style(&f.s,&f.fonts,1,1,0)==0 && f.s.bgi.text_cached[0]==62 && f.s.bgi.text_cached[1]==46);
 	uint8_t replacement[16]={'+',1,0,0,32,16,0,7,6,0,254};
 	f.fonts.slots[0].body=replacement; f.fonts.slots[0].size=sizeof(replacement);
 	const uint8_t *old=f.fonts.active;
 	CHECK(st_big_text_style(&f.s,&f.fonts,1,0,0)==0 && f.fonts.active==old && f.s.bgi.text_body==old);
 	CHECK(st_big_text_style(&f.s,&f.fonts,0,1,0)==0 && f.fonts.loaded==1 && f.fonts.active==old);
-	CHECK(f.s.bgi.text_body==NULL && f.s.bgi.text_stroke_active==0 && f.s.bgi.text_stroke_id==1 && f.s.bgi.text_header[8]==21);
+	CHECK(f.s.bgi.text_body==NULL && f.s.bgi.text_stroke_active==0 && f.s.bgi.text_stroke_id==1 && f.s.bgi.text_header[8]==24);
 	CHECK(st_big_text_style(&f.s,&f.fonts,1,0,0)==0 && f.fonts.active==replacement && f.s.bgi.text_body==replacement);
 	/* Same remembered DDO id skips the copied header, despite a new body. */
-	CHECK(f.s.bgi.text_header[8]==21 && f.s.bgi.text_cached[0]==56 && f.s.bgi.text_cached[1]==42);
-	CHECK(st_big_text_style(&f.s,&f.fonts,2,0,4)==0 && f.s.bgi.text_header[8]==6 && f.s.bgi.text_cached[0]==8);
+	CHECK(f.s.bgi.text_header[8]==24 && f.s.bgi.text_cached[0]==62 && f.s.bgi.text_cached[1]==46);
+	CHECK(st_big_text_style(&f.s,&f.fonts,2,0,4)==0 && f.s.bgi.text_header[8]==7 && f.s.bgi.text_cached[0]==9);
 	CHECK(st_big_text_style(&f.s,&f.fonts,1,0,0)==0 && f.s.bgi.text_header[8]==6 && f.s.bgi.text_header[7]==0 && f.s.bgi.text_cached[0]==16 && f.s.bgi.text_cached[1]==12);
 	CHECK(memcmp(f.s.bgi.saved_ratio,(uint16_t[]){2,1,3,2},8)==0);
 	CHECK(st_big_text_style(&f.s,&f.fonts,0,0,257)==0 && f.s.bgi.text_size==257 && f.s.bgi.text_cached[0]==8);
 	CHECK(st_big_text_style(&f.s,&f.fonts,0,0,256)==0 && f.s.bgi.text_size==256 && f.s.bgi.text_cached[0]==8);
-	static const uint16_t height[]={16,18,21,28,37,46,56,70,84,112};
+	static const uint16_t height[]={18,20,23,31,41,51,62,77,93,124};
 	init(&f);
 	for (uint16_t size=1;size<=10;++size) {
 		CHECK(st_big_text_style(&f.s,&f.fonts,1,0,size)==0 && f.s.bgi.text_cached[0]==height[size-1]);
@@ -97,7 +97,7 @@ static void failures_and_bypass(void)
 	init(&f); f.s.bgi.saved_ratio[0]=65535; f.s.bgi.saved_ratio[1]=1;
 	CHECK(st_big_text_style(&f.s,&f.fonts,1,0,0)==IO_ERROR_OUT_OF_RANGE && f.s.bgi.font==1 && f.s.bgi.text_stroke_id==1 && f.s.bgi.text_cached[0]==0 && f.s.bgi.text_scaled[0]==0);
 	init(&f); f.s.bgi.saved_ratio[0]=2; f.s.bgi.saved_ratio[2]=65535;
-	CHECK(st_big_text_style(&f.s,&f.fonts,1,0,0)==IO_ERROR_OUT_OF_RANGE && f.s.bgi.text_scaled[0]==56 && f.s.bgi.text_scaled[1]==0 && f.s.bgi.text_cached[0]==0);
+	CHECK(st_big_text_style(&f.s,&f.fonts,1,0,0)==IO_ERROR_OUT_OF_RANGE && f.s.bgi.text_scaled[0]==62 && f.s.bgi.text_scaled[1]==0 && f.s.bgi.text_cached[0]==0);
 	CHECK(st_big_text_e(NULL,&f.fonts,(uint16_t[]){1,2,0})==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_big_text_e(&f.s,&f.fonts,NULL)==IO_ERROR_INVALID_ARGUMENT);
 }
