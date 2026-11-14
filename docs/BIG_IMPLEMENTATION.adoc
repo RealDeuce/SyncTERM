@@ -23,8 +23,9 @@ g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
-pointer acquisition are integrated. Curves, fonts/graphical text, further
-controls, sound and full command acceptance remain pending (0/45).
+pointer acquisition, E font selection and W graphical text are integrated.
+Curves, further controls, sound and full command acceptance remain pending
+(0/45). After W, the user-requested next command order is t, then ?.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -2868,3 +2869,72 @@ scene comparisons and verifies that mode changes retain the remote request.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending.
 
 Shared current fonts/glyph kernels, bitmap text and cursor correction commit: `a42a00f`.
+
+
+== Native W graphical text
+
+W is now registered at the existing shared pre-ANSI boundary with class1 X
+and class2 Y. Both reads complete before current application text colour is
+installed. Only then does W enter the existing shared text reader. A blocked
+Y read has no own colour/text effect; a blocked text read already retains
+its colour prefix. There is no own feature gate, reply, saved-colour restore,
+or F-style XOFF/XON pair. Shared setup/footer flow and the reader's first-
+text-loop XON retain their existing independent owners. A colour changed by
+an actual native effect during acquisition is used without another setter.
+
+The explicit pending text owner consumes opaque bytes before outer ff/ANSI
+handling. The shared reader filters CR/LF, stores NUL/ff, terminates on @ or
+stored byte128, inserts @ for empty input, and leaves a cap-following @ unread.
+Reader count and later bounded C-string/cached-BYTE count are different.
+The established local monotonic/pre-read-sample deadline policy is reused;
+no foreign BIOS clock is introduced. A returning timeout does not append NUL
+and still outputs the shared buffer, including a retained old suffix. EOF,
+reset and reader failures cancel pending output without inventing a timeout
+result. Reset requested by the timeout callback is checked before drawing.
+
+Stored non-@ and final-Z reuse, @ first-pass flow, g/rez numeric gates, supplied
+coordinate bypass, chaining, footer repetition and deferred replies compose
+through existing operators. Opaque I# and ANSI-looking text stays graphical
+payload; only bytes following acquisition return to the base emulation.
+No viewer/file reader or second text parser is introduced.
+
+Text output splits at its actual native framebuffer boundary. Initial
+translated DDO/device positioning, owned NUL scan, count narrowing and DDO
+placement precede requesting pixels. Empty/count0 or negative-DDO-X requests
+can return without a canvas request; the accepted nonzero cached count is
+still visible for the latter. Public graphics CP is retained. Bitmap output
+copies foreground under M2 as well as COPY; stroke output uses line XOR and
+its existing metric/layout/decoded-advance/style-cache operators. Current
+shared RIP fonts and common glyph kernels remain authoritative. Physical
+active/visual pages, protected status pixels, stored images and unrelated
+console/font/fill/palette owners remain with their existing adapters.
+
+Clock, storage, allocation, aperture and output failures recover through the
+nonfatal BIG owner. Accepted colour, text bytes, positioning/count, metrics,
+style or pixel prefixes are not rolled back; later advance/restoration/footer
+work is omitted where the error occurred. A reused owned buffer without NUL
+fails after the initial move while preserving its previous cached count.
+There is no unconditional finally-style XON or synthetic text repair.
+
+cterm_big_text checks every default split and bytewise mode/encoding/status
+cases with complete indexed planes, palette/RGB, images and separate points.
+Native cases cover opaque NUL/ff/fake I#/ANSI, filtered empty @, the128-byte
+cap/unread @, actual timeout/stale suffix, EOF/reset, current-colour output,
+g3/cache3 Y5->11 versus stored bypass, non-@/Z reuse, @ flow, hidden-page
+reveal, chains/deferred replies and nonfatal reader/aperture/storage errors.
+Reset during the timeout callback prevents drawing. Shared-current Small AA
+XOR has literal full-plane expectations in all profiles; all four current
+faces have source-derived metric/advance/endpoint checks in three modes.
+Existing independent stream/bitmap/stroke/format/style fixtures stay active.
+
+Sixteen new scenes per profile add224 coherent application captures,2856
+now in total. They use literal bitmap rows and hand-derived Small AA geometry
+and XOR parity while preserving the complete prior spray/image/pixel/cell/
+font/palette/point/fill/page/cursor/reply/RNG scene. Count/cache/header/device/
+ratio owners and bitmap COPY versus stroke XOR are checked together, including
+custom ratios, raw NUL/ff, negative X versus Y behavior, cap advance, stored
+reuse and flow, chained commands and I1 retention. Expected pixels are not
+generated by SyncTERM. Native W is implemented; global45-entry composition,
+audio and final full regressions remain pending. Next: t, then ?, per user.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The initial full build emitted generated-dependency timestamp jitter notices; the final full build and focused build passed cleanly. All43 BIG-specific native CTests passed in48.43s. syncterm_big_input passed in141.68s (test141.61s),2856 coherent scenes. The final strengthened cterm_big_text passed in1.21s (test1.09s), including all four current faces and padding-independent image retention. No non-BIG tests ran; the final full regression suite remains deferred. Native W is implemented; global45-entry/final acceptance stays pending. Next requested order: t, then ?.

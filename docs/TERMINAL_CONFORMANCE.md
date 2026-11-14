@@ -1297,3 +1297,13 @@ changes are intentional. BIG's bitmap/outtextxy primitives have source-order,
 placement/count/point and failure coverage; W wire integration remains pending.
 BIG also retains normal ANSI cursor visibility through entry and I/R, with
 native visible/hidden and coherent connection/remote-hide checks.
+
+
+Native BIG W now integrates its existing text reader with current shared
+fonts and glyph kernels at the common pre-ANSI boundary. It preserves
+colour-before-text ordering, opaque byte/count/timeout/reuse/flow semantics,
+separate graphics points, bitmap COPY versus stroke XOR, pages/images and
+nonfatal partial effects. Native full-plane/profile/split/lifecycle/error
+checks and224 new coherent scenes (2856 total) cover the complete wire path
+and retained scene/state/replies. Reset during timeout cancels drawing.
+Global45-entry composition and the final full regression suite remain pending.

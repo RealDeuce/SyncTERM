@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_big_internal.h"
 #include "st_big_draw.h"
+#include "st_big_text.h"
 #include "st_big_video.h"
 #include "st_bgi_pixel.h"
 #include "cterm.h"
@@ -74,6 +75,21 @@ static int modify(struct cterm_big *big,
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }
 struct marker { struct cterm_big *big; uint16_t x,y; bool direct; };
+struct text_output { struct cterm_big *big; uint8_t count; };
+static int text_output(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct text_output *text=context;
+	struct drawing drawing={.big=text->big,.pixels=pixels,.changed=changed};
+	const struct st_big_draw_sink sink={&drawing,pixel};
+	return st_big_text_render(&text->big->state,text->big->text.bytes,text->count,NULL,&sink);
+}
+int cterm_big_draw_text(struct cterm_big *big, uint16_t x, uint16_t y)
+{
+	struct text_output text={.big=big};
+	int status=st_big_text_prepare(&big->state,x,y,big->text.bytes,sizeof(big->text.bytes),&text.count);
+	if (status!=0 || text.count==0) return status;
+	return modify(big,text_output,&text);
+}
 static int marker(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	const struct marker *marker=context; struct cterm_big *big=marker->big;

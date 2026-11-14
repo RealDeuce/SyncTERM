@@ -603,3 +603,21 @@ cterm_big_resolution additionally verifies visible entry and ANSI show/hide
 retention across R1/R2/R3 and I0/I1 for both encodings/status choices. The
 application fixture asserts visible connection cursors before its explicit
 remote hide and normal coherent scene checks.
+
+
+Native cterm_big_text now verifies W wire integration against BIG62. Every
+default split and bytewise profiles compare literal bitmap A planes; current
+Small AA XOR compares literal odd-visit planes, separate points, metric7/
+advance6 and cached width3/device width1. All four current faces have explicit
+source MOVE/DRAW landmarks and metric/advance checks in all three modes.
+Read-prefix tests distinguish blocked Y from blocked text, current colour
+from saved colour, returning stale-suffix timeout from EOF/reset, and source/
+colour/aperture/missing-NUL failure prefixes. Reset during timeout prevents
+drawing. Raw NUL/ff/fake attention/ANSI payloads, empty @, byte128/unread @,
+g3/cache3 Y5->11 versus stored bypass, non-@/Z and @ flow, hidden pages,
+chains/deferred replies and nonfatal recovery are covered independently.
+224 added coherent application scenes bring coverage to2856, with literal
+bitmap rows and hand-derived Small AA masks/parity plus all prior scene/
+image/palette/cell/font/point/fill/page/cursor/reply/RNG observations. Physical
+audio is disabled; the notification callback does not claim audible coverage.
+Native W is implemented; global/final regression acceptance remains pending.

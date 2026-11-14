@@ -40,7 +40,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1)):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -54,6 +54,10 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_bar_active"]
     assert not s["cterm.big_flood_active"]
     assert not s["cterm.big_rotation_active"]
+    assert not s["cterm.big_text_reading"]
+    assert s["cterm.big_text_count"] == text_count
+    if text_buffer_count is not None:
+        assert s["cterm.big_text_buffer_count"] == text_buffer_count
     assert tuple(s[f"cterm.big_flow_{field}"] for field in ("mode", "on_byte", "off_byte", "on_count", "off_count")) == flow
     assert (s["cterm.big_random_from"], s["cterm.big_random_to"]) == random_bounds
     font, direction, loaded, stroke_id, stroke_direction = font_state
@@ -66,7 +70,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert tuple(s[f"cterm.big_text_effective_ratio{i}"] for i in range(4)) == (text_ratios if text_effective is None else text_effective)
     assert tuple(s[f"cterm.big_text_{field}"] for field in ("ddo_font", "ddo_direction", "stroke_active", "suppression", "body")) == (font, direction, 255 if font else 0, 65535 if font else 0, int(font != 0))
     assert (s["cterm.big_text_stroke_id"], s["cterm.big_text_stroke_direction"]) == (stroke_id, stroke_direction)
-    assert tuple(s[f"cterm.big_text_{field}"] for field in ("total_width", "stroke_x", "stroke_y", "justify_x", "justify_y")) == (0, 0, 0, 0, 2)
+    assert tuple(s[f"cterm.big_text_{field}"] for field in ("total_width", "stroke_x", "stroke_y", "justify_x", "justify_y")) == (*text_run, 0, 2)
     assert tuple(s[f"cterm.big_text_header_{field}"] for field in ("count", "first", "cap", "desc")) == text_header
     assert tuple(s[f"cterm.big_text_device_{field}"] for field in ("font", "direction", "width", "height", "mag_x", "mag_y")) == text_device
     assert (s["cterm.big_last_error"], s["cterm.big_rejected_commands"]) == rejections
@@ -88,7 +92,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert (s["cterm.big_zone_loopback"], s["cterm.big_zone0_prefix"], s["cterm.big_zone0_tail"]) == (loopback, prefix, tail)
     assert (s["cterm.big_line_style"], s["cterm.big_line_user"], s["cterm.big_line_width"], s["cterm.big_line_mask"]) == line
     assert tuple(s[f"cterm.big_ddo_line_{field}"] for field in ("style", "user", "width")) == line[:3]
-    assert s["cterm.big_device_line_width"] == line[2]
+    assert s["cterm.big_device_line_width"] == (line[2] if device_line_width is None else device_line_width)
     assert s["cterm.big_bgi_error"] == graph_error
     assert (s["cterm.big_write_mode"], s["cterm.big_cached_write_mode"]) == writing
     point = ((0, 0) if marker is None else (120, 64)) if graph_point is None else graph_point
@@ -1119,6 +1123,88 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   image=(8, 8, 0, 78, solid, solid), text_state=(saved, size, cache),
                                   font_state=font_state, text_metrics=metrics, text_effective=effective,
                                   text_header=header, text_device=device)
+                            assert frame.application["cterm.big_random_state"] == retained_random
+                        # Independent W masks use literal shared font rows and
+                        # hand-derived Small A geometry/odd XOR visits.
+                        def bitmap_a(x, y, scale=1, vertical=False):
+                            sites = []
+                            for row, bits in enumerate((0x38, 0x6c, 0xc6, 0xc6, 0xfe, 0xc6, 0xc6, 0)):
+                                for bit in range(8):
+                                    if bits & (128 >> bit):
+                                        px, py = (row, 7 - bit) if vertical else (bit, row)
+                                        for dy in range(scale):
+                                            for dx in range(scale): sites.append((x + px * scale + dx, y + py * scale + dy))
+                            return tuple(sites)
+                        small_a = ((0, 0), (0, -1), (0, -2), (1, -3), (2, -2), (2, -1), (2, 0), (1, -1))
+                        small_aa = tuple((240 + x + 3 * n, 135 + y) for n in range(2) for x, y in small_a)
+                        small_odd = tuple((240 + x + 3 * n, 135 + y) for n in range(2) for x, y in ((0, 0), (1, -1), (2, -1)))
+                        vertical_aa = tuple((285 + y, 137 - x - 3 * n) for n in range(2) for x, y in small_a)
+                        reused_aa = tuple((x + 40, y) for x, y in vertical_aa)
+                        run_state = dict(font_state=(0, 0, 3, 3, 1), text_state=(custom, 1, (8, 8, 8)),
+                                         text_metrics=(32, 32), text_effective=(1, 1, 1, 1), text_header=sans,
+                                         text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), writing=(0, 0),
+                                         text_count=1, text_buffer_count=1)
+                        write_cases = (
+                            (b"I#E 0,1,0:I#W 40,130,A@", bitmap_a(40, 130), (),
+                             dict(lower_points=((40, 130), (48, 130))), b""),
+                            (b"I#M 2:I#W 40,130,A@", (), (), dict(writing=(1, 1)), b""),
+                            (b"I#W 60,130,A\x00B@", bitmap_a(60, 130), (),
+                             dict(lower_points=((60, 130), (68, 130)), text_buffer_count=3), b""),
+                            (b"I#W 80,130,A\xff\x00@", bitmap_a(80, 130), (),
+                             dict(lower_points=((80, 130), (96, 130)), text_count=2), b""),
+                            (b"I#E 0,2,1:I#W 160,130,AA@", bitmap_a(144, 130, 2, True) + bitmap_a(144, 146, 2, True), (),
+                             dict(font_state=(0, 1, 3, 3, 1), text_state=(custom, 2, (16, 16, 8)),
+                                  text_device=(0, 1, 16, 16, 2, 2), lower_points=((144, 130), (144, 162)), text_count=2, text_buffer_count=2), b""),
+                            (b"I#X 3,2,1,3,2:I#W 200,130,A@", bitmap_a(197, 130, 2, True), (),
+                             dict(text_state=(custom, 0, (1, 3, 0)), text_metrics=(64, 48), text_effective=custom,
+                                  lower_points=((197, 130), (197, 146)), text_count=1, text_buffer_count=1), b""),
+                            (b"I#E 2,1,0:I#M 1:I#W 240,130,AA@", small_aa, (),
+                             dict(font_state=(2, 0, 2, 2, 0), text_state=(custom, 1, (5, 5, 1)), text_metrics=(5, 5),
+                                  text_effective=(3, 5, 3, 5), text_header=small, text_run=(7, 3, 0), writing=(0, 0),
+                                  lower_points=((246, 135), (240, 130)), text_count=2, text_buffer_count=2), b""),
+                            (b"I#M 2:I#W 240,130,AA@", (), small_odd, dict(writing=(1, 1)), b""),
+                            (b"I#E 2,1,1:I#M 1:I#W 280,130,AA@", vertical_aa, (),
+                             dict(font_state=(2, 1, 2, 2, 1), writing=(0, 0), lower_points=((285, 131), (280, 130))), b""),
+                            (b"I#& 0,2,1,0,W!2,320,130:", reused_aa, (),
+                             dict(lower_points=((325, 131), (320, 130)), text_buffer_count=0), b"\x13\x11"),
+                            (b"I#E 0,1,0:I#W +1,130,A@", (), (),
+                             dict(font_state=(0, 0, 2, 2, 1), text_state=(custom, 1, (8, 8, 8)), text_device=(0, 0, 8, 8, 1, 1),
+                                  lower_points=((65535, 130), (65535, 130)), text_count=1, text_buffer_count=1), b""),
+                            (b"I#W 40,+1,A@", (), (), dict(lower_points=((40, 65535), (48, 65535))), b""),
+                            (b"I#W 0,168," + b"A" * 128 + b"@", tuple(p for i in range(80) for p in bitmap_a(8 * i, 168)), (),
+                             dict(lower_points=((0, 168), (1024, 168)), text_count=128, text_buffer_count=128), b""),
+                            (b"I#W>40,150,A@S 5,5:", bitmap_a(40, 150), (),
+                             dict(lower_points=((40, 150), (48, 150)), text_count=1, text_buffer_count=1), b""),
+                            (b"I#I 1:", (), (), {}, b""),
+                            (b"I#& 0,2,1,0,W@2,100,150:A@A@", bitmap_a(100, 150), (),
+                             dict(lower_points=((100, 150), (108, 150))), b"\x13\x11\x11"),
+                        )
+                        scene_pixels = {(x, y): pen for x, y, pen in retained_pixels}
+                        for index, (command, additions, removals, changes, prefix) in enumerate(write_cases):
+                            run_state.update(changes)
+                            for site in additions: scene_pixels[site] = 15
+                            for site in removals:
+                                assert scene_pixels.pop(site) == 15
+                            token = f"WRITE{index:02d}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = prefix + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(484, 100), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=255,
+                                  colored_pixels=tuple((x, y, pen) for (x, y), pen in scene_pixels.items()),
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), **run_state)
                             assert frame.application["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.

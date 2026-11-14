@@ -1,7 +1,7 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
-through native CTerm. Native < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
+through native CTerm. Native W graphical text, < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
@@ -1319,3 +1319,30 @@ that BIG starts with it visible.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending.
 
 Shared current fonts/glyph kernels, bitmap text and cursor correction commit: `a42a00f`.
+
+
+## Native W graphical text
+
+W now acquires both coordinates before installing text colour and entering
+the shared text reader. Raw payload remains opaque to ANSI, including NUL/ff
+and fake I# sequences. CR/LF filtering, @/128-byte termination, empty @,
+stale-suffix timeout output, stored reuse/finalZ/first-pass flow, numeric
+scaling/bypass, chains and deferred replies retain their established owners.
+EOF/reset and errors cancel incomplete output with accepted prefixes intact.
+A reset requested during timeout notification prevents subsequent drawing.
+
+The native output adapter positions/scans/places before requesting pixels,
+retains public CP, and uses the shared current fonts and glyph kernels.
+Bitmap text copies under M2; stroke text keeps line XOR and its separate
+metric/decoded advance and line-cache restoration behavior. Images, physical
+pages, status pixels and unrelated console/font/fill/palette state are retained.
+
+cterm_big_text checks complete bitmap/Small-XOR planes and state across all
+modes/encodings/status choices, split input, lifecycle/source/error paths,
+all four current face metrics/landmarks and recovery.224 new coherent scenes
+bring application coverage to2856, comparing independent text pixels and
+count/ratio/header/device/point owners with the full preceding scene and
+replies/RNG. Native W is implemented; global45-entry/final acceptance remains
+pending. The next requested command order is t, then ?.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The initial full build emitted generated-dependency timestamp jitter notices; the final full build and focused build passed cleanly. All43 BIG-specific native CTests passed in48.43s. syncterm_big_input passed in141.68s (test141.61s),2856 coherent scenes. The final strengthened cterm_big_text passed in1.21s (test1.09s), including all four current faces and padding-independent image retention. No non-BIG tests ran; the final full regression suite remains deferred. Native W is implemented; global45-entry/final acceptance stays pending. Next requested order: t, then ?.

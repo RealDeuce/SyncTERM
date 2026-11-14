@@ -289,19 +289,32 @@ static void bitmap_align(struct st_big_state *s, uint8_t count)
 	}
 	s->bgi.ddo_x=s->bgi.device_x=x; s->bgi.ddo_y=s->bgi.device_y=y;
 }
-int st_big_text_out(struct st_big_state *s, uint16_t x, uint16_t y, const uint8_t *bytes, size_t extent,
-    const struct st_big_bitmap_font *font, const struct st_big_draw_sink *sink)
+int st_big_text_prepare(struct st_big_state *s, uint16_t x, uint16_t y, const uint8_t *bytes, size_t extent, uint8_t *count)
 {
-	if (s==NULL || bytes==NULL || sink==NULL || sink->pixel==NULL || (font!=NULL && font->row==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	if (s==NULL || bytes==NULL || count==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (s->bgi.state==0) { s->bgi.error=-1; return IO_ERROR_PROTOCOL; }
 	s->bgi.ddo_x=s->bgi.device_x=(uint16_t)(x+s->bgi.viewport[0]);
 	s->bgi.ddo_y=s->bgi.device_y=(uint16_t)(y+s->bgi.viewport[1]);
 	size_t limit=extent<65535?extent:65535;
 	const uint8_t *end=memchr(bytes,0,limit);
 	if (end==NULL) return IO_ERROR_OUT_OF_RANGE;
-	uint8_t count=(uint8_t)(end-bytes);
+	*count=(uint8_t)(end-bytes);
+	if (*count==0) return 0;
+	s->bgi.text_count=*count; bitmap_align(s,*count);
+	if ((uint8_t)s->bgi.text_suppression==0 && st_big_number_signed(s->bgi.ddo_x)<0) *count=0;
+	return 0;
+}
+int st_big_text_render(struct st_big_state *s, const uint8_t *bytes, uint8_t count,
+    const struct st_big_bitmap_font *font, const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || bytes==NULL || sink==NULL || sink->pixel==NULL || (font!=NULL && font->row==NULL)) return IO_ERROR_INVALID_ARGUMENT;
 	if (count==0) return 0;
-	s->bgi.text_count=count; bitmap_align(s,count);
-	if ((uint8_t)s->bgi.text_suppression==0 && st_big_number_signed(s->bgi.ddo_x)<0) return 0;
 	return s->bgi.text_stroke_active!=0?st_big_text_stroke_direct(s,bytes,count,sink):st_big_text_bitmap(s,bytes,count,font,sink);
+}
+int st_big_text_out(struct st_big_state *s, uint16_t x, uint16_t y, const uint8_t *bytes, size_t extent,
+    const struct st_big_bitmap_font *font, const struct st_big_draw_sink *sink)
+{
+	if (sink==NULL || sink->pixel==NULL || (font!=NULL && font->row==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	uint8_t count; int status=st_big_text_prepare(s,x,y,bytes,extent,&count);
+	return status!=0?status:st_big_text_render(s,bytes,count,font,sink);
 }

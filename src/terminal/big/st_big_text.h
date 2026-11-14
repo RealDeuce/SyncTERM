@@ -38,4 +38,11 @@ int st_big_text_stroke_direct(struct st_big_state *, const uint8_t *, uint8_t co
  * Public CP is retained; missing NUL fails after the initial move prefix. */
 int st_big_text_out(struct st_big_state *, uint16_t x, uint16_t y, const uint8_t *, size_t extent,
 	const struct st_big_bitmap_font *, const struct st_big_draw_sink *);
+/* Split at the native framebuffer boundary: position/scan/place before
+ * requesting pixels. Returning count0 skips painting, including the
+ * negative-DDO-X gate; an accepted nonzero cache count remains visible.
+ * render consumes the prepared DDO/device anchor without a second move. */
+int st_big_text_prepare(struct st_big_state *, uint16_t x, uint16_t y, const uint8_t *, size_t extent, uint8_t *count);
+int st_big_text_render(struct st_big_state *, const uint8_t *, uint8_t count,
+	const struct st_big_bitmap_font *, const struct st_big_draw_sink *);
 #endif

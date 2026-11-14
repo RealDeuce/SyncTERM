@@ -62,6 +62,11 @@ struct cterm_big_zone {
 	struct st_big_flow_reader flow;
 };
 enum { CTERM_BIG_INPUT_KEYS = 64 };
+struct cterm_big_text_output {
+	struct st_big_stream_reader stream;
+	uint16_t x,y;
+	bool active,chained;
+};
 struct cterm_big_mouse_sample {
 	int32_t x,y;
 	uint32_t buttons;
@@ -111,6 +116,7 @@ struct cterm_big {
 	struct st_big_control_sink control_io;
 	struct cterm_big_input input;
 	struct st_big_text text;
+	struct cterm_big_text_output text_output;
 	struct cterm_big_setup setup;
 	struct cterm_big_zone zone;
 	struct cterm_big_collect collect;
@@ -164,6 +170,7 @@ int cterm_big_zone_begin(struct cterm_big *, const struct st_graphics_command_vi
 int cterm_big_zone_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, size_t *, size_t *, bool *);
 int cterm_big_draw_p(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_draw_spray(struct cterm_big *);
+int cterm_big_draw_text(struct cterm_big *, uint16_t x, uint16_t y);
 int cterm_big_draw_line(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_draw_z(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_begin(struct cterm_big *, const struct st_graphics_command_view *);
