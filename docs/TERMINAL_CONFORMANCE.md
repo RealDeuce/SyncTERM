@@ -413,6 +413,12 @@ RIPv1 now retains unfinished ANSI prefixes across SOH/STX graphics commands,
 then applies completion suppression before resuming ANSI. Native split/bytewise
 tests and the CP437/UTF-8 RIP wire suites check independent replies, cell colours,
 cursor and both pixel phases; see [RIP154_CONFORMANCE.md](RIP154_CONFORMANCE.md).
+RIP numeric fields now share signed base-36/low-word decoding and explicit
+consumer byte/word conversions and index bounds. Exhaustive native word tests,
+split-input vectors and coherent CP437/UTF-8 wire captures cover independent
+numeric state, replies and dual-phase pixels, including the corrected 0.005
+Bézier fallback. Remaining reference differences and safe rejection policies
+are recorded in [RIP154_PARSER.adoc](RIP154_PARSER.adoc).
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

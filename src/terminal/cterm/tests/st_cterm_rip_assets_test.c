@@ -163,6 +163,12 @@ st_cterm_rip_assets_test_main(void)
 	CHECK(response.count == 1 && response.size == 1
 	    && memcmp(response.bytes, "1", 1) == 0);
 	response.size = 0; response.count = 0;
+	CHECK(feed(terminal, "!|1F0--001saved.icn\r") == 0);
+	CHECK(response.count == 1 && response.size == 1 && response.bytes[0] == '1');
+	response.size = 0; response.count = 0;
+	CHECK(feed(terminal, "!|1F-10000saved.icn\r") == 0);
+	CHECK(response.count == 0 && response.size == 0);
+	response.size = 0; response.count = 0;
 	CHECK(feed(terminal, "!|1F010000MISSING.ICN\r") == 0);
 	CHECK(response.count == 1 && response.size == 3
 	    && memcmp(response.bytes, "0\r\n", 3) == 0);

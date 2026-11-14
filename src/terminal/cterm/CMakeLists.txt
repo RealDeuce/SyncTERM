@@ -126,6 +126,7 @@ add_library(st_cterm STATIC
 	cterm_petscii.c
 	cterm_prestel.c
 	cterm_rip_asset.c
+	cterm_rip_args.c
 	${ST_CTERM_RIP_LOOKUP_SOURCE}
 	cterm_rip_engine.c
 	cterm_rip_file_query.c
@@ -1252,6 +1253,18 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME cterm_keyboard COMMAND st_terminal_tests st_cterm_keyboard_test)
+
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_args_test tests/st_cterm_rip_args_test.c)
+	target_link_libraries(st_cterm_rip_args_test PRIVATE st_cterm)
+	set_target_properties(st_cterm_rip_args_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_rip_args_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_rip_args_test PRIVATE
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_rip_args COMMAND st_terminal_tests st_cterm_rip_args_test)
 
 	syncterm_add_test_case(st_terminal_tests st_cterm_rip_parser_test tests/st_cterm_rip_parser_test.c)
 	target_link_libraries(st_cterm_rip_parser_test PRIVATE st_cterm)

@@ -8,10 +8,10 @@ bytes, the 16-bit argument representation, and the checks and conversions in
 all 62 RIPterm command-table entries. A command's documented protocol range
 is not evidence that its implementation enforces that range.
 
-This document does not change SyncTERM's parser or declare it compliant.
-In particular, implementing signed conversion alone would expose unchecked
-negative indexes in existing SyncTERM handlers. The implementation work must
-cover decoding and every consumer together.
+The command ledger describes RIPterm, not a claim of complete SyncTERM
+compliance. The modern implementation status below records the shared signed
+decoder and its consumer checks, including deliberate boundaries around
+unsafe reference behavior and remaining compatibility differences.
 
 == Evidence and conventions
 
@@ -618,8 +618,8 @@ accumulation and final-endpoint handling. Coordinate conversion uses
 The older `disasm_notes.md`/`ellipse_research.md` explanation that zero
 count leaves a residual COM1 MCR value `03fc` in DX is contradicted by
 the explicit argument load and fallback constant in this executable.
-Modern SyncTERM's <=0 to `03fc` substitution should not be cited as a
-verified reproduction of that explanation. This correction does not
+Modern SyncTERM now substitutes 200 for a nonpositive count, giving the
+same double step as the explicit constant. This correction does not
 rebaseline any historical image or establish the pixels of a newly run
 DOS trace.
 
@@ -868,8 +868,9 @@ the ANSI prefix while a separate RIP command assembles, then resumes ANSI
 after completion suppression. It also releases bogus introducers in stream
 order and records consumed wire history. RIPv3 retains escape priority;
 SkyPix is a separately selected parser. See the conformance inventory for
-the follow-up tests. Other modern audit findings remain open; recent legacy
-fixes are distinguished there from the historical v1.10b baseline.
+the follow-up tests. The numeric follow-up also closes P1 and the conversion
+portion of S5, as detailed below. Other modern audit findings remain open;
+recent legacy fixes are distinguished there from the historical v1.10b baseline.
 
 P1 (host raw-width decoding), P2 (CSI fallback swallowing following text)
 and P3 (wire finish
@@ -885,44 +886,136 @@ numeric/descriptor/introducer/feed functions in the reviewed areas;
 `refs/tags/syncterm-1.8rc2` contains an earlier assembler. These comparisons
 do not prove that every modern host/asset helper is identical to v1.8.
 
-Current modern `cterm_rip_raster.c:parse_mega` and legacy `ripper.c:parse_mega`
-consume minus as a zero digit; modern `st_cterm.c:rip_number` rejects it.
-Neither implements the reference word contract. A blanket change to return
-negative host integers would make these current modern consumers suspect:
+=== Modern numeric implementation and safety boundaries
 
-* `a`: only upper-bound tests before `master_palette[fields[0]]`.
-* `=`: only upper-bound style tests before `st_bgi_line_patterns[style]`.
-* `Q`: only rejects values >63, casts accepted values to `uint8_t`, and
-  later uses them to select RGB palette entries.
-* `Y`: upper-bound-only font assignment and unchecked direction assignment;
-  downstream font logic must be checked before changing decoder output.
+`cterm_rip_args.c` is now the common reader for raster, host, scene and
+file-query numeric fields. It validates ASCII digits/letters/minus across
+the whole field, converts a leading minus, stops accumulation at an internal
+minus, reduces to a word without signed C overflow, and returns its
+mathematical signed interpretation. Success is separate from the value, so
+`-1` is valid data. Fields can end early at NUL/pipe after at least one byte;
+required following fields must still parse. Text consumers use the actual
+consumed cursor rather than a fixed offset. Invalid numeric syntax is silent
+at the existing command boundary; it cannot become an array index.
 
-Other paths do have additional checks: for example,
-`cterm_rip_raster_fill_style` bounds pattern and colour on both sides,
-and image paste bounds its mode. Do not state that every handler is
-unsafe, or that every upper-bound-only test is already reachable with
-negative decoded values today. The risk changes with the decoder fix.
+The following table records modern consumer policy. The 62-entry ledger
+above remains the reference for RIPterm's checks, errors and ordering.
+Unless indicated, a failed modern range check leaves the corresponding
+effective state unchanged and sends no BGI error reply. Modern sticky raster
+errors and asset/callback failures still use the existing engine recovery.
 
-Further specific differences exposed by the per-command trace include:
+[cols="2,6",options="header"]
+|===
+|Commands / arguments |Modern conversion and checks
+|`c`, `S`, `F`
+|Colour/border becomes low byte then low four bits. `S` checks pattern
+  unsigned <=11 before changing its effective fill state.
+|`s`
+|Eight pattern bytes truncate independently. Colour must be unsigned <=15
+  before pattern or effective colour changes. Reference cached RIP state
+  versus BGI error/state ordering is not emulated.
+|`=`
+|Unsigned style <=4 and thickness <=3 before table access or state change.
+  Custom pattern keeps all 16 bits, including `-001` = `1EKF` = `ffff`.
+|`Q`, `a`
+|Every value becomes low byte then low six EGA attribute-palette bits.
+  `a` additionally requires index 0..15. No raw byte indexes an RGB table;
+  reference out-of-bounds DGROUP writes are rejected. Adapter-specific
+  effects of reserved register bits are outside this bitmap mapping.
+|`Y`
+|Font number is checked unsigned <=10 before assignment; invalid numbers
+  retain the prior font. Direction becomes a byte. Size becomes a byte,
+  is checked 1..10 and is stored as that checked byte, protecting stroke
+  scale-table indexes. Unsupported sizes retain the previous size.
+  Reserved fields are validated and ignored. Reference font fallback,
+  size-zero behavior and cache/error ordering remain different.
+|`W`, `N`
+|`W` retains modern unsigned 0..1 acceptance; value 2 remains unsupported.
+  `N` stores the nonzero test, not an index.
+|`m`, `X`, `j`, `L`, `R`, `B`, `K`, `@`
+|Coordinates keep their signed word interpretation; pixel/line/bar paths
+  clip before framebuffer access. `m` retains its upper viewport checks.
+  `@` uses the consumed suffix and turns empty text into a space.
+|`C`, `A`, `I`, `O`, `V`, `o`, `i`
+|Angles/centres remain signed words. Circular Y aspect uses signed
+  arithmetic; ellipse/trig radii become unsigned words. Ellipse products
+  use 64-bit intermediates, and filled spans clip in X before iteration.
+  This avoids host overflow; exceptional DOS overflow pixels are not an
+  emulation claim.
+|`Z`
+|Signed coordinates; positive count uses its reciprocal, nonpositive
+  count uses 200 subdivisions (step 0.005). Literal pixel checks distinguish
+  this from the older, incorrect 1020-subdivision explanation.
+|`P`, `p`, `l`; later poly-Bézier `t`, `z`, `x`
+|Polygon count must be 2..512; declared coordinates must exist. All extra
+  pairs are validated, including negative values, with a total cap of
+  1025 fields. Poly-Bézier count cannot be negative and segments must be
+  positive; offsets/lengths are checked before access. These modern limits
+  do not implement the reference 511-word descriptor cap.
+|`v`; later world-size `f`
+|All-zero `v` disables the viewport. Other negative bounds are rejected;
+  upper right/bottom clamp to dimensions; reversed/equal bounds are rejected
+  before publishing. This retains modern effective-state policy rather
+  than reference sorting/cache/deferred rejection. `f` requires both
+  dimensions positive.
+|`g`, `w`
+|Coordinates become signed low bytes. `g` adds one for the console API;
+  an invalid position rejects the complete move. `w` clamps negative
+  left/top to zero, rejects inverted bounds, then clamps to font geometry.
+  All-zero bounds disable text. Wrap becomes byte and must be <=1; style
+  >=5 becomes zero. The existing window mode/reset policy remains.
+|Later extended text-window `b`
+|First four coordinates must be nonnegative before mapping; pixel extents
+  and cell counts must be positive. Flags retain the unsigned word.
+  Remaining metric/style selection uses comparisons, not raw table indexes.
+|`1C`, `1P`, `1I`, `1W`
+|Capture retains signed endpoint ordering and existing checked image
+  dimensions/read bounds. Paste/icon mode becomes byte and must be 0..4
+  before use. `1I` now validates six fields (2,2,2,1,1,1), with the two
+  final reserved fields separate. Its clipboard flag is a nonzero test.
+  `1W` validates its reserved field; filenames follow the consumed prefix.
+|`1T`, `1t`
+|Region coordinates remain signed words; two reserved fields are ignored
+  after validation. Modern text metrics and bounded drawing remain in use.
+  Justification is a zero/nonzero test, not an index. Reference division
+  faults are not reproduced.
+|`1B`
+|All 17 fields are validated: three reserved two-digit fields, rather
+  than one overflowing six-digit integer. Orientation must be unsigned
+  <=4; negative bevel is rejected; conflicting type bits retain their
+  modern rejection. Flags, flags2 and group keep unsigned words. Colours
+  become bytes and RIP v1 masks to four bits (RIPv3 retains its palette).
+  Fixed width/height apply only when both are signed positive, consistently
+  in drawing, labels and automatic clipboard capture.
+|`1U`, `1M`
+|Button coordinates retain signed words; selected state uses bit 0.
+  Keyboard hotkeys use the low byte, while label highlighting requires
+  the original signed hotkey >0. `1M` number must be 0..127 (not used as
+  an array index); endpoint ordering, upper viewport limits, flag <=1
+  checks and capacity checks remain. Reserved fields validate then ignore.
+|`1D`, `1 ESC`, `1R`, `1F`, `9 ESC`
+|All prefixes use the common reader and actual text cursor. Define flags
+  retain an unsigned word; definition widths retain the existing bounds.
+  Query mode must be 0..2; file-query mode unsigned <=4. Scene/reserved
+  fields are validated and ignored. Transfer retains mode 0..1 and protocol
+  0..7; download type must be 0..5, including existing protocol restrictions.
+  Upload type is ignored by the reference and passed as an unsigned word
+  to the modern callback. Rejected transfers retain the cancellation path.
+|Other entries
+|Commands without consumed numeric arguments keep their existing behavior.
+  Reference no-op descriptors and the later SyncTERM extensions remain
+  distinct; shared signed decoding does not add missing command bodies.
+|===
+
+The legacy source tree was not changed: its minus-as-zero reader still
+needs separate backport work. Further modern differences include:
 
 [cols="2,3,3",options="header"]
 |===
 |Area |Reference |Current modern behavior / implication
-|Wide/custom pattern |Low 16 bits; `-001` and `1EKF` both `ffff`.
-|The custom-pattern cast preserves the positive case, but minus-as-zero
-  decoding produces `0001` for the negative case.
-|Colour `c`, predefined fill colour |Byte truncation and driver bit mask;
-  no word <=255 rejection.
-|Raster dispatch rejects positive colour values >255. Negative acceptance
-  needs the full decode/cast audit, not just removal of this guard.
 |Custom fill colour |Unsigned <=15 in reference EGA BGI, else -11; cached
   RIP state already changed.
-|Modern dispatch permits colour <=255. State/error semantics differ.
-|Palette `Q` / `a` value |Low byte sent to attribute controller without
-  <=63 rejection; `a` index itself is unsafe unless bounded.
-|Modern enforces <=63, with `Q` updating a prefix before a bad value.
-  Match defined palette-register behavior through a bounded mapping;
-  do not remove the bound and index the RGB table with the raw byte.
+|Modern rejects before changing effective state. Cache/error semantics differ.
 |Write mode |Signed 0..2 accepted.
 |Modern permits only 0..1 at RIP dispatch. Determine the value-2 behavior
   through the BGI path before substituting a Boolean mode.
@@ -935,8 +1028,6 @@ Further specific differences exposed by the per-command trace include:
 |Font `Y` |Reference BGI font validation/fallback; direction/size byte use.
 |Modern font/size limits (font <=10, size 1..10) do not reproduce all
   reference acceptance, errors or effective state.
-|Bézier `Z` nonpositive count |Explicit step 0.005 in this executable.
-|Modern substitutes `03fc` following the older research explanation.
 |Copy region `1G` |Reference implements aligned screen copy.
 |Legacy's no-op comment is not proof that RIPterm ignores it; support
   and tests must be assessed independently in each maintained branch.
@@ -981,7 +1072,7 @@ apply before ANSI interception; continuation must remain open across
 input chunks; wire EOF and explicit local EOF must be distinct. No passing
 ordinary CTest result closes an unresolved audit row by itself.
 
-For this documentation change, all 62 command names, numeric field counts
+For the initial documentation change, all 62 command names, numeric field counts
 and handler targets were checked against the pinned executable's descriptor
 and jump tables; the Bézier fallback bytes were also checked directly.
 AsciiDoctor rendered the document without warnings, and its eight rendered
@@ -990,3 +1081,13 @@ The existing native FreeBSD CMake configuration built successfully, and all
 35 selected RIP, SkyPix and terminal/session CTests passed with inherited
 display variables cleared. These are regression results, not runtime
 verification of the newly documented exceptional reference inputs.
+
+The numeric follow-up adds exhaustive positive/negative word decoding tests,
+literal consumer state/rejection cases and split-input vectors. The native
+button test checks endpoint-sized drawing and automatic clipboard capture
+with negative fixed dimensions. Coherent CP437/UTF-8 wire captures check
+numeric replies, cells/cursor, state and both pixel phases, including literal
+Bézier samples that distinguish 200 from 1020 steps. The conformance
+inventory records this coverage separately from unchanged historical images.
+The native FreeBSD CMake configure/build and all 36 selected RIP, SkyPix and
+terminal/session CTests passed after the numeric changes.

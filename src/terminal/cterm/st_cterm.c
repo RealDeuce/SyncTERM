@@ -12,6 +12,7 @@
 #include "cterm_dec.h"
 #include "cterm_internal.h"
 #include "cterm_rip_engine.h"
+#include "cterm_rip_args.h"
 #include "cterm_skypix.h"
 #include "cterm_igs.h"
 #include "cterm_big.h"
@@ -300,34 +301,6 @@ rip_text_disabled(void *context)
 	st_cterm_t *terminal = context;
 
 	return terminal->rip_text_disabled;
-}
-
-static int
-rip_digit(char value)
-{
-	if (value >= '0' && value <= '9')
-		return value - '0';
-	if (value >= 'A' && value <= 'Z')
-		return value - 'A' + 10;
-	if (value >= 'a' && value <= 'z')
-		return value - 'a' + 10;
-	return -1;
-}
-
-static bool
-rip_number(const char *text, size_t width, int *value)
-{
-	int number = 0;
-
-	for (size_t i = 0; i < width; i++) {
-		int digit = rip_digit(text[i]);
-
-		if (digit < 0)
-			return false;
-		number = number * 36 + digit;
-	}
-	*value = number;
-	return true;
 }
 
 static char
@@ -1173,14 +1146,15 @@ rip_define_variable(st_cterm_t *terminal, const char *arguments)
 	char *normalized = NULL;
 	const char *initial, *prompt;
 	size_t normalized_size = 0;
-	int flags, reserved, width, parsed, status = 0;
+	int flags, numbers[2], width, parsed, status = 0;
+	const uint8_t widths[2] = {3, 2};
+	const char *text = arguments;
 	bool save = false, reject_blank, noninteractive;
 
-	if (strlen(arguments) < 5
-	    || !rip_number(arguments, 3, &flags)
-	    || !rip_number(arguments + 3, 2, &reserved))
+	if (cterm_rip_read_fields(&text, widths, 2, numbers) != 2)
 		return 0;
-	parsed = rip_parse_definition(arguments + 5, name, &width,
+	flags = (uint16_t)numbers[0];
+	parsed = rip_parse_definition(text, name, &width,
 	    &question, &default_value);
 	if (parsed == 0)
 		return 0;
@@ -1259,31 +1233,33 @@ rip_host_command(void *context, int level, int sublevel,
 {
 	st_cterm_t *terminal = context;
 	struct cterm_rip_raster *raster = &terminal->rip_engine->raster;
-	int first, second, third, fourth;
-	int coords[4], wrap, style;
+	int first;
 	int mouse[9];
 	uint32_t previous_background;
+	const char *suffix = arguments;
 
 	if (level == 9 && sublevel == 0 && code == 0x1b) {
 		struct st_cterm_rip_transfer_request request = {0};
-		size_t length = strlen(arguments);
-		int mode, protocol, type, reserved;
+		size_t length;
+		const uint8_t widths[4] = {1, 1, 2, 4};
+		int numbers[4], mode, protocol, type;
 		int status = IO_ERROR_INVALID_ARGUMENT;
 		char *filename = NULL, *path = NULL;
 
+		if (cterm_rip_read_fields(&suffix, widths, 4, numbers) != 4)
+			goto rip_transfer_rejected;
+		mode = numbers[0]; protocol = numbers[1]; type = numbers[2];
+		length = strlen(suffix);
 		if (!terminal->rip_engine->parser.command_terminated_cr
 		    || terminal->rip_engine->scene_depth != 0
-		    || length < 10 || strcmp(arguments + length - 2, "<>") != 0
-		    || !rip_number(arguments, 1, &mode) || mode > 1
-		    || !rip_number(arguments + 1, 1, &protocol) || protocol > 7
-		    || !rip_number(arguments + 2, 2, &type)
-		    || !rip_number(arguments + 4, 4, &reserved)
-		    || (mode == 0 && (type > 5 || (type >= 4 && protocol < 5)))
-		    || ((mode == 1 || protocol <= 4) && length == 10))
+		    || length < 2 || strcmp(suffix + length - 2, "<>") != 0
+		    || (unsigned)mode > 1 || (unsigned)protocol > 7
+		    || (mode == 0 && ((unsigned)type > 5 || (type >= 4 && protocol < 5)))
+		    || ((mode == 1 || protocol <= 4) && length == 2))
 			goto rip_transfer_rejected;
-		filename = malloc(length - 9);
+		filename = malloc(length - 1);
 		if (filename == NULL) { status = IO_ERROR_OUT_OF_MEMORY; goto rip_transfer_rejected; }
-		memcpy(filename, arguments + 8, length - 10); filename[length - 10] = '\0';
+		memcpy(filename, suffix, length - 2); filename[length - 2] = '\0';
 		if (*filename != '\0') {
 			path = cterm_rip_asset_path(terminal->rip_directory, filename, false);
 			if (path == NULL) goto rip_transfer_rejected;
@@ -1292,7 +1268,7 @@ rip_host_command(void *context, int level, int sublevel,
 			status = IO_ERROR_NOT_SUPPORTED; goto rip_transfer_rejected;
 		}
 		request.upload = mode == 1; request.protocol = (unsigned)protocol;
-		request.file_type = (unsigned)type;
+		request.file_type = (uint16_t)type;
 		request.directory = terminal->rip_directory; request.filename = filename;
 		status = terminal->rip_transfer(terminal->rip_transfer_context, &request);
 	rip_transfer_rejected:
@@ -1329,25 +1305,26 @@ rip_host_command(void *context, int level, int sublevel,
 		case 0x1b: {
 			char **stored;
 			char *replacement;
+			const uint8_t widths[2] = {1, 3};
+			int numbers[2];
 
-			if (strlen(arguments) < 4
-			    || !rip_number(arguments, 1, &first)
-			    || !rip_number(arguments + 1, 3, &second))
+			if (cterm_rip_read_fields(&suffix, widths, 2, numbers) != 2)
 				return 0;
+			first = numbers[0];
 			if (first == 0)
 				return rip_send_mouse_command(terminal,
-				    arguments + 4);
+				    suffix);
 			if (first != 1 && first != 2)
 				return 0;
 			stored = first == 1
 			    ? &terminal->rip_engine->graphics_click
 			    : &terminal->rip_engine->text_click;
-			if (strcmp(arguments + 4, "$OFF$") == 0) {
+			if (strcmp(suffix, "$OFF$") == 0) {
 				free(*stored);
 				*stored = NULL;
 				return 0;
 			}
-			replacement = strdup(arguments + 4);
+			replacement = strdup(suffix);
 			if (replacement == NULL)
 				return IO_ERROR_OUT_OF_MEMORY;
 			free(*stored);
@@ -1361,15 +1338,9 @@ rip_host_command(void *context, int level, int sublevel,
 			static const uint8_t widths[9] = {
 				2, 2, 2, 2, 2, 1, 1, 4, 1
 			};
-			size_t offset = 0;
-
-			for (size_t i = 0; i < 9; i++) {
-				if (!rip_number(arguments + offset, widths[i],
-				    &mouse[i]))
-					return 0;
-				offset += widths[i];
-			}
-			if (mouse[3] > raster->viewport.ex
+			if (cterm_rip_read_fields(&suffix, widths, 9, mouse) != 9)
+				return 0;
+			if ((unsigned)mouse[0] >= 128 || mouse[3] > raster->viewport.ex
 			    - raster->viewport.sx
 			    || mouse[4] > raster->viewport.ey
 			    - raster->viewport.sy
@@ -1382,14 +1353,13 @@ rip_host_command(void *context, int level, int sublevel,
 			    mouse[3] + raster->viewport.sx,
 			    mouse[4] + raster->viewport.sy,
 			    mouse[5] != 0, mouse[6] != 0,
-			    arguments + offset);
+			    suffix);
 		}
 		case 'U': {
 			static const uint8_t widths[7] = {2, 2, 2, 2, 2, 1, 1};
 			const struct cterm_rip_button_style *button_style =
 			    &raster->last_button_style;
 			int button[7];
-			size_t offset = 0;
 			const char *icon_end;
 			const char *label_start;
 			const char *label_end;
@@ -1399,20 +1369,13 @@ rip_host_command(void *context, int level, int sublevel,
 			struct cterm_rip_mouse_field *created = NULL;
 			int status;
 
-			if (strlen(arguments) < 12)
+			if (cterm_rip_read_fields(&suffix, widths, 7, button) != 7)
 				return 0;
-			for (size_t i = 0; i < 7; i++) {
-				if (!rip_number(arguments + offset, widths[i],
-				    &button[i]))
-					return 0;
-				offset += widths[i];
-			}
-			label_start = strstr(arguments + offset, "<>");
+			label_start = strstr(suffix, "<>");
 			icon_end = label_start == NULL
 			    ? arguments + strlen(arguments) : label_start;
-			if (icon_end != arguments + offset) {
-				icon = strndup(arguments + offset,
-				    (size_t)(icon_end - (arguments + offset)));
+			if (icon_end != suffix) {
+				icon = strndup(suffix, (size_t)(icon_end - suffix));
 				if (icon == NULL)
 					return IO_ERROR_OUT_OF_MEMORY;
 			}
@@ -1531,37 +1494,38 @@ rip_host_command(void *context, int level, int sublevel,
 	case 'H':
 		cterm_set_position(terminal, 1, 1);
 		return cterm_render_take_error(terminal);
-	case 'g':
-		if (strlen(arguments) < 4)
+	case 'g': {
+		const uint8_t widths[2] = {2, 2};
+		int coords[2];
+		if (cterm_rip_read_fields(&suffix, widths, 2, coords) != 2)
 			return 0;
-		first = rip_digit(arguments[0]);
-		second = rip_digit(arguments[1]);
-		third = rip_digit(arguments[2]);
-		fourth = rip_digit(arguments[3]);
-		if (first < 0 || second < 0 || third < 0 || fourth < 0)
-			return 0;
-		cterm_set_position(terminal, first * 36 + second + 1,
-		    third * 36 + fourth + 1);
+		cterm_set_position(terminal,
+		    cterm_rip_signed_byte((uint8_t)coords[0]) + 1,
+		    cterm_rip_signed_byte((uint8_t)coords[1]) + 1);
 		return cterm_render_take_error(terminal);
-	case 'w':
-		if (strlen(arguments) < 10)
+	}
+	case 'w': {
+		const uint8_t widths[6] = {2, 2, 2, 2, 1, 1};
+		int window[6], coords[4], wrap, style;
+		if (cterm_rip_read_fields(&suffix, widths, 6, window) != 6)
 			return 0;
 		for (size_t index = 0; index < 4; index++) {
-			first = rip_digit(arguments[index * 2]);
-			second = rip_digit(arguments[index * 2 + 1]);
-			if (first < 0 || second < 0)
-				return 0;
-			coords[index] = first * 36 + second;
+			coords[index] = cterm_rip_signed_byte((uint8_t)window[index]);
 		}
-		wrap = rip_digit(arguments[8]);
-		style = rip_digit(arguments[9]);
+		wrap = (uint8_t)window[4];
+		style = window[5] >= 5 ? 0 : window[5];
+		if (coords[0] < 0) coords[0] = 0;
+		if (coords[1] < 0) coords[1] = 0;
+		/* Reject inverted byte bounds before publishing a console window. */
+		if (coords[2] < coords[0] || coords[3] < coords[1])
+			return 0;
 		if (coords[0] == 0 && coords[1] == 0
 		    && coords[2] == 0 && coords[3] == 0) {
 			terminal->rip_text_disabled = true;
 			return 0;
 		}
 		terminal->rip_text_disabled = false;
-		if (wrap > 1 || wrap < 0 || style > 4 || style < 0)
+		if ((unsigned)wrap > 1 || (unsigned)style > 4)
 			return 0;
 		{
 			int status = rip_text_font(terminal, style);
@@ -1587,22 +1551,21 @@ rip_host_command(void *context, int level, int sublevel,
 		cterm_apply_window(terminal);
 		cterm_set_position(terminal, 1, 1);
 		return cterm_render_take_error(terminal);
+	}
 	case 'b': {
 		static const uint8_t widths[8] = {2, 2, 2, 2, 2, 2, 1, 4};
 		int extended[8];
 		int pixel_width, pixel_height, font_width, font_height;
 		int xoffset, yoffset, font_style;
-		size_t offset = 0;
 		int status;
 
-		if (strlen(arguments) < 17)
+		if (cterm_rip_read_fields(&suffix, widths, 8, extended) != 8)
 			return 0;
-		for (size_t index = 0; index < 8; index++) {
-			if (!rip_number(arguments + offset, widths[index],
-			    &extended[index]))
+		for (size_t index = 0; index < 4; index++) {
+			if (extended[index] < 0)
 				return 0;
-			offset += widths[index];
 		}
+		extended[7] = (uint16_t)extended[7];
 		extended[0] = cterm_rip_raster_map_x(raster, extended[0]);
 		extended[2] = cterm_rip_raster_map_x(raster, extended[2]);
 		extended[1] = cterm_rip_raster_map_y(raster, extended[1]);
@@ -3819,10 +3782,10 @@ st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint)
 		codepoint -= 'a' - 'A';
 	for (struct cterm_rip_mouse_field *field = engine->mouse_fields;
 	    field != NULL; field = field->next) {
-		int hotkey = field->drawing.hotkey;
+		int hotkey = (uint8_t)field->drawing.hotkey;
 		uint32_t decoded;
 
-		if (!field->is_button || hotkey < 0 || hotkey > 0xff)
+		if (!field->is_button)
 			continue;
 		if (hotkey >= 'a' && hotkey <= 'z')
 			hotkey -= 'a' - 'A';

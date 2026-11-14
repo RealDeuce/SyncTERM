@@ -514,6 +514,8 @@ test_v154_dispatch_vectors(void)
 		bool flush;
 	} cases[] = {
 		{"escaped pipe", "!|Tleft\\|right\r\nA", "A", "left|right", 1, 'T', 0, 0, false},
+		{"signed pattern bytes", "!|=04-00101\r\nA", "A", "04-00101", 1, '=', 0, 0, false},
+		{"unsigned pattern bytes", "!|=041EKF01\r\nA", "A", "041EKF01", 1, '=', 0, 0, false},
 		{"literal slash", "!|Tleft\\\\right\r\nA", "A", "left\\right", 1, 'T', 0, 0, false},
 		{"odd continuation", "!|Tleft\\\r\nright\r\nA", "A", "leftright", 1, 'T', 0, 0, false},
 		{"even slash CR", "!|Tleft\\\\\r\nA", "A", "left\\", 1, 'T', 0, 0, false},

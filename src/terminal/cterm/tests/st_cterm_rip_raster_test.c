@@ -35,6 +35,109 @@ pixel(st_console_t *console, uint32_t x, uint32_t y, uint32_t *result)
 }
 
 static int
+test_signed_arguments(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {.columns = 80, .rows = 43,
+	    .cell_width = 8, .cell_height = 8, .pixel_width = 640, .pixel_height = 350};
+	st_console_t *console = NULL;
+	struct cterm_rip_raster rip;
+	bool handled;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(cterm_rip_raster_init(&rip, console) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, '=', "04-00101", &handled) == 0 && handled);
+	CHECK(rip.line_style == 4 && rip.line_pattern == 0xffff && rip.line_width == 1);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, '=', "041EKF01", &handled) == 0 && handled);
+	CHECK(rip.line_pattern == 0xffff);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, '=', "-1000001", &handled) == 0);
+	CHECK(rip.line_style == 4 && rip.line_pattern == 0xffff);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, '=', "040000-1", &handled) == 0);
+	CHECK(rip.line_width == 1 && rip.line_pattern == 0xffff);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, '=', "041EKG01", &handled) == 0);
+	CHECK(rip.line_pattern == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'c', "-1", &handled) == 0);
+	CHECK(rip.colour == 15);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'c', "A-", &handled) == 0);
+	CHECK(rip.colour == 10);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'c', "74", &handled) == 0);
+	CHECK(rip.colour == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'S', "01-1", &handled) == 0);
+	CHECK(rip.fill_style == 1 && rip.fill_colour == 15);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'S', "-102", &handled) == 0);
+	CHECK(rip.fill_style == 1 && rip.fill_colour == 15);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 's', "-1-A0073747501A-0F", &handled) == 0);
+	const uint8_t expected_pattern[8] = {255, 246, 0, 255, 0, 1, 1, 10};
+	CHECK(memcmp(rip.fill_pattern, expected_pattern, 8) == 0 && rip.fill_colour == 15);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 's', "0000000000000000-1", &handled) == 0);
+	CHECK(memcmp(rip.fill_pattern, expected_pattern, 8) == 0 && rip.fill_colour == 15);
+	uint8_t palette[16];
+	memcpy(palette, rip.master_palette, 16);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'a', "-10F", &handled) == 0);
+	CHECK(memcmp(palette, rip.master_palette, 16) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'a', "00-1", &handled) == 0);
+	CHECK(rip.master_palette[0] == 63);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'Q',
+	    "-1-1-1-1-1-1-1-1-1-1-1-1-1-1-1-1", &handled) == 0);
+	for (size_t i = 0; i < 16; ++i) CHECK(rip.master_palette[i] == 63);
+	CHECK(cterm_rip_raster_reset_windows(&rip) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'Y', "01000100", &handled) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'Y', "-1-17500", &handled) == 0);
+	CHECK(rip.font_number == 1 && rip.font_size == 1 && rip.font_vertical == 255);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'Y', "00000100", &handled) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, '@', "000", &handled) == 0);
+	CHECK(rip.x == 8 && rip.y == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'm', "-101", &handled) == 0);
+	CHECK(rip.x == -1 && rip.y == 1);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, '=', "00000001", &handled) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'c', "0F", &handled) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'L', "-10A0A0A", &handled) == 0);
+	uint32_t colour;
+	CHECK(pixel(console, 0, 10, &colour) == 0 && colour == rip.palette[15]);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'l', "02-10B0A0B-1-1", &handled) == 0);
+	CHECK(pixel(console, 0, 11, &colour) == 0 && colour == rip.palette[15]);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'P', "-1-10C0A0C", &handled) == 0);
+	CHECK(pixel(console, 0, 12, &colour) == 0 && colour == rip.palette[0]);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'v', "-1000A0A", &handled) == 0);
+	CHECK(rip.viewport.sx == 0 && rip.viewport.ex == 639);
+	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'C', "000A000A0", &handled) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'P', "0K0A740", &handled) == 0);
+	CHECK(pixel(console, 20, 10, &colour) == 0 && colour == rip.palette[15]);
+	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'P', "0L0A-10", &handled) == 0);
+	CHECK(pixel(console, 21, 10, &colour) == 0 && colour == rip.palette[0]);
+	/* Both radii are unsigned ffff; this enormous outline lies outside
+	 * the viewport. Minus-as-zero would draw the tiny radius-one ellipse. */
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'O', "2S2S00A0-1-1", &handled) == 0);
+	CHECK(pixel(console, 101, 100, &colour) == 0 && colour == rip.palette[0]);
+	/* Both flags spellings produce the same high-bit WORD; no signed flag
+	 * or colour can become a negative palette/font-table index. */
+	const char *styles[] = {
+		"0000020PHC000F000F080700000008000000",
+		"000002-P34000F000F080700000008000000",
+	};
+	for (size_t i = 0; i < sizeof(styles) / sizeof(*styles); ++i) {
+		CHECK(cterm_rip_raster_command(&rip, 1, 0, 'B', styles[i], &handled) == 0);
+		CHECK(rip.button_style.flags == 0x8100);
+	}
+	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'B',
+	    "0000-10074000F000F080700000008000000", &handled) == 0);
+	CHECK(rip.button_style.flags == 0x8100 && rip.button_style.orientation == 2);
+	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'B',
+	    "0000020074-10F000F080700000008000000", &handled) == 0);
+	CHECK(rip.button_style.flags == 0x8100 && rip.button_style.bevel_size == 0);
+	/* A negative fixed size selects the endpoint-sized plain button in
+	 * both its drawing and its automatic clipboard capture. */
+	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'B',
+	    "-1-102008W000F000F080700000008000000", &handled) == 0);
+	CHECK(rip.button_style.width == -1 && rip.button_style.height == -1);
+	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'U', "2S2S322U0000", &handled) == 0);
+	CHECK(rip.clipboard != NULL && rip.clipboard->width == 11 && rip.clipboard->height == 3);
+	CHECK(rip.error == 0);
+	cterm_rip_raster_destroy(&rip);
+	st_console_destroy(console);
+	return 0;
+}
+
+static int
 test_reserved_fields_required(void)
 {
 	const struct st_console_display_config display = {
@@ -441,7 +544,9 @@ test_poly_beziers(void)
 	CHECK(cterm_rip_raster_command(&rip, 1, 0, 'B',
 	    "000002007C000F000F080700000008ZZZZZZ",
 	    &handled) == 0 && handled);
-	CHECK(rip.button_style.flags == 256);
+	/* The reference has three reserved 2# fields, not one overflowing 6#.
+	 * They are valid and ignored, so the flags word 007C is installed. */
+	CHECK(rip.button_style.flags == 264);
 	CHECK(rip.poly_fill_marks == NULL && rip.error == 0);
 	/* Independent pixels from RIPterm's test08_bezier capture: these
 	 * integer-boundary samples distinguish double rounding from FMA and
@@ -659,6 +764,7 @@ test_in_place_pixels(void)
 int
 st_cterm_rip_raster_test_main(void)
 {
+	CHECK(test_signed_arguments() == 0);
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};

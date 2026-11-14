@@ -80,12 +80,63 @@ def scene(t, commands=b""):
     return t.exchange(b"\r!|*\r\n!|c0F|S0102|W0|=00000001|Y00000100\r\n" + commands)
 
 
-def pixel(frame, x, y):
-    value = frame.primary[y * frame.metadata["plane_width"] + x]
+def pixel(frame, x, y, phase="primary"):
+    value = getattr(frame, phase)[y * frame.metadata["plane_width"] + x]
     return (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
 
 
+def numeric_cases(t):
+    # Independent WORD/byte expectations; no rendered output is used to
+    # generate an oracle. Every related cell/pixel/state uses this capture.
+    for name, commands, y, left, right, rgb in (
+        ("numeric-negative-pattern", b"=04-00101|L2S2S322S", 100, 100, 110, 0xffffff),
+        ("numeric-unsigned-pattern", b"=041EKF01|L2S2S322S", 100, 100, 110, 0xffffff),
+        ("numeric-word-wrap", b"=041EKG01|L2S2S322S", 100, 100, 110, 0),
+        ("numeric-invalid-style", b"=-1000001|L2S2S322S", 100, 100, 110, 0xffffff),
+        ("numeric-invalid-thickness", b"=040000-1|L2S2S322S", 100, 100, 110, 0xffffff),
+        ("numeric-negative-colour", b"c-1|X2S2S", 100, 100, 100, 0xffffff),
+        ("numeric-colour-byte-wrap", b"c74|X2S2S", 100, 100, 100, 0),
+        ("numeric-negative-fill", b"S01-1|B2S2S322U", 101, 100, 110, 0xffffff),
+        ("numeric-fill-bytes", b"s-1-1-1-1-1-1-1-10F|B2S2S322U", 101, 100, 110, 0xffffff),
+        ("numeric-invalid-fill-colour", b"s0000000000000000-1|B2S2S322U", 101, 100, 110, 0x00aa00),
+        ("numeric-signed-line", b"L-12S0A2S", 100, 0, 10, 0xffffff),
+        ("numeric-signed-polyline", b"l02-12S0A2S-1-1", 100, 0, 10, 0xffffff),
+        ("numeric-invalid-vertex-recovery", b"P-1-12S0A2S|L2S2S322S", 100, 100, 110, 0xffffff),
+        ("numeric-invalid-viewport-recovery", b"v-1000A0A|L2S2S322S", 100, 100, 110, 0xffffff),
+        ("numeric-negative-palette-index", b"a-10F|X2S2S", 100, 100, 100, 0xffffff),
+        ("numeric-palette-byte", b"a01-1|c01|X2S2S", 100, 100, 100, 0xffffff),
+        ("numeric-all-palette-bytes", b"Q" + b"-1" * 16 + b"|c01|X2S2S", 100, 100, 100, 0xffffff),
+    ):
+        scene(t)
+        frame = t.check(name, b"!|" + commands + b"\r\n", reset=False)
+        for phase in ("primary", "alternate"):
+            assert all(pixel(frame, x, y, phase) == rgb for x in range(left, right + 1)), (name, phase)
+    for name, command in (
+        ("numeric-short-host-field", b"g001"),
+        ("numeric-internal-minus-host", b"g0-01"),
+        ("numeric-cursor-byte-wrap", b"g7401"),
+    ):
+        scene(t)
+        t.check(name, b"!|" + command + b"\r\nZ", (2, 2), ((1, 2, "Z"),), reset=False)
+    scene(t)
+    # The byte becomes -1, whose one-based position is invalid. The
+    # existing console setter rejects the entire move before changing Y.
+    t.check("numeric-negative-cursor-byte", b"!|g-101\r\nZ",
+            (2, 1), ((1, 1, "Z"),), reset=False)
+    scene(t)
+    t.check("numeric-host-mode-minus", b"!|1\x1b-000OK\r\n", expected=b"OK", reset=False)
+    t.check("numeric-query-reserved-minus", b"!|1\x1b0-01OK\r\n", expected=b"OK", reset=False)
+    t.check("numeric-file-query-reserved-minus", b"!|1F0--001MISSING.ICN\r\n", expected=b"0", reset=False)
+    t.check("numeric-file-query-negative-mode", b"!|1F-10000MISSING.ICN\r\n", reset=False)
+    frame = t.check("numeric-window-minus-style", b"!|w0000271612\r\n!|w000027161-\r\nZ",
+                    (2, 1), ((1, 1, "Z"),), reset=False)
+    assert frame.metadata["cell_height"] == 8
+    frame = t.check("numeric-window-byte-wrap", b"\r!|w0074271610\r\nZ", (2, 1), ((1, 1, "Z"),), reset=False)
+    assert frame.application["cterm.top_margin"] == 1
+
+
 def wire_cases(t):
+    numeric_cases(t)
     t.check("rip-version", b"\x1b[!", expected=b"RIPSCRIP015410", reset=False)
     t.check("rip-version-zero", b"\x1b[0!", expected=b"RIPSCRIP015410", reset=False)
     # An unfinished ANSI prefix survives intervening RIP commands. Verify
@@ -213,13 +264,17 @@ def wire_cases(t):
         for y in (348, 349):
             for x in range(640):
                 assert plane[y * 640 + x] == (26 if x >= 638 else 16), (x, y)
-    t.case("bezier-zero-count")
-    # Historical RIPterm residual/default count, documented in
-    # rip_test/thick_xor_research.md; it is not an empty curve.
+    # The pinned executable loads the explicit 0.005 fallback, rather
+    # than the residual 0x3fc asserted in the older research prose.
+    # Literal samples of this cubic distinguish 200 from 1020 steps.
     curve = point(100, 100) + point(100, 140) + point(140, 140) + point(140, 100)
-    implicit = scene(t, b"!|Z" + curve + b"00\r\n")
-    explicit = scene(t, b"!|Z" + curve + mega(0x3fc) + b"\r\n")
-    assert implicit.primary == explicit.primary and pixel(implicit, 100, 100) == 0xffffff
+    for name, count in (("zero", b"00"), ("negative", b"-1"), ("explicit", b"5K")):
+        t.case("bezier-default-count-" + name)
+        frame = scene(t, b"!|Z" + curve + count + b"\r\n")
+        for phase in ("primary", "alternate"):
+            for x, y, rgb in ((100, 100, 0xffffff), (140, 100, 0xffffff),
+                              (120, 130, 0xffffff), (119, 130, 0), (100, 110, 0)):
+                assert pixel(frame, x, y, phase) == rgb, (name, phase, x, y)
     for style, columns, rows, width, height in (
         (0, 80, 43, 8, 8), (1, 91, 43, 7, 8), (2, 80, 25, 8, 14),
         (3, 91, 25, 7, 14), (4, 40, 25, 16, 14)):

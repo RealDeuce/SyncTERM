@@ -6,6 +6,7 @@
  */
 
 #include "cterm_rip_raster.h"
+#include "cterm_rip_args.h"
 #include "st_bgi_data.h"
 #include "st_bgi_bitmap.h"
 #include "st_bgi_chr.h"
@@ -85,17 +86,17 @@ static const uint32_t initial_colour_indexes[16] = {
 static uint32_t
 map_colour(const struct cterm_rip_raster *rip, int colour)
 {
-	colour &= 0x80ffffff;
-	if (colour < 16)
-		return rip->palette[colour];
-	if (colour < 256)
+	uint32_t index = (uint32_t)colour & UINT32_C(0x80ffffff);
+	if (index < 16)
+		return rip->palette[index];
+	if (index < 256)
 		return ST_PIXEL_COLOR_RGB_TAG
-		    | ((uint32_t)((default_mapped[colour][0] << 2)
-		        | (default_mapped[colour][0] & 3)) << 16)
-		    | ((uint32_t)((default_mapped[colour][1] << 2)
-		        | (default_mapped[colour][1] & 3)) << 8)
-		    | (uint32_t)((default_mapped[colour][2] << 2)
-		        | (default_mapped[colour][2] & 3));
+		    | ((uint32_t)((default_mapped[index][0] << 2)
+		        | (default_mapped[index][0] & 3)) << 16)
+		    | ((uint32_t)((default_mapped[index][1] << 2)
+		        | (default_mapped[index][1] & 3)) << 8)
+		    | (uint32_t)((default_mapped[index][2] << 2)
+		        | (default_mapped[index][2] & 3));
 	return 0;
 }
 
@@ -1610,8 +1611,9 @@ bgi_cos32(int angle_deg)
 static int
 bgi_arc_limit(int a, int b, int angle_deg)
 {
-	int16_t sx = st_bgi_trig_mul(bgi_cos32(angle_deg), (int16_t)a);
-	int16_t sy = -st_bgi_trig_mul(st_bgi_sin32(angle_deg), (int16_t)b);
+	int sx = st_bgi_trig_mul(bgi_cos32(angle_deg), (uint16_t)a);
+	int sy = cterm_rip_signed_word((uint16_t)(0u
+	    - (uint16_t)st_bgi_trig_mul(st_bgi_sin32(angle_deg), (uint16_t)b)));
 
 	return bgi_metric(sx, sy);
 }
@@ -1664,7 +1666,11 @@ ellipse_plot(struct cterm_rip_raster *rip, int xc, int yc, int x, int y,
 		return;
 	if (pass == 0) {
 		if (fill) {
-			for (int fx = xc - x; fx <= xc + x && rip->error == 0;
+			int left = xc - x, right = xc + x;
+			if (left < 0) left = 0;
+			if (right > rip->viewport.ex - rip->viewport.sx)
+				right = rip->viewport.ex - rip->viewport.sx;
+			for (int fx = left; fx <= right && rip->error == 0;
 			    fx++) {
 				if (y == 0)
 					fill_pixel(rip, fx, yc);
@@ -1703,13 +1709,17 @@ full_ellipse(struct cterm_rip_raster *rip, int xc, int yc,
     int start_angle, int end_angle, int radius_x, int radius_y,
     bool fill, uint32_t colour, struct arc_points *arc)
 {
+	/* BGI uses unsigned radius WORDs, including a decoded negative word.
+	 * Widen the products: long is only 32 bits on Windows. */
+	radius_x = (uint16_t)radius_x;
+	radius_y = (uint16_t)radius_y;
 	bool thick_sweep = rip->line_width == 3 && rip->borders && !fill;
 	int original_x = radius_x;
 	int original_y = radius_y;
 	int start_limit, end_limit, x, y;
 	bool inverse;
-	long bigger, square100, step, step_const, temp, error;
-	long delta, increment, accumulated, threshold;
+	int64_t bigger, square100, step, step_const, temp, error;
+	int64_t delta, increment, accumulated, threshold;
 
 	if (rip->error != 0 || no_viewport(rip))
 		return;
@@ -1780,15 +1790,15 @@ full_ellipse(struct cterm_rip_raster *rip, int xc, int yc,
 			sweep_end = end_angle + 360;
 		rip->line_pattern = 0xffff;
 		previous_x = xc + st_bgi_trig_mul(bgi_cos32(start_angle),
-		    (int16_t)original_x);
+		    (uint16_t)original_x);
 		previous_y = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle),
-		    (int16_t)original_y);
+		    (uint16_t)original_y);
 		for (int degree = start_angle + 1;
 		    degree <= sweep_end && rip->error == 0; degree++) {
 			int current_x = xc + st_bgi_trig_mul(bgi_cos32(degree),
-				(int16_t)original_x);
+				(uint16_t)original_x);
 			int current_y = yc - st_bgi_trig_mul(st_bgi_sin32(degree),
-				(int16_t)original_y);
+				(uint16_t)original_y);
 
 			if (current_x != previous_x || current_y != previous_y) {
 				cterm_rip_raster_line(rip, previous_x, previous_y,
@@ -1864,15 +1874,15 @@ draw_pie(struct cterm_rip_raster *rip, int xc, int yc,
 	}
 	if (rip->borders && rip->error == 0) {
 		int ex = xc + st_bgi_trig_mul(bgi_cos32(start_angle),
-		    (int16_t)radius_x);
+		    (uint16_t)radius_x);
 		int ey = yc - st_bgi_trig_mul(st_bgi_sin32(start_angle),
-		    (int16_t)radius_y);
+		    (uint16_t)radius_y);
 
 		cterm_rip_raster_line(rip, xc, yc, ex, ey);
 		ex = xc + st_bgi_trig_mul(bgi_cos32(end_angle),
-		    (int16_t)radius_x);
+		    (uint16_t)radius_x);
 		ey = yc - st_bgi_trig_mul(st_bgi_sin32(end_angle),
-		    (int16_t)radius_y);
+		    (uint16_t)radius_y);
 		cterm_rip_raster_line(rip, xc, yc, ex, ey);
 	}
 	free(arc.points);
@@ -2480,54 +2490,10 @@ restore:
 }
 
 static int
-parse_mega(const char *text, int field_width, int *consumed)
-{
-	int value = 0;
-	int i;
-	int digit;
-
-	for (i = 0; i < field_width; i++) {
-		if (text[i] >= '0' && text[i] <= '9')
-			digit = text[i] - '0';
-		else if (text[i] >= 'A' && text[i] <= 'Z')
-			digit = text[i] - 'A' + 10;
-		else if (text[i] >= 'a' && text[i] <= 'z')
-			digit = text[i] - 'a' + 10;
-		else if (text[i] == '-')
-			digit = 0;
-		else if (i > 0 && (text[i] == '|' || text[i] == '\0'))
-			break;
-		else {
-			*consumed = 0;
-			return -1;
-		}
-		if (value > (INT_MAX - digit) / 36) {
-			*consumed = 0;
-			return -1;
-		}
-		value = value * 36 + digit;
-	}
-	*consumed = i;
-	return value;
-}
-
-static int
 parse_fields(const char *arguments, const uint8_t *widths, size_t count,
     int *values)
 {
-	int parsed = 0;
-
-	for (size_t i = 0; i < count; i++) {
-		int consumed = 0;
-		int value = parse_mega(arguments, widths[i], &consumed);
-
-		if (consumed == 0)
-			break;
-		values[i] = value;
-		arguments += consumed;
-		parsed++;
-	}
-	return parsed;
+	return (int)cterm_rip_read_fields(&arguments, widths, count, values);
 }
 
 /* RIPterm's filled poly-Bézier uses four raster scans, then two gap passes.
@@ -2641,12 +2607,11 @@ static bool
 poly_number(const char *arguments, size_t length, size_t offset,
     int width, int *value)
 {
-	int consumed = 0;
-
 	if (offset > length || (size_t)width > length - offset)
 		return false;
-	*value = parse_mega(arguments + offset, width, &consumed);
-	return *value >= 0 && consumed == width;
+	const char *cursor = arguments + offset;
+	return cterm_rip_read_number(&cursor, (size_t)width, value)
+	    && cursor == arguments + offset + width;
 }
 
 static void
@@ -2661,6 +2626,7 @@ poly_bezier(struct cterm_rip_raster *rip, const char *arguments,
 	uint32_t colour = map_colour(rip, rip->colour);
 
 	if (!poly_number(arguments, length, 0, 2, &number)
+	    || number < 0
 	    || !poly_number(arguments, length, 2, 2, &segments)
 	    || segments <= 0
 	    || !poly_number(arguments, length, 5, 2, &start_x)
@@ -2788,7 +2754,7 @@ draw_plain_button(struct cterm_rip_raster *rip, int x1, int y1,
 	int saved_fill_style = rip->fill_style;
 	uint8_t saved_fill_pattern[8];
 
-	if (style->type == 2 && style->width != 0 && style->height != 0) {
+	if (style->type == 2 && style->width > 0 && style->height > 0) {
 		bx2 = bx1 + style->width;
 		by2 = by1 + style->height;
 	}
@@ -3003,7 +2969,7 @@ capture_button_stamp(struct cterm_rip_raster *rip,
 	struct st_pixel_buffer *captured = NULL;
 
 	if (button->style.type == 2
-	    && button->style.width != 0 && button->style.height != 0) {
+	    && button->style.width > 0 && button->style.height > 0) {
 		bx2 = bx1 + button->style.width;
 		by2 = by1 + button->style.height;
 	}
@@ -3070,7 +3036,7 @@ draw_button_label(struct cterm_rip_raster *rip,
 
 	if (metric == NULL || label == NULL || label[0] == '\0')
 		return;
-	if (style->type == 2 && style->width != 0 && style->height != 0) {
+	if (style->type == 2 && style->width > 0 && style->height > 0) {
 		bx2 = bx1 + style->width;
 		by2 = by1 + style->height;
 	}
@@ -3149,7 +3115,7 @@ draw_button_label(struct cterm_rip_raster *rip,
 		    *p != '\0'; p++)
 			draw_rip_char(rip, *p);
 	}
-	if ((style->flags & 2048) != 0 || (style->flags2 & 2) != 0) {
+	if (hotkey > 0 && ((style->flags & 2048) != 0 || (style->flags2 & 2) != 0)) {
 		for (int i = 0; label[i] != '\0'; i++) {
 			if (ascii_to_upper((unsigned char)label[i])
 			    == ascii_to_upper((unsigned char)hotkey)) {
@@ -3310,7 +3276,7 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 	static const uint8_t flood_fields[3] = {2, 2, 2};
 	static const uint8_t capture_fields[5] = {2, 2, 2, 2, 1};
 	static const uint8_t paste_fields[4] = {2, 2, 2, 1};
-	static const uint8_t icon_fields[5] = {2, 2, 2, 1, 2};
+	static const uint8_t icon_fields[6] = {2, 2, 2, 1, 1, 1};
 	static const uint8_t region_fields[6] = {2, 2, 2, 2, 1, 1};
 	static const uint8_t font_fields[5] = {2, 2, 2, 1, 1};
 	static const uint8_t palette_fields[16] = {
@@ -3320,19 +3286,20 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 	static const uint8_t bezier_fields[9] = {
 		2, 2, 2, 2, 2, 2, 2, 2, 2
 	};
-	static const uint8_t button_style_fields[15] = {
-		2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 6
+	static const uint8_t button_style_fields[17] = {
+		2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
 	};
 	static const uint8_t button_fields[7] = {
 		2, 2, 2, 2, 2, 1, 1
 	};
 	int fields[6];
-	int button_style[15];
+	int button_style[17];
 	int button[7];
 	int custom_fill[9];
 	int bezier[9];
 	int palette_values[16];
 	int count;
+	const char *suffix = arguments;
 
 	if (rip == NULL || arguments == NULL || handled == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -3352,42 +3319,42 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		return rip->error;
 	}
 	if (level == 1 && sublevel == 0 && code == 'W') {
+		static const uint8_t widths[1] = {1};
 		*handled = true;
-		if (arguments[0] != '\0' && arguments[1] != '\0')
-			write_icon(rip, arguments + 1);
+		if (cterm_rip_read_fields(&suffix, widths, 1, fields) == 1 && *suffix != '\0')
+			write_icon(rip, suffix);
 		return rip->error;
 	}
 	if (level == 1 && sublevel == 0 && code == 'B') {
 		int type_bits;
 
 		*handled = true;
-		count = parse_fields(arguments, button_style_fields, 15,
+		count = parse_fields(arguments, button_style_fields, 17,
 		    button_style);
-		if (count != 15 || button_style[2] > 4)
+		if (count != 17 || (unsigned)button_style[2] > 4 || button_style[4] < 0)
 			return rip->error;
-		type_bits = button_style[3] & (1 | 128 | 256);
+		type_bits = (uint16_t)button_style[3] & (1 | 128 | 256);
 		if ((type_bits & (type_bits - 1)) != 0)
 			return rip->error;
-		for (size_t i = 5; i <= 10; i++) {
-			if (button_style[i] > 255)
-				return rip->error;
+		for (size_t i = 5; i <= 13; ++i) {
+			if (i == 10 || i == 11) continue;
+			button_style[i] = (uint8_t)button_style[i];
+			if (rip->version == 1) button_style[i] &= 15;
 		}
-		if (button_style[12] > 255 || button_style[13] > 255)
-			return rip->error;
 		struct cterm_rip_button_style *style = &rip->button_style;
 
 		style->width = button_style[0];
 		style->height = button_style[1];
 		style->orientation = button_style[2];
-		style->flags = button_style[3];
+		style->flags = (uint16_t)button_style[3];
 		style->bevel_size = button_style[4];
 		style->foreground = button_style[5];
 		style->shadow_label = button_style[6];
 		style->highlight = button_style[7];
 		style->shadow = button_style[8];
 		style->surface = button_style[9];
-		style->group = button_style[10];
-		style->flags2 = button_style[11];
+		style->group = (uint16_t)button_style[10];
+		style->flags2 = (uint16_t)button_style[11];
 		style->underline = button_style[12];
 		style->corner = button_style[13];
 		if (type_bits != 0)
@@ -3405,16 +3372,14 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		const struct cterm_rip_button_style *style = &rip->button_style;
 
 		*handled = false;
-		if (strlen(arguments) < 12)
-			return rip->error;
-		text = arguments + 12;
 		if (style->type < 0 || style->type > 2)
 			return rip->error;
-		count = parse_fields(arguments, button_fields, 7, button);
+		count = (int)cterm_rip_read_fields(&suffix, button_fields, 7, button);
 		if (count != 7) {
 			*handled = true;
 			return rip->error;
 		}
+		text = suffix;
 		label_start = strstr(text, "<>");
 		if (label_start != NULL && label_start != text) {
 			icon = strndup(text, (size_t)(label_start - text));
@@ -3491,15 +3456,14 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 			    fields);
 			if (count == 4)
 				paste_image(rip, fields[0], fields[1],
-				    fields[2]);
+				    (uint8_t)fields[2]);
 		}
 		else if (code == 'I') {
-			count = parse_fields(arguments, icon_fields, 5,
-			    fields);
-			if (count == 5 && strlen(arguments) >= 9)
+			count = (int)cterm_rip_read_fields(&suffix, icon_fields, 6, fields);
+			if (count == 6 && *suffix != '\0' && (uint8_t)fields[2] <= 4)
 				(void)load_icon(rip, fields[0], fields[1],
-				    fields[2], fields[3] != 0,
-				    arguments + 9, NULL, NULL);
+				    (uint8_t)fields[2], fields[3] != 0,
+				    suffix, NULL, NULL);
 		}
 		else if (code == 'T') {
 			count = parse_fields(arguments, region_fields, 6,
@@ -3515,11 +3479,10 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 			}
 		}
 		else if (code == 't') {
-			int consumed = 0;
-			int justify = parse_mega(arguments, 1, &consumed);
+			int justify;
 
-			if (consumed == 1)
-				draw_region_text(rip, justify, arguments + 1);
+			if (cterm_rip_read_number(&suffix, 1, &justify))
+				draw_region_text(rip, justify, suffix);
 		}
 		else {
 			rip->text_region.sx = -1;
@@ -3626,50 +3589,50 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		count = parse_fields(arguments, bezier_fields, 9, bezier);
 		if (count == 9) {
 			if (bezier[8] <= 0)
-				bezier[8] = 0x3fc;
+				bezier[8] = 200; /* 0CA1:00AD loads the explicit 0.005 step. */
 			draw_bezier(rip, bezier, bezier[8]);
 		}
 		break;
 	case 'F':
 		count = parse_fields(arguments, flood_fields, 3, fields);
 		if (count == 3)
-			flood_fill(rip, fields[0], fields[1], fields[2]);
+			flood_fill(rip, fields[0], fields[1], (uint8_t)fields[2] & 15);
 		break;
 	case 'Q':
 		count = parse_fields(arguments, palette_fields, 16,
 		    palette_values);
 		if (count == 16) {
 			for (int i = 0; i < 16; i++) {
-				if (palette_values[i] > 63)
-					break;
-				rip->master_palette[i] = (uint8_t)palette_values[i];
+				/* Attribute palette registers have six colour bits. */
+				rip->master_palette[i] = (uint8_t)palette_values[i] & 63;
 			}
 			set_master_palette(rip);
 		}
 		break;
 	case 'a':
 		count = parse_fields(arguments, point_fields, 2, fields);
-		if (count == 2 && fields[0] < 16 && fields[1] <= 63) {
-			rip->master_palette[fields[0]] = (uint8_t)fields[1];
+		if (count == 2 && (unsigned)fields[0] < 16) {
+			rip->master_palette[fields[0]] = (uint8_t)fields[1] & 63;
 			set_master_palette(rip);
 		}
 		break;
 	case 'Y':
 		count = parse_fields(arguments, font_fields, 5, fields);
 		if (count == 5) {
-			if (fields[0] <= 10)
+			if ((unsigned)fields[0] <= 10)
 				rip->font_number = fields[0];
-			rip->font_vertical = fields[1];
-			if (fields[2] > 0 && fields[2] <= 10)
-				rip->font_size = fields[2];
+			rip->font_vertical = (uint8_t)fields[1];
+			/* The stroke scale tables only define the supported 1..10 sizes. */
+			if ((uint8_t)fields[2] > 0 && (uint8_t)fields[2] <= 10)
+				rip->font_size = (uint8_t)fields[2];
 		}
 		break;
 	case '@':
-		count = parse_fields(arguments, point_fields, 2, fields);
-		if (count == 2 && strlen(arguments) >= 4) {
+		count = (int)cterm_rip_read_fields(&suffix, point_fields, 2, fields);
+		if (count == 2) {
 			rip->x = fields[0];
 			rip->y = fields[1];
-			draw_rip_text(rip, arguments[4] == '\0' ? " " : arguments + 4);
+			draw_rip_text(rip, *suffix == '\0' ? " " : suffix);
 		}
 		break;
 	case 'T':
@@ -3677,17 +3640,17 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		break;
 	case 'S':
 		count = parse_fields(arguments, fill_fields, 2, fields);
-		if (count == 2 && fields[0] <= 11 && fields[1] <= 255)
-			cterm_rip_raster_fill_style(rip, fields[0], fields[1]);
+		if (count == 2 && (unsigned)fields[0] <= 11)
+			cterm_rip_raster_fill_style(rip, fields[0], (uint8_t)fields[1]);
 		break;
 	case 'c':
 		count = parse_fields(arguments, colour_field, 1, fields);
-		if (count == 1 && fields[0] <= 255)
-			rip->colour = fields[0] & 15;
+		if (count == 1)
+			rip->colour = (uint8_t)fields[0] & 15;
 		break;
 	case 'W':
 		count = parse_fields(arguments, write_mode_field, 1, fields);
-		if (count == 1 && fields[0] <= 1)
+		if (count == 1 && (unsigned)fields[0] <= 1)
 			rip->xor_mode = fields[0] == 1;
 		break;
 	case 'm':
@@ -3702,13 +3665,11 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 	case 's':
 		count = parse_fields(arguments, custom_fill_fields, 9,
 		    custom_fill);
-		if (count == 9) {
+		if (count == 9 && (unsigned)custom_fill[8] <= 15) {
 			for (int i = 0; i < 8; i++)
-				rip->fill_pattern[i] = custom_fill[i] & 0xff;
-			if (custom_fill[8] <= 255) {
-				rip->fill_colour = custom_fill[8];
-				rip->fill_style = -1;
-			}
+				rip->fill_pattern[i] = (uint8_t)custom_fill[i];
+			rip->fill_colour = custom_fill[8];
+			rip->fill_style = -1;
 		}
 		break;
 	case 'v':
@@ -3718,6 +3679,8 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 			    && fields[2] == 0 && fields[3] == 0;
 
 			if (!disabled) {
+				if (fields[0] < 0 || fields[1] < 0 || fields[2] < 0 || fields[3] < 0)
+					break;
 				if (fields[2] >= rip->x_dim)
 					fields[2] = rip->x_dim - 1;
 				if (fields[3] >= rip->y_dim)
@@ -3745,7 +3708,7 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 		break;
 	case '=':
 		count = parse_fields(arguments, style_fields, 3, fields);
-		if (count == 3 && fields[0] <= 4 && fields[2] <= 3) {
+		if (count == 3 && (unsigned)fields[0] <= 4 && (unsigned)fields[2] <= 3) {
 			rip->line_pattern = fields[0] < 4
 			    ? st_bgi_line_patterns[fields[0]] : (uint16_t)fields[1];
 			rip->line_width = fields[2];
@@ -3791,38 +3754,28 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 	case 'l': {
 		struct rip_point points[512];
 		const char *cursor = arguments;
-		int consumed = 0;
-		int vertices = parse_mega(cursor, 2, &consumed);
+		int vertices;
 		bool valid = true;
 
-		if (consumed == 0 || vertices < 2 || vertices > 512)
+		if (!cterm_rip_read_number(&cursor, 2, &vertices) || vertices < 2 || vertices > 512)
 			break;
-		cursor += consumed;
 		for (int i = 0; i < vertices; i++) {
-			points[i].x = parse_mega(cursor, 2, &consumed);
-			if (consumed == 0) {
+			if (!cterm_rip_read_number(&cursor, 2, &points[i].x)
+			    || !cterm_rip_read_number(&cursor, 2, &points[i].y)) {
 				valid = false;
 				break;
 			}
-			cursor += consumed;
-			points[i].y = parse_mega(cursor, 2, &consumed);
-			if (consumed == 0) {
-				valid = false;
-				break;
-			}
-			cursor += consumed;
 		}
 		/* The legacy descriptor parses every remaining base-36 field,
 		 * but the drawing command uses only the declared vertices. */
 		size_t extra_fields = 0;
 		while (valid && *cursor != '\0') {
+			int ignored;
 			if (extra_fields >= 1025U - (1U + 2U * (size_t)vertices)
-			    || parse_mega(cursor, 2, &consumed) < 0
-			    || consumed == 0) {
+			    || !cterm_rip_read_number(&cursor, 2, &ignored)) {
 				valid = false;
 				break;
 			}
-			cursor += consumed;
 			++extra_fields;
 		}
 		if (valid && (extra_fields & 1U) == 0) {

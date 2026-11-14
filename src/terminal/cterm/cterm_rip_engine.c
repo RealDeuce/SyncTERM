@@ -6,6 +6,7 @@
  */
 
 #include "cterm_rip_engine.h"
+#include "cterm_rip_args.h"
 
 #include "cterm_rip_asset.h"
 #include "io_error.h"
@@ -332,9 +333,12 @@ dispatch_command(void *context, int level, int sublevel, uint8_t code,
 
 	engine->commands_seen++;
 	if (level == 1 && sublevel == 0 && code == 'R') {
-		if (strlen(arguments) < 9)
+		const uint8_t widths[4] = {2, 2, 2, 2};
+		int reserved[4];
+		const char *filename = arguments;
+		if (cterm_rip_read_fields(&filename, widths, 4, reserved) != 4 || *filename == '\0')
 			return 0;
-		return cterm_rip_engine_play_scene(engine, arguments + 8);
+		return cterm_rip_engine_play_scene(engine, filename);
 	}
 	if (level == 0 && sublevel == 0 && code == '$'
 	    && arguments[0] == '>') {

@@ -34,6 +34,30 @@ wire suites check replies, text/colours, cursor and both pixel phases from
 one coherent capture in CP437 and UTF-8. This closes S2/S4 and the mid-ANSI
 SOH/STX priority difference here; the other audit findings remain open.
 
+The numeric follow-up replaces the separate raster, host and file-query
+readers with `cterm_rip_args`: validated signed base-36 conversion, low-word
+reduction, a separate success result and the actual consumed text cursor.
+It closes modern P1 and the conversion portion of S5. Consumers explicitly
+convert bytes/flag words and check indexes, styles, sizes and image modes
+before use. The [modern consumer ledger](RIP154_PARSER.adoc) records those
+checks and retained differences, including safe rejection of unsafe reference
+indexes, supported font sizes and the unresolved descriptor parameter cap.
+`1B` now validates three reserved two-digit fields separately; `1I` validates
+its six-field prefix. The nonpositive `Z` count uses the executable's explicit
+0.005 step, correcting the older residual-register explanation.
+
+`cterm_rip_args` independently checks literal spellings, invalid syntax and
+all 65,536 word values in both positive and negative form. Native consumer
+tests cover signed clipping, byte colours/patterns, high flag bits, reserved
+fields, palette/style/font/image bounds, transfer rejection and recovery.
+Split/bytewise parser expectations include both spellings of `ffff`.
+Each live wire suite adds 27 numeric cases and three Bézier count cases
+with independent replies, cells/cursor/state and literal pixels in both
+planes from coherent captures. These run in CP437 and UTF-8 with physical
+audio disabled. Historical captures and exclusions are unchanged.
+The native FreeBSD CMake configure/build and all 36 selected RIP, SkyPix and
+terminal/session CTests passed after this follow-up.
+
 RIP's two thin-line paths now use `st_bgi_thin_line`, extracted from the
 existing candidate/pattern loop. RIP retains clipping, thickness, coordinate
 mapping, colour/XOR, current-point and error policy. BIG uses the same lower
@@ -218,7 +242,7 @@ The `wire` suite checks both exact query replies and visible results:
   CP437 query byte through both connection encodings.
 - Partial reset semantics: draw colour, fill colour, line width and XOR survive
   `RIP_RESET`. Viewport clipping, world-coordinate scaling, the last drawable
-  pixel, the legacy zero-count Bezier default (`0x3FC`), malformed polygon counts
+  pixel, the executable's nonpositive-count Bézier step (`0.005`), malformed polygon counts
   and missing reserved font parameters.
 - All five RIP 1.54 text-window font sizes, preservation of graphics across text
   window reinitialization, disabled ordinary text, and a fixed bitmap expectation
@@ -258,8 +282,9 @@ visible.
 
 The tables below retain the original audited baselines and reproductions.
 The interleaving follow-up above closes modern S2/S4 and the mid-ANSI
-SOH/STX issue. Subsequent legacy commits `6cd3be1d5e`, `06f0a7fec7` and
-`8781091d92` also postdate the v1.10b baseline below; do not read its rows
+SOH/STX issue; the numeric follow-up closes P1 and S5's word conversion.
+S5's parameter limits remain open. Subsequent legacy commits `6cd3be1d5e`,
+`06f0a7fec7` and `8781091d92` also postdate the v1.10b baseline below; do not read its rows
 as assertions that those fixes are still absent from current legacy HEAD.
 
 The parser is **not fully compliant** with the findings in
@@ -274,8 +299,8 @@ internal errors and unsafe reference accesses. It distinguishes RIP's cached
 command state from effective BGI state and records corrections to the older
 research, including the explicit Bézier nonpositive-count step of `0.005`,
 the image mode table's unchecked byte index, and `1G`'s use of its nominally
-reserved fifth argument during alignment. These are documentation findings;
-production parser/handler fixes remain outstanding.
+reserved fifth argument during alignment. The follow-ups above distinguish
+implemented fixes from the remaining parser/handler work.
 
 This comparison used modern commit `794e369`, legacy v1.10b commit
 `74cce5b27a610bddb4a05236c011b76747619122` (the current form of the issue #2
@@ -347,12 +372,12 @@ because the RIPterm 1.54 descriptor table lacks them.
 | --- | --- |
 | Q1: ANSI/RIP separation, autosense and unknown CSI | Known one-way policy; P2/S6 remain unresolved. Unknown ordinary CSI finals are consumed by the base ANSI parser. |
 | Q2: unconditional backslash preprocessing and continuation | Generic escapes and escaped pipes pass the focused vectors. S1 covers the longer delimiter runs; do not extrapolate parity from the passing one/two/three-slash CR cases. |
-| Q3: introducers, byte history and cursor fallback | Normal BOL/mid-column/escaped cases and every split pass existing tests; S3/S4 remain. The mid-ESC SOH/STX summary in the notes conflicts with the actual branch flow described below. |
+| Q3: introducers, byte history and cursor fallback | Normal BOL/mid-column/escaped cases and every split pass existing tests. Modern S4 and mid-ESC SOH/STX are fixed; S3 remains. The notes' conflicting summary is corrected below. |
 | Q4: pre-dispatch viewport/cursor helper | The modern boundary callback commits text before graphics; the legacy helper has no command-buffer side effects. Existing real-renderer cursor/split tests cover that ordering. |
-| Q5: descriptors, meganums, freeform text | Empty `T`/`@` graphic text becomes a space in the raster path. P1/S5/S7 and numeric parameter limits prevent a full decoder compliance claim. |
+| Q5: descriptors, meganums, freeform text | Empty `T`/`@` graphic text becomes a space. P1 and signed/word conversion are fixed; S7, parameter limits and the consumer differences in the argument ledger prevent a full compliance claim. |
 | Q6: lone introducer followed by CR | `!`, SOH and STX release both bytes; native split probes pass. |
 | Q7: embedded C0 data | The listed non-NUL C0 bytes other than LF/CR remain command data; 29 independent byte vectors pass at every split and bytewise. LF is swallowed and CR dispatch/continuation is separately covered. |
-| EBC and `RIP_NO_MORE` | Printable/LF/VT completion and repeated `#` are covered; no dedicated NO_MORE state exists. S2 is the uncovered ESC priority case. |
+| EBC and `RIP_NO_MORE` | Printable/LF/VT/ESC completion and repeated `#` are covered; no dedicated NO_MORE state exists. Modern S2 is fixed. |
 | `P`/`p` and colour-zero outline | Both use the polygon renderer; colour-zero fill remains active while the outline is suppressed. Existing native/historical raster cases cover this. Malformed counts are rejected instead of reproducing reference reads of unavailable coordinates. |
 | Stream boundaries | Network write boundaries do not flush commands. Explicit local EOF flush is an extension; its use on live wire state is P3. |
 

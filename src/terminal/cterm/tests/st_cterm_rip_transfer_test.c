@@ -73,8 +73,13 @@ int st_cterm_rip_transfer_test_main(void)
 	}
 	CHECK(feed(terminal, "!|9\x1b" "17ZZ0000ASSET.RIP<>\r") == 0);
 	CHECK(capture.upload); /* File type ignored for uploads. */
+	CHECK(feed(terminal, "!|9\x1b" "17-1-001ASSET.RIP<>\r") == 0);
+	CHECK(capture.upload && capture.type == 65535u);
+	CHECK(feed(terminal, "!|9\x1b" "17011EKFASSET.RIP<>\r") == 0);
+	CHECK(capture.upload && capture.type == 1);
 	unsigned before = capture.requests, cancellations = capture.cancellations;
 	const char *invalid[] = {
+	    "!|9\x1b" "07-10000ASSET.RIP<>\r", /* Negative download type is invalid. */
 	    "!|9\x1b" "07010000<>|#\r", /* CR is mandatory. */
 	    "!|9\x1b" "07010000\r", "!|9\x1b" "0701000<>\r", "!|9\x1b" "27010000<>\r",
 	    "!|9\x1b" "08010000<>\r", "!|9\x1b" "04010000FILE.RIP<>\r", "!|9\x1b" "07060000<>\r",

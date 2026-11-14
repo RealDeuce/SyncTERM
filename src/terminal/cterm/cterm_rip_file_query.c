@@ -3,6 +3,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
 #include "cterm_rip_file_query.h"
+#include "cterm_rip_args.h"
 
 #include "cterm_rip_asset.h"
 #include "cterm_rip_time.h"
@@ -14,16 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int
-mega_digit(char byte)
-{
-	if (byte >= '0' && byte <= '9') return byte - '0';
-	if (byte >= 'A' && byte <= 'Z') return byte - 'A' + 10;
-	if (byte >= 'a' && byte <= 'z') return byte - 'a' + 10;
-	if (byte == '-') return 0;
-	return -1;
-}
-
 int
 cterm_rip_file_query(char **response, size_t *response_size,
     const char *directory, const char *arguments)
@@ -34,7 +25,8 @@ cterm_rip_file_query(char **response, size_t *response_size,
 	struct tm local;
 	uint64_t size;
 	int64_t modified_time;
-	int mode = 0, status, written;
+	int fields[2], mode, status, written;
+	const uint8_t widths[2] = {2, 4};
 	bool readable;
 	size_t capacity, name_size;
 	time_t timestamp;
@@ -45,19 +37,12 @@ cterm_rip_file_query(char **response, size_t *response_size,
 	*response_size = 0;
 	/* The legacy command descriptor is 2#4#++, despite the abbreviated
 	 * field widths in the command's prose comment. */
-	if (directory == NULL || strlen(arguments) < 7)
+	name = arguments;
+	if (directory == NULL || cterm_rip_read_fields(&name, widths, 2, fields) != 2)
 		return 0;
-	for (size_t i = 0; i < 6; i++) {
-		int digit = mega_digit(arguments[i]);
-
-		if (digit < 0)
-			return 0;
-		if (i < 2)
-			mode = mode * 36 + digit;
-	}
-	if (mode > 4)
+	mode = fields[0];
+	if ((unsigned)mode > 4 || *name == '\0')
 		return 0;
-	name = arguments + 6;
 	/* Keep malformed or unsafe names silent, as in the legacy parser. */
 	status = cterm_rip_asset_get_info(&size, &modified_time, &readable,
 	    directory, name);
