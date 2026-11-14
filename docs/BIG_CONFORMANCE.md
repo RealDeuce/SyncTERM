@@ -1346,3 +1346,5 @@ replies/RNG. Native W is implemented; global45-entry/final acceptance remains
 pending. The next requested command order is t, then ?.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The initial full build emitted generated-dependency timestamp jitter notices; the final full build and focused build passed cleanly. All43 BIG-specific native CTests passed in48.43s. syncterm_big_input passed in141.68s (test141.61s),2856 coherent scenes. The final strengthened cterm_big_text passed in1.21s (test1.09s), including all four current faces and padding-independent image retention. No non-BIG tests ran; the final full regression suite remains deferred. Native W is implemented; global45-entry/final acceptance stays pending. Next requested order: t, then ?.
+
+Native W graphical text implementation commit: `83acdfc`.
