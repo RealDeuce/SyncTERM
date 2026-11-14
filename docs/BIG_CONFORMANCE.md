@@ -2002,3 +2002,7 @@ are independent expectations. b/n command/stream integration remains pending.
 
 
 Native FreeBSD CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. big_speaker passed in0.10s total (test0.03s). With fixed source gain0.279224085, the raw weighted difference is-0.120111dB/peak9149 and the actual -12dB mixer output differs from the ANSI/beep reference by less than0.000001dB, peak2294. No physical audio/device, auditory or b/n wire acceptance is claimed. Only the focused BIG test ran; non-BIG regressions and the unchanged3934 application scenes were not rerun. The active full goal and goal-final full suite remain outstanding.
+
+
+Shared native speaker/fixed normalization commit: `e78f697`. b/n wire and
+stream ownership, OPL2 playback/gain and full-goal acceptance remain pending.
