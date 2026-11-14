@@ -4305,3 +4305,6 @@ The all-command/foundation status fields retain their stricter whole-goal
 acceptance gates. No original audio producer/device coverage, manual listening
 or goal-final cross-emulation full-suite result is claimed here. Implement
 b/n/N and perform the required final suite before completing the full goal.
+
+
+Native X7/entry and verified non-audio publishing checkpoint commit: `8687007`.

@@ -87,7 +87,7 @@
         },
         {
           "id": "resumable-command-entry",
-          "status": "in-progress",
+          "status": "complete",
           "operations": [
             "Optional entry callback retries after a complete header and before fields/source/unknown dispatch; successful entry runs once, and failure cancels grammar. Source-selected and missing-header paths share it. Unset callbacks preserve existing protocol behavior."
           ],
@@ -95,7 +95,7 @@
             "big_sync",
             "cterm_big_sync"
           ],
-          "commit": null
+          "commit": "8687007"
         }
       ]
     },
@@ -2370,7 +2370,8 @@
         "X4 counted loading and its three specials now use the same dispatch/source/footer path; pointer/hit testing and the remaining selectors remain pending.",
         "X1 now owns conditional slot/alter/row acquisition, immediate edit prefixes, restoration and common source/footer lifetimes. X4/X6 and unknown arities are preserved; other children/global composition remain pending.",
         "Native selector implementations now cover X0..X6 and X8 through shared acquisition/footer and their focused/coherent fixtures. X3 adds immediate custom text ratios and correct initial1/1 private state. X7/audio/global composition and complete parent acceptance remain pending.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending.",
+        "Native X7/entry implementation and verified non-audio publishing checkpoint commit:8687007. The active full45-entry goal, b/n/N audio production and final full-suite acceptance remain outstanding."
       ],
       "commit": null
     },
@@ -4126,7 +4127,8 @@
       ],
       "verification": [
         "Independent tests sweep every sync and LOW WORD, live scratch/high/flag changes and repeatable parser gate success/error/cancel/EOF/source/fallback boundaries. Native split/bytewise profile tests retain complete indexed planes/state and check queued disable, unread keys/tails, chain resnapshot, internal repetition bypass and reset/EOF/reconnect/nonfatal recovery.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending.",
+        "Native X7/entry implementation and verified non-audio publishing checkpoint commit:8687007. The active full45-entry goal, b/n/N audio production and final full-suite acceptance remain outstanding."
       ],
       "commit": null
     },
@@ -4315,7 +4317,7 @@
       "Audio allocation must publish actual music-memory availability for ?2.",
       "Implement b/n/N synthesis/playback/lifecycle and complete the goal-final full regression suite."
     ],
-    "completion_commit": null,
+    "completion_commit": "8687007",
     "acceptance_scope": "Verified native non-audio implementation satisfies the user-authorized publishing checkpoint. Existing command/foundation status fields retain their stricter whole-goal acceptance gates; this does not complete or redefine the45-entry goal."
   }
 }

@@ -1942,3 +1942,6 @@ b/n/N command bodies remaining. X7 real callback publication and ?2 allocation
 availability belong to that audio work. Whole-goal acceptance and the final
 full regression suite remain outstanding; historical ledger status fields
 retain those stricter completion gates. The active goal is unchanged.
+
+
+Native X7/entry and verified non-audio publishing checkpoint commit: `8687007`.
