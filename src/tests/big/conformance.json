@@ -2326,12 +2326,16 @@
         "Calibrate BIG OPL2 and speaker source levels against existing ANSI music and beep output at equivalent channel/master settings, avoiding unintended loudness jumps or drops. Use stable source gain preserving encoded dynamics/relative voice levels; verify representative mixed-output PCM AC RMS and peaks through the real mixer, including polyphonic headroom/clipping and existing volume controls.",
         "Use a square oscillator with a small stateful low-pass filter for the approved softened PC-speaker timbre, sharing suitable mechanisms with the IGS PSG. b and n use the same low-level speaker generator on channel1: b supplies twenty original procedural frequency/stop/delay effect schedules and shared RNG calls; n supplies notes/sweeps. b does not invoke n parsing and requires no stored PCM samples.",
         "Before accepting Opal, independently test and resolve required YM3812 waveform-select enable and register08 bit7 CSW/CSM semantics: the current upstream core models YMF262 compatibility, explicitly storing but ignoring those controls. Current MIT Opal includes rhythm/noise and timers/status; the older public-domain copy does not establish its capabilities.",
-        "Keep the OPL2 register map,9 two-operator channels/18 operators,4 waveforms with actual YM3812 enable semantics, rhythm/noise, envelopes/keys, timers/status and required CSM behavior. Remove second-bank/extra-channel/operator state, four-operator pairing, OPL3 extra waveforms/NEW mode/chip stereo-panning controls. Route OPL2 mono through normal stereo mixer/channel0 controls and verify independent register/PCM-level/lifecycle expectations."
+        "Keep the OPL2 register map,9 two-operator channels/18 operators,4 waveforms with actual YM3812 enable semantics, rhythm/noise, envelopes/keys, timers/status and required CSM behavior. Remove second-bank/extra-channel/operator state, four-operator pairing, OPL3 extra waveforms/NEW mode/chip stereo-panning controls. Route OPL2 mono through normal stereo mixer/channel0 controls and verify independent register/PCM-level/lifecycle expectations.",
+        "Native n uses the shared speaker owner on existing channel1 with fixed source gain, local delay deadlines, muted phase advancement and explicit callback quiescence. b schedules/N integration and continuous-source fade-out flush remain pending."
       ],
       "tests": [
         "big_opl2",
         "syncterm_big_opl2_license",
-        "big_speaker"
+        "big_speaker",
+        "cterm_big_note",
+        "big_session_pacing",
+        "syncterm_big_input"
       ],
       "references": [
         "01-scope-evidence.adoc",
@@ -2394,6 +2398,40 @@
             "Implementation commit:e78f697. Production speaker code contains fixed integer normalization only; temporary calibration/cache/mixer-probe changes are absent. b/n native parser/schedule/stream ownership remains pending."
           ],
           "commit": "e78f697"
+        },
+        {
+          "id": "native-n-and-channel1-speaker-owner",
+          "status": "complete",
+          "operations": [
+            "Dynamic resumable class0 mode/operand acquisition using the existing numeric source/wire reader. Unsupported modes read only MODE; mode0 clamps pitch after off, mode1 clamps STEP before stepDelay. Supplied WORDs bypass scaling.",
+            "Independent current mode tests; mode0 F/D/optional nonzero Z, signed strict mode1 endpoints and WORD ramp updates. No endpoint frequency correction, effect-mute/registration gate, entry stop, cycle rejection or total iteration cap.",
+            "Translate unsigned delay WORD milliseconds into saturating local monotonic deadlines. Hold parser/key delivery during delays and bounded ramp work; keep normal numeric acquisition and backlog pacing, with no inner keyboard poll or serial flow control.",
+            "Use shared fixed-gain speaker through existing logical channel1 and mixer consumer; preserve running phase, decay stop tails, advance muted phase, use existing volume ramps/busy/immediate flush and support explicit native FX takeover.",
+            "Quiesce callbacks on EOF/reset/destroy. Nonfatal command/audio errors preserve accepted effects and unread ANSI bytes; suppress repeat clock faults until a fresh accepted F or reset. Group coherent audio inspection into one bounded record."
+          ],
+          "tests": [
+            "big_speaker",
+            "cterm_big_note",
+            "big_session_pacing",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "14-speaker-effects-and-notes.adoc",
+            "66-speaker-command-acceptance.adoc",
+            "07-text-and-speaker.adoc"
+          ],
+          "deviations": [
+            "User-directed native adaptation: local monotonic millisecond deadlines and local sample phase replace PIT0/port/BIOS clocks. No foreign interrupt/frame mutation is invented between adjacent scalar operations.",
+            "Native source state has explicit mutex/callback ownership. Output unavailable progresses muted; policy mute drops acoustic history and advances phase. Reset/EOF stop and detach rather than retain a foreign hardware gate beyond the terminal lifetime.",
+            "Global n acceptance remains open with audio/global/final-suite composition, including continuous-source fade-out flush behavior."
+          ],
+          "verification": [
+            "All64 BIG-specific native CTests passed in76.01s. Independent note tests cover default splits/bytewise input across3 modes, CP437/UTF8/status, complete indexed planes/state/images/replies, class0 read ordering/timeouts/supplied loops/chains, unsigned holds, mode mutation, nonterminating WORD ramps, keys and clock/reset/EOF recovery.",
+            "The real shell-connection/session test covers t/n paced and unpaced tails in CP437/UTF8; device-free n pulls cover fixed-gain PCM at default/separate gains, APC volume ramps/busy/flush, phase continuity, mute/resume, stop tail, FX takeover and concurrent teardown.",
+            "Native FreeBSD CMake Release configure/full builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All64 BIG-specific native CTests passed in76.01s. After bounding the test consumer demand and grouping audio inspection, the final focused speaker/note/pacing checks passed in3.58s (note0.76s, pacing2.71s). syncterm_big_input passed in199.26s total (test199.19s),4046 coherent scenes including112 new n scenes with all earlier expectations retained. The first application attempt exposed capture-field exhaustion; related audio fields were grouped without weakening any scene assertion. No non-BIG tests ran and no physical audio/MIDI/auditory coverage is claimed. Native n integration is verified; b/N, continuous-source fade-out flush and goal-final acceptance remain pending.",
+            "Final native full rebuild after const-correct inspection cleanup was warning-free; cterm_big_note passed again in0.81s total (test0.72s)."
+          ],
+          "commit": null
         }
       ]
     }
@@ -4135,7 +4173,7 @@
     {
       "id": "n",
       "order": 39,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4143,12 +4181,34 @@
         "big-audio"
       ],
       "references": [
-        "66-speaker-command-acceptance.adoc"
+        "14-speaker-effects-and-notes.adoc",
+        "66-speaker-command-acceptance.adoc",
+        "07-text-and-speaker.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Dynamic resumable class0 mode/operand acquisition using the existing numeric source/wire reader. Unsupported modes read only MODE; mode0 clamps pitch after off, mode1 clamps STEP before stepDelay. Supplied WORDs bypass scaling.",
+        "Independent current mode tests; mode0 F/D/optional nonzero Z, signed strict mode1 endpoints and WORD ramp updates. No endpoint frequency correction, effect-mute/registration gate, entry stop, cycle rejection or total iteration cap.",
+        "Translate unsigned delay WORD milliseconds into saturating local monotonic deadlines. Hold parser/key delivery during delays and bounded ramp work; keep normal numeric acquisition and backlog pacing, with no inner keyboard poll or serial flow control.",
+        "Use shared fixed-gain speaker through existing logical channel1 and mixer consumer; preserve running phase, decay stop tails, advance muted phase, use existing volume ramps/busy/immediate flush and support explicit native FX takeover.",
+        "Quiesce callbacks on EOF/reset/destroy. Nonfatal command/audio errors preserve accepted effects and unread ANSI bytes; suppress repeat clock faults until a fresh accepted F or reset. Group coherent audio inspection into one bounded record."
+      ],
+      "tests": [
+        "big_speaker",
+        "cterm_big_note",
+        "big_session_pacing",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "User-directed native adaptation: local monotonic millisecond deadlines and local sample phase replace PIT0/port/BIOS clocks. No foreign interrupt/frame mutation is invented between adjacent scalar operations.",
+        "Native source state has explicit mutex/callback ownership. Output unavailable progresses muted; policy mute drops acoustic history and advances phase. Reset/EOF stop and detach rather than retain a foreign hardware gate beyond the terminal lifetime.",
+        "Global n acceptance remains open with audio/global/final-suite composition, including continuous-source fade-out flush behavior."
+      ],
+      "verification": [
+        "All64 BIG-specific native CTests passed in76.01s. Independent note tests cover default splits/bytewise input across3 modes, CP437/UTF8/status, complete indexed planes/state/images/replies, class0 read ordering/timeouts/supplied loops/chains, unsigned holds, mode mutation, nonterminating WORD ramps, keys and clock/reset/EOF recovery.",
+        "The real shell-connection/session test covers t/n paced and unpaced tails in CP437/UTF8; device-free n pulls cover fixed-gain PCM at default/separate gains, APC volume ramps/busy/flush, phase continuity, mute/resume, stop tail, FX takeover and concurrent teardown.",
+        "Native FreeBSD CMake Release configure/full builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All64 BIG-specific native CTests passed in76.01s. After bounding the test consumer demand and grouping audio inspection, the final focused speaker/note/pacing checks passed in3.58s (note0.76s, pacing2.71s). syncterm_big_input passed in199.26s total (test199.19s),4046 coherent scenes including112 new n scenes with all earlier expectations retained. The first application attempt exposed capture-field exhaustion; related audio fields were grouped without weakening any scene assertion. No non-BIG tests ran and no physical audio/MIDI/auditory coverage is claimed. Native n integration is verified; b/N, continuous-source fade-out flush and goal-final acceptance remain pending.",
+        "Final native full rebuild after const-correct inspection cleanup was warning-free; cterm_big_note passed again in0.81s total (test0.72s)."
+      ],
       "commit": null
     },
     {

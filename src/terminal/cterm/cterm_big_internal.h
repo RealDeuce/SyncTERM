@@ -17,6 +17,7 @@
 #include "st_big_flood.h"
 #include "st_big_video.h"
 #include "st_big_image.h"
+#include "cterm_big_audio.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -93,6 +94,18 @@ struct cterm_big_pause {
 	uint64_t deadline, sample;
 	bool chained, number_started, wire, expired, sampled;
 };
+enum cterm_big_note_phase { CTERM_BIG_NOTE_OFF, CTERM_BIG_NOTE_MODE,
+	CTERM_BIG_NOTE_CHECK0, CTERM_BIG_NOTE_READ0, CTERM_BIG_NOTE_SOUND0,
+	CTERM_BIG_NOTE_CHECK1, CTERM_BIG_NOTE_READ1, CTERM_BIG_NOTE_SELECT,
+	CTERM_BIG_NOTE_RAMP, CTERM_BIG_NOTE_UPDATE, CTERM_BIG_NOTE_TAIL,
+	CTERM_BIG_NOTE_STOP, CTERM_BIG_NOTE_WAIT, CTERM_BIG_NOTE_DONE };
+struct cterm_big_note {
+	enum cterm_big_note_phase phase, after_wait;
+	uint16_t mode, from, to, step, delay, sustain, off, current;
+	unsigned index;
+	uint64_t deadline, sample;
+	bool active, chained, ascending, number_started, wire, sampled, single;
+};
 enum cterm_big_query_phase { CTERM_BIG_QUERY_OFF, CTERM_BIG_QUERY_READY,
 	CTERM_BIG_QUERY_VERSION, CTERM_BIG_QUERY_REGISTERED, CTERM_BIG_QUERY_RESOLUTION,
 	CTERM_BIG_QUERY_RESOLUTION_COLON, CTERM_BIG_QUERY_MEMORY,
@@ -157,6 +170,8 @@ struct cterm_big {
 	struct cterm_big_text_output text_output;
 	struct cterm_big_pause pause;
 	struct cterm_big_query query;
+	struct cterm_big_note note;
+	struct cterm_big_audio *audio;
 	/* Available AdLib music-buffer flag, separate from mute/playback.
 	 * Zero until the audio owner installs its buffer; retained across I/R. */
 	uint16_t music_memory;
@@ -206,6 +221,9 @@ int cterm_big_collect_cancel(struct cterm_big *);
 int cterm_big_collect_sample(struct cterm_big *, const struct cterm_big_mouse_sample *);
 int cterm_big_pmarker(struct cterm_big *, uint16_t x, uint16_t y);
 bool cterm_big_input_owned(const struct cterm_big *);
+void cterm_big_note_begin(struct cterm_big *, bool chained);
+int cterm_big_note_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, size_t *, bool *);
+bool cterm_big_note_paused(const struct cterm_big *);
 void cterm_big_pause_begin(struct cterm_big *, bool chained);
 int cterm_big_query_begin(struct cterm_big *, const struct st_graphics_command_view *);
 /* The initial readiness request precedes every selector test. Send retries

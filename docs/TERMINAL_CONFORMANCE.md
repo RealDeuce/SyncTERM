@@ -1508,3 +1508,19 @@ cover phase/frequency/stop/skip/partition/error state, literal PCM, harmonic
 softening and weighted reference level through the real device-free mixer.
 Normalization is measured during development and hard-coded; no BIG runtime
 calibration is added. b/n wire and stream ownership remain pending.
+
+
+BIG n notes/sweeps now use the shared fixed-gain speaker source on existing
+logical channel1. Independent tests cover dynamic class0 acquisition,
+endpoint-exclusive signed WORD sweeps, retained low-frequency requests,
+unsigned local-millisecond waits, split input and complete retained scenes;
+real session pacing holds the backlog without XON/XOFF. Device-free mixer
+checks include channel controls, phase/mute/stop/FX handoff and callback
+shutdown. Deferred failures preserve ordinary ANSI input. b/N playback,
+continuous-source fade-out flush, actual music progress/allocation and the
+full-goal regression remain pending; no physical audio coverage is claimed.
+
+
+Native FreeBSD CMake Release configure/full builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All64 BIG-specific native CTests passed in76.01s. After bounding the test consumer demand and grouping audio inspection, the final focused speaker/note/pacing checks passed in3.58s (note0.76s, pacing2.71s). syncterm_big_input passed in199.26s total (test199.19s),4046 coherent scenes including112 new n scenes with all earlier expectations retained. The first application attempt exposed capture-field exhaustion; related audio fields were grouped without weakening any scene assertion. No non-BIG tests ran and no physical audio/MIDI/auditory coverage is claimed. Native n integration is verified; b/N, continuous-source fade-out flush and goal-final acceptance remain pending.
+
+Final native full rebuild after const-correct inspection cleanup was warning-free; cterm_big_note passed again in0.81s total (test0.72s).

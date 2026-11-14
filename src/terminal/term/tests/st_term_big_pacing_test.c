@@ -1,4 +1,4 @@
-/* BIG t backpressure through the real connection/session pacing boundary. */
+/* BIG t/n backpressure through the real connection/session pacing boundary. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_term.h"
 #include "cterm.h"
@@ -26,14 +26,17 @@ static void pump(st_term_session_t *session)
 	enum st_term_disposition disposition; bool finished;
 	CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished);
 }
-static void run(bool utf8, bool paced)
+static void run(bool utf8, bool paced, bool note)
 {
 	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry={.columns=80,.rows=25,.cell_width=8,.cell_height=14};
 	st_console_t *console=NULL; st_font_catalog_t *fonts=NULL; st_connection_t *connection=NULL; st_term_session_t *session=NULL;
 	CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
 	struct st_profile profile; st_profile_init(&profile); profile.connection_type=ST_CONNECTION_SHELL;
-	strcpy(profile.address,"printf 'I#t 1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\\33[6n'; read line");
+	strcpy(profile.address,note?"printf 'I#n 0,440,1000,1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\\33[6n'; read line":
+	    "printf 'I#t 1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\\33[6n'; read line");
+	const char *wire=note?"I#n 0,440,1000,1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n":"I#t 1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n";
+	size_t total=strlen(wire), prefix=total-30;
 	CHECK(st_term_connect_profile(&connection,&profile,console,NULL,NULL)==0);
 	struct observations o={0}; local_ns=1000;
 	const struct st_term_config config={.console=console,.fonts=fonts,.connection=connection,
@@ -46,20 +49,20 @@ static void run(bool utf8, bool paced)
 	uint64_t start,current; CHECK(st_time_monotonic_ms(&start)==0);
 	do { pump(session); CHECK(st_time_monotonic_ms(&current)==0); }
 	while (!st_cterm_input_paused(t) && current-start<2000);
-	CHECK(st_cterm_input_paused(t) && o.count==6 && o.replies==0 && t->xpos==1);
+	CHECK(st_cterm_input_paused(t) && o.count==prefix && o.replies==0 && t->xpos==1);
 	st_term_session_set_throttle_speed(session,paced?1000:0);
 	/* Real pump ticks accumulate enough time to expose a 100 ms credit
 	 * bank. No sleeping inside the parser or a framebuffer callback. */
-	for (unsigned i=0;i<20;++i) { pump(session); CHECK(o.count==6 && o.replies==0); }
+	for (unsigned i=0;i<20;++i) { pump(session); CHECK(o.count==prefix && o.replies==0); }
 	local_ns+=UINT64_C(1000000000); pump(session);
 	CHECK(!st_cterm_input_paused(t));
-	if (paced) CHECK(o.count<=7 && t->xpos<=2 && o.replies==0);
-	else CHECK(o.count==36 && o.replies==7 && memcmp(o.reply,"\033[1;27R",7)==0);
+	if (paced) CHECK(o.count<=prefix+1 && t->xpos<=2 && o.replies==0);
+	else CHECK(o.count==total && o.replies==7 && memcmp(o.reply,"\033[1;27R",7)==0);
 	st_term_session_set_throttle_speed(session,0);
 	for (unsigned i=0;i<10 && o.replies==0;++i) pump(session);
-	CHECK(o.count==36 && memcmp(o.wire,"I#t 1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n",36)==0);
+	CHECK(o.count==total && memcmp(o.wire,wire,total)==0);
 	CHECK(o.replies==7 && memcmp(o.reply,"\033[1;27R",7)==0 && t->xpos==27 && t->ypos==1);
 	st_term_session_destroy(&session); CHECK(st_connection_close(connection)==0);
 	st_profile_dispose(&profile); st_font_catalog_destroy(fonts); st_console_destroy(console);
 }
-int main(void) { for (unsigned utf8=0;utf8<2;++utf8) for (unsigned paced=0;paced<2;++paced) run(utf8,paced); return 0; }
+int main(void) { for (unsigned utf8=0;utf8<2;++utf8) for (unsigned paced=0;paced<2;++paced) for (unsigned note=0;note<2;++note) run(utf8,paced,note); return 0; }

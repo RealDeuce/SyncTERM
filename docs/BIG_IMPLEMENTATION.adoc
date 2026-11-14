@@ -42,7 +42,8 @@ All six curve commands have native wire integration. X7 now has its raw
 WORD setter and resumable pair-entry music-progress gate. Its serialized
 progress interface is tested independently; the audio producer will publish
 real callback progress when N is implemented. The standalone YM3812 core and its full MIT license UI are implemented;
-speaker/music playback and the goal-final whole-suite acceptance remain pending. Earlier verification sections retain
+native n notes/sweeps now use the shared speaker source and channel1. b effects,
+N music playback and the goal-final whole-suite acceptance remain pending. Earlier verification sections retain
 their historical completion counts and outstanding-work descriptions; the
 latest checkpoint section records current scope.
 The implementation ledger is
@@ -4518,3 +4519,76 @@ Native FreeBSD CMake Release configure/full build and final focused build (/usr/
 
 Shared native speaker/fixed normalization commit: `e78f697`. b/n wire and
 stream ownership, OPL2 playback/gain and full-goal acceptance remain pending.
+
+
+== Native n notes, sweeps and speaker stream ownership
+
+The resumable n body reads its mode and branch operands through the existing
+class0 source/wire reader. Its dynamic arity does not consume a guessed suffix
+for unsupported modes. Mode0 obtains pitch/sustain/off before clamping signed
+negative pitch to0. Mode1 clamps signed STEP below1 immediately after STEP,
+before the next acquisition. Supplied values retain their WORDs without g3
+scaling. The independent current mode0/mode1 tests are retained; a serialized
+owner change during the first branch's wait can select the second branch.
+
+Mode0 requests F(pitch), waits the unsigned sustain in local milliseconds and
+stops for any nonzero off. It adds no entry stop, sound-on gate or registration
+gate. F0..18 retain the previous tone. Mode1 uses signed strict endpoint tests
+and WORD add/subtract, issuing no F(TO).100->150/step30 programs100 then130;
+150->100 programs150 then120. Equal endpoints perform only sustain/stop.
+The ascending tail reloads TO into FROM, so its immediately following
+comparison cannot select descending under the native serialized ownership.
+No foreign IRQ/frame mutation is synthesized between adjacent scalar loads.
+Even/odd WORD ramps which cannot reach their endpoints stay pending, with a
+bounded per-poll work allowance and no cycle rejection or total iteration cap.
+
+Each D translates its current unsigned millisecond WORD to one saturating
+local monotonic deadline. There are no foreign PIT0/BIOS counters, retiming,
+cycle delays or per-frequency hardware-operation clocks. D0 still samples
+the local clock. During a delay/ramp the parser holds incoming bytes and
+local keys; inner waits do not poll, drain or abort on a key. Ordinary number
+acquisition keeps its existing pacing/source checkpoints. The actual session
+fixture verifies that the backlog remains paced after both t and n, including
+the first resume tick, with no software flow-control bytes.
+
+The private speaker owner attaches a continuous source to the existing
+channel1 fx_stream; it creates no playback thread. Only oscillator/error state
+is protected by its mutex. Mixer APIs are called outside that mutex; detach
+quiesces the existing callback before freeing its context. Running pitch
+changes preserve source phase. The fixed gain remains279224085/1000000000,
+with the existing -12dB channel gain and ordinary volume/ramp/busy/flush controls.
+A stop gates the square input and lets the low-pass tail decay. A cleared
+channel stays stopped until a new accepted F. A different native FX producer
+explicitly takes over channel1. Policy muting instead retains gate/frequency
+and advances unheard phase without accumulating or replaying PCM; re-enabling
+attaches the live source. Unavailable output logs once and progresses muted.
+
+EOF, terminal reset and destruction detach/stop the source. A rejected command
+retains accepted frequency effects. Audio servicing occurs before caller-byte
+consumption, so a deferred failure cannot drop an ordinary ANSI byte. A failed
+or backward clock is a nonfatal rejection; repeated audio clock failures are
+suppressed until a new accepted frequency request or explicit reset.
+Related music-memory/progress and speaker fields share one immutable
+`cterm.big_audio` inspection record, preserving the bounded capture capacity.
+
+The independent native fixture covers every default split and bytewise input
+in all three modes, CP437/UTF-8 and both status settings; complete indexed
+planes, graphics/image/page/point retention and exact DSR/deferred ff replies;
+late pitch clamp/early STEP clamp, numeric timeouts, supplied loops/chains,
+unsigned65535-ms holds, independent mode tests, infinite WORD-wrap sweeps,
+retained keys, deadline saturation, clock failures and callback resets.
+Device-free pulls compare calibrated PCM through the real mixer at default
+and separate left/right gains, APC channel1 volume ramps/busy/flush, phase
+continuity, muted phase advancement, stop tails, FX handoff, EOF/reset/runtime
+stop and destruction while a separately owned test consumer pulls. That test
+consumer has bounded demand and is explicitly stopped/joined before runtime
+teardown. Physical audio/MIDI remain disabled.
+
+Native n is integrated. b schedules, N playback/gain/buffer allocation and
+real X7 progress, continuous-source fade-out flush behavior, the manual audio
+checklist and the full-goal regression/acceptance remain pending.
+
+
+Native FreeBSD CMake Release configure/full builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All64 BIG-specific native CTests passed in76.01s. After bounding the test consumer demand and grouping audio inspection, the final focused speaker/note/pacing checks passed in3.58s (note0.76s, pacing2.71s). syncterm_big_input passed in199.26s total (test199.19s),4046 coherent scenes including112 new n scenes with all earlier expectations retained. The first application attempt exposed capture-field exhaustion; related audio fields were grouped without weakening any scene assertion. No non-BIG tests ran and no physical audio/MIDI/auditory coverage is claimed. Native n integration is verified; b/N, continuous-source fade-out flush and goal-final acceptance remain pending.
+
+Final native full rebuild after const-correct inspection cleanup was warning-free; cterm_big_note passed again in0.81s total (test0.72s).

@@ -79,6 +79,8 @@ endif()
 
 add_library(st_cterm STATIC
 	cterm_big.c
+	cterm_big_audio.c
+	cterm_big_note.c
 	cterm_big_draw.c
 	cterm_big_pages.c
 	cterm_big_images.c
@@ -339,6 +341,16 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_big_text COMMAND st_cterm_big_text_test)
 	set_tests_properties(cterm_big_text PROPERTIES TIMEOUT 30)
+	add_executable(st_cterm_big_note_test tests/st_cterm_big_note_test.c)
+	target_link_libraries(st_cterm_big_note_test PRIVATE st_cterm st_big)
+	set_target_properties(st_cterm_big_note_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_big_note_test PRIVATE /W4)
+	else()
+		target_compile_options(st_cterm_big_note_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME cterm_big_note COMMAND st_cterm_big_note_test)
+	set_tests_properties(cterm_big_note PROPERTIES TIMEOUT 30)
 	add_executable(st_cterm_big_pause_test tests/st_cterm_big_pause_test.c)
 	target_link_libraries(st_cterm_big_pause_test PRIVATE st_cterm st_big)
 	set_target_properties(st_cterm_big_pause_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

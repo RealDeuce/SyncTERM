@@ -40,7 +40,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None, terminal_position=None, pixel_rects=(), music_sync=0):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None, terminal_position=None, pixel_rects=(), music_sync=0, speaker=None):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -57,9 +57,13 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_flood_active"]
     assert not s["cterm.big_rotation_active"]
     assert not s["cterm.big_query_active"]
-    assert s["cterm.big_music_memory"] == 0
-    assert tuple(map(int, s["cterm.big_music"].split(","))) == (music_sync, 0, 0, 0, 0, 0)
+    audio = tuple(map(int, s["cterm.big_audio"].split(",")))
+    assert audio[:7] == (0, music_sync, 0, 0, 0, 0, 0)
     assert not s["cterm.big_pause_active"]
+    actual_speaker = audio[7:]
+    assert actual_speaker[3] == 0
+    if speaker is not None:
+        assert actual_speaker == speaker, (token, actual_speaker, speaker)
     assert not s["cterm.big_text_reading"]
     assert s["cterm.big_text_count"] == text_count
     if text_buffer_count is not None:
@@ -1581,6 +1585,40 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
                                   graph_point=(0, 0), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=15,
                                   rgb_sample=(400, 100, 0), music_sync=sync_value,
+                                  fill=(1, 5), selected_fill=1, fill_pixels=(0x55555555,) * 8, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), **clear_state)
+                            assert tuple(map(int, frame.application["cterm.big_curve"].split(","))) == last_curve
+                            assert frame.application["cterm.big_random_state"] == retained_random
+                        # Chapter14: no-op low frequencies retain the tone;
+                        # sweeps exclude TO and equal endpoints only sustain/stop.
+                        # Samples/phase/loudness use device-free native tests.
+                        note_cases = (
+                            (b"I#n 0,440,0,0:", (1, 440, 2711, 0, 0, 440, 0, 0, 0, 0, 0)),
+                            (b"I#n 0,0,0,0:", (1, 440, 2711, 0, 0, 0, 0, 0, 0, 0, 0)),
+                            (b"I#n 0,+1,0,0:", (1, 440, 2711, 0, 0, 0, 0, 0, 0, 0, 0)),
+                            (b"I#n 2:", (1, 440, 2711, 0, 2, 0, 0, 0, 0, 0, 0)),
+                            (b"I#n 1,100,150,30,0,0,0:", (1, 130, 9178, 0, 1, 150, 150, 30, 0, 0, 0)),
+                            (b"I#n 1,150,100,30,0,0,0:", (1, 120, 9943, 0, 1, 150, 100, 30, 0, 0, 0)),
+                            (b"I#n 1,100,100,0,0,0,2:", (0, 120, 9943, 0, 1, 100, 100, 1, 0, 0, 2)),
+                            (b"I#g 3:I#& 0,0,1,0,n@4,0,440,0,1:I#g 0:", (0, 440, 2711, 0, 0, 440, 0, 0, 0, 0, 1)),
+                        )
+                        for index, (command, speaker_state) in enumerate(note_cases):
+                            token = f"NOTE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode(); reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=15,
+                                  rgb_sample=(400, 100, 0), speaker=speaker_state,
                                   fill=(1, 5), selected_fill=1, fill_pixels=(0x55555555,) * 8, rejections=(-12, 2),
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), **clear_state)
