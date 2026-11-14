@@ -502,7 +502,7 @@
             "Existing exhaustive CHR record tests cover the shared decoder, and literal row-expansion traces cover RIP iteration order. BIG bitmap tests cover its separate repeated-row schedule using the same row kernel.",
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending."
           ],
-          "commit": null,
+          "commit": "a42a00f",
           "assets": [
             {
               "path": "src/terminal/bgi/st_bgi_fonts.c",
@@ -593,7 +593,7 @@
           "verification": [
             "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending."
           ],
-          "commit": null
+          "commit": "a42a00f"
         }
       ]
     },
@@ -1677,7 +1677,8 @@
       "verification": [
         "Independent native wire test failed before R registration. Every split/bytewise CP437/UTF-8/status case checks literal original ROM A/block scenes across the whole indexed surface, geometry/cursor/cells, same-mode reinstall, full-WORD/negative normalization, class0 g3 ownership, retained owners, raw deferred replies, stored wire R1..3 and EOF/reset/timeout. Injected driver/max-mode/state return cases preserve cache-versus-surface distinctions.70 added coherent application scenes exercise1/3/2/repeated2/invalid258 using dirty sentinels and no post-R ED; the fixture now covers168 scenes. Full image/page/input/drawing/music composition remains pending; R is not marked complete.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.19s. BIG/IGS/CGA application regressions all passed in33.69s; BIG covers168 coherent scenes, including70 R transition scenes. The initial R wire expectation failed before implementation. No physical audio/device or full command acceptance is claimed.",
-        "BIG mode entry no longer forces cursor hiding. Native CP437/UTF-8/status tests cover visible entry and DECTCEM retention across all R modes and I0/I1; coherent connections assert visibility before their explicit ANSI hide. Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending."
+        "BIG mode entry no longer forces cursor hiding. Native CP437/UTF-8/status tests cover visible entry and DECTCEM retention across all R modes and I0/I1; coherent connections assert visibility before their explicit ANSI hide. Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending.",
+        "Shared current font/glyph-kernel/bitmap-output and cursor-policy implementation commit:a42a00f. Command-wide global acceptance remains pending."
       ],
       "commit": null
     },
@@ -2462,7 +2463,8 @@
         "Terminal fixtures cover every default split and bytewise mode/encoding/status combinations with full indexed planes, palette/RGB/image/state and output checks; blocked final read, timeout/EOF/reset, I1/I0/R/reconnect, g3/stored loops, chains/replies and nonfatal source/dispatch recovery.",
         "182 new coherent application scenes bring coverage to2632: exact separate public/registry/DDO/device/header/ratio/metric state is checked alongside the complete retained spray scene, pixels/cells/fonts/palette/images/fill/pages/cursor/points/replies/RNG.",
         "Native CMake Release configure/full build and final refresh (/usr/bin/cc, build/) passed without compiler/source diagnostics. All40 BIG-specific native CTests passed in47.54s, including big_text_style0.08s and cterm_big_text_style0.51s. syncterm_big_input passed in130.78s (test130.73s),2632 coherent scenes. Initial fixture corrections used BIG +1 for negative1, the three-value E stored-source arity and settled pre-E graphics points; independent font/metric/pixel expectations were retained. No non-BIG tests ran; RIP table regressions and the full suite remain deferred. Native E is implemented; W rendering, global45-entry and final acceptance stay pending.",
-        "Current-font tests and coherent scene expectations now use current shared counts223/223/254/223 and caps24/7/25/25. No historical font data is required without actual artwork evidence."
+        "Current-font tests and coherent scene expectations now use current shared counts223/223/254/223 and caps24/7/25/25. No historical font data is required without actual artwork evidence.",
+        "Shared current font/glyph-kernel/bitmap-output and cursor-policy implementation commit:a42a00f. Command-wide global acceptance remains pending."
       ],
       "commit": null
     },
@@ -2505,7 +2507,8 @@
         "Existing coherent application scenes additionally check DDO line style/user/width, device width, total text width, decoded point and private justification in the same capture as existing font/ratio/pixel/cell/palette/image/point/page/reply/RNG observations.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All41 BIG-specific native CTests passed in46.83s. Final strengthened big_text_stroke passed in0.07s, including literal pixel/decoded-point failure prefixes and current per-glyph binding checks. syncterm_big_input passed in130.04s (test129.99s),2632 coherent scenes with the additional private-cache assertions. The first focused run exposed a64x64 fixture without matching clip bounds; the fixture now declares that bounded surface, preserving the original glyph/advance expectations. No non-BIG tests ran. Direct stroke layout/rendering is implemented; W bitmap sources/raster/initial move/count/acquisition/wire and full global45-entry/final acceptance remain pending.",
         "User-approved current font versions replace historical data expectations. Small AA retains metric7/advance6 but has height5; Gothic control22 is absent in the current font. An authored zero-width glyph retains the format/advance regression test.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending.",
+        "Shared current font/glyph-kernel/bitmap-output and cursor-policy implementation commit:a42a00f. Command-wide global acceptance remains pending."
       ],
       "commit": null
     },

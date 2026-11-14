@@ -1317,3 +1317,5 @@ coherent scenes explicitly hide their cursor; connection captures now verify
 that BIG starts with it visible.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending.
+
+Shared current fonts/glyph kernels, bitmap text and cursor correction commit: `a42a00f`.
