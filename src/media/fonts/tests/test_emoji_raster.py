@@ -15,7 +15,9 @@ except ImportError:
     sys.exit(77)
 
 sys.dont_write_bytecode = True
-spec = importlib.util.spec_from_file_location("emoji_raster", Path(__file__).parents[1] / "update_emoji.py")
+font_directory = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(font_directory))
+spec = importlib.util.spec_from_file_location("emoji_raster", font_directory / "update_emoji.py")
 raster = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(raster)
 
