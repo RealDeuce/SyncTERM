@@ -21,12 +21,13 @@ implemented.
 BIG mode6 is selectable with native I0/I1/R indexed-console effects,
 g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
-L/D/d lines, m movement, M writing modes, C application colours, A fills,
+L/D/d lines, m graphics movement, p console positioning, M writing modes,
+C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
 pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
 K circular/J explicit-radius arcs, O circles, Q ellipses, V circular
 pieslices and Y explicit-radius sectors are integrated.
-Other curves, further controls, sound and full command acceptance remain pending
+Further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
@@ -38,7 +39,7 @@ construction, physical span operators and public explicit/circular sector
 wrappers. V/Y share their fill/line/caller schedule while preserving circular
 aspect conversion versus explicit radii and their distinct reader classes.
 All six curve commands have native wire integration. Remaining non-audio
-commands p/s/X7, sound, resource composition and global acceptance are pending.
+commands s/X7, sound, resource composition and global acceptance are pending.
 Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -4084,3 +4085,64 @@ a first-record Move; direct original-source review corrected that expectation
 and added explicit native count/point assertions.
 
 Native Y explicit-sector implementation commit: `d1cd2e7`.
+
+== Native p cached console positioning
+
+Complete BIG13d2:1cdc..1d14 and0000:139b..13ea gotoxy were reread with31,
+46/47's pre-graphics CRT constructor/page-zero cursor service and51's whole
+caller. p reads X/Y with class0, then clamps signed-negative WORDs to0.
+st_big_console_position converts each low byte minus1 plus current cached
+left/top modulo256 and unsigned-checks all four inclusive cached bounds.
+There is no upper/minimum1 clamp. Rejection silently skips the cursor call;
+it leaves output coordinates and both saved/visible cursor owners alone.
+
+The native PC startup profile initializes the private CRT cache once to
+left/top0,right79,bottom24. Current graphics dimensions, ANSI margins and
+status area do not replace it. I/R, attention, EOF and parser cancellation
+retain these bytes; backend mode installation still resets its own video
+cursor table. Native tests can supply changed/full-byte/inverted cache values
+without introducing a remote window command or foreign CRT/BIOS emulator.
+Thus p257,257 becomes1,1, p0,1 normally rejects, and R3's30 rows still do not
+admit p1,26 through the original25-row cache.
+
+The shared pre-ANSI parser registers two unscaled numeric operands. Only
+when both return does CTerm apply the gate and save the admitted position
+into video_cursors[0], even with another display page selected. If visual
+page0 is selected, the existing console is positioned directly in absolute
+page coordinates. BGI active memory pages, all three graphics points, W's
+private point, attributes, palette, pixels and cursor visibility remain
+separate. Normal visible movement clears pending wrap. G visual-page
+restoration now uses the same absolute cursor operation, avoiding a second
+ANSI-margin offset when restoring its saved coordinates.
+
+The native window boundary is explicit: after the page0 save, an admitted
+visible position outside the current console window (including a protected
+status row or an ANSI origin window) returns checked OUT_OF_RANGE instead
+of reproducing foreign CRTC addressing. It does not silently clamp or roll
+back the saved page0 request; the existing BIG error path recovers without
+disconnecting. Hidden page0 saves need no visible backend admission. This
+is a native backend adaptation, not an extra cached-window restriction.
+
+big_console_position first failed against the absent module. Literal cached
+windows and every65536 WORD on each normal axis plus the full-byte domain
+check low-byte wrap, negative clamps, inclusivity, offsets, inverted bounds,
+nulls and unchanged rejected outputs. cterm_big_pages first failed on missing
+p dispatch. Every partition/profile and bytewise input checks exact DSR,
+indexed planes, unchanged BGI state, cache and saved/visible owners. It covers
+R3 versus cached25 rows, current bounds after a partial read, I/R/EOF/reset,
+real timeout/clock failure, uninstalled BGI, g3 class0/stored bypass, hidden
+page0 versus BGI active pages, ANSI origin restoration, visible-window failure
+prefixes, cursor visibility, deferred NUL/ff user replies and pending wrap.
+A full terminal reset homes the base console cursor while retaining BIG's
+cache/saved-page state; the fixture distinguishes that from parser cancel.
+
+Eight new coherent application cases per profile add112 p captures,3710
+total. DSR fences after normal/wrapped/rejected/g3/stored/hidden-page moves
+verify actual console coordinates while all earlier cells, both pixel banks,
+fonts/palette/images/RNG/native RGB, graphics points and curve words remain
+in the same capture. G's reached rez3 interpreter-memory reset is checked
+separately from p's unchanged owners. Headless physical audio/MIDI stay off.
+s/X7, audio/resource/global45-entry and goal-final regressions remain pending;
+the conditional non-audio publishing milestone is not yet reached.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All58 BIG-specific native CTests passed in59.64s. Focused big_console_position passed in0.08s total (test0.01s), and expanded cterm_big_pages passed in1.34s total (test1.27s). syncterm_big_input passed in181.41s total (test181.33s),3710 coherent scenes including112 new p captures with every preceding observation retained. No non-BIG tests ran. Native p/cache/absolute-page cursor behavior is verified under the documented checked native-window boundary; s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing checkpoint is not yet met.

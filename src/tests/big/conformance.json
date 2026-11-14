@@ -3504,7 +3504,7 @@
     {
       "id": "p",
       "order": 27,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3512,12 +3512,37 @@
         "application-integration"
       ],
       "references": [
-        "51-state-and-position-command-acceptance.adoc"
+        "state-position-code.adoc:complete BIG13d2:1cdc..1d14 p and0000:139b..13ea gotoxy",
+        "51-state-and-position-command-acceptance.adoc:class0/negative/window/current-bounds/page-zero and shared continuation",
+        "31-inquiry-pause-and-console-position.adoc:byte cursor validation and named page-save/selected-page service",
+        "46-implementation-boundary-and-bios-console-graphics.adoc:pre-graphics CRT cache initialization/lifetime",
+        "47-bios-glyphs-teletype-and-console-routing.adoc:console page/cursor and graphics owner separation"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Register two class0 readers through the existing pre-ANSI parser, with normal supplied/source/loop/chaining/footer ownership. Only after both return clamp signed negatives to0 and apply modulo256 low-byte relative-to-current-cache conversion plus all four unsigned inclusive bounds. Invalid coordinates silently skip cursor dispatch.",
+        "Initialize native normal PC CRT cache0,0,79,24 once, retain it across I/R/attention/EOF/parser cancellation and keep ANSI margins/status/graphics rows separate. The pure gate accepts arbitrary current byte caches without a new remote window command.",
+        "Accepted requests save page0 cursor first. Only visual page0 reaches the checked native absolute cursor setter; BGI active-memory pages, graphic/text points, attributes, pixels/palette and cursor visibility are unchanged. Accepted visible moves clear pending wrap.",
+        "Share absolute cursor movement with G visual-page restoration so saved page coordinates do not receive a second ANSI-margin offset. Native failures retain reached page0 saves and recover through the existing nonfatal BIG boundary."
+      ],
+      "tests": [
+        "big_console_position",
+        "cterm_big_pages",
+        "cterm_big",
+        "big_numeric",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Normal native PC startup declares the original80x25 CRT byte cache rather than executing DOS constructor/BIOS probes. R graphics geometry and host ANSI windows never synthesize new CRT cache bytes.",
+        "An admitted visible target outside the current native console window (including protected status/origin windows) returns checked OUT_OF_RANGE after saving page0; it is not clamped and that prefix is not rolled back. Hidden-page0 saves need no visible admission. No foreign CRTC addressing is reproduced.",
+        "Native p is implemented; resource/audio/global45-entry and final-suite acceptance remain pending, so command status/commit remain in-progress/null. Conditional publishing still waits for every non-audio command."
+      ],
+      "verification": [
+        "Independent pure coordinate expectations first failed against the absent module; native wire expectations first failed on missing p dispatch. Literal windows and all65536 WORDs per normal axis/full-byte domain check wrap, negative clamps, inclusive bounds, offsets, inversion, nulls and unchanged rejected outputs.",
+        "Every partition/profile and bytewise native p checks exact automatic DSR, full indexed planes, unchanged BGI state, cache and saved/visible cursors. 257->1,9999->15, negative/zero/outside rejection, R3 versus cached25 rows, live bounds after partial input and I/R/EOF/reset retention have independent expectations.",
+        "Full terminal reset homes the base cursor while BIG cache/saved-page state survives; the initial fixture assumption was corrected against the existing reset API. Timeout0-Y rejection/clock failure retain that reset position. Class0 g3/stored bypass, uninstalled BGI, hidden/active page separation, absolute ANSI-origin/page restoration, actual native-window failures, cursor visibility, user NUL/ff origins and delayed-wrap glyph cells are independently checked.",
+        "Eight new application cases per profile add112 coherent captures,3710 total. Normal/wrapped/rejected/g3/stored/hidden-page moves use exact DSR-fenced actual console coordinates with all previous cells, pixels/banks, palette/font/image/RNG/native RGB and graphic/curve owners retained. G rez3 interpreter-memory reset is an explicit independent expectation. Physical audio/MIDI remain disabled.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All58 BIG-specific native CTests passed in59.64s. Focused big_console_position passed in0.08s total (test0.01s), and expanded cterm_big_pages passed in1.34s total (test1.27s). syncterm_big_input passed in181.41s total (test181.33s),3710 coherent scenes including112 new p captures with every preceding observation retained. No non-BIG tests ran. Native p/cache/absolute-page cursor behavior is verified under the documented checked native-window boundary; s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing checkpoint is not yet met."
+      ],
       "commit": null
     },
     {

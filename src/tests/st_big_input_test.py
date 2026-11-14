@@ -40,14 +40,15 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None, terminal_position=None):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
     assert (s["cterm.graphics_mode"], s["cterm.skypix"], s["cterm.big_resolution"]) == (6, 0, resolution), s
     assert (s["cterm.big_bgi_width"], s["cterm.big_bgi_height"]) == (640, height)
     assert tuple(map(int, s["cterm.big_curve"].split(",")))[:2] == ((4500, 7750, 10000)[resolution - 1], 10000)
-    assert (s["cterm.x"], s["cterm.y"], s["cterm.bottom_margin"]) == (len(token) + 1, 1, rows - int(status))
+    position = (len(token) + 1, 1) if terminal_position is None else terminal_position
+    assert (s["cterm.x"], s["cterm.y"], s["cterm.bottom_margin"]) == (*position, rows - int(status))
     assert not m["cursor_visible"] and not s["cterm.big_pair_wait"]
     assert s["cterm.big_loop_type"] == 32 and not s["cterm.big_footer_active"]
     assert not s["cterm.big_collect_active"] and not s["cterm.big_pointer_active"]
@@ -1465,6 +1466,44 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             assert curve[2:8] == arc, curve
                             assert curve[8:11] == (*radii, span), curve
                             assert curve[11:] == (0, count, 682, 0), curve
+                            assert state["cterm.big_random_state"] == retained_random
+                        # p moves only the console cursor, with byte wrapping
+                        # and the retained CRT window. A DSR after the move
+                        # fences each capture; the token stays on row0.
+                        last_curve = curve
+                        cursor_cases = (
+                            (b"I#p 7,8:", (7, 8)),
+                            (b"I#p 257,257:", (1, 1)),
+                            (b"I#p 0,1:", None),
+                            (b"I#p +1,1:", None),
+                            (b"I#p 9999,9999:", (15, 15)),
+                            (b"I#g 3:I#p 10,5:I#g 0:", (10, 5)),
+                            (b"I#g 3:I#& 0,0,1,0,p@2,257,257:I#g 0:", (1, 1)),
+                            (b"I#G>5,1:p>7,8:G 5,0:", (7, 8)),
+                        )
+                        for index, (command, requested) in enumerate(cursor_cases):
+                            token = f"CPOS{index}"
+                            position = (len(token) + 1, 1) if requested is None else requested
+                            wire = b"\x1b[H" + token.encode() + command + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[{position[1]};{position[0]}R".encode(); reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(484, 100), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=15,
+                                  colored_pixels=tuple((x, y, pen) for (x, y), pen in scene_pixels.items()),
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, rejections=(-12, 2),
+                                  pages=(0 if index == 7 and resolution == 3 else 1, 0, 0, 0, 0, 0), backing=524288, terminal_position=position,
+                                  image=(8, 8, 0, 78, solid, solid), **curve_state)
+                            state = frame.application
+                            assert tuple(map(int, state["cterm.big_curve"].split(","))) == last_curve
                             assert state["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.

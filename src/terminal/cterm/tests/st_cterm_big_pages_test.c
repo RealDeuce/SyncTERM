@@ -8,17 +8,19 @@
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"%s:%d: %s\n",__FILE__,__LINE__,#x); exit(1); } } while (0)
-struct fixture { st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal; uint8_t output[64]; size_t size; };
+struct fixture { st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal; uint8_t output[64]; enum st_cterm_output_origin origins[64]; size_t size; };
 static uint64_t local_ns;
-static int now(void *context, uint64_t *value) { (void)context; *value=local_ns; return 0; }
+static int clock_error;
+static int now(void *context, uint64_t *value) { (void)context; *value=local_ns; return clock_error; }
 static void output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
 {
-	struct fixture *f=context; (void)origin; CHECK(size<=sizeof(f->output)-f->size);
+	struct fixture *f=context; CHECK(size<=sizeof(f->output)-f->size);
+	for (size_t i=0;i<size;++i) f->origins[f->size+i]=origin;
 	memcpy(f->output+f->size,bytes,size); f->size+=size;
 }
 static void create(struct fixture *f, bool utf8, bool status)
 {
-	memset(f,0,sizeof(*f)); local_ns=1000;
+	memset(f,0,sizeof(*f)); local_ns=1000; clock_error=0;
 	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry={.columns=80,.rows=25,.cell_width=8,.cell_height=14};
 	CHECK(st_console_create(&f->console,&display,&geometry)==0);
@@ -250,4 +252,67 @@ static void pointer_marker_page(void)
 	string(&f,"I#G 5,0:I#G 5,1:"); scene(&f,0);
 	destroy(&f);
 }
-int main(void) { partitions(); active_visual_and_consumers(); lifetimes_and_limits(); console_cursor_pages(); status_and_prefix_failures(); source_repetition_and_point_bytes(); normalization_wire(); pointer_marker_page(); return 0; }
+
+static void p_console_position(void)
+{
+	const char wire[]="I#p 7,8:\033[6n";
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+		for (unsigned mode=1;mode<=3;++mode) for (size_t split=0;split<=strlen(wire);++split) {
+			char reset[64]; snprintf(reset,sizeof(reset),"I#R %u:I#m 2,31,32:",mode); string(&f,reset); f.size=0;
+			struct st_big_state before=b->state; int cursor=f.terminal->cursor;
+			feed(&f,wire,split); string(&f,wire+split);
+			CHECK(f.terminal->xpos==7 && f.terminal->ypos==8 && b->video_cursors[0][0]==7 && b->video_cursors[0][1]==8);
+			CHECK(f.size==6 && memcmp(f.output,"\033[8;7R",6)==0 && f.origins[0]==ST_CTERM_OUTPUT_RESPONSE);
+			CHECK(memcmp(&before.bgi,&b->state.bgi,sizeof(before.bgi))==0 && f.terminal->cursor==cursor && b->last_error==0); canvas(&f,NULL,0);
+		}
+		string(&f,"I#R 2:"); f.size=0;
+		for (size_t i=0;i<strlen(wire);++i) feed(&f,wire+i,1);
+		CHECK(f.terminal->xpos==7 && f.terminal->ypos==8 && f.size==6);
+		string(&f,"\033[2;3H"); string(&f,"I#p 0,1:I#p 1,0:I#p 81,1:I#p 1,26:I#p +1,1:");
+		CHECK(f.terminal->xpos==3 && f.terminal->ypos==2 && b->last_error==0);
+		string(&f,"I#p 257,257:"); CHECK(f.terminal->xpos==1 && f.terminal->ypos==1);
+		string(&f,"I#p 9999,9999:"); CHECK(f.terminal->xpos==15 && f.terminal->ypos==15);
+		string(&f,"I#R 3:I#p 80,25:"); CHECK(f.terminal->xpos==80 && f.terminal->ypos==25 && b->last_error==0);
+		string(&f,"I#p 1,26:"); CHECK(f.terminal->xpos==80 && f.terminal->ypos==25 && b->console_window[3]==24);
+		/* The cached gate admits25 even when the native status window has
+		 * only24 rows. Retain page0's accepted request before host failure. */
+		string(&f,"I#R 2:\033[2;3H"); size_t rejected=b->rejected_commands; string(&f,"I#p 80,25:");
+		CHECK(b->video_cursors[0][0]==80 && b->video_cursors[0][1]==25);
+		CHECK(f.terminal->xpos==(status?3:80) && f.terminal->ypos==(status?2:25));
+		CHECK(b->rejected_commands==rejected+(status?1:0) && b->last_error==(status?IO_ERROR_OUT_OF_RANGE:0));
+		destroy(&f);
+	}
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#m 2,31,32:\033[3;4HI#G 5,1:\033[5;6HI#p 7,8:");
+	CHECK(f.terminal->xpos==6 && f.terminal->ypos==5 && b->video_cursors[0][0]==7 && b->video_cursors[0][1]==8 && b->video_visual_page==1);
+	string(&f,"I#G 5,0:"); CHECK(f.terminal->xpos==7 && f.terminal->ypos==8); canvas(&f,NULL,0);
+	string(&f,"I#G 6,1:I#p 9,10:"); CHECK(b->video_active_page==1 && b->video_visual_page==0 && f.terminal->xpos==9 && f.terminal->ypos==10 && b->state.bgi.x==31);
+	string(&f,"I#R 2:I#p 1,"); b->console_window[0]=5; b->console_window[1]=7; b->console_window[2]=14; b->console_window[3]=16; string(&f,"1:");
+	CHECK(f.terminal->xpos==6 && f.terminal->ypos==8);
+	string(&f,"I#I 1:I#R 3:I#I 0:I#p 1,1:"); CHECK(f.terminal->xpos==6 && f.terminal->ypos==8 && b->console_window[2]==14);
+	string(&f,"I#p 2,"); CHECK(st_cterm_finish(f.terminal)==0 && f.terminal->xpos==6 && f.terminal->ypos==8);
+	string(&f,"I#p 2,"); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->console_window[1]==7 && f.terminal->xpos==1 && f.terminal->ypos==1);
+	string(&f,"I#p 2,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0 && f.terminal->xpos==1 && f.terminal->ypos==1 && b->video_cursors[0][0]==6 && b->video_cursors[0][1]==8);
+	string(&f,"I#p 2,"); clock_error=IO_ERROR_IO; CHECK(st_cterm_poll(f.terminal)==0); clock_error=0; CHECK(b->last_error==IO_ERROR_IO && f.terminal->xpos==1);
+	const uint8_t normal[]={0,0,79,24}; memcpy(b->console_window,normal,4);
+	string(&f,"I#R 3:I#g 3:I#p 10,5:"); CHECK(f.terminal->xpos==10 && f.terminal->ypos==5);
+	string(&f,"I#& 0,0,1,0,p@2,257,257:I#g 0:"); CHECK(f.terminal->xpos==1 && f.terminal->ypos==1 && b->numeric.loop.active==0);
+	string(&f,"\033[3;12r\033[?6hI#p 7,8:"); CHECK(f.terminal->xpos==7 && f.terminal->ypos==8);
+	b->video_cursors[1][0]=6; b->video_cursors[1][1]=7; size_t rejected=b->rejected_commands;
+	string(&f,"I#G 5,1:I#p 9,10:I#G 5,0:"); CHECK(f.terminal->xpos==9 && f.terminal->ypos==10 && b->rejected_commands==rejected);
+	rejected=b->rejected_commands; string(&f,"I#p 1,1:");
+	CHECK(b->video_cursors[0][0]==1 && b->video_cursors[0][1]==1 && f.terminal->xpos==9 && f.terminal->ypos==10 && b->rejected_commands==rejected+1 && b->last_error==IO_ERROR_OUT_OF_RANGE);
+	string(&f,"\033[?6l\033[r\033[?25hI#p 1,1:"); CHECK(f.terminal->cursor!=0);
+	int cursor=f.terminal->cursor; string(&f,"I#p 2,2:"); CHECK(f.terminal->cursor==cursor);
+	uint16_t installed=b->state.bgi.state; b->state.bgi.state=0; b->state.bgi.error=-11; string(&f,"I#p 4,5:");
+	CHECK(f.terminal->xpos==4 && f.terminal->ypos==5 && b->state.bgi.state==0 && b->state.bgi.error==-11); b->state.bgi.state=installed;
+	b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255; f.size=0;
+	string(&f,"I#p>3,4:"); CHECK(f.size==0 && b->control.input.pending==1); string(&f,"~ ");
+	CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255 && f.origins[0]==ST_CTERM_OUTPUT_USER && f.origins[1]==ST_CTERM_OUTPUT_USER);
+	string(&f,"I#R 2:\033[1;80HXI#p 1,1:A"); struct st_console_cell cells[80]; const struct st_console_rect first={0,0,80,1};
+	CHECK(st_console_read_cells(f.console,&first,cells,80)==0 && cells[0].glyph=='A' && cells[79].glyph=='X' && f.terminal->xpos==2 && f.terminal->ypos==1);
+	destroy(&f);
+}
+
+int main(void) { partitions(); active_visual_and_consumers(); lifetimes_and_limits(); console_cursor_pages(); status_and_prefix_failures(); source_repetition_and_point_bytes(); normalization_wire(); pointer_marker_page(); p_console_position(); return 0; }

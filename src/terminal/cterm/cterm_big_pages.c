@@ -4,6 +4,7 @@
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
+#include "st_big_console.h"
 #include "io_error.h"
 
 static int ensure_backing(struct cterm_big *big)
@@ -44,6 +45,30 @@ int cterm_big_video_segment(const struct cterm_big *big, uint16_t *segment)
 	*segment=st_big_video_active_segment(big->video_active_page,(uint16_t)(mode->page_bytes/16)); return 0;
 }
 struct display { struct cterm_big *big; uint8_t page; uint16_t start; };
+static int cursor_position(struct cterm_big *big, uint16_t x, uint16_t y)
+{
+	struct cterminal *t=big->terminal;
+	if (x==0 || y==0 || t->x<1 || t->y<1) return IO_ERROR_OUT_OF_RANGE;
+	/* These are saved absolute page coordinates, independent of ANSI
+	 * origin mode/margins. The console checks its current native window. */
+	int status=st_console_set_position(t->screen.console,
+	    (uint32_t)t->x+x-2u,(uint32_t)t->y+y-2u);
+	if (status==0) {
+		t->xpos=x; t->ypos=y; ++t->cursor_position_changes;
+		cterm_clear_lcf(t);
+	}
+	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
+}
+int cterm_big_console_position(struct cterm_big *big, uint16_t x, uint16_t y)
+{
+	uint8_t position[2];
+	if (!st_big_console_position(big->console_window,x,y,position)) return 0;
+	/* BIOS AH02/BH0 saves page0 even when another page is displayed.
+	 * Preserve that accepted prefix if the native visible move fails. */
+	x=(uint16_t)(position[0]+1u); y=(uint16_t)(position[1]+1u);
+	big->video_cursors[0][0]=x; big->video_cursors[0][1]=y;
+	return big->video_visual_page==0?cursor_position(big,x,y):0;
+}
 static int display(void *context, const struct st_pixel_buffer *p, struct st_console_rect *changed)
 {
 	const struct display *request=context; struct cterm_big *big=request->big;
@@ -79,8 +104,7 @@ int cterm_big_page(struct cterm_big *big, bool visual, uint16_t requested)
 		status=st_console_modify_pixels(big->terminal->screen.console,display,&request);
 	} else { big->video_visual_page=page; big->state.bgi.visual_page=page; }
 	if (status==0) {
-		cterm_set_position(big->terminal,big->video_cursors[page][0],big->video_cursors[page][1]);
-		status=cterm_render_take_error(big->terminal);
+		status=cursor_position(big,big->video_cursors[page][0],big->video_cursors[page][1]);
 	}
 	return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status;
 }

@@ -957,3 +957,26 @@ checks count<2 before the first Move, so their device point stays at the
 placed center despite radial output. The initial application oracle assumed
 a first-record Move; direct original-source review corrected that expectation
 and added explicit native count/point assertions.
+
+Console p provenance is complete BIG13d2:1cdc..1d14 and0000:139b..13ea in
+state-position-code, with31/46/47/51 CRT cache/page-zero cursor ownership.
+big_console_position first failed against the absent source module. Literal
+normal/offset/full-byte/inverted bounds and every65536 WORD per normal axis
+plus the full-byte domain independently check wrap/clamps/inclusivity and
+rejected-output preservation.
+
+cterm_big_pages first failed on absent p dispatch. Every partition/profile
+and bytewise input checks DSR/full indexed planes and unchanged BGI state.
+Native cache/live bounds/I/R/EOF/reset/timeout/clock, original25 rows after
+R3, class0/g3/stored bypass, page0 versus active/visual pages, absolute margin
+restoration, native-window failure prefix, visibility, uninstalled BGI,
+deferred NUL/ff origins and delayed-wrap glyph cells have independent expected
+owners. The full-reset fixture explicitly distinguishes the reset base cursor
+from retained BIG cache/saved-page state. No physical BIOS/CRTC is emulated.
+
+Eight p application cases per profile add112 coherent captures,3710 total,
+with DSR-fenced actual console coordinates and every preceding scene pixel/
+cell/palette/font/image/graphics-point/curve/RNG/native RGB observation retained.
+Rejected byte/window coordinates stay silent; a selected native-window error
+retains the already saved page0 request and recovers. Headless physical audio/
+MIDI are disabled; no expected frame comes from SyncTERM or external assets.

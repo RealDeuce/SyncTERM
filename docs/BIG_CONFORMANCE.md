@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
 through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
@@ -1847,3 +1847,33 @@ a first-record Move; direct original-source review corrected that expectation
 and added explicit native count/point assertions.
 
 Native Y explicit-sector implementation commit: `d1cd2e7`.
+
+## Native p console positioning
+
+p now uses two unscaled numeric readers and the original signed-negative
+clamps/low-byte modulo conversion/current cached-window gate. Its private
+normal PC startup cache is80x25 and survives I/R/attention/EOF/cancellation;
+current graphics geometry and ANSI margins do not revise it. Rejection is
+silent. Accepted positions save page0 before any selected-page visible move,
+independent of BGI active pages and graphics state. Cursor visibility and
+pixels stay unchanged. G page restoration shares absolute page coordinates
+and accepted visible moves clear delayed wrap.
+
+Checked native boundary: an admitted visible target outside the current
+console window retains the saved page0 prefix and returns a nonfatal error.
+It is not clamped, and an invisible page0 save needs no visible admission.
+This covers protected status/origin windows without claiming foreign CRTC
+addressing. Full terminal reset homes the base cursor but retains BIG's cache.
+
+big_console_position checks literal altered/full-byte/inverted windows and
+every WORD on each axis. cterm_big_pages adds every split/profile/bytewise p,
+full indexed planes/unchanged BGI state, exact DSR, current bounds/lifetime,
+page/active-memory separation, margins, rejected native-window prefixes,
+class0/stored values, partial/error recovery, uninstalled BGI, visibility,
+reply origins and delayed wrap. Eight application cases per profile add112
+coherent captures,3710 total, retaining every earlier scene observation and
+checking exact console coordinates after their DSR fences. Physical audio/
+MIDI remain disabled. s/X7, audio/global/final acceptance and conditional
+publishing remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All58 BIG-specific native CTests passed in59.64s. Focused big_console_position passed in0.08s total (test0.01s), and expanded cterm_big_pages passed in1.34s total (test1.27s). syncterm_big_input passed in181.41s total (test181.33s),3710 coherent scenes including112 new p captures with every preceding observation retained. No non-BIG tests ran. Native p/cache/absolute-page cursor behavior is verified under the documented checked native-window boundary; s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing checkpoint is not yet met.

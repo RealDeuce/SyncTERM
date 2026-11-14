@@ -1466,3 +1466,10 @@ split/profile/scaling/lifecycle and coherent application tests independently
 check tall/wide/interior/zero-axis output, point/arc owners and error recovery.
 All six BIG curve commands have native wire integration; p/s/X7, audio/global
 and final-suite acceptance remain pending. Physical audio/MIDI stay disabled.
+
+BIG p now applies cached byte/window console positioning through the shared
+pre-ANSI numeric parser and existing native page/cursor owner. Independent
+WORD, split/profile, saved/visible-page, lifecycle and coherent captures check
+actual coordinates without moving graphics points or changing pixels/cursor
+visibility. Checked native-window failures retain the page0 save and recover
+without disconnecting. s/X7, audio/global/final acceptance remain pending.

@@ -175,6 +175,9 @@ struct cterm_big {
 	uint16_t video_start;
 	uint8_t video_active_page, video_visual_page;
 	uint16_t video_cursors[4][2];
+	/* Normal pre-graphics CRT80x25 cache. I/R and parser reset retain it;
+	 * ANSI margins and current graphics geometry are separate owners. */
+	uint8_t console_window[4];
 	struct st_big_image image;
 	uint8_t image_bytes[ST_BIG_IMAGE_CAPACITY], image_pens[ST_BIG_IMAGE_PENS];
 	uint16_t image_operation, image_mode, image_size;
@@ -233,6 +236,7 @@ int cterm_big_rotation_begin(struct cterm_big *, const struct st_graphics_comman
 int cterm_big_rotation_poll(struct cterm_big *, size_t *output_budget, size_t *body_budget,
 	const struct st_big_state_sink *, bool *complete);
 int cterm_big_page(struct cterm_big *, bool visual, uint16_t page);
+int cterm_big_console_position(struct cterm_big *, uint16_t x, uint16_t y);
 int cterm_big_video_prepare(struct cterm_big *, bool full_memory);
 void cterm_big_video_reset(struct cterm_big *);
 struct st_big_video_view cterm_big_video_view(const struct cterm_big *, const struct st_pixel_buffer *);
