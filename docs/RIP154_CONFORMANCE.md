@@ -58,6 +58,28 @@ audio disabled. Historical captures and exclusions are unchanged.
 The native FreeBSD CMake configure/build and all 36 selected RIP, SkyPix and
 terminal/session CTests passed after this follow-up.
 
+`1G` (`RIP_COPY_REGION`) now copies absolute screen pixels, independently
+of viewport and drawing state, while preserving the RIP clipboard. RIPv1
+retains the disassembled alignment/fifth-word quirks, inclusive rows,
+pre-clamp height guard and downward endpoint re-sort. Its loose bottom
+check copies only visible rows; invalid widths and out-of-raster accesses
+are safely rejected. RIPv3 uses outward alignment, ignores the reserved
+word, accepts one row and requires full destination fit. Both blink planes
+are snapshotted and written under one console raster lock; reduced-display
+row aliases read original pixels and retain logical write order.
+
+`cterm_rip_copy` checks 27 literal geometry/rejection cases in both versions,
+with intact and bytewise feeds, every split of an overlapping command,
+distinct planes, raster padding, clipboard/state preservation and reduced
+mapping. The live wire suites add 20 full-plane cases for each version in
+CP437 and UTF-8. Each coherent capture also checks the cursor/cells,
+following-command recovery and an unrelated clipboard paste. Expected
+rectangles come from the local disassembly and `ripscrip.txt`; no new DOS
+captures or regenerated historical images are claimed. See the complete
+[screen-copy contract](RIP154_PARSER.adoc).
+The native FreeBSD CMake configure/build and all 37 selected RIP, SkyPix and
+terminal/session CTests passed after the copy implementation.
+
 RIP's two thin-line paths now use `st_bgi_thin_line`, extracted from the
 existing candidate/pattern loop. RIP retains clipping, thickness, coordinate
 mapping, colour/XOR, current-point and error policy. BIG uses the same lower

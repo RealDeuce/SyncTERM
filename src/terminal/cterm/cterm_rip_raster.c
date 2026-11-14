@@ -875,6 +875,104 @@ cterm_rip_raster_bar(struct cterm_rip_raster *rip, int x1, int y1,
 	}
 }
 
+static int
+copy_clamp(int coordinate, int dimension)
+{
+	return coordinate < 0 ? 0 : coordinate >= dimension ? dimension - 1 : coordinate;
+}
+
+/* Absolute screen copy: no viewport, write-mode, pattern or clipboard
+ * effects. Called inside one console raster edit for both blink planes. */
+static void
+copy_region(struct cterm_rip_raster *rip, const int fields[6])
+{
+	int left = fields[0], top = fields[1], right = fields[2], bottom = fields[3];
+	int destination = fields[5], width, height, original_dy;
+	const struct st_pixel_buffer *pixels = rip->drawing_pixels;
+	struct st_pixel_buffer *source = NULL;
+
+	if (left > right) { int swap = left; left = right; right = swap; }
+	if (top > bottom) { int swap = top; top = bottom; bottom = swap; }
+	original_dy = bottom - top;
+	if (rip->version == 1) {
+		if (original_dy == 0)
+			return;
+		/* 0c16:065e-069c adjusts LEFT for the right-edge remainder,
+		 * then uses the nominally reserved word. C17 signed remainders
+		 * match IDIV here, including negative arguments. */
+		left -= left % 8;
+		if (right % 8 != 0)
+			left += 8 - right % 8;
+		left -= fields[4] % 8;
+	}
+	if (rip->x_dim <= 0 || rip->y_dim <= 0 || rip->x_max <= 0 || rip->y_max <= 0)
+		return;
+	left = copy_clamp(left, rip->x_dim);
+	right = copy_clamp(right, rip->x_dim);
+	top = copy_clamp(top, rip->y_dim);
+	bottom = copy_clamp(bottom, rip->y_dim);
+	destination = copy_clamp(destination, rip->y_dim);
+	height = bottom - top + 1;
+	if (rip->version == 1) {
+		/* The bottom check uses the Y difference saved BEFORE clamping.
+		 * The downward helper at 0c16:0293 re-sorts the adjusted X pair. */
+		if (destination + original_dy - 1 >= rip->y_dim)
+			return;
+		if (destination > top && left > right) {
+			int swap = left; left = right; right = swap;
+		}
+		if (left > right)
+			return;
+		width = (right - left + 1) / 8 * 8;
+		left = left / 8 * 8;
+		/* RIPterm's loose check can reach non-display video memory.
+		 * Retain visible rows without addressing outside our raster. */
+		if (height > rip->y_dim - destination)
+			height = rip->y_dim - destination;
+	}
+	else {
+		if (height > rip->y_dim - destination)
+			return;
+		left = left / 8 * 8;
+		right = (right + 7) / 8 * 8;
+		if (right > rip->x_dim) right = rip->x_dim;
+		width = right - left;
+	}
+	if (width <= 0 || height <= 0 || destination == top)
+		return;
+	int sx = map_x(rip, left), ex = map_x(rip, left + width - 1);
+	int sy = map_y(rip, top), ey = map_y(rip, top + height - 1);
+	int dy = map_y(rip, destination), end_y = map_y(rip, destination + height - 1);
+	if (sx < 0 || sy < 0 || dy < 0 || ex < sx || ey < sy || end_y < dy
+	    || (uint32_t)ex >= pixels->width || (uint32_t)ey >= pixels->height
+	    || (uint32_t)end_y >= pixels->height)
+		return;
+	rip->error = st_pixel_buffer_create(&source, (uint32_t)(ex - sx + 1),
+	    (uint32_t)(ey - sy + 1), pixels->alternate != NULL);
+	if (rip->error != 0)
+		return;
+	size_t row_bytes = (size_t)source->width * sizeof(*source->primary);
+	for (uint32_t row = 0; row < source->height; ++row) {
+		size_t from = (size_t)((uint32_t)sy + row) * pixels->width + (uint32_t)sx;
+		size_t to = (size_t)row * source->width;
+		memcpy(source->primary + to, pixels->primary + from, row_bytes);
+		if (source->alternate != NULL)
+			memcpy(source->alternate + to, pixels->alternate + from, row_bytes);
+	}
+	/* Independent coordinate rounding can alias logical rows on a reduced
+	 * display. Read the original snapshot and keep ascending logical order:
+	 * the last logical write to each physical destination row wins. */
+	for (int row = 0; row < height; ++row) {
+		size_t from = (size_t)(map_y(rip, top + row) - sy) * source->width;
+		size_t to = (size_t)map_y(rip, destination + row) * pixels->width + (uint32_t)sx;
+		memcpy(pixels->primary + to, source->primary + from, row_bytes);
+		if (source->alternate != NULL)
+			memcpy(pixels->alternate + to, source->alternate + from, row_bytes);
+	}
+	damage_pixels(rip, (uint32_t)sx, (uint32_t)dy, source->width, (uint32_t)(end_y - dy + 1));
+	st_pixel_buffer_destroy(source);
+}
+
 static void
 capture_image(struct cterm_rip_raster *rip, int x1, int y1,
     int x2, int y2)
@@ -3261,6 +3359,7 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
     bool *handled)
 {
 	static const uint8_t four_coords[4] = {2, 2, 2, 2};
+	static const uint8_t copy_fields[6] = {2, 2, 2, 2, 2, 2};
 	static const uint8_t style_fields[3] = {2, 4, 2};
 	static const uint8_t fill_fields[2] = {2, 2};
 	static const uint8_t colour_field[1] = {2};
@@ -3307,15 +3406,16 @@ cterm_rip_raster_command(struct cterm_rip_raster *rip,
 	 * file I/O, clipboard captures and retained-state saves stay outside. */
 	if (rip->drawing_pixels == NULL && sublevel == 0 &&
 	    ((level == 0 && code != 0 && strchr("ECOVoAIiZF@TXjBKLRPpltzx", code) != NULL)
-	    || (level == 1 && code == 't'))) {
+	    || (level == 1 && (code == 't' || code == 'G')))) {
 		struct command_draw draw = {rip, level, sublevel, code, arguments, handled};
 		*handled = true;
 		draw_in_place(rip, draw_command, &draw);
 		return rip->error;
 	}
 	if (level == 1 && sublevel == 0 && code == 'G') {
-		/* The legacy RIP_COPY_REGION case does not draw or change state. */
 		*handled = true;
+		if (parse_fields(arguments, copy_fields, 6, fields) == 6)
+			copy_region(rip, fields);
 		return rip->error;
 	}
 	if (level == 1 && sublevel == 0 && code == 'W') {

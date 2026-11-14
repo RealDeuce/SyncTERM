@@ -1126,8 +1126,8 @@ st_cterm_rip_live_test_main(void)
 	CHECK(st_console_get_pixels(&pixels, console, &poly_pixel, false) == 0);
 	CHECK(pixels->primary[0] == 0x14);
 	st_pixel_buffer_destroy(pixels);
-	/* The legacy RIP_COPY_REGION handler is a no-op, but it must not
-	 * stop the remaining commands in the same RIP line. */
+	/* A same-line RIP_COPY_REGION is ignored and must not stop the
+	 * remaining commands in the same RIP line. */
 	const char *copy_region = "\r!|1G000010101000|c0E|X2S2S\r";
 	CHECK(feed(terminal, copy_region, strlen(copy_region)) == 0);
 	CHECK(sample_pixel(console, 100, 100, &original) == 0);

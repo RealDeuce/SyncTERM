@@ -1266,6 +1266,18 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_rip_args COMMAND st_terminal_tests st_cterm_rip_args_test)
 
+	syncterm_add_test_case(st_terminal_tests st_cterm_rip_copy_test tests/st_cterm_rip_copy_test.c)
+	target_link_libraries(st_cterm_rip_copy_test PRIVATE st_cterm)
+	set_target_properties(st_cterm_rip_copy_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_rip_copy_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_rip_copy_test PRIVATE
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_rip_copy COMMAND st_terminal_tests st_cterm_rip_copy_test)
+
 	syncterm_add_test_case(st_terminal_tests st_cterm_rip_parser_test tests/st_cterm_rip_parser_test.c)
 	target_link_libraries(st_cterm_rip_parser_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_parser_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}

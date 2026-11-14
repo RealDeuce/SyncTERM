@@ -419,6 +419,10 @@ split-input vectors and coherent CP437/UTF-8 wire captures cover independent
 numeric state, replies and dual-phase pixels, including the corrected 0.005
 Bézier fallback. Remaining reference differences and safe rejection policies
 are recorded in [RIP154_PARSER.adoc](RIP154_PARSER.adoc).
+RIP `1G` now copies absolute screen regions with RIPv1 alignment quirks and
+RIPv3 outward alignment. Native whole-plane, overlap, split-input, state and
+reduced-mapping tests supplement 20 coherent application cases per version
+and encoding, with both pixel phases, clipboard preservation and recovery.
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

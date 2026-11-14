@@ -491,8 +491,10 @@ research documents no additional bottom-of-region rejection. Guard
 nonfinite/out-of-range floating conversion in C rather than relying on a
 DOS conversion helper's exceptional result.
 
+=== Screen copy (`1G`)
+
 `1G` is implemented in the reference (`0c16:0623`), despite being treated
-as a no-op by legacy SyncTERM. Its first four words are signed-sorted as
+as a no-op at the audited SyncTERM baselines. Its first four words are signed-sorted as
 rectangle endpoints. It saves the original Y difference, exits if that
 difference is zero, and uses signed division/remainders by eight for X
 alignment. Specifically, it subtracts `x1 % 8` from x1; if `x2 % 8` is
@@ -506,6 +508,51 @@ the destination's lower extent using the saved Y difference. Its sixth
 word is destination line. It copies EGA video memory, choosing the
 downward-overlap helper when needed. The pre-clamp height and word
 arithmetic must not become unchecked C buffer sizes or offsets.
+
+The downward helper at `0c16:0293` sorts the adjusted endpoint pair again
+(`0299–02b2`), unlike the upward path. Both paths copy inclusive source
+rows. The byte width is `(right - left + 1) >> 3` (`02e5–02f0`,
+`07b3–07be`), and the video byte address uses `left >> 3`. For example,
+`080A0O0D000B` copies X=8..23, Y=10..13 to Y=11..14. With X=14..38,
+reserved=0, the adjusted left is 10, byte address is 1 and byte count is 3:
+the actual copied pixels are X=8..31. Reserved=7 instead gives X=0..31;
+reserved=-7 gives X=16..31. A full-width source X=0..639 with reserved=0
+copies only X=0..631, while reserved=1 restores all 640 pixels.
+
+==== Modern implementation
+
+Modern SyncTERM now implements this six-field command. RIPv1 follows the
+reference sorting, signed alignment/remainders, fifth-word use, initial
+zero-height exit, original-Y-difference bottom check and downward re-sort.
+Clamps occur before dimensions or addresses are formed. Nonpositive byte
+widths are safely ignored; the loose reference bottom check is retained,
+but only visible destination rows are copied. Writes into non-display EGA
+memory are not reproduced.
+
+RIPv3 uses `ripscrip.txt`'s outward X alignment, ignores the fifth word
+after validating it, permits a single source row and rejects a copy whose
+entire destination height does not fit. Both versions ignore same-line
+copies and use absolute screen coordinates, including when the graphics
+viewport is offset or disabled. Drawing colour, fill, line pattern,
+thickness, write mode, current point and the RIP clipboard are unchanged.
+
+The mapped source rectangle is snapshotted inside one console write lock,
+then copied into the same indexed/RGB raster in both blink planes. This
+preserves original pixels for either overlap direction and keeps the
+operation coherent with pending text and row normalization. Reduced-display
+coordinates use the existing RIP mapping independently for each logical row;
+the last logical write to an aliased physical destination row wins. All
+mapped extents are checked against the borrowed raster before allocation
+or access. Allocation failure produces the existing nonfatal engine warning
+without partial writes. No BGI clipboard-size limit applies to a screen copy.
+
+`cterm_rip_copy` checks independently specified whole-plane expectations,
+distinct blink planes, padding/stride, both overlap directions, malformed
+fields, every two-part split and bytewise input, clipboard/state preservation
+and reduced-display aliases. The CP437/UTF-8 wire suites add 20 coherent
+full-plane cases for each protocol version, including subsequent commands,
+cursor/cells and an unrelated clipboard paste. These are local
+source/disassembly-directed expectations, not new DOS capture claims.
 
 === Mouse regions, buttons, definitions and transfer
 
@@ -974,6 +1021,12 @@ errors and asset/callback failures still use the existing engine recovery.
   before use. `1I` now validates six fields (2,2,2,1,1,1), with the two
   final reserved fields separate. Its clipboard flag is a nonzero test.
   `1W` validates its reserved field; filenames follow the consumed prefix.
+|`1G`
+|All six fields use signed word decoding. RIPv1 preserves the alignment,
+  fifth-field and height-check quirks described under screen copy above;
+  RIPv3 uses outward X alignment and strict vertical fit. Whole-byte widths
+  and mapped extents are checked before the source snapshot or any write.
+  Unsafe non-display EGA access is replaced by visible-row clipping.
 |`1T`, `1t`
 |Region coordinates remain signed words; two reserved fields are ignored
   after validation. Modern text metrics and bounded drawing remain in use.
@@ -1007,8 +1060,9 @@ errors and asset/callback failures still use the existing engine recovery.
   distinct; shared signed decoding does not add missing command bodies.
 |===
 
-The legacy source tree was not changed: its minus-as-zero reader still
-needs separate backport work. Further modern differences include:
+These modern follow-ups did not modify the legacy source tree. Its current
+backport status must be checked separately from the historical inventory.
+Further modern differences include:
 
 [cols="2,3,3",options="header"]
 |===
@@ -1028,9 +1082,6 @@ needs separate backport work. Further modern differences include:
 |Font `Y` |Reference BGI font validation/fallback; direction/size byte use.
 |Modern font/size limits (font <=10, size 1..10) do not reproduce all
   reference acceptance, errors or effective state.
-|Copy region `1G` |Reference implements aligned screen copy.
-|Legacy's no-op comment is not proof that RIPterm ignores it; support
-  and tests must be assessed independently in each maintained branch.
 |Block transfer |Mode zero versus nonzero; protocol/type signed checks;
   both `9 ESC` and `0 ESC`.
 |Modern host limits mode to 0..1 and routes only the level-9 spelling.

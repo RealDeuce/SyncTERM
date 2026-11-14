@@ -85,6 +85,70 @@ def pixel(frame, x, y, phase="primary"):
     return (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
 
 
+def copy_cases(t, version):
+    # Independent indexed scene. Expected copies use these specified pixels,
+    # never observations of the emulator or its alignment implementation.
+    indexes = (16, 20, 18, 22, 17, 21, 19, 23, 24, 28, 26, 30, 25, 29, 27, 31)
+    seed = [16] * (640 * 350)
+    drawing = []
+    for y in (*range(10, 14), *range(340, 350)):
+        for band in (*range(6), 79):
+            ink = (y + band) % 15 + 1
+            x = band * 8
+            drawing.append(b"S01" + mega(ink) + b"|B" + point(x, y) + point(x + 7, y))
+            seed[y * 640 + x:y * 640 + x + 8] = [indexes[ink]] * 8
+    paint = b"!|" + b"|".join(drawing) + b"\r\n!|1C0A0A0B0B0\r\n"
+    # Rectangles are x, source Y, width, inclusive-row count, destination Y.
+    cases = (
+        ("up", b"080A0O0C0002", (8, 10, 16, 3, 2), (8, 10, 16, 3, 2)),
+        ("down-overlap", b"080A0O0D000B", (8, 10, 16, 4, 11), (8, 10, 16, 4, 11)),
+        ("up-overlap", b"080A0O0D0009", (8, 10, 16, 4, 9), (8, 10, 16, 4, 9)),
+        ("reversed", b"0O0D080A0002", (8, 10, 16, 4, 2), (8, 10, 16, 4, 2)),
+        ("same-line", b"080A0O0C000A", None, None),
+        ("one-row", b"080A0O0A0002", None, (8, 10, 16, 1, 2)),
+        ("unaligned", b"0E0A120C0002", (8, 10, 24, 3, 2), (8, 10, 32, 3, 2)),
+        ("reserved-positive", b"0E0A120C0702", (0, 10, 32, 3, 2), (8, 10, 32, 3, 2)),
+        ("reserved-negative", b"0E0A120C-702", (16, 10, 16, 3, 2), (8, 10, 32, 3, 2)),
+        ("negative-left", b"-A0A0O0C0002", (0, 10, 24, 3, 2), (0, 10, 24, 3, 2)),
+        ("pre-clamp-height", b"089G0OB4008C", None, (8, 340, 16, 10, 300)),
+        ("source-bottom-clamp", b"089G0OB40000", (8, 340, 16, 10, 0), (8, 340, 16, 10, 0)),
+        ("large-copy", b"0000HR9O0001", (0, 0, 632, 349, 1), (0, 0, 640, 349, 1)),
+        ("full-width", b"0000HR9O0101", (0, 0, 640, 349, 1), (0, 0, 640, 349, 1)),
+        ("loose-bottom", b"080A0O0B009P", (8, 10, 16, 1, 349), None),
+        ("destination-overflow", b"080A0O0D009O", None, None),
+        ("missing-field", b"080A0O0C00", None, None),
+        ("invalid-reserved", b"080A0O0C?002", None, None),
+        ("resort-adjusted-down", b"080A090C-70K", (8, 10, 8, 3, 20), (8, 10, 8, 3, 20)),
+        ("short-final-field", b"080A0O0C002", (8, 10, 16, 3, 2), (8, 10, 16, 3, 2)),
+    )
+    for number, (name, arguments, v1, v3) in enumerate(cases):
+        scene(t, paint)
+        viewport = b"v00000000" if number % 2 else b"v8C8C8M8M"
+        frame = t.check(f"copy-v{version}-" + name,
+                        b"!|W1|=04000003|c03|S0205|m0V15|" + viewport + b"|1G" + arguments
+                        + b"|W0|v0000HR9P|1PGO96000|c0F|XH39E\r\n",
+                        (1, 1), ((1, 1, " "),), reset=False)
+        expected = seed.copy()
+        rectangle = v1 if version == 1 else v3
+        if rectangle:
+            x, source_y, width, height, destination_y = rectangle
+            for row in range(height):
+                start = (destination_y + row) * 640 + x
+                source = (source_y + row) * 640 + x
+                expected[start:start + width] = seed[source:source + width]
+        # The unrelated clipboard survives, and following commands execute
+        # after valid, rejected and malformed copy requests alike.
+        for row in range(2):
+            expected[(330 + row) * 640 + 600:(330 + row) * 640 + 602] = seed[(10 + row) * 640 + 10:(10 + row) * 640 + 12]
+        expected[338 * 640 + 615] = 31
+        for phase in ("primary", "alternate"):
+            actual = list(getattr(frame, phase)[:640 * 350])
+            if actual != expected:
+                first = next(i for i, (a, b) in enumerate(zip(actual, expected)) if a != b)
+                raise AssertionError((name, version, phase, first % 640, first // 640,
+                                      actual[first], expected[first]))
+
+
 def numeric_cases(t):
     # Independent WORD/byte expectations; no rendered output is used to
     # generate an oracle. Every related cell/pixel/state uses this capture.
@@ -136,6 +200,7 @@ def numeric_cases(t):
 
 
 def wire_cases(t):
+    copy_cases(t, 1)
     numeric_cases(t)
     t.check("rip-version", b"\x1b[!", expected=b"RIPSCRIP015410", reset=False)
     t.check("rip-version-zero", b"\x1b[0!", expected=b"RIPSCRIP015410", reset=False)
@@ -470,6 +535,7 @@ def live_cases(args):
         with connection(args.executable, args.reports, encoding=args.encoding,
                         options="ScreenMode=80x43\nRIP=RIPv3\n", settings="AudioModes=0\n") as (client, root, peer, send):
             t = Terminal(client, root, peer, send)
+            copy_cases(t, 3)
             scene(t)
             frame = t.check("v3-escape-priority", b"\x1b[31\x01|c0F|X2S2S\r\nZ", reset=False)
             assert frame.application["cterm.graphics_mode"] == 2  # ST_CTERM_GRAPHICS_RIP_3
