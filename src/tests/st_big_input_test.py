@@ -1407,6 +1407,34 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                          ((524, 50), (525, 49) if resolution == 1 else (524, 49 if resolution == 2 else 48)),
                                          (524, 50, 526, 50, 524, 50 - (0, 1, 2)[resolution - 1]),
                                          (2, (0, 1, 2)[resolution - 1]), 0, resolution + 2, {}),)
+                        # Y supplies explicit radii in all modes. These
+                        # literal quarter outlines/interiors follow13/60/61;
+                        # aspect conversion is not part of this command.
+                        y_tall = ((0, -2), (0, -1), (0, 0), (1, -1), (1, 0))
+                        y_wide = ((0, -1), (1, -1), (0, 0), (1, 0), (2, 0))
+                        y_round = ((0, -2), (1, -2), (2, -1), (0, -1), (0, 0), (1, 0), (2, 0))
+                        def y_pixels(x, y, contour, interior=()):
+                            return tuple((x + dx, y + dy, 15) for dx, dy in contour) + tuple((x + dx, y + dy, 5) for dx, dy in interior)
+                        # Zero-axis count1 skips059e's first Move, retaining
+                        # the device center while radials still draw.
+                        curve_cases += (
+                            (b"I#Y 524,30,1,2,0,90:", y_pixels(524, 30, y_tall),
+                             ((524, 30), (524, 28)), (524, 30, 525, 30, 524, 28), (1, 2), 0, 4, {}),
+                            (b"I#Y 548,30,2,1,0,90:", y_pixels(548, 30, y_wide),
+                             ((548, 30), (548, 29)), (548, 30, 550, 30, 548, 29), (2, 1), 0, 4, {}),
+                            (b"I#Y 572,30,2,2,0,90:", y_pixels(572, 30, y_round, ((1, -1),)),
+                             ((572, 30), (572, 28)), (572, 30, 574, 30, 572, 28), (2, 2), 0, 5, {}),
+                            (b"I#H 1:I#Y 596,30,2,2,0,90:", y_pixels(596, 30, y_round),
+                             ((596, 30), (596, 28)), (596, 30, 598, 30, 596, 28), (2, 2), 0, 5, dict(hollow=1)),
+                            (b"I#Y 620,30,1,2,+1,+1:", ((620, 30, 15),),
+                             ((620, 30), (620, 30)), (620, 30, 620, 30, 620, 30), (1, 2), 0, 5, {}),
+                            (b"I#H 0:I#g 2:I#& 0,0,1,0,Y@6,524,25,1,2,0,90:I#g 0:", y_pixels(524, 25, y_tall),
+                             ((524, 25), (524, 23)), (524, 25, 525, 25, 524, 23), (1, 2), 0, 4, dict(hollow=0)),
+                            (b"I#Y 548,25,0,1,0,90:", ((548, 24, 15), (548, 25, 15)),
+                             ((548, 25), (548, 25)), (548, 25, 548, 25, 548, 24), (0, 1), 0, 1, {}),
+                            (b"I#Y 572,25,1,0,0,90:", ((572, 25, 15), (573, 25, 15)),
+                             ((572, 25), (572, 25)), (572, 25, 573, 25, 572, 25), (1, 0), 0, 1, {}),
+                        )
                         for index, (command, additions, points, arc, radii, span, count, changes) in enumerate(curve_cases):
                             curve_state.update(changes); curve_state["lower_points"] = points
                             for x, y, pen in additions:

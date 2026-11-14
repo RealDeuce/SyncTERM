@@ -387,7 +387,9 @@ static int curve_execute(struct curve *request, const struct st_big_producer_sin
     const struct st_big_polygon_sink *polygon)
 {
 	struct cterm_big *big=request->big;
-	if (request->sector) return st_big_curve_pieslice(&big->state,&big->producer,&request->request,sink,NULL,polygon);
+	if (request->sector) return request->circular
+	    ?st_big_curve_pieslice(&big->state,&big->producer,&request->request,sink,NULL,polygon)
+	    :st_big_curve_public_sector(&big->state,&big->producer,&request->request,sink,NULL,polygon);
 	return request->circular?st_big_curve_arc(&big->state,&big->producer,&request->request,sink,NULL)
 	    :st_big_curve_ellipse(&big->state,&big->producer,&request->request,sink,NULL);
 }
@@ -412,9 +414,9 @@ static int curve(void *context, const struct st_pixel_buffer *pixels, struct st_
 }
 int cterm_big_draw_curve(struct cterm_big *big, const struct st_graphics_command_view *view)
 {
-	if (view->code!='K' && view->code!='J' && view->code!='O' && view->code!='Q' && view->code!='V') return IO_ERROR_PROTOCOL;
+	if (view->code!='K' && view->code!='J' && view->code!='O' && view->code!='Q' && view->code!='V' && view->code!='Y') return IO_ERROR_PROTOCOL;
 	bool circle=view->code=='O', ellipse=view->code=='Q', closed=circle || ellipse;
-	bool sector=view->code=='V', circular=view->code=='K' || circle || sector;
+	bool sector=view->code=='V' || view->code=='Y', circular=view->code=='K' || circle || view->code=='V';
 	size_t count=circle?3:ellipse?4:circular?5:6;
 	if (view->count!=count) return IO_ERROR_PROTOCOL;
 	uint16_t words[6];
@@ -444,7 +446,7 @@ int cterm_big_draw_curve(struct cterm_big *big, const struct st_graphics_command
 		return curve_execute(&request,&no_pixels,NULL);
 	}
 	status=modify(big,curve,&request);
-	/* V reapplies the current selection only after a normal return. A
+	/* V/Y reapply the current selection only after a normal return. A
 	 * rejected custom fill can leave hollow's empty style installed. */
 	if (status==0 && sector) status=st_big_fill_apply(&big->state);
 	return status;

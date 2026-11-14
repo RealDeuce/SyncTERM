@@ -935,3 +935,25 @@ An end90 quarter reaches a zero-width last piece, leaving span0 and3/4/5
 records; mode3 alone retains the diagonal pen5 interior. All prior scene
 observations remain. No expected frames come from SyncTERM, no external
 asset is required, and physical audio/MIDI are disabled.
+
+Y provenance is complete BIG13d2:1894..1924,195a:1d59..1d88 and13/60/61.
+cterm_big_curve first failed against missing dispatch. Its split/profile and
+bytewise cases retain full planes/points/ANSI replies. Independent1x2/2x1
+quarters have five line pixels/count4;2x2 has seven boundary pixels plus one
+pen6 interior/count5. Hollow256, double-XOR, zero aspects, zero X/Y, high
+radii/ffff angles, orientation and alternate365-record order retain distinct
+oracles. g2/g3 ordinary center/RY scaling contrasts with actual stored bypass.
+Partial/EOF/reset/timeout/clock, rejected hollow-fill and storage recovery,
+pages, deferred NUL/ff origins and following-D points keep reached prefixes.
+
+Eight new application Y scenes per profile add112 captures,3598 total,
+covering explicit tall/wide/filled/hollow/ffff/stored/zero-axis pixels and
+arc/radius/point/count state. All previous coherent observations remain;
+no expected image comes from SyncTERM or needs an external reference at
+runtime. Physical audio/MIDI are disabled in headless fixtures.
+
+Y zero-axis quarters retain one record after closure trim. Original DDO05b4
+checks count<2 before the first Move, so their device point stays at the
+placed center despite radial output. The initial application oracle assumed
+a first-record Move; direct original-source review corrected that expectation
+and added explicit native count/point assertions.

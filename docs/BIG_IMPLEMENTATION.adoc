@@ -24,19 +24,21 @@ source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
 pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
-K circular/J explicit-radius arcs, O circles, Q ellipses and V circular
-pieslices are integrated.
+K circular/J explicit-radius arcs, O circles, Q ellipses, V circular
+pieslices and Y explicit-radius sectors are integrated.
 Other curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
-binding and K/J/O/Q/V wire/page/source/recovery integration. Sector work has
+binding and K/J/O/Q/V/Y wire/page/source/recovery integration. Sector work has
 the raw polygon scanner, stages2/3, piece closure, normal/alternate lower
 construction, physical span operators and public explicit/circular sector
-wrappers. V retains its own fill/line/caller schedule. Y is the next native
-curve command; its numeric/caller/wire/application integration remains pending.
+wrappers. V/Y share their fill/line/caller schedule while preserving circular
+aspect conversion versus explicit radii and their distinct reader classes.
+All six curve commands have native wire integration. Remaining non-audio
+commands p/s/X7, sound, resource composition and global acceptance are pending.
 Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -4023,3 +4025,60 @@ milestone has not been reached.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.
 
 Native V/public-sector implementation commit: `1b977a2`.
+
+== Native Y explicit-radius sectors
+
+Complete BIG13d2:1894..1924 was reread alongside61's six caller schedules,
+public195a:1d59..1d88 and the previously verified13/60 lower sector stack.
+Y reads center classes1/2, explicit radii classes1/2, then angles classes0/0.
+It uses the existing ellipse schema and incremental numeric/source parser;
+ordinary Y scaling affects centerY AND radiusY, while supplied values bypass
+both. No circular aspect derivation or radius-class0 substitution is added.
+
+Y is registered at the shared pre-ANSI insertion and selects the already
+accepted explicit public-sector wrapper. It shares V's real current-fill,
+nonzero-hollow empty0/0, current-line-color and normal-return current-fill
+sequence, indexed page adapter, producer/polygon stages, and physical bar/raw
+spans. The new native path adds no second parser, curve kernel, palette data,
+framebuffer, foreign clock or flood. ffff stays an angle; zero/equal and
+alternate paths retain actual lower radial, count, point and arc behavior.
+
+Independent cterm_big_curve expectations first failed against missing Y
+dispatch. Every split and bytewise input spans three modes, CP437/UTF8 and
+status choices, with full indexed planes and following ANSI replies. Literal
+1x2 tall and2x1 wide quarter scenes each contain five line pixels;2x2 has
+seven boundary pixels plus one pen6 interior. Counts4/4/5 and final span0
+come from the original collection plus reached zero-width last piece.
+Hollow256 removes only the interior and reapplies selected fill. Equal-angle
+XOR preserves its two cancelling radial writes in every mode.
+
+Zero aspect words still draw explicit sectors. Independent zero-X/zero-Y
+scenes, ffff radii without clamping, ffff angle normalization, orientation-
+swapped radii and a365-record alternate outline-before-fill scene check actual
+owners. Ordinary g2 center100/RY2 become175/3; stored replay keeps100/2 and
+the literal tall quarter. g3 centerY5/RY5 become11/11 versus stored5/5.
+No new scaling pass changes supplied coordinates or circular commands.
+
+Late setters retain old color/fill during partial input. EOF/reset/timeout/
+clock cases, hollow custom rejection and reached storage failure/recovery
+check accepted prefixes and the unreached final fill setter without a fatal
+session. Active pages, chained deferred NUL/ff user replies and a following
+D retain separate public/DDO/device points. All previous K/J/O/Q/V tests are
+retained. Native Y shares existing checked geometry/extent/division/callback
+failure corrections and does not claim foreign raw-controller equivalence.
+
+Eight new Y application cases per profile add112 coherent captures,3598
+total. Tall/wide/filled/hollow/ffff/equal/stored and both zero-axis scenes
+use independent literal line/interior pixels, arc/radius/point/count values.
+All prior cell/pixel/palette/font/image/RNG/native RGB/reply observations stay
+in the same capture. Physical audio/MIDI remain disabled. Other missing
+non-audio commands, audio/resource/global45-entry and the goal-final full
+suite remain pending; the conditional push milestone is not yet reached.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.89s. The final strengthened cterm_big_curve passed in6.36s total (test6.30s), including explicit count1/device-center assertions for both zero axes. After correcting the independently reviewed zero-axis oracle, syncterm_big_input passed in176.28s total (test176.22s),3598 coherent scenes including112 new Y scenes with every earlier observation retained. No non-BIG tests ran. Native Y is verified; p/s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.
+
+Y zero-axis quarters retain one record after closure trim. Original DDO05b4
+checks count<2 before the first Move, so their device point stays at the
+placed center despite radial output. The initial application oracle assumed
+a first-record Move; direct original-source review corrected that expectation
+and added explicit native count/point assertions.

@@ -1,4 +1,4 @@
-/* Independent BIG K/J/O/Q/V wire/page/source/recovery expectations, original13/61. */
+/* Independent BIG K/J/O/Q/V/Y wire/page/source/recovery expectations, original13/61. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_big_internal.h"
@@ -71,18 +71,18 @@ static void owners(struct fixture *f, unsigned x, unsigned y, unsigned device_x,
 static const struct dot full[]={{100,99},{100,101},{99,100},{101,100}};
 static void partitions_and_profiles(void)
 {
-	static const char *const wires[]={"I#K 100,100,1,0,360:\033[2;3H\033[6n", "I#J 100,100,1,1,0,360:\033[2;3H\033[6n", "I#H 1:I#O 100,100,1:\033[2;3H\033[6n", "I#H 1:I#Q 100,100,1,1:\033[2;3H\033[6n", "I#H 1:I#V 100,100,1,0,0:\033[2;3H\033[6n"};
+	static const char *const wires[]={"I#K 100,100,1,0,360:\033[2;3H\033[6n", "I#J 100,100,1,1,0,360:\033[2;3H\033[6n", "I#H 1:I#O 100,100,1:\033[2;3H\033[6n", "I#H 1:I#Q 100,100,1,1:\033[2;3H\033[6n", "I#H 1:I#V 100,100,1,0,0:\033[2;3H\033[6n", "I#H 1:I#Y 100,100,1,1,0,0:\033[2;3H\033[6n"};
 	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
 		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
 		for (size_t c=0;c<sizeof(wires)/sizeof(wires[0]);++c) for (unsigned resolution=1;resolution<=3;++resolution) for (size_t split=0;split<=strlen(wires[c]);++split) {
 			setup(&f,resolution); feed(&f,wires[c],split); string(&f,wires[c]+split);
 			CHECK(f.size==6 && memcmp(f.output,"\033[2;3R",6)==0 && b->rejected_commands==0 && b->state.bgi.error==-11);
 			const struct dot center[]={{100,100}};
-			owners(&f,100,100,c==4?100:0xa014,c==4?100:3); canvas(&f,c==4?center:full,c==4?1:4);
+			owners(&f,100,100,c>=4?100:0xa014,c>=4?100:3); canvas(&f,c>=4?center:full,c>=4?1:4);
 			CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==((c==0 || c==2 || c==4) && resolution!=3?0:1) && b->producer.mode==0 && !b->producer.batch);
 		}
 		for (size_t c=0;c<sizeof(wires)/sizeof(wires[0]);++c) for (unsigned resolution=1;resolution<=3;++resolution) {
-			setup(&f,resolution); for (size_t i=0;i<strlen(wires[c]);++i) feed(&f,wires[c]+i,1); const struct dot center[]={{100,100}}; canvas(&f,c==4?center:full,c==4?1:4);
+			setup(&f,resolution); for (size_t i=0;i<strlen(wires[c]);++i) feed(&f,wires[c]+i,1); const struct dot center[]={{100,100}}; canvas(&f,c>=4?center:full,c>=4?1:4);
 		}
 		destroy(&f);
 	}
@@ -477,4 +477,54 @@ static void pieslice_V(void)
 	destroy(&f);
 }
 
-int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); stage="J explicit radii"; explicit_radius_J(); stage="O circle/flood"; circle_O(); stage="Q ellipse/fill timing"; ellipse_Q(); stage="V pieslice"; pieslice_V(); return 0; }
+
+static void sector_Y(void)
+{
+	static const struct dot center[]={{100,100}},tall[]={{100,98},{100,99},{100,100},{101,99},{101,100}},wide[]={{100,99},{101,99},{100,100},{101,100},{102,100}};
+	static const struct dot outer[]={{100,98},{101,98},{102,99},{102,100},{101,100},{100,100},{100,99}},inside[]={{101,99}};
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	for (unsigned mode=1;mode<=3;++mode) {
+		stage="Y explicit tall"; setup(&f,mode); string(&f,"I#H 0:I#C 2,6:I#Y 100,100,1,2,0,90:");
+		canvas(&f,tall,5); owners(&f,100,100,100,98); CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==2 && b->producer.count==4 && b->state.bgi.curve_span==0 && b->state.bgi.fill_color==6);
+		stage="Y explicit wide"; setup(&f,mode); string(&f,"I#Y 100,100,2,1,0,90:"); canvas(&f,wide,5); owners(&f,100,100,100,99); CHECK(b->producer.count==4);
+		stage="Y real interior"; setup(&f,mode); string(&f,"I#Y 100,100,2,2,0,90:"); canvas_with_fill(&f,outer,7,inside,1); owners(&f,100,100,100,98); CHECK(b->producer.count==5);
+		stage="Y hollow"; setup(&f,mode); string(&f,"I#H 256:I#Y 100,100,2,2,0,90:"); canvas(&f,outer,7); CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==6);
+		stage="Y equal XOR"; setup(&f,mode); string(&f,"I#M 2:I#Y 100,100,1,2,0,0:"); canvas(&f,NULL,0); owners(&f,100,100,100,100);
+	}
+	stage="Y no aspect dependency"; setup(&f,2); b->state.bgi.aspect[0]=b->state.bgi.aspect[1]=0;
+	string(&f,"I#H 0:I#Y 100,100,1,2,0,90:"); canvas(&f,tall,5); owners(&f,100,100,100,98); CHECK(b->state.bgi.fill_color==6);
+	stage="Y zero X radius"; setup(&f,2); string(&f,"I#Y 100,100,0,1,0,90:"); static const struct dot vertical[]={{100,99},{100,100}}; canvas(&f,vertical,2); owners(&f,100,100,100,100); CHECK(b->producer.count==1 && b->state.bgi.curve_radius[0]==0 && b->state.bgi.curve_radius[1]==1);
+	stage="Y zero Y radius"; setup(&f,2); string(&f,"I#Y 100,100,1,0,0,90:"); static const struct dot horizontal[]={{100,100},{101,100}}; canvas(&f,horizontal,2); owners(&f,100,100,100,100); CHECK(b->producer.count==1 && b->state.bgi.curve_radius[1]==0);
+	stage="Y high WORD radii"; setup(&f,2); string(&f,"I#Y 100,100,+1,+1,0,0:"); canvas(&f,center,1); CHECK(b->state.bgi.curve_radius[0]==0xffff && b->state.bgi.curve_radius[1]==0xffff);
+	stage="Y angle is not query"; setup(&f,2); string(&f,"I#Y 100,100,1,1,+1,0:"); canvas(&f,horizontal,2); CHECK(b->state.bgi.curve_span==15);
+	stage="Y orientation"; setup(&f,2); b->state.bgi.orientation=1; string(&f,"I#Y 100,100,1,2,0,90:");
+	static const struct dot rotated[]={{100,99},{99,99},{98,100},{99,100},{100,100}}; canvas(&f,rotated,5);
+	CHECK(b->state.bgi.curve_radius[0]==2 && b->state.bgi.curve_radius[1]==1 && b->state.bgi.arc[2]==100 && b->state.bgi.arc[3]==99 && b->state.bgi.arc[4]==98 && b->state.bgi.arc[5]==100); b->state.bgi.orientation=0;
+	stage="Y alternate"; setup(&f,3); b->state.bgi.curve_fallback=1; string(&f,"I#Y 100,100,1,1,0,360:");
+	static const struct dot alternate_line[]={{99,101},{100,101}},alternate_fill[]={{100,99},{99,100},{100,100},{101,100}};
+	canvas_with_fill(&f,alternate_line,2,alternate_fill,4); owners(&f,100,100,100,100); CHECK(b->producer.count==365); b->state.bgi.curve_fallback=0;
+	stage="Y wire scaling"; setup(&f,2); string(&f,"I#g 2:I#Y 100,100,1,2,0,0:"); static const struct dot scaled[]={{100,175}}; canvas(&f,scaled,1); owners(&f,100,175,100,175); CHECK(b->state.bgi.curve_radius[1]==3);
+	stage="Y stored scaling"; setup(&f,2); string(&f,"I#g 2:I#& 0,0,1,0,Y@6,100,100,1,2,0,90:I#g 0:"); canvas(&f,tall,5); owners(&f,100,100,100,98); CHECK(b->state.bgi.curve_radius[1]==2 && b->numeric.loop.active==0);
+	stage="Y original g3 rounding"; setup(&f,3); string(&f,"I#g 3:I#Y 100,5,1,5,0,0:"); static const struct dot rounded[]={{100,11}}; canvas(&f,rounded,1); CHECK(b->state.bgi.curve_radius[1]==11);
+	stage="Y stored g3 bypass"; setup(&f,3); string(&f,"I#g 3:I#& 0,0,1,0,Y@6,100,5,1,5,0,0:I#g 0:"); static const struct dot stored[]={{100,5}}; canvas(&f,stored,1); CHECK(b->state.bgi.curve_radius[1]==5);
+	stage="Y late setters"; setup(&f,2); string(&f,"I#H 0:I#Y 100,100,1,2,0,"); canvas(&f,NULL,0); CHECK(b->state.bgi.color==15 && b->state.bgi.fill_color==15);
+	b->state.application.colors[1]=5; b->state.application.colors[2]=6; string(&f,"90:"); canvas(&f,tall,5); CHECK(b->state.bgi.color==5 && b->state.bgi.fill_color==6);
+	stage="Y EOF/reset/timeout"; setup(&f,2); string(&f,"I#Y 100,100,1,2,0,"); CHECK(st_cterm_finish(f.terminal)==0); canvas(&f,NULL,0); CHECK(b->state.bgi.fill_color==15);
+	string(&f,"I#Y 100,100,1,2,0,"); CHECK(st_cterm_reset_terminal(f.terminal)==0); canvas(&f,NULL,0); owners(&f,31,32,31,32);
+	string(&f,"I#Y 100,100,1,2,0,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0); canvas(&f,center,1); CHECK(b->state.bgi.fill_color==6);
+	stage="Y clock failure"; setup(&f,2); string(&f,"I#Y 100,100,1,2,0,"); clock_error=IO_ERROR_IO; CHECK(st_cterm_poll(f.terminal)==0); clock_error=0; canvas(&f,NULL,0); CHECK(b->last_error==IO_ERROR_IO && b->state.bgi.fill_color==15);
+	stage="Y rejected hollow restoration"; setup(&f,2); string(&f,"I#H 1:I#C 2,6:I#A 1:I#C 2,31:I#A 12:I#Y 100,100,1,2,0,90:"); canvas(&f,tall,5); CHECK(b->state.bgi.fill_style==0 && b->state.bgi.fill_color==0 && b->state.bgi.error==-11);
+	stage="Y reached storage failure"; setup(&f,2); string(&f,"I#C 2,6:I#A 1:"); size_t extent=b->producer.storage_count; b->producer.storage_count=0; size_t rejected=b->rejected_commands;
+	string(&f,"I#Y 100,100,1,2,0,90:\033[6n"); canvas(&f,NULL,0); CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==rejected+1 && b->state.bgi.fill_style==0 && b->state.bgi.fill_color==0 && f.size==6);
+	b->producer.storage_count=extent; string(&f,"I#Y 100,100,1,2,0,90:"); canvas(&f,tall,5); CHECK(b->state.bgi.fill_color==6);
+	for (unsigned mode=1;mode<=3;++mode) {
+		stage="Y active pages"; setup(&f,mode); string(&f,"I#G>6,1:Y 100,100,1,2,0,0:"); if (mode<3) { canvas(&f,NULL,0); string(&f,"I#G 5,1:"); } canvas(&f,center,1);
+	}
+	stage="Y deferred reply"; setup(&f,2); b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"I#Y>100,100,1,2,0,0:"); CHECK(f.size==0 && b->control.input.pending==1); string(&f,"~ "); CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255 && f.origins[0]==ST_CTERM_OUTPUT_USER);
+	stage="Y following drawto"; setup(&f,2); string(&f,"I#H 0:I#Y 100,100,1,2,0,90:I#D 102,100:"); static const struct dot follow[]={{100,98},{100,99},{100,100},{101,99},{101,100},{102,100}}; canvas(&f,follow,6);
+	CHECK(b->state.bgi.x==102 && b->state.bgi.y==100 && b->state.bgi.ddo_x==102 && b->state.bgi.device_x==102);
+	destroy(&f);
+}
+
+int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); stage="J explicit radii"; explicit_radius_J(); stage="O circle/flood"; circle_O(); stage="Q ellipse/fill timing"; ellipse_Q(); stage="V pieslice"; pieslice_V(); stage="Y sector"; sector_Y(); return 0; }

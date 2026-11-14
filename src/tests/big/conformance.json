@@ -3360,7 +3360,7 @@
     {
       "id": "Y",
       "order": 24,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3368,12 +3368,39 @@
         "shared-bgi"
       ],
       "references": [
-        "61-curve-command-acceptance.adoc"
+        "curve-review-code.adoc:complete BIG13d2:1894..1924 Y caller and195a:1d59..1d88 public sector",
+        "61-curve-command-acceptance.adoc:explicit classes/current-fill/hollow/line/final-fill schedule and lower composition",
+        "13-curves-and-native-reuse.adoc:original normal/alternate sector fronts, trig and stages",
+        "60-sector-polygon-scan-converter.adoc:record scan conversion and bar/raw-line dispatch",
+        "34-numeric-words-and-exact-y-scaling.adoc:ordinary class2 center/RY scaling and supplied replay bypass"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Register Y using existing ellipse parameter schema: center classes1/2, radii classes1/2, angles0/0. Preserve incremental acquisition, source/loop/chaining/footer and late setter timing.",
+        "Select existing explicit public-sector wrapper without circular aspect. Share V current application fill, actual empty0/0 for current nonzero hollow WORD, current line color, then normal-return CURRENT fill application. No saved restoration, finally fill setter or center flood.",
+        "Reuse existing native indexed page adapter, producer/polygon stages, original lower normal/alternate geometry and physical bar/raw-line span kernels. No new parser, data, framebuffer or foreign clock. ffff remains an angle, equal sectors retain two radial requests.",
+        "Retain three graphic point/arc owners and existing checked failure boundaries. Command errors recover through existing nonfatal BIG handling, preserving reached setter/point/pixel prefixes."
+      ],
+      "tests": [
+        "big_curve_sector",
+        "big_curve_stages",
+        "big_polygon",
+        "big_polygon_span",
+        "big_numeric",
+        "cterm_big_curve",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Existing checked native geometry/storage/division/nontermination/callback policies apply; foreign raw video-address/controller/stack effects are not reproduced.",
+        "Native Y is implemented, while resource/audio/global45-entry and goal-final full-suite acceptance remain pending. Keep command status in-progress/commitnull under existing global ledger policy. Conditional publishing waits for all non-audio work."
+      ],
+      "verification": [
+        "Independent Y expectations first failed on absent dispatch. Every split/profile/bytewise wire across all three modes, CP437/UTF8/status choices checks full indexed planes, points and ANSI replies alongside every prior K/J/O/Q/V expectation.",
+        "Literal1x2 tall/2x1 wide quarter outlines contain five line pixels with count4;2x2 has seven line pixels plus one pen6 interior/count5. End90 reaches the original zero-width last piece, so final span0 remains. Hollow256, equal-XOR, zero aspects, zero X/Y, unsignedffff radii, ffff angle, orientation swap and365-record alternate order retain distinct owners.",
+        "Ordinary g2 center100/RY2 become175/3, while stored bypass keeps100/2 and the literal tall quarter. g3 centerY5/RY5 become11/11 versus stored5/5. Partial late setters, EOF/reset/timeout/clock, rejected custom hollow restoration and storage failure/recovery preserve reached fill/line/point prefixes without disconnecting.",
+        "Active-page drawing, deferred NUL/ff user replies and following D retain independent point/state expectations. Eight new coherent application scenes per profile add112 Y captures,3598 total, checking explicit tall/wide/interior/hollow/ffff/stored/zero-axis pixels, arc/radius/point/count and all preceding scene observations. Physical audio/MIDI remain disabled.",
+        "Initial application zero-axis device-point oracle incorrectly assumed a first-record Move. Original DDO05b4..05b7 checks unsigned count<2 before Move; after trim count1 retains the placed device center despite radials. Corrected independent expectations and strengthened native count/point assertions; production behavior was unchanged.",
+        "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.89s. The final strengthened cterm_big_curve passed in6.36s total (test6.30s), including explicit count1/device-center assertions for both zero axes. After correcting the independently reviewed zero-axis oracle, syncterm_big_input passed in176.28s total (test176.22s),3598 coherent scenes including112 new Y scenes with every earlier observation retained. No non-BIG tests ran. Native Y is verified; p/s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met."
+      ],
       "commit": null
     },
     {

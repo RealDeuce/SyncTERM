@@ -1459,3 +1459,10 @@ lifecycle and coherent application expectations check distinct point/arc
 owners and normal-return current-fill application. V equal angles retain two
 radials and ffff is not a query. Y and global/audio/final acceptance remain
 pending; physical audio/MIDI are disabled in the headless fixtures.
+
+BIG Y explicit-radius sectors now share V's native fill/line/sector schedule,
+using their own class1/2 radii and the public explicit-sector wrapper. Native
+split/profile/scaling/lifecycle and coherent application tests independently
+check tall/wide/interior/zero-axis output, point/arc owners and error recovery.
+All six BIG curve commands have native wire integration; p/s/X7, audio/global
+and final-suite acceptance remain pending. Physical audio/MIDI stay disabled.

@@ -1,7 +1,7 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
-through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V curves are integrated. Remaining drawing,
+through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
@@ -1812,3 +1812,36 @@ acceptance and the conditional non-audio publishing milestone remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.
 
 Native V/public-sector implementation commit: `1b977a2`.
+
+## Native Y explicit-radius sectors
+
+Y now uses the shared ellipse parameter schema with classes1/2/1/2/0/0 and
+the existing public-sector wrapper. Explicit radii bypass circular aspect
+conversion and retain original ordinary Y scaling versus supplied bypass.
+V/Y share the current-fill/hollow/current-line/normal-return-current-fill
+schedule, native indexed pages and producer/polygon/bar/raw-line operators.
+No new parser/kernel/data/framebuffer/flood or foreign clock is introduced.
+
+Independent cterm_big_curve tests first failed on absent dispatch. Every
+partition/profile and bytewise Y checks full planes, points and ANSI replies.
+Literal tall/wide five-pixel quarters and the seven-pixel2x2 boundary with
+pen6 interior retain counts4/4/5. Zero aspects, both zero radii, high WORDs,
+ffff angles, orientation, alternate365-record order, hollow256 and cancelling
+XOR use distinct source-derived expectations. Ordinary g2 and g3 radii/Y
+scale while stored replay bypasses scaling. Late setters, partial/EOF/reset/
+timeout/clock and storage/rejected-fill recovery, pages, deferred user replies
+and following-D points retain their actual reached prefixes.
+
+Eight Y application cases per profile add112 captures,3598 total, checking
+literal line/interior/zero-axis output and point/arc/radius/count state while
+retaining all earlier scene observations. Headless physical audio/MIDI stay
+off. p/s/X7, audio/resource/global45-entry and final-suite acceptance remain
+pending, so conditional publishing is not yet reached.
+
+Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.89s. The final strengthened cterm_big_curve passed in6.36s total (test6.30s), including explicit count1/device-center assertions for both zero axes. After correcting the independently reviewed zero-axis oracle, syncterm_big_input passed in176.28s total (test176.22s),3598 coherent scenes including112 new Y scenes with every earlier observation retained. No non-BIG tests ran. Native Y is verified; p/s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.
+
+Y zero-axis quarters retain one record after closure trim. Original DDO05b4
+checks count<2 before the first Move, so their device point stays at the
+placed center despite radial output. The initial application oracle assumed
+a first-record Move; direct original-source review corrected that expectation
+and added explicit native count/point assertions.
