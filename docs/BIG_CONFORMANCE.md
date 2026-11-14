@@ -1542,3 +1542,5 @@ pending. Existing2982 application scenes are unchanged and were not rerun for
 this unbound component; non-BIG regressions remain deferred.
 
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending.
+
+Angular outline/buffer-flush implementation commit: `29edc7e`.
