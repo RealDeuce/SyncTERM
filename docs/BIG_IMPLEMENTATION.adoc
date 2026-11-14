@@ -24,14 +24,14 @@ source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
 pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries
-and K circular arcs are integrated.
+and K circular/J explicit-radius arcs are integrated.
 Other curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
-binding and K wire/page/source/recovery integration. J is the next native
+binding and K/J wire/page/source/recovery integration. O is the next native
 curve command; global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -3537,3 +3537,54 @@ introduced as a second emulator inside SyncTERM.
 Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.
 
 Native K circular-arc/shared-graph implementation commit: `79d6956`.
+
+== Native J explicit-radius arcs
+
+The complete original BIG13d2:1732..179f caller reads X/Y/RX/RY/start/end
+with classes1,2,1,2,0,0, then publishes the CURRENT application line colour
+and calls the public ellipse wrapper directly. The native J registration
+follows that order. Explicit RY receives class2 Y scaling, including g2
+RY2->3 in mode2 and original g3 RY5->11 in mode3. Stored supplied values
+bypass scaling. J never derives RY from the circular aspect ratio, so zero
+aspects do not reject explicit ellipses. No radius clamp, angle sorting,
+modulo normalization, feature gate, automatic flow byte or reply is added.
+
+K and J share one native command adapter, existing indexed pixel/read-byte/
+active-page callbacks, graph scratch and lower decimal/angular execution.
+The common adapter selects the public circular or explicit ellipse wrapper;
+it preserves the already verified public/DDO/device point owners. Query
+and regular zero spans run without a framebuffer request; circular checked
+aspect division remains specific to K. Source/footer/deferred replies and
+nonfatal rejection/recovery keep their existing owner and accepted prefixes.
+
+cterm_big_curve first failed with independent expectations before J dispatch
+was added. Every split and bytewise acquisition across three modes, CP437/
+UTF8 and status choices checks full primary/alternate indexed planes and
+literal point/arc/reply values. Late/current colour, partial EOF/reset,
+real numeric timeout, reset inside the timeout bell callback and clock error
+are exercised for both K and J. The earlier K expectations remain intact.
+
+Hand-derived J traces cover tall/wide and zero-radius quarters, full turns
+with angles360..720, coalesced endpoints, ffff query, zero span, high-bit
+radius overflow and thick custom0 XOR. Zero aspects permit actual drawing
+and query; ordinary g2 and g3 center/radius scaling contrasts with stored
+unscaled replay. Read-plane failure retains reached batch/state and recovers
+without disconnect. Active-page drawings in all modes, following D from the
+restored DDO center, and chained deferred NUL/ff replies with user origin
+exercise the same native boundary as ordinary drawing.
+
+The application fixture adds seven independent scenes per profile,98 J
+captures and3178 total. Literal pixel/arc/point/radius/style/record oracles
+cover full/quarter/zero/query/thick/source cases. Every capture retains the
+preceding K and complete pixel/font/palette/image/RNG/native state scene.
+The first full ellipse read-byte return includes the earlier square pixel
+at(514,100) as well as the already reached ellipse pixel at(519,100):21h.
+Related curve values remain in the existing bounded inspection field; no
+expected image comes from the terminal. Headless audio/MIDI stay disabled.
+
+Native J is implemented; O follows in original dispatch order. Remaining
+commands, audio/resource/global45-entry composition and the final full
+regression suite remain pending. Historical acceptance records above describe
+their respective steps, rather than pending work in the current native J path.
+
+Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending.

@@ -1384,3 +1384,12 @@ checks coherent full indexed planes, split/profile/page/source/lifecycle and
 nonfatal error cases; the application fixture adds98 related arc scenes and
 retains all prior pixel/font/palette/image/state/RNG expectations. Native K
 integration is implemented; global/final regressions remain pending.
+
+BIG J explicit-radius arcs now share the K native indexed renderer and
+pre-ANSI/source/footer/recovery boundary. Six original operand classes keep
+RY scaling distinct from circular aspect conversion. cterm_big_curve checks
+independent full planes, points/records/replies, numeric lifecycle, geometry,
+scaling/source bypass, active pages and nonfatal recovery across all profiles.
+The application fixture adds98 J scenes,3178 total, retaining the complete
+preceding K and native graphics scene. Native J integration is implemented;
+remaining command/audio/global and final regression acceptance stay pending.

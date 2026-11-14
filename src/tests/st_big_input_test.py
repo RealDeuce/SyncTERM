@@ -102,7 +102,8 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     point = ((0, 0) if marker is None else (120, 64)) if graph_point is None else graph_point
     for domain in ("point", "ddo", "device"):
         expected_point = point if domain == "point" or lower_points is None else lower_points[0 if domain == "ddo" else 1]
-        assert (s[f"cterm.big_{domain}_x"], s[f"cterm.big_{domain}_y"]) == expected_point
+        actual_point = (s[f"cterm.big_{domain}_x"], s[f"cterm.big_{domain}_y"])
+        assert actual_point == expected_point, (token, domain, actual_point, expected_point)
     kind = (0 if marker is None else marker[0]) if marker_kind is None else marker_kind
     assert (s["cterm.big_marker"], s["cterm.big_marker_size"]) == (kind, 1)
     assert s["cterm.big_color"] == graph_color and s["cterm.big_device_color"] == graph_color & 15
@@ -1292,7 +1293,33 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                              ((620, 120),), ((620, 120), (3842, 4)), (620, 120, 621, 120, 620, 120), 1, 5,
                              dict(line=(0, 0, 1, 65535), device_line_width=1, writing=(0, 0))),
                         )
-                        for index, (command, additions, points, arc, span, count, changes) in enumerate(curve_cases):
+                        # J shares the same renderer but supplies both radii.
+                        curve_cases = tuple((command, additions, points, arc, (1, ry), span, count, changes)
+                                            for command, additions, points, arc, span, count, changes in curve_cases)
+                        curve_cases += (
+                            # The earlier square leaves (514,100) in the same
+                            # read byte as the final left point (519,100).
+                            (b"I#J 520,100,1,2,0,360:",
+                             ((520, 98), (520, 102), (519, 99), (521, 99), (519, 101), (521, 101), (519, 100), (521, 100)),
+                             ((520, 100), (0xa021, 7)), (520, 100, 521, 100, 521, 100), (1, 2), 360, 5, {}),
+                            (b"I#J 540,100,2,1,0,90:", ((540, 99), (541, 99), (542, 100)),
+                             ((540, 100), (0xa002, 6)), (540, 100, 542, 100, 540, 99), (2, 1), 90, 5, {}),
+                            (b"I#J 560,100,0,1,0,90:", ((560, 99),),
+                             ((560, 100), (0xa080, 0)), (560, 100, 560, 100, 560, 99), (0, 1), 90, 5, {}),
+                            (b"I#J 580,100,9,8,+1,0:", (),
+                             ((580, 100), (580, 100)), (560, 100, 560, 100, 560, 99), (0, 1), 90, 5, {}),
+                            (b"I#J 600,100,1,2,5,5:", (),
+                             ((600, 100), (600, 100)), (600, 100, 600, 100, 600, 99), (1, 2), 0, 5, {}),
+                            (b"I#T 2,4,0,1,1:I#M 2:I#J 620,100,1,1,0,3:",
+                             tuple((x, y) for x in (620, 621) for y in (99, 100, 101)),
+                             ((620, 100), (621, 100)), (620, 100, 620, 100, 620, 99), (1, 1), 0, 5,
+                             dict(line=(4, 0, 3, 0x8000), device_line_width=1, writing=(1, 1))),
+                            (b"I#T 2,0,0,1,0:I#M 1:I#g 2:I#& 0,0,1,0,J@6,500,110,1,2,0,90:I#g 0:",
+                             ((500, 108), (501, 109), (501, 110)),
+                             ((500, 110), (0xa004, 5)), (500, 110, 501, 110, 500, 108), (1, 2), 90, 5,
+                             dict(line=(0, 0, 1, 65535), device_line_width=1, writing=(0, 0))),
+                        )
+                        for index, (command, additions, points, arc, radii, span, count, changes) in enumerate(curve_cases):
                             curve_state.update(changes); curve_state["lower_points"] = points
                             for site in additions:
                                 assert site not in scene_pixels, site
@@ -1319,7 +1346,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             state = frame.application
                             curve = tuple(map(int, state["cterm.big_curve"].split(",")))
                             assert curve[2:8] == arc, curve
-                            assert curve[8:11] == (1, ry, span), curve
+                            assert curve[8:11] == (*radii, span), curve
                             assert curve[11:] == (0, count, 682, 0), curve
                             assert state["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must

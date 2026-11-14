@@ -1,4 +1,4 @@
-/* Independent BIG K wire/page/source/recovery expectations, original13/61. */
+/* Independent BIG K/J wire/page/source/recovery expectations, original13/61. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_big_internal.h"
@@ -68,34 +68,44 @@ static void owners(struct fixture *f, unsigned x, unsigned y, unsigned device_x,
 static const struct dot full[]={{100,99},{100,101},{99,100},{101,100}};
 static void partitions_and_profiles(void)
 {
-	static const char wire[]="I#K 100,100,1,0,360:\033[2;3H\033[6n";
+	static const char *const wires[]={"I#K 100,100,1,0,360:\033[2;3H\033[6n", "I#J 100,100,1,1,0,360:\033[2;3H\033[6n"};
 	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
 		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
-		for (unsigned resolution=1;resolution<=3;++resolution) for (size_t split=0;split<=sizeof(wire)-1;++split) {
-			setup(&f,resolution); feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split);
+		for (size_t c=0;c<2;++c) for (unsigned resolution=1;resolution<=3;++resolution) for (size_t split=0;split<=strlen(wires[c]);++split) {
+			setup(&f,resolution); feed(&f,wires[c],split); string(&f,wires[c]+split);
 			CHECK(f.size==6 && memcmp(f.output,"\033[2;3R",6)==0 && b->rejected_commands==0 && b->state.bgi.error==-11);
 			owners(&f,100,100,0xa014,3); canvas(&f,full,4);
-			CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==(resolution==3?1:0) && b->producer.mode==0 && !b->producer.batch);
+			CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==(c==0 && resolution!=3?0:1) && b->producer.mode==0 && !b->producer.batch);
 		}
-		setup(&f,2); for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1); canvas(&f,full,4); destroy(&f);
+		for (size_t c=0;c<2;++c) for (unsigned resolution=1;resolution<=3;++resolution) {
+			setup(&f,resolution); for (size_t i=0;i<strlen(wires[c]);++i) feed(&f,wires[c]+i,1); canvas(&f,full,4);
+		}
+		destroy(&f);
 	}
 }
 static void late_color_and_partial_lifecycle(void)
 {
-	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; setup(&f,2);
-	b->state.application.colors[1]=6;
-	string(&f,"I#K 100,100,1,0,"); CHECK(b->state.bgi.color==15 && b->state.bgi.device_color==15); owners(&f,31,32,31,32);
-	b->state.application.colors[1]=5; string(&f,"1:");
-	const struct dot center[]={{100,100}}; canvas(&f,center,1); owners(&f,100,100,0x0f02,4); CHECK(b->state.bgi.color==5 && f.size==0);
-	setup(&f,2); string(&f,"I#K 100,100,1,0,"); CHECK(st_cterm_finish(f.terminal)==0); canvas(&f,NULL,0); owners(&f,31,32,31,32); CHECK(b->state.bgi.color==15);
-	string(&f,"I#K 100,100,1,0,"); CHECK(st_cterm_reset_terminal(f.terminal)==0); canvas(&f,NULL,0); owners(&f,31,32,31,32);
-	/* A real timeout completes the final empty numeric field; colour
-	 * publication still follows all five completed readers. */
-	string(&f,"I#K 100,100,1,0,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0);
-	CHECK(b->state.bgi.color==5 && b->state.bgi.curve_span==0 && b->state.bgi.ddo_x==100); canvas(&f,NULL,0);
-	setup(&f,2); string(&f,"I#K 100,100,"); clock_error=IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal)==0); clock_error=0; string(&f,"\033[6n"); CHECK(b->last_error==IO_ERROR_IO && f.size==6);
-	canvas(&f,NULL,0); CHECK(b->state.bgi.color==15); destroy(&f);
+	static const char *const prefixes[]={"I#K 100,100,1,0,", "I#J 100,100,1,1,0,"};
+	for (size_t command=0;command<2;++command) {
+		struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; setup(&f,2);
+		b->state.application.colors[1]=6;
+		string(&f,prefixes[command]); CHECK(b->state.bgi.color==15 && b->state.bgi.device_color==15); owners(&f,31,32,31,32);
+		b->state.application.colors[1]=5; string(&f,"1:");
+		const struct dot center[]={{100,100}}; canvas(&f,center,1); owners(&f,100,100,0x0f02,4); CHECK(b->state.bgi.color==5 && f.size==0);
+		setup(&f,2); string(&f,prefixes[command]); CHECK(st_cterm_finish(f.terminal)==0); canvas(&f,NULL,0); owners(&f,31,32,31,32); CHECK(b->state.bgi.color==15);
+		string(&f,prefixes[command]); CHECK(st_cterm_reset_terminal(f.terminal)==0); canvas(&f,NULL,0); owners(&f,31,32,31,32);
+		/* Timeout completes only the final empty field; colour remains late. */
+		string(&f,prefixes[command]); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0);
+		CHECK(b->state.bgi.color==5 && b->state.bgi.curve_span==0 && b->state.bgi.ddo_x==100); canvas(&f,NULL,0);
+		setup(&f,2); f.reset_bell=true; string(&f,prefixes[command]); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+		CHECK(st_cterm_poll(f.terminal)==0 && b->state.bgi.color==15 && !st_cterm_input_paused(f.terminal)); owners(&f,31,32,31,32); f.reset_bell=false;
+		setup(&f,2); string(&f,prefixes[command]); clock_error=IO_ERROR_IO;
+		CHECK(st_cterm_poll(f.terminal)==0); clock_error=0; string(&f,"\033[6n"); CHECK(b->last_error==IO_ERROR_IO && f.size==6);
+		canvas(&f,NULL,0); CHECK(b->state.bgi.color==15);
+		setup(&f,2); string(&f,command==0?"I#K 100,100,":"I#J 100,100,"); clock_error=IO_ERROR_IO;
+		CHECK(st_cterm_poll(f.terminal)==0); clock_error=0; string(&f,"\033[6n"); CHECK(b->last_error==IO_ERROR_IO && f.size==6);
+		canvas(&f,NULL,0); owners(&f,31,32,31,32); CHECK(b->state.bgi.color==15); destroy(&f);
+	}
 }
 static void query_zero_overflow_and_aspects(void)
 {
@@ -182,4 +192,53 @@ static void shared_scratch_and_scaling(void)
 	CHECK(b->state.bgi.curve_radius[0]==2 && b->state.bgi.curve_radius[1]==1);
 	destroy(&f);
 }
-int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); return 0; }
+static void explicit_radius_J(void)
+{
+	static const struct dot tall[]={{100,98},{100,102},{99,99},{101,99},{99,101},{101,101},{99,100},{101,100}};
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	for (unsigned mode=1;mode<=3;++mode) {
+		setup(&f,mode); string(&f,"I#J 100,100,1,2,0,360:"); canvas(&f,tall,8); owners(&f,100,100,0xa014,3);
+		CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==2);
+	}
+	setup(&f,2); string(&f,"I#J 100,100,0,1,0,90:"); const struct dot top[]={{100,99}};
+	canvas(&f,top,1); owners(&f,100,100,0xa008,4); CHECK(b->state.bgi.curve_radius[0]==0 && b->state.bgi.curve_radius[1]==1);
+	setup(&f,2); string(&f,"I#J 100,100,1,1,360,720:"); canvas(&f,full,4);
+	setup(&f,2); string(&f,"I#J 100,100,1,1,120,150:"); const struct dot left[]={{99,100}};
+	canvas(&f,left,1); owners(&f,100,100,0x0f02,3);
+	/* Explicit radii do not enter circular aspect division. */
+	setup(&f,2); b->state.bgi.aspect[0]=b->state.bgi.aspect[1]=0;
+	string(&f,"I#J 100,100,1,1,0,1:"); const struct dot center[]={{100,100}}; canvas(&f,center,1); CHECK(b->rejected_commands==0);
+	uint16_t old[6]; memcpy(old,b->state.bgi.arc,sizeof(old)); string(&f,"I#J 120,120,9,8,+1,0:");
+	CHECK(memcmp(old,b->state.bgi.arc,sizeof(old))==0 && f.size==0); owners(&f,120,120,120,120); canvas(&f,center,1);
+	setup(&f,2); string(&f,"I#g 2:I#J 100,100,2,2,0,90:");
+	const struct dot scaled[]={{100,172},{101,172},{102,173},{102,174},{102,175}};
+	canvas(&f,scaled,5); owners(&f,100,175,0xa002,6); CHECK(b->state.bgi.curve_radius[0]==2 && b->state.bgi.curve_radius[1]==3);
+	setup(&f,3); string(&f,"I#g 3:I#J 100,5,2,5,10,10:"); canvas(&f,NULL,0); owners(&f,100,11,100,11);
+	CHECK(b->state.bgi.curve_radius[0]==2 && b->state.bgi.curve_radius[1]==11);
+	setup(&f,3); string(&f,"I#g 3:I#& 0,0,1,0,J@6,100,5,2,5,0,0:I#g 0:"); canvas(&f,NULL,0); owners(&f,100,5,100,5);
+	CHECK(b->state.bgi.curve_radius[0]==2 && b->state.bgi.curve_radius[1]==5 && b->numeric.loop.active==0);
+	setup(&f,2); string(&f,"I#J 100,100,+1,2,0,360:"); canvas(&f,NULL,0); owners(&f,100,100,100,100);
+	CHECK(b->state.bgi.curve_radius[0]==65535 && b->state.bgi.curve_radius[1]==2 && b->state.bgi.error==-11 && !b->producer.batch);
+	setup(&f,2); string(&f,"I#T 2,4,0,1,1:I#M 2:I#J 100,100,1,1,0,3:");
+	const struct dot thick[]={{100,99},{101,99},{100,100},{101,100},{100,101},{101,101}};
+	canvas(&f,thick,6); owners(&f,100,100,101,100); CHECK(b->producer.count==5 && b->state.bgi.line_mask==0x8000);
+	setup(&f,2); b->producer.read_plane=4; string(&f,"I#J 100,100,1,1,0,360:\033[6n");
+	CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==1 && f.size==6 && b->producer.batch); canvas(&f,NULL,0);
+	b->producer.read_plane=0; string(&f,"I#J 100,100,1,1,0,360:"); canvas(&f,full,4);
+	for (unsigned mode=1;mode<=3;++mode) {
+		setup(&f,mode); string(&f,"I#G>6,1:J 100,100,1,2,0,360:");
+		if (mode<3) {
+			canvas(&f,NULL,0); owners(&f,100,100,mode==1?0xa414:0xa814,3);
+			string(&f,"I#G 5,1:");
+		} else owners(&f,100,100,0xa014,3);
+		canvas(&f,tall,8);
+	}
+	setup(&f,2); string(&f,"I#J 100,100,1,1,0,1:I#D 102,100:");
+	const struct dot following[]={{100,100},{101,100},{102,100}}; canvas(&f,following,3);
+	CHECK(b->state.bgi.x==102 && b->state.bgi.y==100 && b->state.bgi.ddo_x==102 && b->state.bgi.ddo_y==100 && b->state.bgi.device_x==102 && b->state.bgi.device_y==100);
+	setup(&f,2); b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"I#J>100,100,1,1,0,1:"); CHECK(f.size==0 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255 && f.origins[0]==ST_CTERM_OUTPUT_USER && f.origins[1]==ST_CTERM_OUTPUT_USER);
+	destroy(&f);
+}
+int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); stage="J explicit radii"; explicit_radius_J(); return 0; }

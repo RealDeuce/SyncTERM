@@ -222,7 +222,7 @@ int cterm_big_draw_p(struct cterm_big *, const struct st_graphics_command_view *
 int cterm_big_draw_spray(struct cterm_big *);
 int cterm_big_draw_text(struct cterm_big *, uint16_t x, uint16_t y);
 int cterm_big_draw_line(struct cterm_big *, const struct st_graphics_command_view *);
-int cterm_big_draw_k(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_draw_curve(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_draw_z(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, bool *);

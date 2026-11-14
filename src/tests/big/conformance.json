@@ -1950,6 +1950,45 @@
             "A final following-D case independently verifies that the line starts from the restored DDO center after K while its public and device points had different prior values; all three owners then end at the D target."
           ],
           "commit": "79d6956"
+        },
+        {
+          "id": "native-explicit-radius-arcs-J",
+          "status": "complete",
+          "operations": [
+            "Register J at the existing BIG pre-ANSI boundary with six classes1,2,1,2,0,0 for X/Y/RX/RY/start/end. Complete all numeric readers before installing the current application line color and calling the existing public ellipse wrapper directly. Explicit RY uses ordinary class2 scaling; stored operands bypass wire scaling. No circular aspect conversion, radius clamp or angle normalization is added.",
+            "Share the K indexed pixel/read-byte/video/page adapter, bounded graph scratch, decimal/angular outlines, producer/buffer and public/DDO/device ownership. Query and regular zero spans retain the metadata-only path; aspect-zero does not reject explicit-radius ellipses.",
+            "Reuse source/footer/chaining/deferred-reply and nonfatal command recovery. Preserve accepted color, point, arc and batch prefixes on returning errors. No response, feature gate, automatic flow byte or additional framebuffer is introduced."
+          ],
+          "references": [
+            "curve-review-code.adoc:complete BIG13d2:1732..179f J caller;195a:1cec..1d1b public ellipse;DDO017a..01a0",
+            "61-curve-command-acceptance.adoc:K/J caller classes, color timing and downstream composition",
+            "13-curves-and-native-reuse.adoc:trig/front/decimal/angular/buffer contracts",
+            "34-numeric-words-and-exact-y-scaling.adoc:class2 g2/g3 results and supplied-value bypass",
+            "45-planar-controller-and-digital-colour-output.adoc:indexed read-byte and active-page boundary"
+          ],
+          "tests": [
+            "cterm_big_curve",
+            "big_curve_public",
+            "big_curve_angular",
+            "big_curve_regular",
+            "big_curve_draw",
+            "big_curve_decimal",
+            "big_curve_scalar",
+            "cterm_big_pages",
+            "syncterm_big_input"
+          ],
+          "deviations": [
+            "Retain the approved native indexed/bounded profile, shared current font data and local deadlines. Unsafe scratch/read-plane/geometry cases use checked errors and existing nonfatal BIG recovery; no foreign address/controller/clock model is added.",
+            "Native J integration is implemented; remaining commands, audio/resource/global45-entry acceptance and goal-final regressions remain pending."
+          ],
+          "verification": [
+            "Independent J expectations first failed on missing dispatch. Every split and bytewise input checks full indexed primary/alternate planes, literal point/arc state and ANSI reply bytes across all three resolutions, CP437/UTF8 and status choices; K remains covered through the shared adapter.",
+            "Hand-derived tall/wide/zero-radius quarters, full-turn360..720, coalesced endpoints, ffff query, zero span, high-bit radius overflow and thick custom0 XOR check native drawing and cached records. Zero aspects still permit J drawing/query. Ordinary g2 center100->175 and RY2->3, ordinary g3 centerY5/RY5->11, and stored g3 centerY5/RY5 remain5 distinguish both operand classes and source bypass.",
+            "Late/current color, partial EOF/reset, numeric timeout, reset from the timeout bell callback and clock failure preserve exact prefixes. Rejected read-plane errors remain nonfatal and recover. All three active-page profiles, following-D point ownership and chained deferred NUL/ff user-origin replies are independently checked.",
+            "Seven additional application scenes per profile provide98 J captures,3178 total, with literal full/quarter/zero/query/thick/source arc/point/style/radius expectations and every preceding K/pixel/font/palette/image/RNG/state expectation retained in the same coherent frame.",
+            "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2844,7 +2883,7 @@
     {
       "id": "J",
       "order": 20,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2852,12 +2891,39 @@
         "shared-bgi"
       ],
       "references": [
-        "61-curve-command-acceptance.adoc"
+        "curve-review-code.adoc:complete BIG13d2:1732..179f J caller;195a:1cec..1d1b public ellipse;DDO017a..01a0",
+        "61-curve-command-acceptance.adoc:K/J caller classes, color timing and downstream composition",
+        "13-curves-and-native-reuse.adoc:trig/front/decimal/angular/buffer contracts",
+        "34-numeric-words-and-exact-y-scaling.adoc:class2 g2/g3 results and supplied-value bypass",
+        "45-planar-controller-and-digital-colour-output.adoc:indexed read-byte and active-page boundary"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Register J at the existing BIG pre-ANSI boundary with six classes1,2,1,2,0,0 for X/Y/RX/RY/start/end. Complete all numeric readers before installing the current application line color and calling the existing public ellipse wrapper directly. Explicit RY uses ordinary class2 scaling; stored operands bypass wire scaling. No circular aspect conversion, radius clamp or angle normalization is added.",
+        "Share the K indexed pixel/read-byte/video/page adapter, bounded graph scratch, decimal/angular outlines, producer/buffer and public/DDO/device ownership. Query and regular zero spans retain the metadata-only path; aspect-zero does not reject explicit-radius ellipses.",
+        "Reuse source/footer/chaining/deferred-reply and nonfatal command recovery. Preserve accepted color, point, arc and batch prefixes on returning errors. No response, feature gate, automatic flow byte or additional framebuffer is introduced."
+      ],
+      "tests": [
+        "cterm_big_curve",
+        "big_curve_public",
+        "big_curve_angular",
+        "big_curve_regular",
+        "big_curve_draw",
+        "big_curve_decimal",
+        "big_curve_scalar",
+        "cterm_big_pages",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Retain the approved native indexed/bounded profile, shared current font data and local deadlines. Unsafe scratch/read-plane/geometry cases use checked errors and existing nonfatal BIG recovery; no foreign address/controller/clock model is added.",
+        "Native J integration is implemented; remaining commands, audio/resource/global45-entry acceptance and goal-final regressions remain pending."
+      ],
+      "verification": [
+        "Independent J expectations first failed on missing dispatch. Every split and bytewise input checks full indexed primary/alternate planes, literal point/arc state and ANSI reply bytes across all three resolutions, CP437/UTF8 and status choices; K remains covered through the shared adapter.",
+        "Hand-derived tall/wide/zero-radius quarters, full-turn360..720, coalesced endpoints, ffff query, zero span, high-bit radius overflow and thick custom0 XOR check native drawing and cached records. Zero aspects still permit J drawing/query. Ordinary g2 center100->175 and RY2->3, ordinary g3 centerY5/RY5->11, and stored g3 centerY5/RY5 remain5 distinguish both operand classes and source bypass.",
+        "Late/current color, partial EOF/reset, numeric timeout, reset from the timeout bell callback and clock failure preserve exact prefixes. Rejected read-plane errors remain nonfatal and recover. All three active-page profiles, following-D point ownership and chained deferred NUL/ff user-origin replies are independently checked.",
+        "Seven additional application scenes per profile provide98 J captures,3178 total, with literal full/quarter/zero/query/thick/source arc/point/style/radius expectations and every preceding K/pixel/font/palette/image/RNG/state expectation retained in the same coherent frame.",
+        "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
+      ],
       "commit": null
     },
     {

@@ -1599,3 +1599,25 @@ full45-entry acceptance remain deferred. J is the next native curve command.
 Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.
 
 Native K circular-arc/shared-graph implementation commit: `79d6956`.
+
+## Native J explicit-radius arcs
+
+J now acquires X/Y/RX/RY/start/end with original classes1,2,1,2,0,0,
+installs current line colour after all six reads and calls the public ellipse
+wrapper directly. Its explicit RY uses ordinary Y scaling and stored-value
+bypass; it does not depend on circular aspect conversion. K and J share the
+native indexed/page/read-byte adapter, graph scratch, lower outlines and
+source/footer/nonfatal recovery. Queries and regular zero spans retain the
+metadata-only path. No automatic flow bytes or own replies are added.
+
+cterm_big_curve checks every J split/profile and bytewise input alongside K,
+full indexed planes and literal points/records/replies, late colour and partial
+EOF/reset/timeout/clock errors, reset in the bell callback, explicit radii,
+zero aspects, zero/query/overflow/coalesced/full-turn geometry, thick XOR,
+ordinary g2/g3 versus stored bypass, active pages, following D, chained
+user-origin deferred replies and nonfatal read-plane recovery. Seven more
+coherent application scenes per profile add98 J captures,3178 total, retaining
+all preceding K/pixel/font/palette/image/RNG/state observations. Expected
+pixels are source-derived; headless physical audio/MIDI stay disabled.
+
+Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending.

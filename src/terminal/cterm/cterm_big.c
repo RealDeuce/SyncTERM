@@ -31,6 +31,10 @@ static const struct st_graphics_parameter flood[] = {
 static const struct st_graphics_parameter arc[] = {
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
 	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER}};
+static const struct st_graphics_parameter ellipse[] = {
+	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
+	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
+	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER}};
 static const struct st_graphics_parameter line[] = {
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
@@ -50,7 +54,7 @@ static int image_next(void *, const struct st_graphics_command_view *, struct st
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
-	{'K',arc,5,NULL},
+	{'K',arc,5,NULL},{'J',ellipse,6,NULL},
 	{'B',line,4,bar_next},
 	{'Z',line,4,NULL},
 	{'F',flood,3,NULL},
@@ -408,8 +412,8 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
 	if (view->code=='t') { cterm_big_pause_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
 	if (view->code=='?') return cterm_big_query_begin(big,view);
-	if (view->code=='K') {
-		int status=cterm_big_draw_k(big,view);
+	if (view->code=='K' || view->code=='J') {
+		int status=cterm_big_draw_curve(big,view);
 		return status==0?begin_footer(big,view):status;
 	}
 	if (view->code=='B') return cterm_big_bar_begin(big,view);
