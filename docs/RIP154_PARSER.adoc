@@ -1,0 +1,982 @@
+= RIPterm 1.54 stream and argument contracts
+:toc:
+:toclevels: 3
+
+This is the implementation reference for the parser findings recorded in
+link:RIP154_CONFORMANCE.md[RIP154_CONFORMANCE.md]. It records the accepted
+bytes, the 16-bit argument representation, and the checks and conversions in
+all 62 RIPterm command-table entries. A command's documented protocol range
+is not evidence that its implementation enforces that range.
+
+This document does not change SyncTERM's parser or declare it compliant.
+In particular, implementing signed conversion alone would expose unchecked
+negative indexes in existing SyncTERM handlers. The implementation work must
+cover decoding and every consumer together.
+
+== Evidence and conventions
+
+The primary local research is
+`/synchronet/src/sbbs/src/syncterm/rip_test/cmd_parse.md`, with
+`disasm_notes.md`, `button_notes.md`, `polygon_notes.md`,
+`ellipse_research.md`, `fill_notes.md` and `ripscrip.txt` in the same
+directory. Handler entries, comparisons and conversions below were checked
+against the executable or the retained segment dumps in
+`/synchronet/tmp/ripterm`. The legacy reference tree was not modified.
+
+The executable checked is `/usr/home/admin/art/rips/RIPTERM.EXE`, 451376
+bytes, SHA-256:
+
+----
+9a228c976a760107d0aed1e5599adae4ceccaf012e47b625de8a570612083ebd
+----
+
+Addresses such as `1814:1620` use the research run's relocated segment
+names, not a promise that DOS always loads code at those addresses.
+Unless specified otherwise, a command entry address is in segment `1814`.
+`DS:xxxx` means application DGROUP. BGI's state is in its own data context.
+The table index is the actual zero-based dispatch index, not a protocol level.
+`ESC` in a command name means the literal byte `0x1b`, not the three letters.
+Command names in tables omit the leading `|`.
+
+Arguments are numbered from zero. `u16(w)` is the stored word, `s16(w)` is
+its mathematical signed interpretation (`w < 32768 ? w : w - 65536`), and
+`u8(w)` is its low byte. These are descriptions of machine operations, not
+new C typedefs. "Signed" and "unsigned" qualify the actual comparison, not
+the spelling of the input. A word can be used differently at successive
+layers. A cast is not a validation check.
+
+"Ignore" means skip the command body and take the normal completion path;
+it does not mean release the command bytes as terminal text. "BGI error"
+means an internal graphics-error word, not a RIP error reply. "Unsafe"
+identifies a reference memory access or arithmetic precondition that must
+not be translated into undefined C behavior. A DOS machine's wrapping
+address calculation is not permission to access outside a C object.
+
+This is a disassembly/source audit. It does not claim fresh execution of
+the DOS binary, every hardware mode, or malformed inputs that corrupt its
+memory. Earlier native parser/live comparisons and their limits are recorded
+in the conformance inventory. Modern source comparisons include commit
+`ea6f88d5b0aeb00bc49652207f8d8d3f71df786c`; the earlier parser comparison
+used `794e369`.
+
+=== Reproducing address lookups locally
+
+The MZ header occupies `0x3e00` bytes. For resident code/data in the
+reference load, the file offset is:
+
+----
+0x3e00 + (runtime_segment - 0x01a2) * 16 + offset
+----
+
+An unrelocated segment in an on-disk far call needs `0x01a2` added to it
+before using that formula. For example, on-disk `13dd:0003` is the
+accumulator reset at runtime `157f:0003`. The descriptor far-pointer table
+is at file `0x2fd62` (`DS:07a2`), with 62 four-byte entries; the near-handler
+table is at `1814:1a36`, with 62 two-byte entries. The GRAPH code base for
+this executable is file `0x231c0`; the old `0x23189` transcription does not
+align with its instructions. The loaded BGI driver has its own base; use
+`bgi_1CC8.bin` or the embedded-driver layout described in `disasm_notes.md`,
+not the resident-segment formula.
+
+Overlay thunks need another lookup. The local executable's `FBOV` header is
+at `0x3e080`; overlay file positions are relative to `0x3e090`, immediately
+after that header. The stub at unrelocated segment `29c1` has relative
+file position `0x7f90`, giving code base `0x46020`. Its thunk at offset
+`0020` targets actual overlay offset `0d53`. That is the block-transfer
+argument validator; disassembling the thunk as the handler misses it.
+The overlay header's code length is `0x0ec3`.
+
+Borland's emulated floating-point instructions also need interpretation.
+For example, the Bézier helper uses `INT 3Bh` plus a ModR/M operand to
+encode an integer load and `INT 39h` for double loads/stores. Plain linear
+8086 disassembly treats their operands as instructions and loses alignment.
+Do not infer a missing assignment or branch from that output.
+
+== Stream assembly and completion
+
+=== Introducers and byte history
+
+The receive loop is `1634`, the assembler is `1a04:000c`, and command
+dispatch is `1814:007b`. RIPterm has a separate text/ANSI parser. The gate
+at `DS:2143` determines whether input enters the RIP assembler.
+
+When the command buffer is empty:
+
+* `!` is accepted after NUL, CR, LF or VT in the history window, or when
+  the text cursor is in column zero (also when the viewport pointer is
+  null). A preceding backslash or an active ANSI accumulator prevents this
+  normal `!` acceptance.
+* SOH and STX have a last-chance acceptance branch at `1a04:01fc–020d`.
+  They do not require BOL and are rejected there only after a backslash.
+  This branch also runs after the ANSI-accumulator test fails. The notes'
+  summary saying that mid-ANSI SOH/STX are always rejected is incorrect.
+* An accepted introducer waits for `|`. Any other next byte releases both
+  the introducer and that byte to text, resets assembly, and clears EBC.
+  This includes CR after a lone introducer.
+
+The five-byte history follows consumed RIP bytes as well as passthrough
+bytes (`1634:029b–02fb`). At the bare-pipe state, a new `!`, SOH or STX
+resets that accumulator before buffering the new introducer
+(`1a04:00f4–0117`). It is not an unknown command named `!`.
+
+=== Delimiters, escaping, control bytes and EOF
+
+In a command, LF is swallowed unconditionally. CR either continues or
+dispatches the command; an unescaped pipe dispatches the preceding command
+and starts the next accumulator. Other non-NUL C0 bytes, including ESC,
+are data. They may subsequently fail numeric validation or be interpreted
+by a text consumer. NUL is also a C-string boundary in the implementation;
+the non-NUL control-byte findings do not establish embedded-NUL semantics.
+
+The delimiter tests inspect particular trailing bytes, not backslash parity:
+
+[cols="1,3,3",options="header"]
+|===
+|Trailing backslashes |Next byte is pipe |Next byte is CR
+|0 |Dispatch. |Dispatch.
+|1 |Buffer literal pipe; keep assembling. |Remove one backslash; continue.
+|2 |Dispatch; begin next command. |Dispatch.
+|3 or more |Dispatch because the last two are backslashes.
+|Remove one backslash; continue because the last three are backslashes.
+|===
+
+At dispatch, `08c0:00d9` preprocesses every command, including numeric
+commands. It removes the backslash from `\X`; `\|` becomes `0xff` until
+after descriptor/text extraction, when `1814:00ee` restores it to `|`.
+Thus three backslashes before a pipe leave one literal backslash in the
+preceding text command. Four before a continuing CR, followed by `B`,
+leave three for preprocessing; the eventual text contains one literal
+backslash followed by `B`.
+Literal input `0xff` in the extracted argument string is affected by the
+same placeholder-restoration pass; it is not distinguished by provenance.
+
+Packet boundaries never dispatch commands. The wire machine dispatches at
+its delimiters. A local-file EOF flush is an explicit extension and must
+be distinguished from a live connection finishing with an incomplete
+command. Buffer-allocation/append failure resets assembly; it does not
+justify reading beyond the retained bytes.
+
+=== EBC suppression
+
+EBC is the address `DS:0ebc`, a completion flag, not a protocol acronym.
+The common exit `1814:1a25` resets the command accumulator and sets it to
+one, including after unknown commands, decode failures and no-op handlers.
+No special enduring "NO_MORE mode" is entered by `#`.
+
+When the RIP assembler returns "not consumed", the outer loop
+`1634:0272–0295` applies this flag before passing the byte to text/ANSI:
+
+[cols="1,1,3",options="header"]
+|===
+|EBC |Byte |Result
+|0 |Any |Pass to the text parser.
+|1 |VT |Pass to the text parser, then clear EBC.
+|1 |Anything else, including LF, printable text or ESC
+|Suppress this byte, then clear EBC.
+|===
+
+Consumed RIP bytes do not clear a pending EBC through this path. Normally
+the discarded byte is LF after the terminating CR. It need not be LF:
+`!|#\rXYZ` displays `YZ`. In `!|#\rESC[31mZ`, the ESC is suppressed,
+so `[31mZ` reaches text without starting a colour sequence. Processing ESC
+first and dropping a later printable byte is observably different.
+
+=== CSI bang controls
+
+The reference text parser dispatches CSI `!` at `09c6:064a–06ad` using
+decoded decimal parameter values. No parameter or one zero requests
+`RIPSCRIP015410`; one `1` disables RIP; one `2` enables it. Zero padding
+does not change those values. Unsupported parameter combinations do not
+consume the next ordinary text byte as an ANSI final.
+
+SyncTERM deliberately gates these controls through RIP processing. Once
+RIP is disabled, `ESC[2!` cannot be parsed there. That is an inherited
+project policy, not a newly discovered v2.0 regression. Reference separation
+of ANSI and RIP documents the difference; it does not authorize changing
+SyncTERM's gate. Modern loss of `H` in `ESC[3!HELLO` or `ESC[00!HELLO`
+and the absent padded version query are separate findings.
+
+== Descriptor decoding and the stored numeric word
+
+`110e:000f` matches against the descriptor table, including both `9 ESC`
+and `0 ESC`. Its command-name distinction uses the leading numeric byte;
+it is not an uppercase/lowercase distinction. Both ESC aliases have the
+same argument descriptor and the same dispatch target. It is the block-mode
+command beginning with level character `0`, not CSI zero or a NUL alias.
+
+The descriptor decoder is `110e:01ab`. `n#` requests a field of n bytes;
+`++` requests text; `+n#` repeats numeric fields through the remaining
+argument data. All field widths actually present are at most five bytes.
+There is no general semantic check that a colour, flag, coordinate or
+reserved argument is within its advertised range.
+
+. A numeric field's first byte must be `-`, a decimal digit, or a letter.
+  Validation continues over its declared width using the same character
+  classes. A NUL or pipe after at least one byte ends a shortened final
+  field successfully. The source pointer advances by validated bytes,
+  not by zero-padding the absent bytes.
+. An invalid character produces decode failure (`-1`) and no command body.
+  Missing mandatory subsequent numeric fields therefore fail, even though
+  the last field may be shortened. The count checks in the command table
+  below are additional handler checks.
+. The temporary field is passed to the signed base-36 conversion routine
+  at `01a2:6591`, and only AX is stored (`110e:02d5`). It accepts upper
+  and lower case. A leading minus negates the magnitude. An internal minus
+  passes the validator but ends the numeric conversion; it is not a zero
+  digit. A minus with no digits converts to zero.
+. The result is a word modulo 65536, not an unrestricted signed host
+  integer. At most 511 numeric words are retained (`110e:02aa`); excess
+  repeating fields are scanned/validated without further stores. That
+  cap does not make an inconsistent polygon vertex count safe.
+. Text is copied up to 1023 bytes, with a terminator; excess text is
+  scanned without storing. Empty text at NUL or pipe becomes one space.
+  Fixed numeric descriptors do not establish a check rejecting arbitrary
+  extra suffix bytes after their descriptor is exhausted. Reserved fields
+  are decoded even when their values are subsequently ignored.
+
+The reference's character classification uses sign-extended byte indexes.
+A portable replacement must pass an `unsigned char` value to C character
+classification functions and reject bytes outside the established numeric
+alphabet, rather than reproduce reads before a classification table.
+
+[cols="1,1,2",options="header"]
+|===
+|Field bytes |Stored word |Meaning before any handler-specific interpretation
+|`-A` (width 2) |`fff6` |Signed conversion of minus ten, retained modulo 65536.
+|`A-` (width 2) |`000a` |Validation consumes both bytes; conversion stops at minus.
+|`0-` (width 2) |`0000` |Zero followed by a conversion terminator.
+|`-001` (width 4) |`ffff` |Minus one, all sixteen bits set.
+|`1EKF` (width 4) |`ffff` |Positive 65535, all sixteen bits set.
+|`1EKG` (width 4) |`0000` |Positive 65536, low word retained.
+|`-` (width 1, or shortened final field) |`0000` |No digits converted.
+|===
+
+A one-byte field cannot encode a negative magnitude: `-` alone yields
+zero. A two-byte field can encode minus one through minus 35; a four-byte
+field can spell the full positive unsigned word range. State whether an
+internal exceptional value is reachable through that command's field
+width before presenting it as a wire reproduction.
+
+For example, both complete commands below select custom line style 4,
+pattern `ffff`, thickness 1:
+
+----
+!|=04-00101\r\n
+!|=041EKF01\r\n
+----
+
+The positive spelling does not excuse rejecting or misdecoding the negative
+spelling. This is a bytestream compatibility contract.
+
+== Shared handler and graphics contracts
+
+=== Counts, text and the viewport gate
+
+In the command inventory, widths are listed in argument order. `2*16`
+means sixteen fields of width two, not a 32-bit argument. `text` means
+the `++` suffix; `repeat 2` means the `+2#` numeric suffix. For fixed active
+commands, the listed numeric count must match `DS:0eba` exactly unless the
+row says otherwise. Failure ignores the body and still completes the
+command. No-argument handlers do not add a numeric count check.
+
+`G` means the handler ignores the command if all four staged graphics
+viewport words `DS:0fa5/0fa7/0fa9/0fab` are zero. It is only a gate, not a
+check of the command's coordinates. Drawing handlers also synchronize the
+BGI viewport if its cache differs; region setup/disable and mouse-region
+creation have the gate without that synchronization. The synchronization
+cache is updated before the BGI call, so a BGI rejection does not roll
+back the staged/cache words. `v` stages a viewport without performing that
+synchronization immediately.
+
+Text-bearing commands that call `08c0:01cc` additionally require a nonzero
+result from that text-processing helper. Template expansion and BGI text
+processing are separate from the numeric decoder and from ANSI. `1M`
+checks the raw extracted text for nonempty instead. The decoder's empty
+text-to-space substitution matters to those tests.
+
+=== Coordinates, shapes and clipping
+
+BGI `1eae:103f` stores/moves the current point using full words without
+range validation. GRAPH adds viewport offsets with 16-bit arithmetic
+(`20de:0152`); line clipping uses signed comparisons and signed
+interpolation (`20de:115c`, `12a6`, `12e7`, `12f8`). Pixel containment
+combines unsigned right/bottom checks with signed left/top checks
+(`20de:1370`). Negative coordinates therefore can be useful clipping input;
+rejecting every minus sign or treating every coordinate as a large positive
+host integer is not equivalent.
+
+`L` passes both endpoints to `1eae:1c20`. `R` calls `1eae:11d8`, which
+draws four lines between the given corners without an argument sort or
+range check. `B` calls `1eae:1c83`; the GRAPH rectangle-fill path translates
+and clips its bounds (`20de:0171`, `1309`). A draw clipped to nothing is
+not a parse error. Clipping is also not proof that preceding size, address
+or divide operations are safe for arbitrary words.
+
+Circular primitives use the BGI aspect-ratio helper `1eae:12f4` to derive
+the Y radius: it sign-extends its input and performs the signed long
+multiply/divide using the configured aspect ratio, returning a word.
+Elliptical variants pass both raw radius words. Trigonometry reduces signed
+word angles and uses the Q1.15 table (`20de:10d7`, `10e4`); the scalar
+product treats the radius word as unsigned (`20de:0a1e`). Do not conflate
+the signed aspect-ratio calculation, signed angles, and unsigned radius
+multiplication.
+
+The shape wrappers do not reject negative radii or angles or enforce
+0..359. The Bresenham and sweep paths have different degenerate-radius and
+angle behavior, described in `ellipse_research.md` and `disasm_notes.md`.
+For example, the sweep retains original zero radii; a universal "replace
+all zero radii by one" rule would be wrong. A zero angle span can bail in
+the Bresenham path (`20de:0923–0927`), while the sweep's initial unsigned
+angle comparison and subsequent signed loop are distinct operations.
+Use explicit word arithmetic and bounded rendering; neither the absence
+of a wrapper check nor a trace from one path establishes all malformed
+radius/angle outcomes.
+
+=== Colours, fill, line style and write mode
+
+[cols="2,4,3",options="header"]
+|===
+|Consumer and evidence |Check/conversion |Failure or downstream result
+|Drawing colour, `1eae:1dad`; GRAPH `20de:02aa`; driver `1cc8:03bf`
+|No word range check. BGI takes the low drawing-colour byte; the driver
+  masks drawing/fill bytes with `0f0f` (or `0303` in its reduced-colour mode).
+|Negative words are not rejected here; their low colour bits are useful.
+  No array lookup by a negative host integer is necessary.
+|Predefined fill, `1eae:124b`, lower `1f4b`
+|Pattern is compared unsigned with 11. Colour is retained as a word in BGI
+  state, then truncated to the low byte for drawing and masked by the driver.
+|Pattern outside 0..11 sets BGI error `fff5` (-11) and leaves BGI fill
+  state unchanged. No corresponding 0..15 colour check occurs here.
+|Custom fill, `1eae:129f`, lower `1a5b`
+|Colour is compared unsigned against `getmaxcolor` (15 in the reference
+  EGA mode). Eight pattern bytes are copied unchanged.
+|Out-of-range colour, including `ffff`, sets -11 without updating the BGI
+  pattern/colour. This differs from predefined fill. The RIP handler has
+  already changed its own cached pattern/style/colour.
+|Line style, `1eae:1195`, lower `1edd`; driver `1cc8:04b9`
+|Unsigned style <=4 and unsigned thickness <=3. Pattern is a full word.
+  Styles 0..3 select `ffff`, `cccc`, `fc78`, `f8f8`; style 4 uses the
+  supplied pattern unchanged. Accepted style/thickness later become bytes.
+|Either invalid word sets -11 and leaves BGI line state unchanged, while
+  the RIP handler's cached values have already changed. Thickness 0 and 2
+  pass this check as well as 1 and 3. Never index the four-pattern table
+  using a negative signed value that passed only an upper-bound test.
+|Write mode, RIP `1814:1653`, BGI `1eae:1a38`
+|Handler requires signed 0..2. BGI passes its low byte onward.
+|Outside that range silently ignores the body. Value 2 is accepted by
+  RIPterm; describing the check as only COPY/XOR (0..1) loses behavior.
+|===
+
+=== Palette programming and the unsafe single-index case
+
+`Q` iterates indexes 0..15. It compares and stores full words in the
+cached palette at `DS:d6cc`, then calls `08c0:0069` only for changed
+entries. That helper reads the status port and writes `u8(index)` followed
+by `u8(value)` to VGA attribute-controller port `0x3c0`. It does not check
+value <=63, and there is no BGI error for a negative value. Hardware
+register behavior must not be implemented by indexing a 64-entry RGB
+array with the unchecked byte. The documented evidence here is the exact
+port bytes, not a claim that every adapter interprets reserved bits alike.
+
+`a` is more dangerous: `1814:170c–172b` shifts the raw index word left by
+one and uses the wrapping result to read/write the cached palette before
+calling that helper. There is no 0..15 check at that point. Negative or
+oversized indexes can access unrelated DGROUP state; there is no defined
+RIP error response to reproduce. A safe implementation must validate the
+palette index before any C access. A low-byte cast at the eventual port
+write does not retroactively make the earlier access valid.
+
+=== Fonts and the text window
+
+`Y` caches font, direction and size as words before calling BGI
+`1eae:16a4`. In the ordinary graphics mode, nonzero font IDs are checked
+signed against 0 and the registered-font maximum at BGI `b40b` before
+loading. Invalid IDs set `fff2` (-14) and fall back to font 0, size 1;
+font file/load/allocation failures have their own internal errors (including
+-13, -8 and -9) and fallback paths. The device-type-3 branch at
+`16b5–16bf` bypasses that ordinary font-loading path.
+
+At `1eae:184d` the effective font/direction/size words are stored. The
+lower routine `1fb1` takes font and direction as bytes and uses the low
+size byte for unsigned multiplication of font metrics (masked with
+`7f7f`). There is no wrapper check limiting direction to 0..1 or size to
+1..10. Zero and values above ten must not be silently assumed rejected.
+Later font-specific scaling differs between bitmap and stroke fonts;
+see the local glyph/metric research. Out-of-range metric conversion or
+allocation must be bounded in C even when the reference wrapper accepted
+the word.
+
+`w` stores the low bytes of its four character coordinates and wrap flag.
+It sign-tests the stored left/top bytes and clamps negative ones to zero;
+there is no matching lower clamp of right/bottom at this point. Width and
+height use byte subtraction, signed interpretation/absolute value, and a
+byte-sized inclusive count. All-zero bounds disable the text window.
+Style is tested signed against 5; values >=5 become 0. The stored style
+byte is sign-extended for the font loader at `0c96:000c`.
+
+That loader uses `style * 0x2a` to index font records without an independent
+index check. Although a negative internal style would be unsafe, `w`'s
+one-byte style field cannot encode a negative magnitude. The handler's
+>=5 normalization bounds reachable numeric wire styles to 0..4. Do not
+claim a reachable negative-style exploit merely from the signed branch.
+Load failure prints an error and retries style 0; failure of that fallback
+can terminate the program. The unchanged-window fast path only updates
+wrap; it compares sign-extended cached coordinate/style bytes to words.
+
+`g` stores only low cursor-coordinate bytes when text-window width and
+height are nonzero. Subsequent text/window calculations sign-extend them.
+The handler does not clamp the supplied words to the window's dimensions.
+`H` zeros those same cursor bytes. `>` computes its erase rectangle from
+those signed byte values and the loaded text metrics; it has no wire
+numeric argument of its own.
+
+=== Images, regions and local files
+
+`1ac2:0156` captures a clipboard rectangle; `1ac2:01db` pastes one.
+Their BGI path uses full coordinate words, image dimensions and viewport
+translation. BGI `1eae:1567` checks translated placement, limits the
+effective height, temporarily changes the image height word for the draw,
+and restores it. This is not a check of the image allocation's actual
+length. BGI `1532` reports -11/`ffff` if the image-size helper returns zero.
+
+The capture helper accepts a calculated size only in unsigned 1..65531
+(`1ac2:0171–0183`); other sizes return failure, optionally displaying a
+local error. Its reserved command argument is not a size override. BGI's
+capture wrapper `1eae:20b7` orders endpoints with unsigned comparisons,
+then stores their word differences as image width-minus-one and
+height-minus-one. This unsigned ordering differs from the signed rectangle
+sort used by the button and copy-region helpers.
+
+For paste, the effective height is the unsigned minimum of the stored
+height-minus-one and `maxy - (y + viewport_y)`, calculated as words.
+The wrapper rejects an unsigned right edge above maxx, a signed negative
+translated left edge, or a signed negative translated top edge. Its
+`OR SI,SI; JC` at `1eae:15bc–15be` cannot reject anything: OR clears carry.
+Do not interpret it as a working negative-height check. These checks use
+device bounds, not proof of the source object's size.
+
+Paste mode is truncated to a byte at `1eae:2108`, not range-checked there.
+The driver uses it as an index into its five-byte operation table at
+`1cc8:0eb2` (`0eb7–0ec5`), and separately tests for mode 4 to invert
+source bytes. Modes 0..4 have defined operations; other bytes read beyond
+that table. This is an unsafe reference lookup, not a valid extra image
+operation or a BGI rejection. `1P` and `1I` must retain safe mode checks
+when their numeric decoding is corrected.
+
+`1I` passes its clipboard flag as a nonzero/zero word test
+(`1ae2:0243`). Its file loader accepts a low-word file length in unsigned
+5..65532 (`022e–0236`), handles short reads and allocation/open failures,
+and divides large loads into chunks. A size guard alone does not validate
+the image's embedded dimensions or multiplication used to calculate
+storage. Its filename passes through fixed-size local buffers; do not copy
+their unbounded string operations into a replacement. `1W` also requires
+a valid nonempty clipboard and filename in `1ac2:000f`, with file-open
+and short-write failure paths.
+
+`1T`'s helper `1741:0170` stores raw endpoints and computes inclusive
+width/height with word arithmetic. It divides signed region height by
+`textheight("M") + 3` (`01e1–01ec`), without independently validating that
+denominator or extents. There is no coordinate-order/range rejection in
+the RIP wrapper. Do not reproduce a zero divisor, quotient overflow,
+negative allocation size or overflowing host calculation. `1E` clears
+the active flag and writes `ffff` to region endpoints; this is an internal
+negative sentinel, not a request to draw an enormous rectangle.
+
+`1t` passes justify unchanged. `1741:0008` treats zero as no justification;
+other values request spacing when there are enough words and no leading
+space. It uses floating-point spacing and truncating float-to-integer
+conversion, not a checked 0..1 enumeration. Each command is one line;
+the stored Y advances by the setup-time line height plus three. The
+research documents no additional bottom-of-region rejection. Guard
+nonfinite/out-of-range floating conversion in C rather than relying on a
+DOS conversion helper's exceptional result.
+
+`1G` is implemented in the reference (`0c16:0623`), despite being treated
+as a no-op by legacy SyncTERM. Its first four words are signed-sorted as
+rectangle endpoints. It saves the original Y difference, exits if that
+difference is zero, and uses signed division/remainders by eight for X
+alignment. Specifically, it subtracts `x1 % 8` from x1; if `x2 % 8` is
+nonzero, it adds `8 - (x2 % 8)` to x1; it then subtracts `arg[4] % 8`
+from x1 when nonzero (`065e–069c`). The fifth word, advertised as reserved,
+therefore is read and affects geometry. Do not simplify it to ignored
+because the specification calls it reserved. The helper clamps negative
+coordinates, arg 4 and destination line to zero, clamps source coordinates
+to screen maxima and the destination line to the Y maximum, then checks
+the destination's lower extent using the saved Y difference. Its sixth
+word is destination line. It copies EGA video memory, choosing the
+downward-overlap helper when needed. The pre-clamp height and word
+arithmetic must not become unchecked C buffer sizes or offsets.
+
+=== Mouse regions, buttons, definitions and transfer
+
+`1M` checks its requested region number signed in 0..127, but appends to
+the current field-count slot, rather than indexing that slot by the
+requested number. Its separate capacity check is an unsigned byte <128.
+Coordinates are added to viewport origin using words and signed-upper-
+clamped to its right/bottom; no lower clamp or endpoint ordering check
+occurs. Click and clear flags are retained as words; the remaining two
+reserved words are ignored. Allocation/capacity failure ignores creation;
+the original allocation occurs before the full-capacity test, so copying
+that ordering can leak. No such leak is a compatibility requirement.
+
+`1B` requires 17 decoded values, then copies exactly the first 14 words
+to the 28-byte button style at `DS:08a1`, marking it defined. The final
+three words are ignored. There is no style-field range validation on
+assignment. Its style-restoration helper is called even on a count mismatch.
+The descriptor contains 17 fields totaling 36 bytes of numeric spelling;
+its four-byte flags field produces one word. The explanation in the older
+button notes that this count results from splitting that flags field is
+incorrect; the trailing reserved fields are three separate `2#` entries.
+
+[cols="1,2,4",options="header"]
+|===
+|Argument |Style field |Use/check in the button consumer `0cc3:000f`
+|0,1 |Width, height |Fixed size only when both are signed >0
+  (`0448–045f`); otherwise use signed-sorted `1U` endpoints. Word arithmetic
+  derives edges; no general maximum-size validation.
+|2 |Orientation |Signed 0..4 guard before label processing
+  (`06b5–06c6`), then unsigned <=4 before the jump table (`0732–0740`).
+  Invalid values skip the label; the button/background path may already
+  have drawn and field creation can still occur.
+|3 |Flags (four-byte field) |Full 16-bit mask, including bit 15; no
+  signed positivity requirement. Clipboard/icon/plain, invert, bevel,
+  shadow, group and other branches test bits. Auto-stamping normalizes
+  flags with `7c37` and sets bit 0; no enumeration range error.
+|4 |Bevel size |Full word used in edge expansion and drawing loops;
+  no general range check. Bounds/loop limits remain necessary in C.
+|5..9 |Label foreground, label shadow, bright, dark, surface
+|Words used by colour-selection helpers/BGI; these are colours, not safe
+  unchecked indexes into a 16- or 64-entry C palette. Drawing colour
+  conversion/masking above applies to BGI calls.
+|10 |Group ID |Stored as a word in the mouse-field record; no range
+  rejection at style assignment or storage.
+|11 |Secondary flags |Word bit tests, not an enum validity check.
+|12,13 |Underline and corner colours |Retained words and later drawing
+  colours, with the same bounded colour-mapping requirement.
+|14..16 |Reserved |Decoded, then not included in the 28-byte copy.
+|===
+
+The button colour helper `08c0:0328` takes colour, selected state and
+secondary flags as words. If selected, secondary flag bit 0 complements
+the colour and masks with 15; bit 1 then subtracts eight when the signed
+colour is >=8, otherwise adds eight. Unselected colours pass through.
+Remaining secondary flag bits are consumed by other button branches;
+the helper does not impose a general colour-range rejection.
+
+`1U` coordinates and hotkey are words. Selected state is `arg[5] & 1`,
+not "any nonzero"; `arg[6]` is unused. Hotkey is stored as a low byte
+(`0cc3:1264–1269`), while the label-highlight decision tests the original
+hotkey signed >0 (`0a44–0a52`, `0c98`). These two uses differ for negative
+or high values. Field capacity uses unsigned byte <128 (`0f43`); coordinates
+receive signed upper clamps when stored as mouse fields. Undefined style,
+missing required clipboard or invalid icon data has bell/error/return
+paths. The icon path accepts unsigned file sizes 5..32000 (`0390–039a`),
+a different limit from `1I`. Label/icon/host-command parsing uses local
+string buffers; their unchecked copies are not permission to overrun C
+buffers. Existing label positioning details remain in `button_notes.md`.
+
+`1D` passes its first word as flags; only bits 0, 1 and 2 affect the
+definition/prompt flow in `0e2d:0913`. Its second numeric word is ignored.
+Text syntax validates the variable name and an optional decimal width
+after a comma. The width conversion is separate from meganums; the
+consumer normalizes any signed width <=0 or >60 to 60 (`0935–093e`).
+Cancellation/name/text errors can return failure, which is not a wire
+numeric-error reply. Use bounded names and buffers when reproducing this
+behavior. `1 ESC` compares its mode word exactly with 0, 1 and 2; no other
+mode executes a branch. Its second word is reserved.
+
+`1F` opens/looks up the file and then compares its mode unsigned <=4 in
+`19bf:005c–006c`, with a corresponding missing-file mode check. Other
+values produce no mode reply and close any open descriptor; its second
+word is ignored. Modes 0..4 select existence/detail queries. File access
+failure and an invalid numeric mode are distinct conditions.
+
+For both `9 ESC` and `0 ESC`, `1814:197d` requires four words and processed
+text. The resolved overlay validator at `0d53` checks protocol signed
+0..7 and file type signed 0..5. Invalid values take its error-notification
+return at `0d8e`. It requires a `<>` marker in the text, splitting the
+filename there. A marker at the start means no filename. Download mode
+zero with protocol <5 requires a filename; download protocols >=5 clear
+the filename for batch handling. Mode itself is not checked against 0..1:
+zero selects download and every nonzero value selects the other branch.
+The fourth word is reserved. Confirmation cancellation can send ten CAN
+bytes (`18`) before returning. A SyncTERM mode >1 rejection is stricter
+than this reference branch; it must not be mistaken for a reference check.
+
+=== Bézier segment-count correction
+
+`Z` passes nine words to `0ca1:0009`: eight coordinates, then the count,
+followed by the current colour as a tenth helper argument. Coordinates are
+loaded as signed 16-bit integers into floating point. The helper loads
+count from `[bp+16h]` into DX at `0018`. At `00a7–00c3` it uses a signed
+positive test: a positive count gives step `1.0 / count`; zero or negative
+uses the double at `DS:4072`, bytes `7b14ae47e17a743f`, which is `0.005`.
+That is nominally 200 subdivisions, subject to the floating loop's
+accumulation and final-endpoint handling. Coordinate conversion uses
+`01a2:0a70` and takes AX for BGI word coordinates.
+
+The older `disasm_notes.md`/`ellipse_research.md` explanation that zero
+count leaves a residual COM1 MCR value `03fc` in DX is contradicted by
+the explicit argument load and fallback constant in this executable.
+Modern SyncTERM's <=0 to `03fc` substitution should not be cited as a
+verified reproduction of that explanation. This correction does not
+rebaseline any historical image or establish the pixels of a newly run
+DOS trace.
+
+== Complete command inventory
+
+All rows inherit the decoder, completion and shared contracts above.
+"None" means no additional handler range check, not a guarantee about
+arbitrary downstream state or malformed files. `G` and text-helper checks
+are explicit in the rows that apply them. Numeric arguments described as
+ignored still undergo descriptor validation.
+
+[cols="1,1,2,1,5",options="header",separator="^"]
+|===
+^Index ^Command ^Widths / count ^Entry ^Argument checks, casts and effects
+^0 ^`H` ^None ^`15b4` ^No numeric arguments/checks. Synchronizes text state,
+  zeros byte cursor X/Y and restores state.
+^1 ^`>` ^None ^`1537` ^No numeric arguments/checks. Erases end of text line
+  using the cached signed byte cursor/window bounds and text metrics.
+^2 ^`E` ^None ^`01cb` ^No numeric arguments/checks. Calls viewport erase
+  helper `15ac:0165`.
+^3 ^`e` ^None ^`15cb` ^No numeric arguments/checks. Calls text clear helper
+  `15ac:0008` with constants 0 and 1, then restores state.
+^4 ^`c` ^2 / 1 ^`0f32` ^Caches colour word; BGI takes low byte, driver masks
+  low colour bits. No word colour-range error.
+^5 ^`b` ^2 / 1 decoded ^`1a25` ^No-op in 1.54. No body/count/range check;
+  not evidence for SyncTERM's later text-window background extension.
+^6 ^`m` ^2,2 / 2 ^`0823` ^G. Both coordinates go unchanged to BGI moveto
+  and cached graphics-text position. No coordinate bounds check.
+^7 ^`g` ^2,2 / 2 ^`1505` ^Requires nonzero text-window width and height.
+  Stores low byte of each coordinate. No handler clamp to window bounds.
+^8 ^`T` ^text / 0 ^`08b7` ^Text helper then G. Uses cached graphics-text
+  position and font words. No numeric arguments; empty decoded text is space.
+^9 ^`Y` ^2,2,2,1,1 / 5 ^`175e` ^Caches font, direction, size words; final
+  two fields ignored. BGI signed font check/fallback and byte conversions
+  described above; no general direction/size range check.
+^10 ^`y` ^2*4 / 4 decoded ^`1a25` ^No-op. No body/count/range check.
+^11 ^`w` ^2,2,2,2,1,1 / 6 ^`138c` ^First four words become coordinate bytes;
+  arg 4 wrap becomes byte; arg 5 style >=5 signed becomes 0. Signed byte
+  geometry/clamps, fast path and font-load errors described above.
+^12 ^`v` ^2*4 / 4 ^`012a` ^Stages four viewport words. Signed swaps reversed
+  X/Y endpoints, signed-upper-clamps each to screen maximum, no lower
+  clamp. Deferred BGI validation can set -11; see viewport details below.
+^13 ^`L` ^2*4 / 4 ^`0bfb` ^G. Full endpoint words to BGI line; clipping,
+  no extra coordinate range check.
+^14 ^`R` ^2*4 / 4 ^`0c8b` ^G. Full endpoint words to four BGI lines;
+  no endpoint sorting or coordinate range check in the wrapper.
+^15 ^`C` ^2,2,2 / 3 ^`0d1b` ^G. Centre words and radius to circle wrapper
+  `1eae:1341`; aspect-ratio Y radius, no radius rejection.
+^16 ^`A` ^2*5 / 5 ^`0e3f` ^G. Centre, start/end angles, radius to
+  `1eae:1316`; signed aspect-ratio calculation, word geometry/trig.
+^17 ^`O` ^2*6 / 6 ^`0ed3` ^G. Centre, angles and two radii; shares the
+  `V` wrapper call at `1814:0e1c–0e37`. No radius/angle range check.
+^18 ^`P` ^2,2,2; repeat 2 / variable ^`0f4f` ^G. Rejects count==1 or odd
+  number of coordinate words. No check that declared vertices fit actual
+  decoded pairs/storage. Copies with wrapping word indexes, appends first
+  vertex, draws declared count+1. Unsafe on inconsistent counts.
+^19 ^`B` ^2*4 / 4 ^`10fd` ^G. Full endpoint words to BGI bar; translated
+  bounds/clipping, no RIP coordinate range check.
+^20 ^`F` ^2,2,2 / 3 ^`118d` ^G. Compares seed pixel to raw border word;
+  if equal skips fill. Otherwise passes coordinates and border word to
+  `1eae:1f06`; driver takes border byte for hardware comparison. No word
+  border-colour validation or parse error for a clipped seed.
+^21 ^`W` ^1 / 1 ^`1653` ^Signed 0..2 check, else ignore. Accepted word
+  cached; BGI uses low byte. One-byte minus alone is zero.
+^22 ^`o` ^2*4 / 4 ^`124e` ^G. Centre and two radius words to filled-oval
+  wrapper `1eae:1d17`; no handler radius/coordinate check.
+^23 ^`S` ^2,2 / 2 ^`17ab` ^Caches pattern and colour words; BGI unsigned
+  pattern <=11 or -11. Colour truncated/masked, not checked like `s`.
+^24 ^`s` ^2*9 / 9 ^`17d3` ^First eight words become pattern bytes; ninth
+  colour cached as word, custom style tag 12. BGI unsigned colour <=max
+  or -11; prior RIP cache mutation is not undone on error.
+^25 ^`p` ^2,2,2; repeat 2 / variable ^`0f4f` ^Same count checks/unsafe
+  closure copy as `P`; calls fillpoly. Colour-zero outline suppression
+  occurs downstream and does not suppress the fill.
+^26 ^`=` ^2,4,2 / 3 ^`1620` ^Caches style, pattern, thickness words;
+  BGI unsigned style <=4 and thickness <=3 or -11. Custom pattern retains
+  all 16 bits. Invalid BGI call does not undo the RIP cache writes.
+^27 ^`D` ^2*6 / 6 decoded ^`1a25` ^No-op. No body/count/range check.
+^28 ^`X` ^2,2 / 2 ^`067b` ^G. Coordinates and cached colour to BGI
+  `1eae:2097`; viewport containment and driver colour masking, no RIP
+  coordinate-range rejection.
+^29 ^`Q` ^2*16 / 16 ^`1683` ^Fixed safe palette indexes 0..15. Compares
+  and caches full value words; writes low value bytes to attribute
+  controller. No value <=63 check or internal range error.
+^30 ^`@` ^2,2; text / 2 ^`09b8` ^Text helper then G and count check.
+  Full coordinate words used for graphic text/current point, no bounds
+  check. Empty decoded text becomes a space and advances the text position.
+^31 ^`1A` ^2*7 / 7 decoded ^`1a25` ^No-op. No body/count/range check.
+^32 ^`1O` ^2*4 / 4 decoded ^`1a25` ^No-op. No body/count/range check.
+^33 ^`1I` ^2,2,2,1,1,1; text / 6 ^`12de` ^Text helper and G. Passes X,Y,
+  mode and clipboard flag to `1ae2:015d`; final two words ignored.
+  Clipboard flag is nonzero boolean; mode becomes unchecked byte in BGI
+  image path. File length/error/dimension safety described above.
+^34 ^`1M` ^2,2,2,2,2,1,1,4,1; text / 9 ^`0475` ^Nonempty extracted text,
+  signed region number 0..127, G and separate capacity <128. Coordinates
+  arg 1..4 become viewport-relative word sums with signed upper clamps;
+  click/clear words retained, final two reserved words ignored.
+^35 ^`1N` ^2,2,5,5; repeat 5 / variable decoded ^`1a25` ^No-op. Numeric
+  decoder/cap still applies; no body/count/range check.
+^36 ^`1S` ^4,4 / 2 decoded ^`1a25` ^No-op. No body/count/range check.
+^37 ^`1C` ^2,2,2,2,1 / 5 ^`0707` ^G. Four coordinate words to clipboard
+  capture `1ac2:0156`; reserved arg 4 ignored. Image-size/BGI safety above.
+^38 ^`1P` ^2,2,2,1 / 4 ^`0797` ^G. X,Y,mode words to `1ac2:01db`;
+  reserved arg 3 ignored. No RIP mode-range check; low-byte driver lookup
+  unsafe outside 0..4.
+^39 ^`1W` ^1; text / 1 ^`1845` ^Text helper; numeric argument ignored.
+  Clipboard writer additionally requires filename/clipboard; reports local
+  file/open/write errors. No numeric range error.
+^40 ^`1K` ^None ^`1884` ^No numeric arguments/checks. Calls mouse-field
+  deletion helper `1a9b:0000`.
+^41 ^`1T` ^2,2,2,2,1,1 / 6 ^`0ada` ^G. First four words to text-region
+  setup `1741:0170`; final two reserved words ignored. No endpoint range
+  check; word size arithmetic and unchecked signed division described above.
+^42 ^`1E` ^None ^`0b1e` ^G. No numeric arguments/checks. Region disable
+  writes internal -1 sentinels through `1741:01f5`.
+^43 ^`1t` ^1; text / 1 ^`0b45` ^Text helper then count check and G. Justify
+  word forwarded; zero versus nonzero spacing decision, no enum range check.
+^44 ^`*` ^None ^`1877` ^No numeric arguments/checks. Window/reset helper
+  `157f:015d`; completion still takes the common exit.
+^45 ^`#` ^None ^`1a25` ^No-op body; completion/EBC is the effect.
+^46 ^`x` ^None ^`1a25` ^No-op in this table. SyncTERM's later poly-Bézier
+  extension is separate; no numeric check/body in RIPterm 1.54.
+^47 ^`1B` ^2,2,2,4, then 2*13 / 17 ^`15df` ^Copies first fourteen words
+  without value checks to style; final three ignored. See per-field style
+  consumer table, including orientation rejection and size/colour conversions.
+^48 ^`Z` ^2*9 / 9 ^`03a9` ^G. Eight coordinates and count words to
+  `0ca1:0009`. Signed coordinate loads; signed positive count uses reciprocal,
+  nonpositive uses 0.005. No coordinate bounds check; word output conversion.
+^49 ^`V` ^2*6 / 6 ^`0da7` ^G. Centre, start/end angles, X/Y radii to
+  `1eae:1ce7`, same raw-word shape path as `O`. No extra range check.
+^50 ^`I` ^2*5 / 5 ^`027d` ^G. Centre, angles, circular radius to
+  `1eae:13a3`; signed aspect-ratio Y calculation then sector wrapper.
+  No handler radius/angle range check.
+^51 ^`i` ^2*6 / 6 ^`0311` ^G. Centre, angles, two raw radii to sector
+  wrapper `1eae:1d54`. No handler radius/angle range check.
+^52 ^`1U` ^2,2,2,2,2,1,1; text / 7 ^`01d3` ^Text helper and G. Four
+  coordinate words, hotkey low-byte storage plus signed-positive label
+  test, selected arg 5 masked with 1; reserved arg 6 ignored. Style,
+  orientation, capacity, clipboard/icon and allocation errors described above.
+^53 ^`1D` ^3,2; text / 2 ^`1903` ^Text helper. Flags word passed to
+  `0e2d:0b19`, reserved second word ignored. Flags are bit tests;
+  separate decimal text-width parsing normalizes outside 1..60 to 60.
+^54 ^`1 ESC` ^1,3; text / 2 ^`188c` ^Text helper. Mode 0 queries/sends,
+  1 stores graphics-click text, 2 stores text-click text; other values
+  ignored. Reserved second word ignored. No unsigned reinterpretation as
+  an extra mode.
+^55 ^`1G` ^2*6 / 6 ^`1815` ^No G gate. Six words forwarded to
+  `0c16:0623`: four signed-sorted source endpoints, arg 4 used in alignment,
+  destination line arg 5. Alignment, clamps, overlap and extent checks above.
+^56 ^`1R` ^2*4; text / 4 ^`19cb` ^Text helper. All four numeric words
+  ignored; invokes local scene player `15ec:000a` with filename and
+  constant zero. File/playback errors are not numeric range errors.
+^57 ^`1F` ^2,4; text / 2 ^`193e` ^Text helper. First word mode unsigned
+  <=4 in file-query helper, otherwise no reply; reserved second ignored.
+^58 ^`a` ^2,2 / 2 ^`16e8` ^Raw first word indexes cached palette before
+  low-byte port call; no 0..15 check. Second word cached, low byte written.
+  Invalid index accesses unrelated memory; safe rejection required in C.
+^59 ^`9 ESC` ^1,1,2,4; text / 4 ^`197d` ^Text helper. Mode zero/nonzero,
+  protocol signed 0..7, type signed 0..5, fourth word ignored. Marker,
+  filename, batch and error/cancellation branches described above.
+^60 ^`0 ESC` ^1,1,2,4; text / 4 ^`197d` ^Exact alias of index 59, including
+  checks/casts/errors. It is a separate descriptor, not an invented level.
+^61 ^`l` ^2,2,2; repeat 2 / variable ^`1061` ^G. Rejects count==1 or odd
+  coordinate-word count, then passes declared vertex word and parameter
+  array to `1814:000e`. No check of declared count against retained pairs;
+  malformed counts can read stale/unavailable coordinates.
+|===
+
+=== Deferred viewport validation
+
+BGI `1eae:0f33` requires signed left/top >=0, unsigned right<=maxx and
+bottom<=maxy, and signed right>=left and bottom>=top. Failure sets -11
+and keeps the preceding BGI viewport; success stores the coordinates,
+passes a clipping byte and resets BGI's current point to zero. RIP's
+staged coordinates/cache may already differ. This is why "`v` checks its
+coordinates" is too imprecise: it sorts and upper-clamps signed words,
+but a later BGI synchronization rejects remaining invalid coordinates
+without restoring RIP's staged state. Equal endpoints pass the BGI
+validation; do not infer a strict positive area from the sort.
+
+== Reference faults and safe compatibility boundaries
+
+Implement the accepted spelling, word truncation, byte truncation, bit
+tests, signed comparisons, unsigned comparisons, clipping and defined
+rejections. Keep memory safety and arithmetic preconditions explicit at
+each consumer. These are requirements for future fixes, not claims that
+the current SyncTERM implementation already does all of them.
+
+[cols="2,3,3",options="header"]
+|===
+|Case |Reference consequence |Boundary for a C implementation
+|`a` index outside 0..15 |Unchecked DGROUP palette read/write before any
+  port truncation; no defined rejection.
+|Reject before indexing. Do not substitute a C out-of-bounds access or
+  claim that its pixels/reply are defined reference behavior.
+|`P`, `p`, `l` declared count inconsistent with retained pairs
+|Word count/parity checks pass some malformed cases; closure writes or
+  vertex reads use unavailable/stale memory. 511 retained words hold at
+  most 255 complete point pairs after the count.
+|Validate count, pair availability and destination capacity, including
+  polygon closure. Reject or safely ignore malformed commands; never use
+  uninitialized points as an expected rendering oracle.
+|Image mode byte outside 0..4 |Reads beyond the driver's operation table;
+  not an intentional sixth operation or -11 validation.
+|Bound the mode before looking up an operation. Preserve low-byte
+  conversion only where the resulting operation is defined.
+|Invalid BGI style/fill/viewport words |Defined -11 and unchanged BGI state,
+  with possible prior changes to the RIP command cache.
+|Reproduce rejection/state ordering deliberately if needed; do not turn
+  it into an unchecked array access or partial invalid draw.
+|Invalid font |Defined validation/load errors and fallback in ordinary
+  graphics mode; it is not simply "ignore the entire Y command".
+|Bound font indexes before lookup; retain the observed fallback policy
+  and distinguish cached requested state from effective font state.
+|Region metrics, signed clipping divides, image extents, allocation sizes
+|Wrappers do not establish every divisor, quotient, product or buffer bound.
+|Use wider intermediates and explicit word reduction where required.
+  Check zero divisors, signed-division overflow, object sizes and lengths.
+  Never implement 16-bit overflow using overflowing signed C expressions.
+|Float-to-integer results |Reference helper returns machine words through
+  AX; exceptional host conversions are not proven portable C operations.
+|Check finite/range conditions before conversion; document safe rejection
+  for exceptional cases instead of casting out of range.
+|Long filenames, labels, definitions and templates |Several application
+  helpers use unbounded copies into fixed local buffers.
+|Retain bounded string/expansion limits and explicit failure. No buffer
+  corruption, allocation leak or program termination is needed to render
+  a compatible valid command.
+|===
+
+Represent the decoded protocol word explicitly. To obtain its signed value
+portably in a wider `int`, use the subtraction definition above rather than
+relying on an out-of-range conversion to `int16_t`. A negative bit-pattern
+argument may then be converted to unsigned for a pattern, while an index
+must be checked as an index. `uint16_t`/`uint8_t` conversions are suitable
+for the deliberate modulo operations; they do not validate an enum or
+array bound. Keep pointer/index and allocation arithmetic separate from
+machine-word arithmetic.
+
+== SyncTERM comparison and work still required
+
+The earlier inventory's P1–P3 and S1–S7 remain open. P1 (host raw-width
+decoding), P2 (CSI fallback swallowing following text) and P3 (wire finish
+using local EOF flush) are modern-port findings. Backslash delimiter runs,
+EBC/ESC ordering, bare-pipe reset, consumed-byte history, signed/word
+decoding, padded autosense and `0 ESC` prefix handling are inherited
+findings affecting v1.8/v1.10b as well as v2.0.
+
+The historical source baselines and parser-replay qualifications remain in
+link:RIP154_CONFORMANCE.md#command-parser-comparison-2026-11-14[the comparison].
+Explicit `refs/tags/syncterm-1.8` and `refs/tags/syncterm-1.9` have identical
+numeric/descriptor/introducer/feed functions in the reviewed areas;
+`refs/tags/syncterm-1.8rc2` contains an earlier assembler. These comparisons
+do not prove that every modern host/asset helper is identical to v1.8.
+
+Current modern `cterm_rip_raster.c:parse_mega` and legacy `ripper.c:parse_mega`
+consume minus as a zero digit; modern `st_cterm.c:rip_number` rejects it.
+Neither implements the reference word contract. A blanket change to return
+negative host integers would make these current modern consumers suspect:
+
+* `a`: only upper-bound tests before `master_palette[fields[0]]`.
+* `=`: only upper-bound style tests before `st_bgi_line_patterns[style]`.
+* `Q`: only rejects values >63, casts accepted values to `uint8_t`, and
+  later uses them to select RGB palette entries.
+* `Y`: upper-bound-only font assignment and unchecked direction assignment;
+  downstream font logic must be checked before changing decoder output.
+
+Other paths do have additional checks: for example,
+`cterm_rip_raster_fill_style` bounds pattern and colour on both sides,
+and image paste bounds its mode. Do not state that every handler is
+unsafe, or that every upper-bound-only test is already reachable with
+negative decoded values today. The risk changes with the decoder fix.
+
+Further specific differences exposed by the per-command trace include:
+
+[cols="2,3,3",options="header"]
+|===
+|Area |Reference |Current modern behavior / implication
+|Wide/custom pattern |Low 16 bits; `-001` and `1EKF` both `ffff`.
+|The custom-pattern cast preserves the positive case, but minus-as-zero
+  decoding produces `0001` for the negative case.
+|Colour `c`, predefined fill colour |Byte truncation and driver bit mask;
+  no word <=255 rejection.
+|Raster dispatch rejects positive colour values >255. Negative acceptance
+  needs the full decode/cast audit, not just removal of this guard.
+|Custom fill colour |Unsigned <=15 in reference EGA BGI, else -11; cached
+  RIP state already changed.
+|Modern dispatch permits colour <=255. State/error semantics differ.
+|Palette `Q` / `a` value |Low byte sent to attribute controller without
+  <=63 rejection; `a` index itself is unsafe unless bounded.
+|Modern enforces <=63, with `Q` updating a prefix before a bad value.
+  Match defined palette-register behavior through a bounded mapping;
+  do not remove the bound and index the RGB table with the raw byte.
+|Write mode |Signed 0..2 accepted.
+|Modern permits only 0..1 at RIP dispatch. Determine the value-2 behavior
+  through the BGI path before substituting a Boolean mode.
+|Move `m` |Stores unrestricted coordinate words.
+|Modern adds an upper check against viewport dimensions. Signed clipping
+  and current-point behavior need separate expectations.
+|Viewport `v` |Signed sorting/clamps, deferred BGI rejection; equal
+  endpoints allowed at BGI layer.
+|Modern rejects reversed/equal bounds and directly updates its viewport.
+|Font `Y` |Reference BGI font validation/fallback; direction/size byte use.
+|Modern font/size limits (font <=10, size 1..10) do not reproduce all
+  reference acceptance, errors or effective state.
+|Bézier `Z` nonpositive count |Explicit step 0.005 in this executable.
+|Modern substitutes `03fc` following the older research explanation.
+|Copy region `1G` |Reference implements aligned screen copy.
+|Legacy's no-op comment is not proof that RIPterm ignores it; support
+  and tests must be assessed independently in each maintained branch.
+|Block transfer |Mode zero versus nonzero; protocol/type signed checks;
+  both `9 ESC` and `0 ESC`.
+|Modern host limits mode to 0..1 and routes only the level-9 spelling.
+|No-op entries |The nine common-exit descriptors have no command body.
+|Retained later SyncTERM extensions must be identified by version/policy,
+  not removed simply because RIPterm 1.54 ignored that name.
+|===
+
+The meaningful negative uses include signed coordinates/angles, low colour
+bits, low pattern bytes, custom 16-bit line patterns, and full flag words.
+Other negative words are correctly rejected by unsigned range checks or
+hit unsafe reference indexes. There is no universal "negative values are
+useful/useless" rule, and positive unsigned spellings do not replace the
+need to decode every accepted spelling compatibly.
+
+== Validation obligations for follow-up changes
+
+Tests should use independent expected bytes/state for numeric spellings,
+not derive expectations from the implementation's decoder. Include
+`-A`, `A-`, `0-`, shortened final fields, `-001`, `1EKF`, `1EKG`, mixed
+case, invalid bytes and missing mandatory fields. Pair these with each
+consumer's actual role: index, byte, word mask, signed coordinate, enum
+or boolean. Include rejected commands and the next valid command to check
+recovery and state ordering.
+
+For graphics, keep command cache, effective graphics state, current point,
+pixels and replies distinguishable. Exercise disabled/all-zero viewport,
+negative/clipped coordinates, reversed/equal viewport bounds, invalid
+style/thickness, fill-style versus custom-fill colour, image mode bounds,
+font fallback, selected-state bit masking and reserved-field decoding.
+Do not make expected images from SyncTERM or from memory-corrupted
+reference input. Hardware-specific palette reserved-bit results and
+exceptional arithmetic need independent evidence before claiming exact
+pixels.
+
+Retain split-input/bytewise tests for the assembler and the coherent
+headless control-bitmap captures in CP437/UTF-8. Pending completion must
+apply before ANSI interception; continuation must remain open across
+input chunks; wire EOF and explicit local EOF must be distinct. No passing
+ordinary CTest result closes an unresolved audit row by itself.
+
+For this documentation change, all 62 command names, numeric field counts
+and handler targets were checked against the pinned executable's descriptor
+and jump tables; the Bézier fallback bytes were also checked directly.
+AsciiDoctor rendered the document without warnings, and its eight rendered
+tables were checked for consistent columns and the complete 62-row inventory.
+The existing native FreeBSD CMake configuration built successfully, and all
+35 selected RIP, SkyPix and terminal/session CTests passed with inherited
+display variables cleared. These are regression results, not runtime
+verification of the newly documented exceptional reference inputs.

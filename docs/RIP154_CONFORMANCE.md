@@ -247,6 +247,16 @@ The parser is **not fully compliant** with the findings in
 regression suites does not establish that broader claim. The issue #2 checks
 above concern three particular legacy defects and remain valid.
 
+[RIP154_PARSER.adoc](RIP154_PARSER.adoc) records the full stream/number contract
+and all 62 reference command entries, including every numeric field's use,
+signed/unsigned checks, byte/word conversions, ignored reserved fields,
+internal errors and unsafe reference accesses. It distinguishes RIP's cached
+command state from effective BGI state and records corrections to the older
+research, including the explicit Bézier nonpositive-count step of `0.005`,
+the image mode table's unchecked byte index, and `1G`'s use of its nominally
+reserved fifth argument during alignment. These are documentation findings;
+production parser/handler fixes remain outstanding.
+
 This comparison used modern commit `794e369`, legacy v1.10b commit
 `74cce5b27a610bddb4a05236c011b76747619122` (the current form of the issue #2
 fix), and explicit Synchronet tag refs:
