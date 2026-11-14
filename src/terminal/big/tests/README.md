@@ -1006,3 +1006,14 @@ The first s application run carried the preceding G3 frame-local memory0
 into a new attention. Existing I# frame entry initializes memory1 before
 the s body. The independent oracle was corrected against that entry contract;
 production clear/page behavior was unchanged.
+
+
+`st_big_sync_test.c` uses original15/52's literal gate comparisons to check
+all sync/LOW WORD values, high release, live scratch changes and entered versus
+skipped flag behavior. It separately checks the production shared parser's
+resumable pre-field entry, unknown notification ordering, source selection,
+header fallback, retry versus resume, errors, cancel and EOF. No callback
+progress is fabricated by an elapsed clock. Native `cterm_big_sync` injects
+serialized progress into real BIG command pairs and verifies wire/key/source
+ownership, split profiles, indexed planes and lifecycle recovery. Real audio
+record publication remains the b/n/N implementation's responsibility.

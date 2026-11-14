@@ -84,6 +84,18 @@
             "graphics_protocol_parser"
           ],
           "commit": "93eeae8"
+        },
+        {
+          "id": "resumable-command-entry",
+          "status": "in-progress",
+          "operations": [
+            "Optional entry callback retries after a complete header and before fields/source/unknown dispatch; successful entry runs once, and failure cancels grammar. Source-selected and missing-header paths share it. Unset callbacks preserve existing protocol behavior."
+          ],
+          "tests": [
+            "big_sync",
+            "cterm_big_sync"
+          ],
+          "commit": null
         }
       ]
     },
@@ -2331,9 +2343,9 @@
         "58-marker-and-spray-command-acceptance.adoc"
       ],
       "operations": [
-        "One unscaled full-WORD selector through the shared parser. Exact0 reads class1/2 spray fields plus class0 count; exact1 conditional pattern rows; exact2 range bounds; exact3 four custom ratios; exact4 id-dependent zone fields; exact5 current-mode flow operands; exact6 class1 X/class2 Y; exact8 four rotation fields.",
+        "One unscaled full-WORD selector through the shared parser. Exact0 reads class1/2 spray fields plus class0 count; exact1 conditional pattern rows; exact2 range bounds; exact3 four custom ratios; exact4 id-dependent zone fields; exact5 current-mode flow operands; exact6 class1 X/class2 Y; exact7 one raw class0 sync WORD; exact8 four rotation fields.",
         "Unknown9/ffff/0106 performs no invented argument drain/default clamp/own response and retains shared repeat/chain/deferred-reply semantics.",
-        "X0..X6 and X8 implement their selected operators. X7 remains pending its music-progress producer/gate integration; the parent stays in progress until all nine children and global composition are accepted."
+        "X0..X8 implement their selected native operators. Music-progress entry is tested at the serialized owner boundary; actual N playback/publication and the final global regression suite remain audio/goal-final obligations."
       ],
       "tests": [
         "big_numeric",
@@ -2347,7 +2359,9 @@
         "cterm_big_random",
         "cterm_big_text_ratio",
         "cterm_big_flow",
-        "cterm_big_rotation"
+        "cterm_big_rotation",
+        "big_sync",
+        "cterm_big_sync"
       ],
       "deviations": [],
       "verification": [
@@ -2355,7 +2369,8 @@
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed.",
         "X4 counted loading and its three specials now use the same dispatch/source/footer path; pointer/hit testing and the remaining selectors remain pending.",
         "X1 now owns conditional slot/alter/row acquisition, immediate edit prefixes, restoration and common source/footer lifetimes. X4/X6 and unknown arities are preserved; other children/global composition remain pending.",
-        "Native selector implementations now cover X0..X6 and X8 through shared acquisition/footer and their focused/coherent fixtures. X3 adds immediate custom text ratios and correct initial1/1 private state. X7/audio/global composition and complete parent acceptance remain pending."
+        "Native selector implementations now cover X0..X6 and X8 through shared acquisition/footer and their focused/coherent fixtures. X3 adds immediate custom text ratios and correct initial1/1 private state. X7/audio/global composition and complete parent acceptance remain pending.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending."
       ],
       "commit": null
     },
@@ -2371,7 +2386,11 @@
       "references": [
         "54-initialize-and-resolution-command-acceptance.adoc"
       ],
-      "operations": [],
+      "operations": [
+        "One full-WORD class0 selector; signed requests outside0..1 normalize0. Both branches clear application hollow. I0 installs/defaults the EGA mode, selects visual then active page0, restores application marker/colours/fill/write caches and cached resolution2 in original order.",
+        "I1 restores16 default palette entries through the shared public palette setter while retaining installed geometry, drawing/text/image/page owners and current application state except hollow. Neither I/R resets synchronization, numeric/RNG/source state, console bounds or sound-memory availability.",
+        "Shared pre-body synchronization, supplied/wire numeric acquisition, fixed/gang repetition, chaining and deferred replies compose with native indexed graphics/console/status/reset/EOF/error boundaries. Failed callbacks retain reached prefixes and skip subsequent tails."
+      ],
       "tests": [
         "big_state",
         "big_profile",
@@ -4077,7 +4096,7 @@
     {
       "id": "X7",
       "order": 41,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4085,12 +4104,30 @@
         "big-audio"
       ],
       "references": [
-        "52-extended-control-command-acceptance.adoc"
+        "52-extended-control-command-acceptance.adoc",
+        "15-music-buffer-and-playback.adoc",
+        "08-terminal-and-viewer-readers.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "One class0 operand stores the complete synchronization WORD with no Boolean clamp, own output or graphics operation. Initial zero survives I/R and parser/reset lifetimes.",
+        "Every acquired pair snapshots position LOW to shared scratch before testing running BYTE/sync WORD. Entered waits compare current HIGH to zero then current LOW to live scratch; flags alone cannot release them. No key polling, operand consumption or timeout inside the gate.",
+        "Resumable shared-parser entry precedes field/source/unknown/body effects. Internal fixed/gang body repetition bypasses the gate; chained pairs resnapshot. Queued disable cannot bypass its own blocked entry.",
+        "Use existing parser/session backpressure and local key queue. Cancel/reset/EOF/destroy discards the reader while retaining control state; numeric/source errors remain nonfatal with reached prefixes preserved.",
+        "The serialized terminal progress owner is the future N callback publication boundary; real playback/muted progression and allocation remain big-audio responsibilities. Running/progress stay zero until a real producer is installed."
+      ],
+      "tests": [
+        "big_sync",
+        "cterm_big_sync",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Native event-loop polling replaces the original busy spin. No foreign CPU/BIOS clock or torn interrupt reads are reproduced. Audio workers must publish progress through a serialized owner, not directly race these fields.",
+        "Host reset/EOF/cancel shuts down a waiting command through the normal terminal lifecycle; it does not fabricate a counter increment, consume a key or finish a queued disable."
+      ],
+      "verification": [
+        "Independent tests sweep every sync and LOW WORD, live scratch/high/flag changes and repeatable parser gate success/error/cancel/EOF/source/fallback boundaries. Native split/bytewise profile tests retain complete indexed planes/state and check queued disable, unread keys/tails, chain resnapshot, internal repetition bypass and reset/EOF/reconnect/nonfatal recovery.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending."
+      ],
       "commit": null
     },
     {
@@ -4259,5 +4296,26 @@
     "sha256": "edc9e2280d822d41361a11f622d8a70e16ada4e792a4944a77cc26af532f4a1c",
     "manual_label": "1.02",
     "reference": "72-target-profile-acceptance.adoc"
+  },
+  "non_audio_checkpoint": {
+    "status": "verified",
+    "implemented_entries": 42,
+    "total_entries": 45,
+    "remaining_command_bodies": [
+      "b",
+      "n",
+      "N"
+    ],
+    "verification": [
+      "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending.",
+      "Production dispatch has33 top-level commands plus all9 X selectors. Comparison with the45-entry ledger leaves exactly b/n/N absent; every implemented entry has focused verification inventory. Existing native page/image/font/input/curve/control resources are bound."
+    ],
+    "audio_followup": [
+      "N must publish real record-callback progress to the serialized X7 gate owner, including muted progression.",
+      "Audio allocation must publish actual music-memory availability for ?2.",
+      "Implement b/n/N synthesis/playback/lifecycle and complete the goal-final full regression suite."
+    ],
+    "completion_commit": null,
+    "acceptance_scope": "Verified native non-audio implementation satisfies the user-authorized publishing checkpoint. Existing command/foundation status fields retain their stricter whole-goal acceptance gates; this does not complete or redefine the45-entry goal."
   }
 }

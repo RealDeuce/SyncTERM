@@ -155,6 +155,11 @@ struct st_graphics_parser_sink {
 	 * notification. Receives an empty argument view and the same accepted
 	 * command/yield/resume contract. No payload is guessed or consumed. */
 	int (*unknown_command)(void *, const struct st_graphics_command_view *);
+	/* Optional gate after acquiring the complete header, before any field,
+	 * source selection or unknown notification. IN_PROGRESS consumes no
+	 * operands and retries on feed(); success runs once per selected command.
+	 * Unlike command(), yielding here is not acceptance: do not resume(). */
+	int (*entry)(void *, const struct st_graphics_command_view *);
 };
 
 typedef struct st_graphics_parser st_graphics_parser_t;

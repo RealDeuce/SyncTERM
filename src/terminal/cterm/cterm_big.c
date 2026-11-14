@@ -205,6 +205,8 @@ static int extended_next(void *context, const struct st_graphics_command_view *v
 		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
 	if ((uint16_t)view->arguments[0].value==3 && view->count<5)
 		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
+	if ((uint16_t)view->arguments[0].value==7 && view->count<2)
+		*parameter=(struct st_graphics_parameter){.kind=ST_GRAPHICS_NUMBER};
 	return 0;
 }
 
@@ -264,6 +266,17 @@ static void body_entry(struct cterm_big *big, const struct st_graphics_command_v
 	if (!big->pair_body) return;
 	big->control.frame.command=view->code; big->numeric.loop.command_read=false;
 	big->pair_wait=big->pair_body=false;
+	big->sync_entry=(struct st_big_sync_reader){0};
+}
+static int entry(void *context, const struct st_graphics_command_view *view)
+{
+	struct cterm_big *big=owner(context); (void)view;
+	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
+	/* Internally repeated bodies enter directly, without a new pair. */
+	if (!big->pair_body) return 0;
+	big->pair_wait=false;
+	if (!big->sync_entry.begun) st_big_sync_begin(&big->sync_entry,&big->control);
+	return st_big_sync_poll(&big->sync_entry,&big->control);
 }
 static int field(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
@@ -568,6 +581,11 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		}
 		if (selector==8) return cterm_big_rotation_begin(big,view);
 		if (selector==5) return begin_footer(big,view);
+		if (selector==7) {
+			if (view->count!=2 || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
+			big->control.music.sync=(uint16_t)view->arguments[1].value;
+			return begin_footer(big,view);
+		}
 		if (selector==2) return begin_footer(big,view);
 		if (selector==3) {
 			if (view->count!=5) return IO_ERROR_PROTOCOL;
@@ -598,14 +616,6 @@ static int command(void *context, const struct st_graphics_command_view *view)
 			if (st_big_number_signed(big->control.pointer.step_y)<1) big->control.pointer.step_y=1;
 			if (st_big_number_signed(big->control.pointer.step_x)>15) big->control.pointer.step_x=15;
 			if (st_big_number_signed(big->control.pointer.step_y)>15) big->control.pointer.step_y=15;
-		} else if (selector<=8) {
-			/* Retain the existing unsupported-command fallback until the
-			 * other known selectors have their own implemented operators. */
-			unsigned mask=1u<<('X'%8);
-			if ((big->warned['X'/8]&mask)==0) {
-				big->warned['X'/8]|=(uint8_t)mask;
-				cterm_log(big->terminal,ST_CTERM_LOG_WARNING,"Unsupported BIG X selector %u",(unsigned)selector);
-			}
 		}
 		return begin_footer(big,view);
 	}
@@ -636,6 +646,7 @@ static struct st_graphics_parser_sink callbacks(struct cterm_big *big)
 		.context = &big->numeric, .text = text, .boundary = boundary,
 		.command = command, .unknown = unknown, .unknown_command = unknown_command, .field = field,
 		.number = st_big_numeric_number, .read_number = st_big_numeric_read_number,
+		.entry = entry,
 	};
 }
 static void cancel(struct cterm_big *big)
@@ -647,6 +658,7 @@ static void cancel(struct cterm_big *big)
 	st_graphics_parser_cancel(big->parser); st_big_numeric_cancel(&big->numeric);
 	st_big_fill_edit_cancel(&big->fill_edit);
 	big->pair_wait = big->pair_body = big->reset_pending = false;
+	big->sync_entry=(struct st_big_sync_reader){0};
 	big->footer_active=big->gang_selecting=big->gang_wire=big->starting_body=false;
 	big->control.input.pending=0; big->control.frame.command=big->control.frame.did_loop=0;
 	big->numeric.loop.active=0; big->numeric.loop.command_read=false;
@@ -955,7 +967,7 @@ int cterm_big_poll(struct cterm_big *big)
 }
 bool cterm_big_paused(const struct cterm_big *big)
 {
-	return big != NULL && (big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
+	return big != NULL && (big->sync_entry.waiting || big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
 	    || big->query.phase!=CTERM_BIG_QUERY_OFF
 	    || (big->pause.phase!=CTERM_BIG_PAUSE_OFF && big->pause.phase!=CTERM_BIG_PAUSE_NUMBER)
 	    || (big->text_output.active && big->text_output.stream.phase==ST_BIG_STREAM_FLOW)
@@ -1085,6 +1097,12 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_query_active", big->query.phase!=CTERM_BIG_QUERY_OFF);
 	st_console_test_number(app, "cterm.big_query_selector", big->query.selector);
 	st_console_test_number(app, "cterm.big_music_memory", big->music_memory);
+	char music[80];
+	snprintf(music,sizeof(music),"%u,%u,%u,%u,%u,%u",(unsigned)big->control.music.sync,
+	    (unsigned)big->control.music.running,(unsigned)big->control.music.position_low,
+	    (unsigned)big->control.music.position_high,(unsigned)big->control.music.scratch,
+	    (unsigned)big->sync_entry.waiting);
+	st_console_test_text(app,"cterm.big_music",music);
 	st_console_test_number(app, "cterm.big_flow_mode", big->control.flow.mode);
 	st_console_test_number(app, "cterm.big_random_state", big->numeric.random_state);
 	st_console_test_number(app, "cterm.big_random_from", big->numeric.random_from);

@@ -17,7 +17,16 @@ struct st_big_control {
 	struct { uint16_t rectangles[ST_BIG_ZONE_COUNT][4], loopback;
 		uint8_t payload[ST_BIG_ZONE_DATA_SIZE]; } zones;
 	struct { uint16_t command, did_loop; uint8_t gang_marker, gang[129]; } frame;
+	/* Serialized playback progress, published by the music owner. Muting
+	 * does not stop progress. The entry gate reads the live shared scratch. */
+	struct { uint16_t sync, position_low, position_high, scratch; uint8_t running; } music;
 };
+struct st_big_sync_reader { bool begun, waiting; };
+/* Snapshot LOW once per acquired pair, even when the flags skip waiting.
+ * Poll never retests flags or snapshots again. Caller cancellation discards
+ * only the reader. These calls neither consume bytes nor own a clock/thread. */
+void st_big_sync_begin(struct st_big_sync_reader *, struct st_big_control *);
+int st_big_sync_poll(struct st_big_sync_reader *, const struct st_big_control *);
 enum st_big_output_kind { ST_BIG_OUTPUT_XON, ST_BIG_OUTPUT_XOFF, ST_BIG_OUTPUT_REPLY, ST_BIG_OUTPUT_QUERY };
 struct st_big_control_sink {
 	void *context;

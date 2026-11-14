@@ -19,7 +19,7 @@ boundary are complete; ordinary BIG numeric acquisition, the shared RNG
 core, stored numeric evaluation and source/deadline parser callbacks are
 implemented.
 BIG mode6 is selectable with native I0/I1/R indexed-console effects,
-g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
+g/X0/X1/X2/X3/X4/X5/X6/X7/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m graphics movement, p console positioning, M writing modes,
 C application colours, A fills, s graphics/console clears,
@@ -27,8 +27,8 @@ B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
 pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
 K circular/J explicit-radius arcs, O circles, Q ellipses, V circular
 pieslices and Y explicit-radius sectors are integrated.
-Further controls, sound and full command acceptance remain pending
-(0/45). Native W, t and ? are implemented in the requested order; sound-buffer
+All non-audio command bodies are implemented; sound and final whole-goal
+acceptance remain pending. Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
@@ -38,9 +38,13 @@ the raw polygon scanner, stages2/3, piece closure, normal/alternate lower
 construction, physical span operators and public explicit/circular sector
 wrappers. V/Y share their fill/line/caller schedule while preserving circular
 aspect conversion versus explicit radii and their distinct reader classes.
-All six curve commands have native wire integration. Remaining non-audio
-command X7, sound, resource composition and global acceptance are pending.
-Global/full-suite acceptance remains pending.
+All six curve commands have native wire integration. X7 now has its raw
+WORD setter and resumable pair-entry music-progress gate. Its serialized
+progress interface is tested independently; the audio producer will publish
+real callback progress when N is implemented. Sound and the goal-final
+whole-suite acceptance remain pending. Earlier verification sections retain
+their historical completion counts and outstanding-work descriptions; the
+latest checkpoint section records current scope.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -4226,3 +4230,78 @@ the s body. The independent oracle was corrected against that entry contract;
 production clear/page behavior was unchanged.
 
 Native s clear implementation commit: `e37ad5b`.
+
+
+== Native X7 and command-entry synchronization
+
+The shared graphics parser now has an optional resumable entry callback,
+called after the complete header and before field entry, source selection,
+unknown notification or body dispatch. A yielded entry is retried with feed,
+not resume; it consumes no operands and runs once after successful release.
+Ordinary attention, chain, missing-header fallback and source-selected bodies
+all use this boundary. Other protocol owners leave the callback unset.
+
+BIG's entry distinguishes acquired pairs from internally repeated bodies.
+Each pair snapshots music position LOW into the live shared scratch, even
+when running or sync is zero. Both nonzero flags enter a wait. Each poll
+compares current HIGH against zero, then current LOW against current scratch;
+either difference releases. Clearing sync/running alone cannot release an
+entered gate, and a queued X7 disable cannot acquire its own operands through
+it. Internal fixed/gang repetitions bypass the gate; chained pairs reenter
+and resnapshot. No key readiness/read or timeout runs inside this wait.
+Native parser backpressure retains unread wire bytes and local key events.
+Host reset/EOF/cancel/destroy discards a pending reader without changing the
+retained sync/progress owners; this is the normal terminal shutdown boundary.
+
+X7 acquires one class0 operand and stores its complete WORD, with no Boolean
+clamp, own output, raster change or private pause. It starts at zero and
+survives I/R and parser/reset lifetimes. Numeric timeout/error/partial-source
+semantics and repeat/chain/deferred replies use the existing owners.
+
+Progress LOW/HIGH, running and scratch belong to the serialized terminal
+control owner. Future audio integration must publish record-callback progress
+there, including muted playback; these fields are not shared unsynchronized
+with an audio worker. The native implementation does not recreate torn DOS
+interrupt reads, BIOS clocks or a CPU spin. Until b/n/N install an audio
+producer, running and the position stay zero; X7 does not invent playback.
+The current sound-memory query remains honestly zero.
+
+`big_sync` checks all65536 sync values and all65536 LOW values, live scratch,
+HIGH release, skipped/entered flag changes, frame retention, nulls and the
+shared parser gate's field/unknown/source/fallback/cancel/EOF/error boundaries.
+`cterm_big_sync` checks every split/bytewise mode/encoding/status setter
+profile with complete indexed planes and retained state, queued-disable
+ownership, buffered key replay, chained unknowns, LOW/HIGH/scratch release,
+no timeout during the gate, internal loop bypass, I/R/reset/EOF/reconnect and
+nonfatal reader-error recovery. `syncterm_big_input` adds112 independently
+authored X7 scenes, retains all3822 preceding observations, and checks the
+raw sync/progress tuple with pixels/cells/palette/points/fonts/pages/images,
+replies and RGB in each coherent capture. Physical audio/MIDI remain off.
+
+The first native wait assertion incorrectly required the numeric reader to
+be OFF; completed readers retain their DONE phase. It now checks that entry
+preserves the previous phase before any operand acquisition. The first
+application attempt exhausted the bounded test-inspection field table; the
+new six-value music tuple now uses one grouped record. Neither correction
+changes command behavior or weakens scene expectations.
+
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending.
+
+
+== Verified non-audio publishing checkpoint
+
+All42 non-audio native entries are implemented and verified. The production
+dispatch contains33 top-level commands and all nine X selectors; comparison
+with the45-entry inventory leaves exactly b/n/N absent. Existing page/image,
+font, curve, source, input, palette and control resources have native bindings
+and focused test coverage. The user-authorized condition for pushing all
+completed branch changes is satisfied. The full goal remains active.
+
+X7's progress contract is verified with serialized producer observations;
+N must still publish real record-callback progress, including muted playback.
+The audio owner must also publish actual allocation availability to ?2.
+The all-command/foundation status fields retain their stricter whole-goal
+acceptance gates. No original audio producer/device coverage, manual listening
+or goal-final cross-emulation full-suite result is claimed here. Implement
+b/n/N and perform the required final suite before completing the full goal.

@@ -20,7 +20,7 @@ struct st_graphics_parser {
 	uint8_t *payload;
 	size_t payload_size, field_start, field_size;
 	struct st_graphics_parameter parameter;
-	bool field_active, boundary_needed, number_requested;
+	bool field_active, boundary_needed, number_requested, entry_needed;
 	enum number_state number_state;
 	unsigned continuation_left, digits;
 	bool number_invalid;
@@ -56,6 +56,7 @@ st_graphics_parser_cancel(st_graphics_parser_t *p)
 	p->field_active = false;
 	p->boundary_needed = false;
 	p->number_requested = false;
+	p->entry_needed = false;
 }
 
 int
@@ -177,6 +178,7 @@ st_graphics_parser_start_command(st_graphics_parser_t *p,
 	p->view.chained = chained;
 	p->command = command;
 	p->state = FIELD;
+	p->entry_needed = true;
 	return 0;
 }
 
@@ -256,6 +258,11 @@ advance(st_graphics_parser_t *p, const struct st_graphics_parser_sink *sink)
 		}
 		if (p->state != FIELD)
 			return 0;
+		if (p->entry_needed) {
+			status = sink->entry == NULL ? 0 : sink->entry(sink->context, &p->view);
+			if (status != 0) return status;
+			p->entry_needed = false;
+		}
 		if (p->field_active) {
 			if (p->parameter.kind == ST_GRAPHICS_NUMBER && !p->number_requested) {
 				bool supplied = false;
@@ -566,6 +573,7 @@ st_graphics_parser_feed(st_graphics_parser_t *p,
 			p->view.code = byte;
 			p->command = find_command(p, byte);
 			p->state = p->config.dialect->chain_indicator ? CHAIN : FIELD;
+			p->entry_needed = true;
 			break;
 		case CHAIN:
 			p->view.chained = byte == p->config.dialect->chain;
@@ -629,6 +637,7 @@ st_graphics_parser_complete_header(st_graphics_parser_t *p,
 		}
 		p->view.chained = chained;
 		p->state = FIELD;
+		p->entry_needed = true;
 		size_t used;
 		return st_graphics_parser_feed(p,sink,NULL,0,&used);
 	}

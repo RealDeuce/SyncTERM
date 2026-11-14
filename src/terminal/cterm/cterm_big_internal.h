@@ -147,6 +147,7 @@ struct cterm_big {
 	struct st_big_fonts fonts;
 	struct st_big_spray spray;
 	struct st_big_control control;
+	struct st_big_sync_reader sync_entry;
 	struct st_big_flow_settings flow_settings;
 	size_t flow_settings_arguments;
 	struct st_big_footer footer;

@@ -1480,3 +1480,14 @@ Independent byte/plane/pass/tail and native split/profile/application checks
 retain different cursor/home/attribute owners, partial-mode3 extents and
 nonfatal failure prefixes. X7/audio/global and final-suite acceptance remain
 pending; physical audio/MIDI stay off in headless fixtures.
+
+
+BIG X7 now stores its raw class0 WORD and applies a resumable music-progress
+gate at each acquired pair, before fields/operands/unknown dispatch. Internal
+body repeats bypass it; chains resnapshot. Live LOW/HIGH/scratch release,
+flag retention, queued-disable/key/tail ownership and cancel/reset/EOF/error
+boundaries are independently tested. The serialized playback-progress owner
+is ready for audio integration; b/n/N and actual playback remain pending.
+The coherent BIG fixture adds112 X7 scenes with all earlier captures retained;
+headless physical audio/MIDI remain off. See BIG_IMPLEMENTATION.adoc for the
+current non-audio publishing checkpoint and deferred full-suite requirement.

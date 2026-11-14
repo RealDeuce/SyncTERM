@@ -7,6 +7,22 @@
 enum { FOOTER_OFF, FOOTER_REPEAT, FOOTER_FLOW, FOOTER_RESET, FOOTER_REPLY,
 	FOOTER_CHECK, FOOTER_READY, FOOTER_SEND, FOOTER_CR, FOOTER_CR_SEND,
 	FOOTER_DONE, FOOTER_FAILED };
+void st_big_sync_begin(struct st_big_sync_reader *r, struct st_big_control *c)
+{
+	if (r==NULL || c==NULL) return;
+	c->music.scratch=c->music.position_low;
+	r->begun=true; r->waiting=c->music.running!=0 && c->music.sync!=0;
+}
+int st_big_sync_poll(struct st_big_sync_reader *r, const struct st_big_control *c)
+{
+	if (r==NULL || c==NULL || !r->begun) return IO_ERROR_INVALID_ARGUMENT;
+	/* Match the reached HIGH-then-LOW comparisons. The terminal owns these
+	 * fields; an audio worker must publish through its serialized owner. */
+	uint16_t scratch=c->music.scratch;
+	if (r->waiting && c->music.position_high==0 && c->music.position_low==scratch)
+		return IO_ERROR_IN_PROGRESS;
+	r->waiting=false; return 0;
+}
 int32_t st_big_zone_id(uint16_t word)
 {
 	int32_t id=st_big_number_signed(word);

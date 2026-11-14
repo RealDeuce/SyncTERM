@@ -1,8 +1,8 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills, F fills and s graphics/console clears run
-through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. Remaining drawing,
-sound and complete command acceptance remain in progress.
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X7/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills, F fills and s graphics/console clears run
+through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. All non-audio bodies are implemented; sound and goal-final acceptance
+remain in progress. Earlier sections retain historical progress counts.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -1913,3 +1913,32 @@ the s body. The independent oracle was corrected against that entry contract;
 production clear/page behavior was unchanged.
 
 Native s clear implementation commit: `e37ad5b`.
+
+
+## Native X7 and music-progress entry
+
+X7 stores one complete class0 WORD without clamping. Its initialized zero
+value survives I/R and parser reset. Every acquired pair snapshots position
+LOW into shared scratch and, when running/sync are nonzero, waits until HIGH
+is nonzero or current LOW differs from current scratch. Flags are tested
+only at entry; a queued disable cannot pass an entered wait. Chained pairs
+resnapshot; internal repeats bypass the gate. The shared parser's optional
+entry callback suspends before operands, fields and unknown notification.
+
+The serialized progress owner is ready for N's future callback publisher;
+no audio producer or sound-memory allocation is claimed. Muting must retain
+progress when playback is added. Native tests inject actual owner changes
+without clocks/spins/threads and cover all WORD values, flag and scratch
+changes, splits, complete indexed planes, buffered keys/tails, error prefixes
+and reset/EOF/reconnect. The application fixture adds112 X7 scenes with all
+previous observations retained and physical audio/MIDI disabled.
+
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending.
+
+
+The non-audio publishing checkpoint is verified:42 native entries, with only
+b/n/N command bodies remaining. X7 real callback publication and ?2 allocation
+availability belong to that audio work. Whole-goal acceptance and the final
+full regression suite remain outstanding; historical ledger status fields
+retain those stricter completion gates. The active goal is unchanged.
