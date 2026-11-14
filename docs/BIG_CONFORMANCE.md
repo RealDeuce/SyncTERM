@@ -1705,3 +1705,5 @@ physical binding, complete wire and global/audio/final acceptance remain
 pending; this step accepts the polygon prerequisite only.
 
 Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending.
+
+Sector polygon scan-conversion implementation commit: `c723c44`.
