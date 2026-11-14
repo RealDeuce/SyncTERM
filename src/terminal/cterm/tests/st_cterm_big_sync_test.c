@@ -103,11 +103,14 @@ static void repeats_and_lifetimes(void)
 	string(&f,"I#& 0,2,1,0,X@2,7,9999,0:");
 	CHECK(!st_cterm_input_paused(f.terminal) && b->control.music.sync==9999 && b->numeric.loop.active==0);
 	for (unsigned cancel=0;cancel<3;++cancel) {
+		/* Each independent cancellation now stops the installed native
+		 * music owner. Recreate running state for this next gate fixture. */
+		b->control.music.running=1;
 		CHECK(write_some(&f,"I#X 7,0:")==4 && st_cterm_input_paused(f.terminal));
 		if (cancel==0) cterm_big_reset(b);
 		else if (cancel==1) CHECK(st_cterm_finish(f.terminal)==0);
 		else CHECK(st_cterm_reset_terminal(f.terminal)==0);
-		CHECK(!st_cterm_input_paused(f.terminal) && b->control.music.sync==9999 && b->control.music.position_low==19);
+		CHECK(!st_cterm_input_paused(f.terminal) && b->control.music.sync==9999 && b->control.music.position_low==19 && b->control.music.running==0);
 	}
 	b->control.music.running=0;
 	string(&f,"I#I 0:I#R 3:I#I 1:"); CHECK(b->control.music.sync==9999);

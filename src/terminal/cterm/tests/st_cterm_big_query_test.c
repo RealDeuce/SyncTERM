@@ -100,10 +100,10 @@ static void partitions_and_owners(void)
 			struct st_big_image image; memcpy(&image,&b->image,sizeof(image)); uint8_t bytes[10]; memcpy(bytes,b->image_bytes,10);
 			if (split==sizeof(wire)) for (size_t i=0;i<sizeof(wire)-1;++i) feed(&f,wire+i,1);
 			else { feed(&f,wire,split); feed(&f,wire+split,sizeof(wire)-1-split); }
-			char expected[]="1.03R2:0:\033[1;1R"; expected[5]=(char)('0'+res);
+			char expected[]="1.03R2:1:\033[1;1R"; expected[5]=(char)('0'+res);
 			CHECK(f.size==sizeof(expected)-1 && memcmp(f.output,expected,f.size)==0);
 			for (size_t i=0;i<f.size;++i) CHECK(f.origins[i]==ST_CTERM_OUTPUT_RESPONSE);
-			CHECK(b->query.phase==CTERM_BIG_QUERY_OFF && !st_cterm_input_paused(f.terminal) && b->query.selector==9 && b->music_memory==0);
+			CHECK(b->query.phase==CTERM_BIG_QUERY_OFF && !st_cterm_input_paused(f.terminal) && b->query.selector==9 && b->music_memory==1);
 			CHECK(memcmp(&state,&b->state,sizeof(state))==0 && memcmp(&image,&b->image,sizeof(image))==0 && memcmp(bytes,b->image_bytes,10)==0);
 			CHECK(b->last_error==0 && b->rejected_commands==0); canvas(&f);
 		}

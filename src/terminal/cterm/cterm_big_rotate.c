@@ -18,6 +18,7 @@ int cterm_big_rotation_begin(struct cterm_big *big, const struct st_graphics_com
 	    (uint16_t)view->arguments[1].value,(uint16_t)view->arguments[2].value,
 	    (uint16_t)view->arguments[3].value,(uint16_t)view->arguments[4].value);
 	if (status!=0) return status;
+	status=cterm_big_music_clock(big,false); if (status!=0) return status;
 	r->active=true; r->chained=view->chained; r->phase=ROTATE_ENTRY; r->sampled=false;
 	return IO_ERROR_IN_PROGRESS;
 }
@@ -61,8 +62,8 @@ int cterm_big_rotation_poll(struct cterm_big *big, size_t *output_budget, size_t
 			r->phase=ROTATE_DELAY_BEGIN; break;
 		case ROTATE_DELAY_BEGIN:
 			status=sample(big,&current); if (status!=0) return status;
-			/* Native local-domain policy: unsigned delay WORD milliseconds.
-			 * No foreign PIT programming or timer/audio clock ownership. */
+			/* Unsigned local milliseconds. The separate music prefix/tail
+			 * rescale its local schedule without foreign PIT programming. */
 			{
 				uint64_t duration=(uint64_t)r->colors.delay*UINT64_C(1000000);
 				r->deadline=UINT64_MAX-current<duration?UINT64_MAX:current+duration;
@@ -97,6 +98,7 @@ int cterm_big_rotation_poll(struct cterm_big *big, size_t *output_budget, size_t
 				status=st_big_palette_rotation_restore(&r->colors,&big->state,sink);
 				if (status!=0) return status;
 			}
+			status=cterm_big_music_clock(big,true); if (status!=0) return status;
 			r->active=false; *complete=true; return 0;
 		default: return IO_ERROR_PROTOCOL;
 		}

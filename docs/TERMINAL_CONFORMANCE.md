@@ -1599,3 +1599,18 @@ Native wire N/resource/source integration and full-goal acceptance remain open.
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) and final focused rebuild passed without compiler/source diagnostics. All8 focused BIG music/Opal/X7 CTests passed in0.58s, including the new big_music_schedule0.01s and native cterm_big_sync0.41s. Independent schedule/storage expectations were added before implementation; the initial focused link failed on the missing new functions. No physical audio/MIDI, N wire playback, non-BIG regressions or unchanged4102 application scenes were run for this standalone component. Native buffer allocation/publication, N wire loading/source integration, fixed OPL2 gain and goal-final acceptance remain pending.
 
 Checked music storage/local sample schedule implementation commit: `9bb725e`. Native N wire/resource/source integration, fixed OPL2 gain and full-goal acceptance remain pending.
+
+Native BIG N0..5 now integrates allocated music availability, opaque per-byte
+loading/timeouts, live replacement, slice/start/warm/rate gates and OPL2 PCM
+on owning channel0. X7 uses actual callback progress; b/n/X8 share current-
+rate/cache restoration. Muted progression, source controls, natural release
+versus held notes, ANSI takeover and concurrent reset/destruction have
+device-free tests. Nine N scenes per application profile check coherent
+pixels/cells/palette/retained graphics, replies and state. Fixed gain3.25718
+matches the existing steady ANSI/beep reference within0.0001dB; nine-carrier
+headroom and encoded attenuation are checked through the mixer. No runtime
+calibration, foreign system clock, new worker or MIDI decoding is introduced.
+Physical audio/MIDI/auditory coverage is not claimed. The manual checklist is
+in BIG_IMPLEMENTATION.adoc; goal-final full regressions/global acceptance remain.
+
+Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.

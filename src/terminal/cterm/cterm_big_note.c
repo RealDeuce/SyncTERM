@@ -130,6 +130,7 @@ int cterm_big_note_poll(struct cterm_big *b, const uint8_t *bytes, size_t size,
 			n->phase=n->after_wait; break;
 		}
 		case CTERM_BIG_NOTE_DONE:
+			status=cterm_big_music_clock(b,true); if (status!=0) return status;
 			n->active=false; n->phase=CTERM_BIG_NOTE_OFF; *complete=true; return 0;
 		default: return IO_ERROR_PROTOCOL;
 		}

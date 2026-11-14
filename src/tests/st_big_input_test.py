@@ -40,7 +40,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None, terminal_position=None, pixel_rects=(), music_sync=0, speaker=None, effect=(1, 0, 0, 0)):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None, terminal_position=None, pixel_rects=(), music_sync=0, speaker=None, effect=(1, 0, 0, 0), music_progress=(0, 0, 0, 0)):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -58,7 +58,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_rotation_active"]
     assert not s["cterm.big_query_active"]
     audio = tuple(map(int, s["cterm.big_audio"].split(",")))
-    assert audio[:7] == (0, music_sync, 0, 0, 0, 0, 0)
+    assert audio[:7] == (1, music_sync, *music_progress, 0)
     assert not s["cterm.big_pause_active"]
     actual_speaker = audio[7:18]
     assert audio[18:] == effect, (token, audio[18:], effect)
@@ -1261,10 +1261,10 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                         version = b"1.03R"
                         mode_reply = bytes((48 + resolution, 58))
                         queries = ((b"I#? 0:", version), (b"I#? 1:", mode_reply),
-                                   (b"I#? 2:", b"0:"), (b"I#? 9:", b""),
+                                   (b"I#? 2:", b"1:"), (b"I#? 9:", b""),
                                    (b"I#? +1:", b""),
-                                   (b"I#?>0:?>1:? 2:", version + mode_reply + b"0:"),
-                                   (b"I#& 0,3,1,0,?@1,x:", version + mode_reply + b"0:"))
+                                   (b"I#?>0:?>1:? 2:", version + mode_reply + b"1:"),
+                                   (b"I#& 0,3,1,0,?@1,x:", version + mode_reply + b"1:"))
                         for index, (command, query_reply) in enumerate(queries):
                             token = f"QUERY{index}"
                             wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
@@ -1667,6 +1667,54 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   fill=(1, 5), selected_fill=1, fill_pixels=(0x55555555,) * 8, rejections=(-12, 2),
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), **clear_state)
+                            assert tuple(map(int, frame.application["cterm.big_curve"].split(","))) == last_curve
+                            assert frame.application["cterm.big_random_state"] == retained_random
+                        # N15/67: binary loading remains opaque, availability
+                        # is independent of physical audio, and real callback
+                        # progress releases the shared pre-command X7 gate.
+                        music_bytes = bytes((255, 255, 255, 255, 255, 0xb0, 0, 0, 255, 0, 0, 255))
+                        flush_music = b"\x1b_SyncTERM:A;Flush;C=0\x1b\\"
+                        music_cases = (
+                            (b"I#N 0,0,12:" + music_bytes + b"I#? 2:", b"1:", (0, 0, 0, 0),
+                             (1, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+                            (b"I#N 5,12,345:", b"", (0, 0, 0, 12345),
+                             (1, 12, 0, 12345, 0, 0, 0, 0, 0, 0, 0, 5)),
+                            (b"I#N 4:", b"", (0, 0, 0, 0),
+                             (1, 12, 0, 12345, 0, 0, 0, 0, 0, 0, 0, 4)),
+                            (b"I#X 7,1:I#N 2:I#X 7,0:", b"", (1, 5, 0, 2),
+                             (1, 12, 65535, 65535, 11, 0, 65535, 255, 65535, 3, 0, 2)),
+                            (flush_music, b"", (0, 5, 0, 2),
+                             (1, 12, 65535, 65535, 11, 0, 65535, 255, 65535, 3, 0, 2)),
+                            (b"I#X 7,1:I#N 3,0,0,0,11:I#X 7,0:", b"", (1, 5, 0, 2),
+                             (1, 12, 65535, 65535, 10, 0, 65535, 255, 65535, 3, 0, 3)),
+                            (b"I#N 4:", b"", (1, 5, 0, 5),
+                             (1, 12, 65535, 65535, 10, 0, 65535, 255, 65535, 3, 0, 4)),
+                            (flush_music, b"", (0, 5, 0, 5),
+                             (1, 12, 65535, 65535, 10, 0, 65535, 255, 65535, 3, 0, 4)),
+                            (b"I#X 7,1:I#N 1,0,9:" + bytes((0xb5, 9, 0xb0, 0, 0, 255, 0, 0, 255)) + b"I#X 7,0:",
+                             b"", (0, 8, 0, 2), (1, 9, 2485, 2485, 8, 0, 1, 255, 0, 6, 0, 1)),
+                        )
+                        for index, (command, query_reply, progress, music_state) in enumerate(music_cases):
+                            token = f"MUSIC{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = query_reply + f"\x1b[1;{len(token) + 1}R".encode(); reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_for(lambda f: token in f.text and
+                                tuple(map(int, f.application["cterm.big_audio"].split(",")))[2] == progress[0])
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=15,
+                                  rgb_sample=(400, 100, 0), speaker=speaker_state, effect=(1, 0, 11, 202),
+                                  fill=(1, 5), selected_fill=1, fill_pixels=(0x55555555,) * 8, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), music_progress=progress, **clear_state)
+                            assert tuple(map(int, frame.application["cterm.big_music"].split(","))) == music_state
                             assert tuple(map(int, frame.application["cterm.big_curve"].split(","))) == last_curve
                             assert frame.application["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must

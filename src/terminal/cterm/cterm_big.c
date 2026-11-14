@@ -65,6 +65,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'W',point,2,NULL},
 	{'t',NULL,0,NULL},
 	{'n',NULL,0,NULL},
+	{'N',NULL,0,NULL},
 	{'b',scalar,1,NULL},
 	{'?',scalar,1,NULL},
 	{'m',move,2,move_next},
@@ -277,8 +278,8 @@ static int entry(void *context, const struct st_graphics_command_view *view)
 	/* Internally repeated bodies enter directly, without a new pair. */
 	if (!big->pair_body) return 0;
 	big->pair_wait=false;
-	if (!big->sync_entry.begun) st_big_sync_begin(&big->sync_entry,&big->control);
-	return st_big_sync_poll(&big->sync_entry,&big->control);
+	if (!big->sync_entry.begun) cterm_big_music_sync_begin(big);
+	return cterm_big_music_sync_poll(big);
 }
 static int field(void *context, const struct st_graphics_command_view *view,
     const struct st_graphics_parameter *parameter)
@@ -428,15 +429,22 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		return IO_ERROR_IN_PROGRESS;
 	}
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
-	if (view->code=='n') { cterm_big_note_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
+	if (view->code=='n') {
+		int status=cterm_big_music_clock(big,false); if (status!=0) return status;
+		cterm_big_note_begin(big,view->chained); return IO_ERROR_IN_PROGRESS;
+	}
+	if (view->code=='N') { cterm_big_music_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
 	if (view->code=='b') {
 		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
 		big->effect.selector=st_big_effect_selector((uint16_t)view->arguments[0].value,
 		    big->feature_gates[3][0]==big->feature_gates[3][1]);
 		big->effect.chained=view->chained;
-		if (big->effect_sound_on==0) return begin_footer(big,view);
+		int status=cterm_big_music_clock(big,false); if (status!=0) return status;
+		if (big->effect_sound_on==0) {
+			status=cterm_big_music_clock(big,true); return status==0?begin_footer(big,view):status;
+		}
 		big->effect.active=true;
-		int status=cterm_big_audio_effect(big,big->effect.selector);
+		status=cterm_big_audio_effect(big,big->effect.selector);
 		return status==0?IO_ERROR_IN_PROGRESS:status;
 	}
 	if (view->code=='t') { cterm_big_pause_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
@@ -596,7 +604,8 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		if (selector==5) return begin_footer(big,view);
 		if (selector==7) {
 			if (view->count!=2 || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
-			big->control.music.sync=(uint16_t)view->arguments[1].value;
+			int status=cterm_big_music_sync_set(big,(uint16_t)view->arguments[1].value);
+			if (status!=0) return status;
 			return begin_footer(big,view);
 		}
 		if (selector==2) return begin_footer(big,view);
@@ -682,6 +691,7 @@ static void cancel(struct cterm_big *big)
 	memset(&big->text_output,0,sizeof(big->text_output));
 	memset(&big->pause,0,sizeof(big->pause));
 	memset(&big->note,0,sizeof(big->note));
+	memset(&big->music_command,0,sizeof(big->music_command));
 	memset(&big->query,0,sizeof(big->query));
 	memset(&big->zone,0,sizeof(big->zone));
 	memset(&big->bar,0,sizeof(big->bar));
@@ -693,7 +703,7 @@ void cterm_big_reset(struct cterm_big *big)
 {
 	if (big == NULL) return;
 	if (big->feeding) { big->reset_pending = true; return; }
-	cancel(big); cterm_big_audio_reset(big);
+	cancel(big); cterm_big_audio_reset(big); cterm_big_music_reset(big);
 }
 static int pair_expired(struct cterm_big *big, bool *expired)
 {
@@ -751,7 +761,7 @@ static int gang_selector(struct cterm_big *big, const struct st_graphics_parser_
 }
 static bool body_pending(const struct cterm_big *big)
 {
-	return big->effect.active || big->note.active || big->query.phase!=CTERM_BIG_QUERY_OFF || big->pause.phase!=CTERM_BIG_PAUSE_OFF || big->text_output.active || big->rotation.active || big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
+	return big->music_command.phase!=CTERM_BIG_MUSIC_OFF || big->effect.active || big->note.active || big->query.phase!=CTERM_BIG_QUERY_OFF || big->pause.phase!=CTERM_BIG_PAUSE_OFF || big->text_output.active || big->rotation.active || big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
 }
 static int drive(struct cterm_big *big, const void *data, size_t size, size_t *used)
 {
@@ -765,10 +775,23 @@ static int drive(struct cterm_big *big, const void *data, size_t size, size_t *u
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->music_command.phase!=CTERM_BIG_MUSIC_OFF) {
+			size_t accepted; bool complete;
+			status=cterm_big_music_command_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,&body_budget,&complete);
+			*used+=accepted; if (status!=0) break;
+			if (complete) {
+				const struct st_graphics_command_view view={.chained=big->music_command.chained};
+				status=begin_footer(big,&view);
+				if (status!=IO_ERROR_IN_PROGRESS) break;
+				status=0; advance_needed=true; continue;
+			}
+			break;
+		}
 		if (big->effect.active) {
 			bool complete; status=cterm_big_audio_effect_done(big,&complete);
 			if (status!=0) break;
 			if (!complete) { status=IO_ERROR_IN_PROGRESS; break; }
+			status=cterm_big_music_clock(big,true); if (status!=0) break;
 			big->effect.active=false;
 			const struct st_graphics_command_view view={.chained=big->effect.chained};
 			status=begin_footer(big,&view);
@@ -961,7 +984,7 @@ static int drive(struct cterm_big *big, const void *data, size_t size, size_t *u
 		if (forwarded!=0) status=forwarded;
 	}
 	big->feeding=false;
-	if (big->reset_pending) { cancel(big); cterm_big_audio_reset(big); if (status==IO_ERROR_INTERRUPTED) status=0; }
+	if (big->reset_pending) { cancel(big); cterm_big_audio_reset(big); cterm_big_music_reset(big); if (status==IO_ERROR_INTERRUPTED) status=0; }
 	return status;
 }
 static void reject(struct cterm_big *big, int status)
@@ -979,12 +1002,14 @@ int cterm_big_feed(struct cterm_big *big, const void *data, size_t size, size_t 
 	*used=0;
 	if (big==NULL || (data==NULL && size!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	if (big->feeding) return IO_ERROR_BUSY;
-	/* Service the independent speaker before consuming any caller bytes.
+	/* Service independent music/speaker work before consuming caller bytes.
 	 * A deferred audio failure can cancel work without losing an ordinary
-	 * ANSI byte. The owner suppresses a failed clock until a fresh F. */
-	big->feeding=true; int audio_status=cterm_big_audio_poll(big); big->feeding=false;
+	 * ANSI byte. Failed owners wait for a fresh source request. */
+	big->feeding=true; int audio_status=cterm_big_music_poll(big);
+	if (audio_status==0) audio_status=cterm_big_audio_poll(big);
+	big->feeding=false;
 	if (big->reset_pending) {
-		cancel(big); cterm_big_audio_reset(big);
+		cancel(big); cterm_big_audio_reset(big); cterm_big_music_reset(big);
 		if (audio_status==IO_ERROR_INTERRUPTED) audio_status=0;
 	}
 	if (audio_status!=0) reject(big,audio_status);
@@ -1015,6 +1040,8 @@ int cterm_big_poll(struct cterm_big *big)
 bool cterm_big_paused(const struct cterm_big *big)
 {
 	return big != NULL && (big->effect.active || cterm_big_note_paused(big) || big->sync_entry.waiting || big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
+	    || (big->music_command.phase!=CTERM_BIG_MUSIC_OFF && big->music_command.phase!=CTERM_BIG_MUSIC_SELECT
+	    && big->music_command.phase!=CTERM_BIG_MUSIC_NUMBER && big->music_command.phase!=CTERM_BIG_MUSIC_RAW_START && big->music_command.phase!=CTERM_BIG_MUSIC_RAW_READ)
 	    || big->query.phase!=CTERM_BIG_QUERY_OFF
 	    || (big->pause.phase!=CTERM_BIG_PAUSE_OFF && big->pause.phase!=CTERM_BIG_PAUSE_NUMBER)
 	    || (big->text_output.active && big->text_output.stream.phase==ST_BIG_STREAM_FLOW)
@@ -1035,6 +1062,7 @@ int cterm_big_finish(struct cterm_big *big)
 	if (status!=0 && status!=IO_ERROR_PROTOCOL && status!=IO_ERROR_IN_PROGRESS) reject(big,status);
 	else cancel(big);
 	cterm_big_audio_reset(big);
+	cterm_big_music_reset(big);
 	status=cterm_render_take_error(big->terminal);
 	if (status!=0) reject(big,status);
 	return 0;
@@ -1044,6 +1072,7 @@ void cterm_big_destroy(struct cterm_big *big)
 	if (big == NULL) return;
 	(void)cterm_big_collect_cancel(big);
 	cterm_big_audio_destroy(big);
+	cterm_big_music_destroy(big);
 	st_pixel_buffer_destroy(big->video_backing);
 	st_graphics_parser_destroy(big->parser); free(big);
 }
@@ -1066,6 +1095,7 @@ int cterm_big_create(struct cterminal *t)
 	 * owned allocation/cache survive I/R, attention, EOF and cancellation. */
 	if (status==0) status=st_big_image_bind(&big->image,big->image_bytes,sizeof(big->image_bytes),big->image_pens,sizeof(big->image_pens));
 	st_big_state_init(&big->state); st_big_control_init(&big->control);
+	cterm_big_music_setup(big);
 	if (status==0) status=st_big_fonts_init(&big->fonts,&big->state.bgi.error);
 	big->producer.video_segment=0xa000;
 	big->control_io=(struct st_big_control_sink){.context=big,.send=output_byte};

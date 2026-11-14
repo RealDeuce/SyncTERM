@@ -80,6 +80,7 @@ endif()
 add_library(st_cterm STATIC
 	cterm_big.c
 	cterm_big_audio.c
+	cterm_big_music.c
 	cterm_big_note.c
 	cterm_big_draw.c
 	cterm_big_pages.c
@@ -144,7 +145,7 @@ target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
 	st_audio st_music st_base64 st_time st_utf8 st_unicode_text st_session_history)
 target_link_libraries(st_cterm PRIVATE st_amiga_font st_fonts syncterm_threads
-	st_graphics_protocol st_igs st_big st_bgi st_screen_mode
+	st_graphics_protocol st_igs st_big st_opl2 st_bgi st_screen_mode
 	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_string_util syncterm_filesystem
 	syncterm_path syncterm_ini)
@@ -360,6 +361,17 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_big_note_test PRIVATE -Wall -Wextra -Wpedantic)
 	endif()
 	add_test(NAME cterm_big_note COMMAND st_cterm_big_note_test)
+	add_executable(st_cterm_big_music_test tests/st_cterm_big_music_test.c)
+	target_link_libraries(st_cterm_big_music_test PRIVATE st_cterm st_big syncterm_threads)
+	syncterm_target_atomics(st_cterm_big_music_test)
+	set_target_properties(st_cterm_big_music_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_big_music_test PRIVATE /W4)
+	else()
+		target_compile_options(st_cterm_big_music_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME cterm_big_music COMMAND st_cterm_big_music_test)
+	set_tests_properties(cterm_big_music PROPERTIES TIMEOUT 30)
 	set_tests_properties(cterm_big_note PROPERTIES TIMEOUT 30)
 	add_executable(st_cterm_big_pause_test tests/st_cterm_big_pause_test.c)
 	target_link_libraries(st_cterm_big_pause_test PRIVATE st_cterm st_big)

@@ -228,14 +228,20 @@ void cterm_big_audio_inspect(const struct cterm_big *b, struct st_console_test_a
 		(void)st_mutex_unlock(&a->mutex);
 	}
 	char value[192];
+	struct st_big_music music; if (cterm_big_music_snapshot(b,&music)!=0) return;
 	snprintf(value,sizeof(value),"%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u",
-	    (unsigned)b->music_memory,(unsigned)b->control.music.sync,(unsigned)b->control.music.running,
-	    (unsigned)b->control.music.position_low,(unsigned)b->control.music.position_high,
-	    (unsigned)b->control.music.scratch,(unsigned)b->sync_entry.waiting,(unsigned)s.playing,
+	    (unsigned)b->music_memory,(unsigned)music.sync,(unsigned)music.running,
+	    (unsigned)music.position_low,(unsigned)music.position_high,
+	    (unsigned)music.scratch,(unsigned)b->sync_entry.waiting,(unsigned)s.playing,
 	    (unsigned)s.frequency,(unsigned)s.divisor,(unsigned)b->note.active,(unsigned)b->note.mode,
 	    (unsigned)b->note.from,(unsigned)b->note.to,(unsigned)b->note.step,
 	    (unsigned)b->note.delay,(unsigned)b->note.sustain,(unsigned)b->note.off,
 	    (unsigned)b->effect_sound_on,(unsigned)b->effect.active,(unsigned)b->effect.selector,(unsigned)position);
 	st_console_test_text(app,"cterm.big_audio",value);
+	snprintf(value,sizeof(value),"%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u",
+	    (unsigned)music.enabled,(unsigned)music.length,(unsigned)music.cached_divider,(unsigned)music.divider,
+	    (unsigned)music.end_low,(unsigned)music.end_high,(unsigned)music.delay,(unsigned)music.address,
+	    (unsigned)music.data,(unsigned)music.value_offset,(unsigned)b->music_command.phase,(unsigned)b->music_command.mode);
+	st_console_test_text(app,"cterm.big_music",value);
 }
 #endif

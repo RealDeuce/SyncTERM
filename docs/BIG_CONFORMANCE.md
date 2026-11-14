@@ -1,9 +1,9 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X7/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills, F fills and s graphics/console clears run
-through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. All non-audio bodies are implemented; sound and goal-final acceptance
-remain in progress. Native b effects and n notes/sweeps drive channel1 through the shared
-speaker source; N playback remains pending. Earlier sections retain historical progress counts.
+through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. All45 command bodies have native integration; whole-goal acceptance remains
+in progress. Native b effects and n notes/sweeps drive channel1 through the shared
+speaker source; N0..5 drives OPL2 playback on channel0 with actual buffer availability. Earlier sections retain historical progress counts.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -20,14 +20,14 @@ bit-identical reference PCM and listening are not development gates.
 
 The planned BIG audio routing uses logical mixer channel0 for N's synthesized
 OPL2 output and channel1 for b/n PC-speaker effects/notes, including the existing
-channel controls. Native b/n are integrated; N remains pending.
+channel controls. Native b/n/N are integrated; final command/global acceptance remains pending.
 The selected source is current RealBitdancer Opal (MIT), adapted to YM3812
 only, with its full copyright/license entry in Settings > Licenses. Add missing
 OPL2 behavior as new code and remove OPL3-only banks/channels, four-operator
 pairing, extra waveforms, NEW mode and chip stereo controls. Other emulators
 are behavioral references only; do not copy, port or translate their code.
 Test actual YM3812 waveform-enable, CSM, rhythm and timer semantics. The native reduced core and its full MIT license UI are now implemented;
-N playback integration remains pending.
+N playback integration is native; full-goal acceptance remains pending.
 The approved speaker timbre is a square oscillator with a small stateful
 low-pass filter. b's twenty procedural effect schedules and n's notes/sweeps
 share that generator; the original effects contain no stored PCM samples.
@@ -2144,3 +2144,38 @@ source normalization/playback/lifecycle and full-goal acceptance remain open.
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) and final focused rebuild passed without compiler/source diagnostics. All8 focused BIG music/Opal/X7 CTests passed in0.58s, including the new big_music_schedule0.01s and native cterm_big_sync0.41s. Independent schedule/storage expectations were added before implementation; the initial focused link failed on the missing new functions. No physical audio/MIDI, N wire playback, non-BIG regressions or unchanged4102 application scenes were run for this standalone component. Native buffer allocation/publication, N wire loading/source integration, fixed OPL2 gain and goal-final acceptance remain pending.
 
 Checked music storage/local sample schedule implementation commit: `9bb725e`. Native N wire/resource/source integration, fixed OPL2 gain and full-goal acceptance remain pending.
+
+## Native N0..5 playback
+
+Native N now owns actual65534-byte storage and reports successful allocation
+through ?2 independently of physical audio/MIDI. I/R/reset retain it. Both
+cold register prefixes and normal warm data initialize the software OPL2.
+Conditional class0 arity, opaque per-byte loading/timeouts, load-only live
+replacement, enable/slice/start/late-feature gates, warm reset and current
+versus cached divider state use the original BIG operators. b/n/X8 entry/tail
+rate requests now rescale the same local sample schedule.
+
+The existing mixer consumes signed32 OPL2 PCM on channel0 through st_music's
+owning interface. Shared buffer/progress/chip access is serialized; X7 reads
+actual callback progress. Muted work advances cooperatively in local samples.
+There is no new worker, MIDI path, foreign clock or bus-delay model. Capacity
+errors preserve reached stores/records, stop the failed native producer and
+resume unread input nonfatally. EOF/reset/destruction quiesce callbacks before
+free; later ANSI/music producers retain their own slot.
+
+The fixed source gain3.25718 matches the steady ANSI/beep reference within
+0.0001dB through the real default mixer. Single-carrier peak3330 and nine-
+carrier peak23753 demonstrate headroom before final limiting; encoded TL32
+gives peak1881. No dynamic calibration is performed. Held keys/releases/CSM
+remain active after record completion; fully silent completed music idles.
+
+Independent native tests cover framing/splits, raw edges/deadlines, live
+replacement, selector/pair/slice gates, warm suspension, current/cache rate,
+b/n/X8, real X7, PCM/channel controls, ANSI takeover and concurrent teardown.
+Nine coherent application scenes per profile preserve all retained graphics/
+cell/font/palette/image/RNG expectations while checking N state and replies.
+The [manual audio checklist](BIG_IMPLEMENTATION.adoc#_manual_audio_checklist)
+is supplied; physical audio/MIDI/listening and final global acceptance are
+not claimed by these tests.
+
+Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.

@@ -27,9 +27,9 @@ B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
 pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
 K circular/J explicit-radius arcs, O circles, Q ellipses, V circular
 pieslices and Y explicit-radius sectors are integrated.
-All non-audio command bodies are implemented; sound and final whole-goal
-acceptance remain pending. Native W, t and ? are implemented in the requested order; sound-buffer
-availability must still be connected to the audio allocation lifecycle.
+All45 command bodies now have native integration; final command/global
+acceptance remains pending. Native W, t and ? were implemented in the
+requested order. Sound-buffer availability now follows actual allocation.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
@@ -39,13 +39,13 @@ construction, physical span operators and public explicit/circular sector
 wrappers. V/Y share their fill/line/caller schedule while preserving circular
 aspect conversion versus explicit radii and their distinct reader classes.
 All six curve commands have native wire integration. X7 now has its raw
-WORD setter and resumable pair-entry music-progress gate. Its serialized
-progress interface is tested independently; the audio producer will publish
-real callback progress when N is implemented. N now has standalone WORD/slice arithmetic,
-a resumable original record callback and all175 normal warm-reset writes,
-with native loading/playback integration still pending. The standalone YM3812 core and its full MIT license UI are implemented;
-native b effects and n notes/sweeps now use the shared speaker source and channel1.
-N music playback and the goal-final whole-suite acceptance remain pending. Earlier verification sections retain
+WORD setter and resumable pair-entry gate, now driven by actual N callback
+progress. Native N0..5 supplies live binary loading, slice/start/clock/warm
+controls, allocated-buffer availability and OPL2 source playback on channel0.
+The YM3812 core and its full MIT license UI are implemented; native b effects
+and n notes/sweeps use the shared speaker source on channel1. Fixed source
+gains are measured once and hard-coded. Whole-goal acceptance, including the
+final full regression suite and command/global audit, remains pending. Earlier verification sections retain
 their historical completion counts and outstanding-work descriptions; the
 latest checkpoint section records current scope.
 The implementation ledger is
@@ -4887,3 +4887,134 @@ OPL2 source gain/playback ownership and final acceptance remain open.
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) and final focused rebuild passed without compiler/source diagnostics. All8 focused BIG music/Opal/X7 CTests passed in0.58s, including the new big_music_schedule0.01s and native cterm_big_sync0.41s. Independent schedule/storage expectations were added before implementation; the initial focused link failed on the missing new functions. No physical audio/MIDI, N wire playback, non-BIG regressions or unchanged4102 application scenes were run for this standalone component. Native buffer allocation/publication, N wire loading/source integration, fixed OPL2 gain and goal-final acceptance remain pending.
 
 Checked music storage/local sample schedule implementation commit: `9bb725e`. Native N wire/resource/source integration, fixed OPL2 gain and full-goal acceptance remain pending.
+
+== Native N0..5 music integration
+
+The terminal now allocates its65534-byte music buffer during BIG setup,
+independently of physical audio/MIDI policy. Successful allocation publishes
+music_memory1 and enabled1; failure leaves both0 and reports a warning.
+New storage is defined zero-filled native memory. ?2 reads the retained
+availability flag, and I/R, command cancellation and terminal reset retain
+the allocation. A new terminal owns new storage. Setup applies both original
+ColdInit register sequences (six detection writes plus175 warm writes each)
+to the software chip, retaining timer1=ff/masked state. Hardware detection,
+status-read bus delays and DOS driver installation are outside this native
+profile; a physical audio backend is not an AdLib availability probe.
+
+N uses the existing shared pre-ANSI parser and class0 numeric reader. Its
+selector/pair/length wrapping, conditional arity and source-supplied operands
+remain BIG operations. Absent memory skips N0..4 operands/body, whereas N5
+still reads its pair and stores scratch before its fresh memory gate.
+Raw length includes the header, and every byte is opaque, including NUL,
+I#,ff,colon and CR/LF. Individual stores replace the live shared buffer;
+short loads retain the rest. N0's temporary enable save/clear/restore does
+not stop existing playback or refresh its cached header/end/position/arm.
+
+Each raw byte gets a new local deadline using the established
+4010989011ns first-expiry profile for the original strict>73 threshold.
+The saved pre-read sample is tested after a ready store and counter increment.
+Timeout zeroes the then-current counter position, requests BEL, stores length0
+and reloads scratch0. At maximum length, a ready last byte is retained if the
+following timeout zero would exceed allocation; that unsafe store reports a
+nonfatal error before later BEL/length cleanup. EOF/reset manufactures no
+byte, timeout or load-only restoration. Parsing errors preserve reached stores
+and resume unread terminal input through the existing nonfatal BIG handler.
+
+N1/2/3 preserve enable/length gates, split end/position publication, cached
+header versus current divider, slice underflow and the late birch/pine feature
+tests. Startup arms the local sample schedule. N4 issues all175 reached warm
+requests with its availability gate at library entry; a work suspension does
+not introduce another gate. It neither recreates the chip nor clears music
+positions/length/delay/cached header. N5 changes current divider only. b/n and
+X8 now issue their separate full-period entry/current-cache restore requests
+through this local schedule, including b's disabled case, n's unsupported
+mode and X8's equal endpoints. Errors do not add a finally-style restoration.
+
+One mutex protects buffer, shared control.music, local schedule and chip.
+The existing mixer consumer renders the source; foreground stores/control
+stages and individual warm writes serialize against it. X7 begin/poll/set
+and both diagnostic groups use that same owner, with one coherent music
+snapshot per capture. Source callbacks call no terminal/music/audio APIs.
+There is no second worker or MIDI decoder. st_music keeps channel0's PCM
+slot and quiesces an old ANSI/MIDI producer before attachment. Accepted
+ANSI/file/live takeover, flush, reset, EOF and destruction release only the
+matching N context, preserving a later producer's slot.
+
+Physical playback consumes sample spans at their exact native boundaries.
+Muted playback advances the same chip/events from local monotonic elapsed
+samples in bounded batches. Large backlogs catch up cooperatively. A source
+pull allows1048576 record stages, covering ordinary whole-allocation runs;
+work exhaustion retains the callback and local sample boundary for subsequent
+owner polls, rather than inventing a cycle error, marker or one-sample hold.
+No foreign PIT/IRQ/BIOS clock, callback debt or register-bus throughput is
+emulated. A checked background read/render failure freezes the accepted
+prefix, cancels its source/schedule and clears running, then reports a
+nonfatal BIG error so a fresh pair can proceed.
+
+Clearing running never keys off the chip. Held keys, release envelopes and
+future CSM activity keep the source active. With no pending records/keys/CSM
+and every envelope fully attenuated, the source discards its silent
+quantization floor and becomes idle. Wait acknowledges held continuous
+voices; finite fades retain backend-acknowledged drain behavior. Device-free
+logical ownership supports muted busy/volume/flush. Detach waits for an
+in-flight callback before context destruction, with the runtime outliving
+the terminal/source. No freed original DOS/IRQ lifetime is reproduced.
+
+=== Fixed N source level
+
+The hard-coded OPL2 multiplier is325718/100000=3.25718. It was measured once
+against existing440Hz ANSI/beep SINE_SAW_HARM output using a full-level
+sustained unmodulated carrier (F-number580,block4), normal channel0 -12dB
+and the real mixer. Two seconds of PCM include0.5s weighting warm-up and
+one second of measurement. The K-weighted mixed difference is+0.000056dB,
+single-carrier peak3330. Nine aligned carriers peak23753; encoded TL32
+reduces their peak to1881. This checks polyphonic headroom before channel
+gain/final limiting and retains encoded dynamics. Signed32 source amplitudes
+never pass through a preliminary signed16 clamp. No runtime gain fit,
+calibration cache or per-note normalization is added.
+
+=== Native verification coverage
+
+The native fixture covers every split/bytewise opaque loading, pair wrap/cap,
+fresh per-byte deadlines, ready-before-timeout effects, maximum-allocation
+failure/recovery, disabled memory/enable, live N0 replacement, whole/slice
+startup, late feature rejection, warm suspension, N5/cache and b/n/X8 rate
+interactions. Device-free PCM checks actual samples91/459 progress, X7
+release by real decoder movement, volume/flush/wait, natural release versus
+held voices, ANSI takeover and source normalization/polyphony. A paced pull
+consumer covers concurrent live replacement, fade, reset and destruction;
+its runtime remains alive until that consumer joins. The fixture uses a1ms
+cadence for256-frame blocks rather than an unpaced mutex-starvation loop.
+
+The coherent application fixture adds nine N scenes across all14 screen/
+encoding/status/startup profiles: opaque N0/availability, N5, N4, real N2/X7,
+flush, N3/X7, warm during playback, flush and N1 natural completion. Related
+cells, both pixel planes, palette, retained graphics/image/RNG state, replies
+and shared music state are checked in one capture. It uses no physical
+audio/MIDI. Full command/global acceptance and the goal-final full suite
+remain separate requirements.
+
+=== Manual audio checklist
+
+Listening is not a development gate. No audible-device coverage is claimed
+by headless bitmap or synthesized-PCM checks. For a manual terminal session:
+
+* Use equal master/channel settings for ANSI music, BEL, BIG b/n and N.
+  Compare a steady440Hz note, then typical effects and a polyphonic N score.
+  Check for unintended level jumps while allowing timbre/crest-factor changes.
+* Play N with b/n effects. Adjust channels0 and1 independently and verify
+  that music/effect levels and flushes affect their respective channels.
+* Exercise a representative melodic, rhythm and waveform-enabled N stream.
+  Check encoded soft/loud passages, release tails and the final explicit
+  keyoffs. A stream that leaves a key held should continue sounding after
+  its record-running flag clears; an entirely released stream should idle.
+* While playing, load N0, apply N4/N5 and run b/n/X8. Check live replacement,
+  warm reset without a new buffer, tempo override and cached-rate restoration.
+* Mute/re-enable through normal audio policy and check that events advance
+  unheard without restarting the score. Verify channel volume ramps/fades,
+  continuous wait acknowledgment and finite fade completion.
+* Switch to ANSI music and back, reset/disconnect during loading/playback,
+  and reconnect. Check for silence after cancellation, no stuck held notes,
+  no hung drains and a fresh per-terminal buffer on the new connection.
+
+Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.

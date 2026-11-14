@@ -18,6 +18,7 @@
 #include "st_big_video.h"
 #include "st_big_image.h"
 #include "cterm_big_audio.h"
+#include "cterm_big_music.h"
 #include "st_big_effect.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -175,6 +176,8 @@ struct cterm_big {
 	struct { uint16_t selector; bool active,chained; } effect;
 	uint8_t effect_sound_on; /* Library gate, distinct from physical audio policy. */
 	struct cterm_big_audio *audio;
+	struct cterm_big_music_audio *music_audio;
+	struct cterm_big_music_command music_command;
 	/* Available AdLib music-buffer flag, separate from mute/playback.
 	 * Zero until the audio owner installs its buffer; retained across I/R. */
 	uint16_t music_memory;
