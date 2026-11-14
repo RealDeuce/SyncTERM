@@ -783,6 +783,46 @@
             "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending."
           ],
           "commit": "29edc7e"
+        },
+        {
+          "id": "public-curve-wrappers-and-aspect-lifetime",
+          "status": "complete",
+          "operations": [
+            "Implement public ellipse1cec/017a: translate/place lower and device center without public moveto/producer, then read curve words. Startffff returns after placement without drawing, arc publication, producer change or wire reply. Ordinary successful outline restores only saved physical DDO center; failure retains reached prefixes.",
+            "Implement circular12fb: capture unsigned radius[0], capture signed aspectY before aspectX, derive low-WORD radiusY before placement/query, ignore input radius[1], then call ellipse. No sign clamp, sorting or host geometry scaling. A zero denominator fails without changing points/BGI error.",
+            "Own public aspect WORDs in BGI state: initial7750/10000; successful mode installation4500/7750/10000 over10000 before defaults. I1/unsupported/state2/invalid-mode/failed-install paths retain current aspects; later palette failure retains newly installed values.",
+            "Borrow request only during the serialized call. Front argument capture precedes drawing callbacks, and successful restoration uses saved physical DDO center rather than a newly changed origin. Native argument and uninstalled errors retain appropriate prefixes."
+          ],
+          "references": [
+            "13-curves-and-native-reuse.adoc:public wrapper, circular aspect and three point owners",
+            "61-curve-command-acceptance.adoc:aspect before center, query after center,017a DDO-only save",
+            "curve-review-code.adoc:BIG195a12d9..1325;1cec..1d1b;DDO017a..01a0",
+            "initialization-code.adoc:BGI0dea..0df6;0baf..0bce;06fb..0701",
+            "27-initialization-resolution-and-state.adoc:installed/default/current aspect words",
+            "54-initialize-and-resolution-command-acceptance.adoc:mode/skip/failure/default order"
+          ],
+          "tests": [
+            "big_curve_public",
+            "big_state",
+            "big_curve_angular",
+            "big_curve_regular",
+            "big_curve_draw",
+            "big_curve_scalar"
+          ],
+          "deviations": [
+            "Zero aspect denominator returns checked IO_ERROR_OUT_OF_RANGE instead of foreign divide-trap/raw exit, before center/query and without inventing a new BGI error. The command caller must retain its already accepted color/fill/numeric prefix.",
+            "Public rendering helpers are complete; native graph-buffer ownership/binding, K numeric/wire/source/recovery/coherent application, other curve callers and global acceptance remain pending."
+          ],
+          "verification": [
+            "Complete public12d9..1325/1cec..1d1b and017a wrapper bodies were reread with61 caller/order and27/54 initialization evidence. Aspect publication occurs before defaults; I1 and skipped installs do not reset it.",
+            "Independent big_curve_public first failed to compile against missing request/state/API. Full64x64 indexed scenes and literal point/arc records cover shortcuts, full decimal and thick strokes, translated origins, query across widths1..3 and unchanged arc/producer/style state after query.",
+            "Circular query still performs aspect calculation; zero denominator retains old points and BGI error before placement/query/installed guard. Three radius2 quarter scenes have literal2/3/4 unique pixels and3/5/6 writes for derived Y0/1/2. Unsigned8000 radius, ignored second radius and signed negative aspect retain actual WORD/overflow behavior.",
+            "Begin/end/write and uninstalled failures verify placed-center/last-return prefixes without finally DDO restoration. Callback-side origin/request changes retain captured geometry and restore the original saved physical DDO point. Null argument errors preserve owners. big_state checks mode/I1/skips/failed-install/later-palette-failure aspect lifetime.",
+            "Next binding source identified:24 DS3089 configured4096; font-resource-code0adf..0b41 shared near allocation/descriptor;27 DDO025f..0282 point offset+2/capacity size/6. Ordinary capacity682 versus1023 four-byte source record slots remains distinct. Actual native graph-buffer ownership is not claimed by this step.",
+            "No wire command or application scene changes. Existing2982 application captures last passed with6bfc11c and were not replayed for this unbound public helper. Non-BIG/shared-code regressions remain deferred to the goal-final full suite.",
+            "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2654,14 +2694,20 @@
         "61-curve-command-acceptance.adoc:angular buffers, signed termination and style restoration",
         "bgi-layer-code.adoc:DDO07a3..07fe;04bd..0699;0a81..0ad3;03b4;0455..04ad;0246..0257",
         "curve-review-data.adoc:unit XOR duplicate, current style and nontermination witnesses",
-        "data/BIG103-BGI-DDO.bin:header32;07a3..07fe and059e..060c direct disassembly"
+        "data/BIG103-BGI-DDO.bin:header32;07a3..07fe and059e..060c direct disassembly",
+        "13-curves-and-native-reuse.adoc:public wrapper, circular aspect and three point owners",
+        "61-curve-command-acceptance.adoc:aspect before center, query after center,017a DDO-only save",
+        "curve-review-code.adoc:BIG195a12d9..1325;1cec..1d1b;DDO017a..01a0",
+        "initialization-code.adoc:BGI0dea..0df6;0baf..0bce;06fb..0701",
+        "27-initialization-resolution-and-state.adoc:installed/default/current aspect words",
+        "54-initialize-and-resolution-command-acceptance.adoc:mode/skip/failure/default order"
       ],
       "operations": [
         "Move the unchanged91-word Q1.15 sine table and scalar sine/unsigned-radius partial-product kernels from RIP into st_bgi_trig. RIP calls these actual shared kernels; its wide cosine addition, metric, ellipse/pie/front/duplicate/point/error policies remain separate.",
         "BIG sine converts the angle WORD to signed16 before shared lookup; cosine wraps WORD+90 before that conversion. Shared radius multiplication returns the original low-WORD floor-scaled bit result with defined signed interpretation, including negative coefficients and high-bit radii.",
         "BIG metric negates Y as a WORD before signed branch selection, then reduces each result to WORD. This preserves the y8000 branch that differs from RIP wide arithmetic.",
         "Circular aspect uses unsigned radius times signed aspectX, divides by signed aspectY with truncation, and returns the low WORD. The entire argument domain fits signed32 product/quotient. Zero denominator returns a checked native error without publishing output or moving any point.",
-        "Scalar, decimal/batch/producer, regular/arc-record and angular/buffer-flush prerequisites are implemented; K acquisition/aspect/public wrapper/outer DDO restoration, native buffer ownership and command acceptance remain pending.",
+        "Scalar, decimal/angular/producer/flush/arc-record and public/aspect/query/outer-save rendering prerequisites are implemented; K native graph-buffer ownership/binding, acquisition and coherent command/application acceptance remain pending.",
         "Implement the outline arm of DDO0d70..0fa0 as a synchronous physical-WORD point-request generator, using captured center/radii/original endpoint offsets. No pen/XOR, clipping, batch entry/exit, point-owner update or arc-record publication is substituted by this pure arithmetic layer.",
         "Compute signed endpoint metrics and inclusive/inverse selection before zero radius replacement. Preserve four candidate order (+x,+y),(-x,+y),(+x,-y),(-x,-y), axis duplicates and WORD center addition despite callback-side owner changes.",
         "Preserve checked unsigned32 B and product construction, successive unsigned divisions, wrapped32 error/accumulated/delta updates, signed-HIGH/unsigned-LOW ordering, logical half and body-first regime loops. Checked overflow is a normal empty return, without new BGI error or suppressing later caller tails.",
@@ -2678,7 +2724,11 @@
         "Complete lower07a3 outline selection: retained unsigned width BYTE>=3, nonzero current fallback or unsigned metric>=180 selects angular drawing. Successful mode installation publishes original ordinary descriptor metric29/50/69; startup50. Device temporary solid/width1 retains public/DDO style/user/thickness.",
         "Preserve unsigned start>=end WORD+360, orientation WORD+90, body-first signed-JLE angle iteration and current-radius/center point production through the existing first-point/run/duplicate/8001 collector. Capacity-6 stores do not terminate the sweep. Publish current stale offsets before stage1; no angular endpoint recomputation.",
         "Append8000 through producer, clear mode and flush with count>=capacity before count<2. Snapshot reader binding/count, perform unconditional first Move, later80xx marker/next-record/empty-fetch rules and ordered producer-line strokes. Reuse the existing bar3d line body; retain coincident strokes.",
-        "Restore DDO CP only after normal flush; preserve device Moves/public CP and accepted failure prefixes. Current DDO style restoration uses reader result, with own ordinary terminator8000 for style4 and separate public/DDO user word. Bounds-check each reached storage access without erasing an earlier Move/line prefix."
+        "Restore DDO CP only after normal flush; preserve device Moves/public CP and accepted failure prefixes. Current DDO style restoration uses reader result, with own ordinary terminator8000 for style4 and separate public/DDO user word. Bounds-check each reached storage access without erasing an earlier Move/line prefix.",
+        "Implement public ellipse1cec/017a: translate/place lower and device center without public moveto/producer, then read curve words. Startffff returns after placement without drawing, arc publication, producer change or wire reply. Ordinary successful outline restores only saved physical DDO center; failure retains reached prefixes.",
+        "Implement circular12fb: capture unsigned radius[0], capture signed aspectY before aspectX, derive low-WORD radiusY before placement/query, ignore input radius[1], then call ellipse. No sign clamp, sorting or host geometry scaling. A zero denominator fails without changing points/BGI error.",
+        "Own public aspect WORDs in BGI state: initial7750/10000; successful mode installation4500/7750/10000 over10000 before defaults. I1/unsupported/state2/invalid-mode/failed-install paths retain current aspects; later palette failure retains newly installed values.",
+        "Borrow request only during the serialized call. Front argument capture precedes drawing callbacks, and successful restoration uses saved physical DDO center rather than a newly changed origin. Native argument and uninstalled errors retain appropriate prefixes."
       ],
       "tests": [
         "big_curve_scalar",
@@ -2688,17 +2738,20 @@
         "big_bar3d",
         "big_curve_regular",
         "big_curve_angular",
-        "big_state"
+        "big_state",
+        "big_curve_public"
       ],
       "deviations": [
-        "Complete scalar/decimal/regular/angular/producer/flush component prerequisites are implemented; K public/aspect/center/query/outer-save, owned buffer binding, native CTerm/wire and global composition remain pending. No complete K acceptance is claimed.",
+        "Complete scalar/decimal/regular/angular/producer/flush component prerequisites are implemented; K owned graph-buffer binding, native CTerm/wire and global composition remain pending. No complete K acceptance is claimed.",
         "Indexed pixels remain authoritative. Reconstruct only the observable batched point-return byte; no permanent planar framebuffer, hardware controller or foreign clock model.",
         "Covers the existing ordinary native sixteen-pen/COPY profile, not arbitrary inherited physical-controller state. Missing reached native methods return a checked argument error; failed/async callbacks preserve accepted effects.",
         "Correct conflicting61/curve-review-data repeated-zero record-drift prose using original A55 bytes: published0308..030e do not alias saved offsets0314..031a. Repeated unchanged center/origin/offsets yield stable records, not cumulative drift.",
         "Component branch only; no whole K wire/native CTerm acceptance or angular/public-wrapper completion is claimed.",
         "Signed end7fff makes original JLE nonterminating. Preserve one complete65536-angle turn of collector/style/error effects, then return IO_ERROR_OUT_OF_RANGE instead of hanging. Finite WORD sweeps have no new geometry cap, delay, clock model or periodic yield.",
         "Native storage extents and method arguments are checked at reached boundaries. The reader reports its last Y, not unused raw physical line-register clobbers; original ordinary outline restoration is established by its own appended8000 terminator.",
-        "Lower drawing/buffer components only. Public/aspect/center/query/017a-save, native owned graph-buffer binding, K wire/CTerm/application and sector/global acceptance remain pending."
+        "Lower drawing/buffer components only. Public/aspect/center/query/017a-save, native owned graph-buffer binding, K wire/CTerm/application and sector/global acceptance remain pending.",
+        "Zero aspect denominator returns checked IO_ERROR_OUT_OF_RANGE instead of foreign divide-trap/raw exit, before center/query and without inventing a new BGI error. The command caller must retain its already accepted color/fill/numeric prefix.",
+        "Public rendering helpers are complete; native graph-buffer ownership/binding, K numeric/wire/source/recovery/coherent application, other curve callers and global acceptance remain pending."
       ],
       "verification": [
         "Before extraction, all91 current RIP words matched the retained DDO table exactly. Little-endian182-byte SHA256:db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51. Runtime tests use a literal independently retained table; no floating sine or emulator generates expected data.",
@@ -2732,7 +2785,14 @@
         "COPY, zero custom/current style restoration, all255 nonzero fallback bytes, width/179/180 thresholds, endffff, orientation-wrapped7fff/equal zero-radius loops, true nontermination, capacity0..6 and all12 short-arc write failures have literal expectations. Async pixel callbacks fail synchronously.",
         "Direct flush cases cover80ff/multiple runs, nonterminated finite lists, count0/1/capacity ordering, first-marker Move, final-marker empty fetch/Move, reader binding/count snapshots under owner changes, reached storage extent errors and invalid arguments. big_state independently checks literal29/50/69 metrics for installed modes.",
         "No new wire command or application scene. Existing2982 application captures last passed with6bfc11c and were not rerun for this unbound lower component. Non-BIG/shared-code regressions remain deferred to the goal-final full suite.",
-        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending."
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending.",
+        "Complete public12d9..1325/1cec..1d1b and017a wrapper bodies were reread with61 caller/order and27/54 initialization evidence. Aspect publication occurs before defaults; I1 and skipped installs do not reset it.",
+        "Independent big_curve_public first failed to compile against missing request/state/API. Full64x64 indexed scenes and literal point/arc records cover shortcuts, full decimal and thick strokes, translated origins, query across widths1..3 and unchanged arc/producer/style state after query.",
+        "Circular query still performs aspect calculation; zero denominator retains old points and BGI error before placement/query/installed guard. Three radius2 quarter scenes have literal2/3/4 unique pixels and3/5/6 writes for derived Y0/1/2. Unsigned8000 radius, ignored second radius and signed negative aspect retain actual WORD/overflow behavior.",
+        "Begin/end/write and uninstalled failures verify placed-center/last-return prefixes without finally DDO restoration. Callback-side origin/request changes retain captured geometry and restore the original saved physical DDO point. Null argument errors preserve owners. big_state checks mode/I1/skips/failed-install/later-palette-failure aspect lifetime.",
+        "Next binding source identified:24 DS3089 configured4096; font-resource-code0adf..0b41 shared near allocation/descriptor;27 DDO025f..0282 point offset+2/capacity size/6. Ordinary capacity682 versus1023 four-byte source record slots remains distinct. Actual native graph-buffer ownership is not claimed by this step.",
+        "No wire command or application scene changes. Existing2982 application captures last passed with6bfc11c and were not replayed for this unbound public helper. Non-BIG/shared-code regressions remain deferred to the goal-final full suite.",
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending."
       ],
       "commit": null
     },

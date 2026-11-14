@@ -56,4 +56,20 @@ int st_big_curve_regular_outline(struct st_big_state *, struct st_big_producer *
 int st_big_curve_outline(struct st_big_state *, struct st_big_producer *,
 	uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
 	const struct st_big_producer_sink *, const struct st_big_curve_batch_sink *);
+struct st_big_curve_request {
+	uint16_t center[2], start, end, radius[2];
+};
+/* Public ellipse1cec/017a: place translated lower/device center while
+ * retaining public CP, then read curve arguments and recognize startffff.
+ * Query draws/publishes nothing. Normal drawing restores only DDO CP;
+ * failure retains accepted prefixes. The request is borrowed for the call. */
+int st_big_curve_ellipse(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_curve_request *, const struct st_big_producer_sink *,
+	const struct st_big_curve_batch_sink *);
+/* Public circular12fb: capture unsigned radius[0], derive Y from current
+ * signed aspect words before any placement, then use the ellipse wrapper.
+ * radius[1] is ignored. Zero aspectY fails before placement/query/guards. */
+int st_big_curve_arc(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_curve_request *, const struct st_big_producer_sink *,
+	const struct st_big_curve_batch_sink *);
 #endif

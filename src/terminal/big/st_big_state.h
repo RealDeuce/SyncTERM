@@ -19,6 +19,7 @@ struct st_big_state {
 		uint32_t width, height;
 		uint16_t viewport[4], clip, x, y, active_page, visual_page;
 		uint16_t color, background, fill_style, fill_color;
+		uint16_t aspect[2]; /* Public signed aspectX/Y words, not window geometry. */
 		uint16_t ddo_x, ddo_y, device_x, device_y, line_distance;
 		uint16_t bar_corners[4];
 		uint8_t orientation;

@@ -83,6 +83,7 @@ static int defaults(const struct fixture *f, unsigned height)
 	const struct st_big_state *s = &f->state;
 	CHECK(s->bgi.width == 640 && s->bgi.height == height);
 	CHECK(s->bgi.curve_metric == (height==200?29:height==350?50:69));
+	CHECK(s->bgi.aspect[0] == (height==200?4500:height==350?7750:10000) && s->bgi.aspect[1] == 10000);
 	CHECK(s->bgi.viewport[0] == 0 && s->bgi.viewport[1] == 0 && s->bgi.viewport[2] == 639 && s->bgi.viewport[3] == height-1);
 	CHECK(s->bgi.clip == 1 && s->bgi.x == 0 && s->bgi.y == 0);
 	CHECK(s->bgi.color == 15 && s->bgi.background == 0 && s->bgi.fill_style == 1 && s->bgi.fill_color == 15);
@@ -280,7 +281,25 @@ static int g_pages(void)
 	st_big_state_g_entry(NULL,3);
 	return 0;
 }
+static int aspect_lifetime(void)
+{
+	struct fixture f; prepare(&f);
+	CHECK(f.state.bgi.aspect[0]==7750 && f.state.bgi.aspect[1]==10000);
+	f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678;
+	CHECK(st_big_state_initialize(&f.state,1,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
+	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.state.bgi.driver=77;
+	CHECK(st_big_state_resolution(&f.state,1,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
+	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.state.bgi.state=2;
+	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
+	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.state.bgi.max_mode=0;
+	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==0 && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678 && f.state.bgi.error==-10);
+	prepare(&f); f.state.bgi.aspect[0]=1234; f.state.bgi.aspect[1]=5678; f.fail_at=1;
+	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==IO_ERROR_IO && f.state.bgi.aspect[0]==1234 && f.state.bgi.aspect[1]==5678);
+	prepare(&f); f.fail_at=2;
+	CHECK(st_big_state_resolution(&f.state,3,&f.cache,&f.sink)==IO_ERROR_IO && f.state.bgi.aspect[0]==10000 && f.state.bgi.aspect[1]==10000);
+	return 0;
+}
 int main(void)
 {
-	CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); CHECK(hollow_words() == 0); CHECK(g_pages() == 0); return 0;
+	CHECK(aspect_lifetime() == 0); CHECK(initialize() == 0); CHECK(resolutions() == 0); CHECK(failures_and_entry() == 0); CHECK(writing_modes() == 0); CHECK(application_colors() == 0); CHECK(hollow_words() == 0); CHECK(g_pages() == 0); return 0;
 }

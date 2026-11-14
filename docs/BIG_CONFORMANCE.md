@@ -1544,3 +1544,26 @@ this unbound component; non-BIG regressions remain deferred.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending.
 
 Angular outline/buffer-flush implementation commit: `29edc7e`.
+
+## Public curve wrappers and aspect state
+
+Public ellipse places only lower/device center, then recognizes startffff
+without drawing/publishing/replying. Normal drawing restores DDO center only;
+failed drawing retains the reached prefix. Public logical CP and device
+movement remain independent. Circular arc derives its Y radius from current
+signed aspect words before placement/query, retaining unsigned radius bits.
+Zero denominator is a checked error before either point or BGI-error change.
+
+Startup aspect is7750/10000; successful mode installation publishes4500/7750/
+10000 over10000 before defaults. I1/skipped/failed installations retain current
+words, while a later palette failure retains newly installed words.
+
+big_curve_public checks independent full indexed scenes and records for
+shortcut/decimal/thick paths, origins, widths1..3/query retention, circular
+query/error order, all three aspect quarter scenes, unsigned/signed extremes,
+callback changes and failure prefixes without finally restoration. big_state
+checks aspect lifecycle. Native graph-buffer ownership and K wire/CTerm/
+application acceptance remain pending; no new application scene or non-BIG
+regression claim is added.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending.

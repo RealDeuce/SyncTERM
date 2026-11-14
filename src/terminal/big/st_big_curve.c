@@ -263,3 +263,38 @@ int st_big_curve_outline(struct st_big_state *state, struct st_big_producer *pro
 	state->bgi.device_line_width=1;
 	return 0;
 }
+
+int st_big_curve_ellipse(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_curve_request *request, const struct st_big_producer_sink *sink,
+    const struct st_big_curve_batch_sink *batch)
+{
+	if (state==NULL || producer==NULL || request==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (state->bgi.state==0) { state->bgi.error=-1; return IO_ERROR_PROTOCOL; }
+	/* Public selector08 bypasses the point producer and public moveto. */
+	uint16_t x=request->center[0],y=request->center[1];
+	state->bgi.ddo_x=state->bgi.device_x=(uint16_t)(x+state->bgi.viewport[0]);
+	state->bgi.ddo_y=state->bgi.device_y=(uint16_t)(y+state->bgi.viewport[1]);
+	uint16_t start=request->start,end=request->end;
+	uint16_t radius_x=request->radius[0],radius_y=request->radius[1];
+	if (start==0xffff) return 0;
+	uint16_t saved_x=state->bgi.ddo_x,saved_y=state->bgi.ddo_y;
+	int status=st_big_curve_outline(state,producer,start,end,radius_x,radius_y,sink,batch);
+	if (status!=0) return status;
+	state->bgi.ddo_x=saved_x; state->bgi.ddo_y=saved_y;
+	return 0;
+}
+int st_big_curve_arc(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_curve_request *request, const struct st_big_producer_sink *sink,
+    const struct st_big_curve_batch_sink *batch)
+{
+	if (state==NULL || producer==NULL || request==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t radius=request->radius[0];
+	/*12d9 captures the signed denominator before the numerator aspect. */
+	uint16_t aspect_y=state->bgi.aspect[1];
+	uint16_t aspect_x=state->bgi.aspect[0],radius_y;
+	int status=st_big_curve_aspect(radius,aspect_x,aspect_y,&radius_y);
+	if (status!=0) return status;
+	struct st_big_curve_request ellipse=*request;
+	ellipse.radius[0]=radius; ellipse.radius[1]=radius_y;
+	return st_big_curve_ellipse(state,producer,&ellipse,sink,batch);
+}

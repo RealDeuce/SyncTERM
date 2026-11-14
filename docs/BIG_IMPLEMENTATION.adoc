@@ -27,9 +27,10 @@ pointer acquisition, E font selection, W graphical text, t pauses and ? inquirie
 Curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
-Curve work has shared sine/product kernels, BIG scalar adapters and the decimal
-outline request generator. K wire/front/batch/point/buffer integration remains
-pending.
+Curve work now has shared sine/product kernels, BIG scalar/aspect state,
+decimal and angular outlines, ordered buffer flush and public ellipse/circular
+wrappers with query and DDO-only restoration. K native graph-buffer binding,
+wire acquisition and coherent command/application verification remain pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -3405,3 +3406,61 @@ passed with6bfc11c; non-BIG regressions remain deferred to the goal-final suite.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending.
 
 Angular outline/buffer-flush implementation commit: `29edc7e`.
+
+== Public ellipse/circular wrappers and library aspect state
+
+st_big_curve_ellipse implements public1cec and017a around the complete lower
+outline. It places center through the lower origin/device path without public
+moveto or the point producer, then reads the curve words. Startffff returns
+normally after placement, without drawing, publishing an arc, changing
+producer state or sending a response. The old arc record remains available;
+there is no unused getarccoords copy. Ordinary drawing saves the placed DDO
+center and restores only those two words after successful return. Device
+point/pixels and public logical point remain distinct. Any failed drawing
+omits the saved DDO pop, retaining the exact reached point/batch/record prefix.
+
+st_big_curve_arc captures the unsigned radius, reads signed aspectY before
+aspectX, derives Y with the verified scalar helper, and only then enters the
+ellipse wrapper. Its second radius input is ignored. Thus a zero denominator
+fails before placement or query recognition, without changing BGI error or
+points; circular startffff still requires the aspect operation. No radius
+sign normalization/clamp or host geometry rescaling is added. The request
+is borrowed; front argument loads precede drawing callbacks, and the already
+saved physical center is not recalculated from a changed origin on return.
+
+Public aspect WORDs are new explicit library state: startup7750/10000;
+successful native mode installation4500/10000,7750/10000 or10000/10000 before
+defaults/palette work. I1, unsupported-driver defaults, state2/invalid-mode
+skips and failed installation retain current aspects. A later palette failure
+retains the newly installed aspects. These fields do not describe the host
+window, console cell size or RIP's fixed circular7750 adaptation.
+
+big_curve_public first failed to compile against missing request/state/API.
+Independent64x64 indexed scenes and literal arc/point records cover shortcut,
+full decimal and thick outlines, origin translation, query across widths1..3,
+unchanged arc/producer state on query and circular query/division order.
+All three aspect profiles use explicit radius2 quarter scenes, distinguishing
+original zero-derived-Y limits before correction. High-bit unsigned radius
+and signed negative aspect preserve original WORD bits/normal empty overflow.
+Begin/end/write and uninstalled failures verify the center prefix and omitted
+DDO restoration. Callback-side request/origin changes leave captured geometry
+and saved physical DDO restoration intact. Native argument errors are checked
+without changing points/state. big_state independently checks installation,
+I1/skip/failure and later palette-error aspect lifetime.
+
+The next native graph-buffer binding has identified source evidence, not a
+new allocation yet:24's DS3089 default size4096, font-resource-code initgraph
+0adf..0b41's near allocation/descriptor publication, and27's DDO025f..0282
+point view at allocation offset+2. The configured point capacity is4096/6=682,
+while the remaining4094 original bytes hold1023 four-byte point records.
+It is the shared graphics/flood allocation, separate from G's far image
+buffer. The native binding must retain configured capacity versus actual
+extent and existing bounded flood ownership; no DOS allocator model is needed.
+
+This verifies public rendering helpers and aspect lifetime. Native graph-
+buffer/page/CTerm ownership, K numeric/wire/source/recovery and new coherent
+application scenes still remain. Existing2982 application scenes are unchanged
+and last passed with6bfc11c. Non-BIG/shared-code regressions remain deferred
+to the goal-final full suite.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending.

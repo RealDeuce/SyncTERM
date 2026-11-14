@@ -91,6 +91,7 @@ void st_big_state_init(struct st_big_state *s)
 	s->bgi.state = 3; s->bgi.driver = 9; s->bgi.mode = 1; s->bgi.max_mode = 2;
 	s->bgi.width = 640; s->bgi.height = 350; s->bgi.line_distance = 1;
 	s->bgi.curve_metric = 50;
+	s->bgi.aspect[0] = 7750; s->bgi.aspect[1] = 10000;
 	(void)defaults(s,NULL);
 	s->application.marker_size = 1; s->application.fill = 1;
 	for (size_t i = 0; i < 4; ++i) s->application.colors[i] = 15;
@@ -108,6 +109,8 @@ int st_big_state_install(struct st_big_state *s, unsigned resolution, const stru
 	if (status != 0) return status;
 	s->bgi.width = mode->width; s->bgi.height = mode->height;
 	s->bgi.curve_metric = (uint16_t)((mode->height-1u)*1000u/7000u+1u);
+	s->bgi.aspect[0] = mode->resolution==1?4500:mode->resolution==2?7750:10000;
+	s->bgi.aspect[1] = 10000;
 	s->bgi.active_page = s->bgi.visual_page = 0;
 	return defaults(s,sink);
 }

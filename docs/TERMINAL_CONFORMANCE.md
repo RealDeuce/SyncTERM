@@ -1367,3 +1367,11 @@ check literal29/50/69 metrics. A true infinite signed angle loop becomes a
 checked native error after a complete WORD turn. Public K wrapper, owned
 buffer/wire/CTerm integration and sector composition remain pending; no new
 application scene or non-BIG regression claim is added.
+
+BIG public ellipse/circular helpers now preserve lower center placement,
+ffff query order, DDO-only successful restoration and failed-operation
+prefixes. Library aspect state follows native mode installation and retained
+I1/skip/failure paths. big_curve_public independently checks full indexed
+quarter/shortcut/decimal/thick scenes, all three aspect profiles, query/point
+owners and error boundaries. Native graph-buffer/CTerm ownership and K wire/
+application acceptance remain pending.
