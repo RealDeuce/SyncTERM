@@ -1621,3 +1621,5 @@ all preceding K/pixel/font/palette/image/RNG/state observations. Expected
 pixels are source-derived; headless physical audio/MIDI stay disabled.
 
 Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending.
+
+Native J explicit-radius arc implementation commit: `d43abb8`.

@@ -1988,7 +1988,7 @@
             "Seven additional application scenes per profile provide98 J captures,3178 total, with literal full/quarter/zero/query/thick/source arc/point/style/radius expectations and every preceding K/pixel/font/palette/image/RNG/state expectation retained in the same coherent frame.",
             "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
           ],
-          "commit": null
+          "commit": "d43abb8"
         }
       ]
     },
