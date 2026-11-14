@@ -106,7 +106,7 @@ static void active_visual_and_consumers(void)
 	for (unsigned y=41;y<=42;++y) expected[n++]=(struct dot){54,y,807,807};
 	string(&f,"I#G 5,1:"); canvas(&f,expected,n);
 	CHECK(b->state.bgi.x==54 && b->state.bgi.y==42 && b->state.bgi.ddo_x==54 && b->state.bgi.device_x==54 && b->last_error==0);
-	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(f.size==0);
 	string(&f,"I#G 6,0:I#G 5,0:"); scene(&f,0);
 	string(&f,"I#G 5,1:"); canvas(&f,expected,n);
 	string(&f,"I#I 1:"); canvas(&f,expected,n); CHECK(b->video_active_page==0 && b->video_visual_page==1);
@@ -200,9 +200,9 @@ static void source_repetition_and_point_bytes(void)
 {
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
 	string(&f,"I#R 1:I#g 3:I#& 0,1,1,0,G@2,4,3:");
-	CHECK(b->state.memory_page==3 && b->numeric.loop.active==0 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->state.memory_page==3 && b->numeric.loop.active==0 && f.size==0);
 	f.size=0; string(&f,"I#& 0,2,1,0,G@2,6,x:");
-	CHECK(b->video_active_page==2 && b->state.active_page==2 && b->numeric.loop.current==2 && b->numeric.loop.active==0 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->video_active_page==2 && b->state.active_page==2 && b->numeric.loop.current==2 && b->numeric.loop.active==0 && f.size==0);
 	f.size=0; b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
 	string(&f,"I#G>5,1:"); CHECK(b->video_visual_page==1 && b->control.input.pending==1 && f.size==0);
 	string(&f,"~ "); CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255);

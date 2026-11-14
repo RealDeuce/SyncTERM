@@ -7,7 +7,7 @@
 
 bool cterm_big_input_owned(const struct cterm_big *big)
 {
-	return big!=NULL && (big->rotation.active || big->collect.active || big->setup.phase!=CTERM_BIG_SETUP_OFF
+	return big!=NULL && (big->pause.phase!=CTERM_BIG_PAUSE_OFF || big->rotation.active || big->collect.active || big->setup.phase!=CTERM_BIG_SETUP_OFF
 	    || (big->control.frame.command=='<' && !big->footer_active && st_graphics_parser_in_command(big->parser)) || (big->numeric.loop.active==1
 	    && st_graphics_parser_in_command(big->parser)
 	    && (!big->footer_active || big->numeric.loop.command_read)));

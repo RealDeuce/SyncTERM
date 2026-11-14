@@ -124,9 +124,9 @@ static void payloads_loops_and_pages(void)
 	setup(&f,3); string(&f,"I#g 3:I#W 20,5,A@"); CHECK(b->state.bgi.ddo_y==11); canvas(&f,20,11,true);
 	setup(&f,3); memcpy(b->text.bytes,"A",2);
 	string(&f,"I#g 3:I#& 0,2,1,0,W!2,20,5:\033[6n");
-	CHECK(b->state.bgi.ddo_y==5 && b->text.count==0 && b->state.bgi.text_count==1 && f.size==8 && memcmp(f.output,"\x13\x11\033[1;1R",8)==0); canvas(&f,20,5,true);
+	CHECK(b->state.bgi.ddo_y==5 && b->text.count==0 && b->state.bgi.text_count==1 && f.size==6 && memcmp(f.output,"\033[1;1R",6)==0); canvas(&f,20,5,true);
 	setup(&f,2); string(&f,"I#& 0,2,1,0,W@2,20,30:A@A@\033[6n");
-	CHECK(!b->text_output.active && b->text.count==1 && b->state.bgi.device_x==28 && f.size==9 && memcmp(f.output,"\x13\x11\x11\033[1;1R",9)==0); canvas(&f,20,30,true);
+	CHECK(!b->text_output.active && b->text.count==1 && b->state.bgi.device_x==28 && f.size==6 && memcmp(f.output,"\033[1;1R",6)==0); canvas(&f,20,30,true);
 	setup(&f,2); string(&f,"I#G 6,1:I#W 20,30,A@"); canvas(&f,0,0,false);
 	string(&f,"I#G 5,1:"); canvas(&f,20,30,true);
 	setup(&f,2); string(&f,"I#"); b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]=255;
@@ -135,7 +135,7 @@ static void payloads_loops_and_pages(void)
 	setup(&f,2); memset(b->text.bytes,'A',sizeof(b->text.bytes)); b->state.bgi.text_count=7;
 	string(&f,"I#& 0,1,1,0,W!2,20,30:\033[6n");
 	CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==1 && b->state.bgi.text_count==7 && b->state.bgi.ddo_x==20 && b->state.bgi.device_x==20);
-	CHECK(f.size==7 && memcmp(f.output,"\x13\033[1;1R",7)==0); canvas(&f,0,0,false);
+	CHECK(f.size==6 && memcmp(f.output,"\033[1;1R",6)==0); canvas(&f,0,0,false);
 	destroy(&f);
 }
 static void stroke_text(void)

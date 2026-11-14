@@ -20,6 +20,15 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	if(NOT WIN32)
+		add_executable(st_term_big_pacing_test tests/st_term_big_pacing_test.c)
+		target_link_libraries(st_term_big_pacing_test PRIVATE st_term st_big)
+		set_target_properties(st_term_big_pacing_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		target_compile_options(st_term_big_pacing_test PRIVATE -Wall -Wextra -Wpedantic)
+		add_test(NAME big_session_pacing COMMAND st_term_big_pacing_test)
+		set_tests_properties(big_session_pacing PROPERTIES TIMEOUT 30)
+	endif()
 	syncterm_add_test_case(st_terminal_tests st_term_rip_encoding_consistency ARGS
 		tests/st_term_rip_encoding_consistency.c)
 	target_link_libraries(st_term_rip_encoding_consistency PRIVATE st_term)

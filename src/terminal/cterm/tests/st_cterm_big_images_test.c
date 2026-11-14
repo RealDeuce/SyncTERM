@@ -177,7 +177,7 @@ static void lifetime_scaling_and_sources(void)
 	const struct dot two[]={{20,11,5,10},{40,11,5,5}}; canvas(&f,two,2);
 	string(&f,"I#& 0,2,1,0,G@4,2,0,x,5:");
 	const struct dot loop[]={{20,11,5,10},{40,11,5,5},{0,5,5,5},{1,5,5,5},{2,5,5,5}}; canvas(&f,loop,5);
-	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0 && b->numeric.loop.active==0);
+	CHECK(f.size==0 && b->numeric.loop.active==0);
 	destroy(&f); create(&f,false,false); b=f.terminal->big_engine;
 	const struct dot fresh[]={{60,60,6,9}}; paint(&f,fresh,1); string(&f,"I#G 2,0,60,60:"); canvas(&f,NULL,0);
 	CHECK(b->image_bytes[ST_BIG_IMAGE_CAPACITY-1]==0 && b->image_size==0); destroy(&f);

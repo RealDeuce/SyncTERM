@@ -101,19 +101,15 @@ static void reuse_and_flow(void)
 		bool reuse=(active==1 && type!=0) || (active==0 && type==1);
 		CHECK(poll(&f,(const uint8_t *)"N@",2,reuse?0:2));
 		CHECK(strcmp((char *)f.text.bytes,reuse?"OLD":"N")==0);
-		CHECK(f.sent==(active==1 && type==0?1u:0u));
+		CHECK(f.sent==0);
 		CHECK(f.numeric.loop.type==(active==0 && type==1?' ':(type==0?'@':type==1?'Z':'|')));
 	}
 	init(&f); f.numeric.loop.active=1; f.numeric.loop.type='@'; f.block=true;
 	CHECK(st_big_stream_text(&f.reader,&f.numeric,&f.text,&f.control)==0 && f.numeric.loop.first_text==1);
-	size_t used, budget=64; bool complete;
-	CHECK(st_big_stream_poll(&f.reader,&f.numeric,&f.text,&f.control,&f.sink,
-	    (const uint8_t *)"A@",2,&used,&budget,&complete)==IO_ERROR_IN_PROGRESS && used==0 && f.sent==0);
-	f.now+=ST_BIG_NUMERIC_TIMEOUT_NS; f.block=false;
-	CHECK(poll(&f,(const uint8_t *)"A@",2,1) && f.sent==1 && f.bells==1 && f.text.count==1);
-	CHECK(f.text.bytes[0]=='A' && f.text.bytes[1]==0); /* Old BSS suffix, not timeout termination. */
+	CHECK(poll(&f,(const uint8_t *)"A@",2,2) && f.sent==0 && f.bells==0 && f.text.count==1);
+	CHECK(f.text.bytes[0]=='A' && f.text.bytes[1]==0);
 	f.numeric.loop.first_text=65535;
 	CHECK(st_big_stream_text(&f.reader,&f.numeric,&f.text,&f.control)==0 && f.numeric.loop.first_text==0);
-	CHECK(poll(&f,(const uint8_t *)"@",1,1) && f.sent==1);
+	CHECK(poll(&f,(const uint8_t *)"@",1,1) && f.sent==0);
 }
 int main(void) { text_vectors(); deadlines(); reuse_and_flow(); return 0; }

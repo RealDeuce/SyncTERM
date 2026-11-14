@@ -4,7 +4,6 @@
 #include "st_big_number.h"
 #include "io_error.h"
 #include <string.h>
-enum { FLOW_OFF, FLOW_CHECK, FLOW_READY, FLOW_SEND, FLOW_DONE, FLOW_FAILED };
 enum { FOOTER_OFF, FOOTER_REPEAT, FOOTER_FLOW, FOOTER_RESET, FOOTER_REPLY,
 	FOOTER_CHECK, FOOTER_READY, FOOTER_SEND, FOOTER_CR, FOOTER_CR_SEND,
 	FOOTER_DONE, FOOTER_FAILED };
@@ -78,45 +77,18 @@ int st_big_flow_settings_value(struct st_big_flow_settings *r, struct st_big_con
 }
 void st_big_flow_begin(struct st_big_flow_reader *r, const struct st_big_control *c, bool on)
 {
-	if (r == NULL || c == NULL) return;
-	*r=(struct st_big_flow_reader){.phase=FLOW_CHECK,.which=on?0u:1u,.enabled=c->flow.mode!=0};
-}
-static int flow_error(struct st_big_flow_reader *r, int status)
-{
-	if (status != IO_ERROR_IN_PROGRESS) { r->phase=FLOW_FAILED; r->error=status; }
-	return status;
+	(void)on;
+	if (r!=NULL && c!=NULL) r->begun=true;
 }
 int st_big_flow_poll(struct st_big_flow_reader *r, struct st_big_control *c,
     const struct st_big_control_sink *sink, size_t *budget)
 {
-	if (r == NULL || c == NULL || sink == NULL || sink->send == NULL || budget == NULL
-	    || r->phase == FLOW_OFF || r->which > 1) return IO_ERROR_INVALID_ARGUMENT;
-	enum st_big_output_kind kind=r->which==0?ST_BIG_OUTPUT_XON:ST_BIG_OUTPUT_XOFF;
-	for (;;) switch (r->phase) {
-	case FLOW_CHECK:
-		if (!r->enabled || st_big_number_signed(r->index)>=st_big_number_signed(c->flow.count[r->which])) {
-			r->phase=FLOW_DONE; continue;
-		}
-		r->phase=FLOW_READY;
-		continue;
-	case FLOW_READY: {
-		if (*budget==0) return IO_ERROR_IN_PROGRESS;
-		int status=sink->ready==NULL?0:sink->ready(sink->context,kind);
-		if (status!=0) return flow_error(r,status);
-		r->byte=c->flow.byte[r->which]; r->phase=FLOW_SEND;
-		continue;
-	}
-	case FLOW_SEND: {
-		if (*budget==0) return IO_ERROR_IN_PROGRESS;
-		int status=sink->send(sink->context,kind,r->byte);
-		if (status!=0) return flow_error(r,status);
-		--*budget; r->index=(uint16_t)(r->index+1u); r->phase=FLOW_CHECK;
-		continue;
-	}
-	case FLOW_DONE: return 0;
-	case FLOW_FAILED: return r->error;
-	default: return IO_ERROR_INVALID_ARGUMENT;
-	}
+	if (r==NULL || c==NULL || sink==NULL || budget==NULL || !r->begun)
+		return IO_ERROR_INVALID_ARGUMENT;
+	/* Parser backpressure leaves input in the session/connection buffers.
+	 * Legacy flow settings remain readable state, without serial requests,
+	 * transport readiness checks, output credit or count-based delays. */
+	return 0;
 }
 void st_big_footer_begin(struct st_big_footer *r, bool chained)
 {

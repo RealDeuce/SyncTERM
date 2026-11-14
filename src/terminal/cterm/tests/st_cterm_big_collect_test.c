@@ -139,8 +139,8 @@ static void keyboard_raw_bounds_sources_and_reset(void)
 	CHECK(st_cterm_handle_key(f.terminal,'B',0)); CHECK(st_cterm_poll(f.terminal)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && b->control.input.count==65535 && !b->collect.active && !b->control.input.pending);
 	string(&f,"I#< 0,1,0:"); key(&f,'C'); CHECK(st_cterm_finish(f.terminal)==0 && !b->collect.active && b->control.input.payload[1]=='C' && f.size==0);
 	string(&f,"I#< 0,1,0:"); key(&f,'D'); CHECK(st_cterm_reset_terminal(f.terminal)==0 && !b->collect.active && b->control.input.payload[1]=='D' && f.size==0);
-	string(&f,"I#& 0,2,1,0,<@3,0,0,0:"); CHECK(b->collect.active); key(&f,'A'); CHECK(b->collect.active && f.size==1 && f.output[0]==19);
-	key(&f,'B'); CHECK(!b->collect.active && f.size==3 && memcmp(f.output,"\x13\x11" "B",3)==0);
+	string(&f,"I#& 0,2,1,0,<@3,0,0,0:"); CHECK(b->collect.active); key(&f,'A'); CHECK(b->collect.active && f.size==0);
+	key(&f,'B'); CHECK(!b->collect.active && f.size==1 && f.output[0]=='B');
 	destroy(&f);
 }
 static void hybrid_pointer(void)

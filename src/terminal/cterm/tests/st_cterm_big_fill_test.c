@@ -11,9 +11,7 @@
 struct fixture {
 	st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal;
 	unsigned bells; bool reset_bell; uint8_t output[64]; size_t size;
-	bool block_off, block_on, loop_on_off;
-	bool fail_ready;
-	unsigned off_pen, on_pen, ready_calls;
+	unsigned ready_calls;
 };
 static uint64_t local_ns;
 static int now(void *context, uint64_t *value) { (void)context; *value=local_ns; return 0; }
@@ -95,11 +93,11 @@ static void prefixes_sources_and_errors(void)
 	string(&f,"I#A 3:I#A "); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
 	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==2 && b->state.application.fill==3);
 	string(&f,"I#R 3:I#g 3:I#C 2,5:I#A 3:"); CHECK(b->state.application.fill==3 && b->state.bgi.fill_style==3);
-	string(&f,"I#& 0,1,1,0,A@1,12:"); CHECK(b->state.application.fill==12 && b->state.bgi.fill_style==12 && b->state.bgi.fill_color==5 && f.size==2);
-	string(&f,"I#& 0,3,1,0,A@1,x:"); CHECK(b->state.application.fill==3 && b->state.bgi.fill_style==3 && b->numeric.loop.active==0 && f.size==4 && memcmp(f.output,"\x13\x11\x13\x11",4)==0);
+	string(&f,"I#& 0,1,1,0,A@1,12:"); CHECK(b->state.application.fill==12 && b->state.bgi.fill_style==12 && b->state.bgi.fill_color==5 && f.size==0);
+	string(&f,"I#& 0,3,1,0,A@1,x:"); CHECK(b->state.application.fill==3 && b->state.bgi.fill_style==3 && b->numeric.loop.active==0 && f.size==0);
 	b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255; b->control.input.append_cr=1;
-	string(&f,"I#C>2,31:A>12:"); CHECK(b->state.application.fill==12 && b->state.bgi.fill_style==3 && b->state.bgi.fill_color==5 && b->state.bgi.error==-11 && f.size==4);
-	string(&f,"~ "); CHECK(f.size==7 && memcmp(f.output+4,"\0\xff\r",3)==0);
+	string(&f,"I#C>2,31:A>12:"); CHECK(b->state.application.fill==12 && b->state.bgi.fill_style==3 && b->state.bgi.fill_color==5 && b->state.bgi.error==-11 && f.size==0);
+	string(&f,"~ "); CHECK(f.size==3 && memcmp(f.output,"\0\xff\r",3)==0);
 	string(&f,"I#C>2,5:A 12:I#I 1:"); CHECK(b->state.bgi.fill_style==12 && b->state.bgi.fill_color==5 && b->state.bgi.error==-11);
 	CHECK(b->state.bgi.fill_user[0]==0xaa && b->state.bgi.device_fill_user[0]==0xaa && b->state.bgi.fill_pattern[0]==0xaa && b->state.bgi.fill_pixels[0]==5 && b->state.bgi.fill_pixels[1]==0);
 	string(&f,"I#R 1:"); CHECK(b->state.application.fill==12 && b->state.application.colors[2]==5 && b->state.bgi.fill_style==1 && b->state.bgi.fill_color==15);
@@ -115,7 +113,7 @@ static void prefixes_sources_and_errors(void)
 	CHECK(st_cterm_write(f.terminal,custom,sizeof(custom)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(custom)-1);
 	CHECK(b->state.application.fill==12 && b->state.bgi.fill_style==3 && b->state.bgi.fill_color==31 && b->state.bgi.error==-1);
 	b->state.bgi.state=3; string(&f,"I#C>2,5:A 12:"); CHECK(b->state.bgi.fill_style==12 && b->state.bgi.fill_color==5 && b->state.bgi.error==-1);
-	blank(&f); CHECK(f.size==7); destroy(&f);
+	blank(&f); CHECK(f.size==3); destroy(&f);
 }
 static void edit_partitions(void)
 {
@@ -171,10 +169,10 @@ static void edit_prefixes_and_sources(void)
 	CHECK(b->state.application.patterns[0][0]==128 && b->state.application.patterns[0][7]==1);
 	string(&f,"I#& 0,2,1,0,X@11,1,12,1,x,x,x,x,x,x,x,x:");
 	for (size_t i=0;i<8;++i) CHECK(b->state.application.patterns[0][i]==2);
-	CHECK(b->numeric.loop.active==0 && f.size==8 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11\x13\x11",8)==0);
+	CHECK(b->numeric.loop.active==0 && f.size==0);
 	b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='R';
-	string(&f,"I#X>1,12,0:"); CHECK(f.size==8 && b->control.input.pending==1);
-	string(&f,"~ "); CHECK(f.size==9 && f.output[8]=='R');
+	string(&f,"I#X>1,12,0:"); CHECK(f.size==0 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==1 && f.output[0]=='R');
 	string(&f,"I#X 1,12,1,128,0,0,0,0,0,0,1:I#C>2,5:A 12:");
 	CHECK(b->state.bgi.fill_pixels[0]==5 && b->state.bgi.fill_pixels[63]==5);
 	string(&f,"I#X 1,12,0:"); CHECK(b->state.application.patterns[0][0]==0xaa && b->state.bgi.fill_user[0]==128 && b->state.bgi.fill_pixels[63]==5);
@@ -183,7 +181,7 @@ static void edit_prefixes_and_sources(void)
 	for (size_t i=0;i<8;++i) CHECK(b->state.application.patterns[0][i]==i+1);
 	b->state.bgi.state=0; b->state.bgi.error=-11; string(&f,"I#X 1,12,0:");
 	CHECK(b->state.application.patterns[0][0]==0xaa && b->state.bgi.error==-11 && b->state.bgi.fill_style==1);
-	blank(&f); CHECK(f.size==9); destroy(&f);
+	blank(&f); CHECK(f.size==1); destroy(&f);
 }
 static void edit_live_frame(void)
 {
@@ -233,7 +231,7 @@ static void flood_partitions(void)
 				if (split==splits) for (size_t i=0;i<size;++i) feed(&f,wire+i,1);
 				else { feed(&f,wire,split); string(&f,wire+split); }
 				flood_pixels(&f,border,5);
-				CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+				CHECK(f.size==0);
 				CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==5 && b->state.bgi.color==border && b->state.bgi.error==-11);
 				CHECK(b->state.bgi.x==31 && b->state.bgi.y==32 && b->state.bgi.ddo_x==14 && b->state.bgi.ddo_y==14 && b->state.bgi.device_x==14 && b->state.bgi.device_y==14);
 				CHECK(f.terminal->xpos==3 && f.terminal->ypos==2);
@@ -245,69 +243,23 @@ static void flood_partitions(void)
 static int flood_ready(void *context, enum st_big_output_kind kind)
 {
 	struct cterm_big *b=context; struct fixture *f=b->terminal->api_output_context;
-	/* Reacquiring the console here also detects an accidentally held pixel lock. */
-	const struct st_console_rect r={12,12,1,1}; struct st_pixel_buffer *p=NULL;
-	CHECK(st_console_get_pixels(&p,f->console,&r,false)==0);
-	unsigned pen=p->primary[0]-800; st_pixel_buffer_destroy(p); ++f->ready_calls;
-	if (f->fail_ready) { f->fail_ready=false; return IO_ERROR_OUT_OF_RANGE; }
-	if (kind==ST_BIG_OUTPUT_XOFF) {
-		f->off_pen=pen;
-		if (f->block_off) return IO_ERROR_IN_PROGRESS;
-		if (f->loop_on_off) { b->numeric.loop.active=1; b->numeric.loop.command_read=false; }
-	} else if (kind==ST_BIG_OUTPUT_XON) {
-		f->on_pen=pen; if (f->block_on) return IO_ERROR_IN_PROGRESS;
-	}
-	return 0;
-}
-static void flood_wait(struct fixture *f)
-{
-	static const char wire[]="I#F 12,12,0:"; size_t used;
-	CHECK(st_cterm_write(f->terminal,wire,sizeof(wire)-1,&used)==IO_ERROR_IN_PROGRESS && used==sizeof(wire)-1);
-	CHECK(st_cterm_input_paused(f->terminal));
+	(void)kind; ++f->ready_calls; return IO_ERROR_IO;
 }
 static void flood_waits(void)
 {
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
-	flood_scene(&f,2,15); b->control_io.ready=flood_ready;
-	f.block_off=f.block_on=true; flood_wait(&f);
-	CHECK(b->flood.active && b->state.bgi.fill_color==5 && f.size==0 && f.off_pen==3);
-	flood_pixels(&f,15,3);
-	/* Installed attributes precede XOFF, but the selected WORD is fetched after it. */
-	b->state.application.fill=0; b->state.application.colors[2]=9;
-	f.block_off=false; CHECK(st_cterm_poll(f.terminal)==0);
-	CHECK(b->flood.active && f.size==1 && f.output[0]==19 && f.on_pen==5);
-	flood_pixels(&f,15,5);
-	f.block_on=false; CHECK(st_cterm_poll(f.terminal)==0);
-	CHECK(!b->flood.active && f.size==2 && f.output[1]==17 && f.ready_calls>=4);
-	/* Remote EOF cancels either wait without adding an XON or rolling back. */
-	flood_scene(&f,2,15); f.block_off=true; flood_wait(&f);
-	CHECK(st_cterm_finish(f.terminal)==0 && !b->flood.active && f.size==0); flood_pixels(&f,15,3);
-	f.block_off=false; flood_scene(&f,2,15); f.block_on=true; flood_wait(&f);
-	CHECK(st_cterm_finish(f.terminal)==0 && !b->flood.active && f.size==1 && f.output[0]==19); flood_pixels(&f,15,5);
-	f.block_on=false; flood_scene(&f,2,15); f.block_off=true; flood_wait(&f);
-	CHECK(st_cterm_reset_terminal(f.terminal)==0 && !b->flood.active && f.size==0); flood_pixels(&f,15,3);
-	f.block_off=false; flood_scene(&f,2,15); f.block_on=true; flood_wait(&f);
-	CHECK(st_cterm_reset_terminal(f.terminal)==0 && !b->flood.active && f.size==1); flood_pixels(&f,15,5);
-	/* The second loop test is independent of the first one. */
-	f.block_on=false; flood_scene(&f,2,15); f.loop_on_off=true; string(&f,"I#F 12,12,0:");
-	CHECK(!b->flood.active && f.size==1 && f.output[0]==19); flood_pixels(&f,15,5);
-	f.loop_on_off=false; b->numeric.loop.active=0;
-	/* Failure of an existing continuation must retry the unread first byte. */
-	flood_scene(&f,2,15); f.block_off=true; flood_wait(&f);
-	f.block_off=false; f.fail_ready=true; string(&f,"I#A 0:\033[2;3H");
-	CHECK(!b->flood.active && f.size==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && b->state.bgi.fill_style==0 && f.terminal->xpos==3 && f.terminal->ypos==2);
-	flood_pixels(&f,15,3);
-	/* A nested boundary proves that a changed selected colour is read freshly. */
-	flood_scene(&f,2,15); string(&f,"I#C 1,7:I#B 11,11,13,13,1:"); f.size=0;
-	f.block_off=true; flood_wait(&f);
-	b->state.application.colors[0]=7; f.block_off=false; CHECK(st_cterm_poll(f.terminal)==0 && f.size==2);
-	const struct st_console_rect r={10,10,5,5}; struct st_pixel_buffer *p=NULL;
-	CHECK(st_console_get_pixels(&p,f.console,&r,false)==0);
-	for (unsigned y=0;y<5;++y) for (unsigned x=0;x<5;++x) {
-		unsigned pen=x==0 || x==4 || y==0 || y==4?15:x==2 && y==2?5:7;
-		CHECK(p->primary[y*5+x]==800+pen && p->alternate[y*5+x]==800+pen);
+	b->control_io.ready=flood_ready;
+	for (unsigned mode=0;mode<4;++mode) {
+		flood_scene(&f,2,15); b->control.flow.mode=(uint16_t)mode;
+		b->control.flow.count[0]=b->control.flow.count[1]=32767;
+		b->control.flow.byte[0]=0; b->control.flow.byte[1]=255;
+		string(&f,"I#F 12,12,0:");
+		CHECK(!b->flood.active && f.size==0 && f.ready_calls==0 && b->last_error==0);
+		flood_pixels(&f,15,5);
+		CHECK(st_cterm_finish(f.terminal)==0 && st_cterm_reset_terminal(f.terminal)==0 && f.size==0);
+		flood_pixels(&f,15,5);
 	}
-	st_pixel_buffer_destroy(p); destroy(&f);
+	destroy(&f);
 }
 struct corrupt_pixel { unsigned x,y; uint32_t a,b; };
 static int corrupt(void *context, const struct st_pixel_buffer *p, struct st_console_rect *r)
@@ -321,20 +273,20 @@ static void flood_prefixes_errors_sources(void)
 	flood_scene(&f,2,15); string(&f,"I#F 12,12,");
 	CHECK(st_cterm_finish(f.terminal)==0 && b->state.bgi.fill_color==3 && f.size==0); flood_pixels(&f,15,3);
 	string(&f,"I#F 12,12,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && f.size==2 && b->state.bgi.fill_color==5); flood_pixels(&f,15,5);
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && f.size==0 && b->state.bgi.fill_color==5); flood_pixels(&f,15,5);
 	flood_scene(&f,2,15); string(&f,"I#F 12,12,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
 	CHECK(st_cterm_poll(f.terminal)==0 && !b->flood.active && b->state.bgi.fill_color==3 && f.size==0); flood_pixels(&f,15,3);
 	f.reset_bell=false;
 	/* Rejected custom attributes retain the previous fill but do not suppress F. */
 	flood_scene(&f,2,15); string(&f,"I#C 2,31:I#A 12:I#F 12,12,0:");
-	CHECK(f.size==2 && b->state.bgi.error==-11 && b->state.bgi.fill_style==1 && b->state.bgi.fill_color==3); flood_pixels(&f,15,3);
+	CHECK(f.size==0 && b->state.bgi.error==-11 && b->state.bgi.fill_style==1 && b->state.bgi.fill_color==3); flood_pixels(&f,15,3);
 	flood_scene(&f,2,15); b->state.bgi.state=0;
 	const char wire[]="I#F 12,12,0:"; size_t used;
 	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(wire)-1);
 	CHECK(f.size==0 && b->state.bgi.error==-1 && b->state.bgi.fill_color==5); flood_pixels(&f,15,3); b->state.bgi.state=3;
-	/* Bounded exhaustion completes the accepted seed span and paired flow. */
+	/* Bounded exhaustion completes the accepted seed span without wire flow. */
 	flood_scene(&f,2,15); b->flood_work.capacity=0; string(&f,"I#F 12,12,0:");
-	CHECK(f.size==2 && b->flood_work.overflow && b->state.bgi.error==-7);
+	CHECK(f.size==0 && b->flood_work.overflow && b->state.bgi.error==-7);
 	const struct st_console_rect r={10,10,5,5}; struct st_pixel_buffer *p=NULL;
 	CHECK(st_console_get_pixels(&p,f.console,&r,false)==0);
 	for (unsigned y=0;y<5;++y) for (unsigned x=0;x<5;++x) {
@@ -342,26 +294,26 @@ static void flood_prefixes_errors_sources(void)
 		CHECK(p->primary[y*5+x]==800+pen && p->alternate[y*5+x]==800+pen);
 	}
 	st_pixel_buffer_destroy(p); b->flood_work.capacity=CTERM_BIG_FLOOD_RECORDS;
-	/* A host storage error retains the XOFF prefix with no synthetic XON. */
+	/* A host storage error recovers without wire flow bytes. */
 	flood_scene(&f,2,15); const struct corrupt_pixel c={8,12,42,42};
 	CHECK(st_console_modify_pixels(f.console,corrupt,(void *)&c)==0);
 	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==0 && b->last_error==IO_ERROR_OUT_OF_RANGE && used==sizeof(wire)-1);
-	CHECK(f.size==1 && f.output[0]==19 && !b->flood.active && b->state.bgi.error==-7);
-	flood_scene(&f,2,15); string(&f,wire); CHECK(f.size==2); flood_pixels(&f,15,5);
-	/* A supplied Y is unscaled; source exhaustion before body entry adds F's flow. */
+	CHECK(f.size==0 && !b->flood.active && b->state.bgi.error==-7);
+	flood_scene(&f,2,15); string(&f,wire); CHECK(f.size==0); flood_pixels(&f,15,5);
+	/* A supplied Y is unscaled; source exhaustion retains the normal result. */
 	flood_scene(&f,3,15); string(&f,"I#B 10,3,14,7,1:I#g 3:"); f.size=0;
 	string(&f,"I#& 0,1,1,0,F@3,12,5,0:");
-	CHECK(f.size==4 && memcmp(f.output,"\x13\x13\x11\x11",4)==0 && b->numeric.loop.active==0);
+	CHECK(f.size==0 && b->numeric.loop.active==0);
 	const struct st_console_rect two={12,5,1,8}; CHECK(st_console_get_pixels(&p,f.console,&two,false)==0);
 	CHECK(p->primary[0]==805 && p->alternate[0]==805 && p->primary[7]==803 && p->alternate[7]==803); st_pixel_buffer_destroy(p);
 	flood_scene(&f,2,15); string(&f,"I#& 0,2,1,0,F@3,12,12,0:");
-	CHECK(f.size==4 && memcmp(f.output,"\x13\x13\x11\x11",4)==0 && b->numeric.loop.active==0 && b->numeric.loop.current==2); flood_pixels(&f,15,5);
+	CHECK(f.size==0 && b->numeric.loop.active==0 && b->numeric.loop.current==2); flood_pixels(&f,15,5);
 	flood_scene(&f,2,15); b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
-	string(&f,"I#F>12,12,0:"); CHECK(f.size==2 && b->control.input.pending==1);
-	string(&f,"~ "); CHECK(f.size==4 && f.output[2]==0 && f.output[3]==255);
+	string(&f,"I#F>12,12,0:"); CHECK(f.size==0 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255);
 	/* Signed-negative coordinates clamp before the flood request. */
 	flood_scene(&f,2,15); string(&f,"I#C 2,15:I#B 0,0,0,0,0:I#C 2,5:I#F +1,+2,0:");
-	CHECK(f.size==2 && b->state.bgi.error==-7 && b->state.bgi.fill_color==5);
+	CHECK(f.size==0 && b->state.bgi.error==-7 && b->state.bgi.fill_color==5);
 	destroy(&f);
 }
 static void flood_native_byte_planes(void)
@@ -373,7 +325,7 @@ static void flood_native_byte_planes(void)
 	const struct corrupt_pixel inside={20,12,803,814}, outside={8,12,800,42};
 	CHECK(st_console_modify_pixels(f.console,corrupt,(void *)&inside)==0);
 	CHECK(st_console_modify_pixels(f.console,corrupt,(void *)&outside)==0);
-	string(&f,"I#F 12,12,0:"); CHECK(f.size==2 && b->last_error==0);
+	string(&f,"I#F 12,12,0:"); CHECK(f.size==0 && b->last_error==0);
 	const struct st_console_rect r={8,10,28,5}; struct st_pixel_buffer *p=NULL;
 	CHECK(st_console_get_pixels(&p,f.console,&r,false)==0);
 	for (unsigned y=0;y<5;++y) for (unsigned x=0;x<28;++x) {

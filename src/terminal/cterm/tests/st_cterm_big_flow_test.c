@@ -92,18 +92,17 @@ static void flow_and_footer(void)
 {
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
 	string(&f,"I#X>5,2,256,2:X 5,3,511,2:"); CHECK(f.size==0);
-	string(&f,"I#X 8,3,4,+1,0:"); CHECK(f.size==4 && memcmp(f.output,"\xff\xff\0\0",4)==0);
+	string(&f,"I#X 8,3,4,+1,0:"); CHECK(f.size==0);
 	string(&f,"I#X 5,0:"); f.size=0; string(&f,"I#X 8,3,4,+1,0:"); CHECK(f.size==0);
-	string(&f,"I#X 5,2,300,+1:"); string(&f,"I#X 8,3,4,+1,0:"); CHECK(f.size==2 && memcmp(f.output,"\xff\xff",2)==0);
+	string(&f,"I#X 5,2,300,+1:"); string(&f,"I#X 8,3,4,+1,0:"); CHECK(f.size==0);
 	string(&f,"I#X>5,4:X 5,2,255,130:"); f.size=0;
-	string(&f,"I#X 8,3,4,+1,0:"); CHECK(f.size==64 && b->rotation.active && f.output[0]==19);
-	poll(&f); CHECK(f.size==128 && b->rotation.active); poll(&f); CHECK(f.size==131 && !b->rotation.active);
-	for (size_t i=1;i<131;++i) CHECK(f.output[i]==255);
+	string(&f,"I#X 8,3,4,+1,0:"); CHECK(f.size==0 && !b->rotation.active);
+	poll(&f); CHECK(f.size==0 && !b->rotation.active);
 	string(&f,"I#X 5,4:"); f.size=0;
 	/* First stored record retains loop and overrides3 to1. Final record
 	 * clears loop during the operation read, then consumes custom wire. */
 	string(&f,"I#& 0,2,1,0,X@2,5,3,260,2:"); settings(&f,3,17,4,1,2);
-	CHECK(b->numeric.loop.active==0 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->numeric.loop.active==0 && f.size==0);
 	f.size=0; string(&f,"I#"); b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]=255;
 	string(&f,"X>5,0:X 5,1:\033[6n"); CHECK(f.size==7 && memcmp(f.output,"\xff\033[1;1R",7)==0 && b->control.input.pending==0);
 	destroy(&f);

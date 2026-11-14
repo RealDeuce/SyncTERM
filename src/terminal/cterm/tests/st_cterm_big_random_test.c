@@ -101,7 +101,7 @@ static void substitutions_and_stored_sources(void)
 	/* Constant records end the loop before the final TO, but both X2
 	 * bodies reseed. Only setup/footer own flow, and g3 has no effect. */
 	string(&f,"I#g 3:I#& 0,2,1,0,X@3,2,10,4:"); bounds(&f,10,11);
-	CHECK(wall_calls==calls+2 && b->numeric.random_state==1 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(wall_calls==calls+2 && b->numeric.random_state==1 && f.size==0);
 	/* Supplied WORD32767 bypasses the four wire-digit slots. Repair
 	 * wraps to8000 and does not recheck that negative upper bound. */
 	string(&f,"I#"); b->numeric.loop=(struct st_big_loop){.active=1,.count=3,.step=1,.to=1,.no_parameters=1,.type='@',.words={2,32767,0}};

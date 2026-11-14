@@ -141,11 +141,11 @@ static void repeat_and_deferred_reply(void)
 	string(&f,"I#& 0,3,1,0,L@4,x,20,x,20:");
 	const struct dot repeated[]={{0,20,815,815},{1,20,815,815},{2,20,815,815},{3,20,815,815}};
 	canvas(&f,repeated,4); point(&f,3,20);
-	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.size==0);
 	b->control.input.pending=1; b->control.input.count=2; b->control.input.append_cr=1;
 	b->control.input.payload[1]=0; b->control.input.payload[2]=255;
-	string(&f,"I#L>10,20,12,20:"); CHECK(f.size==2 && b->control.input.pending==1);
-	string(&f,"~ "); CHECK(f.size==5 && memcmp(f.output+2,"\0\xff\r",3)==0 && b->control.input.pending==0);
+	string(&f,"I#L>10,20,12,20:"); CHECK(f.size==0 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==3 && memcmp(f.output,"\0\xff\r",3)==0 && b->control.input.pending==0);
 	destroy(&f);
 }
 static void clipping_and_thickness(void)
@@ -169,7 +169,7 @@ static void sources_scaling_and_deadlines(void)
 	const struct dot scaled[]={{5,11,815,815}}; canvas(&f,scaled,1); point(&f,5,11);
 	reset_mode(&f,3); string(&f,"I#& 0,1,1,0,L@4,7,5,7,5:");
 	const struct dot stored[]={{7,5,815,815}}; canvas(&f,stored,1); point(&f,7,5);
-	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(f.size==0);
 	reset_mode(&f,3); string(&f,"I#& 0,1,1,0,L@3,7,5,7:5:");
 	const struct dot mixed[]={{7,5,815,815},{7,6,815,815},{7,7,815,815},{7,8,815,815},{7,9,815,815},{7,10,815,815},{7,11,815,815}};
 	canvas(&f,mixed,7); point(&f,7,11);
@@ -266,12 +266,12 @@ static void move_sources_and_replies(void)
 	string(&f,"I#R 3:I#& 0,1,1,0,m@4,1,2,1,5:"); point(&f,65534,5);
 	string(&f,"I#R 3:I#& 0,1,1,0,m@3,1,2,1:5:"); point(&f,65534,11);
 	string(&f,"I#R 3:I#& 0,2,1,0,m@4,1,x,1,x:"); point(&f,65533,3);
-	CHECK(f.size==12 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11\x13\x11\x13\x11\x13\x11",12)==0);
+	CHECK(f.size==0);
 	canvas(&f,NULL,0);
 	b->control.input.pending=1; b->control.input.count=2; b->control.input.append_cr=1;
 	b->control.input.payload[1]=0; b->control.input.payload[2]=255;
-	string(&f,"I#m>2,10,20:"); CHECK(f.size==12 && b->control.input.pending==1);
-	string(&f,"~ "); CHECK(f.size==15 && memcmp(f.output+12,"\0\xff\r",3)==0 && b->control.input.pending==0);
+	string(&f,"I#m>2,10,20:"); CHECK(f.size==0 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==3 && memcmp(f.output,"\0\xff\r",3)==0 && b->control.input.pending==0);
 	destroy(&f);
 }
 static void move_cancellation_and_failure(void)
@@ -346,15 +346,15 @@ static void writing_mode_sources_and_failures(void)
 	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.bgi.write_mode==0 && b->state.application.write_mode==0);
 	string(&f,"I#R 3:I#g 3:I#M 2:"); CHECK(b->state.bgi.write_mode==1 && b->state.application.write_mode==1);
 	string(&f,"I#& 2,4,1,0,M@1,x:");
-	CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0 && b->numeric.loop.active==0 && b->numeric.loop.current==4 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0 && b->numeric.loop.active==0 && b->numeric.loop.current==4 && f.size==0);
 	b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='R';
-	string(&f,"I#M>1:"); CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0 && f.size==2);
-	string(&f,"~ "); CHECK(f.size==3 && f.output[2]=='R');
+	string(&f,"I#M>1:"); CHECK(b->state.bgi.write_mode==0 && b->state.application.write_mode==0 && f.size==0);
+	string(&f,"~ "); CHECK(f.size==1 && f.output[0]=='R');
 	b->state.bgi.state=0; b->state.bgi.write_mode=9; b->state.application.write_mode=7; b->state.bgi.error=0;
 	string(&f,"I#M "); CHECK(b->state.bgi.error==0 && b->state.bgi.write_mode==9 && b->state.application.write_mode==7);
 	const char tail[]="2:"; size_t used;
 	CHECK(st_cterm_write(f.terminal,tail,sizeof(tail)-1,&used)==0 && b->last_error==IO_ERROR_PROTOCOL && used==sizeof(tail)-1);
-	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==9 && b->state.application.write_mode==7 && f.size==3);
+	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==9 && b->state.application.write_mode==7 && f.size==1);
 	b->state.bgi.state=3; string(&f,"I#M 3:");
 	CHECK(b->state.bgi.error==-1 && b->state.bgi.write_mode==1 && b->state.application.write_mode==1);
 	destroy(&f);
@@ -408,20 +408,20 @@ static void color_prefixes_sources_and_lifetime(void)
 	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==2 && b->state.application.colors[2]==13);
 	string(&f,"I#R 3:I#g 3:I#C 1,5:"); CHECK(b->state.application.colors[1]==5 && b->state.bgi.color==15);
 	string(&f,"I#& 0,1,1,0,C@2,1,291:"); CHECK(b->state.application.colors[1]==291);
-	string(&f,"I#& 0,1,1,0,C@1,2:5:"); CHECK(b->state.application.colors[2]==5 && f.size==4 && memcmp(f.output,"\x13\x11\x13\x11",4)==0);
+	string(&f,"I#& 0,1,1,0,C@1,2:5:"); CHECK(b->state.application.colors[2]==5 && f.size==0);
 	string(&f,"I#& 0,3,1,0,C@2,x,291:");
 	for (size_t i=0;i<4;++i) CHECK(b->state.application.colors[i]==291);
-	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.size==6 && memcmp(f.output+4,"\x13\x11",2)==0);
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.size==0);
 	b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255; b->control.input.append_cr=1;
-	string(&f,"I#C>1,9:"); CHECK(f.size==6 && b->control.input.pending==1 && b->state.bgi.color==15);
-	string(&f,"~ "); CHECK(f.size==9 && memcmp(f.output+6,"\0\xff\r",3)==0);
+	string(&f,"I#C>1,9:"); CHECK(f.size==0 && b->control.input.pending==1 && b->state.bgi.color==15);
+	string(&f,"~ "); CHECK(f.size==3 && memcmp(f.output,"\0\xff\r",3)==0);
 	string(&f,"I#C 0,261:I#C 2,31:I#C 3,+1:I#I 1:I#R 1:");
 	const uint16_t retained[]={261,9,31,65535}; CHECK(memcmp(b->state.application.colors,retained,sizeof(retained))==0);
 	CHECK(b->state.bgi.color==15 && b->state.bgi.fill_color==15 && b->state.bgi.error==-11);
 	string(&f,"I#I 0:"); for (size_t i=0;i<4;++i) CHECK(b->state.application.colors[i]==15);
 	b->state.bgi.state=0; b->state.bgi.color=b->state.bgi.device_color=9;
 	string(&f,"I#C 1,8:"); CHECK(b->state.application.colors[1]==8 && b->state.bgi.color==9 && b->state.bgi.device_color==9 && b->state.bgi.error==-11);
-	canvas(&f,NULL,0); CHECK(f.size==9 && f.terminal->xpos==1);
+	canvas(&f,NULL,0); CHECK(f.size==3 && f.terminal->xpos==1);
 	destroy(&f);
 }
 int main(void)

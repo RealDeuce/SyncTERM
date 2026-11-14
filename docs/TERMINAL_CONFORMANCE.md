@@ -1307,3 +1307,14 @@ nonfatal partial effects. Native full-plane/profile/split/lifecycle/error
 checks and224 new coherent scenes (2856 total) cover the complete wire path
 and retained scene/state/replies. Reset during timeout cancels drawing.
 Global45-entry composition and the final full regression suite remain pending.
+
+BIG t now drains local keys before its shared class0 numeric operand, clamps
+signed seconds to1..30 and pauses parsing with a local monotonic deadline or
+keypress. Existing session/connection buffers retain the unread tail. BIG
+sends no automatic XON/XOFF or custom X5 flow bytes; X5 remains protocol state.
+The shared session pacing policy does not accumulate baud credit during a
+parser pause or its resume tick, keeping the buffered backlog paced.
+cterm_big_pause covers split/profile/scene/state/source/reply and recovery
+semantics; big_session_pacing exercises a real POSIX shell connection in both
+encodings, paced/unpaced. The coherent BIG fixture now contains2884 scenes.
+Other emulation/session regressions remain deferred to the goal's final suite.

@@ -134,7 +134,7 @@ static void source_and_recovery(void)
 	struct fixture f; create(&f,true,true); struct cterm_big *b=f.terminal->big_engine;
 	string(&f,"I#& 1,3,1,0,R@1,x:");
 	CHECK(f.resizes==4 && f.heights[1]==200 && f.heights[2]==350 && f.heights[3]==480);
-	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.size==2 && f.output[0]==19 && f.output[1]==17);
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.size==0);
 	string(&f,"I#R 1"); CHECK(b->numeric.context.resolution==3 && f.resizes==4);
 	CHECK(st_cterm_finish(f.terminal)==0 && f.resizes==4);
 	string(&f,"I#R "); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
@@ -207,11 +207,11 @@ static void extended_prefix_and_unknown(void)
 		CHECK(f.terminal->xpos==2 && b->control.pointer.step_x==15 && b->control.pointer.step_y==15);
 	}
 	string(&f,"I#& 0,2,1,0,X@1,9:");
-	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && f.size==2 && f.output[0]==19 && f.output[1]==17);
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && f.size==0);
 	string(&f,"I#"); b->control.input.pending=1; b->control.input.count=2;
 	b->control.input.payload[1]=0; b->control.input.payload[2]=255;
-	string(&f,"X>9,"); CHECK(b->control.input.pending==1 && f.size==2);
-	string(&f,"~ "); CHECK(f.size==4 && f.output[2]==0 && f.output[3]==255);
+	string(&f,"X>9,"); CHECK(b->control.input.pending==1 && f.size==0);
+	string(&f,"~ "); CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255);
 	destroy(&f);
 }
 static void extended_numeric_sources(void)
@@ -231,7 +231,7 @@ static void extended_numeric_sources(void)
 	/* The final stored Y bypasses ordinary scaling, despite g3/cache3. */
 	string(&f,"I#& 0,1,1,0,X@3,6,5,5:");
 	CHECK(b->numeric.loop.active==0 && b->control.pointer.step_x==5 && b->control.pointer.step_y==5);
-	CHECK(f.size==6 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11",6)==0);
+	CHECK(f.size==0);
 	string(&f,"I#X 6,0,5"); CHECK(b->control.pointer.step_x==0 && b->control.pointer.step_y==5);
 	local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
 	CHECK(st_cterm_poll(f.terminal)==0 && b->control.pointer.step_x==1 && b->control.pointer.step_y==11 && f.bells==1);
@@ -338,23 +338,17 @@ static void zone_sources_and_flow(void)
 	string(&f,"I#R 3:I#g 3:I#& 0,1,1,0,X@7,4,0,1,2,3,4,2:AB!Z");
 	static const uint16_t coords[]={1,2,3,4};
 	CHECK(memcmp(b->control.zones.rectangles[0],coords,sizeof(coords))==0);
-	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0 && memcmp(b->control.zones.payload,"\2AB",3)==0);
+	CHECK(f.size==0 && memcmp(b->control.zones.payload,"\2AB",3)==0);
 	string(&f,"I#& 0,1,1,0,X@8,4,0,1,2,3,4,2,99:CD!Z");
-	CHECK(f.size==5 && memcmp(f.output+2,"\x13\x11\x11",3)==0 && memcmp(b->control.zones.payload,"\2CD",3)==0);
-	b->control_io.ready=zone_ready; f.block_on=true;
-	const char blocked[]="I#& 0,1,1,0,X@8,4,0,1,2,3,4,2,99:"; size_t used;
-	CHECK(st_cterm_write(f.terminal,blocked,sizeof(blocked)-1,&used)==IO_ERROR_IN_PROGRESS && used==sizeof(blocked)-1);
-	CHECK(f.size==6 && f.output[5]==19 && b->control.zones.payload[0]==2 && st_cterm_input_paused(f.terminal));
-	local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS*2;
-	/* Flow gate was taken already; changing loop does not remove its XON.
-	 * The first auxiliary deadline starts after output becomes ready. */
-	b->numeric.loop.active=0; f.block_on=false; CHECK(st_cterm_poll(f.terminal)==0);
-	CHECK(f.size==7 && f.output[6]==17 && f.bells==0 && b->zone.phase==CTERM_BIG_ZONE_READ);
-	string(&f,"EF!Z"); CHECK(f.size==8 && f.output[7]==17 && f.bells==0 && memcmp(b->control.zones.payload,"\2EF",3)==0);
-	f.reset_on=true;
-	CHECK(st_cterm_write(f.terminal,blocked,sizeof(blocked)-1,&used)==0 && used==sizeof(blocked)-1);
-	CHECK(f.size==9 && f.output[8]==19 && b->zone.phase==CTERM_BIG_ZONE_OFF && !st_cterm_input_paused(f.terminal));
-	CHECK(b->control.zones.payload[0]==2 && b->control.zones.payload[1]=='E');
+	CHECK(f.size==0 && memcmp(b->control.zones.payload,"\2CD",3)==0);
+	b->control_io.ready=zone_ready; f.block_on=f.reset_on=true;
+	const char header[]="I#& 0,1,1,0,X@8,4,0,1,2,3,4,2,99:";
+	string(&f,header);
+	CHECK(f.size==0 && b->zone.phase==CTERM_BIG_ZONE_READ && !st_cterm_input_paused(f.terminal) && f.reset_on);
+	string(&f,"EF!Z"); CHECK(f.size==0 && memcmp(b->control.zones.payload,"\2EF",3)==0 && f.reset_on);
+	string(&f,header); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && f.size==0 && f.reset_on);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->zone.phase==CTERM_BIG_ZONE_OFF && !st_cterm_input_paused(f.terminal));
 	destroy(&f);
 }
 static void zone_chain_and_key_ownership(void)
@@ -465,7 +459,7 @@ static void marker_prefix_sources_and_recovery(void)
 	string(&f,"I#R 3:I#g 3:I#P 5,5:"); marker_pixel(&f,5,11,807);
 	string(&f,"I#& 0,1,1,0,P@2,7,5:"); marker_pixel(&f,7,5,807);
 	string(&f,"I#& 0,1,1,0,P@1,9:5:"); marker_pixel(&f,9,11,807);
-	CHECK(f.size==4 && memcmp(f.output,"\x13\x11\x13\x11",4)==0);
+	CHECK(f.size==0);
 	string(&f,"I#P 12,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
 	CHECK(st_cterm_poll(f.terminal)==0 && f.bells==1 && b->state.bgi.x==12 && b->state.bgi.y==0); marker_pixel(&f,12,0,807);
 	destroy(&f);
@@ -487,7 +481,7 @@ static void style_normalization_and_lifetime(void)
 	string(&f,"I#R 1:"); CHECK(b->state.application.marker==2 && b->state.application.marker_size==8 && b->state.bgi.line_width==1 && b->state.bgi.line_mask==65535);
 	string(&f,"I#I 1:"); CHECK(b->state.application.marker==2 && b->state.application.marker_size==8);
 	string(&f,"I#I 0:"); CHECK(b->state.application.marker==0 && b->state.application.marker_size==1);
-	string(&f,"I#& 0,1,1,0,T@3,1,2,1:"); CHECK(b->state.application.marker==2 && b->state.application.marker_size==1 && f.size==2 && f.output[0]==19 && f.output[1]==17);
+	string(&f,"I#& 0,1,1,0,T@3,1,2,1:"); CHECK(b->state.application.marker==2 && b->state.application.marker_size==1 && f.size==0);
 	destroy(&f);
 }
 static int seed_marker_pixel(void *context, const struct st_pixel_buffer *p, struct st_console_rect *changed)

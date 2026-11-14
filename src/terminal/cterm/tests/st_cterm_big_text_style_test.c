@@ -83,7 +83,7 @@ static void partials_lifetimes_and_sources(void)
 	string(&f,"I#E 4,4,1:");
 	CHECK(b->state.bgi.font==4 && b->state.bgi.text_size==4 && b->state.bgi.direction==1 && b->state.bgi.text_cached[0]==32);
 	f.size=0; string(&f,"I#& 0,2,1,0,E@3,2,0,1:");
-	CHECK(b->state.bgi.font==2 && b->state.bgi.direction==1 && b->state.bgi.text_cached[0]==18 && b->state.bgi.text_cached[1]==13 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->state.bgi.font==2 && b->state.bgi.direction==1 && b->state.bgi.text_cached[0]==18 && b->state.bgi.text_cached[1]==13 && f.size==0);
 	f.size=0; string(&f,"I#"); b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]=255;
 	string(&f,"E>0,0,1:S 5,5:\033[6n");
 	CHECK(b->state.bgi.font==0 && b->state.bgi.text_size==0 && b->state.bgi.text_cached[0]==8 && b->state.bgi.device_text_direction==1);

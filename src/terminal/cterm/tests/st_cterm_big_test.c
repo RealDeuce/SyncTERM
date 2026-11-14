@@ -213,16 +213,15 @@ static void stored_repetition(void)
 	string(&f,"I Z");
 	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && b->numeric.loop.varying_total==3);
 	CHECK(f.resizes==3 && b->state.memory_page==3 && b->numeric.loop.type==' ');
-	CHECK(f.output_size==4 && memcmp(f.output,(uint8_t[]){17,0,0xff,13},4)==0 && f.terminal->xpos==2);
-	CHECK(f.origins[0]==ST_CTERM_OUTPUT_RESPONSE);
-	for (size_t i=1;i<4;++i) CHECK(f.origins[i]==ST_CTERM_OUTPUT_USER);
+	CHECK(f.output_size==3 && memcmp(f.output,(uint8_t[]){0,0xff,13},3)==0 && f.terminal->xpos==2);
+	for (size_t i=0;i<3;++i) CHECK(f.origins[i]==ST_CTERM_OUTPUT_USER);
 	/* Normal large constant loop yields cooperatively without consuming tail. */
 	string(&f,"I#"); b->numeric.loop=(struct st_big_loop){.active=1,.count=1,.step=1,.to=30000,.no_parameters=1,.type='@',.words={1}};
 	b->control.frame.did_loop=1; b->control.input.pending=1; size_t used;
 	CHECK(st_cterm_write(f.terminal,"I ZZ",4,&used)==IO_ERROR_IN_PROGRESS && used==2);
-	CHECK(st_cterm_input_paused(f.terminal) && b->numeric.loop.current==65 && b->control.frame.did_loop==1 && f.output_size==4);
+	CHECK(st_cterm_input_paused(f.terminal) && b->numeric.loop.current==65 && b->control.frame.did_loop==1 && f.output_size==3);
 	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==129 && st_cterm_input_paused(f.terminal));
-	CHECK(st_cterm_finish(f.terminal)==0 && !st_cterm_input_paused(f.terminal) && b->control.input.pending==0 && b->numeric.loop.active==0 && f.output_size==4);
+	CHECK(st_cterm_finish(f.terminal)==0 && !st_cterm_input_paused(f.terminal) && b->control.input.pending==0 && b->numeric.loop.active==0 && f.output_size==3);
 	destroy(&f);
 }
 static void gang_source_seams(void)
@@ -232,7 +231,7 @@ static void gang_source_seams(void)
 	b->numeric.loop=(struct st_big_loop){.active=1,.count=3,.step=1,.to=2,.no_parameters=1,.type=',',.words={1,0,1}};
 	string(&f,"I Z");
 	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && b->numeric.loop.index==0 && b->numeric.loop.command=='I');
-	CHECK(b->control.frame.gang_marker=='X' && f.output_size==1 && f.output[0]==17 && f.terminal->xpos==2);
+	CHECK(b->control.frame.gang_marker=='X' && f.output_size==0 && f.terminal->xpos==2);
 	/* The selector itself ends looping; selected I then reads wire1. */
 	string(&f,"I#"); b->state.application.marker=7; b->control.frame.gang_marker='>'; b->control.frame.gang[0]='I';
 	b->numeric.loop=(struct st_big_loop){.active=1,.count=2,.step=1,.to=1,.no_parameters=1,.type=',',.command='W',.words={1,0}};
@@ -262,15 +261,14 @@ static void footer_wait_reset(void)
 	CHECK(st_cterm_write(f.terminal,"I#I 1:",6,&used)==IO_ERROR_IN_PROGRESS && used==6);
 	CHECK(st_cterm_finish(f.terminal)==0 && !st_cterm_input_paused(f.terminal));
 	f.block_output=false; CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==3);
-	/* A chained pair deadline starts after finishing flow has returned. */
+	/* Finishing legacy flow does not consult transport readiness. The
+	 * chained pair deadline starts immediately and expires normally. */
 	string(&f,"I#"); b->control.frame.did_loop=1; f.block_output=true;
-	CHECK(st_cterm_write(f.terminal,"I>1:",4,&used)==IO_ERROR_IN_PROGRESS && used==4 && !b->pair_wait);
+	CHECK(st_cterm_write(f.terminal,"I>1:",4,&used)==0 && used==4 && b->pair_wait);
+	CHECK(b->pair_deadline==local_ns+ST_BIG_NUMERIC_TIMEOUT_NS && f.output_size==3);
 	local_ns+=2*ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal)==0 && !b->pair_wait && f.bells==0);
-	f.block_output=false;
-	CHECK(st_cterm_poll(f.terminal)==0 && b->pair_wait && b->pair_deadline==local_ns+ST_BIG_NUMERIC_TIMEOUT_NS);
-	CHECK(f.output_size==4 && f.output[3]==17 && f.origins[3]==ST_CTERM_OUTPUT_RESPONSE);
-	string(&f,"I 1:"); CHECK(f.bells==0 && !b->pair_wait);
+	CHECK(st_cterm_poll(f.terminal)==0 && !b->pair_wait && f.bells==1 && f.output_size==3);
+	f.block_output=false; string(&f,"I#I 1:"); CHECK(!b->pair_wait);
 	destroy(&f);
 }
 static void key_loop(struct fixture *f)
@@ -298,13 +296,12 @@ static void local_keys(void)
 		CHECK(f.output_size==0 && b->numeric.loop.active==1);
 		CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.active==0);
 		CHECK(b->numeric.loop.current==1 && b->state.application.marker==7 && f.resizes==1);
-		const uint8_t expected_utf8[]={17,0xc3,0x85,27,'[','A',27,'[','1','3',';','5','~',27,'[','B',0xff};
-		const uint8_t expected_cp[]={17,0x8f,27,'[','A',27,'[','1','3',';','5','~',27,'[','B',0xff};
+		const uint8_t expected_utf8[]={0xc3,0x85,27,'[','A',27,'[','1','3',';','5','~',27,'[','B',0xff};
+		const uint8_t expected_cp[]={0x8f,27,'[','A',27,'[','1','3',';','5','~',27,'[','B',0xff};
 		const uint8_t *expected=utf8?expected_utf8:expected_cp;
 		size_t size=utf8?sizeof(expected_utf8):sizeof(expected_cp);
 		CHECK(f.output_size==size && memcmp(f.output,expected,size)==0);
-		CHECK(f.origins[0]==ST_CTERM_OUTPUT_RESPONSE);
-		for (size_t i=1;i<size;++i) CHECK(f.origins[i]==ST_CTERM_OUTPUT_USER);
+		for (size_t i=0;i<size;++i) CHECK(f.origins[i]==ST_CTERM_OUTPUT_USER);
 		CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==size);
 		CHECK(st_cterm_handle_key(f.terminal,'z',0) && f.output_size==size+1 && f.output[size]=='z');
 		destroy(&f);
@@ -321,15 +318,15 @@ static void local_key_bytes(void)
 	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==1);
 	CHECK(st_cterm_handle_text_key(f.terminal,3));
 	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==3 && b->numeric.loop.active==0);
-	CHECK(f.output_size==1 && f.output[0]==17);
+	CHECK(f.output_size==0);
 	key_loop(&f);
 	/* Unicode is converted to local CP437, never truncated to a C0 byte. */
 	CHECK(st_cterm_handle_text_key(f.terminal,0x1f603));
 	CHECK(st_cterm_handle_text_key(f.terminal,0xe9));
 	CHECK(st_cterm_handle_codepage_key(f.terminal,0));
-	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==3 && b->numeric.loop.active==1 && f.output_size==1);
+	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==3 && b->numeric.loop.active==1 && f.output_size==0);
 	CHECK(st_cterm_handle_codepage_key(f.terminal,24));
-	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==4 && b->numeric.loop.active==0 && f.output_size==2);
+	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==4 && b->numeric.loop.active==0 && f.output_size==0);
 	destroy(&f);
 }
 static void local_key_lifecycle(void)
@@ -342,30 +339,34 @@ static void local_key_lifecycle(void)
 	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==1);
 	CHECK(st_cterm_reset_terminal(f.terminal)==0);
 	key_loop(&f); CHECK(st_cterm_handle_key(f.terminal,3,0));
-	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==1 && f.output_size==1);
+	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==1 && f.output_size==0);
 	/* A reset from the first replayed key discards the unread suffix. */
 	key_loop(&f); CHECK(st_cterm_handle_key(f.terminal,3,0));
 	CHECK(st_cterm_handle_key(f.terminal,'A',0) && st_cterm_handle_key(f.terminal,'B',0));
 	b->control.frame.did_loop=0; f.reset_output=true;
-	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==2 && f.output[1]=='A' && !f.reset_output);
-	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==2);
+	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==1 && f.output[0]=='A' && !f.reset_output);
+	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==1);
 	/* Saturation must never leak local input to the BBS. */
 	key_loop(&f); CHECK(st_cterm_handle_key(f.terminal,3,0));
 	for (unsigned i=0;i<100;++i) CHECK(st_cterm_handle_key(f.terminal,'Q',0));
-	CHECK(f.output_size==2);
-	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==66 && f.output[2]==17);
-	for (size_t i=3;i<f.output_size;++i) CHECK(f.output[i]=='Q');
+	CHECK(f.output_size==1);
+	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==64);
+	for (size_t i=1;i<f.output_size;++i) CHECK(f.output[i]=='Q');
 	destroy(&f);
 }
 static void local_key_return(void)
 {
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
-	key_loop(&f); b->numeric.loop.to=1; f.block_output=true;
+	key_loop(&f); b->numeric.loop.to=1;
+	/* A real counted reply can still block the footer independently of
+	 * legacy flow. Buffered local keys retain their original order. */
+	b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='!';
+	f.block_output=true;
 	CHECK(st_cterm_handle_text_key(f.terminal,'A') && st_cterm_handle_text_key(f.terminal,'B'));
 	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.active==0 && b->footer_active && f.output_size==0);
 	CHECK(st_cterm_handle_key(f.terminal,'C',0) && f.output_size==0);
 	f.block_output=false;
-	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==3 && memcmp(f.output,"\x11" "BC",3)==0);
+	CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==3 && memcmp(f.output,"!BC",3)==0);
 	/* An inherited loop flag outside the interpreter cannot claim keys. */
 	b->numeric.loop.active=1;
 	CHECK(st_cterm_handle_key(f.terminal,3,0) && f.output_size==4 && f.output[3]==3);
@@ -383,8 +384,7 @@ static void wire_loop_scene(struct fixture *f)
 	CHECK(b->numeric.loop.count==1 && b->numeric.loop.words[0]==1 && b->numeric.loop.no_parameters==1);
 	CHECK(b->numeric.loop.random_suppression==0 && b->control.frame.did_loop==0);
 	CHECK(b->state.application.marker==7 && f->resizes==1 && f->terminal->xpos==2);
-	CHECK(f->output_size==2 && f->output[0]==19 && f->output[1]==17);
-	CHECK(f->origins[0]==ST_CTERM_OUTPUT_RESPONSE && f->origins[1]==ST_CTERM_OUTPUT_RESPONSE);
+	CHECK(f->output_size==0);
 }
 static void wire_loops(void)
 {
@@ -403,11 +403,11 @@ static void wire_loops(void)
 	struct cterm_big *b=f.terminal->big_engine;
 	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && b->numeric.loop.count==2);
 	CHECK(b->control.frame.gang[0]=='I' && b->control.frame.gang[1]==0);
-	CHECK(f.output_size==4 && f.output[2]==19 && f.output[3]==17 && f.terminal->xpos==3);
+	CHECK(f.output_size==0 && f.terminal->xpos==3);
 	/* Initial & owns setup; a stored target & only reaches the common body. */
 	string(&f,"I#& 0,2,1,0,&@1,1:Z");
 	CHECK(b->numeric.loop.active==1 && b->numeric.loop.current==0 && b->numeric.loop.words[0]==1);
-	CHECK(f.output_size==6 && f.output[4]==19 && f.output[5]==17 && f.terminal->xpos==4);
+	CHECK(f.output_size==0 && f.terminal->xpos==4);
 	CHECK(st_cterm_finish(f.terminal)==0);
 	destroy(&f);
 }
@@ -458,16 +458,16 @@ static void wire_setup_keys(void)
 		string(&f,late?":Z":",Z");
 		CHECK(b->numeric.loop.words[0]==late && b->numeric.loop.words[1]==0);
 		CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && f.terminal->xpos==2);
-		CHECK(f.output_size==2 && f.output[0]==19 && f.output[1]==17);
+		CHECK(f.output_size==0);
 		CHECK(f.resizes==(late?3u:5u)); /* Zero-filled slots still execute I0. */
 		destroy(&f);
 	}
 	struct fixture f; create(&f,true,false); struct cterm_big *b=f.terminal->big_engine; size_t used;
 	CHECK(st_cterm_write(f.terminal,"I#& 0,1000,1,100,I@1,1:",23,&used)==IO_ERROR_IN_PROGRESS && used==23);
-	CHECK(b->numeric.loop.current==0 && f.output_size==1 && f.output[0]==19);
+	CHECK(b->numeric.loop.current==0 && f.output_size==0);
 	CHECK(st_cterm_handle_key(f.terminal,3,0) && st_cterm_handle_text_key(f.terminal,'k'));
 	CHECK(st_cterm_poll(f.terminal)==0 && b->numeric.loop.current==1 && b->numeric.loop.active==0);
-	CHECK(f.output_size==3 && memcmp(f.output,"\x13\x11k",3)==0);
+	CHECK(f.output_size==1 && memcmp(f.output,"k",1)==0);
 	destroy(&f);
 }
 static void wire_setup_flow_lifecycle(void)
@@ -475,22 +475,21 @@ static void wire_setup_flow_lifecycle(void)
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; size_t used;
 	f.block_output=true;
 	const char *wire="I#& 1,1,1,0,I@1,x:";
-	CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used)==IO_ERROR_IN_PROGRESS && used==strlen(wire));
-	CHECK(b->numeric.loop.active==1 && b->numeric.loop.no_parameters==1 && b->numeric.loop.words[0]==0x8001);
-	CHECK(b->control.frame.did_loop==1 && b->numeric.loop.random_suppression==0 && f.output_size==0);
-	f.block_output=false; CHECK(st_cterm_poll(f.terminal)==0);
-	CHECK(b->numeric.loop.active==0 && b->numeric.loop.no_parameters==0 && f.output_size==2 && f.resizes==1);
+	CHECK(st_cterm_write(f.terminal,wire,strlen(wire),&used)==0 && used==strlen(wire));
+	CHECK(b->numeric.loop.active==0 && b->numeric.loop.no_parameters==0 && b->numeric.loop.words[0]==0x8001);
+	CHECK(b->control.frame.did_loop==0 && b->numeric.loop.random_suppression==0 && f.output_size==0 && f.resizes==1);
+	f.block_output=false;
 	/* EOF/reset while loading retains acquired prefixes, without a body. */
 	static const char *partial[]={"I#& 7,","I#& 0,1,1,0,","I#& 0,1,1,0,>ABC","I#& 0,1,1,0,I@2,1:"};
 	for (size_t i=0;i<sizeof(partial)/sizeof(partial[0]);++i) {
 		string(&f,partial[i]); CHECK(st_cterm_handle_key(f.terminal,3,0));
 		CHECK(st_cterm_finish(f.terminal)==0 && b->setup.phase==CTERM_BIG_SETUP_OFF && b->numeric.loop.active==0);
-		CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==2 && b->text.active==0);
+		CHECK(st_cterm_poll(f.terminal)==0 && f.output_size==0 && b->text.active==0);
 	}
 	b->numeric.loop.random_suppression=0;
 	f.reset_output=true; string(&f,"I#& 0,1,1,0,I@1,0:");
-	CHECK(!f.reset_output && b->setup.phase==CTERM_BIG_SETUP_OFF && b->numeric.loop.active==0 && f.resizes==1);
-	CHECK(f.output_size==3 && f.output[2]==19);
+	CHECK(f.reset_output && b->setup.phase==CTERM_BIG_SETUP_OFF && b->numeric.loop.active==0 && f.resizes==2);
+	CHECK(f.output_size==0); f.reset_output=false;
 	destroy(&f);
 }
 static void pump(struct fixture *f, const char *wire, size_t size)
@@ -519,7 +518,7 @@ static void wire_setup_bounds(void)
 	large[size++]='Z'; pump(&f,large,size);
 	CHECK(b->numeric.loop.count==2048 && b->numeric.loop.active==1 && b->numeric.loop.current==0 && f.terminal->xpos==2);
 	for (size_t i=0;i<2048;++i) CHECK(b->numeric.loop.words[i]==1);
-	CHECK(f.output_size==6 && memcmp(f.output,"\x13\x11\x13\x11\x13\x11",6)==0);
+	CHECK(f.output_size==0);
 	CHECK(st_cterm_finish(f.terminal)==0);
 	/* Corrupted text without a terminator cannot copy into adjacent state. */
 	memset(b->text.bytes,'Q',sizeof(b->text.bytes)); b->numeric.loop.type='Z';
@@ -633,16 +632,16 @@ static void scaling_sources_and_footer(void)
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; size_t used;
 	const char wire[]="I#& 1,3,1,1,g@1,x:";
 	CHECK(st_cterm_write(f.terminal,wire,sizeof(wire)-1,&used)==IO_ERROR_IN_PROGRESS && used==sizeof(wire)-1);
-	CHECK(b->numeric.context.scaling==0 && f.output_size==1 && f.output[0]==19);
+	CHECK(b->numeric.context.scaling==0 && f.output_size==0);
 	for (unsigned value=1;value<=3;++value) {
 		local_ns+=UINT64_C(1000000000); CHECK(st_cterm_poll(f.terminal)==0);
 		CHECK(b->numeric.context.scaling==value && b->numeric.loop.current==value);
 	}
-	CHECK(b->numeric.loop.active==0 && f.output_size==2 && f.output[1]==17);
+	CHECK(b->numeric.loop.active==0 && f.output_size==0);
 	string(&f,"I#"); b->control.input.pending=1; b->control.input.count=2;
 	b->control.input.payload[1]=0; b->control.input.payload[2]=255;
-	string(&f,"g>2:"); CHECK(b->numeric.context.scaling==2 && b->control.input.pending==1 && f.output_size==2);
-	string(&f,"~ "); CHECK(f.output_size==4 && f.output[2]==0 && f.output[3]==255);
+	string(&f,"g>2:"); CHECK(b->numeric.context.scaling==2 && b->control.input.pending==1 && f.output_size==0);
+	string(&f,"~ "); CHECK(f.output_size==2 && f.output[0]==0 && f.output[1]==255);
 	destroy(&f);
 }
 static void hollow_partitions(void)
@@ -688,7 +687,7 @@ static void hollow_lifecycle(void)
 	b->state.bgi.state=0; b->state.bgi.error=-11; string(&f,"I#H 258:");
 	CHECK(b->state.application.hollow==258 && b->state.bgi.error==-11 && b->last_error==0); b->state.bgi.state=3;
 	string(&f,"I#& 0,3,1,0,H@1,x:");
-	CHECK(b->state.application.hollow==3 && b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.output_size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->state.application.hollow==3 && b->numeric.loop.active==0 && b->numeric.loop.current==3 && f.output_size==0);
 	f.output_size=0; b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
 	string(&f,"I#H>256:"); CHECK(b->state.application.hollow==256 && b->control.input.pending==1 && f.output_size==0);
 	string(&f,"~ "); CHECK(f.output_size==2 && memcmp(f.output,"\0\xff",2)==0);

@@ -23,9 +23,9 @@ g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
-pointer acquisition, E font selection and W graphical text are integrated.
+pointer acquisition, E font selection, W graphical text and t pauses are integrated.
 Curves, further controls, sound and full command acceptance remain pending
-(0/45). After W, the user-requested next command order is t, then ?.
+(0/45). W and t are implemented; ? is next in the requested W, t, ? order.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -91,6 +91,35 @@ BIG command errors must not terminate a terminal session. Cancel pending
 command/source/input/flow state, retain accepted state and pixels, report a
 warning and continue the unread stream through the pre-ANSI stage. Apply the
 same recovery to asynchronous polls, pointer callbacks and EOF cleanup.
+
+=== Buffered input, pauses and pacing
+
+BIG uses parser backpressure and the existing session/connection buffers.
+Do not send automatic XON/XOFF or custom X5 flow bytes, poll serial flow
+readiness or consume output budget for legacy flow counts. X5 still consumes
+and retains its mode/byte/count operands, with the existing numeric/source
+semantics. Legacy flow sites complete immediately; loop/text/footer state
+bookkeeping and actual counted input/query replies retain their owners.
+A remote needs no software flow-control support. This is an intentional
+native transport adaptation of the original serial caller behavior.
+
+A pause stops delivery to the parser and leaves the unread tail ahead of it.
+With simulated baud pacing, resume the buffered tail at the configured rate;
+do not bank baud credit during the pause or on the tick that ends it. Retain
+at most the existing single-byte allowance. Unpaced input resumes normally
+in order. Keep the session event pump, local keyboard and audio serviced.
+
+For t, drain ready local keys before reading class0 seconds, clamp the signed
+WORD to1..30, then translate once to a local monotonic deadline. At each poll,
+check time then keyboard, including one ready getch on the expiry poll.
+A private pending scan alone is not readiness. Discard the consumed byte;
+no echo, retransmit or post-exit drain. EOF/reset/error cancels the pause,
+and the existing nonfatal BIG recovery applies. No foreign BIOS clock,
+floating division/status machine or blocking thread sleep is introduced.
+
+Earlier commit-bearing verification records below retain their historical
+serial flow observations. Current executable expectations use this buffered
+input contract; the native pause/buffering section records their replacement.
 
 === Original numeric rounding
 
@@ -2940,3 +2969,70 @@ audio and final full regressions remain pending. Next: t, then ?, per user.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The initial full build emitted generated-dependency timestamp jitter notices; the final full build and focused build passed cleanly. All43 BIG-specific native CTests passed in48.43s. syncterm_big_input passed in141.68s (test141.61s),2856 coherent scenes. The final strengthened cterm_big_text passed in1.21s (test1.09s), including all four current faces and padding-independent image retention. No non-BIG tests ran; the final full regression suite remains deferred. Native W is implemented; global45-entry/final acceptance stays pending. Next requested order: t, then ?.
 
 Native W graphical text implementation commit: `83acdfc`.
+
+== Native t pauses and buffered input
+
+The complete t callers in chapters31/63 were reviewed before integration.
+The native pre-ANSI command starts a resumable owner with no fixed parser
+operands, so local-key draining precedes entry into the shared class0 numeric
+reader. A pending getch retries its selected read; wire bytes remain unread.
+Once the argument returns, signed seconds clamp to1..30 and become a local
+monotonic deadline. A ready key ends the pause, including a getch that returns
+NUL. Expiry still checks/consumes one ready byte. A private scan alone is not
+readiness; a later real event can admit that scan while the real key remains
+for normal forwarding. There is no post-exit drain or key echo/retransmit.
+
+While time/key acquisition waits, the existing parser-paused signal stops
+session delivery. Current-read suffixes and connection input stay ahead of
+the parser; local events and polling remain serviced. Numeric acquisition
+remains able to receive its operand. Stored values, g class0, repeat/chain
+and deferred input replies keep their shared owners. EOF/reset and clock/key
+errors use nonfatal cancellation; reset requested during a callback prevents
+later command effects. Saturating deadline addition and backward-clock
+rejection are explicit native bounds.
+
+All BIG legacy serial-flow sites now finish immediately. The wire emitter,
+count walk, readiness polling and output-budget consumption were removed
+from the flow helper; the remaining entry/completion boundary preserves
+surrounding text/loop/footer bookkeeping. X5 still reads and stores its
+mode, low bytes and WORD counts, but none generate flow traffic. The native
+output adapter accepts actual counted input replies and rejects accidental
+legacy flow requests. No remote XON/XOFF capability or alternate historical
+serial-flow mode is required or exposed.
+
+The session previously accumulated up to100ms of baud credit while paused,
+including the tick that ended the pause. It now advances the local pacing
+time base without adding credit across those ticks, retaining at most the
+existing one-byte allowance. Thus a buffered backlog stays paced after t;
+unpaced delivery resumes in order. This shared session policy also applies
+to other paused parser owners; their full regressions remain scheduled for
+the goal's final suite.
+
+cterm_big_pause checks every split and bytewise acquisition across all three
+modes, both encodings and status choices, with full indexed planes and
+retained graphics/image/point state. It covers drain/read ordering, getch
+retry, private/real key distinction, NUL/extended keys, expiry edges, clamp
+bounds, supplied8000, real numeric timeout, EOF/reset/errors, callback reset,
+deadline overflow, stored repetition, g3, chains and deferred ff replies.
+Physical audio is disabled; no audible-device coverage is claimed.
+
+big_session_pacing uses a real POSIX shell connection and the actual session
+pump in CP437/UTF-8, paced and unpaced. Its independent expected tail is
+ABCDEFGHIJKLMNOPQRSTUVWXYZ followed by DSR. The test first reproduced the
+banked-credit burst, then verified no parser input during t, at most one
+existing byte allowance on paced resume, and complete ordered delivery with
+only the requested DSR reply. It does not add a mock connection or a second
+input buffer. Existing native and application fixtures retain pixel/state/
+source/reply checks; flow-only blocking/mutation expectations were replaced
+by checks that custom/large flow settings cannot send or block. Real counted
+reply backpressure, callback reset and exact raw payloads remain tested.
+
+Twenty-eight coherent application scenes cover minimum-duration expiry and
+keyboard cancellation of a clamped30-second pause in all14 profiles, with
+the complete preceding W/image/palette/pixel/state scene intact. The fixture
+now has2884 scenes; its earlier scenes expect actual replies without serial
+flow prefixes. Expected pixels still come from independent source-derived
+oracles. Native t and buffered input are implemented; ? is next. Global
+45-entry/audio/final-suite acceptance remains pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) and focused final test builds passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full/focused builds. All45 BIG-specific native CTests passed in50.34s, including cterm_big_pause0.57s and big_session_pacing1.34s. syncterm_big_input passed in146.75s (test146.69s),2884 coherent scenes. No non-BIG tests ran; the shared session pacing change and all other regressions remain subject to the goal-final full suite. Native t, buffered flow policy and paced resume are verified; ? is next. Global45-entry/audio/final acceptance remains pending.

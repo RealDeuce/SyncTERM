@@ -77,7 +77,7 @@ static void partials_defaults_and_sources(void)
 	CHECK(b->state.bgi.font==0 && b->state.bgi.direction==0 && b->state.bgi.text_size==1 && b->state.bgi.text_cached[0]==8 && b->state.bgi.text_cached[1]==8 && b->state.bgi.text_selected_size==8);
 	string(&f,"I#g 3:I#X 3,4,3,2,1:"); ratios(&f,(const uint16_t[]){4,3,2,1});
 	f.size=0; string(&f,"I#& 0,2,1,0,X@5,3,2,1,3,2:"); ratios(&f,(const uint16_t[]){2,1,3,2});
-	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(f.size==0);
 	f.size=0; string(&f,"I#"); b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]=255;
 	string(&f,"X>3,0,5,+1,4:S 5,5:\033[6n"); ratios(&f,(const uint16_t[]){1,1,1,4});
 	CHECK(f.size==7 && memcmp(f.output,"\xff\033[1;1R",7)==0 && b->control.input.pending==0);

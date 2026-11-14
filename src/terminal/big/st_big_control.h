@@ -27,13 +27,7 @@ struct st_big_control_sink {
 	int (*ready)(void *, enum st_big_output_kind);
 	int (*send)(void *, enum st_big_output_kind, uint8_t byte);
 };
-struct st_big_flow_reader {
-	unsigned phase, which;
-	uint16_t index;
-	uint8_t byte;
-	int error;
-	bool enabled;
-};
+struct st_big_flow_reader { bool begun; };
 struct st_big_flow_settings {
 	unsigned phase;
 };
@@ -61,9 +55,9 @@ int32_t st_big_zone_id(uint16_t);
 /* New interpreter frame only; application flow/input owners survive I/R. */
 void st_big_control_enter(struct st_big_control *);
 void st_big_flow_begin(struct st_big_flow_reader *, const struct st_big_control *, bool on);
-/* budget counts successfully queued bytes; completed zero-output prefixes
- * still run at budget0. Current count/byte reads follow the original order.
- * All calls are serialized; callbacks may change owner fields, never reenter. */
+/* Legacy flow sites complete without sending bytes or consuming budget.
+ * The terminal's paused state supplies local session/connection backpressure;
+ * X5 settings remain protocol state. No serial flow-control support is needed. */
 int st_big_flow_poll(struct st_big_flow_reader *, struct st_big_control *,
 	const struct st_big_control_sink *, size_t *budget);
 void st_big_footer_begin(struct st_big_footer *, bool chained);

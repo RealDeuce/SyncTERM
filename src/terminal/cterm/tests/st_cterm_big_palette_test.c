@@ -140,7 +140,7 @@ static void acquisition_gates_and_recovery(void)
 	/* Supplied class0 values retain the exact stored index/value and use
 	 * common loop flow, independent of g3 and the resolution cache. */
 	f.size=0; string(&f,"I#& 0,2,1,0,S@2,5,x:");
-	CHECK(b->state.bgi.palette[5]==2 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(b->state.bgi.palette[5]==2 && f.size==0);
 	CHECK(st_cterm_poll(f.terminal)==0 && st_cterm_finish(f.terminal)==0); color(&f,5,0xaa00); destroy(&f);
 }
 int main(void) { partitions(); codes_images_and_restart(); acquisition_gates_and_recovery(); return 0; }

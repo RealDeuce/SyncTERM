@@ -54,10 +54,10 @@ static void order_and_chaining(void)
 	CHECK(f.c.frame.did_loop==1 && f.c.input.pending==1 && f.loop.type=='@' && f.c.frame.gang_marker=='>' && f.sent==0);
 	/* No numeric/text call means no repeat, even with an active loop. */
 	f.loop.command_read=false; st_big_footer_begin(&f.footer,true); budget=0;
-	CHECK(footer(&f,&budget,&action)==IO_ERROR_IN_PROGRESS);
-	CHECK(f.c.frame.did_loop==0 && f.loop.type=='@' && f.c.frame.gang_marker=='>' && f.c.input.pending==1);
+	CHECK(footer(&f,&budget,&action)==0 && action==ST_BIG_FOOTER_CHAIN);
+	CHECK(f.c.frame.did_loop==0 && f.loop.type==' ' && f.c.frame.gang_marker=='X' && f.c.input.pending==1);
 	budget=1; CHECK(footer(&f,&budget,&action)==0 && action==ST_BIG_FOOTER_CHAIN);
-	CHECK(f.sent==1 && f.bytes[0]==17 && f.loop.type==' ' && f.c.frame.gang_marker=='X');
+	CHECK(f.sent==0 && f.loop.type==' ' && f.c.frame.gang_marker=='X');
 	CHECK(f.c.input.pending==1 && f.c.frame.command=='I' && f.loop.active==1);
 	/* Inherited loop state does not itself send finishing XON. */
 	prepare(&f); f.loop.active=2; f.loop.command_read=true; f.c.frame.did_loop=2;
@@ -95,21 +95,7 @@ static void counted_replies(void)
 }
 static void waits_and_live_state(void)
 {
-	struct fixture f; prepare(&f); struct st_big_flow_reader r;
-	f.c.flow.count[0]=2; f.c.flow.byte[0]=31;
-	st_big_flow_begin(&r,&f.c,true); f.block_send=true; size_t budget=64;
-	CHECK(st_big_flow_poll(&r,&f.c,&f.sink,&budget)==IO_ERROR_IN_PROGRESS && f.ready==1);
-	f.c.flow.byte[0]=41; f.c.flow.mode=0; f.block_send=false;
-	CHECK(st_big_flow_poll(&r,&f.c,&f.sink,&budget)==0);
-	CHECK(f.ready==2 && f.sent==2 && f.bytes[0]==31 && f.bytes[1]==41);
-	prepare(&f); f.c.flow.byte[0]=31; f.mutation=4;
-	st_big_flow_begin(&r,&f.c,true);
-	CHECK(st_big_flow_poll(&r,&f.c,&f.sink,&budget)==0);
-	CHECK(f.sent==2 && f.bytes[0]==31 && f.bytes[1]==41); /* Live count grew after first send. */
-	prepare(&f); f.block_ready=true; st_big_flow_begin(&r,&f.c,true);
-	CHECK(st_big_flow_poll(&r,&f.c,&f.sink,&budget)==IO_ERROR_IN_PROGRESS);
-	f.c.flow.count[0]=0; f.block_ready=false;
-	CHECK(st_big_flow_poll(&r,&f.c,&f.sink,&budget)==0 && f.sent==1 && f.bytes[0]==17);
+	struct fixture f; prepare(&f); size_t budget=64;
 	/* An admitted data iteration keeps waiting without retesting changed count. */
 	prepare(&f); f.c.input.pending=1; f.c.input.count=3; f.c.input.append_cr=1;
 	st_big_footer_begin(&f.footer,false); f.block_ready=true;
@@ -130,24 +116,23 @@ static void waits_and_live_state(void)
 static void bounds_errors_and_flow(void)
 {
 	struct fixture f; prepare(&f); struct st_big_flow_reader r; enum st_big_footer_action action;
-	for (unsigned count=0;count<=65535;++count) {
-		struct st_big_control c; st_big_control_init(&c); c.flow.count[1]=(uint16_t)count;
-		st_big_flow_begin(&r,&c,false); size_t budget=0;
-		CHECK(st_big_flow_poll(&r,&c,&f.sink,&budget)==((count>=1 && count<=32767)?IO_ERROR_IN_PROGRESS:0));
+	/* Every count WORD completes with no readiness/send call or budget use,
+	 * including custom NUL/ff bytes and a sink that would block/fail. */
+	for (unsigned count=0;count<=65535;++count) for (unsigned on=0;on<2;++on) {
+		struct st_big_control c; st_big_control_init(&c);
+		c.flow.mode=3; c.flow.count[on?0:1]=(uint16_t)count; c.flow.byte[on?0:1]=on?0:255;
+		st_big_flow_begin(&r,&c,on!=0); size_t budget=0;
+		f.block_ready=f.block_send=true; f.send_error=f.ready_error=IO_ERROR_IO;
+		CHECK(st_big_flow_poll(&r,&c,&f.sink,&budget)==0 && budget==0 && f.ready==0 && f.sent==0 && f.attempts==0);
 	}
-	f.c.flow.count[1]=32767; f.uniform=19; st_big_flow_begin(&r,&f.c,false);
-	int status;
-	do { size_t budget=64; status=st_big_flow_poll(&r,&f.c,&f.sink,&budget); } while (status==IO_ERROR_IN_PROGRESS);
-	CHECK(status==0 && f.sent==32767 && f.ready==32767);
-	prepare(&f); f.c.flow.mode=0; f.c.flow.count[0]=32767; st_big_flow_begin(&r,&f.c,true);
-	size_t budget=64; CHECK(st_big_flow_poll(&r,&f.c,&f.sink,&budget)==0 && f.ready==0);
+	size_t budget=64;
 	prepare(&f); f.c.input.pending=1; f.c.input.count=256;
 	st_big_footer_begin(&f.footer,false); budget=1000;
 	CHECK(footer(&f,&budget,&action)==IO_ERROR_OUT_OF_RANGE && f.sent==255 && f.ready==256 && f.c.input.pending==0);
 	f.c.input.count=0; CHECK(footer(&f,&budget,&action)==IO_ERROR_OUT_OF_RANGE && f.sent==255);
 	prepare(&f); f.c.frame.did_loop=1; f.send_error=IO_ERROR_IO;
-	st_big_footer_begin(&f.footer,false); CHECK(footer(&f,&budget,&action)==IO_ERROR_IO);
-	CHECK(f.c.frame.did_loop==0 && f.loop.type=='@' && f.c.frame.gang_marker=='>' && f.sent==0);
+	st_big_footer_begin(&f.footer,false); CHECK(footer(&f,&budget,&action)==0);
+	CHECK(f.c.frame.did_loop==0 && f.loop.type==' ' && f.c.frame.gang_marker=='X' && f.sent==0);
 	prepare(&f); f.c.input.pending=1; f.c.input.count=1; f.ready_error=IO_ERROR_IO;
 	st_big_footer_begin(&f.footer,false); CHECK(footer(&f,&budget,&action)==IO_ERROR_IO && f.c.input.pending==0);
 	/* New frame initializes local bytes, retaining application reply/flow owners. */

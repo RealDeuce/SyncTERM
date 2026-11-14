@@ -1,7 +1,7 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
-through native CTerm. Native W graphical text, < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
+through native CTerm. Native W graphical text, t pauses, < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
@@ -22,6 +22,13 @@ adds native mouse movement. The latest movement controls the software pointer;
 stationary button samples do not undo keyboard movement. Left release after
 a valid press invokes the shared click action. UI/disabled/outside presses,
 duplicate confirmation and reset/EOF releases must not create selections.
+
+BIG now uses parser backpressure and session/connection buffering. It sends
+no automatic XON/XOFF or custom X5 flow bytes; X5 still retains its operands.
+The remote needs no software flow-control support. Pacing continues across
+the buffered tail after a pause without banking catch-up baud credit.
+Historical verification entries below record earlier serial-flow behavior;
+the native pause/buffering section records current executable expectations.
 
 ## CGA 80x25 prerequisite
 
@@ -1348,3 +1355,30 @@ pending. The next requested command order is t, then ?.
 Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The initial full build emitted generated-dependency timestamp jitter notices; the final full build and focused build passed cleanly. All43 BIG-specific native CTests passed in48.43s. syncterm_big_input passed in141.68s (test141.61s),2856 coherent scenes. The final strengthened cterm_big_text passed in1.21s (test1.09s), including all four current faces and padding-independent image retention. No non-BIG tests ran; the final full regression suite remains deferred. Native W is implemented; global45-entry/final acceptance stays pending. Next requested order: t, then ?.
 
 Native W graphical text implementation commit: `83acdfc`.
+
+## Native t and buffered input
+
+t drains ready local keys before shared class0 numeric acquisition, clamps
+signed seconds to1..30, then waits on a local monotonic deadline or one ready
+getch byte. Expiry still polls the keyboard; private scans alone are not ready.
+No post-exit key drain, echo or retransmit is added. Shared stored sources,
+repetition/chains and deferred replies compose through the existing owner.
+EOF/reset/errors and callback reset cancel nonfatally with no flow tail.
+
+All BIG automatic XON/XOFF/custom flow emission is removed. X5 retains its
+operand/state semantics; legacy flow sites make no readiness requests or
+output-budget/count waits. Parser backpressure leaves the unread tail in
+existing session/connection buffers. Pacing no longer banks credit during
+pauses or their resume tick, so buffered tails continue at the selected rate.
+
+cterm_big_pause independently covers all profiles, partitions, complete
+indexed planes/state/image retention, local deadline/key semantics, source/
+reply composition and error/reset recovery. big_session_pacing reproduced the
+credit-burst defect through a real POSIX shell connection, then checked paced
+and unpaced ordered tails in both encodings. Existing BIG flow-only tests
+were replaced under the new transport contract while retaining scene/state/
+source/reply checks and actual counted-reply readiness tests.28 new coherent
+application pause scenes bring coverage to2884. ? is next; global45-entry
+and final full-suite acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) and focused final test builds passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full/focused builds. All45 BIG-specific native CTests passed in50.34s, including cterm_big_pause0.57s and big_session_pacing1.34s. syncterm_big_input passed in146.75s (test146.69s),2884 coherent scenes. No non-BIG tests ran; the shared session pacing change and all other regressions remain subject to the goal-final full suite. Native t, buffered flow policy and paced resume are verified; ? is next. Global45-entry/audio/final acceptance remains pending.

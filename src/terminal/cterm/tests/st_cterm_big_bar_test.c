@@ -161,10 +161,10 @@ static void sources_and_reply(void)
 	CHECK(b->bar.active && b->numeric.loop.active==0 && b->state.bgi.fill_color==5); scene(&f,7,0);
 	string(&f,"256:"); scene(&f,2,5); points(&f,18,7,14,14);
 	prepare(&f,3); string(&f,"I#g 3:I#& 0,1,1,0,B@6,10,10,14,14,4,257:"); scene(&f,3,5); points(&f,18,7,14,10);
-	CHECK(f.size==4 && memcmp(f.output,"\x13\x11\x13\x11",4)==0);
+	CHECK(f.size==0);
 	b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]='O'; b->control.input.payload[2]='K'; b->control.input.append_cr=1;
-	string(&f,"I#B>10,10,14,14,+1:"); CHECK(f.size==4 && b->control.input.pending==1);
-	string(&f,"~ "); CHECK(f.size==7 && memcmp(f.output+4,"OK\r",3)==0);
+	string(&f,"I#B>10,10,14,14,+1:"); CHECK(f.size==0 && b->control.input.pending==1);
+	string(&f,"~ "); CHECK(f.size==3 && memcmp(f.output,"OK\r",3)==0);
 	/* The sixth read keeps its admitted branch but takes current kind as depth. */
 	prepare(&f,2); string(&f,"I#g 0:I#B 10,10,14,14,4,"); b->bar.kind=0;
 	string(&f,"257:"); scene(&f,1,5); points(&f,14,14,14,14);
@@ -186,7 +186,7 @@ static void scaling_and_repetition(void)
 	/* Dynamic FROM0..TO2 includes all three values0,1,2 (chapter21);
 	 * it differs from the constant-only boundary's pre-increment rule. */
 	CHECK(b->numeric.loop.active==0 && b->numeric.loop.current==2 && b->numeric.loop.varying_total==3);
-	CHECK(!b->bar.active && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(!b->bar.active && f.size==0);
 	destroy(&f);
 }
 static void rectangle_scene(struct fixture *f, unsigned kind, unsigned border, unsigned fill)
@@ -301,9 +301,9 @@ static void rectangle_prefixes_and_sources(void)
 	/* Supplied coordinate fields bypass g3 and end the source on Y2. */
 	prepare(&f,3); string(&f,"I#g 3:I#H 0:I#& 0,1,1,0,Z@4,10,10,14,14:");
 	rectangle_scene(&f,1,9,5); points(&f,31,32,31,32);
-	CHECK(f.size==2 && memcmp(f.output,"\x13\x11",2)==0 && b->numeric.loop.active==0);
+	CHECK(f.size==0 && b->numeric.loop.active==0);
 	f.size=0; prepare(&f,2); string(&f,"I#& 0,2,1,0,Z@4,x,10,x,12:");
-	CHECK(f.size==2 && b->numeric.loop.current==2 && b->numeric.loop.active==0);
+	CHECK(f.size==0 && b->numeric.loop.current==2 && b->numeric.loop.active==0);
 	const struct st_console_rect r={0,10,3,3}; struct st_pixel_buffer *p=NULL;
 	CHECK(st_console_get_pixels(&p,f.console,&r,false)==0);
 	for (unsigned i=0;i<9;++i) CHECK(p->primary[i]==809 && p->alternate[i]==809); st_pixel_buffer_destroy(p);

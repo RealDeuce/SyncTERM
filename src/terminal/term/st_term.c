@@ -1044,6 +1044,7 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	/* A stopped transport has no recipient for asynchronous reports.
 	 * Still drain its received bytes and take the normal disconnect path. */
+	bool parser_was_paused = st_cterm_input_paused(session->cterm);
 	if (st_connection_is_connected(session->config.connection)) {
 		status = st_cterm_poll(session->cterm);
 		if (status != 0 || session->output_error != 0)
@@ -1051,6 +1052,7 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	if (!session->suspended && session->transfer == NULL && session->throttle_bps != 0) {
 		uint64_t now;
+		bool parser_wait = parser_was_paused || st_cterm_input_paused(session->cterm);
 		/* Credits are BPS*milliseconds: ten bits per character makes
 		 * 10,000 credits one received byte.  Retain at most 100 ms of
 		 * catch-up after an occupied UI tick. */
@@ -1061,7 +1063,7 @@ st_term_session_pump(st_term_session_t *session,
 			return status;
 		if (cap < UINT64_C(10000))
 			cap = UINT64_C(10000);
-		if (session->throttle_last_ms != 0
+		if (!parser_wait && session->throttle_last_ms != 0
 		    && now >= session->throttle_last_ms) {
 			uint64_t elapsed = now - session->throttle_last_ms;
 
@@ -1073,6 +1075,11 @@ st_term_session_pump(st_term_session_t *session,
 				session->throttle_credit = cap;
 		}
 		session->throttle_last_ms = now;
+		/* A protocol pause behaves like a stopped sender. Keep the
+		 * backlog paced, including the pump that ends the pause; waiting
+		 * must not bank catch-up credit for the buffered suffix. */
+		if (parser_wait && session->throttle_credit > UINT64_C(10000))
+			session->throttle_credit = UINT64_C(10000);
 		/* Idling does not bank a burst for the next remote write. */
 		if (session->wire_position == session->wire_size
 		    && st_connection_pending_raw(session->config.connection) == 0

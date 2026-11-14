@@ -67,6 +67,15 @@ struct cterm_big_text_output {
 	uint16_t x,y;
 	bool active,chained;
 };
+enum cterm_big_pause_phase { CTERM_BIG_PAUSE_OFF, CTERM_BIG_PAUSE_DRAIN,
+	CTERM_BIG_PAUSE_DRAIN_READ, CTERM_BIG_PAUSE_NUMBER, CTERM_BIG_PAUSE_START,
+	CTERM_BIG_PAUSE_TIME, CTERM_BIG_PAUSE_KEY, CTERM_BIG_PAUSE_READ };
+struct cterm_big_pause {
+	enum cterm_big_pause_phase phase;
+	uint16_t seconds;
+	uint64_t deadline, sample;
+	bool chained, number_started, wire, expired, sampled;
+};
 struct cterm_big_mouse_sample {
 	int32_t x,y;
 	uint32_t buttons;
@@ -117,6 +126,7 @@ struct cterm_big {
 	struct cterm_big_input input;
 	struct st_big_text text;
 	struct cterm_big_text_output text_output;
+	struct cterm_big_pause pause;
 	struct cterm_big_setup setup;
 	struct cterm_big_zone zone;
 	struct cterm_big_collect collect;
@@ -159,6 +169,9 @@ int cterm_big_collect_cancel(struct cterm_big *);
 int cterm_big_collect_sample(struct cterm_big *, const struct cterm_big_mouse_sample *);
 int cterm_big_pmarker(struct cterm_big *, uint16_t x, uint16_t y);
 bool cterm_big_input_owned(const struct cterm_big *);
+void cterm_big_pause_begin(struct cterm_big *, bool chained);
+int cterm_big_pause_poll(struct cterm_big *, const uint8_t *, size_t,
+	size_t *used, size_t *work_budget, bool *complete);
 int cterm_big_input_peek(void *, bool *);
 uint16_t cterm_big_input_status(struct cterm_big *);
 int cterm_big_input_read(void *, uint8_t *);

@@ -70,7 +70,7 @@ static void partitions_and_owners(void)
 			CHECK(b->state.saved_palette[3]==10 && b->state.saved_palette[4]==20 && b->state.bgi.error==-11 && b->state.bgi.background==7);
 			CHECK(b->state.bgi.x==100 && b->state.bgi.y==100 && b->state.memory_page==1 && b->video_active_page==0 && b->video_visual_page==0);
 			CHECK(b->image_size==10 && b->image_bytes[5]==128 && b->image_bytes[7]==128 && b->image_pens[0]==5);
-			CHECK(f.size==8 && memcmp(f.output,"\x13\x11\033[1;1R",8)==0 && clock_calls>=before+4);
+			CHECK(f.size==6 && memcmp(f.output,"\033[1;1R",6)==0 && clock_calls>=before+4);
 			uint32_t rgb; CHECK(st_console_get_palette(f.console,804,&rgb,1)==0 && rgb==0xaaaaaa); canvas(&f);
 			memset(b->feature_gates,0,sizeof(b->feature_gates));
 		}
@@ -84,7 +84,7 @@ static void capture_restore_and_skips(void)
 	setup(&f,2); string(&f,"I#S>8,128:X 8,1,1,1,1:"); CHECK(b->state.saved_palette[8]==0xff80 && b->state.local_palette[9]==128);
 	unsigned calls=clock_calls; b->rotation.counter=91;
 	string(&f,"I#X>8,+1,+1,1,0:X>8,3,4,+1,0:X 8,1,1,1,1:");
-	CHECK(b->rotation.counter==0 && !b->rotation.active && clock_calls>calls && f.size==2); /* header sampling only */
+	CHECK(b->rotation.counter==0 && !b->rotation.active && clock_calls>calls && f.size==0); /* header sampling only */
 	CHECK(b->state.bgi.palette[3]==10 && b->state.bgi.palette[4]==20);
 	f.size=0; string(&f,"I#S>8,5:X 8,0,0,0,0:");
 	CHECK(b->state.bgi.palette[8]==5 && b->state.bgi.palette[3]==10 && b->state.local_palette[9]==128 && f.size==0);
@@ -97,10 +97,10 @@ static void capture_restore_and_skips(void)
 static void deadlines_keys_and_wrap(void)
 {
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; setup(&f,2);
-	string(&f,"I#X 8,3,4,9,20:"); CHECK(b->rotation.active && b->rotation.counter==0 && b->state.bgi.palette[3]==20 && f.size==1);
+	string(&f,"I#X 8,3,4,9,20:"); CHECK(b->rotation.active && b->rotation.counter==0 && b->state.bgi.palette[3]==20 && f.size==0);
 	key(&f,(struct cterm_key){.kind=CTERM_KEY_TEXT,.value='A'});
 	local_ns+=19999999; poll(&f); CHECK(b->rotation.active && reads==0 && b->input.count==1);
-	++local_ns; poll(&f); CHECK(!b->rotation.active && b->rotation.counter==9 && reads==1 && b->input.count==0 && f.size==2);
+	++local_ns; poll(&f); CHECK(!b->rotation.active && b->rotation.counter==9 && reads==1 && b->input.count==0 && f.size==0);
 	/* All native key identities cancel, including extended keys whose
 	 * getch returns0. A plain NUL status does not cancel. */
 	const struct cterm_key keys[]={ {.kind=CTERM_KEY_NORMAL,.local=0x4800}, {.kind=CTERM_KEY_CODEPAGE,.local=0xe9},
@@ -135,13 +135,13 @@ static void errors_eof_reset(void)
 {
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; setup(&f,2);
 	string(&f,"I#X 8,3,4,9,+1:"); CHECK(b->rotation.active && b->rotation.deadline==local_ns+UINT64_C(65535000000));
-	CHECK(st_cterm_finish(f.terminal)==0 && !b->rotation.active && f.size==1 && b->state.bgi.palette[3]==20);
-	setup(&f,2); string(&f,"I#X 8,3,4,9,1:"); CHECK(st_cterm_reset_terminal(f.terminal)==0 && !b->rotation.active && f.size==1 && b->state.bgi.palette[3]==20);
+	CHECK(st_cterm_finish(f.terminal)==0 && !b->rotation.active && f.size==0 && b->state.bgi.palette[3]==20);
+	setup(&f,2); string(&f,"I#X 8,3,4,9,1:"); CHECK(st_cterm_reset_terminal(f.terminal)==0 && !b->rotation.active && f.size==0 && b->state.bgi.palette[3]==20);
 	setup(&f,2); string(&f,"I#X 8,3,4,9,1:"); --local_ns; poll(&f);
-	CHECK(!b->rotation.active && b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==1 && f.size==1);
-	string(&f,"I#S 5,262:\033[6n"); CHECK(b->state.bgi.palette[5]==6 && f.size==7);
+	CHECK(!b->rotation.active && b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==1 && f.size==0);
+	string(&f,"I#S 5,262:\033[6n"); CHECK(b->state.bgi.palette[5]==6 && f.size==6);
 	setup(&f,2); string(&f,"I#X 8,3,4,9,1:"); clock_error=IO_ERROR_IN_PROGRESS; poll(&f); clock_error=0;
-	CHECK(!b->rotation.active && b->last_error==IO_ERROR_PROTOCOL && f.size==1);
+	CHECK(!b->rotation.active && b->last_error==IO_ERROR_PROTOCOL && f.size==0);
 	setup(&f,2); local_ns=UINT64_MAX-100; string(&f,"I#X 8,3,4,9,1:");
 	CHECK(b->rotation.deadline==UINT64_MAX && b->rotation.active); local_ns=UINT64_MAX;
 	key(&f,(struct cterm_key){.kind=CTERM_KEY_TEXT,.value='A'}); poll(&f); CHECK(!b->rotation.active);
@@ -150,21 +150,14 @@ static void errors_eof_reset(void)
 static void flow_footer_and_sources(void)
 {
 	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine; setup(&f,2);
-	b->control_io.ready=ready; blocked=true; blocked_kind=ST_BIG_OUTPUT_XOFF; b->rotation.counter=77;
+	b->control_io.ready=ready; blocked=true; blocked_kind=ST_BIG_OUTPUT_XOFF;
 	string(&f,"I#X 8,3,4,1,0:");
-	CHECK(b->rotation.active && b->rotation.counter==77 && b->state.bgi.palette[3]==10 && f.size==0);
-	poll(&f); CHECK(b->rotation.counter==77 && f.size==0);
-	blocked_kind=ST_BIG_OUTPUT_XON; poll(&f);
-	CHECK(b->rotation.active && b->rotation.counter==2 && b->state.bgi.palette[3]==10 && b->state.bgi.palette[4]==7 && f.size==1);
-	poll(&f); CHECK(f.size==1 && b->rotation.counter==2);
-	/* Independent tail test sees the current count; restore after the
-	 * accepted rotation when the owner was changed during a flow wait. */
-	b->rotation.colors.count=0; blocked=false; poll(&f);
-	CHECK(!b->rotation.active && b->state.bgi.palette[3]==10 && b->state.bgi.palette[4]==20 && f.size==2);
-	setup(&f,2); string(&f,"I#X 8,3,4,9,1:"); CHECK(f.size==1);
+	CHECK(!b->rotation.active && b->rotation.counter==2 && b->state.bgi.palette[3]==10 && b->state.bgi.palette[4]==7 && f.size==0);
+	blocked=false;
+	setup(&f,2); string(&f,"I#X 8,3,4,9,1:"); CHECK(f.size==0);
 	b->numeric.loop.active=1; key(&f,(struct cterm_key){.kind=CTERM_KEY_TEXT,.value='A'}); local_ns+=1000000;
 	size_t budget=64,work=64; bool complete; const struct st_big_state_sink unused={0};
-	CHECK(cterm_big_rotation_poll(b,&budget,&work,&unused,&complete)==0 && complete && f.size==1); /* no tail XON */
+	CHECK(cterm_big_rotation_poll(b,&budget,&work,&unused,&complete)==0 && complete && f.size==0); /* no tail XON */
 	CHECK(st_cterm_finish(f.terminal)==0); setup(&f,2);
 	/* Converse: entry skipped XOFF, exit rereads loop0 and emits XON. */
 	b->numeric.loop.active=1;
@@ -176,16 +169,16 @@ static void flow_footer_and_sources(void)
 	work=0; budget=64;
 	CHECK(cterm_big_rotation_poll(b,&budget,&work,&unused,&complete)==IO_ERROR_IN_PROGRESS && f.size==0);
 	b->numeric.loop.active=0; b->rotation.colors.count=0xffff; work=64;
-	CHECK(cterm_big_rotation_poll(b,&budget,&work,&unused,&complete)==0 && complete && f.size==1 && f.output[0]==17);
+	CHECK(cterm_big_rotation_poll(b,&budget,&work,&unused,&complete)==0 && complete && f.size==0 );
 	CHECK(st_cterm_finish(f.terminal)==0); setup(&f,2);
 	string(&f,"I#g 3:I#& 0,2,1,0,X@5,8,3,4,1,0:");
 	/* Constant-only source steps at index0, so its final record has
 	 * already cleared loop before X8's independent flow checks. */
-	CHECK(!b->rotation.active && b->state.bgi.palette[3]==7 && b->state.bgi.palette[4]==7 && f.size==4 && memcmp(f.output,"\x13\x13\x11\x11",4)==0);
+	CHECK(!b->rotation.active && b->state.bgi.palette[3]==7 && b->state.bgi.palette[4]==7 && f.size==0);
 	setup(&f,2); f.size=0;
 	string(&f,"I#"); b->control.input.pending=1; b->control.input.count=1; b->control.input.payload[1]='!';
 	string(&f,"X>8,3,4,1,0:S 6,20:\033[6n");
-	CHECK(!b->rotation.active && b->control.input.pending==0 && f.size==9 && memcmp(f.output,"\x13\x11!\033[1;1R",9)==0);
+	CHECK(!b->rotation.active && b->control.input.pending==0 && f.size==7 && memcmp(f.output,"!\033[1;1R",7)==0);
 	/* Acquiring the fourth argument is the first point allowed to capture. */
 	string(&f,"I#X 8,1,1,1,"); b->state.bgi.palette[3]=42; CHECK(b->state.saved_palette[3]==10);
 	string(&f,"1:"); CHECK(b->state.saved_palette[3]==42);

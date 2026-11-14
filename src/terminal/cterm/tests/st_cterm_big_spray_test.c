@@ -112,7 +112,7 @@ static void helper_pages_sources_and_recovery(void)
 	static const uint16_t dots[][2]={{101,100},{133,103},{135,121},{153,119}};
 	canvas(&f,dots,4);
 	setup(&f,2); string(&f,"I#& 0,2,1,0,X@6,0,100,100,0,0,1:");
-	CHECK(wall_calls==2 && b->numeric.random_state==UINT32_C(0x8082a52f) && b->spray.counter==1 && f.size==2 && memcmp(f.output,"\x13\x11",2)==0);
+	CHECK(wall_calls==2 && b->numeric.random_state==UINT32_C(0x8082a52f) && b->spray.counter==1 && f.size==0);
 	/* Operand r shares the freshly seeded stream and is not reseeded
 	 * before the sampling loop. Default TO199 makes first X origin2. */
 	setup(&f,2); string(&f,"I#X 0,r,100,0,0,1:");

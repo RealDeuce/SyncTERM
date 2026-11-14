@@ -54,6 +54,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'S',input_parameters,2,NULL},
 	{'E',input_parameters,3,NULL},
 	{'W',point,2,NULL},
+	{'t',NULL,0,NULL},
 	{'m',move,2,move_next},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},{'H',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
@@ -377,10 +378,9 @@ static int output_byte(void *context, enum st_big_output_kind kind, uint8_t byte
 {
 	struct cterm_big *big=context;
 	if (big->reset_pending) return IO_ERROR_INTERRUPTED;
-	if (kind==ST_BIG_OUTPUT_REPLY) {
-		if (big->terminal->keystroke_cb!=NULL)
-			big->terminal->keystroke_cb((const char *)&byte,1,big->terminal->keystroke_cbdata);
-	} else cterm_respond(big->terminal,(const char *)&byte,1);
+	if (kind!=ST_BIG_OUTPUT_REPLY) return IO_ERROR_INVALID_ARGUMENT;
+	if (big->terminal->keystroke_cb!=NULL)
+		big->terminal->keystroke_cb((const char *)&byte,1,big->terminal->keystroke_cbdata);
 	return big->reset_pending?IO_ERROR_INTERRUPTED:0;
 }
 static int begin_footer(struct cterm_big *big, const struct st_graphics_command_view *view)
@@ -400,6 +400,7 @@ static int command(void *context, const struct st_graphics_command_view *view)
 		return IO_ERROR_IN_PROGRESS;
 	}
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
+	if (view->code=='t') { cterm_big_pause_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
 	if (view->code=='B') return cterm_big_bar_begin(big,view);
 	if (view->code=='F') return cterm_big_flood_begin(big,view);
 	if (view->code=='W') {
@@ -623,6 +624,7 @@ static void cancel(struct cterm_big *big)
 	memset(&big->input,0,sizeof(big->input));
 	memset(&big->setup,0,sizeof(big->setup)); big->text.active=0;
 	memset(&big->text_output,0,sizeof(big->text_output));
+	memset(&big->pause,0,sizeof(big->pause));
 	memset(&big->zone,0,sizeof(big->zone));
 	memset(&big->bar,0,sizeof(big->bar));
 	memset(&big->flood,0,sizeof(big->flood));
@@ -691,7 +693,7 @@ static int gang_selector(struct cterm_big *big, const struct st_graphics_parser_
 }
 static bool body_pending(const struct cterm_big *big)
 {
-	return big->text_output.active || big->rotation.active || big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
+	return big->pause.phase!=CTERM_BIG_PAUSE_OFF || big->text_output.active || big->rotation.active || big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
 }
 static int drive(struct cterm_big *big, const void *data, size_t size, size_t *used)
 {
@@ -705,6 +707,19 @@ static int drive(struct cterm_big *big, const void *data, size_t size, size_t *u
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->pause.phase!=CTERM_BIG_PAUSE_OFF) {
+			size_t accepted; bool complete;
+			status=cterm_big_pause_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,&body_budget,&complete);
+			*used+=accepted;
+			if (status!=0) break;
+			if (complete) {
+				const struct st_graphics_command_view view={.chained=big->pause.chained};
+				status=begin_footer(big,&view);
+				if (status!=IO_ERROR_IN_PROGRESS) break;
+				status=0; advance_needed=true; continue;
+			}
+			break;
+		}
 		if (big->text_output.active) {
 			size_t accepted; bool complete;
 			status=st_big_stream_poll(&big->text_output.stream,&big->numeric,&big->text,&big->control,&big->control_io,
@@ -899,6 +914,7 @@ int cterm_big_poll(struct cterm_big *big)
 bool cterm_big_paused(const struct cterm_big *big)
 {
 	return big != NULL && (big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
+	    || (big->pause.phase!=CTERM_BIG_PAUSE_OFF && big->pause.phase!=CTERM_BIG_PAUSE_NUMBER)
 	    || (big->text_output.active && big->text_output.stream.phase==ST_BIG_STREAM_FLOW)
 	    || big->footer_active || big->setup.cooperative || big->setup.phase==CTERM_BIG_SETUP_FLOW
 	    || (big->setup.phase==CTERM_BIG_SETUP_TEXT && big->setup.stream.phase==ST_BIG_STREAM_FLOW)
@@ -1006,6 +1022,8 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_bar_active", big->bar.active);
 	st_console_test_number(app, "cterm.big_flood_active", big->flood.active);
 	st_console_test_number(app, "cterm.big_rotation_active", big->rotation.active);
+	st_console_test_number(app, "cterm.big_pause_active", big->pause.phase!=CTERM_BIG_PAUSE_OFF);
+	st_console_test_number(app, "cterm.big_pause_seconds", big->pause.seconds);
 	st_console_test_number(app, "cterm.big_flow_mode", big->control.flow.mode);
 	st_console_test_number(app, "cterm.big_random_state", big->numeric.random_state);
 	st_console_test_number(app, "cterm.big_random_from", big->numeric.random_from);

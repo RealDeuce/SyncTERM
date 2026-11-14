@@ -54,6 +54,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_bar_active"]
     assert not s["cterm.big_flood_active"]
     assert not s["cterm.big_rotation_active"]
+    assert not s["cterm.big_pause_active"]
     assert not s["cterm.big_text_reading"]
     assert s["cterm.big_text_count"] == text_count
     if text_buffer_count is not None:
@@ -184,7 +185,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                         wire = (seed if step != 1 else b"") + command + loop + b"I#@>I 1:" + b"\x1b[H" + token.encode() + b"\x1b[6n"
                         with (root / "wire.bin").open("ab") as log: log.write(wire)
                         peer.sendall(wire)
-                        expected = (b"\x13\x11" if loop else b"") + f"\x1b[1;{len(token) + 1}R".encode()
+                        expected = f"\x1b[1;{len(token) + 1}R".encode()
                         peer.settimeout(3); reply = b""
                         while len(reply) < len(expected):
                             data = peer.recv(len(expected) - len(reply)); assert data, reply
@@ -198,17 +199,17 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                         wire = b"I#& 0,1000,1,9999,I@1,1:\x1b[H" + token.encode() + b"\x1b[6n"
                         with (root / "wire.bin").open("ab") as log: log.write(wire)
                         peer.sendall(wire)
-                        peer.settimeout(3); assert peer.recv(1) == b"\x13"
+                        peer.settimeout(3)
                         client.wait_for(lambda f: f.application.get("cterm.big_loop_active") == 1
                                         and not f.application.get("cterm.big_setup_active"))
                         client.key(3, CONTROL)
-                        expected = b"\x11" + f"\x1b[1;{len(token) + 1}R".encode()
+                        expected = f"\x1b[1;{len(token) + 1}R".encode()
                         reply = b""
                         while len(reply) < len(expected):
                             data = peer.recv(len(expected) - len(reply)); assert data, reply
                             reply += data
                         assert reply == expected, reply
-                        with (root / "replies.bin").open("ab") as log: log.write(b"\x13" + reply)
+                        with (root / "replies.bin").open("ab") as log: log.write(reply)
                         check(client.wait_text(token), 2, status, True, token, (1, 1, 0, 1))
                         for index, (request, target) in enumerate(((1, 1), (3, 3), (2, 2), (2, 2), (258, 1))):
                             token = f"RES{index}_{target}"
@@ -621,7 +622,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
                             with (root / "wire.bin").open("ab") as log: log.write(wire)
                             peer.sendall(wire)
-                            expected = (b"\x13\x11" if index else b"") + f"\x1b[1;{len(token) + 1}R".encode()
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
                             reply = b""
                             while len(reply) < len(expected):
                                 data = peer.recv(len(expected) - len(reply)); assert data, reply
@@ -704,7 +705,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             (b"I#G>6,0:C>2,3:B 300,64,308,72,0:", (local, 0, 0, 0, selected, display), page1_drawn + (cyan if resolution == 3 else ()), resolution == 3, (1, 3), (0x33333333,) * 8, 3, (284, 68, 0xaa00aa), b""),
                             (b"I#G 5,0:", (local, 0, 0, 0, 0, 0), page0_drawn + cyan, True, (1, 3), (0x33333333,) * 8, 3, (304, 68, 0xaaaa), b""),
                             (b"I#G>6,1:C>2,5:B>280,64,288,72,0:G 5,1:", (local, selected, selected, selected, selected, display), page1_drawn + (cyan if resolution == 3 else ()), resolution == 3, (1, 5), (0x55555555,) * 8, 5, (284, 68, 0xaa00aa), b""),
-                            (b"I#& 0,2,1,0,G@2,4,x:", (2 if resolution == 1 else local, 0, 0, selected, selected, display), page1_drawn + (cyan if resolution == 3 else ()), resolution == 3, (1, 5), (0x55555555,) * 8, 5, (284, 68, 0xaa00aa), b"\x13\x11"),
+                            (b"I#& 0,2,1,0,G@2,4,x:", (2 if resolution == 1 else local, 0, 0, selected, selected, display), page1_drawn + (cyan if resolution == 3 else ()), resolution == 3, (1, 5), (0x55555555,) * 8, 5, (284, 68, 0xaa00aa), b""),
                             (b"I#G 5,0:", (local, 0, 0, selected, 0, 0), page0_drawn + cyan, True, (1, 5), (0x55555555,) * 8, 5, (304, 68, 0xaaaa), b""),
                             (f"I#R {resolution}:".encode(), (1, 0, 0, 0, 0, 0), (), False, (1, 15), (0xffffffff,) * 8, 5, None, b""),
                             (b"I#G 5,1:", (local, 0, selected, 0, selected, display), (), False, (1, 15), (0xffffffff,) * 8, 5, None, b""),
@@ -890,7 +891,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                                 and f.application.get("cterm.big_palette3") == 7
                                                 and f.application.get("cterm.big_palette4") == 7)
                                 client.key(ord("A"))
-                            expected = (b"\x13\x11" if flow else b"") + f"\x1b[1;{len(token) + 1}R".encode()
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
                             reply = b""
                             while len(reply) < len(expected):
                                 data = peer.recv(len(expected) - len(reply)); assert data, reply
@@ -912,14 +913,14 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             assert tuple(frame.application[f"cterm.big_local_palette{i}"] for i in range(16)) == tuple(local_codes)
                             assert tuple(frame.application[f"cterm.big_saved_palette{i}"] for i in range(16)) == tuple(saved_codes)
                         # X5 changes settings without transmitting them.
-                        # Negative X8 count exercises flow without drawing.
+                        # Negative X8 count verifies that retained settings send no flow bytes.
                         flows = (
                             (b"I#X>5,0:X 8,3,4,+1,0:", (0, 17, 19, 1, 1), b""),
                             (b"I#X 5,2,256,2:", (2, 0, 19, 2, 1), b""),
                             (b"I#X 5,3,511,2:", (3, 0, 255, 2, 2), b""),
-                            (b"I#X 8,3,4,+1,0:", (3, 0, 255, 2, 2), b"\xff\xff\0\0"),
+                            (b"I#X 8,3,4,+1,0:", (3, 0, 255, 2, 2), b""),
                             (b"I#X 5,2,300,+1:", (2, 44, 255, 65535, 2), b""),
-                            (b"I#X 8,3,4,+1,0:", (2, 44, 255, 65535, 2), b"\xff\xff"),
+                            (b"I#X 8,3,4,+1,0:", (2, 44, 255, 65535, 2), b""),
                             (b"I#X 5,+1:", (65535, 44, 255, 65535, 2), b""),
                             (b"I#X 5,4:", (4, 17, 19, 1, 1), b""),
                             (b"I#X 5,1:", (1, 17, 19, 1, 1), b""),
@@ -1048,7 +1049,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             (b"I#X>3,2,4,4,2:S 5,5:", (2, 4, 4, 2), b""),
                             (b"I#X 3,258,1,260,2:", (1, 1, 1, 2), b""),
                             (b"I#X 3,1,2,3,4:", (1, 2, 3, 4), b""),
-                            (b"I#& 0,1,1,0,X@5,3,4,3,2,1:", (4, 3, 2, 1), b"\x13\x11"),
+                            (b"I#& 0,1,1,0,X@5,3,4,3,2,1:", (4, 3, 2, 1), b""),
                             (b"I#X 3,1,1,1,1:", (1, 1, 1, 1), b""),
                         )
                         retained_random = frame.application["cterm.big_random_state"]
@@ -1097,7 +1098,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             (b"I#I 1:", (0, 1, 1, 1, 1), 0, (8, 8, 8), (62, 46), custom, custom, trip, bitmap8, b""),
                             (b"I#E 5,+1,2:", (0, 0, 1, 1, 1), 1, (8, 8, 8), (62, 46), custom, custom, trip, (0, 0, 8, 8, 1, 1), b""),
                             (b"I#E>2,0,0:S 5,5:", (2, 0, 2, 2, 0), 0, (18, 13, 0), (18, 13), custom, custom, small, (0, 0, 8, 8, 1, 1), b""),
-                            (b"I#& 0,1,1,0,E@3,3,4,1:", (3, 1, 3, 3, 1), 4, (32, 32, 4), (32, 32), custom, (1, 1, 1, 1), sans, (0, 0, 8, 8, 1, 1), b"\x13\x11"),
+                            (b"I#& 0,1,1,0,E@3,3,4,1:", (3, 1, 3, 3, 1), 4, (32, 32, 4), (32, 32), custom, (1, 1, 1, 1), sans, (0, 0, 8, 8, 1, 1), b""),
                             (b"I#E 0,3,0:", (0, 0, 3, 3, 1), 3, (24, 24, 8), (32, 32), custom, (1, 1, 1, 1), sans, (0, 0, 24, 24, 3, 3), b""),
                         )
                         for index, (command, font_state, size, cache, metrics, saved, effective, header, device, prefix) in enumerate(style_cases):
@@ -1166,7 +1167,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             (b"I#E 2,1,1:I#M 1:I#W 280,130,AA@", vertical_aa, (),
                              dict(font_state=(2, 1, 2, 2, 1), writing=(0, 0), lower_points=((285, 131), (280, 130))), b""),
                             (b"I#& 0,2,1,0,W!2,320,130:", reused_aa, (),
-                             dict(lower_points=((325, 131), (320, 130)), text_buffer_count=0), b"\x13\x11"),
+                             dict(lower_points=((325, 131), (320, 130)), text_buffer_count=0), b""),
                             (b"I#E 0,1,0:I#W +1,130,A@", (), (),
                              dict(font_state=(0, 0, 2, 2, 1), text_state=(custom, 1, (8, 8, 8)), text_device=(0, 0, 8, 8, 1, 1),
                                   lower_points=((65535, 130), (65535, 130)), text_count=1, text_buffer_count=1), b""),
@@ -1177,7 +1178,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                              dict(lower_points=((40, 150), (48, 150)), text_count=1, text_buffer_count=1), b""),
                             (b"I#I 1:", (), (), {}, b""),
                             (b"I#& 0,2,1,0,W@2,100,150:A@A@", bitmap_a(100, 150), (),
-                             dict(lower_points=((100, 150), (108, 150))), b"\x13\x11\x11"),
+                             dict(lower_points=((100, 150), (108, 150))), b""),
                         )
                         scene_pixels = {(x, y): pen for x, y, pen in retained_pixels}
                         for index, (command, additions, removals, changes, prefix) in enumerate(write_cases):
@@ -1205,6 +1206,36 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), **run_state)
+                            assert frame.application["cterm.big_random_state"] == retained_random
+                        # t pauses the parser; the complete scene and queued
+                        # ANSI tail remain intact, with no serial flow bytes.
+                        for index, command in enumerate((b"I#t 0:", b"I#t 9999:")):
+                            token = f"PAUSE{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            if index:
+                                paused = client.wait_for(lambda f: f.application.get("cterm.big_pause_active"))
+                                assert paused.application["cterm.big_pause_seconds"] == 30
+                                assert token not in paused.text
+                                client.key("up")
+                            expected = f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(484, 100), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=255,
+                                  colored_pixels=tuple((x, y, pen) for (x, y), pen in scene_pixels.items()),
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), **run_state)
+                            assert frame.application["cterm.big_pause_seconds"] == (30 if index else 1)
                             assert frame.application["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.

@@ -621,3 +621,26 @@ bitmap rows and hand-derived Small AA masks/parity plus all prior scene/
 image/palette/cell/font/point/fill/page/cursor/reply/RNG observations. Physical
 audio is disabled; the notification callback does not claim audible coverage.
 Native W is implemented; global/final regression acceptance remains pending.
+
+Native t/backpressure: cterm_big_pause uses independently specified seconds,
+key queues, deadline edges and full retained state/indexed planes across all
+three modes, CP437/UTF-8 and status choices. It checks every split/bytewise
+acquisition, predrain versus numeric ordering, getch retry, private scans,
+NUL/extended keys, expiry consumption, signed clamps/supplied8000, numeric
+timeout, EOF/reset/errors/callback resets, saturation, source repetition,
+g3 class0 and raw deferred replies. No foreign clock/FPU model is an oracle.
+
+The BIG flow-emission expectations are intentionally retired under the user
+approved native buffering contract. Legacy flow sites complete without
+send/readiness calls or output credits; X5 bytes/counts remain stored state.
+Actual counted-reply readiness/retry/reset tests remain. Native pixel/state/
+source/image tests retain their independent expectations, with flow prefixes
+removed. Custom NUL/ff/large flow counts are explicitly checked for no output.
+
+big_session_pacing runs the actual POSIX shell connection/session pump in
+paced/unpaced CP437/UTF-8 cases. Its literal alphabet/DSR tail is held ahead
+of t; paced resume admits at most the existing one-byte allowance and then
+retains complete ordered delivery. The original credit-bank defect was
+reproduced before the fix.28 new coherent application expiry/key-cancel
+scenes bring coverage to2884 while retaining the full previous scene oracle.
+Headless fixtures disable physical audio; no auditory coverage is claimed.
