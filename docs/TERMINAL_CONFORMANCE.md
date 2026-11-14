@@ -1597,3 +1597,5 @@ No foreign timer/IRQ/BIOS clock, automatic keyoff or artificial hold is added.
 Native wire N/resource/source integration and full-goal acceptance remain open.
 
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) and final focused rebuild passed without compiler/source diagnostics. All8 focused BIG music/Opal/X7 CTests passed in0.58s, including the new big_music_schedule0.01s and native cterm_big_sync0.41s. Independent schedule/storage expectations were added before implementation; the initial focused link failed on the missing new functions. No physical audio/MIDI, N wire playback, non-BIG regressions or unchanged4102 application scenes were run for this standalone component. Native buffer allocation/publication, N wire loading/source integration, fixed OPL2 gain and goal-final acceptance remain pending.
+
+Checked music storage/local sample schedule implementation commit: `9bb725e`. Native N wire/resource/source integration, fixed OPL2 gain and full-goal acceptance remain pending.
