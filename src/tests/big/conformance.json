@@ -706,7 +706,7 @@
             "No wire command or application scene changes in this unbound component. Existing2982 application scenes last passed with6bfc11c and were not rerun; final non-BIG/shared-code regressions remain deferred.",
             "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All49 BIG-specific native CTests passed in53.26s, including big_curve_draw0.01s; its strengthened focused check passed in0.09s total. No non-BIG tests ran and unchanged application scenes were not rerun for this unbound component. Decimal batch/producer binding is verified; K fronts/arc records/angular buffers/native CTerm/wire and global45-entry acceptance remain pending."
           ],
-          "commit": null
+          "commit": "f8e0503"
         }
       ]
     },
