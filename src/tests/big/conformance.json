@@ -2033,6 +2033,51 @@
             "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in54.48s. The final expanded cterm_big_curve passed in3.31s total (test3.24s), including angular/flood scratch reuse, returning fill rejection, deferred replies and following-D ownership. syncterm_big_input passed in166.03s total (test165.98s),3276 coherent scenes including98 new O scenes, with all preceding K/J/full-scene expectations retained. No non-BIG tests ran. Native O integration is verified; Q and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
           ],
           "commit": "5a81c5c"
+        },
+        {
+          "id": "native-explicit-ellipses-Q",
+          "status": "complete",
+          "operations": [
+            "Register Q at the existing BIG pre-ANSI boundary with classes1,2,1,2. Install the current application line color on entry to its first numeric field, after the command pair and before that reader; never reinstall after acquisition. Preserve partial-input and reader/callback color effects.",
+            "Use the existing explicit ellipse wrapper with start0/end360 and no circular aspect conversion. Only after a successful outline return test current full-WORD hollow; if zero, apply current selected fill then flood the original center with the current application line-color boundary. Hollow and outline failures do not submit fill; normal empty/overflow outlines still allow it.",
+            "Share K/J/O indexed/page/read-byte, curve/flood scratch, decimal/angular/producer, fill and flood kernels. Retain separate public/DDO/device points and source/footer/chaining/deferred replies. Returning errors preserve accepted prefixes and recover nonfatally, without F clamps/flow prefix, own replies or an extra framebuffer."
+          ],
+          "references": [
+            "curve-review-code.adoc:complete BIG13d2:17a2..1816 Q caller;195a:1cec..1d1b public ellipse;DDO017a..01a0",
+            "61-curve-command-acceptance.adoc:Q early color, post-outline current-hollow fill/flood and original point/batch behavior",
+            "13-curves-and-native-reuse.adoc:explicit radii and complete lower decimal/angular outline/producer contracts",
+            "24-flood-fill-and-native-reuse.adoc:origin/boundary/pattern/queue and point-preserving flood",
+            "34-numeric-words-and-exact-y-scaling.adoc:class2 center/RY and source bypass",
+            "21-loops-gangs-and-substitution.adoc:stored expression evaluation versus literal supplied values",
+            "83-global-native-reuse-and-implementation-map.adoc:distinct original outline-plus-flood composition"
+          ],
+          "tests": [
+            "cterm_big_curve",
+            "big_curve_public",
+            "big_curve_angular",
+            "big_curve_regular",
+            "big_curve_draw",
+            "big_flood",
+            "big_fill",
+            "cterm_big_fill",
+            "cterm_big_pages",
+            "syncterm_big_input"
+          ],
+          "deviations": [
+            "Retain the approved native indexed/bounded graph workspace and checked read-plane/storage/geometry errors with existing nonfatal recovery. No foreign controller/clock/stack/address model or automatic serial flow is introduced.",
+            "Native Q is implemented; V/Y and other missing commands, audio/resource/global45-entry composition and goal-final regressions remain pending."
+          ],
+          "verification": [
+            "Independent native Q expectations first failed on missing dispatch. Every split and bytewise input spans all three modes, CP437/UTF8 and status choices alongside K/J/O, checking literal full indexed planes, point/arc words and ANSI replies.",
+            "Tall explicit ellipses and filled interiors match literal outlines/interior pens5/6 across modes; hollow Q leaves the installed fill unchanged. Early color is visible before the first operand, survives partial EOF/reset/timeout/clock failure and is not reloaded after application color changes. A timeout-bell callback changes the installed color and Q draws with that reached color.",
+            "Zero aspects still permit explicit-radius drawing. An empty high-bit overflow outline still installs fill/flood in a clipped5x5 region; rejected read-plane errors retain early color but leave the old fill untouched. Returning custom-fill rejection retains the prior installed tile and allows flood.",
+            "Ordinary g2 center100->175/RY2->3 produces a literal16-point contour, while stored bypass retains the12-point radius2 circle. Ordinary g3 centerY5/RY5->11 contrasts with stored5/5 using literal6554 to force normal empty outline; the initial +1 stored fixture was corrected because original loop evaluation turns it into1 at L0.",
+            "Active-page drawing/fill, a full1098-write hand-XORed angular contour with363 records/device8000 terminator, actual subsequent flood overwrite of shared scratch, independent producer/flood counts, chained deferred NUL/ff user origins and following-D point ownership retain exact native boundaries.",
+            "Seven new coherent application scenes per profile provide98 Q captures,3374 total, with literal tall/wide/zero/round/hollow/source/existing-boundary contour and interior pens, arc/radius/point/producer state and all preceding K/J/O/font/palette/image/pixel/RNG/native observations retained.",
+            "A zero-capacity angular producer records normal BGI-6 without drawing, then Q still installs fill and floods the clipped5x5 region. Separate normal BGI and actual read-plane error returns preserve their different fill schedules.",
+            "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in56.26s. The final expanded cterm_big_curve passed in4.36s total (test4.29s), including normal producer-6 followed by fill/flood. syncterm_big_input passed in170.87s total (test170.79s),3374 coherent scenes including98 new Q scenes and every earlier K/J/O/full-scene expectation. No non-BIG tests ran. Native Q integration is verified; V/Y, other missing command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -3024,7 +3069,7 @@
     {
       "id": "Q",
       "order": 22,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3032,12 +3077,45 @@
         "shared-bgi"
       ],
       "references": [
-        "61-curve-command-acceptance.adoc"
+        "curve-review-code.adoc:complete BIG13d2:17a2..1816 Q caller;195a:1cec..1d1b public ellipse;DDO017a..01a0",
+        "61-curve-command-acceptance.adoc:Q early color, post-outline current-hollow fill/flood and original point/batch behavior",
+        "13-curves-and-native-reuse.adoc:explicit radii and complete lower decimal/angular outline/producer contracts",
+        "24-flood-fill-and-native-reuse.adoc:origin/boundary/pattern/queue and point-preserving flood",
+        "34-numeric-words-and-exact-y-scaling.adoc:class2 center/RY and source bypass",
+        "21-loops-gangs-and-substitution.adoc:stored expression evaluation versus literal supplied values",
+        "83-global-native-reuse-and-implementation-map.adoc:distinct original outline-plus-flood composition"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Register Q at the existing BIG pre-ANSI boundary with classes1,2,1,2. Install the current application line color on entry to its first numeric field, after the command pair and before that reader; never reinstall after acquisition. Preserve partial-input and reader/callback color effects.",
+        "Use the existing explicit ellipse wrapper with start0/end360 and no circular aspect conversion. Only after a successful outline return test current full-WORD hollow; if zero, apply current selected fill then flood the original center with the current application line-color boundary. Hollow and outline failures do not submit fill; normal empty/overflow outlines still allow it.",
+        "Share K/J/O indexed/page/read-byte, curve/flood scratch, decimal/angular/producer, fill and flood kernels. Retain separate public/DDO/device points and source/footer/chaining/deferred replies. Returning errors preserve accepted prefixes and recover nonfatally, without F clamps/flow prefix, own replies or an extra framebuffer."
+      ],
+      "tests": [
+        "cterm_big_curve",
+        "big_curve_public",
+        "big_curve_angular",
+        "big_curve_regular",
+        "big_curve_draw",
+        "big_flood",
+        "big_fill",
+        "cterm_big_fill",
+        "cterm_big_pages",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Retain the approved native indexed/bounded graph workspace and checked read-plane/storage/geometry errors with existing nonfatal recovery. No foreign controller/clock/stack/address model or automatic serial flow is introduced.",
+        "Native Q is implemented; V/Y and other missing commands, audio/resource/global45-entry composition and goal-final regressions remain pending."
+      ],
+      "verification": [
+        "Independent native Q expectations first failed on missing dispatch. Every split and bytewise input spans all three modes, CP437/UTF8 and status choices alongside K/J/O, checking literal full indexed planes, point/arc words and ANSI replies.",
+        "Tall explicit ellipses and filled interiors match literal outlines/interior pens5/6 across modes; hollow Q leaves the installed fill unchanged. Early color is visible before the first operand, survives partial EOF/reset/timeout/clock failure and is not reloaded after application color changes. A timeout-bell callback changes the installed color and Q draws with that reached color.",
+        "Zero aspects still permit explicit-radius drawing. An empty high-bit overflow outline still installs fill/flood in a clipped5x5 region; rejected read-plane errors retain early color but leave the old fill untouched. Returning custom-fill rejection retains the prior installed tile and allows flood.",
+        "Ordinary g2 center100->175/RY2->3 produces a literal16-point contour, while stored bypass retains the12-point radius2 circle. Ordinary g3 centerY5/RY5->11 contrasts with stored5/5 using literal6554 to force normal empty outline; the initial +1 stored fixture was corrected because original loop evaluation turns it into1 at L0.",
+        "Active-page drawing/fill, a full1098-write hand-XORed angular contour with363 records/device8000 terminator, actual subsequent flood overwrite of shared scratch, independent producer/flood counts, chained deferred NUL/ff user origins and following-D point ownership retain exact native boundaries.",
+        "Seven new coherent application scenes per profile provide98 Q captures,3374 total, with literal tall/wide/zero/round/hollow/source/existing-boundary contour and interior pens, arc/radius/point/producer state and all preceding K/J/O/font/palette/image/pixel/RNG/native observations retained.",
+        "A zero-capacity angular producer records normal BGI-6 without drawing, then Q still installs fill and floods the clipped5x5 region. Separate normal BGI and actual read-plane error returns preserve their different fill schedules.",
+        "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in56.26s. The final expanded cterm_big_curve passed in4.36s total (test4.29s), including normal producer-6 followed by fill/flood. syncterm_big_input passed in170.87s total (test170.79s),3374 coherent scenes including98 new Q scenes and every earlier K/J/O/full-scene expectation. No non-BIG tests ran. Native Q integration is verified; V/Y, other missing command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
+      ],
       "commit": null
     },
     {

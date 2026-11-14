@@ -1401,3 +1401,12 @@ literal aspect/outline/interior pixels, point owners, partial input/errors,
 patterns/pages/source and shared scratch. The application fixture adds98 O
 scenes,3276 total, retaining every preceding K/J and graphics-state expectation.
 Remaining commands, audio/global acceptance and final regressions are pending.
+
+BIG Q explicit ellipses now share the existing outline/center-flood path,
+with line colour installed before numeric input and fill installed only
+after a normal nonhollow outline. Independent native cases check early and
+reader-changed colour, partial/error fill prefixes, explicit radii/scaling,
+full indexed planes/point owners, pages/scratch and recovery across profiles.
+The application fixture adds98 Q scenes,3374 total, retaining all preceding
+K/J/O and graphics-state expectations. V and global/audio/final acceptance
+remain pending.

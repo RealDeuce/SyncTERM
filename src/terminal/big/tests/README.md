@@ -826,3 +826,21 @@ radius/state expectations and all preceding K/J/scene observations retained.
 O also checks returning rejected custom fill with the prior installed tile,
 chained deferred NUL/ff user-origin replies and following D from the restored
 DDO center, including the replaced interior pixel and three final owners.
+
+Q provenance is the complete BIG13d2:17a2..1816 caller and public ellipse/
+flood contracts13/24/61/83. cterm_big_curve checks every partition/profile
+and bytewise input alongside K/J/O, with independent full planes/owners/
+replies. Early colour survives partial input and no late setter undoes a
+reader callback's colour change. Hollow/error leaves fill untouched; normal
+empty outlines and returning custom rejection still permit the reached flood.
+Explicit tall ellipses, zero aspects, g2's16-point contour versus stored12,
+g3 center/RY11 versus stored5, pages, angular XOR/scratch reuse, deferred reply
+origins and following D retain source-derived expectations. The g3 empty
+outline fixture uses literal6554, avoiding +1's stored-loop expression.
+Seven Q scenes per application profile add98 captures,3374 total, retaining
+all preceding K/J/O/scene state with literal contour/interior/arc/radius/
+point/producer expectations. Headless physical audio/MIDI stay disabled.
+
+The final Q capacity case admits normal producer-6 with no outline pixels
+and still fills the clipped5x5 area, distinct from a read-plane error that
+returns before fill installation.

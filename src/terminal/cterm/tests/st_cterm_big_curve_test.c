@@ -1,14 +1,15 @@
-/* Independent BIG K/J/O wire/page/source/recovery expectations, original13/61. */
+/* Independent BIG K/J/O/Q wire/page/source/recovery expectations, original13/61. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_big_internal.h"
 #include "st_cterm.h"
 #include "io_error.h"
+#include "st_big_draw.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"%s:%d: %s\n",__FILE__,__LINE__,#x); exit(1); } } while (0)
-struct fixture { st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal; uint8_t output[128]; enum st_cterm_output_origin origins[128]; size_t size; unsigned bells; bool reset_bell; };
+struct fixture { st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *terminal; uint8_t output[128]; enum st_cterm_output_origin origins[128]; size_t size; unsigned bells; bool reset_bell, color_bell; };
 struct dot { unsigned x,y; };
 static const char *stage;
 static uint64_t local_ns;
@@ -17,7 +18,7 @@ static int now(void *context, uint64_t *value) { (void)context; *value=local_ns;
 static void bell(void *context)
 {
 	struct cterm_big *b=context; struct fixture *f=b->terminal->api_output_context;
-	++f->bells; if (f->reset_bell) CHECK(st_cterm_reset_terminal(f->terminal)==0);
+	++f->bells; if (f->color_bell) CHECK(st_big_draw_color(&b->state,5)==0); if (f->reset_bell) CHECK(st_cterm_reset_terminal(f->terminal)==0);
 }
 static void output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
 {
@@ -70,16 +71,16 @@ static void owners(struct fixture *f, unsigned x, unsigned y, unsigned device_x,
 static const struct dot full[]={{100,99},{100,101},{99,100},{101,100}};
 static void partitions_and_profiles(void)
 {
-	static const char *const wires[]={"I#K 100,100,1,0,360:\033[2;3H\033[6n", "I#J 100,100,1,1,0,360:\033[2;3H\033[6n", "I#H 1:I#O 100,100,1:\033[2;3H\033[6n"};
+	static const char *const wires[]={"I#K 100,100,1,0,360:\033[2;3H\033[6n", "I#J 100,100,1,1,0,360:\033[2;3H\033[6n", "I#H 1:I#O 100,100,1:\033[2;3H\033[6n", "I#H 1:I#Q 100,100,1,1:\033[2;3H\033[6n"};
 	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
 		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
-		for (size_t c=0;c<3;++c) for (unsigned resolution=1;resolution<=3;++resolution) for (size_t split=0;split<=strlen(wires[c]);++split) {
+		for (size_t c=0;c<4;++c) for (unsigned resolution=1;resolution<=3;++resolution) for (size_t split=0;split<=strlen(wires[c]);++split) {
 			setup(&f,resolution); feed(&f,wires[c],split); string(&f,wires[c]+split);
 			CHECK(f.size==6 && memcmp(f.output,"\033[2;3R",6)==0 && b->rejected_commands==0 && b->state.bgi.error==-11);
 			owners(&f,100,100,0xa014,3); canvas(&f,full,4);
-			CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==(c!=1 && resolution!=3?0:1) && b->producer.mode==0 && !b->producer.batch);
+			CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==((c==0 || c==2) && resolution!=3?0:1) && b->producer.mode==0 && !b->producer.batch);
 		}
-		for (size_t c=0;c<3;++c) for (unsigned resolution=1;resolution<=3;++resolution) {
+		for (size_t c=0;c<4;++c) for (unsigned resolution=1;resolution<=3;++resolution) {
 			setup(&f,resolution); for (size_t i=0;i<strlen(wires[c]);++i) feed(&f,wires[c]+i,1); canvas(&f,full,4);
 		}
 		destroy(&f);
@@ -328,4 +329,85 @@ static void circle_O(void)
 	destroy(&f);
 }
 
-int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); stage="J explicit radii"; explicit_radius_J(); stage="O circle/flood"; circle_O(); return 0; }
+
+static void ellipse_Q(void)
+{
+	static const struct dot center[]={{100,100}};
+	static const struct dot tall[]={{100,98},{100,102},{99,99},{101,99},{99,101},{101,101},{99,100},{101,100}};
+	static const struct dot vertical[]={{100,99},{100,100},{100,101}};
+	static const struct dot round[]={{100,98},{100,102},{99,98},{101,98},{99,102},{101,102},{98,99},{102,99},{98,101},{102,101},{98,100},{102,100}};
+	static const struct dot inside[]={{99,100},{100,100},{101,100},{99,99},{100,99},{101,99},{99,101},{100,101},{101,101}};
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	for (unsigned mode=1;mode<=3;++mode) {
+		setup(&f,mode); string(&f,"I#H 0:I#C 2,6:I#Q 100,100,1,2:");
+		canvas_with_fill(&f,tall,8,vertical,3); owners(&f,100,100,0xa014,3);
+		CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==2 && b->state.bgi.fill_color==6 && f.size==0);
+		setup(&f,mode); string(&f,"I#H 1:I#Q 100,100,1,2:"); canvas(&f,tall,8);
+		CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==15 && b->state.bgi.color==5);
+	}
+	/* Early colour is visible before the first read, never refreshed
+	 * from the application line colour after the operands return. */
+	setup(&f,2); string(&f,"I#Q "); CHECK(b->state.bgi.color==5 && b->state.bgi.fill_color==15); owners(&f,31,32,31,32);
+	b->state.application.colors[1]=7; string(&f,"100,100,1,1:"); canvas(&f,full,4); CHECK(b->state.bgi.color==5 && b->state.bgi.fill_color==15);
+	b->state.application.colors[1]=5;
+	setup(&f,2); string(&f,"I#Q 100,100,1,"); CHECK(st_cterm_finish(f.terminal)==0); canvas(&f,NULL,0); CHECK(b->state.bgi.color==5 && b->state.bgi.fill_color==15);
+	string(&f,"I#Q 100,100,1,"); CHECK(st_cterm_reset_terminal(f.terminal)==0); canvas(&f,NULL,0); owners(&f,31,32,31,32);
+	string(&f,"I#Q 100,100,1,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0);
+	canvas(&f,full,4); CHECK(b->state.bgi.curve_radius[1]==0 && b->state.bgi.fill_color==15);
+	setup(&f,2); string(&f,"I#Q 100,100,1,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS;
+	CHECK(st_cterm_poll(f.terminal)==0 && b->state.bgi.color==5 && b->state.bgi.fill_color==15); f.reset_bell=false; canvas(&f,NULL,0);
+	setup(&f,2); b->state.application.colors[1]=6; string(&f,"I#Q 100,100,1,"); CHECK(b->state.bgi.color==6);
+	f.color_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0); f.color_bell=false;
+	canvas(&f,full,4); CHECK(b->state.bgi.color==5 && b->state.application.colors[1]==6); b->state.application.colors[1]=5;
+	setup(&f,2); string(&f,"I#Q 100,100,1,"); clock_error=IO_ERROR_IO; CHECK(st_cterm_poll(f.terminal)==0); clock_error=0;
+	CHECK(b->last_error==IO_ERROR_IO && b->state.bgi.color==5 && b->state.bgi.fill_color==15); canvas(&f,NULL,0);
+	/* Explicit radii never enter the circular aspect divider. */
+	setup(&f,2); b->state.bgi.aspect[0]=b->state.bgi.aspect[1]=0; string(&f,"I#H 0:I#Q 100,100,1,2:"); canvas_with_fill(&f,tall,8,vertical,3);
+	setup(&f,2); b->state.bgi.viewport[0]=10; b->state.bgi.viewport[1]=10; b->state.bgi.viewport[2]=14; b->state.bgi.viewport[3]=14;
+	string(&f,"I#Q 2,2,+1,2:"); struct dot block[25]; size_t count=0;
+	for (unsigned y=10;y<=14;++y) for (unsigned x=10;x<=14;++x) block[count++]=(struct dot){x,y};
+	canvas_with_fill(&f,NULL,0,block,25); owners(&f,12,12,12,12); CHECK(b->state.bgi.error==-11 && b->state.bgi.fill_color==6);
+	/* Producer-6 is a normal BGI return, so Q still submits fill/flood. */
+	setup(&f,3); b->state.bgi.viewport[0]=10; b->state.bgi.viewport[1]=10; b->state.bgi.viewport[2]=14; b->state.bgi.viewport[3]=14;
+	size_t capacity=b->producer.capacity; b->producer.capacity=0;
+	string(&f,"I#T 2,4,0,1,1:I#Q 2,2,1,1:");
+	canvas_with_fill(&f,NULL,0,block,25); owners(&f,12,12,12,12);
+	CHECK(b->state.bgi.error==-6 && b->state.bgi.fill_color==6 && b->producer.count==0 && b->flood_work.count==0); b->producer.capacity=capacity;
+	setup(&f,2); size_t rejected=b->rejected_commands; b->producer.read_plane=4; string(&f,"I#Q 100,100,1,1:\033[6n");
+	CHECK(b->rejected_commands==rejected+1 && b->last_error==IO_ERROR_OUT_OF_RANGE && b->state.bgi.color==5 && b->state.bgi.fill_color==15 && f.size==6); canvas(&f,NULL,0);
+	b->producer.read_plane=0; string(&f,"I#Q 100,100,1,1:"); canvas_with_fill(&f,full,4,center,1); CHECK(b->state.bgi.fill_color==6);
+	setup(&f,2); string(&f,"I#C 2,6:I#A 1:I#C 2,31:I#A 12:I#Q 100,100,1,1:");
+	canvas_with_fill(&f,full,4,center,1); CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==6 && b->state.bgi.error==-11);
+	setup(&f,2); string(&f,"I#C 2,6:I#A 1:I#H 1:I#g 2:I#Q 100,100,2,2:");
+	static const struct dot scaled[]={{100,172},{100,178},{99,172},{101,172},{99,178},{101,178},{98,173},{102,173},{98,177},{102,177},{98,174},{102,174},{98,176},{102,176},{98,175},{102,175}};
+	canvas(&f,scaled,16); owners(&f,100,175,0xa022,2); CHECK(b->state.bgi.curve_radius[0]==2 && b->state.bgi.curve_radius[1]==3);
+	setup(&f,2); string(&f,"I#g 2:I#& 0,0,1,0,Q@4,100,100,2,2:I#g 0:"); canvas(&f,round,12); owners(&f,100,100,0xa022,2); CHECK(b->state.bgi.curve_radius[1]==2 && b->numeric.loop.active==0);
+	/* Literal6554 overflows the outline without becoming a stored-loop
+	 * expression, keeping the g3 center/RY bypass test independent. */
+	setup(&f,3); string(&f,"I#g 3:I#Q 100,5,6554,5:"); canvas(&f,NULL,0); owners(&f,100,11,100,11); CHECK(b->state.bgi.curve_radius[1]==11);
+	setup(&f,3); string(&f,"I#g 3:I#& 0,0,1,0,Q@4,100,5,6554,5:I#g 0:"); canvas(&f,NULL,0); owners(&f,100,5,100,5); CHECK(b->state.bgi.curve_radius[1]==5);
+	for (unsigned mode=1;mode<=3;++mode) {
+		setup(&f,mode); string(&f,"I#H 0:I#G>6,1:Q 100,100,1,1:");
+		if (mode<3) { canvas(&f,NULL,0); owners(&f,100,100,mode==1?0xa414:0xa814,3); string(&f,"I#G 5,1:"); }
+		else owners(&f,100,100,0xa014,3);
+		canvas_with_fill(&f,full,4,center,1);
+	}
+	setup(&f,3); string(&f,"I#T 2,4,0,1,1:I#M 2:I#Q 100,100,1,1:");
+	static const struct dot thick[]={{100,98},{99,99},{100,99},{101,99},{98,100},{99,100},{100,100},{101,100},{98,101},{100,101},{99,102},{100,102}};
+	canvas(&f,thick,12); owners(&f,100,100,0x8000,0x8000); CHECK(b->producer.count==363 && b->state.bgi.fill_color==6);
+	struct st_big_producer_point saved[5]; memcpy(saved,b->producer.points,sizeof(saved));
+	string(&f,"I#T 2,0,0,1,0:I#M 1:I#Q 150,150,2,2:");
+	struct dot outlines[24], filling[9]; memcpy(outlines,thick,sizeof(thick));
+	for (size_t i=0;i<12;++i) outlines[12+i]=(struct dot){round[i].x+50,round[i].y+50};
+	for (size_t i=0;i<9;++i) filling[i]=(struct dot){inside[i].x+50,inside[i].y+50};
+	canvas_with_fill(&f,outlines,24,filling,9); CHECK(memcmp(saved,b->producer.points,sizeof(saved))!=0 && b->producer.count==363 && b->flood_work.count==0);
+	setup(&f,2); b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"I#Q>100,100,1,1:"); CHECK(f.size==0 && b->control.input.pending==1); string(&f,"~ ");
+	CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255 && f.origins[0]==ST_CTERM_OUTPUT_USER && f.origins[1]==ST_CTERM_OUTPUT_USER);
+	setup(&f,2); string(&f,"I#Q 100,100,1,1:I#D 102,100:");
+	static const struct dot following[]={{100,99},{100,101},{99,100},{100,100},{101,100},{102,100}}; canvas(&f,following,6);
+	CHECK(b->state.bgi.x==102 && b->state.bgi.y==100 && b->state.bgi.ddo_x==102 && b->state.bgi.ddo_y==100 && b->state.bgi.device_x==102 && b->state.bgi.device_y==100);
+	destroy(&f);
+}
+
+int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); stage="J explicit radii"; explicit_radius_J(); stage="O circle/flood"; circle_O(); stage="Q ellipse/fill timing"; ellipse_Q(); return 0; }

@@ -1350,6 +1350,28 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             (b"I#P 548,190:I#m 2,484,100:I#O 548,190,1:", o_pixels(548, 190, 1, False) + ((548, 190, 15),),
                              ((548, 190), (0xa01c, 3)), (548, 190, 549, 190, 549, 190), (1, ry), 360, 5, {}),
                         )
+                        # Q supplies explicit radii; its closed contours reuse
+                        # these independent literal vectors across all modes.
+                        q_tall = ((0, -2), (0, 2), (-1, -1), (1, -1), (-1, 1), (1, 1), (-1, 0), (1, 0))
+                        q_vertical = ((0, -1), (0, 0), (0, 1))
+                        def q_pixels(x, y, contour, interior=()):
+                            return tuple((x + dx, y + dy, 15) for dx, dy in contour) + tuple((x + dx, y + dy, 5) for dx, dy in interior)
+                        curve_cases += (
+                            (b"I#H 1:I#Q 524,90,1,2:", q_pixels(524, 90, q_tall),
+                             ((524, 90), (0xa014, 3)), (524, 90, 525, 90, 525, 90), (1, 2), 360, 5, dict(hollow=1)),
+                            (b"I#H 0:I#Q 548,90,2,1:", q_pixels(548, 90, o_flat, o_inside[:3]),
+                             ((548, 90), (0xa022, 2)), (548, 90, 550, 90, 550, 90), (2, 1), 360, 5, dict(hollow=0)),
+                            (b"I#Q 572,90,0,1:", q_pixels(572, 90, o_unit, ((0, 0),)),
+                             ((572, 90), (0xa014, 3)), (572, 90, 572, 90, 572, 90), (0, 1), 360, 5, {}),
+                            (b"I#Q 596,90,2,2:", q_pixels(596, 90, o_round, o_inside),
+                             ((596, 90), (0xa022, 2)), (596, 90, 598, 90, 598, 90), (2, 2), 360, 5, {}),
+                            (b"I#H 1:I#Q 620,90,1,1:", q_pixels(620, 90, o_unit),
+                             ((620, 90), (0xa014, 3)), (620, 90, 621, 90, 621, 90), (1, 1), 360, 5, dict(hollow=1)),
+                            (b"I#H 0:I#g 2:I#& 0,0,1,0,Q@4,524,80,1,2:I#g 0:", q_pixels(524, 80, q_tall, q_vertical),
+                             ((524, 80), (0xa014, 3)), (524, 80, 525, 80, 525, 80), (1, 2), 360, 5, dict(hollow=0)),
+                            (b"I#P 548,80:I#m 2,484,100:I#Q 548,80,1,2:", q_pixels(548, 80, q_tall) + ((548, 80, 15),),
+                             ((548, 80), (0xa01c, 3)), (548, 80, 549, 80, 549, 80), (1, 2), 360, 5, {}),
+                        )
                         for index, (command, additions, points, arc, radii, span, count, changes) in enumerate(curve_cases):
                             curve_state.update(changes); curve_state["lower_points"] = points
                             for x, y, pen in additions:
