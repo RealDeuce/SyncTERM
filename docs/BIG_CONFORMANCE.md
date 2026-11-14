@@ -1,9 +1,22 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X7/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills, F fills and s graphics/console clears run
-through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. All45 command bodies have native integration; whole-goal acceptance remains
-in progress. Native b effects and n notes/sweeps drive channel1 through the shared
-speaker source; N0..5 drives OPL2 playback on channel0 with actual buffer availability. Earlier sections retain historical progress counts.
+BIG (1.03) is selectable in BBS profiles and Wren. All45 command entries and
+all seven foundations are complete under the native contract below. This
+includes numeric/loop sources, all three resolutions, drawing/text,
+indexed images/pages, palettes, keyboard/mouse input, replies and nonfatal
+recovery. Native b/n drive the shared speaker source on channel1; N0..5
+drives OPL2 playback on channel0 with actual buffer availability and X7
+progress. The final acceptance record gives verification and coverage limits.
+Earlier sections retain historical progress counts.
+
+Final acceptance: all101 recursively named ledger tests passed. The complete
+562-test native inventory has561 passes after correcting an independent emoji
+test-loader import, plus one external Wayland skip without a compositor.
+All three private-Xvfb X11 tests passed; internal Wayland tests passed.
+The BIG application fixture passed4,228 coherent independent scenes across
+the supported profiles. Physical audio/MIDI and listening are not claimed.
+See the standalone goal's final native acceptance section for the command
+review, shared-kernel audit, precise corrections and manual audio checklist.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -18,16 +31,16 @@ palettes/replies, indexed storage and local timing. Safe malformed-state
 corrections are documented per entry. Sound acceptance is functional;
 bit-identical reference PCM and listening are not development gates.
 
-The planned BIG audio routing uses logical mixer channel0 for N's synthesized
+BIG audio routing uses logical mixer channel0 for N's synthesized
 OPL2 output and channel1 for b/n PC-speaker effects/notes, including the existing
-channel controls. Native b/n/N are integrated; final command/global acceptance remains pending.
+channel controls. Native b/n/N and command/global acceptance are complete.
 The selected source is current RealBitdancer Opal (MIT), adapted to YM3812
 only, with its full copyright/license entry in Settings > Licenses. Add missing
 OPL2 behavior as new code and remove OPL3-only banks/channels, four-operator
 pairing, extra waveforms, NEW mode and chip stereo controls. Other emulators
 are behavioral references only; do not copy, port or translate their code.
 Test actual YM3812 waveform-enable, CSM, rhythm and timer semantics. The native reduced core and its full MIT license UI are now implemented;
-N playback integration is native; full-goal acceptance remains pending.
+N playback integration and full-goal acceptance are complete.
 The approved speaker timbre is a square oscillator with a small stateful
 low-pass filter. b's twenty procedural effect schedules and n's notes/sweeps
 share that generator; the original effects contain no stored PCM samples.

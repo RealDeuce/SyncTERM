@@ -1616,3 +1616,24 @@ in BIG_IMPLEMENTATION.adoc; goal-final full regressions/global acceptance remain
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.
 
 Native N0..5 buffer/source/controls/lifetime integration commit: `fdc8268`. All45 command bodies now have native integration. Full command/global acceptance audit and the goal-final complete regression suite remain pending; the unlimited BIG goal stays active.
+
+
+BIG final native acceptance completes all45 command entries and seven
+foundations. The original36-command dispatch plus X0..X8 matches the ledger;
+all101 recursively named ledger tests passed. Shared current RIP font/data/
+glyph kernels retain BIG-specific layout/clipping/state adapters. Indexed
+pages/images convert formats at the edges; numeric/source/reply, hybrid
+pointer, nonfatal recovery, backpressure and paced resume have coherent
+native coverage. N uses actual allocated storage and OPL2 channel0 with real
+X7 progress; b/n use the shared softened speaker channel1 and fixed gains.
+
+The complete562-test FreeBSD native CMake Release inventory has561 passes
+after an independent emoji test-loader import correction (134d5a0), plus one
+external Wayland skip without a compositor. Internal Wayland and all three
+private-Xvfb X11 tests passed. All IGS/ANSI/VT52/RIP/SkyPix/profile/Wren/audio/
+graphics-lifecycle checks passed; BIG's application test passed4228 coherent
+scenes in233.67s. A clean final configure/full rebuild and eight focused
+parser/font/native-N/generator checks passed. No physical audio/MIDI,
+auditory or external Wayland coverage is claimed. The standalone BIG goal
+records the complete command review, approved adaptations and manual audio
+checklist; earlier paragraphs retain their historical progress statements.

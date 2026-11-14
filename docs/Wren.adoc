@@ -5882,8 +5882,8 @@ mapping. An unsupported or Current profile starts in EGA without rewriting
 the saved profile. BIG mode installation selects the exact 8x8, 8x14 or 8x16
 ROM bank. A different console font/codepage or unsupported screen choice in
 the editor switches back to ordinary emulation. BIG shares the same pre-ANSI
-receive insertion as IGS/RIP. Implementation is in progress; the coverage
-ledger distinguishes working I operations from incomplete command acceptance.
+receive insertion as IGS/RIP. All45 BIG command entries have native integration;
+the coverage ledger records verification and the native protocol adaptations.
 
 SkyPix is selected before connecting, independently of RIP. Both variants use
 the practical protocol recorded in link:SKYPIX_CONFORMANCE.md[SkyPix conformance],

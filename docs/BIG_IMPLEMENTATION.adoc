@@ -14,40 +14,19 @@ inventory has 36 top-level commands including X dispatch and nine X selectors:
 restrictions and CONDOR implementation are excluded. The reference's 64
 accepted research requirements are not 45 completed SyncTERM commands.
 
-The unlimited goal is active. CGA 80x25 and the shared numeric-reader
-boundary are complete; ordinary BIG numeric acquisition, the shared RNG
-core, stored numeric evaluation and source/deadline parser callbacks are
-implemented.
-BIG mode6 is selectable with native I0/I1/R indexed-console effects,
-g/X0/X1/X2/X3/X4/X5/X6/X7/X8, S palettes, G0..6 images/pages, wire & setup,
-source/footer replay and local stored-loop keys. T attributes, P markers,
-L/D/d lines, m graphics movement, p console positioning, M writing modes,
-C application colours, A fills, s graphics/console clears,
-B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
-pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
-K circular/J explicit-radius arcs, O circles, Q ellipses, V circular
-pieslices and Y explicit-radius sectors are integrated.
-All45 command bodies now have native integration; final command/global
-acceptance remains pending. Native W, t and ? were implemented in the
-requested order. Sound-buffer availability now follows actual allocation.
-Curve work now has shared sine/product kernels, BIG scalar/aspect state,
-decimal and angular outlines, ordered buffer flush and public ellipse/circular
-wrappers with query and DDO-only restoration, native shared graph-buffer
-binding and K/J/O/Q/V/Y wire/page/source/recovery integration. Sector work has
-the raw polygon scanner, stages2/3, piece closure, normal/alternate lower
-construction, physical span operators and public explicit/circular sector
-wrappers. V/Y share their fill/line/caller schedule while preserving circular
-aspect conversion versus explicit radii and their distinct reader classes.
-All six curve commands have native wire integration. X7 now has its raw
-WORD setter and resumable pair-entry gate, now driven by actual N callback
-progress. Native N0..5 supplies live binary loading, slice/start/clock/warm
-controls, allocated-buffer availability and OPL2 source playback on channel0.
-The YM3812 core and its full MIT license UI are implemented; native b effects
-and n notes/sweeps use the shared speaker source on channel1. Fixed source
-gains are measured once and hard-coded. Whole-goal acceptance, including the
-final full regression suite and command/global audit, remains pending. Earlier verification sections retain
-their historical completion counts and outstanding-work descriptions; the
-latest checkpoint section records current scope.
+The implementation goal is complete: all45 command entries and all seven
+foundations have native implementations, independent expectations and final
+regression verification. CGA80x25 is stable mode32; BIG is graphics mode6.
+All three resolutions, indexed pages/images, graphical text, hybrid pointer,
+numeric/loop sources, replies and nonfatal recovery are integrated. Native W,
+t and ? were implemented in the requested order.
+
+N0..5 uses actual owned music storage and the MIT Opal YM3812 adaptation on
+channel0; b/n share the softened speaker source on channel1. X7 observes real
+music progress. Fixed source gains were measured once and hard-coded.
+The final acceptance section records the complete native regression run,
+approved adaptations and device-coverage limits. Earlier verification records
+retain their historical completion counts and outstanding-work descriptions.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -5020,3 +4999,112 @@ by headless bitmap or synthesized-PCM checks. For a manual terminal session:
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.
 
 Native N0..5 buffer/source/controls/lifetime integration commit: `fdc8268`. All45 command bodies now have native integration. Full command/global acceptance audit and the goal-final complete regression suite remain pending; the unlimited BIG goal stays active.
+
+== Final native acceptance
+
+All45 entries and all seven foundations are accepted. The ledger records
+reachable implementation commits individually; its final acceptance record
+joins those steps to the final regression evidence. Earlier pending-work
+statements describe their historical commits.
+
+The final audit compared the original BIG103 dispatch index against the
+native command table: all36 top-level commands match exactly, with no
+duplicates or omissions. X0..X8 add nine ledger entries; X is accepted after
+all nine selectors. Every entry has original references, native operations,
+independent tests and an implementation commit. All intermediate steps are
+complete. Recursive test discovery found101 ledger tests, all configured and
+passing. This is executable acceptance of the terminal contract, distinct
+from the reference documentation's research-criterion count.
+
+[cols="2,4,4",options="header"]
+|===
+|Entries |Native owner and behavior reviewed |Independent verification
+|I R g M C S A H T
+|Ordered defaults, numeric classes, retained application versus BGI state,
+palette cache/publication and delayed consumer installation
+|State/number/fill/draw/palette tests and native resolution/line/fill captures
+|m p s
+|Separate graphics points, retained CRT bounds/page0 cursor, allocated-page
+clear and console-window blank
+|Console-position/clear/video tests and native page/state captures
+|P L D d B Z F
+|Original clipped/styled strokes, markers, projected boxes, outlines and
+bounded flood using actual active indexed memory
+|Draw/bar/bar3d/producer/flood tests, native line/bar/fill and page captures
+|K J O Q V Y
+|Original scalar/aspect/decimal/angular/sector/polygon operators, shared
+retained graph scratch, hollow/fill ordering and point tails
+|Curve scalar/decimal/angular/regular/stages/public/sector and polygon/span
+tests, native curve/page captures
+|G
+|All seven image/page routes; retained image bytes and cached indexed pens,
+actual address/stride/padding/display aliasing and separate page owners
+|Video/image/paste and native page/image captures, Boolean dual-blink results
+|E W
+|Shared current RIP fonts/kernels with BIG registry, ratios, placement,
+source/count/advance, bitmap COPY and stroke writing-mode semantics
+|All-glyph font identity/decoder tests, text style/ratio/bitmap/stroke tests,
+native text and coherent application captures
+|t ?
+|Local key/deadline pause, connection buffering/paced resume, ordered query
+requests and actual music-buffer availability
+|Pause/query and session-pacing tests, output-origin and recovery captures
+|< &
+|Keyboard/mouse zones, opaque loaders, stored/gang sources, repeats,
+counted deferred replies and cleanup
+|Collect/control/stream/numeric/loop tests and native split/input/lifecycle
+captures including stationary mouse, release, overflow and cancellation
+|b n N
+|Shared softened speaker channel1, raw OPL2 channel0, fixed gains, local
+sample timing, live buffers, controls and quiescent teardown
+|Effect/speaker/music/Opal/PCM/channel/schedule tests, native audio commands,
+concurrent replacement/shutdown, license UI and coherent N captures
+|X X0 X1 X2 X3 X4 X5 X6 X7 X8
+|Dynamic arity and partial stores; shared RNG, patterns, ratios, zones,
+flow settings, keyboard steps, actual music progress and palette rotation
+|Split/source/timeout tests and native spray/random/text/flow/sync/rotation/
+input captures; parent dispatch also checks unknown full-WORD selectors
+|===
+
+Chapter83's reuse map was rechecked against current source. The common BGI
+library supplies matching palette/fill/ratio/trig data, current font data,
+bitmap expansion, CHR decoding, thin lines and pixel operations. BIG keeps
+its original clipping, stroke/curve/flood/sector schedules, placement and
+state/lifetime adapters. Ordinary bytes pass through the same pre-ANSI
+stage used by IGS/RIP; protocol payloads remain opaque. The dynamic-field
+callback comment now describes the existing once-per-selection synchronous
+contract, including ordered prefix stores before the next field acquisition.
+No parser behavior was changed by that clarification.
+
+The current contract retains the approved native adaptations: indexed
+framebuffer/pages and format conversion at image edges; current shared
+fonts; local deadlines/sample schedules; buffered parser backpressure with
+paced backlog and no automatic serial flow; hybrid pointer control; and
+MIT Opal reduced to YM3812 with independently authored missing behavior.
+b uses one output sample per frequency request, including the32700-request
+effect7. Fixed speaker gain0.279224085 and OPL2 gain3.25718 preserve the
+documented reference levels and encoded dynamics. There is no runtime gain
+calibration. Checked owned extents, initialized scratch/image/palette data
+and nonfatal prefix-preserving recovery replace unsafe original accesses
+and process exits. Per-entry deviations retain their precise boundaries.
+
+Final verification used one native FreeBSD CMake Release configuration,
+`/usr/bin/cc`, `build/`, with physical audio/MIDI disabled. The complete562-
+test inventory ran in two groups:558 ordinary tests in1091.02s and four
+display tests in5.41s. The first group passed557 tests and exposed a missing
+sibling-module import in the independent emoji raster test loader. The
+narrow correction is commit134d5a0; both generator tests then passed in0.54s.
+All three X11 tests passed on private Xvfb after clearing inherited display
+environment variables. The external Wayland test skipped without a
+compositor; internal Wayland tests passed. Combined corrected evidence is
+561 passes and one documented environment skip, with no remaining failures.
+
+All101 ledger tests passed. `syncterm_big_input` passed in233.67s with4228
+coherent independent scenes, including126 N scenes across14 profiles.
+The complete IGS, ANSI/VT52, RIP, SkyPix, profile/Wren, audio and graphics-
+lifecycle inventory also passed. A final native configure/full rebuild had
+no compiler/source diagnostics; all eight focused parser/font/native-N/
+generator checks passed in1.17s after the comment/loader corrections.
+No physical-audio/MIDI, auditory, external Wayland or additional platform/
+compiler coverage is claimed. The manual audio checklist above is supplied;
+listening and bit-identical historical PCM are not acceptance gates.

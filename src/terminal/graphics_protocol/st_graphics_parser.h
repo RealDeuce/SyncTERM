@@ -80,7 +80,9 @@ struct st_graphics_command {
 	const struct st_graphics_parameter *parameters;
 	size_t count;
 	/* After the fixed parameters, choose each additional field from prior
-	 * arguments, or return ST_GRAPHICS_END. Must not execute effects. */
+	 * arguments, or return ST_GRAPHICS_END. Called once per field selection;
+	 * may commit ordered protocol prefixes before the next field is read.
+	 * Must complete synchronously: no IN_PROGRESS or parser reentry. */
 	int (*next)(void *context, const struct st_graphics_command_view *,
 	    struct st_graphics_parameter *result);
 };

@@ -1,4 +1,4 @@
-/* Original V100 data/borrowed startup and common CHR decoding, BIG28/30. */
+/* Shared current BGI data/borrowed startup and CHR decoding, BIG28/30. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_font.h"
 #include "st_bgi_chr.h"

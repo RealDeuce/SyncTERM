@@ -48,10 +48,11 @@ this native functional profile.
 
 The output is a signed32 mono amplitude sum. Individual operator output is
 about12-bit amplitude; the full18-operator additive sum remains unclipped.
-The future BIG audio owner must apply calibrated source gain and channel0
-volume before converting to signed16 stereo. This avoids destroying headroom
-before the mixer sees the signal. No audible device or loudness calibration
-is claimed by this component.
+The native BIG audio owner applies fixed source gain3.25718 and duplicates mono
+into wide stereo before existing channel0 gain, mixer summation and final
+signed16 conversion. This preserves polyphonic headroom. The one-time gain
+measurement and playback tests belong to BIG integration; this component
+alone makes no audible-device claim.
 
 `big_opl2` has independently authored expectations for waveform-write
 retention, all18 operator slots and9 channels, ignored holes/OPL3 stereo bits,
@@ -64,7 +65,9 @@ application license test traverses the normal Settings > Licenses UI and
 compares the complete visible notice, including its scroll tail, against the
 checked-in MIT text. Physical audio/MIDI are disabled.
 
-BIG b/n/N and X7 real callback publication are separate integration work.
-This library does not install a BIG music buffer or report ?2 availability.
+BIG b/n/N and actual X7 callback publication are integrated by CTerm. This
+library remains independent of music-buffer allocation and ?2 availability;
+see [BIG implementation](../../../docs/BIG_IMPLEMENTATION.adoc) for the native
+owner, channel routing, fixed gains and lifecycle verification.
 
-Verification: Native FreeBSD CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics or clock-skew notices. Both focused BIG CTests passed in0.61s total: big_opl2 in0.01s and syncterm_big_opl2_license in0.54s. No non-BIG tests or unchanged3934 application scenes were rerun. Physical audio/MIDI were disabled. This verifies the standalone native synthesis/controls and full license UI, not b/n/N playback, real X7 progress, ?2 allocation or final loudness calibration. The full goal remains active and its full regression suite stays deferred.
+Historical component verification: Native FreeBSD CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics or clock-skew notices. Both focused BIG CTests passed in0.61s total: big_opl2 in0.01s and syncterm_big_opl2_license in0.54s. No non-BIG tests or unchanged3934 application scenes were rerun. Physical audio/MIDI were disabled. This component step verified standalone synthesis/controls and the full license UI; native playback/progress/allocation and gain measurements were added in later BIG integration steps.

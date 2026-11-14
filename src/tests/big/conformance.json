@@ -14,7 +14,7 @@
     "rendering": "Render synchronously without periodic work-budget yields; no blocking I/O/readiness/time waits in framebuffer updates. Memory callbacks complete synchronously or fail; protocol acquisition/flow waits remain outside updates.",
     "errors": "BIG command errors are nonfatal warnings: cancel pending parser/source/input/flow/footer state, preserve accepted state/pixels and continue unread pre-ANSI input, including poll/deferred pointer/EOF recovery. Last-error/rejection-count diagnostics remain observable; connection failures retain their independent handling.",
     "fonts": "Use current shared RIP bitmap/CHR font data and common glyph kernels. Historical V100 copies are not required and must not be carried unless actual artwork demonstrates a need. Preserve BIG protocol layout/source/advance rules around shared glyphs; current-version metric/outline differences are intentional.",
-    "execution_order": "Native W, t and ? were implemented in the user-requested order. All45 command bodies now have native integration; the global/command audit and goal-final full regression suite remain pending. Preserve original dispatch order values.",
+    "execution_order": "Native W, t and ? were implemented in the user-requested order. All45 command entries and seven foundations passed final native acceptance, including their complete recursive101-test ledger inventory. Preserve original dispatch order values.",
     "transport": "Use parser backpressure and existing session/connection buffers. No automatic XON/XOFF/custom X5 flow bytes, flow readiness polls, output budget consumption or flow-count waits. Retain X5 numeric/state semantics and real replies. Keep the backlog paced after a pause, with no baud credit bank during the pause or its resume tick; unpaced input resumes in order. Historical verification records retain earlier serial-flow results and are not current transport expectations.",
     "publishing": "User authorizes pushing all completed branch changes once every non-audio BIG command is implemented and verified, with only b/n/N audio commands pending. Do not push earlier. This is a publishing checkpoint; the full goal, audio work and existing goal-final full-suite requirement remain active.",
     "audio_levels": "Calibrate BIG OPL2 and speaker source levels against existing ANSI music and beep output at equivalent channel/master settings, avoiding unintended loudness jumps or drops. Use stable source gain preserving encoded dynamics/relative voice levels; verify representative mixed-output PCM AC RMS and peaks through the real mixer, including polyphonic headroom/clipping and existing volume controls. Measure normalization once during development and hard-code the resulting source gains; do not add runtime source/startup/per-note calibration loops.",
@@ -64,7 +64,8 @@
         "21 selected CTest checks passed in 37.74s, including all listed tests, terminal/RIP/SkyPix and session regressions.",
         "syncterm_cga_mode: eight coherent CP437/UTF-8 scene captures across status visibility and reconnects, plus startup/return geometry; exact indexed blink planes, cells, cursor, palette, replies and composed RGB interior samples."
       ],
-      "commit": "571d429"
+      "commit": "571d429",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "graphics-parser",
@@ -115,11 +116,12 @@
           ],
           "commit": "8687007"
         }
-      ]
+      ],
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "big-numeric-state",
-      "status": "in-progress",
+      "status": "complete",
       "operations": [
         "BIG WORD digit slots, destructive continuations, special bytes, random/loop sources and source-specific deadlines.",
         "Original software/default-precision scaling, including g3 Y5->11, with exact finite integer adapters and explicit WORD reduction.",
@@ -164,7 +166,7 @@
         "st_big_stream binds auxiliary/text readers to production numeric/loop/flow state: per-call versus whole-text monotonic deadlines, ready-byte timeout order, auto/BEL,128-byte caps, empty @, embedded NUL/ff, stale suffixes, reuse/Z, first-pass XON and idempotence. Independent split/cap/deadline/reuse/flow/error expectations pass; live & uses the same component.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
       ],
-      "commit": null,
+      "commit": "125d524",
       "steps": [
         {
           "id": "ordinary-acquisition",
@@ -249,23 +251,24 @@
           ],
           "commit": "125d524"
         }
-      ]
+      ],
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "shared-bgi",
-      "status": "in-progress",
+      "status": "complete",
       "operations": [
         "Revalidate current-source reuse and share only matching data/kernels actually consumed by RIP/BIG.",
-        "BIG-specific raster adapters and original bitmap/four V100 CHR assets.",
+        "BIG-specific raster adapters around current shared RIP bitmap/four CHR font views; one immutable compiled font set.",
         "Shared extracted st_bgi_thin_line candidate/pattern walker and four builtin pattern words; RIP keeps its clip/thickness/state, BIG supplies original fixed-slope WORD clips, stroke expansion, points and polymarker schedules.",
         "Share the unchanged twelve8x8 fill masks through st_bgi_fill_patterns; BIG retains separate original selection, validation, copy/cache/default state and indexed tile representation.",
-        "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. No wire B/bar3d binding yet.",
-        "Original DDO0615 point producer shared by future bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns; no wire binding yet.",
+        "Original direct-bar WORD translation/signed rectangle clip/raw unsigned sort and ordered opaque indexed passes; active mask/current device pen stay distinct from the latched tile. Native B binds these operators to actual indexed pages.",
+        "Original DDO0615 point producer shared by native bar3d/curve callers: first-point/run/8001 collector and actual mode2 carry/register returns, using the retained bounded graph workspace.",
         "Original public/DDO bar3d composition: unsigned public sort/lower move, signed inverted inset/second clip, old-point-first front/extrusion, wrapped depth/orientation/top BYTE, producer effects and current tuple tail.",
         "Synchronous original indexed flood: WORD spans, UP/DOWN LIFO, directional/containment/pattern suppression, byte-band plane passes and accepted-prefix errors over borrowed bounded records.",
         "Original public rectangle four absolute standalone lines with captured first corner/live later arguments, fresh phases and inclusive XOR corners; reuse existing BIG clipping/strokes and shared thin line kernel, preserve all point owners.",
         "X0 reuses original direct marker/line and indexed point adapters with separate signed two-draw sampling, live type/counter/anchor tests and caller-specific point tails.",
-        "Original V100 font bytes/borrowed BIG startup registry and a bounded common CHR format accessor are implemented; old font data remain distinct from newer RIP arrays, with selection/layout/raster in their protocol owners.",
+        "Borrowed BIG startup registry selects current shared RIP CHR data through the common bounded CHR accessor. Shared bitmap expansion, stroke decoding and thin lines retain protocol-specific selection/layout/raster state.",
         "Original full allocated-page COPY clear followed by public move and distinct VGA cached-window blank with packed dimensions/WORD addresses/two passes; existing indexed memory adapters and page/point owners remain authoritative."
       ],
       "tests": [
@@ -316,7 +319,7 @@
         "The current RIP EGA RGB16 table and default pen-code initializer bodies match the extracted st_bgi data exactly. Every channel is independently checked from its six colour-bit weights; default codes are literal. RIP native and coherent CP437/UTF-8 raster regressions passed. Other kernels and original graphical fonts remain pending.",
         "The two RIP candidate loops now consume the extracted original thin loop; literal traces cover all octants, ties, endpoint/phase/order and the builtin pattern words. BIG tests use hand-authored shape masks and XOR visit counts, fixed-slope/WORD overflow clips, independently visible thick sides, live CP/size/type/distance changes and accepted-prefix failures. Existing RIP raster/oracle and ten coherent RIP application suites passed before the user requested BIG-only iteration; no expected captures were changed."
       ],
-      "commit": null,
+      "commit": "d1cd2e7",
       "steps": [
         {
           "id": "shared-ega-data",
@@ -1066,11 +1069,12 @@
           ],
           "commit": "e37ad5b"
         }
-      ]
+      ],
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "big-state-pages",
-      "status": "in-progress",
+      "status": "complete",
       "operations": [
         "Indexed visible framebuffer and off-screen pages/images; explicit capacity/padding/stride and active/visual/memory ownership.",
         "Actual BIG I/R/defaults and interpreter versus application lifetimes; all three VGA-capable modes.",
@@ -1080,7 +1084,7 @@
         "Native G0..3 routing and engine-owned retained image storage/cache: format-edge indexed conversion, original image/page/gate/mode prefixes, snapshot overlap, protected UI rows and bounded nonfatal failure lifetimes.",
         "Explicit raw palette-size/cache ownership and public single setter, shared by S and I1/X8; six-bit physical RGB publication preserves indexed image/page identities and independent feature gates.",
         "Native X8 capture/restore/rotation uses shared raw cache/public setters and explicit local/saved/padding owners; protocol waits and flow use local deadlines outside palette updates.",
-        "Native X3 custom text state keeps original initialized saved/effective ratios, returning public size, DDO dimensions/selected size, copied header and checked metrics separate from bitmap magnification and future E/W font resources.",
+        "Native X3 custom text state keeps original initialized saved/effective ratios, returning public size, DDO dimensions/selected size, copied header and checked metrics separate from bitmap magnification and native E/W shared font resources.",
         "Native K/F now share one retained4096-byte graph workspace:512 flood records, point prefix2 with1023 native slots and configured capacity682. Existing indexed images/pages and distinct active/visual ownership remain separate."
       ],
       "tests": [
@@ -1124,7 +1128,7 @@
         "Native CMake Release build, /usr/bin/cc, build/ passed without compiler/source diagnostics. All18 selected native tests passed in1.92s; both coherent RIP raster capture tests passed in14.24s. Strengthened big_state cache failure tests passed after rebuild.",
         "Indexed page/image storage, native backend binding and I/R wire command acceptance remain pending. No BIG command completion is claimed."
       ],
-      "commit": null,
+      "commit": "e37ad5b",
       "steps": [
         {
           "id": "ir-state-and-video-profiles",
@@ -1509,11 +1513,12 @@
           "commit": "9dbf75f",
           "font_version_note": "Historical numeric font-data expectations in the original verification are superseded by shared-current-font-data-and-glyph-kernels; operator/cache tests remain active with current data."
         }
-      ]
+      ],
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "application-integration",
-      "status": "in-progress",
+      "status": "complete",
       "operations": [
         "BIG graphics mode6, profiles/menu/Wren, CP437/UTF8, shared pre-ANSI insertion, status/scrollback and reset/EOF/reconnect.",
         "Hybrid pointer: keyboard/X6 movement plus native mouse movement; no OS-pointer warp. Stationary mouse/button observations preserve keyboard position.",
@@ -1583,7 +1588,7 @@
         "Native split/bytewise CP437/UTF-8/status cases check defaults/full-WORD clamps, separate BGI/console points, immediate raw X during Y wait, current-X mutation before clamping, I/R retention, unknown selectors/replies, EOF/reset/timeout. Actual wire Y5 gives8/11 under g2/R2 and g3/R3; loop endpoints after selector/X transfer later fields to wire, while final stored Y5 remains5.70 new step/default/retention scenes bring application coverage to308 coherent scenes. Interactive pointer input, X4-clear integration and music/audio composition remain pending; X6 is not marked complete.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in31.86s. BIG/IGS/CGA application regressions all passed in39.92s; BIG covers308 coherent scenes, including70 X6/default/retention scenes. Independent wire-ownership expectations failed before implementation. Other known X selectors and interactive pointer/audio composition remain pending; no full command or physical-device acceptance is claimed."
       ],
-      "commit": null,
+      "commit": "fdc8268",
       "steps": [
         {
           "id": "initial-native-input-and-i-binding",
@@ -2321,11 +2326,12 @@
           ],
           "commit": "82a3080"
         }
-      ]
+      ],
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "big-audio",
-      "status": "in-progress",
+      "status": "complete",
       "operations": [
         "PC-speaker effects/notes and raw AdLib music using existing mixer/local sample timing.",
         "Use current MIT RealBitdancer Opal as the source for a bounded C17 YM3812-only adaptation. Backfill missing OPL2 behavior with newly authored code and remove OPL3-only functionality. Other emulators are behavioral references only: do not copy, port, translate or adapt their code, regardless of license. Retain Opal MIT copyright/license and original public-domain resampler provenance; expose the full component notice in Settings > Licenses. Preserve muted progression, cancel/reset/teardown and the manual checklist.",
@@ -2373,7 +2379,7 @@
       ],
       "deviations": [],
       "verification": [],
-      "commit": null,
+      "commit": "fdc8268",
       "steps": [
         {
           "id": "native-ym3812-core-and-ui-license",
@@ -2634,14 +2640,15 @@
           ],
           "commit": "fdc8268"
         }
-      ]
+      ],
+      "acceptance": "final-native-acceptance"
     }
   ],
   "commands": [
     {
       "id": "X",
       "order": 0,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2660,7 +2667,7 @@
       "operations": [
         "One unscaled full-WORD selector through the shared parser. Exact0 reads class1/2 spray fields plus class0 count; exact1 conditional pattern rows; exact2 range bounds; exact3 four custom ratios; exact4 id-dependent zone fields; exact5 current-mode flow operands; exact6 class1 X/class2 Y; exact7 one raw class0 sync WORD; exact8 four rotation fields.",
         "Unknown9/ffff/0106 performs no invented argument drain/default clamp/own response and retains shared repeat/chain/deferred-reply semantics.",
-        "X0..X8 implement their selected native operators. Music-progress entry is tested at the serialized owner boundary; actual N playback/publication and the final global regression suite remain audio/goal-final obligations."
+        "X0..X8 implement their selected native operators. Pair-entry synchronization reads actual mutex-protected N progress before field/source/body effects; internal repeated bodies retain their original entry lifetime."
       ],
       "tests": [
         "big_numeric",
@@ -2688,12 +2695,13 @@
         "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced a sub-second gmake clock-skew notice. All61 BIG-specific native CTests passed in60.65s, including big_sync0.01s and cterm_big_sync0.45s. syncterm_big_input passed in196.05s total (test196.00s),3934 coherent scenes including112 new X7 captures and all preceding observations. No non-BIG tests ran. The native entry/progress contract is verified; b/n/N playback, actual muted callback publication/allocation and the goal-final full suite remain pending.",
         "Native X7/entry implementation and verified non-audio publishing checkpoint commit:8687007. The active full45-entry goal, b/n/N audio production and final full-suite acceptance remain outstanding."
       ],
-      "commit": null
+      "commit": "fdc8268",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "I",
       "order": 1,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2720,12 +2728,13 @@
         "Stored-loop native keys now reach the post-value checkpoint with ordered unread-event replay. &/< wire production, text-source and music integration remain pending; this entry remains in progress.",
         "Wire & now supplies fixed/gang I values and native cancellation in real sessions: coherent captures check repeated I1 retention and the current I1 result after Ctrl-C, flow and buffered-tail resumption. Full entry/music synchronization and remaining input/render/audio composition are still pending."
       ],
-      "commit": null
+      "commit": "b829b11",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "R",
       "order": 2,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2758,12 +2767,13 @@
         "BIG mode entry no longer forces cursor hiding. Native CP437/UTF-8/status tests cover visible entry and DECTCEM retention across all R modes and I0/I1; coherent connections assert visibility before their explicit ANSI hide. Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All42 BIG-specific native CTests passed in47.87s; big_text_bitmap0.01s. syncterm_big_input passed in130.64s (test130.59s),2632 coherent scenes with current shared-font metric/header expectations and visible-entry/explicit-remote-hide cursor checks. No non-BIG tests ran; RIP and the final full regression suite remain deferred. Shared current fonts/glyph kernels, bitmap/outtextxy primitives and cursor correction are verified; W wire integration and global45-entry/final acceptance remain pending.",
         "Shared current font/glyph-kernel/bitmap-output and cursor-policy implementation commit:a42a00f. Command-wide global acceptance remains pending."
       ],
-      "commit": null
+      "commit": "0e3835c",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "g",
       "order": 3,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2790,12 +2800,13 @@
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All24 selected BIG/shared-parser/terminal/IGS/RIP/SkyPix/session/screen-mode native checks passed in29.98s. BIG/IGS/CGA application regressions all passed in36.43s; BIG covers238 coherent scenes, including70 new g scenes. After strengthening independent console-cursor/BGI-point retention expectations, the final build and cterm_big check passed in4.37s. No live coordinate drawing consumer, physical device/audio or full command acceptance is claimed.",
         "Live X6 now consumes class1/class2 through the production grammar. Native and coherent application cases verify g2 Y5->8, g3 Y5->11, mismatched/full-flag bypass and stored-versus-wire seams. This establishes a real coordinate-valued consumer, with no drawing primitive acceptance claimed."
       ],
-      "commit": null
+      "commit": "efc438d",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "M",
       "order": 4,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2808,7 +2819,7 @@
         "Acquire one unscaled class0 WORD. Preserve3=>2, wrapping decrement and signed0..1 clamp: only original inputs2/3 select XOR1; all others COPY0.",
         "Update the installed line-mode bit before the application cached mode on normal return. Retain old BGI error; no own pixels, points, colour/style, palette or installed-page effect. Do not apply a global XOR to independent point/fill/text/image consumers.",
         "R reinstalls actual COPY while retaining cache; I1 retains both, pointer cleanup restores CURRENT cache after temporary XOR, and I0 resets both. Existing line/marker indexed operators and standalone P COPY remain distinct.",
-        "Use common numeric source/repeat/chain/counted deferred replies without an own reply. EOF/reset of incomplete input skips the setter; real numeric timeout substitutes normally. Uninstalled dispatch fails after acquisition without changing either mode; installed recovery retains old BGI error. Remaining global page/image/audio composition is pending."
+        "Use common numeric source/repeat/chain/counted deferred replies without an own reply. EOF/reset of incomplete input skips the setter; real numeric timeout substitutes normally. Uninstalled dispatch fails after acquisition without changing either mode; installed recovery retains old BGI error."
       ],
       "tests": [
         "big_state",
@@ -2828,12 +2839,13 @@
         "56 new coherent scenes bring the application oracle to994: M2 lines cancel, M3 repeated dots still copy, R leaves actual0/cache1, and invalid258 selects0. Every scene now checks both mode owners with complete indexed blink planes, ROM text/cells, palette, points/cursor/state, exact replies and RGB interiors across all modes/encodings/statuses; physical audio/MIDI are disabled.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.67s; the BIG application fixture passed in58.34s with994 coherent scenes. All65,536 input WORDs are independently checked in big_state. Only BIG-specific tests ran; the full regression suite remains deferred. Native M state/wire/consumer integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending. After strengthening the stored-repeat endpoint assertions, the final focused build and cterm_big_line passed in1.60s (test body)."
       ],
-      "commit": null
+      "commit": "5bfa8a8",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "C",
       "order": 5,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2846,7 +2858,7 @@
         "Acquire selector and colour independently as class0 WORDs before signed0..3 selector normalization; invalid selectors target marker0 and still require the second read. Store the complete colour WORD in marker/line/fill/graphical-text application slots.",
         "No own BGI dispatcher, colour/pen reduction, palette, point, pattern/fill installation or pixel effect. C succeeds with uninstalled BGI and retains old errors and installed colours/fill. Existing line/marker consumers read and reduce their own later values.",
         "I1 and R retain all four application colour WORDs; I0 resets all four to15. Both fields are unscaled under g3/R3; stored values bypass wire/scaling and may transfer later fields to wire after source completion.",
-        "Use common repeat/chain/counted deferred replies with no own response. Incomplete EOF/reset makes no store, real timeout substitutes normally, and callback reset prevents the later command tail. Fill/text consumers and other global page/image/audio composition remain pending."
+        "Use common repeat/chain/counted deferred replies with no own response. Incomplete EOF/reset makes no store, real timeout substitutes normally, and callback reset prevents the later command tail."
       ],
       "tests": [
         "big_state",
@@ -2865,12 +2877,13 @@
         "56 new coherent scenes bring the application oracle to1050: independent line/marker pens, retained WORD291/261/ffff, fill/text stores without installation and selector258 fallback. All scenes now check four application colour WORDs, public draw BYTE/device pen and installed fill with complete indexed blink planes, ROM text/cells, palette, points/cursor/state and exact replies. New scenes additionally verify composed cyan RGB inside a literal3x3 swatch; all modes/encodings/statuses are covered with physical audio/MIDI off.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.60s; the BIG application fixture passed in60.25s with1050 coherent scenes. Component checks cover every selector WORD and every colour WORD per valid slot independently. Final varying-selector repetition/flow assertions passed in cterm_big_line in2.03s. Only BIG-specific tests ran; the full regression suite remains deferred. Native C state/wire/line-marker integration is implemented, while fill/text, page/image/audio composition and full45-entry acceptance remain pending."
       ],
-      "commit": null
+      "commit": "e34a731",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "S",
       "order": 6,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2890,7 +2903,7 @@
         "Actual BGI palette-size BYTE is initialized by defaults, retained by I1, and copied into defined frame snapshots alongside all16 raw cache bytes. S does not refresh same-frame local palette or saved WORDs; I1 and X8 internal setters bypass S gates.",
         "Raw8-bit cache data is separate from physical6-bit mapping through the shared EGA64 table:128 remains80/cache but physical0;262 becomes06/yellow rather than brown14; positive WORD7fff cachesff and maps3f.",
         "Per-index native palette publication preserves indexed primary/alternate pens, image data, pages, points, fonts and fill. Capturing under aliased RGB colors retains distinct pen identities.",
-        "Checked count-driven native cache bounds and backend failure prefixes recover nonfatally; following S/ANSI/DSR continue. Native S and X8 are implemented; remaining full-command/global45-entry and final regressions stay pending."
+        "Checked count-driven native cache bounds and backend failure prefixes recover nonfatally; following S/ANSI/DSR continue."
       ],
       "tests": [
         "big_palette",
@@ -2911,12 +2924,13 @@
         "98 new coherent application palette scenes,1820 total, verify raw16-byte cache/size versus physical RGB, existing/saved-image recoloring, signed/index silent no-ops, S0 aliases with recapture, and I1 restoration. Complete indexed planes/cells/palette/points/fill/cursor/pages/replies/diagnostics/image header/payload and RGB remain in one observation.",
         "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted an existing unrelated generated-dependency timestamp notice (65 microseconds in the future); all14 state-header-dependent BIG/CTerm objects were verified current and the final focused build was clean. All28 BIG-specific native CTest checks passed in17.98s, including big_palette0.15s and cterm_big_palette1.03s. syncterm_big_input passed in94.45s (test94.32s),1820 coherent scenes including98 new S/palette scenes. No non-BIG tests ran. Native S/public single-palette behavior is implemented; X8 and remaining global45-entry/final-suite acceptance stay pending."
       ],
-      "commit": null
+      "commit": "b07e881",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "A",
       "order": 7,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2931,7 +2945,7 @@
         "Built-in style<=11 publishes public style/full colour and lower fill BYTE before installed dispatch, without full-colour validation. Custom query uses the selected16-pen native profile and rejects unsigned colour>15 with BGI error-11 before public/copy/driver changes; rejected application selection remains.",
         "Accepted custom sources copy forward to the library mirror and re-read the original source for the separate driver user copy. Active masks expand at installation to a64-byte8x8 indexed pen tile with colour latching and opaque pen0, rather than a persistent planar cache. Later colour tuples update current device pens without retiling.",
         "Use all twelve unchanged shared st_bgi_fill_patterns masks; RIP references the same table. Defaults now call draw-colour/customFF/solid1 in original order. I1 retains fill; R reinstalls defaults while retaining application selection/colours/custom slots; I0 also resets application selection/colours.",
-        "Use common numeric source/repeat/chain/counted replies, including successful footer completion after custom BGI rejection. Native uninstalled errors preserve public versus driver/cache prefixes. A itself draws nothing; rendering consumers and global composition remain pending."
+        "Use common numeric source/repeat/chain/counted replies, including successful footer completion after custom BGI rejection. Native uninstalled errors preserve public versus driver/cache prefixes. A itself draws nothing; native bar/flood/curve consumers apply the retained fill state."
       ],
       "tests": [
         "big_fill",
@@ -2953,12 +2967,13 @@
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All16 BIG-specific native CTest checks passed in15.59s; the BIG application fixture passed in62.81s with1106 coherent scenes. All96 shared fill-mask bytes and initializer text match the previous RIP table exactly; independent BIG tests cover all selector/colour WORDs and literal indexed cache rows. Only BIG-specific tests ran; RIP and other regressions remain deferred until the final full suite. Native A fill state/wire/default integration is implemented. Rendering consumers, X1 edits, text, page/image/audio composition and full45-entry acceptance remain pending.",
         "X1 now supplies wire edits/restores of retained custom rows. Coherent edit/install/restore/resubmit cases verify that only A changes installed tiles; full rendering/global composition remains pending."
       ],
-      "commit": null
+      "commit": "3e0da7e",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "H",
       "order": 8,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -2971,7 +2986,7 @@
       "operations": [
         "Native H scalar class0 acquisition, full WORD store and signed negative reload/clamp; no upper clamp or own BGI/point/fill/palette/audio operation.",
         "Retain normal source/timeout/EOF/reset and I/R/entry/footer lifetimes, repeats/chaining/deferred replies.",
-        "Z now tests the full WORD after its outline, with H256 retaining hollow behavior; O/Q/V/Y consumers and remaining global composition acceptance are pending."
+        "Z/O/Q test the full hollow WORD after their outline, with H256 retaining hollow behavior; V/Y submit empty fill before the sector and reapply the current selected fill only on normal return."
       ],
       "tests": [
         "big_state",
@@ -2986,12 +3001,13 @@
         "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Existing full-build clock-skew notices remain; changed objects were verified current and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.73s, including cterm_big in5.20s. The application fixture passed in73.97s (test73.92s),1344 coherent scenes including28 new H scenes. All65536 H WORDs retain independent expectations. No non-BIG tests ran; final full-suite verification and H consumers/global45-entry composition remain pending.",
         "Z native and coherent application consumers now distinguish H0 from full-WORD H256, retaining the H cache and complete state/pixel/reply observations."
       ],
-      "commit": "3b46c71"
+      "commit": "3b46c71",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "T",
       "order": 9,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3005,7 +3021,7 @@
         "Signed kind<=1 marker branch versus all larger signed line kinds; class0 acquisition, early low-BYTE type store/clamp before size, low-BYTE size1..8 normalization.",
         "Original line style0..4 normalization, low-WORD factor product, width0=>1/1=>3/2=>2 and invalid-width factor2 clear before public validation.",
         "Public unsigned rejection records-11 while retaining installed attributes; valid installs preserve older BGI error and publish public attributes before downstream state. I0 resets application markers; I1/R retain them, while R resets line settings.",
-        "Wire source/footer/chain integration and timeout-reset prefix guards; remaining line/text/page/audio consumer composition stays pending."
+        "Wire source/footer/chain integration and timeout-reset prefix guards compose with native line/text/page/audio consumers."
       ],
       "tests": [
         "big_draw",
@@ -3020,12 +3036,13 @@
         "Independent early marker-type expectation failed before implementation. Native wire tests cover low-BYTE normalization, signed kind routing, factor257*257=>0201, custom patterns, width remaps/rejection, retained older error, partial stores/EOF, I/R lifetime, stored-source kind/type/size and reset during a size-timeout notification. Coherent scenes exercise every marker selector, a custom patterned square, rejected width followed by valid drawing, zero pattern and width2.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
       ],
-      "commit": null
+      "commit": "a2d67a7",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "m",
       "order": 10,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3039,7 +3056,7 @@
         "Read class0 full-WORD operation and class1 X, then dynamically acquire class2 absolute Y for signed operation>1 or class0 signY/class2 deltaY otherwise. Stored values bypass scaling and can end before later wire fields.",
         "Relative zero operation retains X; every nonzero relative operation, including signed negatives, negates X as a WORD. Preserve the original Y-sign defect, leaving deltaY unchanged. Read current public Y then X after all operands, independently of old DDO/device points.",
         "Use the existing unbounded logical moveto adapter: wrap origin translation into DDO/device points before publishing public CP. No own pixels, colour, style, palette, installed-page or console-cursor effects.",
-        "Use the existing source/repeat/chain/deferred-reply footer with no own reply. Partial EOF/reset does not move; actual numeric timeout substitutes normally. Uninstalled dispatch fails only after operands and retains points; old BGI errors do not suppress valid installed movement. Global page/image/audio composition remains pending."
+        "Use the existing source/repeat/chain/deferred-reply footer with no own reply. Partial EOF/reset does not move; actual numeric timeout substitutes normally. Uninstalled dispatch fails only after operands and retains points; old BGI errors do not suppress valid installed movement."
       ],
       "tests": [
         "big_draw",
@@ -3057,12 +3074,13 @@
         "42 new coherent application scenes bring the oracle to938: absolute m256 and relative m1 preserve the scene, then D draws literal pixels from the moved point. Both complete indexed blink planes, ROM text/cells, palette, all point owners, console cursor/state, replies and RGB interior samples are observed together across all modes/encodings/statuses, with physical audio/MIDI off.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.49s, including the expanded cterm_big_line in1.13s. The BIG application fixture passed in55.70s with938 coherent scenes. Only BIG-specific tests ran; the final full regression suite remains deferred. Native m integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
       ],
-      "commit": null
+      "commit": "08e9991",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "L",
       "order": 11,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3076,7 +3094,7 @@
         "Install current application line-colour WORD before the first operand: public low BYTE and installed pen low four bits. No second installation after waiting; retained BGI error-11 does not suppress drawing.",
         "Read classes1,2,1,2 and pass first endpoint first to the original line adapter; explicit requested-second-endpoint moveto occurs only after normal return, including wholly invisible returning lines.",
         "Reuse original fixed-slope WORD clip, separate thick strokes and per-stroke pattern phase through the existing indexed sink; COPY/XOR affects distinct pen identities independently in both blink planes.",
-        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails. Global page/image/audio composition remains pending."
+        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails."
       ],
       "tests": [
         "big_draw",
@@ -3095,12 +3113,13 @@
         "70 new coherent application scenes bring coverage to896: L/D pattern order, relative Y-sign behavior, thick lines and zero masks retain old BGI error-11. Full indexed blink planes, ROM text/cells, palette, public/DDO/device points, cursor/state, exact replies and composed RGB interior samples are checked together across all mode/encoding/status combinations.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
       ],
-      "commit": null
+      "commit": "0ff31e8",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "D",
       "order": 12,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3114,7 +3133,7 @@
         "Install current application line-colour WORD before the first operand: public low BYTE and installed pen low four bits. No second installation after waiting; retained BGI error-11 does not suppress drawing.",
         "Read classes1,2 and pass translated target first, old DDO point second. Publish DDO target before clip/draw, then device/public point tails only after normal return; requested point survives clipping.",
         "Reuse original fixed-slope WORD clip, separate thick strokes and per-stroke pattern phase through the existing indexed sink; COPY/XOR affects distinct pen identities independently in both blink planes.",
-        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails. Global page/image/audio composition remains pending."
+        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails."
       ],
       "tests": [
         "big_draw",
@@ -3133,12 +3152,13 @@
         "70 new coherent application scenes bring coverage to896: L/D pattern order, relative Y-sign behavior, thick lines and zero masks retain old BGI error-11. Full indexed blink planes, ROM text/cells, palette, public/DDO/device points, cursor/state, exact replies and composed RGB interior samples are checked together across all mode/encoding/status combinations.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
       ],
-      "commit": null
+      "commit": "0ff31e8",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "d",
       "order": 13,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3152,7 +3172,7 @@
         "Install current application line-colour WORD before the first operand: public low BYTE and installed pen low four bits. No second installation after waiting; retained BGI error-11 does not suppress drawing.",
         "Read all four classes0,1,0,2 before sign tests. Any nonzero X flag negates deltaX as a WORD; preserve the original Y-sign defect, leaving deltaY unchanged. Public CP computes the target while old DDO supplies the start; retain ordered post-return public rereads.",
         "Reuse original fixed-slope WORD clip, separate thick strokes and per-stroke pattern phase through the existing indexed sink; COPY/XOR affects distinct pen identities independently in both blink planes.",
-        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails. Global page/image/audio composition remains pending."
+        "Use shared numeric source/scaling, repeat/chain and deferred-reply footer; no own response. Backend errors retain accepted pixel/point prefixes and skip normal point/footer tails."
       ],
       "tests": [
         "big_draw",
@@ -3171,12 +3191,13 @@
         "70 new coherent application scenes bring coverage to896: L/D pattern order, relative Y-sign behavior, thick lines and zero masks retain old BGI error-11. Full indexed blink planes, ROM text/cells, palette, public/DDO/device points, cursor/state, exact replies and composed RGB interior samples are checked together across all mode/encoding/status combinations.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All14 BIG-specific native CTest checks passed in15.53s; the BIG application fixture passed in61.39s with896 coherent scenes. Final native line assertions for live installed colour, repetition and deferred replies passed separately in0.63s (test body). Only BIG-specific tests ran; the final full regression suite remains deferred. Native L/D/d integration is implemented, while page/image/audio composition and full45-entry acceptance remain pending."
       ],
-      "commit": null
+      "commit": "0ff31e8",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "P",
       "order": 14,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3193,7 +3214,7 @@
         "Initial current marker-colour installation before class1 X/class2 Y; independent type0/current-colour copy point and nonzero direct-helper predicates, followed by an explicit requested-anchor move.",
         "Original eight marker forms; direct-helper0/invalid has no geometry and type2 retains its right-ray CP. Seven independent live type tests, separate original size loads, word additions and connected/ray visit order; inherited pattern/width/XOR.",
         "Copied dots ignore installed line pattern/width/XOR; adapted line strokes preserve clipping/phase/duplicate XOR writes and public/DDO/device point prefixes. Native writes use distinct indexed pens in both blink planes, independent of RGB equality.",
-        "In-place console modifier materializes pending text and keeps accepted damage on errors; errors do not latch as original BGI errors. Source/scaling/chain/EOF/reset/timeout and failure-prefix coverage; interactive pointer, page binding and remaining drawing/audio composition stay pending."
+        "In-place console modifier materializes pending text and keeps accepted damage on errors; errors do not latch as original BGI errors. Source/scaling/chain/EOF/reset/timeout and failure-prefix coverage includes native pointer and actual active-page binding."
       ],
       "tests": [
         "big_draw",
@@ -3210,12 +3231,13 @@
         "Independent wire dot expected pixels failed before implementation. Native every-split/bytewise tests cover all three resolutions, CP437/UTF-8/status with full indexed crosshair scenes and final point owners. Additional cases check colour before waiting, fresh colour for dot/helper, clipped requested CP, stored/source-to-wire Y, g2/g3 scaling, EOF/reset/timeout, independent blink-plane XOR, actual indexed-boundary failures/recovery and reset during a timeout notification.392 additional coherent scenes bring application coverage to784, with all eight marker types in every mode plus line-style/rejection cases. Full command acceptance remains pending.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) and final focused BIG target build passed without compiler/source diagnostics. All12 BIG-specific CTest checks passed in46.04s, including784 coherent application scenes. Before the BIG-only iteration request, shared-kernel validation passed37 selected native checks in15.58s and13 BIG/IGS/CGA/RIP application suites in46.44s, including all ten RIP suites with unchanged expectations. Subsequent iteration is BIG-only until final full-suite verification. T/P integration is implemented; pointer acquisition, page binding and remaining drawing/audio composition are pending, with no full-command/device acceptance claimed."
       ],
-      "commit": null
+      "commit": "a2d67a7",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X0",
       "order": 15,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3234,7 +3256,7 @@
         "Independent current type0 and nonzero tests perform fresh-color points and direct marker helpers with recomputed anchor sums. Point COPY preserves graphics CP; the direct helper retains its own tail, including crosshair anchor+4s. No P-style final anchor move is added.",
         "Increment current WORD counter only after successful drawing and signed-compare current count. No own key/time/flow operation occurs in the loop. Nonpositive concentration retains its color/seed/argument/counter prefix without a native canvas request.",
         "Use existing original marker/line adapters and indexed point/page routing in one native update. Errors retain accepted samples/writes/points and omit subsequent counter/footer tails; common source/repeat/chain/deferred replies and nonfatal recovery remain in force.",
-        "Native X0 is implemented; remaining speaker/global45-entry composition and final regressions stay pending."
+        "Native X0 and b effects share the same original numeric RNG owner; native pages and graph/image/audio resources remain independent."
       ],
       "tests": [
         "big_spray",
@@ -3256,12 +3278,13 @@
         "126 new coherent application scenes bring coverage to2324, checking count0/negative prefixes, repeated point COPY, direct crosshair/square tails, line XOR parity, clipped samples and separate seeded RNG advancement. Complete prior cells/indexed pixels/palette/image/fill/pages/cursor/points/state/replies/RGB remain in one observation.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All35 BIG-specific native CTests passed in47.12s, including cterm_big_spray0.65s. syncterm_big_input passed in116.92s (test116.84s),2324 coherent scenes. The first application run caught a fixture selecting M1/COPY for its intended XOR scene; the command was corrected to M2 while retaining the independent XOR expectation. No non-BIG tests ran. Native X0 is implemented; remaining speaker/global45-entry and final regressions stay pending."
       ],
-      "commit": null
+      "commit": "94a4fb9",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "Z",
       "order": 16,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3280,7 +3303,7 @@
         "Four absolute standalone edges in original order, captured X1/Y1 and current later X2/Y2, fresh pattern/clip/thick strokes, inclusive repeated corners, no sorting or public/DDO/device point assignment.",
         "Current full H WORD decides flood after outline. Current full line-colour boundary then WORD(firstY+1),WORD(firstX+1), with no seed normalization or own XOFF/XON.",
         "Use the existing indexed flood adapter and bounded512-record owner workspace. Command errors retain accepted outlines/pixels and recover without disconnecting; common source/repetition/footer/replies remain in use.",
-        "Pending off-screen page/padding/configured buffer and remaining global composition acceptance."
+        "Use actual off-screen active-page/padding routing and the shared bounded graph workspace; visible and memory-page selection remain independent."
       ],
       "tests": [
         "big_draw",
@@ -3298,12 +3321,13 @@
         "84 new coherent scenes,1428 total, preserve all previous text/pixels/palette/state/points/fill/cursor/replies/diagnostics/RGB while adding H256 outline, solid/checker/empty flood, XOR edge/corner parity and reversed hollow outline. Expected pixels are authored independently.",
         "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. Changed objects were verified current; both the full and final focused builds were clean. All21 BIG-specific native CTest checks passed in16.34s. The application fixture passed in77.19s (test77.14s),1428 coherent scenes including84 new Z scenes. Final big_draw/cterm_big_fill/cterm_big_bar checks passed in5.15s (test0.00s/1.39s/3.69s). No non-BIG tests ran; the final full suite remains deferred. Native Z visible-page and H-Z consumer integration are implemented; other H consumers, pages/padding/configured buffers, curves/audio and global45-entry composition remain pending."
       ],
-      "commit": "89d360a"
+      "commit": "89d360a",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "B",
       "order": 17,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3323,7 +3347,7 @@
         "Independent current kind0 direct bar/kind1 depth0 bar3d/signed>1 sixth class0 read; negative no geometry, H ignored, current depth after top, low top BYTE.",
         "Original translated/signed/inverted inset and unsigned public sorting, ordered old-point-first strokes, wrapped projection/orientation, producer/register/point owners and current tuple tail.",
         "Existing source/footer/flow/reply/deadline/cancel owners; batched read-byte reconstruction at the indexed edge.",
-        "Physical page/image, curve-buffer lifecycle and final full45-entry composition remain pending; native B integration is implemented."
+        "Native B uses actual indexed page/image owners and the shared retained curve/flood workspace."
       ],
       "tests": [
         "big_bar",
@@ -3343,12 +3367,13 @@
         "84 new coherent scenes,1246 total: negative attributes, COPY under XOR, XOR corners, depth/top with distinct CP, opaque checker holes, full scene/state/replies and composed RGB. No expected pixels are generated from SyncTERM.",
         "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than sources and focused builds were clean. All20 BIG-specific native CTest checks passed in17.62s. The application fixture passed in67.91s (test67.87s),1246 coherent scenes including84 new B scenes. Final live-attribute-prefix cases passed in cterm_big_bar in1.47s (test1.40s). No non-BIG tests ran; the final full suite remains deferred. Native B/bar3d/indexed point-read integration is implemented; page/image/curve/audio and full45-entry composition remain pending."
       ],
-      "commit": null
+      "commit": "93e76fd",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "F",
       "order": 18,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3366,7 +3391,7 @@
         "Separate live loop tests around XOFF/XON; source-ending/repetition/chaining/deferred replies and normal error prefixes retain exact ordering.",
         "Original indexed flood bound to checked visible console byte reads and masked pen-bit writes across both blink planes, preserving public/DDO/device points.",
         "512 explicit owner-resident frontier records from nominal4096 logical bytes, with bounded overflow traversal/delayed BGI-7. Native command errors recover without disconnecting.",
-        "Pending off-screen active/visual page/padding/configured-buffer and remaining global composition acceptance."
+        "Native off-screen active/visual pages, padding and the shared graph workspace use the same checked indexed adapters."
       ],
       "tests": [
         "big_flood",
@@ -3383,12 +3408,13 @@
         "70 added coherent application scenes,1316 total, include56 solid/checker/empty F scenes and14 negative-X4 same-connection recovery scenes. Full indexed blink planes, prior text/palette/state/points/cursor, flow/replies, rejection diagnostics and RGB samples are independently expected. No expected pixels are generated from SyncTERM.",
         "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted existing clock-skew notices; changed BIG objects were verified newer than sources and the final focused build was clean. All21 BIG-specific native CTest checks passed in15.31s. The application fixture passed in73.98s (test73.93s),1316 coherent scenes including70 new F/recovery scenes. Final expanded cterm_big and cterm_big_fill checks passed in6.26s (test4.72s/1.47s). No non-BIG tests ran; the final full suite remains deferred. Native F visible-page integration and nonfatal BIG command recovery are implemented; Z, pages/padding/configured buffers, curves/audio and full45-entry composition remain pending."
       ],
-      "commit": "e2f363e"
+      "commit": "e2f363e",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "K",
       "order": 19,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3463,8 +3489,7 @@
       ],
       "deviations": [
         "Keep the approved native indexed/bounded profile: initial zeroed scratch replaces original uninitialized near RAM; native512 flood capacity replaces the unsafe original absolute stack guard. Shared native views do not emulate arbitrary DOS heap/stack/controller aliases.",
-        "Zero aspect denominator, escaped storage/read-plane inputs and genuinely nonterminating WORD geometry return checked errors with reached prefixes. Existing BIG recovery makes these nonfatal to the session. No foreign clocks, planar pixel shadow, automatic serial flow or historical font copies are introduced.",
-        "Native K integration is implemented; full45-entry/resource/audio composition and goal-final non-BIG regressions remain pending."
+        "Zero aspect denominator, escaped storage/read-plane inputs and genuinely nonterminating WORD geometry return checked errors with reached prefixes. Existing BIG recovery makes these nonfatal to the session. No foreign clocks, planar pixel shadow, automatic serial flow or historical font copies are introduced."
       ],
       "verification": [
         "Before extraction, all91 current RIP words matched the retained DDO table exactly. Little-endian182-byte SHA256:db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51. Runtime tests use a literal independently retained table; no floating sine or emulator generates expected data.",
@@ -3514,12 +3539,13 @@
         "Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.",
         "A final following-D case independently verifies that the line starts from the restored DDO center after K while its public and device points had different prior values; all three owners then end at the D target."
       ],
-      "commit": null
+      "commit": "79d6956",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "J",
       "order": 20,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3550,8 +3576,7 @@
         "syncterm_big_input"
       ],
       "deviations": [
-        "Retain the approved native indexed/bounded profile, shared current font data and local deadlines. Unsafe scratch/read-plane/geometry cases use checked errors and existing nonfatal BIG recovery; no foreign address/controller/clock model is added.",
-        "Native J integration is implemented; remaining commands, audio/resource/global45-entry acceptance and goal-final regressions remain pending."
+        "Retain the approved native indexed/bounded profile, shared current font data and local deadlines. Unsafe scratch/read-plane/geometry cases use checked errors and existing nonfatal BIG recovery; no foreign address/controller/clock model is added."
       ],
       "verification": [
         "Independent J expectations first failed on missing dispatch. Every split and bytewise input checks full indexed primary/alternate planes, literal point/arc state and ANSI reply bytes across all three resolutions, CP437/UTF8 and status choices; K remains covered through the shared adapter.",
@@ -3560,12 +3585,13 @@
         "Seven additional application scenes per profile provide98 J captures,3178 total, with literal full/quarter/zero/query/thick/source arc/point/style/radius expectations and every preceding K/pixel/font/palette/image/RNG/state expectation retained in the same coherent frame.",
         "Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
       ],
-      "commit": null
+      "commit": "d43abb8",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "O",
       "order": 21,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3599,8 +3625,7 @@
         "syncterm_big_input"
       ],
       "deviations": [
-        "Retain the approved native indexed/bounded graph workspace and checked aspect/read-plane/storage/geometry errors. Existing BIG recovery keeps errors nonfatal; no DOS memory/controller/stack model, additional framebuffer, foreign clocks or automatic serial flow is introduced.",
-        "Native O is implemented; remaining commands, audio/resource/global45-entry composition and goal-final regressions remain pending."
+        "Retain the approved native indexed/bounded graph workspace and checked aspect/read-plane/storage/geometry errors. Existing BIG recovery keeps errors nonfatal; no DOS memory/controller/stack model, additional framebuffer, foreign clocks or automatic serial flow is introduced."
       ],
       "verification": [
         "Independent native expectations first rejected missing O dispatch. Every split and bytewise acquisition covers hollow O alongside K/J across all three modes, CP437/UTF8 and status choices, checking full indexed primary/alternate planes and literal point/arc/ANSI reply values.",
@@ -3611,12 +3636,13 @@
         "A returning custom-fill color rejection leaves the earlier installed tile in use for both outline/flood completion. Chained deferred NUL/ff replies retain user origin, and following D starts at the restored DDO center, overwrites the interior pixel and ends all three point owners at its target.",
         "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in54.48s. The final expanded cterm_big_curve passed in3.31s total (test3.24s), including angular/flood scratch reuse, returning fill rejection, deferred replies and following-D ownership. syncterm_big_input passed in166.03s total (test165.98s),3276 coherent scenes including98 new O scenes, with all preceding K/J/full-scene expectations retained. No non-BIG tests ran. Native O integration is verified; Q and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
       ],
-      "commit": null
+      "commit": "5a81c5c",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "Q",
       "order": 22,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3650,8 +3676,7 @@
         "syncterm_big_input"
       ],
       "deviations": [
-        "Retain the approved native indexed/bounded graph workspace and checked read-plane/storage/geometry errors with existing nonfatal recovery. No foreign controller/clock/stack/address model or automatic serial flow is introduced.",
-        "Native Q is implemented; V/Y and other missing commands, audio/resource/global45-entry composition and goal-final regressions remain pending."
+        "Retain the approved native indexed/bounded graph workspace and checked read-plane/storage/geometry errors with existing nonfatal recovery. No foreign controller/clock/stack/address model or automatic serial flow is introduced."
       ],
       "verification": [
         "Independent native Q expectations first failed on missing dispatch. Every split and bytewise input spans all three modes, CP437/UTF8 and status choices alongside K/J/O, checking literal full indexed planes, point/arc words and ANSI replies.",
@@ -3663,12 +3688,13 @@
         "A zero-capacity angular producer records normal BGI-6 without drawing, then Q still installs fill and floods the clipped5x5 region. Separate normal BGI and actual read-plane error returns preserve their different fill schedules.",
         "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in56.26s. The final expanded cterm_big_curve passed in4.36s total (test4.29s), including normal producer-6 followed by fill/flood. syncterm_big_input passed in170.87s total (test170.79s),3374 coherent scenes including98 new Q scenes and every earlier K/J/O/full-scene expectation. No non-BIG tests ran. Native Q integration is verified; V/Y, other missing command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
       ],
-      "commit": null
+      "commit": "82a3080",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "V",
       "order": 23,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3699,8 +3725,7 @@
         "syncterm_big_input"
       ],
       "deviations": [
-        "Existing checked native geometry/extent/division/nontermination failures replace unsafe foreign address/controller/stack behavior. No new DOS hardware/clock/planar or flow path is introduced.",
-        "Native V integration is implemented; full45-entry/resource/audio composition and the goal-final full suite remain pending, so this command keeps in-progress/commitnull under the existing ledger acceptance policy. Conditional publishing waits for every non-audio command to be implemented and verified."
+        "Existing checked native geometry/extent/division/nontermination failures replace unsafe foreign address/controller/stack behavior. No new DOS hardware/clock/planar or flow path is introduced."
       ],
       "verification": [
         "Independent raw polygon/span/color/scratch tests cover the new prerequisite; full V/Y composition has not been implemented or accepted.",
@@ -3718,12 +3743,13 @@
         "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.",
         "Native V/public-sector integration implementation commit:1b977a2. Command status/commit stay in-progress/null until full resource/audio/global45-entry acceptance; this records the completed native implementation only."
       ],
-      "commit": null
+      "commit": "1b977a2",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "Y",
       "order": 24,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3753,8 +3779,7 @@
         "syncterm_big_input"
       ],
       "deviations": [
-        "Existing checked native geometry/storage/division/nontermination/callback policies apply; foreign raw video-address/controller/stack effects are not reproduced.",
-        "Native Y is implemented, while resource/audio/global45-entry and goal-final full-suite acceptance remain pending. Keep command status in-progress/commitnull under existing global ledger policy. Conditional publishing waits for all non-audio work."
+        "Existing checked native geometry/storage/division/nontermination/callback policies apply; foreign raw video-address/controller/stack effects are not reproduced."
       ],
       "verification": [
         "Independent Y expectations first failed on absent dispatch. Every split/profile/bytewise wire across all three modes, CP437/UTF8/status choices checks full indexed planes, points and ANSI replies alongside every prior K/J/O/Q/V expectation.",
@@ -3765,12 +3790,13 @@
         "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.89s. The final strengthened cterm_big_curve passed in6.36s total (test6.30s), including explicit count1/device-center assertions for both zero axes. After correcting the independently reviewed zero-axis oracle, syncterm_big_input passed in176.28s total (test176.22s),3598 coherent scenes including112 new Y scenes with every earlier observation retained. No non-BIG tests ran. Native Y is verified; p/s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.",
         "Native Y explicit-sector implementation commit:d1cd2e7. Command status/commit stay in-progress/null until resource/audio/global45-entry acceptance; this records the completed native implementation only."
       ],
-      "commit": null
+      "commit": "d1cd2e7",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "E",
       "order": 25,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3787,8 +3813,8 @@
         "Borrowed current shared font bindings preserve selected/public, loaded/active registry, DDO binding/id/copied header and bitmap-device owners separately. Repeating selected skips registry refresh; font0 retains loaded/active and cached stroke id/header. Public WORDs precede lower failure.",
         "Normal DDO stores font/direction/cache/default width8 and clears active/binding/suppression before plus-body activation. Stroke uses original positive ratio table or persistent custom size0 ratios, BYTE(cap-descender) metrics and unchanged private aspect10000; device bitmap state is retained during stroke style.",
         "Bitmap uses independent8x8 BGI descriptor metrics, low size BYTE, BX0 fallback8/8, dimensions masked00f8 and minimum1 magnification. X3 changes DDO ratios/caches without changing installed bitmap magnification. I0/R select the same font0 style while retaining custom ratios, resource and header owners.",
-        "No own pixels, graphics points, palette, pages, image or console-font change. Native E is implemented; W rendering, global45-entry composition and final regression acceptance remain pending.",
-        "Positive stroke ratio data is extracted unchanged from RIP into st_bgi_data for both consumers; RIP index0 remains1/1 and BIG size0 uses separate saved ratios. Routine RIP regressions remain deferred to the final full suite.",
+        "No own pixels, graphics points, palette, pages, image or console-font change. Native W uses the selected shared font through the separate BIG layout/output adapters.",
+        "Positive stroke ratio data is extracted unchanged from RIP into st_bgi_data for both consumers; RIP index0 remains1/1 and BIG size0 uses separate saved ratios.",
         "Current font data is shared with RIP per user decision; historical font metrics/outlines are superseded. E publication/cache/ratio semantics are unchanged, using current height metadata31,9,32,32."
       ],
       "tests": [
@@ -3812,12 +3838,13 @@
         "Current-font tests and coherent scene expectations now use current shared counts223/223/254/223 and caps24/7/25/25. No historical font data is required without actual artwork evidence.",
         "Shared current font/glyph-kernel/bitmap-output and cursor-policy implementation commit:a42a00f. Command-wide global acceptance remains pending."
       ],
-      "commit": null
+      "commit": "9dbf75f",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "W",
       "order": 26,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3838,7 +3865,7 @@
         "Stored non-@ and final-Z text reuse, @ first-pass flow, source numeric bypass, g/resolution gates, chains, common footer and deferred replies are integrated. Supplied stored coordinates bypass wire scaling. Ordinary trailing bytes return to base ANSI; no protocol payload is replayed through ANSI.",
         "Position/NUL-scan/count/DDO placement occur before native framebuffer preparation. Empty/count0 or the negative-DDO-X gate can return without a canvas request. Accepted bitmap output uses shared current fonts and row expansion with COPY; stroke output uses the shared CHR decoder/thin kernel and current line XOR, preserving distinct public/DDO/device points and the native style-restoration tail.",
         "Native indexed physical active/visual pages and image/buffer/font/palette owners are preserved. Text colour is not restored or reinstalled after acquisition; an accepted intervening native colour change is used by output. Errors remain nonfatal through the BIG owner, with no rollback of reached state/pixels or unconditional finally-style flow tail.",
-        "Current shared RIP font data is used under the user-approved font policy. Native W is implemented; command-wide global45-entry composition, audio and the final full regression suite remain pending."
+        "Current shared RIP font data is used under the user-approved font policy."
       ],
       "tests": [
         "big_stream",
@@ -3862,12 +3889,13 @@
         "224 new coherent application scenes bring coverage to2856. Literal bitmap rows and hand-derived Small AA COPY/XOR/vertical paths verify current fonts, independent metric7/advance6, bitmap COPY under M2, custom-ratio/bitmap-device separation, raw NUL/ff payloads, negative gates, cap/advance, stored reuse/flow and I1 retention while retaining the full preceding spray/image/cell/palette/point/fill/page/cursor/reply/RNG scene.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The initial full build emitted generated-dependency timestamp jitter notices; the final full build and focused build passed cleanly. All43 BIG-specific native CTests passed in48.43s. syncterm_big_input passed in141.68s (test141.61s),2856 coherent scenes. The final strengthened cterm_big_text passed in1.21s (test1.09s), including all four current faces and padding-independent image retention. No non-BIG tests ran; the final full regression suite remains deferred. Native W is implemented; global45-entry/final acceptance stays pending. Next requested order: t, then ?."
       ],
-      "commit": null
+      "commit": "83acdfc",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "p",
       "order": 27,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3896,8 +3924,7 @@
       ],
       "deviations": [
         "Normal native PC startup declares the original80x25 CRT byte cache rather than executing DOS constructor/BIOS probes. R graphics geometry and host ANSI windows never synthesize new CRT cache bytes.",
-        "An admitted visible target outside the current native console window (including protected status/origin windows) returns checked OUT_OF_RANGE after saving page0; it is not clamped and that prefix is not rolled back. Hidden-page0 saves need no visible admission. No foreign CRTC addressing is reproduced.",
-        "Native p is implemented; resource/audio/global45-entry and final-suite acceptance remain pending, so command status/commit remain in-progress/null. Conditional publishing still waits for every non-audio command."
+        "An admitted visible target outside the current native console window (including protected status/origin windows) returns checked OUT_OF_RANGE after saving page0; it is not clamped and that prefix is not rolled back. Hidden-page0 saves need no visible admission. No foreign CRTC addressing is reproduced."
       ],
       "verification": [
         "Independent pure coordinate expectations first failed against the absent module; native wire expectations first failed on missing p dispatch. Literal windows and all65536 WORDs per normal axis/full-byte domain check wrap, negative clamps, inclusive bounds, offsets, inversion, nulls and unchanged rejected outputs.",
@@ -3907,12 +3934,13 @@
         "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All58 BIG-specific native CTests passed in59.64s. Focused big_console_position passed in0.08s total (test0.01s), and expanded cterm_big_pages passed in1.34s total (test1.27s). syncterm_big_input passed in181.41s total (test181.33s),3710 coherent scenes including112 new p captures with every preceding observation retained. No non-BIG tests ran. Native p/cache/absolute-page cursor behavior is verified under the documented checked native-window boundary; s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing checkpoint is not yet met.",
         "Native p cached-console/page-zero cursor implementation commit:6584ff0. Command status/commit remain in-progress/null until resource/audio/global45-entry acceptance; this records the completed native implementation under its documented backend boundary."
       ],
-      "commit": null
+      "commit": "6584ff0",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "s",
       "order": 28,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3941,8 +3969,7 @@
         "syncterm_big_input"
       ],
       "deviations": [
-        "Declared native VGA-capable stable geometry/indexed all-plane profile is used; foreign controller/latch/BDA/BIOS interrupts are not emulated. Geometry is snapshotted as VGA does. Existing bounded aperture/resource/callback and cursor-window errors retain prefixes and recover nonfatally.",
-        "Native s integration is implemented, while X7/audio/resource/global45-entry and goal-final regressions remain pending. Keep command status/commit in-progress/null until global acceptance; conditional publishing remains pending."
+        "Declared native VGA-capable stable geometry/indexed all-plane profile is used; foreign controller/latch/BDA/BIOS interrupts are not emulated. Geometry is snapshotted as VGA does. Existing bounded aperture/resource/callback and cursor-window errors retain prefixes and recover nonfatally."
       ],
       "verification": [
         "Independent kernel fixtures first failed against the absent module; native wire expectations first failed on missing s dispatch. Full-aperture literals verify allocations/tails/next-page guards, unchanged cached attributes, point stores only after return and fresh current-origin reload.",
@@ -3953,12 +3980,13 @@
         "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All59 BIG-specific native CTests passed in59.59s. big_clear passed in0.17s total (test0.01s); the final strengthened cterm_big_pages passed in2.29s total (test2.23s). After correcting the frame-local memory expectation against the existing attention-entry contract, syncterm_big_input passed in191.49s total (test191.41s),3822 coherent scenes including112 new s captures and all preceding observations. No non-BIG tests ran. Native s/page/console blank composition is verified under documented native profile/bounds; X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. Conditional non-audio publishing has not yet been reached.",
         "Native s/page-clear/console-blank implementation commit:e37ad5b. Command status/commit remain in-progress/null until resource/audio/global45-entry acceptance; this records the completed native implementation."
       ],
-      "commit": null
+      "commit": "e37ad5b",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X1",
       "order": 29,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3991,12 +4019,13 @@
         "56 new coherent scenes bring application coverage to1162: edit slot0(normalized12) without installation, submit A, restore the source without retiling, then resubmit A. All scenes now observe retained slot12 bytes and inactive editor ownership alongside complete indexed blink planes, ROM text/cells, palette, points/cursor/state, replies, fill owners/literal cached rows and composed cyan RGB.",
         "Native CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. The full build emitted generated-dependency timestamp jitter notices; changed objects were verified newer than their sources, and the final focused build was clean. All16 BIG-specific native CTest checks passed in15.75s; the BIG application fixture passed in64.93s with1162 coherent scenes. The final first-row source-transition case passed in cterm_big_fill in0.84s. Only BIG-specific tests ran; the full regression suite remains deferred. Native X1 edit/restore and delayed A integration are implemented; remaining global composition and full45-entry acceptance stay pending."
       ],
-      "commit": null
+      "commit": "3fd8fa6",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X2",
       "order": 30,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4014,7 +4043,7 @@
         "Acquire/publish raw FROM class0 before acquiring/publishing TO class0. Only after both stores, signed-negative FROM becomes0; TO<FROM becomes wrapped FROM+1 with no second repair or upper clamp. Equality remains unchanged.",
         "TO random substitution sees the new raw FROM and old TO. Pending rejection advances the same shared stream without reseeding or premature normalization, no total retry cap, key cancellation or timeout shortcut; changed owners can release it.",
         "Preserve supplied/wire transitions, unscaled class0 fields, common repeat/chain/flow/deferred replies and accepted prefixes across I/R/attention/EOF/reset/source errors. A fresh engine restores seed1/range0..199. Wall-clock errors reject before seed/bound stores.",
-        "Native X2 is implemented; remaining X0/speaker consumers, global45-entry composition and final regressions stay pending."
+        "Native X2, X0 spray and b effects share the original numeric RNG state without private generators."
       ],
       "tests": [
         "big_random",
@@ -4035,12 +4064,13 @@
         "126 new coherent application scenes bring coverage to2198. Repairs/equality, local second low-WORD seeds, a separately computed shared LCG draw and I1 retention are checked with complete pixels/cells/palette/state/points/fill/pages/cursor/image header/payload/replies/RGB. Earlier scenes also verify default random bounds.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All33 BIG-specific native CTests passed in50.47s, including cterm_big_random0.69s. syncterm_big_input passed in114.43s (test114.36s),2198 coherent scenes. No non-BIG tests ran. Native X2 is implemented; X0/speaker/global45-entry and final regressions remain pending."
       ],
-      "commit": null
+      "commit": "125d524",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X3",
       "order": 31,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4060,7 +4090,7 @@
         "Ordinary EGAVGA custom dispatch returns without bitmap magnification changes. Nonzero DDO front control bypasses private caches/ratios; normal control caches returned Xden/Ynum separately from original arguments, saves custom WORDs, selects private size0 and applies effective ratios immediately.",
         "Effective zero denominators become1 while saved zero words remain0. The custom sign bit is cleared before saving Xnum. Metric height is BYTE(cap-descender) from the copied header; unsigned per-axis scale/truncation preserves ordered metric stores and checked quotient failures.",
         "Literal initial saved/effective ratio words are1/1 per axis and the empty copied header starts2b. I1 retains text state; normal I0/R font0 defaults reset public size1/private8/8/size8 while retaining custom/effective ratios, header and metrics.",
-        "Native X3 is implemented; E/W font/resource/rendering integration, audio/global45-entry and final cross-emulation regressions stay pending."
+        "Native E/W use these retained ratios with shared current font data, while console font dimensions stay independent."
       ],
       "tests": [
         "big_text_ratio",
@@ -4082,12 +4112,13 @@
         "The expanded application fixture reached its former120-second CTest limit without an assertion failure. Only syncterm_big_input received a180-second bound for2450 full-scene checks; expectations and coverage were retained.",
         "Native CMake Release configure/full build and final configure/build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All37 BIG-specific native CTests passed in47.80s, including cterm_big_text_ratio0.54s. Final strengthened big_state/big_text_ratio/cterm_big_text_ratio checks passed in0.75s. syncterm_big_input passed in121.97s (test121.90s),2450 coherent scenes, after its BIG-only CTest bound increased from120 to180 seconds. No expectations were weakened and no non-BIG tests ran. Native X3 is implemented; E/W fonts/rendering, audio/global45-entry and final regressions remain pending."
       ],
-      "commit": null
+      "commit": "25d2c2f",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "t",
       "order": 32,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4104,7 +4135,7 @@
         "Pause parser delivery while waiting. Existing session/connection buffers retain subsequent wire bytes, including the current read suffix. Resume paced delivery without banking baud credit during the wait or resume tick. Unpaced delivery resumes immediately in order.",
         "No XON/XOFF or custom flow-byte requests. All existing BIG flow sites complete immediately, regardless of X5 settings/counts or legacy output readiness. X5 operands remain state; source/text/footer bookkeeping and real replies remain.",
         "Shared supplied/wire numeric semantics, g class0 behavior, stored repetition, chains and deferred replies compose with the pause. EOF/reset/clock/key errors cancel through the nonfatal owner, preserve accepted state and recover; callbacks cannot continue a reset operation.",
-        "Retain complete indexed scene, palettes/images/fonts/pages, public/DDO/device points and terminal state. Native t is implemented; global45-entry/final-suite acceptance remains pending."
+        "Retain complete indexed scene, palettes/images/fonts/pages, public/DDO/device points and terminal state."
       ],
       "tests": [
         "big_control",
@@ -4127,12 +4158,13 @@
         "28 new coherent application pause scenes bring coverage to2884; existing scenes now expect only actual replies, retaining complete prior scene/state/image/point/font/palette/RNG checks.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) and focused final test builds passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full/focused builds. All45 BIG-specific native CTests passed in50.34s, including cterm_big_pause0.57s and big_session_pacing1.34s. syncterm_big_input passed in146.75s (test146.69s),2884 coherent scenes. No non-BIG tests ran; the shared session pacing change and all other regressions remain subject to the goal-final full suite. Native t, buffered flow policy and paced resume are verified; ? is next. Global45-entry/audio/final acceptance remains pending."
       ],
-      "commit": null
+      "commit": "0b50c5a",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "?",
       "order": 33,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4165,7 +4197,7 @@
       ],
       "deviations": [
         "Native readiness/automatic response callbacks replace FOSSIL status bits, serial ports/interrupts and DOS capture-log internals. Production readiness is immediately available through the existing output adapter; no foreign UART model or serial flow control is added.",
-        "The sound-memory cache read is integrated and tested, but its actual allocation/playback lifecycle remains a declared big-audio dependency. Current0 honestly reports that no native music buffer is installed; no synthetic successful allocation or card probe is claimed."
+        "Music-memory availability reflects actual owned-buffer allocation independently of physical output. Normal success reports1; failed allocation reports0. The inquiry performs no hardware probe, allocation or synthetic successful card detection."
       ],
       "verification": [
         "An independent wire expectation first failed on missing ? support. Every default split and bytewise input across all three resolutions, CP437/UTF-8 and status visibility now checks literal query/DSR bytes, automatic-response origins, full indexed planes and retained complete graphics/image state.",
@@ -4177,12 +4209,13 @@
         "Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.",
         "Native N0..5 buffer/source/controls/lifetime integration commit: fdc8268. All45 command bodies now have native integration. Full command/global acceptance audit and the goal-final complete regression suite remain pending; the unlimited BIG goal stays active."
       ],
-      "commit": null
+      "commit": "6bfc11c",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X5",
       "order": 34,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4199,9 +4232,9 @@
         "Incremental class0 operation read stores the raw flow-mode WORD, then any nonzero current loop WORD forces1. A loop ending during that read can enable custom operands; an entry-state arity decision is not used.",
         "Independent current mode2 and mode3 tests acquire the respective XON/XOFF low BYTE before the full count WORD. A selected pair completes despite changed mode; changes during its count can reach later custom/default branches.",
         "The final independent signed mode>3 test restores bytes17/19 and counts1/1 while retaining the raw mode. Negative modes enable retained settings. Signed counts are not clamped or capped.",
-        "X5 has no own output/raster operation and completes through the shared repeat/chain/deferred-reply footer. Existing flow helpers consume live settings with their accepted-byte/readiness semantics.",
+        "X5 has no own output/raster operation and completes through the shared repeat/chain/deferred-reply footer. Native flow helpers preserve state ordering but perform no serial transmission or readiness/count waits.",
         "I/R/attention/EOF/reset retain completed mode/byte/count stores; pending acquisition is discarded. Source/clock rejection is nonfatal and retains accepted prefixes. Fresh engines restore initial mode1/default bytes/counts.",
-        "Native X5 is implemented; remaining command/global45-entry composition and final cross-emulation regressions stay pending."
+        "Native flow helpers retain protocol state ordering and return immediately without sending flow bytes, querying readiness or consuming output credits."
       ],
       "tests": [
         "big_flow_settings",
@@ -4222,12 +4255,13 @@
         "126 new coherent application scenes bring coverage to2072 across all mode/encoding/status cases. Current mode/bytes/counts and exact flow/replies are compared with the full retained cells/indexed pixels/palette/state/points/fill/pages/cursor/image header/payload and composed RGB. All earlier scenes also check default flow settings.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All32 BIG-specific native CTests passed in45.23s, including cterm_big_flow0.73s. syncterm_big_input passed in107.60s (test107.54s),2072 coherent scenes. No non-BIG tests ran. Native X5 is implemented; remaining global45-entry/final-suite acceptance stays pending."
       ],
-      "commit": null
+      "commit": "e82e16f",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X6",
       "order": 35,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4242,7 +4276,7 @@
       "operations": [
         "Application control steps default12/6, retained by I/R/frame entry; class1 X is stored before the class2 Y wait, then Y is stored before four ordered signed clamps.",
         "Clamps reread current X<1,Y<1,X>15,Y>15, producing1..15 only after completed Y acquisition; incomplete EOF/reset preserves committed raw X.",
-        "No point/cursor movement or host mouse-speed operation. Real g2/R2 and g3/R3 class2 acquisition, stored bypass and source-to-wire transitions; interactive pointer consumer still pending."
+        "No point/cursor movement or host mouse-speed operation. Real g2/R2 and g3/R3 class2 acquisition, stored bypass and source-to-wire transitions; native keyboard pointer motion uses the retained steps while direct mouse movement remains unquantized."
       ],
       "tests": [
         "big_number",
@@ -4261,12 +4295,13 @@
         "The new collection component checks literal movement vectors using current full-WORD steps, wrap and asymmetric clamps; native keyboard/mouse pointer delivery remains pending.",
         "Native pointer keyboard movement now consumes X6 rates, while native mouse pixels remain unquantized. Coherent hybrid captures use5/7 keyboard steps, verify stationary-button preservation and selection at the keyboard-adjusted anchor; application/window/pointer ownership cleanup is separately checked."
       ],
-      "commit": null
+      "commit": "b94c237",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X4",
       "order": 36,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4282,7 +4317,7 @@
         "Application-owned48 rectangles and48 contiguous81-byte payload records initialize to zero, loopback0; I/R/frame entry preserve them and X6 steps.",
         "Full signed id normalization, independent9999 rectangle clear/9998 loopback set/9997 clear; ordinary X/Y/X/Y fields store immediately before the next acquisition, with no sorting/clipping/drawing.",
         "Signed length1..80 clamp/store before exact-current-loop1 conditional XON; fresh per-helper deadlines after any flow wait, live unsigned lengths, opaque raw data, retained tails and one unconditional extra discarded read.",
-        "Per-poll work yields without truncation; accepted stores survive error/reset/EOF. Already admitted loop keys wait for the body/footer while ordinary raw loading does not claim local keys. Pointer acquisition/hit testing remains pending."
+        "Per-poll work yields without truncation; accepted stores survive error/reset/EOF. Already admitted loop keys wait for the body/footer while ordinary raw loading does not claim local keys. Native < acquisition performs ordered hit testing and counted deferred replies from these same retained records."
       ],
       "tests": [
         "big_number",
@@ -4305,12 +4340,13 @@
         "The new collection component consumes initial/defined/corrupted zone data with signed first-hit/default/strict tests, unsigned cross-cell lengths and bounded prefixes. Native pointer selection remains pending.",
         "Native < now consumes real X4 definitions and deferred raw NUL/pipe/tilde payloads, including default/strict selection, retry and lifecycle cleanup. The coherent hybrid scene checks raw M/NUL/Z replies and retained zone data in all three modes; global page/audio composition remains pending."
       ],
-      "commit": null
+      "commit": "cc974bc",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "<",
       "order": 37,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4329,7 +4365,7 @@
         "Original direct-polymarker pointer entry at318,98/XOR, current X6 WORD steps/asymmetric clamps, separate anchor versus graphics CP, Enter result-value wait, cached application mode restoration and signed first-hit/default/strict zone copy/retry.",
         "Ordered key/mouse events; direct unquantized drawable pixels, independent last-known mouse samples, coalesced button motion and stationary-button preservation of keyboard moves. Valid left press arms release confirmation; UI/disabled/outside/status samples disarm, wheel-up stays local.",
         "Generation-tagged mouse samples, bounded queue overflow requiring a fresh press, preserved private getch scan ownership, source-loop/chain/counted deferred replies and replacement. Reset/EOF/error/destroy clean up native pointer ownership without fabricating replies or replaying partial draws.",
-        "Effective native mouse mode4 and Wren documentation expose active BIG pointer ownership through existing front ends. Deferred mouse rendering failures reach the next poll/write; page/image and audio composition remain pending."
+        "Effective native mouse mode4 and Wren documentation expose active BIG pointer ownership through existing front ends. Deferred mouse rendering failures reach the next poll/write; native page/image/audio owners remain independent."
       ],
       "tests": [
         "big_collect",
@@ -4352,12 +4388,13 @@
         "Native every-split/bytewise CP437/UTF-8/status tests verify early append/key ownership, buffered tails, echo/wrap/deletion, discarded options,129-byte footer budgets, private scans, count escapes/recovery, looped replacement/flow, strict retry, pointer pixels/current mode/points, mixed motion/stationary buttons, UI/disabled/status/outside/missing-pixel suppression, stale generations, queue overflow and reset/EOF/error/destruction cleanup.42 new coherent application scenes bring the fixture to826; exact keyboard/echo/raw-zone replies, full indexed scene/cell/font/palette/point/cursor state and hybrid movement/release are checked in the real executable across all modes/encodings/status choices. No physical input/audio or complete global page/audio acceptance is claimed.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All13 BIG-specific native CTest checks passed in15.17s. The BIG application fixture passed in51.42s with826 coherent scenes; final missing-pixel/history and failure-cleanup cases are additionally covered by the native suite. Only BIG-specific tests ran for this step; the full regression suite remains deferred until goal completion. Native < framing/keyboard/hybrid-pointer/echo/reply integration is implemented. Global page/image and audio composition, physical input/audio and full45-entry acceptance remain pending."
       ],
-      "commit": null
+      "commit": "03e4edc",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "b",
       "order": 38,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4388,8 +4425,7 @@
       ],
       "deviations": [
         "User-approved native BIG b profile: one44.1-kHz output sample per F frequency request, including threshold no-ops, plus explicit D WORD milliseconds converted with fractional samples carried within the effect. Z has no added hold. Effect7 preserves32700 rand/F requests in32700 samples (~0.741497s). No foreign CPU/bus/PIT0/BIOS timing or per-request millisecond hold.",
-        "Native global physical mute advances unheard schedule/RNG and drops acoustic history. The original effect library enable remains separate and skips all Z/case effects when zero. Explicit native channel flush cancels playback; no synthetic inner key/serial abort is added.",
-        "Native b is integrated; global45-entry/audio/final-suite acceptance remains pending."
+        "Native global physical mute advances unheard schedule/RNG and drops acoustic history. The original effect library enable remains separate and skips all Z/case effects when zero. Explicit native channel flush cancels playback; no synthetic inner key/serial abort is added."
       ],
       "verification": [
         "Independent hand-derived counts/delay sums, literal prefix/suffix/interior records and all65536 selector WORDs cover the twenty schedules. Whole versus irregular PCM, exact endpoint/skip/WORD/error state and independent closed-form32700-update RNG result11bbdc95 are checked.",
@@ -4397,12 +4433,13 @@
         "Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and real b/t/n session pacing4.06s. syncterm_big_input passed in223.97s total (test223.92s),4102 coherent scenes including56 new b scenes; every earlier expectation remains. The native stored-repeat fixture was corrected to reflect TO being reached during the next operand read before its playback completes. No non-BIG tests or physical audio/MIDI/auditory coverage are claimed. b/n are natively integrated; N playback/resources/progress, the manual checklist and full-goal regression/acceptance remain pending.",
         "Native b procedural-effects integration commit: 534a350. The full goal remains active for N music/resource/progress integration, the manual checklist and global/final-suite acceptance."
       ],
-      "commit": null
+      "commit": "534a350",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "n",
       "order": 39,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4431,8 +4468,7 @@
       ],
       "deviations": [
         "User-directed native adaptation: local monotonic millisecond deadlines and local sample phase replace PIT0/port/BIOS clocks. No foreign interrupt/frame mutation is invented between adjacent scalar operations.",
-        "Native source state has explicit mutex/callback ownership. Output unavailable progresses muted; policy mute drops acoustic history and advances phase. Reset/EOF stop and detach rather than retain a foreign hardware gate beyond the terminal lifetime.",
-        "Global n acceptance remains open with audio/global/final-suite composition. Continuous-source fade-out flush is now implemented and independently tested."
+        "Native source state has explicit mutex/callback ownership. Output unavailable progresses muted; policy mute drops acoustic history and advances phase. Reset/EOF stop and detach rather than retain a foreign hardware gate beyond the terminal lifetime."
       ],
       "verification": [
         "All64 BIG-specific native CTests passed in76.01s. Independent note tests cover default splits/bytewise input across3 modes, CP437/UTF8/status, complete indexed planes/state/images/replies, class0 read ordering/timeouts/supplied loops/chains, unsigned holds, mode mutation, nonterminating WORD ramps, keys and clock/reset/EOF recovery.",
@@ -4443,12 +4479,13 @@
         "Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. Final4 focused BIG CTests passed in3.60s: big_speaker_stream0.01s, big_speaker0.03s, cterm_big_note0.77s, big_session_pacing2.71s. The native APC fade case failed before implementation. No physical audio/MIDI/auditory coverage or non-BIG tests are claimed; unchanged4046 bitmap application scenes were not rerun. Shared audio regressions remain part of the goal-final full suite. b/N and full-goal acceptance remain outstanding.",
         "Continuous-source fade-out flush implementation commit: a4a4b1e. b/N and full-goal acceptance remain pending."
       ],
-      "commit": null
+      "commit": "a999eae",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "N",
       "order": 40,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4505,12 +4542,13 @@
         "Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.",
         "Native N0..5 buffer/source/controls/lifetime integration commit: fdc8268. All45 command bodies now have native integration. Full command/global acceptance audit and the goal-final complete regression suite remain pending; the unlimited BIG goal stays active."
       ],
-      "commit": "fdc8268"
+      "commit": "fdc8268",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X7",
       "order": 41,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4546,12 +4584,13 @@
         "Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.",
         "Native N0..5 buffer/source/controls/lifetime integration commit: fdc8268. All45 command bodies now have native integration. Full command/global acceptance audit and the goal-final complete regression suite remain pending; the unlimited BIG goal stays active."
       ],
-      "commit": null
+      "commit": "8687007",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "X8",
       "order": 42,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4569,7 +4608,7 @@
         "Signed WORD counter0 through count gives N+1 turns for positive N through32766 and no finite automatic end for32767 after wrap. Native unsigned millisecond delay follows the complete turn, then nonzero key-result cancellation/read; ready keys do not shorten the delay.",
         "XOFF precedes counter initialization when current loop is0; XON independently tests current loop at exit. Current count0 restore is a separate tail test. Flow/getch suspension resumes accepted prefixes, then the common repeat/chain/deferred-reply footer runs.",
         "Native extended/NUL/private-scan distinctions preserve result-versus-readiness behavior and unread event replay. EOF/reset/backend/deadline failure abandons pending work without synthetic XON or palette restoration; indexed framebuffer/page/image owners remain intact.",
-        "Native X8 issues its current-memory-gated full-period prefix and current-qzx tail restore through N's local sample schedule, including equal endpoints/count0. Native palette, wait/key/flow behavior is retained; global45-entry/final acceptance remains pending."
+        "Native X8 issues its current-memory-gated full-period prefix and current-qzx tail restore through N's local sample schedule, including equal endpoints/count0. Native palette, wait/key/flow behavior is retained."
       ],
       "tests": [
         "big_palette_rotation",
@@ -4581,7 +4620,7 @@
       ],
       "deviations": [
         "The original uninitialized byte beyond the17-byte local is explicit owned padding initialized to0, retained by attention/snapshots/I/R. The existing defined interpreter-entry snapshot also replaces original uninitialized stack data. Escaped local/cache accesses reject at checked native extents instead of following arbitrary foreign segments/pointers.",
-        "Approved local timing policy converts the unsigned delay WORD directly to milliseconds on the local monotonic clock, with saturated deadlines and checked regressions. Original PIT programming prefix/tail is excluded; no foreign clock, BIOS timer, oscillator phase or mixer retiming is added. Native N/audio lifecycle composition remains pending."
+        "Approved local timing converts the unsigned delay WORD to monotonic milliseconds with saturated deadlines and checked regressions. The original period prefix/tail requests translate to N local sample-schedule rate changes; no foreign PIT/BIOS clock, interrupt debt, hardware bus slots or audio oscillator-phase model is added."
       ],
       "verification": [
         "Independent traces cover all256 endpoint pairs, all65536 endpoint WORD clamps, exact magic/sign capture, stale snapshots, negative candidates, current saved words and callbacks enabling both independent directions, with every setter/restore failure prefix.",
@@ -4592,12 +4631,13 @@
         "Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All73 BIG-specific native CTests passed in67.79s after source idle/release and paced-concurrency fixes. The final X8 music-rate bridge was then verified by all4 focused rotation/X7/n/N tests in2.84s (cterm_big_music0.61s). syncterm_big_input passed in233.37s total (test233.31s), retaining4102 prior coherent scenes and adding126 N scenes (nine across14 profiles). The new natural-release assertion failed before its implementation. Independent PCM measures show fixed gain3.25718, +0.000056dB weighted reference difference and peaks3330/single,23753/nine,1881/nine TL32. No physical audio/MIDI, audible-device or non-BIG regression coverage is claimed. A manual audio checklist is supplied. All45 command bodies are natively registered/implemented; command/global audit and the goal-final full suite remain pending.",
         "Native N0..5 buffer/source/controls/lifetime integration commit: fdc8268. All45 command bodies now have native integration. Full command/global acceptance audit and the goal-final complete regression suite remain pending; the unlimited BIG goal stays active."
       ],
-      "commit": null
+      "commit": "097a486",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "&",
       "order": 43,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4632,12 +4672,13 @@
         "Initial wire & now performs ordered header/raw/text/P/table acquisition, inherited suppression/RNG semantics, load-abort zero fill, loop publication before XOFF, post-flow classification and common-body dispatch. Independent native tests include all2048 actual slots, split input, partial effects, selected &, zero/ff raw bytes, gang copy/suffix bounds, source/timeouts/cancel/reset/EOF. The initial wire case failed before implementation. Delayed real-session loops exposed and verified the fix for fatal propagation of full accepted pauses. The expanded application fixture checks98 coherent scenes,56 fixed/gang loops and14 Ctrl-C delayed loops with exact flow/current-value/buffered-tail results. W rendering, < production and music entry synchronization remain pending; no full command completion is claimed.",
         "Native CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All93 selected BIG/shared-parser/IGS/RIP/SkyPix/terminal/session/OOII CTest checks passed in406.84s; both final coherent BIG/IGS application tests passed in28.34s. BIG covers98 independent scenes,56 fixed/gang wire loops and14 delayed native Ctrl-C loops. After making retained-tail fixtures use permanently unknown codes, the final full build and big_stream/cterm_big checks passed in3.40s. No physical input/audio or full command acceptance is claimed."
       ],
-      "commit": null
+      "commit": "b12aa6f",
+      "acceptance": "final-native-acceptance"
     },
     {
       "id": "G",
       "order": 44,
-      "status": "in-progress",
+      "status": "complete",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4658,7 +4699,7 @@
         "Existing marker/pointer/line/bar/rectangle/flood and batched-byte consumers use actual active memory while text uses actual visual memory. Frame locals reset on fresh attention and persist across chains/repeats independently of physical pages.",
         "Implemented G0/1/2/3 dynamic numeric wire routes, early active versus late memory selection, distinct gate/query prefixes, original mode timing/corner/cache3 behavior, repeated G3 selection and common footer/source/reply handling.",
         "Engine-owned retained image buffer/cache, defined fresh zero image, primary-pen capture and independent dual-blink Boolean paste over actual indexed active/memory pages, including overlap and source behind protected UI.",
-        "All seven native G routes are implemented. Full-command/global45-entry composition and final cross-emulation regression acceptance remain pending."
+        "All seven native G routes share the common source/footer/reply owner with native text, curves, pointer and audio commands."
       ],
       "tests": [
         "big_state",
@@ -4708,7 +4749,8 @@
         "After a failed large capture, R1/G2 successfully reuses its first200 accepted rows, preserving the old height349 and rejection count with no valid-image flag.",
         "Native CMake Release configure/full build and final focused builds (/usr/bin/cc, build/) passed cleanly without compiler/source diagnostics or clock-skew notices. All26 BIG-specific native CTest checks passed in16.53s. The final expanded cterm_big_images fixture, including custom pages/status/partial native writes and reuse of a failed capture prefix, passed in6.10s (test6.03s). Final syncterm_big_input passed in89.74s (test89.65s),1722 coherent scenes including154 new image scenes and live nonfatal capture failure; the earlier1708-scene run also passed in96.11s. No non-BIG tests ran. All seven native G routes are implemented; remaining global45-entry composition and final full-suite acceptance stay pending."
       ],
-      "commit": null
+      "commit": "4617796",
+      "acceptance": "final-native-acceptance"
     }
   ],
   "source_identity": {
@@ -4768,5 +4810,146 @@
     "selected_source": "https://github.com/RealBitdancer/opal",
     "initial_review_verification": "At initial review, only upstream sources/notices were read; no core had been imported or tested and the goal was paused. The user then resumed the goal and approved the original-code YM3812-only adaptation.",
     "implementation_commit": "099ab2c"
+  },
+  "acceptance": {
+    "id": "final-native-acceptance",
+    "status": "complete",
+    "implementation_commit": "fdc8268",
+    "test_loader_correction_commit": "134d5a0",
+    "configuration": "FreeBSD native /usr/bin/cc, CMake Release build/, ST_CONSOLE_TEST=ON; no Wine, additional compiler/platform matrix, physical audio or MIDI.",
+    "inventory": {
+      "top_level_commands": 36,
+      "extended_selectors": 9,
+      "ledger_entries": 45,
+      "foundations": 7,
+      "recursive_ledger_tests": 101
+    },
+    "review": [
+      "Original BIG103 dispatch-index.json exactly matches all36 native registered commands and ledger entries; X0..X8 supply the additional9 entries. Every entry has references, operations, tests and a reachable implementation commit; all intermediate steps are complete.",
+      "Chapter83 reuse map rechecked against current shared BGI data/kernels and native adapters. Current shared RIP bitmap/CHR fonts intentionally supersede historical variants; BIG keeps its clipping, placement, layout, state and lifetime rules.",
+      "Separate application/BGI/DDO/device points, active/visual/memory pages and retained image owners remain explicit. Packed image conversion occurs at import/capture/layout edges, with cached indexed pens on paste and no persistent planar framebuffer.",
+      "Shared pre-ANSI framing/custom numeric acquisition, nonfatal prefix-preserving recovery, source/footer/replies, hybrid pointer and parser backpressure/paced backlog all have native and coherent application coverage.",
+      "Both fixed source gains, shared speaker channel1 and owning OPL2 channel0, actual N/X7 progress, license UI, source controls and concurrent shutdown are verified without devices. Approved local sample/deadline timing adds no foreign system clock or bus-delay domain."
+    ],
+    "regression": {
+      "configured": 562,
+      "passed_after_correction": 561,
+      "skipped": 1,
+      "main": "558 tests in1091.02s:557 passed and emoji_raster_generator failed on its missing sibling import. That independent test-loader defect was corrected and both generator tests passed in0.54s.",
+      "display": "Three X11 integration tests passed on a private Xvfb; st_console_wayland skipped without a compositor. Four-test display group took5.41s. Inherited DISPLAY/WAYLAND_DISPLAY/XAUTHORITY/XDG_RUNTIME_DIR were cleared before starting Xvfb.",
+      "application": "syncterm_big_input passed in233.67s:4228 coherent independent scenes including126 N scenes across14 profiles. Physical audio/MIDI disabled.",
+      "coverage": "All101 recursively named ledger tests passed, along with the complete configured BIG/IGS/ANSI/VT52/RIP/SkyPix/profile/Wren/audio/graphics-lifecycle regression inventory. Wayland internal tests passed; external compositor behavior is not claimed.",
+      "final_rebuild": "Native CMake configure/full rebuild passed without compiler/source diagnostics. Eight focused parser/font/native-N/generator checks passed after the comment and test-loader corrections."
+    },
+    "tests": [
+      "app_startup",
+      "bbs_list",
+      "big_bar",
+      "big_bar3d",
+      "big_clear",
+      "big_collect",
+      "big_console_position",
+      "big_control",
+      "big_curve_angular",
+      "big_curve_decimal",
+      "big_curve_draw",
+      "big_curve_public",
+      "big_curve_regular",
+      "big_curve_scalar",
+      "big_curve_sector",
+      "big_curve_stages",
+      "big_draw",
+      "big_effect",
+      "big_fill",
+      "big_flood",
+      "big_flow_settings",
+      "big_font",
+      "big_image",
+      "big_image_paste",
+      "big_loop",
+      "big_music",
+      "big_music_channel",
+      "big_music_pcm",
+      "big_music_schedule",
+      "big_music_warm",
+      "big_number",
+      "big_numeric",
+      "big_opl2",
+      "big_palette",
+      "big_palette_rotation",
+      "big_polygon",
+      "big_polygon_span",
+      "big_producer",
+      "big_profile",
+      "big_random",
+      "big_session_pacing",
+      "big_speaker",
+      "big_speaker_stream",
+      "big_spray",
+      "big_state",
+      "big_stream",
+      "big_sync",
+      "big_text_bitmap",
+      "big_text_ratio",
+      "big_text_stroke",
+      "big_text_style",
+      "big_video",
+      "connection",
+      "cterm_big",
+      "cterm_big_bar",
+      "cterm_big_collect",
+      "cterm_big_curve",
+      "cterm_big_effect",
+      "cterm_big_fill",
+      "cterm_big_flow",
+      "cterm_big_images",
+      "cterm_big_line",
+      "cterm_big_music",
+      "cterm_big_note",
+      "cterm_big_pages",
+      "cterm_big_palette",
+      "cterm_big_pause",
+      "cterm_big_query",
+      "cterm_big_random",
+      "cterm_big_resolution",
+      "cterm_big_rotation",
+      "cterm_big_spray",
+      "cterm_big_sync",
+      "cterm_big_text",
+      "cterm_big_text_ratio",
+      "cterm_big_text_style",
+      "cterm_igs_collect",
+      "cterm_igs_loop",
+      "cterm_igs_macro",
+      "cterm_keyboard",
+      "cterm_rip_live",
+      "cterm_rip_oracle",
+      "cterm_rip_raster",
+      "graphics_protocol_number",
+      "graphics_protocol_parser",
+      "graphics_protocol_source",
+      "graphics_protocol_stream",
+      "screen_mode",
+      "settings_store",
+      "syncterm_behavior_bbs_setters",
+      "syncterm_big_input",
+      "syncterm_big_opl2_license",
+      "syncterm_cga_mode",
+      "syncterm_igs_init",
+      "syncterm_rip154_raster_CP437",
+      "syncterm_rip154_raster_UTF-8",
+      "term",
+      "term_key_forward",
+      "wren_host",
+      "wren_menu_contract",
+      "wren_settings_runtime"
+    ],
+    "manual_checklist": "docs/BIG_IMPLEMENTATION.adoc: Manual audio checklist; supplied, listening not an acceptance gate.",
+    "coverage_limits": [
+      "No physical-audio/MIDI or auditory validation.",
+      "External Wayland compositor integration skipped; internal Wayland tests passed.",
+      "Native functional timing/audio and shared current fonts follow the approved contract, not a bit-identical historical hardware/PCM profile."
+    ],
+    "historical_records": "Earlier verification strings and non_audio_checkpoint describe their recorded commits. Current contract, operations, deviations and this acceptance record determine present scope; no pending implementation or test gate remains."
   }
 }
