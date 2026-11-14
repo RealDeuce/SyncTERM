@@ -979,6 +979,34 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met."
           ],
           "commit": "f929b40"
+        },
+        {
+          "id": "public-sector-and-pieslice-wrappers",
+          "status": "complete",
+          "operations": [
+            "Public sector1d59 performs wrapped translated DDO/device center placement while retaining public CP, then lower0822. No017a ffff query or outer DDO save/restore.",
+            "Public pieslice1388 captures unsigned radius[0], derives Y through current signed aspect before any placement/installation, ignores radius[1], then calls public sector. Preserve orientation/radius swap and actual lower phase/error tails."
+          ],
+          "references": [
+            "curve-review-code.adoc:complete BIG195a:1388..13b2 and1d59..1d88",
+            "61-curve-command-acceptance.adoc:aspect before placement, separate sector/query/point gates",
+            "13-curves-and-native-reuse.adoc:public wrappers and original lower geometry",
+            "60-sector-polygon-scan-converter.adoc:production span/stage composition"
+          ],
+          "tests": [
+            "big_curve_sector",
+            "big_curve_scalar",
+            "big_polygon_span",
+            "cterm_big_curve"
+          ],
+          "deviations": [
+            "Existing checked native division, geometry, storage and callback policies apply. No foreign driver/controller/stack or planar shadow is added. Complete Y wire/global acceptance remains pending."
+          ],
+          "verification": [
+            "Public expectations first failed to link against missing wrappers. Independent grids and point/arc words check origin placement, ffff angle, actual callback DDO retention without outer restore, all three aspects, unsigned8000 radius, ignored second radius, orientation and aspect/installed/batch/argument failure prefixes.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met."
+          ],
+          "commit": null
         }
       ]
     },
@@ -3285,21 +3313,31 @@
         "shared-bgi"
       ],
       "references": [
-        "61-curve-command-acceptance.adoc",
-        "60-sector-polygon-scan-converter.adoc",
-        "polygon-code.adoc"
+        "curve-review-code.adoc:complete BIG13d2:1817..1893 V;195a:1388..13b2 pieslice and1d59..1d88 sector",
+        "61-curve-command-acceptance.adoc:five readers, current fill/hollow/line/final-fill schedule and downstream contracts",
+        "60-sector-polygon-scan-converter.adoc:records, scan conversion, native physical span dispatch",
+        "13-curves-and-native-reuse.adoc:aspect, scalar, normal/alternate sector and stages",
+        "34-numeric-words-and-exact-y-scaling.adoc:classes1/2/0/0/0, g3 Y5->11 and supplied bypass"
       ],
       "operations": [
-        "Polygon scan conversion, stages2/3, piece closure, complete normal/alternate lower sector construction and production native physical span operators are implemented under shared-bgi prerequisites. Public circular sector wrapper, CTerm V caller acquisition/fill restoration/wire/application acceptance remain pending."
+        "Register V with common arc schema: center classes1/2, circular radius/start/end class0. Preserve incremental acquisition/source/loop/chaining/footer and do not apply fill or color until every operand returns.",
+        "Apply current application fill, submit real empty0/0 for current nonzero hollow WORD, then current line color; execute public pieslice with aspect before placement and original lower normal/alternate sector/polygon/radial phases through native indexed pages.",
+        "Only normal return reapplies CURRENT selected application fill/color. No saved-state restoration, finally fill setter or center flood. Checked failures retain reached line/fill/point/pixel prefixes and recover through existing nonfatal BIG parser handling.",
+        "Keep outline query/equal shortcuts separate from sector: ffff normalizes as an angle; equal angles still emit two degenerate radials. Native collector batches do not invent mode2 point/read-plane access."
       ],
       "tests": [
         "big_polygon",
         "big_curve_stages",
         "big_curve_sector",
-        "big_polygon_span"
+        "big_polygon_span",
+        "big_curve_public",
+        "big_curve_scalar",
+        "cterm_big_curve",
+        "syncterm_big_input"
       ],
       "deviations": [
-        "The native bounded polygon component uses checked extent/division/nontermination failures. This is prerequisite acceptance only, not V wire/pixel/global command acceptance."
+        "Existing checked native geometry/extent/division/nontermination failures replace unsafe foreign address/controller/stack behavior. No new DOS hardware/clock/planar or flow path is introduced.",
+        "Native V integration is implemented; full45-entry/resource/audio composition and the goal-final full suite remain pending, so this command keeps in-progress/commitnull under the existing ledger acceptance policy. Conditional publishing waits for every non-audio command to be implemented and verified."
       ],
       "verification": [
         "Independent raw polygon/span/color/scratch tests cover the new prerequisite; full V/Y composition has not been implemented or accepted.",
@@ -3309,7 +3347,12 @@
         "Independent lower sector/stroke tests verify complete normal/alternate geometry, phase ordering, point/arc owners and errors; public/native V/Y command acceptance remains pending.",
         "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met.",
         "Production physical span kernels now run in independent polygon/stage/lower-sector fixtures; public CTerm V/Y integration remains pending.",
-        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met."
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met.",
+        "Independent native V tests first failed on missing dispatch. Every partition and bytewise input across all modes, CP437/UTF8/status choices checks full indexed planes, three points, radii and following ANSI replies. Valid four-digit H9999 verifies non-one nonzero behavior; original negative H clamps0 and five-digit input constructs0.",
+        "Literal unit/radius2 quarter scenes retain line5/interior6;365-record alternate full turn fills after outline and retains stale endpoints. Normal custom width3/zero pattern keeps only real polygon output; an opaque aa hole clears an existing line pixel. Hollow/custom rejection and final current-fill application retain actual owners.",
+        "Partial/EOF/reset/timeout/clock and aspect/storage error paths retain exact setter/point prefixes without fatal sessions or final-fill rollback. Decimal collection succeeds with unused invalid read-plane4. Ordinary g3 Y5->11 contrasts with stored5 while circular radius2 stays unscaled. Active pages, deferred NUL/ff user origins and following-D CP are independent expectations.",
+        "Eight coherent application cases per profile add112 V captures,3486 total, with original equal/720/ffff/short/hollow/XOR/source and actual polygon-quarter pixel/arc/radius/point/count expectations. Quarter end90 reaches its final zero-width piece, leaving span0 and3/4/5 records; mode3 alone retains a pen5 interior. All preceding scene observations remain. Physical audio/MIDI stay disabled.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met."
       ],
       "commit": null
     },

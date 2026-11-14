@@ -1372,6 +1372,41 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             (b"I#P 548,80:I#m 2,484,100:I#Q 548,80,1,2:", q_pixels(548, 80, q_tall) + ((548, 80, 15),),
                              ((548, 80), (0xa01c, 3)), (548, 80, 549, 80, 549, 80), (1, 2), 360, 5, {}),
                         )
+                        # V's normal front clears offset state even for equal
+                        # angles. It keeps both degenerate radial requests;
+                        # XOR cancels them. Count is untouched until stage0.
+                        curve_cases += (
+                            (b"I#V 520,60,20,0,0:", ((520, 60, 15),),
+                             ((520, 60), (520, 60)), (520, 60, 520, 60, 520, 60),
+                             (20, (9, 15, 20)[resolution - 1]), 0, 5, {}),
+                            (b"I#V 540,60,1,720,720:", ((540, 60, 15),),
+                             ((540, 60), (540, 60)), (540, 60, 540, 60, 540, 60), (1, ry), 0, 5, {}),
+                            (b"I#V 560,60,1,+1,+1:", ((560, 60, 15),),
+                             ((560, 60), (560, 60)), (560, 60, 560, 60, 560, 60), (1, ry), 0, 5, {}),
+                            (b"I#V 580,60,1,0,1:", ((580, 60, 15), (581, 60, 15)),
+                             ((580, 60), (580, 60)), (580, 60, 581, 60, 580, 60), (1, ry), 1, 0, {}),
+                            (b"I#H 1:I#V 600,60,1,0,0:", ((600, 60, 15),),
+                             ((600, 60), (600, 60)), (600, 60, 600, 60, 600, 60), (1, ry), 0, 0, dict(hollow=1)),
+                            (b"I#M 2:I#V 620,60,1,0,0:", (),
+                             ((620, 60), (620, 60)), (620, 60, 620, 60, 620, 60), (1, ry), 0, 0, dict(writing=(1, 1))),
+                            (b"I#H 0:I#M 1:I#g 2:I#& 0,0,1,0,V@5,500,70,1,0,0:I#g 0:", ((500, 70, 15),),
+                             ((500, 70), (500, 70)), (500, 70, 500, 70, 500, 70), (1, ry), 0, 0,
+                             dict(hollow=0, writing=(0, 0))),
+                        )
+                        # Hand-derived radius2 quarter: the lower arc has
+                        # three/four/five collected records. Polygon interior
+                        # survives the returning outline/radials only at
+                        # (525,49) in mode3, using pen5 rather than line15.
+                        v_outline = (((1, -1), (0, 0), (1, 0), (2, 0)),
+                                     ((0, -1), (1, -1), (0, 0), (1, 0), (2, 0)),
+                                     ((0, -2), (1, -2), (2, -1), (0, -1), (0, 0), (1, 0), (2, 0)))[resolution - 1]
+                        v_pixels = tuple((524 + dx, 50 + dy, 15) for dx, dy in v_outline)
+                        if resolution == 3:
+                            v_pixels += ((525, 49, 5),)
+                        curve_cases += ((b"I#V 524,50,2,0,90:", v_pixels,
+                                         ((524, 50), (525, 49) if resolution == 1 else (524, 49 if resolution == 2 else 48)),
+                                         (524, 50, 526, 50, 524, 50 - (0, 1, 2)[resolution - 1]),
+                                         (2, (0, 1, 2)[resolution - 1]), 0, resolution + 2, {}),)
                         for index, (command, additions, points, arc, radii, span, count, changes) in enumerate(curve_cases):
                             curve_state.update(changes); curve_state["lower_points"] = points
                             for x, y, pen in additions:

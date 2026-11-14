@@ -1,7 +1,7 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
-through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
+through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V curves are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
@@ -1779,3 +1779,34 @@ No unchanged3374 application scenes or non-BIG regressions were rerun.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met.
 
 Native physical polygon span implementation commit: `f929b40`.
+
+## Public sector wrappers and native V pieslice
+
+V now acquires center X/Y, circular radius and two angles through the common
+numeric/source parser using classes1/2/0/0/0. Only after all reads return it
+applies current fill, real empty0/0 for nonzero hollow, then current line
+color. The public pieslice derives Y through signed aspect before placement;
+public sector places DDO/device center without moving public CP, querying
+ffff or supplying an outer DDO restore. Both sector fronts use the accepted
+producer/polygon/bar/raw-line components and existing indexed active pages.
+
+Normal return alone reapplies current application fill; custom rejection can
+leave temporary empty fill installed. Failures preserve reached prefixes and
+recover without disconnecting or running an invented finally restoration.
+Zero/equal angles still draw two radial requests; ffff remains an angle.
+Original numeric H behavior remains: negative becomes0 and five-digit input
+constructs0. The non-one hollow fixture therefore uses9999.
+
+big_curve_sector independently covers public placement/aspect/ownership and
+failure boundaries. cterm_big_curve adds every partition/profile/bytewise V,
+literal quarter/interior and365-record alternate scenes, custom width/pattern/
+opaque holes, lifecycle/fill rejection/error/recovery, g3/stored scaling,
+pages, read-plane distinction, replies and following-D state. Eight new
+application scenes per profile add112 captures,3486 total, with full existing
+pixel/font/palette/cell/state/arc/point/reply/RGB observations retained.
+The radius2 quarter ends with cached span0 after its reached empty final
+piece and retains3/4/5 records across resolutions. Only mode3 has the literal
+pen5 interior. Physical audio/MIDI stay off. Y and global/audio/final
+acceptance and the conditional non-audio publishing milestone remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.

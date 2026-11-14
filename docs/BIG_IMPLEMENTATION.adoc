@@ -24,19 +24,19 @@ source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
 pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
-K circular/J explicit-radius arcs, O circles and Q ellipses are integrated.
+K circular/J explicit-radius arcs, O circles, Q ellipses and V circular
+pieslices are integrated.
 Other curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
-binding and K/J/O/Q wire/page/source/recovery integration. V is the next native
-curve command. Its raw polygon scan converter, buffer stages2/3, piece
-closure and normal/alternate lower sector construction are implemented and
-independently tested. Native physical polygon span operators now bind the
-existing bar and shared thin-line kernels. Public wrappers and CTerm V/Y
-wire/application work remain pending.
+binding and K/J/O/Q/V wire/page/source/recovery integration. Sector work has
+the raw polygon scanner, stages2/3, piece closure, normal/alternate lower
+construction, physical span operators and public explicit/circular sector
+wrappers. V retains its own fill/line/caller schedule. Y is the next native
+curve command; its numeric/caller/wire/application integration remains pending.
 Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -3953,3 +3953,71 @@ remains pending until all non-audio commands are implemented and verified.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met.
 
 Native physical polygon span implementation commit: `f929b40`.
+
+== Public sector wrappers and native V pieslices
+
+Complete BIG13d2:1817..1893 V and195a:1388..13b2/1d59..1d88 wrappers were
+reread from61/curve-review-code with13/60 and the already verified lower
+sector/stages. The complete248206-byte BIG executable still matches pinned
+SHA256 edc9e2280d822d41361a11f622d8a70e16ada4e792a4944a77cc26af532f4a1c.
+No DOS executable or reference asset is needed by the checked-in tests.
+
+st_big_curve_public_sector performs selector08's wrapped origin translation
+into DDO/device center while leaving public CP alone, then enters lower0822.
+It has no017a ffff query or outer saved-DDO restoration. The public pieslice
+captures unsigned radius, derives Y through current signed aspect BEFORE
+placement, then calls that same sector wrapper; its second radius is ignored.
+Checked zero denominator therefore retains old points before installation or
+center changes. BIG's lower normal/alternate branches retain their existing
+point/arc/error ownership and no native filled-pie substitute is introduced.
+
+V uses the existing arc reader schema: center X/class1, Y/class2, radius/
+start/end class0. After all five readers return it applies CURRENT fill,
+submits real empty0/0 when current hollow WORD is nonzero, then installs
+current line color. The CTerm update runs the public pieslice, producer,
+polygon, clipped pattern-bar or raw thin-line operators through the existing
+indexed active-page/video adapter. Decimal collection is not point mode2,
+so an unused invalid read-plane setting does not invent a V read failure.
+
+Only a normal return reapplies CURRENT selected application fill/color; no
+saved fill snapshot, finally restore or center flood is added. Rejected custom
+fill can leave hollow's empty style installed even after a returning sector.
+Aspect/storage failures preserve reached line/empty-fill/point prefixes,
+remain nonfatal, and leave the final fill setter unreached. Query/zero-span
+outline shortcuts are kept separate: V ffff is an angle, and normalized equal
+angles still execute both degenerate radials. Actual zero-radius/short/quarter
+and alternate construction retain the lower operators rather than RIP's pie.
+
+big_curve_sector adds independent public tests for translated scenes, ffff
+versus query, missing outer DDO save under callback mutation, three mode
+aspects, unsigned8000 radius, ignored second radius, orientation, division/
+uninstalled/batch-error prefixes and argument boundaries. Its wrapper tests
+first failed to link against missing APIs; the native V tests first failed
+against absent dispatch. Original H clamps negative words and a five-digit
+literal constructs0, so the non-one hollow witness uses valid four-digit9999.
+
+cterm_big_curve covers every split/bytewise V across all three modes,
+CP437/UTF8 and status choices, full indexed planes and ANSI replies. Literal
+unit/radius2 quarter scenes, a surviving pen6 interior, alternate365-record
+outline-before-fill output, retained stale arc endpoints, normal width3/
+zero pattern and opaque custom-hole clearing exercise actual production
+operators. Hollow/custom rejection, current late setters, EOF/reset/timeout/
+clock failures, aspect/storage nonfatal errors, unused read-plane state,
+g3 Y5->11 versus stored5, unscaled circular radius, active pages, chained
+NUL/ff reply origins and a following D all retain separate owners.
+
+Eight new application scenes per profile add112 coherent V captures,3486
+total. Independent zero/equal720/ffff, one-degree, hollow, double-XOR, stored
+bypass and actual radius2 polygon quarter expectations retain all earlier
+pixels/cells/palette/font/image/RNG/native RGB and point/arc/radius/count
+observations. Quarter end90 reaches the actual zero-width last piece, so
+cached span ends0 while the collected records remain3/4/5 by resolution.
+Mode3 alone retains the pen5 interior at the radius2 quarter's diagonal.
+The growing BIG capture test's CTest timeout is240s; no new wait or pace was
+added to the fixture. Physical audio/MIDI remain disabled.
+
+Y, remaining non-audio controls, audio/resource/global45-entry composition
+and the goal-final full suite remain pending. The conditional non-audio push
+milestone has not been reached.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.

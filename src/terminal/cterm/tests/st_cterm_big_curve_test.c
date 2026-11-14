@@ -1,4 +1,4 @@
-/* Independent BIG K/J/O/Q wire/page/source/recovery expectations, original13/61. */
+/* Independent BIG K/J/O/Q/V wire/page/source/recovery expectations, original13/61. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm.h"
 #include "cterm_big_internal.h"
@@ -71,17 +71,18 @@ static void owners(struct fixture *f, unsigned x, unsigned y, unsigned device_x,
 static const struct dot full[]={{100,99},{100,101},{99,100},{101,100}};
 static void partitions_and_profiles(void)
 {
-	static const char *const wires[]={"I#K 100,100,1,0,360:\033[2;3H\033[6n", "I#J 100,100,1,1,0,360:\033[2;3H\033[6n", "I#H 1:I#O 100,100,1:\033[2;3H\033[6n", "I#H 1:I#Q 100,100,1,1:\033[2;3H\033[6n"};
+	static const char *const wires[]={"I#K 100,100,1,0,360:\033[2;3H\033[6n", "I#J 100,100,1,1,0,360:\033[2;3H\033[6n", "I#H 1:I#O 100,100,1:\033[2;3H\033[6n", "I#H 1:I#Q 100,100,1,1:\033[2;3H\033[6n", "I#H 1:I#V 100,100,1,0,0:\033[2;3H\033[6n"};
 	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
 		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
-		for (size_t c=0;c<4;++c) for (unsigned resolution=1;resolution<=3;++resolution) for (size_t split=0;split<=strlen(wires[c]);++split) {
+		for (size_t c=0;c<sizeof(wires)/sizeof(wires[0]);++c) for (unsigned resolution=1;resolution<=3;++resolution) for (size_t split=0;split<=strlen(wires[c]);++split) {
 			setup(&f,resolution); feed(&f,wires[c],split); string(&f,wires[c]+split);
 			CHECK(f.size==6 && memcmp(f.output,"\033[2;3R",6)==0 && b->rejected_commands==0 && b->state.bgi.error==-11);
-			owners(&f,100,100,0xa014,3); canvas(&f,full,4);
-			CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==((c==0 || c==2) && resolution!=3?0:1) && b->producer.mode==0 && !b->producer.batch);
+			const struct dot center[]={{100,100}};
+			owners(&f,100,100,c==4?100:0xa014,c==4?100:3); canvas(&f,c==4?center:full,c==4?1:4);
+			CHECK(b->state.bgi.curve_radius[0]==1 && b->state.bgi.curve_radius[1]==((c==0 || c==2 || c==4) && resolution!=3?0:1) && b->producer.mode==0 && !b->producer.batch);
 		}
-		for (size_t c=0;c<4;++c) for (unsigned resolution=1;resolution<=3;++resolution) {
-			setup(&f,resolution); for (size_t i=0;i<strlen(wires[c]);++i) feed(&f,wires[c]+i,1); canvas(&f,full,4);
+		for (size_t c=0;c<sizeof(wires)/sizeof(wires[0]);++c) for (unsigned resolution=1;resolution<=3;++resolution) {
+			setup(&f,resolution); for (size_t i=0;i<strlen(wires[c]);++i) feed(&f,wires[c]+i,1); const struct dot center[]={{100,100}}; canvas(&f,c==4?center:full,c==4?1:4);
 		}
 		destroy(&f);
 	}
@@ -410,4 +411,70 @@ static void ellipse_Q(void)
 	destroy(&f);
 }
 
-int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); stage="J explicit radii"; explicit_radius_J(); stage="O circle/flood"; circle_O(); stage="Q ellipse/fill timing"; ellipse_Q(); return 0; }
+
+static void pieslice_V(void)
+{
+	static const struct dot center[]={{100,100}},quarter[]={{100,99},{100,100},{101,100}};
+	static const struct dot outer[]={{100,98},{101,98},{102,99},{102,100},{101,100},{100,100},{100,99}},inside[]={{101,99}};
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	stage="V unit quarter"; setup(&f,3); string(&f,"I#H 0:I#C 2,6:I#V 100,100,1,0,90:"); canvas(&f,quarter,3); owners(&f,100,100,100,99);
+	CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==6 && b->state.bgi.device_fill_color==6 && b->producer.count==3 && !b->producer.batch && f.size==0);
+	stage="V filled quarter"; setup(&f,3); string(&f,"I#V 100,100,2,0,90:"); canvas_with_fill(&f,outer,7,inside,1); owners(&f,100,100,100,98);
+	CHECK(b->state.bgi.arc[2]==102 && b->state.bgi.arc[3]==100 && b->state.bgi.arc[4]==100 && b->state.bgi.arc[5]==98);
+	stage="V alternate fill after outline"; setup(&f,3); b->state.bgi.curve_fallback=1;
+	uint16_t old_arc[6]; memcpy(old_arc,b->state.bgi.arc,sizeof(old_arc)); string(&f,"I#H 0:I#V 100,100,1,0,360:");
+	static const struct dot alternate_line[]={{99,101},{100,101}},alternate_fill[]={{100,99},{99,100},{100,100},{101,100}};
+	canvas_with_fill(&f,alternate_line,2,alternate_fill,4); owners(&f,100,100,100,100);
+	CHECK(b->producer.count==365 && memcmp(b->state.bgi.arc+2,old_arc+2,4*sizeof(*old_arc))==0 && b->state.bgi.fill_color==6); b->state.bgi.curve_fallback=0;
+	stage="V normal custom width"; setup(&f,3); string(&f,"I#T 2,4,0,1,1:I#V 100,100,1,0,90:");
+	static const struct dot top_fill[]={{100,99}}; canvas_with_fill(&f,NULL,0,top_fill,1); owners(&f,100,100,100,99);
+	CHECK(b->state.bgi.line_mask==0 && b->state.bgi.device_line_width==3 && b->state.bgi.ddo_line_width==3);
+	stage="V opaque pattern hole"; setup(&f,3); memset(b->state.application.patterns[0],0xaa,8);
+	string(&f,"I#C 0,5:I#P 101,99:I#m 2,31,32:I#A 12:I#V 100,100,2,0,90:"); canvas(&f,outer,7);
+	CHECK(b->state.bgi.fill_style==12 && b->state.bgi.fill_color==6 && b->state.bgi.fill_user[0]==0xaa);
+	string(&f,"I#A 1:");
+	stage="V hollow word"; setup(&f,3); string(&f,"I#H 9999:I#V 100,100,2,0,90:"); canvas(&f,outer,7); CHECK(b->state.application.hollow==9999 && b->state.bgi.fill_style==1 && b->state.bgi.fill_color==6);
+	/* Both custom submissions can reject; hollow's real empty style then
+	 * remains installed on normal return instead of restoring a snapshot. */
+	stage="V rejected hollow fill"; setup(&f,3); string(&f,"I#C 2,6:I#A 1:I#C 2,31:I#A 12:I#V 100,100,2,0,90:");
+	canvas(&f,outer,7); CHECK(b->state.application.fill==12 && b->state.bgi.fill_style==0 && b->state.bgi.fill_color==0 && b->state.bgi.error==-11);
+	stage="V rejected fill"; setup(&f,3); string(&f,"I#H 0:I#C 2,6:I#A 1:I#C 2,31:I#A 12:I#V 100,100,2,0,90:");
+	canvas_with_fill(&f,outer,7,inside,1); CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==6);
+	stage="V ffff angle"; setup(&f,3); string(&f,"I#C 2,6:I#A 1:I#V 100,100,1,+1,0:");
+	static const struct dot short_arc[]={{100,100},{101,100}}; canvas(&f,short_arc,2); CHECK(b->state.bgi.curve_span==15 && b->state.bgi.arc[2]==101);
+	for (unsigned mode=1;mode<=3;++mode) {
+		stage="V mode aspects"; setup(&f,mode); string(&f,"I#V 100,100,20,0,0:"); canvas(&f,center,1); owners(&f,100,100,100,100);
+		CHECK(b->state.bgi.curve_radius[0]==20 && b->state.bgi.curve_radius[1]==(mode==1?9:mode==2?15:20));
+		stage="V double XOR radial"; setup(&f,mode); string(&f,"I#M 2:I#V 100,100,20,0,0:"); canvas(&f,NULL,0); owners(&f,100,100,100,100);
+	}
+	stage="V partial"; setup(&f,2); string(&f,"I#H 1:I#V 100,100,2,0,");
+	CHECK(b->state.bgi.color==15 && b->state.bgi.fill_color==15); canvas(&f,NULL,0); owners(&f,31,32,31,32);
+	b->state.application.colors[1]=5; b->state.application.colors[2]=6; string(&f,"0:"); canvas(&f,center,1); CHECK(b->state.bgi.color==5 && b->state.bgi.fill_color==6);
+	stage="V EOF/reset/timeout"; setup(&f,2); string(&f,"I#V 100,100,2,0,"); CHECK(st_cterm_finish(f.terminal)==0); canvas(&f,NULL,0); CHECK(b->state.bgi.fill_color==15);
+	string(&f,"I#V 100,100,2,0,"); CHECK(st_cterm_reset_terminal(f.terminal)==0); canvas(&f,NULL,0); owners(&f,31,32,31,32);
+	string(&f,"I#V 100,100,2,0,"); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0); canvas(&f,center,1); CHECK(b->state.bgi.fill_color==6);
+	stage="V timeout reset"; setup(&f,2); string(&f,"I#V 100,100,2,0,"); f.reset_bell=true; local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0); f.reset_bell=false; canvas(&f,NULL,0); CHECK(b->state.bgi.fill_color==15);
+	stage="V clock error"; setup(&f,2); string(&f,"I#V 100,100,2,0,"); clock_error=IO_ERROR_IO; CHECK(st_cterm_poll(f.terminal)==0); clock_error=0; canvas(&f,NULL,0); CHECK(b->state.bgi.fill_color==15 && b->last_error==IO_ERROR_IO);
+	/* Failure after temporary empty fill has no final fill application. */
+	stage="V aspect failure"; setup(&f,2); size_t rejected=b->rejected_commands; b->state.bgi.aspect[1]=0; string(&f,"I#V 100,100,1,0,90:\033[6n");
+	CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==rejected+1 && b->state.bgi.fill_style==0 && b->state.bgi.fill_color==0 && b->state.bgi.color==5 && f.size==6); canvas(&f,NULL,0); owners(&f,31,32,31,32);
+	b->state.bgi.aspect[1]=10000; string(&f,"I#V 100,100,1,0,0:"); canvas(&f,center,1); CHECK(b->state.bgi.fill_style==1 && b->state.bgi.fill_color==6);
+	stage="V storage failure"; setup(&f,3); size_t extent=b->producer.storage_count; b->producer.storage_count=0; string(&f,"I#V 100,100,1,0,90:\033[6n");
+	CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && b->state.bgi.fill_style==0 && b->state.bgi.fill_color==0 && f.size==6); canvas(&f,NULL,0);
+	b->producer.storage_count=extent; string(&f,"I#V 100,100,1,0,90:"); canvas(&f,quarter,3); CHECK(b->state.bgi.fill_color==6);
+	stage="V collector read plane"; setup(&f,3); b->producer.read_plane=4; string(&f,"I#V 100,100,1,0,90:"); canvas(&f,quarter,3); CHECK(!b->producer.batch); b->producer.read_plane=0;
+	stage="V wire scaling"; setup(&f,3); string(&f,"I#g 3:I#V 100,5,2,0,0:"); static const struct dot scaled[]={{100,11}}; canvas(&f,scaled,1); owners(&f,100,11,100,11); CHECK(b->state.bgi.curve_radius[0]==2 && b->state.bgi.curve_radius[1]==2);
+	stage="V stored scaling"; setup(&f,3); string(&f,"I#g 3:I#& 0,0,1,0,V@5,100,5,2,0,0:I#g 0:"); static const struct dot stored[]={{100,5}}; canvas(&f,stored,1); owners(&f,100,5,100,5); CHECK(b->numeric.loop.active==0);
+	for (unsigned mode=1;mode<=3;++mode) {
+		stage="V active pages"; setup(&f,mode); string(&f,"I#G>6,1:V 100,100,1,0,0:");
+		if (mode<3) { canvas(&f,NULL,0); string(&f,"I#G 5,1:"); } canvas(&f,center,1);
+	}
+	stage="V deferred reply"; setup(&f,3); b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255;
+	string(&f,"I#V>100,100,1,0,0:"); CHECK(f.size==0 && b->control.input.pending==1); string(&f,"~ ");
+	CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255 && f.origins[0]==ST_CTERM_OUTPUT_USER && f.origins[1]==ST_CTERM_OUTPUT_USER);
+	stage="V following drawto"; setup(&f,3); string(&f,"I#H 0:I#V 100,100,2,0,90:I#D 102,100:"); canvas_with_fill(&f,outer,7,inside,1);
+	CHECK(b->state.bgi.x==102 && b->state.bgi.y==100 && b->state.bgi.ddo_x==102 && b->state.bgi.device_x==102);
+	destroy(&f);
+}
+
+int main(void) { stage="partitions"; partitions_and_profiles(); stage="partial"; late_color_and_partial_lifecycle(); stage="query/aspect"; query_zero_overflow_and_aspects(); stage="buffer/page/source"; buffered_pages_source_and_storage(); stage="banks/error/footer"; banks_errors_and_footer(); stage="shared scratch/scaling"; shared_scratch_and_scaling(); stage="J explicit radii"; explicit_radius_J(); stage="O circle/flood"; circle_O(); stage="Q ellipse/fill timing"; ellipse_Q(); stage="V pieslice"; pieslice_V(); return 0; }

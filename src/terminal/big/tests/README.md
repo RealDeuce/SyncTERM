@@ -911,3 +911,27 @@ owners; escaped native geometry fails before output. Production operators
 also run in polygon/stage/sector fixtures; a sticky square independently
 checks XOR6 on X4/5, rows2..5, outside viewport10/12. No foreign controller
 or raw video-address equivalence is claimed; CTerm V/Y composition is pending.
+
+Public sector/pieslice provenance is complete BIG195a:1388..13b2 and
+1d59..1d88,13/60/61. big_curve_sector first failed to link against missing
+public APIs, then independently verified origin placement, separate point
+owners/no outer restore, ffff angle, three mode aspects, unsigned radius/
+ignored second radius, orientation and failure prefixes.
+
+Native V provenance is complete BIG13d2:1817..1893. cterm_big_curve first
+failed on absent dispatch and now checks every partition/profile and bytewise
+input, exact full planes/replies and independent unit/radius2 quarter/pen6
+interior,365-record alternate fill-after-outline, custom width3/zero pattern
+and opaque hole clearing. Hollow9999 uses a valid four-digit non-one WORD;
+five-digit32767 would construct0 and H+1 clamps the negative result to0.
+Late/current fill/color, custom rejection, EOF/reset/timeout/clock, aspect/
+storage error recovery, g3 wire11 versus stored5, pages, unused read plane,
+deferred NUL/ff reply origins and following D have separate expected owners.
+
+Eight V application cases per profile add112 coherent scenes,3486 total.
+Original equal/720/ffff, one-degree, hollow, double-XOR, stored bypass and
+radius2 polygon quarters use literal pixel/arc/point/radius/count expectations.
+An end90 quarter reaches a zero-width last piece, leaving span0 and3/4/5
+records; mode3 alone retains the diagonal pen5 interior. All prior scene
+observations remain. No expected frames come from SyncTERM, no external
+asset is required, and physical audio/MIDI are disabled.

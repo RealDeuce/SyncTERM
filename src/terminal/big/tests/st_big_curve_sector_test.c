@@ -143,4 +143,45 @@ static void alternate_and_producer_radials(void)
 	CHECK(st_big_producer_stroke(&f.state,&f.producer,&r,&sink)==0 && r.ax==0x0f02 && r.bx==2 && r.cx==0x2009 && r.dx==9 && f.writes==1 && f.state.bgi.ddo_x==10 && f.state.bgi.device_x==10); scene(&f,center,1,9);
 	const struct st_big_polygon_sink polygon={&f,color,span}; CHECK(st_big_curve_sector(NULL,&f.producer,0,90,1,1,&sink,NULL,&polygon)==IO_ERROR_INVALID_ARGUMENT);
 }
-int main(void) { normal_small_and_zero(); quadrants_overflow_and_callbacks(); alternate_and_producer_radials(); return 0; }
+static int public_sector(struct fixture *f, bool circular, struct st_big_curve_request *request)
+{
+	const struct st_big_producer_sink sink={.drawing={f,pixel}};
+	const struct st_big_polygon_sink polygon={f,color,span}; const struct st_big_curve_batch_sink batch={f,begin,end};
+	return circular?st_big_curve_pieslice(&f->state,&f->producer,request,&sink,&batch,&polygon)
+	    :st_big_curve_public_sector(&f->state,&f->producer,request,&sink,&batch,&polygon);
+}
+static void public_wrappers(void)
+{
+	struct fixture f; struct st_big_curve_request request={.center={10,10},.start=0,.end=90,.radius={1,1}};
+	init(&f); f.state.bgi.viewport[0]=3; f.state.bgi.viewport[1]=4;
+	CHECK(public_sector(&f,false,&request)==0 && f.writes==8 && f.state.bgi.x==1 && f.state.bgi.y==2);
+	CHECK(f.state.bgi.ddo_x==13 && f.state.bgi.ddo_y==14 && f.state.bgi.device_x==13 && f.state.bgi.device_y==13);
+	const uint16_t translated[][2]={{13,13},{13,14},{14,14}},expected_arc[]={10,10,11,10,10,9}; scene(&f,translated,3,9); arc(&f,expected_arc);
+	init(&f); request.start=0xffff; request.end=0; CHECK(public_sector(&f,false,&request)==0 && f.writes==3 && f.producer.count==1);
+	const uint16_t short_arc[][2]={{10,10},{11,10}}; scene(&f,short_arc,2,9);
+	/* A normal sector has no017a outer DDO restore, even on success. */
+	init(&f); f.mutate_radial=true; request.start=request.end=0;
+	CHECK(public_sector(&f,false,&request)==0 && f.state.bgi.ddo_x==20 && f.state.bgi.ddo_y==21 && f.state.bgi.x==1 && f.writes==3);
+	static const uint16_t aspects[]={4500,7750,10000},radii[]={9,15,20};
+	for (size_t i=0;i<3;++i) {
+		init(&f); f.state.bgi.aspect[0]=aspects[i]; request.radius[0]=20; request.radius[1]=0xffff;
+		CHECK(public_sector(&f,true,&request)==0 && f.writes==2 && f.state.bgi.curve_radius[0]==20 && f.state.bgi.curve_radius[1]==radii[i]);
+		const uint16_t center[][2]={{10,10}}; scene(&f,center,1,9);
+	}
+	init(&f); f.state.bgi.aspect[0]=10000; request.radius[0]=0x8000;
+	CHECK(public_sector(&f,true,&request)==0 && f.state.bgi.curve_radius[0]==0x8000 && f.state.bgi.curve_radius[1]==0x8000 && f.writes==2);
+	init(&f); f.state.bgi.orientation=1; f.state.bgi.aspect[0]=4500; request.radius[0]=20;
+	CHECK(public_sector(&f,true,&request)==0 && f.state.bgi.curve_radius[0]==9 && f.state.bgi.curve_radius[1]==20);
+	init(&f); request.center[0]=20; request.center[1]=21; f.state.bgi.aspect[1]=0;
+	CHECK(public_sector(&f,true,&request)==IO_ERROR_OUT_OF_RANGE && f.writes==0 && f.state.bgi.ddo_x==10 && f.state.bgi.ddo_y==10 && f.state.bgi.device_x==10 && f.state.bgi.curve_filled==0 && f.state.bgi.error==-11);
+	f.state.bgi.state=0; CHECK(public_sector(&f,true,&request)==IO_ERROR_OUT_OF_RANGE && f.state.bgi.error==-11);
+	CHECK(public_sector(&f,false,&request)==IO_ERROR_PROTOCOL && f.state.bgi.error==-1 && f.state.bgi.ddo_x==10);
+	init(&f); request.start=0; request.end=90; request.radius[0]=request.radius[1]=1; f.begin_error=IO_ERROR_IO;
+	CHECK(public_sector(&f,false,&request)==IO_ERROR_IO && f.state.bgi.ddo_x==20 && f.state.bgi.ddo_y==21 && f.state.bgi.device_x==20 && f.producer.mode==1 && f.producer.batch && f.state.bgi.arc[2]==102);
+	const struct st_big_producer_sink sink={.drawing={&f,pixel}};
+	CHECK(st_big_curve_public_sector(NULL,&f.producer,&request,&sink,NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_curve_pieslice(&f.state,NULL,&request,&sink,NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_curve_public_sector(&f.state,&f.producer,NULL,&sink,NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_big_curve_pieslice(&f.state,&f.producer,&request,NULL,NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);
+}
+int main(void) { normal_small_and_zero(); quadrants_overflow_and_callbacks(); alternate_and_producer_radials(); public_wrappers(); return 0; }

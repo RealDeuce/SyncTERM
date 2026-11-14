@@ -307,6 +307,31 @@ int st_big_curve_arc(struct st_big_state *state, struct st_big_producer *produce
 	ellipse.radius[0]=radius; ellipse.radius[1]=radius_y;
 	return st_big_curve_ellipse(state,producer,&ellipse,sink,batch);
 }
+int st_big_curve_public_sector(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_curve_request *request, const struct st_big_producer_sink *sink,
+    const struct st_big_curve_batch_sink *batch, const struct st_big_polygon_sink *polygon)
+{
+	if (state==NULL || producer==NULL || request==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (state->bgi.state==0) { state->bgi.error=-1; return IO_ERROR_PROTOCOL; }
+	uint16_t x=request->center[0],y=request->center[1];
+	state->bgi.ddo_x=state->bgi.device_x=(uint16_t)(x+state->bgi.viewport[0]);
+	state->bgi.ddo_y=state->bgi.device_y=(uint16_t)(y+state->bgi.viewport[1]);
+	return st_big_curve_sector(state,producer,request->start,request->end,
+	    request->radius[0],request->radius[1],sink,batch,polygon);
+}
+int st_big_curve_pieslice(struct st_big_state *state, struct st_big_producer *producer,
+    const struct st_big_curve_request *request, const struct st_big_producer_sink *sink,
+    const struct st_big_curve_batch_sink *batch, const struct st_big_polygon_sink *polygon)
+{
+	if (state==NULL || producer==NULL || request==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t radius=request->radius[0],aspect_y=state->bgi.aspect[1];
+	uint16_t radius_y;
+	int status=st_big_curve_aspect(radius,state->bgi.aspect[0],aspect_y,&radius_y);
+	if (status!=0) return status;
+	struct st_big_curve_request sector=*request;
+	sector.radius[0]=radius; sector.radius[1]=radius_y;
+	return st_big_curve_public_sector(state,producer,&sector,sink,batch,polygon);
+}
 
 
 static int terminate(struct st_big_state *state, struct st_big_producer *producer,

@@ -3,6 +3,7 @@
 #include "cterm_big_internal.h"
 #include "st_big_draw.h"
 #include "st_big_curve.h"
+#include "st_big_polygon.h"
 #include "st_big_text.h"
 #include "st_big_video.h"
 #include "st_bgi_pixel.h"
@@ -381,20 +382,28 @@ int cterm_big_flood_poll(struct cterm_big *big, size_t *budget, bool *complete)
 	}
 }
 
-struct curve { struct cterm_big *big; struct st_big_curve_request request; bool circular, fill_center, fill_after; };
-static int curve_execute(struct curve *request, const struct st_big_producer_sink *sink)
+struct curve { struct cterm_big *big; struct st_big_curve_request request; bool circular, fill_center, fill_after, sector; };
+static int curve_execute(struct curve *request, const struct st_big_producer_sink *sink,
+    const struct st_big_polygon_sink *polygon)
 {
 	struct cterm_big *big=request->big;
+	if (request->sector) return st_big_curve_pieslice(&big->state,&big->producer,&request->request,sink,NULL,polygon);
 	return request->circular?st_big_curve_arc(&big->state,&big->producer,&request->request,sink,NULL)
 	    :st_big_curve_ellipse(&big->state,&big->producer,&request->request,sink,NULL);
+}
+static int polygon_span(void *context, bool raw, const uint16_t points[4])
+{
+	struct drawing *draw=context; const struct st_big_draw_sink sink={draw,pixel};
+	return st_big_draw_polygon_span(&draw->big->state,raw,points,&sink);
 }
 static int curve(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
 	struct curve *request=context; struct cterm_big *big=request->big;
 	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
 	const struct st_big_producer_sink sink={.drawing={&drawing,pixel},.read_context=&drawing,.read_byte=read_byte};
+	const struct st_big_polygon_sink polygon={.context=&drawing,.span=polygon_span};
 	int status=cterm_big_video_segment(big,&big->producer.video_segment);
-	if (status==0) status=curve_execute(request,&sink);
+	if (status==0) status=curve_execute(request,&sink,&polygon);
 	if (status!=0 || !request->fill_center || big->state.application.hollow!=0) return status;
 	/* O/Q read hollow only after the outline returns; Q also installs
 	 * fill here. Flood preserves all point owners and reuses graph scratch. */
@@ -403,9 +412,9 @@ static int curve(void *context, const struct st_pixel_buffer *pixels, struct st_
 }
 int cterm_big_draw_curve(struct cterm_big *big, const struct st_graphics_command_view *view)
 {
-	if (view->code!='K' && view->code!='J' && view->code!='O' && view->code!='Q') return IO_ERROR_PROTOCOL;
+	if (view->code!='K' && view->code!='J' && view->code!='O' && view->code!='Q' && view->code!='V') return IO_ERROR_PROTOCOL;
 	bool circle=view->code=='O', ellipse=view->code=='Q', closed=circle || ellipse;
-	bool circular=view->code=='K' || circle;
+	bool sector=view->code=='V', circular=view->code=='K' || circle || sector;
 	size_t count=circle?3:ellipse?4:circular?5:6;
 	if (view->count!=count) return IO_ERROR_PROTOCOL;
 	uint16_t words[6];
@@ -415,19 +424,28 @@ int cterm_big_draw_curve(struct cterm_big *big, const struct st_graphics_command
 	}
 	/* Q installed colour before its first reader; later reader effects
 	 * remain visible. Other curves install the current colour after reads. */
-	int status=ellipse?0:st_big_draw_color(&big->state,big->state.application.colors[1]);
+	int status=0;
+	if (sector) {
+		status=st_big_fill_apply(&big->state);
+		if (status==0 && big->state.application.hollow!=0) status=st_big_fill_builtin(&big->state,0,0);
+	}
+	if (status==0 && !ellipse) status=st_big_draw_color(&big->state,big->state.application.colors[1]);
 	/* O submits fill even when hollow, before circle/aspect preparation. */
 	if (status==0 && circle) status=st_big_fill_apply(&big->state);
 	if (status!=0) return status;
-	struct curve request={.big=big,.circular=circular,.fill_center=closed,.fill_after=ellipse,.request={.center={words[0],words[1]},
+	struct curve request={.big=big,.circular=circular,.fill_center=closed,.fill_after=ellipse,.sector=sector,.request={.center={words[0],words[1]},
 	    .start=closed?0:words[count-2],.end=closed?360:words[count-1],.radius={words[2],circular?0:words[3]}}};
 	bool empty=request.request.start==request.request.end && big->state.bgi.ddo_line_width<3
 	    && big->state.bgi.curve_fallback==0 && big->state.bgi.curve_metric<180;
 	/* Query, regular zero span and the checked divide failure never call
 	 * pixel methods. Retain those prefixes without a framebuffer request. */
-	if (request.request.start==0xffff || empty || (circular && big->state.bgi.aspect[1]==0)) {
+	if ((!sector && (request.request.start==0xffff || empty)) || (circular && big->state.bgi.aspect[1]==0)) {
 		const struct st_big_producer_sink no_pixels={0};
-		return curve_execute(&request,&no_pixels);
+		return curve_execute(&request,&no_pixels,NULL);
 	}
-	return modify(big,curve,&request);
+	status=modify(big,curve,&request);
+	/* V reapplies the current selection only after a normal return. A
+	 * rejected custom fill can leave hollow's empty style installed. */
+	if (status==0 && sector) status=st_big_fill_apply(&big->state);
+	return status;
 }

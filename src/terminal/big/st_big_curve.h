@@ -97,4 +97,14 @@ int st_big_curve_ellipse(struct st_big_state *, struct st_big_producer *,
 int st_big_curve_arc(struct st_big_state *, struct st_big_producer *,
 	const struct st_big_curve_request *, const struct st_big_producer_sink *,
 	const struct st_big_curve_batch_sink *);
+/* Public sector1d59: translated lower/device center, then lower0822.
+ * No startffff query, outer017a point save or public CP assignment. */
+int st_big_curve_public_sector(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_curve_request *, const struct st_big_producer_sink *,
+	const struct st_big_curve_batch_sink *, const struct st_big_polygon_sink *);
+/* Public pieslice1388: derive unsigned radius[0] through current signed
+ * aspect BEFORE sector center placement; radius[1] is ignored. */
+int st_big_curve_pieslice(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_curve_request *, const struct st_big_producer_sink *,
+	const struct st_big_curve_batch_sink *, const struct st_big_polygon_sink *);
 #endif

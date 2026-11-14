@@ -1451,3 +1451,11 @@ retain raw line patterns/modes without viewport clipping or thickness.
 big_polygon_span checks independent grids/write prefixes and the explicit
 out-of-geometry native failure boundary. CTerm V/Y binding and application
 acceptance remain pending; no new application capture is claimed.
+
+BIG V circular pieslices now use the shared pre-ANSI parser/numeric source,
+public aspect/sector wrappers and original producer/polygon schedules through
+native indexed active pages. Independent split/profile, fill/outline/error/
+lifecycle and coherent application expectations check distinct point/arc
+owners and normal-return current-fill application. V equal angles retain two
+radials and ffff is not a query. Y and global/audio/final acceptance remain
+pending; physical audio/MIDI are disabled in the headless fixtures.
