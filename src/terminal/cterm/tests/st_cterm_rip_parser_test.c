@@ -192,6 +192,34 @@ test_bogus_introducer_batch(void)
 }
 
 static int
+test_lone_introducer_splits(void)
+{
+	static const uint8_t introducers[] = {'!', 0x01, 0x02};
+
+	/* A saved introducer adds a passthrough byte to the next packet. The
+	 * caller's input stays intact, including the unread Y and Z. */
+	for (size_t index = 0; index < sizeof(introducers); index++) {
+		uint8_t wire[] = {introducers[index], 'X', 'Y', 'Z'};
+
+		for (size_t split = 0; split <= sizeof(wire); split++) {
+			struct cterm_rip_parser parser;
+			struct capture capture = {0};
+
+			cterm_rip_parser_init(&parser, true);
+			CHECK(write_bytes(&parser, &capture, wire, split) == 0);
+			CHECK(write_bytes(&parser, &capture, wire + split,
+			    sizeof(wire) - split) == 0);
+			CHECK(capture.commands == 0);
+			CHECK(capture.text_size == sizeof(wire));
+			CHECK(memcmp(capture.text, wire, sizeof(wire)) == 0);
+			CHECK(memcmp(wire + 1, "XYZ", 3) == 0);
+			cterm_rip_parser_destroy(&parser);
+		}
+	}
+	return 0;
+}
+
+static int
 test_controls_and_disable(void)
 {
 	struct cterm_rip_parser parser;
@@ -574,6 +602,7 @@ st_cterm_rip_parser_test_main(void)
 	if (test_rejected_command() != 0 || test_v154_dispatch_vectors() != 0
 	    || test_split_and_ebc() != 0 || test_ansi_and_bol() != 0
 	    || test_bogus_introducer_batch() != 0
+	    || test_lone_introducer_splits() != 0
 	    || test_controls_and_disable() != 0
 	    || test_text_window_controls() != 0 || test_every_split() != 0
 	    || test_deferred_transfer_recognition() != 0

@@ -30,6 +30,84 @@ feed(st_cterm_t *terminal, const void *bytes, size_t size)
 }
 
 static int
+test_introducer_cursor_splits(enum st_cterm_encoding encoding)
+{
+	static const struct {
+		const char *wire;
+		bool draw;
+	} cases[] = {
+		{"abc !|X2S2S\r\n", false},
+		{"!xabc !|X2S2S\r\n", false},
+		{"!xabc !ydef !|X2S2S\r\n", false},
+		{"!x\x1b[10;1H!|X2S2S\r\n", true},
+		{"!x\r\n!|X2S2S\r\n", true},
+		{"\x1b[10;1H!|X2S2S\r\n", true},
+		{"\r\n\x1b[0m!|X2S2S\r\n", true},
+	};
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config screen = {
+		.columns = 80, .rows = 43,
+		.cell_width = 8, .cell_height = 8,
+		.pixel_width = 640, .pixel_height = 350,
+	};
+	const struct st_console_rect point = {100, 100, 1, 1};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+
+	CHECK(st_console_create(&console, &display, &screen) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {
+		.console = console, .fonts = fonts,
+		.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding,
+		.graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
+		.codepage = ST_CODEPAGE_CP437,
+	};
+	/* Include the whole stream, every two-packet split and a bytewise feed.
+	 * The real text renderer must catch up before testing the cursor. */
+	for (size_t index = 0; index < sizeof(cases) / sizeof(*cases); index++) {
+		size_t size = strlen(cases[index].wire);
+
+		for (size_t split = 0; split <= size + 1; split++) {
+			st_cterm_t *terminal = NULL;
+			struct st_pixel_buffer *pixels = NULL;
+			uint32_t palette[32];
+			uint32_t expected = cases[index].draw ? 0xffffff : 0;
+
+			CHECK(st_cterm_create(&terminal, &config) == 0);
+			/* Reset preserves drawing styles; choose white explicitly. */
+			CHECK(feed(terminal, "\r!|*|c0F\r\n", 10) == 0);
+			if (split <= size) {
+				CHECK(feed(terminal, cases[index].wire, split) == 0);
+				CHECK(feed(terminal, cases[index].wire + split, size - split) == 0);
+			}
+			else {
+				for (size_t byte = 0; byte < size; byte++)
+					CHECK(feed(terminal, cases[index].wire + byte, 1) == 0);
+			}
+			CHECK(st_cterm_finish(terminal) == 0);
+			CHECK(st_console_get_pixels(&pixels, console, &point, false) == 0);
+			CHECK(st_console_get_palette(console, 0, palette, 32) == 0);
+			if (pixels->primary[0] >= 32 || palette[pixels->primary[0]] != expected) {
+				uint32_t x, y;
+				CHECK(st_console_get_position(console, &x, &y) == 0);
+				fprintf(stderr, "Introducer case %zu, split %zu, encoding %d: pixel %#x, cursor %u,%u\n",
+				    index, split, encoding, pixels->primary[0], x, y);
+				return 1;
+			}
+			CHECK(pixels->alternate != NULL);
+			CHECK(pixels->alternate[0] < 32 && palette[pixels->alternate[0]] == expected);
+			st_pixel_buffer_destroy(pixels);
+			st_cterm_destroy(&terminal);
+		}
+	}
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
+static int
 test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 {
 	const struct st_console_display_config display = {
@@ -473,6 +551,8 @@ test_v110a_flood(const char *stream, bool patterned)
 int
 st_cterm_rip_live_test_main(void)
 {
+	CHECK(test_introducer_cursor_splits(ST_CTERM_ENCODING_CODEPAGE) == 0);
+	CHECK(test_introducer_cursor_splits(ST_CTERM_ENCODING_UTF8) == 0);
 	CHECK(test_rip_deferred_wrap(ST_CTERM_ENCODING_CODEPAGE) == 0);
 	CHECK(test_rip_deferred_wrap(ST_CTERM_ENCODING_UTF8) == 0);
 	CHECK(test_text_window_reinit_wrap() == 0);

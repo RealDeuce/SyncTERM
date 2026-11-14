@@ -6,6 +6,20 @@ recognizes only its own CSI `!`, `0!`, `1!` and `2!` forms, passing unrelated CS
 forms to ANSI handling. SkyPix commands do not activate a RIP graphics engine.
 Historical RIP captures and their exclusions remain unchanged.
 
+The [RIP input-loss report](https://github.com/RealDeuce/SyncTERM/issues/2)
+was checked against the v1.10b fix `8642e3451be5b872042daf88fce0cf366d737dcc`.
+The modern path changes text geometry in place, retaining the terminal and its
+session callbacks. Its parser emits passthrough text synchronously before
+checking the cursor and keeps pending introducers outside the caller's input
+buffer. The three legacy fixes therefore require no production changes here.
+`cterm_rip_live` exercises the reported plain/bogus introducers and first-column
+fallbacks at every two-part split and bytewise in CP437 and UTF-8;
+`cterm_rip_parser` checks intact text after a split lone `!`, SOH or STX.
+The live interaction suites check keyboard, button and mouse-region host output
+after repeated resets and each of the five RIP 1.54 text fonts, with version
+replies and DSR fences still working. These are independent literal expectations;
+historical capture pixels are unchanged.
+
 RIP's two thin-line paths now use `st_bgi_thin_line`, extracted from the
 existing candidate/pattern loop. RIP retains clipping, thickness, coordinate
 mapping, colour/XOR, current-point and error policy. BIG uses the same lower

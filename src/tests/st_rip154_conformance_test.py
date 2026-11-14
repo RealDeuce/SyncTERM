@@ -232,6 +232,27 @@ def click_pixel(t, frame, x, y):
 
 def interaction_cases(t):
     from syncterm_control import SHIFT
+    # Issue #2: legacy terminal replacement lost both keyboard and RIP host
+    # strings. Exercise repeated resets and every RIP 1.54 font on the socket.
+    for name, command in [("reset", b"\r\n!|*\r\n")] + [
+            (f"font-{style}", b"\r\n!|w00001B0M1" + mega(style, 1) + b"\r\n")
+            for style in range(5)]:
+        scene(t)
+        t.client.text("a")
+        t.input(b"a")
+        for repeat in range(2):
+            t.case(f"input-after-{name}-{repeat}")
+            frame = t.exchange(command + b"\x1b[!", expected=b"RIPSCRIP015410")
+            t.client.text("b")
+            t.input(b"b")
+            frame = t.exchange(
+                b"\r!|1B140A0200ZK0300080F080700000707000000"
+                b"|1U1O1E00002G00<>EXIT<>^M\r\n"
+                b"!|1M002S2S2U2U1000000^N\r\n")
+            click_pixel(t, frame, 61, 51)
+            t.input(b"\r")
+            click_pixel(t, frame, 101, 101)
+            t.input(b"\x0e")
     t.case("mouse-invert-and-command")
     frame = scene(t, b"!|1M002S2S2U2U1000000^M\r\n")
     before = frame.primary[:]
