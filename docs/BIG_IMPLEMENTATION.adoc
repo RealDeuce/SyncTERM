@@ -4224,3 +4224,5 @@ The first s application run carried the preceding G3 frame-local memory0
 into a new attention. Existing I# frame entry initializes memory1 before
 the s body. The independent oracle was corrected against that entry contract;
 production clear/page behavior was unchanged.
+
+Native s clear implementation commit: `e37ad5b`.
