@@ -2048,3 +2048,5 @@ O=4f and final idle/gate behavior. b/N and goal-final acceptance remain pending.
 
 
 Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. Final4 focused BIG CTests passed in3.60s: big_speaker_stream0.01s, big_speaker0.03s, cterm_big_note0.77s, big_session_pacing2.71s. The native APC fade case failed before implementation. No physical audio/MIDI/auditory coverage or non-BIG tests are claimed; unchanged4046 bitmap application scenes were not rerun. Shared audio regressions remain part of the goal-final full suite. b/N and full-goal acceptance remain outstanding.
+
+Continuous-source fade-out flush implementation commit: `a4a4b1e`. b/N and full-goal acceptance remain pending.
