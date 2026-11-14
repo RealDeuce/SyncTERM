@@ -3708,3 +3708,5 @@ Native CMake Release configure/full and final focused builds (/usr/bin/cc, build
 A zero-capacity angular producer also records normal BGI-6 without pixels;
 Q still submits fill and floods the clipped5x5 region. Actual read-plane
 errors stop before fill, preserving the separate returning-error schedules.
+
+Native Q explicit-ellipse implementation commit: `82a3080`.
