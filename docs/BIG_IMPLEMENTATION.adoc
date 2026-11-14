@@ -202,12 +202,19 @@ or gang selection. No foreign register context or busy polling is simulated.
 === Sound
 
 Implement PC-speaker effects/notes and AdLib register-stream playback through
-the existing audio mixer and local sample timing. Use a bounded C17
-YM3812-only adaptation of the pinned BSD ymfm algorithms, retaining notices
-and only the required OPL2 functionality. BIG N is AdLib playback, not MIDI
-translation. Test synthesis, state, muted progression, cancellation, reset and
+the existing audio mixer and local sample timing. Prefer the current MIT
+RealBitdancer Opal core, compiled as C17, after qualifying its YM3812 behavior.
+Use only the required synthesis subset and retain its copyright/license and
+original public-domain resampler provenance. MIT/public-domain sources are
+acceptable under the user's updated preference; BSD2 is preferred over BSD3
+if another source is needed. ymfm (BSD3) remains a fallback, not a mandatory
+choice. BIG N is AdLib playback, not MIDI translation. Test synthesis, state, muted progression, cancellation, reset and
 teardown. Bit-identical reference PCM and manual listening are not gates;
 provide a manual audio checklist when implementation is complete.
+When the core is integrated, include its full copyright and license notice
+in the existing Settings > Licenses viewer and bundled notices. An MIT
+component still needs its own attribution even though MIT is already used
+elsewhere in SyncTERM. Verify that the UI exposes the complete notice.
 Route BIG N's synthesized OPL2 output through logical mixer channel0 (music),
 and b/n PC-speaker effects and notes through channel1 (effects). These are
 the existing terminal mixer channels, with their existing volume/fade/flush
@@ -4325,3 +4332,42 @@ b/n/N and perform the required final suite before completing the full goal.
 
 
 Native X7/entry and verified non-audio publishing checkpoint commit: `8687007`.
+
+
+== OPL source and license review
+
+The user's updated preference accepts MIT and public-domain implementations;
+a suitable Opal is preferred to adding a BSD3 source. The current candidate is
+https://github.com/RealBitdancer/opal[RealBitdancer Opal], reviewed at commit
+`5903c7e06783927f9568d4d0c27da0834464aa5f`. Its own core is MIT (copyright2026
+Bitdancer), and the output resampler has separate Shayde/Reality public-domain
+provenance. Retain LICENSE, PUBLIC_DOMAIN_PROOF.txt and THIRD_PARTY_LICENSES.md
+as applicable to the imported subset. The existing license viewer must show
+the full MIT copyright/permission/disclaimer, not just a license name.
+Only the synthesis core/header are in scope; examples, file players, miniaudio
+and demo tracks are unnecessary for terminal playback.
+
+This differs from libADLMIDI's older Opal copy reviewed at
+`7e6e045d4e3f2614963a545e4bdfc95677e32673`: that copy carries an original
+public-domain clarification and explicitly lacks percussion/timers. It must
+not be used to infer either the license or capabilities of the current MIT
+core. Current Opal includes percussion/noise and timers/status, and its native
+C API avoids a C++-to-C translation. These are source observations/upstream
+claims; no local synthesis/accuracy/benchmark verification has run while the
+implementation goal is paused.
+
+Before accepting it for BIG, verify actual YM3812 semantics. Current Opal
+implements YMF262 compatibility: its README says register08 bit7 (CSW/CSM)
+is unused and waveform-select enable is stored but ignored, matching YMF262
+rather than a full YM3812. BIG N forwards raw register records, so cover and
+resolve required chip-specific behavior rather than silently accepting the
+compatibility label. Preserve required waveform gates, rhythm/keys, timers,
+reset and sample/record progression. Keep the original functional-audio goal;
+bit-identical foreign-clock/PCM or OPL3 feature completeness is not required.
+
+Other reviewed sources: ymfm is BSD3 and supports YM3812; original Opal is
+public domain but incomplete for this use; emu8950 is MIT; Nuked OPL3 is
+LGPL2.1 and YM3812-LLE is GPL2. Those GPL/LGPL cores are outside the requested
+new-source license choices. The preferred MIT Opal is not yet vendored or
+accepted as tested. The goal remains paused; record the exact imported
+revision, hashes, required adaptations and UI notice with the implementation.

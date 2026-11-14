@@ -18,7 +18,8 @@
     "transport": "Use parser backpressure and existing session/connection buffers. No automatic XON/XOFF/custom X5 flow bytes, flow readiness polls, output budget consumption or flow-count waits. Retain X5 numeric/state semantics and real replies. Keep the backlog paced after a pause, with no baud credit bank during the pause or its resume tick; unpaced input resumes in order. Historical verification records retain earlier serial-flow results and are not current transport expectations.",
     "publishing": "User authorizes pushing all completed branch changes once every non-audio BIG command is implemented and verified, with only b/n/N audio commands pending. Do not push earlier. This is a publishing checkpoint; the full goal, audio work and existing goal-final full-suite requirement remain active.",
     "audio_levels": "Calibrate BIG OPL2 and speaker source levels against existing ANSI music and beep output at equivalent channel/master settings, avoiding unintended loudness jumps or drops. Use stable source gain preserving encoded dynamics/relative voice levels; verify representative mixed-output PCM AC RMS and peaks through the real mixer, including polyphonic headroom/clipping and existing volume controls.",
-    "speaker_waveform": "Use a square oscillator with a small stateful low-pass filter for the approved softened PC-speaker timbre, sharing suitable mechanisms with the IGS PSG. b and n use the same low-level speaker generator on channel1: b supplies twenty original procedural frequency/stop/delay effect schedules and shared RNG calls; n supplies notes/sweeps. b does not invoke n parsing and requires no stored PCM samples."
+    "speaker_waveform": "Use a square oscillator with a small stateful low-pass filter for the approved softened PC-speaker timbre, sharing suitable mechanisms with the IGS PSG. b and n use the same low-level speaker generator on channel1: b supplies twenty original procedural frequency/stop/delay effect schedules and shared RNG calls; n supplies notes/sweeps. b does not invoke n parsing and requires no stored PCM samples.",
+    "opl_source": "Prefer current RealBitdancer Opal (MIT), compiled as C17, after qualifying required YM3812 register behavior. MIT/public-domain sources are acceptable under the updated user preference; prefer BSD2 over BSD3 when another core is needed. ymfm BSD3 remains a fallback rather than a mandatory source. Retain full copyright/license/provenance and expose the imported component notice in Settings > Licenses."
   },
   "foundations": [
     {
@@ -2312,11 +2313,12 @@
       "status": "not-started",
       "operations": [
         "PC-speaker effects/notes and raw AdLib music using existing mixer/local sample timing.",
-        "Bounded C17 YM3812-only adaptation of pinned BSD ymfm algorithms; muted progression, cancel/reset/teardown and manual checklist.",
+        "Prefer current RealBitdancer Opal (MIT), compiled as C17, after qualifying required YM3812 register behavior. MIT/public-domain sources are acceptable under the updated user preference; prefer BSD2 over BSD3 when another core is needed. ymfm BSD3 remains a fallback rather than a mandatory source. Retain full copyright/license/provenance and expose the imported component notice in Settings > Licenses. Preserve muted progression, cancel/reset/teardown and the manual checklist.",
         "Publish the retained music_memory WORD from actual native AdLib buffer setup/allocation, independently of playback/mute. ?2 reads this cache without probing/allocating; I/R retain it. The query integration currently reports0 because no audio buffer is installed; allocation/playback lifecycle remains required.",
         "Route BIG N synthesized OPL2 output through existing logical mixer channel0 (music), and b/n PC-speaker effects/notes through channel1 (effects), using their existing channel controls. OPL2 output does not use the MIDI decoder.",
         "Calibrate BIG OPL2 and speaker source levels against existing ANSI music and beep output at equivalent channel/master settings, avoiding unintended loudness jumps or drops. Use stable source gain preserving encoded dynamics/relative voice levels; verify representative mixed-output PCM AC RMS and peaks through the real mixer, including polyphonic headroom/clipping and existing volume controls.",
-        "Use a square oscillator with a small stateful low-pass filter for the approved softened PC-speaker timbre, sharing suitable mechanisms with the IGS PSG. b and n use the same low-level speaker generator on channel1: b supplies twenty original procedural frequency/stop/delay effect schedules and shared RNG calls; n supplies notes/sweeps. b does not invoke n parsing and requires no stored PCM samples."
+        "Use a square oscillator with a small stateful low-pass filter for the approved softened PC-speaker timbre, sharing suitable mechanisms with the IGS PSG. b and n use the same low-level speaker generator on channel1: b supplies twenty original procedural frequency/stop/delay effect schedules and shared RNG calls; n supplies notes/sweeps. b does not invoke n parsing and requires no stored PCM samples.",
+        "Before accepting Opal, independently test and resolve required YM3812 waveform-select enable and register08 bit7 CSW/CSM semantics: the current upstream core models YMF262 compatibility, explicitly storing but ignoring those controls. Current MIT Opal includes rhythm/noise and timers/status; the older public-domain copy does not establish its capabilities."
       ],
       "tests": [],
       "references": [
@@ -4326,5 +4328,32 @@
     ],
     "completion_commit": "8687007",
     "acceptance_scope": "Verified native non-audio implementation satisfies the user-authorized publishing checkpoint. Existing command/foundation status fields retain their stricter whole-goal acceptance gates; this does not complete or redefine the45-entry goal."
+  },
+  "opl_source_review": {
+    "preferred_candidate": "https://github.com/RealBitdancer/opal",
+    "reviewed_commit": "5903c7e06783927f9568d4d0c27da0834464aa5f",
+    "license": "MIT",
+    "source_hashes_sha256": {
+      "LICENSE": "27753122feca2389e6e26e2dd1b321cf7a3ca793e5d2918f19a1297ccb7611e4",
+      "README.md": "e74a7fe4656d57e1ce8438c1dde294533b902c4a33fc75520d3396e2424b7c1b",
+      "src/opal.c": "1dd7746e55e494cba8b9056c4082d7bf8f79e17f7f3b4233f2346daec3892a59",
+      "include/opal/opal.h": "97c0ca8dba56d6052c8b7b182c170ba262c0739d713491f1a3032d3487e4cffb",
+      "THIRD_PARTY_LICENSES.md": "6e903a16035fecf6d1b44611925b82d7dd523008efbd39200486dacca642e4fc",
+      "PUBLIC_DOMAIN_PROOF.txt": "0838567096038054ff567932f6b6cfd9c22732a2339a5b1a93f3fd42aee8f253"
+    },
+    "scope": "Import only the synthesis core and header when implementation resumes; retain applicable MIT notice and original public-domain resampler provenance. Do not import player/decoder/miniaudio/demo-music dependencies.",
+    "ui_notice": "Add the full component copyright, MIT permission and disclaimer to the existing Settings > Licenses viewer when the core is integrated, and verify that the UI exposes it completely. MIT being present elsewhere does not remove component attribution.",
+    "qualification": [
+      "Upstream native C11 source can be compiled under project C17. Current rhythm/noise, timers/status and live compatibility controls are present. These are source observations, not local audio/accuracy verification.",
+      "YM3812-specific waveform enable and register08 bit7 behavior must be qualified and required differences resolved before accepting BIG N. Preserve functional audio/sample-progress/lifecycle and calibrated levels; no bit-identical foreign-clock/PCM requirement is added."
+    ],
+    "older_copy": "libADLMIDI commit7e6e045d4e3f2614963a545e4bdfc95677e32673 Opal is the older public-domain copy, explicitly missing percussion/timers. Its status must not be attributed to current MIT Opal.",
+    "other_sources_reviewed": {
+      "ymfm": "BSD-3-Clause; YM3812 support; C++14 upstream, so current native-C Opal has an integration advantage if qualified.",
+      "emu8950": "MIT.",
+      "Nuked OPL3": "LGPL-2.1.",
+      "YM3812-LLE": "GPL-2.0."
+    },
+    "verification": "Read pinned upstream source/header/LICENSE/README/provenance. No core imported, built, played or independently verified locally. Implementation goal remains paused."
   }
 }
