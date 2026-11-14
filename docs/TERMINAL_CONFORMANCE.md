@@ -1433,3 +1433,10 @@ orders and piece closure with current-count subtraction. big_curve_stages
 checks independent indexed scenes, exact call order and mode/count/point/
 error prefixes, including empty fill. V/Y construction, physical binding
 and wire/application acceptance remain pending; no new capture is claimed.
+
+BIG lower sector construction now composes shared decimal/angular work,
+polygon stages and producer-gated radials with original normal/alternate
+fronts and separate point/arc ownership. big_curve_sector checks independent
+indexed grids, spans/records and failure prefixes. Physical polygon binding,
+public V/Y wrappers and wire/application acceptance remain pending; no new
+application capture or non-BIG regression result is claimed.

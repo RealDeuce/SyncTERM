@@ -1730,3 +1730,26 @@ binding/wire, audio/global and final regressions remain pending.
 Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending.
 
 Sector buffer-stage/piece-closure implementation commit: `4dac8cc`.
+
+## Normal and alternate sector-construction prerequisite
+
+The lower0822 sector now preserves orientation-radius order, normal unsigned
+angle reduction/quadrant pieces, collector-stage decimal work, saved unequal
+flags, first-offset bookkeeping and two producer-gated radial requests.
+Shared0450 strokes consume actual returned registers without assigning points.
+Alternate construction sorts WORD angles before the signed sweep, closes its
+live run and uses stage2 without normal radial/publication tails.
+
+big_curve_sector checks independent indexed scenes, literal spans/writes/
+records and point/arc owners: zero/short/quarter/full and high-WORD cases,
+80..100 split offsets, orientation/width/pattern, overflow radials, callbacks
+and failure prefixes. Alternate365-record/372-write full-turn output and
+one-candidate ffff/equal cases retain their distinct fields. No wire command,
+physical raw-line device coverage or new application scene is claimed; the
+unchanged3374 captures were not rerun. Physical polygon binding, public V/Y
+wrappers/caller/fill restoration, audio/global and final acceptance remain
+pending. Conditional publishing is authorized only after all non-audio BIG
+commands are implemented and verified, as recorded in the implementation
+contract; that condition remains unmet.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met.

@@ -318,6 +318,18 @@ static int strokes(struct st_big_state *s, const uint16_t *p, const struct st_bi
 	side[axis]=(uint16_t)(side[axis]+offset); side[axis+2]=(uint16_t)(side[axis+2]+offset);
 	return thin(s,side,sink);
 }
+int st_big_producer_stroke(struct st_big_state *s, struct st_big_producer *producer,
+    struct st_big_producer_registers *r, const struct st_big_producer_sink *sink)
+{
+	if (s==NULL || producer==NULL || r==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	bool suppressed; int status=st_big_producer_emit(producer,s,r,sink,&suppressed);
+	if (status!=0 || suppressed) return status;
+	if (sink->drawing.pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	/*0450 consumes the producer's actual returned registers, without the
+	 * DDO/device Move stores used by0378 or the endpoint stores of03b4. */
+	const uint16_t points[]={r->ax,r->bx,r->cx,r->dx};
+	return strokes(s,points,&sink->drawing);
+}
 /* The bar3d caller observes CX/DX from the producer before the stroke's
  * saved-register bracket. Its later AX/BX uses are explicitly reloaded
  * or saved below, so no unused line-return register emulation is needed. */

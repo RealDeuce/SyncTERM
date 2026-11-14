@@ -150,8 +150,16 @@ int st_big_curve_decimal_draw(struct st_big_state *state, struct st_big_producer
 	return 0;
 }
 
+static void record_first(struct st_big_state *state)
+{
+	if (state->bgi.curve_first_valid==0) {
+		state->bgi.curve_first_valid=255;
+		state->bgi.curve_first[0]=state->bgi.curve_offsets[0];
+		state->bgi.curve_first[1]=state->bgi.curve_offsets[1];
+	}
+}
 static int regular_piece(struct st_big_state *state, struct st_big_producer *producer,
-    uint16_t start, uint16_t end, const struct st_big_producer_sink *sink,
+    uint16_t start, uint16_t end, bool collect, const struct st_big_producer_sink *sink,
     const struct st_big_curve_batch_sink *batch)
 {
 	struct st_big_curve_decimal_frame frame={
@@ -162,11 +170,7 @@ static int regular_piece(struct st_big_state *state, struct st_big_producer *pro
 	if (state->bgi.curve_span==0) {
 		/*09e9 captures stale first offsets only on its first reached call.
 		 * Nonzero regular arcs return before this bookkeeping site. */
-		if (state->bgi.curve_first_valid==0) {
-			state->bgi.curve_first_valid=255;
-			state->bgi.curve_first[0]=state->bgi.curve_offsets[0];
-			state->bgi.curve_first[1]=state->bgi.curve_offsets[1];
-		}
+		record_first(state);
 		return 0;
 	}
 	state->bgi.curve_offsets[0]=(uint16_t)st_bgi_trig_mul(st_big_curve_cos(start),state->bgi.curve_radius[0]);
@@ -175,7 +179,8 @@ static int regular_piece(struct st_big_state *state, struct st_big_producer *pro
 	state->bgi.curve_offsets[3]=(uint16_t)(0u-(uint16_t)st_bgi_trig_mul(st_big_curve_sin(end),state->bgi.curve_radius[1]));
 	frame.start[0]=state->bgi.curve_offsets[0]; frame.start[1]=state->bgi.curve_offsets[1];
 	frame.end[0]=state->bgi.curve_offsets[2]; frame.end[1]=state->bgi.curve_offsets[3];
-	producer->mode=2;
+	if (collect) { int status=st_big_producer_start(producer); if (status!=0) return status; }
+	else producer->mode=2;
 	bool equal=state->bgi.curve_offsets[0]==state->bgi.curve_offsets[2]
 	    && state->bgi.curve_offsets[1]==state->bgi.curve_offsets[3];
 	if (state->bgi.curve_span<(equal?350u:2u)) {
@@ -207,17 +212,20 @@ int st_big_curve_regular_outline(struct st_big_state *state, struct st_big_produ
 	state->bgi.curve_filled=0;
 	state->bgi.curve_radius[0]=radius_x; state->bgi.curve_radius[1]=radius_y;
 	state->bgi.arc[0]=state->bgi.ddo_x; state->bgi.arc[1]=state->bgi.ddo_y;
-	int status=regular_piece(state,producer,start,end,sink,batch);
+	int status=regular_piece(state,producer,start,end,false,sink,batch);
 	if (status!=0) return status;
 	publish_arc(state);
 	producer->mode=0;
 	return 0;
 }
 
-static int angular_outline(struct st_big_state *state, struct st_big_producer *producer,
-    uint16_t start, uint16_t end, const struct st_big_producer_sink *sink)
+static int angular_sweep(struct st_big_state *state, struct st_big_producer *producer,
+    uint16_t start, uint16_t end, bool sort, const struct st_big_producer_sink *sink)
 {
-	if (start>=end) end=(uint16_t)(end+360u);
+	if (start>=end) {
+		if (sort) { uint16_t t=start; start=end; end=t; }
+		else end=(uint16_t)(end+360u);
+	}
 	if (state->bgi.orientation!=0) { start=(uint16_t)(start+90u); end=(uint16_t)(end+90u); }
 	uint16_t first=start;
 	for (;;) {
@@ -246,7 +254,7 @@ int st_big_curve_outline(struct st_big_state *state, struct st_big_producer *pro
 	 * still govern later restoration and original thickness expansion. */
 	state->bgi.line_mask=0xffff; state->bgi.device_line_width=1;
 	int status=st_big_producer_start(producer);
-	if (status==0) status=angular_outline(state,producer,start,end,sink);
+	if (status==0) status=angular_sweep(state,producer,start,end,false,sink);
 	if (status!=0) return status;
 	publish_arc(state);
 	struct st_big_producer_registers terminator={.ax=0x8000,.bx=0x8000};
@@ -371,4 +379,66 @@ int st_big_curve_close_piece(struct st_big_state *state, struct st_big_producer 
 	if (count<3) return 0;
 	producer->count=(uint16_t)(count-3u);
 	return flush(state,producer,sink);
+}
+
+
+int st_big_curve_sector(struct st_big_state *state, struct st_big_producer *producer,
+    uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
+    const struct st_big_producer_sink *sink, const struct st_big_curve_batch_sink *batch,
+    const struct st_big_polygon_sink *polygon)
+{
+	if (state==NULL || producer==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	state->bgi.curve_filled=255;
+	if (state->bgi.orientation!=0) { uint16_t t=radius_x; radius_x=radius_y; radius_y=t; }
+	state->bgi.curve_radius[0]=radius_x; state->bgi.curve_radius[1]=radius_y;
+	state->bgi.arc[0]=state->bgi.ddo_x; state->bgi.arc[1]=state->bgi.ddo_y;
+	if (state->bgi.curve_fallback!=0 || state->bgi.curve_metric>=180) {
+		int status=st_big_producer_start(producer);
+		if (status==0) status=angular_sweep(state,producer,start,end,true,sink);
+		if (status!=0) return status;
+		struct st_big_producer_registers r={.ax=state->bgi.ddo_x,.bx=state->bgi.ddo_y};
+		status=st_big_producer_move(state,producer,&r,sink); if (status!=0) return status;
+		if (producer->points==NULL || producer->storage_count==0) return IO_ERROR_OUT_OF_RANGE;
+		r.ax=producer->points[0].x; r.bx=producer->points[0].y;
+		/* Unlike09af, this closure keeps the current run and can append8001. */
+		status=st_big_producer_move(state,producer,&r,sink);
+		return status!=0?status:st_big_curve_sector_stage(state,producer,sink,polygon);
+	}
+	state->bgi.curve_first_valid=0;
+	state->bgi.curve_first[0]=state->bgi.curve_first[1]=0;
+	for (size_t i=0;i<4;++i) state->bgi.curve_offsets[i]=0;
+	start=(uint16_t)(start%360u);
+	if (end!=360) end=(uint16_t)(end%360u);
+	if (start>=end) { uint16_t t=start; start=end; end=t; }
+	for (;;) {
+		unsigned first=start/90u,last=end/90u;
+		if (last>=4) last=3;
+		uint16_t boundary=first==last?end:(uint16_t)((first+1u)*90u);
+		/* Original CMP flags survive0906 via PUSHF/POPF. A callback's
+		 * changed span/cache cannot replace this piece admission decision. */
+		bool unequal=start!=boundary;
+		int status=regular_piece(state,producer,start,boundary,true,sink,batch);
+		if (status!=0) return status;
+		if (unequal) {
+			status=st_big_curve_close_piece(state,producer,sink,polygon);
+			if (status!=0) return status;
+			record_first(state);
+		}
+		if (first==last) break;
+		start=boundary;
+	}
+	uint16_t x=state->bgi.ddo_x,y=state->bgi.ddo_y;
+	state->bgi.curve_offsets[0]=state->bgi.curve_first[0];
+	state->bgi.curve_offsets[1]=state->bgi.curve_first[1];
+	if (state->bgi.curve_filled!=0) {
+		struct st_big_producer_registers r={.ax=x,.bx=y,
+		    .cx=(uint16_t)(x+state->bgi.curve_offsets[0]),.dx=(uint16_t)(y+state->bgi.curve_offsets[1])};
+		int status=st_big_producer_stroke(state,producer,&r,sink); if (status!=0) return status;
+		/* The first center is stack-saved; the second offsets are fresh reads. */
+		r=(struct st_big_producer_registers){.ax=x,.bx=y,
+		    .cx=(uint16_t)(x+state->bgi.curve_offsets[2]),.dx=(uint16_t)(y+state->bgi.curve_offsets[3])};
+		status=st_big_producer_stroke(state,producer,&r,sink); if (status!=0) return status;
+	}
+	publish_arc(state);
+	return 0;
 }

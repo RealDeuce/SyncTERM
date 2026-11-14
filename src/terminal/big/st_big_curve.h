@@ -57,6 +57,14 @@ int st_big_curve_regular_outline(struct st_big_state *, struct st_big_producer *
 int st_big_curve_outline(struct st_big_state *, struct st_big_producer *,
 	uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
 	const struct st_big_producer_sink *, const struct st_big_curve_batch_sink *);
+/* Lower0822 sector front: current DDO center is already physical. Normal
+ * construction normalizes/splits quarters and emits two producer-gated
+ * radials; alternate construction sorts a WORD sweep and ends at stage2.
+ * No public center/aspect/query gate or outer point restoration. */
+int st_big_curve_sector(struct st_big_state *, struct st_big_producer *,
+	uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
+	const struct st_big_producer_sink *, const struct st_big_curve_batch_sink *,
+	const struct st_big_polygon_sink *);
 /* Sector stage3: terminate through the current producer, clear mode, then
  * admit the current unsigned count only when >=4 and <capacity. Normal
  * polygon return clears mode again; failures keep reached prefixes. */

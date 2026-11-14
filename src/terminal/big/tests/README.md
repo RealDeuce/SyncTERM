@@ -883,3 +883,20 @@ post-callback count/capacity/gate changes and mode/point/error/pixel prefixes
 use independent expectations. The unchanged3374 application scenes are not
 rerun for these unbound helpers. Sector fronts, physical adapters, public
 wrappers and V/Y wire/fill-restoration/application acceptance remain pending.
+
+big_curve_sector derives literal grids/requests/records from complete original
+DDO0450..04ad/0822..0af6 and13/60/61. It first failed to link against absent
+lower sector/radial APIs. Unit quarter/half/full scenes have8/12/22 writes;
+four explicit full-turn polygon spans,80..100 offset pairs, literal360 versus
+720, zero/XOR/one-degree/ffff, orientation and retained custom pattern/width
+have independent expectations.6554-radius overflow still emits expected
+clipped radials, while callback/error cases retain reached point/arc state.
+
+Alternate one-candidate and full-turn traces distinguish stale endpoints,
+8001/8000 contour Moves and the lack of a normal radial/A55 tail. The full
+alternate has365 records/368 outline plus4 fill writes and a literal two-pen
+scene. Producer return-clobber/suppression and saved-center/fresh-end/current-
+origin tests cover0450 ordering. Polygon adapters use the existing bar and
+fixture horizontal raw spans, without native physical fallback claims. No
+external asset is needed at runtime; unchanged3374 application scenes were
+not rerun. Public/native V/Y integration remains pending.

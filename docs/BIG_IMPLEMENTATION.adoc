@@ -32,9 +32,10 @@ Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
 binding and K/J/O/Q wire/page/source/recovery integration. V is the next native
-curve command. Its raw polygon scan converter, buffer stages2/3 and piece
-closure are implemented and independently tested. Normal/alternate sector
-construction, physical span binding and V/Y wire work remain pending.
+curve command. Its raw polygon scan converter, buffer stages2/3, piece
+closure and normal/alternate lower sector construction are implemented and
+independently tested. Physical polygon span binding, public wrappers and V/Y
+wire work remain pending.
 Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -234,7 +235,12 @@ and use private Xvfb for X11 tests.
 
 Follow AGENTS.md:C17, target-based standalone CMake, one native configuration,
 no Wine/compiler matrix or legacy-tree edits. Preserve parallel SkyPix work;
-stage reviewed owned changes, commit verified steps and never push.
+stage reviewed owned changes and commit verified steps. The user authorizes
+pushing all completed branch changes once every non-audio BIG command is
+implemented and verified; only b/n/N audio commands may remain pending at that
+checkpoint. Do not push before that condition is met. This publishing
+checkpoint does not complete or shrink the full goal: audio and the goal-final
+full regression suite remain required, with the existing test-scope policy.
 
 Finish only when all 45 entries and required foundations are implemented
 without stubs, every active ledger test passes, deviations/checklist are
@@ -3844,3 +3850,64 @@ and the goal-final full suite remain pending.
 Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending.
 
 Sector buffer-stage/piece-closure implementation commit: `4dac8cc`.
+
+== Normal and alternate lower sector construction
+
+The complete original DDO0450..04ad and0822..0af6 bodies were checked in the
+pinned6544-byte asset, excluding its32-byte header, alongside13/60/61. The
+lower sector now shares the existing decimal/regular and angular walkers,
+producer stages, polygon and line kernels while retaining its own fronts.
+No V/Y wire command or public wrapper is registered by this step.
+
+Entry sets curve_filled, swaps radii on current orientation, then stores the
+radii and current physical center. Normal entry clears first/offset state,
+unsigned-normalizes start modulo360 and end modulo360 EXCEPT literal360,
+sorts and splits at90-degree boundaries. Each piece uses the shared regular
+core with collector stage0, retaining actual device pattern/width rather
+than entering the outline's solid/width1 front. The pre-call unequal decision
+survives callbacks; only an originally unequal piece closes/fills/flushes.
+First-offset bookkeeping follows that continuation, including borrow paths.
+
+The normal tail copies first offsets and, when still filled, emits TWO0450
+radials. The new shared physical producer stroke submits center AX/BX before
+consuming actual returned AX/BX/CX/DX in the existing clipped/thick kernel.
+It neither repairs producer clobbers nor assigns any graphics point. The
+first radial center is saved for the second request, whose endpoint offsets
+are fresh reads. Arc publication then uses current origin and saved center/
+offsets. Even normalized equal angles keep their two degenerate radial calls.
+
+The alternate front starts collection and uses unsigned WORD sorting before
+its inclusive signed angular loop, without outline end+360. It emits current
+center and actual first record without resetting run, so8001 closure follows
+original state. Stage2 selects outline/polygon order. No normal clearing,
+radial or A55 tail is added afterward. Old span/offset/first and published
+endpoint words survive; center/radii and actual buffer/point changes remain
+visible. The existing complete-WORD-loop guard handles genuine nontermination.
+
+big_curve_sector first failed to link without sector/stroke operators.
+Independent64x64 scenes and exact requests check zero/equal/high-WORD angles,
+XOR double radials, one-degree shortcuts, quarter/half/full sectors, literal
+360 and720 normalization, ffff versus query, swapped orientation radii and
+custom width3/zero-pattern retention. Unit quarter/half/full traces produce
+8/12/22 writes and the full turn has four literal polygon spans. An80..100
+case checks both10-degree pieces and hand-derived offset words; a callback
+changes cached span without changing original piece admission.
+
+A normally empty6554-radius recurrence still reaches the independently
+expected clipped radials and unclipped arc coordinates. Batch, polygon,
+line and radial failures preserve accepted collection/fill/DDO/arc prefixes.
+Alternate0..0/ffff..0 checks one candidate, stale arc owners and actual device
+8000 markers. Alternate0..360 yields365 records and368 outline plus4 fill
+writes, with a literal two-pen scene and final device center Move. Producer
+modes distinguish suppressed collection from actual point-return clobbers.
+A callback changes DDO/origin/end offsets between radials, proving saved
+center/fresh endpoint/current-origin ownership without finally restoration.
+
+Native physical polygon span adapters, public sector/pieslice aspect/center
+wrappers and V/Y numeric/caller/fill-restoration/wire/application acceptance
+remain pending, as do other commands, audio/resource/global45-entry and final
+regressions. The unchanged3374 application scenes were not rerun. The user's
+conditional non-audio publishing checkpoint is recorded in the standalone
+contract; its condition is not yet met and no push is performed by this step.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met.
