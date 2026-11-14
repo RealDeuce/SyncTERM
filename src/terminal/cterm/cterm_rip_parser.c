@@ -19,6 +19,7 @@ cterm_rip_parser_init(struct cterm_rip_parser *parser, bool enabled)
 {
 	memset(parser, 0, sizeof(*parser));
 	parser->enabled = enabled;
+	parser->ansi_interleaving = true;
 }
 
 void
@@ -238,7 +239,6 @@ prepare_plain(struct cterm_rip_parser *parser,
 			size = 1;
 		}
 	}
-	slide(parser, byte);
 	return size;
 }
 
@@ -339,10 +339,29 @@ feed_one(struct cterm_rip_parser *parser,
 		}
 		parser->escape_utf8_remaining = 0;
 	}
-	if (parser->escape_length != 0)
+	if (parser->escape_length != 0
+	    && (parser->length == 0 || !parser->ansi_interleaving)) {
+		/* 1A04:01C6 -> 01FC accepts SOH/STX even with ANSI pending.
+		 * The prefix stays private until the interrupted sequence resumes. */
+		if (parser->ansi_interleaving
+		    && parser->escape_length < sizeof(parser->escape)
+		    && (byte == 0x01 || byte == 0x02)
+		    && accept_introducer(parser, sink, byte))
+			return push(parser, sink, byte);
+		if (parser->ansi_interleaving && parser->ebc) {
+			parser->ebc = false;
+			if (byte != '\v')
+				return 0;
+		}
 		return feed_escape(parser, sink, byte);
-	if (byte == 0x1b && parser->length == 0)
+	}
+	if (byte == 0x1b && parser->length == 0) {
+		if (parser->ansi_interleaving && parser->ebc) {
+			parser->ebc = false;
+			return 0;
+		}
 		return feed_escape(parser, sink, byte);
+	}
 	if (parser->length == 0) {
 		if (accept_introducer(parser, sink, byte))
 			return push(parser, sink, byte);
@@ -354,9 +373,21 @@ feed_one(struct cterm_rip_parser *parser,
 		uint8_t first = parser->command[0];
 		uint8_t output[4] = {first};
 		size_t size;
+		bool pending_escape = parser->escape_length != 0;
 
 		clear_command(parser);
 		parser->ebc = false;
+		if (pending_escape) {
+			status = emit(sink, parser->escape, parser->escape_length);
+			parser->escape_length = 0;
+			if (status == 0)
+				status = emit(sink, &first, 1);
+			if (status != 0)
+				return status;
+			if (byte == 0x1b)
+				return feed_escape(parser, sink, byte);
+			return emit_plain(parser, sink, byte);
+		}
 		size = 1 + prepare_plain(parser, sink, byte, output + 1);
 		return emit(sink, output, size);
 	}
@@ -412,7 +443,12 @@ cterm_rip_parser_feed(struct cterm_rip_parser *parser,
 			i = end - 1;
 			continue;
 		}
+		bool track_history = parser->enabled && !parser->suspended;
 		status = feed_one(parser, sink, bytes[i]);
+		/* History records raw input, including consumed RIP/ANSI bytes.
+		 * Releasing a saved prefix must not record those bytes twice. */
+		if (track_history)
+			slide(parser, bytes[i]);
 		*consumed = i + 1;
 		if (status != 0)
 			return status;

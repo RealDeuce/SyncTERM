@@ -8,7 +8,8 @@ from pathlib import Path
 import zlib
 
 from st_migrated_control_test import connection, click_text
-from st_terminal_conformance_test import Terminal, ESC
+from st_terminal_conformance_test import Terminal, ESC, colour
+from syncterm_fixture import cell_at
 
 DATA = Path(__file__).with_name("rip154")
 
@@ -87,6 +88,35 @@ def pixel(frame, x, y):
 def wire_cases(t):
     t.check("rip-version", b"\x1b[!", expected=b"RIPSCRIP015410", reset=False)
     t.check("rip-version-zero", b"\x1b[0!", expected=b"RIPSCRIP015410", reset=False)
+    # An unfinished ANSI prefix survives intervening RIP commands. Verify
+    # replies, cells/colours, cursor and both pixel phases in one capture.
+    # RIP text uses its EGA palette (aa channel steps).
+    for name, data, reply, foreground in (
+        ("interleaved-soh", b"\x1b[31\x01|1\x1b0000OK|c0F|X2S2S\r\nmZ", b"OK", 0xaa0000),
+        ("interleaved-stx", b"\x1b[31\x02|1\x1b0000OK|c0F|X2S2S\r\nmZ", b"OK", 0xaa0000),
+        ("interleaved-after-esc", b"\x1b\x01|c0F|X2S2S\r\n[31mZ", b"", 0xaa0000),
+        ("interleaved-completion", b"\x1b[3\x01|c0F|X2S2S\rX1mZ", b"", 0xaa0000),
+        ("interleaved-twice", b"\x1b[3\x01|1\x1b0000Q|c0F\r\n1\x02|1\x1b0000R|X2S2S\r\nmZ", b"QR", 0xaa0000),
+        ("interleaved-argument-esc", b"\x1b[31\x01|1\x1b0000\x1b[!|c0F|X2S2S\r\nmZ", b"\x1b[!", 0xaa0000),
+        ("interleaved-autosense", b"\x1b[0\x01|c0F|X2S2S\r\n!Z", b"RIPSCRIP015410", 0xaaaaaa),
+    ):
+        scene(t)
+        frame = t.check(name, b"\x1b[0mA" + data, (3, 1), ((1, 1, "AZ"),),
+                        expected=reply, reset=False)
+        assert colour(frame, cell_at(frame, 0, 0)) == 0xaaaaaa, name
+        assert colour(frame, cell_at(frame, 1, 0)) == foreground, name
+        for phase in (frame.primary, frame.alternate):
+            value = phase[100 * frame.metadata["plane_width"] + 100]
+            rgb = (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
+            assert rgb == 0xffffff, (name, hex(rgb))
+    scene(t)
+    t.check("completion-before-new-ansi", b"!|#\r\x1b[31mZ", (6, 1),
+            ((1, 1, "[31mZ"),), reset=False)
+    scene(t)
+    frame = t.check("consumed-byte-introducer-history",
+                    b"ABC\x01|#\r!|c0F|X2S2S\r\nZ", (5, 1),
+                    ((1, 1, "ABCZ"),), reset=False)
+    assert pixel(frame, 100, 100) == 0xffffff
     for name, data, xy, text in (
         ("intro-midcolumn", b"ABC!|X2S2S\r\n", (1, 2), "ABC!|X2S2S"),
         ("double-bang-literal", b"!!|c0F\r\n", (1, 2), "!!|c0F"),
@@ -381,6 +411,16 @@ def live_cases(args):
         if args.group == "interaction":
             host_command_cases(t)
         print(f"Passed {len(t.completed)} live {args.group} cases", flush=True)
+    if args.group == "wire":
+        with connection(args.executable, args.reports, encoding=args.encoding,
+                        options="ScreenMode=80x43\nRIP=RIPv3\n", settings="AudioModes=0\n") as (client, root, peer, send):
+            t = Terminal(client, root, peer, send)
+            scene(t)
+            frame = t.check("v3-escape-priority", b"\x1b[31\x01|c0F|X2S2S\r\nZ", reset=False)
+            assert frame.application["cterm.graphics_mode"] == 2  # ST_CTERM_GRAPHICS_RIP_3
+            assert pixel(frame, 100, 100) == 0
+            frame = t.check("v3-interleaving-recovery", b"\r!|c0F|X2S2S\r\n", reset=False)
+            assert pixel(frame, 100, 100) == 0xffffff
 
 
 def main():

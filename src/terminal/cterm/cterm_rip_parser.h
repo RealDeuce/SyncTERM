@@ -17,6 +17,7 @@ struct cterm_rip_parser {
 	size_t length;
 	size_t capacity;
 	uint8_t window[5];
+	/* RIPv1 can assemble a SOH/STX command while retaining an ANSI prefix. */
 	uint8_t escape[32];
 	size_t escape_length;
 	uint8_t escape_utf8_remaining;
@@ -25,6 +26,7 @@ struct cterm_rip_parser {
 	bool enabled;
 	bool suspended;
 	bool utf8_input;
+	bool ansi_interleaving;
 	bool command_terminated_cr;
 };
 

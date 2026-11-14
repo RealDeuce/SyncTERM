@@ -20,6 +20,20 @@ after repeated resets and each of the five RIP 1.54 text fonts, with version
 replies and DSR fences still working. These are independent literal expectations;
 historical capture pixels are unchanged.
 
+The later v1.10 commit `8781091d92` exposed a shared interleaving defect:
+RIPv1 SOH/STX commands must interrupt an unfinished ANSI sequence while
+retaining its prefix. The modern parser now keeps those two accumulators
+independent, applies completion suppression before ANSI resumes, releases a
+bogus introducer after the saved prefix, and records all consumed wire bytes
+in its history. RIPv3 retains its escape priority; SkyPix uses its separate
+selected parser. The legacy output-buffer/deferred-drain changes are
+unnecessary for modern callback passthrough. Native independent expectations
+cover every split and bytewise input, repeated interruptions, argument ESC,
+autosense resumption, overflow and bogus-introducer/VT expansion. The live
+wire suites check replies, text/colours, cursor and both pixel phases from
+one coherent capture in CP437 and UTF-8. This closes S2/S4 and the mid-ANSI
+SOH/STX priority difference here; the other audit findings remain open.
+
 RIP's two thin-line paths now use `st_bgi_thin_line`, extracted from the
 existing candidate/pattern loop. RIP retains clipping, thickness, coordinate
 mapping, colour/XOR, current-point and error policy. BIG uses the same lower
@@ -242,6 +256,12 @@ visible.
 
 ## Command-parser comparison, 2026-11-14
 
+The tables below retain the original audited baselines and reproductions.
+The interleaving follow-up above closes modern S2/S4 and the mid-ANSI
+SOH/STX issue. Subsequent legacy commits `6cd3be1d5e`, `06f0a7fec7` and
+`8781091d92` also postdate the v1.10b baseline below; do not read its rows
+as assertions that those fixes are still absent from current legacy HEAD.
+
 The parser is **not fully compliant** with the findings in
 `/synchronet/src/sbbs/src/syncterm/rip_test/cmd_parse.md`. Passing the existing
 regression suites does not establish that broader claim. The issue #2 checks
@@ -346,9 +366,10 @@ binary execution is claimed.
 The notes' mid-ESC table says SOH/STX are rejected. The actual instructions at
 `1A04:01BE–020D` jump to the last-chance SOH/STX acceptance path after the ANSI
 accumulator check fails; that path only rejects a preceding backslash. Both
-SyncTERM escape submachines currently intercept those bytes before that choice.
-This reference behavior must be resolved explicitly rather than turning the
-contradictory prose into an expected result.
+SyncTERM escape submachines intercepted those bytes before that choice at the
+audited baseline.
+The interleaving follow-up resolves this branch in modern RIPv1 with
+independent expected results rather than following the contradictory prose.
 
 The extracted 62 descriptors also clarify transcription errors: `Q` contains
 sixteen `2#` fields, `1M` ends in `++`, and `1B` has seventeen fields totaling

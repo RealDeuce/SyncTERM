@@ -546,6 +546,7 @@ cterm_rip_engine_feed(struct cterm_rip_engine *engine,
 	if (engine == NULL || engine->host.passthrough == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	sink = engine_sink(engine);
+	engine->parser.ansi_interleaving = engine->raster.version == 1;
 	return cterm_rip_parser_feed(&engine->parser, &sink, bytes,
 	    size, consumed);
 }

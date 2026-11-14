@@ -861,12 +861,22 @@ machine-word arithmetic.
 
 == SyncTERM comparison and work still required
 
-The earlier inventory's P1–P3 and S1–S7 remain open. P1 (host raw-width
-decoding), P2 (CSI fallback swallowing following text) and P3 (wire finish
+The earlier inventory recorded P1–P3 and S1–S7 at its pinned baselines.
+The subsequent interleaving fix, compared with legacy `8781091d92`, closes
+modern S2/S4 and the mid-ANSI SOH/STX priority difference: RIPv1 retains
+the ANSI prefix while a separate RIP command assembles, then resumes ANSI
+after completion suppression. It also releases bogus introducers in stream
+order and records consumed wire history. RIPv3 retains escape priority;
+SkyPix is a separately selected parser. See the conformance inventory for
+the follow-up tests. Other modern audit findings remain open; recent legacy
+fixes are distinguished there from the historical v1.10b baseline.
+
+P1 (host raw-width decoding), P2 (CSI fallback swallowing following text)
+and P3 (wire finish
 using local EOF flush) are modern-port findings. Backslash delimiter runs,
 EBC/ESC ordering, bare-pipe reset, consumed-byte history, signed/word
 decoding, padded autosense and `0 ESC` prefix handling are inherited
-findings affecting v1.8/v1.10b as well as v2.0.
+findings in the v1.8/v1.10b and v2.0 baselines.
 
 The historical source baselines and parser-replay qualifications remain in
 link:RIP154_CONFORMANCE.md#command-parser-comparison-2026-11-14[the comparison].

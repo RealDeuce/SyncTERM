@@ -409,6 +409,10 @@ RIP, IGS and BIG command rejections are nonfatal warnings at the graphics input
 stage. Native recovery tests and `syncterm_behavior_session_modes` verify
 following graphics and ANSI/VT52 handling, continued bidirectional connection
 use, and the normal notice on later remote disconnect.
+RIPv1 now retains unfinished ANSI prefixes across SOH/STX graphics commands,
+then applies completion suppression before resuming ANSI. Native split/bytewise
+tests and the CP437/UTF-8 RIP wire suites check independent replies, cell colours,
+cursor and both pixel phases; see [RIP154_CONFORMANCE.md](RIP154_CONFORMANCE.md).
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained
