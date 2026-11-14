@@ -4451,3 +4451,8 @@ fixture uses the headless control backend with physical audio/MIDI disabled.
 
 
 Native FreeBSD CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics or clock-skew notices. Both focused BIG CTests passed in0.61s total: big_opl2 in0.01s and syncterm_big_opl2_license in0.54s. No non-BIG tests or unchanged3934 application scenes were rerun. Physical audio/MIDI were disabled. This verifies the standalone native synthesis/controls and full license UI, not b/n/N playback, real X7 progress, ?2 allocation or final loudness calibration. The full goal remains active and its full regression suite stays deferred.
+
+
+Native YM3812 core/full MIT license UI commit: `099ab2c`. Final focused
+checks with padding-preserving snapshots passed in0.63s total. b/n/N
+integration, calibration and the full-goal acceptance remain pending.
