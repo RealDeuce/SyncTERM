@@ -4844,3 +4844,44 @@ availability/progress, fixed OPL2 gain and whole-goal acceptance remain open.
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All71 BIG-specific native CTests passed in64.18s, including big_music_channel0.01s and big_music_pcm0.07s. No physical audio/MIDI, audible-device tests or non-BIG regressions are claimed. The unchanged4102 application scenes were not rerun for this standalone ownership/headroom dependency. N wire loading/playback, actual resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.
 
 Wide PCM/channel0 ownership foundation implementation commit: `69eb9d6`. Native N wire loading/scheduling, actual music resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.
+
+== N owned storage and local sample schedule
+
+The N component now defines its actual65534-byte storage, with checked
+BYTE/little-endian WORD reads and individual byte stores. Loaded length is
+not a storage boundary. Unwritten bytes are retained, and a rejected read
+preserves its output. A WORD beginning at65533 or a BYTE/store at65534 fails
+instead of reading heap padding or writing beyond the owned object. This
+includes the original maximum-load ready-byte/timeout spill; its completed
+valid byte remains stored. Allocation/publication and command timeout/error
+handling still belong to the upcoming native owner.
+
+Delay arms are translated directly to the44.1kHz local sample grid using
+divider(or65536 for0)*delay*44100/1193181. Fractional samples carry between
+callbacks; explicit startup replaces its arm and resets that fractional
+interval. Flooring a carried boundary introduces less than one sample of
+quantization without per-delay drift or a forced minimum hold. A new rate
+rescales the unexpired local duration, preserving elapsed playback; an
+already due/partly executed callback remains due. Only current divider
+changes: cached divider, buffer header, protocol delay and progress retain
+their distinct owners. Count0 is immediately due in this native profile.
+There is no PIT state, interrupt/BIOS clock, foreign debt or bus-delay model.
+
+At a due boundary the existing resumable record operator runs in order until
+another positive span, a stopped callback or its work budget. Zero-delay
+callbacks and missing markers retain their completed prefix and current
+sample boundary across polls; no total retry/cycle cap, synthetic marker or
+extra sample is inserted. The caller must finish due work before consuming
+the next span. Stopped callbacks need no redundant periodic service; this
+does not key off or reset the chip. Cancellation discards only local pending
+work, leaving protocol and chip state for the owner's reached policy.
+
+The new independent fixture fixes the15-byte reference's write times at
+samples91 and459 under budgets1..64 and sample-span partitions1..4096.
+It covers retained/live bytes, allocation edges, maximum durations/rate
+rescaling, fractional sub-sample delays, zero-delay/missing-marker work,
+stable error prefixes, cancellation and actual decoder progress releasing
+X7. Native N registration/raw acquisition, buffer allocation/availability,
+OPL2 source gain/playback ownership and final acceptance remain open.
+
+Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) and final focused rebuild passed without compiler/source diagnostics. All8 focused BIG music/Opal/X7 CTests passed in0.58s, including the new big_music_schedule0.01s and native cterm_big_sync0.41s. Independent schedule/storage expectations were added before implementation; the initial focused link failed on the missing new functions. No physical audio/MIDI, N wire playback, non-BIG regressions or unchanged4102 application scenes were run for this standalone component. Native buffer allocation/publication, N wire loading/source integration, fixed OPL2 gain and goal-final acceptance remain pending.

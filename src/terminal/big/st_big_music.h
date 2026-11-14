@@ -5,7 +5,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-enum { ST_BIG_MUSIC_CAPACITY=65534, ST_BIG_MUSIC_WARM_WRITES=175 };
+enum { ST_BIG_MUSIC_CAPACITY=65534, ST_BIG_MUSIC_WARM_WRITES=175,
+	ST_BIG_MUSIC_RATE=44100 };
+/* Actual owned allocation, independent of the loaded-length WORD. Callers
+ * initialize new storage and serialize each read/store with playback. */
+struct st_big_music_buffer { uint8_t bytes[ST_BIG_MUSIC_CAPACITY]; };
+int st_big_music_buffer_read(const struct st_big_music_buffer *, uint16_t offset, bool word, uint16_t *value);
+int st_big_music_buffer_store(struct st_big_music_buffer *, uint16_t offset, uint8_t value);
 struct st_big_music {
 	/* One owner for X7, the raw loader/clock scratch and record progress. */
 	uint16_t sync, position_low, position_high, scratch;
@@ -54,6 +60,34 @@ void st_big_music_callback_begin(struct st_big_music_callback *);
  * callbacks must not reenter this operator. No clock/IRQ/PCM/device is owned. */
 int st_big_music_callback_poll(struct st_big_music_callback *, struct st_big_music *,
     const struct st_big_music_sink *, size_t *budget, uint16_t *returned_delay, bool *complete);
+/* Native local-sample schedule. Each arm converts its requested delay using
+ * the current divider (zero means65536), carrying fractional samples between
+ * callbacks. No PIT/IRQ/BIOS clock, debt or output-bus delay is modeled.
+ * Rate changes rescale an unexpired local duration; they do not re-arm it,
+ * restart a pending callback or update the cached/header divider.
+ * Explicit arm replaces pending work and starts a new fractional interval.
+ * It changes no protocol/chip fields; count0 is immediately due.
+ *
+ * Poll at a sample boundary before generating PCM. It services due original
+ * callbacks until a positive span, stopped callback or work-budget boundary.
+ * IN_PROGRESS preserves the accepted prefix and due time; do not consume
+ * samples while it is pending. There is no total callback/cycle cap. Once
+ * stopped, no redundant callbacks are needed and held chip voices persist.
+ * Consume only a returned remaining span, then poll again at its endpoint.
+ * Idle consumption is a no-op. Cancel changes only this local schedule.
+ * Owner serializes protocol state, buffer, schedule and chip access. */
+struct st_big_music_schedule {
+	struct st_big_music_callback callback;
+	uint64_t remaining;
+	uint32_t fraction;
+	bool armed, pending;
+};
+int st_big_music_schedule_arm(struct st_big_music_schedule *, const struct st_big_music *, uint16_t count);
+int st_big_music_schedule_rate(struct st_big_music_schedule *, struct st_big_music *, uint16_t divider);
+int st_big_music_schedule_poll(struct st_big_music_schedule *, struct st_big_music *,
+    const struct st_big_music_sink *, size_t *budget);
+int st_big_music_schedule_consume(struct st_big_music_schedule *, uint64_t frames);
+void st_big_music_schedule_cancel(struct st_big_music_schedule *);
 /* Normal protocol-reachable library state: private depth/note-select fields
  * stay zero; raw N writes do not change them. Only the 175 reached register
  * requests are retained, not unused linked pitch/instrument API tables.

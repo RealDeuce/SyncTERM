@@ -2119,3 +2119,26 @@ and goal-final acceptance remain pending.
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All71 BIG-specific native CTests passed in64.18s, including big_music_channel0.01s and big_music_pcm0.07s. No physical audio/MIDI, audible-device tests or non-BIG regressions are claimed. The unchanged4102 application scenes were not rerun for this standalone ownership/headroom dependency. N wire loading/playback, actual resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.
 
 Wide PCM/channel0 ownership foundation implementation commit: `69eb9d6`. Native N wire loading/scheduling, actual music resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.
+
+## N storage and local sample schedule
+
+N now has checked individual stores and BYTE/little-endian WORD reads over
+its actual65534-byte storage, independent of loaded length. Retained bytes
+remain data. Allocation-edge errors preserve completed prefixes and output
+arguments; no heap padding, wrapped memory alias or synthetic marker is read.
+
+Delay requests translate to local44.1kHz samples with fractional carry.
+Rate changes rescale only the unexpired local duration; due callbacks stay
+due and header/cached divider/protocol delay retain their owners. Zero delay
+is immediate. Bounded polls preserve record order/current fields and sample
+time across suspensions, without a total retry cap or inserted hold. Stopped
+callback service does not key off the chip. This profile models no foreign
+PIT/IRQ/BIOS clock, debt or bus-read delay.
+
+Independent tests specify writes at samples91/459 for the15-byte reference,
+budgets1..64, sample-span partitions1..4096, live/retained bytes, capacity failures,
+maximum duration/rate arithmetic, subsample/zero delays, missing markers,
+error/cancellation prefixes and X7 release. Native N wire loading, allocation,
+source normalization/playback/lifecycle and full-goal acceptance remain open.
+
+Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) and final focused rebuild passed without compiler/source diagnostics. All8 focused BIG music/Opal/X7 CTests passed in0.58s, including the new big_music_schedule0.01s and native cterm_big_sync0.41s. Independent schedule/storage expectations were added before implementation; the initial focused link failed on the missing new functions. No physical audio/MIDI, N wire playback, non-BIG regressions or unchanged4102 application scenes were run for this standalone component. Native buffer allocation/publication, N wire loading/source integration, fixed OPL2 gain and goal-final acceptance remain pending.

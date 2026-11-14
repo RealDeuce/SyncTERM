@@ -2,6 +2,21 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_music.h"
 #include "io_error.h"
+int st_big_music_buffer_read(const struct st_big_music_buffer *buffer, uint16_t offset, bool word, uint16_t *value)
+{
+	if (buffer==NULL || value==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	size_t size=word?2:1;
+	if (offset>ST_BIG_MUSIC_CAPACITY-size) return IO_ERROR_OUT_OF_RANGE;
+	uint16_t result=buffer->bytes[offset];
+	if (word) result|=(uint16_t)((uint16_t)buffer->bytes[(size_t)offset+1]<<8);
+	*value=result; return 0;
+}
+int st_big_music_buffer_store(struct st_big_music_buffer *buffer, uint16_t offset, uint8_t value)
+{
+	if (buffer==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (offset>=ST_BIG_MUSIC_CAPACITY) return IO_ERROR_OUT_OF_RANGE;
+	buffer->bytes[offset]=value; return 0;
+}
 static int64_t signed_word_pair(uint32_t value)
 {
 	return value<UINT32_C(0x80000000)?(int64_t)value:(int64_t)value-INT64_C(4294967296);
@@ -101,6 +116,65 @@ int st_big_music_callback_poll(struct st_big_music_callback *r, struct st_big_mu
 		default: return failed(r,IO_ERROR_PROTOCOL);
 		}
 	}
+}
+static void duration(struct st_big_music_schedule *s, uint16_t divider, uint16_t count)
+{
+	/* Convert only a newly requested duration. The remainder belongs to the
+	 * local sample grid, not a simulated foreign timer/countdown. Maximum
+	 * product65536*65535*44100 fits comfortably in uint64_t. */
+	uint64_t scaled=(uint64_t)(divider==0?65536u:divider)*count*ST_BIG_MUSIC_RATE+s->fraction;
+	s->remaining=scaled/UINT32_C(1193181);
+	s->fraction=(uint32_t)(scaled%UINT32_C(1193181));
+}
+int st_big_music_schedule_arm(struct st_big_music_schedule *s, const struct st_big_music *m, uint16_t count)
+{
+	if (s==NULL || m==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*s=(struct st_big_music_schedule){.armed=true}; duration(s,m->divider,count); return 0;
+}
+int st_big_music_schedule_rate(struct st_big_music_schedule *s, struct st_big_music *m, uint16_t divider)
+{
+	if (s==NULL || m==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (s->armed && s->remaining!=0 && !s->pending) {
+		/* Preserve elapsed local playback and the remaining fraction of the
+		 * requested duration. Both divider values are converted periods;
+		 * there is no foreign countdown to advance. The maximum product
+		 * 65536*65535*44100*65536 is below UINT64_MAX. */
+		uint32_t period=divider==0?65536u:divider;
+		if (s->remaining>(UINT64_MAX-s->fraction)/UINT32_C(1193181)) return IO_ERROR_OUT_OF_RANGE;
+		uint64_t scaled=s->remaining*UINT32_C(1193181)+s->fraction;
+		if (scaled>UINT64_MAX/period) return IO_ERROR_OUT_OF_RANGE;
+		scaled=scaled*period/(m->divider==0?65536u:m->divider);
+		s->remaining=scaled/UINT32_C(1193181);
+		s->fraction=(uint32_t)(scaled%UINT32_C(1193181));
+	}
+	m->divider=divider; return 0;
+}
+int st_big_music_schedule_poll(struct st_big_music_schedule *s, struct st_big_music *m,
+    const struct st_big_music_sink *sink, size_t *budget)
+{
+	if (s==NULL || m==NULL || budget==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	while (s->armed && s->remaining==0) {
+		if (!s->pending) { st_big_music_callback_begin(&s->callback); s->pending=true; }
+		uint16_t returned=0; bool complete=false;
+		int status=st_big_music_callback_poll(&s->callback,m,sink,budget,&returned,&complete);
+		if (status!=0) return status;
+		if (!complete) return IO_ERROR_PROTOCOL;
+		s->pending=false;
+		if (m->running==0) s->armed=false;
+		else duration(s,m->divider,returned);
+	}
+	return 0;
+}
+int st_big_music_schedule_consume(struct st_big_music_schedule *s, uint64_t frames)
+{
+	if (s==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (!s->armed) return 0;
+	if (frames>s->remaining) return IO_ERROR_OUT_OF_RANGE;
+	s->remaining-=frames; return 0;
+}
+void st_big_music_schedule_cancel(struct st_big_music_schedule *s)
+{
+	if (s!=NULL) *s=(struct st_big_music_schedule){0};
 }
 int st_big_music_warm_write(unsigned index, uint8_t *address, uint8_t *value)
 {
