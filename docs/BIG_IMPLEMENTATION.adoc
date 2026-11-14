@@ -202,13 +202,15 @@ or gang selection. No foreign register context or busy polling is simulated.
 === Sound
 
 Implement PC-speaker effects/notes and AdLib register-stream playback through
-the existing audio mixer and local sample timing. Prefer the current MIT
-RealBitdancer Opal core, compiled as C17, after qualifying its YM3812 behavior.
-Use only the required synthesis subset and retain its copyright/license and
-original public-domain resampler provenance. MIT/public-domain sources are
-acceptable under the user's updated preference; BSD2 is preferred over BSD3
-if another source is needed. ymfm (BSD3) remains a fallback, not a mandatory
-choice. BIG N is AdLib playback, not MIDI translation. Test synthesis, state, muted progression, cancellation, reset and
+the existing audio mixer and local sample timing. Use the current MIT
+RealBitdancer Opal as the source for a bounded C17 YM3812-only adaptation.
+Backfill missing OPL2 behavior with newly written code and remove OPL3-only
+functionality. Other emulators may be behavioral references; do not copy,
+port, translate or adapt any of their code into this implementation, including
+permissively licensed alternatives such as ymfm. Retain Opal's MIT copyright/
+license and original public-domain resampler provenance. BIG N is AdLib
+playback, not MIDI translation. Test synthesis, state, muted progression,
+cancellation, reset and
 teardown. Bit-identical reference PCM and manual listening are not gates;
 provide a manual audio checklist when implementation is complete.
 When the core is integrated, include its full copyright and license notice
@@ -4336,8 +4338,8 @@ Native X7/entry and verified non-audio publishing checkpoint commit: `8687007`.
 
 == OPL source and license review
 
-The user's updated preference accepts MIT and public-domain implementations;
-a suitable Opal is preferred to adding a BSD3 source. The current candidate is
+The user selected MIT Opal as the implementation source, with original code
+for missing OPL2 behavior and removal of OPL3-only functionality. The source is
 https://github.com/RealBitdancer/opal[RealBitdancer Opal], reviewed at commit
 `5903c7e06783927f9568d4d0c27da0834464aa5f`. Its own core is MIT (copyright2026
 Bitdancer), and the output resampler has separate Shayde/Reality public-domain
@@ -4368,6 +4370,27 @@ bit-identical foreign-clock/PCM or OPL3 feature completeness is not required.
 Other reviewed sources: ymfm is BSD3 and supports YM3812; original Opal is
 public domain but incomplete for this use; emu8950 is MIT; Nuked OPL3 is
 LGPL2.1 and YM3812-LLE is GPL2. Those GPL/LGPL cores are outside the requested
-new-source license choices. The preferred MIT Opal is not yet vendored or
-accepted as tested. The goal remains paused; record the exact imported
-revision, hashes, required adaptations and UI notice with the implementation.
+new-source license choices. Other emulators, including ymfm and emu8950,
+are behavioral references only; their code must not be copied, ported,
+translated or adapted for the new OPL2 functionality. Opal is not yet vendored
+or accepted as tested. Record the exact imported revision, hashes, newly
+authored adaptations and UI notice with implementation. The goal has resumed.
+
+
+=== Approved YM3812-only adaptation boundary
+
+Keep the OPL2 register map, nine two-operator channels, eighteen operators,
+four waveforms with the actual YM3812 waveform-enable behavior, rhythm/noise,
+envelopes/keys, timers/status and required CSM behavior. Write missing OPL2
+operators as new code using chip documentation and behavioral reference
+observations; retain clear provenance distinguishing imported MIT Opal code
+from newly authored additions. No source-code borrowing from other emulators
+is authorized, regardless of their license.
+
+Remove OPL3-only state and paths: the second register bank, extra channels/
+operators, four-operator pairing, additional OPL3 waveforms, NEW mode and chip
+stereo/panning controls. Expose the OPL2 mono signal through SyncTERM's normal
+stereo mixer/channel0 controls. Verify independent OPL2 register/feature,
+PCM-level, muted progression and lifecycle expectations before accepting N.
+This specifies the next implementation step in the resumed goal; no synthesis
+source has been imported or modified in this documentation step.
