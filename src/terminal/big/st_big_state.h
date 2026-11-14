@@ -22,6 +22,7 @@ struct st_big_state {
 		uint16_t ddo_x, ddo_y, device_x, device_y, line_distance;
 		uint16_t bar_corners[4];
 		uint8_t orientation;
+		uint8_t curve_batch_gate; /* DDO006f: current zero admits extended methods. */
 		uint8_t device_color, ddo_line_style, ddo_line_width;
 		uint16_t ddo_line_user;
 		uint8_t fill_low, device_fill_color, device_fill_style;

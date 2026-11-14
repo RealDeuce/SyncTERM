@@ -1343,3 +1343,10 @@ big_curve_decimal: original zero/metric/order/duplicate rules, checked/wrapped
 It does not bind native batch/producer/current-point/arc state or register K
 on wire yet. The existing2982 application scenes and other emulation baselines
 are unchanged; full regressions remain deferred to goal completion.
+
+BIG decimal curves now bind the request generator to the existing indexed
+producer and shared bar3d move gate. big_curve_draw independently checks full
+indexed scenes, current colour/batch methods, observable returned point values,
+all three point owners and partial/error prefixes. No planar shadow is added.
+The ordinary native sixteen-pen binding is verified at component level; curve
+fronts, arc state, angular buffers and K wire/CTerm acceptance remain pending.

@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_curve.h"
 #include "st_big_number.h"
+#include "st_big_producer.h"
 #include "st_bgi_trig.h"
 #include "io_error.h"
 #include <stddef.h>
@@ -99,5 +100,50 @@ int st_big_curve_decimal_outline(struct st_big_curve_decimal_frame frame,
 		}
 		y=(uint16_t)(y-1u); error-=threshold; delta=threshold-constant;
 	} while ((y&0x8000u)==0);
+	return 0;
+}
+
+struct decimal_drawing {
+	struct st_big_state *state;
+	struct st_big_producer *producer;
+	const struct st_big_producer_sink *sink;
+};
+static int decimal_move(void *context, uint16_t x, uint16_t y)
+{
+	struct decimal_drawing *drawing=context;
+	struct st_big_producer_registers registers={.ax=x,.bx=y};
+	return st_big_producer_move(drawing->state,drawing->producer,&registers,drawing->sink);
+}
+static int synchronous(int status) { return status==IO_ERROR_IN_PROGRESS?IO_ERROR_PROTOCOL:status; }
+int st_big_curve_decimal_draw(struct st_big_state *state, struct st_big_producer *producer,
+    struct st_big_curve_decimal_frame frame, const struct st_big_producer_sink *sink,
+    const struct st_big_curve_batch_sink *batch)
+{
+	if (state==NULL || producer==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t color=state->bgi.color;
+	if (state->bgi.curve_batch_gate==0) {
+		if (batch==NULL) producer->batch=true;
+		else {
+			if (batch->begin==NULL) return IO_ERROR_INVALID_ARGUMENT;
+			int status=synchronous(batch->begin(batch->context,&color));
+			if (status!=0) return status;
+		}
+	}
+	/* Ordinary sixteen-pen begin converts no colour bits. The returned
+	 * WORD is still published before limits/products, even on empty output. */
+	state->bgi.color=color;
+	struct decimal_drawing drawing={state,producer,sink};
+	const struct st_big_curve_point_sink points={&drawing,decimal_move};
+	int status=st_big_curve_decimal_outline(frame,&points);
+	if (status!=0) return status;
+	/* End uses the current gate and binding; it is neither an entry-time
+	 * paired decision nor an unconditional failure-cleanup operation. */
+	if (state->bgi.curve_batch_gate==0) {
+		if (batch==NULL) producer->batch=false;
+		else {
+			if (batch->end==NULL) return IO_ERROR_INVALID_ARGUMENT;
+			return synchronous(batch->end(batch->context));
+		}
+	}
 	return 0;
 }

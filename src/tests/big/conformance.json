@@ -669,6 +669,44 @@
             "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending."
           ],
           "commit": "038d0aa"
+        },
+        {
+          "id": "decimal-batch-and-producer-binding",
+          "status": "complete",
+          "operations": [
+            "Bind the decimal request generator to the existing indexed producer and export/reuse the unchanged DDO0378 bar3d move gate. Unsuppressed actual return AX/BX, including clipped points, become DDO/device position; collector suppression and public position remain independent.",
+            "Represent DDO006f as a current gate initialized to zero. Each begin/end site independently reads current gate and current method/context. Builtin ordinary sixteen-pen begin sets batch true, returns unchanged colour WORD and publishes after return before arithmetic; normal end clears batch without old-state restoration.",
+            "Each point reloads current DDO colour, writes ordinary COPY independently of line caches, and obtains observable pre-read bytes from indexed pixels at the return boundary. Keep raw WORD colour and mask only the indexed output pen.",
+            "Errors preserve accepted prefixes and omit unreached end; IN_PROGRESS is a protocol error. Empty multiplication overflow is normal and still reaches end. Geometry remains captured despite changed lower point owners.",
+            "Complete component binding only: curve fronts, early attributes/aspect/placement, outer017a DDO restoration, arc records, angular buffers and K wire/CTerm/global acceptance remain pending."
+          ],
+          "references": [
+            "13-curves-and-native-reuse.adoc:DDO0378;three point owners",
+            "58-marker-and-spray-command-acceptance.adoc:ordinary point COPY/colour/returns",
+            "61-curve-command-acceptance.adoc:current006f/method gates;0fee..101c",
+            "curve-review-code.adoc:DDO0f17..0f9f;0fe7..101c;EGAVGA00af..00c2",
+            "controller-code.adoc:EGAVGA05ab;05c5;05db",
+            "initialization-code.adoc:DDO01d5..01ec writes006f0"
+          ],
+          "tests": [
+            "big_curve_draw",
+            "big_curve_decimal",
+            "big_producer",
+            "big_bar3d"
+          ],
+          "deviations": [
+            "Indexed pixels remain authoritative. Reconstruct only the observable batched point-return byte; no permanent planar framebuffer, hardware controller or foreign clock model.",
+            "Covers the existing ordinary native sixteen-pen/COPY profile, not arbitrary inherited physical-controller state. Missing reached native methods return a checked argument error; failed/async callbacks preserve accepted effects."
+          ],
+          "verification": [
+            "The original retained DDO identity is SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8. Complete61 batch/caller contract and controller05ab/05c5/05db plus initial01d5..01ec gate publication were inspected.",
+            "Independent big_curve_draw first failed to link the missing binding. Literal eight unit requests, full64x64 indexed scenes, all256 colour bytes and all four read planes check live pre-write returns and unchanged raw WORD/line caches/public point/error state.",
+            "Live colour/segment/plane changes retain captured geometry. All255 nonzero gate bytes, each direction of mid-draw gate change, rebound end/context, old batch true, collector/inactive modes, clipped requests and empty overflow check independently current decisions and three point owners.",
+            "Begin/end/read/write failures, missing reached begin/end methods and IN_PROGRESS callbacks retain accepted prefixes without finally cleanup. The lower installed guard is tested separately from pending public/front placement.",
+            "No wire command or application scene changes in this unbound component. Existing2982 application scenes last passed with6bfc11c and were not rerun; final non-BIG/shared-code regressions remain deferred.",
+            "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All49 BIG-specific native CTests passed in53.26s, including big_curve_draw0.01s; its strengthened focused check passed in0.09s total. No non-BIG tests ran and unchanged application scenes were not rerun for this unbound component. Decimal batch/producer binding is verified; K fronts/arc records/angular buffers/native CTerm/wire and global45-entry acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2524,27 +2562,41 @@
         "13-curves-and-native-reuse.adoc:metric/recurrence/candidate ordering",
         "61-curve-command-acceptance.adoc:exact decimal recurrence and current batch/point operators",
         "curve-review-code.adoc:DDO0906..09ae;0f17..0f9f",
-        "data/BIG103-BGI-DDO.bin:32-byte header, body0d70..0fa0;0fc7..0fe6"
+        "data/BIG103-BGI-DDO.bin:32-byte header, body0d70..0fa0;0fc7..0fe6",
+        "13-curves-and-native-reuse.adoc:DDO0378;three point owners",
+        "58-marker-and-spray-command-acceptance.adoc:ordinary point COPY/colour/returns",
+        "61-curve-command-acceptance.adoc:current006f/method gates;0fee..101c",
+        "curve-review-code.adoc:DDO0f17..0f9f;0fe7..101c;EGAVGA00af..00c2",
+        "controller-code.adoc:EGAVGA05ab;05c5;05db",
+        "initialization-code.adoc:DDO01d5..01ec writes006f0"
       ],
       "operations": [
         "Move the unchanged91-word Q1.15 sine table and scalar sine/unsigned-radius partial-product kernels from RIP into st_bgi_trig. RIP calls these actual shared kernels; its wide cosine addition, metric, ellipse/pie/front/duplicate/point/error policies remain separate.",
         "BIG sine converts the angle WORD to signed16 before shared lookup; cosine wraps WORD+90 before that conversion. Shared radius multiplication returns the original low-WORD floor-scaled bit result with defined signed interpretation, including negative coefficients and high-bit radii.",
         "BIG metric negates Y as a WORD before signed branch selection, then reduces each result to WORD. This preserves the y8000 branch that differs from RIP wide arithmetic.",
         "Circular aspect uses unsigned radius times signed aspectX, divides by signed aspectY with truncation, and returns the low WORD. The entire argument domain fits signed32 product/quotient. Zero denominator returns a checked native error without publishing output or moving any point.",
-        "Scalar and decimal-outline request prerequisites are implemented; K acquisition/fronts, aspect/batch/point/arc record lifetimes, angular buffers and native command acceptance remain pending.",
+        "Scalar, decimal-outline request and batch/producer binding prerequisites are implemented; K acquisition/fronts, aspect/arc record lifetimes, outer DDO restoration, angular buffers and native command acceptance remain pending.",
         "Implement the outline arm of DDO0d70..0fa0 as a synchronous physical-WORD point-request generator, using captured center/radii/original endpoint offsets. No pen/XOR, clipping, batch entry/exit, point-owner update or arc-record publication is substituted by this pure arithmetic layer.",
         "Compute signed endpoint metrics and inclusive/inverse selection before zero radius replacement. Preserve four candidate order (+x,+y),(-x,+y),(+x,-y),(-x,-y), axis duplicates and WORD center addition despite callback-side owner changes.",
         "Preserve checked unsigned32 B and product construction, successive unsigned divisions, wrapped32 error/accumulated/delta updates, signed-HIGH/unsigned-LOW ordering, logical half and body-first regime loops. Checked overflow is a normal empty return, without new BGI error or suppressing later caller tails.",
         "Point callback errors keep accepted request prefixes and stop later requests. IN_PROGRESS is a protocol error; rendering does not gain asynchronous yields or a geometry cap. Captured frame values remain stable across callbacks.",
-        "Only the reachable outline arm is implemented. BIG curves call0906 with flagsffff; O/Q use outline plus flood and V/Y use separate polygon composition. Unused public-library filled ellipse/spans are not imported for completeness."
+        "Only the reachable outline arm is implemented. BIG curves call0906 with flagsffff; O/Q use outline plus flood and V/Y use separate polygon composition. Unused public-library filled ellipse/spans are not imported for completeness.",
+        "Bind the decimal request generator to the existing indexed producer and export/reuse the unchanged DDO0378 bar3d move gate. Unsuppressed actual return AX/BX, including clipped points, become DDO/device position; collector suppression and public position remain independent.",
+        "Represent DDO006f as a current gate initialized to zero. Each begin/end site independently reads current gate and current method/context. Builtin ordinary sixteen-pen begin sets batch true, returns unchanged colour WORD and publishes after return before arithmetic; normal end clears batch without old-state restoration.",
+        "Each point reloads current DDO colour, writes ordinary COPY independently of line caches, and obtains observable pre-read bytes from indexed pixels at the return boundary. Keep raw WORD colour and mask only the indexed output pen.",
+        "Errors preserve accepted prefixes and omit unreached end; IN_PROGRESS is a protocol error. Empty multiplication overflow is normal and still reaches end. Geometry remains captured despite changed lower point owners."
       ],
       "tests": [
         "big_curve_scalar",
         "big_curve_decimal",
-        "big_producer"
+        "big_producer",
+        "big_curve_draw",
+        "big_bar3d"
       ],
       "deviations": [
-        "Only complete scalar/data prerequisites are implemented; no K wire/pixel acceptance is claimed. Remaining front/core/buffer/point/arc record and global composition must be implemented and independently tested."
+        "Complete scalar/request/batch/producer component prerequisites are implemented; K fronts, aspect/arc record lifetimes, angular buffers, native CTerm/wire and global composition remain pending. No complete K acceptance is claimed.",
+        "Indexed pixels remain authoritative. Reconstruct only the observable batched point-return byte; no permanent planar framebuffer, hardware controller or foreign clock model.",
+        "Covers the existing ordinary native sixteen-pen/COPY profile, not arbitrary inherited physical-controller state. Missing reached native methods return a checked argument error; failed/async callbacks preserve accepted effects."
       ],
       "verification": [
         "Before extraction, all91 current RIP words matched the retained DDO table exactly. Little-endian182-byte SHA256:db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51. Runtime tests use a literal independently retained table; no floating sine or emulator generates expected data.",
@@ -2560,7 +2612,13 @@
         "Hand-authored quarter/upper-left/NEG8000 inverse gates, original zero-radius top-only endpoints, WORD center wrap and input-frame mutation verify selection and captured geometry without generating expected images or a second recurrence implementation.",
         "6554 maximum aborts normally before requests while6553 reaches the first request. Literal1x6553 prefix distinguishes signed32 comparison after doubling wrap; literal1x4635 prefix distinguishes logical-half and wrapped second-regime arithmetic. Error at every unit request retains exact accepted prefixes, and an IN_PROGRESS sink fails synchronously.",
         "This unbound BIG arithmetic dependency introduces no wire command or scene change. Existing2982 application scenes last passed with6bfc11c and are not rerun here. Actual native batch/producer/point/arc state integration and global acceptance remain pending.",
-        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending."
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending.",
+        "The original retained DDO identity is SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8. Complete61 batch/caller contract and controller05ab/05c5/05db plus initial01d5..01ec gate publication were inspected.",
+        "Independent big_curve_draw first failed to link the missing binding. Literal eight unit requests, full64x64 indexed scenes, all256 colour bytes and all four read planes check live pre-write returns and unchanged raw WORD/line caches/public point/error state.",
+        "Live colour/segment/plane changes retain captured geometry. All255 nonzero gate bytes, each direction of mid-draw gate change, rebound end/context, old batch true, collector/inactive modes, clipped requests and empty overflow check independently current decisions and three point owners.",
+        "Begin/end/read/write failures, missing reached begin/end methods and IN_PROGRESS callbacks retain accepted prefixes without finally cleanup. The lower installed guard is tested separately from pending public/front placement.",
+        "No wire command or application scene changes in this unbound component. Existing2982 application scenes last passed with6bfc11c and were not rerun; final non-BIG/shared-code regressions remain deferred.",
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All49 BIG-specific native CTests passed in53.26s, including big_curve_draw0.01s; its strengthened focused check passed in0.09s total. No non-BIG tests ran and unchanged application scenes were not rerun for this unbound component. Decimal batch/producer binding is verified; K fronts/arc records/angular buffers/native CTerm/wire and global45-entry acceptance remain pending."
       ],
       "commit": null
     },

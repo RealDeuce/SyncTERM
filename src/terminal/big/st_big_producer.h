@@ -36,4 +36,8 @@ int st_big_producer_start(struct st_big_producer *);
  * returns actual point AX/BX/CX/DX, including on a rejected point. */
 int st_big_producer_emit(struct st_big_producer *, struct st_big_state *,
 	struct st_big_producer_registers *, const struct st_big_producer_sink *, bool *suppressed);
+/* Shared DDO0378: unsuppressed actual return AX/BX becomes DDO/device CP,
+ * including clipped/rejected points. Public CP is retained. */
+int st_big_producer_move(struct st_big_state *, struct st_big_producer *,
+	struct st_big_producer_registers *, const struct st_big_producer_sink *);
 #endif

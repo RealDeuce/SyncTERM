@@ -3224,3 +3224,50 @@ deferred under the current BIG-only development policy.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending.
 
 Decimal-outline point generator implementation commit: `038d0aa`.
+
+== Decimal curve batch and point-producer binding
+
+st_big_curve_decimal_draw now binds the decimal request generator to the
+existing indexed point producer and shared DDO0378 move gate. The latter was
+already used by bar3d; its body is unchanged. An unsuppressed request moves
+DDO/device points using the actual returned AX/BX, including clipped requests.
+Collector requests retain those owners; the public BGI point is untouched.
+Candidate geometry remains captured even as lower points change.
+
+DDO006f is represented by curve_batch_gate. Fresh installation initializes it
+to zero, matching original01d5..01ec. Each reached begin/end site independently
+reads its current value: zero admits the current method and nonzero skips it.
+The builtin ordinary sixteen-pen begin sets batch true and returns the colour
+WORD unchanged; that returned WORD is published after begin, before arithmetic
+and even on normal empty overflow. The end clears batch, without restoring an
+old true value or moving any point. Method/context replacement is observed at
+the reached site. A failed begin/point omits later work, including end; there
+is no unconditional cleanup that would erase the accepted prefix.
+
+Every point reloads current DDO colour. Ordinary thin point writes use COPY,
+independent of cached line XOR/pattern and cached device line colour. Existing
+indexed pixels supply the observable batched pre-read byte at the point-return
+boundary; no planar image or controller simulator is added. The raw colour
+WORD remains intact while indexed writes use its low four bits. This binding
+covers the existing native sixteen-pen profile, not arbitrary inherited foreign
+controller state. Front placement, public guards, outer017a DDO restoration,
+arc records, angular buffers and K wire/native CTerm integration remain pending.
+
+big_curve_draw first failed to link the missing binding. Independent unit
+request order and full64x64 indexed scenes check all256 colour bytes, all four
+read planes, current colour and segment/plane changes, public/DDO/device
+points, retained caches/error, collector and inactive producers, clipped
+requests and normal overflow. Every nonzero gate byte skips both methods;
+mid-draw gate changes and rebound end/context test independent current reads.
+Explicit begin/end/read/write failures, missing reached methods and rejected
+IN_PROGRESS callbacks retain accepted prefixes. The original driver/table
+identity remains the retained DDO SHA256
+5fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8;
+13/58/61, curve-review-code, controller-code and initialization-code supply
+the batch, colour, point-return and initial gate contracts.
+
+The2982 application scenes are unchanged and last passed with6bfc11c. This
+unbound component does not register a wire command; application replay and
+non-BIG regressions remain deferred under the current verification policy.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All49 BIG-specific native CTests passed in53.26s, including big_curve_draw0.01s; its strengthened focused check passed in0.09s total. No non-BIG tests ran and unchanged application scenes were not rerun for this unbound component. Decimal batch/producer binding is verified; K fronts/arc records/angular buffers/native CTerm/wire and global45-entry acceptance remain pending.

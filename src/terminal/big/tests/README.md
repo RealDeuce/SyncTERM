@@ -690,3 +690,17 @@ error-prefix case. Point callback IN_PROGRESS fails synchronously. Field
 comparisons avoid padding assumptions. This proves the request generator;
 actual pen/batch/producer/point/arc and K wire integration remain pending.
 Unchanged application scenes were not rerun for this unbound arithmetic step.
+
+big_curve_draw binds the real decimal core to the existing indexed producer
+and shared DDO0378 move gate. BIG13/58/61 and original controller/initialization
+code define independent literal unit request order, final batched AX/BX and
+full64x64 indexed scenes. All256 colour bytes retain raw WORD storage while
+writing low-four-bit pens; all four selected planes reconstruct bytes from
+the indexed scene. Current colour/segment/plane mutations do not drift geometry.
+All255 nonzero batch gates skip methods; gate changes and rebound end/context
+are observed at their reached sites. Collector/inactive/clipped/empty-overflow
+paths check public/DDO/device ownership, line-cache independence and exact
+prefixes on begin/end/read/write failures, missing reached methods and rejected
+async callbacks. This covers the ordinary native sixteen-pen/COPY profile,
+not arbitrary inherited foreign controller state or whole K wire integration.
+Application captures remain unchanged; full regressions are deferred.

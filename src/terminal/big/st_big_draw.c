@@ -331,7 +331,7 @@ static int bar3d_line(struct st_big_state *s, struct st_big_producer *producer,
 	s->bgi.ddo_x=r->ax; s->bgi.ddo_y=r->bx;
 	return strokes(s,p,&sink->drawing);
 }
-static int bar3d_move(struct st_big_state *s, struct st_big_producer *producer,
+int st_big_producer_move(struct st_big_state *s, struct st_big_producer *producer,
     struct st_big_producer_registers *r, const struct st_big_producer_sink *sink)
 {
 	bool suppressed;
@@ -348,7 +348,7 @@ static int bar3d_top(struct st_big_state *s, struct st_big_producer *producer,
 	r->ax=s->bgi.bar_corners[0]; r->bx=s->bgi.bar_corners[3]; uint16_t top=r->bx;
 	status=bar3d_line(s,producer,r,sink); if (status!=0) return status;
 	r->ax=s->bgi.bar_corners[2]; r->bx=top; uint16_t right=r->ax;
-	status=bar3d_move(s,producer,r,sink); if (status!=0) return status;
+	status=st_big_producer_move(s,producer,r,sink); if (status!=0) return status;
 	r->ax=(uint16_t)(right+r->cx); r->bx=(uint16_t)(top-r->dx);
 	return bar3d_line(s,producer,r,sink);
 }
@@ -383,14 +383,14 @@ int st_big_draw_bar3d(struct st_big_state *s, const uint16_t p[4], uint16_t dept
 	r.ax=s->bgi.bar_corners[0]; r.bx=bottom;
 	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
 	r.ax=s->bgi.bar_corners[2]; r.bx=s->bgi.bar_corners[1]; right=r.ax;
-	status=bar3d_move(s,producer,&r,sink); if (status!=0) return status;
+	status=st_big_producer_move(s,producer,&r,sink); if (status!=0) return status;
 	r.ax=right;
 	if (depth!=0) {
 		r.cx=depth; r.dx=(uint16_t)((uint16_t)(depth*3u)>>2);
 		if (s->bgi.orientation!=0) r.cx=(uint16_t)(0u-r.dx);
 		if (s->bgi.orientation!=0 && (uint8_t)top==0) {
 			r.ax=s->bgi.bar_corners[0]; r.bx=s->bgi.bar_corners[3]; left=r.ax; top_y=r.bx;
-			status=bar3d_move(s,producer,&r,sink); if (status!=0) return status;
+			status=st_big_producer_move(s,producer,&r,sink); if (status!=0) return status;
 			r.ax=(uint16_t)(left+r.cx); r.bx=(uint16_t)(top_y-r.dx); top_y=r.bx;
 			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
 			r.ax=(uint16_t)(s->bgi.bar_corners[2]+r.cx); r.bx=top_y;

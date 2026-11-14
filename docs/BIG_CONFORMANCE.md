@@ -1461,3 +1461,27 @@ deferred. No native pixel/batch acceptance is claimed by request traces alone.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending.
 
 Decimal-outline point generator implementation commit: `038d0aa`.
+
+## Decimal batch/point binding
+
+The decimal generator now uses BIG's existing producer and shared DDO0378
+move gate. Accepted returned AX/BX, including batched indexed pre-read bytes,
+move DDO/device points; clipped unsuppressed requests move them too. Collector
+requests retain those points and public BGI position remains unchanged.
+Current colour is read per point, with ordinary COPY independent of line caches.
+
+Begin/end each inspect the current gate and method/context. Begin publishes
+its returned colour WORD before arithmetic, including normal empty overflow;
+normal end clears batch without restoring entry state. Errors retain accepted
+prefixes and omit unreached end. No planar framebuffer or foreign controller
+model is introduced; this is the ordinary native sixteen-pen binding.
+
+big_curve_draw checks literal request order, full indexed scenes, every colour
+byte/nonzero gate, all read planes, live colour/segment/plane/gate/end changes,
+three point owners, collector/inactive/clipped/overflow paths and method/read/
+write error prefixes. Fronts, arc records, angular buffers and native CTerm/K
+wire integration remain pending. Existing2982 application scenes are unchanged
+and were not rerun for this unbound dependency; non-BIG regressions remain
+deferred to the goal-final suite.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All49 BIG-specific native CTests passed in53.26s, including big_curve_draw0.01s; its strengthened focused check passed in0.09s total. No non-BIG tests ran and unchanged application scenes were not rerun for this unbound component. Decimal batch/producer binding is verified; K fronts/arc records/angular buffers/native CTerm/wire and global45-entry acceptance remain pending.

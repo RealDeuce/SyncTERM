@@ -24,4 +24,22 @@ struct st_big_curve_point_sink {
  * Batch exit, public/DDO/device point gates and arc publication are callers. */
 int st_big_curve_decimal_outline(struct st_big_curve_decimal_frame,
 	const struct st_big_curve_point_sink *);
+struct st_big_state;
+struct st_big_producer;
+struct st_big_producer_sink;
+struct st_big_curve_batch_sink {
+	void *context;
+	/* Optional replacement for the built-in sixteen-pen batch methods.
+	 * Converted begin colour is published after return. Current method/
+	 * context fields are reread at each reached site, without reentry. */
+	int (*begin)(void *, uint16_t *color);
+	int (*end)(void *);
+};
+/* Complete decimal batch/producer-move binding, without curve front/stage
+ * selection, center placement, outer DDO restoration or arc publication.
+ * NULL batch selects the built-in native methods. Current nonzero gate
+ * skips each method independently. Normal empty overflow still reaches end. */
+int st_big_curve_decimal_draw(struct st_big_state *, struct st_big_producer *,
+	struct st_big_curve_decimal_frame, const struct st_big_producer_sink *,
+	const struct st_big_curve_batch_sink *);
 #endif
