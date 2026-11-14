@@ -1541,3 +1541,17 @@ O=4f and final idle/gate behavior. b/N and goal-final acceptance remain pending.
 Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. Final4 focused BIG CTests passed in3.60s: big_speaker_stream0.01s, big_speaker0.03s, cterm_big_note0.77s, big_session_pacing2.71s. The native APC fade case failed before implementation. No physical audio/MIDI/auditory coverage or non-BIG tests are claimed; unchanged4046 bitmap application scenes were not rerun. Shared audio regressions remain part of the goal-final full suite. b/N and full-goal acceptance remain outstanding.
 
 Continuous-source fade-out flush implementation commit: `a4a4b1e`. b/N and full-goal acceptance remain pending.
+
+
+BIG b now plays all twenty original procedural effects through the shared
+fixed-gain channel1 speaker. Original F/Z/D/WORD/RNG order is independently
+tested; the user-selected native timing grants one44.1kHz sample to each
+frequency request, including no-ops, plus explicit delay spans. Pure tests
+pin all selector WORDs, literal schedule boundaries/counts and closed-form
+RNG state. Native coherent tests cover three modes, CP437/UTF8/status, splits,
+stored loops, retained scenes/replies, physical mute, parser/key backpressure,
+shared-RNG handoff and concurrent reset/teardown. Real session pacing covers
+b/t/n tails without flow bytes. N and full-goal regressions remain pending.
+
+
+Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and real b/t/n session pacing4.06s. syncterm_big_input passed in223.97s total (test223.92s),4102 coherent scenes including56 new b scenes; every earlier expectation remains. The native stored-repeat fixture was corrected to reflect TO being reached during the next operand read before its playback completes. No non-BIG tests or physical audio/MIDI/auditory coverage are claimed. b/n are natively integrated; N playback/resources/progress, the manual checklist and full-goal regression/acceptance remain pending.

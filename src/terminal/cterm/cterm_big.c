@@ -65,6 +65,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'W',point,2,NULL},
 	{'t',NULL,0,NULL},
 	{'n',NULL,0,NULL},
+	{'b',scalar,1,NULL},
 	{'?',scalar,1,NULL},
 	{'m',move,2,move_next},
 	{'p',input_parameters,2,NULL},
@@ -428,6 +429,16 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	}
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
 	if (view->code=='n') { cterm_big_note_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
+	if (view->code=='b') {
+		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		big->effect.selector=st_big_effect_selector((uint16_t)view->arguments[0].value,
+		    big->feature_gates[3][0]==big->feature_gates[3][1]);
+		big->effect.chained=view->chained;
+		if (big->effect_sound_on==0) return begin_footer(big,view);
+		big->effect.active=true;
+		int status=cterm_big_audio_effect(big,big->effect.selector);
+		return status==0?IO_ERROR_IN_PROGRESS:status;
+	}
 	if (view->code=='t') { cterm_big_pause_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
 	if (view->code=='?') return cterm_big_query_begin(big,view);
 	if (view->code=='s') {
@@ -653,6 +664,8 @@ static struct st_graphics_parser_sink callbacks(struct cterm_big *big)
 }
 static void cancel(struct cterm_big *big)
 {
+	cterm_big_audio_cancel_effect(big);
+	big->effect.active=false;
 	big->reset_pending=false;
 	bool feeding=big->feeding; big->feeding=true;
 	int status=cterm_big_collect_cancel(big);
@@ -738,7 +751,7 @@ static int gang_selector(struct cterm_big *big, const struct st_graphics_parser_
 }
 static bool body_pending(const struct cterm_big *big)
 {
-	return big->note.active || big->query.phase!=CTERM_BIG_QUERY_OFF || big->pause.phase!=CTERM_BIG_PAUSE_OFF || big->text_output.active || big->rotation.active || big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
+	return big->effect.active || big->note.active || big->query.phase!=CTERM_BIG_QUERY_OFF || big->pause.phase!=CTERM_BIG_PAUSE_OFF || big->text_output.active || big->rotation.active || big->footer_active || big->collect.active || big->bar.active || big->flood.active || big->setup.phase!=CTERM_BIG_SETUP_OFF || big->zone.phase!=CTERM_BIG_ZONE_OFF;
 }
 static int drive(struct cterm_big *big, const void *data, size_t size, size_t *used)
 {
@@ -752,6 +765,16 @@ static int drive(struct cterm_big *big, const void *data, size_t size, size_t *u
 	bool advance_needed=size==0; int status=0;
 	for (;;) {
 		if (big->reset_pending) { status=IO_ERROR_INTERRUPTED; break; }
+		if (big->effect.active) {
+			bool complete; status=cterm_big_audio_effect_done(big,&complete);
+			if (status!=0) break;
+			if (!complete) { status=IO_ERROR_IN_PROGRESS; break; }
+			big->effect.active=false;
+			const struct st_graphics_command_view view={.chained=big->effect.chained};
+			status=begin_footer(big,&view);
+			if (status!=IO_ERROR_IN_PROGRESS) break;
+			status=0; advance_needed=true; continue;
+		}
 		if (big->note.active) {
 			size_t accepted; bool complete;
 			status=cterm_big_note_poll(big,*used<size?bytes+*used:NULL,size-*used,&accepted,&body_budget,&complete);
@@ -991,7 +1014,7 @@ int cterm_big_poll(struct cterm_big *big)
 }
 bool cterm_big_paused(const struct cterm_big *big)
 {
-	return big != NULL && (cterm_big_note_paused(big) || big->sync_entry.waiting || big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
+	return big != NULL && (big->effect.active || cterm_big_note_paused(big) || big->sync_entry.waiting || big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW
 	    || big->query.phase!=CTERM_BIG_QUERY_OFF
 	    || (big->pause.phase!=CTERM_BIG_PAUSE_OFF && big->pause.phase!=CTERM_BIG_PAUSE_NUMBER)
 	    || (big->text_output.active && big->text_output.stream.phase==ST_BIG_STREAM_FLOW)
@@ -1030,6 +1053,7 @@ int cterm_big_create(struct cterminal *t)
 	struct cterm_big *big = calloc(1,sizeof(*big));
 	if (big == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	big->terminal = t;
+	big->effect_sound_on=1;
 	big->console_window[2]=79; big->console_window[3]=24;
 	big->console_attribute=7;
 	big->random_seconds=random_seconds;

@@ -2,8 +2,8 @@
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X7/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills, F fills and s graphics/console clears run
 through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. All non-audio bodies are implemented; sound and goal-final acceptance
-remain in progress. Native n notes/sweeps now drive channel1 through the shared
-speaker source; b effects and N playback remain pending. Earlier sections retain historical progress counts.
+remain in progress. Native b effects and n notes/sweeps drive channel1 through the shared
+speaker source; N playback remains pending. Earlier sections retain historical progress counts.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
 [implementation ledger](../src/tests/big/conformance.json) track 36 top-level
@@ -20,14 +20,14 @@ bit-identical reference PCM and listening are not development gates.
 
 The planned BIG audio routing uses logical mixer channel0 for N's synthesized
 OPL2 output and channel1 for b/n PC-speaker effects/notes, including the existing
-channel controls. Native n is integrated; b/N remain pending.
+channel controls. Native b/n are integrated; N remains pending.
 The selected source is current RealBitdancer Opal (MIT), adapted to YM3812
 only, with its full copyright/license entry in Settings > Licenses. Add missing
 OPL2 behavior as new code and remove OPL3-only banks/channels, four-operator
 pairing, extra waveforms, NEW mode and chip stereo controls. Other emulators
 are behavioral references only; do not copy, port or translate their code.
 Test actual YM3812 waveform-enable, CSM, rhythm and timer semantics. The native reduced core and its full MIT license UI are now implemented;
-b/N playback integration remains pending.
+N playback integration remains pending.
 The approved speaker timbre is a square oscillator with a small stateful
 low-pass filter. b's twenty procedural effect schedules and n's notes/sweeps
 share that generator; the original effects contain no stored PCM samples.
@@ -2050,3 +2050,26 @@ O=4f and final idle/gate behavior. b/N and goal-final acceptance remain pending.
 Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. Final4 focused BIG CTests passed in3.60s: big_speaker_stream0.01s, big_speaker0.03s, cterm_big_note0.77s, big_session_pacing2.71s. The native APC fade case failed before implementation. No physical audio/MIDI/auditory coverage or non-BIG tests are claimed; unchanged4046 bitmap application scenes were not rerun. Shared audio regressions remain part of the goal-final full suite. b/N and full-goal acceptance remain outstanding.
 
 Continuous-source fade-out flush implementation commit: `a4a4b1e`. b/N and full-goal acceptance remain pending.
+
+
+## Native b effects
+
+All twenty original procedural F/Z/D schedules now run through the shared
+channel1 speaker. The iterator preserves original order/WORDs/stops/RNG;
+the native player follows the user-selected one-sample-per-frequency-request
+profile at44.1kHz, with explicit D millisecond spans and carried fractions.
+Effect7's32700 requests occupy about0.741497s, with no foreign CPU clock.
+The class0 selector clamp/live equality gate and library BYTE enable remain
+separate from physical mute. The parser holds later input/keys; the mixer
+borrows shared RNG exclusively and releases its reached state before another
+numeric reader runs. Reset/error/EOF/flush have explicit prefix ownership.
+
+Independent pure/native tests cover all schedules and selector WORDs,
+literal boundary events, total counts/delays, closed-form RNG expectations,
+PCM partitions/sample endpoints, three modes/encodings/status and complete
+retained scenes, split input, stored/chained/deferred replies, keys/pacing,
+mute/resume, fixed-gain mixed PCM and concurrent cancellation/teardown.
+N music integration, resources/progress and goal-final acceptance remain open.
+
+
+Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and real b/t/n session pacing4.06s. syncterm_big_input passed in223.97s total (test223.92s),4102 coherent scenes including56 new b scenes; every earlier expectation remains. The native stored-repeat fixture was corrected to reflect TO being reached during the next operand read before its playback completes. No non-BIG tests or physical audio/MIDI/auditory coverage are claimed. b/n are natively integrated; N playback/resources/progress, the manual checklist and full-goal regression/acceptance remain pending.

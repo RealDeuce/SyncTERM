@@ -1,4 +1,4 @@
-/* BIG t/n backpressure through the real connection/session pacing boundary. */
+/* BIG t/n/b backpressure through the real connection/session pacing boundary. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_term.h"
 #include "cterm.h"
@@ -26,16 +26,16 @@ static void pump(st_term_session_t *session)
 	enum st_term_disposition disposition; bool finished;
 	CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished);
 }
-static void run(bool utf8, bool paced, bool note)
+static void run(bool utf8, bool paced, unsigned kind)
 {
 	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry={.columns=80,.rows=25,.cell_width=8,.cell_height=14};
 	st_console_t *console=NULL; st_font_catalog_t *fonts=NULL; st_connection_t *connection=NULL; st_term_session_t *session=NULL;
 	CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
 	struct st_profile profile; st_profile_init(&profile); profile.connection_type=ST_CONNECTION_SHELL;
-	strcpy(profile.address,note?"printf 'I#n 0,440,1000,1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\\33[6n'; read line":
+	strcpy(profile.address,kind==2?"printf 'I#b 3:ABCDEFGHIJKLMNOPQRSTUVWXYZ\\33[6n'; read line":kind==1?"printf 'I#n 0,440,1000,1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\\33[6n'; read line":
 	    "printf 'I#t 1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\\33[6n'; read line");
-	const char *wire=note?"I#n 0,440,1000,1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n":"I#t 1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n";
+	const char *wire=kind==2?"I#b 3:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n":kind==1?"I#n 0,440,1000,1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n":"I#t 1:ABCDEFGHIJKLMNOPQRSTUVWXYZ\033[6n";
 	size_t total=strlen(wire), prefix=total-30;
 	CHECK(st_term_connect_profile(&connection,&profile,console,NULL,NULL)==0);
 	struct observations o={0}; local_ns=1000;
@@ -65,4 +65,4 @@ static void run(bool utf8, bool paced, bool note)
 	st_term_session_destroy(&session); CHECK(st_connection_close(connection)==0);
 	st_profile_dispose(&profile); st_font_catalog_destroy(fonts); st_console_destroy(console);
 }
-int main(void) { for (unsigned utf8=0;utf8<2;++utf8) for (unsigned paced=0;paced<2;++paced) for (unsigned note=0;note<2;++note) run(utf8,paced,note); return 0; }
+int main(void) { for (unsigned utf8=0;utf8<2;++utf8) for (unsigned paced=0;paced<2;++paced) for (unsigned kind=0;kind<3;++kind) run(utf8,paced,kind); return 0; }

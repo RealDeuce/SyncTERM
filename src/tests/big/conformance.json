@@ -26,7 +26,8 @@
       "value": 0.279224085,
       "reference": "Existing440Hz ANSI/beep SINE_SAW_HARM, K-weighted0.5s warm-up then1s measurement in2s of PCM; real single-stream mixer at-12dB, including gain quantization/soft clipping.",
       "runtime": "Fixed integer scale only. No calibration/cache, mutable gain, heap, lock, thread or device in the speaker source."
-    }
+    },
+    "effect_timing": "User-approved native BIG b profile: one44.1-kHz output sample per F frequency request, including threshold no-ops, plus explicit D WORD milliseconds converted with fractional samples carried within the effect. Z has no added hold. Effect7 preserves32700 rand/F requests in32700 samples (~0.741497s). No foreign CPU/bus/PIT0/BIOS timing or per-request millisecond hold."
   },
   "foundations": [
     {
@@ -2327,8 +2328,9 @@
         "Use a square oscillator with a small stateful low-pass filter for the approved softened PC-speaker timbre, sharing suitable mechanisms with the IGS PSG. b and n use the same low-level speaker generator on channel1: b supplies twenty original procedural frequency/stop/delay effect schedules and shared RNG calls; n supplies notes/sweeps. b does not invoke n parsing and requires no stored PCM samples.",
         "Before accepting Opal, independently test and resolve required YM3812 waveform-select enable and register08 bit7 CSW/CSM semantics: the current upstream core models YMF262 compatibility, explicitly storing but ignoring those controls. Current MIT Opal includes rhythm/noise and timers/status; the older public-domain copy does not establish its capabilities.",
         "Keep the OPL2 register map,9 two-operator channels/18 operators,4 waveforms with actual YM3812 enable semantics, rhythm/noise, envelopes/keys, timers/status and required CSM behavior. Remove second-bank/extra-channel/operator state, four-operator pairing, OPL3 extra waveforms/NEW mode/chip stereo-panning controls. Route OPL2 mono through normal stereo mixer/channel0 controls and verify independent register/PCM-level/lifecycle expectations.",
-        "Native n uses the shared speaker owner on existing channel1 with fixed source gain, local delay deadlines, muted phase advancement and explicit callback quiescence. b schedules/N integration remain pending.",
-        "Continuous-source fade-out flush uses the normal mixer overlay envelope and existing channel1 APC control. Finite callback limits/counts/drain/acknowledgment and clear/replacement/stop ownership are implemented without duration-sized PCM or runtime calibration."
+        "Native n uses the shared speaker owner on existing channel1 with fixed source gain, local delay deadlines, muted phase advancement and explicit callback quiescence. N integration remains pending.",
+        "Continuous-source fade-out flush uses the normal mixer overlay envelope and existing channel1 APC control. Finite callback limits/counts/drain/acknowledgment and clear/replacement/stop ownership are implemented without duration-sized PCM or runtime calibration.",
+        "Native b procedural schedules now share the fixed-gain channel1 source with n, using the user-approved one-sample-per-F profile, muted progression and temporary shared-RNG ownership with explicit completion/cancellation handoff."
       ],
       "tests": [
         "big_opl2",
@@ -2337,7 +2339,9 @@
         "cterm_big_note",
         "big_session_pacing",
         "syncterm_big_input",
-        "big_speaker_stream"
+        "big_speaker_stream",
+        "big_effect",
+        "cterm_big_effect"
       ],
       "references": [
         "01-scope-evidence.adoc",
@@ -2457,6 +2461,43 @@
             "Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. Final4 focused BIG CTests passed in3.60s: big_speaker_stream0.01s, big_speaker0.03s, cterm_big_note0.77s, big_session_pacing2.71s. The native APC fade case failed before implementation. No physical audio/MIDI/auditory coverage or non-BIG tests are claimed; unchanged4046 bitmap application scenes were not rerun. Shared audio regressions remain part of the goal-final full suite. b/N and full-goal acceptance remain outstanding."
           ],
           "commit": "a4a4b1e"
+        },
+        {
+          "id": "native-b-procedural-effects",
+          "status": "complete",
+          "operations": [
+            "Class0 selector acquisition, signed outside0..19 clamp to19, then live G3 oak/acorn equality limiting to9. Retained effect_sound_on BYTE starts1; zero skips entry Z/case work and nonzero enables a case without later retesting.",
+            "Pure iterator retains all twenty original F/Z/D schedules, paired/adjacent/no-op/wrapped frequencies, finite loop endpoints and exact redundant versus absent final stops. Shared effect7 RNG advances32700 times without reseeding.",
+            "Native sample-domain player uses the approved one-sample-per-F profile and carried explicit millisecond spans through the shared oscillator/filter/fixed gain. Render or muted-skip the same state without stored PCM, extra threads or duration-sized buffers.",
+            "Borrow shared numeric RNG under the existing audio mutex; only the terminal owner publishes it. Block subsequent parser/key delivery and release RNG before footer/next numeric acquisition. Preserve reached state on nonfatal error, stop/detach on EOF/reset/FX takeover and cancel on completed native channel flush.",
+            "Compose stored loops/chains/deferred replies, three-resolution graphics state retention and paced buffered tail delivery without software flow control."
+          ],
+          "tests": [
+            "big_effect",
+            "cterm_big_effect",
+            "big_speaker",
+            "big_speaker_stream",
+            "big_session_pacing",
+            "syncterm_big_input"
+          ],
+          "references": [
+            "14-speaker-effects-and-notes.adoc",
+            "66-speaker-command-acceptance.adoc",
+            "speaker-schedules.json",
+            "code-evidence.adoc:BIG136c:0000..063b",
+            "49-digital-audio-delivery-and-canonical-pcm.adoc:need for a declared native execution-time policy"
+          ],
+          "deviations": [
+            "User-approved native BIG b profile: one44.1-kHz output sample per F frequency request, including threshold no-ops, plus explicit D WORD milliseconds converted with fractional samples carried within the effect. Z has no added hold. Effect7 preserves32700 rand/F requests in32700 samples (~0.741497s). No foreign CPU/bus/PIT0/BIOS timing or per-request millisecond hold.",
+            "Native global physical mute advances unheard schedule/RNG and drops acoustic history. The original effect library enable remains separate and skips all Z/case effects when zero. Explicit native channel flush cancels playback; no synthetic inner key/serial abort is added.",
+            "Native b is integrated; global45-entry/audio/final-suite acceptance remains pending."
+          ],
+          "verification": [
+            "Independent hand-derived counts/delay sums, literal prefix/suffix/interior records and all65536 selector WORDs cover the twenty schedules. Whole versus irregular PCM, exact endpoint/skip/WORD/error state and independent closed-form32700-update RNG result11bbdc95 are checked.",
+            "All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and extended b/t/n real-session pacing4.06s. Native effects cover modes1..3, CP437/UTF8/status, splits, retained indexed scenes/replies, gates, stored loops, cancellation/RNG prefixes, mute/flush and concurrent teardown.",
+            "Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and real b/t/n session pacing4.06s. syncterm_big_input passed in223.97s total (test223.92s),4102 coherent scenes including56 new b scenes; every earlier expectation remains. The native stored-repeat fixture was corrected to reflect TO being reached during the next operand read before its playback completes. No non-BIG tests or physical audio/MIDI/auditory coverage are claimed. b/n are natively integrated; N playback/resources/progress, the manual checklist and full-goal regression/acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     }
@@ -4179,7 +4220,7 @@
     {
       "id": "b",
       "order": 38,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -4187,12 +4228,37 @@
         "big-audio"
       ],
       "references": [
-        "66-speaker-command-acceptance.adoc"
+        "14-speaker-effects-and-notes.adoc",
+        "66-speaker-command-acceptance.adoc",
+        "speaker-schedules.json",
+        "code-evidence.adoc:BIG136c:0000..063b",
+        "49-digital-audio-delivery-and-canonical-pcm.adoc:need for a declared native execution-time policy"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Class0 selector acquisition, signed outside0..19 clamp to19, then live G3 oak/acorn equality limiting to9. Retained effect_sound_on BYTE starts1; zero skips entry Z/case work and nonzero enables a case without later retesting.",
+        "Pure iterator retains all twenty original F/Z/D schedules, paired/adjacent/no-op/wrapped frequencies, finite loop endpoints and exact redundant versus absent final stops. Shared effect7 RNG advances32700 times without reseeding.",
+        "Native sample-domain player uses the approved one-sample-per-F profile and carried explicit millisecond spans through the shared oscillator/filter/fixed gain. Render or muted-skip the same state without stored PCM, extra threads or duration-sized buffers.",
+        "Borrow shared numeric RNG under the existing audio mutex; only the terminal owner publishes it. Block subsequent parser/key delivery and release RNG before footer/next numeric acquisition. Preserve reached state on nonfatal error, stop/detach on EOF/reset/FX takeover and cancel on completed native channel flush.",
+        "Compose stored loops/chains/deferred replies, three-resolution graphics state retention and paced buffered tail delivery without software flow control."
+      ],
+      "tests": [
+        "big_effect",
+        "cterm_big_effect",
+        "big_speaker",
+        "big_speaker_stream",
+        "big_session_pacing",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "User-approved native BIG b profile: one44.1-kHz output sample per F frequency request, including threshold no-ops, plus explicit D WORD milliseconds converted with fractional samples carried within the effect. Z has no added hold. Effect7 preserves32700 rand/F requests in32700 samples (~0.741497s). No foreign CPU/bus/PIT0/BIOS timing or per-request millisecond hold.",
+        "Native global physical mute advances unheard schedule/RNG and drops acoustic history. The original effect library enable remains separate and skips all Z/case effects when zero. Explicit native channel flush cancels playback; no synthetic inner key/serial abort is added.",
+        "Native b is integrated; global45-entry/audio/final-suite acceptance remains pending."
+      ],
+      "verification": [
+        "Independent hand-derived counts/delay sums, literal prefix/suffix/interior records and all65536 selector WORDs cover the twenty schedules. Whole versus irregular PCM, exact endpoint/skip/WORD/error state and independent closed-form32700-update RNG result11bbdc95 are checked.",
+        "All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and extended b/t/n real-session pacing4.06s. Native effects cover modes1..3, CP437/UTF8/status, splits, retained indexed scenes/replies, gates, stored loops, cancellation/RNG prefixes, mute/flush and concurrent teardown.",
+        "Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. All67 BIG-specific native CTests passed in66.99s, including cterm_big_effect1.43s, cterm_big_note0.79s and real b/t/n session pacing4.06s. syncterm_big_input passed in223.97s total (test223.92s),4102 coherent scenes including56 new b scenes; every earlier expectation remains. The native stored-repeat fixture was corrected to reflect TO being reached during the next operand read before its playback completes. No non-BIG tests or physical audio/MIDI/auditory coverage are claimed. b/n are natively integrated; N playback/resources/progress, the manual checklist and full-goal regression/acceptance remain pending."
+      ],
       "commit": null
     },
     {
