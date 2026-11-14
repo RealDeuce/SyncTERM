@@ -675,3 +675,18 @@ WORD metric stay separate from RIP wide policies. No complete K/curve/wire
 acceptance or RIP regression run is claimed. The existing2982 application
 scenes are unchanged and last passed with6bfc11c; full shared-code/RIP tests
 remain deferred to goal completion.
+
+big_curve_decimal expected requests are hand-derived from complete DDO
+0d70..0fa0/0fc7/0fd9 (original driver header32 bytes, SHA256
+5fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8) and BIG13/61.
+Literal unit/2x1/1x2/2x2/3x3 traces retain original candidate order and all
+axis duplicates. Quarter/inverse/NEG8000/zero-radius limits, WORD center wrap
+and callback frame mutation distinguish selection from actual point ownership.
+The1x6553 and1x4635 prefixes have independently written32-bit arithmetic
+calculations for signed doubling and logical-half wrap; they are not generated
+by the implementation or another recurrence model.6554 overflow is a normal
+empty return,6553 reaches candidates, and every unit request has an explicit
+error-prefix case. Point callback IN_PROGRESS fails synchronously. Field
+comparisons avoid padding assumptions. This proves the request generator;
+actual pen/batch/producer/point/arc and K wire integration remain pending.
+Unchanged application scenes were not rerun for this unbound arithmetic step.

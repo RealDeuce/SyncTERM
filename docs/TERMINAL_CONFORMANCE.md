@@ -1336,3 +1336,10 @@ big_curve_scalar checks independent literal/table/endpoint, exhaustive WORD
 and boundary/error expectations. K wire/rendering integration is pending;
 no BIG scene or RIP capture baseline changed. RIP and other shared-code
 regressions remain deferred until the goal-final full suite.
+
+BIG's decimal-outline arithmetic now has an independent request-trace fixture,
+big_curve_decimal: original zero/metric/order/duplicate rules, checked/wrapped
+32-bit recurrence, logical half, captured WORD geometry and error prefixes.
+It does not bind native batch/producer/current-point/arc state or register K
+on wire yet. The existing2982 application scenes and other emulation baselines
+are unchanged; full regressions remain deferred to goal completion.

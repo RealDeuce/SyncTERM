@@ -1438,3 +1438,24 @@ Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending.
 
 Shared curve scalar implementation commit: `92b7c44`.
+
+## Decimal-outline requests
+
+The outline arm of original DDO0d70 now generates physical WORD point requests
+from a captured center/radius/original-endpoint frame. It retains limits before
+zero correction, inclusive/inverse metrics, four-candidate order and duplicate
+axes. Checked unsigned32 products, sequential divides, wrapped updates,
+signed-pair comparisons, logical half and body-first regimes follow the source.
+Overflow returns normally without a new BGI error; point errors retain prefixes.
+
+big_curve_decimal uses independent literal small-ellipse/quarter/zero/wrapped-
+center traces, callback mutation and error prefixes. Hand-derived1x6553 and
+1x4635 prefixes distinguish the original signed/doubling/logical-half behavior
+from a wide recurrence. Actual pen, batch/producer/point gates, arc records,
+fronts, angular buffers and K wire acceptance remain pending. The unused
+public-library filled ellipse arm is outside BIG's required outline+flood and
+sector-polygon call paths. Existing2982 application scenes are unchanged and
+were not rerun for this unbound arithmetic dependency; final regressions remain
+deferred. No native pixel/batch acceptance is claimed by request traces alone.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending.

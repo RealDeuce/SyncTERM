@@ -27,8 +27,9 @@ pointer acquisition, E font selection, W graphical text, t pauses and ? inquirie
 Curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
-Curve work has started with shared sine/product kernels and BIG scalar adapters;
-K wire/front/recurrence/buffer integration remains pending.
+Curve work has shared sine/product kernels, BIG scalar adapters and the decimal
+outline request generator. K wire/front/batch/point/buffer integration remains
+pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -3165,3 +3166,59 @@ Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending.
 
 Shared curve scalar implementation commit: `92b7c44`.
+
+== Original decimal-outline point generator
+
+The complete DDO0d70..0fa0 core,0906 front,0fc7 division and0fd9 checked
+multiply were inspected directly in the retained driver (32-byte serialized
+header; SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8),
+with13/61's complete batch/point/caller contracts. The reachable outline arm
+is now implemented as st_big_curve_decimal_outline. Its prepared frame
+contains captured physical WORD center, radii and original start/end offsets.
+Batch entry/exit, current pen/producer binding, three point owners, front
+shortcuts and arc-record publication remain explicit future caller work.
+
+Limits are computed from original offsets before zero radii become1. Signed
+endpoint metrics select inclusive normal/inverse ranges. Every iteration
+visits(+x,+y),(-x,+y),(+x,-y),(-x,-y), preserving axis duplicates and translating
+by the captured center with WORD wrap. A callback can change native owner
+state without drifting the saved geometry. The sink receives point requests;
+it owns the actual current colour, clip, producer return/move and batch
+behavior. There is no immutable pen snapshot or union of emitted points.
+
+B and subsequent products use checked unsigned32 multiplication and successive
+unsigned divides. Error, delta, accumulated and threshold updates wrap to32;
+comparisons preserve signed HIGH then unsigned LOW ordering. Halving is a
+logical shift. Both regime bodies run before their continuation tests, as in
+the original. Checked multiplication overflow is a normal empty return, with
+no BGI error and no implicit suppression of caller tails such as O/Q flood.
+A failed point callback stops later requests and retains the accepted prefix;
+IN_PROGRESS is a synchronous protocol error. No geometry cap, async rendering
+yield, allocation, clipping or synthetic point/batch cleanup is added here.
+
+BIG's0906 calls always select this outline arm with flagsffff. O/Q compose
+outline with conditional flood, while V/Y have their separate polygon path.
+The unused public-library filled ellipse/span arm is deliberately outside the
+used subset. This does not replace any required BIG fill composition.
+
+big_curve_decimal first failed to link the missing operation. Independently
+written literal traces cover unit/2x1/1x2/2x2/3x3 curves, original zero-radius
+limits, normal/inverse quarter gates, NEG8000 metric state, WORD center wrap,
+retained duplicates, equality regime transitions and callback-side frame
+mutation. The3x3 trace exercises ordinary second-regime x increment. No
+emulator or second recurrence generates these expectations.
+
+The6554 maximum returns normally without candidates;6553 reaches the first.
+Two hand-derived extreme prefixes exercise arithmetic that differs from wide
+native ellipse code:1x6553 doubles step4294180900 to signed-1572792 before
+comparing threshold1310500;1x4635 reaches a second-regime increment2150000204,
+whose logical half plus error wraps to signed-1072571594, causing x2/y4633 on
+the third emitted turn. Per-request failures and rejected async callbacks
+retain exact prefixes. Tests compare fields directly, without struct-padding
+assumptions. K fronts/wire, native batch/producer/point/arc state, angular
+buffers and sector/global acceptance remain pending. Existing2982 application
+scenes remain unchanged and were last verified with6bfc11c; no unbound BIG
+arithmetic change warrants replaying them here. Final full regressions remain
+deferred under the current BIG-only development policy.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending.

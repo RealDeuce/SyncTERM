@@ -633,6 +633,42 @@
             "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending."
           ],
           "commit": "92b7c44"
+        },
+        {
+          "id": "original-decimal-outline-core",
+          "status": "complete",
+          "operations": [
+            "Implement the outline arm of DDO0d70..0fa0 as a synchronous physical-WORD point-request generator, using captured center/radii/original endpoint offsets. No pen/XOR, clipping, batch entry/exit, point-owner update or arc-record publication is substituted by this pure arithmetic layer.",
+            "Compute signed endpoint metrics and inclusive/inverse selection before zero radius replacement. Preserve four candidate order (+x,+y),(-x,+y),(+x,-y),(-x,-y), axis duplicates and WORD center addition despite callback-side owner changes.",
+            "Preserve checked unsigned32 B and product construction, successive unsigned divisions, wrapped32 error/accumulated/delta updates, signed-HIGH/unsigned-LOW ordering, logical half and body-first regime loops. Checked overflow is a normal empty return, without new BGI error or suppressing later caller tails.",
+            "Point callback errors keep accepted request prefixes and stop later requests. IN_PROGRESS is a protocol error; rendering does not gain asynchronous yields or a geometry cap. Captured frame values remain stable across callbacks.",
+            "Only the reachable outline arm is implemented. BIG curves call0906 with flagsffff; O/Q use outline plus flood and V/Y use separate polygon composition. Unused public-library filled ellipse/spans are not imported for completeness.",
+            "K wire/fronts, early color/aspect state, batch/producer binding, public/DDO/device points, arc records, angular buffers and whole-curve/sector/global acceptance remain pending."
+          ],
+          "references": [
+            "13-curves-and-native-reuse.adoc:metric/recurrence/candidate ordering",
+            "61-curve-command-acceptance.adoc:exact decimal recurrence and current batch/point operators",
+            "curve-review-code.adoc:DDO0906..09ae;0f17..0f9f",
+            "data/BIG103-BGI-DDO.bin:32-byte header, body0d70..0fa0;0fc7..0fe6"
+          ],
+          "tests": [
+            "big_curve_decimal",
+            "big_curve_scalar",
+            "big_producer"
+          ],
+          "deviations": [
+            "The point sink is the native boundary for later current pen, producer, clipping, returned-register and batch binding. Those effects are not claimed by the arithmetic-only kernel.",
+            "Do not port the unused filled ellipse arm: required BIG O/Q outlines use conditional flood, and V/Y have their separate polygon path."
+          ],
+          "verification": [
+            "Original retained DDO bytes (SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8) were disassembled directly for complete0d70..0fa0 core and0906 front; arithmetic helpers0fc7/0fd9 and61 batch/point witnesses were inspected. The prepared frame retains original endpoint metrics before radius correction.",
+            "Independent literal request traces first failed to link the missing API. Unit,2x1,1x2,2x2,3x3 ellipses and zero radii retain complete request order/duplicates, both first-regime branches, equality regime transition and ordinary second-regime x increment.",
+            "Hand-authored quarter/upper-left/NEG8000 inverse gates, original zero-radius top-only endpoints, WORD center wrap and input-frame mutation verify selection and captured geometry without generating expected images or a second recurrence implementation.",
+            "6554 maximum aborts normally before requests while6553 reaches the first request. Literal1x6553 prefix distinguishes signed32 comparison after doubling wrap; literal1x4635 prefix distinguishes logical-half and wrapped second-regime arithmetic. Error at every unit request retains exact accepted prefixes, and an IN_PROGRESS sink fails synchronously.",
+            "This unbound BIG arithmetic dependency introduces no wire command or scene change. Existing2982 application scenes last passed with6bfc11c and are not rerun here. Actual native batch/producer/point/arc state integration and global acceptance remain pending.",
+            "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2484,17 +2520,28 @@
         "curve-contract-data.json:sine_table;DDO1021..10d5",
         "curve-review-code.adoc:BIG195a:12d9..12fa;12fb..1325",
         "loop-code.adoc:BIG0000:49a2..4a66",
-        "native-curve-code.adoc:bgi_sin32;bgi_trig_mul"
+        "native-curve-code.adoc:bgi_sin32;bgi_trig_mul",
+        "13-curves-and-native-reuse.adoc:metric/recurrence/candidate ordering",
+        "61-curve-command-acceptance.adoc:exact decimal recurrence and current batch/point operators",
+        "curve-review-code.adoc:DDO0906..09ae;0f17..0f9f",
+        "data/BIG103-BGI-DDO.bin:32-byte header, body0d70..0fa0;0fc7..0fe6"
       ],
       "operations": [
         "Move the unchanged91-word Q1.15 sine table and scalar sine/unsigned-radius partial-product kernels from RIP into st_bgi_trig. RIP calls these actual shared kernels; its wide cosine addition, metric, ellipse/pie/front/duplicate/point/error policies remain separate.",
         "BIG sine converts the angle WORD to signed16 before shared lookup; cosine wraps WORD+90 before that conversion. Shared radius multiplication returns the original low-WORD floor-scaled bit result with defined signed interpretation, including negative coefficients and high-bit radii.",
         "BIG metric negates Y as a WORD before signed branch selection, then reduces each result to WORD. This preserves the y8000 branch that differs from RIP wide arithmetic.",
         "Circular aspect uses unsigned radius times signed aspectX, divides by signed aspectY with truncation, and returns the low WORD. The entire argument domain fits signed32 product/quotient. Zero denominator returns a checked native error without publishing output or moving any point.",
-        "Scalar prerequisites only: K/J/O/Q/V/Y acquisition, aspect state lifetime, center placement, arc records, decimal candidates, angular buffers, physical batch/point returns, sector polygon/radial work and command acceptance remain pending."
+        "Scalar and decimal-outline request prerequisites are implemented; K acquisition/fronts, aspect/batch/point/arc record lifetimes, angular buffers and native command acceptance remain pending.",
+        "Implement the outline arm of DDO0d70..0fa0 as a synchronous physical-WORD point-request generator, using captured center/radii/original endpoint offsets. No pen/XOR, clipping, batch entry/exit, point-owner update or arc-record publication is substituted by this pure arithmetic layer.",
+        "Compute signed endpoint metrics and inclusive/inverse selection before zero radius replacement. Preserve four candidate order (+x,+y),(-x,+y),(+x,-y),(-x,-y), axis duplicates and WORD center addition despite callback-side owner changes.",
+        "Preserve checked unsigned32 B and product construction, successive unsigned divisions, wrapped32 error/accumulated/delta updates, signed-HIGH/unsigned-LOW ordering, logical half and body-first regime loops. Checked overflow is a normal empty return, without new BGI error or suppressing later caller tails.",
+        "Point callback errors keep accepted request prefixes and stop later requests. IN_PROGRESS is a protocol error; rendering does not gain asynchronous yields or a geometry cap. Captured frame values remain stable across callbacks.",
+        "Only the reachable outline arm is implemented. BIG curves call0906 with flagsffff; O/Q use outline plus flood and V/Y use separate polygon composition. Unused public-library filled ellipse/spans are not imported for completeness."
       ],
       "tests": [
-        "big_curve_scalar"
+        "big_curve_scalar",
+        "big_curve_decimal",
+        "big_producer"
       ],
       "deviations": [
         "Only complete scalar/data prerequisites are implemented; no K wire/pixel acceptance is claimed. Remaining front/core/buffer/point/arc record and global composition must be implemented and independently tested."
@@ -2507,7 +2554,13 @@
         "Each radius WORD is checked in all three default aspect profiles; explicit signed aspect/negative denominator/high-bit radius/truncation/zero numerator/zero denominator cases retain independent expected results and unchanged output on error.",
         "No BIG wire command or expected image changes in this prerequisite step. Existing2982 application scenes were last verified with6bfc11c and were not rerun for these unbound BIG scalars. RIP/shared-code regressions remain deferred to the goal-final full suite per user instruction.",
         "Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6 metric and10d7..1141 sine/cosine from the retained32-byte-header driver asset SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8; its table bytes match both pre-change RIP and the moved common data.",
-        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending."
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending.",
+        "Original retained DDO bytes (SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8) were disassembled directly for complete0d70..0fa0 core and0906 front; arithmetic helpers0fc7/0fd9 and61 batch/point witnesses were inspected. The prepared frame retains original endpoint metrics before radius correction.",
+        "Independent literal request traces first failed to link the missing API. Unit,2x1,1x2,2x2,3x3 ellipses and zero radii retain complete request order/duplicates, both first-regime branches, equality regime transition and ordinary second-regime x increment.",
+        "Hand-authored quarter/upper-left/NEG8000 inverse gates, original zero-radius top-only endpoints, WORD center wrap and input-frame mutation verify selection and captured geometry without generating expected images or a second recurrence implementation.",
+        "6554 maximum aborts normally before requests while6553 reaches the first request. Literal1x6553 prefix distinguishes signed32 comparison after doubling wrap; literal1x4635 prefix distinguishes logical-half and wrapped second-regime arithmetic. Error at every unit request retains exact accepted prefixes, and an IN_PROGRESS sink fails synchronously.",
+        "This unbound BIG arithmetic dependency introduces no wire command or scene change. Existing2982 application scenes last passed with6bfc11c and are not rerun here. Actual native batch/producer/point/arc state integration and global acceptance remain pending.",
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending."
       ],
       "commit": null
     },
