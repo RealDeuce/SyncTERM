@@ -20,6 +20,9 @@ bit-identical reference PCM and listening are not development gates.
 The planned BIG audio routing uses logical mixer channel0 for N's synthesized
 OPL2 output and channel1 for b/n PC-speaker effects/notes, including the existing
 channel controls. Audio implementation remains pending.
+The approved speaker timbre is a square oscillator with a small stateful
+low-pass filter. b's twenty procedural effect schedules and n's notes/sweeps
+share that generator; the original effects contain no stored PCM samples.
 BIG source levels must be calibrated to the existing ANSI music/beep output
 at equivalent volume settings. Audio verification must compare representative
 mixed PCM levels and peaks, preserve musical dynamics and check polyphonic

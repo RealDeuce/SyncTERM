@@ -212,6 +212,12 @@ Route BIG N's synthesized OPL2 output through logical mixer channel0 (music),
 and b/n PC-speaker effects and notes through channel1 (effects). These are
 the existing terminal mixer channels, with their existing volume/fade/flush
 controls. OPL2 synthesis does not pass through the MIDI decoder.
+Use a square oscillator with a small stateful low-pass filter for n's
+speaker timbre, sharing suitable filtering mechanisms with the IGS PSG.
+The original b effects are twenty procedural frequency/stop/delay schedules
+using the same low-level speaker primitives as n, with shared RNG calls
+where specified. Both commands should drive the same speaker oscillator/
+filter on channel1; b does not invoke n's parser or use stored PCM samples.
 Calibrate BIG source levels against the existing ANSI music and beep output
 at equivalent channel/master settings, so switching protocols does not cause
 an unintended loudness jump or drop. Use stable source gain while preserving
