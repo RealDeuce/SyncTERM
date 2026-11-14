@@ -668,7 +668,7 @@
             "This unbound BIG arithmetic dependency introduces no wire command or scene change. Existing2982 application scenes last passed with6bfc11c and are not rerun here. Actual native batch/producer/point/arc state integration and global acceptance remain pending.",
             "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending."
           ],
-          "commit": null
+          "commit": "038d0aa"
         }
       ]
     },

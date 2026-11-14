@@ -1459,3 +1459,5 @@ were not rerun for this unbound arithmetic dependency; final regressions remain
 deferred. No native pixel/batch acceptance is claimed by request traces alone.
 
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All48 BIG-specific native CTests passed in52.92s, including big_curve_decimal0.00s. The final field-based decimal trace check passed in0.08s (test0.00s). No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound request generator. Native decimal-outline arithmetic is verified; K batch/point/front/buffer/wire and global45-entry acceptance remain pending.
+
+Decimal-outline point generator implementation commit: `038d0aa`.
