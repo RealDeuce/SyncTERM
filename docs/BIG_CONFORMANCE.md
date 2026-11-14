@@ -1810,3 +1810,5 @@ pen5 interior. Physical audio/MIDI stay off. Y and global/audio/final
 acceptance and the conditional non-audio publishing milestone remain pending.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met.
+
+Native V/public-sector implementation commit: `1b977a2`.
