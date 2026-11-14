@@ -54,13 +54,8 @@ static int span(void *context, bool raw, const uint16_t points[4])
 	if (f->change_mode) f->producer.mode=7;
 	if (f->fail_span) return IO_ERROR_IO;
 	CHECK(points[1]==points[3] && points[0]<=points[2]);
-	const struct st_big_draw_sink sink={f,pixel}; f->in_span=true; int status=0;
-	if (raw) for (uint32_t x=points[0];x<=points[2];++x) {
-		status=pixel(f,(uint16_t)x,points[1],f->state.bgi.device_color,f->state.bgi.write_mode!=0); if (status!=0) break;
-	} else {
-		uint16_t logical[4]; for (size_t i=0;i<4;++i) logical[i]=(uint16_t)(points[i]-f->state.bgi.viewport[i%2]);
-		status=st_big_draw_bar(&f->state,logical,&sink);
-	}
+	const struct st_big_draw_sink sink={f,pixel}; f->in_span=true;
+	int status=st_big_draw_polygon_span(&f->state,raw,points,&sink);
 	f->in_span=false; return status;
 }
 static int stage(struct fixture *f, unsigned operation)

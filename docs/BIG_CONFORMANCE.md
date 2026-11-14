@@ -1755,3 +1755,25 @@ contract; that condition remains unmet.
 Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met.
 
 Normal/alternate lower sector-construction implementation commit: `2297570`.
+
+## Native physical polygon span prerequisite
+
+The production span operator now directly selects the existing clipped opaque
+bar or shared raw thin-line kernel. Physical coordinates receive no second
+origin addition; raw spans bypass viewport clipping and width expansion while
+retaining line pattern/phase, device pen and COPY/XOR. No graphic point moves.
+Existing clipped line paths continue through their unchanged clip first.
+Raw endpoints outside native pixel geometry fail before output under the
+checked native policy; foreign WORD video-address/controller effects are not
+claimed or silently replaced by clipping.
+
+big_polygon_span independently verifies full indexed scenes and exact write
+order for masks, viewport behavior, width3, reverse/diagonal/phase/XOR,
+callback failures and invalid geometry. big_polygon, big_curve_stages and
+big_curve_sector now use the production operator. An additional sticky
+polygon checks patterned XOR outside its viewport with retained colors and
+points. This accepts native span kernels only; CTerm V/Y public/wire/caller/
+application composition, global/audio and final acceptance remain pending.
+No unchanged3374 application scenes or non-BIG regressions were rerun.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met.

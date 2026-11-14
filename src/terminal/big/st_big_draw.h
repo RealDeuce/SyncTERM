@@ -33,6 +33,12 @@ int st_big_draw_relative(struct st_big_state *, uint16_t dx, uint16_t dy, const 
  * device fill pen/active mask, not the colour-latched tile or line XOR.
  * Preserves all three point owners; writes retain original byte-pass order. */
 int st_big_draw_bar(struct st_big_state *, const uint16_t points[4], const struct st_big_draw_sink *);
+/* Physical polygon span: ordinary selects the clipped opaque bar; raw
+ * selects the thin device kernel without viewport clipping or thickness.
+ * No origin addition or point stores. Raw endpoints outside native geometry
+ * fail before output rather than addressing foreign video memory. */
+int st_big_draw_polygon_span(struct st_big_state *, bool raw_line,
+	const uint16_t points[4], const struct st_big_draw_sink *);
 /* Direct helper: type0 draws nothing; crosshair ends at its right ray tip.
  * P's standalone dot/tail and input's XOR/restore belong to those callers. */
 int st_big_draw_marker(struct st_big_state *, uint16_t x, uint16_t y, const struct st_big_draw_sink *);

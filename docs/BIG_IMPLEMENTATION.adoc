@@ -34,8 +34,9 @@ wrappers with query and DDO-only restoration, native shared graph-buffer
 binding and K/J/O/Q wire/page/source/recovery integration. V is the next native
 curve command. Its raw polygon scan converter, buffer stages2/3, piece
 closure and normal/alternate lower sector construction are implemented and
-independently tested. Physical polygon span binding, public wrappers and V/Y
-wire work remain pending.
+independently tested. Native physical polygon span operators now bind the
+existing bar and shared thin-line kernels. Public wrappers and CTerm V/Y
+wire/application work remain pending.
 Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -3913,3 +3914,40 @@ contract; its condition is not yet met and no push is performed by this step.
 Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met.
 
 Normal/alternate lower sector-construction implementation commit: `2297570`.
+
+== Native physical polygon span operators
+
+st_big_draw_polygon_span now supplies the native physical operator selected
+by DDO0c9c/60. Ordinary spans enter the existing signed rectangle clip and
+opaque patterned bar directly, without adding the viewport origin. Alternate
+spans enter the shared thin-line kernel directly, without DDO clipping or
+thickness expansion. The raw branch uses current device line pen, pattern
+and COPY/XOR, restarting bit0 for each request. Both branches retain public,
+DDO and device points and preserve accepted output on callback failure.
+Existing clipped line callers use the same extracted raw kernel after their
+unchanged original clipping; no second line algorithm/data was added.
+
+The native safety boundary is explicit: raw endpoints outside the installed
+pixel geometry fail before output instead of reproducing foreign raw WORD
+video-address/controller effects. They are not silently clipped or wrapped
+into the canvas. This extends the existing checked native drawing policy;
+it does not claim controller/latch/altered-memory equivalence. Ordinary bar
+rejection and clipping retain their original returning behavior.
+
+big_polygon_span first failed to link against the absent operator. Literal
+requests and full64x64 indexed grids distinguish physical placement, viewport
+clipping versus bypass, absolute mask phase, opaque holes and byte-pass order,
+raw width3 with no expansion, bit0 restart, reversed endpoints, diagonal ties
+and XOR. Callback IO/IN_PROGRESS failures retain two accepted pixels and all
+point/error owners. Escaped raw geometry and uninstalled dispatch check
+failure prefixes. The scanner, stage and complete lower-sector tests now
+use this production operator instead of fixture-only bar/raw adapters;
+an additional sticky polygon checks exact patterned XOR rows outside its
+viewport. No expected output is generated from the emulator under test.
+
+Public V/Y wrappers, caller fill restoration, CTerm binding, numeric/source/
+wire/application acceptance and global/audio/final regressions remain pending.
+The unchanged3374 application scenes were not rerun. Conditional publishing
+remains pending until all non-audio commands are implemented and verified.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met.

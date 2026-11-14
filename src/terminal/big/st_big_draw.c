@@ -291,16 +291,27 @@ static void pixel(void *context, int x, int y)
 	struct stroke *stroke=context;
 	if (stroke->status==0) stroke->status=output_pixel(stroke->sink,(uint16_t)x,(uint16_t)y,stroke->pen,stroke->xor_mode);
 }
-static int thin(struct st_big_state *s, const uint16_t *requested, const struct st_big_draw_sink *sink)
+static int raw_line(struct st_big_state *s, const uint16_t *p, const struct st_big_draw_sink *sink)
 {
-	uint16_t p[4], b[4]; memcpy(p,requested,sizeof(p)); bounds(s,b); bool visible;
-	int status=st_big_draw_clip(b,p,&visible); if (status!=0 || !visible) return status;
 	/* The shared host-int kernel is used only inside actual pixel geometry. */
 	for (size_t i=0;i<4;++i) if (p[i]>=(i%2==0?s->bgi.width:s->bgi.height)) return IO_ERROR_OUT_OF_RANGE;
 	uint16_t pattern=s->bgi.line_mask; int phase=0;
 	struct stroke stroke={sink,s->bgi.device_color,s->bgi.write_mode!=0,0};
 	st_bgi_thin_line(p[0],p[1],p[2],p[3],&pattern,&phase,pixel,&stroke);
 	return stroke.status;
+}
+static int thin(struct st_big_state *s, const uint16_t *requested, const struct st_big_draw_sink *sink)
+{
+	uint16_t p[4], b[4]; memcpy(p,requested,sizeof(p)); bounds(s,b); bool visible;
+	int status=st_big_draw_clip(b,p,&visible); if (status!=0 || !visible) return status;
+	return raw_line(s,p,sink);
+}
+int st_big_draw_polygon_span(struct st_big_state *s, bool raw,
+    const uint16_t p[4], const struct st_big_draw_sink *sink)
+{
+	if (s==NULL || p==NULL || sink==NULL || sink->pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=installed(s); if (status!=0) return status;
+	return raw?raw_line(s,p,sink):bar_translated(s,p,sink);
 }
 static uint16_t word_abs_difference(uint16_t a, uint16_t b)
 {

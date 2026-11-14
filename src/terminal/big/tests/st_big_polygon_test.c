@@ -31,7 +31,9 @@ static void init(struct fixture *f)
 }
 static int pixel(void *context, uint16_t x, uint16_t y, uint8_t pen, bool xor_mode)
 {
-	struct fixture *f=context; CHECK(x<64 && y<64 && pen<=15 && !xor_mode); f->pixels[y*64+x]=pen; return 0;
+	struct fixture *f=context; CHECK(x<64 && y<64 && pen<=15);
+	if (xor_mode) f->pixels[y*64+x]^=pen; else f->pixels[y*64+x]=pen;
+	return 0;
 }
 static int color(void *context, uint16_t tuple)
 {
@@ -46,9 +48,8 @@ static int span(void *context, bool raw, const uint16_t p[4])
 	if (f->hook) f->state.bgi.polygon_hook=1;
 	if (f->sticky) f->state.bgi.curve_fallback=255;
 	if (f->rebind) f->producer.points=NULL;
-	if (f->render && !raw) {
-		uint16_t logical[4]; for (size_t i=0;i<4;++i) logical[i]=(uint16_t)(p[i]-f->state.bgi.viewport[i%2]);
-		const struct st_big_draw_sink sink={f,pixel}; return st_big_draw_bar(&f->state,logical,&sink);
+	if (f->render) {
+		const struct st_big_draw_sink sink={f,pixel}; return st_big_draw_polygon_span(&f->state,raw,p,&sink);
 	}
 	return 0;
 }
@@ -80,6 +81,14 @@ static void square_and_color(void)
 		CHECK(fill(&f)==0 && f.calls==4);
 		for (unsigned y=0;y<64;++y) for (unsigned x=0;x<64;++x) CHECK(f.pixels[y*64+x]==(x>=2 && x<=6 && y>=2 && y<6?(x%2==0?pen:0):3));
 	}
+	/* Sticky polygon spans bypass the viewport and DDO thickness. Their
+	 * raw line restarts bit0 per row and uses the polygon's installed pen. */
+	init(&f); f.render=true; f.state.bgi.curve_fallback=1; f.state.bgi.write_mode=1;
+	f.state.bgi.viewport[0]=10; f.state.bgi.viewport[1]=12;
+	CHECK(st_big_draw_style(&f.state,4,0xcccc,3)==0 && fill(&f)==0 && f.calls==4 && f.color_calls==2);
+	for (size_t i=0;i<4;++i) event(&f,i,2,(uint16_t)(2+i),6,true);
+	for (unsigned y=0;y<64;++y) for (unsigned x=0;x<64;++x) CHECK(f.pixels[y*64+x]==(y>=2 && y<6 && (x==4 || x==5)?6:3));
+	CHECK(f.state.bgi.device_color==9 && f.state.bgi.device_fill_color==5 && f.state.bgi.line_mask==0xcccc); owners(&f);
 }
 static void markers_capacity_and_aliases(void)
 {

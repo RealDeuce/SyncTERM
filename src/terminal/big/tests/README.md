@@ -867,22 +867,22 @@ live binding removal keep reached prefixes. Loaded hook and sticky changes
 alter later requests. Finite full-WORD wraps/zero-height rows succeed, while
 zero-step or unreachable signed limits reject only at a full initial row/
 counter cycle. This is no clock or finite geometry budget. Raw fallback span
-requests are verified without claiming physical raw-line pixels, devices or
-V/Y wire integration. Existing3374 application scenes are unchanged/unrerun;
+requests have separate expectations; rendered requests now use the production
+physical span operator, with controller effects and V/Y wire work unclaimed. Existing3374 application scenes are unchanged/unrerun;
 no expected pixels come from the emulator and no external asset is needed.
 
 big_curve_stages uses complete original DDO0365..038b/0541..05ee/09af..09e8
 and13/60/61. It first failed to link against absent stage operators. Literal
 square/triangle64x64 scenes and event traces distinguish real fill-before-
 outline from sticky outline-before-fill, strict live admission and a single
-terminator. Native polygon/line kernels run through the existing bar and a
-fixture horizontal raw-span adapter; this is not physical fallback coverage.
+terminator. Native polygon/line kernels now run through the production physical span
+operator, with separate original event and indexed expectations retained.
 Empty fill retains restore/outline calls. Mode0/2 terminators, full/short/
 empty capacities, center/first closure, count2/3 borrow versus stored0,
 post-callback count/capacity/gate changes and mode/point/error/pixel prefixes
 use independent expectations. The unchanged3374 application scenes are not
-rerun for these unbound helpers. Sector fronts, physical adapters, public
-wrappers and V/Y wire/fill-restoration/application acceptance remain pending.
+rerun for these helpers. Sector fronts and physical span operators now have
+separate native coverage; public V/Y wire/fill/application work remains pending.
 
 big_curve_sector derives literal grids/requests/records from complete original
 DDO0450..04ad/0822..0af6 and13/60/61. It first failed to link against absent
@@ -896,7 +896,18 @@ Alternate one-candidate and full-turn traces distinguish stale endpoints,
 8001/8000 contour Moves and the lack of a normal radial/A55 tail. The full
 alternate has365 records/368 outline plus4 fill writes and a literal two-pen
 scene. Producer return-clobber/suppression and saved-center/fresh-end/current-
-origin tests cover0450 ordering. Polygon adapters use the existing bar and
-fixture horizontal raw spans, without native physical fallback claims. No
+origin tests cover0450 ordering. Polygon adapters now use the production
+physical bar/raw-line operator with unchanged independent expected output. No
 external asset is needed at runtime; unchanged3374 application scenes were
 not rerun. Public/native V/Y integration remains pending.
+
+big_polygon_span derives physical span selection from60's complete0c9c gate,
+with previously proved12/57/59 bar/thin-line kernels. It first failed to link
+against the missing operator. Literal requests/full64x64 grids prove no
+origin addition, ordinary clipping/opaque holes/absolute mask/byte passes,
+raw viewport bypass/no width3 expansion, reversed/diagonal candidate order,
+bit0 restart and XOR. IO/IN_PROGRESS retain two-pixel prefixes and point/error
+owners; escaped native geometry fails before output. Production operators
+also run in polygon/stage/sector fixtures; a sticky square independently
+checks XOR6 on X4/5, rows2..5, outside viewport10/12. No foreign controller
+or raw video-address equivalence is claimed; CTerm V/Y composition is pending.

@@ -946,6 +946,39 @@
             "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met."
           ],
           "commit": "2297570"
+        },
+        {
+          "id": "native-physical-polygon-spans",
+          "status": "complete",
+          "operations": [
+            "Add st_big_draw_polygon_span: physical ordinary spans directly enter the existing signed rectangle clip/opaque pattern bar; raw spans directly enter the shared thin-line kernel without viewport clipping or thickness. No origin addition, producer emission or public/DDO/device CP stores.",
+            "Extract the existing raw thin kernel underneath unchanged clipped line callers. Preserve device line pen, bit0-first fresh pattern, COPY/XOR and accepted pixel prefixes. Native raw geometry is checked before output.",
+            "Replace test-only bar subtraction/horizontal raw loops in polygon, curve stages and complete lower sector fixtures with the production operator. Keep independent literal scenes, requests, events and point/arc/error expectations."
+          ],
+          "references": [
+            "60-sector-polygon-scan-converter.adoc:0c9c span selection,03cd clipped bar versus direct device SI0c raw thin line",
+            "57-line-command-acceptance.adoc:bounded shared thin stepping, pattern phase and point isolation",
+            "59-rectangle-clear-and-flood-command-acceptance.adoc:opaque bar pattern and byte-pass order"
+          ],
+          "tests": [
+            "big_polygon_span",
+            "big_polygon",
+            "big_curve_stages",
+            "big_curve_sector",
+            "big_draw",
+            "big_bar",
+            "cterm_big_curve"
+          ],
+          "deviations": [
+            "Under existing checked native drawing policy, raw endpoints outside installed pixel geometry fail before output; no foreign raw WORD address/controller/latch effects are reproduced. Do not silently clip or wrap those requests.",
+            "This accepts production native span kernels, not CTerm V/Y/public wrappers/caller/fill restoration/wire/application or global acceptance. No new application scene or non-BIG test result is claimed."
+          ],
+          "verification": [
+            "big_polygon_span first failed to link against missing operator. Independent full64x64 grids/literal traces check no origin addition, normal clip/mask/opaque byte order, raw viewport bypass/width3/reverse/diagonal/bit0 restart/XOR and retained point/error owners.",
+            "Callback IO/IN_PROGRESS failures preserve two accepted pixels; escaped raw endpoints fail before output and uninstalled dispatch sets BGI-1. Scanner/stage/sector fixtures retain their existing independent expectations through production operators. A sticky polygon adds XOR6 at X4/5,rows2..5 outside viewport10/12, with exact color/point restoration.",
+            "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met."
+          ],
+          "commit": null
         }
       ]
     },
@@ -3257,12 +3290,13 @@
         "polygon-code.adoc"
       ],
       "operations": [
-        "Polygon scan conversion, buffer stages2/3, piece closure and complete normal/alternate lower sector construction are implemented under shared-bgi prerequisites. Physical polygon span binding, public circular sector wrapper and V caller acquisition/fill restoration/wire/application acceptance remain pending."
+        "Polygon scan conversion, stages2/3, piece closure, complete normal/alternate lower sector construction and production native physical span operators are implemented under shared-bgi prerequisites. Public circular sector wrapper, CTerm V caller acquisition/fill restoration/wire/application acceptance remain pending."
       ],
       "tests": [
         "big_polygon",
         "big_curve_stages",
-        "big_curve_sector"
+        "big_curve_sector",
+        "big_polygon_span"
       ],
       "deviations": [
         "The native bounded polygon component uses checked extent/division/nontermination failures. This is prerequisite acceptance only, not V wire/pixel/global command acceptance."
@@ -3273,7 +3307,9 @@
         "Independent native stage/closure composition tests verify current admission, opposite fill/outline order, empty fill and failure/point/count prefixes. Full V/Y front/wire composition remains pending.",
         "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending.",
         "Independent lower sector/stroke tests verify complete normal/alternate geometry, phase ordering, point/arc owners and errors; public/native V/Y command acceptance remains pending.",
-        "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met."
+        "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All56 BIG-specific native CTests passed in55.36s, including big_curve_sector0.01s. The expanded focused sector check passed in0.06s total (test0.01s). No non-BIG tests or unchanged3374 application scenes were rerun. Lower normal/alternate sector construction and producer-gated radials are verified; physical polygon binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional non-audio publishing milestone is not yet met.",
+        "Production physical span kernels now run in independent polygon/stage/lower-sector fixtures; public CTerm V/Y integration remains pending.",
+        "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met."
       ],
       "commit": null
     },

@@ -43,13 +43,8 @@ static int span(void *context, bool raw, const uint16_t p[4])
 {
 	struct fixture *f=context; CHECK(f->spans<32); memcpy(f->requests[f->spans++],p,4*sizeof(*p));
 	if (f->fail_span) return IO_ERROR_IO;
-	CHECK(p[1]==p[3]); f->in_span=true; int status=0;
-	if (raw) for (uint32_t x=p[0];x<=p[2];++x) { status=pixel(f,(uint16_t)x,p[1],f->state.bgi.device_color,f->state.bgi.write_mode!=0); if (status!=0) break; }
-	else {
-		const struct st_big_draw_sink sink={f,pixel}; uint16_t logical[4];
-		for (size_t i=0;i<4;++i) logical[i]=(uint16_t)(p[i]-f->state.bgi.viewport[i%2]);
-		status=st_big_draw_bar(&f->state,logical,&sink);
-	}
+	f->in_span=true; const struct st_big_draw_sink sink={f,pixel};
+	int status=st_big_draw_polygon_span(&f->state,raw,p,&sink);
 	f->in_span=false; return status;
 }
 static int begin(void *context, uint16_t *value)

@@ -1444,3 +1444,10 @@ fronts and separate point/arc ownership. big_curve_sector checks independent
 indexed grids, spans/records and failure prefixes. Physical polygon binding,
 public V/Y wrappers and wire/application acceptance remain pending; no new
 application capture or non-BIG regression result is claimed.
+
+BIG polygon/stage/lower-sector fixtures now use production physical span
+operators. Ordinary spans retain clipped opaque patterns; alternate spans
+retain raw line patterns/modes without viewport clipping or thickness.
+big_polygon_span checks independent grids/write prefixes and the explicit
+out-of-geometry native failure boundary. CTerm V/Y binding and application
+acceptance remain pending; no new application capture is claimed.
