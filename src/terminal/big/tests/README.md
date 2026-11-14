@@ -806,3 +806,23 @@ capture. The first J full ellipse read-byte oracle includes the earlier
 square pixel(514,100) and reached ellipse pixel(519,100), yielding21h.
 The existing grouped curve field retains all15 positions and its
 bounded shared interface; expected pixels are never terminal-generated.
+
+O expectations use the complete BIG13d2:16d5..1731 caller, circle1326..1351
+and original24/61 flood contract. The same native fixture checks every
+partition and bytewise profile alongside K/J, then compares independent full
+planes with outline5/interior6. Literal radius1/radius2 aspect traces, hollow
+fill timing, numeric lifecycle, aspect-error prefixes and normal empty
+outline followed by clipped flood distinguish the operation from a filled
+ellipse. Existing boundaries, custom aa rows, thin/flood COPY despite cached
+XOR, stored scaling bypass, pages and read-plane recovery retain exact owners.
+
+A full angular O checks the independently hand-XORed1098-write/363-record
+contour; another O floods its separate radius2 interior and actually changes
+the common graph workspace. Prior pixels remain and producer count363 stays
+separate from flood count0. Seven O scenes per application profile add98
+coherent captures,3276 total, with source-authored contour/interior/arc/point/
+radius/state expectations and all preceding K/J/scene observations retained.
+
+O also checks returning rejected custom fill with the prior installed tile,
+chained deferred NUL/ff user-origin replies and following D from the restored
+DDO center, including the replaced interior pixel and three final owners.

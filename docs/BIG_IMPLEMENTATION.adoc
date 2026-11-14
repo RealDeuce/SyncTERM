@@ -23,15 +23,15 @@ g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
-pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries
-and K circular/J explicit-radius arcs are integrated.
+pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
+K circular/J explicit-radius arcs and O circles are integrated.
 Other curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
-binding and K/J wire/page/source/recovery integration. O is the next native
+binding and K/J/O wire/page/source/recovery integration. Q is the next native
 curve command; global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -3590,3 +3590,59 @@ their respective steps, rather than pending work in the current native J path.
 Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending.
 
 Native J explicit-radius arc implementation commit: `d43abb8`.
+
+== Native O circles with conditional center flood
+
+The complete BIG13d2:16d5..1731 caller reads X/Y/radius with classes1,2,0,
+then installs the current application line colour and selected fill. Fill
+submission precedes circular aspect/outline preparation and happens even
+when hollow. Public circle1326..1351 is the existing circular/ellipse wrapper
+with start0/end360. Only after its normal return does O test the current
+full-WORD hollow flag and, when zero, flood the original center using the
+then-current application line-colour boundary. This retains source13/24/61/
+83's outline-plus-boundary-flood operation and its three separate point owners.
+
+The native shared K/J adapter accepts O's three operands and selects that
+schedule. Existing indexed/page/read-byte callbacks, public ellipse/circular
+wrappers, decimal/angular outlines and native span flood are reused. Curve
+and flood execute in order within one console update and share the same
+bounded graph scratch. No framebuffer, filled-ellipse substitute, F clamps,
+operation-colour selection, flow prefix, own reply or feature gate is added.
+A normal empty/overflow outline still permits flood. An actual error stops
+before later work, retains reached colour/fill/point/batch effects and goes
+through existing nonfatal BIG recovery. Checked aspect-zero errors happen
+after O's colour/fill prefix, before center placement or flood.
+
+cterm_big_curve first failed on missing O dispatch. Every split and bytewise
+input now covers hollow O alongside K/J across all three modes, CP437/UTF8
+and status choices. Full indexed planes, literal point/arc owners and ANSI
+replies remain independent expectations. Filled radius1/radius2 circles use
+literal outline5/interior6 scenes for each aspect profile, with hollow fill
+installation, late/current colour/fill and zero-radius timeout checked.
+Partial EOF/reset, timeout-bell reset and clock errors retain exact prefixes.
+
+A high-bit radius normally overflows the lower recurrence and still floods
+a clipped5x5 area, preserving the old BGI error and all point owners. Existing
+center boundary pixels prevent flood; cached XOR does not change thin COPY
+or flood COPY. Physical custom aa fill, ordinary g2 scaled center/unscaled
+radius versus stored bypass, active pages and read-plane recovery exercise
+the real native boundary. The full angular unit XOR scene uses the prior
+hand-derived1098-write/363-record contour and device8000,8000 terminator.
+A later O actually overwrites shared graph scratch with flood records while
+retaining the earlier pixels and independent producer/flood counts.
+
+Seven additional application scenes per profile add98 O captures,3276 total.
+Literal small contours/interiors check hollow/filled/radius0/radius2, mode
+aspects, stored g2 bypass and an existing center boundary, retaining all
+preceding K/J/font/palette/image/pixel/RNG/native state in each coherent
+capture. No expected pixels come from the terminal. Physical headless audio/
+MIDI stay disabled. Q follows in original dispatch order; remaining commands,
+audio/resource/global45-entry composition and the final full suite remain
+pending.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in54.48s. The final expanded cterm_big_curve passed in3.31s total (test3.24s), including angular/flood scratch reuse, returning fill rejection, deferred replies and following-D ownership. syncterm_big_input passed in166.03s total (test165.98s),3276 coherent scenes including98 new O scenes, with all preceding K/J/full-scene expectations retained. No non-BIG tests ran. Native O integration is verified; Q and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending.
+
+Returning custom-fill rejection is also verified: O retains the earlier
+installed tile and continues through outline/flood. Deferred NUL/ff replies
+keep user origin, and following D starts at the restored DDO center, replaces
+the interior pixel and ends all three point owners at its target.

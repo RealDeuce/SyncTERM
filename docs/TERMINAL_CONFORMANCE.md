@@ -1393,3 +1393,11 @@ scaling/source bypass, active pages and nonfatal recovery across all profiles.
 The application fixture adds98 J scenes,3178 total, retaining the complete
 preceding K and native graphics scene. Native J integration is implemented;
 remaining command/audio/global and final regression acceptance stay pending.
+
+BIG O circles now use the existing circular outline followed by conditional
+center-seeded boundary flood. Fill is installed even when hollow; normal
+empty outlines still permit flood. Independent cterm_big_curve tests cover
+literal aspect/outline/interior pixels, point owners, partial input/errors,
+patterns/pages/source and shared scratch. The application fixture adds98 O
+scenes,3276 total, retaining every preceding K/J and graphics-state expectation.
+Remaining commands, audio/global acceptance and final regressions are pending.

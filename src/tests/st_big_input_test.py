@@ -1273,7 +1273,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                         # K expectations are authored from original13/61,
                         # including its three CP owners and stale arc offsets.
                         ry = 1 if resolution == 3 else 0
-                        curve_state = dict(run_state)
+                        curve_state = dict(run_state, hollow=0)
                         curve_cases = (
                             (b"I#K 520,120,1,0,1:", ((520, 120),),
                              ((520, 120), (3842, 0)), (520, 120, 521, 120, 520, 120), 1, 0, {}),
@@ -1319,11 +1319,43 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                              ((500, 110), (0xa004, 5)), (500, 110, 501, 110, 500, 108), (1, 2), 90, 5,
                              dict(line=(0, 0, 1, 65535), device_line_width=1, writing=(0, 0))),
                         )
+                        # O is an outline plus an optional center flood. These
+                        # literal contours come from the original small-radius
+                        # recurrence; interior pens belong to the fill cache.
+                        o_unit = ((0, -1), (0, 1), (-1, 0), (1, 0))
+                        o_flat = ((0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1), (-2, 0), (2, 0))
+                        o_round = ((0, -2), (0, 2), (-1, -2), (1, -2), (-1, 2), (1, 2),
+                                   (-2, -1), (2, -1), (-2, 1), (2, 1), (-2, 0), (2, 0))
+                        o_inside = ((-1, 0), (0, 0), (1, 0), (-1, -1), (0, -1), (1, -1), (-1, 1), (0, 1), (1, 1))
+                        def o_pixels(x, y, radius, filled):
+                            contour = o_unit if radius < 2 else o_round if resolution == 3 else o_flat
+                            interior = () if not filled else ((0, 0),) if radius < 2 else o_inside[:9 if resolution == 3 else 3]
+                            return tuple((x + dx, y + dy, 15) for dx, dy in contour) + tuple((x + dx, y + dy, 5) for dx, dy in interior)
+                        curve_cases = tuple((command, tuple((x, y, 15) for x, y in additions), points, arc, radii, span, count, changes)
+                                            for command, additions, points, arc, radii, span, count, changes in curve_cases)
+                        curve_cases += (
+                            (b"I#H 1:I#O 524,180,1:", o_pixels(524, 180, 1, False),
+                             ((524, 180), (0xa014, 3)), (524, 180, 525, 180, 525, 180), (1, ry), 360, 5, dict(hollow=1)),
+                            (b"I#H 0:I#O 548,180,1:", o_pixels(548, 180, 1, True),
+                             ((548, 180), (0xa014, 3)), (548, 180, 549, 180, 549, 180), (1, ry), 360, 5, dict(hollow=0)),
+                            (b"I#O 572,180,0:", o_pixels(572, 180, 0, True),
+                             ((572, 180), (0xa014, 3)), (572, 180, 572, 180, 572, 180), (0, 0), 360, 5, {}),
+                            (b"I#O 596,180,2:", o_pixels(596, 180, 2, True),
+                             ((596, 180), (0xa022, 2)), (596, 180, 598, 180, 598, 180),
+                             (2, (0, 1, 2)[resolution - 1]), 360, 5, {}),
+                            (b"I#H 1:I#O 620,180,1:", o_pixels(620, 180, 1, False),
+                             ((620, 180), (0xa014, 3)), (620, 180, 621, 180, 621, 180), (1, ry), 360, 5, dict(hollow=1)),
+                            (b"I#H 0:I#g 2:I#& 0,0,1,0,O@3,524,190,1:I#g 0:", o_pixels(524, 190, 1, True),
+                             ((524, 190), (0xa014, 3)), (524, 190, 525, 190, 525, 190), (1, ry), 360, 5, dict(hollow=0)),
+                            (b"I#P 548,190:I#m 2,484,100:I#O 548,190,1:", o_pixels(548, 190, 1, False) + ((548, 190, 15),),
+                             ((548, 190), (0xa01c, 3)), (548, 190, 549, 190, 549, 190), (1, ry), 360, 5, {}),
+                        )
                         for index, (command, additions, points, arc, radii, span, count, changes) in enumerate(curve_cases):
                             curve_state.update(changes); curve_state["lower_points"] = points
-                            for site in additions:
+                            for x, y, pen in additions:
+                                site = (x, y)
                                 assert site not in scene_pixels, site
-                                scene_pixels[site] = 15
+                                scene_pixels[site] = pen
                             token = f"CURVE{index:02d}"
                             wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
                             with (root / "wire.bin").open("ab") as log: log.write(wire)
@@ -1340,7 +1372,7 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   graph_point=(484, 100), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=15,
                                   colored_pixels=tuple((x, y, pen) for (x, y), pen in scene_pixels.items()),
                                   rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
-                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  fill_pixels=(0x55555555,) * 8, rejections=(-12, 2),
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), **curve_state)
                             state = frame.application

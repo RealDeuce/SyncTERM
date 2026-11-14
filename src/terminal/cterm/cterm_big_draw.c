@@ -381,7 +381,7 @@ int cterm_big_flood_poll(struct cterm_big *big, size_t *budget, bool *complete)
 	}
 }
 
-struct curve { struct cterm_big *big; struct st_big_curve_request request; bool circular; };
+struct curve { struct cterm_big *big; struct st_big_curve_request request; bool circular, fill_center; };
 static int curve_execute(struct curve *request, const struct st_big_producer_sink *sink)
 {
 	struct cterm_big *big=request->big;
@@ -394,13 +394,17 @@ static int curve(void *context, const struct st_pixel_buffer *pixels, struct st_
 	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
 	const struct st_big_producer_sink sink={.drawing={&drawing,pixel},.read_context=&drawing,.read_byte=read_byte};
 	int status=cterm_big_video_segment(big,&big->producer.video_segment);
-	return status!=0?status:curve_execute(request,&sink);
+	if (status==0) status=curve_execute(request,&sink);
+	if (status!=0 || !request->fill_center || big->state.application.hollow!=0) return status;
+	/* O reads current hollow/border only after the outline returns. Its
+	 * center flood preserves all three point owners and reuses graph scratch. */
+	return fill_region(&drawing,request->request.center[0],request->request.center[1],big->state.application.colors[1]);
 }
 int cterm_big_draw_curve(struct cterm_big *big, const struct st_graphics_command_view *view)
 {
-	if (view->code!='K' && view->code!='J') return IO_ERROR_PROTOCOL;
-	bool circular=view->code=='K';
-	size_t count=circular?5:6;
+	if (view->code!='K' && view->code!='J' && view->code!='O') return IO_ERROR_PROTOCOL;
+	bool circle=view->code=='O', circular=view->code!='J';
+	size_t count=circle?3:circular?5:6;
 	if (view->count!=count) return IO_ERROR_PROTOCOL;
 	uint16_t words[6];
 	for (size_t i=0;i<count;++i) {
@@ -408,11 +412,13 @@ int cterm_big_draw_curve(struct cterm_big *big, const struct st_graphics_command
 		words[i]=(uint16_t)view->arguments[i].value;
 	}
 	/* All numeric readers complete before the current line colour is
-	 * installed. Only K derives its vertical radius from the aspect. */
+	 * installed. Circular shapes derive their vertical radius from aspect. */
 	int status=st_big_draw_color(&big->state,big->state.application.colors[1]);
+	/* O submits fill even when hollow, before circle/aspect preparation. */
+	if (status==0 && circle) status=st_big_fill_apply(&big->state);
 	if (status!=0) return status;
-	struct curve request={.big=big,.circular=circular,.request={.center={words[0],words[1]},
-	    .start=words[count-2],.end=words[count-1],.radius={words[2],circular?0:words[3]}}};
+	struct curve request={.big=big,.circular=circular,.fill_center=circle,.request={.center={words[0],words[1]},
+	    .start=circle?0:words[count-2],.end=circle?360:words[count-1],.radius={words[2],circular?0:words[3]}}};
 	bool empty=request.request.start==request.request.end && big->state.bgi.ddo_line_width<3
 	    && big->state.bgi.curve_fallback==0 && big->state.bgi.curve_metric<180;
 	/* Query, regular zero span and the checked divide failure never call

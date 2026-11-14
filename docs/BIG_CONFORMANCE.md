@@ -1623,3 +1623,30 @@ pixels are source-derived; headless physical audio/MIDI stay disabled.
 Native CMake Release configure/full builds and final focused build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full/focused builds. All53 BIG-specific native CTests passed in63.80s; the final expanded cterm_big_curve passed in2.28s total (test2.22s). syncterm_big_input passed in162.58s total (test162.53s),3178 coherent scenes including98 new J scenes. Its initial read-byte oracle omitted the already expected square pixel at(514,100); the corrected21h value follows the literal preceding scene and reached ellipse point, with all pixel/state assertions retained. No non-BIG tests ran. Native J integration is verified; O and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending.
 
 Native J explicit-radius arc implementation commit: `d43abb8`.
+
+## Native O circles
+
+O now reads X/Y/radius with classes1,2,0, installs current line colour and
+selected fill even when hollow, then uses the existing circle outline with
+angles0,360. A normal return checks current hollow and conditionally floods
+the center using the current line boundary. Empty/overflow outlines still
+permit flood. Existing indexed/page/read-byte and shared curve/flood scratch
+preserve separate point owners, accepted prefixes and nonfatal recovery.
+
+cterm_big_curve independently checks partitions/bytewise/profile replies and
+full planes, literal aspect-dependent outline/interior pens, hollow/late fill,
+partial input/timeout/reset/clock failures, checked aspect failure, empty
+outline followed by flood, existing boundary, custom patterns, COPY versus
+cached XOR, scaling/stored bypass, active pages and read-plane recovery.
+The angular XOR contour and later O flood demonstrate real graph-scratch
+reuse with retained pixels and independent producer/flood state. The coherent
+application fixture adds98 O scenes,3276 total, retaining all prior K/J and
+complete scene expectations. Expected pixels are source-derived and headless
+audio/MIDI remain disabled. Q and global/audio/final regressions are pending.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in54.48s. The final expanded cterm_big_curve passed in3.31s total (test3.24s), including angular/flood scratch reuse, returning fill rejection, deferred replies and following-D ownership. syncterm_big_input passed in166.03s total (test165.98s),3276 coherent scenes including98 new O scenes, with all preceding K/J/full-scene expectations retained. No non-BIG tests ran. Native O integration is verified; Q and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending.
+
+Returning custom-fill rejection is also verified: O retains the earlier
+installed tile and continues through outline/flood. Deferred NUL/ff replies
+keep user origin, and following D starts at the restored DDO center, replaces
+the interior pixel and ends all three point owners at its target.
