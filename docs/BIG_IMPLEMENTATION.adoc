@@ -3646,3 +3646,5 @@ Returning custom-fill rejection is also verified: O retains the earlier
 installed tile and continues through outline/flood. Deferred NUL/ff replies
 keep user origin, and following D starts at the restored DDO center, replaces
 the interior pixel and ends all three point owners at its target.
+
+Native O circle/center-flood implementation commit: `5a81c5c`.

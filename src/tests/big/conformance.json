@@ -2032,7 +2032,7 @@
             "A returning custom-fill color rejection leaves the earlier installed tile in use for both outline/flood completion. Chained deferred NUL/ff replies retain user origin, and following D starts at the restored DDO center, overwrites the interior pixel and ends all three point owners at its target.",
             "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; the full/final focused builds were clean. All53 BIG-specific native CTests passed in54.48s. The final expanded cterm_big_curve passed in3.31s total (test3.24s), including angular/flood scratch reuse, returning fill rejection, deferred replies and following-D ownership. syncterm_big_input passed in166.03s total (test165.98s),3276 coherent scenes including98 new O scenes, with all preceding K/J/full-scene expectations retained. No non-BIG tests ran. Native O integration is verified; Q and remaining command/audio/resource/global45-entry composition and the goal-final full suite remain pending."
           ],
-          "commit": null
+          "commit": "5a81c5c"
         }
       ]
     },
