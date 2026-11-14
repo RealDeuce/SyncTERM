@@ -5108,3 +5108,5 @@ generator checks passed in1.17s after the comment/loader corrections.
 No physical-audio/MIDI, auditory, external Wayland or additional platform/
 compiler coverage is claimed. The manual audio checklist above is supplied;
 listening and bit-identical historical PCM are not acceptance gates.
+
+Final BIG native acceptance commit: `0390c49`.

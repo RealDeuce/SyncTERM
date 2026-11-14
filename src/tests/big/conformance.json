@@ -4950,6 +4950,7 @@
       "External Wayland compositor integration skipped; internal Wayland tests passed.",
       "Native functional timing/audio and shared current fonts follow the approved contract, not a bit-identical historical hardware/PCM profile."
     ],
-    "historical_records": "Earlier verification strings and non_audio_checkpoint describe their recorded commits. Current contract, operations, deviations and this acceptance record determine present scope; no pending implementation or test gate remains."
+    "historical_records": "Earlier verification strings and non_audio_checkpoint describe their recorded commits. Current contract, operations, deviations and this acceptance record determine present scope; no pending implementation or test gate remains.",
+    "completion_commit": "0390c49"
   }
 }

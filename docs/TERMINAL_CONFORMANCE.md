@@ -1637,3 +1637,5 @@ parser/font/native-N/generator checks passed. No physical audio/MIDI,
 auditory or external Wayland coverage is claimed. The standalone BIG goal
 records the complete command review, approved adaptations and manual audio
 checklist; earlier paragraphs retain their historical progress statements.
+
+Final BIG native acceptance commit: `0390c49`.
