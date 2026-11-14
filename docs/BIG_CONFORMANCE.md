@@ -1597,3 +1597,5 @@ the existing property limit. Audio/MIDI remain disabled; other emulation and
 full45-entry acceptance remain deferred. J is the next native curve command.
 
 Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.
+
+Native K circular-arc/shared-graph implementation commit: `79d6956`.
