@@ -1728,3 +1728,5 @@ captures were not replayed. Complete V/Y fronts/radials/wrappers/physical
 binding/wire, audio/global and final regressions remain pending.
 
 Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All55 BIG-specific native CTests passed in58.29s, including big_curve_stages0.01s. The final focused stage check passed in0.07s total (test0.01s), including empty-fill ordering. The complete original6544-byte DDO asset was independently checked against SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8 before reading its stage/closure bodies. No non-BIG tests or unchanged3374 application scenes were rerun. Lower stages2/3 and piece closure are verified; sector construction/radials, physical binding, public V/Y wrappers/wire/fill restoration, audio/resource/global45-entry and final-suite acceptance remain pending.
+
+Sector buffer-stage/piece-closure implementation commit: `4dac8cc`.
