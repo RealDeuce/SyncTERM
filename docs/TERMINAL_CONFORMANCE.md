@@ -1350,3 +1350,11 @@ indexed scenes, current colour/batch methods, observable returned point values,
 all three point owners and partial/error prefixes. No planar shadow is added.
 The ordinary native sixteen-pen binding is verified at component level; curve
 fronts, arc state, angular buffers and K wire/CTerm acceptance remain pending.
+
+BIG's selected regular-outline front now preserves zero-span/stale-offset
+bookkeeping, original endpoint shortcut thresholds and ordered arc publication/
+producer clear. big_curve_regular checks literal records, full indexed scenes,
+WORD/wrapped-angle boundaries, current publication reads and error prefixes.
+Direct original A55 bytes show separate offset/published storage, correcting
+the reference prose's repeated-zero record-drift claim. Angular buffers,
+public wrapper and K wire/CTerm integration remain pending.

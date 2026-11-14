@@ -42,4 +42,11 @@ struct st_big_curve_batch_sink {
 int st_big_curve_decimal_draw(struct st_big_state *, struct st_big_producer *,
 	struct st_big_curve_decimal_frame, const struct st_big_producer_sink *,
 	const struct st_big_curve_batch_sink *);
+/* Selected regular outline route of07a3: capture existing physical DDO
+ * center/radii,0906 shortcuts/core,A55 publication,stage5 producer clear.
+ * No public center move, ffff query, outer DDO restore or angular selection.
+ * Publication reads current origin/offsets; failures keep reached prefixes. */
+int st_big_curve_regular_outline(struct st_big_state *, struct st_big_producer *,
+	uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
+	const struct st_big_producer_sink *, const struct st_big_curve_batch_sink *);
 #endif

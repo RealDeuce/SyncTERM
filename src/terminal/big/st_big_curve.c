@@ -147,3 +147,67 @@ int st_big_curve_decimal_draw(struct st_big_state *state, struct st_big_producer
 	}
 	return 0;
 }
+
+static int regular_piece(struct st_big_state *state, struct st_big_producer *producer,
+    uint16_t start, uint16_t end, const struct st_big_producer_sink *sink,
+    const struct st_big_curve_batch_sink *batch)
+{
+	struct st_big_curve_decimal_frame frame={
+	    .center={state->bgi.ddo_x,state->bgi.ddo_y},
+	    .radius={state->bgi.curve_radius[0],state->bgi.curve_radius[1]}};
+	if (state->bgi.orientation!=0) { start=(uint16_t)(start+90u); end=(uint16_t)(end+90u); }
+	state->bgi.curve_span=(uint16_t)(end-start);
+	if (state->bgi.curve_span==0) {
+		/*09e9 captures stale first offsets only on its first reached call.
+		 * Nonzero regular arcs return before this bookkeeping site. */
+		if (state->bgi.curve_first_valid==0) {
+			state->bgi.curve_first_valid=255;
+			state->bgi.curve_first[0]=state->bgi.curve_offsets[0];
+			state->bgi.curve_first[1]=state->bgi.curve_offsets[1];
+		}
+		return 0;
+	}
+	state->bgi.curve_offsets[0]=(uint16_t)st_bgi_trig_mul(st_big_curve_cos(start),state->bgi.curve_radius[0]);
+	state->bgi.curve_offsets[1]=(uint16_t)(0u-(uint16_t)st_bgi_trig_mul(st_big_curve_sin(start),state->bgi.curve_radius[1]));
+	state->bgi.curve_offsets[2]=(uint16_t)st_bgi_trig_mul(st_big_curve_cos(end),state->bgi.curve_radius[0]);
+	state->bgi.curve_offsets[3]=(uint16_t)(0u-(uint16_t)st_bgi_trig_mul(st_big_curve_sin(end),state->bgi.curve_radius[1]));
+	frame.start[0]=state->bgi.curve_offsets[0]; frame.start[1]=state->bgi.curve_offsets[1];
+	frame.end[0]=state->bgi.curve_offsets[2]; frame.end[1]=state->bgi.curve_offsets[3];
+	producer->mode=2;
+	bool equal=state->bgi.curve_offsets[0]==state->bgi.curve_offsets[2]
+	    && state->bgi.curve_offsets[1]==state->bgi.curve_offsets[3];
+	if (state->bgi.curve_span<(equal?350u:2u)) {
+		struct st_big_producer_registers registers={
+		    .ax=(uint16_t)(state->bgi.ddo_x+state->bgi.curve_offsets[2]),
+		    .bx=(uint16_t)(state->bgi.ddo_y+state->bgi.curve_offsets[3])};
+		return st_big_producer_move(state,producer,&registers,sink);
+	}
+	return st_big_curve_decimal_draw(state,producer,frame,sink,batch);
+}
+static void publish_arc(struct st_big_state *state)
+{
+	/* A55's DI advances from0304 to0308 after the center stores, while
+	 * SI restarts at0314. Published points never overwrite these offsets. */
+	state->bgi.arc[0]=(uint16_t)(state->bgi.arc[0]-state->bgi.viewport[0]);
+	uint16_t x=state->bgi.arc[0];
+	state->bgi.arc[1]=(uint16_t)(state->bgi.arc[1]-state->bgi.viewport[1]);
+	uint16_t y=state->bgi.arc[1];
+	state->bgi.arc[2]=(uint16_t)(state->bgi.curve_offsets[0]+x);
+	state->bgi.arc[3]=(uint16_t)(state->bgi.curve_offsets[1]+y);
+	state->bgi.arc[4]=(uint16_t)(state->bgi.curve_offsets[2]+x);
+	state->bgi.arc[5]=(uint16_t)(state->bgi.curve_offsets[3]+y);
+}
+int st_big_curve_regular_outline(struct st_big_state *state, struct st_big_producer *producer,
+    uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
+    const struct st_big_producer_sink *sink, const struct st_big_curve_batch_sink *batch)
+{
+	if (state==NULL || producer==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	state->bgi.curve_filled=0;
+	state->bgi.curve_radius[0]=radius_x; state->bgi.curve_radius[1]=radius_y;
+	state->bgi.arc[0]=state->bgi.ddo_x; state->bgi.arc[1]=state->bgi.ddo_y;
+	int status=regular_piece(state,producer,start,end,sink,batch);
+	if (status!=0) return status;
+	publish_arc(state);
+	producer->mode=0;
+	return 0;
+}

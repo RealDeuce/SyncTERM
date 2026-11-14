@@ -1487,3 +1487,28 @@ deferred to the goal-final suite.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All49 BIG-specific native CTests passed in53.26s, including big_curve_draw0.01s; its strengthened focused check passed in0.09s total. No non-BIG tests ran and unchanged application scenes were not rerun for this unbound component. Decimal batch/producer binding is verified; K fronts/arc records/angular buffers/native CTerm/wire and global45-entry acceptance remain pending.
 
 Decimal batch/point binding implementation commit: `f8e0503`.
+
+## Regular outline front and arc records
+
+The regular outline branch now captures physical center/radii, preserves
+0906 WORD orientation/span and original endpoint shortcuts, runs the decimal
+binding where required, publishes A55 records and clears producer mode only
+on normal return. Zero spans retain stale offsets and skip stage4/batch/work;
+09e9 captures first offsets only when its flag is zero. Shortcuts retain the
+incoming batch and actual point-return movement. Public/query/outer-save,
+angular buffers and K wire/CTerm acceptance remain pending.
+
+Original-byte A55 inspection corrects the reference prose's repeated-zero
+record drift: source offsets0314..031a and output0308..030e are separate.
+Unchanged center/origin/offsets give unchanged repeated published coordinates.
+The retained assembly, not the conflicting curve-review-data example, is the
+independent source of truth. No external reference files were modified.
+
+big_curve_regular checks literal records and full indexed scenes, repeated
+zero spans/all nonzero first flags, WORD/origin/orientation/span wrap, shortcut
+thresholds, original zero radii,360..720 full turns, incoming batch/point
+returns, live publication reads and accepted error prefixes. This lower
+branch adds no wire command or application scene. The existing2982 captures
+remain unchanged; non-BIG regressions remain deferred.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final refresh. All50 BIG-specific native CTests passed in52.11s, including big_curve_regular0.01s; its strengthened focused check passed in0.07s total. No non-BIG tests ran, and the unchanged application fixture was not replayed for this unbound branch. Regular outline/front/arc-record behavior is verified; angular buffers, public/aspect/query/outer-save, native K/CTerm/wire and global45-entry acceptance remain pending.

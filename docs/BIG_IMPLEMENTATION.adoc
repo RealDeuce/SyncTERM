@@ -3273,3 +3273,56 @@ non-BIG regressions remain deferred under the current verification policy.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All49 BIG-specific native CTests passed in53.26s, including big_curve_draw0.01s; its strengthened focused check passed in0.09s total. No non-BIG tests ran and unchanged application scenes were not rerun for this unbound component. Decimal batch/producer binding is verified; K fronts/arc records/angular buffers/native CTerm/wire and global45-entry acceptance remain pending.
 
 Decimal batch/point binding implementation commit: `f8e0503`.
+
+== Regular outline front and separate arc records
+
+The selected regular branch of07a3 is now st_big_curve_regular_outline:
+snapshot the current physical DDO center/radii, run0906, publish through A55,
+then clear the separate producer mode with stage5. This is a complete lower
+branch. Public center/aspect/query/017a DDO-save and the angular-selection/
+buffer path still precede it and are not registered on the wire by this step.
+
+0906 shifts angle WORDs by90 for any nonzero orientation, stores the wrapped
+span, and handles zero span before endpoint calculation or producer selection.
+Only that zero path reaches09e9 here: a zero first-point flag captures stale
+start offsets and becomesff; other flag values/first offsets remain unchanged.
+Nonzero spans compute original-radius endpoints before stage4. Equal rounded
+endpoints use the single-endpoint shortcut below unsigned span350; unequal
+endpoints use it below2. Shortcuts bypass both batch methods, retain incoming
+batch state and consume actual point returns. Other cases use the verified
+decimal binding with captured geometry. No modulo equality guard, radius
+absolute value or endpoint sorting is inserted.
+
+On normal return A55 reads the current origin and current offset words to
+publish logical center/start/end; it does not move a graphics point. Stage5
+then clears mode without resetting count/run/batch. Drawing failures omit
+publication and mode clear, retaining the center snapshot, calculated offsets,
+accepted points/pixels and other reached effects. Normal overflow still
+publishes and clears mode. Fresh native state initializes the new fields to
+zero; no broad I/R record reset is introduced.
+
+The chapter61 text and curve-review-data zero-span-record-drift example
+conflict with their retained assembly. Direct disassembly of original DDO
+A55 confirms SI/DI start0304; after two center STOSWs DI is0308, while SI is
+reloaded0314. Thus destinations0308/030a/030c/030e do not overwrite source
+offsets0314/0316/0318/031a. With center100,200/origin0 and offsets10,20,30,40,
+repeated zero-span requests keep published110,220/130,240, rather than
+210,420/230,440. The native implementation and independent tests follow
+these original bytes. Driver SHA256 remains
+5fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8.
+Reference material outside this repository has not been modified.
+
+big_curve_regular first failed to compile against missing state/API. Literal
+records, full64x64 indexed scenes and point traces test repeated stale-offset
+zero spans, all nonzero first flags, origin/center WORD wrap, equal/unequal
+thresholds, original zero-radius ordering, full360..720 turns, unsigned span
+wrap and orientation/angle wrap. The lower front treatsffff as angle-1;
+query recognition belongs to017a. Live begin changes to origin/offset/radius/
+DDO state retain captured pixel geometry but affect the reached publication.
+Incoming batches, clipped shortcuts, empty overflow and begin/end/write/
+installed failures check point owners, caches and accepted prefixes. These
+component scenes introduce no BIG wire command or new application capture.
+The2982 application scenes last passed with6bfc11c; other regressions remain
+deferred to the goal-final suite.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final refresh. All50 BIG-specific native CTests passed in52.11s, including big_curve_regular0.01s; its strengthened focused check passed in0.07s total. No non-BIG tests ran, and the unchanged application fixture was not replayed for this unbound branch. Regular outline/front/arc-record behavior is verified; angular buffers, public/aspect/query/outer-save, native K/CTerm/wire and global45-entry acceptance remain pending.

@@ -23,6 +23,11 @@ struct st_big_state {
 		uint16_t bar_corners[4];
 		uint8_t orientation;
 		uint8_t curve_batch_gate; /* DDO006f: current zero admits extended methods. */
+		/* Published0304..030f is distinct from radius0310/0312 and
+		 * offset0314..031b scratch. A55 does not overwrite the offsets. */
+		uint16_t arc[6], curve_radius[2], curve_offsets[4];
+		uint16_t curve_span, curve_first[2];
+		uint8_t curve_first_valid, curve_filled;
 		uint8_t device_color, ddo_line_style, ddo_line_width;
 		uint16_t ddo_line_user;
 		uint8_t fill_low, device_fill_color, device_fill_style;
