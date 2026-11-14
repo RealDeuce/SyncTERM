@@ -3328,3 +3328,78 @@ deferred to the goal-final suite.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final refresh. All50 BIG-specific native CTests passed in52.11s, including big_curve_regular0.01s; its strengthened focused check passed in0.07s total. No non-BIG tests ran, and the unchanged application fixture was not replayed for this unbound branch. Regular outline/front/arc-record behavior is verified; angular buffers, public/aspect/query/outer-save, native K/CTerm/wire and global45-entry acceptance remain pending.
 
 Regular outline/front/arc-record implementation commit: `7090086`.
+
+== Angular outlines and ordered producer-buffer flush
+
+The complete lower07a3 outline now selects the regular or angular branch.
+Unsigned retained width BYTE>=3, nonzero sticky fallback or unsigned0097
+metric>=180 selects angular drawing. Native mode installation supplies the
+original ordinary descriptor metrics29/50/69; startup is50. Defaults do not
+invent a sticky reset. Device solid/width1 is temporary and separate from
+retained public/DDO style, user pattern and width. Later original line
+expansion still uses the DDO width/distance.
+
+The angular sweep applies unsigned start>=end WORD+360 before orientation
+WORD+90, enters the body first, increments the angle WORD and compares with
+signed JLE. It uses original unsigned radii and shared scalar kernels, current
+DDO center, and the existing first-point/run/duplicate/8001 collector. Capacity
+BGI-6 does not terminate the sweep or become a new native error. Angular work
+does not calculate fresh0314..031b offsets; A55 publishes the current saved
+ones before the flush. A start/end query sentinel still belongs to the future
+public017a wrapper, not this lower drawing entry.
+
+Stage1 appends8000 through the real producer, clears mode and flushes with the
+original unsigned count>=capacity rejection BEFORE the count<2 gate. The
+reader captures its storage/count, treats its first record as an unconditional
+Move, and recognizes later80xx Y words as markers. Low0 terminates; any other
+low byte reads and moves the next record, including the original body-first
+empty fetch with BX8000 and retained AX. Line segments, including coincident
+ones, reuse the existing bar3d producer/line body. No union/deduplication or
+new font/line renderer is added. Only DDO CP is saved/restored on normal
+return; device Moves remain visible and public CP stays old. Errors keep
+reached pixels/point/buffer effects and omit unreached restores.
+
+Normal outline restoration reads the current retained DDO style and uses the
+reader result rather than the saved custom user word. Its own appended8000
+establishes the ordinary style4 device pattern8000, including capacity/short
+skips. Public/DDO user pattern stays independent. The native reader reports
+its last Y word, not unused physical line-register clobbers; subsequent
+record reads replace those targets. Native storage is bounds-checked at each
+reached read rather than rejecting a whole buffer before its accepted prefix.
+Borrowed storage remains alive during the serialized call; reader binding/
+count snapshots survive owner metadata changes during pixel callbacks.
+
+With signed end7fff the original angle test cannot terminate for any WORD.
+The native implementation retains one complete65536-angle turn's collector/
+style/error prefix, detects the repeated angle, and returns OUT_OF_RANGE.
+This explicitly replaces an original infinite loop; no foreign clock,
+throughput delay, periodic render yield or arbitrary finite-angle cap is added.
+Finite WORD sweeps retain their original body-first termination. Invalid native
+method/storage arguments produce checked errors at their reached boundaries.
+
+big_curve_angular first failed to compile against missing API/state. Hand-
+derived unit0..3,width3 XOR5 yields six final pixels after12 ordered writes,
+retaining two coincident strokes. Full0..360 has363 records:361 angular points,
+closure8001 and terminator8000. Six transition segments emit36 pixels and354
+degenerate segments emit1062, totaling1098; independent hand-XORed rows check
+the full indexed scene. Its closure marker consumes the final terminator as a
+Move, leaving device CP8000,8000 while DDO returns to center.
+
+Further independent cases cover COPY and zero custom pattern, current style
+restoration, all255 nonzero fallback bytes,179/180 metric and width thresholds,
+endffff/orientation-wrapped7fff, equal zero-radius sweeps, true nontermination,
+capacity0..6 and all12 short-arc write-failure prefixes. Direct reader cases
+check separate runs/80ff markers, nonterminated finite lists, short/capacity
+skips, first-marker Moves, final-marker empty fetches, binding/count mutation,
+actual storage extents and argument failures. State tests check literal mode
+metrics29/50/69. Original DDO SHA256 is rechecked as
+5fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8;
+complete07a3..07fe and059e..060c were also extracted from the original bytes.
+
+This is lower drawing/buffer component acceptance. K still needs circular
+aspect state, center/query/017a wrapper, native owned graph-buffer binding,
+wire acquisition and coherent native/application cases. Sector polygon/stages
+remain separate work. Existing2982 application scenes are unchanged and last
+passed with6bfc11c; non-BIG regressions remain deferred to the goal-final suite.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending.

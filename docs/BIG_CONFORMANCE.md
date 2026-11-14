@@ -1514,3 +1514,31 @@ remain unchanged; non-BIG regressions remain deferred.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final refresh. All50 BIG-specific native CTests passed in52.11s, including big_curve_regular0.01s; its strengthened focused check passed in0.07s total. No non-BIG tests ran, and the unchanged application fixture was not replayed for this unbound branch. Regular outline/front/arc-record behavior is verified; angular buffers, public/aspect/query/outer-save, native K/CTerm/wire and global45-entry acceptance remain pending.
 
 Regular outline/front/arc-record implementation commit: `7090086`.
+
+## Angular outlines and buffer flush
+
+The lower07a3 outline selects angular drawing for retained width>=3, current
+nonzero fallback or unsigned metric>=180. Native mode metrics are29/50/69.
+The temporary device solid/width1 preserves DDO/public style and thickness;
+ordered line strokes reuse the existing bar3d producer gate. Repeated nonfirst
+points and coincident strokes are retained. Current saved offsets publish
+before stage1/flush; angular drawing does not recompute them.
+
+The reader preserves unsigned capacity/short-count gates, captured storage/
+count, first-record Move, later80xx markers and body-first empty fetch/move.
+Only DDO CP restores on normal return. Ordinary style4 restoration obtains
+8000 from the outline's own terminator, while retained user pattern stays
+separate. Errors retain accepted prefixes. Actual native extents are checked
+at each reached read. A truly nonterminating signed-end7fff sweep returns a
+checked error after one complete WORD turn; finite sweeps are unchanged.
+
+big_curve_angular checks independent full indexed scenes and literal records:
+12-write short duplicate strokes;363-record/1098-write closed turn with hand-
+XORed rows; COPY/custom/current styles; all nonzero fallback bytes; threshold/
+WORD-loop/capacity/error paths; malformed/short/nonterminated readers and
+binding snapshots. Mode tests check29/50/69. Public aspect/center/query/outer
+save, native graph-buffer ownership, K wire/CTerm and sector integration remain
+pending. Existing2982 application scenes are unchanged and were not rerun for
+this unbound component; non-BIG regressions remain deferred.
+
+Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Generated-dependency timestamp jitter in initial builds was absent from the final full/focused builds. All51 BIG-specific native CTests passed in52.15s, including big_curve_angular0.01s. The strengthened angular/state focused checks passed in0.26s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound components. Lower angular/regular outline and buffer flush are verified; native public/aspect/query/outer-save/buffer-ownership/K-wire/CTerm, sector/audio/global45-entry and final-suite acceptance remain pending.

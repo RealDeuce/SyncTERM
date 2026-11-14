@@ -321,12 +321,13 @@ static int strokes(struct st_big_state *s, const uint16_t *p, const struct st_bi
 /* The bar3d caller observes CX/DX from the producer before the stroke's
  * saved-register bracket. Its later AX/BX uses are explicitly reloaded
  * or saved below, so no unused line-return register emulation is needed. */
-static int bar3d_line(struct st_big_state *s, struct st_big_producer *producer,
+static int producer_line(struct st_big_state *s, struct st_big_producer *producer,
     struct st_big_producer_registers *r, const struct st_big_producer_sink *sink)
 {
 	bool suppressed;
 	int status=st_big_producer_emit(producer,s,r,sink,&suppressed);
 	if (status!=0 || suppressed) return status;
+	if (sink==NULL || sink->drawing.pixel==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	uint16_t p[]={s->bgi.ddo_x,s->bgi.ddo_y,r->ax,r->bx};
 	s->bgi.ddo_x=r->ax; s->bgi.ddo_y=r->bx;
 	return strokes(s,p,&sink->drawing);
@@ -344,13 +345,13 @@ static int bar3d_top(struct st_big_state *s, struct st_big_producer *producer,
     struct st_big_producer_registers *r, const struct st_big_producer_sink *sink)
 {
 	r->ax=(uint16_t)(s->bgi.bar_corners[0]+r->cx);
-	int status=bar3d_line(s,producer,r,sink); if (status!=0) return status;
+	int status=producer_line(s,producer,r,sink); if (status!=0) return status;
 	r->ax=s->bgi.bar_corners[0]; r->bx=s->bgi.bar_corners[3]; uint16_t top=r->bx;
-	status=bar3d_line(s,producer,r,sink); if (status!=0) return status;
+	status=producer_line(s,producer,r,sink); if (status!=0) return status;
 	r->ax=s->bgi.bar_corners[2]; r->bx=top; uint16_t right=r->ax;
 	status=st_big_producer_move(s,producer,r,sink); if (status!=0) return status;
 	r->ax=(uint16_t)(right+r->cx); r->bx=(uint16_t)(top-r->dx);
-	return bar3d_line(s,producer,r,sink);
+	return producer_line(s,producer,r,sink);
 }
 int st_big_draw_bar3d(struct st_big_state *s, const uint16_t p[4], uint16_t depth,
     uint16_t top, struct st_big_producer *producer, const struct st_big_producer_sink *sink)
@@ -375,13 +376,13 @@ int st_big_draw_bar3d(struct st_big_state *s, const uint16_t p[4], uint16_t dept
 	 * inset. Each saved BX/AX below mirrors a value the caller reuses. */
 	struct st_big_producer_registers r={.ax=s->bgi.bar_corners[0],.bx=s->bgi.bar_corners[3]};
 	top_y=r.bx;
-	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 	r.ax=s->bgi.bar_corners[2]; r.bx=top_y; right=r.ax;
-	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 	r.ax=right; r.bx=s->bgi.bar_corners[1]; bottom=r.bx;
-	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 	r.ax=s->bgi.bar_corners[0]; r.bx=bottom;
-	status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+	status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 	r.ax=s->bgi.bar_corners[2]; r.bx=s->bgi.bar_corners[1]; right=r.ax;
 	status=st_big_producer_move(s,producer,&r,sink); if (status!=0) return status;
 	r.ax=right;
@@ -392,14 +393,14 @@ int st_big_draw_bar3d(struct st_big_state *s, const uint16_t p[4], uint16_t dept
 			r.ax=s->bgi.bar_corners[0]; r.bx=s->bgi.bar_corners[3]; left=r.ax; top_y=r.bx;
 			status=st_big_producer_move(s,producer,&r,sink); if (status!=0) return status;
 			r.ax=(uint16_t)(left+r.cx); r.bx=(uint16_t)(top_y-r.dx); top_y=r.bx;
-			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+			status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 			r.ax=(uint16_t)(s->bgi.bar_corners[2]+r.cx); r.bx=top_y;
-			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+			status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 		} else {
 			r.ax=(uint16_t)(r.ax+r.cx); r.bx=(uint16_t)(r.bx-r.dx); right=r.ax;
-			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+			status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 			r.ax=right; r.bx=(uint16_t)(s->bgi.bar_corners[3]-r.dx); top_y=r.bx;
-			status=bar3d_line(s,producer,&r,sink); if (status!=0) return status;
+			status=producer_line(s,producer,&r,sink); if (status!=0) return status;
 			r.bx=top_y;
 			if ((uint8_t)top!=0) { status=bar3d_top(s,producer,&r,sink); if (status!=0) return status; }
 		}
@@ -487,5 +488,50 @@ int st_big_draw_marker(struct st_big_state *s, uint16_t x, uint16_t y, const str
 		}
 		if (type!=2) { status=st_big_draw_move(s,x,y); if (status!=0) return status; }
 	}
+	return 0;
+}
+
+struct producer_reader {
+	const struct st_big_producer_point *points;
+	size_t extent, index;
+	uint16_t remaining;
+};
+static int producer_next(struct producer_reader *reader, struct st_big_producer_registers *r, uint16_t *last_y)
+{
+	r->bx=0x8000;
+	if (reader->remaining!=0) {
+		if (reader->points==NULL || reader->index>=reader->extent) return IO_ERROR_OUT_OF_RANGE;
+		r->ax=reader->points[reader->index].x;
+		r->bx=reader->points[reader->index++].y;
+		--reader->remaining;
+	}
+	*last_y=r->bx; return 0;
+}
+int st_big_producer_flush(struct st_big_state *s, struct st_big_producer *producer,
+    const struct st_big_producer_sink *sink, uint16_t *last_y)
+{
+	if (s==NULL || producer==NULL || sink==NULL || last_y==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	producer->mode=0;
+	struct producer_reader reader={producer->points,producer->storage_count,0,producer->count};
+	if (reader.remaining>=producer->capacity) { s->bgi.error=-6; return 0; }
+	if (reader.remaining<2) return 0;
+	uint16_t saved_x=s->bgi.ddo_x,saved_y=s->bgi.ddo_y;
+	struct st_big_producer_registers r={0};
+	int status=producer_next(&reader,&r,last_y);
+	if (status==0) status=st_big_producer_move(s,producer,&r,sink);
+	if (status!=0) return status;
+	/* The initial record is always a Move. Only subsequent Y words are
+	 * markers; any80xx with a nonzero low byte reads/moves the next record. */
+	for (;;) {
+		status=producer_next(&reader,&r,last_y); if (status!=0) return status;
+		if ((r.bx&0xff00u)==0x8000u) {
+			if ((r.bx&255u)==0) break;
+			status=producer_next(&reader,&r,last_y);
+			if (status==0) status=st_big_producer_move(s,producer,&r,sink);
+		} else status=producer_line(s,producer,&r,sink);
+		if (status!=0) return status;
+		if (reader.remaining==0) break;
+	}
+	s->bgi.ddo_x=saved_x; s->bgi.ddo_y=saved_y;
 	return 0;
 }

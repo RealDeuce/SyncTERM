@@ -1358,3 +1358,12 @@ WORD/wrapped-angle boundaries, current publication reads and error prefixes.
 Direct original A55 bytes show separate offset/published storage, correcting
 the reference prose's repeated-zero record-drift claim. Angular buffers,
 public wrapper and K wire/CTerm integration remain pending.
+
+BIG lower outline drawing now includes the angular buffered route and original
+ordered producer flush. big_curve_angular checks independent indexed scenes,
+363 closed-turn records/1098 XOR writes, duplicate strokes, marker/point/style
+owners, capacity/error prefixes and WORD-loop termination. Mode-state tests
+check literal29/50/69 metrics. A true infinite signed angle loop becomes a
+checked native error after a complete WORD turn. Public K wrapper, owned
+buffer/wire/CTerm integration and sector composition remain pending; no new
+application scene or non-BIG regression claim is added.

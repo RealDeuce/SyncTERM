@@ -1,9 +1,10 @@
-/* BIG's WORD-angle, metric and circular-aspect scalar adapters (13/61). */
+/* BIG original curve scalars/fronts and indexed producer binding (13/61). */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_big_curve.h"
 #include "st_big_number.h"
 #include "st_big_producer.h"
 #include "st_bgi_trig.h"
+#include "st_bgi_data.h"
 #include "io_error.h"
 #include <stddef.h>
 #include <stdbool.h>
@@ -209,5 +210,56 @@ int st_big_curve_regular_outline(struct st_big_state *state, struct st_big_produ
 	if (status!=0) return status;
 	publish_arc(state);
 	producer->mode=0;
+	return 0;
+}
+
+static int angular_outline(struct st_big_state *state, struct st_big_producer *producer,
+    uint16_t start, uint16_t end, const struct st_big_producer_sink *sink)
+{
+	if (start>=end) end=(uint16_t)(end+360u);
+	if (state->bgi.orientation!=0) { start=(uint16_t)(start+90u); end=(uint16_t)(end+90u); }
+	uint16_t first=start;
+	for (;;) {
+		uint16_t x=(uint16_t)st_bgi_trig_mul(st_big_curve_cos(start),state->bgi.curve_radius[0]);
+		uint16_t y=(uint16_t)(0u-(uint16_t)st_bgi_trig_mul(st_big_curve_sin(start),state->bgi.curve_radius[1]));
+		struct st_big_producer_registers r={.ax=(uint16_t)(x+state->bgi.ddo_x),.bx=(uint16_t)(y+state->bgi.ddo_y)};
+		int status=st_big_producer_move(state,producer,&r,sink); if (status!=0) return status;
+		start=(uint16_t)(start+1u);
+		if (st_big_number_signed(start)>st_big_number_signed(end)) return 0;
+		/* With signed end7fff no WORD can exit JLE. Preserve one whole
+		 * turn's collector effects, then return a checked native error. */
+		if (start==first) return IO_ERROR_OUT_OF_RANGE;
+	}
+}
+int st_big_curve_outline(struct st_big_state *state, struct st_big_producer *producer,
+    uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
+    const struct st_big_producer_sink *sink, const struct st_big_curve_batch_sink *batch)
+{
+	if (state==NULL || producer==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (state->bgi.ddo_line_width<3 && state->bgi.curve_fallback==0 && state->bgi.curve_metric<180)
+		return st_big_curve_regular_outline(state,producer,start,end,radius_x,radius_y,sink,batch);
+	state->bgi.curve_filled=0;
+	state->bgi.curve_radius[0]=radius_x; state->bgi.curve_radius[1]=radius_y;
+	state->bgi.arc[0]=state->bgi.ddo_x; state->bgi.arc[1]=state->bgi.ddo_y;
+	/* Device-only temporary style: retained public/DDO style and width
+	 * still govern later restoration and original thickness expansion. */
+	state->bgi.line_mask=0xffff; state->bgi.device_line_width=1;
+	int status=st_big_producer_start(producer);
+	if (status==0) status=angular_outline(state,producer,start,end,sink);
+	if (status!=0) return status;
+	publish_arc(state);
+	struct st_big_producer_registers terminator={.ax=0x8000,.bx=0x8000};
+	status=st_big_producer_move(state,producer,&terminator,sink);
+	if (status!=0) return status;
+	producer->mode=0;
+	uint16_t last_y=terminator.bx;
+	status=st_big_producer_flush(state,producer,sink,&last_y);
+	if (status!=0) return status;
+	/* Our appended terminator establishes BX8000 on normal reader paths
+	 * and on capacity/short skips. Read the result rather than restoring
+	 * the retained custom user word, which is a distinct owner. */
+	if (state->bgi.ddo_line_style>4) return IO_ERROR_OUT_OF_RANGE;
+	state->bgi.line_mask=state->bgi.ddo_line_style==4?last_y:st_bgi_line_patterns[state->bgi.ddo_line_style];
+	state->bgi.device_line_width=1;
 	return 0;
 }

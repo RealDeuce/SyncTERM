@@ -40,4 +40,10 @@ int st_big_producer_emit(struct st_big_producer *, struct st_big_state *,
  * including clipped/rejected points. Public CP is retained. */
 int st_big_producer_move(struct st_big_state *, struct st_big_producer *,
 	struct st_big_producer_registers *, const struct st_big_producer_sink *);
+/* DDO059e flush: snapshot reader/count, force mode0, and restore only DDO CP
+ * on normal return. last_y retains its input on skipped reads; otherwise it
+ * reports the last reader Y (including an empty fetch's8000), not raw device
+ * line-register clobbers. Borrowed storage must stay alive during callbacks. */
+int st_big_producer_flush(struct st_big_state *, struct st_big_producer *,
+	const struct st_big_producer_sink *, uint16_t *last_y);
 #endif

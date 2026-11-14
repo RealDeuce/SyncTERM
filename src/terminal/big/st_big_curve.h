@@ -1,4 +1,4 @@
-/* BIG curve scalar adapters; complete fronts/recurrence remain separate. */
+/* BIG curve scalars, decimal/angular outlines and producer binding. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #ifndef ST_BIG_CURVE_H_
 #define ST_BIG_CURVE_H_
@@ -47,6 +47,13 @@ int st_big_curve_decimal_draw(struct st_big_state *, struct st_big_producer *,
  * No public center move, ffff query, outer DDO restore or angular selection.
  * Publication reads current origin/offsets; failures keep reached prefixes. */
 int st_big_curve_regular_outline(struct st_big_state *, struct st_big_producer *,
+	uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
+	const struct st_big_producer_sink *, const struct st_big_curve_batch_sink *);
+/* Complete lower07a3 outline selection, regular or angular/buffered.
+ * Physical DDO center is already placed; public aspect/query/017a save
+ * belongs to the wrapper. A nonterminating signed angle loop fails after
+ * one complete WORD turn, preserving its accepted collector/style prefix. */
+int st_big_curve_outline(struct st_big_state *, struct st_big_producer *,
 	uint16_t start, uint16_t end, uint16_t radius_x, uint16_t radius_y,
 	const struct st_big_producer_sink *, const struct st_big_curve_batch_sink *);
 #endif

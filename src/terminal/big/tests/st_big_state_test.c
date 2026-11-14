@@ -82,6 +82,7 @@ static int defaults(const struct fixture *f, unsigned height)
 {
 	const struct st_big_state *s = &f->state;
 	CHECK(s->bgi.width == 640 && s->bgi.height == height);
+	CHECK(s->bgi.curve_metric == (height==200?29:height==350?50:69));
 	CHECK(s->bgi.viewport[0] == 0 && s->bgi.viewport[1] == 0 && s->bgi.viewport[2] == 639 && s->bgi.viewport[3] == height-1);
 	CHECK(s->bgi.clip == 1 && s->bgi.x == 0 && s->bgi.y == 0);
 	CHECK(s->bgi.color == 15 && s->bgi.background == 0 && s->bgi.fill_style == 1 && s->bgi.fill_color == 15);
