@@ -240,6 +240,114 @@ checks remain necessary. `cterm_rip_raster` tests a translated viewport with a
 thin clipped line and a thick line whose center is invisible but a side pass is
 visible.
 
+## Command-parser comparison, 2026-11-14
+
+The parser is **not fully compliant** with the findings in
+`/synchronet/src/sbbs/src/syncterm/rip_test/cmd_parse.md`. Passing the existing
+regression suites does not establish that broader claim. The issue #2 checks
+above concern three particular legacy defects and remain valid.
+
+This comparison used modern commit `794e369`, legacy v1.10b commit
+`74cce5b27a610bddb4a05236c011b76747619122` (the current form of the issue #2
+fix), and explicit Synchronet tag refs:
+
+| Reference | Commit | Verification |
+| --- | --- | --- |
+| `refs/tags/syncterm-1.8` | `a20f6c6dee634b19b271479c082f02246b7b9ded` | Source comparison and parser replay using the current legacy console objects. |
+| `refs/tags/syncterm-1.9` | `5bd319427e4f58cd965b056c69bb96ed47db7a81` | Source comparison; `parse_mega`, `parse_rip_args`, `cb_accept_introducer` and `cb_feed` are identical to v1.8. |
+| `refs/tags/syncterm-1.8rc2` | `3e6e5cef79d2547f469e5022687f5487fbd82cda` | Source review of the earlier state machine; not a runtime test of that release. |
+
+The release tags must be qualified: this checkout also has branches with the
+same names. The v1.8 replay is a parser comparison, not a build/test claim for
+the complete historical release or its Windows executable. Legacy sources and
+the research document were not modified.
+
+Independent native probes exercised 62 assembly vectors in 674 two-part/bytewise
+feeds; eleven vectors differed from the reference expectations. Twenty-four
+live control-bitmap observations checked the ordinary v2.0
+executable in CP437 and UTF-8 with `AudioModes=0`; cells, cursor and pixels came
+from the same DSR-fenced capture. A native headless legacy harness replayed the
+corresponding cases against v1.10b and the tagged v1.8 parser. Temporary probe
+sources and results were retained under `/tmp/rip-cmd-parse-audit` for this run.
+They are diagnostic evidence, not registered passing CTest coverage for the
+unresolved differences below.
+
+The native CMake configure/build and all 35 selected RIP, SkyPix and terminal
+session CTests passed. Those passing regression results do not close the audit
+findings.
+
+### Regressions introduced by the modern port
+
+| ID | Reproduction | Reference / legacy behavior | Modern behavior and location |
+| --- | --- | --- | --- |
+| P1 | `!\|g001\r\n` | A final two-digit meganum field may contain one digit: move to column 1, row 2. v1.8/v1.10b both do so. | Remains at 1,1. `st_cterm.c`'s `g` handler requires four raw characters. Its `rip_number` helper and other fixed-offset host handlers also bypass the legacy descriptor decoder's shortened-field and `-` validation rules. `!\|g0-01\r\n` also moves to 1,2 in the legacy replay and is ignored here. |
+| P2 | `ESC[3!HELLO` or `ESC[00!HELLO` | The CSI bang handler consumes the complete sequence; following text is `HELLO`. Both legacy parsers preserve all five letters. A zero-valued parameter also requests the version in RIPterm, even when zero-padded. | Displays `ELLO`: `cterm_rip_parser.c:feed_escape` only intercepts the exact no-parameter or single `0`/`1`/`2` forms. Other forms reach the ECMA parser, which treats `!` as an intermediate and consumes the following `H` as its final byte. Missing the zero-padded version reply itself is inherited; losing the next text character is new. |
+| P3 | Unterminated wire command followed by session finish/disconnect | The documented wire machine never dispatches without CR or an unescaped pipe. Legacy `parse_rip(..., 0, ...)` drains deferred input without dispatching an incomplete command. Local scene EOF has a separate explicit flush. | Source inspection: `st_cterm_finish` unconditionally calls `cterm_rip_engine_flush`, and disconnect preparation, session teardown and several setters call it. Thus the local-EOF extension can dispatch a partial wire command. This boundary was source-reviewed; the live disconnect path was not independently replayed in this audit. |
+
+P1 and P2 have direct modern/legacy runtime comparisons. P3 is a distinct
+modern ownership/boundary issue and should not be presented as a measured
+historical binary difference.
+
+### Differences already present in v1.8 and v1.10b
+
+These need consideration in both maintained branches, rather than being
+classified as modern-port regressions.
+
+| ID | Finding and independent reproduction | Evidence / affected implementation |
+| --- | --- | --- |
+| S1 | Three backslashes before a pipe dispatch in RIPterm because the last two are backslashes; four before CR continue because the last three are backslashes. These are not parity tests. For example, `!\|TA` + three backslashes + `\|Tnext\r\nZ` dispatches two text commands in the reference but merges them in SyncTERM. | Re-disassembled `1A04:007E–00DA` and `0125–0186`; both modern `trailing_backslashes(...) & 1` and legacy `nbs & 1` disagree. Native assembly probes and legacy replay confirm the current behavior. |
+| S2 | `!\|#\rESC[31mZ` should suppress the first post-command ESC via EBC, then pass `[31mZ` as ordinary text. Both SyncTERM paths process the escape and leave EBC pending, eventually suppressing `Z`. | `1634:0272–0295` versus modern `feed_escape` priority and legacy `cb_esc_feed` priority. Native and live/legacy probes leave the line blank. |
+| S3 | `!\|#\|!XYZ\r\n` should clear the bare-pipe accumulator, buffer `!`, then release literal `!XYZ` when `X` proves it is not a command. Both SyncTERM parsers discard the literal text as an unknown `!` command. | Re-disassembled `1A04:00F4–0117` and the called accumulator reset. Neither `feed_one` nor `cb_feed` implements this reset. Confirmed in modern live captures and both legacy replays. |
+| S4 | The five-byte window should follow consumed RIP bytes too. `ABC SOH\|#\r!\|c0F\|X2S2S\r\n` should accept the second introducer after the command's CR. Both SyncTERM paths retain the earlier text history, reject it and display `ABC\|c0F\|X2S2S`. | Re-disassembled `1634:029B–02FB`; modern `slide` and legacy `cb_slide` only see the passthrough path. The live modern pixel stays black instead of white. |
+| S5 | The reference numeric validator accepts `-`, but conversion uses the base-36 signed conversion routine and stores a 16-bit word. Both raster/legacy `parse_mega` implementations instead treat every `-` as a zero digit; the modern host helper rejects it entirely. | `110E:0213–02D8`, `01A2:6591` and the AX store at `110E:02D5`. A signed field must not be declared compliant from the current zero-digit implementation. Wide-value conversion and the documented 511-word parameter cap also differ from the current integer/point limits. Exact drawing for reference out-of-bounds/stale-coordinate cases is not a suitable compatibility target. |
+| S6 | Numeric CSI decoding is absent for zero-padded autosense parameters. `ESC[00!` should reply with `RIPSCRIP015410`; neither release path does. | Re-disassembled `09C6:064A–06AD`: the handler tests decoded parameter count/value, not literal spelling. P2 is the additional modern text-loss regression on the fallback. |
+| S7 | The reference descriptor table contains both `9 ESC` and `0 ESC`, and both jump-table entries target the same block-mode handler. Both SyncTERM command assemblers only consume level digits `1`–`9`, so the `0 ESC` spelling is decoded as command `0`. | The binary table at file offset `0x2FD62` and targets 59/60 at `1814:197D`; modern and legacy dispatch prefix decoding. Host dispatch also needs to preserve the alias if this reference behavior is implemented. |
+
+One-way disable is an existing, explicitly documented SyncTERM compatibility
+behavior, including the v1.8rc2 source. It is not a v2.0 regression: once
+disabled, the RIP parser cannot receive `ESC[2!`. It nevertheless differs from
+the research reference, where ANSI handles the enable sequence outside the RIP
+gate. This audit does not silently change that policy. Similarly, newer RIP
+extensions retained from legacy SyncTERM are not automatically bugs merely
+because the RIPterm 1.54 descriptor table lacks them.
+
+### Coverage of the research findings
+
+| Research finding | Assessment |
+| --- | --- |
+| Q1: ANSI/RIP separation, autosense and unknown CSI | Known one-way policy; P2/S6 remain unresolved. Unknown ordinary CSI finals are consumed by the base ANSI parser. |
+| Q2: unconditional backslash preprocessing and continuation | Generic escapes and escaped pipes pass the focused vectors. S1 covers the longer delimiter runs; do not extrapolate parity from the passing one/two/three-slash CR cases. |
+| Q3: introducers, byte history and cursor fallback | Normal BOL/mid-column/escaped cases and every split pass existing tests; S3/S4 remain. The mid-ESC SOH/STX summary in the notes conflicts with the actual branch flow described below. |
+| Q4: pre-dispatch viewport/cursor helper | The modern boundary callback commits text before graphics; the legacy helper has no command-buffer side effects. Existing real-renderer cursor/split tests cover that ordering. |
+| Q5: descriptors, meganums, freeform text | Empty `T`/`@` graphic text becomes a space in the raster path. P1/S5/S7 and numeric parameter limits prevent a full decoder compliance claim. |
+| Q6: lone introducer followed by CR | `!`, SOH and STX release both bytes; native split probes pass. |
+| Q7: embedded C0 data | The listed non-NUL C0 bytes other than LF/CR remain command data; 29 independent byte vectors pass at every split and bytewise. LF is swallowed and CR dispatch/continuation is separately covered. |
+| EBC and `RIP_NO_MORE` | Printable/LF/VT completion and repeated `#` are covered; no dedicated NO_MORE state exists. S2 is the uncovered ESC priority case. |
+| `P`/`p` and colour-zero outline | Both use the polygon renderer; colour-zero fill remains active while the outline is suppressed. Existing native/historical raster cases cover this. Malformed counts are rejected instead of reproducing reference reads of unavailable coordinates. |
+| Stream boundaries | Network write boundaries do not flush commands. Explicit local EOF flush is an extension; its use on live wire state is P3. |
+
+### Corrections needed when using the research notes as an oracle
+
+The installed `/usr/home/admin/art/rips/RIPTERM.EXE` has SHA-256
+`9a228c976a760107d0aed1e5599adae4ceccaf012e47b625de8a570612083ebd`.
+The checks above used its bytes directly; no DOSBox or historical Windows
+binary execution is claimed.
+
+The notes' mid-ESC table says SOH/STX are rejected. The actual instructions at
+`1A04:01BE–020D` jump to the last-chance SOH/STX acceptance path after the ANSI
+accumulator check fails; that path only rejects a preceding backslash. Both
+SyncTERM escape submachines currently intercept those bytes before that choice.
+This reference behavior must be resolved explicitly rather than turning the
+contradictory prose into an expected result.
+
+The extracted 62 descriptors also clarify transcription errors: `Q` contains
+sixteen `2#` fields, `1M` ends in `++`, and `1B` has seventeen fields totaling
+36 digits (not eighteen fields/38 digits). The early jump-table examples in the
+notes are inconsistent with their later table: colour is index 4, while both
+polygon entries 18 and 25 target `0F4F`. The `b2#` entry targets the common exit,
+so its descriptor alone does not establish a background-colour operation;
+SyncTERM's extended text-window `b` is a later protocol extension.
+
 ## Coverage boundaries
 
 This is a regression inventory of the historical corner cases, not a claim that
