@@ -1584,3 +1584,5 @@ wire playback/resources/progress/fixed gain and final full-suite acceptance
 remain pending; no physical device or auditory coverage is claimed.
 
 Native FreeBSD CMake Release configure/full build (/usr/bin/cc, build/) passed without compiler/source diagnostics. All71 BIG-specific native CTests passed in64.18s, including big_music_channel0.01s and big_music_pcm0.07s. No physical audio/MIDI, audible-device tests or non-BIG regressions are claimed. The unchanged4102 application scenes were not rerun for this standalone ownership/headroom dependency. N wire loading/playback, actual resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.
+
+Wide PCM/channel0 ownership foundation implementation commit: `69eb9d6`. Native N wire loading/scheduling, actual music resources/progress, fixed OPL2 gain and full-goal acceptance remain pending.
