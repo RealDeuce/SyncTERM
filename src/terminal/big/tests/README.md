@@ -844,3 +844,29 @@ point/producer expectations. Headless physical audio/MIDI stay disabled.
 The final Q capacity case admits normal producer-6 with no outline pixels
 and still fills the clipped5x5 area, distinct from a read-plane error that
 returns before fill installation.
+
+big_polygon provenance is complete DDO0b03..0d67 in original60/polygon-code,
+its60-byte table and the independently authored polygon-examples. The fixture
+first failed to link against the missing scanner. Literal rows for all12
+records distinguish sticky/normal, period jumps and unused orientation bytes.
+The current table independently matches the original SHA256
+7dde6db8627f4f4c515008fa2d2ad8b02a8e005502141a8fa3d77171d44e4874.
+
+Expected64x64 indexed scenes use literal square bounds, physical mask phase,
+opaque zeros and all16 pens with the existing bar adapter. Span requests
+check half-open edges, truncating negative slopes, three graphic point owners,
+temporary/captured restore tuples, public fill separation and failures. Y80xx
+markers/8001 contours and ordinary X8000 have distinct oracles. Declared count
+places actual shared scratch without bounding vertex traversal: an alias
+changes upper X before its reload and yields left2/3/4/5 on rows2/3/4/5.
+Capacity0/1 and odd tails retain silent/pending behavior.
+
+A signed WORD-dy witness emits258 spans then rejects the next quotient;
+missing marker/scratch, malformed styles/short counts, callback failures and
+live binding removal keep reached prefixes. Loaded hook and sticky changes
+alter later requests. Finite full-WORD wraps/zero-height rows succeed, while
+zero-step or unreachable signed limits reject only at a full initial row/
+counter cycle. This is no clock or finite geometry budget. Raw fallback span
+requests are verified without claiming physical raw-line pixels, devices or
+V/Y wire integration. Existing3374 application scenes are unchanged/unrerun;
+no expected pixels come from the emulator and no external asset is needed.

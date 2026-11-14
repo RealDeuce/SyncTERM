@@ -1414,3 +1414,10 @@ full indexed planes/point owners, pages/scratch and recovery across profiles.
 The application fixture adds98 Q scenes,3374 total, retaining all preceding
 K/J/O and graphics-state expectations. V and global/audio/final acceptance
 remain pending.
+
+BIG sector prerequisites now include the original polygon scan converter.
+big_polygon independently checks indexed bar scenes and literal row/span/
+colour/marker/scratch/WORD-arithmetic/error state, including shared-buffer
+aliases and captured colour restoration. Raw-line requests are distinguished
+from bars; native physical binding and V/Y sector/wire acceptance remain
+pending. No new application scene or non-BIG regression claim is added.

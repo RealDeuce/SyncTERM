@@ -32,7 +32,9 @@ Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
 wrappers with query and DDO-only restoration, native shared graph-buffer
 binding and K/J/O/Q wire/page/source/recovery integration. V is the next native
-curve command; global/full-suite acceptance remains pending.
+curve command. Its raw polygon scan converter is implemented and independently
+tested; sector stages, physical span binding and V/Y wire work remain pending.
+Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -3710,3 +3712,71 @@ Q still submits fill and floods the clipped5x5 region. Actual read-plane
 errors stop before fill, preserving the separate returning-error schedules.
 
 Native Q explicit-ellipse implementation commit: `82a3080`.
+
+== Sector polygon scan-conversion prerequisite
+
+V's complete original caller and downstream sector stages require DDO0b03's
+polygon operator before native pieslices can be wired. Chapters60/61 and the
+complete four polygon-code ranges define a separate marker/row/intersection/
+span operation. The current RIP scan converter only shares the stated bounded
+final-image domain; count-bounded vertices, heap scratch, host arithmetic,
+separator ownership and whole fill/outline behavior differ. Existing BIG
+indexed bars/lines and shared graph storage remain the intended mechanisms.
+
+st_big_polygon_fill implements that raw component through narrow synchronous
+colour/span callbacks. Entry captures producer count/capacity, places WORD
+intersection scratch after the declared four-byte records in the SAME borrowed
+point storage and traverses live Y80xx markers. Y8001 separates contours;
+other Y80xx terminates, while X8000 remains a coordinate. Declared count does
+not truncate marker scans. Edge predicates and arithmetic loads are distinct;
+sorted inserts can change later vertex reads through actual native aliases.
+Equal intersections insert before existing equals; capacity drops are silent.
+
+Half-open signed edges use WORD differences, full signed32 multiplication,
+truncating division with signed16 quotient checks and low-WORD addition.
+Bounds and body-first rows retain signed comparisons, captured mode/period/
+step and wrapped advancement. All60 original table bytes match SHA256
+7dde6db8627f4f4c515008fa2d2ad8b02a8e005502141a8fa3d77171d44e4874.
+Normal sticky0 uses record0; sticky uses BYTE-wrapped offsets, including valid
+misaligned views. The shared existing line_distance word supplies scaling.
+
+Native pending X/Y and hook words start0 with state and retain their distinct
+owners. Setup clears hook state. The actual loaded XOR AL,AL stub clears low
+X only on enabled endpoint calls; its post-pass carry always ends after one
+pass. Even endpoints store pending state; odd endpoints exchange it, unsigned-
+sort X and select current sticky's clipped opaque pattern bar or direct raw
+thin-line request. An unmatched final endpoint remains pending. The scanner
+adds no origin/width correction and changes none of the three graphics points.
+
+Setup temporarily submits fill/fill to the device while preserving the
+captured DDO line/fill-low tuple. Normal completion restores the captured DDO
+bytes before its device dispatch, without changing the separate public fill
+WORD or cached tile. Errors retain reached scratch/pending/cache/device/pixel
+prefixes without normal restoration. Callbacks are synchronous; IN_PROGRESS
+is a protocol error. Physical raw-line binding and producer stages belong to
+the next sector integration work, not this unbound component.
+
+Checked native extents replace missing markers, escaped scratch/table views,
+raw short-count stack escapes and IDIV faults. Within owned storage the live
+aliases remain. Row advancement is an invertible modular-add/cyclic-counter
+transition; a checked failure occurs only when the actual state returns to
+its initial row/counter with the loop predicate still true. Finite full-WORD
+wraps and zero-height bodies remain valid. This is no row/time budget or
+foreign clock/CPU/segment/controller model and adds no framebuffer/allocation.
+
+big_polygon first failed to link before implementation. Independent literal
+requests,64x64 indexed scenes and all16 pens cover opaque masks, origin,
+colour restoration and failure prefixes; all original row records have literal
+expected schedules. Marker/contour/count/capacity/odd tails and a real scratch/
+vertex alias check actual shared storage. The negative-slope and signed-IDIV
+witnesses, loaded hooks, live sticky/binding changes, missing storage and
+callback errors retain independent expectations. Wrapped finite and infinite
+row cases distinguish exact progress from an arbitrary geometry cap.
+
+No V command is registered by this step. V/Y sector construction, stage2/3
+polygon admission, physical span adapters, radial/outline/fill ordering and
+wire/application acceptance remain pending. The unchanged3374 application
+scenes last passed with82a3080; no new scene or application run is claimed.
+The full45-entry/audio/resource and goal-final regressions remain pending.
+
+Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending.

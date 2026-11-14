@@ -29,6 +29,7 @@ struct st_big_state {
 		uint16_t arc[6], curve_radius[2], curve_offsets[4];
 		uint16_t curve_span, curve_first[2], curve_metric;
 		uint8_t curve_first_valid, curve_filled, curve_fallback;
+		uint16_t polygon_pending[2], polygon_hook;
 		uint8_t device_color, ddo_line_style, ddo_line_width;
 		uint16_t ddo_line_user;
 		uint8_t fill_low, device_fill_color, device_fill_style;

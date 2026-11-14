@@ -823,6 +823,49 @@
             "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending."
           ],
           "commit": "fd4bdb9"
+        },
+        {
+          "id": "sector-polygon-scan-converter",
+          "status": "complete",
+          "operations": [
+            "Implement raw DDO0b03..0d67 polygon scan conversion over the existing borrowed producer point storage. Capture declared count/capacity, place two-byte intersection scratch after declared four-byte records in the same buffer, and traverse live Y80xx marker streams rather than the declared count. Reload edge words after their independent half-open predicate; retain scratch/vertex aliases, signed sorted insertion before equals and silent capacity drops.",
+            "Retain signed WORD differences, full signed32 multiply/truncating signed16 quotient checks, signed bounds and body-first WORD rows. Use all60 original row-table bytes, BYTE-wrapped/misaligned selection, shared line_distance and current fallback; capture row mode/period/step and preserve period-multiplied advancement without a host height budget.",
+            "Own native pending endpoint/hook words. Loaded hook clears only low X when enabled; setup clears hook state and the loaded post-pass hook admits one pass. Odd tails retain pending coordinates. Unsigned-sort completed pairs and dispatch distinct physical clipped-pattern-bar versus raw-thin-line requests using the current sticky gate, without origin/thickness/point assignment.",
+            "Capture DDO line/fill-low tuple before setup; submit fill/fill temporarily to the native device. Normal completion restores captured DDO bytes before device dispatch, retaining independent public fill WORD/cache and all graphics points. Callback failures retain accepted scratch/pending/color/pixel prefixes without finally restoration; IN_PROGRESS is invalid for synchronous callbacks."
+          ],
+          "references": [
+            "60-sector-polygon-scan-converter.adoc:complete raw front, rows, markers, scratch, IDIV, spans and saved tuple",
+            "polygon-code.adoc:complete DDO0b03..0c85;0c8a..0cc8;0d05..0d62;0d65..0d67",
+            "polygon-data.json:original asset and complete60-byte row table identities",
+            "polygon-examples.json:independent square/row/negative-slope/marker/capacity/hook/fault cases",
+            "61-curve-command-acceptance.adoc:V/Y stage2/3 and fill/outline/restoration composition still pending",
+            "83-global-native-reuse-and-implementation-map.adoc:bounded native intersection equivalence versus distinct whole polygon operators",
+            "13-curves-and-native-reuse.adoc:producer point records/sector stages and normal versus alternate paths"
+          ],
+          "tests": [
+            "big_polygon",
+            "big_producer",
+            "big_state",
+            "big_fill",
+            "big_bar",
+            "big_curve_angular",
+            "big_curve_regular"
+          ],
+          "deviations": [
+            "Check the reached native point/table/scratch extents, missing markers, raw short counts and signed16 divide faults rather than permitting foreign memory/stack escape or process termination. Keep native in-buffer aliases, ordinary wrapped row-table views and exact WORD arithmetic; no emulated segment/stack/code-patching/controller domain is introduced.",
+            "A row cycle is rejected only after the actual captured WORD row/counter schedule returns to its initial state with the signed loop predicate still true. The modular-add/cyclic-counter transition is invertible, so this proves nontermination. Zero-height and finite full-WORD-wrap traversals still return normally; no row/time/throughput cap, foreign clocks or extra speculative callbacks are used.",
+            "Component span/color callbacks define native mechanism boundaries. Regular indexed scenes use the existing bar in the test adapter; raw fallback requests are verified as requests, not claimed as physical fallback pixel/device coverage. Producer stage admission/closure, native physical binding and complete V/Y wire/aspect/fill/outline/global acceptance remain pending."
+          ],
+          "verification": [
+            "Independent big_polygon first failed to link against the missing operator. Full64x64 indexed arrays check literal half-open square pixels, translated-origin preservation, opaque custom mask bits and every logical pen. Exact span/tuple requests, pending words, producer/point owners, captured restore versus live mutation and public fill separation are checked.",
+            "All60 current row-table bytes independently match original SHA2567dde6db8627f4f4c515008fa2d2ad8b02a8e005502141a8fa3d77171d44e4874. Literal schedules cover every original record, both sticky routes and orientations, period jumps, signed style skip, BYTE-wrapped misaligned style53, checked escaped style13 and sticky-before-count/style prefixes.",
+            "All255 terminating Y80xx markers, separator contours, ordinary X8000, streams shorter/longer than declared count and actual in-buffer scratch aliasing retain reached behavior. An alias overwrites a later upper X before its reload, producing independently expected left2/3/4/5 on rows2/3/4/5. Capacity0/1 silently drops intersections and odd three-intersection rows leave the final pending endpoint.",
+            "Negative slopes truncate toward zero. The WORD-dy IDIV witness succeeds for258 zero-width spans before a checked quotient failure at the259th row. Empty-row and finite full-WORD-wrap scans succeed, while zero-step and wrapped nonterminating schedules fail only at a completed initial row/counter cycle.",
+            "Backend begin/span/restore failures, invalid IN_PROGRESS, missing markers/scratch extent, raw short count, live binding removal and missing optional callbacks preserve exact reached cache/device/pending/scratch/pixel prefixes. Current hook/sticky changes affect subsequent endpoint requests. No original binary/ROM is needed to run the fixture.",
+            "No wire or application scene changes; the unchanged3374 coherent scenes last passed with82a3080 and are not replayed for this unbound prerequisite. Non-BIG/shared-code regressions remain deferred to the goal-final full suite.",
+            "Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending."
+          ],
+          "commit": null
         }
       ]
     },
@@ -3121,7 +3164,7 @@
     {
       "id": "V",
       "order": 23,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3129,12 +3172,23 @@
         "shared-bgi"
       ],
       "references": [
-        "61-curve-command-acceptance.adoc"
+        "61-curve-command-acceptance.adoc",
+        "60-sector-polygon-scan-converter.adoc",
+        "polygon-code.adoc"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Polygon scan-conversion prerequisite is implemented under shared-bgi/sector-polygon-scan-converter. V caller registration, numeric acquisition, circular sector wrapper, normal/alternate piece construction, stage2/3 admission/fill/outline/radial sequencing and returning fill restoration remain pending."
+      ],
+      "tests": [
+        "big_polygon"
+      ],
+      "deviations": [
+        "The native bounded polygon component uses checked extent/division/nontermination failures. This is prerequisite acceptance only, not V wire/pixel/global command acceptance."
+      ],
+      "verification": [
+        "Independent raw polygon/span/color/scratch tests cover the new prerequisite; full V/Y composition has not been implemented or accepted.",
+        "Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending."
+      ],
       "commit": null
     },
     {

@@ -1681,3 +1681,27 @@ Q still submits fill and floods the clipped5x5 region. Actual read-plane
 errors stop before fill, preserving the separate returning-error schedules.
 
 Native Q explicit-ellipse implementation commit: `82a3080`.
+
+## Sector polygon scan-conversion prerequisite
+
+The raw DDO0b03..0d67 operator now scans live Y-marker records in the same
+borrowed graph storage as its declared-count intersection scratch. It retains
+half-open signed WORD/IDIV arithmetic, insertion/odd-tail/pending state, all
+original row records, period steps, current sticky bar/raw-line selection and
+captured DDO colour restoration. Checked native extents, quotient failures and
+proven row-state cycles replace memory escapes, traps and infinite loops.
+Finite WORD wraps are preserved; no foreign clock or per-polygon allocation
+is introduced. The60 table bytes independently match the retained original
+SHA2567dde6db8627f4f4c515008fa2d2ad8b02a8e005502141a8fa3d77171d44e4874.
+
+big_polygon checks independent64x64 indexed/pattern/pen scenes through the
+existing bar adapter and literal span/colour requests. It covers all row
+records/routes/orientations, Y markers/contours/X8000, count-versus-marker
+reads, actual in-buffer aliases, capacity/odd tails, negative slopes, signed
+IDIV, current hook/sticky/binding changes and exact callback/error prefixes.
+Raw fallback requests are checked as requests; physical raw-line coverage is
+pending. The unchanged3374 application scenes were not rerun. V/Y stages,
+physical binding, complete wire and global/audio/final acceptance remain
+pending; this step accepts the polygon prerequisite only.
+
+Native CMake Release configure/full and focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. All54 BIG-specific native CTests passed in56.45s, including big_polygon0.01s; the focused polygon check passed in0.09s total (test0.01s). Current60-byte row data independently matched its original SHA256. No non-BIG tests or unchanged3374 application scenes were rerun. Raw polygon scan conversion is verified; sector stages/admission, native physical span binding, V/Y wire/application, audio/resource/global45-entry composition and the goal-final full suite remain pending.
