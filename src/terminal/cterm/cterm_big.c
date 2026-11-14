@@ -28,6 +28,9 @@ static const struct st_graphics_parameter point[] = {
 static const struct st_graphics_parameter flood[] = {
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
 	{.kind=ST_GRAPHICS_NUMBER}};
+static const struct st_graphics_parameter arc[] = {
+	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
+	{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER},{.kind=ST_GRAPHICS_NUMBER}};
 static const struct st_graphics_parameter line[] = {
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y},
 	{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_X},{.kind=ST_GRAPHICS_NUMBER,.axis=ST_GRAPHICS_Y}};
@@ -47,6 +50,7 @@ static int image_next(void *, const struct st_graphics_command_view *, struct st
 static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',scalar,1,NULL},
 	{'<',input_parameters,3,NULL},{'T',scalar,1,style_next},{'P',point,2,NULL},
 	{'L',line,4,NULL},{'D',point,2,NULL},{'d',relative,4,NULL},
+	{'K',arc,5,NULL},
 	{'B',line,4,bar_next},
 	{'Z',line,4,NULL},
 	{'F',flood,3,NULL},
@@ -404,6 +408,10 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
 	if (view->code=='t') { cterm_big_pause_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
 	if (view->code=='?') return cterm_big_query_begin(big,view);
+	if (view->code=='K') {
+		int status=cterm_big_draw_k(big,view);
+		return status==0?begin_footer(big,view):status;
+	}
 	if (view->code=='B') return cterm_big_bar_begin(big,view);
 	if (view->code=='F') return cterm_big_flood_begin(big,view);
 	if (view->code=='W') {
@@ -970,7 +978,8 @@ int cterm_big_create(struct cterminal *t)
 	const struct st_big_numeric_io io = {.context = big, .bell = bell,
 	    .peek_key = cterm_big_input_peek, .read_key = cterm_big_input_read};
 	int status = st_big_numeric_init(&big->numeric,&io);
-	if (status==0) status=st_big_flood_bind(&big->flood_work,big->flood_records,CTERM_BIG_FLOOD_RECORDS,CTERM_BIG_FLOOD_RECORDS);
+	if (status==0) status=st_big_flood_bind(&big->flood_work,big->graph_work.flood,CTERM_BIG_FLOOD_RECORDS,CTERM_BIG_FLOOD_RECORDS);
+	if (status==0) status=st_big_producer_bind(&big->producer,big->graph_work.points.records,CTERM_BIG_GRAPH_POINTS,CTERM_BIG_GRAPH_BYTES);
 	/* Defined native initial storage replaces uninitialized DOS RAM. The
 	 * owned allocation/cache survive I/R, attention, EOF and cancellation. */
 	if (status==0) status=st_big_image_bind(&big->image,big->image_bytes,sizeof(big->image_bytes),big->image_pens,sizeof(big->image_pens));
@@ -1029,6 +1038,18 @@ void cterm_big_inspect(const struct cterm_big *big, struct st_console_test_appli
 	st_console_test_number(app, "cterm.big_marker", big->state.application.marker);
 	st_console_test_number(app, "cterm.big_marker_size", big->state.application.marker_size);
 	st_console_test_number(app, "cterm.big_color", big->state.bgi.color);
+	/* Keep the related curve words in one immutable inspection field; the
+	 * shared capture has a bounded number of application property slots. */
+	char curve[192];
+	snprintf(curve,sizeof(curve),"%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u",
+	    (unsigned)big->state.bgi.aspect[0],(unsigned)big->state.bgi.aspect[1],
+	    (unsigned)big->state.bgi.arc[0],(unsigned)big->state.bgi.arc[1],
+	    (unsigned)big->state.bgi.arc[2],(unsigned)big->state.bgi.arc[3],
+	    (unsigned)big->state.bgi.arc[4],(unsigned)big->state.bgi.arc[5],
+	    (unsigned)big->state.bgi.curve_radius[0],(unsigned)big->state.bgi.curve_radius[1],
+	    (unsigned)big->state.bgi.curve_span,(unsigned)big->producer.mode,
+	    (unsigned)big->producer.count,(unsigned)big->producer.capacity,(unsigned)big->producer.batch);
+	st_console_test_text(app,"cterm.big_curve",curve);
 	static const char *const colors[]={"cterm.big_marker_color","cterm.big_line_color","cterm.big_fill_color","cterm.big_text_color"};
 	for (size_t i=0;i<4;++i) st_console_test_number(app,colors[i],big->state.application.colors[i]);
 	st_console_test_number(app, "cterm.big_device_color", big->state.bgi.device_color);

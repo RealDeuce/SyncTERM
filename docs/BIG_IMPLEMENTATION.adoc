@@ -23,14 +23,16 @@ g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
-pointer acquisition, E font selection, W graphical text, t pauses and ? inquiries are integrated.
-Curves, further controls, sound and full command acceptance remain pending
+pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries
+and K circular arcs are integrated.
+Other curves, further controls, sound and full command acceptance remain pending
 (0/45). Native W, t and ? are implemented in the requested order; sound-buffer
 availability must still be connected to the audio allocation lifecycle.
 Curve work now has shared sine/product kernels, BIG scalar/aspect state,
 decimal and angular outlines, ordered buffer flush and public ellipse/circular
-wrappers with query and DDO-only restoration. K native graph-buffer binding,
-wire acquisition and coherent command/application verification remain pending.
+wrappers with query and DDO-only restoration, native shared graph-buffer
+binding and K wire/page/source/recovery integration. J is the next native
+curve command; global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -3466,3 +3468,70 @@ to the goal-final full suite.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending.
 
 Public curve wrapper/aspect-state implementation commit: `fd4bdb9`.
+
+== Native K circular arcs and shared graph workspace
+
+K is registered at the existing BIG pre-ANSI I#/chaining boundary. Its five
+incremental operands use classes1,2,0,0,0 in original order; radius/angles
+remain unscaled. Only after all five return does it install the CURRENT
+application line-colour WORD and call the verified circular wrapper. No
+feature gate, F flow prefix, response, radius clamp or angle sorting is added.
+Normal completion uses the existing source/footer/deferred-reply path.
+
+Native drawing supplies the active video segment and existing indexed pixel/
+pre-read-byte adapters. Thin points retain COPY even with cached XOR; buffered
+strokes use actual line write mode and preserve coincident visits. Public CP
+stays old, successful DDO restores to placed center, and device CP retains
+actual returned point/buffer Moves. Query, regular zero span and checked
+aspect-zero error use the metadata-only wrapper path without a framebuffer
+request. Other native preparation failures retain the already accepted colour;
+render/read failures retain reached state/pixels and use the existing nonfatal
+BIG rejection/recovery owner. Parser errors remain nonfatal to the connection.
+
+The CTerm object owns one 4096-byte graph workspace until destruction. Its
+mutually exclusive typed views are512 native flood records and the two-byte-
+prefix point view with1023 four-byte records; configured producer capacity is
+separately 4096 / 6 = 682. Both are bound once at creation. Static layout checks
+protect the shared extent/prefix. I/R, new attention, EOF and parser reset do
+not clear/rebind it. Native record initialization/bounds replace uninitialized
+DOS RAM and the original absolute near-stack guard; this is no DOS heap/CPU
+model and no additional pixel framebuffer. Operations initialize their reached
+records; only one serialized curve/flood operation can use it at a time.
+
+cterm_big_curve first rejected missing K support. Independent full indexed
+planes and owner/reply assertions cover every split across all three modes,
+CP437/UTF8 and status choices, plus bytewise input. Cases check late colour
+publication, partial EOF/reset and real numeric timeout/clock failure, all
+three radius2 quarter scenes, query retention, high-bit radius overflow,
+negative center/clipped point moves and aspect errors. Active-page draws in
+modes1/2 produce returned segment HIGH a4/a8 with pre-read14, and page display
+reveals the same four pixels; mode3's G normalization stays0.
+
+Buffered XOR/custom-style scenes check six final pixels, graph capacity/
+extent and retained storage across I/R/EOF/reset. Native curve/flood/curve
+interleaving actually overwrites the shared scratch, then redraws correctly.
+Separate primary/alternate pen seeds become COPY5 in both banks despite XOR
+cache. Invalid read-plane and capacity conditions verify nonfatal recovery and
+accepted batch/point prefixes; actual deferred NUL/ff replies keep user origin,
+while ANSI DSR remains automatic response. Stored replay uses the original
+count-prefixed parameter table and inclusive loop range, bypassing g2 scaling;
+ordinary g2 centerY100 becomes175 while radius2 remains2 and aspectY radius1.
+
+The coherent application fixture adds seven independently authored scenes per
+profile,98 total: unit shortcut, full decimal, query, repeated zero span,
+custom-width3 XOR duplicates and stored-source replay. Its entire prior
+pixel/palette/font/image/RNG/state scene is retained in each capture, with new
+arc/point/style/capacity expectations. The first diagnostic expansion exceeded
+the test driver's256-property bound; related curve words now occupy one
+bounded text record, preserving existing observations and the shared limit.
+The15 values are aspectX/Y, six published arc words, radiiX/Y, span, producer
+mode/count/capacity/batch. No expected image is generated by SyncTERM. Physical
+audio/MIDI remain disabled by the headless fixture.
+
+K native integration is implemented; full45-entry/global resource/audio and
+goal-final regression acceptance remain pending. J explicit-radius arcs are
+next in original dispatch order. Native scratch is deliberately bounded and
+initially zeroed; unsafe foreign pointer/heap/stack/controller aliases are not
+introduced as a second emulator inside SyncTERM.
+
+Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.

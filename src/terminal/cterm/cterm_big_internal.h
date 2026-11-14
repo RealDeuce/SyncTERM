@@ -17,9 +17,26 @@
 #include "st_big_flood.h"
 #include "st_big_video.h"
 #include "st_big_image.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 /* Nominal 4096-byte flood workspace, eight bytes per logical record.
  * Native bounds replace the original placement-dependent DOS stack guard. */
-enum { CTERM_BIG_FLOOD_RECORDS = 4096 / 8 };
+enum { CTERM_BIG_GRAPH_BYTES = 4096,
+	CTERM_BIG_FLOOD_RECORDS = CTERM_BIG_GRAPH_BYTES / 8,
+	CTERM_BIG_GRAPH_POINTS = (CTERM_BIG_GRAPH_BYTES-2) / 4 };
+struct cterm_big_graph_points {
+	uint16_t prefix;
+	struct st_big_producer_point records[CTERM_BIG_GRAPH_POINTS];
+};
+/* One owner, mutually exclusive native scratch views. These are not a DOS
+ * near-stack/address model; each operation initializes its reached records. */
+union cterm_big_graph_workspace {
+	struct st_big_flood_record flood[CTERM_BIG_FLOOD_RECORDS];
+	struct cterm_big_graph_points points;
+};
+_Static_assert(offsetof(struct cterm_big_graph_points,records)==2,"BIG point view prefix");
+_Static_assert(sizeof(union cterm_big_graph_workspace)==CTERM_BIG_GRAPH_BYTES,"BIG graph workspace");
 struct cterm_big_flood {
 	uint16_t x, y, selector;
 	unsigned phase;
@@ -152,7 +169,7 @@ struct cterm_big {
 	struct cterm_big_flood flood;
 	struct cterm_big_rotation rotation;
 	struct st_big_flood flood_work;
-	struct st_big_flood_record flood_records[CTERM_BIG_FLOOD_RECORDS];
+	union cterm_big_graph_workspace graph_work;
 	struct st_pixel_buffer *video_backing;
 	struct st_big_video video;
 	uint16_t video_start;
@@ -205,6 +222,7 @@ int cterm_big_draw_p(struct cterm_big *, const struct st_graphics_command_view *
 int cterm_big_draw_spray(struct cterm_big *);
 int cterm_big_draw_text(struct cterm_big *, uint16_t x, uint16_t y);
 int cterm_big_draw_line(struct cterm_big *, const struct st_graphics_command_view *);
+int cterm_big_draw_k(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_draw_z(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int cterm_big_bar_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, bool *);

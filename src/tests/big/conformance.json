@@ -838,7 +838,8 @@
         "Native G0..3 routing and engine-owned retained image storage/cache: format-edge indexed conversion, original image/page/gate/mode prefixes, snapshot overlap, protected UI rows and bounded nonfatal failure lifetimes.",
         "Explicit raw palette-size/cache ownership and public single setter, shared by S and I1/X8; six-bit physical RGB publication preserves indexed image/page identities and independent feature gates.",
         "Native X8 capture/restore/rotation uses shared raw cache/public setters and explicit local/saved/padding owners; protocol waits and flow use local deadlines outside palette updates.",
-        "Native X3 custom text state keeps original initialized saved/effective ratios, returning public size, DDO dimensions/selected size, copied header and checked metrics separate from bitmap magnification and future E/W font resources."
+        "Native X3 custom text state keeps original initialized saved/effective ratios, returning public size, DDO dimensions/selected size, copied header and checked metrics separate from bitmap magnification and future E/W font resources.",
+        "Native K/F now share one retained4096-byte graph workspace:512 flood records, point prefix2 with1023 native slots and configured capacity682. Existing indexed images/pages and distinct active/visual ownership remain separate."
       ],
       "tests": [
         "big_state",
@@ -858,7 +859,8 @@
         "big_palette_rotation",
         "cterm_big_rotation",
         "big_text_ratio",
-        "cterm_big_text_ratio"
+        "cterm_big_text_ratio",
+        "cterm_big_curve"
       ],
       "references": [
         "27-initialization-resolution-and-state.adoc",
@@ -1898,6 +1900,56 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full build. All46 BIG-specific native CTests passed in54.96s, including cterm_big_query1.39s. syncterm_big_input passed in153.84s (test153.79s),2982 coherent scenes including98 new inquiry scenes. No non-BIG tests ran; the goal-final full regression suite remains deferred. Native ? request/cache/source/lifecycle integration is verified. Actual music-buffer allocation/publication, audio and global45-entry acceptance remain pending."
           ],
           "commit": "6bfc11c"
+        },
+        {
+          "id": "native-circular-arcs-K",
+          "status": "complete",
+          "operations": [
+            "Register K at the existing BIG pre-ANSI boundary with classes1,2,0,0,0. Incremental/source readers complete all five operands before current application line color publication and circular arc wrapper. Retain radius/angle WORDs, original aspect/query/shortcuts/decimal/angular behavior and separate public/DDO/device points.",
+            "Bind active video segment and existing indexed pixel/pre-read adapters for actual drawing. Preserve thin COPY versus line-mode buffered strokes and both blink banks. Queries, regular zero spans and checked aspect-zero failures use the metadata-only wrapper without framebuffer preparation.",
+            "Own one4096-byte graph workspace with mutually exclusive512-flood and prefix2/1023-point native views; configured point capacity remains682. Bind once, retain through I/R/attention/EOF/parser reset, and free with CTerm. Initialize/bounds-check native storage, not a DOS heap/near-stack model.",
+            "Complete through shared source/footer/chaining/deferred-reply owner. No feature gate, automatic flow byte, F-owned prefix or own response. Numeric/render/backend errors preserve accepted prefixes and recover nonfatally through existing BIG rejection; real replies keep their proper output origins.",
+            "Observe curves in one bounded immutable inspection record: aspectX/Y, six arc words, radiiX/Y, span, mode/count/capacity/batch. Keep the shared256-property limit and all existing scene observations."
+          ],
+          "references": [
+            "61-curve-command-acceptance.adoc:complete K caller and downstream composition",
+            "curve-review-code.adoc:BIG13d2:1676..16d4;195a12d9..1325;1cec..1d1b;DDO017a",
+            "13-curves-and-native-reuse.adoc:trig/front/decimal/angular/buffer contracts",
+            "24-flood-fill-and-native-reuse.adoc:DS3089 configured4096 shared graph allocation",
+            "27-initialization-resolution-and-state.adoc:DDO025f..0282 prefix2/capacity size/6",
+            "40-near-far-heaps-and-break-lifetimes.adoc:graph allocation/free ownership",
+            "font-resource-code.adoc:BGI0adf..0b41 allocation/descriptor publication",
+            "34-numeric-words-and-exact-y-scaling.adoc:ordinary class2 versus supplied-value bypass",
+            "45-planar-controller-and-digital-colour-output.adoc:ordinary indexed point/page boundary"
+          ],
+          "tests": [
+            "cterm_big_curve",
+            "big_curve_public",
+            "big_curve_angular",
+            "big_curve_regular",
+            "big_curve_draw",
+            "big_curve_decimal",
+            "big_curve_scalar",
+            "cterm_big_pages",
+            "cterm_big_fill",
+            "cterm_big_bar",
+            "syncterm_big_input"
+          ],
+          "deviations": [
+            "Keep the approved native indexed/bounded profile: initial zeroed scratch replaces original uninitialized near RAM; native512 flood capacity replaces the unsafe original absolute stack guard. Shared native views do not emulate arbitrary DOS heap/stack/controller aliases.",
+            "Zero aspect denominator, escaped storage/read-plane inputs and genuinely nonterminating WORD geometry return checked errors with reached prefixes. Existing BIG recovery makes these nonfatal to the session. No foreign clocks, planar pixel shadow, automatic serial flow or historical font copies are introduced.",
+            "Native K integration is implemented; full45-entry/resource/audio composition and goal-final non-BIG regressions remain pending."
+          ],
+          "verification": [
+            "The new native test first rejected missing K support. Independent full indexed planes/owner/reply checks cover every wire partition across all three modes, CP437/UTF8/status choices and bytewise input, without expected frames from SyncTERM.",
+            "Late/current color and partial EOF/reset/real timeout/clock failure retain exact prefixes. Three radius2 quarter scenes check mode aspects, original zero limits and unscaled radius; query retains old arc state, high-bit radius overflows normally and negative/clipped coordinates retain original lower/device effects.",
+            "Native active-page1 in modes1/2 yields actual a414/a814 read-byte returns and the same four pixels when shown; mode3 normalizes page0. Distinct blink-bank seeds are overwritten with COPY5 despite XOR cache; thick custom0 strokes leave six pixels and restore device8000 independently of retained user0.",
+            "Graph storage has capacity682/extent1023, retained binding/content across I/R/EOF/reset, and actual curve/flood/curve scratch overwrite followed by correct redraw. Read-plane errors and capacity-6 preserve accepted point/batch effects without session failure. Deferred NUL/ff replies keep user origin; DSR stays automatic response. Ordinary g2 center100->175 contrasts with count-prefixed inclusive stored replay bypass.",
+            "Seven new application scenes per profile provide98 independent arc/point/style/capacity expectations while retaining the complete preceding pixel/palette/font/image/RNG/state scene. The first capture attempt hit the256-property limit; grouping related15 curve values into one bounded text record corrects diagnostics without dropping observations or expanding the shared interface.",
+            "Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.",
+            "A final following-D case independently verifies that the line starts from the restored DDO center after K while its public and device points had different prior values; all three owners then end at the D target."
+          ],
+          "commit": null
         }
       ]
     },
@@ -2700,35 +2752,23 @@
         "curve-review-code.adoc:BIG195a12d9..1325;1cec..1d1b;DDO017a..01a0",
         "initialization-code.adoc:BGI0dea..0df6;0baf..0bce;06fb..0701",
         "27-initialization-resolution-and-state.adoc:installed/default/current aspect words",
-        "54-initialize-and-resolution-command-acceptance.adoc:mode/skip/failure/default order"
+        "54-initialize-and-resolution-command-acceptance.adoc:mode/skip/failure/default order",
+        "61-curve-command-acceptance.adoc:complete K caller and downstream composition",
+        "curve-review-code.adoc:BIG13d2:1676..16d4;195a12d9..1325;1cec..1d1b;DDO017a",
+        "13-curves-and-native-reuse.adoc:trig/front/decimal/angular/buffer contracts",
+        "24-flood-fill-and-native-reuse.adoc:DS3089 configured4096 shared graph allocation",
+        "27-initialization-resolution-and-state.adoc:DDO025f..0282 prefix2/capacity size/6",
+        "40-near-far-heaps-and-break-lifetimes.adoc:graph allocation/free ownership",
+        "font-resource-code.adoc:BGI0adf..0b41 allocation/descriptor publication",
+        "34-numeric-words-and-exact-y-scaling.adoc:ordinary class2 versus supplied-value bypass",
+        "45-planar-controller-and-digital-colour-output.adoc:ordinary indexed point/page boundary"
       ],
       "operations": [
-        "Move the unchanged91-word Q1.15 sine table and scalar sine/unsigned-radius partial-product kernels from RIP into st_bgi_trig. RIP calls these actual shared kernels; its wide cosine addition, metric, ellipse/pie/front/duplicate/point/error policies remain separate.",
-        "BIG sine converts the angle WORD to signed16 before shared lookup; cosine wraps WORD+90 before that conversion. Shared radius multiplication returns the original low-WORD floor-scaled bit result with defined signed interpretation, including negative coefficients and high-bit radii.",
-        "BIG metric negates Y as a WORD before signed branch selection, then reduces each result to WORD. This preserves the y8000 branch that differs from RIP wide arithmetic.",
-        "Circular aspect uses unsigned radius times signed aspectX, divides by signed aspectY with truncation, and returns the low WORD. The entire argument domain fits signed32 product/quotient. Zero denominator returns a checked native error without publishing output or moving any point.",
-        "Scalar, decimal/angular/producer/flush/arc-record and public/aspect/query/outer-save rendering prerequisites are implemented; K native graph-buffer ownership/binding, acquisition and coherent command/application acceptance remain pending.",
-        "Implement the outline arm of DDO0d70..0fa0 as a synchronous physical-WORD point-request generator, using captured center/radii/original endpoint offsets. No pen/XOR, clipping, batch entry/exit, point-owner update or arc-record publication is substituted by this pure arithmetic layer.",
-        "Compute signed endpoint metrics and inclusive/inverse selection before zero radius replacement. Preserve four candidate order (+x,+y),(-x,+y),(+x,-y),(-x,-y), axis duplicates and WORD center addition despite callback-side owner changes.",
-        "Preserve checked unsigned32 B and product construction, successive unsigned divisions, wrapped32 error/accumulated/delta updates, signed-HIGH/unsigned-LOW ordering, logical half and body-first regime loops. Checked overflow is a normal empty return, without new BGI error or suppressing later caller tails.",
-        "Point callback errors keep accepted request prefixes and stop later requests. IN_PROGRESS is a protocol error; rendering does not gain asynchronous yields or a geometry cap. Captured frame values remain stable across callbacks.",
-        "Only the reachable outline arm is implemented. BIG curves call0906 with flagsffff; O/Q use outline plus flood and V/Y use separate polygon composition. Unused public-library filled ellipse/spans are not imported for completeness.",
-        "Bind the decimal request generator to the existing indexed producer and export/reuse the unchanged DDO0378 bar3d move gate. Unsuppressed actual return AX/BX, including clipped points, become DDO/device position; collector suppression and public position remain independent.",
-        "Represent DDO006f as a current gate initialized to zero. Each begin/end site independently reads current gate and current method/context. Builtin ordinary sixteen-pen begin sets batch true, returns unchanged colour WORD and publishes after return before arithmetic; normal end clears batch without old-state restoration.",
-        "Each point reloads current DDO colour, writes ordinary COPY independently of line caches, and obtains observable pre-read bytes from indexed pixels at the return boundary. Keep raw WORD colour and mask only the indexed output pen.",
-        "Errors preserve accepted prefixes and omit unreached end; IN_PROGRESS is a protocol error. Empty multiplication overflow is normal and still reaches end. Geometry remains captured despite changed lower point owners.",
-        "Implement the selected regular07a3 branch: clear filled flag, snapshot physical DDO center/radii, invoke0906, publish A55 records and stage5-clear producer mode only after normal return. Public center/aspect/query/outer-save and angular selection remain separate pending work.",
-        "Preserve WORD orientation+90, wrapped span, zero-span09e9 first-offset bookkeeping without endpoint/stage4/core work, and original-radius trig endpoints before producer2. Equal endpoints shortcut only below unsigned350, unequal below2; shortcuts bypass decimal batch methods and retain incoming batch/actual point returns.",
-        "A55 reads current origin and saved offset words for logical center/start/end. Preserve separate0304..030f published and0314..031b offset storage; normal empty overflow still publishes. Errors retain reached center/offset/point/pixel/batch effects and omit publication/mode clear.",
-        "Fresh native state initializes records/scratch to zero; mode clear retains collector count/run and batch. The lower regular branch does not recognize ffff query or add a public installed guard.",
-        "Complete lower07a3 outline selection: retained unsigned width BYTE>=3, nonzero current fallback or unsigned metric>=180 selects angular drawing. Successful mode installation publishes original ordinary descriptor metric29/50/69; startup50. Device temporary solid/width1 retains public/DDO style/user/thickness.",
-        "Preserve unsigned start>=end WORD+360, orientation WORD+90, body-first signed-JLE angle iteration and current-radius/center point production through the existing first-point/run/duplicate/8001 collector. Capacity-6 stores do not terminate the sweep. Publish current stale offsets before stage1; no angular endpoint recomputation.",
-        "Append8000 through producer, clear mode and flush with count>=capacity before count<2. Snapshot reader binding/count, perform unconditional first Move, later80xx marker/next-record/empty-fetch rules and ordered producer-line strokes. Reuse the existing bar3d line body; retain coincident strokes.",
-        "Restore DDO CP only after normal flush; preserve device Moves/public CP and accepted failure prefixes. Current DDO style restoration uses reader result, with own ordinary terminator8000 for style4 and separate public/DDO user word. Bounds-check each reached storage access without erasing an earlier Move/line prefix.",
-        "Implement public ellipse1cec/017a: translate/place lower and device center without public moveto/producer, then read curve words. Startffff returns after placement without drawing, arc publication, producer change or wire reply. Ordinary successful outline restores only saved physical DDO center; failure retains reached prefixes.",
-        "Implement circular12fb: capture unsigned radius[0], capture signed aspectY before aspectX, derive low-WORD radiusY before placement/query, ignore input radius[1], then call ellipse. No sign clamp, sorting or host geometry scaling. A zero denominator fails without changing points/BGI error.",
-        "Own public aspect WORDs in BGI state: initial7750/10000; successful mode installation4500/7750/10000 over10000 before defaults. I1/unsupported/state2/invalid-mode/failed-install paths retain current aspects; later palette failure retains newly installed values.",
-        "Borrow request only during the serialized call. Front argument capture precedes drawing callbacks, and successful restoration uses saved physical DDO center rather than a newly changed origin. Native argument and uninstalled errors retain appropriate prefixes."
+        "Register K at the existing BIG pre-ANSI boundary with classes1,2,0,0,0. Incremental/source readers complete all five operands before current application line color publication and circular arc wrapper. Retain radius/angle WORDs, original aspect/query/shortcuts/decimal/angular behavior and separate public/DDO/device points.",
+        "Bind active video segment and existing indexed pixel/pre-read adapters for actual drawing. Preserve thin COPY versus line-mode buffered strokes and both blink banks. Queries, regular zero spans and checked aspect-zero failures use the metadata-only wrapper without framebuffer preparation.",
+        "Own one4096-byte graph workspace with mutually exclusive512-flood and prefix2/1023-point native views; configured point capacity remains682. Bind once, retain through I/R/attention/EOF/parser reset, and free with CTerm. Initialize/bounds-check native storage, not a DOS heap/near-stack model.",
+        "Complete through shared source/footer/chaining/deferred-reply owner. No feature gate, automatic flow byte, F-owned prefix or own response. Numeric/render/backend errors preserve accepted prefixes and recover nonfatally through existing BIG rejection; real replies keep their proper output origins.",
+        "Observe curves in one bounded immutable inspection record: aspectX/Y, six arc words, radiiX/Y, span, mode/count/capacity/batch. Keep the shared256-property limit and all existing scene observations."
       ],
       "tests": [
         "big_curve_scalar",
@@ -2739,19 +2779,17 @@
         "big_curve_regular",
         "big_curve_angular",
         "big_state",
-        "big_curve_public"
+        "big_curve_public",
+        "cterm_big_curve",
+        "cterm_big_pages",
+        "cterm_big_fill",
+        "cterm_big_bar",
+        "syncterm_big_input"
       ],
       "deviations": [
-        "Complete scalar/decimal/regular/angular/producer/flush component prerequisites are implemented; K owned graph-buffer binding, native CTerm/wire and global composition remain pending. No complete K acceptance is claimed.",
-        "Indexed pixels remain authoritative. Reconstruct only the observable batched point-return byte; no permanent planar framebuffer, hardware controller or foreign clock model.",
-        "Covers the existing ordinary native sixteen-pen/COPY profile, not arbitrary inherited physical-controller state. Missing reached native methods return a checked argument error; failed/async callbacks preserve accepted effects.",
-        "Correct conflicting61/curve-review-data repeated-zero record-drift prose using original A55 bytes: published0308..030e do not alias saved offsets0314..031a. Repeated unchanged center/origin/offsets yield stable records, not cumulative drift.",
-        "Component branch only; no whole K wire/native CTerm acceptance or angular/public-wrapper completion is claimed.",
-        "Signed end7fff makes original JLE nonterminating. Preserve one complete65536-angle turn of collector/style/error effects, then return IO_ERROR_OUT_OF_RANGE instead of hanging. Finite WORD sweeps have no new geometry cap, delay, clock model or periodic yield.",
-        "Native storage extents and method arguments are checked at reached boundaries. The reader reports its last Y, not unused raw physical line-register clobbers; original ordinary outline restoration is established by its own appended8000 terminator.",
-        "Lower drawing/buffer components only. Public/aspect/center/query/017a-save, native owned graph-buffer binding, K wire/CTerm/application and sector/global acceptance remain pending.",
-        "Zero aspect denominator returns checked IO_ERROR_OUT_OF_RANGE instead of foreign divide-trap/raw exit, before center/query and without inventing a new BGI error. The command caller must retain its already accepted color/fill/numeric prefix.",
-        "Public rendering helpers are complete; native graph-buffer ownership/binding, K numeric/wire/source/recovery/coherent application, other curve callers and global acceptance remain pending."
+        "Keep the approved native indexed/bounded profile: initial zeroed scratch replaces original uninitialized near RAM; native512 flood capacity replaces the unsafe original absolute stack guard. Shared native views do not emulate arbitrary DOS heap/stack/controller aliases.",
+        "Zero aspect denominator, escaped storage/read-plane inputs and genuinely nonterminating WORD geometry return checked errors with reached prefixes. Existing BIG recovery makes these nonfatal to the session. No foreign clocks, planar pixel shadow, automatic serial flow or historical font copies are introduced.",
+        "Native K integration is implemented; full45-entry/resource/audio composition and goal-final non-BIG regressions remain pending."
       ],
       "verification": [
         "Before extraction, all91 current RIP words matched the retained DDO table exactly. Little-endian182-byte SHA256:db8716d57598516f09b1f3970ce59f90e6ee29142f45016e4db3d3ff52d23c51. Runtime tests use a literal independently retained table; no floating sine or emulator generates expected data.",
@@ -2792,7 +2830,14 @@
         "Begin/end/write and uninstalled failures verify placed-center/last-return prefixes without finally DDO restoration. Callback-side origin/request changes retain captured geometry and restore the original saved physical DDO point. Null argument errors preserve owners. big_state checks mode/I1/skips/failed-install/later-palette-failure aspect lifetime.",
         "Next binding source identified:24 DS3089 configured4096; font-resource-code0adf..0b41 shared near allocation/descriptor;27 DDO025f..0282 point offset+2/capacity size/6. Ordinary capacity682 versus1023 four-byte source record slots remains distinct. Actual native graph-buffer ownership is not claimed by this step.",
         "No wire command or application scene changes. Existing2982 application captures last passed with6bfc11c and were not replayed for this unbound public helper. Non-BIG/shared-code regressions remain deferred to the goal-final full suite.",
-        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending."
+        "Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending.",
+        "The new native test first rejected missing K support. Independent full indexed planes/owner/reply checks cover every wire partition across all three modes, CP437/UTF8/status choices and bytewise input, without expected frames from SyncTERM.",
+        "Late/current color and partial EOF/reset/real timeout/clock failure retain exact prefixes. Three radius2 quarter scenes check mode aspects, original zero limits and unscaled radius; query retains old arc state, high-bit radius overflows normally and negative/clipped coordinates retain original lower/device effects.",
+        "Native active-page1 in modes1/2 yields actual a414/a814 read-byte returns and the same four pixels when shown; mode3 normalizes page0. Distinct blink-bank seeds are overwritten with COPY5 despite XOR cache; thick custom0 strokes leave six pixels and restore device8000 independently of retained user0.",
+        "Graph storage has capacity682/extent1023, retained binding/content across I/R/EOF/reset, and actual curve/flood/curve scratch overwrite followed by correct redraw. Read-plane errors and capacity-6 preserve accepted point/batch effects without session failure. Deferred NUL/ff replies keep user origin; DSR stays automatic response. Ordinary g2 center100->175 contrasts with count-prefixed inclusive stored replay bypass.",
+        "Seven new application scenes per profile provide98 independent arc/point/style/capacity expectations while retaining the complete preceding pixel/palette/font/image/RNG/state scene. The first capture attempt hit the256-property limit; grouping related15 curve values into one bounded text record corrects diagnostics without dropping observations or expanding the shared interface.",
+        "Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.",
+        "A final following-D case independently verifies that the line starts from the restored DDO center after K while its public and device points had different prior values; all three owners then end at the D target."
       ],
       "commit": null
     },

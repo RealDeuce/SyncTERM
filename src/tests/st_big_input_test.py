@@ -46,6 +46,7 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
     assert (s["cterm.graphics_mode"], s["cterm.skypix"], s["cterm.big_resolution"]) == (6, 0, resolution), s
     assert (s["cterm.big_bgi_width"], s["cterm.big_bgi_height"]) == (640, height)
+    assert tuple(map(int, s["cterm.big_curve"].split(",")))[:2] == ((4500, 7750, 10000)[resolution - 1], 10000)
     assert (s["cterm.x"], s["cterm.y"], s["cterm.bottom_margin"]) == (len(token) + 1, 1, rows - int(status))
     assert not m["cursor_visible"] and not s["cterm.big_pair_wait"]
     assert s["cterm.big_loop_type"] == 32 and not s["cterm.big_footer_active"]
@@ -1268,6 +1269,59 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), **run_state)
                             assert frame.application["cterm.big_random_state"] == retained_random
+                        # K expectations are authored from original13/61,
+                        # including its three CP owners and stale arc offsets.
+                        ry = 1 if resolution == 3 else 0
+                        curve_state = dict(run_state)
+                        curve_cases = (
+                            (b"I#K 520,120,1,0,1:", ((520, 120),),
+                             ((520, 120), (3842, 0)), (520, 120, 521, 120, 520, 120), 1, 0, {}),
+                            (b"I#K 540,120,1,0,360:", ((540, 119), (540, 121), (539, 120), (541, 120)),
+                             ((540, 120), (0xa014, 3)), (540, 120, 541, 120, 541, 120), 360, 0, {}),
+                            (b"I#K 560,120,1,+1,0:", (),
+                             ((560, 120), (560, 120)), (540, 120, 541, 120, 541, 120), 360, 0, {}),
+                            (b"I#K 580,120,1,10,10:", (),
+                             ((580, 120), (580, 120)), (580, 120, 581, 120, 581, 120), 0, 0, {}),
+                            (b"I#K 580,120,1,10,10:", (),
+                             ((580, 120), (580, 120)), (580, 120, 581, 120, 581, 120), 0, 0, {}),
+                            (b"I#T 2,4,0,1,1:I#M 2:I#K 600,120,1,0,3:",
+                             tuple((x, y) for x in (600, 601) for y in (119, 120, 121)),
+                             ((600, 120), (601, 120)), (600, 120, 601, 120, 601, 120), 0, 5,
+                             dict(line=(4, 0, 3, 0x8000), device_line_width=1, writing=(1, 1))),
+                            (b"I#T 2,0,0,1,0:I#M 1:I#g 2:I#& 0,1,1,0,K@5,620,120,1,0,x:I#g 0:",
+                             ((620, 120),), ((620, 120), (3842, 4)), (620, 120, 621, 120, 620, 120), 1, 5,
+                             dict(line=(0, 0, 1, 65535), device_line_width=1, writing=(0, 0))),
+                        )
+                        for index, (command, additions, points, arc, span, count, changes) in enumerate(curve_cases):
+                            curve_state.update(changes); curve_state["lower_points"] = points
+                            for site in additions:
+                                assert site not in scene_pixels, site
+                                scene_pixels[site] = 15
+                            token = f"CURVE{index:02d}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = f"\x1b[1;{len(token) + 1}R".encode(); reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(484, 100), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=15,
+                                  colored_pixels=tuple((x, y, pen) for (x, y), pen in scene_pixels.items()),
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), **curve_state)
+                            state = frame.application
+                            curve = tuple(map(int, state["cterm.big_curve"].split(",")))
+                            assert curve[2:8] == arc, curve
+                            assert curve[8:11] == (1, ry, span), curve
+                            assert curve[11:] == (0, count, 682, 0), curve
+                            assert state["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

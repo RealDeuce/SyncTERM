@@ -1375,3 +1375,12 @@ I1/skip/failure paths. big_curve_public independently checks full indexed
 quarter/shortcut/decimal/thick scenes, all three aspect profiles, query/point
 owners and error boundaries. Native graph-buffer/CTerm ownership and K wire/
 application acceptance remain pending.
+
+BIG K circular arcs are now wired at the shared pre-ANSI boundary with original
+operand classes, late colour publication, public/query/aspect/point ownership,
+decimal/angular rendering and source/footer recovery. One owned graph workspace
+backs mutually exclusive native curve/flood scratch views. cterm_big_curve
+checks coherent full indexed planes, split/profile/page/source/lifecycle and
+nonfatal error cases; the application fixture adds98 related arc scenes and
+retains all prior pixel/font/palette/image/state/RNG expectations. Native K
+integration is implemented; global/final regressions remain pending.

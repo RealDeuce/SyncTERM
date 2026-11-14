@@ -1569,3 +1569,31 @@ regression claim is added.
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the final full refresh. All52 BIG-specific native CTests passed in52.20s, including big_curve_public0.01s. Strengthened public/state focused checks passed in0.17s total (0.01s/0.08s). No non-BIG tests ran or unchanged application scenes replayed for these unbound helpers. Public curve wrappers/aspect lifetime are verified; native graph-buffer ownership/binding, K wire/CTerm/application, sector/audio/global45-entry and final-suite acceptance remain pending.
 
 Public curve wrapper/aspect-state implementation commit: `fd4bdb9`.
+
+## Native K circular arcs
+
+K now reads X/Y/radius/start/end through the shared incremental reader with
+classes1,2,0,0,0, installs current line colour after all reads, and invokes the
+verified circular/ellipse/outline paths. It uses the same pre-ANSI boundary,
+footer/source/deferred input owner and active indexed video adapters. Query,
+regular zero span and checked aspect failure avoid framebuffer requests.
+No automatic flow bytes or own response is added; command failures are nonfatal.
+
+One owned4096-byte shared graph scratch exposes512 flood records and a point
+view after two bytes, with1023 actual slots and configured capacity682. It
+survives I/R/attention/EOF/reset and is freed with its CTerm owner. Checked
+native extents/initial storage retain the established bounded-flood policy;
+no DOS address allocator or planar pixel shadow is added.
+
+cterm_big_curve independently checks full planes/state/replies for every
+partition across modes/encodings/status, bytewise input, current colour and
+numeric lifecycle, mode aspects, queries/overflow/clipping, primary/alternate
+COPY versus buffered XOR, active pages, shared scratch interleaving/retention,
+stored-source scaling bypass, capacity and nonfatal read/error recovery.
+The application fixture adds98 coherent scenes with literal arc/point/style/
+record oracles while retaining the entire prior scene. Curve inspection words
+share one bounded field after the first individual-field expansion exceeded
+the existing property limit. Audio/MIDI remain disabled; other emulation and
+full45-entry acceptance remain deferred. J is the next native curve command.
+
+Native CMake Release configure/full builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter was absent from the full refresh. All53 BIG-specific native CTests passed in57.10s; expanded cterm_big_curve passed in1.31s total (test1.24s). After grouping diagnostics under the existing field limit, syncterm_big_input passed in157.63s total (test157.56s),3080 coherent scenes including98 new arc scenes. No non-BIG tests ran. Native K/shared graph-scratch integration is verified; J and other missing commands, audio/global45-entry composition and the goal-final full regression suite remain pending.

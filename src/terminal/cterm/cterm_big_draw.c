@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_big_internal.h"
 #include "st_big_draw.h"
+#include "st_big_curve.h"
 #include "st_big_text.h"
 #include "st_big_video.h"
 #include "st_bgi_pixel.h"
@@ -378,4 +379,37 @@ int cterm_big_flood_poll(struct cterm_big *big, size_t *budget, bool *complete)
 		default: return IO_ERROR_PROTOCOL;
 		}
 	}
+}
+
+struct curve { struct cterm_big *big; struct st_big_curve_request request; };
+static int curve(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	struct curve *request=context; struct cterm_big *big=request->big;
+	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
+	const struct st_big_producer_sink sink={.drawing={&drawing,pixel},.read_context=&drawing,.read_byte=read_byte};
+	int status=cterm_big_video_segment(big,&big->producer.video_segment);
+	return status!=0?status:st_big_curve_arc(&big->state,&big->producer,&request->request,&sink,NULL);
+}
+int cterm_big_draw_k(struct cterm_big *big, const struct st_graphics_command_view *view)
+{
+	if (view->code!='K' || view->count!=5) return IO_ERROR_PROTOCOL;
+	uint16_t words[5];
+	for (size_t i=0;i<5;++i) {
+		if (!view->arguments[i].has_value) return IO_ERROR_PROTOCOL;
+		words[i]=(uint16_t)view->arguments[i].value;
+	}
+	/* All five numeric readers complete before the current line colour
+	 * is installed. Circular radius is class0, not an X coordinate. */
+	int status=st_big_draw_color(&big->state,big->state.application.colors[1]);
+	if (status!=0) return status;
+	struct curve request={.big=big,.request={.center={words[0],words[1]},.start=words[3],.end=words[4],.radius={words[2],0}}};
+	bool empty=words[3]==words[4] && big->state.bgi.ddo_line_width<3
+	    && big->state.bgi.curve_fallback==0 && big->state.bgi.curve_metric<180;
+	/* Query, regular zero span and the checked divide failure never call
+	 * pixel methods. Retain those prefixes without a framebuffer request. */
+	if (words[3]==0xffff || empty || big->state.bgi.aspect[1]==0) {
+		const struct st_big_producer_sink no_pixels={0};
+		return st_big_curve_arc(&big->state,&big->producer,&request.request,&no_pixels,NULL);
+	}
+	return modify(big,curve,&request);
 }
