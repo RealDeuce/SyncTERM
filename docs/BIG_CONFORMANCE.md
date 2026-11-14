@@ -1412,3 +1412,5 @@ big-audio dependency before global command acceptance. W, t and ? are now
 implemented in the requested order; the full goal remains active.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full build. All46 BIG-specific native CTests passed in54.96s, including cterm_big_query1.39s. syncterm_big_input passed in153.84s (test153.79s),2982 coherent scenes including98 new inquiry scenes. No non-BIG tests ran; the goal-final full regression suite remains deferred. Native ? request/cache/source/lifecycle integration is verified. Actual music-buffer allocation/publication, audio and global45-entry acceptance remain pending.
+
+Native ? inquiry implementation commit: `6bfc11c`.
