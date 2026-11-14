@@ -1512,3 +1512,5 @@ branch adds no wire command or application scene. The existing2982 captures
 remain unchanged; non-BIG regressions remain deferred.
 
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final refresh. All50 BIG-specific native CTests passed in52.11s, including big_curve_regular0.01s; its strengthened focused check passed in0.07s total. No non-BIG tests ran, and the unchanged application fixture was not replayed for this unbound branch. Regular outline/front/arc-record behavior is verified; angular buffers, public/aspect/query/outer-save, native K/CTerm/wire and global45-entry acceptance remain pending.
+
+Regular outline/front/arc-record implementation commit: `7090086`.
