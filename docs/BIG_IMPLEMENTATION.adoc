@@ -208,6 +208,10 @@ and only the required OPL2 functionality. BIG N is AdLib playback, not MIDI
 translation. Test synthesis, state, muted progression, cancellation, reset and
 teardown. Bit-identical reference PCM and manual listening are not gates;
 provide a manual audio checklist when implementation is complete.
+Route BIG N's synthesized OPL2 output through logical mixer channel0 (music),
+and b/n PC-speaker effects and notes through channel1 (effects). These are
+the existing terminal mixer channels, with their existing volume/fade/flush
+controls. OPL2 synthesis does not pass through the MIDI decoder.
 The music-buffer availability WORD read by ?2 is separate from mute/playback.
 Publish it from actual owned-buffer setup/allocation; I/R and query reads
 must not reset or re-probe it. Until a music buffer is installed it is0.

@@ -7,7 +7,7 @@
     "rounding": "Original chapter34 software/default-precision WORD results, including g3 Y5->11. No x87 emulation.",
     "framebuffer": "Existing indexed bitmap and indexed pages/images; format conversion at edges, explicit layout/capacity/padding; no persistent planar shadow.",
     "timing": "Existing local monotonic deadlines/audio samples; no foreign system clocks/BIOS interrupts/throughput delays.",
-    "audio": "Functional synthesis/playback/lifecycle; no canonical-PCM or listening gate; manual checklist required.",
+    "audio": "Functional synthesis/playback/lifecycle; no canonical-PCM or listening gate; manual checklist required. Route BIG N synthesized OPL2 output through existing logical mixer channel0 (music), and b/n PC-speaker effects/notes through channel1 (effects), using their existing channel controls. OPL2 output does not use the MIDI decoder.",
     "pointer": "Keyboard/X6 and native mouse coexist; latest movement wins, stationary button samples do not undo keyboard moves. Left release after a valid press confirms. No OS-pointer warp; preserve keyboard confirm/cancel and suppress UI/disabled/outside/reset/duplicate selections.",
     "safe_port": "Preserve normal byte/WORD/state/pixel/reply behavior and document checked/bounded corrections to corruption, uninitialized state and unsafe failures.",
     "verification": "During goal development run BIG-specific tests only; defer non-BIG regressions, including shared-code regressions, to the final full-suite run. Native CMake build and focused BIG native/coherent application verification remain required.",
@@ -2311,7 +2311,8 @@
       "operations": [
         "PC-speaker effects/notes and raw AdLib music using existing mixer/local sample timing.",
         "Bounded C17 YM3812-only adaptation of pinned BSD ymfm algorithms; muted progression, cancel/reset/teardown and manual checklist.",
-        "Publish the retained music_memory WORD from actual native AdLib buffer setup/allocation, independently of playback/mute. ?2 reads this cache without probing/allocating; I/R retain it. The query integration currently reports0 because no audio buffer is installed; allocation/playback lifecycle remains required."
+        "Publish the retained music_memory WORD from actual native AdLib buffer setup/allocation, independently of playback/mute. ?2 reads this cache without probing/allocating; I/R retain it. The query integration currently reports0 because no audio buffer is installed; allocation/playback lifecycle remains required.",
+        "Route BIG N synthesized OPL2 output through existing logical mixer channel0 (music), and b/n PC-speaker effects/notes through channel1 (effects), using their existing channel controls. OPL2 output does not use the MIDI decoder."
       ],
       "tests": [],
       "references": [

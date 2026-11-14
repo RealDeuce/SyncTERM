@@ -17,6 +17,10 @@ palettes/replies, indexed storage and local timing. Safe malformed-state
 corrections are documented per entry. Sound acceptance is functional;
 bit-identical reference PCM and listening are not development gates.
 
+The planned BIG audio routing uses logical mixer channel0 for N's synthesized
+OPL2 output and channel1 for b/n PC-speaker effects/notes, including the existing
+channel controls. Audio implementation remains pending.
+
 Interactive acquisition retains the original keyboard pointer/X6 steps and
 adds native mouse movement. The latest movement controls the software pointer;
 stationary button samples do not undo keyboard movement. Left release after
