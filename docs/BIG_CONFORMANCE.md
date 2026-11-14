@@ -1436,3 +1436,5 @@ remain deferred under the goal's BIG-only development test policy.
 Direct original-byte disassembly also inspected DDO0a1e..0a35 product,0fa0..0fc6 metric and10d7..1141 sine/cosine from the retained32-byte-header driver asset SHA2565fe75d7f939a5983098762a887ec742ddeb36c966185c9ffd0057fb3ea3194b8; its table bytes match both pre-change RIP and the moved common data.
 
 Native CMake Release configure/full build and final full refresh (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full refresh. All47 BIG-specific native CTests passed in53.84s, including big_curve_scalar0.01s. No non-BIG tests ran; the unchanged application fixture was not rerun for this unbound BIG scalar dependency. RIP/shared-code regressions remain deferred to the goal-final full suite. Shared curve scalars are verified; K fronts/recurrence/buffers/native point and wire/global acceptance remain pending.
+
+Shared curve scalar implementation commit: `92b7c44`.
