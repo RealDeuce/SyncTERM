@@ -4146,3 +4146,5 @@ s/X7, audio/resource/global45-entry and goal-final regressions remain pending;
 the conditional non-audio publishing milestone is not yet reached.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All58 BIG-specific native CTests passed in59.64s. Focused big_console_position passed in0.08s total (test0.01s), and expanded cterm_big_pages passed in1.34s total (test1.27s). syncterm_big_input passed in181.41s total (test181.33s),3710 coherent scenes including112 new p captures with every preceding observation retained. No non-BIG tests ran. Native p/cache/absolute-page cursor behavior is verified under the documented checked native-window boundary; s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing checkpoint is not yet met.
+
+Native p console-position implementation commit: `6584ff0`.
