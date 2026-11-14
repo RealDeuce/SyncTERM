@@ -1500,3 +1500,11 @@ wide mono sums preserve headroom before future source normalization. A BIG
 headless application fixture verifies the complete MIT license through the
 normal UI. b/n/N playback, real X7 callback progress, ?2 allocation and level
 calibration remain pending; no physical audio/device coverage is claimed.
+
+
+BIG's shared b/n speaker source now uses an averaged square with a carried
+one-pole low-pass and fixed source gain0.279224085. Independent native tests
+cover phase/frequency/stop/skip/partition/error state, literal PCM, harmonic
+softening and weighted reference level through the real device-free mixer.
+Normalization is measured during development and hard-coded; no BIG runtime
+calibration is added. b/n wire and stream ownership remain pending.

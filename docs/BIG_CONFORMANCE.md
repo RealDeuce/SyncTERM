@@ -30,7 +30,8 @@ b/n/N playback integration remains pending.
 The approved speaker timbre is a square oscillator with a small stateful
 low-pass filter. b's twenty procedural effect schedules and n's notes/sweeps
 share that generator; the original effects contain no stored PCM samples.
-BIG source levels must be calibrated to the existing ANSI music/beep output
+BIG source levels must be measured once during development and hard-coded;
+no new BIG runtime calibration is performed. Compare to ANSI music/beep output
 at equivalent volume settings. Audio verification must compare representative
 mixed PCM levels and peaks, preserve musical dynamics and check polyphonic
 headroom rather than accepting a source simply because it produces sound.
@@ -1984,3 +1985,20 @@ Native FreeBSD CMake Release configure/full builds and final focused build (/usr
 Native YM3812 core/full MIT license UI commit: `099ab2c`. Final focused
 checks with padding-preserving snapshots passed in0.63s total. b/n/N
 integration, calibration and the full-goal acceptance remain pending.
+
+
+## Native speaker waveform and fixed source gain
+
+The shared b/n source integrates square-wave edges in local44.1-kHz frames,
+then applies a carried one-pole alpha1/2 low-pass. Original F0..18 no-ops,
+integer divisor conversion, running phase and gate restart/stop semantics are
+explicit; muted skipping preserves phase without replaying filter history.
+Fixed gain0.279224085 is applied as an integer rational, measured once now.
+No source calibration, allocation, synchronization or device access runs at
+playback initialization/render time. The actual-mixer weighted comparison at
+channel1's -12dB default meets the reference within0.000001dB in the native
+fixture. PCM/state/partition/frequency/decay/skip/error and harmonic checks
+are independent expectations. b/n command/stream integration remains pending.
+
+
+Native FreeBSD CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. big_speaker passed in0.10s total (test0.03s). With fixed source gain0.279224085, the raw weighted difference is-0.120111dB/peak9149 and the actual -12dB mixer output differs from the ANSI/beep reference by less than0.000001dB, peak2294. No physical audio/device, auditory or b/n wire acceptance is claimed. Only the focused BIG test ran; non-BIG regressions and the unchanged3934 application scenes were not rerun. The active full goal and goal-final full suite remain outstanding.

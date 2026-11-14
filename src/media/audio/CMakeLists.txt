@@ -48,7 +48,7 @@ set(ST_AUDIO_HAVE_PIPEWIRE 0)
 set(ST_AUDIO_HAVE_SDL 0)
 set(ST_AUDIO_HAVE_CORE_AUDIO 0)
 set(ST_AUDIO_HAVE_WASAPI 0)
-set(_st_audio_sources audio.c audio_synthesis.c audio_backends.c
+set(_st_audio_sources audio.c audio_synthesis.c st_audio_weighting.c audio_backends.c
 	st_audio_runtime.c)
 set(_st_audio_runtime_loader FALSE)
 

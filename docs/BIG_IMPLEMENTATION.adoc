@@ -227,7 +227,9 @@ The original b effects are twenty procedural frequency/stop/delay schedules
 using the same low-level speaker primitives as n, with shared RNG calls
 where specified. Both commands should drive the same speaker oscillator/
 filter on channel1; b does not invoke n's parser or use stored PCM samples.
-Calibrate BIG source levels against the existing ANSI music and beep output
+Calibrate BIG source levels once during development and hard-code the resulting
+source gains. Do not run calibration loops at startup, source creation or
+during playback. Compare against the existing ANSI music and beep output
 at equivalent channel/master settings, so switching protocols does not cause
 an unintended loudness jump or drop. Use stable source gain while preserving
 encoded note dynamics and relative voice levels. Compare representative
@@ -4456,3 +4458,59 @@ Native FreeBSD CMake Release configure/full builds and final focused build (/usr
 Native YM3812 core/full MIT license UI commit: `099ab2c`. Final focused
 checks with padding-preserving snapshots passed in0.63s total. b/n/N
 integration, calibration and the full-goal acceptance remain pending.
+
+
+== Shared native speaker source and fixed level
+
+`st_big_speaker` now supplies the native oscillator/filter shared by the
+future b/n handlers. It retains the original F WORD rule:0..18 are complete
+no-ops; other requests use the original integer frequency divisor, converted
+directly to a local44.1-kHz Q32 phase step. Running F updates retain phase;
+a gated restart begins a new high half. Z retains the frequency/divisor/phase
+and gates input off, allowing the filter tail to decay.
+
+Every output sample integrates all square-wave edges within that local
+frame, then applies the approved one-pole low-pass with alpha1/2 and carried
+Q16 history. It has no synthetic per-note attack/release or buffer-boundary
+phase/filter reset. A separate constant-time muted skip retains phase/gate/
+frequency while discarding acoustic filter history so it cannot replay later.
+There is no PIT/port/BIOS counter model, device, heap allocation, lock, new
+thread or runtime calibration in this source.
+
+Per the user's clarification, normalization was measured once during this
+implementation and is hard-coded as the exact rational279224085/1000000000
+(0.279224085). It is applied with deterministic integer arithmetic, with no
+per-note adjustment or per-instance gain field. Channel1's existing -12dB
+stream gain and user volume/fade controls remain the integration boundary.
+
+The reference is the existing440Hz ANSI/beep SINE_SAW_HARM waveform. The
+measurement warms the existing K-weighting filter for0.5s and compares the
+following1s inside a2s PCM capture. Actual device-free single-stream mixer
+pulls at-12dB include its existing gain quantization and soft clipping.
+Matching raw PCM alone initially left+0.120261dB at mixer output; the pinned
+gain compensates that transfer. The raw source is intentionally-0.120111dB
+from the reference, while the final mixed output differs by less than
+0.000001dB in this native fixture. Temporary runtime calibration/cache and
+mixer probe changes were removed; the shipping mixer is unchanged.
+
+The weighting arithmetic/coefficients were extracted unchanged from the
+existing MIDI calibrator into `st_audio_weighting`. MIDI retains its existing
+caller/control flow and independent per-channel histories. BIG playback
+uses only the hard-coded gain; its regression test uses the shared weighting
+kernel for measurement. An independently expanded transfer-function impulse
+checks the kernel numerically rather than relying only on self-calibration.
+
+`big_speaker` covers authored fixed-gain PCM samples, averaged half/whole
+cycles, four low-pass steps, stop decay, F no-ops/divisor limits/running versus
+gated phase, dual-channel equality, buffer partitions/state identity, huge
+muted skips including UINT64_MAX, reset/silence and checked errors. Complete
+PCM reference/speaker captures pass through the actual mixer with equal
+channel gains. Fourier checks at the actual quantized pitch verify reduced
+third/fifteenth harmonics relative to a hard square. No expected scene/audio
+asset is generated from the implementation under test, and no physical audio
+is enabled. This accepts the shared source and its fixed normalization;
+b/n wire/schedules/native stream ownership and OPL2 playback/gain integration
+remain required next steps.
+
+
+Native FreeBSD CMake Release configure/full build and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics. big_speaker passed in0.10s total (test0.03s). With fixed source gain0.279224085, the raw weighted difference is-0.120111dB/peak9149 and the actual -12dB mixer output differs from the ANSI/beep reference by less than0.000001dB, peak2294. No physical audio/device, auditory or b/n wire acceptance is claimed. Only the focused BIG test ran; non-BIG regressions and the unchanged3934 application scenes were not rerun. The active full goal and goal-final full suite remain outstanding.

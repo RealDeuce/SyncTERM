@@ -1017,3 +1017,31 @@ progress is fabricated by an elapsed clock. Native `cterm_big_sync` injects
 serialized progress into real BIG command pairs and verifies wire/key/source
 ownership, split profiles, indexed planes and lifecycle recovery. Real audio
 record publication remains the b/n/N implementation's responsibility.
+
+
+`st_big_speaker_test.c` checks original BIG7/14/66 F0..18 no-ops and divisor
+mapping around the user-approved native softened-square timbre. Authored
+PCM values derive from integrated half-wave areas, the alpha1/2 Q16 recurrence
+and fixed gain279224085/1000000000. It checks phase continuity/gated restart,
+stop decay, full/partial-cycle averaging, stereo identity, copied/partitioned
+state, enormous muted skips, reset and error preservation.
+
+The gain was measured once during development against the existing440Hz
+ANSI/beep SINE_SAW_HARM reference, through the actual -12dB mixer including
+its soft clip. A0.5s weighting warm-up precedes a1s measurement window within
+2s of generated PCM. The pinned gain gives raw difference-0.120111dB and
+post-mixer difference below0.000001dB/peak2294 in the native fixture. The
+regression target is absolute mixed-level difference below0.05dB. The raw
+check allows the intentional mixer-transfer compensation. No runtime
+calibration or mutable gain field is retained. The temporary development
+calibrator and mixer probes were removed, preserving the mixer itself.
+
+K-weighting uses the coefficients/arithmetic extracted unchanged from the
+existing MIDI calibrator. Eight literal impulse values were independently
+calculated by polynomial expansion of the cascaded transfer functions in
+60-digit decimal arithmetic. Fourier projections use the actual quantized
+pitch to verify third/fifteenth-harmonic attenuation. Test PCM is generated
+only as input/observations for independent analytic/level expectations, not
+as expected files from the implementation. The device-free engine provides
+real mixer captures without audible output. b/n parser/stream/schedule and
+OPL2 level/lifecycle acceptance are separate work.

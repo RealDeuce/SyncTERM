@@ -3,29 +3,11 @@
 #include <math.h>
 #include <stdlib.h>
 
-/* ITU-R BS.1770 K-weighting, bilinear-mapped to the PCM format's 44.1 kHz:
- * the head-response shelf followed by the RLB high-pass. These are two
- * independent filter states per channel, not a playback equalizer. */
-_Static_assert(AUDIO_SAMPLE_RATE == 44100U, "Update K-weighting coefficients for the PCM rate");
-struct weighting { double state[AUDIO_CHANNELS][2][2]; };
+#include "st_audio_weighting.h"
+struct weighting { struct st_audio_weighting channel[AUDIO_CHANNELS]; };
 static double weighted(struct weighting *filter, size_t channel, double sample)
 {
-	static const double b[2][3] = {
-		{1.5308412300503478, -2.6509799951547297, 1.1690790799215870},
-		{1.0, -2.0, 1.0},
-	};
-	static const double a[2][2] = {
-		{-1.6636551132560204, 0.7125954280732254},
-		{-1.9891696736297960, 0.9891990357870393},
-	};
-	for (size_t stage = 0; stage < 2; ++stage) {
-		double *state = filter->state[channel][stage];
-		double output = b[stage][0] * sample + state[0];
-		state[0] = b[stage][1] * sample - a[stage][0] * output + state[1];
-		state[1] = b[stage][2] * sample - a[stage][1] * output;
-		sample = output;
-	}
-	return sample;
+	return st_audio_weight_sample(&filter->channel[channel],sample);
 }
 
 /* Match the weighted level of the ANSI synth voice, A440, velocity/CC7 100,
