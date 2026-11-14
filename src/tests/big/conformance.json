@@ -2310,7 +2310,7 @@
     },
     {
       "id": "big-audio",
-      "status": "not-started",
+      "status": "in-progress",
       "operations": [
         "PC-speaker effects/notes and raw AdLib music using existing mixer/local sample timing.",
         "Use current MIT RealBitdancer Opal as the source for a bounded C17 YM3812-only adaptation. Backfill missing OPL2 behavior with newly authored code and remove OPL3-only functionality. Other emulators are behavioral references only: do not copy, port, translate or adapt their code, regardless of license. Retain Opal MIT copyright/license and original public-domain resampler provenance; expose the full component notice in Settings > Licenses. Preserve muted progression, cancel/reset/teardown and the manual checklist.",
@@ -2321,7 +2321,10 @@
         "Before accepting Opal, independently test and resolve required YM3812 waveform-select enable and register08 bit7 CSW/CSM semantics: the current upstream core models YMF262 compatibility, explicitly storing but ignoring those controls. Current MIT Opal includes rhythm/noise and timers/status; the older public-domain copy does not establish its capabilities.",
         "Keep the OPL2 register map,9 two-operator channels/18 operators,4 waveforms with actual YM3812 enable semantics, rhythm/noise, envelopes/keys, timers/status and required CSM behavior. Remove second-bank/extra-channel/operator state, four-operator pairing, OPL3 extra waveforms/NEW mode/chip stereo-panning controls. Route OPL2 mono through normal stereo mixer/channel0 controls and verify independent register/PCM-level/lifecycle expectations."
       ],
-      "tests": [],
+      "tests": [
+        "big_opl2",
+        "syncterm_big_opl2_license"
+      ],
       "references": [
         "01-scope-evidence.adoc",
         "14-speaker-effects-and-notes.adoc",
@@ -2329,7 +2332,35 @@
       ],
       "deviations": [],
       "verification": [],
-      "commit": null
+      "commit": null,
+      "steps": [
+        {
+          "id": "native-ym3812-core-and-ui-license",
+          "status": "in-progress",
+          "operations": [
+            "Adapt only pinned MIT Opal core/header to C17 YM3812:9 channels/18 operators/four waveforms, no OPL3-only paths or other-emulator code.",
+            "New WSE write acceptance/retention, independent masked timer1 CSM key pulse, checked native API and mono signed32 unclipped sum; preserve imported operator/envelope/phase/LFO/rhythm/sample arithmetic under the documented native timing profile.",
+            "Add full original MIT notice to Settings > Licenses and verify its complete visible text through the normal headless UI."
+          ],
+          "tests": [
+            "big_opl2",
+            "syncterm_big_opl2_license"
+          ],
+          "references": [
+            "17-opl-bus-and-hardware-sources.adoc:timer/status and retained waveform write observations",
+            "18-opl-synthesis-pipeline.adoc:independent key ownership",
+            "https://github.com/RealBitdancer/opal/tree/5903c7e06783927f9568d4d0c27da0834464aa5f"
+          ],
+          "deviations": [
+            "Native sample-domain timers/CSM and status low-bit06 profile; no asynchronous bus/scan/debug-pin or canonical-PCM equivalence is claimed.",
+            "Emit signed32 mono amplitude sums before source gain/16-bit stereo conversion to preserve full additive headroom. BIG audio lifecycle/routing/calibration remain separate integration requirements."
+          ],
+          "verification": [
+            "Native FreeBSD CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics or clock-skew notices. Both focused BIG CTests passed in0.61s total: big_opl2 in0.01s and syncterm_big_opl2_license in0.54s. No non-BIG tests or unchanged3934 application scenes were rerun. Physical audio/MIDI were disabled. This verifies the standalone native synthesis/controls and full license UI, not b/n/N playback, real X7 progress, ?2 allocation or final loudness calibration. The full goal remains active and its full regression suite stays deferred."
+          ],
+          "commit": null
+        }
+      ]
     }
   ],
   "commands": [
@@ -4355,7 +4386,8 @@
       "Nuked OPL3": "LGPL-2.1.",
       "YM3812-LLE": "GPL-2.0."
     },
-    "verification": "Read pinned upstream source/header/LICENSE/README/provenance. No core imported, built, played or independently verified locally. Implementation goal remains paused. User resumed the goal after this source review; the approved YM3812-only adaptation is the next implementation step.",
-    "selected_source": "https://github.com/RealBitdancer/opal"
+    "verification": "The native YM3812 reduction and full MIT notice in the actual license UI now pass big_opl2 and syncterm_big_opl2_license. No other emulator code was imported. The goal is active; b/n/N playback, real X7 progress, ?2 availability, loudness calibration and final full regressions remain outstanding. See big-audio steps and src/media/opl2/UPSTREAM.md.",
+    "selected_source": "https://github.com/RealBitdancer/opal",
+    "initial_review_verification": "At initial review, only upstream sources/notices were read; no core had been imported or tested and the goal was paused. The user then resumed the goal and approved the original-code YM3812-only adaptation."
   }
 }

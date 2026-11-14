@@ -25,8 +25,8 @@ only, with its full copyright/license entry in Settings > Licenses. Add missing
 OPL2 behavior as new code and remove OPL3-only banks/channels, four-operator
 pairing, extra waveforms, NEW mode and chip stereo controls. Other emulators
 are behavioral references only; do not copy, port or translate their code.
-Test actual YM3812 waveform-enable, CSM, rhythm and timer semantics. No core
-has been imported or locally verified yet.
+Test actual YM3812 waveform-enable, CSM, rhythm and timer semantics. The native reduced core and its full MIT license UI are now implemented;
+b/n/N playback integration remains pending.
 The approved speaker timbre is a square oscillator with a small stateful
 low-pass filter. b's twenty procedural effect schedules and n's notes/sweeps
 share that generator; the original effects contain no stored PCM samples.
@@ -1963,3 +1963,19 @@ retain those stricter completion gates. The active goal is unchanged.
 
 
 Native X7/entry and verified non-audio publishing checkpoint commit: `8687007`.
+
+
+## Native YM3812 synthesis foundation
+
+The MIT Opal adaptation is C17, mono,9 channels/18 operators/four waveforms,
+with OPL3-only paths removed. Newly authored WSE acceptance and independent
+CSM key pulses have explicit state and PCM expectations. Timer/status/reset,
+rhythm keys, copied/split rendering, null/error recovery and unclipped full
+polyphonic amplitude are tested under the declared native sample profile.
+No other emulator code was imported. The ordinary license UI exposes the
+full MIT notice, checked by a dedicated BIG application fixture. Actual
+b/n/N synthesis ownership/playback, loudness calibration, X7 callback progress
+and music-buffer availability remain required integration work.
+
+
+Native FreeBSD CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics or clock-skew notices. Both focused BIG CTests passed in0.61s total: big_opl2 in0.01s and syncterm_big_opl2_license in0.54s. No non-BIG tests or unchanged3934 application scenes were rerun. Physical audio/MIDI were disabled. This verifies the standalone native synthesis/controls and full license UI, not b/n/N playback, real X7 progress, ?2 allocation or final loudness calibration. The full goal remains active and its full regression suite stays deferred.

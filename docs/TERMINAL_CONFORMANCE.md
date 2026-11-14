@@ -1491,3 +1491,12 @@ is ready for audio integration; b/n/N and actual playback remain pending.
 The coherent BIG fixture adds112 X7 scenes with all earlier captures retained;
 headless physical audio/MIDI remain off. See BIG_IMPLEMENTATION.adoc for the
 current non-audio publishing checkpoint and deferred full-suite requirement.
+
+
+BIG's standalone YM3812 foundation now uses the MIT Opal reduction with nine
+channels/eighteen operators/four waveforms and no OPL3 banks/pairing/stereo.
+Original WSE/CSM additions have independently authored control and PCM tests;
+wide mono sums preserve headroom before future source normalization. A BIG
+headless application fixture verifies the complete MIT license through the
+normal UI. b/n/N playback, real X7 callback progress, ?2 allocation and level
+calibration remain pending; no physical audio/device coverage is claimed.

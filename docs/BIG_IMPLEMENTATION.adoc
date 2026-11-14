@@ -41,8 +41,8 @@ aspect conversion versus explicit radii and their distinct reader classes.
 All six curve commands have native wire integration. X7 now has its raw
 WORD setter and resumable pair-entry music-progress gate. Its serialized
 progress interface is tested independently; the audio producer will publish
-real callback progress when N is implemented. Sound and the goal-final
-whole-suite acceptance remain pending. Earlier verification sections retain
+real callback progress when N is implemented. The standalone YM3812 core and its full MIT license UI are implemented;
+speaker/music playback and the goal-final whole-suite acceptance remain pending. Earlier verification sections retain
 their historical completion counts and outstanding-work descriptions; the
 latest checkpoint section records current scope.
 The implementation ledger is
@@ -4372,9 +4372,9 @@ public domain but incomplete for this use; emu8950 is MIT; Nuked OPL3 is
 LGPL2.1 and YM3812-LLE is GPL2. Those GPL/LGPL cores are outside the requested
 new-source license choices. Other emulators, including ymfm and emu8950,
 are behavioral references only; their code must not be copied, ported,
-translated or adapted for the new OPL2 functionality. Opal is not yet vendored
-or accepted as tested. Record the exact imported revision, hashes, newly
-authored adaptations and UI notice with implementation. The goal has resumed.
+translated or adapted for the new OPL2 functionality. The native Opal reduction and UI notice are now implemented and tested as
+recorded below. Playback integration remains pending. Preserve the imported
+revision/hashes and provenance of all newly authored additions.
 
 
 === Approved YM3812-only adaptation boundary
@@ -4394,3 +4394,60 @@ stereo mixer/channel0 controls. Verify independent OPL2 register/feature,
 PCM-level, muted progression and lifecycle expectations before accepting N.
 This specifies the next implementation step in the resumed goal; no synthesis
 source has been imported or modified in this documentation step.
+
+
+== Native YM3812 core and visible MIT notice
+
+`src/media/opl2` now contains a bounded C17-only adaptation of MIT Opal at the
+reviewed commit. Its source manifest and retained notices are in UPSTREAM.md,
+LICENSE.OPAL, PUBLIC_DOMAIN_PROOF.txt and UPSTREAM_THIRD_PARTY_LICENSES.md.
+Only the core/header were adapted. No code from another emulator was copied,
+ported, translated or adapted. Behavioral expectations for new WSE/CSM code
+come from the recorded YM3812 control observations and explicit tests.
+
+The reduced core has one256-register address space, nine two-operator
+channels/eighteen operators and four waveforms. It has no second bank, extra
+OPL3 channels/operators/waveforms, four-operator pairing, NEW mode, chip
+stereo/panning/output skew, visualizer routing or buffered write queue.
+Registers aboveff reject before changing state; OPL3 stereo-enable bits in
+C0 have no effect. YM3812 waveform-enable gates E0 write acceptance, retaining
+the last accepted selector while disabled. Timer1 CSM supplies an independent
+one-native-sample key pulse even with status masked; releasing it preserves
+melodic/rhythm keys. Timers/status/reset, operator/envelope/phase/LFO/rhythm
+and mono resampling use the declared native functional profile.
+
+Timing advances with generated native samples, with timer1/2 ticks every4/16
+nominal49716-Hz frames and a carried divider phase. Status low bits read06,
+while BIG's detection observes e0. This does not reproduce asynchronous bus/
+scan latches, debug/test-pin effects or bit-identical foreign canonical PCM.
+No BIOS clock, interrupt environment, worker, device or render-time allocation
+is introduced. The owner serializes register/status/render calls on a
+pointer-free native value; copy/reset and buffer boundaries are explicit.
+
+Output is a signed32 mono amplitude sum, preserving full18-operator additive
+headroom before future calibrated source gain and signed16 stereo conversion.
+The independent full-additive probes expect18*4084 and-18*4085 without
+clipping. The future BIG owner must implement the selected channel0 routing,
+muted progression, stable loudness calibration and actual buffer allocation/
+callback publication; none is manufactured by this library.
+
+The new big_opl2 fixture independently checks all18 slots/nine channels,
+waveform write retention with real PCM, four authored ROM-extrema results,
+ignored holes/stereo bits, rejected extended-bank addresses, rhythm/melodic
+keys, timer masks/reset/cadence, masked CSM keys and nontrivial PCM, additive
+headroom, copy/partition identity, reset/silence and error preservation.
+The initial CSM silence oracle incorrectly required exact zero at every phase;
+inherited one's-complement sign arithmetic produces0 or-1 when fully
+attenuated. The final oracle explicitly allows those two quantization values
+and requires the CSM output to exceed that floor. No production change was
+made to hide this distinction.
+
+The existing Settings > Licenses viewer now contains “Opal YM3812 adaptation
+(MIT)” using the complete original notice. syncterm_big_opl2_license opens
+the normal menu and component, captures the notice head and scroll tail,
+merges their exact word overlap and compares the complete visible text to
+the checked-in MIT notice. It then returns normally through the UI. The
+fixture uses the headless control backend with physical audio/MIDI disabled.
+
+
+Native FreeBSD CMake Release configure/full builds and final focused build (/usr/bin/cc, build/) passed without compiler/source diagnostics or clock-skew notices. Both focused BIG CTests passed in0.61s total: big_opl2 in0.01s and syncterm_big_opl2_license in0.54s. No non-BIG tests or unchanged3934 application scenes were rerun. Physical audio/MIDI were disabled. This verifies the standalone native synthesis/controls and full license UI, not b/n/N playback, real X7 progress, ?2 allocation or final loudness calibration. The full goal remains active and its full regression suite stays deferred.
