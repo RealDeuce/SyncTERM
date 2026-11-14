@@ -39,6 +39,9 @@ void audio_mixer_stream_destroy(audio_mixer_stream_t *stream);
 int audio_mixer_stream_set_source(audio_mixer_stream_t *,
     size_t (*source)(void *, int16_t *, size_t), void *context);
 int audio_mixer_stream_source_active(audio_mixer_stream_t *, bool active);
+/* Fade an active source through the normal overlay envelope, then pause it.
+ * Zero pauses immediately; NOT_SUPPORTED leaves non-source streams alone. */
+int audio_mixer_stream_fade_source(audio_mixer_stream_t *, size_t frames);
 
 int audio_mixer_stream_append(audio_mixer_stream_t *stream,
     const int16_t *frames, size_t frame_count,

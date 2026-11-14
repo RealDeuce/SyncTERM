@@ -4594,3 +4594,45 @@ Native FreeBSD CMake Release configure/full builds (/usr/bin/cc, build/) passed 
 Final native full rebuild after const-correct inspection cleanup was warning-free; cterm_big_note passed again in0.81s total (test0.72s).
 
 Native n/channel1 integration commit: `a999eae`. The full BIG goal remains active; b/N and the recorded audio/global/final-suite requirements are still outstanding.
+
+
+== Continuous speaker-source fade-out flush
+
+BIG n's live channel1 stream now honors APC Flush with O=frames through the
+normal mixer overlay envelope. The new narrow audio_stream_fade_source API
+schedules a finite source fade without queued silence, a second synthesis
+path, changing source normalization/channel volume, or allocating a duration-
+sized PCM buffer. The mixer clips each callback capacity to the remaining
+fade, carries the ordinary overlay position across pulls, then pauses the
+source. Zero frames pauses immediately. Attaching or explicitly activating a
+source resets the fade; clear/detach/reset preserve their existing ownership.
+APC uses this path only for an active continuous source. Normal queued-stream
+flush retains its existing silence/crossfade behavior.
+
+A reserved finite-fade sequence makes source work and submitted frames visible
+to drain and buffered_frames. Drain waits for callback completion and backend
+acknowledgment; clear/replacement/reactivation cancel older waits, and engine
+stop wakes them with its terminal error. Unlimited sources still report
+SIZE_MAX/BUSY. These fields remain protected by the existing stream mutex;
+there are no additional threads, locks or calibration loops. BIG observes the
+completed stream as idle and gates/detaches the speaker before another accepted
+frequency request can restart it.
+
+The independent big_speaker_stream fixture checks literal quarter-step Q15
+fade coefficients through the limiter;2051-frame whole versus irregular pulls;
+finite counts, final zero-padding, no callback past the endpoint, SIZE_MAX fade
+bounds, replacement/zero/clear/reactivation, source early completion/invalid
+return and preservation of queued streams. Concurrent drain fixtures cover
+live finite completion, final backend acknowledgment, clear and engine stop,
+with owned threads joined before stream/mixer destruction. The native n
+fixture exercises actual APC channel1 O=4f through split PCM pulls, final
+idle/gate state and checked public-API arguments. That APC test first failed
+against the previous immediate-clear behavior. Existing speaker fixed gain,
+volume ramps and session pacing expectations are retained.
+
+Continuous-source fade-out flush is implemented. b effect schedules, N
+playback/gain/buffer allocation and real X7 progress, the manual checklist and
+full-goal regressions/acceptance remain pending.
+
+
+Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. Final4 focused BIG CTests passed in3.60s: big_speaker_stream0.01s, big_speaker0.03s, cterm_big_note0.77s, big_session_pacing2.71s. The native APC fade case failed before implementation. No physical audio/MIDI/auditory coverage or non-BIG tests are claimed; unchanged4046 bitmap application scenes were not rerun. Shared audio regressions remain part of the goal-final full suite. b/N and full-goal acceptance remain outstanding.

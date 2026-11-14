@@ -107,11 +107,17 @@ void audio_stream_destroy(audio_stream_t *stream);
  * Set/detach clears pending buffers and quiesces the previous callback.
  * Context is caller-owned; destroy the stream before freeing it. Never
  * activate while holding a lock the callback needs. Queued append is BUSY
- * while a source is attached; drain/buffered_frames treat an active source
- * like an unterminated loop. Clear pauses it, keeping its attachment. */
+ * while a source is attached; an active source without a finite fade is an
+ * unterminated loop for drain/buffered_frames. Clear pauses it, keeping its
+ * attachment. Explicit activation resets any fade and cancels its drains. */
 int audio_stream_set_source(audio_stream_t *,
     size_t (*source)(void *, int16_t *, size_t), void *context);
 int audio_stream_source_active(audio_stream_t *, bool active);
+/* Fade an active continuous source and pause it after frame_count frames,
+ * without changing channel volume or detaching its caller-owned context.
+ * Zero pauses immediately; NOT_SUPPORTED leaves non-source streams alone.
+ * Finite fades participate in buffered_frames/drain and acknowledgment. */
+int audio_stream_fade_source(audio_stream_t *, size_t frame_count);
 
 int audio_stream_append(audio_stream_t *stream, const int16_t *frames,
 	size_t frame_count, const struct audio_buffer_options *options);
@@ -123,7 +129,8 @@ int audio_stream_append_u8_mono_22050(audio_stream_t *stream,
 	const struct audio_buffer_options *options);
 int audio_stream_clear(audio_stream_t *stream);
 /*
- * Drain waits for the buffers present when it is called, not later appends.
+ * Drain waits for the buffers/finite source fade present when it is called,
+ * not later appends. Replacing a source fade cancels its existing drains.
  * Clear cancels a concurrent drain while those buffers are still queued or
  * awaiting mixer acknowledgment. Once they have been submitted and
  * acknowledged, clear cannot retract them and does not cancel the final

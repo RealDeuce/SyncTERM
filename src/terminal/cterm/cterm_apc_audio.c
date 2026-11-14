@@ -221,6 +221,7 @@ flush_channel(struct cterminal *terminal, char *text)
 	if (channel == 0) { (void)st_music_flush(terminal->music_player, fadeout); return; }
 	stream = channel_stream(terminal, (unsigned)channel);
 	if (stream == NULL) return;
+	if (fadeout != 0 && audio_stream_fade_source(stream,fadeout) == 0) return;
 	if (fadeout != 0 && fadeout <= SIZE_MAX / AUDIO_FRAME_SIZE) {
 		struct audio_buffer_options options = AUDIO_BUFFER_OPTIONS_INIT;
 		int16_t *silence = calloc(fadeout, AUDIO_FRAME_SIZE);

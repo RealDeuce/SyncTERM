@@ -60,6 +60,8 @@ struct audio_mixer_stream {
 	size_t (*source)(void *, int16_t *, size_t);
 	void *source_context;
 	bool source_active;
+	size_t source_fade_total, source_fade_elapsed;
+	uint64_t source_fade_sequence;
 };
 
 struct audio_mixer {
@@ -329,6 +331,7 @@ audio_mixer_stream_set_source(audio_mixer_stream_t *stream,
 		drop_buffers_locked(stream);
 		stream->source = source; stream->source_context = context;
 		stream->source_active = false;
+		stream->source_fade_total = stream->source_fade_elapsed = 0;
 		(void)st_condition_broadcast(&stream->condition);
 	}
 	(void)st_mutex_unlock(&stream->mutex);
@@ -342,12 +345,37 @@ audio_mixer_stream_source_active(audio_mixer_stream_t *stream, bool active)
 	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
 	int status = stream->status;
 	if (status == 0 && active && stream->source == NULL) status = IO_ERROR_INVALID_ARGUMENT;
-	if (status == 0) stream->source_active = active;
+	if (status == 0) {
+		++stream->clear_generation;
+		stream->source_active = active;
+		stream->source_fade_total = stream->source_fade_elapsed = 0;
+		(void)st_condition_broadcast(&stream->condition);
+	}
 	(void)st_mutex_unlock(&stream->mutex);
 	if (status == 0 && active && st_mutex_lock(&stream->mixer->mutex) == ST_THREAD_SUCCESS) {
 		(void)st_condition_signal(&stream->mixer->condition);
 		(void)st_mutex_unlock(&stream->mixer->mutex);
 	}
+	return status;
+}
+
+int
+audio_mixer_stream_fade_source(audio_mixer_stream_t *stream, size_t frames)
+{
+	if (stream == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	int status = stream->status;
+	if (status == 0 && !stream->source_active) status = IO_ERROR_NOT_SUPPORTED;
+	if (status == 0) {
+		/* Replacing a finite fade cancels existing drains. The new sequence
+		 * belongs only to drains which start after this request. */
+		++stream->clear_generation;
+		stream->source_fade_total = frames; stream->source_fade_elapsed = 0;
+		stream->source_fade_sequence = stream->next_sequence++;
+		if (frames == 0) stream->source_active = false;
+		(void)st_condition_broadcast(&stream->condition);
+	}
+	(void)st_mutex_unlock(&stream->mutex);
 	return status;
 }
 
@@ -429,6 +457,7 @@ audio_mixer_stream_clear(audio_mixer_stream_t *stream)
 		return IO_ERROR_IO;
 	++stream->clear_generation;
 	stream->source_active = false;
+	stream->source_fade_total = stream->source_fade_elapsed = 0;
 	drop_buffers_locked(stream);
 	(void)st_condition_broadcast(&stream->condition);
 	(void)st_mutex_unlock(&stream->mutex);
@@ -438,6 +467,8 @@ audio_mixer_stream_clear(audio_mixer_stream_t *stream)
 static bool
 pending_through(const audio_mixer_stream_t *stream, uint64_t target)
 {
+	if (stream->source_active && stream->source_fade_total != 0
+	    && stream->source_fade_sequence <= target) return true;
 	const struct audio_mixer_buffer *buffer;
 
 	for (buffer = stream->head; buffer != NULL; buffer = buffer->next) {
@@ -457,7 +488,10 @@ size_t audio_mixer_stream_buffered_frames(audio_mixer_stream_t *stream)
 	size_t total = 0;
 	if (stream == NULL) return 0;
 	if (st_mutex_lock(&stream->mutex) != ST_THREAD_SUCCESS) return SIZE_MAX;
-	if (stream->source_active) { (void)st_mutex_unlock(&stream->mutex); return SIZE_MAX; }
+	if (stream->source_active) {
+		if (stream->source_fade_total == 0) { (void)st_mutex_unlock(&stream->mutex); return SIZE_MAX; }
+		total = stream->source_fade_total - stream->source_fade_elapsed;
+	}
 	for (struct audio_mixer_buffer *b = stream->head; b != NULL; b = b->next) {
 		size_t left = b->frame_count - b->consumed;
 		if (b->loop || left > SIZE_MAX - total) { total = SIZE_MAX; break; }
@@ -487,7 +521,7 @@ audio_mixer_stream_drain(audio_mixer_stream_t *stream)
 		status = stream->status;
 		goto done;
 	}
-	if (stream->source_active) { status = IO_ERROR_BUSY; goto done; }
+	if (stream->source_active && stream->source_fade_total == 0) { status = IO_ERROR_BUSY; goto done; }
 	target = stream->next_sequence - 1;
 	clear_generation = stream->clear_generation;
 	for (buffer = stream->head; buffer != NULL; buffer = buffer->next) {
@@ -772,18 +806,27 @@ pull_chunk_locked(audio_mixer_t *mixer, int16_t *output, size_t frames,
 			if (marker == NULL) stream->status = IO_ERROR_OUT_OF_MEMORY;
 			else {
 				int16_t generated[AUDIO_MIXER_CHUNK_FRAMES*AUDIO_MIXER_CHANNELS];
-				size_t count = stream->source(stream->source_context,generated,frames);
-				if (count > frames) stream->status = IO_ERROR_OUT_OF_RANGE;
+				size_t requested = frames;
+				if (stream->source_fade_total != 0) {
+					size_t left = stream->source_fade_total - stream->source_fade_elapsed;
+					if (requested > left) requested = left;
+				}
+				size_t count = stream->source(stream->source_context,generated,requested);
+				if (count > requested) stream->status = IO_ERROR_OUT_OF_RANGE;
 				else if (count != 0) {
-					struct audio_mixer_buffer input = {.frames = generated,.frame_count = count};
+					struct audio_mixer_buffer input = {.frames = generated,.frame_count = count,
+					    .overlay_total = stream->source_fade_total,.overlay_elapsed = stream->source_fade_elapsed};
 					size_t written;
 					(void)mix_buffer(mixer,&input,mixer->accumulator,frames,left_db,right_db,&written);
+					stream->source_fade_elapsed = input.overlay_elapsed;
 					if (written > maximum) maximum = written;
 					marker->frame_count = count; marker->consumed = count;
-					marker->sequence = stream->next_sequence++;
+					marker->sequence = stream->source_fade_total != 0
+					    ? stream->source_fade_sequence : stream->next_sequence++;
 					retire_buffer_locked(stream,marker,pull_ticket); marker = NULL;
 				}
-				if (count < frames) stream->source_active = false;
+				if (count < requested || (stream->source_fade_total != 0
+				    && stream->source_fade_elapsed == stream->source_fade_total)) stream->source_active = false;
 				free(marker);
 			}
 			if (stream->status != 0) stream->source_active = false;

@@ -228,6 +228,25 @@ static void mixer_and_mute(void)
 	string(&f,"I#n 0,440,0,0:"); st_audio_runtime_stop(r); poll(&f); CHECK(voice(&f).playing && audio_stream_is_idle(stream));
 	destroy(&f); st_audio_runtime_destroy(r);
 }
+static void fade_flush(void)
+{
+	struct fixture f; create(&f,false,false); st_audio_runtime_t *r=attach(&f);
+	CHECK(audio_stream_fade_source(NULL,4)==IO_ERROR_INVALID_ARGUMENT);
+	string(&f,"I#n 0,440,0,0:"); audio_stream_t *s=f.terminal->fx_stream;
+	string(&f,"\033_SyncTERM:A;Volume;C=1;V=0dB\033\\");
+	string(&f,"\033_SyncTERM:A;Flush;C=1;O=4f\033\\");
+	CHECK(!audio_stream_is_idle(s) && audio_stream_buffered_frames(s)==4);
+	int16_t pcm[16]; CHECK(st_audio_runtime_pull(r,pcm,2)==0);
+	CHECK(!audio_stream_is_idle(s) && audio_stream_buffered_frames(s)==2);
+	CHECK(st_audio_runtime_pull(r,pcm+4,6)==0 && audio_stream_is_idle(s));
+	/* First four fixed-gain speaker samples:4574,6861,8005,8577.
+	 * The existing quarter-step fade and soft limiter are checked below. */
+	CHECK(pcm[0]>0 && pcm[2]>0 && pcm[4]>0 && pcm[6]==0);
+	for (unsigned i=0;i<4;++i) CHECK(pcm[2*i]==pcm[2*i+1]);
+	for (unsigned i=8;i<16;++i) CHECK(pcm[i]==0);
+	poll(&f); CHECK(!voice(&f).playing);
+	destroy(&f); st_audio_runtime_destroy(r);
+}
 struct pull_owner { st_audio_runtime_t *runtime; atomic_bool stop,ready; atomic_uint requests; };
 static int pull_thread(void *context)
 {
@@ -259,5 +278,5 @@ static void concurrent_shutdown(void)
 }
 int main(void)
 {
-	note_and_sweeps(); splits_and_owners(); reads_sources_and_wrap(); errors_and_lifetime(); mixer_and_mute(); concurrent_shutdown(); return 0;
+	note_and_sweeps(); splits_and_owners(); reads_sources_and_wrap(); errors_and_lifetime(); mixer_and_mute(); fade_flush(); concurrent_shutdown(); return 0;
 }

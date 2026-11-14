@@ -1526,3 +1526,16 @@ Native FreeBSD CMake Release configure/full builds (/usr/bin/cc, build/) passed 
 Final native full rebuild after const-correct inspection cleanup was warning-free; cterm_big_note passed again in0.81s total (test0.72s).
 
 Native n/channel1 integration commit: `a999eae`. The full BIG goal remains active; b/N and the recorded audio/global/final-suite requirements are still outstanding.
+
+
+BIG channel1 continuous speaker sources now honor APC fade-out flush using
+the existing mixer overlay envelope. Pulls stop at the finite sample endpoint;
+channel/source gain stays fixed. Buffered counts and drain include pending
+fade work/backend acknowledgment, while clear/replacement/stop wake drains.
+Independent BIG tests cover literal envelope samples, pull partitions, exact
+callback limits, large/zero/replaced fades, queued-stream preservation and
+concurrent completion/cancellation; the native n fixture covers actual APC
+O=4f and final idle/gate behavior. b/N and goal-final acceptance remain pending.
+
+
+Native FreeBSD CMake Release configure/full rebuilds (/usr/bin/cc, build/) passed without compiler/source diagnostics. Final4 focused BIG CTests passed in3.60s: big_speaker_stream0.01s, big_speaker0.03s, cterm_big_note0.77s, big_session_pacing2.71s. The native APC fade case failed before implementation. No physical audio/MIDI/auditory coverage or non-BIG tests are claimed; unchanged4046 bitmap application scenes were not rerun. Shared audio regressions remain part of the goal-final full suite. b/N and full-goal acceptance remain outstanding.

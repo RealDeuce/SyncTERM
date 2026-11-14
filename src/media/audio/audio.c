@@ -429,6 +429,13 @@ audio_stream_source_active(audio_stream_t *stream, bool active)
 }
 
 int
+audio_stream_fade_source(audio_stream_t *stream, size_t frames)
+{
+	return stream == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : audio_mixer_stream_fade_source(stream->mixer_stream,frames);
+}
+
+int
 audio_stream_append_take(audio_stream_t *stream, int16_t *frames,
     size_t frame_count, const struct audio_buffer_options *options)
 {
