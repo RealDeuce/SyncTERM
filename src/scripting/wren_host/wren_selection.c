@@ -135,7 +135,7 @@ cell_selected(const struct text_selection *selection, uint32_t x, uint32_t y)
 }
 
 static int
-paint_selection(struct text_selection *selection, bool clear)
+paint_selection(struct text_selection *selection)
 {
 	int result = st_console_begin_update(selection->console);
 
@@ -146,7 +146,7 @@ paint_selection(struct text_selection *selection, bool clear)
 
 		for (uint32_t x = 0; x < selection->columns; ++x) {
 			size_t offset = (size_t)y * selection->columns + x;
-			bool selected = !clear && cell_selected(selection, x, y);
+			bool selected = cell_selected(selection, x, y);
 
 			if (selection->selected[offset] == selected)
 				continue;
@@ -332,6 +332,7 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	struct st_console_event event;
 	struct st_console_rect screen;
 	struct st_wren_mouse_gesture *gesture;
+	st_console_snapshot_t *snapshot = NULL;
 	size_t count;
 	bool copy = false;
 	int result;
@@ -378,13 +379,18 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	    selection.original, selection.columns);
 	if (result != 0)
 		goto done;
+	/* Repainting text replaces pixel graphics, including unselected cells
+	 * in the same row. Retain both raster planes for the cleanup path. */
+	result = st_console_snapshot_create(&snapshot, context->console);
+	if (result != 0)
+		goto done;
 	for (size_t index = 0; index < count; ++index)
 		selection.displayed[index] = selection.original[index];
 	selection.start_x = gesture->start_x;
 	selection.start_y = gesture->start_y;
 	selection.end_x = gesture->end_x;
 	selection.end_y = gesture->end_y;
-	result = paint_selection(&selection, false);
+	result = paint_selection(&selection);
 	while (result == 0) {
 		result = st_console_event_wait(context->console, &event);
 		if (result != 0)
@@ -401,7 +407,7 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 			selection.end_y = event.data.mouse.y;
 			gesture->end_x = event.data.mouse.x;
 			gesture->end_y = event.data.mouse.y;
-			result = paint_selection(&selection, false);
+			result = paint_selection(&selection);
 		}
 		else if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
 		    && (event.data.mouse.buttons
@@ -419,7 +425,8 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		}
 	}
 	{
-		int restore_result = paint_selection(&selection, true);
+		int restore_result = st_console_snapshot_restore(context->console,
+		    snapshot, NULL);
 
 		if (result == 0)
 			result = restore_result;
@@ -428,6 +435,7 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		result = copy_selection(&selection);
 
 done:
+	st_console_snapshot_destroy(snapshot);
 	free(selection.palette);
 	free(selection.selected);
 	free(selection.displayed);

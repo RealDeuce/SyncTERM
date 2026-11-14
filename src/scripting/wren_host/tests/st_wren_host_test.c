@@ -8168,6 +8168,7 @@ struct selection_observer {
 	struct st_console_event release;
 	struct st_console_cell highlighted[6];
 	bool probe_selected;
+	bool interrupt;
 };
 
 static int
@@ -8202,6 +8203,14 @@ observe_selection(void *argument)
 		}
 		(void)st_thread_sleep(&interval, NULL);
 	}
+	if (observer->interrupt) {
+		const struct st_console_event key = {
+			.type = ST_CONSOLE_EVENT_KEY_CODE,
+			.data.key.code = 27,
+		};
+		if (st_console_post_event(observer->console, &key) != 0)
+			result = 1;
+	}
 	if (st_console_post_event(observer->console, &observer->release) != 0)
 		result = 1;
 	return result;
@@ -8216,12 +8225,15 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		uint32_t press_modifiers;
 		uint32_t move_modifiers;
 		bool probe_selected;
+		bool interrupt;
 	} cases[] = {
-		{true, 0, 0, false},
-		{true, ST_CONSOLE_MODIFIER_ALT, 0, true},
-		{false, 0, 0, true},
-		{false, ST_CONSOLE_MODIFIER_ALT, 0, false},
-		{true, 0, ST_CONSOLE_MODIFIER_ALT, false},
+		{true, 0, 0, false, false},
+		{true, ST_CONSOLE_MODIFIER_ALT, 0, true, false},
+		{false, 0, 0, true, false},
+		{false, ST_CONSOLE_MODIFIER_ALT, 0, false, false},
+		{true, 0, ST_CONSOLE_MODIFIER_ALT, false, false},
+		{true, 0, 0, false, true},
+		{false, 0, 0, true, true},
 	};
 	const uint32_t selection_blue = UINT32_C(0x0000a8);
 	const struct st_console_rect area = {1, 1, 3, 2};
@@ -8243,6 +8255,9 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	};
 	struct st_console_cell before[6];
 	struct st_console_cell after[6];
+	st_console_snapshot_t *saved = NULL;
+	struct st_pixel_buffer *graphics = NULL;
+	uint32_t width, height;
 	struct selection_observer observer;
 	st_thread_t observer_thread;
 	int observer_result;
@@ -8274,7 +8289,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		},
 	};
 	static const char source_prefix[] =
-	    "import \"syncterm\" for Input, Mouse, MouseEvent\n"
+	    "import \"syncterm\" for Input, Mouse, MouseEvent, Key\n"
 	    "Input.mouseEvents = 0\n"
 	    "Input.enableMouseEvent(Mouse.wheelDown)\n"
 	    "if (Input.mouseEvents != 140737488355328) Fiber.abort(\"wide mouse mask\")\n"
@@ -8286,20 +8301,47 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	    "var drag = Input.next()\n"
 	    "if (!(drag is MouseEvent) || drag.event != Mouse.button1DragStart || drag.startX != 2 || drag.startY != 2 || drag.endX != 4 || drag.endY != 3 || drag.startPixelX != 8 || drag.startPixelY != 16 || drag.endPixelX != 24 || drag.endPixelY != 32) Fiber.abort(\"mouse drag\")\n"
 	    "Input.mousedrag(";
-	char source[sizeof(source_prefix) + sizeof("true)\n")];
+	static const char interrupted_suffix[] =
+	    "Input.enableMouseEvent(Mouse.button1Release)\n"
+	    "var first = Input.next()\n"
+	    "var second = Input.next()\n"
+	    "var key = first is MouseEvent ? second : first\n"
+	    "var release = first is MouseEvent ? first : second\n"
+	    "if (key.key != Key.escape) Fiber.abort(\"selection lost interrupt\")\n"
+	    "if (release.event != Mouse.button1Release) Fiber.abort(\"selection lost release\")\n";
+	char source[sizeof(source_prefix) + sizeof("true)\n")
+	    + sizeof(interrupted_suffix)];
 	char module[40];
 
+	CHECK(st_console_snapshot_create(&saved, console) == 0);
 	CHECK(st_console_set_palette(console, 500, &selection_blue, 1) == 0);
 	CHECK(st_console_write_cells(console, &area, cells, 3) == 0);
 	CHECK(st_console_write_cells(console, &probe_area, &probe_cell, 1) == 0);
 	CHECK(st_console_present(console) == 0);
-	CHECK(st_console_read_cells(console, &area, before, 3) == 0);
+	CHECK(st_console_pixel_size(console, &width, &height) == 0);
+	CHECK(st_pixel_buffer_create(&graphics, width, height, true) == 0);
+	/* Distinct indexed/RGB patterns cover selected cells, unselected parts
+	 * of repainted rows and untouched rows in both blink planes. */
+	for (size_t index = 0; index < (size_t)width * height; ++index) {
+		graphics->primary[index] = (uint32_t)(index % 16);
+		graphics->alternate[index] = ST_PIXEL_COLOR_RGB_TAG
+		    | (uint32_t)(index & UINT32_C(0xffffff));
+	}
 	for (size_t case_index = 0; case_index < sizeof(cases)
 	    / sizeof(cases[0]); ++case_index) {
+		const struct st_pixel_blit blit = {
+			.width = width, .height = height,
+			.scale_x = 1, .scale_y = 1,
+		};
+		const struct st_console_rect pixel_area = {0, 0, width, height};
+		struct st_pixel_buffer *restored = NULL;
+		CHECK(st_console_blit_pixels(console, graphics, NULL, &blit) == 0);
+		CHECK(st_console_read_cells(console, &area, before, 3) == 0);
 		press.data.mouse.modifiers = cases[case_index].press_modifiers;
 		move.data.mouse.modifiers = cases[case_index].move_modifiers;
-		CHECK(snprintf(source, sizeof(source), "%s%s)\n", source_prefix,
-		    cases[case_index].rectangular ? "true" : "") > 0);
+		CHECK(snprintf(source, sizeof(source), "%s%s)\n%s", source_prefix,
+		    cases[case_index].rectangular ? "true" : "",
+		    cases[case_index].interrupt ? interrupted_suffix : "") > 0);
 		CHECK(snprintf(module, sizeof(module), "mouse_drag_selection_%zu",
 		    case_index) > 0);
 		CHECK(st_console_post_event(console, &press) == 0);
@@ -8310,6 +8352,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 			.probe_area = probe_area,
 			.release = release,
 			.probe_selected = cases[case_index].probe_selected,
+			.interrupt = cases[case_index].interrupt,
 		};
 		CHECK(st_thread_create(&observer_thread, observe_selection,
 		    &observer) == ST_THREAD_SUCCESS);
@@ -8318,6 +8361,14 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		    == ST_THREAD_SUCCESS);
 		CHECK(interpret_result == WREN_RESULT_SUCCESS);
 		CHECK(observer_result == 0);
+		CHECK(st_console_get_pixels(&restored, console, &pixel_area,
+		    false) == 0);
+		CHECK(restored->width == width && restored->height == height);
+		CHECK(memcmp(restored->primary, graphics->primary,
+		    (size_t)width * height * sizeof(*graphics->primary)) == 0);
+		CHECK(memcmp(restored->alternate, graphics->alternate,
+		    (size_t)width * height * sizeof(*graphics->alternate)) == 0);
+		st_pixel_buffer_destroy(restored);
 		CHECK(observer.highlighted[0].foreground
 		    == ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255));
 		CHECK(observer.highlighted[1].foreground == 12);
@@ -8339,6 +8390,9 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		CHECK(!host->menu.mouse_gestures[0].pressed);
 		CHECK(!host->menu.mouse_gestures[0].dragging);
 	}
+	st_pixel_buffer_destroy(graphics);
+	CHECK(st_console_snapshot_restore(console, saved, NULL) == 0);
+	st_console_snapshot_destroy(saved);
 	return 0;
 }
 

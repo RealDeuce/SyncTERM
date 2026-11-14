@@ -2985,6 +2985,9 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
   the default for Wren UI chrome.  Holding Alt when pressing button one
   inverts that default for the drag, so Alt+Drag selects a block in line mode
   or lines in rectangular mode.  Changing Alt after the press has no effect.
+  Selection temporarily redraws text over pixel graphics. The complete screen,
+  including both pixel planes, is restored when the drag finishes or is
+  interrupted by another input event.
 
 | `Input.setMouseVisible(b)`
 | Show or hide the mouse cursor; return `null` or `ScreenError`. There is no ciolib
