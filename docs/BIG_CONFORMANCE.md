@@ -1,6 +1,6 @@
 # BIG 1.03 conformance
 
-BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
+BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, p console positioning, P markers, L/D/d lines, B bars/boxes, Z outlined fills, F fills and s graphics/console clears run
 through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition, G0..6 images/pages and K/J/O/Q/V/Y curves are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
@@ -1879,3 +1879,35 @@ publishing remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All58 BIG-specific native CTests passed in59.64s. Focused big_console_position passed in0.08s total (test0.01s), and expanded cterm_big_pages passed in1.34s total (test1.27s). syncterm_big_input passed in181.41s total (test181.33s),3710 coherent scenes including112 new p captures with every preceding observation retained. No non-BIG tests ran. Native p/cache/absolute-page cursor behavior is verified under the documented checked native-window boundary; s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing checkpoint is not yet met.
 
 Native p console-position implementation commit: `6584ff0`.
+
+## Native s graphics/console clear
+
+s now reads class0 and signed-clamps0..2. s0/s1 clear the full BGI active
+allocation (16384/32768/38400 per-plane bytes), then move graphics CP0,0
+through current origin; s0 alone validates console home. s2 clears the
+cached CRT window on the BIOS-selected page, then directly homes page0
+without gotoxy validation. No point/home tail runs after failure.
+
+The raw console blank retains packed BYTE dimensions/WORD borrow, wrapped
+addresses and per-scanline zero then attribute-plane passes. Default CRT07
+fills pen7, independent of ANSI SGR/BGI fill/background, and25 cached rows
+become200/350/400 pixels. Mode3's last80 rows survive; BGI padding is cleared
+only by s0/s1. The existing indexed page/status backing remains authoritative.
+These graphics-memory writes retain cell glyph/attribute records under the
+normal pixel-graphics flags, as well as existing cursor visibility. Native extent/resource/callback errors recover without disconnect.
+
+big_clear checks independent full-aperture/tail/pass/point/failure oracles,
+all16 attribute pens and finite packed/zero loops. Native split/profile and
+bytewise tests check DSR/full planes/padding/guards, attribute ownership,
+page/viewport/cache/home distinctions, lifecycle and checked failure recovery.
+Eight application cases per profile add112 captures,3822 total, with authored
+pen0/pen7 regions, RGB, point/cursor and retained state observations. All prior
+scenes remain, physical audio/MIDI are off, and X7/audio/global/final acceptance
+and conditional publishing remain pending.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All59 BIG-specific native CTests passed in59.59s. big_clear passed in0.17s total (test0.01s); the final strengthened cterm_big_pages passed in2.29s total (test2.23s). After correcting the frame-local memory expectation against the existing attention-entry contract, syncterm_big_input passed in191.49s total (test191.41s),3822 coherent scenes including112 new s captures and all preceding observations. No non-BIG tests ran. Native s/page/console blank composition is verified under documented native profile/bounds; X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. Conditional non-audio publishing has not yet been reached.
+
+The first s application run carried the preceding G3 frame-local memory0
+into a new attention. Existing I# frame entry initializes memory1 before
+the s body. The independent oracle was corrected against that entry contract;
+production clear/page behavior was unchanged.

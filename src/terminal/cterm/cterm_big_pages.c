@@ -69,6 +69,13 @@ int cterm_big_console_position(struct cterm_big *big, uint16_t x, uint16_t y)
 	big->video_cursors[0][0]=x; big->video_cursors[0][1]=y;
 	return big->video_visual_page==0?cursor_position(big,x,y):0;
 }
+int cterm_big_console_home(struct cterm_big *big)
+{
+	/* clrscr reloads current left/top and bypasses gotoxy validation. */
+	uint16_t x=(uint16_t)(big->console_window[0]+1u),y=(uint16_t)(big->console_window[1]+1u);
+	big->video_cursors[0][0]=x; big->video_cursors[0][1]=y;
+	return big->video_visual_page==0?cursor_position(big,x,y):0;
+}
 static int display(void *context, const struct st_pixel_buffer *p, struct st_console_rect *changed)
 {
 	const struct display *request=context; struct cterm_big *big=request->big;

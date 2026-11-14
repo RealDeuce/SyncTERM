@@ -4,11 +4,13 @@
 #include "st_big_draw.h"
 #include "st_big_curve.h"
 #include "st_big_polygon.h"
+#include "st_big_clear.h"
 #include "st_big_text.h"
 #include "st_big_video.h"
 #include "st_bgi_pixel.h"
 #include "cterm.h"
 #include "io_error.h"
+#include <string.h>
 
 struct drawing {
 	struct cterm_big *big;
@@ -273,6 +275,33 @@ static int memory_write(void *context, uint16_t address, uint8_t mask, uint8_t p
 		if (status!=0) return status;
 	}
 	return 0;
+}
+struct clear_request { struct cterm_big *big; unsigned kind; uint8_t bounds[4]; };
+static int clear_draw(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
+{
+	const struct clear_request *request=context; struct cterm_big *big=request->big;
+	struct drawing drawing={.big=big,.pixels=pixels,.changed=changed};
+	const struct st_big_memory_sink sink={&drawing,memory_read,memory_write};
+	if (request->kind!=2) return st_big_clear_device(&big->state,&sink);
+	const struct st_big_mode *mode=st_big_mode((unsigned)big->state.bgi.mode+1);
+	if (mode==NULL) return IO_ERROR_OUT_OF_RANGE;
+	/* BIOS blank uses A000 plus its own page offset, independently of the
+	 * BGI active segment. The native visible view remains authoritative. */
+	drawing.view=cterm_big_video_view(big,pixels); drawing.segment=0xa000; drawing.mapped=true;
+	return st_big_clear_console(request->bounds,big->console_attribute,mode,big->video_visual_page,&sink);
+}
+int cterm_big_draw_clear(struct cterm_big *big, unsigned kind)
+{
+	if (kind>2) return IO_ERROR_INVALID_ARGUMENT;
+	if (kind!=2 && big->state.bgi.state==0) { big->state.bgi.error=-1; return IO_ERROR_PROTOCOL; }
+	struct clear_request request={.big=big,.kind=kind};
+	memcpy(request.bounds,big->console_window,sizeof(request.bounds));
+	int status=cterm_big_video_prepare(big,true);
+	if (status==0) status=st_console_modify_pixels(big->terminal->screen.console,clear_draw,&request);
+	if (status==IO_ERROR_IN_PROGRESS) status=IO_ERROR_PROTOCOL;
+	if (status==0 && kind==0) status=cterm_big_console_position(big,1,1);
+	if (status==0 && kind==2) status=cterm_big_console_home(big);
+	return status;
 }
 struct flood_request { struct cterm_big *big; uint16_t x,y,boundary; };
 static int fill_region(struct drawing *drawing, uint16_t x, uint16_t y, uint16_t boundary)

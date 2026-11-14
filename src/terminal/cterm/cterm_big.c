@@ -67,6 +67,7 @@ static const struct st_graphics_command commands[] = {{'I',scalar,1,NULL},{'R',s
 	{'?',scalar,1,NULL},
 	{'m',move,2,move_next},
 	{'p',input_parameters,2,NULL},
+	{'s',scalar,1,NULL},
 	{'M',scalar,1,NULL},{'C',input_parameters,2,NULL},{'A',scalar,1,NULL},{'H',scalar,1,NULL},
 	{'g',scalar,1,NULL},{'X',scalar,1,extended_next},{'&',NULL,0,NULL}};
 
@@ -414,6 +415,12 @@ static int command(void *context, const struct st_graphics_command_view *view)
 	if (view->code=='<') return cterm_big_collect_begin(big,view);
 	if (view->code=='t') { cterm_big_pause_begin(big,view->chained); return IO_ERROR_IN_PROGRESS; }
 	if (view->code=='?') return cterm_big_query_begin(big,view);
+	if (view->code=='s') {
+		if (view->count!=1 || !view->arguments[0].has_value) return IO_ERROR_PROTOCOL;
+		int32_t kind=st_big_number_signed((uint16_t)view->arguments[0].value);
+		int status=cterm_big_draw_clear(big,(unsigned)(kind<0?0:kind>2?2:kind));
+		return status==0?begin_footer(big,view):status;
+	}
 	if (view->code=='p') {
 		if (view->count!=2 || !view->arguments[0].has_value || !view->arguments[1].has_value) return IO_ERROR_PROTOCOL;
 		int status=cterm_big_console_position(big,(uint16_t)view->arguments[0].value,(uint16_t)view->arguments[1].value);
@@ -986,6 +993,7 @@ int cterm_big_create(struct cterminal *t)
 	if (big == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	big->terminal = t;
 	big->console_window[2]=79; big->console_window[3]=24;
+	big->console_attribute=7;
 	big->random_seconds=random_seconds;
 	const struct st_big_numeric_io io = {.context = big, .bell = bell,
 	    .peek_key = cterm_big_input_peek, .read_key = cterm_big_input_read};

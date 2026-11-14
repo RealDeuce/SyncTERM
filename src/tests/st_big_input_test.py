@@ -40,7 +40,7 @@ MARKERS = (
 )
 
 
-def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None, terminal_position=None):
+def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, steps=(12, 6), zones=None, marker=None, line=(0, 0, 1, 65535), graph_error=0, graph_point=None, marker_kind=None, line_pixels=(), writing=(0, 0), colors=(15, 15, 15, 15), graph_color=15, colored_pixels=(), fill=(1, 15), rgb_sample=None, selected_fill=1, fill_pixels=(0xffffffff,) * 8, custom0=(0x55aa55aa, 0x55aa55aa), lower_points=None, rejections=(0, 0), hollow=0, pages=(1, 0, 0, 0, 0, 0), seeded_pixels=None, backing=None, image=None, palette_codes=EGA_CODES, expected_palette=PALETTE, flow=(1, 17, 19, 1, 1), random_bounds=(0, 199), text_state=((1, 1, 1, 1), 1, (8, 8, 8)), font_state=(0, 0, 0, 255, 0), text_metrics=(0, 0), text_effective=None, text_header=(0, 0, 0, 0), text_device=(0, 0, 8, 8, 1, 1), text_run=(0, 0, 0), text_count=0, text_buffer_count=None, device_line_width=None, terminal_position=None, pixel_rects=()):
     _, height, ch, rows = PROFILES[resolution - 1]
     m, s = frame.metadata, frame.application
     assert (m["columns"], m["cell_width"], m["cell_height"], m["plane_width"], m["plane_height"]) == (80, 8, ch, 640, height), m
@@ -83,7 +83,8 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_loop_active"] and not s["cterm.big_setup_active"]
     assert s["cterm.big_scaling"] == scaling
     assert s["cterm.big_hollow"] == hollow
-    assert tuple(s[f"cterm.big_{name}"] for name in ("memory_page", "active_page", "visual_page", "physical_active_page", "physical_visual_page", "display_start")) == pages
+    actual_pages = tuple(s[f"cterm.big_{name}"] for name in ("memory_page", "active_page", "visual_page", "physical_active_page", "physical_visual_page", "display_start"))
+    assert actual_pages == pages, (token, actual_pages, pages)
     if backing is not None:
         assert s["cterm.big_video_backing"] == backing
     if image is not None:
@@ -130,6 +131,11 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     start = (m["pixel_top"] + ch) * 640
     for plane, block_index in ((frame.primary, 804), (frame.alternate, 801)):
         expected = array("I", [800]) * (640 * (drawable - ch))
+        for x0, y0, width, height0, pen in pixel_rects:
+            row = array("I", [800 + pen]) * width
+            for yy in range(max(ch, y0), min(drawable, y0 + height0)):
+                offset = (yy - ch) * 640 + x0
+                expected[offset:offset + width] = row
         if seeded if seeded_pixels is None else seeded_pixels:
             for y, row in enumerate(A[resolution - 1]):
                 for x in range(8):
@@ -155,7 +161,11 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     # Flat background interiors avoid differences from fractional edge filtering.
     ox = m["destination_x"] + 500 * 960 // 640
     oy = m["destination_y"] + 2 * ch * 720 // height
-    assert frame.rgb[oy * m["output_width"] + ox] & 0xffffff == expected_palette[0]
+    background_pen = 0
+    for x0, y0, width, height0, pen in pixel_rects:
+        if x0 <= 500 < x0 + width and y0 <= 2 * ch < y0 + height0:
+            background_pen = pen
+    assert frame.rgb[oy * m["output_width"] + ox] & 0xffffff == expected_palette[background_pen]
     if rgb_sample is not None:
         # Interior of an independently specified solid swatch; all its
         # neighbours agree, avoiding fractional edge-filter differences.
@@ -1505,6 +1515,41 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                             state = frame.application
                             assert tuple(map(int, state["cterm.big_curve"].split(","))) == last_curve
                             assert state["cterm.big_random_state"] == retained_random
+                        # s graphics clears write pen0; console clears use
+                        # CRT attribute07's LOW nibble and25 cached rows.
+                        clear_cases = (
+                            (b"\x1b[5;6HI#s 1:", (6, 5), False),
+                            (b"I#p 7,8:I#s 0:", (1, 1), False),
+                            (b"I#s 2:", (1, 1), True),
+                            (b"I#s 9999:", (1, 1), True),
+                            (b"I#s +1:", (1, 1), False),
+                            (b"\x1b[5;6HI#g 3:I#& 0,0,1,0,s@1,1:I#g 0:", (6, 5), False),
+                            (b"I#s 3:", (1, 1), True),
+                            (b"I#s 1:", (7, 1), False),
+                        )
+                        clear_state = dict(curve_state, lower_points=((0, 0), (0, 0)))
+                        for index, (command, position, console_clear) in enumerate(clear_cases):
+                            token = f"CLEAR{index}"
+                            wire = command + b"\x1b[6n\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = (f"\x1b[{position[1]};{position[0]}R\x1b[1;{len(token) + 1}R").encode(); reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            rectangles = ((0, 0, 640, 25 * PROFILES[resolution - 1][2], 7),) if console_clear else ()
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(0, 0), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=15,
+                                  pixel_rects=rectangles, rgb_sample=(400, 100, 0xaaaaaa if console_clear else 0),
+                                  fill=(1, 5), selected_fill=1, fill_pixels=(0x55555555,) * 8, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), **clear_state)
+                            assert tuple(map(int, frame.application["cterm.big_curve"].split(","))) == last_curve
+                            assert frame.application["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.
                     peer.sendall(b"I#& 7,1,1,0,I@2,1:" if connection else b"I#I 0")

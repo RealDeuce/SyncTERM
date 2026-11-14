@@ -980,3 +980,29 @@ cell/palette/font/image/graphics-point/curve/RNG/native RGB observation retained
 Rejected byte/window coordinates stay silent; a selected native-window error
 retains the already saved page0 request and recovers. Headless physical audio/
 MIDI are disabled; no expected frame comes from SyncTERM or external assets.
+
+Clear provenance is complete BIG13d2:10a9..10f3/195a:0efd..0f17/DDO033d
+and23/31/46/47/59. big_clear first failed against the missing module; literal
+aperture images and traces distinguish full allocations/padding, point-tail
+order, actual mask passes,16 attribute pens, packed borrow, WORD wrapping and
+finite zero-count loops. IO/IN_PROGRESS retains exact prefixes.
+
+Native s tests first failed on absent dispatch. cterm_big_pages verifies
+splits/bytewise/profile output, DSR, full planes/padding/next-page guards,
+07/71/80 CRT attribute versus SGR,200/350/400 extents, active versus displayed
+pages, BGI origin versus cached offset window, direct/validated home and
+failure/lifecycle/source/reply owners. The out-of-aperture fault is injected
+into physical page state; valid G6 mode2 page3 continues to normalize0.
+
+Eight application clear cases per profile add112 captures,3822 total.
+Authored solid regions efficiently populate expected arrays without emulator
+images; pre-fence DSR distinguishes cursor tails, while exact captured
+planes/RGB/state/points and unchanged curve words retain every earlier scene.
+Graphics writes retain cell glyph/attribute records under pixel-graphics
+flags, preserve cursor visibility and
+use existing status/page backing. Physical audio/MIDI remain disabled.
+
+The first s application run carried the preceding G3 frame-local memory0
+into a new attention. Existing I# frame entry initializes memory1 before
+the s body. The independent oracle was corrected against that entry contract;
+production clear/page behavior was unchanged.

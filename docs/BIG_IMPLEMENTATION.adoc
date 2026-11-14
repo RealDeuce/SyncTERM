@@ -22,7 +22,7 @@ BIG mode6 is selectable with native I0/I1/R indexed-console effects,
 g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m graphics movement, p console positioning, M writing modes,
-C application colours, A fills,
+C application colours, A fills, s graphics/console clears,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
 pointer acquisition, E font selection, W graphical text, t pauses, ? inquiries,
 K circular/J explicit-radius arcs, O circles, Q ellipses, V circular
@@ -39,7 +39,7 @@ construction, physical span operators and public explicit/circular sector
 wrappers. V/Y share their fill/line/caller schedule while preserving circular
 aspect conversion versus explicit radii and their distinct reader classes.
 All six curve commands have native wire integration. Remaining non-audio
-commands s/X7, sound, resource composition and global acceptance are pending.
+command X7, sound, resource composition and global acceptance are pending.
 Global/full-suite acceptance remains pending.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
@@ -4148,3 +4148,79 @@ the conditional non-audio publishing milestone is not yet reached.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All58 BIG-specific native CTests passed in59.64s. Focused big_console_position passed in0.08s total (test0.01s), and expanded cterm_big_pages passed in1.34s total (test1.27s). syncterm_big_input passed in181.41s total (test181.33s),3710 coherent scenes including112 new p captures with every preceding observation retained. No non-BIG tests ran. Native p/cache/absolute-page cursor behavior is verified under the documented checked native-window boundary; s/X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing checkpoint is not yet met.
 
 Native p console-position implementation commit: `6584ff0`.
+
+== Native s graphics and console clears
+
+Complete BIG13d2:10a9..10f3, public195a:0efd..0f17/1bd4..1bea,
+DDO033d and the31/46/47/59 CRT blank/home contracts were reread. s uses one
+class0 reader and signed-clamps to0..2. s0 clears graphics then validates
+home through gotoxy1,1; s1 clears graphics only; s2 uses the independent
+cached console window/BIOS-selected page and unvalidated current-origin home.
+The common source/loop/footer/reply/parser remains unchanged.
+
+st_big_clear_device emits COPY pen0 to the complete allocated active page,
+using original paragraph<<3 WORD count and ascending STOSW byte order. The
+200/350/480 profiles clear16384/32768/38400 bytes per plane, including384/
+4768/0 padding bytes beyond visible geometry. Only normal return calls the
+existing public moveto0,0, using CURRENT viewport origin and independent
+public/DDO/device owners. Clipping, line/fill/XOR/background caches and
+palette are untouched; indexed pen0 need not be RGB black. No s0 home is
+reached after an actual clear/move failure.
+
+st_big_clear_console snapshots original packed BYTE width/height with WORD
+borrow, current VGA stride/POINTS and BIOS-page start, then emits each
+scanline's all-plane zero pass followed by attribute plane ff pass. WORD
+addresses wrap; a zero scanline counter makes65536 body-first iterations,
+and width0 emits no byte writes. Native indexed data/byte adapters remain
+authoritative; no persistent planar/controller storage is introduced.
+All callbacks are synchronous; errors retain accepted prefixes and do not
+invent normal point/home tails. Native bounds/resource checks remain active.
+
+The private CRT attribute initializes07 once, separately from ANSI SGR and
+BGI colors, and survives I/R. The console's final pen is attribute AND0f:
+07 fills7,71 fills1 and80 fills0. Its default80x25 window clears200/350/400
+scanlines under actual8/14/16 fonts, leaving mode3 rows400..479 untouched.
+BIOS clear uses A000 plus BIOS-selected page*CRT_LEN, while BGI clear uses
+its own active segment and allocated pitch. Both blink banks and hidden/
+status backing are written through the existing video map. Protected UI
+pixels remain outside its visible view. Cell glyph/attribute records stay
+retained under the console's usual pixel-graphics flags, which mark the
+written raster authoritative. These source operations write graphics memory.
+
+s2 captures bounds before blanking, reads current CRT attribute at dispatch,
+then reloads current left/top for a direct page0 cursor request. Unlike s0's
+validated gotoxy, an inverted/zero-width cached rectangle can still home.
+It moves no graphics point and changes no BGI attribute. The established
+native cursor-window failure boundary retains accepted page0 state; actual
+failed clears never reach either home tail. Uninstalled BGI rejects s0/1,
+while s2 still uses the retained physical console profile.
+
+big_clear first failed against the absent module. Literal full-aperture
+oracles check all mode allocations/tails, unchanged caches/points during
+writes, fresh-origin move, IO/IN_PROGRESS prefixes, per-scanline pass order,
+all16 attribute pens, BIOS-page offsets, packed borrow/zero-width/zero-count
+loops and normal console state preservation. cterm_big_pages first failed
+on absent s dispatch. Split/bytewise/profile checks verify DSR, full planes,
+page padding/next-page guards,200/350/400 extents, low-nibble CRT color despite
+ANSI SGR, active versus displayed pages, offset cached windows versus BGI
+origin, direct versus validated home, source normalization/lifecycle/replies,
+uninstalled BGI and fault-injected out-of-aperture failure/recovery. The fault
+fixture uses the physical page owner, since normal G6 already clamps mode2
+page3 to0; no valid G normalization expectation was weakened.
+
+Eight coherent application cases per profile add112 captures,3822 total.
+Independent dense rectangle/palette RGB expectations distinguish pen0 full
+clears from pen7 cached25-row blanks, while mode3's bottom80 rows stay0.
+DSR before each source fence verifies home versus retained cursor. Published
+curve fields, fonts, palette, fills, images, RNG, replies and native metadata
+retain their own owners after graphics-point resets. Every previous scene is
+retained; headless physical audio/MIDI stay disabled. X7, audio/resource/
+global45-entry and goal-final regressions remain pending. Conditional
+non-audio publishing has not yet been reached.
+
+Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All59 BIG-specific native CTests passed in59.59s. big_clear passed in0.17s total (test0.01s); the final strengthened cterm_big_pages passed in2.29s total (test2.23s). After correcting the frame-local memory expectation against the existing attention-entry contract, syncterm_big_input passed in191.49s total (test191.41s),3822 coherent scenes including112 new s captures and all preceding observations. No non-BIG tests ran. Native s/page/console blank composition is verified under documented native profile/bounds; X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. Conditional non-audio publishing has not yet been reached.
+
+The first s application run carried the preceding G3 frame-local memory0
+into a new attention. Existing I# frame entry initializes memory1 before
+the s body. The independent oracle was corrected against that entry contract;
+production clear/page behavior was unchanged.

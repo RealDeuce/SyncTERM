@@ -315,4 +315,77 @@ static void p_console_position(void)
 	destroy(&f);
 }
 
-int main(void) { partitions(); active_visual_and_consumers(); lifetimes_and_limits(); console_cursor_pages(); status_and_prefix_failures(); source_repetition_and_point_bytes(); normalization_wire(); pointer_marker_page(); p_console_position(); return 0; }
+
+static void cleared_band(struct fixture *f, unsigned pen, unsigned height, bool tail_dot)
+{
+	struct cterm_big *b=f->terminal->big_engine; struct st_pixel_buffer *p=NULL; const struct st_console_rect r={0,0,640,b->state.bgi.height};
+	CHECK(st_console_get_pixels(&p,f->console,&r,false)==0);
+	unsigned ch=b->state.bgi.mode==0?8:b->state.bgi.mode==1?14:16;
+	unsigned drawable=r.height-(f->terminal->status_display_type>=1?ch:0);
+	for (unsigned y=0;y<r.height;++y) for (unsigned x=0;x<640;++x) {
+		unsigned expected=y<height && y<drawable?pen:tail_dot && x==20 && y==420?5:0;
+		CHECK(p->primary[(size_t)y*640+x]==800+expected && p->alternate[(size_t)y*640+x]==800+expected);
+	}
+	st_pixel_buffer_destroy(p);
+}
+static void s_clears(void)
+{
+	for (unsigned utf8=0;utf8<2;++utf8) for (unsigned status=0;status<2;++status) {
+		struct fixture f; create(&f,utf8,status); struct cterm_big *b=f.terminal->big_engine;
+		for (unsigned mode=1;mode<=3;++mode) for (unsigned kind=0;kind<3;++kind) {
+			char wire[40]; snprintf(wire,sizeof(wire),"I#s %u:\033[6n",kind); size_t length=strlen(wire);
+			size_t last=mode==2 && !utf8 && !status?length:0;
+			for (size_t split=0;split<=last;++split) {
+				char reset[96]; snprintf(reset,sizeof(reset),"I#R %u:I#P 20,20:I#m 2,31,32:\033[5;6H",mode); string(&f,reset); f.size=0;
+				CHECK(cterm_big_video_prepare(b,true)==0); const struct st_big_mode *profile=st_big_mode(mode); size_t tail=(size_t)640*profile->height,guard=profile->page_bytes*8;
+				if (tail<guard) { b->video.primary[tail]=803; b->video.alternate[tail]=806; }
+				b->video.primary[guard]=809; b->video.alternate[guard]=810; struct st_big_state before=b->state;
+				if (last==0) for (size_t i=0;i<length;++i) feed(&f,wire+i,1); else { feed(&f,wire,split); string(&f,wire+split); }
+				CHECK(f.size==6 && memcmp(f.output,kind==1?"\033[5;6R":"\033[1;1R",6)==0 && b->last_error==0);
+				if (kind==2) { cleared_band(&f,7,mode==3?400:profile->height,false); CHECK(memcmp(&before.bgi,&b->state.bgi,sizeof(before.bgi))==0); }
+				else { canvas(&f,NULL,0); CHECK(b->state.bgi.x==0 && b->state.bgi.y==0 && b->state.bgi.ddo_x==0 && b->state.bgi.device_y==0); }
+				if (tail<guard) CHECK(b->video.primary[tail]==(kind==2?803:800) && b->video.alternate[tail]==(kind==2?806:800));
+				CHECK(b->video.primary[guard]==809 && b->video.alternate[guard]==810 && b->console_attribute==7);
+			}
+		}
+		destroy(&f);
+	}
+	struct fixture f; create(&f,false,false); struct cterm_big *b=f.terminal->big_engine;
+	string(&f,"I#R 3:I#C 0,5:I#P 20,420:I#m 2,31,32:\033[31;44mI#s 2:"); cleared_band(&f,7,400,true);
+	CHECK(b->state.bgi.x==31 && b->state.bgi.y==32 && b->console_attribute==7 && f.terminal->attr!=7);
+	b->console_attribute=0x71; string(&f,"I#R 3:I#s 2:"); cleared_band(&f,1,400,false); CHECK(b->console_attribute==0x71);
+	b->console_attribute=0x80; string(&f,"I#s 2:"); canvas(&f,NULL,0); b->console_attribute=7;
+	/* s2 clears the BIOS-selected page, not the BGI active segment. */
+	string(&f,"I#R 2:I#G 6,1:I#P 20,20:I#s 1:"); canvas(&f,NULL,0); string(&f,"I#G 5,1:"); canvas(&f,NULL,0);
+	string(&f,"I#G 6,0:I#m 2,31,32:I#s 2:"); cleared_band(&f,7,350,false); CHECK(b->state.bgi.x==31 && b->video_active_page==0 && b->video_visual_page==1 && b->video_cursors[0][0]==1);
+	string(&f,"I#G 5,0:"); canvas(&f,NULL,0);
+	string(&f,"I#R 2:I#s 2:I#G 6,1:I#s 1:"); cleared_band(&f,7,350,false); string(&f,"I#G 5,1:"); canvas(&f,NULL,0);
+	string(&f,"I#R 2:I#p 6,5:I#m 2,31,32:"); b->video_active_page=3; b->state.bgi.active_page=3; size_t failed=b->rejected_commands; string(&f,"I#s 0:");
+	CHECK(b->last_error==IO_ERROR_OUT_OF_RANGE && b->rejected_commands==failed+1 && b->state.bgi.x==31 && f.terminal->xpos==6 && f.terminal->ypos==5);
+	string(&f,"I#G 6,0:I#s 0:"); CHECK(b->state.bgi.x==0 && f.terminal->xpos==1 && f.terminal->ypos==1);
+	string(&f,"I#R 2:"); const uint8_t offset_window[]={5,7,14,16}; memcpy(b->console_window,offset_window,4); b->state.bgi.viewport[0]=10; b->state.bgi.viewport[1]=12;
+	string(&f,"I#s 0:"); CHECK(b->state.bgi.x==0 && b->state.bgi.ddo_x==10 && b->state.bgi.device_y==12 && f.terminal->xpos==6 && f.terminal->ypos==8);
+	string(&f,"I#m 2,31,32:I#s 2:"); struct st_pixel_buffer *rectangle=NULL; const struct st_console_rect full={0,0,640,350}; CHECK(st_console_get_pixels(&rectangle,f.console,&full,false)==0);
+	for (unsigned y=0;y<350;++y) for (unsigned x=0;x<640;++x) { uint32_t pen=x>=40 && x<120 && y>=98 && y<238?807:800; CHECK(rectangle->primary[y*640+x]==pen && rectangle->alternate[y*640+x]==pen); }
+	st_pixel_buffer_destroy(rectangle); CHECK(b->state.bgi.x==31 && b->state.bgi.ddo_x==41 && f.terminal->xpos==6 && f.terminal->ypos==8);
+	const uint8_t defaults[]={0,0,79,24}; memcpy(b->console_window,defaults,4);
+	/* Empty packed geometry still reaches s2's unvalidated home. */
+	string(&f,"I#R 2:I#p 6,5:"); const uint8_t empty[]={1,1,0,0}; memcpy(b->console_window,empty,4);
+	string(&f,"I#s 0:"); CHECK(f.terminal->xpos==6 && f.terminal->ypos==5);
+	string(&f,"I#m 2,31,32:I#s 2:"); CHECK(f.terminal->xpos==2 && f.terminal->ypos==2 && b->state.bgi.x==31); canvas(&f,NULL,0);
+	const uint8_t normal[]={0,0,79,24}; memcpy(b->console_window,normal,4);
+	string(&f,"I#R 2:I#C 0,5:I#P 20,20:I#m 2,31,32:I#s "); canvas(&f,(const struct dot[]){{20,20,805,805}},1);
+	CHECK(st_cterm_finish(f.terminal)==0 && b->state.bgi.x==31); string(&f,"I#s "); CHECK(st_cterm_reset_terminal(f.terminal)==0 && b->console_attribute==7);
+	string(&f,"I#s "); local_ns+=ST_BIG_NUMERIC_TIMEOUT_NS; CHECK(st_cterm_poll(f.terminal)==0); canvas(&f,NULL,0); CHECK(b->state.bgi.x==0);
+	string(&f,"I#s "); clock_error=IO_ERROR_IO; CHECK(st_cterm_poll(f.terminal)==0); clock_error=0; CHECK(b->last_error==IO_ERROR_IO);
+	string(&f,"I#R 2:I#p 6,5:"); uint16_t installed=b->state.bgi.state; b->state.bgi.state=0; size_t rejected=b->rejected_commands;
+	string(&f,"I#s 0:\033[6n"); CHECK(b->rejected_commands==rejected+1 && b->state.bgi.error==-1 && f.terminal->xpos==6 && f.terminal->ypos==5);
+	string(&f,"I#s 2:"); cleared_band(&f,7,350,false); CHECK(b->state.bgi.state==0); b->state.bgi.state=installed;
+	string(&f,"I#R 2:I#s 9999:"); cleared_band(&f,7,350,false); string(&f,"I#s +1:"); canvas(&f,NULL,0);
+	string(&f,"I#g 3:I#& 0,0,1,0,s@1,2:I#g 0:"); cleared_band(&f,7,350,false); CHECK(b->numeric.loop.active==0);
+	b->control.input.pending=1; b->control.input.count=2; b->control.input.payload[1]=0; b->control.input.payload[2]=255; f.size=0;
+	string(&f,"I#s>1:"); CHECK(f.size==0 && b->control.input.pending==1); string(&f,"~ "); CHECK(f.size==2 && f.output[0]==0 && f.output[1]==255 && f.origins[0]==ST_CTERM_OUTPUT_USER);
+	destroy(&f);
+}
+
+int main(void) { partitions(); active_visual_and_consumers(); lifetimes_and_limits(); console_cursor_pages(); status_and_prefix_failures(); source_repetition_and_point_bytes(); normalization_wire(); pointer_marker_page(); p_console_position(); s_clears(); return 0; }

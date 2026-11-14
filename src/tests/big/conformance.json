@@ -235,7 +235,8 @@
         "Synchronous original indexed flood: WORD spans, UP/DOWN LIFO, directional/containment/pattern suppression, byte-band plane passes and accepted-prefix errors over borrowed bounded records.",
         "Original public rectangle four absolute standalone lines with captured first corner/live later arguments, fresh phases and inclusive XOR corners; reuse existing BIG clipping/strokes and shared thin line kernel, preserve all point owners.",
         "X0 reuses original direct marker/line and indexed point adapters with separate signed two-draw sampling, live type/counter/anchor tests and caller-specific point tails.",
-        "Original V100 font bytes/borrowed BIG startup registry and a bounded common CHR format accessor are implemented; old font data remain distinct from newer RIP arrays, with selection/layout/raster in their protocol owners."
+        "Original V100 font bytes/borrowed BIG startup registry and a bounded common CHR format accessor are implemented; old font data remain distinct from newer RIP arrays, with selection/layout/raster in their protocol owners.",
+        "Original full allocated-page COPY clear followed by public move and distinct VGA cached-window blank with packed dimensions/WORD addresses/two passes; existing indexed memory adapters and page/point owners remain authoritative."
       ],
       "tests": [
         "big_profile",
@@ -252,7 +253,8 @@
         "big_image_paste",
         "big_spray",
         "cterm_big_spray",
-        "big_font"
+        "big_font",
+        "big_clear"
       ],
       "references": [
         "26-palettes-rotation-and-native-reuse.adoc",
@@ -1007,6 +1009,32 @@
             "Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files produced existing sub-second gmake clock-skew notices. All57 BIG-specific native CTests passed in56.68s. The final expanded focused cterm_big_curve passed in5.11s total (test5.04s), and public big_curve_sector passed in0.08s total (test0.01s). syncterm_big_input passed in171.99s total (test171.93s),3486 coherent scenes including112 new V scenes with all earlier expected observations retained. No non-BIG tests ran. Public sector/pieslice wrappers and native V are verified; Y, other missing commands, audio/resource/global45-entry composition and the goal-final full suite remain pending. The conditional non-audio publishing milestone is not yet met."
           ],
           "commit": "1b977a2"
+        },
+        {
+          "id": "original-page-clear-and-console-blank",
+          "status": "complete",
+          "operations": [
+            "Implement full allocated-page zero writes and normal-return current-origin public move through existing BGI adapters.",
+            "Implement captured VGA packed-window/stride/POINTS/page blank with two plane passes, WORD addresses and finite body-first zero counter, independently of point/home callers."
+          ],
+          "references": [
+            "23-rectangles-bars-and-clear.adoc:complete public/DDO/raw clears",
+            "46-implementation-boundary-and-bios-console-graphics.adoc:VGA window/page/attribute/pass sequence",
+            "59-rectangle-clear-and-flood-command-acceptance.adoc:whole caller and source composition"
+          ],
+          "tests": [
+            "big_clear",
+            "big_video",
+            "cterm_big_pages",
+            "syncterm_big_input"
+          ],
+          "deviations": [
+            "Use declared native indexed VGA-capable profile, bounded storage and synchronous callbacks without foreign controller/latch/BIOS timing emulation."
+          ],
+          "verification": [
+            "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All59 BIG-specific native CTests passed in59.59s. big_clear passed in0.17s total (test0.01s); the final strengthened cterm_big_pages passed in2.29s total (test2.23s). After correcting the frame-local memory expectation against the existing attention-entry contract, syncterm_big_input passed in191.49s total (test191.41s),3822 coherent scenes including112 new s captures and all preceding observations. No non-BIG tests ran. Native s/page/console blank composition is verified under documented native profile/bounds; X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. Conditional non-audio publishing has not yet been reached."
+          ],
+          "commit": null
         }
       ]
     },
@@ -3549,7 +3577,7 @@
     {
       "id": "s",
       "order": 28,
-      "status": "not-started",
+      "status": "in-progress",
       "dependencies": [
         "graphics-parser",
         "big-numeric-state",
@@ -3557,12 +3585,38 @@
         "application-integration"
       ],
       "references": [
-        "59-rectangle-clear-and-flood-command-acceptance.adoc"
+        "rectangle-flood-review-code.adoc:complete BIG13d2:10a9..10f3 s and195a:0efd..0f17 cleardevice",
+        "23-rectangles-bars-and-clear.adoc:public/lower/device clear and point-tail contracts",
+        "59-rectangle-clear-and-flood-command-acceptance.adoc:active allocation versus console window/page/home distinction",
+        "46-implementation-boundary-and-bios-console-graphics.adoc:VGA packed geometry, two passes, CRT attribute, extent and direct home",
+        "31-inquiry-pause-and-console-position.adoc:cached bounds and page-zero cursor service"
       ],
-      "operations": [],
-      "tests": [],
-      "deviations": [],
-      "verification": [],
+      "operations": [
+        "Register class0 s and signed-clamp0..2 through existing numeric/source/loop/parser/footer ownership. s0 clears graphics then validated gotoxy1,1; s1 clears graphics only; s2 blanks CRT window then unvalidated current-origin page0 home.",
+        "Native st_big_clear_device writes COPY pen0 over allocated active page pitch including padding, preserving BGI caches/palette, then existing public moveto0,0 on success using current viewport origin. Actual errors skip point/home tails.",
+        "Native st_big_clear_console captures packed BYTE/WORD dimensions, VGA stride/POINTS/page start, emits per-scanline all-plane zero then attribute-plane ff passes with wrapped WORD addresses and finite body-first zero counter. Sink uses fixed A000 and BIOS-selected page, independently of BGI active segment.",
+        "Initialize CRT attribute07 once and retain it across I/R, separate from ANSI/BGI attributes. s2 final pen is low nibble, default25 rows clear200/350/400 pixels, and its direct current-left/top home bypasses p validation. Raw graphics writes retain native cell glyph/attribute records under normal pixel-graphics flags, cursor visibility and existing indexed/status/page ownership."
+      ],
+      "tests": [
+        "big_clear",
+        "big_console_position",
+        "big_video",
+        "cterm_big_pages",
+        "cterm_big",
+        "syncterm_big_input"
+      ],
+      "deviations": [
+        "Declared native VGA-capable stable geometry/indexed all-plane profile is used; foreign controller/latch/BDA/BIOS interrupts are not emulated. Geometry is snapshotted as VGA does. Existing bounded aperture/resource/callback and cursor-window errors retain prefixes and recover nonfatally.",
+        "Native s integration is implemented, while X7/audio/resource/global45-entry and goal-final regressions remain pending. Keep command status/commit in-progress/null until global acceptance; conditional publishing remains pending."
+      ],
+      "verification": [
+        "Independent kernel fixtures first failed against the absent module; native wire expectations first failed on missing s dispatch. Full-aperture literals verify allocations/tails/next-page guards, unchanged cached attributes, point stores only after return and fresh current-origin reload.",
+        "Exact scanline address/plane/pen traces and full indexed images check mode200/350/400 console extents,16 attribute pens, BIOS page offsets, packed borrow, width0 and full65536-turn zero counters. Callback IO/IN_PROGRESS retains actual clear/fill prefixes without point tails.",
+        "Native splits/profile/bytewise input checks exact DSR, full planes/padding/guard pens, CRT07/71/80 ownership despite SGR, active-versus-display pages, offset cache versus BGI origin, validated/direct home, uninstalled BGI and actual out-of-aperture failure/recovery. The page fault is injected into physical state because valid G6 already normalizes mode2 page3 to0; that original normalization remains unchanged.",
+        "Partial/EOF/reset/timeout/clock, signed/upper normalization, supplied class0 replay and deferred NUL/ff user replies retain source ownership. Eight coherent application cases per profile add112 captures,3822 total, with independent pen0/pen7 rectangle/RGB/point/cursor and retained earlier state/curve/image/font/RNG observations. Headless physical audio/MIDI stay off.",
+        "Initial mode3 application oracle carried preceding G frame-local memory0 into a new I# attention; original/shared frame entry initializes memory1 before s. Corrected expectation against existing entry contract; production clear/page code was unchanged.",
+        "Native CMake Release configure/full and final focused builds (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; existing generated dependency files produced sub-second gmake clock-skew notices. All59 BIG-specific native CTests passed in59.59s. big_clear passed in0.17s total (test0.01s); the final strengthened cterm_big_pages passed in2.29s total (test2.23s). After correcting the frame-local memory expectation against the existing attention-entry contract, syncterm_big_input passed in191.49s total (test191.41s),3822 coherent scenes including112 new s captures and all preceding observations. No non-BIG tests ran. Native s/page/console blank composition is verified under documented native profile/bounds; X7, audio/resource/global45-entry composition and the goal-final full suite remain pending. Conditional non-audio publishing has not yet been reached."
+      ],
       "commit": null
     },
     {

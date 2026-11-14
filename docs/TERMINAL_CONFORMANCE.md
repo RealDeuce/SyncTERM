@@ -1473,3 +1473,10 @@ WORD, split/profile, saved/visible-page, lifecycle and coherent captures check
 actual coordinates without moving graphics points or changing pixels/cursor
 visibility. Checked native-window failures retain the page0 save and recover
 without disconnecting. s/X7, audio/global/final acceptance remain pending.
+
+BIG s now distinguishes full allocated BGI active-page clears with graphics
+point reset from cached console-window blanking on the displayed page.
+Independent byte/plane/pass/tail and native split/profile/application checks
+retain different cursor/home/attribute owners, partial-mode3 extents and
+nonfatal failure prefixes. X7/audio/global and final-suite acceptance remain
+pending; physical audio/MIDI stay off in headless fixtures.
