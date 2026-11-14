@@ -23,9 +23,10 @@ g/X0/X1/X2/X3/X4/X5/X6/X8, S palettes, G0..6 images/pages, wire & setup,
 source/footer replay and local stored-loop keys. T attributes, P markers,
 L/D/d lines, m movement, M writing modes, C application colours, A fills,
 B bars/projected boxes, Z outlines/fills, F flood and < keyboard/hybrid
-pointer acquisition, E font selection, W graphical text and t pauses are integrated.
+pointer acquisition, E font selection, W graphical text, t pauses and ? inquiries are integrated.
 Curves, further controls, sound and full command acceptance remain pending
-(0/45). W and t are implemented; ? is next in the requested W, t, ? order.
+(0/45). Native W, t and ? are implemented in the requested order; sound-buffer
+availability must still be connected to the audio allocation lifecycle.
 The implementation ledger is
 link:../src/tests/big/conformance.json[conformance.json].
 
@@ -189,6 +190,9 @@ and only the required OPL2 functionality. BIG N is AdLib playback, not MIDI
 translation. Test synthesis, state, muted progression, cancellation, reset and
 teardown. Bit-identical reference PCM and manual listening are not gates;
 provide a manual audio checklist when implementation is complete.
+The music-buffer availability WORD read by ?2 is separate from mute/playback.
+Publish it from actual owned-buffer setup/allocation; I/R and query reads
+must not reset or re-probe it. Until a music buffer is installed it is0.
 
 == Work and verification discipline
 
@@ -3038,3 +3042,66 @@ oracles. Native t and buffered input are implemented; ? is next. Global
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) and focused final test builds passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full/focused builds. All45 BIG-specific native CTests passed in50.34s, including cterm_big_pause0.57s and big_session_pacing1.34s. syncterm_big_input passed in146.75s (test146.69s),2884 coherent scenes. No non-BIG tests ran; the shared session pacing change and all other regressions remain subject to the goal-final full suite. Native t, buffered flow policy and paced resume are verified; ? is next. Global45-entry/audio/final acceptance remains pending.
 
 Native t, buffered input and paced resume implementation commit: `0b50c5a`.
+
+== Native ? inquiries
+
+The complete31/63 inquiry caller and15/44 sound-memory/startup contracts
+were reviewed. ? now acquires one shared class0 WORD at the existing
+pre-ANSI boundary, then makes its initial native output-readiness request
+before any selector test, even for negative/unsupported selectors. There is
+no own clock sample, timeout, keyboard cancellation, input drain, flow byte,
+BGI operation or extra status poll between response bytes.
+
+Selector0 selects four literal separate requests,1.03, then tests the current
+G3 oak/acorn WORD equality for a separate R request. Version has no colon,
+NUL or newline. Once selected, the version body finishes even if an explicit
+native callback changes the selector. The later independent selector1/2
+comparisons read its current value. Resolution reads the cached BYTE, adds
+30 hex and sends the low byte followed by colon. Sound does the same on the
+current music_memory WORD. Neither performs decimal formatting or Boolean
+normalization; rawff/ffff produce /:. The R condition is tested after all
+four version requests, never captured as an entry-time registered Boolean.
+
+Native readiness/automatic-response callbacks replace FOSSIL bits/ports/
+interrupts and foreign capture internals. Production output uses the existing
+automatic terminal-response origin; actual deferred counted input replies
+retain the user-input origin. Each pending byte is latched through a send
+retry, without repeating readiness or previous bytes. A completed returning
+transmit failure is ignored by this caller, preserving later requests; tests
+distinguish requested bytes from delivered bytes. Completed requests consume
+query work budget. Reset requested by a callback stops later calls. Initial
+readiness errors and numeric failures recover nonfatally. EOF/reset cancels
+remaining requests with accepted prefixes intact and no synthetic suffix.
+Actual connection failures retain the session's existing separate handling.
+
+The new retained music_memory WORD is a buffer-availability cache, separate
+from mute/playback state. Query2 does not allocate or probe. It is currently0
+because the native music-buffer/audio foundation is still pending. That
+foundation must publish availability from actual owned-buffer setup and
+preserve it across I/R. Query's raw read, all WORD values and retention paths
+are tested; no working AdLib buffer/playback is claimed by this step.
+
+cterm_big_query checks every default split and bytewise mode/encoding/status
+combination with complete indexed scene, graphics/image/point state and
+literal query/DSR replies and origins. Every selector WORD still makes the
+initial readiness request; all65536 music-memory WORDs and all256 resolution
+bytes use independent modulo256 expectations. Live post-fourth-byte equality,
+selector changes after the first version request, independent later tests,
+latched retries, unsupported readiness waits, output budgets and ignored
+returning send failures have explicit request/delivery oracles.
+
+Native tests cover no query-local timeout/key cancellation, real counted
+reply ordering, raw NUL/ff user-input origins, blocked readiness, EOF/reset
+of partial replies, callback reset, nonfatal readiness/clock errors with unread
+ANSI recovery, real numeric timeout, g3 class0, stored selector0..3 repetition
+and negative selectors. The initial independent wire test rejected missing ?
+support before implementation. Physical audio is disabled in fixtures.
+
+Seven new scenes per profile add98 coherent application captures,2982 now
+in total. Exact version/resolution/sound/unknown/chained/stored replies are
+checked with the complete preceding W/t/image/palette/pixel/state/point/font/
+RNG scene. Native W, t and ? are implemented in the requested order. Audio
+availability lifecycle, other missing commands and global45-entry/final-suite
+acceptance remain pending.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full build. All46 BIG-specific native CTests passed in54.96s, including cterm_big_query1.39s. syncterm_big_input passed in153.84s (test153.79s),2982 coherent scenes including98 new inquiry scenes. No non-BIG tests ran; the goal-final full regression suite remains deferred. Native ? request/cache/source/lifecycle integration is verified. Actual music-buffer allocation/publication, audio and global45-entry acceptance remain pending.

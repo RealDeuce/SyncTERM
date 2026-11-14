@@ -54,6 +54,8 @@ def check(frame, resolution, status, seeded, token, loop_state=None, scaling=0, 
     assert not s["cterm.big_bar_active"]
     assert not s["cterm.big_flood_active"]
     assert not s["cterm.big_rotation_active"]
+    assert not s["cterm.big_query_active"]
+    assert s["cterm.big_music_memory"] == 0
     assert not s["cterm.big_pause_active"]
     assert not s["cterm.big_text_reading"]
     assert s["cterm.big_text_count"] == text_count
@@ -1236,6 +1238,35 @@ def run(executable, reports, resolution, encoding, status, screen=None):
                                   pages=(1, 0, 0, 0, 0, 0), backing=524288,
                                   image=(8, 8, 0, 78, solid, solid), **run_state)
                             assert frame.application["cterm.big_pause_seconds"] == (30 if index else 1)
+                            assert frame.application["cterm.big_random_state"] == retained_random
+                        version = b"1.03R"
+                        mode_reply = bytes((48 + resolution, 58))
+                        queries = ((b"I#? 0:", version), (b"I#? 1:", mode_reply),
+                                   (b"I#? 2:", b"0:"), (b"I#? 9:", b""),
+                                   (b"I#? +1:", b""),
+                                   (b"I#?>0:?>1:? 2:", version + mode_reply + b"0:"),
+                                   (b"I#& 0,3,1,0,?@1,x:", version + mode_reply + b"0:"))
+                        for index, (command, query_reply) in enumerate(queries):
+                            token = f"QUERY{index}"
+                            wire = command + b"\x1b[H" + token.encode() + b"\x1b[6n"
+                            with (root / "wire.bin").open("ab") as log: log.write(wire)
+                            peer.sendall(wire)
+                            expected = query_reply + f"\x1b[1;{len(token) + 1}R".encode()
+                            reply = b""
+                            while len(reply) < len(expected):
+                                data = peer.recv(len(expected) - len(reply)); assert data, reply
+                                reply += data
+                            assert reply == expected, reply
+                            with (root / "replies.bin").open("ab") as log: log.write(reply)
+                            frame = client.wait_text(token)
+                            check(frame, resolution, status, False, token, steps=(5, 7),
+                                  zones=((0, 0, 639, 479), 0, 0x5a004d03, 0x003a3120), graph_error=-11,
+                                  graph_point=(484, 100), marker_kind=0, colors=(271, 15, 5, 65535), graph_color=255,
+                                  colored_pixels=tuple((x, y, pen) for (x, y), pen in scene_pixels.items()),
+                                  rgb_sample=(384, 68, 0xaa00aa), fill=(1, 5), selected_fill=1,
+                                  fill_pixels=(0x55555555,) * 8, hollow=0, rejections=(-12, 2),
+                                  pages=(1, 0, 0, 0, 0, 0), backing=524288,
+                                  image=(8, 8, 0, 78, solid, solid), **run_state)
                             assert frame.application["cterm.big_random_state"] == retained_random
                     # Both partial command bodies and partial & tables must
                     # leave no pending source/key state in a fresh connection.

@@ -18,7 +18,7 @@ struct st_big_control {
 		uint8_t payload[ST_BIG_ZONE_DATA_SIZE]; } zones;
 	struct { uint16_t command, did_loop; uint8_t gang_marker, gang[129]; } frame;
 };
-enum st_big_output_kind { ST_BIG_OUTPUT_XON, ST_BIG_OUTPUT_XOFF, ST_BIG_OUTPUT_REPLY };
+enum st_big_output_kind { ST_BIG_OUTPUT_XON, ST_BIG_OUTPUT_XOFF, ST_BIG_OUTPUT_REPLY, ST_BIG_OUTPUT_QUERY };
 struct st_big_control_sink {
 	void *context;
 	/* Optional local transport readiness. No foreign UART/status model.

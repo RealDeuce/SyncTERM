@@ -1,7 +1,7 @@
 # BIG 1.03 conformance
 
 BIG (1.03) is selectable in BBS profiles and Wren. Its wire & setup, I/R/g/X0/X1/X2/X3/X4/X5/X6/X8, A/C/H/M/T/E attributes, S palettes, m movement, P markers, L/D/d lines, B bars/boxes, Z outlined fills and F fills run
-through native CTerm. Native W graphical text, t pauses, < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
+through native CTerm. Native W graphical text, t pauses, ? inquiries, < keyboard/hybrid pointer acquisition and G0..6 images/pages are integrated. Remaining drawing,
 sound and complete command acceptance remain in progress.
 
 The [standalone goal](BIG_IMPLEMENTATION.adoc) and
@@ -1384,3 +1384,31 @@ and final full-suite acceptance remain pending.
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) and focused final test builds passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full/focused builds. All45 BIG-specific native CTests passed in50.34s, including cterm_big_pause0.57s and big_session_pacing1.34s. syncterm_big_input passed in146.75s (test146.69s),2884 coherent scenes. No non-BIG tests ran; the shared session pacing change and all other regressions remain subject to the goal-final full suite. Native t, buffered flow policy and paced resume are verified; ? is next. Global45-entry/audio/final acceptance remains pending.
 
 Native t, buffered input and paced resume implementation commit: `0b50c5a`.
+
+## Native ? inquiries
+
+? reads one shared class0 WORD, then requests native output readiness before
+all selector tests, including unsupported/negative selectors. Selector0 sends
+four separate1.03 bytes and tests current G3 oak/acorn equality afterwards
+for R. Selector1 reads the resolution BYTE; selector2 reads the music-memory
+WORD. Each adds30 hex and sends the low byte then colon, without decimal or
+Boolean normalization. Later selector comparisons and cache reads stay live.
+
+Query output uses automatic response origin; deferred input replies retain
+user-input origin. Retry latches one byte without repeating readiness or a
+previous request. Returning send failures do not skip later requests. Numeric/
+readiness errors, EOF/reset and callback reset retain reached prefixes and
+recover through the existing owner. There is no own timeout/key cancellation,
+BGI effect, serial flow control or foreign UART/capture implementation.
+
+cterm_big_query independently checks every split/bytewise profile, complete
+indexed scene/state/image retention, all selector/music WORDs and resolution
+bytes, late equality/current-selector effects, request/delivery order, retries,
+budgets, lifecycle/recovery, source repetition, chains and raw deferred reply
+origins.98 new application scenes bring coverage to2982, retaining the full
+preceding scene/RNG oracle. music_memory currently0 reports that no native
+music buffer is installed; actual allocation/playback lifecycle remains a
+big-audio dependency before global command acceptance. W, t and ? are now
+implemented in the requested order; the full goal remains active.
+
+Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics. Initial generated-dependency timestamp jitter notices were absent from the final full build. All46 BIG-specific native CTests passed in54.96s, including cterm_big_query1.39s. syncterm_big_input passed in153.84s (test153.79s),2982 coherent scenes including98 new inquiry scenes. No non-BIG tests ran; the goal-final full regression suite remains deferred. Native ? request/cache/source/lifecycle integration is verified. Actual music-buffer allocation/publication, audio and global45-entry acceptance remain pending.

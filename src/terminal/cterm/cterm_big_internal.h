@@ -76,6 +76,17 @@ struct cterm_big_pause {
 	uint64_t deadline, sample;
 	bool chained, number_started, wire, expired, sampled;
 };
+enum cterm_big_query_phase { CTERM_BIG_QUERY_OFF, CTERM_BIG_QUERY_READY,
+	CTERM_BIG_QUERY_VERSION, CTERM_BIG_QUERY_REGISTERED, CTERM_BIG_QUERY_RESOLUTION,
+	CTERM_BIG_QUERY_RESOLUTION_COLON, CTERM_BIG_QUERY_MEMORY,
+	CTERM_BIG_QUERY_MEMORY_COLON, CTERM_BIG_QUERY_SEND, CTERM_BIG_QUERY_DONE };
+struct cterm_big_query {
+	enum cterm_big_query_phase phase, next;
+	uint16_t selector;
+	unsigned index;
+	uint8_t byte;
+	bool chained;
+};
 struct cterm_big_mouse_sample {
 	int32_t x,y;
 	uint32_t buttons;
@@ -127,6 +138,10 @@ struct cterm_big {
 	struct st_big_text text;
 	struct cterm_big_text_output text_output;
 	struct cterm_big_pause pause;
+	struct cterm_big_query query;
+	/* Available AdLib music-buffer flag, separate from mute/playback.
+	 * Zero until the audio owner installs its buffer; retained across I/R. */
+	uint16_t music_memory;
 	struct cterm_big_setup setup;
 	struct cterm_big_zone zone;
 	struct cterm_big_collect collect;
@@ -170,6 +185,11 @@ int cterm_big_collect_sample(struct cterm_big *, const struct cterm_big_mouse_sa
 int cterm_big_pmarker(struct cterm_big *, uint16_t x, uint16_t y);
 bool cterm_big_input_owned(const struct cterm_big *);
 void cterm_big_pause_begin(struct cterm_big *, bool chained);
+int cterm_big_query_begin(struct cterm_big *, const struct st_graphics_command_view *);
+/* The initial readiness request precedes every selector test. Send retries
+ * latch a byte; returning send failures are ignored as in the original
+ * query caller. Reset interrupts subsequent requests even after a return. */
+int cterm_big_query_poll(struct cterm_big *, size_t *output_budget, bool *complete);
 int cterm_big_pause_poll(struct cterm_big *, const uint8_t *, size_t,
 	size_t *used, size_t *work_budget, bool *complete);
 int cterm_big_input_peek(void *, bool *);

@@ -1318,3 +1318,13 @@ cterm_big_pause covers split/profile/scene/state/source/reply and recovery
 semantics; big_session_pacing exercises a real POSIX shell connection in both
 encodings, paced/unpaced. The coherent BIG fixture now contains2884 scenes.
 Other emulation/session regressions remain deferred to the goal's final suite.
+
+BIG ? now implements version/late-registration, cached-resolution and retained
+music-buffer availability inquiries through the existing pre-ANSI boundary.
+Replies use automatic response origin; deferred counted input keeps user
+origin. Native cterm_big_query tests independent byte requests/current reads,
+all WORD/byte cache values, split/profile/full-scene retention, readiness/retry,
+partial/error/reset/source/footer composition.98 new coherent BIG application
+scenes bring coverage to2982. Sound availability currently0 reflects the
+pending native music-buffer allocation/playback foundation. No query serial
+flow control or foreign UART/clock model is introduced.
