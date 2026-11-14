@@ -3951,3 +3951,5 @@ The unchanged3374 application scenes were not rerun. Conditional publishing
 remains pending until all non-audio commands are implemented and verified.
 
 Native CMake Release configure/full build (/usr/bin/cc, build/, FreeBSD) passed without compiler/source diagnostics; generated dependency files triggered existing sub-second gmake clock-skew warnings. Changed native source/test objects were confirmed newer than their inputs. All57 BIG-specific native CTests passed in55.43s. Final four focused polygon/span/stage/sector tests passed in0.07s total. No non-BIG tests or unchanged3374 application scenes were rerun. Native physical span operators are verified; public wrappers/CTerm V/Y caller, wire, fill restoration, application, audio/resource/global45-entry and final-suite acceptance remain pending. The conditional publishing checkpoint is not yet met.
+
+Native physical polygon span implementation commit: `f929b40`.
