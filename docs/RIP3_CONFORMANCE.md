@@ -110,6 +110,18 @@ non-default directory placement, every truncated prefix, invalid offsets,
 dimensions and glyph sizes, invalid mode selection and unchanged results on
 failure. These are file/bitmap-view checks, not terminal text rendering yet.
 
+`rip3_rff` validates all eight RFF containers and 80 style records, including
+case-insensitive names, uninitialized name padding, hollow flags and DEFAULT's
+140% Ex variant. It walks all 1,792 character records with their own path/tail
+lengths, independent of neighboring offsets and the unreliable SYMBOL trailer.
+The seven documented damaged SYMBOL characters become blank while retaining
+advance; characters 248/249 remain valid. Literal synthetic move/line/cubic
+points, signed limits, aliases, hint framing, malformed containers/records and
+unchanged results/cursors on errors are checked independently. Dixon's
+documented advances and FA kerning are literal expectations. This decodes
+outlines and metrics; glyph rasterization and the blocked extended-font wire
+command are not implemented by these tests.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
