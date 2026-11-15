@@ -230,6 +230,13 @@
       "sha256": "28159274c54e9640354852e172d10d88eb159f4e7f2fea42edbcd20105ed3526",
       "license": "Apache-2.0",
       "provenance": "Pinned FluidSynth cmake_admin/FindGCEM.cmake; upstream kthohr/gcem commit"
+    },
+    "JPEG": {
+      "version": "3.1.4.1",
+      "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4.1/libjpeg-turbo-3.1.4.1.tar.gz",
+      "sha256": "ecae8008e2cc9ade2f2c1bb9d5e6d4fb73e7c433866a056bd82980741571a022",
+      "license": "IJG AND BSD-3-Clause AND Zlib",
+      "provenance": "Official libjpeg-turbo GitHub release asset digest; archive verified locally."
     }
   }
 }

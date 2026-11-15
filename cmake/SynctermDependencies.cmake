@@ -24,7 +24,7 @@ function(syncterm_dependency_options name default_linkage)
 	# A library has one AUTO policy regardless of which consumer resolves it
 	# first. Direct consumers of a runtime-loaded library use a link closure
 	# without changing the adapter's policy.
-	if(name MATCHES "^(SNDFILE|JXL|SDL2|ALSA|PORTAUDIO|FLUIDSYNTH|ADLMIDI|PULSEAUDIO|PIPEWIRE|X11|XRENDER|XRANDR|XINERAMA|WAYLAND|XKBCOMMON)$")
+	if(name MATCHES "^(SNDFILE|JXL|JPEG|SDL2|ALSA|PORTAUDIO|FLUIDSYNTH|ADLMIDI|PULSEAUDIO|PIPEWIRE|X11|XRENDER|XRANDR|XINERAMA|WAYLAND|XKBCOMMON)$")
 		set(default_linkage RUNTIME)
 	endif()
 	set(ST_DEP_${name}_LINKAGE AUTO CACHE STRING "${name} linkage: AUTO, STATIC, SHARED, RUNTIME")
@@ -115,7 +115,7 @@ function(syncterm_library_dependency library output)
 	set(result "")
 	foreach(pair "FLAC|FLAC" "ogg|OGG" "vorbis|VORBIS" "vorbisenc|VORBIS"
 		"opus|OPUS" "mpg123|MPG123" "mp3lame|LAME" "sndfile|SNDFILE"
-		"hwy|HIGHWAY" "brotlidec|BROTLI" "brotlicommon|BROTLI" "lcms2|LCMS2"
+		"jpeg|JPEG" "hwy|HIGHWAY" "brotlidec|BROTLI" "brotlicommon|BROTLI" "lcms2|LCMS2"
 		"X11|X11" "Xext|XEXT" "Xrender|XRENDER" "Xrandr|XRANDR" "Xinerama|XINERAMA"
 		"Xau|XAU" "Xdmcp|XDMCP" "xcb|XCB" "ffi|FFI" "expat|EXPAT")
 		string(REPLACE "|" ";" fields "${pair}")

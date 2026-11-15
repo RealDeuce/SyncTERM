@@ -137,6 +137,20 @@ bytes at every depth, including short palettes, zero reserved/padding bytes,
 the documented writer advisory fields and unchanged output pointers/sizes on
 error. Secondary decode comparisons supplement those independent byte checks.
 
+`pixel_jpeg_native` checks the baseline 8-bit libjpeg-compatible decoder with
+independently constructed JPEG bitstreams (no encoder or decoder generates
+the expected pixels). It checks grayscale row orientation, YCbCr 4:4:4/4:2:2/
+4:2:0 color conversion, cropped MCU edges, every truncated prefix, unsupported
+precision/progressive/arithmetic/CMYK/fractional sampling, invalid dimensions
+and unchanged outputs on error. Decoder warning repair is rejected rather than
+publishing an incomplete image. Heap-owned cleanup survives libjpeg error
+callbacks. `pixel_jpeg_disabled` checks the absent-backend API in the same native
+configuration; `pixel_jpeg_dependency` checks static/shared source-build policy.
+The backend uses the existing dependency controls with a hash-pinned
+libjpeg-turbo fallback and retained IJG notices. Runtime support validates the
+header/library ABI. JPEG host commands, file lookup and canvas rendering remain
+pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

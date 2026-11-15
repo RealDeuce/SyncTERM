@@ -39,6 +39,7 @@ st_embed_license("ZMODEM (BSD 2-Clause)" "${_st_license_root}/src/net/transfer/L
 st_embed_license("Native Amiga bitmap fonts (provenance)" "${_st_license_root}/src/media/amiga_font/data/NOTICE.txt")
 st_embed_license("RIPtel FastFont and MicroANSI (provenance)" "${_st_license_root}/src/terminal/rip3/assets/fonts/NOTICE.txt")
 st_embed_license("Opal YM3812 adaptation (MIT)" "${_st_license_root}/src/media/opl2/LICENSE.OPAL")
+st_embed_license("JPEG decoder (IJG)" "${_st_license_root}/src/media/pixel_image/LICENSE.JPEG")
 st_embed_license("Wren (MIT)" "${_st_license_root}/src/scripting/wren_vm/LICENSE")
 st_embed_license("libretro API (MIT)" "${_st_license_root}/src/LICENSE.LIBRETRO")
 st_embed_license("RE1 (BSD 3-Clause)" "${_st_license_root}/src/scripting/re1/LICENSE")
