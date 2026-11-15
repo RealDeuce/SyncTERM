@@ -21,6 +21,13 @@ This is SyncTERM's approximation of the speaker preset; the original accessory
 sends no instrument selection. It replaces any previously selected MIDI voice,
 including the sawtooth used by ANSI music calibration.
 
+Live software MIDI maintains about 46 ms of rendered audio ahead of playback,
+covering complete device blocks and worker scheduling jitter. The native
+`music_stream` regression checks continuous held-note PCM through 512- and
+1024-frame reads and consecutive device blocks, note-off, bounded lookahead,
+flush, failure and shutdown. This prevents silent block suffixes from chopping
+the waveform; physical listening remains a separate check.
+
 The serial protocol uses hexadecimal byte values:
 
 | State | Byte | Action |

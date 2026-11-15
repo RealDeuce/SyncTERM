@@ -14,8 +14,11 @@
 #define NOTE_STORAGE_LIMIT (64U * 1024U * 1024U)
 #define AHEAD_FRAMES 4096U
 #define BLOCK_FRAMES 1024U
-/* Bound live-input latency without a second MIDI/synthesis worker. */
-#define LIVE_FRAMES 256U
+/* Keep several complete 512-frame device blocks ahead of the consumer.
+ * A queue smaller than one device block inserts silence into held notes.
+ * 2048 frames also covers 1024-frame callbacks plus worker wake-up jitter,
+ * while bounding live synthesis lookahead to about 46 ms at 44.1 kHz. */
+#define LIVE_FRAMES 2048U
 struct request {
 	FILE *file;
 	struct st_music_note *notes;

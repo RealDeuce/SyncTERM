@@ -139,7 +139,11 @@ static void buffered(st_music_t *m)
 	uint64_t deadline = now() + 3000000000U;
 	for (;;) {
 		audio_stream_t *stream = st_music_pcm_stream(m);
-		if (stream != NULL && audio_stream_buffered_frames(stream) == 256) return;
+		size_t count = stream == NULL ? 0 : audio_stream_buffered_frames(stream);
+		/* Support three consecutive 512-frame device reads while bounding
+		 * queued lookahead to 50 ms, without a physical clock or device. */
+		CHECK(count <= AUDIO_SAMPLE_RATE/20);
+		if (count >= 3*512) return;
 		CHECK(now() < deadline); delay();
 	}
 }
@@ -156,10 +160,20 @@ static void software(void)
 	st_mutex_lock(&r.mutex); size_t rendered = r.frames; st_mutex_unlock(&r.mutex);
 	for (int i = 0; i < 4; ++i) delay();
 	st_mutex_lock(&r.mutex); CHECK(r.frames == rendered && r.sounding); st_mutex_unlock(&r.mutex);
-	for (int pass = 0; pass < 4; ++pass) {
-		buffered(m); int16_t frames[256 * AUDIO_CHANNELS];
-		CHECK(st_audio_runtime_pull(runtime, frames, 256) == 0);
-		for (size_t i = 0; i < sizeof(frames) / sizeof(frames[0]); ++i) CHECK(frames[i] > 2000 && frames[i] < 2600);
+	/* A held constant voice must fill whole device blocks, not merely the
+	 * first 256 frames. Also cover a larger callback and consecutive device
+	 * reads before the producer has had another scheduling opportunity. */
+	const size_t blocks[] = {512,512,1024,512};
+	for (size_t pass = 0; pass < sizeof(blocks)/sizeof(*blocks); ++pass) {
+		buffered(m); int16_t frames[1024 * AUDIO_CHANNELS];
+		CHECK(st_audio_runtime_pull(runtime, frames, blocks[pass]) == 0);
+		for (size_t i = 0; i < blocks[pass]*AUDIO_CHANNELS; ++i) CHECK(frames[i] > 2000 && frames[i] < 2600);
+	}
+	buffered(m);
+	for (unsigned pass=0;pass<3;++pass) {
+		int16_t frames[512*AUDIO_CHANNELS];
+		CHECK(st_audio_runtime_pull(runtime,frames,512)==0);
+		for (size_t i=0;i<512*AUDIO_CHANNELS;++i) CHECK(frames[i]>2000 && frames[i]<2600);
 	}
 	expect(&r, on, sizeof(on));
 	const uint8_t off[] = {0x80,60,0};
