@@ -4,6 +4,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/../../../../cmake/dependencies/Recipes.cmake"
 syncterm_dependency_recipe(JPEG)
 set(source "${TEST_ROOT}/source")
 file(MAKE_DIRECTORY "${source}")
+file(WRITE "${source}/README.ijg" "IJG fixture notice\n")
+file(WRITE "${source}/LICENSE.md" "JPEG fixture license\n")
 # libjpeg-turbo defaults both ENABLE_STATIC and ENABLE_SHARED to ON and does
 # not select them from BUILD_SHARED_LIBS. Exercise our source-build adapter.
 file(WRITE "${source}/CMakeLists.txt" [=[
@@ -34,5 +36,17 @@ foreach(mode STATIC SHARED)
 		RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors)
 	if(NOT result STREQUAL "0")
 		message(FATAL_ERROR "JPEG ${mode} recipe failed: ${output}${errors}")
+	endif()
+	execute_process(COMMAND "${CMAKE_COMMAND}" "-DSETTINGS=${settings}"
+		"-DSOURCE=${source}" "-DWORK=${TEST_ROOT}/${mode}" -DSTEP=install
+		-P "${CMAKE_CURRENT_LIST_DIR}/../../../../cmake/dependencies/Build.cmake"
+		RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors)
+	if(NOT result STREQUAL "0")
+		message(FATAL_ERROR "JPEG ${mode} install failed: ${output}${errors}")
+	endif()
+	file(READ "${TEST_ROOT}/prefix/share/licenses/JPEG/README.ijg" notice)
+	file(READ "${TEST_ROOT}/prefix/share/licenses/JPEG/LICENSE.md" license)
+	if(NOT notice STREQUAL "IJG fixture notice\n" OR NOT license STREQUAL "JPEG fixture license\n")
+		message(FATAL_ERROR "JPEG installation must retain both upstream notices")
 	endif()
 endforeach()

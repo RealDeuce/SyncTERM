@@ -137,7 +137,8 @@ settings beyond the existing enable/disable choices.
 
 Pinned libsndfile includes its built-in formats, FLAC, Ogg/Vorbis, Opus and MP3
 (mpg123 decoding and LAME encoding). Pinned JPEG uses the libjpeg-compatible
-libjpeg-turbo decoder API without TurboJPEG, Java, tools or tests.
+libjpeg-turbo decoder API without TurboJPEG, Java, tools or tests. Its staged
+notices include `README.ijg` as well as `LICENSE.md`.
 The baseline 8-bit decoder supports grayscale and YCbCr with the common
 1:1, 2:1 and 2:2 sampling ratios; runtime availability includes an ABI check.
 Pinned JPEG XL includes the decoder,
