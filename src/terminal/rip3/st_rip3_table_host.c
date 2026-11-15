@@ -2,9 +2,12 @@
 #include "st_rip3_table_host.h"
 
 #include "st_rip3_backup.h"
+#include "st_rip3_palettes.h"
+#include "st_rip3_ports.h"
 #include "io_error.h"
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 
 static bool
@@ -39,6 +42,24 @@ table_type(const char *text, enum st_rip3_table_type *result)
 }
 
 static int
+number(const char *text, unsigned minimum, unsigned maximum, unsigned *result)
+{
+	unsigned value = 0;
+
+	if (text[0] == 0)
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 0; text[i] != 0; i++) {
+		if (text[i] < '0' || text[i] > '9' || value > maximum)
+			return IO_ERROR_INVALID_FORMAT;
+		value = value * 10 + (unsigned)(text[i] - '0');
+	}
+	if (value < minimum || value > maximum)
+		return IO_ERROR_INVALID_FORMAT;
+	*result = value;
+	return 0;
+}
+
+static int
 location(const char *text, bool source, struct st_rip3_backup_location *result)
 {
 	struct st_rip3_backup_location value = {ST_RIP3_BACKUP_BASE,0};
@@ -54,18 +75,260 @@ location(const char *text, bool source, struct st_rip3_backup_location *result)
 	else if (equal(text, "CUR"))
 		return IO_ERROR_NOT_SUPPORTED;
 	else if (text[0] >= '0' && text[0] <= '9') {
-		unsigned number = 0;
-		for (size_t i = 0; text[i] != 0; i++) {
-			if (text[i] < '0' || text[i] > '9' || number > 35)
-				return IO_ERROR_INVALID_FORMAT;
-			number = number * 10 + (unsigned)(text[i] - '0');
-		}
-		return number <= 35 ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_INVALID_FORMAT;
+		unsigned index;
+		return number(text, 0, 35, &index) == 0
+		    ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_INVALID_FORMAT;
 	}
 	else
 		return IO_ERROR_INVALID_FORMAT;
 	*result = value;
 	return 0;
+}
+
+static int
+entry_current(enum st_rip3_table_type type, void *live, unsigned *result)
+{
+	if (live == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (type == ST_RIP3_TABLE_PAL)
+		return st_rip3_palettes_current(live, result);
+	if (type == ST_RIP3_TABLE_PORT)
+		return st_rip3_ports_current(live, result);
+	return IO_ERROR_NOT_SUPPORTED;
+}
+
+static int
+entry_info(enum st_rip3_table_type type, void *live, unsigned index,
+    bool *defined, bool *protected)
+{
+	if (live == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (type == ST_RIP3_TABLE_PAL) {
+		struct st_rip3_palette_info info;
+		int status = st_rip3_palettes_info(live, index, &info);
+		if (status != 0)
+			return status;
+		*defined = info.defined;
+		*protected = info.protected;
+		return 0;
+	}
+	if (type == ST_RIP3_TABLE_PORT) {
+		struct st_rip3_port_info info;
+		int status = st_rip3_ports_info(live, index, &info);
+		if (status != 0)
+			return status;
+		*defined = info.defined;
+		*protected = info.protected;
+		return 0;
+	}
+	return IO_ERROR_NOT_SUPPORTED;
+}
+
+static int
+reply_number(char *result, size_t capacity, int value)
+{
+	char text[16];
+	int length = snprintf(text, sizeof(text), "%d", value);
+
+	if (length < 0 || (size_t)length >= sizeof(text))
+		return IO_ERROR_IO;
+	if ((size_t)length >= capacity)
+		return IO_ERROR_OUT_OF_RANGE;
+	memcpy(result, text, (size_t)length + 1);
+	return 0;
+}
+
+enum element {
+	ENTRY, SLOT, CURRENT, ALL, ANY, ALLSLOTS, ANYSLOTS, BASE, STACK, BACKUP,
+};
+
+static int
+element(const char *text, enum element *result, unsigned *index)
+{
+	static const struct {const char *name; enum element value;} words[] = {
+		{"CUR",CURRENT}, {"ALL",ALL}, {"ANY",ANY}, {"ALLSLOTS",ALLSLOTS},
+		{"ANYSLOTS",ANYSLOTS}, {"BASE",BASE}, {"STACK",STACK}, {"BACKUP",BACKUP},
+	};
+
+	for (size_t i = 0; i < sizeof(words) / sizeof(*words); i++) {
+		if (equal(text, words[i].name)) {
+			*result = words[i].value;
+			return 0;
+		}
+	}
+	if ((text[0] == 's' || text[0] == 'S') && text[1] >= '0'
+	    && text[1] <= '9' && text[2] == 0) {
+		*result = SLOT;
+		*index = (unsigned)(text[1] - '0');
+		return 0;
+	}
+	if (number(text, 1, 35, index) == 0) {
+		*result = ENTRY;
+		return 0;
+	}
+	return IO_ERROR_INVALID_FORMAT;
+}
+
+static int
+objects(const struct st_rip3_table_host *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	bool current = strcmp(reference->name, "CUR") == 0;
+	bool inuse = strcmp(reference->name, "INUSE") == 0;
+	bool isprot = strcmp(reference->name, "ISPROT") == 0;
+	bool protect = strcmp(reference->name, "PROT") == 0;
+	bool active = protect || strcmp(reference->name, "UNPROT") == 0;
+	enum st_rip3_table_type type;
+	const struct st_rip3_table_binding *binding;
+	int status;
+
+	if (reference->count < (current ? 1u : 2u)
+	    || (!active && reference->count > 2))
+		return IO_ERROR_INVALID_FORMAT;
+	if (inuse && equal(reference->parameters[0].text, "TV"))
+		return IO_ERROR_NOT_SUPPORTED;
+	status = table_type(reference->parameters[0].text, &type);
+	if (status != 0)
+		return status;
+	binding = &host->tables[type];
+	if (current) {
+		unsigned index;
+
+		if (type == ST_RIP3_TABLE_SCREEN || type == ST_RIP3_TABLE_MOUSE)
+			return IO_ERROR_INVALID_FORMAT;
+		if (reference->count == 1) {
+			status = entry_current(type, binding->live, &index);
+			return status == 0 ? reply_number(result, capacity, (int)index) : status;
+		}
+		status = number(reference->parameters[1].text, 0, 35, &index);
+		if (status != 0)
+			return status;
+		if (binding->live == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		if (type == ST_RIP3_TABLE_PAL)
+			status = st_rip3_palettes_switch(binding->live, index);
+		else if (type == ST_RIP3_TABLE_PORT) {
+			struct st_rip3_port_info info;
+
+			status = st_rip3_ports_info(binding->live, index, &info);
+			/* CUR creates defaults for an undefined port; SWITCH_PORT is a
+			 * different command with its own documented fallback-to-zero. */
+			if (status == 0 && !info.defined) {
+				status = st_rip3_ports_info(binding->live, 0, &info);
+				if (status == 0)
+					status = st_rip3_ports_define(binding->live, index, &info.bounds, false);
+			}
+			if (status == 0)
+				status = st_rip3_ports_switch(binding->live, index);
+		}
+		else
+			return IO_ERROR_NOT_SUPPORTED;
+		if (status == 0)
+			result[0] = 0;
+		return status;
+	}
+	{
+		bool entries[36] = {0}, slots[10] = {0};
+		bool uses_entries = false, uses_slots = false;
+		enum element selected = ENTRY;
+
+		for (size_t i = 1; i < reference->count; i++) {
+			enum element kind;
+			unsigned index = 0;
+
+			status = element(reference->parameters[i].text, &kind, &index);
+			if (status != 0)
+				return status;
+			selected = kind;
+			if (kind == CURRENT) {
+				if (inuse || type == ST_RIP3_TABLE_SCREEN || type == ST_RIP3_TABLE_MOUSE)
+					return IO_ERROR_INVALID_FORMAT;
+				status = entry_current(type, binding->live, &index);
+				if (status != 0)
+					return status;
+				entries[index] = true; uses_entries = true;
+			}
+			else if (kind == ENTRY || kind == ALL || kind == ANY) {
+				if (type == ST_RIP3_TABLE_SCREEN || (type == ST_RIP3_TABLE_MOUSE
+				    && (!inuse || kind == ENTRY)) || (active && kind == ANY))
+					return IO_ERROR_INVALID_FORMAT;
+				uses_entries = true;
+				if (kind == ENTRY)
+					entries[index] = true;
+				else
+					for (unsigned j = 1; j < 36; j++) entries[j] = true;
+			}
+			else if (kind == SLOT || kind == ALLSLOTS || kind == ANYSLOTS) {
+				if (active && kind == ANYSLOTS)
+					return IO_ERROR_INVALID_FORMAT;
+				uses_slots = true;
+				if (kind == SLOT)
+					slots[index] = true;
+				else
+					for (unsigned j = 0; j < 10; j++) slots[j] = true;
+			}
+			else if (!inuse)
+				return IO_ERROR_INVALID_FORMAT;
+			else if (kind == BACKUP)
+				return IO_ERROR_NOT_SUPPORTED; /* Missing definition, #16. */
+		}
+		if (uses_entries && (binding->live == NULL
+		    || (type != ST_RIP3_TABLE_PAL && type != ST_RIP3_TABLE_PORT)))
+			return IO_ERROR_NOT_SUPPORTED;
+		if ((uses_slots || selected == BASE || selected == STACK) && binding->backup == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		if (isprot && (selected == ALL || selected == ANY || selected == ALLSLOTS || selected == ANYSLOTS))
+			return IO_ERROR_NOT_SUPPORTED; /* Aggregate undefined results, #16. */
+		if (active) {
+			/* The complete selector list and required bindings are validated.
+			 * These bounded protection setters allocate nothing and cannot fail
+			 * for valid bound objects and the indexes collected above. */
+			for (unsigned i = 0; i < 36; i++) {
+				if (!entries[i]) continue;
+				if (type == ST_RIP3_TABLE_PAL)
+					(void)st_rip3_palettes_protect(binding->live, i, protect);
+				else
+					(void)st_rip3_ports_protect(binding->live, i, protect);
+			}
+			for (unsigned i = 0; i < 10; i++) {
+				if (slots[i])
+					(void)st_rip3_backup_protect(binding->backup, i, protect);
+			}
+			result[0] = 0;
+			return 0;
+		}
+		{
+			unsigned total = 0, used = 0;
+			bool single_defined = false, single_protected = false;
+
+			if (uses_entries) {
+				for (unsigned i = 0; i < 36; i++) {
+					bool defined, protection;
+					if (!entries[i]) continue;
+					status = entry_info(type, binding->live, i, &defined, &protection);
+					if (status != 0) return status;
+					total++; used += defined;
+					single_defined = defined; single_protected = protection;
+				}
+			}
+			else {
+				struct st_rip3_backup_info info;
+
+				status = st_rip3_backup_info(binding->backup, &info);
+				if (status != 0) return status;
+				if (selected == BASE || selected == STACK)
+					return reply_number(result, capacity, selected == BASE ? info.base : info.stack != 0);
+				for (unsigned i = 0; i < 10; i++) {
+					if (!slots[i]) continue;
+					total++; used += info.slot_used[i];
+					single_defined = info.slot_used[i]; single_protected = info.slot_protected[i];
+				}
+			}
+			if (isprot)
+				return reply_number(result, capacity, !single_defined ? -1 : single_protected);
+			return reply_number(result, capacity, (selected == ALL || selected == ALLSLOTS) ? used == total : used != 0);
+		}
+	}
 }
 
 int
@@ -81,6 +344,13 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (reference->count > 40)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (strcmp(reference->name, "CUR") == 0 || strcmp(reference->name, "INUSE") == 0
+	    || strcmp(reference->name, "ISPROT") == 0 || strcmp(reference->name, "PROT") == 0
+	    || strcmp(reference->name, "UNPROT") == 0) {
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		return objects(host, reference, result, capacity);
+	}
 	copy = strcmp(reference->name, "COPY") == 0;
 	backstat = strcmp(reference->name, "BACKSTAT") == 0;
 	save = strcmp(reference->name, "SCP") == 0;
@@ -97,17 +367,10 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (reference->count == 1) {
 			const char *parameter = reference->parameters[0].text;
 			if (parameter[0] >= '0' && parameter[0] <= '9') {
-				unsigned number = 0;
-
-				for (size_t i = 0; parameter[i] != 0; i++) {
-					if (parameter[i] < '0' || parameter[i] > '9' || number > 9)
-						return IO_ERROR_INVALID_FORMAT;
-					number = number * 10 + (unsigned)(parameter[i] - '0');
-				}
-				if (number > 9)
-					return IO_ERROR_INVALID_FORMAT;
+				status = number(parameter, 0, 9, &place.index);
+				if (status != 0)
+					return status;
 				place.place = ST_RIP3_BACKUP_SLOT;
-				place.index = number;
 			}
 			else {
 				status = location(parameter, restore, &place);

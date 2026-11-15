@@ -26,7 +26,11 @@ struct st_rip3_table_host {
 	struct st_rip3_table_binding tables[ST_RIP3_TABLE_COUNT];
 };
 
-/* Execute parsed BACKSTAT, whole-table COPY, SCP or RCP. Parameter defaults and
+/* Execute parsed BACKSTAT, whole-table COPY, SCP/RCP, CUR, INUSE, individual
+ * ISPROT and PROT/UNPROT. Entry selection/protection currently supports PAL and
+ * PORT; backup-slot operations work for any bound object class. INUSE(BACKUP)
+ * and aggregate ISPROT undefined cases stay unsupported pending #16.
+ * Parameter defaults and
  * decimal slot syntax follow the reference; entry COPY stays NOT_SUPPORTED
  * pending #16. Other built-ins return NOT_SUPPORTED for wider dispatch.
  * Parsed references must come from builtin_reference_parse. Empty outputs

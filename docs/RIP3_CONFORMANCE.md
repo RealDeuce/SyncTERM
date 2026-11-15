@@ -80,7 +80,8 @@ Open clarification issues:
 
 - [#16](https://github.com/bbs-land/remote-imaging-protocol/issues/16): table reset
   in-use status, intra-table copy protection/error behavior and conflicting
-  drawing-port current/copy descriptions.
+  drawing-port current/copy descriptions; undefined INUSE(BACKUP), the FALSE
+  example and aggregate ISPROT replies when entries are undefined.
 
 - [#17](https://github.com/bbs-land/remote-imaging-protocol/issues/17): six emitted
   BOLD.CHR opcode-01 scan records contradict the inherited unused-opcode claim;
@@ -356,8 +357,8 @@ repeated destinations and readable protected sources are covered. Immutable
 saved objects share private ownership; restoring/mutating one live offscreen
 port table leaves all remaining saved pixels independent. Last-owner destruction,
 explicit-clear cleanup and failure paths pass native Valgrind without errors or
-definite/indirect leaks. Wire `$COPY$` dispatch, remaining table adapters and the
-intra-table entry-copy policies in #16 remain pending.
+definite/indirect leaks. Parsed expression dispatch is covered below; terminal
+stream integration, remaining adapters and intra-table policies in #16 are pending.
 
 `rip3_bitmap_text` checks rendering from immutable MicroANSI views with explicit
 CP437 spans (including blank zero and character 255), magnifications 1/2/10,
@@ -468,6 +469,20 @@ Native Valgrind reports no errors or definite/indirect leaks. Bindings borrow
 matching typed live objects/backup areas; unbound table classes and intra-table
 entry copies return unsupported. Full port metadata, remaining table adapters,
 other variables, stream framing, expansion and terminal routing remain pending.
+
+`rip3_table_objects` extends parsed expression coverage to `$CUR$`, `$INUSE$`,
+individual `$ISPROT$` and multi-selector `$PROT$`/`$UNPROT$`. It checks palette
+default creation, defined/undefined/protected results, current-zero behavior,
+all/any nonzero entries, base/stack/slot occupancy, all-slot protection and
+protection no-ops for undefined objects. Every selector/binding and reply capacity
+is validated before active changes. Failed late selectors, missing bindings and
+short replies preserve state/output. `$CUR(PORT,n)$` creates a full active
+screen port when undefined, as specifically documented for that variable,
+across all three canvases; it does not reuse SWITCH_PORT's fallback policy.
+Native Valgrind reports no errors or definite/indirect leaks. Other table entry
+adapters, TV lifetime lookup, aggregate ISPROT and INUSE(BACKUP) remain pending;
+the last two selectors explicitly return unsupported under #16. This does not
+resolve the contradictory general port-table descriptions in that issue.
 
 ## Verification and acceptance
 
