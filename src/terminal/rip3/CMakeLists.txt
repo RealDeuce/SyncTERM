@@ -28,6 +28,18 @@ else()
 	target_compile_options(st_rip3 PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
+# Client disk policy stays outside the pure protocol/graphics/data component.
+add_library(st_rip3_storage STATIC st_rip3_variables_file.c)
+target_include_directories(st_rip3_storage PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE syncterm_filesystem)
+set_target_properties(st_rip3_storage PROPERTIES
+	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_rip3_storage PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+else()
+	target_compile_options(st_rip3_storage PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+endif()
+
 if(BUILD_TESTING)
 	add_executable(st_rip3_number_test tests/st_rip3_number_test.c)
 	target_link_libraries(st_rip3_number_test PRIVATE st_rip3)
@@ -249,6 +261,24 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_variables_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_variables COMMAND st_rip3_variables_test)
+	add_executable(st_rip3_variables_file_test tests/st_rip3_variables_file_test.c)
+	target_link_libraries(st_rip3_variables_file_test PRIVATE st_rip3_storage
+		syncterm_filesystem syncterm_path)
+	set_target_properties(st_rip3_variables_file_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_variables_file_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_variables_file_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	foreach(operation IN ITEMS write read errors cleanup)
+		add_test(NAME "rip3_variables_file_${operation}" COMMAND st_rip3_variables_file_test
+			"${operation}" "${CMAKE_CURRENT_BINARY_DIR}/variables-persistence")
+	endforeach()
+	set_tests_properties(rip3_variables_file_write PROPERTIES FIXTURES_SETUP rip3_variable_file)
+	set_tests_properties(rip3_variables_file_read rip3_variables_file_errors PROPERTIES
+		FIXTURES_REQUIRED rip3_variable_file)
+	set_tests_properties(rip3_variables_file_cleanup PROPERTIES FIXTURES_CLEANUP rip3_variable_file)
 	add_test(NAME rip3_font_assets COMMAND "${CMAKE_COMMAND}"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/asset-check"
 		"-DGENERATOR=${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"

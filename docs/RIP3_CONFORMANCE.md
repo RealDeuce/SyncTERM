@@ -409,8 +409,15 @@ Malformed/duplicate imports leave caller state unchanged and clean partial
 allocations. Native Valgrind reports no errors or definite/indirect leaks.
 Session/persistent roles are separate table instances chosen by the interpreter;
 this backend does not invent lifetime promotion, prompts or expansion policy.
-File persistence, directive/macro parsing, host approvals and session integration
-remain pending. In-memory snapshot reload is not on-disk persistence evidence.
+The optional `st_rip3_storage` adapter adds a versioned client file format with
+explicit byte lengths and deterministic ordering. It atomically replaces a
+client-selected file and validates a fresh table before publishing a load.
+The four `rip3_variables_file_*` fixtures verify a literal file, reload in a
+separate process, replacement/deletion persistence, UTF-8 paths, malformed and
+duplicate records, and failed replacement with temporary-file cleanup. Native
+Valgrind reports no errors or definite/indirect leaks. This establishes backend
+disk persistence; directive/macro parsing, host approvals/deletion protection,
+session lifetime selection and interpreter startup integration remain pending.
 
 ## Verification and acceptance
 
