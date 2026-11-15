@@ -565,6 +565,10 @@ if (!file.isOpen || file.read() != "picked\\n") Fiber.abort("selected readable f
 file.close()
 var cancelled = Host.pickFile(PATH, "alpha.txt", 1, "Cancel fixture")
 if (cancelled != null) Fiber.abort("cancelled picker returned file")
+for (option in [FilePickerOptions.pathMustExist, FilePickerOptions.fileMustExist]) {
+  if (Host.pickFile(PATH, "alpha.txt", FilePickerOptions.allowEntry | option,
+      "Existing path fixture %(option)") != null) Fiber.abort("cancelled existing-path picker")
+}
 Host.print("PICKER-STAGE multi")
 var files = Host.pickFiles(PATH, "alpha.txt", 1)
 if (files == null || files.count != 1 || !files[0].path.endsWith("alpha.txt")) Fiber.abort("multiple selection")
@@ -587,6 +591,20 @@ if (output == null) Fiber.abort("append selection")
 output.open()
 output.write("appended\\n")
 output.close()
+for (name in ["new-enter", "new-ok", "new-cancel"]) {
+  Host.print("PICKER-STAGE " + name)
+  output = Host.pickSavePath(PATH, "*")
+  if (name == "new-cancel") {
+    if (output != null) Fiber.abort("cancelled new filename")
+  } else {
+    var filename = name == "new-enter" ? "résumé.txt" : "new-ok.txt"
+    if (output == null || output.path.replace("\\\\", "/") !=
+        NFC_PATH.replace("\\\\", "/") + "/" + filename) Fiber.abort("new filename path")
+    output.open()
+    output.write(name)
+    output.close()
+  }
+}
 var pixels = Host.pickFile(PATH, "pixel.ppm", 1, "Pixel fixture")
 var image = PixelBuffer.fromPpm(pixels)
 if (image == null || image.width != 1 || PixelColor.toRgb(image[0]) != 0xffffff) Fiber.abort("readable File pixel decode")
@@ -600,25 +618,56 @@ if (rejected.error == null) Fiber.abort("write File accepted by pixel decoder")
         install_suite(root, source, "picker")
     with fixture(executable, prepare=prepare, reports=reports) as (client, root):
         first = client.wait_text("Read fixture")
+        assert "[ New ]" not in first.text
         picker_id = first.metadata["console_id"]
         client.key("enter")
         client.wait_text("Cancel fixture")
         client.key("escape")
+        for option in (16, 32):
+            assert "[ New ]" not in client.wait_text(f"Existing path fixture {option}").text
+            client.key("escape")
         def stage(name):
             return client.wait_for(lambda s: ("PICKER-STAGE " + name + "\n").encode() in client.stderr
                                     and "alpha.txt" in s.text)
-        stage("multi")
+        assert "[ New ]" not in stage("multi").text
         client.key(1, 2)
         client.key(10, 2)
         stage("multi-cancel")
         client.key("escape")
-        client.wait_text("Directory fixture")
+        assert "[ New ]" not in client.wait_text("Directory fixture").text
         client.key(10, 2)
         for name, key in (("overwrite", "o"), ("append", "a")):
-            stage(name)
+            frame = stage(name)
+            if name == "overwrite":
+                assert "[ New ]" in frame.text
+                # Files -> Mask -> Path -> New, then activate by keyboard.
+                for _ in range(3):
+                    client.key("tab")
+                client.key("enter")
             client.key("enter")
             client.wait_text("File exists")
             client.text(key)
+        for name in ("new-enter", "new-ok", "new-cancel"):
+            frame = stage(name)
+            click_text(client, frame, "[ New ]")
+            if name == "new-enter":
+                for invalid in ("", ".", "..", "../escape.txt", "sub/file.txt", "sub\\file.txt", "*.txt"):
+                    client.text(invalid)
+                    client.key("enter")
+                    client.wait_text("Enter a filename without a directory or wildcards.")
+                    client.key("enter")
+                    click_text(client, client.wait_text("[ New ]"), "[ New ]")
+                # Home and Backspace must never erase the fixed directory.
+                client.key("home")
+                client.key("backspace")
+                client.text("résumé.txt")
+                client.key("enter")
+            elif name == "new-ok":
+                client.text("new-ok.txt")
+                click_text(client, client.wait_text("new-ok.txt"), "[ OK ]")
+            else:
+                client.text("cancelled.txt")
+                client.key("escape")
         client.wait_text("Pixel fixture")
         client.key("enter")
         client.wait_for(lambda s: b"PICKER-STAGE pixel-write\n" in client.stderr and "Save as" in s.text)
@@ -628,6 +677,9 @@ if (rejected.error == null) Fiber.abort("write File accepted by pixel decoder")
         restored = client.wait_text("TEST-COMPLETE picker")
         assert restored.metadata["console_id"] != picker_id and "PICKER-MARKER" in restored.text
         assert (root / "downloads" / "café" / "alpha.txt").read_text(encoding="utf-8") == "overwritten\nappended\n"
+        assert (root / "downloads" / "café" / "résumé.txt").read_text(encoding="utf-8") == "new-enter"
+        assert (root / "downloads" / "café" / "new-ok.txt").read_text(encoding="utf-8") == "new-ok"
+        assert not (root / "downloads" / "café" / "cancelled.txt").exists()
 
 
 def menu_exit(executable, reports):

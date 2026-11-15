@@ -232,6 +232,8 @@ class PickerPane is Pane {
         "files matching the mask. Return opens a directory or chooses a " +
         "file. In a multi-file browser, Return or Space toggles a file, " +
         "Ctrl+A selects the visible files, and F2 reviews the selection. " +
+        "New edits only the filename in the Path row, keeping the current " +
+        "directory fixed. Return or OK accepts the name. " +
         "Ctrl+Return activates OK and Escape cancels."
     onClose = Fn.new { cancel() }
 
@@ -257,6 +259,22 @@ class PickerPane is Pane {
     _pathInput.onSubmit = Fn.new {|value| applyPath_(value, true) }
     _pathInput.onLeave = Fn.new {|value| applyPath_(value, false) }
     add(_pathInput)
+
+    _filename = PickerInput.new(this)
+    _filename.visible = false
+    _filename.focusable = false
+    _filename.onChange = Fn.new {|value| _pathInput.value = _path + value }
+    _filename.onSubmit = Fn.new {|value| finishNew_() }
+    add(_filename)
+
+    _new = PickerButton.new(this, "New")
+    _new.visible = option_(FilePickerOptions.allowEntry) &&
+        !multiple && !directoryMode &&
+        !option_(FilePickerOptions.pathMustExist) &&
+        !option_(FilePickerOptions.fileMustExist)
+    _new.focusable = _new.visible
+    _new.onPress = Fn.new { newName_() }
+    add(_new)
 
     _review = PickerButton.new(this, "Review")
     _review.visible = multiple
@@ -333,6 +351,10 @@ class PickerPane is Pane {
       }
     }
     _pathInput.value = _path + _mask.value
+    _pathInput.visible = true
+    _pathInput.focusable = option_(FilePickerOptions.allowEntry)
+    _filename.visible = false
+    _filename.focusable = false
     _appliedMask = _mask.value
     _displayedPath = _pathInput.value
     markDirty()
@@ -412,6 +434,38 @@ class PickerPane is Pane {
     if (!directoryMode) finishPath_(resolved.full, resolved.exists)
   }
 
+  newName_() {
+    if (!_new.visible) return
+    var resolved = _request.resolve(_path, _pathInput.value)
+    var name = ""
+    if (resolved != null && !resolved.wildcards && !resolved.isDirectory) {
+      name = resolved.name
+    }
+    _filename.value = name
+    _pathInput.value = _path + _filename.value
+    _pathInput.visible = false
+    _pathInput.focusable = false
+    _filename.visible = true
+    _filename.focusable = true
+    if (bounds != null) bounds = bounds
+    focusWidget(_filename)
+    _filename.selectAll()
+    markDirty()
+  }
+
+  finishNew_() {
+    var name = _filename.value
+    var resolved = _request.resolve(_path, name)
+    if (name.count == 0 || name == "." || name == ".." ||
+        name.contains("/") || name.contains("\\") || resolved == null ||
+        resolved.wildcards || resolved.isDirectory ||
+        resolved.directory != _path) {
+      Alert.show(_app, "File browser", "Enter a filename without a directory or wildcards.")
+      return
+    }
+    applyPath_(_path + name, true)
+  }
+
   finishPath_(path, exists) {
     if (_mode == "save") {
       if (exists) {
@@ -444,6 +498,10 @@ class PickerPane is Pane {
   }
 
   finish() {
+    if (_filename.visible) {
+      finishNew_()
+      return
+    }
     if (multiple) {
       if (_selectedPaths.count == 0) {
         Alert.show(_app, "File browser", "No files have been selected.")
@@ -535,7 +593,7 @@ class PickerPane is Pane {
     super.bounds = rect
     var inner = innerBounds
     if (inner == null) return
-    var footerRows = _pathInput.visible ? 7 : 6
+    var footerRows = 7
     var listHeight = (inner.h - footerRows).max(1)
     var divider = inner.x + ((inner.w - 1) / 2).floor
     var leftWidth = (divider - inner.x).max(1)
@@ -550,15 +608,24 @@ class PickerPane is Pane {
     var fieldX = inner.x + 7
     var fieldWidth = (inner.right - fieldX + 1).max(1)
     _mask.bounds = Rect.new(fieldX, maskRow, fieldWidth, 1)
-    _pathRow = _pathInput.visible ? maskRow + 1 : -1
-    if (_pathInput.visible) {
-      _pathInput.bounds = Rect.new(fieldX, _pathRow, fieldWidth, 1)
-    }
+    _pathRow = maskRow + 1
+    _pathInput.bounds = Rect.new(fieldX, _pathRow, fieldWidth, 1)
+    // Leave at least half the row for the editable filename on long paths.
+    var font = _pathInput.displayFont_
+    var prefixWidth = Screen.checked_(Screen.textWidth(_path, font)).min(
+        (fieldWidth / 2).floor)
+    _filename.bounds = Rect.new(fieldX + prefixWidth, _pathRow,
+        fieldWidth - prefixWidth, 1)
     _buttonRow = inner.bottom
     var gap = 4
     var total = _ok.intrinsicWidth + gap + _cancel.intrinsicWidth
+    if (_new.visible) total = total + gap + _new.intrinsicWidth
     if (_review.visible) total = total + gap + _review.intrinsicWidth
     var x = inner.x + ((inner.w - total) / 2).floor
+    if (_new.visible) {
+      _new.bounds = Rect.new(x, _buttonRow, _new.intrinsicWidth, 1)
+      x = x + _new.intrinsicWidth + gap
+    }
     if (_review.visible) {
       _review.bounds = Rect.new(x, _buttonRow, _review.intrinsicWidth, 1)
       x = x + _review.intrinsicWidth + gap
@@ -589,9 +656,21 @@ class PickerPane is Pane {
         bounds.w - 4)
     var maskY = _mask.bounds.y - bounds.y
     Painter.text(surface, 2, maskY, "Mask: ", style("title"), 6)
-    if (_pathInput.visible) {
-      Painter.text(surface, 2, _pathRow - bounds.y, "Path: ",
-          style("title"), 6)
+    Painter.text(surface, 2, _pathRow - bounds.y, "Path: ",
+        style("title"), 6)
+    if (_filename.visible) {
+      var width = _filename.bounds.x - _pathInput.bounds.x
+      var prefix = _path
+      if (Screen.checked_(Screen.textWidth(prefix, _filename.displayFont_)) > width) {
+        var chars = prefix.toList
+        while (chars.count > 0 && Screen.checked_(Screen.textWidth(
+            "..." + chars.join(), _filename.displayFont_)) > width) {
+          chars.removeAt(0)
+        }
+        prefix = "..." + chars.join()
+      }
+      Painter.text(surface, _pathInput.bounds.x - bounds.x,
+          _pathRow - bounds.y, prefix, normalStyle, width)
     }
     Painter.hline(surface, x, _buttonRow - bounds.y - 1, width,
         glyph("frame.control.separator"), frame)

@@ -6270,7 +6270,11 @@ numeric assignments are stable so scripts may combine or persist them.
 | `allowEntry`
 | 256
 | Allow the always-visible Path field to receive focus and accept a
-  typed directory or filename.
+  typed directory or filename. Single-file pickers which permit a new
+  path (neither `pathMustExist` nor `fileMustExist`) also offer New, which
+  edits only the filename in the Path row while keeping the current
+  directory fixed. Enter or OK accepts that filename using the same
+  confirmations as full-path entry.
 
 | `confirmOverwrite`
 | 512
