@@ -77,6 +77,10 @@ Open clarification issues:
   Bézier equation, subdivision/expanded-vertex limits, final-block validation
   and a census poly-Bézier payload inconsistent with the published layout.
 
+- [#16](https://github.com/bbs-land/remote-imaging-protocol/issues/16): table reset
+  in-use status, intra-table copy protection/error behavior and conflicting
+  drawing-port current/copy descriptions.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -305,6 +309,19 @@ definite/indirect leaks. This device kernel explicitly chooses nearest-pixel
 sampling and a 4,096-vertex expansion bound. Those choices are not assertions
 about RIPtel's unresolved wire sampling/count/error rules in #15. No command
 parser or final-block policy is inferred from the kernel.
+
+`rip3_palettes` checks all 36 independent 256-entry palette slots, initial slot
+zero, lazy default initialization, selection persistence, desktop/RGB edits,
+closest/direct and mapped color resolution, protected-write denial, undefined
+protection no-ops, and unchanged state/outputs on invalid spans/arguments. Owned
+whole-table snapshots restore the current index, all definitions/colors and
+protection bits, overriding live protection as specified for backups. Repeated
+restores, independent snapshot lifetime and self-restoration are covered. A
+coherent RGB snapshot confirms palette cycling recolors existing indexed pixels
+without modifying their indexes, while earlier owned captures remain immutable.
+Native Valgrind reports no errors or definite/indirect leaks after making
+self-restoration an explicit no-op. Backup slots/stack, scene/wire integration,
+and the reset/intra-table-copy semantics in #16 remain pending.
 
 ## Verification and acceptance
 
