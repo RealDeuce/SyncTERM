@@ -12,7 +12,7 @@ add_custom_command(OUTPUT "${_rip3_font_data}"
 		"-DOUTPUT=${_rip3_font_data}" -P "${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"
 	DEPENDS ${_rip3_font_files} "${_rip3_font_directory}/manifest.json" GenerateFontData.cmake
 	VERBATIM)
-add_library(st_rip3 STATIC st_rip3_number.c st_rip3_maf.c st_rip3_rff.c
+add_library(st_rip3 STATIC st_rip3_number.c st_rip3_maf.c st_rip3_rff.c st_rip3_chr.c
 	st_rip3_bitmap.c st_rip3_surface.c st_rip3_palettes.c st_rip3_backup.c st_rip3_geometry.c st_rip3_ports.c st_rip3_draw.c st_rip3_fill.c st_rip3_ellipse.c st_rip3_bezier.c st_rip3_bitmap_text.c "${_rip3_font_data}")
 target_include_directories(st_rip3 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3 PUBLIC syncterm_io_error st_pixels)
@@ -219,6 +219,16 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_ports_backup_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_ports_backup COMMAND st_rip3_ports_backup_test)
+	add_executable(st_rip3_chr_test tests/st_rip3_chr_test.c)
+	target_link_libraries(st_rip3_chr_test PRIVATE st_rip3)
+	set_target_properties(st_rip3_chr_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_chr_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_chr_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_chr COMMAND st_rip3_chr_test)
 	add_test(NAME rip3_font_assets COMMAND "${CMAKE_COMMAND}"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/asset-check"
 		"-DGENERATOR=${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"

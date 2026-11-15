@@ -135,7 +135,7 @@ the program's license/provenance list. The nineteen payloads include RIPtel's
 later LITT.CHR (5,151 bytes) and LCOM.CHR (12,079 bytes), which differ from the
 frozen 1.54 font bank. All classic fonts have separate v3 pins/data, and no 1.54
 font bank is replaced. The machine-generated ATF catalog cache is unnecessary
-for the new engine's asset/style registry. Classic CHR decoding/rendering is
+for the new engine's asset/style registry. Classic CHR rendering remains
 pending; issue #17 tracks the five BOLD glyphs containing scan records.
 
 `rip3_maf` checks explicit little-endian directory/subrecord decoding, all
@@ -371,6 +371,19 @@ unconsumed saved slot unchanged. Native Valgrind reports no errors or definite/
 indirect leaks. Cursor/image/query/clipboard metadata, not yet implemented in the
 device table, must extend these snapshots with the corresponding session state;
 whole protocol-level port-table backup acceptance remains pending.
+
+`rip3_chr` checks all ten independent original CHR assets and all 2,262 glyphs,
+including full-file header/table/program validation, fixed builtin font IDs,
+metric bytes, repeated offsets and zero advances. Synthetic files cover moved
+prefix/stroke-data offsets, a full 256-character table, signed-seven-bit extrema,
+empty programs, each truncated prefix, unsupported versions and malformed
+bounds/unterminated programs, with unchanged outputs/cursors on failure.
+The inherited LITT A example supplies independent literal MOVE/DRAW expectations
+at RIPtel's later offset. All six BOLD scan records are exposed explicitly in
+the five affected glyphs, rather than silently treated as no-ops. Raw scan_flag
+metadata is retained. Native Valgrind reports no errors or definite/indirect
+leaks. Classic painting/layout/scale/wire orchestration and scan behavior in
+#17 remain pending; the frozen 1.54 decoder is not called or changed.
 
 ## Verification and acceptance
 
