@@ -165,6 +165,15 @@ unchanged after subsequent drawing/palette changes. All three selected canvas
 sizes are exercised. This is the v3 device-pixel layer; world/port transforms,
 style/palette slots, host opcodes and application routing remain pending.
 
+`rip3_surface_copy` checks explicitly fitted physical rectangle copies:
+source/destination clipping before scaling, enlargement, reduction, independent
+axis scaling, offscreen no-ops, extreme coordinates, all transfer operations,
+and original-source semantics for overlapping copies in both directions and
+with scaling/XOR. Mode 4 inverts the source for a copy, separately from level-0
+NOT's destination inversion. Expected bytes are authored independently.
+Port-number lookup, world transforms, zero-coordinate special forms and
+protected-port state still require the port-table layer.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

@@ -271,6 +271,78 @@ st_rip3_surface_plot(struct st_rip3_surface *surface,
 	return st_rip3_surface_fill(surface, clip, &point, color, mode);
 }
 
+static bool
+surface_clip(const struct st_rip3_surface *surface,
+    struct st_rip3_rect *area, const struct st_rip3_rect *clip)
+{
+	struct st_rip3_rect bounds = {0, 0, (int32_t)surface->width - 1,
+	    (int32_t)surface->height - 1};
+
+	return intersect(area, &bounds) && (clip == NULL || intersect(area, clip));
+}
+
+int
+st_rip3_surface_copy(struct st_rip3_surface *destination,
+    const struct st_rip3_rect *destination_clip,
+    const struct st_rip3_rect *destination_area,
+    const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_clip,
+    const struct st_rip3_rect *source_area,
+    enum st_rip3_transfer_mode mode)
+{
+	struct st_rip3_rect src;
+	struct st_rip3_rect dst;
+	size_t sw, sh, dw, dh;
+	uint8_t *saved = NULL;
+
+	if (destination == NULL || source == NULL || destination_area == NULL
+	    || source_area == NULL || !rect_valid(source_area)
+	    || !rect_valid(destination_area) || !rect_valid(source_clip)
+	    || !rect_valid(destination_clip)
+	    || mode < ST_RIP3_TRANSFER_COPY || mode > ST_RIP3_TRANSFER_INVERT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	src = *source_area;
+	dst = *destination_area;
+	if (!surface_clip(source, &src, source_clip)
+	    || !surface_clip(destination, &dst, destination_clip))
+		return 0;
+	/* Clipped dimensions cannot overflow their surface's allocated extent. */
+	sw = (size_t)(src.x1 - src.x0) + 1;
+	sh = (size_t)(src.y1 - src.y0) + 1;
+	dw = (size_t)(dst.x1 - dst.x0) + 1;
+	dh = (size_t)(dst.y1 - dst.y0) + 1;
+	if (source == destination) {
+		saved = malloc(sw * sh);
+		if (saved == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		for (size_t y = 0; y < sh; y++)
+			memcpy(saved + y * sw,
+			    source->pixels + ((size_t)src.y0 + y) * source->width
+			    + (uint32_t)src.x0, sw);
+	}
+	for (size_t y = 0; y < dh; y++) {
+		size_t sy = (size_t)(((uint64_t)y * 2 + 1) * sh / (2 * (uint64_t)dh));
+
+		for (size_t x = 0; x < dw; x++) {
+			size_t sx = (size_t)(((uint64_t)x * 2 + 1) * sw / (2 * (uint64_t)dw));
+			size_t offset = ((size_t)dst.y0 + y) * destination->width
+			    + (uint32_t)dst.x0 + x;
+			uint8_t pixel = saved != NULL ? saved[sy * sw + sx]
+			    : source->pixels[((size_t)src.y0 + sy) * source->width
+			    + (uint32_t)src.x0 + sx];
+
+			if (mode == ST_RIP3_TRANSFER_INVERT)
+				destination->pixels[offset] = (uint8_t)~pixel;
+			else
+				destination->pixels[offset] = write_pixel(
+				    destination->pixels[offset], pixel,
+				    (enum st_rip3_write_mode)mode);
+		}
+	}
+	free(saved);
+	return 0;
+}
+
 int
 st_rip3_surface_snapshot(const struct st_rip3_surface *surface,
     const struct st_rip3_palette *palette, struct st_pixel_buffer **result)

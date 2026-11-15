@@ -30,6 +30,16 @@ enum st_rip3_write_mode {
 	ST_RIP3_NOT,
 };
 
+/* Port-copy transfer mode 4 inverts the SOURCE; level-0 NOT inverts the
+ * DESTINATION. Separate names keep that protocol distinction explicit. */
+enum st_rip3_transfer_mode {
+	ST_RIP3_TRANSFER_COPY,
+	ST_RIP3_TRANSFER_XOR,
+	ST_RIP3_TRANSFER_OR,
+	ST_RIP3_TRANSFER_AND,
+	ST_RIP3_TRANSFER_INVERT,
+};
+
 /* Palette defaults normalize the documented 6-bit table to 8-bit channels,
  * rounding to nearest. Desktop master colors use the RGBrgb bit permutation.
  * Setters validate the whole span before changing any entry. */
@@ -62,6 +72,17 @@ int st_rip3_surface_plot(struct st_rip3_surface *surface,
 int st_rip3_surface_fill(struct st_rip3_surface *surface,
 	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
 	uint8_t color, enum st_rip3_write_mode mode);
+/* Clip both rectangles first, then scale the remaining source to fill the
+ * remaining destination. Nearest source pixel centers preserve palette indexes.
+ * Overlapping copies read a snapshot, including when the write mode combines
+ * source and destination. Allocation failure leaves the destination unchanged. */
+int st_rip3_surface_copy(struct st_rip3_surface *destination,
+	const struct st_rip3_rect *destination_clip,
+	const struct st_rip3_rect *destination_area,
+	const struct st_rip3_surface *source,
+	const struct st_rip3_rect *source_clip,
+	const struct st_rip3_rect *source_area,
+	enum st_rip3_transfer_mode mode);
 /* One coherent, owned tagged-RGB capture; no borrowed mutable pixel planes.
  * The palette belongs to the caller (ultimately the active palette slot). */
 int st_rip3_surface_snapshot(const struct st_rip3_surface *surface,
