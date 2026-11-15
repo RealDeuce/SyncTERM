@@ -17,7 +17,8 @@ struct st_rip3_builtin_reference {
 	struct st_rip3_builtin_parameter parameters[40];
 };
 
-/* Parse one complete ordinary built-in $NAME[(parameters)]$ reference, after
+/* Internal decoded representation of one ordinary $NAME[(parameters)]$
+ * reference, after
  * macro expansion and special prefix/user-variable dispatch. This is not the
  * user prompt grammar or a raw stream framer. Names fold to uppercase ASCII;
  * parameter bytes retain case, trimming surrounding ASCII spaces as shown in
@@ -26,9 +27,8 @@ struct st_rip3_builtin_reference {
  * bytes each; oversized input rejects rather than silently truncating.
  * Parentheses/dollar delimiters cannot nest here; no recursive expansion,
  * quoting, escape interpretation, numeric conversion or default substitution
- * is performed. NULs reject. Errors preserve the complete caller result. */
-int st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
-	const uint8_t *text, size_t length);
+ * is performed. NULs reject. Decoding/recovery belongs to the parser; use the
+ * public host-variable process entry rather than exposing decoder errors. */
 /* Case-insensitive exact name recognition from the pinned 3.x inventory,
  * including obsolete fixed-slot forms and attested unrecovered processors.
  * This does not assert implementation/support or resolve alias semantics.

@@ -2,9 +2,8 @@
 #ifndef ST_RIP3_HOST_VARIABLES_H_
 #define ST_RIP3_HOST_VARIABLES_H_
 
-#include "st_rip3_builtin_reference.h"
-
 #include <stddef.h>
+#include <stdint.h>
 
 struct st_rip3_features;
 struct st_rip3_frame;
@@ -20,17 +19,38 @@ struct st_rip3_host_variables {
 	const struct st_rip3_table_host *tables;
 };
 
-/* Execute one already expanded, ordinary built-in reference produced by
- * builtin_reference_parse. Supports NULL, IFS, RESX/RESY and the table host
- * variables. Recognized but unsupported/unimplemented names return
- * NOT_SUPPORTED. An ordinary name absent from the pinned built-in catalog
- * returns NOT_FOUND so the caller can perform user lookup separately. The
- * caller still owns framing, expansion, user policy, deadlines and delivery.
- * No version/full-compliance capability is inferred or advertised here.
- * External application/URL launch names always return unsupported.
- * Successful output is NUL terminated; short buffers and other failures
- * preserve the caller buffer and bound state. */
-int st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
-	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+enum st_rip3_host_diagnostic {
+	ST_RIP3_HOST_INVALID_REFERENCE,
+	ST_RIP3_HOST_UNSUPPORTED_REFERENCE,
+	ST_RIP3_HOST_UNKNOWN_REFERENCE,
+	ST_RIP3_HOST_OPERATION_FAILED,
+	ST_RIP3_HOST_RESOURCE_FAILURE,
+};
+
+struct st_rip3_host_sink {
+	void *context;
+	/* Bytes are borrowed only during the callback. Empty expansions emit
+	 * nothing. These callbacks cannot return a session error. */
+	void (*reply)(void *context, const uint8_t *bytes, size_t length);
+	/* Optional nonfatal observation; no raw variable/credential text is sent.
+	 * Diagnostics do not latch a failed parser state or terminate a session. */
+	void (*diagnostic)(void *context, enum st_rip3_host_diagnostic diagnostic);
+};
+
+/* Process one complete, already expanded ordinary $...$ reference. This is
+ * the parser-owned recovery boundary, not a raw stream framer. It consumes a
+ * rejected reference internally, optionally reports a nonfatal diagnostic,
+ * and remains ready for the next reference. It never returns a parse or
+ * command error to the terminal/session caller. Decoder/executor statuses are
+ * private and must not be used as connection errors.
+ *
+ * Supports NULL, IFS, RESX/RESY and the implemented table-variable families.
+ * Unknown names/user resolution and other built-ins remain pending; they emit
+ * no reply and cannot abort later references. External launch names likewise
+ * have no action. Framing, macro expansion and user-policy orchestration still
+ * belong to the future enclosing RIP parser. The sink may be NULL; callbacks
+ * must not reenter or change the bound state during processing. */
+void st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
+	const struct st_rip3_host_sink *sink, const uint8_t *text, size_t length);
 
 #endif

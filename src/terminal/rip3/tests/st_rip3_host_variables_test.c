@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_rip3_host_internal.h"
 #include "st_rip3_host_variables.h"
 #include "st_rip3_features.h"
 #include "st_rip3_geometry.h"

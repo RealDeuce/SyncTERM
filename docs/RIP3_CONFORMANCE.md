@@ -33,6 +33,11 @@ foundations, using the rebuilt native application and terminal-test binary.
 The preserved source/data hashes and helper definitions still match the original
 baseline.
 
+All 26 unchanged native/application RIP and graphics-scrollback expectations
+also passed after the parser-owned host-reference recovery boundary, using the
+rebuilt native application/terminal tests with interactive display variables
+cleared. The frozen 93 files and 41 helper definitions still match the baseline.
+
 ## Contract and upstream issues
 
 [`requirements.json`](../src/tests/rip3/requirements.json) preserves source
@@ -119,6 +124,14 @@ text, replies, input, prompts, choices, transfers, polling/deadlines and audio;
 reuse unchanged low-level services, not legacy protocol policy. Resource lookup
 is connection-first, shared resources second, then ordered user search paths.
 Host writes stay within client-owned roots; fonts remain global.
+
+**Parser error boundary:** malformed/unsupported RIP input is handled inside
+the RIP parser. It must discard/recover the affected command or reference and
+continue processing, never return a syntax/command error through the terminal's
+session-failure path. Status-returning decoders/executors are private helpers.
+The caller-facing processing entry returns no error status; optional diagnostics
+are nonfatal observations. This applies to future command/framing integration
+as well as the current reference processor. The 1.54 freeze remains unchanged.
 
 ## Verified v3 foundations
 
@@ -515,9 +528,23 @@ then exercises the compiled recognizer for every name and mixed-case spelling.
 Invalid spans, embedded NULs, removed/renamed 1.54 names and invented family
 extensions reject. Recognition does not imply implemented semantics: ambiguous
 P/PROTECT and the four unrecovered processors remain unsupported. The shared
-dispatcher now returns NOT_FOUND for ordinary names absent from this catalog,
-and NOT_SUPPORTED for recognized unimplemented built-ins, allowing future user
-lookup without misclassifying a known processor as a prompt variable.
+private dispatcher distinguishes unknown names from recognized unimplemented
+built-ins, allowing future parser-owned user lookup without misclassifying a
+known processor as a prompt variable. Neither status crosses the public parser
+boundary.
+
+`rip3_host_recovery` exercises the public, void-returning reference processor.
+Malformed references, every truncated prefix, excessive parameters, invalid
+late selectors, unknown/unsupported names, missing saves, injected clone-memory
+failure and restore-I/O failure are handled internally. A valid query after each
+rejection still executes, preserving live/save state. Callbacks provide replies
+and optional nonfatal diagnostic categories without returning connection errors;
+the parser owns capacity for the full 3,073-byte palette reply. Decoder/executor
+status functions are declared only in `st_rip3_host_internal.h` for parser code
+and focused tests. This is reference-boundary recovery; complete stream framing
+and terminal routing remain pending and must preserve the same error contract.
+Native Valgrind reports no errors or definite/indirect leaks in this recovery
+fixture, including injected clone/restore failure cleanup.
 
 ## Verification and acceptance
 

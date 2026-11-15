@@ -45,8 +45,9 @@ struct st_rip3_variable_reference {
 	struct st_rip3_variable_prompt_text question, default_value;
 };
 
-/* Pure parser for ONE complete $...$ user-variable reference after the caller
- * has resolved macro expansion and built-in/template dispatch. It does not
+/* Decoded representation of ONE complete $...$ user-variable reference after
+ * the owning RIP parser resolves macro expansion and built-in/template dispatch.
+ * The internal decoder does not
  * expand text, prompt, access tables or select lifetime/transparent-mode policy.
  * ASCII names/options fold independently of locale. Explicit question/default
  * presence survives even when empty; each truncates to 100 protocol bytes.
@@ -58,8 +59,7 @@ struct st_rip3_variable_reference {
  * conflicts in the pinned reference (upstream #6). Both '+' and '%' may be
  * retained; no precedence is selected here. No whitespace or undocumented
  * format aliases are accepted. Malformed syntax fails atomically; stream
- * framing, escaping and error recovery belong to the caller. */
-int st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
-	const uint8_t *text, size_t length);
+ * framing, escaping and error recovery belong to the owning RIP parser.
+ * The status-returning decoder is private to that parser and its unit tests. */
 
 #endif

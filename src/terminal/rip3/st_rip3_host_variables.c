@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_host_variables.h"
+#include "st_rip3_host_internal.h"
 
 #include "st_rip3_features.h"
 #include "st_rip3_geometry.h"
@@ -61,4 +61,44 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	if (host->tables != NULL)
 		return st_rip3_table_host_execute(host->tables, reference, result, capacity);
 	return IO_ERROR_NOT_SUPPORTED;
+}
+
+void
+st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
+    const struct st_rip3_host_sink *sink, const uint8_t *text, size_t length)
+{
+	struct st_rip3_builtin_reference reference;
+	/* Maximum implemented reply: 8; plus 256 decimal RGB triples and commas,
+	 * with a final NUL. Capacity is owned here, never a caller parse error. */
+	char reply[2 + 256 * 12];
+	enum st_rip3_host_diagnostic diagnostic;
+	bool decoded = false;
+	int status = st_rip3_builtin_reference_parse(&reference, text, length);
+
+	if (status == 0) {
+		decoded = true;
+		status = st_rip3_host_variables_execute(host, &reference, reply, sizeof(reply));
+	}
+	if (status == 0) {
+		size_t size = strlen(reply);
+		if (size != 0 && sink != NULL && sink->reply != NULL)
+			sink->reply(sink->context, (const uint8_t *)reply, size);
+		return;
+	}
+	/* A command boundary was supplied by the enclosing RIP parser. Discard
+	 * this reference only; no error is propagated and no failure is latched. */
+	if (!decoded || status == IO_ERROR_INVALID_FORMAT || status == IO_ERROR_OUT_OF_RANGE
+	    || status == IO_ERROR_INVALID_ARGUMENT)
+		diagnostic = ST_RIP3_HOST_INVALID_REFERENCE;
+	else if (status == IO_ERROR_NOT_SUPPORTED)
+		diagnostic = ST_RIP3_HOST_UNSUPPORTED_REFERENCE;
+	else if (status == IO_ERROR_NOT_FOUND
+	    && !st_rip3_builtin_known(reference.name, strlen(reference.name)))
+		diagnostic = ST_RIP3_HOST_UNKNOWN_REFERENCE;
+	else if (status == IO_ERROR_OUT_OF_MEMORY)
+		diagnostic = ST_RIP3_HOST_RESOURCE_FAILURE;
+	else
+		diagnostic = ST_RIP3_HOST_OPERATION_FAILED;
+	if (sink != NULL && sink->diagnostic != NULL)
+		sink->diagnostic(sink->context, diagnostic);
 }

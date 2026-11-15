@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_rip3_host_internal.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_palettes.h"
 #include "io_error.h"

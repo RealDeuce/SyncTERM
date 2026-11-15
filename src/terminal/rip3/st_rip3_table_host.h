@@ -26,7 +26,8 @@ struct st_rip3_table_host {
 	struct st_rip3_table_binding tables[ST_RIP3_TABLE_COUNT];
 };
 
-/* Execute parsed BACKSTAT, whole-table COPY, SCP/RCP, CUR, INUSE, individual
+/* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
+ * SCP/RCP, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
  * currently supports PAL and PORT; backup-slot operations work for any bound
  * object class. INUSE(BACKUP)
@@ -37,8 +38,8 @@ struct st_rip3_table_host {
  * Parsed references must come from builtin_reference_parse. Empty outputs
  * require capacity >= 1, validated before any active operation. Failures leave
  * caller output and bound table/save state unchanged. No host transmission,
- * prompting, stream parsing or app/session routing occurs here. */
-int st_rip3_table_host_execute(const struct st_rip3_table_host *host,
-	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+ * prompting, stream parsing or app/session routing occurs here. Execution
+ * statuses are private to parser-owned recovery; use the public host-variable
+ * process entry to consume malformed references without a session error. */
 
 #endif
