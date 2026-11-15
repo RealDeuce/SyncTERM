@@ -455,6 +455,20 @@ output-buffer atomicity. External applications always return unsupported and
 never enter lists, even if the private mask is set incorrectly. Wire parsing,
 runtime service registration and reply transport remain pending.
 
+`rip3_table_host` exercises parsed host-variable expressions against real
+palette and device-port tables: whole-table `$COPY$`, `$BACKSTAT$` USE/PROT and
+palette `$SCP$`/`$RCP$` with base defaults, decimal slots and PUSH/POP. Tests
+verify complete palette/current/protection restoration, offscreen pixel
+restoration, multi-destination source consumption, and literal status strings.
+The ordinary built-in parser preserves up to 40 parameters of 12 bytes,
+case-folds names, trims parameter spaces and distinguishes explicit empty
+fields. Maximum-size lists, every truncated prefix, invalid late destinations,
+protected targets and insufficient reply capacity leave output/state unchanged.
+Native Valgrind reports no errors or definite/indirect leaks. Bindings borrow
+matching typed live objects/backup areas; unbound table classes and intra-table
+entry copies return unsupported. Full port metadata, remaining table adapters,
+other variables, stream framing, expansion and terminal routing remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

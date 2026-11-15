@@ -1,0 +1,39 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#ifndef ST_RIP3_TABLE_HOST_H_
+#define ST_RIP3_TABLE_HOST_H_
+
+#include "st_rip3_builtin_reference.h"
+
+#include <stddef.h>
+
+struct st_rip3_backup;
+
+enum st_rip3_table_type {
+	ST_RIP3_TABLE_TW, ST_RIP3_TABLE_BUT, ST_RIP3_TABLE_STYLE,
+	ST_RIP3_TABLE_PAL, ST_RIP3_TABLE_PORT, ST_RIP3_TABLE_MOUSE,
+	ST_RIP3_TABLE_ENV, ST_RIP3_TABLE_SCREEN, ST_RIP3_TABLE_COUNT,
+};
+
+struct st_rip3_table_binding {
+	void *live;
+	struct st_rip3_backup *backup;
+};
+
+/* Borrowed session bindings: each live object must match its backup area's
+ * typed callbacks. Unbound classes remain unsupported. The owner must keep
+ * both alive and invoke this dispatcher on their single owner thread. */
+struct st_rip3_table_host {
+	struct st_rip3_table_binding tables[ST_RIP3_TABLE_COUNT];
+};
+
+/* Execute parsed BACKSTAT, whole-table COPY, SCP or RCP. Parameter defaults and
+ * decimal slot syntax follow the reference; entry COPY stays NOT_SUPPORTED
+ * pending #16. Other built-ins return NOT_SUPPORTED for wider dispatch.
+ * Parsed references must come from builtin_reference_parse. Empty outputs
+ * require capacity >= 1, validated before any active operation. Failures leave
+ * caller output and bound table/save state unchanged. No host transmission,
+ * prompting, stream parsing or app/session routing occurs here. */
+int st_rip3_table_host_execute(const struct st_rip3_table_host *host,
+	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+
+#endif
