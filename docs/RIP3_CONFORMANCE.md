@@ -496,6 +496,17 @@ state. Native Valgrind reports no errors or definite/indirect leaks. The malform
 range-example call is reported under #9; the implementation follows the explicit
 syntax block. Stream expansion/routing remains pending.
 
+`rip3_host_variables` checks a shared built-in dispatcher with borrowed current
+frame, explicit capability registry and typed table bindings. Parsed `$NULL$`,
+`$IFS$`, `$RESX$`/`$RESY$` and the table-variable families run through this entry
+point. Literal replies verify all three canvas resolutions independently of
+world dimensions, capability changes, palette saves/restores/protection/readback
+and short-buffer state preservation. Missing services and external launch names
+return unsupported; no version/compliance or service availability is inferred.
+Native Valgrind reports no errors or definite/indirect leaks. This is a partial
+built-in executor, not the complete name catalog or user-variable fallback.
+Macro/stream/session orchestration and terminal acceptance remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
