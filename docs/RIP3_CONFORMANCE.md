@@ -87,6 +87,16 @@ reuse unchanged low-level services, not legacy protocol policy. Resource lookup
 is connection-first, shared resources second, then ordered user search paths.
 Host writes stay within client-owned roots; fonts remain global.
 
+## Verified v3 foundations
+
+`rip3_number` checks the independent MegaNum/UltraNum digit codec against the
+reference's literal examples, all 64 digit values, base-sensitive letter case,
+fixed-width encoding/padding, values above legacy WORD width, UINT64 boundaries,
+invalid bytes/arguments and unchanged outputs on failure. The codec handles
+explicit-radix digit spans, not command grammars: command-specific radix,
+field shortening, signed interpretation and error recovery remain separate
+requirements. The existing application RIP 3 path has not changed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
