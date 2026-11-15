@@ -60,6 +60,8 @@ Open clarification issues:
   RGB component example and incorrect C palette-index expression.
 - [#10](https://github.com/bbs-land/remote-imaging-protocol/issues/10): offscreen
   port extents, clipped verbatim copies and viewport diagram arithmetic.
+- [#11](https://github.com/bbs-land/remote-imaging-protocol/issues/11): PIXEL/POINT
+  coordinate policy, line-thickness units and polyline vertex/side wording.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -197,6 +199,19 @@ test reported no errors or definite/indirect leaks. This layer intentionally
 accepts device pixels: world/offscreen sizing and wire-level zero-rectangle
 forms await #10. Per-port text/image/query state, backup storage and host
 command orchestration are not implemented by this layer.
+
+`rip3_draw` checks the device-pixel pen and independent geometric line renderer:
+all built-in masks, custom masks and zero-mask rejection, MSB-first repeating
+patterns, preserved clipping phase, transparent/background gaps, odd/even
+thickness, stable sides under endpoint reversal, diagonal and point-degenerate
+strokes, all write modes, protected/inactive ports and extreme coordinates.
+Each covered destination pixel is written once, so thick XOR strokes cannot
+cancel themselves through overlapping brush samples. A coherent expected RGB
+capture checks related line/gap/margin pixels. Work is bounded by the visible
+stroke rectangle even for extreme endpoints and widths. The selected round-cap
+raster is a geometric implementation choice, not a RIPtel pixel reproduction.
+Host coordinate/thickness policy remains blocked by #11; multi-segment paths,
+style slots, wire commands and scene reset orchestration remain pending.
 
 ## Verification and acceptance
 
