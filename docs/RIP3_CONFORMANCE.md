@@ -135,8 +135,8 @@ the program's license/provenance list. The nineteen payloads include RIPtel's
 later LITT.CHR (5,151 bytes) and LCOM.CHR (12,079 bytes), which differ from the
 frozen 1.54 font bank. All classic fonts have separate v3 pins/data, and no 1.54
 font bank is replaced. The machine-generated ATF catalog cache is unnecessary
-for the new engine's asset/style registry. Classic CHR rendering remains
-pending; issue #17 tracks the five BOLD glyphs containing scan records.
+for the new engine's asset/style registry. Classic text has device stroke rendering; font-style/layout integration and
+issue #17's five BOLD glyphs containing scan records remain pending.
 
 `rip3_maf` checks explicit little-endian directory/subrecord decoding, all
 30 documented cell sizes and first offsets, the literal 8x11 smiley bytes,
@@ -382,8 +382,22 @@ The inherited LITT A example supplies independent literal MOVE/DRAW expectations
 at RIPtel's later offset. All six BOLD scan records are exposed explicitly in
 the five affected glyphs, rather than silently treated as no-ops. Raw scan_flag
 metadata is retained. Native Valgrind reports no errors or definite/indirect
-leaks. Classic painting/layout/scale/wire orchestration and scan behavior in
-#17 remain pending; the frozen 1.54 decoder is not called or changed.
+leaks. Classic layout/scale/wire orchestration and scan behavior in #17 remain
+pending; the frozen 1.54 decoder is not called or changed.
+
+`rip3_stroke_text` checks classic solid one-pixel glyph strokes through explicit
+baseline/device matrices, nominal unit metrics, accumulation before scaling,
+missing/zero-advance glyphs, repeated-stroke/cross-glyph XOR union, transparency,
+rotation/shear, clipped shadows and all five write modes. Independent literal
+LITT A grids include its retraced right stem; the original I center stem checks
+fractional accumulated placement without per-character truncation. A synthetic
+zero-advance glyph proves advances come from its width table, not its final
+pen position. SCAN in a later glyph, invalid matrices/endpoints and invalid
+metrics reject before changing pixels. Inactive and protected viewports and a
+coherent RGB region/margin capture are covered. Native Valgrind reports no
+errors or definite/indirect leaks. Callers still supply the matrix/origin;
+font-style/resolution/world policy, justification/cursors, outline text and wire
+orchestration remain pending. SCAN painting stays blocked by #17.
 
 ## Verification and acceptance
 
