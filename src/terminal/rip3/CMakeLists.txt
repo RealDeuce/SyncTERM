@@ -11,9 +11,10 @@ add_custom_command(OUTPUT "${_rip3_font_data}"
 		"-DOUTPUT=${_rip3_font_data}" -P "${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"
 	DEPENDS ${_rip3_font_files} "${_rip3_font_directory}/manifest.json" GenerateFontData.cmake
 	VERBATIM)
-add_library(st_rip3 STATIC st_rip3_number.c st_rip3_maf.c st_rip3_rff.c "${_rip3_font_data}")
+add_library(st_rip3 STATIC st_rip3_number.c st_rip3_maf.c st_rip3_rff.c
+	st_rip3_bitmap.c "${_rip3_font_data}")
 target_include_directories(st_rip3 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_rip3 PUBLIC syncterm_io_error)
+target_link_libraries(st_rip3 PUBLIC syncterm_io_error st_pixels)
 set_target_properties(st_rip3 PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
@@ -53,6 +54,16 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_rff_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_rff COMMAND st_rip3_rff_test)
+	add_executable(st_rip3_bitmap_test tests/st_rip3_bitmap_test.c)
+	target_link_libraries(st_rip3_bitmap_test PRIVATE st_rip3)
+	set_target_properties(st_rip3_bitmap_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_bitmap_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_bitmap_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_bitmap COMMAND st_rip3_bitmap_test)
 	add_test(NAME rip3_font_assets COMMAND "${CMAKE_COMMAND}"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/asset-check"
 		"-DGENERATOR=${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"

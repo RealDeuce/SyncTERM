@@ -54,6 +54,8 @@ Open clarification issues:
   ordering and uncertain predefined variables.
 - [#7](https://github.com/bbs-land/remote-imaging-protocol/issues/7): framing,
   escaping and identification.
+- [#8](https://github.com/bbs-land/remote-imaging-protocol/issues/8): inherited
+  BMM mask raster and compositing convention.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -121,6 +123,15 @@ unchanged results/cursors on errors are checked independently. Dixon's
 documented advances and FA kerning are literal expectations. This decodes
 outlines and metrics; glyph rasterization and the blocked extended-font wire
 command are not implemented by these tests.
+
+`rip3_bitmap` checks full Windows BMP headers and bottom-up, padded 1/4/8/24-bit
+rows against independently authored pixel/palette expectations. Palette indexes
+remain separate from RGB colors so later palette/transparency decisions retain
+their original inputs. Tests include odd widths and unused bits/nibbles,
+nonzero reserved palette bytes, short palettes, all truncated prefixes,
+invalid dimensions/offsets/palette indexes and unsupported compression/header/
+pixel formats, with unchanged output on failure. This is container decoding;
+button hot-state selection, BMM compositing and icon conversion are not covered.
 
 ## Verification and acceptance
 
