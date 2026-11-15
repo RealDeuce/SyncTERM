@@ -97,6 +97,19 @@ explicit-radix digit spans, not command grammars: command-specific radix,
 field shortening, signed interpretation and error recovery remain separate
 requirements. The existing application RIP 3 path has not changed.
 
+The eight original RFF families and RIPscrip.maf are bundled unchanged with
+SHA-256/size pins. The build verifies them before generating C data in the
+build tree. `rip3_font_assets` rejects both same-size modifications and
+truncation before publishing generated output. Original notices appear in
+the program's license/provenance list. No 1.54 font bank is replaced.
+
+`rip3_maf` checks explicit little-endian directory/subrecord decoding, all
+30 documented cell sizes and first offsets, the literal 8x11 smiley bytes,
+character-zero blank handling and character 255. A synthetic fixture verifies
+non-default directory placement, every truncated prefix, invalid offsets,
+dimensions and glyph sizes, invalid mode selection and unchanged results on
+failure. These are file/bitmap-view checks, not terminal text rendering yet.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

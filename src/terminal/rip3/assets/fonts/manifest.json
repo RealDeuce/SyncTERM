@@ -1,0 +1,60 @@
+{
+  "repository": "https://github.com/bbs-land/remote-imaging-protocol",
+  "revision": "2fb17724b6122a5ad5cd1df38b69b8cce3a7079f",
+  "files": [
+    {
+      "name": "BRUSH.RFF",
+      "source": "version/3.0/assets/fonts/BRUSH.RFF",
+      "size": 87155,
+      "sha256": "8abacec6fc4c0d9d5f89cf2d546c6155aa71c0d289409ee2d2f04583133e54c2"
+    },
+    {
+      "name": "COBB.RFF",
+      "source": "version/3.0/assets/fonts/COBB.RFF",
+      "size": 62725,
+      "sha256": "fecffc9273a5d201092c019a3d856a708b9d5ca6438b7c89028903d630ef6014"
+    },
+    {
+      "name": "DEFAULT.RFF",
+      "source": "version/3.0/assets/fonts/DEFAULT.RFF",
+      "size": 31596,
+      "sha256": "c734c387ae1902335de818249025c6fcf6d28322eb13dfc82737f2503827706c"
+    },
+    {
+      "name": "DIXON.RFF",
+      "source": "version/3.0/assets/fonts/DIXON.RFF",
+      "size": 42071,
+      "sha256": "cdd71d2683ee7784b140816df69ff9080044485c92159e716a87693e985969be"
+    },
+    {
+      "name": "EUREKA.RFF",
+      "source": "version/3.0/assets/fonts/EUREKA.RFF",
+      "size": 70789,
+      "sha256": "fb0abb6dad57865cdb2356e3a99c9f54a4d77dc68d3b8bef0404488a0e2bae2e"
+    },
+    {
+      "name": "MARIN.RFF",
+      "source": "version/3.0/assets/fonts/MARIN.RFF",
+      "size": 56526,
+      "sha256": "4b0a392baa74a1849b9fabedacc39c1434784370175f7708ea151b851255ed68"
+    },
+    {
+      "name": "OAKLAND.RFF",
+      "source": "version/3.0/assets/fonts/OAKLAND.RFF",
+      "size": 64213,
+      "sha256": "cf70f1c6388b6221554a614cf79097dd07ed2333b3dd153a0886be959b99966e"
+    },
+    {
+      "name": "SYMBOL.RFF",
+      "source": "version/3.0/assets/fonts/SYMBOL.RFF",
+      "size": 43601,
+      "sha256": "beb264463aec8b9008f2497acdd9edaacdaf5f07b0aea4c0d736e0036e3e000b"
+    },
+    {
+      "name": "RIPscrip.maf",
+      "source": "version/3.0/assets/fonts/RIPscrip.maf",
+      "size": 270945,
+      "sha256": "8c0be38eee89b6935ed6f93885c14350f4a6db0a10a72a38d126811bbd090cef"
+    }
+  ]
+}

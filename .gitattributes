@@ -4,3 +4,6 @@ src/text/emoji/LICENSE.CLDR -text
 # Preserve pinned Amiga font bytes, including upstream whitespace.
 src/media/amiga_font/data/*.yaff -text -whitespace
 src/media/amiga_font/data/LICENSE-MIT -text
+# Preserve pinned RIPtel font payloads, not Git LFS pointers.
+src/terminal/rip3/assets/fonts/*.RFF -text
+src/terminal/rip3/assets/fonts/*.maf -text
