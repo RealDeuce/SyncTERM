@@ -1301,6 +1301,8 @@ class CTerm {
   foreign static doorwayMode=(b)
   foreign static music
   foreign static music=(b)
+  foreign static musicomm
+  foreign static startMusicomm()
   foreign static started
   foreign static graphicsMode
   foreign static skypix

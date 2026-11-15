@@ -30,6 +30,7 @@ enum cterm_error_operation {
 	CTERM_ERROR_WRITE,
 	CTERM_ERROR_KEY,
 	CTERM_ERROR_RESET,
+	CTERM_ERROR_MUSICOMM,
 };
 
 struct foreign_cterm_error {
@@ -166,7 +167,8 @@ push_cterm_error(WrenVM *vm, int code, enum cterm_error_operation operation,
 	    .consumed = consumed, .handled = handled};
 	(void)snprintf(error->message, sizeof(error->message), "CTerm.%s failed: %s.",
 	    operation == CTERM_ERROR_WRITE ? "write"
-	    : operation == CTERM_ERROR_KEY ? "sendKey" : "reset",
+	    : operation == CTERM_ERROR_KEY ? "sendKey"
+	    : operation == CTERM_ERROR_MUSICOMM ? "startMusicomm" : "reset",
 	    code <= -1 && code >= -38
 	    ? reasons[-code - 1] : "Native terminal failure");
 }
@@ -1063,6 +1065,25 @@ fn_cterm_music(WrenVM *vm)
 }
 
 static void
+fn_cterm_musicomm(WrenVM *vm)
+{
+	wrenSetSlotBool(vm,0,st_cterm_musicomm_state(st_wren_context_from_vm(vm)->cterm)
+	    != ST_CTERM_MUSICOMM_OFF);
+}
+static void
+fn_cterm_start_musicomm(WrenVM *vm)
+{
+	st_cterm_t *t = st_wren_context_from_vm(vm)->cterm;
+	if (t == NULL) {
+		st_wren_abort(vm,"CTerm.startMusicomm requires an active terminal");
+		return;
+	}
+	int status = st_cterm_musicomm_start(t);
+	if (status != 0) push_cterm_error(vm,status,CTERM_ERROR_MUSICOMM,0,false);
+	else wrenSetSlotNull(vm,0);
+}
+
+static void
 fn_cterm_music_set(WrenVM *vm)
 {
 	double mode;
@@ -1479,6 +1500,8 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "doorwayMode", fn_cterm_doorway_mode},
 	{"CTerm", "doorwayMode=(_)", fn_cterm_doorway_mode_set},
 	{"CTerm", "music", fn_cterm_music},
+	{"CTerm", "musicomm", fn_cterm_musicomm},
+	{"CTerm", "startMusicomm()", fn_cterm_start_musicomm},
 	{"CTerm", "music=(_)", fn_cterm_music_set},
 	{"CTerm", "atasciiInverse", fn_cterm_atascii_inverse},
 	{"CTerm", "mouseMode", fn_cterm_mouse_mode},

@@ -742,7 +742,8 @@ write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
 	size_t consumed;
 	int status;
 
-	if ((session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
+	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF
+	    || (session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
 	    && session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 	    || session->config.encoding == ST_CTERM_ENCODING_UTF8) {
 		status = st_cterm_write(session->cterm, bytes, size, &consumed);
@@ -820,7 +821,8 @@ st_term_session_set_ooii_mode(st_term_session_t *session, int mode)
 static int
 write_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
 {
-	return st_ooii_write(session->ooii, bytes, size);
+	return st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF
+	    ? write_cterm_wire(session,bytes,size) : st_ooii_write(session->ooii, bytes, size);
 }
 
 static int
@@ -839,6 +841,8 @@ write_wire_filtered(st_term_session_t *session, const uint8_t *bytes,
 		if (status != 0)
 			return status;
 	}
+	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF)
+		return write_cterm_wire(session,bytes,size);
 	if (session->config.wire_filter == NULL
 	    || (session->config.wire_filter_active != NULL
 	    && !session->config.wire_filter_active(
@@ -962,6 +966,12 @@ handle_event(st_term_session_t *session,
 	const struct st_console_event *event,
 	enum st_term_disposition *disposition, bool *finished)
 {
+	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF
+	    && (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE || event->type == ST_CONSOLE_EVENT_TEXT
+	    || event->type == ST_CONSOLE_EVENT_KEY_CODE || event->type == ST_CONSOLE_EVENT_DOORWAY_KEY
+	    || (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY && event->data.physical_key.pressed))) {
+		if (st_cterm_musicomm_stop(session->cterm)) return 0;
+	}
 	st_cterm_observe_mouse(session->cterm, event);
 	if (session->config.event_hook != NULL) {
 		bool consumed;
@@ -1186,6 +1196,11 @@ st_term_session_pump(st_term_session_t *session,
 		*position += count;
 		protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 	}
+	if (!session->suspended && session->wire_owner == NULL && session->transfer == NULL
+	    && !session->transfer_reserved && session->wire_position == session->wire_size
+	    && session->returned_position == session->returned_size
+	    && st_connection_pending_raw(session->config.connection) == 0)
+		st_cterm_musicomm_idle(session->cterm);
 	if (received == 0 && session->auxiliary_active) {
 		const struct timespec pause = {.tv_nsec = 10000000L};
 		(void)st_thread_sleep(&pause, NULL);

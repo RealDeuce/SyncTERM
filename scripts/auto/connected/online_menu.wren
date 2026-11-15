@@ -44,6 +44,7 @@ class OnlineMenu {
       ["Upload", Fn.new { TransferFlow.upload() }],
       ["Download", Fn.new { TransferFlow.download() }],
       ["ANSI Music Control", Fn.new { MusicMenu.run() }],
+      ["Start Musicomm (any key stops)", Fn.new { Screen.checked_(CTerm.startMusicomm()) }],
       ["Capture Control", Fn.new { CaptureMenu.run() }],
       ["Font Setup", Fn.new { FontApp.run() }],
       ["Output Rate", Fn.new { outputRate_() }],

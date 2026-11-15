@@ -4348,6 +4348,17 @@ assignment when selecting an existing font; loading only registers a new font.
   re-entered. For example, `CTerm.sendKey(KeyEvent.new(Key.enter))` injects Return
   through this path.
 
+| `CTerm.startMusicomm()`, `CTerm.musicomm`
+| Locally arm the Musicomm receiver and read whether it still owns received
+  bytes (including startup/end drains). Start returns null on success or
+  `CTermError` on failure, including Busy if already armed. A missing terminal
+  aborts. It finishes pending terminal output and replaces channel-0 music.
+  The sender must handshake with byte 02 and pace note toggles in real time;
+  no terminal escape sequence activates it. An available configured MIDI
+  destination takes precedence over the Atari ST speaker fallback. Any local
+  key aborts and is consumed before connected key hooks. Reset/EOF/destruction
+  cancel it. See `docs/MUSICOMM.md` for protocol, guard intervals and coverage.
+
 | `CTerm.reset()`
 | Invoke the direct native terminal reset synchronously. Returns null on native
   success or CTermError with the exact native failure code. Requires the

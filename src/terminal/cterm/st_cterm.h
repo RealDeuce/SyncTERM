@@ -38,6 +38,25 @@ enum st_cterm_emulation {
 	ST_CTERM_ATARI_ST_VT52,
 };
 
+/* Musicomm is explicitly armed locally, independently of text emulation.
+ * start finishes pending terminal output and replaces channel-0 music. All calls
+ * use the serialized terminal owner. stop consumes a local key and reports
+ * FF FF FF; EOF/reset/destroy cancel silently and quiesce sound. */
+enum st_cterm_musicomm_state {
+	ST_CTERM_MUSICOMM_OFF,
+	ST_CTERM_MUSICOMM_WAITING,
+	ST_CTERM_MUSICOMM_START_DRAIN,
+	ST_CTERM_MUSICOMM_PLAYING,
+	ST_CTERM_MUSICOMM_END_DRAIN,
+};
+int st_cterm_musicomm_start(st_cterm_t *terminal);
+bool st_cterm_musicomm_stop(st_cterm_t *terminal);
+enum st_cterm_musicomm_state st_cterm_musicomm_state(const st_cterm_t *terminal);
+/* The transport owner calls idle only after ALL pending decoded wire bytes
+ * have been delivered and its receive queue is empty. write-call boundaries
+ * and ordinary poll calls do not establish an empty receive queue. */
+void st_cterm_musicomm_idle(st_cterm_t *terminal);
+
 enum st_cterm_encoding {
 	ST_CTERM_ENCODING_UTF8,
 	ST_CTERM_ENCODING_CODEPAGE,

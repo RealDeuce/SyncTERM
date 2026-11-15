@@ -138,6 +138,10 @@ if(BUILD_TESTING)
 	if(ST_CONSOLE_TEST)
 		find_package(Python3 REQUIRED COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)
+			add_test(NAME syncterm_musicomm
+				COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_musicomm_test.py
+				$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_musicomm PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;musicomm")
 			set(_emoji_groups menu connected presentation aspect)
 			if(NOT WIN32 AND NOT APPLE)
 				list(APPEND _emoji_groups localized)

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "cterm_musicomm.h"
 #include "st_cterm.h"
 
 #include "cterm.h"
@@ -2304,6 +2305,7 @@ st_cterm_destroy(st_cterm_t **terminal)
 	if (terminal == NULL || *terminal == NULL)
 		return;
 	scrollback = (*terminal)->scrollback;
+	cterm_musicomm_destroy(*terminal);
 	(void)st_cterm_finish(*terminal);
 	cterm_big_destroy((*terminal)->big_engine);
 	(*terminal)->big_engine = NULL;
@@ -2621,6 +2623,15 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		*consumed = 0;
 	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF) {
+		if (capture_enabled(terminal)) {
+			int status = terminal->api_capture(terminal->api_capture_context,bytes,size,true);
+			if (status != 0) return status;
+		}
+		cterm_musicomm_feed(terminal,bytes,size);
+		*consumed = size;
+		return 0;
+	}
 	if (terminal->skypix_engine != NULL)
 		return cterm_skypix_feed(terminal->skypix_engine, bytes, size, consumed);
 	if (terminal->big_engine != NULL)
@@ -2660,6 +2671,7 @@ st_cterm_poll(st_cterm_t *terminal)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	cterm_musicomm_poll(terminal);
 	cterm_apc_poll(terminal);
 	if (terminal->big_engine != NULL)
 		return cterm_big_poll(terminal->big_engine);
@@ -2715,6 +2727,7 @@ st_cterm_finish(st_cterm_t *terminal)
 
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	cterm_musicomm_cancel(terminal);
 	status = terminal->big_engine != NULL ? cterm_big_finish(terminal->big_engine)
 	    : terminal->igs_engine != NULL ? cterm_igs_finish(terminal->igs_engine)
 	    : terminal->skypix_engine != NULL ? cterm_skypix_finish(terminal->skypix_engine)
@@ -3674,6 +3687,7 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
 
 	if (terminal == NULL)
 		return false;
+	if (st_cterm_musicomm_stop(terminal)) return true;
 	if (cterm_big_handle_key(terminal->big_engine, &(struct cterm_key){
 	    .kind = CTERM_KEY_NORMAL, .value = key_code, .modifiers = modifiers,
 	    .local = mapped_key(key_code, modifiers)}))
@@ -3724,6 +3738,7 @@ st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte)
 {
 	if (terminal == NULL)
 		return false;
+	if (st_cterm_musicomm_stop(terminal)) return true;
 	if (cterm_big_handle_key(terminal->big_engine, &(struct cterm_key){
 	    .kind = CTERM_KEY_CODEPAGE, .value = byte, .local = byte}))
 		return true;
@@ -3744,6 +3759,7 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 
 	if (terminal == NULL)
 		return false;
+	if (st_cterm_musicomm_stop(terminal)) return true;
 	if (cterm_big_handle_key(terminal->big_engine, &(struct cterm_key){
 	    .kind = CTERM_KEY_TEXT, .value = codepoint}))
 		return true;
@@ -3804,6 +3820,7 @@ st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint)
 bool
 st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code)
 {
+	if (st_cterm_musicomm_stop(terminal)) return true;
 	if (terminal != NULL && cterm_big_handle_key(terminal->big_engine, &(struct cterm_key){
 	    .kind = CTERM_KEY_DOORWAY, .value = scan_code, .local = (int)scan_code << 8}))
 		return true;
@@ -3832,6 +3849,8 @@ st_cterm_handle_physical_keys(st_cterm_t *terminal,
 		if (events[i].type != ST_CONSOLE_EVENT_PHYSICAL_KEY)
 			return false;
 	}
+	for (size_t i = 0; i < count; ++i)
+		if (events[i].data.physical_key.pressed && st_cterm_musicomm_stop(terminal)) return true;
 	return cterm_pk_events(terminal, events, count);
 }
 

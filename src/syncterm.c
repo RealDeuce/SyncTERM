@@ -74,6 +74,7 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 	FIELD(attr); FIELD(fg_color); FIELD(bg_color); FIELD(font_slot);
 	FIELD(scrollback_lines); FIELD(scrollback_width); FIELD(scrollback_pos); FIELD(scrollback_start);
 	FIELD(emulation); FIELD(started); FIELD(skypix); FIELD(graphics_mode);
+	st_console_test_number(app,"cterm.musicomm",st_cterm_musicomm_state(st_term_session_cterm(owner->session)));
 	/* Read-only test-control observations, captured with the scene/state. */
 	const struct cterm_skypix *sky = st_term_session_cterm(owner->session)->skypix_engine;
 	if (sky != NULL) {

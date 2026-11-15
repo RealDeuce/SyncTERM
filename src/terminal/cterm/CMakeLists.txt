@@ -111,6 +111,7 @@ add_library(st_cterm STATIC
 	cterm_igs_fonts.c
 	cterm_igs_raster.c
 	cterm.c
+	cterm_musicomm.c
 	cterm_apc.c
 	cterm_apc_audio.c
 	cterm_apc_cache.c
@@ -1160,6 +1161,17 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_skypix_audio COMMAND st_cterm_skypix_audio_test)
 	set_tests_properties(cterm_skypix_audio PROPERTIES TIMEOUT 30)
+	syncterm_add_test_case(st_terminal_tests st_cterm_musicomm_test tests/st_cterm_musicomm_test.c)
+	target_link_libraries(st_cterm_musicomm_test PRIVATE st_cterm st_igs)
+	set_target_properties(st_cterm_musicomm_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_musicomm_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_cterm_musicomm_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME cterm_musicomm COMMAND st_terminal_tests st_cterm_musicomm_test)
+	set_tests_properties(cterm_musicomm PROPERTIES TIMEOUT 30)
+
 	syncterm_add_test_case(st_terminal_tests st_cterm_midi_test tests/st_cterm_midi_test.c)
 	target_link_libraries(st_cterm_midi_test PRIVATE st_cterm syncterm_filesystem syncterm_threads st_time)
 	target_compile_definitions(st_cterm_midi_test PRIVATE ST_MIDI_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/midi-cache")

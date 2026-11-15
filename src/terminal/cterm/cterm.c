@@ -26,6 +26,7 @@
  *           matches the CTerm window.
  */
 
+#include "cterm_musicomm.h"
 #include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -2025,6 +2026,7 @@ const size_t cterm_ansi_dispatch_len = SEQ_ARRAY_SIZE(cterm_ansi_dispatch);
 void
 cterm_reset(struct cterminal *cterm)
 {
+	cterm_musicomm_cancel(cterm);
 	cterm_igs_reset(cterm->igs_engine);
 	cterm_dec_sixel_cancel(cterm);
 	(void)st_music_flush(cterm->music_player, 0);
