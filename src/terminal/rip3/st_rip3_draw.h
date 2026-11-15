@@ -17,6 +17,11 @@ struct st_rip3_pen {
 	bool draw_background;
 };
 
+struct st_rip3_contour {
+	const struct st_rip3_point *points;
+	size_t count;
+};
+
 /* Style 0..3 selects the documented built-in mask; style 4 uses custom.
  * A zero custom mask is invalid. Thickness is a positive device-pixel count.
  * Line-style wire decoding and world-unit policy are handled by the caller. */

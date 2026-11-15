@@ -68,6 +68,8 @@ Open clarification issues:
   coordinate policy, line-thickness units and polyline vertex/side wording.
 - [#12](https://github.com/bbs-land/remote-imaging-protocol/issues/12): conflicting
   preset fill-mask bytes/radix examples and unspecified pattern anchoring.
+- [#13](https://github.com/bbs-land/remote-imaging-protocol/issues/13): two-digit
+  polygon counts versus the 4,096-vertex limit and multi-contour coordinate widths.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -241,6 +243,21 @@ clipping, extreme endpoints, repeated points, invalid input and both open/closed
 sharing the segment rasterizer. Native Valgrind reported no errors or
 definite/indirect leaks in the path test. Polygon fill, world/wire decoding and
 style-table orchestration remain pending.
+
+`rip3_polygon` checks filled single/compound contours with even-odd parity:
+nested holes/islands over existing colored pixels, winding reversal, duplicate
+and subdivided contours, self-overlapping loops and shared triangle edges.
+Independent expected grids cover half-open interior coverage, patterned fills
+and patterned COPY borders after XOR interiors. Canonical reduced edge equations
+make equivalent collinear edges evaluate consistently. Edge/intersection and
+complete border scratch storage is allocated before drawing. Tests also cover
+protected/inactive viewports, extreme signed coordinates/determinants, invalid
+input with unchanged pixels, 4,096 vertices and 4,096 coincident contours in the
+device kernel, plus a coherent RGB region/margin capture. Native Valgrind
+reported no errors or definite/indirect leaks. Existing line/path/fill tests
+still pass. Wire encoding/limits remain blocked by #13; these kernel limits
+do not establish the number of vertices reachable through the documented wire
+fields. Curved filled shapes and host orchestration remain pending.
 
 ## Verification and acceptance
 

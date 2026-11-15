@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_draw.h"
+#include "st_rip3_draw_internal.h"
 
 #include "st_rip3_ports.h"
 #include "io_error.h"
@@ -204,32 +205,59 @@ st_rip3_draw_line(struct st_rip3_ports *ports,
 }
 
 int
-st_rip3_draw_path(struct st_rip3_ports *ports,
-    const struct st_rip3_point *points, size_t count, bool closed,
-    const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
-    enum st_rip3_write_mode mode)
+st_rip3_contours_validate(const struct st_rip3_contour *contours,
+    size_t count, size_t *vertices)
+{
+	size_t total = 0;
+
+	if (contours == NULL || vertices == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096)
+		return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i = 0; i < count; i++) {
+		if (contours[i].points == NULL)
+			return IO_ERROR_INVALID_ARGUMENT;
+		if (contours[i].count == 0 || contours[i].count > 4096
+		    || contours[i].count > SIZE_MAX - total)
+			return IO_ERROR_OUT_OF_RANGE;
+		total += contours[i].count;
+	}
+	*vertices = total;
+	return 0;
+}
+
+int
+st_rip3_stroke_collect(struct st_rip3_ports *ports,
+    const struct st_rip3_contour *contours, size_t count, bool closed,
+    const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
 {
 	struct stroke_target target;
 	double min_x, min_y, max_x, max_y, margin;
 	size_t height;
-	size_t segments;
-	unsigned phase = 0;
+	size_t total;
 	int status;
 
-	if (points == NULL)
+	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (count == 0 || count > 4096)
-		return IO_ERROR_OUT_OF_RANGE;
-	status = stroke_init(&target, ports, pen, foreground, background, mode);
-	if (status != 0 || !target.active)
+	status = st_rip3_contours_validate(contours, count, &total);
+	if (status != 0)
 		return status;
-	min_x = max_x = points[0].x;
-	min_y = max_y = points[0].y;
-	for (size_t i = 1; i < count; i++) {
-		min_x = fmin(min_x, points[i].x);
-		max_x = fmax(max_x, points[i].x);
-		min_y = fmin(min_y, points[i].y);
-		max_y = fmax(max_y, points[i].y);
+	status = stroke_init(&target, ports, pen, 0, 0, ST_RIP3_COPY);
+	if (status != 0)
+		return status;
+	if (!target.active) {
+		*result = (struct st_rip3_stroke_mask){0};
+		return 0;
+	}
+	min_x = max_x = contours[0].points[0].x;
+	min_y = max_y = contours[0].points[0].y;
+	for (size_t c = 0; c < count; c++) {
+		for (size_t i = 0; i < contours[c].count; i++) {
+			min_x = fmin(min_x, contours[c].points[i].x);
+			max_x = fmax(max_x, contours[c].points[i].x);
+			min_y = fmin(min_y, contours[c].points[i].y);
+			max_y = fmax(max_y, contours[c].points[i].y);
+		}
 	}
 	/* Includes every cap/even-width offset; segment loops tighten this
 	 * conservative rectangle before collecting individual samples. */
@@ -239,8 +267,10 @@ st_rip3_draw_path(struct st_rip3_ports *ports,
 	max_x += margin;
 	max_y += margin;
 	if (min_x > target.clip.x1 || min_y > target.clip.y1
-	    || max_x < target.clip.x0 || max_y < target.clip.y0)
+	    || max_x < target.clip.x0 || max_y < target.clip.y0) {
+		*result = (struct st_rip3_stroke_mask){0};
 		return 0;
+	}
 	if (min_x > target.clip.x0)
 		target.clip.x0 = (int32_t)ceil(min_x);
 	if (min_y > target.clip.y0)
@@ -256,35 +286,88 @@ st_rip3_draw_path(struct st_rip3_ports *ports,
 	target.coverage = calloc(target.width * height, 1);
 	if (target.coverage == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	segments = count == 1 ? 1 : (closed ? count : count - 1);
-	for (size_t i = 0; i < segments; i++) {
-		const struct st_rip3_point *first = &points[i];
-		const struct st_rip3_point *last = &points[(i + 1) % count];
-		double major;
+	for (size_t c = 0; c < count; c++) {
+		const struct st_rip3_point *points = contours[c].points;
+		size_t vertices = contours[c].count;
+		size_t segments = vertices == 1 ? 1 : (closed ? vertices : vertices - 1);
+		unsigned phase = 0;
 
-		status = stroke_segment(&target, first, last, pen, phase);
-		if (status != 0)
-			goto done;
-		major = fmax(fabs((double)last->x - first->x),
-		    fabs((double)last->y - first->y));
-		phase = (phase + (unsigned)fmod(major, 16.0)) & 15;
+		for (size_t i = 0; i < segments; i++) {
+			const struct st_rip3_point *first = &points[i];
+			const struct st_rip3_point *last = &points[(i + 1) % vertices];
+			double major;
+
+			status = stroke_segment(&target, first, last, pen, phase);
+			if (status != 0)
+				goto failed;
+			major = fmax(fabs((double)last->x - first->x),
+			    fabs((double)last->y - first->y));
+			phase = (phase + (unsigned)fmod(major, 16.0)) & 15;
+		}
 	}
-	for (size_t y = 0; y < height; y++) {
-		for (size_t x = 0; x < target.width; x++) {
-			uint8_t coverage = target.coverage[y * target.width + x];
+	*result = (struct st_rip3_stroke_mask){
+		.bounds = target.clip,
+		.width = target.width,
+		.height = height,
+		.coverage = target.coverage,
+	};
+	return 0;
+failed:
+	free(target.coverage);
+	return status;
+}
+
+int
+st_rip3_stroke_apply(struct st_rip3_ports *ports,
+    const struct st_rip3_stroke_mask *mask, uint8_t foreground,
+    uint8_t background, enum st_rip3_write_mode mode)
+{
+	if (ports == NULL || mask == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (mask->coverage == NULL)
+		return 0;
+	for (size_t y = 0; y < mask->height; y++) {
+		for (size_t x = 0; x < mask->width; x++) {
+			uint8_t coverage = mask->coverage[y * mask->width + x];
+			int status;
 
 			if (coverage == 0)
 				continue;
 			status = st_rip3_ports_plot(ports,
-			    target.clip.x0 + (int32_t)x, target.clip.y0 + (int32_t)y,
+			    mask->bounds.x0 + (int32_t)x, mask->bounds.y0 + (int32_t)y,
 			    coverage == 2 ? foreground : background, mode);
 			if (status != 0)
-				goto done;
+				return status;
 		}
 	}
-	status = 0;
-done:
-	free(target.coverage);
+	return 0;
+}
+
+void
+st_rip3_stroke_free(struct st_rip3_stroke_mask *mask)
+{
+	if (mask == NULL)
+		return;
+	free(mask->coverage);
+	*mask = (struct st_rip3_stroke_mask){0};
+}
+
+int
+st_rip3_draw_path(struct st_rip3_ports *ports,
+    const struct st_rip3_point *points, size_t count, bool closed,
+    const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+    enum st_rip3_write_mode mode)
+{
+	struct st_rip3_contour contour = {points, count};
+	struct st_rip3_stroke_mask mask = {0};
+	int status;
+
+	if (mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_stroke_collect(ports, &contour, 1, closed, pen, &mask);
+	if (status == 0)
+		status = st_rip3_stroke_apply(ports, &mask, foreground, background, mode);
+	st_rip3_stroke_free(&mask);
 	return status;
 }
 

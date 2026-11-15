@@ -5,6 +5,7 @@
 #include "st_rip3_draw.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct st_rip3_fill {
@@ -30,5 +31,17 @@ int st_rip3_draw_filled_rectangle(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *area, const struct st_rip3_fill *fill,
 	uint8_t foreground, uint8_t background, const struct st_rip3_pen *border,
 	uint8_t border_color, enum st_rip3_write_mode mode);
+
+/* Even-odd fill over one or more closed contours (up to 4096 contours and
+ * 4096 vertices per contour in this device-pixel kernel). Coincident edges,
+ * overlaps and nested holes retain parity; contour winding is immaterial.
+ * Pixel centers use left-inclusive/right-exclusive span coverage. Optional
+ * borders preserve the pen pattern and always use COPY. Scratch allocations
+ * and validation finish before pixels change; caller inputs are unchanged. */
+int st_rip3_draw_filled_polygons(struct st_rip3_ports *ports,
+	const struct st_rip3_contour *contours, size_t count,
+	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+	const struct st_rip3_pen *border, uint8_t border_color,
+	enum st_rip3_write_mode mode);
 
 #endif

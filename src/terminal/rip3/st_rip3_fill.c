@@ -1,11 +1,14 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_fill.h"
+#include "st_rip3_draw_internal.h"
 
 #include "st_rip3_ports.h"
 #include "io_error.h"
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 int
 st_rip3_fill_custom(struct st_rip3_fill *fill, const unsigned rows[8],
@@ -154,4 +157,171 @@ st_rip3_draw_filled_rectangle(struct st_rip3_ports *ports,
 			return status;
 	}
 	return 0;
+}
+
+static int
+intersection_compare(const void *a, const void *b)
+{
+	double left = *(const double *)a;
+	double right = *(const double *)b;
+
+	return (left > right) - (left < right);
+}
+
+struct polygon_edge {
+	int32_t first_y;
+	int32_t last_y;
+	int64_t p;
+	int64_t q;
+	int64_t c;
+};
+
+static struct polygon_edge
+polygon_edge(const struct st_rip3_point *a, const struct st_rip3_point *b)
+{
+	int64_t dx, dy, determinant;
+	uint64_t gcd, remainder;
+
+	if (a->y > b->y) {
+		const struct st_rip3_point *swap = a;
+
+		a = b;
+		b = swap;
+	}
+	dx = (int64_t)b->x - a->x;
+	dy = (int64_t)b->y - a->y;
+	gcd = dx < 0 ? (uint64_t)-dx : (uint64_t)dx;
+	remainder = (uint64_t)dy;
+	while (remainder != 0) {
+		uint64_t next = gcd % remainder;
+
+		gcd = remainder;
+		remainder = next;
+	}
+	/* Each product of signed 32-bit coordinates fits int64_t, and their
+	 * determinant lies strictly inside +/-2^63. Reduced coefficients make
+	 * reversed/subdivided collinear edges evaluate identically at a scanline. */
+	determinant = (int64_t)a->x * b->y - (int64_t)a->y * b->x;
+	return (struct polygon_edge){a->y, b->y, dx / (int64_t)gcd,
+	    dy / (int64_t)gcd, determinant / (int64_t)gcd};
+}
+
+int
+st_rip3_draw_filled_polygons(struct st_rip3_ports *ports,
+    const struct st_rip3_contour *contours, size_t count,
+    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *border, uint8_t border_color,
+    enum st_rip3_write_mode mode)
+{
+	struct st_rip3_port_info info;
+	struct st_rip3_stroke_mask outline = {0};
+	struct st_rip3_pen checked_border;
+	struct polygon_edge *edges = NULL;
+	double min_y, max_y, start_y, end_y;
+	double *intersections = NULL;
+	size_t vertices;
+	size_t edge_count = 0;
+	unsigned current;
+	int32_t max_x;
+	int status;
+
+	if (ports == NULL || fill == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_contours_validate(contours, count, &vertices);
+	if (status != 0)
+		return status;
+	if (border != NULL) {
+		status = st_rip3_pen_set(&checked_border, border->draw_background,
+		    4, border->pattern, border->thickness);
+		if (status != 0)
+			return status;
+	}
+	status = st_rip3_ports_current(ports, &current);
+	if (status != 0)
+		return status;
+	status = st_rip3_ports_info(ports, current, &info);
+	if (status != 0 || !info.viewport_active)
+		return status;
+	min_y = max_y = contours[0].points[0].y;
+	for (size_t c = 0; c < count; c++) {
+		const struct st_rip3_point *points = contours[c].points;
+		size_t length = contours[c].count;
+
+		for (size_t i = 0; i < length; i++) {
+			min_y = fmin(min_y, points[i].y);
+			max_y = fmax(max_y, points[i].y);
+			if (points[i].y != points[(i + 1) % length].y)
+				edge_count++;
+		}
+	}
+	start_y = fmax(min_y, 0);
+	end_y = fmin(max_y - 1, info.viewport.y1 - info.viewport.y0);
+	max_x = info.viewport.x1 - info.viewport.x0;
+	if (start_y <= end_y && edge_count != 0) {
+		size_t index = 0;
+
+		if (edge_count > SIZE_MAX / sizeof(*intersections)
+		    || edge_count > SIZE_MAX / sizeof(*edges))
+			return IO_ERROR_OUT_OF_RANGE;
+		intersections = malloc(edge_count * sizeof(*intersections));
+		edges = malloc(edge_count * sizeof(*edges));
+		if (intersections == NULL || edges == NULL) {
+			status = IO_ERROR_OUT_OF_MEMORY;
+			goto done;
+		}
+		for (size_t c = 0; c < count; c++) {
+			const struct st_rip3_point *points = contours[c].points;
+			size_t length = contours[c].count;
+
+			for (size_t i = 0; i < length; i++) {
+				const struct st_rip3_point *a = &points[i];
+				const struct st_rip3_point *b = &points[(i + 1) % length];
+
+				if (a->y != b->y)
+					edges[index++] = polygon_edge(a, b);
+			}
+		}
+	}
+	/* No allocation may fail after the first interior pixel changes. */
+	if (border != NULL) {
+		status = st_rip3_stroke_collect(ports, contours, count, true,
+		    &checked_border, &outline);
+		if (status != 0)
+			goto done;
+	}
+	if (edges != NULL) {
+		for (int32_t y = (int32_t)start_y; y <= (int32_t)end_y; y++) {
+			double sample_y = (double)y + 0.5;
+			size_t found = 0;
+
+			for (size_t i = 0; i < edge_count; i++) {
+				const struct polygon_edge *edge = &edges[i];
+
+				if (edge->first_y <= sample_y && edge->last_y > sample_y)
+					intersections[found++] =
+					    ((double)edge->p * sample_y + (double)edge->c)
+					    / (double)edge->q;
+			}
+			qsort(intersections, found, sizeof(*intersections), intersection_compare);
+			for (size_t i = 0; i + 1 < found; i += 2) {
+				double first = ceil(intersections[i] - 0.5);
+				double last = ceil(intersections[i + 1] - 0.5) - 1;
+				struct st_rip3_rect span;
+
+				if (first > max_x || last < 0 || first > last)
+					continue;
+				span = (struct st_rip3_rect){(int32_t)fmax(first, 0), y,
+				    (int32_t)fmin(last, max_x), y};
+				status = fill_area(ports, span, fill, foreground, background, mode);
+				if (status != 0)
+					goto done;
+			}
+		}
+	}
+	status = st_rip3_stroke_apply(ports, &outline, border_color, background, ST_RIP3_COPY);
+done:
+	st_rip3_stroke_free(&outline);
+	free(edges);
+	free(intersections);
+	return status;
 }
