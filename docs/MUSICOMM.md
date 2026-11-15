@@ -21,6 +21,27 @@ This is SyncTERM's approximation of the speaker preset; the original accessory
 sends no instrument selection. It replaces any previously selected MIDI voice,
 including the sawtooth used by ANSI music calibration.
 
+Each startup establishes a separate MIDI session: it cancels old playback,
+performs GM System On and controller resets, consumes cached software-renderer
+output privately, and sets the music stream to balanced -12 dB gains. The
+square lead starts with centred MIDI pan, default pitch/tuning and expression,
+and no held pedals or modulation from earlier playback. The SoundFont preset
+and configured synthesizer effects still define the instrument's stereo tone;
+old chorus/reverb audio is cleared by the synthesizer reset. FluidSynth's
+[system reset implementation](https://github.com/FluidSynth/fluidsynth/blob/master/src/synth/fluid_synth.c)
+resets voices, channels and both effect engines; the installed renderer is
+also checked by the offline probe described below.
+
+Abort and normal completion cancel pending note events before sending all
+128 note-offs, reset the synthesizer, discard queued PCM, and acknowledge the
+backend's reported outstanding audio latency. Startup/cleanup DSP output is
+never queued for listening. This also applies to reset, disconnect and
+terminal destruction. The PSG fallback detaches its source and drains submitted
+audio; its chip and envelope state are initialized again at the next startup.
+GM reset handling on external MIDI equipment depends on that device; the
+native tests use recording/pull outputs, and physical MIDI equipment has not
+been tested.
+
 Live software MIDI maintains about 46 ms of rendered audio ahead of playback,
 covering complete device blocks and worker scheduling jitter. The native
 `music_stream` regression checks continuous held-note PCM through 512- and
@@ -81,7 +102,14 @@ physical MIDI device or Atari hardware playback was tested.
 
 `cterm_musicomm` checks exact serial/MIDI bytes, every note-input split,
 control/high-byte boundaries, drains, held pitches, stolen voices, PSG PCM,
+dirty inherited pan/pitch/modulation/expression/pedals, repeated clean startup,
 abort/reset/EOF/destruction and runtime shutdown with recording/pull outputs.
+`music_stream` checks the worker-owned reset, private cached PCM/effect discard,
+no remaining queued audio, retained caller gain, truncated SysEx cancellation,
+blocked callbacks, concurrent submission rejection, errors and audio shutdown.
+`st_midi_synth_test fluid --reset` separately checks repeated held-chord aborts
+with the installed FluidSynth renderer and loud effect sends, without opening
+an audio device; only its integer dither floor may remain after reset.
 `syncterm_musicomm` exercises real local-menu activation, handshake, all 128
 notes, abort, disconnect and return to text using coherent bitmap captures in
 CP437 and UTF-8, with ANSI and Atari ST/IGS sessions. Physical audio and MIDI

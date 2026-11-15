@@ -127,7 +127,11 @@ int st_cterm_musicomm_start(st_cterm_t *t)
 	st_igs_gist_init(&m->gist); st_igs_psg_init(&m->psg);
 	m->gist.write = write_psg; m->gist.context = &m->psg;
 	m->state = ST_CTERM_MUSICOMM_WAITING;
+	/* Musicomm owns its own session defaults rather than inheriting a
+	 * previous file's pan, pedals, pitch, gain or renderer effect tails. */
+	if (t->music_player != NULL) (void)st_music_volume(t->music_player,-12,-12,0);
 	m->midi = st_music_available(t->music_player);
+	if (m->midi) m->midi = st_music_reset_midi(t->music_player) == 0;
 	if (m->midi) {
 		/* Select a square lead explicitly: software MIDI calibration leaves
 		 * the ANSI sawtooth voice selected. Queue before any note events. */
@@ -135,21 +139,28 @@ int st_cterm_musicomm_start(st_cterm_t *t)
 		if (st_music_queue_midi(t->music_player,instrument,sizeof(instrument)) != 0)
 			m->midi = false;
 	}
-	if (!m->midi) fallback(t);
+	if (!m->midi) {
+		fallback(t);
+		if (t->music_player != NULL) (void)st_music_volume(t->music_player,-12,-12,0);
+	}
 	return 0;
 }
 static void silence(st_cterm_t *t)
 {
 	struct cterm_musicomm *m = t->musicomm;
 	if (m->midi) {
+		(void)st_music_flush(t->music_player,0);
 		uint8_t bytes[128*3];
 		for (unsigned n=0;n<128;++n) {
 			bytes[3*n] = 0x90; bytes[3*n+1] = (uint8_t)n; bytes[3*n+2] = 0;
 		}
 		if (st_music_queue_midi(t->music_player,bytes,sizeof(bytes)) == 0)
 			(void)st_music_wait(t->music_player);
-		(void)st_music_flush(t->music_player,0);
-	} else (void)st_music_clear_pcm_source(t->music_player,m);
+		(void)st_music_reset_midi(t->music_player);
+	} else {
+		(void)st_music_clear_pcm_source(t->music_player,m);
+		if (t->music_stream != NULL) (void)audio_stream_drain(t->music_stream);
+	}
 	m->midi = m->physical = false;
 	(void)st_mutex_lock(&m->mutex);
 	for (int i=0;i<3;++i) st_igs_gist_stop(&m->gist,i);

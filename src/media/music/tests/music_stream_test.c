@@ -11,7 +11,8 @@ struct recording {
 	st_mutex_t mutex;
 	st_condition_t changed;
 	uint8_t bytes[8192];
-	size_t size, messages, frames, closed, modes;
+	size_t size, messages, frames, closed, modes, resets, cached;
+	int16_t tail;
 	st_thread_t owner;
 	bool sounding, ansi, fail_send, fail_render, block, entered;
 };
@@ -24,6 +25,11 @@ static int send(void *context, const uint8_t *bytes, size_t count)
 	while (r->block) st_condition_wait(&r->changed, &r->mutex);
 	CHECK(count <= sizeof(r->bytes) - r->size);
 	memcpy(r->bytes + r->size, bytes, count); r->size += count; ++r->messages;
+	if (count == 6 && memcmp(bytes,"\xf0\x7e\x7f\x09\x01\xf7",6) == 0) {
+		++r->resets; r->sounding=false; r->tail=0;
+		/* A renderer may retain samples from its last partial DSP block. */
+		r->cached=64;
+	}
 	if ((bytes[0] & 0xf0) == 0x90) r->sounding = bytes[2] != 0;
 	if ((bytes[0] & 0xf0) == 0x80 || ((bytes[0] & 0xf0) == 0xb0 && (bytes[1] == 120 || bytes[1] == 123))) r->sounding = false;
 	bool fail = r->fail_send;
@@ -35,7 +41,11 @@ static int render(void *context, int16_t *frames, size_t count)
 	struct recording *r = context;
 	CHECK(!st_thread_equal(r->owner, st_thread_current()));
 	st_mutex_lock(&r->mutex);
-	for (size_t i = 0; i < count * AUDIO_CHANNELS; ++i) frames[i] = r->sounding ? 10000 : 0;
+	for (size_t i = 0; i < count; ++i) {
+		int16_t value = r->cached != 0 ? 7000 : r->sounding ? 10000 : r->tail;
+		if (r->cached != 0) --r->cached;
+		frames[2*i]=frames[2*i+1]=value;
+	}
 	r->frames += count; bool fail = r->fail_render;
 	st_mutex_unlock(&r->mutex);
 	return fail ? IO_ERROR_IO : 0;
@@ -229,17 +239,17 @@ static void capacity(void)
 	st_mutex_unlock(&r.mutex);
 	st_music_destroy(m); st_audio_runtime_destroy(runtime); done(&r);
 }
-struct controller { st_music_t *m; bool destroy; atomic_bool entered, done; };
+struct controller { st_music_t *m; bool destroy, reset; atomic_bool entered, done; int status; };
 static int control(void *context)
 {
 	struct controller *c = context; atomic_store(&c->entered, true);
 	if (c->destroy) st_music_destroy(c->m);
-	else CHECK(st_music_flush(c->m, 0) == 0);
+	else c->status = c->reset ? st_music_reset_midi(c->m) : st_music_flush(c->m,0);
 	atomic_store(&c->done, true); return 0;
 }
 static void lifetime(void)
 {
-	for (int destroy = 0; destroy < 2; ++destroy) {
+	for (int operation = 0; operation < 3; ++operation) {
 		st_audio_runtime_t *runtime; st_music_t *m; audio_stream_t *pcm = NULL;
 		CHECK(st_audio_runtime_create(&runtime, 0) == 0);
 		struct recording r; init(&r); r.block = true; struct st_midi_sink s = sink(&r, false);
@@ -248,7 +258,7 @@ static void lifetime(void)
 		st_mutex_lock(&r.mutex);
 		while (!r.entered) st_condition_wait(&r.changed, &r.mutex);
 		st_mutex_unlock(&r.mutex);
-		struct controller c = {.m = m, .destroy = destroy != 0};
+		struct controller c = {.m=m,.destroy=operation==1,.reset=operation==2};
 		atomic_init(&c.entered, false); atomic_init(&c.done, false);
 		st_thread_t thread; CHECK(st_thread_create(&thread, control, &c) == ST_THREAD_SUCCESS);
 		while (!atomic_load(&c.entered)) delay();
@@ -256,9 +266,72 @@ static void lifetime(void)
 		CHECK(!atomic_load(&c.done));
 		st_mutex_lock(&r.mutex); r.block = false; st_condition_broadcast(&r.changed); st_mutex_unlock(&r.mutex);
 		CHECK(st_thread_join(thread, NULL) == ST_THREAD_SUCCESS && atomic_load(&c.done));
-		if (!destroy) { CHECK(!st_music_busy(m)); st_music_destroy(m); }
+		if (!c.destroy) { CHECK(c.status==0 && !st_music_busy(m)); st_music_destroy(m); }
 		CHECK(pcm == NULL && !r.sounding);
 		st_audio_runtime_destroy(runtime); done(&r);
+	}
+}
+static void session_reset(void)
+{
+	for (unsigned pcm_output=0;pcm_output<2;++pcm_output) {
+		st_audio_runtime_t *runtime; st_music_t *m; audio_stream_t *pcm=NULL;
+		CHECK((pcm_output ? st_audio_runtime_create_pull(&runtime)
+		    : st_audio_runtime_create(&runtime,0))==0);
+		struct recording r; init(&r); struct st_midi_sink s=sink(&r,pcm_output!=0);
+		CHECK(st_music_create_with_sink(&m,runtime,&pcm,&s)==0);
+		CHECK(st_music_volume(m,-6,-9,0)==0);
+		const uint8_t on[]={0x90,60,100};
+		for (unsigned pass=0;pass<3;++pass) {
+			CHECK(st_music_queue_midi(m,on,sizeof(on))==0);
+			if (pcm_output) buffered(m); else CHECK(st_music_wait(m)==0);
+			const uint8_t partial[]={0xf0,0x7d,1};
+			CHECK(st_music_queue_midi(m,partial,sizeof(partial))==0);
+			if (pcm_output) acknowledge(m,runtime); else CHECK(st_music_wait(m)==0);
+			st_mutex_lock(&r.mutex); r.tail=2000; st_mutex_unlock(&r.mutex);
+			CHECK(st_music_reset_midi(m)==0 && !st_music_busy(m));
+			float left,right;
+			CHECK(st_music_get_volume(m,&left,&right)==0 && left==-6 && right==-9);
+			st_mutex_lock(&r.mutex);
+			CHECK(r.resets==pass+1 && !r.sounding && !r.ansi && r.tail==0);
+			if (pcm_output) CHECK(r.cached==0);
+			st_mutex_unlock(&r.mutex);
+			if (pcm_output) {
+				CHECK(audio_stream_buffered_frames(pcm)==0);
+				int16_t frames[1024*AUDIO_CHANNELS];
+				CHECK(st_audio_runtime_pull(runtime,frames,1024)==0);
+				for (size_t i=0;i<1024*AUDIO_CHANNELS;++i) CHECK(frames[i]==0);
+			}
+		}
+		st_mutex_lock(&r.mutex); r.fail_send=true; st_mutex_unlock(&r.mutex);
+		CHECK(st_music_reset_midi(m)==IO_ERROR_IO && !st_music_busy(m));
+		st_mutex_lock(&r.mutex); r.fail_send=false; r.fail_render=pcm_output!=0; st_mutex_unlock(&r.mutex);
+		CHECK(st_music_reset_midi(m)==(pcm_output ? IO_ERROR_IO : 0));
+		st_mutex_lock(&r.mutex); r.fail_render=false; st_mutex_unlock(&r.mutex);
+		CHECK(st_music_reset_midi(m)==0);
+		st_audio_runtime_stop(runtime);
+		CHECK(st_music_reset_midi(m)==IO_ERROR_CANCELLED && !st_music_busy(m));
+		st_music_destroy(m); st_audio_runtime_destroy(runtime); done(&r);
+	}
+	/* A blocked reset owns the sink and rejects new submissions. Stop during
+	 * that reset still waits for the callback and reports cancellation. */
+	for (unsigned stop=0;stop<2;++stop) {
+		st_audio_runtime_t *runtime; st_music_t *m; audio_stream_t *pcm=NULL;
+		CHECK(st_audio_runtime_create(&runtime,0)==0);
+		struct recording r; init(&r); r.block=true; struct st_midi_sink s=sink(&r,false);
+		CHECK(st_music_create_with_sink(&m,runtime,&pcm,&s)==0);
+		struct controller c={.m=m,.reset=true};
+		atomic_init(&c.entered,false); atomic_init(&c.done,false);
+		st_thread_t thread; CHECK(st_thread_create(&thread,control,&c)==ST_THREAD_SUCCESS);
+		st_mutex_lock(&r.mutex);
+		while (!r.entered) st_condition_wait(&r.changed,&r.mutex);
+		st_mutex_unlock(&r.mutex);
+		const uint8_t note[]={0x90,60,100};
+		CHECK(st_music_queue_midi(m,note,sizeof(note))==IO_ERROR_BUSY && !atomic_load(&c.done));
+		if (stop) st_audio_runtime_stop(runtime);
+		st_mutex_lock(&r.mutex); r.block=false; st_condition_broadcast(&r.changed); st_mutex_unlock(&r.mutex);
+		CHECK(st_thread_join(thread,NULL)==ST_THREAD_SUCCESS);
+		CHECK(c.status==(stop ? IO_ERROR_CANCELLED : 0));
+		st_music_destroy(m); st_audio_runtime_destroy(runtime); done(&r);
 	}
 }
 static void failures(void)
@@ -286,6 +359,7 @@ static void failures(void)
 int main(void)
 {
 	CHECK(st_music_queue_midi(NULL, NULL, 0) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_music_reset_midi(NULL)==IO_ERROR_INVALID_ARGUMENT);
 	st_audio_runtime_t *runtime; st_music_t *m; audio_stream_t *pcm = NULL;
 	CHECK(st_audio_runtime_create(&runtime, 0) == 0 && st_music_create(&m, runtime, &pcm) == 0);
 	CHECK(st_music_queue_midi(m, NULL, 1) == IO_ERROR_INVALID_ARGUMENT);
@@ -293,6 +367,7 @@ int main(void)
 	const uint8_t byte = 0xf8;
 	CHECK(st_music_queue_midi(m, &byte, SIZE_MAX) == IO_ERROR_MESSAGE_TOO_LARGE);
 	CHECK(st_music_queue_midi(m, &byte, 1) == IO_ERROR_NOT_SUPPORTED && !st_music_busy(m));
+	CHECK(st_music_reset_midi(m)==IO_ERROR_NOT_SUPPORTED && !st_music_busy(m));
 	st_music_destroy(m); st_audio_runtime_destroy(runtime);
-	native(); software(); capacity(); lifetime(); failures(); return 0;
+	native(); software(); capacity(); lifetime(); session_reset(); failures(); return 0;
 }

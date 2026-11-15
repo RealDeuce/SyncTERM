@@ -89,6 +89,24 @@ int st_midi_sink_start(struct st_midi_sink *sink)
 	}
 	return 0;
 }
+int st_midi_sink_reset(struct st_midi_sink *sink)
+{
+	if (sink->send == NULL) return IO_ERROR_NOT_SUPPORTED;
+	st_midi_sink_release(sink,true);
+	/* Restore any renderer-specific ANSI offsets before resetting MIDI
+	 * state, so saved effect controllers cannot override the clean defaults. */
+	int status = sink->set_ansi == NULL ? 0 : sink->set_ansi(sink->state,false);
+	const uint8_t reset[] = {0xf0,0x7e,0x7f,0x09,0x01,0xf7};
+	if (status == 0) status = st_midi_sink_send(sink,reset,sizeof(reset));
+	if (status == 0) status = st_midi_sink_start(sink);
+	if (status == 0 && sink->render != NULL) {
+		/* Renderers can cache a partially consumed DSP block. Consume it
+		 * privately after the reset; it must not reach the next session. */
+		int16_t discarded[1024*AUDIO_CHANNELS];
+		status = sink->render(sink->state,discarded,1024);
+	}
+	return status;
+}
 int st_midi_sink_ansi(struct st_midi_sink *sink)
 {
 	/* Use a sustained sawtooth voice for short ANSI notes.

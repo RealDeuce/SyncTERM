@@ -35,6 +35,8 @@ struct st_music {
 	st_condition_t changed;
 	st_thread_t thread;
 	bool started, stopping, active, injected, was_file;
+	bool reset_requested;
+	int reset_result;
 	bool external, external_output, switching;
 	void *source_context; /* Borrowed until quiescent detach, protected by mutex. */
 	uint64_t generation, working_generation, accepted, completed;
@@ -453,9 +455,23 @@ static int worker(void *context)
 	st_music_t *m = context;
 	st_mutex_lock(&m->mutex);
 	for (;;) {
-		while (m->head == NULL && !m->stopping)
+		while (m->head == NULL && !m->stopping && !m->reset_requested)
 			st_condition_wait(&m->changed, &m->mutex);
 		if (m->stopping) break;
+		if (m->reset_requested) {
+			m->active = true; m->working_generation = m->generation;
+			bool midi = select_locked(m);
+			st_mutex_unlock(&m->mutex);
+			int status = midi ? st_midi_sink_reset(&m->sink) : IO_ERROR_NOT_SUPPORTED;
+			st_mutex_lock(&m->mutex);
+			if (m->generation != m->working_generation || m->stopping
+			    || st_audio_runtime_stopped(m->runtime)) status = IO_ERROR_CANCELLED;
+			m->was_file = true; m->gain_valid = false;
+			m->active = m->reset_requested = false;
+			m->reset_result = status;
+			st_condition_broadcast(&m->changed);
+			continue;
+		}
 		if (m->head->bytes != NULL) { live(m); continue; }
 		struct request *r = m->head;
 		m->head = r->next; if (m->head == NULL) m->tail = NULL;
@@ -751,6 +767,47 @@ int st_music_flush(st_music_t *m, size_t fade_frames)
 	}
 	st_mutex_unlock(&m->mutex);
 	return 0;
+}
+int st_music_reset_midi(st_music_t *m)
+{
+	if (m == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	st_mutex_lock(&m->mutex);
+	int status = m->stopping ? IO_ERROR_CANCELLED : m->switching ? IO_ERROR_BUSY : 0;
+	if (status != 0) { st_mutex_unlock(&m->mutex); return status; }
+	m->switching = true;
+	status = clear_source_locked(m);
+	if (status == 0) {
+		++m->generation; drop_pending(m);
+		if (*m->pcm != NULL) (void)audio_stream_clear(*m->pcm);
+		st_condition_broadcast(&m->changed);
+		/* The worker relinquishes all earlier sink/PCM operations before
+		 * accepting the reset. switching excludes new FIFO/source owners. */
+		while (m->active) st_condition_wait(&m->changed,&m->mutex);
+		m->completed = m->accepted;
+		if (st_audio_runtime_stopped(m->runtime)) status = IO_ERROR_CANCELLED;
+		if (status == 0 && !m->started) {
+			if (st_thread_create(&m->thread,worker,m) != ST_THREAD_SUCCESS) status = IO_ERROR_IO;
+			else m->started = true;
+		}
+		if (status == 0) {
+			m->reset_requested = true;
+			st_condition_broadcast(&m->changed);
+			while (m->reset_requested) st_condition_wait(&m->changed,&m->mutex);
+			status = m->reset_result;
+		}
+	}
+	audio_stream_t *stream = *m->pcm;
+	uint64_t generation = m->generation;
+	st_mutex_unlock(&m->mutex);
+	/* No producer remains, so drain acknowledges only PCM already handed
+	 * to the backend. The reset's private DSP output was never queued. */
+	if (status == 0 && stream != NULL) status = audio_stream_drain(stream);
+	st_mutex_lock(&m->mutex);
+	if (m->generation != generation || m->stopping) status = IO_ERROR_CANCELLED;
+	m->switching = false;
+	st_condition_broadcast(&m->changed);
+	st_mutex_unlock(&m->mutex);
+	return status;
 }
 int st_music_volume(st_music_t *m, float left, float right, size_t ramp)
 {

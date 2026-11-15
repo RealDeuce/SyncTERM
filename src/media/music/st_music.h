@@ -89,6 +89,14 @@ bool st_music_pcm_source_active(st_music_t *, void *context);
 int st_music_wait(st_music_t *music);
 bool st_music_busy(st_music_t *music);
 int st_music_flush(st_music_t *music, size_t fade_frames);
+/* Independent MIDI session boundary. Cancel pending/active music and PCM,
+ * then reset the selected destination on its worker with GM System On,
+ * all-sounds/controller reset and known channel defaults. Software reset
+ * output is discarded to consume pending DSP/effect buffers; hardware PCM
+ * already submitted is drained before returning. Preserve stream gain.
+ * Returns NOT_SUPPORTED without a MIDI destination. Submissions during the
+ * operation return BUSY. The owner must serialize reset with destruction. */
+int st_music_reset_midi(st_music_t *music);
 int st_music_volume(st_music_t *music, float left_db, float right_db,
 	size_t ramp_frames);
 int st_music_get_volume(st_music_t *music, float *left_db, float *right_db);

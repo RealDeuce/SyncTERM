@@ -159,11 +159,36 @@ static int effects(struct st_midi_sink *sink)
 	printf("effect-tail RMS: file %.3f, ANSI %.3f, restored file %.3f\n", tail[0], tail[1], tail[2]);
 	return tail[0] > 10 && tail[1] < tail[0] / 10 && tail[2] > tail[0] / 2 && tail[2] < tail[0] * 2 ? 0 : 1;
 }
+/* GM reset must erase wet effect history as well as held voices. Direct
+ * renderer measurements never enter an audio stream or physical device. */
+static int reset_session(struct st_midi_sink *sink)
+{
+	for (unsigned pass=0;pass<3;++pass) {
+		const uint8_t dirty[]={0xb0,10,0,0xb0,1,127,0xb0,11,13,
+		    0xb0,64,127,0xb0,91,127,0xb0,93,127,0xe0,127,127,
+		    0xc0,80,0x90,60,64,0x90,64,64,0x90,67,64};
+		if (st_midi_sink_send(sink,dirty,sizeof(dirty))!=0) return 1;
+		int16_t pcm[1024*AUDIO_CHANNELS];
+		for (unsigned block=0;block<32;++block)
+			if (sink->render(sink->state,pcm,1024)!=0) return 1;
+		if (st_midi_sink_reset(sink)!=0) return 1;
+		int peak=0;
+		for (unsigned block=0;block<8;++block) {
+			if (sink->render(sink->state,pcm,1024)!=0) return 1;
+			for (size_t i=0;i<1024*AUDIO_CHANNELS;++i)
+				if (abs(pcm[i])>peak) peak=abs(pcm[i]);
+		}
+		printf("reset %u: held voices/effect-tail peak %d\n",pass+1,peak);
+		/* Allow only the integer renderer's dither floor. */
+		if (peak>2) return 1;
+	}
+	return 0;
+}
 int main(int argc, char **argv)
 {
 	if (argc < 2 || argc > 4) return 2;
 	bool levels = argc >= 3 && strcmp(argv[2], "--levels") == 0;
-	if ((argc == 4 && !levels) || (argc == 3 && !levels && strcmp(argv[2], "--envelope") != 0 && strcmp(argv[2], "--effects") != 0)) return 2;
+	if ((argc == 4 && !levels) || (argc == 3 && !levels && strcmp(argv[2], "--envelope") != 0 && strcmp(argv[2], "--effects") != 0 && strcmp(argv[2], "--reset") != 0)) return 2;
 	enum st_midi_backend bit = strcmp(argv[1], "fluid") == 0 ? ST_MIDI_FLUIDSYNTH
 	    : strcmp(argv[1], "adl") == 0 ? ST_MIDI_ADLMIDI : ST_MIDI_APPLE;
 	struct st_midi_sink sink;
@@ -171,7 +196,8 @@ int main(int argc, char **argv)
 	if (status != 0) { fprintf(stderr, "synth unavailable: %d\n", status); return 77; }
 	if (sink.render == NULL) { st_midi_sink_close(&sink); return 2; }
 	if (argc == 3 && !levels) {
-		status = strcmp(argv[2], "--effects") == 0 ? effects(&sink) : envelope(&sink);
+		status = strcmp(argv[2], "--reset") == 0 ? reset_session(&sink)
+		    : strcmp(argv[2], "--effects") == 0 ? effects(&sink) : envelope(&sink);
 		st_midi_sink_close(&sink); return status;
 	}
 	if (levels) {

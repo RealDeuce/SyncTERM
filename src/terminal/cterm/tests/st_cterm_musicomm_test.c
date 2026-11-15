@@ -4,23 +4,46 @@
 #include "cterm_musicomm.h"
 #include "music_internal.h"
 #include "st_time.h"
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
-struct recording { uint8_t bytes[131072]; size_t size; unsigned bank_msb, bank_lsb, program; };
+struct recording {
+	uint8_t bytes[131072];
+	size_t size, cached;
+	unsigned bank_msb, bank_lsb, program, pan, pitch;
+	unsigned modulation, expression, sustain, resets;
+	bool held;
+	int16_t tail;
+};
 static struct recording replies;
 static int send_midi(void *context, const uint8_t *bytes, size_t size)
 {
 	struct recording *r = context;
+	if (size == 6 && memcmp(bytes,"\xf0\x7e\x7f\x09\x01\xf7",6) == 0) {
+		++r->resets; r->held=false; r->tail=0; r->cached=64;
+		r->pan=64; r->pitch=8192; r->modulation=0; r->expression=127; r->sustain=0;
+	}
+	if (size == 3 && bytes[0] == 0xe0) r->pitch=bytes[1]+128u*bytes[2];
 	if (size == 3 && bytes[0] == 0xb0) {
+		if (bytes[1] == 10) r->pan=bytes[2];
+		if (bytes[1] == 1) r->modulation=bytes[2];
+		if (bytes[1] == 11) r->expression=bytes[2];
+		if (bytes[1] == 64) r->sustain=bytes[2];
+		if (bytes[1] == 120 || bytes[1] == 123) r->held=false;
 		if (bytes[1] == 0) r->bank_msb = bytes[2];
 		if (bytes[1] == 32) r->bank_lsb = bytes[2];
 	}
 	if (size == 2 && bytes[0] == 0xc0) r->program = bytes[1];
-	if (size == 3 && bytes[0] == 0x90 && bytes[2] != 0)
-		CHECK(r->bank_msb == 0 && r->bank_lsb == 0 && r->program == 80);
+	if (size == 3 && bytes[0] == 0x90 && bytes[2] != 0) {
+		r->held=true; r->tail=1000;
+		CHECK(r->bank_msb == 0 && r->bank_lsb == 0 && r->program == 80
+		    && r->resets != 0 && r->pan == 64 && r->pitch == 8192
+		    && r->modulation == 0 && r->expression == 127 && r->sustain == 0);
+	}
+	if (size == 3 && bytes[0] == 0x90 && bytes[2] == 0) r->held=false;
 	CHECK(size <= sizeof(r->bytes)-r->size);
 	memcpy(r->bytes+r->size, bytes, size); r->size += size;
 	return 0;
@@ -55,7 +78,7 @@ static void exercise(bool utf8, bool midi)
 	    .emulation=ST_CTERM_ANSI_BBS,.encoding=utf8?ST_CTERM_ENCODING_UTF8:ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage=ST_CODEPAGE_CP437,.output=reply};
 	CHECK(st_cterm_create(&t,&config) == 0);
-	struct recording r = {.bank_msb=1,.bank_lsb=2,.program=81};
+	struct recording r = {.bank_msb=1,.bank_lsb=2,.program=81,.pan=0,.pitch=0,.modulation=127,.expression=13,.sustain=127};
 	if (midi) {
 		const struct st_midi_sink sink = {.state=&r,.send=send_midi};
 		CHECK(st_music_create_with_sink(&t->music_player,audio,&t->music_stream,&sink) == 0);
@@ -74,6 +97,9 @@ static void exercise(bool utf8, bool midi)
 	const uint8_t notes[] = {60,64,60,64,0,0,2,2,10,10,13,13,17,17,19,19,127,127};
 	for (size_t split=0; split<=sizeof(notes); ++split) {
 		feed(t,notes,split); feed(t,notes+split,sizeof(notes)-split);
+		/* The sender owns timing; don't saturate the bounded worker FIFO
+		 * while replaying every split in this one artificial burst. */
+		if (midi) CHECK(st_music_wait(t->music_player)==0);
 	}
 	CHECK(st_music_wait(t->music_player) == 0);
 	if (midi) {
@@ -105,7 +131,9 @@ static void exercise(bool utf8, bool midi)
 	size_t before_end = r.size;
 	feed(t,"\x80LOST",5); expect_reply("\xff\xff\xff",3);
 	if (midi) {
+		while (before_end<r.size && r.bytes[before_end]!=0x90) ++before_end;
 		CHECK(r.size >= before_end+384);
+		CHECK(r.resets >= 2);
 		for (unsigned n=0;n<128;++n) {
 			CHECK(r.bytes[before_end+3*n] == 0x90);
 			CHECK(r.bytes[before_end+3*n+1] == n && r.bytes[before_end+3*n+2] == 0);
@@ -123,6 +151,7 @@ static void exercise(bool utf8, bool midi)
 		feed(t,"\x02",1); st_cterm_musicomm_idle(t);
 		uint8_t byte=(uint8_t)end; feed(t,&byte,1);
 		expect_reply("\x02\xff\xff\xff",4); st_cterm_musicomm_idle(t);
+		r.size=0;
 	}
 	if (!midi) {
 		CHECK(st_cterm_musicomm_start(t) == 0);
@@ -180,6 +209,77 @@ static void exercise(bool utf8, bool midi)
 	st_cterm_destroy(&t);
 	st_audio_runtime_destroy(audio); st_font_catalog_destroy(fonts); st_console_destroy(console);
 }
+static int render_midi(void *context, int16_t *pcm, size_t frames)
+{
+	struct recording *r=context;
+	for (size_t i=0;i<frames;++i) {
+		int16_t value=r->cached!=0 ? 7000 : r->held ? 10000 : r->tail;
+		if (r->cached!=0) --r->cached;
+		pcm[2*i]=pcm[2*i+1]=value;
+	}
+	return 0;
+}
+struct consumer { st_audio_runtime_t *audio; atomic_bool stop; };
+static int consume(void *context)
+{
+	struct consumer *c=context;
+	while (!atomic_load(&c->stop)) {
+		int16_t pcm[512*AUDIO_CHANNELS];
+		CHECK(st_audio_runtime_pull(c->audio,pcm,512)==0);
+		const struct timespec pause={0,1000000};
+		(void)st_thread_sleep(&pause,NULL);
+	}
+	return 0;
+}
+static void software_session(void)
+{
+	st_console_t *console; st_font_catalog_t *fonts; st_cterm_t *t;
+	st_audio_runtime_t *audio;
+	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry={.columns=80,.rows=25,.cell_width=8,.cell_height=16};
+	CHECK(st_console_create(&console,&display,&geometry)==0);
+	CHECK(st_font_catalog_create(&fonts,console)==0);
+	CHECK(st_audio_runtime_create_pull(&audio)==0);
+	const struct st_cterm_config config={.console=console,.fonts=fonts,.audio=audio,
+	    .emulation=ST_CTERM_ANSI_BBS,.encoding=ST_CTERM_ENCODING_UTF8,
+	    .codepage=ST_CODEPAGE_CP437,.output=reply};
+	CHECK(st_cterm_create(&t,&config)==0);
+	struct recording r={.pan=0,.pitch=16383,.modulation=127,.sustain=127,.tail=1000};
+	const struct st_midi_sink sink={.state=&r,.send=send_midi,.render=render_midi};
+	CHECK(st_music_create_with_sink(&t->music_player,audio,&t->music_stream,&sink)==0);
+	/* This private pull consumer supplies completion acknowledgments while
+	 * the serialized terminal owner performs its blocking abort/reset. It
+	 * owns no terminal state; stop and join it before destroying audio. */
+	struct consumer c={.audio=audio}; atomic_init(&c.stop,false);
+	st_thread_t thread; CHECK(st_thread_create(&thread,consume,&c)==ST_THREAD_SUCCESS);
+	for (unsigned pass=0;pass<5;++pass) {
+		CHECK(st_music_volume(t->music_player,-3,-18,0)==0);
+		CHECK(st_cterm_musicomm_start(t)==0);
+		float left,right;
+		CHECK(st_music_get_volume(t->music_player,&left,&right)==0 && left==-12 && right==-12);
+		feed(t,"\x02",1); st_cterm_musicomm_idle(t); expect_reply("\x02",1);
+		feed(t,"\x3c\x40\x43",3);
+		CHECK(st_music_wait(t->music_player)==0 && st_music_busy(t->music_player));
+		if (pass<3) {
+			CHECK(st_cterm_handle_key(t,'x',0)); expect_reply("\xff\xff\xff",3);
+			st_cterm_musicomm_idle(t);
+		} else if (pass==3) CHECK(st_cterm_finish(t)==0);
+		else CHECK(st_cterm_reset_terminal(t)==0);
+		CHECK(st_cterm_musicomm_state(t)==ST_CTERM_MUSICOMM_OFF);
+		CHECK(!st_music_busy(t->music_player) && audio_stream_buffered_frames(t->music_stream)==0);
+		CHECK(!r.held && r.tail==0 && r.cached==0);
+		int16_t pcm[1024*AUDIO_CHANNELS];
+		CHECK(st_audio_runtime_pull(audio,pcm,1024)==0);
+		for (size_t i=0;i<1024*AUDIO_CHANNELS;++i) CHECK(pcm[i]==0);
+	}
+	CHECK(st_cterm_musicomm_start(t)==0);
+	feed(t,"\x02",1); st_cterm_musicomm_idle(t); expect_reply("\x02",1);
+	feed(t,"\x3c",1);
+	st_cterm_destroy(&t);
+	CHECK(!r.held && r.tail==0 && r.cached==0);
+	atomic_store(&c.stop,true); CHECK(st_thread_join(thread,NULL)==ST_THREAD_SUCCESS);
+	st_audio_runtime_destroy(audio); st_font_catalog_destroy(fonts); st_console_destroy(console);
+}
 static void unavailable(void)
 {
 	for (unsigned mode=0;mode<3;++mode) {
@@ -216,5 +316,6 @@ int st_cterm_musicomm_test_main(void)
 	for (unsigned utf8=0;utf8<2;++utf8)
 		for (unsigned midi=0;midi<2;++midi) exercise(utf8,midi);
 	unavailable();
+	software_session();
 	return 0;
 }

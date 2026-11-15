@@ -45,6 +45,7 @@ int st_midi_sink_open(struct st_midi_sink *sink, enum st_midi_backend kind,
 	bool (*cancelled)(void *), void *context);
 void st_midi_sink_close(struct st_midi_sink *sink);
 int st_midi_sink_start(struct st_midi_sink *sink);
+int st_midi_sink_reset(struct st_midi_sink *sink);
 int st_midi_sink_ansi(struct st_midi_sink *sink);
 int st_midi_sink_calibrate(struct st_midi_sink *sink);
 int st_midi_sink_send(struct st_midi_sink *sink, const uint8_t *data, size_t size);
