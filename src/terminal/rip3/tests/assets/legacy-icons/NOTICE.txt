@@ -1,0 +1,16 @@
+RADIO.ICN and RADIO.BMP are unmodified historical fixtures redistributed
+with TeleGrafix RIPterm 1.54 and 2.0 respectively, preserved in the reference
+repository at revision 2fb17724b6122a5ad5cd1df38b69b8cce3a7079f.
+Original artwork rights remain with their respective holders; these files
+are not newly authored SyncTERM artwork or emulator-generated expectations.
+
+Source, byte count and SHA-256 are recorded in manifest.json. The reference
+repository's documentation dedication does not relicense historical binaries.
+
+https://github.com/bbs-land/remote-imaging-protocol/tree/2fb17724b6122a5ad5cd1df38b69b8cce3a7079f/version/1.54/assets/icons
+https://github.com/bbs-land/remote-imaging-protocol/tree/2fb17724b6122a5ad5cd1df38b69b8cce3a7079f/version/2.0/assets/icons
+
+The conversion test explicitly supplies the original BMP's palette and compares
+the entire encoded file with that original. It does not select the palette for
+runtime conversion, assert unresolved file deletion/timestamp policy, or change
+any RIP 1.54 implementation, historical capture or asset.

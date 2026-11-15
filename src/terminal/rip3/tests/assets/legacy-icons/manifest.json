@@ -1,0 +1,19 @@
+{
+  "repository": "https://github.com/bbs-land/remote-imaging-protocol",
+  "revision": "2fb17724b6122a5ad5cd1df38b69b8cce3a7079f",
+  "purpose": "Unmodified historical test-only files. The original BMP is the independent expected conversion result; its palette is supplied explicitly, not adopted as runtime conversion policy.",
+  "files": [
+    {
+      "file": "RADIO.ICN",
+      "source": "version/1.54/assets/icons/RADIO.ICN",
+      "size": 94,
+      "sha256": "de20a1e557800ee307739be7842ba7d0f3550ee9a09db584d163320ed1c3d039"
+    },
+    {
+      "file": "RADIO.BMP",
+      "source": "version/2.0/assets/icons/RADIO.BMP",
+      "size": 206,
+      "sha256": "c148e0c17947c3d2383a4ad0e848cf3e9d7eaf717f149ad24a9e2a885400d38d"
+    }
+  ]
+}

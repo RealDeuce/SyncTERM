@@ -81,6 +81,21 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_bitmap_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_bitmap COMMAND st_rip3_bitmap_test)
+	add_executable(st_rip3_legacy_icon_test tests/st_rip3_legacy_icon_test.c)
+	target_link_libraries(st_rip3_legacy_icon_test PRIVATE st_rip3 syncterm_filesystem)
+	set_target_properties(st_rip3_legacy_icon_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_legacy_icon_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_legacy_icon_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	set(_rip3_icon_assets "${CMAKE_CURRENT_SOURCE_DIR}/tests/assets/legacy-icons")
+	add_test(NAME rip3_legacy_icon COMMAND st_rip3_legacy_icon_test
+		"${_rip3_icon_assets}/RADIO.ICN" "${_rip3_icon_assets}/RADIO.BMP")
+	add_test(NAME rip3_legacy_icon_assets COMMAND "${CMAKE_COMMAND}"
+		"-DASSET_DIRECTORY=${_rip3_icon_assets}"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/check_legacy_icons.cmake")
 	add_executable(st_rip3_surface_test tests/st_rip3_surface_test.c)
 	target_link_libraries(st_rip3_surface_test PRIVATE st_rip3)
 	set_target_properties(st_rip3_surface_test PROPERTIES

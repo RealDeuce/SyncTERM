@@ -27,6 +27,65 @@ st_rip3_bitmap_destroy(struct st_rip3_bitmap *bitmap)
 }
 
 int
+st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
+    const void *bytes, size_t size, const uint32_t palette[16])
+{
+	const uint8_t *data = bytes;
+	struct st_rip3_bitmap *bitmap;
+	uint32_t width, height;
+	size_t plane_bytes, row_bytes, pixel_bytes;
+	int status;
+
+	if (result == NULL || data == NULL || palette == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (size < 4)
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 0; i < 16; i++) {
+		if (palette[i] > 0xffffff)
+			return IO_ERROR_INVALID_ARGUMENT;
+	}
+	/* There is no magic. Widen the WORDs before adding one; 0xffff does
+	 * not become a zero dimension. Pixel storage is four top-down planes. */
+	width = (uint32_t)word(data) + 1;
+	height = (uint32_t)word(data + 2) + 1;
+	plane_bytes = (width + 7) / 8;
+	row_bytes = plane_bytes * 4;
+	/* This source-format bound also proves subsequent size_t products safe,
+	 * including on a small host. Slack belongs to BGI's buffer, not pixels. */
+	if (height > (65535U - 6U) / row_bytes)
+		return IO_ERROR_OUT_OF_RANGE;
+	pixel_bytes = row_bytes * height;
+	if (size < 4 + pixel_bytes)
+		return IO_ERROR_INVALID_FORMAT;
+	bitmap = calloc(1, sizeof(*bitmap));
+	if (bitmap == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	bitmap->bit_depth = 4;
+	bitmap->palette_size = 16;
+	for (size_t i = 0; i < 16; i++)
+		bitmap->palette[i] = palette[i];
+	status = st_pixel_buffer_create(&bitmap->pixels, width, height, false);
+	if (status != 0) {
+		st_rip3_bitmap_destroy(bitmap);
+		return status;
+	}
+	for (uint32_t y = 0; y < height; y++) {
+		const uint8_t *row = data + 4 + (size_t)y * row_bytes;
+		for (uint32_t x = 0; x < width; x++) {
+			uint32_t index = 0;
+			unsigned shift = 7 - (x % 8);
+
+			for (unsigned plane = 0; plane < 4; plane++)
+				index |= (uint32_t)((row[plane * plane_bytes + x / 8] >> shift) & 1)
+				    << (3 - plane);
+			bitmap->pixels->primary[(size_t)y * width + x] = index;
+		}
+	}
+	*result = bitmap;
+	return 0;
+}
+
+int
 st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 	const void *bytes, size_t size)
 {

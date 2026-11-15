@@ -97,6 +97,10 @@ Open clarification issues:
   syntax typo, inconsistent DATETIME weekday/date example and exact single-digit
   day padding/trailing-newline policy.
 
+- [#19](https://github.com/bbs-land/remote-imaging-protocol/issues/19): which
+  palette supplies legacy-icon conversion RGB values and whether 2.x source
+  deletion/timestamp behavior belongs to RIPtel 3.1's conversion contract.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -564,6 +568,26 @@ indirect leaks. Clock collection/conversion and batch/session wiring remain
 pending client-adapter work. DATETIME stays unsupported under #18; the YEAR
 handler follows its unambiguous name/meaning while the malformed syntax block
 remains unresolved.
+
+`rip3_legacy_icon` checks independent v3 decoding of legacy ICN/HIC/MSK memory
+data for conversion to BMP. It preserves all sixteen indexes, copies an
+explicit caller palette, decodes top-down plane 3..0 rows with MSB-left bits,
+ignores pad bits and all post-pixel tail bytes, widens WORD-minus-one dimensions
+before addition, and checks the BGI payload/overhead bound before allocation.
+Truncations, malformed inputs and invalid supplied palettes preserve outputs.
+Literal all-index rows, the documented RADIO first row, identical mask planes,
+maximum width/valid-buffer boundaries and a valid ICN beginning with BM are
+covered. No mask-compositing convention is inferred.
+
+The original 94-byte RADIO.ICN and 206-byte RADIO.BMP are pinned test-only
+fixtures with manifest hashes, source revision and historical notices.
+`rip3_legacy_icon_assets` verifies their materialized bytes offline. Supplying
+the original BMP's palette explicitly, the new decoder plus BMP encoder produces
+the entire original BMP byte for byte; expectations are not generated from the
+emulator. Native Valgrind reports no errors or definite/indirect leaks. Automatic
+palette selection, filename conversion, file deletion/timestamps, asset lookup
+and parser/session orchestration remain pending, with policy gaps under #19.
+The existing 1.54 implementation and historical expectations remain frozen.
 
 ## Verification and acceptance
 

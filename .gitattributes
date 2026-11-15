@@ -8,6 +8,9 @@ src/media/amiga_font/data/LICENSE-MIT -text
 src/terminal/rip3/assets/fonts/*.RFF -text
 src/terminal/rip3/assets/fonts/*.maf -text
 src/terminal/rip3/assets/fonts/*.CHR -text
+# Preserve original reference icon bytes used only by RIP3 conversion tests.
+src/terminal/rip3/tests/assets/legacy-icons/*.ICN -text
+src/terminal/rip3/tests/assets/legacy-icons/*.BMP -text
 # Independently constructed JPEG test bitstreams and upstream notices.
 src/media/pixel_image/tests/jpeg/*.jpg -text
 src/media/pixel_image/LICENSE.JPEG -text
