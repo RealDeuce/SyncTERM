@@ -56,6 +56,8 @@ Open clarification issues:
   escaping and identification.
 - [#8](https://github.com/bbs-land/remote-imaging-protocol/issues/8): inherited
   BMM mask raster and compositing convention.
+- [#9](https://github.com/bbs-land/remote-imaging-protocol/issues/9): conflicting
+  RGB component example and incorrect C palette-index expression.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -150,6 +152,18 @@ The backend uses the existing dependency controls with a hash-pinned
 libjpeg-turbo fallback and retained IJG notices. Runtime support validates the
 header/library ABI. JPEG host commands, file lookup and canvas rendering remain
 pending.
+
+`rip3_surface` checks an independent indexed 256-color surface and palette.
+All 256 default colors are checked against literal RGB expectations derived
+from the pinned six-bit table, independently of the implementation's cube/ramp
+construction. Tests cover the desktop master-color bit permutation, full and
+partial RGB updates, closest-match/tie behavior, invalid/overlapping spans,
+physical inclusive clipping, all five write modes (including literal truth
+tables and 7 NOT -> 248), and unchanged state/results on errors. Stored indexes
+make palette cycling affect existing pixels; an owned RGB snapshot remains
+unchanged after subsequent drawing/palette changes. All three selected canvas
+sizes are exercised. This is the v3 device-pixel layer; world/port transforms,
+style/palette slots, host opcodes and application routing remain pending.
 
 ## Verification and acceptance
 
