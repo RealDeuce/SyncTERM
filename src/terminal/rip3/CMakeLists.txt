@@ -3,7 +3,8 @@ set(_rip3_font_directory "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
 set(_rip3_font_data "${CMAKE_CURRENT_BINARY_DIR}/builtin_fonts.c")
 set(_rip3_font_files)
 foreach(name IN ITEMS BRUSH.RFF COBB.RFF DEFAULT.RFF DIXON.RFF EUREKA.RFF
-	MARIN.RFF OAKLAND.RFF SYMBOL.RFF RIPscrip.maf)
+	MARIN.RFF OAKLAND.RFF SYMBOL.RFF RIPscrip.maf TRIP.CHR LITT.CHR SANS.CHR
+	GOTH.CHR SCRI.CHR SIMP.CHR TSCR.CHR LCOM.CHR EURO.CHR BOLD.CHR)
 	list(APPEND _rip3_font_files "${_rip3_font_directory}/${name}")
 endforeach()
 add_custom_command(OUTPUT "${_rip3_font_data}"

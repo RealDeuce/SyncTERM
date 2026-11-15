@@ -81,6 +81,10 @@ Open clarification issues:
   in-use status, intra-table copy protection/error behavior and conflicting
   drawing-port current/copy descriptions.
 
+- [#17](https://github.com/bbs-land/remote-imaging-protocol/issues/17): six emitted
+  BOLD.CHR opcode-01 scan records contradict the inherited unused-opcode claim;
+  their painting semantics need clarification for v3.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -123,11 +127,16 @@ explicit-radix digit spans, not command grammars: command-specific radix,
 field shortening, signed interpretation and error recovery remain separate
 requirements. The existing application RIP 3 path has not changed.
 
-The eight original RFF families and RIPscrip.maf are bundled unchanged with
-SHA-256/size pins. The build verifies them before generating C data in the
+The eight original RFF families, RIPscrip.maf and ten original CHR fonts are
+bundled unchanged with SHA-256/size pins. The build verifies them before generating C data in the
 build tree. `rip3_font_assets` rejects both same-size modifications and
 truncation before publishing generated output. Original notices appear in
-the program's license/provenance list. No 1.54 font bank is replaced.
+the program's license/provenance list. The nineteen payloads include RIPtel's
+later LITT.CHR (5,151 bytes) and LCOM.CHR (12,079 bytes), which differ from the
+frozen 1.54 font bank. All classic fonts have separate v3 pins/data, and no 1.54
+font bank is replaced. The machine-generated ATF catalog cache is unnecessary
+for the new engine's asset/style registry. Classic CHR decoding/rendering is
+pending; issue #17 tracks the five BOLD glyphs containing scan records.
 
 `rip3_maf` checks explicit little-endian directory/subrecord decoding, all
 30 documented cell sizes and first offsets, the literal 8x11 smiley bytes,

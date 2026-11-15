@@ -98,7 +98,9 @@ test_bounds(void)
 int
 main(void)
 {
-	static const size_t sizes[] = {87155, 62725, 31596, 42071, 70789, 56526, 64213, 43601, 270945};
+	static const size_t sizes[] = {87155, 62725, 31596, 42071, 70789, 56526,
+		64213, 43601, 270945, 16677, 5151, 13596, 18063, 10987, 8437,
+		17355, 12079, 8439, 14670};
 	static const unsigned dimensions[6][2] = {
 		{640,480}, {800,600}, {1024,768}, {639,479}, {799,599}, {1023,767},
 	};
@@ -116,9 +118,9 @@ main(void)
 	struct st_rip3_maf_font font;
 	const struct st_rip3_font_asset *asset;
 
-	CHECK(st_rip3_font_asset_count() == 9);
-	CHECK(st_rip3_font_asset_at(9) == NULL && st_rip3_font_asset_at(SIZE_MAX) == NULL);
-	for (size_t i = 0; i < 9; ++i) {
+	CHECK(st_rip3_font_asset_count() == 19);
+	CHECK(st_rip3_font_asset_at(19) == NULL && st_rip3_font_asset_at(SIZE_MAX) == NULL);
+	for (size_t i = 0; i < sizeof(sizes) / sizeof(*sizes); ++i) {
 		asset = st_rip3_font_asset_at(i);
 		CHECK(asset != NULL && asset->size == sizes[i]);
 		CHECK(memcmp(asset->data, "version https:", 14) != 0);

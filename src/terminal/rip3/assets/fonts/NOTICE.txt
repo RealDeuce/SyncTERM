@@ -4,7 +4,7 @@ These original binary files are preserved byte-for-byte from
 bbs-land/remote-imaging-protocol, revision
 2fb17724b6122a5ad5cd1df38b69b8cce3a7079f, version/3.0/assets/fonts/.
 SHA-256 identities, sizes and source paths are recorded in manifest.json.
-The RFF files were materialized from the pinned Git LFS objects and verified
+The RFF and CHR files were materialized from the pinned Git LFS objects and verified
 against the object SHA-256 and size before inclusion.
 
 COBB.RFF, DIXON.RFF, MARIN.RFF and SYMBOL.RFF preserve trailers identifying
@@ -13,6 +13,10 @@ RIPterm 2.0 font system, Copyright TeleGrafix Communications Inc. 1995.
 BRUSH.RFF, EUREKA.RFF and OAKLAND.RFF have no COPR trailer section in the
 original files. RIPscrip.maf is the MicroANSI font container shipped with
 RIPtel 3.1. Original embedded notices and bytes remain unchanged.
+The ten CHR files (TRIP, LITT, SANS, GOTH, SCRI, SIMP, TSCR, LCOM, EURO,
+BOLD) are the original BGI Stroked Font V1.1 files shipped with RIPtel 3.1.
+Their embedded notices identify Copyright (c) 1987,1988 Borland International.
+
 The SyncTERM C implementation's BSD license does not relicense these historical
 font binaries. The reference repository's documentation license is separate
 from the original historical assets.

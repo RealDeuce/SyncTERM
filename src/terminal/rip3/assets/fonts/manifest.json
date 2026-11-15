@@ -55,6 +55,66 @@
       "source": "version/3.0/assets/fonts/RIPscrip.maf",
       "size": 270945,
       "sha256": "8c0be38eee89b6935ed6f93885c14350f4a6db0a10a72a38d126811bbd090cef"
+    },
+    {
+      "name": "TRIP.CHR",
+      "source": "version/3.0/assets/fonts/TRIP.CHR",
+      "size": 16677,
+      "sha256": "831963618a5dbf3562e12c3b4b8bab3ed3879143de3c7cd9293be171a44282db"
+    },
+    {
+      "name": "LITT.CHR",
+      "source": "version/3.0/assets/fonts/LITT.CHR",
+      "size": 5151,
+      "sha256": "5eb19d13fef5a79833f114fa02fc1aaabd4b049abbc0a44ccfc83e866f93fcdf"
+    },
+    {
+      "name": "SANS.CHR",
+      "source": "version/3.0/assets/fonts/SANS.CHR",
+      "size": 13596,
+      "sha256": "edd4db0e5735ce0872d60137819e2b74a590d069be7585269b7b6d675e319bbc"
+    },
+    {
+      "name": "GOTH.CHR",
+      "source": "version/3.0/assets/fonts/GOTH.CHR",
+      "size": 18063,
+      "sha256": "8620ae9db9dd874b842f67f7153721a5681fef3cd9e99af0fde41f3b1194f183"
+    },
+    {
+      "name": "SCRI.CHR",
+      "source": "version/3.0/assets/fonts/SCRI.CHR",
+      "size": 10987,
+      "sha256": "04fde2931ba5392c55791b0c99c0c6790cfae97e9792b5833e40e87e19730bf7"
+    },
+    {
+      "name": "SIMP.CHR",
+      "source": "version/3.0/assets/fonts/SIMP.CHR",
+      "size": 8437,
+      "sha256": "8d51af7680da29886481166fbc352141e6c615dd97927521b06cb2548f940acf"
+    },
+    {
+      "name": "TSCR.CHR",
+      "source": "version/3.0/assets/fonts/TSCR.CHR",
+      "size": 17355,
+      "sha256": "305e2a9657902fef2a52b25e398a5e2fca4cd0ace0fc0208704b2cb5c360b187"
+    },
+    {
+      "name": "LCOM.CHR",
+      "source": "version/3.0/assets/fonts/LCOM.CHR",
+      "size": 12079,
+      "sha256": "52c7667877584dada19f2b9100699e6946cc0701ea7c69de15628e3f9408c1a0"
+    },
+    {
+      "name": "EURO.CHR",
+      "source": "version/3.0/assets/fonts/EURO.CHR",
+      "size": 8439,
+      "sha256": "783392b9fd0414a9c768db7741808811de63c599b34f92acb2d967e74993c6b1"
+    },
+    {
+      "name": "BOLD.CHR",
+      "source": "version/3.0/assets/fonts/BOLD.CHR",
+      "size": 14670,
+      "sha256": "ee8b45d7491e1bc61936923f8642f1766c58dee7c528fa542e727092a914d07e"
     }
   ]
 }
