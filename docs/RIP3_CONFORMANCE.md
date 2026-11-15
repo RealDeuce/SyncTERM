@@ -62,6 +62,8 @@ Open clarification issues:
   port extents, clipped verbatim copies and viewport diagram arithmetic.
 - [#11](https://github.com/bbs-land/remote-imaging-protocol/issues/11): PIXEL/POINT
   coordinate policy, line-thickness units and polyline vertex/side wording.
+- [#12](https://github.com/bbs-land/remote-imaging-protocol/issues/12): conflicting
+  preset fill-mask bytes/radix examples and unspecified pattern anchoring.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -212,6 +214,18 @@ stroke rectangle even for extreme endpoints and widths. The selected round-cap
 raster is a geometric implementation choice, not a RIPtel pixel reproduction.
 Host coordinate/thickness policy remains blocked by #11; multi-segment paths,
 style slots, wire commands and scene reset orchestration remain pending.
+
+`rip3_fill` checks custom eight-byte masks (top-to-bottom, MSB left), atomic
+rejection of out-of-range bytes, explicit cyclic origins including negative
+extremes, background-only/solid fills and pattern continuity across adjacent
+clipped bars. Rectangle tests distinguish BAR's inclusive far edge from the
+half-open resolution-independent interior, normalize opposing corners, cover
+degenerate cases and confirm solid COPY borders after XOR/NOT interiors.
+Invalid border state is rejected before changing the fill. Protected/inactive
+ports, viewport origins and extreme coordinates are covered, with an independent
+coherent RGB capture of the visible region/margins. Host tiling policy and the
+conflicting preset table remain blocked by #12; style slots and wire commands
+remain pending.
 
 ## Verification and acceptance
 
