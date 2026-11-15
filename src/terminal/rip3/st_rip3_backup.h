@@ -11,11 +11,13 @@ enum st_rip3_backup_place {
 	ST_RIP3_BACKUP_BASE,
 	ST_RIP3_BACKUP_SLOT,
 	ST_RIP3_BACKUP_STACK,
+	ST_RIP3_BACKUP_TABLE, /* Only accepted by copy, not save/restore/clear. */
 };
 
 /* One documented RIP data-object class per backup area. Callbacks must return
  * independent owned snapshots, preserve outputs/live state on failure, and
- * restore a whole table including its protection flags. The area owns each
+ * restore a whole table including its protection flags. Snapshots are immutable
+ * after cloning (restore must not modify them). The area owns each
  * successful snapshot until destruction/overwrite/consumption. Ops are copied;
  * their function code must outlive the area. All operations share one owner
  * thread, including callbacks; callbacks must not reenter the area. */
@@ -47,6 +49,24 @@ int st_rip3_backup_save(struct st_rip3_backup *backup,
 	enum st_rip3_backup_place place, unsigned index, const void *object);
 int st_rip3_backup_restore(struct st_rip3_backup *backup,
 	enum st_rip3_backup_place place, unsigned index, void *object);
+struct st_rip3_backup_location {
+	enum st_rip3_backup_place place;
+	unsigned index;
+};
+/* Copy a whole table to one or more locations. STACK source means POP;
+ * STACK destinations mean PUSH. Validate every location, self-copy, protection
+ * and final shared capacity before changing anything. A popped source is
+ * consumed once, after every destination has received the same saved value;
+ * numbered sources are consumed only if restoring a live TABLE and unprotected;
+ * base sources are retained. TABLE requires a non-NULL live object; otherwise
+ * object may be NULL. A table source is cloned once, and a table destination
+ * is restored before the infallible backup commit, so errors preserve all state.
+ * Immutable snapshots may share internal
+ * ownership, preserving independent value semantics without live-object casts.
+ * Wire syntax and intra-table entry copying are handled separately. */
+int st_rip3_backup_copy(struct st_rip3_backup *backup,
+	struct st_rip3_backup_location source,
+	const struct st_rip3_backup_location *destinations, size_t count, void *object);
 /* Only occupied numbered slots can be protected; undefined protection is a
  * no-op. Individual protected clears fail. Clearing STACK removes all layers. */
 int st_rip3_backup_protect(struct st_rip3_backup *backup, unsigned index, bool protect);

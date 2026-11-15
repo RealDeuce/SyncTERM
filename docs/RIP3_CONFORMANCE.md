@@ -330,8 +330,8 @@ restores, independent snapshot lifetime and self-restoration are covered. A
 coherent RGB snapshot confirms palette cycling recolors existing indexed pixels
 without modifying their indexes, while earlier owned captures remain immutable.
 Native Valgrind reports no errors or definite/indirect leaks after making
-self-restoration an explicit no-op. Backup slots/stack, scene/wire integration,
-and the reset/intra-table-copy semantics in #16 remain pending.
+self-restoration an explicit no-op. The backup adapter is covered below;
+scene/wire integration and reset/intra-table-copy semantics in #16 remain pending.
 
 `rip3_backup` checks the documented per-object backup lifecycle: one independent
 base save, ten positions shared by numbered slots and a stack, LIFO restoration,
@@ -343,9 +343,21 @@ remain unchanged; ownership counters and native Valgrind verify complete cleanup
 with no errors or definite/indirect leaks. Literal BACKSTAT USE/PROT strings,
 including the pinned USE example and insufficient-buffer atomicity, are checked.
 An actual palette-table adapter saves/restores complete current/definition/color/
-protection state across base/slot/stack operations. Other table adapters,
-backup-to-backup and multiple-destination copies, and variable/scene integration
-remain pending. Soft scene reset must retain backup areas.
+protection state across base/slot/stack operations. Other table adapters and
+variable/scene integration remain pending. Soft scene reset must retain backups.
+
+`rip3_backup_copy` checks all thirteen whole-table source/destination combinations
+across live tables, base, numbered slots and the stack, plus multiple destinations.
+It validates all destinations, self-copy, protection and final shared capacity
+before changes; failed cloning/restoration preserves the live table and every
+save. POP consumes once after all copies; unprotected numbered sources are
+consumed only when restoring a live table. Full-capacity POP/restore exchanges,
+repeated destinations and readable protected sources are covered. Immutable
+saved objects share private ownership; restoring/mutating one live offscreen
+port table leaves all remaining saved pixels independent. Last-owner destruction,
+explicit-clear cleanup and failure paths pass native Valgrind without errors or
+definite/indirect leaks. Wire `$COPY$` dispatch, remaining table adapters and the
+intra-table entry-copy policies in #16 remain pending.
 
 `rip3_bitmap_text` checks rendering from immutable MicroANSI views with explicit
 CP437 spans (including blank zero and character 255), magnifications 1/2/10,
