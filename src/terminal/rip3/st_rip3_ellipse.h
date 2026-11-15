@@ -1,0 +1,43 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#ifndef ST_RIP3_ELLIPSE_H_
+#define ST_RIP3_ELLIPSE_H_
+
+#include "st_rip3_fill.h"
+
+/* Parametric device-pixel ellipse:
+ * x(t) = center_x + xx*cos(t) + xy*sin(t)
+ * y(t) = center_y + yx*cos(t) + yy*sin(t)
+ * A general basis permits world scaling AFTER rotation, including unequal
+ * x/y scales. The constructor uses screen coordinates (positive y downward)
+ * and counterclockwise rotation/parameter angles. */
+struct st_rip3_ellipse {
+	double center_x;
+	double center_y;
+	double xx;
+	double xy;
+	double yx;
+	double yy;
+};
+
+enum st_rip3_ellipse_region {
+	ST_RIP3_ELLIPSE_PIE,
+	ST_RIP3_ELLIPSE_CHORD,
+};
+
+int st_rip3_ellipse_axes(struct st_rip3_ellipse *result,
+	double center_x, double center_y, double radius_x, double radius_y,
+	double rotation_degrees);
+/* Fill only: no border and no flood fill. Samples are pixel centers in the
+ * continuous ellipse/sector/segment. A full 360-degree sweep is the ellipse;
+ * zero sweep or a singular basis has no interior. Sweep is in [0,360] degrees.
+ * PIE starts inclusive and ends exclusive; chord boundary ties are assigned
+ * consistently to one of the two complementary segments. Pattern phase is
+ * explicit in fill. Inputs/errors cannot change pixels before validation.
+ * Raw wire start/end and aspect-correct circle policy belong to the caller. */
+int st_rip3_draw_ellipse_interior(struct st_rip3_ports *ports,
+	const struct st_rip3_ellipse *ellipse, double start_degrees,
+	double sweep_degrees, enum st_rip3_ellipse_region region,
+	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+	enum st_rip3_write_mode mode);
+
+#endif

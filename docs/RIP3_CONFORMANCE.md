@@ -70,6 +70,8 @@ Open clarification issues:
   preset fill-mask bytes/radix examples and unspecified pattern anchoring.
 - [#13](https://github.com/bbs-land/remote-imaging-protocol/issues/13): two-digit
   polygon counts versus the 4,096-vertex limit and multi-contour coordinate widths.
+- [#14](https://github.com/bbs-land/remote-imaging-protocol/issues/14): arc/pie/chord
+  angle ordering and empty, wrapped, full and multi-turn sweep semantics.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -258,6 +260,19 @@ reported no errors or definite/indirect leaks. Existing line/path/fill tests
 still pass. Wire encoding/limits remain blocked by #13; these kernel limits
 do not establish the number of vertices reachable through the documented wire
 fields. Curved filled shapes and host orchestration remain pending.
+
+`rip3_ellipse` checks direct, bounded geometric interiors without flood fill:
+circles, rotated ellipses, general affine bases, positive/wrapped pie sweeps,
+complementary chord segments with shared boundary ownership, empty/whole sweeps,
+custom masks/backgrounds, XOR/NOT and clipped extreme radii. Literal circle/
+rotation grids and an independently derived integer conic grid provide expected
+pixels. Four adjacent XOR pie sectors and complementary XOR chords cover their
+disks once. Constructor/error tests preserve metadata/pixels; singular/zero-axis
+and inactive cases are no-ops. A coherent RGB capture checks a protected viewport
+and its margins. The basis supports unequal world scaling after rotation, and
+cardinal rotations use exact coefficients. This is an interior kernel with
+explicit start/sweep; border strokes, circle-aspect mapping and the unresolved
+wire angle policy in #14 remain pending.
 
 ## Verification and acceptance
 
