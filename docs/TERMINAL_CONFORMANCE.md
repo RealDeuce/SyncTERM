@@ -1,5 +1,10 @@
 # Terminal conformance coverage
 
+The separate [RIPscrip 3.0 implementation goal](RIP3_CONFORMANCE.md) pins its
+documentation and tracks requirements and upstream blockers. Its source guard
+freezes the existing RIP 1.54 implementation and historical fixtures. This is
+preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
+
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed
 values, supplied-value bypass, input-free completion, waits, raw arity and
