@@ -47,6 +47,7 @@ struct stroke_target {
 	 * adjacent segments cannot apply XOR twice at a join or crossing. */
 	uint8_t *coverage;
 	size_t width;
+	size_t height;
 };
 
 static int
@@ -99,7 +100,7 @@ stroke_pixel(struct stroke_target *target, int32_t x, int32_t y, bool on)
 
 static int
 stroke_segment(struct stroke_target *target,
-    const struct st_rip3_point *first, const struct st_rip3_point *last,
+    const struct st_rip3_vector *first, const struct st_rip3_vector *last,
     const struct st_rip3_pen *pen, unsigned initial_phase)
 {
 	int32_t left, right, top, bottom;
@@ -201,7 +202,12 @@ st_rip3_draw_line(struct st_rip3_ports *ports,
 	status = stroke_init(&target, ports, pen, foreground, background, mode);
 	if (status != 0 || !target.active)
 		return status;
-	return stroke_segment(&target, first, last, pen, 0);
+	{
+		struct st_rip3_vector a = {first->x, first->y};
+		struct st_rip3_vector b = {last->x, last->y};
+
+		return stroke_segment(&target, &a, &b, pen, 0);
+	}
 }
 
 int
@@ -226,14 +232,45 @@ st_rip3_contours_validate(const struct st_rip3_contour *contours,
 	return 0;
 }
 
+static int
+stroke_allocate(struct stroke_target *target, const struct st_rip3_pen *pen,
+    double min_x, double min_y, double max_x, double max_y)
+{
+	double margin = pen->thickness / 2.0 + 1;
+
+	min_x -= margin;
+	min_y -= margin;
+	max_x += margin;
+	max_y += margin;
+	if (min_x > target->clip.x1 || min_y > target->clip.y1
+	    || max_x < target->clip.x0 || max_y < target->clip.y0) {
+		return 0;
+	}
+	if (min_x > target->clip.x0)
+		target->clip.x0 = (int32_t)ceil(min_x);
+	if (min_y > target->clip.y0)
+		target->clip.y0 = (int32_t)ceil(min_y);
+	if (max_x < target->clip.x1)
+		target->clip.x1 = (int32_t)floor(max_x);
+	if (max_y < target->clip.y1)
+		target->clip.y1 = (int32_t)floor(max_y);
+	target->width = (size_t)(target->clip.x1 - target->clip.x0) + 1;
+	target->height = (size_t)(target->clip.y1 - target->clip.y0) + 1;
+	if (target->width > SIZE_MAX / target->height)
+		return IO_ERROR_OUT_OF_RANGE;
+	target->coverage = calloc(target->width * target->height, 1);
+	if (target->coverage == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	return 0;
+}
+
 int
 st_rip3_stroke_collect(struct st_rip3_ports *ports,
     const struct st_rip3_contour *contours, size_t count, bool closed,
     const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
 {
 	struct stroke_target target;
-	double min_x, min_y, max_x, max_y, margin;
-	size_t height;
+	double min_x, min_y, max_x, max_y;
 	size_t total;
 	int status;
 
@@ -259,33 +296,13 @@ st_rip3_stroke_collect(struct st_rip3_ports *ports,
 			max_y = fmax(max_y, contours[c].points[i].y);
 		}
 	}
-	/* Includes every cap/even-width offset; segment loops tighten this
-	 * conservative rectangle before collecting individual samples. */
-	margin = pen->thickness / 2.0 + 1;
-	min_x -= margin;
-	min_y -= margin;
-	max_x += margin;
-	max_y += margin;
-	if (min_x > target.clip.x1 || min_y > target.clip.y1
-	    || max_x < target.clip.x0 || max_y < target.clip.y0) {
+	status = stroke_allocate(&target, pen, min_x, min_y, max_x, max_y);
+	if (status != 0)
+		return status;
+	if (target.coverage == NULL) {
 		*result = (struct st_rip3_stroke_mask){0};
 		return 0;
 	}
-	if (min_x > target.clip.x0)
-		target.clip.x0 = (int32_t)ceil(min_x);
-	if (min_y > target.clip.y0)
-		target.clip.y0 = (int32_t)ceil(min_y);
-	if (max_x < target.clip.x1)
-		target.clip.x1 = (int32_t)floor(max_x);
-	if (max_y < target.clip.y1)
-		target.clip.y1 = (int32_t)floor(max_y);
-	target.width = (size_t)(target.clip.x1 - target.clip.x0) + 1;
-	height = (size_t)(target.clip.y1 - target.clip.y0) + 1;
-	if (target.width > SIZE_MAX / height)
-		return IO_ERROR_OUT_OF_RANGE;
-	target.coverage = calloc(target.width * height, 1);
-	if (target.coverage == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
 	for (size_t c = 0; c < count; c++) {
 		const struct st_rip3_point *points = contours[c].points;
 		size_t vertices = contours[c].count;
@@ -297,7 +314,10 @@ st_rip3_stroke_collect(struct st_rip3_ports *ports,
 			const struct st_rip3_point *last = &points[(i + 1) % vertices];
 			double major;
 
-			status = stroke_segment(&target, first, last, pen, phase);
+			struct st_rip3_vector a = {first->x, first->y};
+			struct st_rip3_vector b = {last->x, last->y};
+
+			status = stroke_segment(&target, &a, &b, pen, phase);
 			if (status != 0)
 				goto failed;
 			major = fmax(fabs((double)last->x - first->x),
@@ -308,7 +328,86 @@ st_rip3_stroke_collect(struct st_rip3_ports *ports,
 	*result = (struct st_rip3_stroke_mask){
 		.bounds = target.clip,
 		.width = target.width,
-		.height = height,
+		.height = target.height,
+		.coverage = target.coverage,
+	};
+	return 0;
+failed:
+	free(target.coverage);
+	return status;
+}
+
+int
+st_rip3_stroke_vectors(struct st_rip3_ports *ports,
+    const struct st_rip3_vector *vertices, size_t vertex_count,
+    const struct st_rip3_vector_run *runs, size_t run_count,
+    uint32_t thickness, struct st_rip3_stroke_mask *result)
+{
+	struct stroke_target target;
+	struct st_rip3_pen pen;
+	double min_x, min_y, max_x, max_y;
+	int status;
+
+	if (result == NULL || (vertices == NULL && vertex_count != 0)
+	    || (runs == NULL && run_count != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (vertex_count > SIZE_MAX / sizeof(*vertices)
+	    || run_count > SIZE_MAX / sizeof(*runs))
+		return IO_ERROR_OUT_OF_RANGE;
+	for (size_t r = 0; r < run_count; r++) {
+		if (runs[r].count == 0 || runs[r].first > vertex_count
+		    || runs[r].count > vertex_count - runs[r].first)
+			return IO_ERROR_OUT_OF_RANGE;
+	}
+	for (size_t i = 0; i < vertex_count; i++) {
+		/* Includes signed-32 centers plus both ellipse basis vectors. */
+		if (!isfinite(vertices[i].x) || !isfinite(vertices[i].y)
+		    || fabs(vertices[i].x) > 4.0 * INT32_MAX
+		    || fabs(vertices[i].y) > 4.0 * INT32_MAX)
+			return IO_ERROR_OUT_OF_RANGE;
+	}
+	status = st_rip3_pen_set(&pen, false, 0, 0, thickness);
+	if (status != 0)
+		return status;
+	status = stroke_init(&target, ports, &pen, 0, 0, ST_RIP3_COPY);
+	if (status != 0)
+		return status;
+	if (!target.active || run_count == 0) {
+		*result = (struct st_rip3_stroke_mask){0};
+		return 0;
+	}
+	min_x = max_x = vertices[0].x;
+	min_y = max_y = vertices[0].y;
+	for (size_t i = 1; i < vertex_count; i++) {
+		min_x = fmin(min_x, vertices[i].x);
+		max_x = fmax(max_x, vertices[i].x);
+		min_y = fmin(min_y, vertices[i].y);
+		max_y = fmax(max_y, vertices[i].y);
+	}
+	status = stroke_allocate(&target, &pen, min_x, min_y, max_x, max_y);
+	if (status != 0)
+		return status;
+	if (target.coverage == NULL) {
+		*result = (struct st_rip3_stroke_mask){0};
+		return 0;
+	}
+	for (size_t r = 0; r < run_count; r++) {
+		size_t segments = runs[r].count == 1 ? 1 : runs[r].count - 1;
+
+		for (size_t i = 0; i < segments; i++) {
+			const struct st_rip3_vector *first = &vertices[runs[r].first + i];
+			const struct st_rip3_vector *last = runs[r].count == 1
+			    ? first : &vertices[runs[r].first + i + 1];
+
+			status = stroke_segment(&target, first, last, &pen, 0);
+			if (status != 0)
+				goto failed;
+		}
+	}
+	*result = (struct st_rip3_stroke_mask){
+		.bounds = target.clip,
+		.width = target.width,
+		.height = target.height,
 		.coverage = target.coverage,
 	};
 	return 0;

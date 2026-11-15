@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-/* Private stroke coverage shared by path and filled-polygon rendering. */
+/* Private stroke coverage shared by paths, filled polygons and curves. */
 #ifndef ST_RIP3_DRAW_INTERNAL_H_
 #define ST_RIP3_DRAW_INTERNAL_H_
 
@@ -16,6 +16,23 @@ struct st_rip3_stroke_mask {
 	/* 0 = transparent, 1 = pen background, 2 = pen foreground. */
 	uint8_t *coverage;
 };
+
+struct st_rip3_vector {
+	double x;
+	double y;
+};
+
+struct st_rip3_vector_run {
+	size_t first;
+	size_t count;
+};
+
+/* Solid generated curves, retaining subpixel vertices. Runs are open; a
+ * closed curve supplies its first point again at the end. */
+int st_rip3_stroke_vectors(struct st_rip3_ports *ports,
+	const struct st_rip3_vector *vertices, size_t vertex_count,
+	const struct st_rip3_vector_run *runs, size_t run_count,
+	uint32_t thickness, struct st_rip3_stroke_mask *result);
 
 int st_rip3_contours_validate(const struct st_rip3_contour *contours,
 	size_t count, size_t *vertices);

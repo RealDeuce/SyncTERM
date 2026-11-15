@@ -22,6 +22,7 @@ struct st_rip3_ellipse {
 enum st_rip3_ellipse_region {
 	ST_RIP3_ELLIPSE_PIE,
 	ST_RIP3_ELLIPSE_CHORD,
+	ST_RIP3_ELLIPSE_ARC, /* Outline only; no closing edges. */
 };
 
 int st_rip3_ellipse_axes(struct st_rip3_ellipse *result,
@@ -38,6 +39,24 @@ int st_rip3_draw_ellipse_interior(struct st_rip3_ports *ports,
 	const struct st_rip3_ellipse *ellipse, double start_degrees,
 	double sweep_degrees, enum st_rip3_ellipse_region region,
 	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+	enum st_rip3_write_mode mode);
+
+/* Curves use a solid stroke, independent of the line pattern. Each pixel is
+ * written once, including at joins and closing edges. Generated chords have
+ * at most 1/4 device-pixel geometric deviation from the parametric curve.
+ * Singular bases draw their degenerate line/point; zero sweep draws nothing. */
+int st_rip3_draw_ellipse_outline(struct st_rip3_ports *ports,
+	const struct st_rip3_ellipse *ellipse, double start_degrees,
+	double sweep_degrees, enum st_rip3_ellipse_region region,
+	uint32_t thickness, uint8_t color, enum st_rip3_write_mode mode);
+/* Border zero disables it. Otherwise the solid border is drawn in COPY mode
+ * after the interior, regardless of mode. All outline scratch allocation and
+ * input validation precede any drawing. Only PIE/CHORD accept interiors. */
+int st_rip3_draw_filled_ellipse(struct st_rip3_ports *ports,
+	const struct st_rip3_ellipse *ellipse, double start_degrees,
+	double sweep_degrees, enum st_rip3_ellipse_region region,
+	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+	uint32_t border_thickness, uint8_t border_color,
 	enum st_rip3_write_mode mode);
 
 #endif

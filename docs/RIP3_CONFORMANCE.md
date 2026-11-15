@@ -271,8 +271,22 @@ disks once. Constructor/error tests preserve metadata/pixels; singular/zero-axis
 and inactive cases are no-ops. A coherent RGB capture checks a protected viewport
 and its margins. The basis supports unequal world scaling after rotation, and
 cardinal rotations use exact coefficients. This is an interior kernel with
-explicit start/sweep; border strokes, circle-aspect mapping and the unresolved
-wire angle policy in #14 remain pending.
+explicit start/sweep; circle-aspect mapping and the unresolved wire angle policy
+in #14 remain pending.
+
+`rip3_ellipse_outline` checks solid curve strokes, open arcs, pie radii and
+chords, including wrapped/full/empty sweeps, rotated/general affine bases,
+thickness, a singular ellipse that doubles back along a diagonal, zero-radius
+pen dots and positive sub-ULP sweeps. Literal circle/sector grids and independent
+annulus/conic cross-sections supply expectations. One union coverage mask applies
+XOR once at joins/crossings. Filled-curve tests cover all five interior write
+modes with patterned fills and enabled/disabled solid COPY borders. Visible
+parameter intervals are clipped before adaptive subdivision (maximum quarter
+pixel chord sagitta); signed-extreme radii are checked in a tiny protected
+viewport with a coherent RGB region/margin capture. Invalid state leaves pixels
+unchanged. Native Valgrind reports no errors or definite/indirect leaks in this
+test. Line/path/polygon expectations still pass after sharing subpixel stroke
+coverage. These are device kernels; scene/wire orchestration remains pending.
 
 ## Verification and acceptance
 
