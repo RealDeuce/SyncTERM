@@ -73,6 +73,10 @@ Open clarification issues:
 - [#14](https://github.com/bbs-land/remote-imaging-protocol/issues/14): arc/pie/chord
   angle ordering and empty, wrapped, full and multi-turn sweep semantics.
 
+- [#15](https://github.com/bbs-land/remote-imaging-protocol/issues/15): malformed
+  Bézier equation, subdivision/expanded-vertex limits, final-block validation
+  and a census poly-Bézier payload inconsistent with the published layout.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -287,6 +291,20 @@ viewport with a coherent RGB region/margin capture. Invalid state leaves pixels
 unchanged. Native Valgrind reports no errors or definite/indirect leaks in this
 test. Line/path/polygon expectations still pass after sharing subpixel stroke
 coverage. These are device kernels; scene/wire orchestration remains pending.
+
+`rip3_bezier` checks explicit uniform subdivision using independent rational
+Bernstein samples, including negative half ties, signed extremes, one segment,
+and 4,096 expanded vertices. Literal open/closed grids distinguish subdivision
+counts. Smooth/jointed cubic blocks and lines share a continuous pattern phase;
+XOR applies once across joins. Filled paths use the existing even-odd kernel,
+with independent triangle/square interiors and optional COPY borders. Invalid
+blocks/counts/expanded sizes leave owned-result metadata unchanged; invalid draw
+state leaves pixels unchanged. A protected viewport's output and margins are
+checked in one coherent RGB capture. Native Valgrind reports no errors or
+definite/indirect leaks. This device kernel explicitly chooses nearest-pixel
+sampling and a 4,096-vertex expansion bound. Those choices are not assertions
+about RIPtel's unresolved wire sampling/count/error rules in #15. No command
+parser or final-block policy is inferred from the kernel.
 
 ## Verification and acceptance
 
