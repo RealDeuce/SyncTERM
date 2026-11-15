@@ -174,6 +174,15 @@ NOT's destination inversion. Expected bytes are authored independently.
 Port-number lookup, world transforms, zero-coordinate special forms and
 protected-port state still require the port-table layer.
 
+`rip3_geometry` checks device/world dimensions separately, the compatibility
+640x350 world and 1280x960 scene world at all three device tiers, exact-ratio
+forward/inverse mapping, full-frame boundary versus last pixel, negative
+coordinates, larger/smaller logical frames, the 32,767 axis limit and unchanged
+outputs on invalid dimensions or arithmetic overflow. Pixel mapping rounds down
+to the containing pixel and leaves clipping to ports/viewports. Inverse mapping
+accounts for unavoidable loss of logical-coordinate precision. This implements
+frame arithmetic; host state and port/view origins remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
