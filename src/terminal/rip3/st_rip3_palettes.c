@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_palettes.h"
+#include "st_rip3_backup.h"
 
 #include "io_error.h"
 
@@ -177,4 +178,37 @@ st_rip3_palettes_restore(struct st_rip3_palettes *palettes,
 		return 0;
 	*palettes = *snapshot;
 	return 0;
+}
+
+static int
+palette_backup_clone(const void *object, void **result)
+{
+	struct st_rip3_palettes *snapshot = NULL;
+	int status = st_rip3_palettes_clone(&snapshot, object);
+
+	if (status == 0)
+		*result = snapshot;
+	return status;
+}
+
+static int
+palette_backup_restore(void *object, const void *snapshot)
+{
+	return st_rip3_palettes_restore(object, snapshot);
+}
+
+static void
+palette_backup_destroy(void *snapshot)
+{
+	st_rip3_palettes_destroy(snapshot);
+}
+
+int
+st_rip3_palettes_backup_create(struct st_rip3_backup **result)
+{
+	static const struct st_rip3_backup_ops ops = {
+		palette_backup_clone, palette_backup_restore, palette_backup_destroy,
+	};
+
+	return st_rip3_backup_create(result, &ops);
 }

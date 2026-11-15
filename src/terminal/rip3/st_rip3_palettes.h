@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 struct st_rip3_palettes;
+struct st_rip3_backup;
 
 struct st_rip3_palette_info {
 	bool defined;
@@ -49,5 +50,9 @@ int st_rip3_palettes_clone(struct st_rip3_palettes **result,
 	const struct st_rip3_palettes *palettes);
 int st_rip3_palettes_restore(struct st_rip3_palettes *palettes,
 	const struct st_rip3_palettes *snapshot);
+
+/* A palette-table backup area using complete owned snapshots. Its save/restore
+ * operations accept live st_rip3_palettes objects. Destroy with backup_destroy. */
+int st_rip3_palettes_backup_create(struct st_rip3_backup **result);
 
 #endif

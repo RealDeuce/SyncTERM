@@ -323,6 +323,20 @@ Native Valgrind reports no errors or definite/indirect leaks after making
 self-restoration an explicit no-op. Backup slots/stack, scene/wire integration,
 and the reset/intra-table-copy semantics in #16 remain pending.
 
+`rip3_backup` checks the documented per-object backup lifecycle: one independent
+base save, ten positions shared by numbered slots and a stack, LIFO restoration,
+persistent base/protected slots, consumed unprotected slots, protected overwrite
+and clear denial, and occupied-slot replacement at capacity. Explicit clearing
+preserves protected slots unless forced. Independent areas retain separate stack
+pointers. Clone/restore failure injection verifies saves and destination state
+remain unchanged; ownership counters and native Valgrind verify complete cleanup
+with no errors or definite/indirect leaks. Literal BACKSTAT USE/PROT strings,
+including the pinned USE example and insufficient-buffer atomicity, are checked.
+An actual palette-table adapter saves/restores complete current/definition/color/
+protection state across base/slot/stack operations. Other table adapters,
+backup-to-backup and multiple-destination copies, and variable/scene integration
+remain pending. Soft scene reset must retain backup areas.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
