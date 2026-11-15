@@ -43,24 +43,6 @@ table_type(const char *text, enum st_rip3_table_type *result)
 }
 
 static int
-number(const char *text, unsigned minimum, unsigned maximum, unsigned *result)
-{
-	unsigned value = 0;
-
-	if (text[0] == 0)
-		return IO_ERROR_INVALID_FORMAT;
-	for (size_t i = 0; text[i] != 0; i++) {
-		if (text[i] < '0' || text[i] > '9' || value > maximum)
-			return IO_ERROR_INVALID_FORMAT;
-		value = value * 10 + (unsigned)(text[i] - '0');
-	}
-	if (value < minimum || value > maximum)
-		return IO_ERROR_INVALID_FORMAT;
-	*result = value;
-	return 0;
-}
-
-static int
 location(const char *text, bool source, struct st_rip3_backup_location *result)
 {
 	struct st_rip3_backup_location value = {ST_RIP3_BACKUP_BASE,0};
@@ -77,7 +59,7 @@ location(const char *text, bool source, struct st_rip3_backup_location *result)
 		return IO_ERROR_NOT_SUPPORTED;
 	else if (text[0] >= '0' && text[0] <= '9') {
 		unsigned index;
-		return number(text, 0, 35, &index) == 0
+		return st_rip3_host_number(text, 0, 35, &index) == 0
 		    ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_INVALID_FORMAT;
 	}
 	else
@@ -158,7 +140,7 @@ palette_entries(const struct st_rip3_table_host *host,
 		status = st_rip3_palettes_current(palettes, &index);
 	}
 	else
-		status = number(reference->parameters[0].text, 0, 35, &index);
+		status = st_rip3_host_number(reference->parameters[0].text, 0, 35, &index);
 	if (status != 0)
 		return status;
 	if (equal(reference->parameters[1].text, "ALL")) {
@@ -167,12 +149,12 @@ palette_entries(const struct st_rip3_table_host *host,
 		first = 0; last = 255;
 	}
 	else {
-		status = number(reference->parameters[1].text, 0, 255, &first);
+		status = st_rip3_host_number(reference->parameters[1].text, 0, 255, &first);
 		if (status != 0)
 			return status;
 		last = first;
 		if (reference->count == 3) {
-			status = number(reference->parameters[2].text, first, 255, &last);
+			status = st_rip3_host_number(reference->parameters[2].text, first, 255, &last);
 			if (status != 0)
 				return status;
 		}
@@ -227,7 +209,7 @@ element(const char *text, enum element *result, unsigned *index)
 		*index = (unsigned)(text[1] - '0');
 		return 0;
 	}
-	if (number(text, 1, 35, index) == 0) {
+	if (st_rip3_host_number(text, 1, 35, index) == 0) {
 		*result = ENTRY;
 		return 0;
 	}
@@ -265,7 +247,7 @@ objects(const struct st_rip3_table_host *host,
 			status = entry_current(type, binding->live, &index);
 			return status == 0 ? reply_number(result, capacity, (int)index) : status;
 		}
-		status = number(reference->parameters[1].text, 0, 35, &index);
+		status = st_rip3_host_number(reference->parameters[1].text, 0, 35, &index);
 		if (status != 0)
 			return status;
 		if (binding->live == NULL)
@@ -434,7 +416,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (reference->count == 1) {
 			const char *parameter = reference->parameters[0].text;
 			if (parameter[0] >= '0' && parameter[0] <= '9') {
-				status = number(parameter, 0, 9, &place.index);
+				status = st_rip3_host_number(parameter, 0, 9, &place.index);
 				if (status != 0)
 					return status;
 				place.place = ST_RIP3_BACKUP_SLOT;

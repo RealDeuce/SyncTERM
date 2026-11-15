@@ -294,3 +294,29 @@ st_rip3_builtin_known(const char *name, size_t length)
 	}
 	return false;
 }
+
+int
+st_rip3_host_number(const char *text, unsigned minimum, unsigned maximum,
+    unsigned *result)
+{
+	unsigned value = 0;
+
+	if (text == NULL || result == NULL || minimum > maximum)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (text[0] == 0)
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 0; text[i] != 0; i++) {
+		unsigned digit;
+
+		if (text[i] < '0' || text[i] > '9')
+			return IO_ERROR_INVALID_FORMAT;
+		digit = (unsigned)(text[i] - '0');
+		if (value > maximum / 10 || (value == maximum / 10 && digit > maximum % 10))
+			return IO_ERROR_INVALID_FORMAT;
+		value = value * 10 + digit;
+	}
+	if (value < minimum)
+		return IO_ERROR_INVALID_FORMAT;
+	*result = value;
+	return 0;
+}

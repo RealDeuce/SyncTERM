@@ -1,0 +1,67 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_rip3_host_internal.h"
+
+#include "st_rip3_ports.h"
+#include "io_error.h"
+
+#include <stdbool.h>
+#include <string.h>
+
+int
+st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	struct st_rip3_ports *ports;
+	enum st_rip3_view_operation operation;
+	bool selected[36] = {0}, current_requested = reference->count == 0;
+	unsigned numbers[36], current;
+	size_t count = 0;
+	int status;
+
+	if (strcmp(reference->name, "AVP") == 0) operation = ST_RIP3_VIEW_ACTIVATE;
+	else if (strcmp(reference->name, "DVP") == 0) operation = ST_RIP3_VIEW_DEACTIVATE;
+	else if (strcmp(reference->name, "MVP") == 0) operation = ST_RIP3_VIEW_MAXIMIZE;
+	else if (strcmp(reference->name, "EGW") == 0) operation = ST_RIP3_VIEW_ERASE;
+	else return IO_ERROR_NOT_SUPPORTED;
+	if (reference->count > 40)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (capacity == 0)
+		return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i = 0; i < reference->count; i++) {
+		const char *parameter = reference->parameters[i].text;
+		char word[13];
+
+		for (size_t j = 0; j <= reference->parameters[i].length; j++) {
+			unsigned char ch = (unsigned char)parameter[j];
+			word[j] = ch >= 'a' && ch <= 'z' ? (char)(ch - 'a' + 'A') : (char)ch;
+		}
+		if (strcmp(word, "CUR") == 0)
+			current_requested = true;
+		else if (strcmp(word, "ALL") == 0) {
+			for (unsigned j = 0; j < 36; j++) selected[j] = true;
+		}
+		else {
+			unsigned number;
+			status = st_rip3_host_number(word, 0, 35, &number);
+			if (status != 0)
+				return status;
+			selected[number] = true;
+		}
+	}
+	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_PORT].live == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	ports = host->tables->tables[ST_RIP3_TABLE_PORT].live;
+	if (current_requested) {
+		status = st_rip3_ports_current(ports, &current);
+		if (status != 0)
+			return status;
+		selected[current] = true;
+	}
+	for (unsigned i = 0; i < 36; i++) {
+		if (selected[i]) numbers[count++] = i;
+	}
+	status = st_rip3_ports_operate_views(ports, numbers, count, operation, host->background);
+	if (status == 0)
+		result[0] = 0;
+	return status;
+}

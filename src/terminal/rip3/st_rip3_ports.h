@@ -6,6 +6,7 @@
 #include "st_rip3_surface.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct st_pixel_buffer;
@@ -52,6 +53,22 @@ int st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard);
 int st_rip3_ports_viewport(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *viewport);
 int st_rip3_ports_activate(struct st_rip3_ports *ports, bool active);
+enum st_rip3_view_operation {
+	ST_RIP3_VIEW_ACTIVATE,
+	ST_RIP3_VIEW_DEACTIVATE,
+	ST_RIP3_VIEW_MAXIMIZE,
+	ST_RIP3_VIEW_ERASE,
+};
+/* Apply to numbered ports without changing the current selection. Validate
+ * every index before changes; repeated indexes are idempotent. Undefined
+ * ports are ignored. Activation/deactivation skip protected ports; maximize
+ * also skips inactive viewports and fills the underlying port's full bounds.
+ * Erase skips inactive viewports, permits protected content and uses COPY
+ * with the explicitly resolved current background index. No definitions,
+ * protection, current selection or pixels outside erased viewports change. */
+int st_rip3_ports_operate_views(struct st_rip3_ports *ports,
+	const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,
+	uint8_t background);
 /* Drawing coordinates are relative to the current viewport's upper-left.
  * Protection locks configuration but permits all content operations. */
 int st_rip3_ports_plot(struct st_rip3_ports *ports, int32_t x, int32_t y,

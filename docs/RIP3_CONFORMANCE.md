@@ -589,6 +589,21 @@ palette selection, filename conversion, file deletion/timestamps, asset lookup
 and parser/session orchestration remain pending, with policy gaps under #19.
 The existing 1.54 implementation and historical expectations remain frozen.
 
+`rip3_viewport_host` verifies parsed AVP/DVP/MVP/EGW controls through the public
+nonfatal processor. Defaults, CUR/ALL, explicit decimal selections, duplicate
+selectors and the 40-parameter boundary preserve the current port. Invalid late
+selectors reject the complete operation; a subsequent valid command executes.
+Undefined ports are skipped, protected settings remain unchanged, and maximize
+skips inactive viewports while filling the underlying port's full bounds. A
+one-pixel viewport stays active when maximized despite its all-zero bounds.
+Erasure uses the explicitly resolved current background index in COPY mode,
+permits protected content, and skips inactive viewports. One owned coherent RGB
+capture checks protected erasure, inactive scene retention, offscreen isolation,
+single-pixel drawing and unaffected margins against independent literal colors.
+Native Valgrind reports no errors or definite/indirect leaks. Graphics-style
+background binding, remaining port metadata and terminal/stream integration
+remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

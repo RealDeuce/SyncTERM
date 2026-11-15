@@ -25,6 +25,8 @@ struct st_rip3_host_variables {
 	const struct tm *local_time;
 	/* Borrowed word/phrase; NULL or empty means the zone is unknown. */
 	const char *time_zone;
+	/* Current graphics-style background, already resolved to a palette index. */
+	uint8_t background;
 };
 
 enum st_rip3_host_diagnostic {
@@ -53,7 +55,8 @@ struct st_rip3_host_sink {
  * private and must not be used as connection errors.
  *
  * Supports NULL, IFS, RESX/RESY, the resolved date/time fields and the
- * implemented table-variable families. DATETIME formatting remains blocked.
+ * implemented table/viewport-variable families. DATETIME formatting remains
+ * blocked.
  * Unknown names/user resolution and other built-ins remain pending; they emit
  * no reply and cannot abort later references. External launch names likewise
  * have no action. Framing, macro expansion and user-policy orchestration still

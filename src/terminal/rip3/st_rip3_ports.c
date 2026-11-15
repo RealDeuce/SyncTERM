@@ -361,6 +361,50 @@ st_rip3_ports_erase(struct st_rip3_ports *ports, uint8_t background)
 }
 
 int
+st_rip3_ports_operate_views(struct st_rip3_ports *ports,
+    const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,
+    uint8_t background)
+{
+	bool selected[36] = {0};
+
+	if (ports == NULL || (count != 0 && numbers == NULL)
+	    || operation < ST_RIP3_VIEW_ACTIVATE || operation > ST_RIP3_VIEW_ERASE)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (size_t i = 0; i < count; i++) {
+		if (numbers[i] >= 36)
+			return IO_ERROR_OUT_OF_RANGE;
+		selected[numbers[i]] = true;
+	}
+	for (unsigned i = 0; i < 36; i++) {
+		struct port *port = &ports->entries[i];
+
+		if (!selected[i] || !port->info.defined)
+			continue;
+		if (operation == ST_RIP3_VIEW_ERASE) {
+			struct st_rip3_rect view;
+			int status;
+
+			if (!port->info.viewport_active)
+				continue;
+			view = viewport_absolute(port);
+			status = st_rip3_surface_fill(port_surface(ports, i), NULL,
+			    &view, background, ST_RIP3_COPY);
+			if (status != 0)
+				return status;
+		}
+		else if (!port->info.protected) {
+			if (operation == ST_RIP3_VIEW_MAXIMIZE) {
+				if (port->info.viewport_active)
+					port->info.viewport = port_bounds(port);
+			}
+			else
+				port->info.viewport_active = operation == ST_RIP3_VIEW_ACTIVATE;
+		}
+	}
+	return 0;
+}
+
+int
 st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, unsigned destination,
     const struct st_rip3_rect *destination_area, enum st_rip3_transfer_mode mode)
