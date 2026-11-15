@@ -399,6 +399,19 @@ errors or definite/indirect leaks. Callers still supply the matrix/origin;
 font-style/resolution/world policy, justification/cursors, outline text and wire
 orchestration remain pending. SCAN painting stays blocked by #17.
 
+`rip3_variables` checks an owned, growing user-variable table with canonical
+case-insensitive ASCII names of 1..20 bytes, first-letter validation, underscore/
+digit suffixes, explicit value lengths and 255-byte truncation. CP437, UTF-8 and
+embedded-NUL bytes round-trip unchanged; shorter replacements clear unused bytes.
+Missing and empty values remain distinct. Independent tables, 4,096 records,
+resizing/deletion, sorted independent snapshots and atomic import are covered.
+Malformed/duplicate imports leave caller state unchanged and clean partial
+allocations. Native Valgrind reports no errors or definite/indirect leaks.
+Session/persistent roles are separate table instances chosen by the interpreter;
+this backend does not invent lifetime promotion, prompts or expansion policy.
+File persistence, directive/macro parsing, host approvals and session integration
+remain pending. In-memory snapshot reload is not on-disk persistence evidence.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
