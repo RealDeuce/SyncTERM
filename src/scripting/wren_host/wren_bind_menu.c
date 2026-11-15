@@ -1596,7 +1596,12 @@ fn_menu_connection_types(WrenVM *vm)
 		"MQTT",
 	};
 
-	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	/* Keep protocol IDs stable while omitting the unspecified value. */
+	for (size_t i = ST_CONNECTION_RLOGIN;
+	    i < sizeof(names) / sizeof(names[0]); ++i)
+		push_row(vm, 0, 1, 2, (double)i, names[i]);
 }
 
 static void

@@ -5223,6 +5223,7 @@ duplicate platform-dependent enum tables:
   `graphicsModes`, `flowControls`, `parities`, `fontsCatalog`, `encodings`,
   `logLevels`
 | Lists of `[value, displayName]` rows for directory-entry editors.
+  `connectionTypes` omits the unspecified value 0 and retains protocol IDs.
   `fontsCatalog` uses the loaded conio font index as `value`; a BBS's
   `font` property remains the display-name String. `encodings` omits
   pipe-glyph variants and Prestel's separated G1 set; UTF-8 is value 255.
