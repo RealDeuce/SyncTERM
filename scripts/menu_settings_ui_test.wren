@@ -113,8 +113,31 @@ class SettingsMenuTest {
       ["Key Derivation Shift", 8]
     ]) {
       actions.add(row_(edit[0]))
-      actions.add(answer_(edit[1].toString))
+      if (edit[0] == "Modem/Comm Rate") {
+        actions.add(row_(edit[1].toString))
+      } else {
+        actions.add(answer_(edit[1].toString))
+      }
     }
+    actions.add(row_("Modem/Comm Rate"))
+    actions.add(Fn.new {|pane|
+      var list = list_(pane)
+      check_(list.items[list.selected] == "9600", "highlight configured modem rate")
+      select_(pane, "Current")
+    })
+    actions.add(row_("Modem/Comm Rate"))
+    actions.add(Fn.new {|pane|
+      var list = list_(pane)
+      check_(list.items[list.selected] == "Current", "Current uses rate zero")
+      select_(pane, "9600")
+    })
+    actions.add(row_("Modem/Comm Rate"))
+    actions.add(Fn.new {|pane|
+      var list = list_(pane)
+      check_(list.items[list.selected] == "9600", "highlight accepted modem rate")
+      list.selected = list.items.indexOf("Current")
+      pane.handle(KeyEvent.new(Key.escape))
+    })
     actions.add(row_("Scaling"))
     actions.add(row_("Invert Mouse Wheel"))
     actions.add(row_("Colour Emoji"))

@@ -653,10 +653,10 @@ class SettingsMenu {
   }
 
   static modemRateHelp_() {
-    return "# Modem/Comm Rate\n\nEnter the DTE rate in bits per second. Use " +
+    return "# Modem/Comm Rate\n\nSelect the DTE rate in bits per second. Use " +
         "the highest rate supported by the communications port and modem, " +
         "such as `38400`, `57600`, or `115200`. This is sometimes " +
-        "incorrectly called the baud rate. Enter `0` to use the current " +
+        "incorrectly called the baud rate. Select `Current` to use the current " +
         "or default communications-port rate."
   }
 
@@ -907,8 +907,8 @@ class SettingsMenu {
               s.modemDevice, 1024, false, modemDeviceHelp_())
           if (next != null) s.modemDevice = next
         } else if (value == 9) {
-          var next = MenuUi.integer(app, "Modem/Comm Rate",
-              "Bits per second", s.modemRate, 0, 4294967295,
+          var next = MenuUi.choice(app, "Modem/Comm Rate",
+              Menu.serialRates(s.modemDevice), s.modemRate,
               modemRateHelp_())
           if (next != null) s.modemRate = next
         } else if (value == 10) {
