@@ -42,6 +42,9 @@ int other(void) { return 2; }
             glue.write_text(original.replace("return 1", "return 2"))
             with self.assertRaisesRegex(ValueError, "glue.c::rip_old"):
                 check_freeze(root, manifest)
+            glue.write_text(original.replace("int\n", "unsigned\n"))
+            with self.assertRaisesRegex(ValueError, "glue.c::rip_old"):
+                check_freeze(root, manifest)
             glue.write_text(original)
             data.write_bytes(b"changed expectation\n")
             with self.assertRaisesRegex(ValueError, "legacy.c"):

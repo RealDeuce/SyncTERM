@@ -48,7 +48,12 @@ def c_functions(source):
             end += 1
         if depth:
             raise ValueError("unterminated function: " + match[1])
-        functions[match[1]] = source[match.start():end].encode()
+        # Include the preceding return type/storage qualifiers, not just the
+        # name/parameter list. Definitions in the frozen adapter are separated
+        # by blank lines. Freezing leading comments as well is intentional.
+        separator = source.rfind("\n\n", 0, match.start())
+        start = 0 if separator < 0 else separator + 2
+        functions[match[1]] = source[start:end].encode()
     return functions
 
 
