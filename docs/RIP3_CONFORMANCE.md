@@ -55,7 +55,8 @@ Open clarification issues:
 - [#5](https://github.com/bbs-land/remote-imaging-protocol/issues/5): header
   segments and unrecovered wire entries.
 - [#6](https://github.com/bbs-land/remote-imaging-protocol/issues/6): macro
-  ordering and uncertain predefined variables.
+  ordering, uncertain predefined variables, transparent-mode prompt exceptions,
+  prefix `=`/`%` scope and repeated directives.
 - [#7](https://github.com/bbs-land/remote-imaging-protocol/issues/7): framing,
   escaping and identification.
 - [#8](https://github.com/bbs-land/remote-imaging-protocol/issues/8): inherited
@@ -418,6 +419,19 @@ duplicate records, and failed replacement with temporary-file cleanup. Native
 Valgrind reports no errors or definite/indirect leaks. This establishes backend
 disk persistence; directive/macro parsing, host approvals/deletion protection,
 session lifetime selection and interpreter startup integration remain pending.
+
+`rip3_variable_reference` checks the documented post-expansion user-reference
+grammar: case-insensitive names/options, the six distinct directive bits in any
+order, optional decimal position/width, omitted centered axes, format/conversion
+ordering, and explicit empty versus absent question/default fields. The two HLP
+examples and all legal/illegal format examples have independent expectations.
+Question/default text truncates at 100 original bytes, with delimiters validated
+even beyond that boundary. Invalid/truncated references preserve caller output;
+native Valgrind reports no errors or definite/indirect leaks. The parser leaves
+built-in dispatch, macro expansion, prompting and scope policy to the future
+interpreter. Prefix `=` and repeated directives return unsupported pending #6;
+the parser retains both `+` and `%` without choosing precedence. It imposes
+explicit representation bounds on decimal fields, not inferred RIPtel limits.
 
 ## Verification and acceptance
 
