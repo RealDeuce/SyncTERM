@@ -337,6 +337,20 @@ protection state across base/slot/stack operations. Other table adapters,
 backup-to-backup and multiple-destination copies, and variable/scene integration
 remain pending. Soft scene reset must retain backup areas.
 
+`rip3_bitmap_text` checks rendering from immutable MicroANSI views with explicit
+CP437 spans (including blank zero and character 255), magnifications 1/2/10,
+vertical rotation, transparency/opaque cell backgrounds, one-device-pixel
+shadows and all five write modes. Foreground takes precedence over shadow, and
+each visible pixel applies the operation once. Synthetic glyphs supply literal
+expected geometry, including multibyte rows with nonzero padding. Negative and
+signed-extreme origins, inactive ports, invalid fonts/scales/lengths, empty
+metrics and a 65,536-character clipped span are covered. Inverse sampling bounds
+work by the visible viewport. One coherent protected-viewport RGB capture uses
+the documentation's literal 8x11 CP437 smiley from the original RIPscrip.maf.
+Native Valgrind reports no errors or definite/indirect leaks. This is a device
+bitmap-text kernel; font selection/justification, vector/outline text, cursor/
+window state, UTF-8 transport conversion and wire orchestration remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
