@@ -208,6 +208,16 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_bitmap_text_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_bitmap_text COMMAND st_rip3_bitmap_text_test)
+	add_executable(st_rip3_ports_backup_test tests/st_rip3_ports_backup_test.c)
+	target_link_libraries(st_rip3_ports_backup_test PRIVATE st_rip3)
+	set_target_properties(st_rip3_ports_backup_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_ports_backup_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_ports_backup_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_ports_backup COMMAND st_rip3_ports_backup_test)
 	add_test(NAME rip3_font_assets COMMAND "${CMAKE_COMMAND}"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/asset-check"
 		"-DGENERATOR=${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"

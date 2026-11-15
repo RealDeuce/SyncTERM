@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_ports.h"
+#include "st_rip3_backup.h"
 
 #include "io_error.h"
 
@@ -414,4 +415,100 @@ st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	if (ports == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	return st_rip3_surface_snapshot(ports->screen, palette, result);
+}
+
+struct port_snapshot {
+	struct st_rip3_rect screen_bounds;
+	unsigned current;
+	struct port entries[36];
+};
+
+static void
+port_backup_destroy(void *object)
+{
+	struct port_snapshot *snapshot = object;
+
+	if (snapshot == NULL)
+		return;
+	for (size_t i = 0; i < 36; i++)
+		clear_port(&snapshot->entries[i]);
+	free(snapshot);
+}
+
+static int
+clone_entry(struct port *result, const struct port *source)
+{
+	struct port value = {.info = source->info};
+	int status;
+
+	if (source->bitmap != NULL) {
+		status = st_rip3_surface_clone(&value.bitmap, source->bitmap);
+		if (status != 0)
+			return status;
+	}
+	*result = value;
+	return 0;
+}
+
+static int
+port_backup_clone(const void *object, void **result)
+{
+	const struct st_rip3_ports *ports = object;
+	struct port_snapshot *snapshot = calloc(1, sizeof(*snapshot));
+	int status;
+
+	if (snapshot == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	snapshot->screen_bounds = ports->screen_bounds;
+	snapshot->current = ports->current;
+	for (size_t i = 0; i < 36; i++) {
+		status = clone_entry(&snapshot->entries[i], &ports->entries[i]);
+		if (status != 0) {
+			port_backup_destroy(snapshot);
+			return status;
+		}
+	}
+	*result = snapshot;
+	return 0;
+}
+
+static int
+port_backup_restore(void *object, const void *saved)
+{
+	struct st_rip3_ports *ports = object;
+	const struct port_snapshot *snapshot = saved;
+	struct port entries[36] = {0};
+	int status;
+
+	if (ports->screen_bounds.x0 != snapshot->screen_bounds.x0
+	    || ports->screen_bounds.y0 != snapshot->screen_bounds.y0
+	    || ports->screen_bounds.x1 != snapshot->screen_bounds.x1
+	    || ports->screen_bounds.y1 != snapshot->screen_bounds.y1)
+		return IO_ERROR_CONFLICT;
+	/* No live entry or screen pixel changes until every owned bitmap has
+	 * been copied. Screen ports have definitions only, never a pixel copy. */
+	for (size_t i = 0; i < 36; i++) {
+		status = clone_entry(&entries[i], &snapshot->entries[i]);
+		if (status != 0) {
+			for (size_t j = 0; j < i; j++)
+				clear_port(&entries[j]);
+			return status;
+		}
+	}
+	for (size_t i = 0; i < 36; i++) {
+		clear_port(&ports->entries[i]);
+		ports->entries[i] = entries[i];
+	}
+	ports->current = snapshot->current;
+	return 0;
+}
+
+int
+st_rip3_ports_backup_create(struct st_rip3_backup **result)
+{
+	static const struct st_rip3_backup_ops ops = {
+		port_backup_clone, port_backup_restore, port_backup_destroy,
+	};
+
+	return st_rip3_backup_create(result, &ops);
 }

@@ -168,6 +168,23 @@ st_rip3_surface_create(struct st_rip3_surface **result,
 	return 0;
 }
 
+int
+st_rip3_surface_clone(struct st_rip3_surface **result,
+    const struct st_rip3_surface *surface)
+{
+	struct st_rip3_surface *copy = NULL;
+	int status;
+
+	if (result == NULL || surface == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_surface_create(&copy, surface->width, surface->height);
+	if (status != 0)
+		return status;
+	memcpy(copy->pixels, surface->pixels, (size_t)surface->width * surface->height);
+	*result = copy;
+	return 0;
+}
+
 void
 st_rip3_surface_destroy(struct st_rip3_surface *surface)
 {

@@ -351,6 +351,18 @@ Native Valgrind reports no errors or definite/indirect leaks. This is a device
 bitmap-text kernel; font selection/justification, vector/outline text, cursor/
 window state, UTF-8 transport conversion and wire orchestration remain pending.
 
+`rip3_ports_backup` checks complete device port definitions/current selection,
+viewport activation, protection and independent copies of offscreen index planes.
+Restoration allocates every bitmap before replacing live entries, overrides live
+protection and preserves the live screen pixels. Literal offscreen grids and a
+coherent RGB screen capture distinguish these two ownership rules. Repeated
+restores and restoring after destroying/recreating the original port owner
+verify independent saved resources. Canvas mismatch leaves live state and the
+unconsumed saved slot unchanged. Native Valgrind reports no errors or definite/
+indirect leaks. Cursor/image/query/clipboard metadata, not yet implemented in the
+device table, must extend these snapshots with the corresponding session state;
+whole protocol-level port-table backup acceptance remains pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

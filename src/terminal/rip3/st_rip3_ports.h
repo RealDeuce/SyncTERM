@@ -10,6 +10,7 @@
 
 struct st_pixel_buffer;
 struct st_rip3_ports;
+struct st_rip3_backup;
 
 struct st_rip3_port_info {
 	bool defined;
@@ -68,5 +69,13 @@ int st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
 	int32_t x, int32_t y, uint8_t *result);
 int st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	const struct st_rip3_palette *palette, struct st_pixel_buffer **result);
+
+/* Backup the device port definitions/current selection and owned offscreen
+ * pixels. Onscreen pixels belong to the separate screen backup area. Restore
+ * prepares all bitmap copies before replacing any live entry, bypasses live
+ * protection, and requires the same device canvas. The backup survives the
+ * original ports object. Query/cursor/clipboard metadata is not implemented
+ * in this device table yet and must be added to its snapshot with that state. */
+int st_rip3_ports_backup_create(struct st_rip3_backup **result);
 
 #endif

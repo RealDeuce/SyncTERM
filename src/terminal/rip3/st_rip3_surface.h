@@ -59,6 +59,9 @@ int st_rip3_palette_color(const struct st_rip3_palette *palette, bool direct,
 int st_rip3_surface_create(struct st_rip3_surface **result,
 	uint32_t width, uint32_t height);
 void st_rip3_surface_destroy(struct st_rip3_surface *surface);
+/* Exact owned index-plane clone; no RGB conversion or palette association. */
+int st_rip3_surface_clone(struct st_rip3_surface **result,
+	const struct st_rip3_surface *surface);
 int st_rip3_surface_size(const struct st_rip3_surface *surface,
 	uint32_t *width, uint32_t *height);
 int st_rip3_surface_get(const struct st_rip3_surface *surface,
