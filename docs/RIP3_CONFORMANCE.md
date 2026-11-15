@@ -27,7 +27,11 @@ The 26 existing native/application RIP and graphics-scrollback CTests passed
 at the baseline on native FreeBSD with the existing Release CMake configuration.
 They cover CP437/UTF-8, historical captures, both pixel phases, replies,
 interaction and reset/variable/asset/transfer paths. This does not establish
-new RIP3 coverage, physical audio or Windows execution.
+new RIP3 coverage, physical audio or Windows execution. The same 26 unchanged
+runtime expectations passed again after the initial v3 font/image/device-pixel
+foundations, using the rebuilt native application and terminal-test binary.
+The preserved source/data hashes and helper definitions still match the original
+baseline.
 
 ## Contract and upstream issues
 
@@ -226,6 +230,17 @@ ports, viewport origins and extreme coordinates are covered, with an independent
 coherent RGB capture of the visible region/margins. Host tiling policy and the
 conflicting preset table remain blocked by #12; style slots and wire commands
 remain pending.
+
+`rip3_path` checks open/closed stroked paths and unfilled rectangles. Shared
+vertices, thick joins and self-crossings apply the raster operation once per
+primitive; foreground coverage takes precedence over overlapping background
+samples. Pattern phase continues across segments. Independent expected grids
+cover open versus closed paths, crossings, normalized/degenerate rectangles,
+clipping, extreme endpoints, repeated points, invalid input and both open/closed
+4,096-vertex paths. The existing line and fill expectations still pass after
+sharing the segment rasterizer. Native Valgrind reported no errors or
+definite/indirect leaks in the path test. Polygon fill, world/wire decoding and
+style-table orchestration remain pending.
 
 ## Verification and acceptance
 
