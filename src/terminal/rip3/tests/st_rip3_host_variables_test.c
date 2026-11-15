@@ -96,7 +96,10 @@ main(void)
 	CHECK(run(&host, "$CUR(PAL)$", 0, "5") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,CUR)$", 0, "1") == 0);
 	CHECK(run(&host, "$PALENTRY(CUR,15)$", 0, "8;255:255:255") == 0);
-	CHECK(run(&host, "$UNRECOGNIZED$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
+	CHECK(run(&host, "$UNRECOGNIZED$", IO_ERROR_NOT_FOUND, NULL) == 0);
+	CHECK(run(&host, "$SHIFT$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
+	CHECK(run(&host, "$P$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
+	CHECK(run(&host, "$SAVE0$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	memset(output, 'Q', sizeof(output)); memcpy(before, output, sizeof(output));
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$CUR(PAL,7)$", 12) == 0);
 	CHECK(st_rip3_host_variables_execute(&host, &reference, output, 0) == IO_ERROR_OUT_OF_RANGE);

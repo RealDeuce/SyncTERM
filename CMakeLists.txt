@@ -156,6 +156,9 @@ if(BUILD_TESTING)
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_policy.cmake")
 	find_package(Python3 QUIET COMPONENTS Interpreter)
 	if(Python3_Interpreter_FOUND)
+		add_test(NAME rip3_builtin_inventory COMMAND "${Python3_EXECUTABLE}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/test_rip3_builtin_catalog.py"
+			"$<TARGET_FILE:st_rip3_builtin_catalog_test>")
 		add_test(NAME rip154_source_freeze COMMAND "${Python3_EXECUTABLE}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/rip3_compliance.py" --freeze-only)
 		add_test(NAME rip3_contract COMMAND "${Python3_EXECUTABLE}"

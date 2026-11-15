@@ -22,9 +22,10 @@ struct st_rip3_host_variables {
 
 /* Execute one already expanded, ordinary built-in reference produced by
  * builtin_reference_parse. Supports NULL, IFS, RESX/RESY and the table host
- * variables. Unsupported/unimplemented names return NOT_SUPPORTED for wider
- * dispatch; this is not a complete built-in-name recognizer or user-variable
- * fallback. The caller still owns framing, expansion, deadlines and delivery.
+ * variables. Recognized but unsupported/unimplemented names return
+ * NOT_SUPPORTED. An ordinary name absent from the pinned built-in catalog
+ * returns NOT_FOUND so the caller can perform user lookup separately. The
+ * caller still owns framing, expansion, user policy, deadlines and delivery.
  * No version/full-compliance capability is inferred or advertised here.
  * External application/URL launch names always return unsupported.
  * Successful output is NUL terminated; short buffers and other failures

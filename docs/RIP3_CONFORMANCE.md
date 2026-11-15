@@ -503,9 +503,21 @@ point. Literal replies verify all three canvas resolutions independently of
 world dimensions, capability changes, palette saves/restores/protection/readback
 and short-buffer state preservation. Missing services and external launch names
 return unsupported; no version/compliance or service availability is inferred.
-Native Valgrind reports no errors or definite/indirect leaks. This is a partial
-built-in executor, not the complete name catalog or user-variable fallback.
-Macro/stream/session orchestration and terminal acceptance remain pending.
+Native Valgrind reports no errors or definite/indirect leaks. This remains a
+partial built-in executor; user-variable fallback, macro/stream/session
+orchestration and terminal acceptance remain pending.
+
+`rip3_builtin_catalog` and `rip3_builtin_inventory` verify exact ASCII
+case-insensitive recognition of 174 names from the pinned 9.1 inventory,
+APP/SAVE/RESTORE fixed-slot families, and separately attested processors.
+The offline contract test derives its inputs from the pinned source blocks,
+then exercises the compiled recognizer for every name and mixed-case spelling.
+Invalid spans, embedded NULs, removed/renamed 1.54 names and invented family
+extensions reject. Recognition does not imply implemented semantics: ambiguous
+P/PROTECT and the four unrecovered processors remain unsupported. The shared
+dispatcher now returns NOT_FOUND for ordinary names absent from this catalog,
+and NOT_SUPPORTED for recognized unimplemented built-ins, allowing future user
+lookup without misclassifying a known processor as a prompt variable.
 
 ## Verification and acceptance
 

@@ -6,6 +6,187 @@
 #include <stdbool.h>
 #include <string.h>
 
+/* Documented names, not an implementation/capability claim. Pinned 9.1's
+ * inventory plus the APP/SAVE/RESTORE fixed-slot families and HLP-attested
+ * SHIFT/CTRL/HOSTDIR/XFER (5.1), P (5.1) and PROTECT (7.1). Their unrecovered
+ * semantics remain unsupported. Renamed/removed 1.54 names are not aliases. */
+static const char *const builtin_names[] = {
+	"ADOW",
+	"ALARM",
+	"AMPM",
+	"APP",
+	"APP0",
+	"APP1",
+	"APP2",
+	"APP3",
+	"APP4",
+	"APP5",
+	"APP6",
+	"APP7",
+	"APP8",
+	"APP9",
+	"ATW",
+	"AVP",
+	"BACKSTAT",
+	"BASEMATH",
+	"BAUDEMUL",
+	"BEEP",
+	"BLIP",
+	"CLS",
+	"COFF",
+	"COLORMODE",
+	"COLORS",
+	"COMPAT",
+	"CON",
+	"COORDSIZE",
+	"COPY",
+	"CTRL",
+	"CUR",
+	"CURSOR",
+	"CURX",
+	"CURY",
+	"D",
+	"DATE",
+	"DATETIME",
+	"DAY",
+	"DOW",
+	"DOY",
+	"DTW",
+	"DVP",
+	"DWAYOFF",
+	"DWAYON",
+	"EGW",
+	"ETW",
+	"FIELDID",
+	"FILEDEL",
+	"FYEAR",
+	"GOTOURL",
+	"HKEYOFF",
+	"HKEYON",
+	"HOSTDIR",
+	"HOUR",
+	"IFS",
+	"IMGSTYLE",
+	"INUSE",
+	"ISEXTWIN",
+	"ISPALETTE",
+	"ISPROT",
+	"M",
+	"MCURSOR",
+	"MHOUR",
+	"MIN",
+	"MKILL",
+	"MONTH",
+	"MONTHNUM",
+	"MSTAT",
+	"MTW",
+	"MUSIC",
+	"MVP",
+	"NOREFRESH",
+	"NULL",
+	"OFF",
+	"OFFSCREEN",
+	"OPTION",
+	"OVERFLOW",
+	"P",
+	"PALENTRY",
+	"PASSWORD",
+	"PCB",
+	"PHASER",
+	"PORTH",
+	"PORTW",
+	"PORTX0",
+	"PORTX1",
+	"PORTY0",
+	"PORTY1",
+	"PROT",
+	"PROTECT",
+	"RAND",
+	"RBS",
+	"RCB",
+	"RCP",
+	"REFRESH",
+	"RENV",
+	"RESET",
+	"RESTORE",
+	"RESTORE0",
+	"RESTORE1",
+	"RESTORE2",
+	"RESTORE3",
+	"RESTORE4",
+	"RESTORE5",
+	"RESTORE6",
+	"RESTORE7",
+	"RESTORE8",
+	"RESTORE9",
+	"RESTOREALL",
+	"RESX",
+	"RESY",
+	"REVPHASER",
+	"RGS",
+	"RIPVER",
+	"RMF",
+	"RTW",
+	"SAVE",
+	"SAVE0",
+	"SAVE1",
+	"SAVE2",
+	"SAVE3",
+	"SAVE4",
+	"SAVE5",
+	"SAVE6",
+	"SAVE7",
+	"SAVE8",
+	"SAVE9",
+	"SAVEALL",
+	"SBAROFF",
+	"SBARON",
+	"SBS",
+	"SCB",
+	"SCP",
+	"SEC",
+	"SENV",
+	"SGS",
+	"SHIFT",
+	"SMF",
+	"STATBAR",
+	"STW",
+	"T",
+	"TABOFF",
+	"TABON",
+	"TERMINFO",
+	"TEXTXY",
+	"TIME",
+	"TIMEZONE",
+	"TWERASEEOL",
+	"TWFONT",
+	"TWGOTO",
+	"TWH",
+	"TWHOME",
+	"TWIN",
+	"TWW",
+	"TWX0",
+	"TWX1",
+	"TWY0",
+	"TWY1",
+	"UNPROT",
+	"USERNAME",
+	"VT102OFF",
+	"VT102ON",
+	"WDAY",
+	"WORLD",
+	"WORLDH",
+	"WORLDW",
+	"WOY",
+	"WOYM",
+	"X",
+	"XFER",
+	"XY",
+	"XYM",
+	"Y",
+	"YEAR",
+};
+
 static uint8_t
 upper(uint8_t ch)
 {
@@ -82,4 +263,33 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 	}
 	*result = reference;
 	return 0;
+}
+
+bool
+st_rip3_builtin_known(const char *name, size_t length)
+{
+	char canonical[21];
+	size_t low = 0, high = sizeof(builtin_names) / sizeof(*builtin_names);
+
+	if (name == NULL || length == 0 || length > 20 || !letter((uint8_t)name[0]))
+		return false;
+	for (size_t i = 0; i < length; i++) {
+		uint8_t ch = (uint8_t)name[i];
+		if (!letter(ch) && !(ch >= '0' && ch <= '9') && ch != '_')
+			return false;
+		canonical[i] = (char)upper(ch);
+	}
+	canonical[length] = 0;
+	while (low < high) {
+		size_t mid = low + (high - low) / 2;
+		int comparison = strcmp(canonical, builtin_names[mid]);
+
+		if (comparison == 0)
+			return true;
+		if (comparison < 0)
+			high = mid;
+		else
+			low = mid + 1;
+	}
+	return false;
 }

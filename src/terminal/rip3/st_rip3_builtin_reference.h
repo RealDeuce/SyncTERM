@@ -3,6 +3,7 @@
 #define ST_RIP3_BUILTIN_REFERENCE_H_
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 struct st_rip3_builtin_parameter {
@@ -28,5 +29,12 @@ struct st_rip3_builtin_reference {
  * is performed. NULs reject. Errors preserve the complete caller result. */
 int st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 	const uint8_t *text, size_t length);
+/* Case-insensitive exact name recognition from the pinned 3.x inventory,
+ * including obsolete fixed-slot forms and attested unrecovered processors.
+ * This does not assert implementation/support or resolve alias semantics.
+ * Input is an explicit identifier span, without '$' or parameters. Invalid
+ * identifiers and names absent from the inventory return false. No expansion,
+ * user lookup or prompt occurs. Prefix forms must be handled before lookup. */
+bool st_rip3_builtin_known(const char *name, size_t length);
 
 #endif

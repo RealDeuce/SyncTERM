@@ -18,6 +18,8 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (reference->count > 40)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (!st_rip3_builtin_known(reference->name, strlen(reference->name)))
+		return IO_ERROR_NOT_FOUND;
 	if (strcmp(reference->name, "NULL") == 0) {
 		if (reference->count != 0)
 			return IO_ERROR_INVALID_FORMAT;
