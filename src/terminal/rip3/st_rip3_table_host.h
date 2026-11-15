@@ -27,8 +27,9 @@ struct st_rip3_table_host {
 };
 
 /* Execute parsed BACKSTAT, whole-table COPY, SCP/RCP, CUR, INUSE, individual
- * ISPROT and PROT/UNPROT. Entry selection/protection currently supports PAL and
- * PORT; backup-slot operations work for any bound object class. INUSE(BACKUP)
+ * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
+ * currently supports PAL and PORT; backup-slot operations work for any bound
+ * object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
  * Parameter defaults and
  * decimal slot syntax follow the reference; entry COPY stays NOT_SUPPORTED

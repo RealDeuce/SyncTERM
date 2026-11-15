@@ -62,7 +62,8 @@ Open clarification issues:
 - [#8](https://github.com/bbs-land/remote-imaging-protocol/issues/8): inherited
   BMM mask raster and compositing convention.
 - [#9](https://github.com/bbs-land/remote-imaging-protocol/issues/9): conflicting
-  RGB component example and incorrect C palette-index expression.
+  RGB component example, incorrect C palette-index expression and malformed
+  PALENTRY range-example delimiters.
 - [#10](https://github.com/bbs-land/remote-imaging-protocol/issues/10): offscreen
   port extents, clipped verbatim copies and viewport diagram arithmetic.
 - [#11](https://github.com/bbs-land/remote-imaging-protocol/issues/11): PIXEL/POINT
@@ -483,6 +484,17 @@ Native Valgrind reports no errors or definite/indirect leaks. Other table entry
 adapters, TV lifetime lookup, aggregate ISPROT and INUSE(BACKUP) remain pending;
 the last two selectors explicitly return unsupported under #16. This does not
 resolve the contradictory general port-table descriptions in that issue.
+
+`rip3_palette_host` verifies `$PALENTRY$` current/explicit selection, omitted
+stop, inclusive ranges, all 256 entries, undefined-palette `-1` replies and
+protected readback. Replies truthfully describe the engine's stored eight-bit
+components, a precision explicitly allowed by the reference. Literal white and
+desktop-color replies and a maximum-length 256-white-entry response independently
+check decimal formatting, delimiters and exact buffer capacity. Invalid fields,
+short buffers and absent bindings preserve output, current selection and table
+state. Native Valgrind reports no errors or definite/indirect leaks. The malformed
+range-example call is reported under #9; the implementation follows the explicit
+syntax block. Stream expansion/routing remains pending.
 
 ## Verification and acceptance
 

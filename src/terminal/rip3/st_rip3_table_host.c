@@ -138,6 +138,70 @@ reply_number(char *result, size_t capacity, int value)
 	return 0;
 }
 
+static int
+palette_entries(const struct st_rip3_table_host *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	struct st_rip3_palettes *palettes = host->tables[ST_RIP3_TABLE_PAL].live;
+	struct st_rip3_palette palette;
+	char output[2 + 256 * 12];
+	size_t length = 2;
+	unsigned index, first, last;
+	int status;
+
+	if (reference->count < 2 || reference->count > 3)
+		return IO_ERROR_INVALID_FORMAT;
+	if (equal(reference->parameters[0].text, "CUR")) {
+		if (palettes == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		status = st_rip3_palettes_current(palettes, &index);
+	}
+	else
+		status = number(reference->parameters[0].text, 0, 35, &index);
+	if (status != 0)
+		return status;
+	if (equal(reference->parameters[1].text, "ALL")) {
+		if (reference->count != 2)
+			return IO_ERROR_INVALID_FORMAT;
+		first = 0; last = 255;
+	}
+	else {
+		status = number(reference->parameters[1].text, 0, 255, &first);
+		if (status != 0)
+			return status;
+		last = first;
+		if (reference->count == 3) {
+			status = number(reference->parameters[2].text, first, 255, &last);
+			if (status != 0)
+				return status;
+		}
+	}
+	if (palettes == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_palettes_get(palettes, index, &palette);
+	if (status == IO_ERROR_NOT_FOUND)
+		return reply_number(result, capacity, -1);
+	if (status != 0)
+		return status;
+	/* The independent engine stores eight bits per component. The reference
+	 * explicitly permits returning that precision instead of RIPtel's six. */
+	memcpy(output, "8;", 2);
+	for (unsigned i = first; i <= last; i++) {
+		uint32_t rgb = palette.rgb[i];
+		int added = snprintf(output + length, sizeof(output) - length,
+		    "%s%u:%u:%u", i == first ? "" : ",",
+		    (unsigned)((rgb >> 16) & 255), (unsigned)((rgb >> 8) & 255), (unsigned)(rgb & 255));
+
+		if (added < 0 || (size_t)added >= sizeof(output) - length)
+			return IO_ERROR_OUT_OF_RANGE;
+		length += (size_t)added;
+	}
+	if (length >= capacity)
+		return IO_ERROR_OUT_OF_RANGE;
+	memcpy(result, output, length + 1);
+	return 0;
+}
+
 enum element {
 	ENTRY, SLOT, CURRENT, ALL, ANY, ALLSLOTS, ANYSLOTS, BASE, STACK, BACKUP,
 };
@@ -344,6 +408,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (reference->count > 40)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (strcmp(reference->name, "PALENTRY") == 0)
+		return palette_entries(host, reference, result, capacity);
 	if (strcmp(reference->name, "CUR") == 0 || strcmp(reference->name, "INUSE") == 0
 	    || strcmp(reference->name, "ISPROT") == 0 || strcmp(reference->name, "PROT") == 0
 	    || strcmp(reference->name, "UNPROT") == 0) {
