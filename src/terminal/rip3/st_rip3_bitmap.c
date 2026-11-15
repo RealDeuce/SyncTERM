@@ -99,3 +99,88 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 	*result = bitmap;
 	return 0;
 }
+
+static void
+put16(uint8_t *data, unsigned value)
+{
+	data[0] = (uint8_t)value;
+	data[1] = (uint8_t)(value >> 8);
+}
+
+static void
+put32(uint8_t *data, uint32_t value)
+{
+	put16(data, value & 65535);
+	put16(data + 2, value >> 16);
+}
+
+int
+st_rip3_bitmap_encode(uint8_t **result, size_t *result_size,
+	const struct st_rip3_bitmap *bitmap)
+{
+	const struct st_pixel_buffer *pixels;
+	unsigned depth;
+	size_t stride, offset, size;
+	uint8_t *data;
+
+	if (result == NULL || result_size == NULL || bitmap == NULL
+	    || bitmap->pixels == NULL || bitmap->pixels->primary == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	pixels = bitmap->pixels;
+	depth = bitmap->bit_depth;
+	if (depth != 1 && depth != 4 && depth != 8 && depth != 24)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (pixels->width == 0 || pixels->height == 0
+	    || pixels->width > INT32_MAX || pixels->height > INT32_MAX
+	    || bitmap->palette_size > (depth == 24 ? 0 : 1U << depth)
+	    || (depth != 24 && bitmap->palette_size == 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (pixels->width > (SIZE_MAX - 31) / depth)
+		return IO_ERROR_OUT_OF_RANGE;
+	stride = (((size_t)pixels->width * depth + 31) / 32) * 4;
+	offset = 54 + bitmap->palette_size * 4;
+	if (pixels->height > (UINT32_MAX - offset) / stride
+	    || pixels->height > (SIZE_MAX - offset) / stride
+	    || pixels->height > SIZE_MAX / sizeof(uint32_t) / pixels->width)
+		return IO_ERROR_OUT_OF_RANGE;
+	size = offset + stride * pixels->height;
+	for (size_t i = 0; i < bitmap->palette_size; ++i)
+		if (bitmap->palette[i] > 0xffffff) return IO_ERROR_INVALID_ARGUMENT;
+	data = calloc(1, size);
+	if (data == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	data[0] = 'B'; data[1] = 'M';
+	put32(data + 2, (uint32_t)size); put32(data + 10, (uint32_t)offset);
+	put32(data + 14, 40); put32(data + 18, pixels->width); put32(data + 22, pixels->height);
+	put16(data + 26, 1); put16(data + 28, depth);
+	/* Match the documented RIP writer's advisory fields and zero image size. */
+	put32(data + 38, pixels->width); put32(data + 42, pixels->height);
+	if (depth < 24 && bitmap->palette_size != (1U << depth))
+		put32(data + 46, (uint32_t)bitmap->palette_size);
+	for (size_t i = 0; i < bitmap->palette_size; ++i) {
+		uint32_t rgb = bitmap->palette[i];
+		data[54 + 4 * i] = (uint8_t)rgb;
+		data[55 + 4 * i] = (uint8_t)(rgb >> 8);
+		data[56 + 4 * i] = (uint8_t)(rgb >> 16);
+	}
+	for (uint32_t y = 0; y < pixels->height; ++y) {
+		uint8_t *row = data + offset + (size_t)(pixels->height - 1 - y) * stride;
+		for (uint32_t x = 0; x < pixels->width; ++x) {
+			uint32_t pixel = pixels->primary[(size_t)y * pixels->width + x];
+			if (depth == 24) {
+				if (!ST_PIXEL_COLOR_IS_RGB(pixel)) { free(data); return IO_ERROR_INVALID_ARGUMENT; }
+				row[(size_t)x * 3] = (uint8_t)pixel;
+				row[(size_t)x * 3 + 1] = (uint8_t)(pixel >> 8);
+				row[(size_t)x * 3 + 2] = (uint8_t)(pixel >> 16);
+			}
+			else {
+				if (pixel >= bitmap->palette_size) { free(data); return IO_ERROR_INVALID_ARGUMENT; }
+				if (depth == 1) row[x / 8] |= (uint8_t)(pixel << (7 - (x % 8)));
+				else if (depth == 4) row[x / 2] |= (uint8_t)(pixel << ((x & 1) == 0 ? 4 : 0));
+				else row[x] = (uint8_t)pixel;
+			}
+		}
+	}
+	*result = data;
+	*result_size = size;
+	return 0;
+}

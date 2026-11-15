@@ -132,6 +132,10 @@ nonzero reserved palette bytes, short palettes, all truncated prefixes,
 invalid dimensions/offsets/palette indexes and unsupported compression/header/
 pixel formats, with unchanged output on failure. This is container decoding;
 button hot-state selection, BMM compositing and icon conversion are not covered.
+The same test also checks primary-plane BMP encoding against literal file-row
+bytes at every depth, including short palettes, zero reserved/padding bytes,
+the documented writer advisory fields and unchanged output pointers/sizes on
+error. Secondary decode comparisons supplement those independent byte checks.
 
 ## Verification and acceptance
 

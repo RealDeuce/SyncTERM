@@ -5,6 +5,7 @@
 #include "io_error.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK(test) do { if (!(test)) { \
@@ -64,16 +65,24 @@ main(void)
 		0x80ff0000,0x8000ff00,0x800000ff,0x80ffffff,0x80123456,
 		0x80654321,0x80000000,0x80808080,0x8000ffff,0x80ff00ff,
 	};
+	static const uint8_t written1[] = {0xa0,0,0,0, 0x58,0,0,0};
+	static const uint8_t written4[] = {0x43,0x21,0,0, 0x01,0x23,0x40,0};
+	static const uint8_t written8[] = {255,127,16,15,0,0,0,0, 0,15,16,127,255,0,0,0};
+	static const uint8_t written24[] = {
+		0x21,0x43,0x65, 0,0,0, 0x80,0x80,0x80, 0xff,0xff,0, 0xff,0,0xff, 0,
+		0,0,0xff, 0,0xff,0, 0xff,0,0, 0xff,0xff,0xff, 0x56,0x34,0x12, 0,
+	};
 	static const struct {
 		unsigned depth, colours;
 		const uint8_t *rows;
 		size_t row_size;
 		const uint32_t *expected;
+		const uint8_t *written;
 	} cases[] = {
-		{1,2,rows1,sizeof(rows1),expected1},
-		{4,16,rows4,sizeof(rows4),expected4},
-		{8,256,rows8,sizeof(rows8),expected8},
-		{24,0,rows24,sizeof(rows24),expected24},
+		{1,2,rows1,sizeof(rows1),expected1,written1},
+		{4,16,rows4,sizeof(rows4),expected4,written4},
+		{8,256,rows8,sizeof(rows8),expected8,written8},
+		{24,0,rows24,sizeof(rows24),expected24,written24},
 	};
 	uint8_t bytes[1200], bad[sizeof(bytes)];
 	struct st_rip3_bitmap sentinel = {0}, *result = &sentinel;
@@ -87,6 +96,20 @@ main(void)
 		CHECK(memcmp(result->pixels->primary, cases[c].expected, 10 * sizeof(uint32_t)) == 0);
 		if (result->palette_size != 0) {
 			CHECK(result->palette[0] == 0x00ff55 && result->palette[1] == 0x01fe54);
+		}
+		{
+			uint8_t *encoded = NULL;
+			size_t length = 0, offset = 54 + cases[c].colours * 4;
+			struct st_rip3_bitmap *again = NULL;
+			CHECK(st_rip3_bitmap_encode(&encoded, &length, result) == 0 && length == size);
+			CHECK(encoded[0] == 'B' && encoded[1] == 'M' && encoded[14] == 40);
+			CHECK(encoded[38] == 5 && encoded[42] == 2 && encoded[34] == 0);
+			CHECK(memcmp(encoded + offset, cases[c].written, cases[c].row_size) == 0);
+			if (cases[c].colours != 0) CHECK(encoded[54] == 0x55 && encoded[55] == 0xff && encoded[56] == 0 && encoded[57] == 0);
+			CHECK(st_rip3_bitmap_decode(&again, encoded, length) == 0);
+			CHECK(memcmp(again->pixels->primary, cases[c].expected, 10 * sizeof(uint32_t)) == 0);
+			st_rip3_bitmap_destroy(again);
+			free(encoded);
 		}
 		st_rip3_bitmap_destroy(result);
 		result = &sentinel;
@@ -121,6 +144,14 @@ main(void)
 		size = fixture(bytes, 8, 2, rows, sizeof(rows));
 		CHECK(st_rip3_bitmap_decode(&result, bytes, size) == 0);
 		CHECK(result->palette_size == 2 && memcmp(result->pixels->primary, expected1, sizeof(expected1)) == 0);
+		{
+			uint8_t *encoded = NULL;
+			size_t length = 0;
+			CHECK(st_rip3_bitmap_encode(&encoded, &length, result) == 0);
+			CHECK(length == 78 && encoded[10] == 62 && encoded[46] == 2);
+			CHECK(encoded[62] == 1 && encoded[70] == 0 && encoded[75] == 0);
+			free(encoded);
+		}
 		st_rip3_bitmap_destroy(result); result = &sentinel;
 		memcpy(bad, bytes, size); put32(bad + 46, 257);
 		CHECK(st_rip3_bitmap_decode(&result, bad, size) == IO_ERROR_INVALID_FORMAT && result == &sentinel);
@@ -130,6 +161,29 @@ main(void)
 		CHECK(st_rip3_bitmap_decode(&result, bad, size) == IO_ERROR_INVALID_FORMAT && result == &sentinel);
 		memcpy(bad, bytes, size); put32(bad + 18, INT32_MAX); put32(bad + 22, INT32_MAX);
 		CHECK(st_rip3_bitmap_decode(&result, bad, size) < 0 && result == &sentinel);
+	}
+	{
+		uint32_t pixel = 3;
+		struct st_pixel_buffer pixels = {.primary = &pixel, .width = 1, .height = 1};
+		struct st_rip3_bitmap invalid = {.pixels = &pixels, .palette_size = 2, .bit_depth = 8};
+		uint8_t saved_byte = 9, *output = &saved_byte;
+		size_t length = 77;
+		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(output == &saved_byte && length == 77 && saved_byte == 9);
+		pixel = 0; invalid.palette[0] = 0x1000000;
+		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);
+		invalid.palette[0] = 0; invalid.palette_size = 0; invalid.bit_depth = 24;
+		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);
+		invalid.bit_depth = 32;
+		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_NOT_SUPPORTED);
+		invalid.bit_depth = 24; pixels.width = 0;
+		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);
+		pixels.width = INT32_MAX; pixels.height = INT32_MAX;
+		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_rip3_bitmap_encode(NULL, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_rip3_bitmap_encode(&output, NULL, &invalid) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_rip3_bitmap_encode(&output, &length, NULL) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(output == &saved_byte && length == 77 && saved_byte == 9);
 	}
 	st_rip3_bitmap_destroy(NULL);
 	return 0;
