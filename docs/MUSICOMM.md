@@ -15,6 +15,12 @@ sound. The feature works independently of the selected text/graphics emulation
 and wire encoding. The stream must reach SyncTERM without text conversions or
 software flow control; ordinary Telnet decoding still belongs to the transport.
 
+MIDI playback selects bank 0, **Lead 1 (square)** on channel 1 (program 80,
+or instrument 81 in one-based GM numbering) at the start of each session.
+This is SyncTERM's approximation of the speaker preset; the original accessory
+sends no instrument selection. It replaces any previously selected MIDI voice,
+including the sawtooth used by ANSI music calibration.
+
 The serial protocol uses hexadecimal byte values:
 
 | State | Byte | Action |

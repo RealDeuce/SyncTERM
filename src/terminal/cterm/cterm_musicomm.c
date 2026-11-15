@@ -128,6 +128,13 @@ int st_cterm_musicomm_start(st_cterm_t *t)
 	m->gist.write = write_psg; m->gist.context = &m->psg;
 	m->state = ST_CTERM_MUSICOMM_WAITING;
 	m->midi = st_music_available(t->music_player);
+	if (m->midi) {
+		/* Select a square lead explicitly: software MIDI calibration leaves
+		 * the ANSI sawtooth voice selected. Queue before any note events. */
+		const uint8_t instrument[] = {0xb0,0,0,0xb0,32,0,0xc0,80};
+		if (st_music_queue_midi(t->music_player,instrument,sizeof(instrument)) != 0)
+			m->midi = false;
+	}
 	if (!m->midi) fallback(t);
 	return 0;
 }

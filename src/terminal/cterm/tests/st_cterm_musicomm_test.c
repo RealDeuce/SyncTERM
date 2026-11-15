@@ -9,11 +9,18 @@
 #include <string.h>
 
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
-struct recording { uint8_t bytes[131072]; size_t size; };
+struct recording { uint8_t bytes[131072]; size_t size; unsigned bank_msb, bank_lsb, program; };
 static struct recording replies;
 static int send_midi(void *context, const uint8_t *bytes, size_t size)
 {
 	struct recording *r = context;
+	if (size == 3 && bytes[0] == 0xb0) {
+		if (bytes[1] == 0) r->bank_msb = bytes[2];
+		if (bytes[1] == 32) r->bank_lsb = bytes[2];
+	}
+	if (size == 2 && bytes[0] == 0xc0) r->program = bytes[1];
+	if (size == 3 && bytes[0] == 0x90 && bytes[2] != 0)
+		CHECK(r->bank_msb == 0 && r->bank_lsb == 0 && r->program == 80);
 	CHECK(size <= sizeof(r->bytes)-r->size);
 	memcpy(r->bytes+r->size, bytes, size); r->size += size;
 	return 0;
@@ -48,7 +55,7 @@ static void exercise(bool utf8, bool midi)
 	    .emulation=ST_CTERM_ANSI_BBS,.encoding=utf8?ST_CTERM_ENCODING_UTF8:ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage=ST_CODEPAGE_CP437,.output=reply};
 	CHECK(st_cterm_create(&t,&config) == 0);
-	struct recording r = {0};
+	struct recording r = {.bank_msb=1,.bank_lsb=2,.program=81};
 	if (midi) {
 		const struct st_midi_sink sink = {.state=&r,.send=send_midi};
 		CHECK(st_music_create_with_sink(&t->music_player,audio,&t->music_stream,&sink) == 0);
@@ -74,7 +81,12 @@ static void exercise(bool utf8, bool midi)
 		/* Initial channel gain controllers are sink policy; find the first
 		 * note, then require every event's exact status, pitch and velocity. */
 		size_t first=0;
-		while (first<r.size && r.bytes[first]!=0x90) first+=3;
+		while (first<r.size && r.bytes[first]!=0x90) ++first;
+		CHECK(first >= 8);
+		/* Literal bank-zero / Lead 1 (square) selection precedes the first
+		 * note, replacing the prior ANSI calibration voice. */
+		const uint8_t instrument[] = {0xb0,0,0,0xb0,32,0,0xc0,80};
+		CHECK(memcmp(r.bytes+first-sizeof(instrument),instrument,sizeof(instrument)) == 0);
 		CHECK(r.size-first == (sizeof(notes)+1)*sizeof(notes)*3);
 		for (size_t i=0; i<(sizeof(notes)+1)*sizeof(notes); ++i) {
 			size_t n=i%sizeof(notes);
