@@ -58,6 +58,8 @@ Open clarification issues:
   BMM mask raster and compositing convention.
 - [#9](https://github.com/bbs-land/remote-imaging-protocol/issues/9): conflicting
   RGB component example and incorrect C palette-index expression.
+- [#10](https://github.com/bbs-land/remote-imaging-protocol/issues/10): offscreen
+  port extents, clipped verbatim copies and viewport diagram arithmetic.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -182,6 +184,19 @@ outputs on invalid dimensions or arithmetic overflow. Pixel mapping rounds down
 to the containing pixel and leaves clipping to ports/viewports. Inverse mapping
 accounts for unavoidable loss of logical-coordinate precision. This implements
 frame arithmetic; host state and port/view origins remain pending.
+
+`rip3_ports` checks the 36-entry device-pixel port table: shared overlapping
+screen regions, independently owned offscreen buffers, port-zero invariants,
+port/viewport origin translation, clipping/deactivation/reactivation, protected
+configuration with writable contents, protected redefinition's switch-to-zero,
+normal/hard reset, delete-all retention, undefined-port switch recovery,
+protected copies and original-source copying between overlapping screen ports.
+An independent coherent RGB capture verifies the related visible pixels and
+margins. All three device tiers are exercised. A native Valgrind run of this
+test reported no errors or definite/indirect leaks. This layer intentionally
+accepts device pixels: world/offscreen sizing and wire-level zero-rectangle
+forms await #10. Per-port text/image/query state, backup storage and host
+command orchestration are not implemented by this layer.
 
 ## Verification and acceptance
 
