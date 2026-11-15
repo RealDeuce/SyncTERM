@@ -445,6 +445,16 @@ interpreter. Prefix `=` and repeated directives return unsupported pending #6;
 the parser retains both `+` and `%` without choosing precedence. It imposes
 explicit representation bounds on decimal fields, not inferred RIPtel limits.
 
+`rip3_features` checks IFS value/list behavior against an explicit per-session
+capability registry. Every capability starts false; the future client adapter
+must register only available services. Features and nonempty categories list in
+alphabetical order without spaces, trailing delimiters or line endings. Tests
+cover category changes as JPEG availability toggles, the literal emulation-list
+example, all registered keywords, independent sessions, unknown queries and
+output-buffer atomicity. External applications always return unsupported and
+never enter lists, even if the private mask is set incorrectly. Wire parsing,
+runtime service registration and reply transport remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
