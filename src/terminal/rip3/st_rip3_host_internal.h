@@ -19,5 +19,8 @@ int st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 int st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+int st_rip3_datetime_execute(const struct st_rip3_host_variables *host,
+	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+const char *st_rip3_datetime_zone(const struct st_rip3_host_variables *host);
 
 #endif

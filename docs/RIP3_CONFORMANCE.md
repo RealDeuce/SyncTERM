@@ -93,6 +93,10 @@ Open clarification issues:
   BOLD.CHR opcode-01 scan records contradict the inherited unused-opcode claim;
   their painting semantics need clarification for v3.
 
+- [#18](https://github.com/bbs-land/remote-imaging-protocol/issues/18): YEAR's
+  syntax typo, inconsistent DATETIME weekday/date example and exact single-digit
+  day padding/trailing-newline policy.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -545,6 +549,21 @@ and focused tests. This is reference-boundary recovery; complete stream framing
 and terminal routing remain pending and must preserve the same error contract.
 Native Valgrind reports no errors or definite/indirect leaks in this recovery
 fixture, including injected clone/restore failure cleanup.
+
+`rip3_datetime` verifies nineteen resolved date/time variables through the public
+nonfatal processor using one borrowed, converted local-time snapshot and a
+client-selected zone phrase. Independent literal replies cover every resolved
+reference example, all English month/weekday names, decimal padding, midnight/
+noon, century/leap-year and year boundaries, day-of-year 001/365/366, Sunday-first
+and Monday-first week 00/01/52/53, and unknown-zone NONE. No global clock, locale
+or TZ setting is changed. A 4,096-byte zone phrase is emitted intact through a
+borrowed reply, without the numeric/palette scratch-buffer limit. Invalid client
+clock ranges and nonexistent dates emit only a nonfatal operation diagnostic;
+the next valid query still works. Native Valgrind reports no errors or definite/
+indirect leaks. Clock collection/conversion and batch/session wiring remain
+pending client-adapter work. DATETIME stays unsupported under #18; the YEAR
+handler follows its unambiguous name/meaning while the malformed syntax block
+remains unresolved.
 
 ## Verification and acceptance
 

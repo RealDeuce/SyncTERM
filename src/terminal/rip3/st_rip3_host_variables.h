@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 struct st_rip3_features;
 struct st_rip3_frame;
@@ -17,6 +18,13 @@ struct st_rip3_host_variables {
 	const struct st_rip3_features *features;
 	const struct st_rip3_frame *frame;
 	const struct st_rip3_table_host *tables;
+	/* One converted local-time snapshot for an expansion batch. The client
+	 * owns clock conversion/time-zone selection; no global TZ or locale is
+	 * changed by the parser. Years 1..9999, ordinary seconds 0..59, and
+	 * consistent tm calendar/weekday/year-day fields are required. */
+	const struct tm *local_time;
+	/* Borrowed word/phrase; NULL or empty means the zone is unknown. */
+	const char *time_zone;
 };
 
 enum st_rip3_host_diagnostic {
@@ -44,7 +52,8 @@ struct st_rip3_host_sink {
  * command error to the terminal/session caller. Decoder/executor statuses are
  * private and must not be used as connection errors.
  *
- * Supports NULL, IFS, RESX/RESY and the implemented table-variable families.
+ * Supports NULL, IFS, RESX/RESY, the resolved date/time fields and the
+ * implemented table-variable families. DATETIME formatting remains blocked.
  * Unknown names/user resolution and other built-ins remain pending; they emit
  * no reply and cannot abort later references. External launch names likewise
  * have no action. Framing, macro expansion and user-policy orchestration still

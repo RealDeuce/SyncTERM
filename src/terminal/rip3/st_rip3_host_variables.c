@@ -58,6 +58,11 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	}
 	if (strcmp(reference->name, "APP") == 0 || strcmp(reference->name, "GOTOURL") == 0)
 		return IO_ERROR_NOT_SUPPORTED;
+	{
+		int status = st_rip3_datetime_execute(host, reference, result, capacity);
+		if (status != IO_ERROR_NOT_SUPPORTED)
+			return status;
+	}
 	if (host->tables != NULL)
 		return st_rip3_table_host_execute(host->tables, reference, result, capacity);
 	return IO_ERROR_NOT_SUPPORTED;
@@ -68,8 +73,9 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
     const struct st_rip3_host_sink *sink, const uint8_t *text, size_t length)
 {
 	struct st_rip3_builtin_reference reference;
-	/* Maximum implemented reply: 8; plus 256 decimal RGB triples and commas,
-	 * with a final NUL. Capacity is owned here, never a caller parse error. */
+	/* Maximum formatted numeric/table reply: 8; plus 256 decimal RGB triples
+	 * and commas, with a final NUL. Borrowed client text is emitted separately.
+	 * Capacity is owned here, never a caller parse error. */
 	char reply[2 + 256 * 12];
 	enum st_rip3_host_diagnostic diagnostic;
 	bool decoded = false;
@@ -77,6 +83,15 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 
 	if (status == 0) {
 		decoded = true;
+		/* The zone is borrowed client text, not a formatted numeric/table
+		 * reply. Emit its complete phrase without imposing the scratch-buffer
+		 * bound or allocating a copy. Parameter errors still use recovery. */
+		if (host != NULL && reference.count == 0 && strcmp(reference.name, "TIMEZONE") == 0) {
+			const char *zone = st_rip3_datetime_zone(host);
+			if (sink != NULL && sink->reply != NULL)
+				sink->reply(sink->context, (const uint8_t *)zone, strlen(zone));
+			return;
+		}
 		status = st_rip3_host_variables_execute(host, &reference, reply, sizeof(reply));
 	}
 	if (status == 0) {
