@@ -1750,10 +1750,10 @@ fallback and file-type policy.
 The caller must supply a client-owned session directory; this helper does not
 choose a profile, accept a host-supplied directory, establish the client's root,
 or implement directory-switching, transfer or deletion policy. These remain
-pending. The BMP encoder already exists, but port/clipboard capture and `1W`/`2W`
-wire orchestration remain separate work; this helper is not a bitmap-export
-command or an active application route. Storage statuses remain for the owning
-parser to consume internally.
+pending. This storage helper does not capture pixels or implement a bitmap-export
+command. The `1W` path described below now composes capture, encoding and writing;
+`2W` and active application routing remain pending. Storage statuses remain for
+the owning parser to consume internally.
 
 `rip3_resource_write` checks a literal BMP byte sequence without using the
 production encoder to create its expectation. It covers byte-preserving writes,
@@ -1772,6 +1772,48 @@ descriptors for the resource writer, including both link cases. All 93 frozen
 files and 41 legacy helpers remain unchanged, as do all 6548 source blocks,
 62 document identities and the reference pin. Verification logs and filesystem
 fixtures were removed automatically. No Windows execution is claimed.
+
+`1W` now validates its current-radix reserved zero and writes the explicitly
+selected active clipboard viewport through the host-directory storage service.
+It takes the bound current palette, captures an owned index raster and palette,
+encodes an uncompressed bottom-up 8-bit BMP, then attempts atomic replacement.
+The encoder/storage representation preserves all 256 palette indexes; this is
+a valid documented BMP encoding, not a claim to reproduce RIPtel's exact file
+bytes or default bit depth. Filename bytes and extensions remain literal,
+including the canonical `filename.icn` example and a filename of `$OFF$`.
+Spaces, Unicode names and caseless overwrite use the established resource
+namespace. No graphics write mode is applied to captured pixels.
+
+The typed capture accepts a named port and an optional viewport-relative device
+rectangle, clipping without scaling. It owns its raster/palette independently
+of later source edits/destruction and does not select a port or change any
+configuration. Its device geometry does not infer `2W`'s world-coordinate or
+sentinel rules. Cleared clipboard pointers make `1W` a no-op; dangling/missing
+bindings and inactive source viewports remain unsupported under #42. Export
+permits protected/current clipboard ports and onscreen port aliases, retaining
+port/palette selection, protection, source contents and ENV references. GET_IMAGE
+pointer selection/reset/deletion/backup policy and the active route remain
+pending; no complete clipboard lifecycle is claimed.
+
+`rip3_bitmap_write_commands` drives split-input framer/command/capture/encoder/
+storage processing on all three canvases. Expected file headers, RGB quads,
+bottom-up rows, padding and six index values are written independently of the
+implementation's encoder/decoder. Checks cover offscreen and offset onscreen
+viewports, protected source/palette, current-source export, both radices,
+noncurrent ENV references, literal extensions/names, caseless overwrite and
+reserved/filename errors. Capture-object, pixel-buffer, encoding and replacement
+failures retain the previous file, and subsequent exports work. Cleared/dangling/
+inactive/invalid selections and missing services remain nonfatal. Typed-capture
+checks cover clipping, empty/reversed areas, invalid palettes, unchanged results
+on failure, and owned pixels/palette after the original source is destroyed.
+The CMake and temporary verification fixtures remove their filesystem artifacts.
+
+The native CMake build and all 82 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap and three inherited
+descriptors in the complete bitmap-write fixture. All 93 frozen files and 41
+legacy helpers still match RIP1.54's baseline; the source blocks, document
+identities and reference pin are unchanged. Temporary logs and file fixtures
+were removed. The active application route is unchanged.
 
 ## Verification and acceptance
 

@@ -13,7 +13,7 @@ add_custom_command(OUTPUT "${_rip3_font_data}"
 	DEPENDS ${_rip3_font_files} "${_rip3_font_directory}/manifest.json" GenerateFontData.cmake
 	VERBATIM)
 add_library(st_rip3 STATIC st_rip3_styles.c st_rip3_stream.c st_rip3_input.c st_rip3_query.c st_rip3_number.c st_rip3_maf.c st_rip3_rff.c st_rip3_chr.c st_rip3_stroke_text.c st_rip3_variables.c st_rip3_variable_reference.c st_rip3_features.c st_rip3_builtin_reference.c st_rip3_table_host.c st_rip3_host_variables.c st_rip3_datetime.c st_rip3_viewport_host.c
-	st_rip3_bitmap.c st_rip3_surface.c st_rip3_palettes.c st_rip3_backup.c st_rip3_geometry.c st_rip3_ports.c st_rip3_draw.c st_rip3_fill.c st_rip3_polygon.c st_rip3_ellipse.c st_rip3_rounded_rectangle.c st_rip3_bezier.c st_rip3_bitmap_text.c st_rip3_image.c st_rip3_outline_text.c st_rip3_environments.c st_rip3_environment_host.c st_rip3_classic_text.c st_rip3_port_query.c st_rip3_screen.c "${_rip3_font_data}")
+	st_rip3_bitmap.c st_rip3_bitmap_capture.c st_rip3_surface.c st_rip3_palettes.c st_rip3_backup.c st_rip3_geometry.c st_rip3_ports.c st_rip3_draw.c st_rip3_fill.c st_rip3_polygon.c st_rip3_ellipse.c st_rip3_rounded_rectangle.c st_rip3_bezier.c st_rip3_bitmap_text.c st_rip3_image.c st_rip3_outline_text.c st_rip3_environments.c st_rip3_environment_host.c st_rip3_classic_text.c st_rip3_port_query.c st_rip3_screen.c "${_rip3_font_data}")
 target_include_directories(st_rip3 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3 PUBLIC syncterm_io_error st_pixels)
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/SynctermDependencies.cmake")
@@ -78,11 +78,11 @@ else()
 	target_compile_options(st_rip3_audio PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
-add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_port_commands.c
+add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_port_commands.c st_rip3_bitmap_commands.c
 	st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c)
 target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio
-	PRIVATE syncterm_string_compat)
+	PRIVATE st_rip3_storage syncterm_string_compat)
 set_target_properties(st_rip3_commands PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
@@ -816,6 +816,23 @@ if(BUILD_TESTING)
 		"-DTEST_PROGRAM=$<TARGET_FILE:st_rip3_resource_write_test>"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/resource-write"
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/resource_write.cmake")
+
+	add_executable(st_rip3_bitmap_write_commands_test tests/st_rip3_bitmap_write_commands_test.c
+		tests/st_rip3_resource_write_fault_impl.c tests/st_rip3_bitmap_capture_fault_impl.c
+		tests/st_rip3_bitmap_encode_fault_impl.c)
+	target_link_libraries(st_rip3_bitmap_write_commands_test PRIVATE st_rip3_commands
+		syncterm_filesystem syncterm_path st_unicode_compare)
+	set_target_properties(st_rip3_bitmap_write_commands_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_bitmap_write_commands_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_bitmap_write_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_bitmap_write_commands COMMAND "${CMAKE_COMMAND}"
+		"-DTEST_PROGRAM=$<TARGET_FILE:st_rip3_bitmap_write_commands_test>"
+		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/bitmap-write"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/bitmap_write.cmake")
 
 	add_test(NAME rip3_font_assets COMMAND "${CMAKE_COMMAND}"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/asset-check"

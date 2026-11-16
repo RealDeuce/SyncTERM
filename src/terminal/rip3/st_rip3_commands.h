@@ -17,7 +17,7 @@ struct st_rip3_query;
 
 /* Explicit resolved clipboard pointer. Selection/GET_IMAGE allocation, reset,
  * protection and backup ownership remain under #42. This binding supplies the
- * pointer only; PUT_IMAGE neither selects a clipboard nor edits its state. */
+ * pointer only; PUT_IMAGE/WRITE_ICON neither select it nor edit its state. */
 struct st_rip3_clipboard_selection {
 	bool set;
 	unsigned port; /* 1..35 when set; the pointed port may be reconfigured. */
@@ -65,7 +65,7 @@ struct st_rip3_command_sink {
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
- * rectangle-fit 2C, onscreen 2P, clipboard 1P, 3D delays, 3e record edits,
+ * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
@@ -93,6 +93,14 @@ struct st_rip3_command_sink {
  * selection/reset/backup/protection policy stays under #42. Clipboard/port/ENV
  * configuration and uncovered pixels remain unchanged; content protection
  * does not prevent copying. All arguments validate before any pixels change.
+ * 1W validates its current-radix reserved zero, captures the explicitly bound
+ * clipboard viewport and current bound palette, and writes an 8-bit BMP through
+ * the trusted host-directory writer. Filename bytes/extensions remain literal,
+ * with bare UTF-8 name validation and caseless atomic overwrite. Cleared
+ * pointers are no-ops; missing bindings and dangling/inactive clipboard ports
+ * are unsupported (#42).
+ * Current port, protection, pixels, palette and ENV references are retained.
+ * Source capture/encoding finish before any filesystem replacement is attempted.
  * Drawing commands use the bound STYLE record's explicit resolved pen and
  * write mode. c/k preserve raw colour values: current-radix palette indices
  * or four-digit UltraNum RGB (8 bits/channel), with last-field shortening.

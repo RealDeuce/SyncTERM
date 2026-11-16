@@ -7,6 +7,9 @@
 #include <stdint.h>
 
 struct st_pixel_buffer;
+struct st_rip3_ports;
+struct st_rip3_rect;
+struct st_rip3_palette;
 
 struct st_rip3_bitmap {
 	/* Owned pixels: local palette indexes for 1/4/8-bit images, tagged RGB
@@ -41,6 +44,15 @@ int st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
  * Returns malloc-owned bytes; both outputs remain unchanged on failure. */
 int st_rip3_bitmap_encode(uint8_t **result, size_t *size,
 	const struct st_rip3_bitmap *bitmap);
+/* Capture a named port's active viewport as an owned 8-bit bitmap with the
+ * explicit resolved 256-entry palette. Device area is viewport-relative and
+ * clipped, or NULL for the full viewport; no world/sentinel policy is inferred.
+ * Undefined/empty returns NOT_FOUND, inactive returns NOT_SUPPORTED, and every
+ * failure preserves result. Protection/current selection/configuration/pixels
+ * remain unchanged. One session thread owns the capture and source state. */
+int st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
+	const struct st_rip3_ports *ports, unsigned number,
+	const struct st_rip3_rect *area, const struct st_rip3_palette *palette);
 void st_rip3_bitmap_destroy(struct st_rip3_bitmap *bitmap);
 
 #endif

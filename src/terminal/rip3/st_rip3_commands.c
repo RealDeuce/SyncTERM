@@ -170,6 +170,8 @@ execute(const struct st_rip3_command_host *host,
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
 		return immediate_query(host,command,length,operation);
+	if (length >= 2 && command[0] == '1' && command[1] == 'W')
+		return st_rip3_bitmap_commands_execute(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && command[1] == 'w') {
 		char *filename;
 		bool off;
