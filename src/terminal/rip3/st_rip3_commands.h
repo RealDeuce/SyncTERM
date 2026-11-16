@@ -16,6 +16,7 @@ struct st_rip3_command_host {
 	struct st_rip3_environments *environments;
 	struct st_rip3_audio *audio;
 	const struct st_rip3_resource_paths *resources;
+	struct st_rip3_palettes *palettes;
 };
 
 enum st_rip3_command_diagnostic {
@@ -36,8 +37,11 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f and 1w. Numeric commands use the current ENV record,
+ * Implements J, n, f, Q, a and 1w. Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
+ * Q/a edit the bound palette table's current entry, independently of ENV
+ * reference activation; ENV supplies the radix only. All fields are validated
+ * before changing the palette, whose own protection applies.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.

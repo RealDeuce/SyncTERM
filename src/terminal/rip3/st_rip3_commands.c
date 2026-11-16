@@ -3,6 +3,7 @@
 #include "st_rip3_audio.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_number.h"
+#include "st_rip3_palettes.h"
 #include "string_compat.h"
 #include "io_error.h"
 
@@ -37,6 +38,57 @@ current(const struct st_rip3_command_host *host, unsigned *number,
 	if (status == 0)
 		status = st_rip3_environments_get(host->environments, *number, value);
 	return status;
+}
+
+static int
+desktop_palette(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	struct st_rip3_environment environment;
+	unsigned number, colors[16];
+	uint64_t value;
+	size_t count = length - 1, start = 0, entries = 16, offset = 0;
+	const uint8_t *arguments = command + 1;
+	int status;
+
+	/* General comment boundaries remain unresolved under #7. Do not treat
+	 * trailing text as a partially valid palette update. */
+	if (memchr(arguments, ' ', count) != NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (host->palettes == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	status = current(host, &number, &environment);
+	if (status != 0)
+		return status;
+	if (command[0] == 'a') {
+		if (count < 3 || count > 4)
+			return IO_ERROR_INVALID_FORMAT;
+		status = field(&value, arguments, 2, environment.base_math);
+		if (status != 0)
+			return status;
+		if (value > 15)
+			return IO_ERROR_OUT_OF_RANGE;
+		start = (size_t)value;
+		entries = 1;
+		offset = 2;
+	}
+	else if (count < 31 || count > 32)
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 0; i < entries; i++) {
+		size_t width = i + 1 == entries ? count - offset : 2;
+
+		status = field(&value, arguments + offset, width, environment.base_math);
+		if (status != 0)
+			return status;
+		if (value > 63)
+			return IO_ERROR_OUT_OF_RANGE;
+		colors[i] = (unsigned)value;
+		offset += width;
+	}
+	/* No state changes before every field passes. ENV supplies only the
+	 * radix; the bound palette's current entry and protection own the edit. */
+	*operation = true;
+	return st_rip3_palettes_desktop(host->palettes, start, colors, entries);
 }
 
 static int
@@ -75,6 +127,8 @@ execute(const struct st_rip3_command_host *host,
 		free(filename);
 		return status;
 	}
+	if (command[0] == 'Q' || command[0] == 'a')
+		return desktop_palette(host, command, length, operation);
 	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f')
 		return IO_ERROR_NOT_SUPPORTED;
 	arguments = command + 1; count = length - 1;

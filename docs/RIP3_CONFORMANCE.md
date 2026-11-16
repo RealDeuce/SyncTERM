@@ -966,6 +966,31 @@ checks pass. Native Valgrind reports no errors, lost allocations or leaked file
 descriptors in the command fixture. The 93 frozen files and 41 legacy helper
 definitions still match the original preservation baseline.
 
+The complete-command adapter also implements Q/a desktop palette edits. Both
+read the current ENV radix, including the local MegaNum dash rule, with only the
+last numeric field eligible for shortening. Q validates all sixteen master
+colours before committing; a validates its desktop index and master colour.
+The bound palette table's current entry owns the edit and its protection;
+ENV protection does not protect another table's contents. No implicit ENV
+reference activation is inferred. Higher palette entries and other slots remain
+unchanged, and syntax/service failures remain internal nonfatal diagnostics.
+
+`rip3_palette_commands` uses literal commands, RGB values and coherent full-canvas
+captures on all three canvases to verify recolouring of existing indexed pixels,
+including background index zero. It covers documented Q/a examples, MegaNum and
+UltraNum endpoints, shortened final fields, atomic rejection of late invalid
+values, missing services, protection, shared CUR/PALENTRY replies and recovery.
+Native CMake build and all 60 selected RIP3/preservation/shared-audio tests pass;
+Valgrind reports no errors, leaked allocations or file descriptors in the new
+fixture. The frozen RIP154 preservation check remains unchanged.
+
+D/d decoding remains blocked: canonical metadata follows current Base Math,
+while driver/corpus evidence forces UltraNum for the entire command. Component
+precision below eight also needs an explicit shipping-driver rule, distinguished
+from direct drawing mode. These questions are recorded in
+[issue #2's palette clarification](https://github.com/bbs-land/remote-imaging-protocol/issues/2#issuecomment-6920509860).
+Raw framing, reset orchestration and active v3 session routing remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
