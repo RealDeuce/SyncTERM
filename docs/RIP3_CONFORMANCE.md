@@ -106,6 +106,10 @@ Open clarification issues:
   conflicting with the inherited generic reject-path rule. Connection-only
   deletion is explicitly a hypothesis, not an established shipping contract.
 
+- [#21](https://github.com/bbs-land/remote-imaging-protocol/issues/21): image-style
+  deletion-flag contradiction, file deletion scope, IMGSTYLE flag/port defaults,
+  protected-port reset and background-clear/margin write-mode policy.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -636,6 +640,43 @@ command-specific extension/default/path handling remain pending. The service
 does not infer a write/delete policy from read fallback. FILEDEL remains
 unsupported under #20, and the existing terminal route and RIP154 implementation
 remain unchanged.
+
+`rip3_image` adds independent decoded-image rendering and per-port image styles.
+Newly defined ports have automatic full-viewport areas. Explicit all-zero areas
+disable viewing; other ordered device coordinates clamp to the viewport, and
+changing a viewport reclamps an existing explicit area at rendering time.
+Automatic areas follow its size, including one-pixel viewports. Protected ports
+reject configuration changes but permit image content. Whole-table backups
+include image state and remain usable after destroying the original owner.
+The low-level table reset initializes port zero; the full wire environment reset
+policy for protected survivors is still blocked under #21.
+
+The device renderer accepts tagged RGB or indexed pixels with an independent
+source palette, maps them to the current drawing palette, and scales by nearest
+source-pixel centers. Aspect fitting centers the image with black margins;
+integer dimensions round down with a one-pixel minimum, and odd extra margins
+go right/below. Those geometric raster choices are explicit client policy,
+not exact RIPtel pixel reproduction. The primitive uses COPY for the initial
+background clear and black margins, current write mode for image pixels, and
+flag 4 to skip the initial clear. It validates all source samples/palettes and
+prepares the complete fitted image before changing any destination pixel.
+
+Tests cover all five write modes, local/active palette independence, black at
+a nonzero palette index, shrinking viewports, extreme coordinates, disabled
+and inactive no-ops, malformed final pixels and rejected palette commits.
+One coherent RGB capture checks a related scene with literal foregrounds,
+margins, port/viewport offsets and an isolated offscreen image on every agreed
+canvas. A second integration scene resolves caseless JPEG filenames through
+the storage adapter and renders the independently authored T.81 color/grayscale
+fixtures plus a literal one-bit BMP. Native JPEG decode/render coverage is
+present. Native Valgrind reports no errors or definite/indirect leaks.
+
+Memory rendering never deletes files or changes palette definitions. RGB
+images ignore flag 8; indexed palette commit is explicitly unsupported.
+BMP macro auto-dithering, macro/wire processing, world coordinates, image
+delivery/lifetime and capability registration remain pending. The primitive's
+explicit background/margin policy is not a claim that #21's shipping behavior
+is resolved. No terminal route or RIP154 implementation changes are included.
 
 ## Verification and acceptance
 

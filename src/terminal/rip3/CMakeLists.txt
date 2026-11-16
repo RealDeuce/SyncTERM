@@ -13,7 +13,7 @@ add_custom_command(OUTPUT "${_rip3_font_data}"
 	DEPENDS ${_rip3_font_files} "${_rip3_font_directory}/manifest.json" GenerateFontData.cmake
 	VERBATIM)
 add_library(st_rip3 STATIC st_rip3_number.c st_rip3_maf.c st_rip3_rff.c st_rip3_chr.c st_rip3_stroke_text.c st_rip3_variables.c st_rip3_variable_reference.c st_rip3_features.c st_rip3_builtin_reference.c st_rip3_table_host.c st_rip3_host_variables.c st_rip3_datetime.c st_rip3_viewport_host.c
-	st_rip3_bitmap.c st_rip3_surface.c st_rip3_palettes.c st_rip3_backup.c st_rip3_geometry.c st_rip3_ports.c st_rip3_draw.c st_rip3_fill.c st_rip3_ellipse.c st_rip3_bezier.c st_rip3_bitmap_text.c "${_rip3_font_data}")
+	st_rip3_bitmap.c st_rip3_surface.c st_rip3_palettes.c st_rip3_backup.c st_rip3_geometry.c st_rip3_ports.c st_rip3_draw.c st_rip3_fill.c st_rip3_ellipse.c st_rip3_bezier.c st_rip3_bitmap_text.c st_rip3_image.c "${_rip3_font_data}")
 target_include_directories(st_rip3 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3 PUBLIC syncterm_io_error st_pixels)
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/SynctermDependencies.cmake")
@@ -66,6 +66,17 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_rip3_image_test tests/st_rip3_image_test.c)
+	target_link_libraries(st_rip3_image_test PRIVATE st_rip3 st_rip3_storage st_pixel_image)
+	set_target_properties(st_rip3_image_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_image_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_image_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_image COMMAND st_rip3_image_test
+		"${CMAKE_CURRENT_SOURCE_DIR}/../../media/pixel_image/tests/jpeg")
 	add_executable(st_rip3_number_test tests/st_rip3_number_test.c)
 	target_link_libraries(st_rip3_number_test PRIVATE st_rip3)
 	set_target_properties(st_rip3_number_test PROPERTIES

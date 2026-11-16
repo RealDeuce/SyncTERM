@@ -171,6 +171,7 @@ st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
 	value.info.offscreen = offscreen;
 	value.info.viewport_active = true;
 	value.info.viewport = port_bounds(&value);
+	value.info.image = (struct st_rip3_image_style){.automatic = true, .enabled = true};
 	clear_port(&ports->entries[number]);
 	ports->entries[number] = value;
 	return 0;
@@ -240,6 +241,7 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 		.viewport_active = true,
 		.bounds = ports->screen_bounds,
 		.viewport = ports->screen_bounds,
+		.image = {.automatic = true, .enabled = true},
 	};
 	ports->current = 0;
 	return 0;
@@ -283,6 +285,45 @@ st_rip3_ports_activate(struct st_rip3_ports *ports, bool active)
 	if (port->info.protected)
 		return IO_ERROR_PERMISSION_DENIED;
 	port->info.viewport_active = active;
+	return 0;
+}
+
+static int32_t
+clamp_image_coordinate(int32_t value, int32_t maximum)
+{
+	return value < 0 ? 0 : value > maximum ? maximum : value;
+}
+
+int
+st_rip3_ports_image_style(struct st_rip3_ports *ports, unsigned number,
+    const struct st_rip3_rect *area, unsigned flags)
+{
+	struct st_rip3_image_style style = {.automatic = area == NULL,
+	    .enabled = true, .flags = flags};
+	struct port *port;
+
+	if (ports == NULL || (area != NULL && !rect_valid(area)))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36 || flags > 15)
+		return IO_ERROR_OUT_OF_RANGE;
+	port = &ports->entries[number];
+	if (!port->info.defined)
+		return IO_ERROR_NOT_FOUND;
+	if (port->info.protected)
+		return IO_ERROR_PERMISSION_DENIED;
+	if (area != NULL) {
+		int32_t xmax = port->info.viewport.x1 - port->info.viewport.x0;
+		int32_t ymax = port->info.viewport.y1 - port->info.viewport.y0;
+
+		style.enabled = area->x0 != 0 || area->y0 != 0
+		    || area->x1 != 0 || area->y1 != 0;
+		style.area = (struct st_rip3_rect){
+		    clamp_image_coordinate(area->x0, xmax),
+		    clamp_image_coordinate(area->y0, ymax),
+		    clamp_image_coordinate(area->x1, xmax),
+		    clamp_image_coordinate(area->y1, ymax)};
+	}
+	port->info.image = style;
 	return 0;
 }
 

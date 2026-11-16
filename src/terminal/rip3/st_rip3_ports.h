@@ -13,6 +13,15 @@ struct st_pixel_buffer;
 struct st_rip3_ports;
 struct st_rip3_backup;
 
+struct st_rip3_image_style {
+	/* Device coordinates relative to the viewport. Automatic areas follow
+	 * its current size, including a one-pixel viewport at the origin. */
+	bool automatic;
+	bool enabled;
+	struct st_rip3_rect area;
+	unsigned flags;
+};
+
 struct st_rip3_port_info {
 	bool defined;
 	bool offscreen;
@@ -22,6 +31,7 @@ struct st_rip3_port_info {
 	 * start at zero. Viewport coordinates are relative to these bounds. */
 	struct st_rip3_rect bounds;
 	struct st_rip3_rect viewport;
+	struct st_rip3_image_style image;
 };
 
 /* Device-pixel port state, owned by one session thread. World translation and
@@ -53,6 +63,14 @@ int st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard);
 int st_rip3_ports_viewport(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *viewport);
 int st_rip3_ports_activate(struct st_rip3_ports *ports, bool active);
+/* Set one defined port's image style without selecting it. NULL area means
+ * automatic full viewport; an explicitly all-zero area disables images.
+ * Other ordered coordinates clamp to the current viewport. Flags are the
+ * documented low four bits. Protection rejects changes atomically; content
+ * rendering is still allowed. Macro/wire defaults and file side effects are
+ * policy of the owning parser, not inferred here. */
+int st_rip3_ports_image_style(struct st_rip3_ports *ports, unsigned number,
+	const struct st_rip3_rect *area, unsigned flags);
 enum st_rip3_view_operation {
 	ST_RIP3_VIEW_ACTIVATE,
 	ST_RIP3_VIEW_DEACTIVATE,
@@ -91,7 +109,8 @@ int st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore
  * prepares all bitmap copies before replacing any live entry, bypasses live
  * protection, and requires the same device canvas. The backup survives the
- * original ports object. Query/cursor/clipboard metadata is not implemented
+ * original ports object. Image styles are included. Query/cursor/clipboard
+ * metadata is not implemented
  * in this device table yet and must be added to its snapshot with that state. */
 int st_rip3_ports_backup_create(struct st_rip3_backup **result);
 
