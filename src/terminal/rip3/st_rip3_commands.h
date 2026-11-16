@@ -42,8 +42,9 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, 1w, v, 2p, rectangle-fit
- * 2C, onscreen 2P, comments and terminal grouping no-ops.
+ * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, B, s, S presets
+ * 00/01/03/06/08/09/0A, 1w, v, 2p, rectangle-fit 2C, onscreen 2P, comments
+ * and terminal grouping no-ops.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
  * Q/a edit the bound palette table's current entry, independently of ENV
@@ -68,6 +69,12 @@ struct st_rip3_command_sink {
  * Y validates all four two-digit current-radix fields before editing the bound
  * STYLE's classic font attributes. Conflicting justification flags discard the
  * complete command. This does not activate an extended font or text cursor.
+ * S/s replace the fill mask/colour and retain the caller's explicit device
+ * pattern phase (#12). Custom rows use the current radix, top-to-bottom/MSB-left;
+ * colour fields share c/k encoding. Conflicting stock masks remain unsupported.
+ * B normalizes opposing corners, includes the last device row/column and draws
+ * without a border. Both used fill inks resolve before painting; solid and
+ * background-only fills skip unused ink lookup. NOT ignores both inks.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.

@@ -92,6 +92,17 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_rip3_fill_commands_test tests/st_rip3_fill_commands_test.c)
+	target_link_libraries(st_rip3_fill_commands_test PRIVATE st_rip3_commands)
+	set_target_properties(st_rip3_fill_commands_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_fill_commands_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_fill_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_fill_commands COMMAND st_rip3_fill_commands_test)
+
 	add_executable(st_rip3_font_command_test tests/st_rip3_font_command_test.c)
 	target_link_libraries(st_rip3_font_command_test PRIVATE st_rip3_commands)
 	set_target_properties(st_rip3_font_command_test PROPERTIES

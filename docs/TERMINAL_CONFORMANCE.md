@@ -34,7 +34,12 @@ with coherent captures on all three canvases. Numeric Y tests cover all classic
 font/direction/size values, conflicting flags, protected edits and split-input
 recovery; independent all-canvas text-kernel captures verify the selected
 orientation, justification, magnification and shadow. Text wire/cursor integration
-remains pending. These do not change the active route.
+remains pending. Complete custom-fill/clear-stock/bar body tests cover row/colour
+decoding, protected edits and recovery, all drawing modes, RGB ink, inclusive
+geometry and wide coordinates. Independent all-canvas captures verify literal
+stock diagrams, custom bit order and adjacent fills with explicit device phase;
+conflicting masks and protocol anchoring remain pending. These do not change the
+active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

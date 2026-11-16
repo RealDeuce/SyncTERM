@@ -1194,6 +1194,41 @@ Native Valgrind reports no errors or leaked allocations/descriptors in the new
 font-command fixture.
 The original 93 frozen files and 41 legacy helper definitions remain unchanged.
 
+`rip3_fill_commands` adds complete custom `s`, supported stock `S` and filled-bar
+`B` command bodies. Eight custom row bytes follow the current radix; colour
+fields share `c/k` palette-index/direct-RGB decoding and final-field shortening.
+All fields validate before a protected current-STYLE edit. Custom and supported
+stock masks replace one another, retaining the caller's explicit resolved device
+phase and other stored attributes. Clear stock presets 00/01/03/06/08/09/0A are
+implemented. Conflicting masks 02/04/05/07/0B remain unsupported under #12;
+wire tiling origin and complete border/context orchestration remain pending.
+
+`B` projects current-width world corners, normalizes reversals and fills inclusive
+device bounds without a border. Wide axis-aligned bounds clip safely without
+overflow. Set/clear mask bits use fill/background ink; all used ink lookups finish
+before painting. Solid/background-only fills skip unused ink and destination NOT
+ignores both colours. Inactive viewports skip lookup and painting; protected
+STYLE/PORT content remains drawable. Parsing and operation failures are consumed
+internally and later commands execute.
+
+Tests cover all 256 custom byte values in both radices, field/range/protection
+failures, split-input recovery, palette/direct RGB and nearest-colour ties, all
+five drawing modes, shortened fields, all coordinate widths, very large endpoints
+and mismatched canvases. Independent coherent RGB captures on all three canvases
+verify literal stock-pattern diagrams, asymmetric custom masks across adjacent
+bars, explicit nonzero phase, viewport origins, clipping, reversed/degenerate
+bars and default/scaled worlds. These preserve explicit resolved phase rather
+than claiming the still-unspecified protocol anchoring policy.
+
+A further pattern-00 inconsistency is recorded in
+[issue #12](https://github.com/bbs-land/remote-imaging-protocol/issues/12#issuecomment-6923829771):
+the table says colour zero while paragraph 320 specifies the current pen
+background colour. The implementation follows paragraph 320 and keeps the
+contradictory row blocked. The native CMake build and all 69 selected RIP3/
+preservation/shared-audio tests pass. Native Valgrind reports no errors or leaked
+allocations/descriptors in the new fixture. All 93 frozen files and 41 legacy
+helper definitions remain unchanged. Full RIP3 acceptance remains pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
