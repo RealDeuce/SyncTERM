@@ -44,6 +44,12 @@ int st_rip3_stroke_collect(struct st_rip3_ports *ports,
 int st_rip3_stroke_apply(struct st_rip3_ports *ports,
 	const struct st_rip3_stroke_mask *mask, uint8_t foreground,
 	uint8_t background, enum st_rip3_write_mode mode);
+/* Prepared text masks: foreground wins over shadow; apply the write mode once
+ * per covered pixel. Both masks use their own already-clipped bounds. */
+int st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
+	const struct st_rip3_stroke_mask *ink,
+	const struct st_rip3_stroke_mask *shadow, uint8_t foreground,
+	uint8_t background, enum st_rip3_write_mode mode);
 void st_rip3_stroke_free(struct st_rip3_stroke_mask *mask);
 
 #endif

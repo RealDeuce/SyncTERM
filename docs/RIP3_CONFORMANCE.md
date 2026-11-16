@@ -110,6 +110,11 @@ Open clarification issues:
   deletion-flag contradiction, file deletion scope, IMGSTYLE flag/port defaults,
   protected-port reset and background-clear/margin write-mode policy.
 
+- [#22](https://github.com/bbs-land/remote-imaging-protocol/issues/22): FastFont
+  contour fill rule, hollow stroke width, overlapping-glyph write-mode policy
+  and high-byte font character-code mapping. Type 1 ancestry alone does not
+  establish RIPtel's defaults or the mapping from CP437/UTF-8 input to RFF slots.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -677,6 +682,43 @@ BMP macro auto-dithering, macro/wire processing, world coordinates, image
 delivery/lifetime and capability registration remain pending. The primitive's
 explicit background/margin policy is not a claim that #21's shipping behavior
 is resolved. No terminal route or RIP154 implementation changes are included.
+
+`rip3_outline_text` adds RFF measurement and device geometry for all 80 bundled
+style records. Measurement accumulates raw advances and optional adjacent-pair
+kerning before any style scaling, checking both positive and negative int32
+boundaries. Missing codes have no advance/ink; damaged records retain their
+declared advance and remain blank. A selected face's horizontal percentage
+scales the cumulative position and glyph together, avoiding per-character
+rounding drift. Coordinates remain y-down font units until an explicit affine
+matrix maps them into the viewport. Input file views are reopened/validated;
+font/text bytes and caller state remain unchanged.
+
+Cubics flatten adaptively to 1/64 device pixel using segment-distance bounds;
+contours close implicitly and hinting is omitted as allowed by the reference.
+The geometry API explicitly selects nonzero or even-odd filling inside each
+glyph, then unites the glyph masks before applying a write mode. Hollow faces
+use an explicit device-pixel thickness and the existing vector stroke kernel.
+Foreground and one-pixel down/right shadow masks are both prepared before any
+painting; foreground wins on overlap. Separate shadow collection preserves
+shadows cast into the viewport by clipped-away foreground. The unchanged CHR
+behavior now shares that prepared-mask application helper.
+
+Independent literal fixtures check nested/reversed/coincident contours, raw
+and zero-advance aliases, negative kerning, all five write modes, cumulative
+fractional scaling, rotated analytic cubics, shear, hollow widths and shadows.
+One coherent RGB scene is checked on every agreed canvas. Invalid late geometry,
+nonfinite matrices, malformed kerning and bad style selections preserve the
+scene; protected content and inactive viewports are covered. Native integration
+also renders raw glyph-code spans through all 80 bundled faces. This is asset
+coverage, not a Unicode/code-page mapping claim. Native Valgrind reports no
+errors or leaks for both the new outline test and the existing CHR text test.
+
+The explicit fill rule, whole-text union and hollow width are geometry-kernel
+policies, not inferred RIPtel defaults. #22 remains open for those defaults and
+character-code mapping; #3 still blocks the extended-font wire/style fields.
+Point sizing, vertical alignment metrics, justification, transport mapping,
+cursor updates and terminal integration remain pending. No old parser, shared
+legacy font data or RIP154 expectations changed.
 
 ## Verification and acceptance
 

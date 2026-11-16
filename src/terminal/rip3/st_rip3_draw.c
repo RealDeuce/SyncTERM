@@ -442,6 +442,56 @@ st_rip3_stroke_apply(struct st_rip3_ports *ports,
 	return 0;
 }
 
+static bool
+mask_at(const struct st_rip3_stroke_mask *mask, int32_t x, int32_t y)
+{
+	if (mask->coverage == NULL || x < mask->bounds.x0 || x > mask->bounds.x1
+	    || y < mask->bounds.y0 || y > mask->bounds.y1)
+		return false;
+	return mask->coverage[(size_t)(y - mask->bounds.y0) * mask->width
+	    + (size_t)(x - mask->bounds.x0)] != 0;
+}
+
+int
+st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
+    const struct st_rip3_stroke_mask *ink,
+    const struct st_rip3_stroke_mask *shadow, uint8_t foreground,
+    uint8_t background, enum st_rip3_write_mode mode)
+{
+	struct st_rip3_rect bounds;
+
+	if (ports == NULL || ink == NULL || shadow == NULL
+	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (ink->coverage == NULL)
+		return st_rip3_stroke_apply(ports, shadow, background, background, mode);
+	if (shadow->coverage == NULL)
+		return st_rip3_stroke_apply(ports, ink, foreground, foreground, mode);
+	bounds = ink->bounds;
+	if (shadow->bounds.x0 < bounds.x0)
+		bounds.x0 = shadow->bounds.x0;
+	if (shadow->bounds.y0 < bounds.y0)
+		bounds.y0 = shadow->bounds.y0;
+	if (shadow->bounds.x1 > bounds.x1)
+		bounds.x1 = shadow->bounds.x1;
+	if (shadow->bounds.y1 > bounds.y1)
+		bounds.y1 = shadow->bounds.y1;
+	for (int32_t y = bounds.y0; y <= bounds.y1; y++) {
+		for (int32_t x = bounds.x0; x <= bounds.x1; x++) {
+			bool foreground_pixel = mask_at(ink, x, y);
+			int status;
+
+			if (!foreground_pixel && !mask_at(shadow, x, y))
+				continue;
+			status = st_rip3_ports_plot(ports, x, y,
+			    foreground_pixel ? foreground : background, mode);
+			if (status != 0)
+				return status;
+		}
+	}
+	return 0;
+}
+
 void
 st_rip3_stroke_free(struct st_rip3_stroke_mask *mask)
 {
