@@ -100,7 +100,6 @@ lifecycle(void)
 	struct st_rip3_port_info info;
 	struct st_rip3_rect bounds = {0, 0, 2, 2};
 	struct st_rip3_rect view = {1, 1, 2, 2};
-	struct st_rip3_rect zero = {0, 0, 0, 0};
 	unsigned current;
 	uint8_t value = 77;
 
@@ -111,7 +110,7 @@ lifecycle(void)
 	}
 	CHECK(st_rip3_ports_switch(ports, 35) == 0);
 	CHECK(st_rip3_ports_viewport(ports, &view) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_ports_plot(ports, 0, 0, 7, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_read(ports, 35, 1, 1, &value) == 0 && value == 0);
 	CHECK(st_rip3_ports_activate(ports, true) == 0);
@@ -156,7 +155,6 @@ copies(void)
 	struct st_rip3_ports *ports = NULL;
 	struct st_rip3_rect left = {10, 10, 13, 10};
 	struct st_rip3_rect right = {11, 10, 14, 10};
-	struct st_rip3_rect zero = {0, 0, 0, 0};
 	struct st_rip3_rect point = {0, 0, 0, 0};
 	const uint8_t expected[] = {1, 1, 2, 4, 8};
 	uint8_t value;
@@ -180,7 +178,7 @@ copies(void)
 	CHECK(st_rip3_ports_copy(ports, 1, NULL, 35, NULL,
 	    ST_RIP3_TRANSFER_COPY) == 0);
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_ports_copy(ports, 1, NULL, 0, &point,
 	    ST_RIP3_TRANSFER_COPY) == 0);
 	CHECK(st_rip3_ports_read(ports, 0, 0, 0, &value) == 0 && value == 0);

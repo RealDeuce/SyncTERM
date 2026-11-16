@@ -210,7 +210,6 @@ boundaries(void)
 	struct st_rip3_fill fill;
 	const struct st_rip3_rect bounds = {10,20,17,27};
 	const struct st_rip3_rect view = {1,1,6,6};
-	const struct st_rip3_rect zero = {0,0,0,0};
 	const struct st_rip3_ellipse singular = {3,3,2,4,1,2};
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
@@ -266,7 +265,7 @@ boundaries(void)
 	CHECK(st_rip3_draw_ellipse_interior(ports, &empty, 0, 360,
 	    ST_RIP3_ELLIPSE_PIE, &fill, 7, 4, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_draw_ellipse_interior(ports, &ellipse, 0, 360,
 	    ST_RIP3_ELLIPSE_PIE, &fill, 7, 4, ST_RIP3_COPY) == 0);
 	for (int32_t y = 0; y < 8; y++) {

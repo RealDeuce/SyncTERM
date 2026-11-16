@@ -1024,6 +1024,42 @@ This is framing and body processing;
 raw text-window rendering, expansion, binary-mode handoff, EOF playback policy,
 ANSI control/enablement, scene reset and active v3 routing remain pending.
 
+`rip3_port_commands` connects complete v/2p and onscreen 2P bodies to the
+independent port table. Fields use current ENV radix, coordinate width and world
+frame; geometry rejects mismatched device canvases. Validation completes before
+mutating state. New onscreen definitions with an intersection clamp to the screen, establish a full
+viewport, and apply select/deactivate/protect flags. Protected redefinition
+retains the port and uses the documented fallback to port zero. 2p validates
+its destination before deletion, retains protected ports in delete-all, then
+selects the requested survivor or falls back to zero. Protected single-delete
+failure leaves selection unchanged. Neither command activates or rewrites ENV
+references, and ENV protection does not lock PORT contents.
+
+The all-zero deactivation sentinel is checked in world fields before rounding.
+A nonzero world rectangle may legitimately round to the device pixel (0,0);
+the device viewport service now represents that active pixel directly. Typed
+fixture setup uses explicit deactivate operations, retaining every previous
+pixel expectation. Current-port geometry remains relative to its origin.
+Offscreen v tests use explicitly prepared device-sized ports and do not infer
+DEFINE_PORT's unresolved offscreen sizing.
+[Wholly external viewport/port rectangles](https://github.com/bbs-land/remote-imaging-protocol/issues/10#issuecomment-6921326134)
+also have an unspecified edge-clamp/empty/reject outcome. The wire adapter
+reports unsupported without mutation for that branch. Full 2P, 2s and zero-endpoint copy
+integration remain under #10/#2 and the scene-context blockers.
+
+Literal command tests cover all four coordinate widths, both radices (including
+UltraNum lowercase/#/&, MegaNum dash), full/shortened/omitted reserved fields,
+all onscreen flag combinations, clipping, redefinition, protected failures,
+delete-all survivors, undefined targets, invalid late fields, reversed bounds,
+huge-coordinate clipping without overflow, missing services and canvas mismatch. One coherent independent
+RGB capture on each canvas verifies streamed command geometry, origin-pixel
+activation and retained screen pixels after port deletion. Shared CUR/PORTW
+queries observe the same table state. The native CMake build and all 63 selected
+RIP3/preservation/shared-audio tests pass. Native Valgrind reports no errors,
+lost allocations or leaked file descriptors in the port-command fixture.
+The original 93 frozen files and 41 legacy helper definitions remain unchanged.
+Active terminal routing is pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

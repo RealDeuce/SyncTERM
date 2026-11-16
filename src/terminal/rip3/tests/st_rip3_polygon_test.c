@@ -212,7 +212,6 @@ boundaries(void)
 	struct st_rip3_pen border;
 	const struct st_rip3_rect bounds = {10,20,17,27};
 	const struct st_rip3_rect view = {1,1,6,6};
-	const struct st_rip3_rect zero = {0,0,0,0};
 	const struct st_rip3_rect offscreen = {0,0,7,7};
 	const struct st_rip3_point enclosing[] = {
 		{INT32_MIN,INT32_MIN}, {INT32_MAX,INT32_MIN},
@@ -268,7 +267,7 @@ boundaries(void)
 	CHECK(st_rip3_draw_filled_polygons(ports, &contour, 1, &fill, 7, 4,
 	    &border, 9, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_draw_filled_polygons(ports, &contour, 1, &fill, 7, 4,
 	    NULL, 9, ST_RIP3_COPY) == 0);
 	for (int32_t y = 0; y < 8; y++) {

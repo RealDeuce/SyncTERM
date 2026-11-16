@@ -156,7 +156,6 @@ errors_and_clipping(void)
 	struct st_rip3_bitmap_text_metrics metrics = {77,88,{99,100}};
 	struct st_rip3_point origin = {-1,-1};
 	const struct st_rip3_rect bounds = {0,0,5,5};
-	const struct st_rip3_rect zero = {0,0,0,0};
 	const uint8_t character = 1;
 
 	for (size_t i = 0; i < 3; i++)
@@ -239,7 +238,7 @@ errors_and_clipping(void)
 	style.vertical = true;
 	CHECK(st_rip3_draw_bitmap_text(ports, &font, &style, &character, 1,
 	    &origin, 7, 3, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	origin = (struct st_rip3_point){0,0};
 	CHECK(st_rip3_draw_bitmap_text(ports, &font, &style, &character, 1,
 	    &origin, 7, 3, ST_RIP3_COPY) == 0);

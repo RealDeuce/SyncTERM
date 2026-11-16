@@ -141,7 +141,6 @@ boundaries(void)
 	struct st_rip3_ports *ports = NULL;
 	struct st_rip3_pen pen;
 	const struct st_rip3_rect bounds = {0, 0, 7, 7};
-	const struct st_rip3_rect zero = {0, 0, 0, 0};
 	struct st_rip3_point points[4096];
 	struct st_rip3_point extremes[] = {{INT32_MIN,2}, {INT32_MAX,2}};
 	uint8_t value;
@@ -185,7 +184,7 @@ boundaries(void)
 	CHECK(st_rip3_pen_init(&pen) == 0);
 	points[0] = (struct st_rip3_point){INT32_MAX, INT32_MAX};
 	CHECK(st_rip3_draw_path(ports, points, 1, false, &pen, 7, 0, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_draw_path(ports, extremes, 2, false, &pen, 7, 0, ST_RIP3_COPY) == 0);
 	for (int32_t y = 0; y < 8; y++) {
 		for (int32_t x = 0; x < 8; x++)

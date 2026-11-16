@@ -247,7 +247,6 @@ boundaries(void)
 	};
 	const struct st_rip3_rect bounds = {10,20,17,27};
 	const struct st_rip3_rect view = {1,1,6,6};
-	const struct st_rip3_rect zero = {0,0,0,0};
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
 
@@ -278,7 +277,7 @@ boundaries(void)
 	}
 	st_pixel_buffer_destroy(capture);
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_pen_init(&pen) == 0);
 	CHECK(st_rip3_draw_bezier_path(ports, &start, &curve, 1, 4, true,
 	    &pen, 7, 3, ST_RIP3_COPY) == 0);

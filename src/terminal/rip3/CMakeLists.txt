@@ -78,7 +78,7 @@ else()
 	target_compile_options(st_rip3_audio PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
-add_library(st_rip3_commands STATIC st_rip3_commands.c)
+add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_port_commands.c)
 target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio
 	PRIVATE syncterm_string_compat)
@@ -91,6 +91,17 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_rip3_port_commands_test tests/st_rip3_port_commands_test.c)
+	target_link_libraries(st_rip3_port_commands_test PRIVATE st_rip3_commands)
+	set_target_properties(st_rip3_port_commands_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_port_commands_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_port_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_port_commands COMMAND st_rip3_port_commands_test)
+
 	add_executable(st_rip3_stream_fault_test tests/st_rip3_stream_fault_test.c)
 	target_link_libraries(st_rip3_stream_fault_test PRIVATE syncterm_io_error)
 	add_executable(st_rip3_stream_test tests/st_rip3_stream_test.c)

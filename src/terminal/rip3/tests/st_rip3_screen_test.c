@@ -83,7 +83,6 @@ restoration(enum st_rip3_canvas canvas)
 	const struct st_rip3_rect rectangle = {10,20,14,23}, onscreen = {20,30,25,35};
 	const struct st_rip3_rect view = {1,2,3,4}, offscreen = {0,0,2,1};
 	const struct st_rip3_rect offview = {1,0,2,1}, replacement = {45,55,46,56};
-	const struct st_rip3_rect tiny = {0,0,0,0};
 	unsigned current;
 	uint8_t pixel;
 
@@ -113,7 +112,7 @@ restoration(enum st_rip3_canvas canvas)
 	/* Later live port configuration and offscreen content must survive a
 	 * screen-only restore; all saved on-screen indexes remain independent. */
 	CHECK(st_rip3_ports_switch(ports, 0) == 0 && st_rip3_ports_erase(ports, 7) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &tiny) == 0); /* Disable port zero. */
+	CHECK(st_rip3_ports_activate(ports, false) == 0); /* Disable port zero. */
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
 	CHECK(st_rip3_ports_define(ports, 1, &replacement, false) == 0);
 	CHECK(st_rip3_ports_protect(ports, 1, true) == 0);

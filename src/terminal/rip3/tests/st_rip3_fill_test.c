@@ -164,7 +164,6 @@ boundaries(void)
 	struct st_rip3_rect bounds = {100, 200, 107, 207};
 	struct st_rip3_rect view = {1, 1, 6, 6};
 	struct st_rip3_rect extremes = {INT32_MIN, INT32_MIN, INT32_MAX, INT32_MAX};
-	struct st_rip3_rect zero = {0, 0, 0, 0};
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
 	uint8_t value;
@@ -198,7 +197,7 @@ boundaries(void)
 	CHECK(st_rip3_draw_bar(ports, &extremes, &fill, 7, 4,
 	    (enum st_rip3_write_mode)-1) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_draw_bar(ports, &extremes, &fill, 7, 4, ST_RIP3_COPY) == 0);
 	for (int32_t y = 0; y < 8; y++) {
 		for (int32_t x = 0; x < 8; x++) {

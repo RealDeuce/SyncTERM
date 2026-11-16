@@ -175,7 +175,6 @@ boundaries(void)
 {
 	struct st_rip3_ports *ports = NULL;
 	struct st_rip3_rect bounds = {0, 0, 7, 7};
-	struct st_rip3_rect zero = {0, 0, 0, 0};
 	struct st_rip3_point first = {INT32_MIN, 2};
 	struct st_rip3_point last = {INT32_MAX, 2};
 	struct st_rip3_pen pen;
@@ -214,7 +213,7 @@ boundaries(void)
 	CHECK(st_rip3_draw_line(ports, NULL, &last, &pen, 7, 0, ST_RIP3_COPY)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	first = (struct st_rip3_point){0, 0};
 	last = (struct st_rip3_point){7, 7};
 	CHECK(st_rip3_draw_line(ports, &first, &last, &pen, 7, 0, ST_RIP3_COPY) == 0);

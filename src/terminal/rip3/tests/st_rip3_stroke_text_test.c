@@ -212,7 +212,6 @@ errors_and_viewport(void)
 	struct st_rip3_chr_text_metrics metrics = {77,88};
 	const struct st_rip3_rect bounds = {10,20,21,31};
 	const struct st_rip3_rect view = {1,1,10,10};
-	const struct st_rip3_rect zero = {0,0,0,0};
 	const struct st_rip3_point origin = {1,8};
 	const struct st_rip3_chr_text_matrix matrix = {1,0,0,-1};
 	const uint8_t a = 'A';
@@ -250,7 +249,7 @@ errors_and_viewport(void)
 	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &origin, &matrix,
 	    false, 7, 0, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &zero) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_draw_chr_text(ports, &bold, (const uint8_t *)"A:", 2,
 	    &origin, &matrix, false, 7, 0, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_palette_defaults(&palette) == 0);

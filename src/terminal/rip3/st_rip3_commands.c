@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_commands.h"
+#include "st_rip3_command_internal.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_number.h"
@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int
-field(uint64_t *result, const uint8_t *bytes, size_t length, unsigned radix)
+int
+st_rip3_command_field(uint64_t *result, const uint8_t *bytes, size_t length, unsigned radix)
 {
 	uint8_t digits[5];
 
@@ -26,8 +26,8 @@ field(uint64_t *result, const uint8_t *bytes, size_t length, unsigned radix)
 	return st_rip3_number_decode(result, digits, length, radix);
 }
 
-static int
-current(const struct st_rip3_command_host *host, unsigned *number,
+int
+st_rip3_command_environment(const struct st_rip3_command_host *host, unsigned *number,
     struct st_rip3_environment *value)
 {
 	int status;
@@ -57,13 +57,13 @@ desktop_palette(const struct st_rip3_command_host *host,
 		return IO_ERROR_NOT_SUPPORTED;
 	if (host->palettes == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	status = current(host, &number, &environment);
+	status = st_rip3_command_environment(host, &number, &environment);
 	if (status != 0)
 		return status;
 	if (command[0] == 'a') {
 		if (count < 3 || count > 4)
 			return IO_ERROR_INVALID_FORMAT;
-		status = field(&value, arguments, 2, environment.base_math);
+		status = st_rip3_command_field(&value, arguments, 2, environment.base_math);
 		if (status != 0)
 			return status;
 		if (value > 15)
@@ -77,7 +77,7 @@ desktop_palette(const struct st_rip3_command_host *host,
 	for (size_t i = 0; i < entries; i++) {
 		size_t width = i + 1 == entries ? count - offset : 2;
 
-		status = field(&value, arguments + offset, width, environment.base_math);
+		status = st_rip3_command_field(&value, arguments + offset, width, environment.base_math);
 		if (status != 0)
 			return status;
 		if (value > 63)
@@ -133,6 +133,9 @@ execute(const struct st_rip3_command_host *host,
 		free(filename);
 		return status;
 	}
+	if (command[0] == 'v' || (length >= 2 && command[0] == '2'
+	    && (command[1] == 'P' || command[1] == 'p')))
+		return st_rip3_port_commands_execute(host, command, length, operation);
 	if (command[0] == 'Q' || command[0] == 'a')
 		return desktop_palette(host, command, length, operation);
 	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f')
@@ -152,24 +155,24 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'J') {
 		if (count > 2)
 			return IO_ERROR_INVALID_FORMAT;
-		status = field(&first, arguments, count, 36);
+		status = st_rip3_command_field(&first, arguments, count, 36);
 		if (status != 0)
 			return status;
-		status = current(host, &number, &value);
+		status = st_rip3_command_environment(host, &number, &value);
 		if (status != 0)
 			return status;
 		value.base_math = first == 64 ? 64 : 36;
 	}
 	else {
-		status = current(host, &number, &value);
+		status = st_rip3_command_environment(host, &number, &value);
 		if (status != 0)
 			return status;
 		if (command[0] == 'n') {
 			if (count > 4)
 				return IO_ERROR_INVALID_FORMAT;
-			status = field(&first, arguments, 1, value.base_math);
+			status = st_rip3_command_field(&first, arguments, 1, value.base_math);
 			if (status == 0 && count > 1) {
-				status = field(&second, arguments + 1, count - 1, value.base_math);
+				status = st_rip3_command_field(&second, arguments + 1, count - 1, value.base_math);
 				if (status == 0 && second != 0)
 					return IO_ERROR_NOT_SUPPORTED;
 			}
@@ -184,9 +187,9 @@ execute(const struct st_rip3_command_host *host,
 				return IO_ERROR_NOT_SUPPORTED;
 			if (count <= width || count > width * 2)
 				return IO_ERROR_INVALID_FORMAT;
-			status = field(&first, arguments, width, value.base_math);
+			status = st_rip3_command_field(&first, arguments, width, value.base_math);
 			if (status == 0)
-				status = field(&second, arguments + width, count - width, value.base_math);
+				status = st_rip3_command_field(&second, arguments + width, count - width, value.base_math);
 			if (status != 0)
 				return status;
 			if (first == 0 || second == 0 || first > 32767 || second > 32767)

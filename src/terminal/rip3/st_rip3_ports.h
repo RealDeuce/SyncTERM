@@ -59,7 +59,9 @@ int st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number);
  * retained for the scene reset's separate screen-clear operation. */
 int st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard);
 /* Configure the current port's viewport in port-relative device coordinates.
- * All-zero coordinates deactivate it; other bounds clamp to the port. */
+ * Bounds clamp to the port. All-zero device bounds define one active pixel;
+ * wire-level all-zero WORLD deactivation belongs to the command decoder.
+ * Use st_rip3_ports_activate to deactivate while retaining the rectangle. */
 int st_rip3_ports_viewport(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *viewport);
 int st_rip3_ports_activate(struct st_rip3_ports *ports, bool active);

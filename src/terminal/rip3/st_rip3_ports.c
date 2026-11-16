@@ -260,11 +260,6 @@ st_rip3_ports_viewport(struct st_rip3_ports *ports,
 	port = &ports->entries[ports->current];
 	if (port->info.protected)
 		return IO_ERROR_PERMISSION_DENIED;
-	if (viewport->x0 == 0 && viewport->y0 == 0
-	    && viewport->x1 == 0 && viewport->y1 == 0) {
-		port->info.viewport_active = false;
-		return 0;
-	}
 	bounds = port_bounds(port);
 	view = *viewport;
 	if (!clip(&view, &bounds))
