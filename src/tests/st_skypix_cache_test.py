@@ -92,12 +92,22 @@ def run(executable, reports, kick, encoding, status):
 
                 def cached_file(name):
                     files = list(root.rglob(name))
-                    assert len(files) == 1 and files[0].parent.name == 'skypix', files
+                    assert len(files) == 1 and files[0].parent.name == 'SkyPix', files
                     return files[0]
 
                 def clean(name):
                     assert not list(root.rglob(name)), name
                     assert not list(root.rglob('*.part'))
+
+                # Reuse the legacy namespace before receiving any new files.
+                markers = list(root.rglob('syncterm-cache-name.txt'))
+                assert len(markers) == 1, markers
+                cache = markers[0].parent / 'SkyPix'
+                cache.mkdir(exist_ok=True)
+                (cache / 'existing.bin').write_bytes(b'legacy SkyPix cache')
+                request(20, b'existing.bin')
+                assert read(len(CACHE_REPLY)) == CACHE_REPLY
+                assert cached_file('existing.bin').read_bytes() == b'legacy SkyPix cache'
 
                 # Capture a two-pixel red brush from a literal rectangle.
                 # Uploads of opaque sound files must not replace that brush.

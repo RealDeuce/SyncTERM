@@ -471,10 +471,21 @@ def host_command_cases(t):
         ("template-undefined", b"[Z]PASS", b"PASS"),
     ):
         t.check(name, b"!|1\x1b0000" + command + b"\r\n", expected=expected, reset=False)
-    t.case("playback-in-host-command")
+    t.case("cache-subdirectories")
     markers = list(t.root.rglob("syncterm-cache-name.txt"))
     assert len(markers) == 1, markers
-    (markers[0].parent / "host-scene.rip").write_bytes(b"!|c04|X2S2S|1\x1b0000INNER\r\n")
+    cache = markers[0].parent
+    rip = cache / "RIP"
+    t.exchange(b"!|c0F|X0A0A|1C0A0A0A0A00|1W0SAVED.ICN\r\n")
+    assert (rip / "SAVED.ICN").read_bytes() == b"\0\0\0\0\x80\x80\x80\x80F"
+    assert not (cache / "SAVED.ICN").exists()
+    t.check("cache-file-query", b"!|1F000000saved.icn\r\n", expected=b"1", reset=False)
+    (rip / "host-scene.rip").write_bytes(b"!|c04|X2S2S|1\x1b0000INNER\r\n")
+    # APC still writes at the BBS root; RIP must read its own namespace even
+    # when an identically named file exists there.
+    t.exchange(b"\x1b_SyncTERM:C;S;host-scene.rip;Uk9PVA==\x1b\\")
+    assert (cache / "host-scene.rip").read_bytes() == b"ROOT"
+    t.case("playback-in-host-command")
     frame = t.exchange(b"!|1\x1b0000L$>host-scene.rip$R^m\r\n", expected=b"LINNERR\r")
     assert pixel(frame, 100, 100) == 0xaa0000
     t.check("template-playback-define", b"!|1\x1b0000[2:]$>host-scene.rip$$?$\r\n", reset=False)

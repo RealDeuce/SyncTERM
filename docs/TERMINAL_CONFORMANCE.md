@@ -1,5 +1,11 @@
 # Terminal conformance coverage
 
+Per-BBS graphics caches retain the legacy `RIP/` and `SkyPix/` subdirectories;
+APC uses the BBS cache root. The RIP interaction suites check icon writes,
+file queries and playback isolation in CP437 and UTF-8. `syncterm_skypix_cache`
+checks legacy `SkyPix/` cache hits and new uploads for both SkyPix variants,
+encodings and status-row choices.
+
 [Musicomm](MUSICOMM.md) has explicit local activation and raw-byte note
 ownership independent of text emulation. `cterm_musicomm` checks literal
 handshake/MIDI/end bytes, split input, queue drains, PSG fallback/voice stealing,

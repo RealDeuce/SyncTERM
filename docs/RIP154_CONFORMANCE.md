@@ -285,6 +285,11 @@ Unicode labels, and template responses are covered. Each dismissal checks the
 restored pixel plane and palette from one coherent checkpoint in CP437 and UTF-8.
 These are literal protocol expectations, separate from the historical captures.
 
+The interaction suites also check that icon writes create the BBS's `RIP/`
+subdirectory, file queries find those icons, and local playback reads from
+`RIP/` even when APC has stored an identically named file at the BBS cache root.
+The icon bytes, query reply and playback response/pixel use literal expectations.
+
 The native `cterm_rip_variables` fixture additionally checks template lifetime
 across window/direct reset, recursion and 4095-byte response limits, radio and
 checkbox definitions, saved-field ownership, commands that delete their own

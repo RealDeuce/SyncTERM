@@ -351,7 +351,7 @@ int st_wren_transfer_skypix_request(struct st_wren_context *context, unsigned mo
 	status = st_bbs_cache_path_for_name(&bbs, context->host->config.paths->cache_directory,
 										context->profile->name);
 	if (status == 0)
-		status = path_join_alloc(&root, bbs, "skypix");
+		status = path_join_alloc(&root, bbs, "SkyPix");
 	free(bbs);
 	struct fs_info info;
 	if (status == 0) {

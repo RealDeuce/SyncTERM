@@ -940,6 +940,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	struct application_inspection inspection = {0};
 #endif
 	char *cache_directory = NULL;
+	char *rip_directory = NULL;
 	char *amiga_font_directory = NULL;
 	char *disconnect_details = NULL;
 	bool notify_disconnect;
@@ -1008,6 +1009,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	if (st_bbs_name_valid(profile->name)) {
 		status = st_bbs_cache_path_for_name(&cache_directory,
 		    paths->cache_directory, profile->name);
+		if (status == 0)
+			status = path_join_alloc(&rip_directory, cache_directory, "RIP");
 		if (status != 0)
 			goto finished;
 	}
@@ -1025,7 +1028,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.screen_mode = session_mode,
 		.encoding = st_term_profile_encoding(profile),
 		.graphics_mode = st_term_profile_graphics_mode(profile),
-		.rip_directory = cache_directory,
+		.rip_directory = rip_directory,
 		.amiga_font_directory = amiga_font_directory,
 		.amiga_font = amiga_font,
 		.skypix_transfer = run_wren_skypix_transfer,
@@ -1196,6 +1199,7 @@ finished:
 	st_mutex_destroy(&connection_ui.log_mutex);
 	st_font_catalog_destroy(fonts);
 	free(cache_directory);
+	free(rip_directory);
 	free(amiga_font_directory);
 	return status;
 }
