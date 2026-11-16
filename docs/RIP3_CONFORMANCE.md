@@ -172,6 +172,8 @@ Open clarification issues:
 - [#53](https://github.com/bbs-land/remote-imaging-protocol/issues/53): HCL
   special-key literal brackets conflict with the no-bracket paragraph; undefined
   control-notation input and malformed sequences.
+- [#54](https://github.com/bbs-land/remote-imaging-protocol/issues/54): opposing
+  SWITCH_PORT protection flags and flag effects on an undefined destination.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -1696,6 +1698,42 @@ pass. Native Valgrind reports zero errors, no retained heap and only three
 inherited descriptors in the new paste fixture. All 93 frozen files and 41
 legacy helper definitions, all 6548 source blocks, 62 document identities and
 the reference pin are unchanged. Temporary verification logs were removed.
+
+`2s` now handles the complete three-digit port-number/flags form used by the
+corpus and shared by the conflicting layouts. Current ENV supplies the radix;
+the bound PORT table supplies the old/current port. Consistent source and
+destination protection flags apply before selecting the requested port, with
+port zero immune to protection edits. Coherent flags also work when selecting
+the current port. An undefined destination with zero flags falls back to port
+zero and later drawing continues. It retains viewport geometry, image settings,
+pixels and ENV references. This does not activate missing cursor/style/ENV
+context state under #24.
+
+The longer reserved-field forms remain under #2. Conflicting protect/unprotect
+bits, opposing source/destination flags on the same port, and nonzero flags on
+an undefined destination lack specified before/after behavior; new issue #54
+requests that contract. These cases decline before any selection/protection
+change. They are tracked as incomplete behavior, not newly invented language
+rules. Public processing stays void and consumes all failures internally.
+
+`rip3_switch_commands` checks all four initial protection states and nine
+consistent distinct-port flag combinations, coherent same-port changes, port-zero
+immunity, no-flag undefined fallback, corpus literals, both radices, case-folding
+and port-number endpoints. Invalid/unsupported/missing-binding commands retain
+selection and protection; protected ENV references remain unchanged. Split-input
+scenes switch between an offset onscreen viewport, an offscreen port, a disabled
+viewport and port zero, then execute real `1P` commands. One coherent capture per
+canvas checks exact scene pixels alongside final selection/protection/viewport
+state and offscreen content. A rejected same-port flag combination is followed
+by a successful switch and paste. No physical audio, user display or real-time
+sleep is used.
+
+The native CMake build and all 80 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap and three inherited
+descriptors in the new switch fixture. All 93 frozen files and 41 legacy helper
+definitions still match the RIP1.54 baseline. The source blocks, document
+identities and reference pin are unchanged; temporary verification logs and the
+upstream issue payload were removed.
 
 ## Verification and acceptance
 

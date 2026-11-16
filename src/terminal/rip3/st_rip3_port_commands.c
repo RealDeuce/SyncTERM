@@ -258,6 +258,49 @@ copy_port(const struct st_rip3_command_host *host,
 }
 
 static int
+switch_port(struct st_rip3_ports *ports, const uint8_t *bytes,
+    size_t length, unsigned radix, bool *operation)
+{
+	struct st_rip3_port_info destination_info;
+	uint64_t destination, flags;
+	unsigned source;
+	int status;
+
+	/* The corpus's complete mega1+mega2 form agrees with both descriptions.
+	 * Longer reserved forms conflict with driver evidence under #2. */
+	if (length < 3 || length > 6) return IO_ERROR_INVALID_FORMAT;
+	if (length != 3) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_command_field(&destination,bytes,1,radix);
+	if (status == 0) status = st_rip3_command_field(&flags,bytes+1,2,radix);
+	if (status != 0) return status;
+	if (destination > 35) return IO_ERROR_OUT_OF_RANGE;
+	if ((flags & ~UINT64_C(15)) != 0 || (flags & 3) == 3 || (flags & 12) == 12)
+		return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_ports_current(ports,&source);
+	if (status == 0) status = st_rip3_ports_info(ports,(unsigned)destination,&destination_info);
+	if (status != 0) return status;
+	/* The reference gives no precedence for opposing source/destination
+	 * flags on one port, or flag effects when falling back from an undefined
+	 * destination. Decline before any selection/protection change. */
+	if ((source == destination && (((flags & 1) && (flags & 8))
+	        || ((flags & 2) && (flags & 4))))
+	    || (!destination_info.defined && flags != 0)) return IO_ERROR_NOT_SUPPORTED;
+	*operation = true;
+	/* Every operand receiving a protection edit is defined and each flag
+	 * is consistent. Edits cannot allocate/fail; zero ignores protection. */
+	if (source != 0 && (flags & 12) != 0) {
+		status = st_rip3_ports_protect(ports,source,(flags & 4) != 0);
+		if (status != 0) return status;
+	}
+	if (destination != 0 && (flags & 3) != 0) {
+		status = st_rip3_ports_protect(ports,(unsigned)destination,(flags & 1) != 0);
+		if (status != 0) return status;
+	}
+	status = st_rip3_ports_switch(ports,(unsigned)destination);
+	return status == IO_ERROR_NOT_FOUND ? 0 : status;
+}
+
+static int
 paste_clipboard(const struct st_rip3_command_host *host,
     unsigned environment_number, const struct st_rip3_environment *environment,
     const uint8_t *bytes, size_t length, bool *operation)
@@ -322,6 +365,8 @@ st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 	count = length - (size_t)(arguments - command);
 	if (memchr(arguments, ' ', count) != NULL)
 		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
+	if (command[0] == '2' && command[1] == 's')
+		return switch_port(host->ports, arguments, count, environment.base_math, operation);
 	if (command[0] == '1')
 		return paste_clipboard(host, number, &environment, arguments, count, operation);
 	if (command[0] != 'v') {

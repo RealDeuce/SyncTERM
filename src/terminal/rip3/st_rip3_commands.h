@@ -64,7 +64,7 @@ struct st_rip3_command_sink {
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
- * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
+ * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
  * rectangle-fit 2C, onscreen 2P, clipboard 1P, 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
@@ -79,6 +79,12 @@ struct st_rip3_command_sink {
  * source/destination fields mean the full viewport; explicit rectangles clip
  * then fit. A nonzero destination origin with both endpoints zero remains
  * unsupported (#10). Undefined/inactive operands are successful no-ops.
+ * 2s accepts the complete three-digit port/flags form used by the corpus.
+ * It selects the bound port and applies consistent source/destination protect
+ * flags, skipping protection edits to port zero. A missing destination with
+ * zero flags falls back to zero. Conflicting flags, flags on an undefined
+ * destination and disputed longer reserved forms are declined before changes.
+ * It does not activate missing cursor/style/ENV context under #24.
  * 1P pastes the bound clipboard port's full current viewport without scaling,
  * placing its top-left at the projected XY in the current viewport. The five
  * transfer modes use source inversion for mode 4. Cleared/same-port pointers
