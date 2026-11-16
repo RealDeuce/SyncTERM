@@ -158,7 +158,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'v' || (length >= 2 && command[0] == '2'
 	    && (command[1] == 'P' || command[1] == 'p' || command[1] == 'C')))
 		return st_rip3_port_commands_execute(host, command, length, operation);
-	if (command[0] == 'C' || command[0] == 'G' || command[0] == 'o'
+	if (command[0] == 'A' || command[0] == 'C' || command[0] == 'G' || command[0] == 'o'
 	    || command[0] == 'O' || command[0] == 'V')
 		return st_rip3_curve_commands_execute(host, command, length, operation);
 	if (command[0] == 'c' || command[0] == 'k' || command[0] == 'W' || command[0] == 'Y'

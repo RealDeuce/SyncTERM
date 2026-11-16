@@ -22,11 +22,12 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_ellipse ellipse;
 	uint64_t values[6];
 	unsigned environment_number, number;
-	bool angles = command[0] == 'O' || command[0] == 'V';
-	bool circle = command[0] == 'C' || command[0] == 'G';
+	bool arc = command[0] == 'A';
+	bool angles = arc || command[0] == 'O' || command[0] == 'V';
+	bool circle = arc || command[0] == 'C' || command[0] == 'G';
 	bool filled = command[0] == 'G' || command[0] == 'o';
 	bool borders = false;
-	size_t count = length-1, fields = angles ? 6 : circle ? 3 : 4;
+	size_t count = length-1, fields = angles ? (circle ? 5 : 6) : circle ? 3 : 4;
 	size_t width, total, position = 0;
 	uint8_t drawing = 0, foreground = 0, background = 0;
 	double x, y, rx, ry;
@@ -34,17 +35,11 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 
 	if (memchr(command+1, ' ', count) != NULL)
 		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
-	if (host->styles == NULL || host->ports == NULL)
-		return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_environment(host, &environment_number, &environment);
-	if (status == 0)
-		status = st_rip3_styles_current(host->styles, &number);
-	if (status == 0)
-		status = st_rip3_styles_get(host->styles, number, &style);
 	if (status != 0)
 		return status;
 	width = environment.coordinate_size;
-	total = angles ? 4*width+4 : fields*width;
+	total = angles ? (circle ? 3 : 4)*width+4 : fields*width;
 	if (count <= total-width || count > total)
 		return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < fields; i++) {
@@ -56,11 +51,22 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 			return status;
 		position += field_width;
 	}
-	/* The documented 0..360 full ellipse is unambiguous. Other wire angle
-	 * pairs remain unsupported under #14, including equal/wrapped pairs. */
+	/* A explicitly defines equal angles as empty, including equal values
+	 * greater than 360. Validate the complete body first; no geometry, style,
+	 * ink or scratch storage is needed for that successful no-op. */
+	if (arc && values[2] == values[3])
+		return 0;
+	/* The documented 0..360 full circle/ellipse is unambiguous. Other wire
+	 * pairs remain unsupported under #14; O/V's equal-angle policy is open. */
 	if (angles && (values[2] != 0 || values[3] != 360))
 		return IO_ERROR_NOT_SUPPORTED;
-	status = st_rip3_command_frame(host, environment_number, &frame);
+	if (host->styles == NULL || host->ports == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_styles_current(host->styles, &number);
+	if (status == 0)
+		status = st_rip3_styles_get(host->styles, number, &style);
+	if (status == 0)
+		status = st_rip3_command_frame(host, environment_number, &frame);
 	if (status != 0)
 		return status;
 	x = (double)(values[0] * frame.device_width / frame.world_width);

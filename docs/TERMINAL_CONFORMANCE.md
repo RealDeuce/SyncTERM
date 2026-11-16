@@ -60,7 +60,11 @@ surface/port transfer tests add paired clipping, original-source overlap in all
 transfer modes, offscreen/protected content, extreme origins and allocation
 failure without mutation. Coherent RGB captures cover all three canvases;
 COPY_BLIT/SCROLL/clipboard wire integration remains pending. These do not change
-the active route.
+the active route. A body tests now add canonical full circles and validated
+equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
+handling, RGB/NOT, protected records, wide clipping and allocation recovery.
+Independent all-canvas captures and one-byte malformed/unsupported recovery
+cover those cases; general arc angle-pair interpretation remains blocked.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

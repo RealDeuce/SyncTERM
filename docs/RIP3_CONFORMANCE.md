@@ -1444,6 +1444,33 @@ the three inherited file descriptors. All 93 frozen files and 41 legacy helper
 definitions remain unchanged. Verification logs use automatically removed
 temporary directories rather than accumulating in `/tmp`.
 
+The complete-body processor now also recognizes `A`'s explicitly documented
+full-circle (`start=0,end=360`) and equal-angle cases. Three current-width XY
+fields surround two fixed two-digit current-radix angles; the final radius may
+shorten. The full-circle radius uses horizontal world scaling on both device
+axes, with solid resolved thickness independent of the stored pen pattern.
+Equal angles, including equal values beyond 360, are a successful no-op after
+all fields validate. This path needs no style, port, palette, ink or graphics
+allocation. Other pairs remain unsupported under issue #14; O/V's equal-angle
+policy is unchanged and full general-arc compliance is not claimed.
+
+Expanded `rip3_curve_commands` tests use literal annulus maps and coherent RGB
+captures on all three canvases for all five write modes, both numeric bases,
+coordinate widths 2..5, short final radii, unequal X/Y world scales and protected
+style/port records. RGB tests check nearest-palette ink and destination NOT
+without a bound palette. Equal-angle tests cover zero, 180, 360 and maximal
+two-digit angles, maximal radii, missing render services and untouched allocation
+faults. Malformed final fields still fail internally. One-byte stream input
+continues through malformed/unsupported arcs and equal-angle no-ops to a valid
+full circle. Mesh/coverage allocation faults, inactive ports and wide unsaturated
+centers/radii are also covered. No legacy parser, state or routing is changed.
+The native CMake build and all 72 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap allocations and only
+the three inherited file descriptors in the expanded curve fixture. The frozen
+93 files and 41 helper definitions still match the original RIP1.54 baseline;
+all pinned source blocks and document identities are retained. Temporary logs
+were removed after verification.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
