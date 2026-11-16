@@ -48,7 +48,8 @@ struct st_rip3_command_sink {
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V, s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
- * rectangle-fit 2C, onscreen 2P, comments and terminal grouping no-ops.
+ * rectangle-fit 2C, onscreen 2P, 3e record edits, comments and terminal grouping
+ * no-ops.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
  * Q/a edit the bound palette table's current entry, independently of ENV
@@ -94,6 +95,9 @@ struct st_rip3_command_sink {
  * COPY, independently of pen/fill/write mode. It retains attributes and table
  * references, skips inactive ink lookup and allows protected contents to clear.
  * Native text-window overlap/context integration remains separate.
+ * 3e stores one to four current-radix digits in the current ENV baud-rate field,
+ * respecting record protection and preserving all other values/references.
+ * Playback pacing and reset persistence require future playback orchestration.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.

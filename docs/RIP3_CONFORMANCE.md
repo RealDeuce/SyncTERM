@@ -1345,6 +1345,28 @@ its two-digit selector conflicts with the shipping Switch-family report under
 #2, so `2A` remains unsupported and its conflicting syntax is now blocked in the
 ledger. No reference revision or legacy routing changed.
 
+The complete-command fixture now covers `3e` decoding into the current ENV baud
+rate. Its one-to-four-digit field follows the current radix, independently of
+coordinate width and RGB mode, and permits last-field shortening. Zero encodes
+full speed; arbitrary rates are accepted, including the preserved `01UN` example
+(2399 in base 36), rather than a preset-only list. Validation precedes protected
+record edits; other values, references, selection and noncurrent records are
+retained. `$BAUDEMUL$` reads the same field.
+
+Independent literal tests cover both radix maxima, lowercase/extended UltraNum
+digits, local MegaNum zero spelling, missing services, malformed/excess fields,
+unsupported comments, protected edits and recovery. One-byte split input checks
+the exact baud-state sequence through invalid data and a radix change. All three
+canvas-backed environment tables are exercised. This is record decoding/readback;
+local playback pacing, reset persistence and owned nonblocking `3D`/`$D$` delay
+backlogs/resumption remain pending. The inherited `3D` command remains in scope
+despite the corpus's preference for the variable form.
+
+The native CMake build and all 70 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports no errors or leaked allocations/descriptors in the
+expanded complete-command fixture, whose audio checks use pull-only PCM. The
+original 93 frozen files and 41 legacy helper definitions remain unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

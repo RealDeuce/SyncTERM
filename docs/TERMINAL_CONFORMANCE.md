@@ -49,7 +49,10 @@ all-canvas captures and mesh/coverage allocation faults check recovery; general
 angle-pair interpretation remains blocked. E tests add replacement erase in
 palette/direct RGB, protected overlapping screen views, independent offscreen
 viewports, inactive/one-pixel cases and nonfatal split recovery. Native TTY
-overlap/context integration remains pending. These do not change the active route.
+overlap/context integration remains pending. Complete 3e record-edit tests check
+both radices, arbitrary/zero/maximal rates, protection and split-input recovery
+with BAUDEMUL readback; actual playback pacing/reset integration remains pending.
+These do not change the active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed
