@@ -468,6 +468,47 @@ st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 }
 
 int
+st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
+    const struct st_rip3_rect *source_area, unsigned destination,
+    int32_t destination_x, int32_t destination_y,
+    enum st_rip3_transfer_mode mode)
+{
+	const struct port *src;
+	const struct port *dst;
+	struct st_rip3_rect from, source_view, destination_view;
+	int64_t x, y;
+
+	if (ports == NULL || (source_area != NULL && !rect_valid(source_area))
+	    || mode < ST_RIP3_TRANSFER_COPY || mode > ST_RIP3_TRANSFER_INVERT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (source >= 36 || destination >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	src = &ports->entries[source];
+	dst = &ports->entries[destination];
+	if (!src->info.defined || !dst->info.defined
+	    || !src->info.viewport_active || !dst->info.viewport_active
+	    || !translate(src, source_area, &from))
+		return 0;
+	source_view = viewport_absolute(src);
+	destination_view = viewport_absolute(dst);
+	/* Source clipping translates the matching destination, preserving the
+	 * requested origin rather than shifting surviving pixels to the corner. */
+	x = (int64_t)destination_view.x0 + destination_x
+	    + ((int64_t)from.x0 - source_view.x0)
+	    - (source_area == NULL ? 0 : source_area->x0);
+	y = (int64_t)destination_view.y0 + destination_y
+	    + ((int64_t)from.y0 - source_view.y0)
+	    - (source_area == NULL ? 0 : source_area->y0);
+	/* A visible source span is at most INT32_MAX pixels. Starting beyond
+	 * either int32_t limit therefore cannot intersect a nonnegative surface. */
+	if (x < INT32_MIN || x > INT32_MAX || y < INT32_MIN || y > INT32_MAX)
+		return 0;
+	return st_rip3_surface_blit(port_surface(ports, destination),
+	    &destination_view, (int32_t)x, (int32_t)y,
+	    port_surface(ports, source), NULL, &from, mode);
+}
+
+int
 st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
     int32_t x, int32_t y, uint8_t *result)
 {

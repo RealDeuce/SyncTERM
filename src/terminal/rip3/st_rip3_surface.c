@@ -361,6 +361,55 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 }
 
 int
+st_rip3_surface_blit(struct st_rip3_surface *destination,
+    const struct st_rip3_rect *destination_clip,
+    int32_t destination_x, int32_t destination_y,
+    const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_clip,
+    const struct st_rip3_rect *source_area,
+    enum st_rip3_transfer_mode mode)
+{
+	struct st_rip3_rect src;
+	struct st_rip3_rect dst;
+	int64_t dx, dy, x0, y0, x1, y1;
+
+	if (destination == NULL || source == NULL || source_area == NULL
+	    || !rect_valid(source_area) || !rect_valid(source_clip)
+	    || !rect_valid(destination_clip)
+	    || mode < ST_RIP3_TRANSFER_COPY || mode > ST_RIP3_TRANSFER_INVERT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	src = *source_area;
+	dst = (struct st_rip3_rect){0, 0, (int32_t)destination->width - 1,
+	    (int32_t)destination->height - 1};
+	if (!surface_clip(source, &src, source_clip)
+	    || !surface_clip(destination, &dst, destination_clip))
+		return 0;
+	/* Preserve the ORIGINAL origin correspondence, even after source clipping.
+	 * The difference of two int32_t coordinates and all inverse clip bounds
+	 * fit int64_t; no requested width/height needs to be allocated or narrowed. */
+	dx = (int64_t)destination_x - source_area->x0;
+	dy = (int64_t)destination_y - source_area->y0;
+	x0 = src.x0;
+	y0 = src.y0;
+	x1 = src.x1;
+	y1 = src.y1;
+	if (x0 < dst.x0 - dx) x0 = dst.x0 - dx;
+	if (y0 < dst.y0 - dy) y0 = dst.y0 - dy;
+	if (x1 > dst.x1 - dx) x1 = dst.x1 - dx;
+	if (y1 > dst.y1 - dy) y1 = dst.y1 - dy;
+	if (x0 > x1 || y0 > y1)
+		return 0;
+	src = (struct st_rip3_rect){(int32_t)x0, (int32_t)y0,
+	    (int32_t)x1, (int32_t)y1};
+	dst = (struct st_rip3_rect){(int32_t)(x0 + dx), (int32_t)(y0 + dy),
+	    (int32_t)(x1 + dx), (int32_t)(y1 + dy)};
+	/* Both rectangles are now visible and have identical dimensions: the fit
+	 * service performs an identity mapping with its existing owned snapshot. */
+	return st_rip3_surface_copy(destination, NULL, &dst, source, NULL,
+	    &src, mode);
+}
+
+int
 st_rip3_surface_snapshot(const struct st_rip3_surface *surface,
     const struct st_rip3_palette *palette, struct st_pixel_buffer **result)
 {

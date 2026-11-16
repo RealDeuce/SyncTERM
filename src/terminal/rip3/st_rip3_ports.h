@@ -101,6 +101,17 @@ int st_rip3_ports_erase(struct st_rip3_ports *ports, uint8_t background);
 int st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 	const struct st_rip3_rect *source_area, unsigned destination,
 	const struct st_rip3_rect *destination_area, enum st_rip3_transfer_mode mode);
+/* Unscaled viewport-relative transfer. NULL source_area means its full viewport.
+ * Source clipping shifts the destination by the same number of pixels;
+ * destination clipping trims the matching source pixels. Shared screen ports
+ * read original pixels on overlap. Undefined/inactive operands are no-ops;
+ * protection and current selection are retained, and uncovered source remains.
+ * Wire commands that bypass viewports or erase uncovered areas need their own
+ * explicit policy; this service does neither. */
+int st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
+	const struct st_rip3_rect *source_area, unsigned destination,
+	int32_t destination_x, int32_t destination_y,
+	enum st_rip3_transfer_mode mode);
 /* Raw read coordinates are port-relative, independent of viewport activation. */
 int st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
 	int32_t x, int32_t y, uint8_t *result);

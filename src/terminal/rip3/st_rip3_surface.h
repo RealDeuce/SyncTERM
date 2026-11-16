@@ -86,6 +86,17 @@ int st_rip3_surface_copy(struct st_rip3_surface *destination,
 	const struct st_rip3_rect *source_clip,
 	const struct st_rip3_rect *source_area,
 	enum st_rip3_transfer_mode mode);
+/* Unscaled transfer: source_area's original upper-left maps to destination_x/y.
+ * Clipping either operand discards the corresponding pixels in both operands,
+ * preserving that translation. The uncovered source is retained. Overlap reads
+ * original source pixels; snapshot failure leaves the destination unchanged. */
+int st_rip3_surface_blit(struct st_rip3_surface *destination,
+	const struct st_rip3_rect *destination_clip,
+	int32_t destination_x, int32_t destination_y,
+	const struct st_rip3_surface *source,
+	const struct st_rip3_rect *source_clip,
+	const struct st_rip3_rect *source_area,
+	enum st_rip3_transfer_mode mode);
 /* One coherent, owned tagged-RGB capture; no borrowed mutable pixel planes.
  * The palette belongs to the caller (ultimately the active palette slot). */
 int st_rip3_surface_snapshot(const struct st_rip3_surface *surface,

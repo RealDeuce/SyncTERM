@@ -158,6 +158,10 @@ Open clarification issues:
   rectangle radius coordinate space/aspect conversion, oversized-radius handling,
   reversed corners and degenerate-bound behavior.
 
+- [#42](https://github.com/bbs-land/remote-imaging-protocol/issues/42): conflicting
+  GET_IMAGE clipboard-slot searches, protected candidates, previous clipboard
+  pointer and port/pixel state after failure.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -1404,6 +1408,41 @@ degenerate bounds are requested in [issue #38](https://github.com/bbs-land/remot
 The line-pattern wording is also covered under
 [issue #33](https://github.com/bbs-land/remote-imaging-protocol/issues/33#issuecomment-6925249713).
 This is the required geometry foundation, not complete U/u or RIP3 acceptance.
+
+`rip3_blit` adds unscaled indexed transfers to the separate surface/port services.
+The original source corner maps to an explicit destination corner; clipping
+either side removes matching pixels from both, retaining their translation.
+Clipped rectangles of equal size reuse the existing transfer-mode and owned
+overlap-snapshot implementation. All five transfer modes operate on indexes,
+including mode 4's source inversion. Source pixels outside the destination
+remain unchanged. Extreme requested endpoints are clipped in wide arithmetic;
+work and scratch allocation depend on visible pixels.
+
+The port service uses explicit viewport-relative device coordinates and a full
+source-viewport shorthand. Protected ports permit content transfer; undefined
+or inactive operands are no-ops. Current selection, viewport/protection/image
+metadata and unrelated pixels are retained. Offscreen buffers remain independent;
+different screen ports share the same underlying snapshot on overlap. These
+typed services do not select a clipping policy for unresolved wire branches,
+bypass viewports, clear uncovered areas or define a clipboard pointer.
+
+Independent literal pixel-position maps, logical operands and coherent RGB
+captures cover both clipping directions, source clipping that shifts the
+destination, all transfer modes, overlapping moves in both directions, identity
+copies, aliased screen ports, offscreen transfers and protected content on all
+three canvases. Tests include active one-pixel viewports, last device pixels,
+inactive/undefined ports, invalid input, extreme origins and allocation failure
+before mutation. Clipboard bodies remain pending: their two slot-selection
+algorithms conflict under issue #42. The COPY_BLIT example also contradicts its
+numeric payload, now reported under
+[issue #10](https://github.com/bbs-land/remote-imaging-protocol/issues/10#issuecomment-6926090826).
+The pin and source evidence remain unchanged; this service milestone does not
+claim full COPY_BLIT/SCROLL/clipboard wire support or change the active route.
+The native CMake build and all 72 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap allocations and only
+the three inherited file descriptors. All 93 frozen files and 41 legacy helper
+definitions remain unchanged. Verification logs use automatically removed
+temporary directories rather than accumulating in `/tmp`.
 
 ## Verification and acceptance
 
