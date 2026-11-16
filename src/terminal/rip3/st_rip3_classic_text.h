@@ -1,0 +1,73 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#ifndef ST_RIP3_CLASSIC_TEXT_H_
+#define ST_RIP3_CLASSIC_TEXT_H_
+
+#include "st_rip3_bitmap_text.h"
+#include "st_rip3_stroke_text.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+struct st_rip3_ports;
+
+struct st_rip3_classic_text_style {
+	unsigned font;
+	unsigned direction;
+	unsigned magnification;
+	unsigned flags;
+};
+
+/* Immutable borrowed views. A custom binding may supply a validated MAF/CHR
+ * view for the corresponding font number. The selected canvas determines
+ * physical scaling; it does not select a world-coordinate frame. */
+struct st_rip3_classic_font {
+	enum st_rip3_canvas canvas;
+	unsigned number;
+	union {
+		struct st_rip3_maf_font bitmap;
+		struct st_rip3_chr stroke;
+	} data;
+};
+
+struct st_rip3_classic_text_plan {
+	/* Device geometry before orientation: advance is the pen displacement,
+	 * ascent/descent are baseline-to-cell reference distances, not ink bounds.
+	 * Vector spans may be fractional and include endpoint scanlines. */
+	double advance, ascent, descent;
+	struct st_rip3_point origin;
+	struct st_rip3_chr_text_matrix matrix;
+	bool advances_cursor; /* Horizontal and left justified only; no update here. */
+};
+
+/* Font 0..10, direction 0/1, magnification 1..10. Flags 1/2 are mutually
+ * exclusive; at most one of 4/8/16 is allowed, and 32 adds shadow. Unknown
+ * flag bits reject. Failed operations preserve result/style. */
+int st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
+	unsigned font, unsigned direction, unsigned magnification, unsigned flags);
+/* Original bundled RIPtel resources only: bitmap font zero is that canvas's
+ * native 80x43 MAF bank, not the frozen 1.54 font. BGI fonts use their original
+ * CHR views; unresolved SCAN glyphs remain unsupported during painting. */
+int st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
+	enum st_rip3_canvas canvas, unsigned number);
+/* Explicit font codes; transport conversion/expansion is outside this kernel.
+ * Vector magnifications use the published rational table, then scale the
+ * 640x350 reference to the device. Bitmap cells magnify integrally; their
+ * nominal baseline projects the published (7*mag-1) reference metric into the
+ * native cell height. Justification precedes counterclockwise rotation of the
+ * physical glyph geometry. Origins round once to nearest, half ties positive.
+ * No world/cursor/style table is changed or inferred (#24). */
+int st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
+	const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
+	const struct st_rip3_point *anchor, struct st_rip3_classic_text_plan *result);
+/* Canvas must match the ports object. Transparent bitmap graphics text and
+ * solid CHR strokes delegate to the prepared-coverage kernels; shadow remains
+ * one device pixel down/right in both orientations. Every error is for the
+ * owning parser to consume, never a terminal/session processing return. */
+int st_rip3_draw_classic_text(struct st_rip3_ports *ports,
+	const struct st_rip3_classic_font *font,
+	const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
+	const struct st_rip3_point *anchor, uint8_t foreground, uint8_t background,
+	enum st_rip3_write_mode mode);
+
+#endif

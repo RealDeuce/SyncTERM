@@ -120,6 +120,11 @@ Open clarification issues:
   prose use inconsistent names/possible aliases. Explicit shipping v3 world
   and RGB limits take precedence over the quoted older draft parameter tables.
 
+- [#24](https://github.com/bbs-land/remote-imaging-protocol/issues/24): graphics
+  style versus port ownership of cursor/image state, style versus environment
+  ownership of color/mouse state, unspecified style bootstrap defaults and
+  TEXT_XY cursor effects outside horizontal left justification.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -178,7 +183,8 @@ the program's license/provenance list. The nineteen payloads include RIPtel's
 later LITT.CHR (5,151 bytes) and LCOM.CHR (12,079 bytes), which differ from the
 frozen 1.54 font bank. All classic fonts have separate v3 pins/data, and no 1.54
 font bank is replaced. The machine-generated ATF catalog cache is unnecessary
-for the new engine's asset/style registry. Classic text has device stroke rendering; font-style/layout integration and
+for the new engine's asset/style registry. Classic text has independent font
+selection, layout and device stroke rendering; style-table/wire integration and
 issue #17's five BOLD glyphs containing scan records remain pending.
 
 `rip3_maf` checks explicit little-endian directory/subrecord decoding, all
@@ -412,8 +418,9 @@ metrics and a 65,536-character clipped span are covered. Inverse sampling bounds
 work by the visible viewport. One coherent protected-viewport RGB capture uses
 the documentation's literal 8x11 CP437 smiley from the original RIPscrip.maf.
 Native Valgrind reports no errors or definite/indirect leaks. This is a device
-bitmap-text kernel; font selection/justification, vector/outline text, cursor/
-window state, UTF-8 transport conversion and wire orchestration remain pending.
+bitmap-text kernel. Classic font selection/justification and vector/outline
+rendering have separate tests below; cursor/window state, UTF-8 transport
+conversion and wire orchestration remain pending.
 
 `rip3_ports_backup` checks complete device port definitions/current selection,
 viewport activation, protection and independent copies of offscreen index planes.
@@ -437,8 +444,8 @@ The inherited LITT A example supplies independent literal MOVE/DRAW expectations
 at RIPtel's later offset. All six BOLD scan records are exposed explicitly in
 the five affected glyphs, rather than silently treated as no-ops. Raw scan_flag
 metadata is retained. Native Valgrind reports no errors or definite/indirect
-leaks. Classic layout/scale/wire orchestration and scan behavior in #17 remain
-pending; the frozen 1.54 decoder is not called or changed.
+leaks. Classic layout/scale is tested separately below; wire orchestration and
+scan behavior in #17 remain pending. The frozen 1.54 decoder is not called or changed.
 
 `rip3_stroke_text` checks classic solid one-pixel glyph strokes through explicit
 baseline/device matrices, nominal unit metrics, accumulation before scaling,
@@ -451,8 +458,9 @@ pen position. SCAN in a later glyph, invalid matrices/endpoints and invalid
 metrics reject before changing pixels. Inactive and protected viewports and a
 coherent RGB region/margin capture are covered. Native Valgrind reports no
 errors or definite/indirect leaks. Callers still supply the matrix/origin;
-font-style/resolution/world policy, justification/cursors, outline text and wire
-orchestration remain pending. SCAN painting stays blocked by #17.
+classic-font selection/resolution/justification and outline rendering are tested
+separately below. World/cursor/style-table and wire orchestration remain pending.
+SCAN painting stays blocked by #17.
 
 `rip3_variables` checks an owned, growing user-variable table with canonical
 case-insensitive ASCII names of 1..20 bytes, first-letter validation, underscore/
@@ -758,6 +766,29 @@ complete capture/activation of referenced live tables/UI state. The explicit
 record snapshots do not perform that transaction, alter pixels, or reset other
 tables. Scene reset in-use policy remains under #16. Raw framing, pacing and
 terminal routing remain pending; RIP154 behavior and the active route are intact.
+
+`rip3_classic_text` adds typed classic-font selection, style validation, layout
+and rendering through the existing independent coverage kernels. Font zero
+selects the original native 80x43 MAF bank for each of the three canvases; fonts
+1..10 select the original CHR assets. All ten vector magnifications use the
+published rational factors, then scale the 640x350 reference into device pixels.
+Widths accumulate before scaling. Horizontal/vertical alignment uses the
+requested anchor, and vertical text rotates physical glyph geometry
+counterclockwise. Shadow stays one device pixel down/right in both orientations.
+
+The bitmap baseline projects the published font-zero reference baseline into
+the native cell height. Origin rounding happens once, to nearest with positive
+half ties. These are explicit geometric raster policies, not pixel-exact RIPtel
+claims. Tests check all flag combinations, the three native bitmap cell sizes,
+all font/magnification/canvas bindings, literal vector scale expectations,
+nonzero CHR baselines, fractional advances and preserved plans on rejection.
+Independently authored bitmap and vector glyphs supply two coherent RGB scene
+expectations for alignment and orientation. Unsupported SCAN rejects before
+painting. The native CMake build and all 49 RIP3/preservation checks pass;
+native Valgrind reports no errors or leaks in the classic-text fixture.
+No world frame, current cursor or graphics-style table is modified;
+those bindings and wire processing remain pending, including #24's ownership
+questions. The public parser error boundary and frozen RIP154 path are unchanged.
 
 ## Verification and acceptance
 

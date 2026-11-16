@@ -1,0 +1,179 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_rip3_classic_text.h"
+#include "st_rip3_font_data.h"
+#include "st_rip3_ports.h"
+#include "io_error.h"
+
+#include <math.h>
+#include <string.h>
+
+int
+st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
+    unsigned font, unsigned direction, unsigned magnification, unsigned flags)
+{
+	unsigned vertical_flags = flags & 28;
+
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (font > 10 || direction > 1 || magnification == 0 || magnification > 10
+	    || flags > 63 || (flags & 3) == 3
+	    || (vertical_flags != 0 && (vertical_flags & (vertical_flags - 1)) != 0))
+		return IO_ERROR_OUT_OF_RANGE;
+	*result = (struct st_rip3_classic_text_style){font,direction,magnification,flags};
+	return 0;
+}
+
+int
+st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
+    enum st_rip3_canvas canvas, unsigned number)
+{
+	struct st_rip3_classic_font font = {.canvas = canvas, .number = number};
+	struct st_rip3_frame frame;
+	int status;
+
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number > 10)
+		return IO_ERROR_OUT_OF_RANGE;
+	status = st_rip3_frame_init(&frame, canvas);
+	if (status != 0)
+		return status;
+	if (number != 0)
+		status = st_rip3_chr_builtin(&font.data.stroke, number);
+	else {
+		const struct st_rip3_font_asset *asset = NULL;
+		struct st_rip3_maf maf;
+
+		for (size_t i = 0; i < st_rip3_font_asset_count(); i++) {
+			const struct st_rip3_font_asset *candidate = st_rip3_font_asset_at(i);
+			if (strcmp(candidate->filename, "RIPscrip.maf") == 0) {
+				asset = candidate;
+				break;
+			}
+		}
+		if (asset == NULL)
+			return IO_ERROR_NOT_FOUND;
+		status = st_rip3_maf_open(&maf, asset->data, asset->size);
+		if (status == 0)
+			status = st_rip3_maf_find(&font.data.bitmap, &maf, frame.device_width,
+			    frame.device_height, ST_RIP3_MAF_80X43);
+	}
+	if (status == 0)
+		*result = font;
+	return status;
+}
+
+static int
+round_origin(double x, double y, struct st_rip3_point *result)
+{
+	x = floor(x + 0.5); y = floor(y + 0.5);
+	if (!isfinite(x) || !isfinite(y) || x < INT32_MIN || x > INT32_MAX
+	    || y < INT32_MIN || y > INT32_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	*result = (struct st_rip3_point){(int32_t)x,(int32_t)y};
+	return 0;
+}
+
+int
+st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
+    const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
+    const struct st_rip3_point *anchor, struct st_rip3_classic_text_plan *result)
+{
+	static const unsigned numerator[] = {3,2,3,1,4,5,2,5,3,4};
+	static const unsigned denominator[] = {5,3,4,1,3,3,1,2,1,1};
+	struct st_rip3_classic_text_plan plan = {0};
+	struct st_rip3_classic_text_style checked;
+	struct st_rip3_frame frame;
+	double u, v, baseline = 0;
+	int status;
+
+	if (font == NULL || style == NULL || result == NULL || anchor == NULL
+	    || (text == NULL && length != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_classic_text_style_set(&checked, style->font, style->direction,
+	    style->magnification, style->flags);
+	if (status != 0)
+		return status;
+	if (font->number != style->font)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_frame_init(&frame, font->canvas);
+	if (status != 0)
+		return status;
+	if (font->number == 0) {
+		struct st_rip3_bitmap_text_metrics metrics;
+		const struct st_rip3_bitmap_text_style bitmap = {.magnification = style->magnification};
+
+		status = st_rip3_bitmap_text_measure(&font->data.bitmap, &bitmap, length, &metrics);
+		if (status != 0)
+			return status;
+		plan.advance = metrics.width;
+		plan.ascent = (7.0 * style->magnification - 1) * font->data.bitmap.height / 8;
+		plan.descent = (double)font->data.bitmap.height * style->magnification - 1 - plan.ascent;
+	}
+	else {
+		struct st_rip3_chr_text_metrics metrics;
+		double factor = (double)numerator[style->magnification - 1] / denominator[style->magnification - 1];
+		double sx = factor * frame.device_width / 640;
+		double sy = factor * frame.device_height / 350;
+
+		status = st_rip3_chr_text_measure(&font->data.stroke, text, length, &metrics);
+		if (status != 0)
+			return status;
+		plan.advance = metrics.advance * sx;
+		plan.ascent = (font->data.stroke.capital - font->data.stroke.baseline) * sy;
+		plan.descent = (font->data.stroke.baseline - font->data.stroke.descender) * sy;
+		baseline = font->data.stroke.baseline * sy;
+		plan.matrix = style->direction == 0 ? (struct st_rip3_chr_text_matrix){sx,0,0,-sy}
+		    : (struct st_rip3_chr_text_matrix){0,-sy,-sx,0};
+	}
+	u = (style->flags & 1) != 0 ? -plan.advance : (style->flags & 2) != 0 ? -plan.advance / 2 : 0;
+	v = (style->flags & 4) != 0 ? -plan.descent : (style->flags & 8) != 0 ? 0
+	    : (style->flags & 16) != 0 ? (plan.ascent - plan.descent) / 2 : plan.ascent;
+	/* Bitmap kernels take a cell origin, CHR kernels take the untranslated
+	 * source-coordinate origin. Compensate a nonzero CHR header baseline. */
+	v += font->number == 0 ? -plan.ascent : baseline;
+	status = style->direction == 0 ? round_origin(anchor->x + u, anchor->y + v, &plan.origin)
+	    : round_origin(anchor->x + v, anchor->y - u, &plan.origin);
+	if (status != 0)
+		return status;
+	plan.advances_cursor = style->direction == 0 && (style->flags & 3) == 0;
+	*result = plan;
+	return 0;
+}
+
+int
+st_rip3_draw_classic_text(struct st_rip3_ports *ports,
+    const struct st_rip3_classic_font *font,
+    const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
+    const struct st_rip3_point *anchor, uint8_t foreground, uint8_t background,
+    enum st_rip3_write_mode mode)
+{
+	struct st_rip3_classic_text_plan plan;
+	struct st_rip3_frame frame;
+	struct st_rip3_port_info screen;
+	int status;
+
+	if (ports == NULL || font == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_frame_init(&frame, font->canvas);
+	if (status == 0)
+		status = st_rip3_ports_info(ports, 0, &screen);
+	if (status != 0)
+		return status;
+	if ((uint32_t)screen.bounds.x1 + 1 != frame.device_width
+	    || (uint32_t)screen.bounds.y1 + 1 != frame.device_height)
+		return IO_ERROR_CONFLICT;
+	status = st_rip3_classic_text_plan(font, style, text, length, anchor, &plan);
+	if (status != 0)
+		return status;
+	if (font->number == 0) {
+		const struct st_rip3_bitmap_text_style bitmap = {
+			.magnification = style->magnification, .vertical = style->direction == 1,
+			.shadow = (style->flags & 32) != 0,
+		};
+		return st_rip3_draw_bitmap_text(ports, &font->data.bitmap, &bitmap, text, length,
+		    &plan.origin, foreground, background, mode);
+	}
+	return st_rip3_draw_chr_text(ports, &font->data.stroke, text, length,
+	    &plan.origin, &plan.matrix, (style->flags & 32) != 0, foreground, background, mode);
+}
