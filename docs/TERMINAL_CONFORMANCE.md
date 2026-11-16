@@ -38,8 +38,11 @@ remains pending. Complete custom-fill/clear-stock/bar body tests cover row/colou
 decoding, protected edits and recovery, all drawing modes, RGB ink, inclusive
 geometry and wide coordinates. Independent all-canvas captures verify literal
 stock diagrams, custom bit order and adjacent fills with explicit device phase;
-conflicting masks and protocol anchoring remain pending. These do not change the
-active route.
+conflicting masks and protocol anchoring remain pending. K body tests add
+half-open interiors, explicit border on/off, solid COPY borders after every
+fill mode, protected records, wide geometry and border-allocation failure
+recovery. Independent RGB captures cover all canvases; the K/N pattern conflict
+and N context ownership remain blocked. These do not change the active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

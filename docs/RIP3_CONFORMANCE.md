@@ -128,7 +128,8 @@ Open clarification issues:
 - [#24](https://github.com/bbs-land/remote-imaging-protocol/issues/24): graphics
   style versus port ownership of cursor/image state, style versus environment
   ownership of color/mouse state, unspecified style bootstrap defaults and
-  TEXT_XY cursor effects outside horizontal left justification.
+  TEXT_XY cursor effects outside horizontal left justification; ownership,
+  switching, protection and backup behavior of the border-enabled flag.
 
 - [#25](https://github.com/bbs-land/remote-imaging-protocol/issues/25): PORTW/PORTH
   two-field DOMAIN summaries conflict with their explicit TYPE/DOMAIN prose and
@@ -147,6 +148,10 @@ Open clarification issues:
 - [#28](https://github.com/bbs-land/remote-imaging-protocol/issues/28): tone-variable
   ordering/default conflicts, T's required versus optional parameters, BLIP's
   duration example and MUSIC's literal recipe versus swept-segment evidence.
+
+- [#33](https://github.com/bbs-land/remote-imaging-protocol/issues/33): filled
+  rectangle prose mentions line patterns, while the specific border rule says
+  only polygon-related borders use them and other filled-object borders are solid.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -1228,6 +1233,38 @@ contradictory row blocked. The native CMake build and all 69 selected RIP3/
 preservation/shared-audio tests pass. Native Valgrind reports no errors or leaked
 allocations/descriptors in the new fixture. All 93 frozen files and 41 legacy
 helper definitions remain unchanged. Full RIP3 acceptance remains pending.
+
+The fill-command fixture now covers complete `K` bodies with an explicit borrowed
+border-enabled setting. World corners normalize before a fill that excludes the
+projected right/bottom coordinate lines. With borders disabled, degenerate
+rectangles do nothing; with borders enabled, they draw only the border. Enabled
+borders retain wide projected endpoints, prepare owned coverage before any fill
+and use the resolved device pen thickness. Border ink lookup remains necessary
+under NOT because borders use COPY. Missing ink/bindings and coverage allocation
+failures are consumed nonfatally, leaving pixels unchanged.
+
+The wire path follows the specific `N` paragraph's solid COPY border rule. The
+more general `K` paragraph also mentions line patterns; this conflict is tracked
+in [issue #33](https://github.com/bbs-land/remote-imaging-protocol/issues/33), with
+the conflicting requirement blocked. The owner of the border-enabled flag is
+missing from the context tables and their earlier STYLE list. Its switching,
+protection and save/restore behavior are requested under
+[issue #24](https://github.com/bbs-land/remote-imaging-protocol/issues/24#issuecomment-6923963940).
+The command host therefore borrows an explicitly resolved flag without choosing
+an owner, bootstrap value or backup policy. `N` remains unsupported; this is not
+complete border/context orchestration.
+
+Independent coherent captures on all three canvases check every fill operation
+under solid COPY borders, patterned/RGB interiors, border on/off, clipping,
+reversed/degenerate rectangles, explicit thickness, protected records and
+default/scaled worlds. Boundary cases cover both radices, all coordinate widths,
+wide endpoints, missing bindings/ink and recovery from unsupported `N` in split
+input. The existing test-local drawing allocation shim injects failed rectangle
+and degenerate-border coverage allocation before painting; following operations
+still succeed. The native CMake build and all 69 selected RIP3/preservation/
+shared-audio tests pass. Native Valgrind reports no errors or leaked allocations/
+descriptors in the expanded fixture. The 93 frozen files and 41 legacy helper
+definitions still match the original preservation baseline.
 
 ## Verification and acceptance
 

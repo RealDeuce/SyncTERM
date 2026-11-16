@@ -2,6 +2,7 @@
 #ifndef ST_RIP3_COMMANDS_H_
 #define ST_RIP3_COMMANDS_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -22,6 +23,9 @@ struct st_rip3_command_host {
 	struct st_rip3_palettes *palettes;
 	struct st_rip3_ports *ports;
 	struct st_rip3_styles *styles;
+	/* Explicit resolved scene setting. N ownership/switch/backup semantics
+	 * are unresolved under #24; no default is inferred from a missing binding. */
+	const bool *borders;
 };
 
 enum st_rip3_command_diagnostic {
@@ -42,7 +46,7 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, B, s, S presets
+ * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, B, K, s, S presets
  * 00/01/03/06/08/09/0A, 1w, v, 2p, rectangle-fit 2C, onscreen 2P, comments
  * and terminal grouping no-ops.
  * Numeric commands use the current ENV record,
@@ -75,6 +79,12 @@ struct st_rip3_command_sink {
  * B normalizes opposing corners, includes the last device row/column and draws
  * without a border. Both used fill inks resolve before painting; solid and
  * background-only fills skip unused ink lookup. NOT ignores both inks.
+ * K requires an explicit borders binding when active. Its interior excludes
+ * the projected right/bottom edges. Degenerate rectangles draw only enabled
+ * borders; border coverage is prepared before filling and then applied in
+ * solid COPY using the resolved pen thickness (the N rule, pending #33).
+ * Border ink still needs resolution in NOT mode. N and border context/save
+ * ownership remain unsupported under #24; no missing-binding default is used.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.

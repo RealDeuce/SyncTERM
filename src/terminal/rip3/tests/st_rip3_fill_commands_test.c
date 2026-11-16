@@ -13,6 +13,8 @@
 #include <stdio.h>
 #include <string.h>
 
+extern bool st_rip3_drawing_test_fail_calloc;
+
 #define CHECK(expression) do { \
 	if (!(expression)) { \
 		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
@@ -361,6 +363,229 @@ boundaries(void)
 }
 
 static int
+filled_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	static const char initial[] = "!|S013|N01|K08080202|K0A0A0A0E\r";
+	static const char *commands[] = {"K020K0A0S","K0I0K0Q0S","K0Y0K160S","K02100A18","K0I100Q18"};
+	static const uint8_t modes[] = {15,0x5a,0x5f,5,0xaa};
+	static const struct st_rip3_point origins[] = {{1,10},{9,10},{17,10},{1,18},{9,18}};
+	struct st_rip3_command_host host = {0};
+	struct st_rip3_style style;
+	struct st_rip3_environment environment;
+	struct scene scene = {&host,0};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_rect bounds = {10,20,49,59}, view = {2,3,29,30};
+	struct st_rip3_stream *stream = NULL;
+	struct st_rip3_palette palette;
+	struct st_pixel_buffer *capture = NULL;
+	bool borders = false;
+	unsigned current;
+	CHECK(create(&host, canvas, width*2,height*2) == 0);
+	host.borders = &borders;
+	CHECK(st_rip3_ports_define(host.ports, 1, &bounds, false) == 0);
+	CHECK(st_rip3_ports_switch(host.ports, 1) == 0 && st_rip3_ports_viewport(host.ports, &view) == 0);
+	CHECK(st_rip3_ports_protect(host.ports, 1, true) == 0);
+	CHECK(st_rip3_environments_get(host.environments, 0, &environment) == 0);
+	environment.graphics_style = 7; environment.port = 9; environment.palette = 11;
+	CHECK(st_rip3_environments_define(host.environments, 1, &environment) == 0);
+	CHECK(st_rip3_environments_select(host.environments, 1) == 0);
+	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	for (size_t i = 0; i < strlen(initial); i++)
+		st_rip3_stream_process(stream, (const uint8_t *)initial+i, 1);
+	CHECK(scene.errors == 1 && !borders); /* N remains unsupported, K still runs. */
+	borders = true;
+	CHECK(process(&host, "S010F", -1) == 0);
+	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0);
+	style.pen.pattern = 0x8000; style.pen.thickness = 1;
+	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	for (size_t i = 0; i < 5; i++) {
+		struct st_rip3_rect underlay = {origins[i].x,origins[i].y,origins[i].x+4,origins[i].y+4};
+		char write[] = "W0";
+		write[1] += (char)i;
+		CHECK(process(&host, write, -1) == 0);
+		if (i == 4) {
+			CHECK(st_rip3_styles_switch(host.styles, 1) == 0);
+			CHECK(st_rip3_styles_protect(host.styles, 1, true) == 0);
+		}
+		CHECK(st_rip3_ports_fill(host.ports, &underlay, 0x55, ST_RIP3_COPY) == 0);
+		CHECK(process(&host, commands[i], -1) == 0);
+	}
+	CHECK(process(&host, "K1E021E0A", -1) == 0); /* Degenerate COPY border only. */
+	CHECK(process(&host, "K1E0E1E0E", -1) == 0);
+	CHECK(st_rip3_styles_switch(host.styles, 0) == 0);
+	CHECK(process(&host, "W0", -1) == 0);
+	CHECK(process(&host, "K1E1E2828", -1) == 0); /* Clip, without moving far borders inward. */
+	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0);
+	style.pen.thickness = 3;
+	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	CHECK(process(&host, "K1E0U1E10", -1) == 0);
+	CHECK(st_rip3_palettes_get(host.palettes, 0, &palette) == 0);
+	CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		unsigned expected = 0;
+		if (x >= 13 && x <= 15 && y >= 24 && y <= 26) expected = 3;
+		for (size_t i = 0; i < 5; i++) {
+			uint32_t left = 12+(uint32_t)origins[i].x, top = 23+(uint32_t)origins[i].y;
+			if (x >= left && x <= left+4 && y >= top && y <= top+4)
+				expected = x == left || x == left+4 || y == top || y == top+4 ? 12 : modes[i];
+		}
+		if (x == 37 && ((y >= 24 && y <= 28) || y == 30)) expected = 12;
+		if (x >= 37 && x <= 39 && y >= 48 && y <= 50)
+			expected = x == 37 || y == 48 ? 12 : 15;
+		if (x >= 36 && x <= 38 && y >= 37 && y <= 42) expected = 12;
+		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | expected*UINT32_C(0x010101)));
+	}
+	CHECK(st_rip3_environments_get(host.environments, 1, &environment) == 0
+	    && environment.graphics_style == 7 && environment.port == 9 && environment.palette == 11);
+	CHECK(st_rip3_styles_current(host.styles, &current) == 0 && current == 0);
+	CHECK(st_rip3_ports_current(host.ports, &current) == 0 && current == 1 && borders);
+	st_pixel_buffer_destroy(capture);
+	st_rip3_stream_destroy(stream);
+	destroy(&host);
+	return 0;
+}
+
+static int
+filled_rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	struct st_rip3_command_host host = {0};
+	struct st_rip3_environment environment;
+	struct st_rip3_style style;
+	struct st_rip3_palettes *bound;
+	struct st_rip3_palette palette;
+	struct st_pixel_buffer *capture = NULL;
+	uint32_t colors[256];
+	bool borders = true;
+	CHECK(create(&host, canvas, width,height) == 0);
+	host.borders = &borders;
+	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0);
+	style.pen.thickness = 1;
+	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	CHECK(st_rip3_environments_get(host.environments, 0, &environment) == 0);
+	environment.rgb_bits = 8;
+	CHECK(st_rip3_environments_set(host.environments, 0, &environment) == 0);
+	for (unsigned i = 0; i < 256; i++) colors[i] = 0xffffff;
+	colors[0] = 0; colors[17] = 0x112233; colors[18] = 0x112235; colors[19] = 0x445566;
+	CHECK(st_rip3_palettes_rgb(host.palettes, 0, 8, colors, 256) == 0);
+	CHECK(process(&host, "s73007300730073004I8q", -1) == 0);
+	CHECK(process(&host, "cH5Lc", -1) == 0 && process(&host, "k4I8r", -1) == 0);
+	CHECK(process(&host, "K01010606", -1) == 0);
+	bound = host.palettes; host.palettes = NULL;
+	CHECK(process(&host, "W4", -1) == 0);
+	CHECK(process(&host, "K08010D06", ST_RIP3_COMMAND_UNSUPPORTED) == 0); /* COPY border still needs ink. */
+	borders = false;
+	CHECK(process(&host, "K0F010I04", -1) == 0); /* NOT fill needs neither ink. */
+	CHECK(process(&host, "W0", -1) == 0);
+	CHECK(process(&host, "K0F060F09", -1) == 0); /* No interior, no border, no lookup. */
+	host.borders = NULL;
+	CHECK(st_rip3_ports_activate(host.ports, false) == 0);
+	CHECK(process(&host, "K00000101", -1) == 0);
+	CHECK(st_rip3_ports_activate(host.ports, true) == 0);
+	CHECK(process(&host, "K00000101", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	host.borders = &borders; borders = true; host.palettes = bound;
+	CHECK(process(&host, "W4", -1) == 0 && process(&host, "K08010D06", -1) == 0);
+	CHECK(st_rip3_palettes_get(host.palettes, 0, &palette) == 0);
+	CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		uint32_t expected = 0;
+		if (x >= 1 && x <= 6 && y >= 1 && y <= 6)
+			expected = x == 1 || x == 6 || y == 1 || y == 6 ? 0x445566 : y%2 == 0 ? 0x112233 : 0x112235;
+		if (x >= 8 && x <= 13 && y >= 1 && y <= 6)
+			expected = x == 8 || x == 13 || y == 1 || y == 6 ? 0x445566 : 0xffffff;
+		if (x >= 15 && x <= 17 && y >= 1 && y <= 3) expected = 0xffffff;
+		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | expected));
+	}
+	st_pixel_buffer_destroy(capture);
+	destroy(&host);
+	return 0;
+}
+
+static int
+filled_boundaries(void)
+{
+	struct st_rip3_command_host host = {0}, missing;
+	struct st_rip3_style style;
+	struct st_rip3_environment environment;
+	struct st_rip3_ports *other = NULL;
+	const struct st_rip3_rect area = {0,0,7,7};
+	static const char *invalid[] = {"K", "K000000", "K000000000", "K0000040?"};
+	uint8_t pixel;
+	bool borders = true;
+	char command[24];
+	CHECK(create(&host, ST_RIP3_CANVAS_640_480, 640,480) == 0);
+	host.borders = &borders;
+	CHECK(st_rip3_ports_fill(host.ports, &area, 0x55, ST_RIP3_COPY) == 0);
+	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++)
+		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
+	missing = host; missing.borders = NULL;
+	CHECK(process(&missing, "K01010404", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host, "K01010404 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0);
+	style.pen.thickness = 1;
+	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	st_rip3_drawing_test_fail_calloc = true;
+	CHECK(process(&host, "K01010404", ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0
+	    && !st_rip3_drawing_test_fail_calloc);
+	st_rip3_drawing_test_fail_calloc = true;
+	CHECK(process(&host, "K04040404", ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0
+	    && !st_rip3_drawing_test_fail_calloc);
+	style.drawing_color = 0xffffff; /* Border fails after the fill ink could resolve. */
+	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	CHECK(process(&host, "K01010404", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	style.drawing_color = 12; style.fill_color = 0xffffff;
+	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	CHECK(process(&host, "K01010404", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	style.fill_color = 3; style.background_color = 0xffffff;
+	memset(style.fill.rows, 0xaa, 8);
+	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	CHECK(process(&host, "K01010404", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
+		CHECK(st_rip3_ports_read(host.ports, 0, x,y,&pixel) == 0 && pixel == 0x55);
+	borders = false;
+	CHECK(process(&host, "K04040404", -1) == 0); /* No fill, no border, no ink lookup. */
+	CHECK(process(&host, "S013", -1) == 0);
+	for (unsigned base = 36; base <= 64; base += 28) for (unsigned width = 2; width <= 5; width++) {
+		CHECK(st_rip3_environments_get(host.environments, 0, &environment) == 0);
+		environment.base_math = base; environment.coordinate_size = width;
+		CHECK(st_rip3_environments_set(host.environments, 0, &environment) == 0);
+		(void)snprintf(command, sizeof(command), "K%0*u%0*u%0*u3", (int)width,1u,(int)width,1u,(int)width,3u);
+		CHECK(process(&host, command, -1) == 0);
+		CHECK(st_rip3_ports_read(host.ports, 0, 2,2,&pixel) == 0 && pixel == 3);
+		CHECK(st_rip3_ports_read(host.ports, 0, 3,3,&pixel) == 0 && pixel == 0x55);
+	}
+	CHECK(process(&host, "n2", -1) == 0 && process(&host, "K0a010&03", -1) == 0);
+	CHECK(st_rip3_ports_read(host.ports, 0, 36,1,&pixel) == 0 && pixel == 3);
+	CHECK(st_rip3_ports_read(host.ports, 0, 62,2,&pixel) == 0 && pixel == 3);
+	CHECK(st_rip3_ports_read(host.ports, 0, 63,2,&pixel) == 0 && pixel == 0);
+	CHECK(process(&host, "n5", -1) == 0);
+	CHECK(st_rip3_ports_create(&other, ST_RIP3_CANVAS_800_600) == 0);
+	missing = host; missing.ports = other;
+	CHECK(process(&missing, "K0000100001000033", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(st_rip3_ports_read(other, 0, 1,1,&pixel) == 0 && pixel == 0);
+	st_rip3_ports_destroy(other);
+	CHECK(st_rip3_ports_viewport(host.ports, &area) == 0);
+	CHECK(st_rip3_ports_erase(host.ports, 0x55) == 0);
+	CHECK(st_rip3_environments_get(host.environments, 0, &environment) == 0);
+	environment.world_width = environment.world_height = 1;
+	CHECK(st_rip3_environments_set(host.environments, 0, &environment) == 0);
+	CHECK(process(&host, "K&&&&&&&&&&&&&&&&&&&&", -1) == 0);
+	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
+		CHECK(st_rip3_ports_read(host.ports, 0, x,y,&pixel) == 0 && pixel == 0x55);
+	CHECK(process(&host, "K0000000000&&&&&&&&&&", -1) == 0);
+	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
+		CHECK(st_rip3_ports_read(host.ports, 0, x,y,&pixel) == 0 && pixel == 3);
+	CHECK(process(&host, "S015", -1) == 0);
+	CHECK(process(&host, "K&&&&&&&&&&0000000000", -1) == 0);
+	borders = true;
+	CHECK(process(&host, "K&&&&&&&&&&0000000000", -1) == 0);
+	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
+		CHECK(st_rip3_ports_read(host.ports, 0, x,y,&pixel) == 0 && pixel == (x == 0 || y == 0 ? 12 : 5));
+	destroy(&host);
+	return 0;
+}
+
+static int
 stock(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	/* Literal pictures from the pinned table, independent of the byte masks. */
@@ -401,14 +626,17 @@ stock(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 }
 
 static int
-default_world(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
+default_world(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, char kind,
     uint32_t left, uint32_t right, uint32_t top, uint32_t bottom)
 {
 	struct st_rip3_command_host host = {0};
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
+	bool borders = false;
+	char command[] = "B0A0A0K0K";
 	CHECK(create(&host, canvas, 640,350) == 0);
-	CHECK(process(&host, "S013", -1) == 0 && process(&host, "B0A0A0K0K", -1) == 0);
+	host.borders = &borders; command[0] = kind;
+	CHECK(process(&host, "S013", -1) == 0 && process(&host, command, -1) == 0);
 	CHECK(st_rip3_palettes_get(host.palettes, 0, &palette) == 0);
 	CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
@@ -434,8 +662,18 @@ main(void)
 	CHECK(stock(ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(stock(ST_RIP3_CANVAS_800_600, 800,600) == 0);
 	CHECK(stock(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);
-	CHECK(default_world(ST_RIP3_CANVAS_640_480, 640,480, 10,20,13,27) == 0);
-	CHECK(default_world(ST_RIP3_CANVAS_800_600, 800,600, 12,25,17,34) == 0);
-	CHECK(default_world(ST_RIP3_CANVAS_1024_768, 1024,768, 16,32,21,43) == 0);
+	CHECK(filled_scene(ST_RIP3_CANVAS_640_480, 640,480) == 0);
+	CHECK(filled_scene(ST_RIP3_CANVAS_800_600, 800,600) == 0);
+	CHECK(filled_scene(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);
+	CHECK(filled_rgb(ST_RIP3_CANVAS_640_480, 640,480) == 0);
+	CHECK(filled_rgb(ST_RIP3_CANVAS_800_600, 800,600) == 0);
+	CHECK(filled_rgb(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);
+	CHECK(filled_boundaries() == 0);
+	CHECK(default_world(ST_RIP3_CANVAS_640_480, 640,480, 'B', 10,20,13,27) == 0);
+	CHECK(default_world(ST_RIP3_CANVAS_800_600, 800,600, 'B', 12,25,17,34) == 0);
+	CHECK(default_world(ST_RIP3_CANVAS_1024_768, 1024,768, 'B', 16,32,21,43) == 0);
+	CHECK(default_world(ST_RIP3_CANVAS_640_480, 640,480, 'K', 10,19,13,26) == 0);
+	CHECK(default_world(ST_RIP3_CANVAS_800_600, 800,600, 'K', 12,24,17,33) == 0);
+	CHECK(default_world(ST_RIP3_CANVAS_1024_768, 1024,768, 'K', 16,31,21,42) == 0);
 	return 0;
 }

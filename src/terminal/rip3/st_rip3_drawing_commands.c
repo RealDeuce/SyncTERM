@@ -156,7 +156,7 @@ shape(const struct st_rip3_command_host *host,
 		points[i].x = (double)(values[i*2] * frame.device_width / frame.world_width);
 		points[i].y = (double)(values[i*2+1] * frame.device_height / frame.world_height);
 	}
-	if (command == 'R') {
+	if (command == 'R' || command == 'K') {
 		double x0 = points[0].x < points[1].x ? points[0].x : points[1].x;
 		double x1 = points[0].x > points[1].x ? points[0].x : points[1].x;
 		double y0 = points[0].y < points[1].y ? points[0].y : points[1].y;
@@ -177,13 +177,32 @@ shape(const struct st_rip3_command_host *host,
 	if (status != 0 || !port.viewport_active)
 		return status;
 	*operation = true;
-	if (command == 'B') {
+	if (command == 'B' || command == 'K') {
 		bool uses_foreground = false, uses_background = false;
+		bool borders = false, interior = true;
+		uint8_t border_color = 0;
 		struct st_rip3_rect area;
 
-		for (size_t i = 0; i < 8; i++) {
-			uses_foreground |= style->fill.rows[i] != 0;
-			uses_background |= style->fill.rows[i] != 255;
+		if (command == 'K') {
+			if (host->borders == NULL)
+				return IO_ERROR_NOT_SUPPORTED;
+			borders = *host->borders;
+			interior = vertices == 4;
+			if (!interior && !borders)
+				return 0;
+		}
+		if (borders) {
+			/* Border COPY needs drawing ink even when the fill mode is NOT.
+			 * Resolve it before the fill can change any pixels. */
+			status = ink(host, environment->rgb_bits == 8, style->drawing_color, &border_color);
+			if (status != 0)
+				return status;
+		}
+		if (interior) {
+			for (size_t i = 0; i < 8; i++) {
+				uses_foreground |= style->fill.rows[i] != 0;
+				uses_background |= style->fill.rows[i] != 255;
+			}
 		}
 		if (style->write_mode != ST_RIP3_NOT) {
 			if (uses_foreground)
@@ -195,11 +214,30 @@ shape(const struct st_rip3_command_host *host,
 		}
 		/* Axis-aligned filled bounds may saturate outside the device range:
 		 * unlike a line slope, their intersection with the viewport is exact. */
+		size_t opposite = vertices == 4 ? 2 : 1;
 		area = (struct st_rip3_rect){
 		    points[0].x > INT32_MAX ? INT32_MAX : (int32_t)points[0].x,
 		    points[0].y > INT32_MAX ? INT32_MAX : (int32_t)points[0].y,
-		    points[1].x > INT32_MAX ? INT32_MAX : (int32_t)points[1].x,
-		    points[1].y > INT32_MAX ? INT32_MAX : (int32_t)points[1].y};
+		    points[opposite].x > INT32_MAX ? INT32_MAX : (int32_t)points[opposite].x,
+		    points[opposite].y > INT32_MAX ? INT32_MAX : (int32_t)points[opposite].y};
+		if (command == 'K') {
+			if (borders) {
+				const struct st_rip3_pen pen = {.pattern=0xffff,.thickness=style->pen.thickness};
+
+				/* Preserve wide border endpoints and prepare all scratch storage
+				 * before filling. The specific N rule is solid COPY (#33). */
+				status = st_rip3_stroke_path_vectors(host->ports, points, vertices,
+				    vertices == 4, &pen, &mask);
+				if (status != 0)
+					return status;
+			}
+			status = st_rip3_draw_filled_rectangle(host->ports, &area, &style->fill,
+			    foreground, background, NULL, 0, style->write_mode);
+			if (status == 0 && borders)
+				status = st_rip3_stroke_apply(host->ports, &mask, border_color, 0, ST_RIP3_COPY);
+			st_rip3_stroke_free(&mask);
+			return status;
+		}
 		return st_rip3_draw_bar(host->ports, &area, &style->fill,
 		    foreground, background, style->write_mode);
 	}
@@ -245,7 +283,7 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		status = st_rip3_styles_get(host->styles, number, &style);
 	if (status != 0)
 		return status;
-	if (command[0] == 'L' || command[0] == 'R' || command[0] == 'B')
+	if (command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K')
 		return shape(host, environment_number, &environment, &style, arguments,
 		    count, command[0], operation);
 	if (command[0] == 'S' || command[0] == 's') {
