@@ -270,6 +270,8 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	size_t count = length-1;
 	int status;
 
+	if (command[0] == 'E' && count != 0)
+		return IO_ERROR_INVALID_FORMAT;
 	if (memchr(arguments, ' ', count) != NULL)
 		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
 	if (command[0] == 'W' && memchr(arguments, '.', count) != NULL)
@@ -283,6 +285,26 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		status = st_rip3_styles_get(host->styles, number, &style);
 	if (status != 0)
 		return status;
+	if (command[0] == 'E') {
+		struct st_rip3_frame frame;
+		struct st_rip3_port_info port;
+		uint8_t background;
+
+		if (host->ports == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		status = st_rip3_command_frame(host, environment_number, &frame);
+		if (status == 0)
+			status = st_rip3_ports_current(host->ports, &number);
+		if (status == 0)
+			status = st_rip3_ports_info(host->ports, number, &port);
+		if (status != 0 || !port.viewport_active)
+			return status;
+		*operation = true;
+		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.background_color, &background);
+		if (status == 0)
+			status = st_rip3_ports_erase(host->ports, background);
+		return status;
+	}
 	if (command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K')
 		return shape(host, environment_number, &environment, &style, arguments,
 		    count, command[0], operation);

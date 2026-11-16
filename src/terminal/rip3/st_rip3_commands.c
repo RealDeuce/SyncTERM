@@ -162,7 +162,7 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_curve_commands_execute(host, command, length, operation);
 	if (command[0] == 'c' || command[0] == 'k' || command[0] == 'W' || command[0] == 'Y'
 	    || command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K'
-	    || command[0] == 'S' || command[0] == 's')
+	    || command[0] == 'S' || command[0] == 's' || command[0] == 'E')
 		return st_rip3_drawing_commands_execute(host, command, length, operation);
 	if (command[0] == 'Q' || command[0] == 'a')
 		return desktop_palette(host, command, length, operation);

@@ -160,6 +160,22 @@ documentation revision and reconcile affected ledger entries/tests. Hypothesized
 names alone need not be behavioral gaps. Do not guess, silently exclude
 unresolved requirements or claim completion while blockers/reviews remain.
 
+Upstream status checked on 2026-11-16: `main` still equals the pinned revision.
+Five stacked clarification proposals are open. Their observed heads are recorded
+on the corresponding ledger blockers; none is adopted or treated as a resolution:
+
+| Blocker | Proposal | Observed head |
+| --- | --- | --- |
+| #3 extended fonts | [PR #29](https://github.com/bbs-land/remote-imaging-protocol/pull/29) | `ca92e1035fcd00fe9a72bbd72ee4b7c72596bb5a` |
+| #4 columns | [PR #30](https://github.com/bbs-land/remote-imaging-protocol/pull/30) | `996b1a3335b2b2500da90a7d063e27539c128586` |
+| #5 headers | [PR #31](https://github.com/bbs-land/remote-imaging-protocol/pull/31) | `9b1872a575ba6c70d1d423c15cc965affd9fdb1d` |
+| #6 macros/variables | [PR #32](https://github.com/bbs-land/remote-imaging-protocol/pull/32) | `e450e1d9cd85594e321cd1427833a36269d24993` |
+| #7 framing/identity | [PR #34](https://github.com/bbs-land/remote-imaging-protocol/pull/34) | `a6da898d495367b16e9c3a7b2a1d5f5e7752f13d` |
+
+These are proposal/status observations, not a semantic review or a new contract
+pin. Adoption still requires reviewing the changed requirements, derivations and
+affected tests before reconciling the source index.
+
 ## Work sequence
 
 1. Establish requirements and preservation checks. The pinned source index
@@ -1304,6 +1320,30 @@ pass. Native Valgrind reports no errors or leaked allocations/descriptors in the
 new curve fixture. The original 93 frozen files and 41 legacy helper definitions
 remain unchanged. General arcs, complete N/context ownership, active routing and
 the rest of RIP3 acceptance remain pending.
+
+The drawing-command fixture now covers argumentless `E` viewport erase. It
+resolves current background ink from the bound STYLE/ENV/PALETTE services, then
+replaces the active PORT viewport in COPY. Pen/fill/write mode and world scaling
+do not alter the erase. Protected content can clear; table references, selection,
+attributes, viewport geometry and protection metadata remain unchanged. Inactive
+viewports skip ink lookup, while an explicitly active one-pixel origin viewport
+still clears. No graphics scratch allocation is needed.
+
+Independent coherent RGB captures on all three canvases verify palette/direct
+RGB backgrounds, nearest-colour ties, nonzero origins and overlapping protected
+screen views. Offscreen tests verify clipping and separate screen contents.
+Malformed arguments, missing services, canvas mismatch and missing RGB palette
+fail without painting; split-input processing recovers on the next command.
+The actual native TTY/text-window overlap and complete cursor/context behavior
+remain pending, so the mixed overlap requirement is not marked complete.
+
+The native CMake build and all 70 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports no errors or leaked allocations/descriptors in the
+expanded drawing fixture. All 93 frozen files and 41 legacy helper definitions
+remain unchanged. The palette-switch wire section has also been reviewed:
+its two-digit selector conflicts with the shipping Switch-family report under
+#2, so `2A` remains unsupported and its conflicting syntax is now blocked in the
+ledger. No reference revision or legacy routing changed.
 
 ## Verification and acceptance
 

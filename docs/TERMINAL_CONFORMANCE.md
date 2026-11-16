@@ -46,7 +46,10 @@ and N context ownership remain blocked. C/G/o and canonical full O/V tests cover
 circle aspect, independent ellipse radii, all modes, protected/RGB state,
 patterned interiors, COPY borders, clipping and wide geometry. Independent
 all-canvas captures and mesh/coverage allocation faults check recovery; general
-angle-pair interpretation remains blocked. These do not change the active route.
+angle-pair interpretation remains blocked. E tests add replacement erase in
+palette/direct RGB, protected overlapping screen views, independent offscreen
+viewports, inactive/one-pixel cases and nonfatal split recovery. Native TTY
+overlap/context integration remains pending. These do not change the active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

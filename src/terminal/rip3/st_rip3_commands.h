@@ -46,7 +46,7 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, B, K, C, G, o,
+ * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V, s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
  * rectangle-fit 2C, onscreen 2P, comments and terminal grouping no-ops.
  * Numeric commands use the current ENV record,
@@ -90,6 +90,10 @@ struct st_rip3_command_sink {
  * thickness, ignoring the pen pattern. G/o require the explicit border binding;
  * all ink lookup and border scratch allocation precede their fills. O/V accept
  * only the documented start=0/end=360 form; other angle pairs remain under #14.
+ * Argumentless E replaces the active viewport with resolved background ink in
+ * COPY, independently of pen/fill/write mode. It retains attributes and table
+ * references, skips inactive ink lookup and allows protected contents to clear.
+ * Native text-window overlap/context integration remains separate.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.
