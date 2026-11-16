@@ -1098,6 +1098,43 @@ This is complete-body processing and independent copy service integration;
 active v3 routing, unresolved 2P sizing/context and the remaining protocol remain
 pending.
 
+`rip3_styles` adds session-owned storage for the resolved ordinary drawing
+attributes: raw drawing/background/fill colours, explicit device pen and fill
+settings, classic font attributes and write mode. Its 36 records start with only
+entry zero defined/current, using a required caller-supplied initial value.
+First-use record selection copies the current attributes; previously defined
+entries retain their data. Validation precedes edits, protected entries reject
+changes, and entry zero is unprotectable. This service does not choose the
+unresolved bootstrap defaults or activate a complete scene context.
+
+Owned snapshots retain every stored attribute, current index and definition/
+protection bits. They survive source-table destruction and later live changes;
+whole restore bypasses live protection and restores undefined entries as well.
+These are snapshots of the implemented attribute subset. Extended-font state,
+wire thickness/fill-phase policy, cursor/image/mouse/colour-mode ownership and
+reset/default orchestration remain under #3/#11/#12/#16/#24. Complete context
+activation, CUR(STYLE,n) and SGS/RGS remain unsupported. The SGS/RGS paragraphs'
+conflicting references to palette data are also recorded in
+[issue #24](https://github.com/bbs-land/remote-imaging-protocol/issues/24#issuecomment-6922213004).
+
+The public nonfatal host processor now exposes STYLE current-index queries,
+INUSE/individual ISPROT and PROT/UNPROT metadata for bound records, alongside
+existing generic snapshot COPY. Full selector lists are validated before edits;
+undefined protection is a no-op. Generic backup-slot protection remains shared.
+Tests exercise all 36 varied records, retained caller values, first-use copies,
+protected edits, bounds/invalid attributes, independent base/slot/stack snapshots,
+source destruction, metadata queries and recovery after invalid references.
+Coherent independently specified RGB captures show selected attributes driving
+line/rectangle/fill kernels on all three canvases. Test-local allocation failure
+covers construction, initial/overwrite snapshot failure, preservation of an
+existing save and public COPY recovery without a session error.
+
+The native CMake build and all 66 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports no errors, lost allocations or leaked file
+descriptors in both style fixtures. The original 93 frozen files and 41 legacy
+helper definitions remain unchanged. This is record storage and explicit kernel
+integration; wire drawing/style commands and active terminal routing are pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
