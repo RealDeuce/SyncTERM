@@ -69,6 +69,11 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 			return status;
 	}
 	{
+		int status = st_rip3_port_query_execute(host, reference, result, capacity);
+		if (status != IO_ERROR_NOT_SUPPORTED)
+			return status;
+	}
+	{
 		int status = st_rip3_viewport_host_execute(host, reference, result, capacity);
 		if (status != IO_ERROR_NOT_SUPPORTED)
 			return status;

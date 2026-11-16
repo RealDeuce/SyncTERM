@@ -125,6 +125,10 @@ Open clarification issues:
   ownership of color/mouse state, unspecified style bootstrap defaults and
   TEXT_XY cursor effects outside horizontal left justification.
 
+- [#25](https://github.com/bbs-land/remote-imaging-protocol/issues/25): PORTW/PORTH
+  two-field DOMAIN summaries conflict with their explicit TYPE/DOMAIN prose and
+  examples; PORTY1's summary also names different arguments from its syntax.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -789,6 +793,29 @@ native Valgrind reports no errors or leaks in the classic-text fixture.
 No world frame, current cursor or graphics-style table is modified;
 those bindings and wire processing remain pending, including #24's ownership
 questions. The public parser error boundary and frozen RIP154 path are unchanged.
+
+`rip3_port_query` adds PORTW/PORTH and PORTX0/Y0/X1/Y1 to the public nonfatal
+reference processor. CUR/numbered selection, PORT/VIEW and WORLD/DEVICE domains
+use the explicit three-field grammar and documented defaults. Device rectangles
+are stored inclusively by the geometry kernel; queries return exclusive lower
+right boundaries and pixel counts. Screen-port bounds are screen-relative;
+viewport bounds are port-relative, and offscreen ports start at zero. Undefined
+or inactive ports return zero sizes and -1 coordinates, including PORT queries.
+Protection does not prevent reading or change the selected port.
+
+WORLD queries read the bound current environment's live frame, ahead of an
+optional caller frame snapshot. With no ENV binding the explicit frame is used;
+no world frame is invented. Conversion uses the existing integer-ratio floor
+policy, and a canvas mismatch rejects without changing state or pixels. Tests
+check literal replies on all three canvases, protected/inactive/undefined and
+one-pixel ports, nested viewport offsets, offscreen origins, exclusive endpoints,
+live WORLD changes, exact reply capacity, missing services, and recovery after
+malformed CP437/UTF-8 keyword bytes. A coherent RGB capture per canvas verifies
+scene retention after the query/recovery sequence. #25's unresolved two-field
+DOMAIN shorthand remains unsupported; OFFSCREEN's separate ambiguity remains
+under #6. The native CMake build and all 50 RIP3/preservation checks pass;
+native Valgrind reports no errors or leaks in the port-query fixture.
+This does not add stream framing or change the active terminal route.
 
 ## Verification and acceptance
 

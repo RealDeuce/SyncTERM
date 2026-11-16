@@ -16,6 +16,9 @@ struct st_rip3_table_host;
  * or terminal/application integration is implied by assembling these bindings. */
 struct st_rip3_host_variables {
 	const struct st_rip3_features *features;
+	/* For port geometry queries the bound current ENV's live world frame takes
+	 * precedence. This snapshot is a fallback when no ENV service is bound;
+	 * its device canvas must match the queried PORT table. */
 	const struct st_rip3_frame *frame;
 	const struct st_rip3_table_host *tables;
 	/* One converted local-time snapshot for an expansion batch. The client
@@ -55,7 +58,10 @@ struct st_rip3_host_sink {
  * private and must not be used as connection errors.
  *
  * Supports NULL, IFS, RESX/RESY, the resolved date/time fields and the
- * implemented table/viewport/environment-variable families. Environment
+ * implemented table/viewport/environment-variable families, plus PORTW/PORTH
+ * and PORTX0/Y0/X1/Y1 in explicit PORT/VIEW and WORLD/DEVICE domains. Lower
+ * right query coordinates are exclusive. Unresolved PORTW/H two-field DOMAIN
+ * shorthand remains unsupported (#25). Environment
  * records support BASEMATH, COORDSIZE, WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT
  * and defined COLORMODE queries/sets; record backup/protection is separate
  * from future scene-wide context activation. Undefined COLORMODE replies
