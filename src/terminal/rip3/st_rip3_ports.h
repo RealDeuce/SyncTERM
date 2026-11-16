@@ -104,6 +104,15 @@ int st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
 	int32_t x, int32_t y, uint8_t *result);
 int st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	const struct st_rip3_palette *palette, struct st_pixel_buffer **result);
+/* Owned raw index-plane snapshots for the screen backup component, independent
+ * of all port/viewport definitions. Restore requires matching device dimensions
+ * and clones before committing; it neither takes ownership of nor changes the
+ * saved surface. It bypasses viewport clipping/activation and drawing modes.
+ * Palette and UI state belong to the enclosing screen backup transaction. */
+int st_rip3_ports_screen_clone(const struct st_rip3_ports *ports,
+	struct st_rip3_surface **result);
+int st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
+	const struct st_rip3_surface *snapshot);
 
 /* Backup the device port definitions/current selection and owned offscreen
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore

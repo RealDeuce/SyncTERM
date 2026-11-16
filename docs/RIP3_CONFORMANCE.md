@@ -23,6 +23,10 @@ advance its baseline during this goal. Surrounding public dispatch/lifecycle
 changes still require unchanged runtime expectations to pass. Known 1.54
 differences are retained, not fixed here.
 
+The frozen capture inventory includes its descriptive scope text. Keep new
+coverage notes in `docs/RIP154_CONFORMANCE.md` without modifying that inventory
+or advancing the preservation baseline.
+
 The 26 existing native/application RIP and graphics-scrollback CTests passed
 at the baseline on native FreeBSD with the existing Release CMake configuration.
 They cover CP437/UTF-8, historical captures, both pixel phases, replies,
@@ -128,6 +132,11 @@ Open clarification issues:
 - [#25](https://github.com/bbs-land/remote-imaging-protocol/issues/25): PORTW/PORTH
   two-field DOMAIN summaries conflict with their explicit TYPE/DOMAIN prose and
   examples; PORTY1's summary also names different arguments from its syntax.
+
+- [#26](https://github.com/bbs-land/remote-imaging-protocol/issues/26): complete
+  screen SAVE/RESTORE capture set and numbered aliases, viewport/style/button
+  context, active-palette slot ownership, status visibility and inherited
+  RIPTERM*.SAV file side effects.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -816,6 +825,39 @@ DOMAIN shorthand remains unsupported; OFFSCREEN's separate ambiguity remains
 under #6. The native CMake build and all 50 RIP3/preservation checks pass;
 native Valgrind reports no errors or leaks in the port-query fixture.
 This does not add stream framing or change the active terminal route.
+
+`rip3_screen` adds owned snapshots of the consistent 7.2 screen data: the full
+screen index plane, explicit active-display palette and logical status-bar
+visibility. These borrowed live bindings are captured by value. Saved data
+survives the original screen owner, and restoring first clones a matching-canvas
+index plane before committing all three fields. Each onscreen port immediately
+sees the replaced shared screen. Port definitions, viewports, current selection,
+protection and offscreen pixels remain owned by their separate table snapshot.
+
+Tests use literal RGB scene expectations on all three canvases, including
+inactive/protected ports and later redefined port boundaries. They verify both
+status visibility values, unused palette entries, raw index-plane independence
+in both directions, surviving owner destruction, and repeated restoration.
+Base, protected/consumed slots and stack behavior use the shared backup pool.
+Missing bindings, invalid palette data and mismatched canvas restores preserve
+the live state and existing saves. Generic COPY through the public nonfatal
+reference processor exercises these explicit core bindings, including recovery
+after a failed restore without consuming its saved slot.
+
+SAVE/RESTORE, all twenty numbered aliases and SAVEALL/RESTOREALL remain
+unsupported without changing backup state. Their complete capture/activation
+contract needs #26's clarification, alongside the unresolved style ownership
+in #24. The explicit palette is not a guessed palette-table slot, and the
+status value does not call a native UI. Application display/UI binding,
+scene context orchestration and any required file-side-effect policy remain
+pending. No frozen RIP154 data or active terminal routing changed.
+
+The native CMake build and all 51 RIP3/preservation checks pass. All 26 existing
+native/application RIP and graphics-scrollback CTests also pass with interactive
+display variables cleared, including the current cache-directory fixtures.
+Native Valgrind reports no errors or leaks in the screen fixture. The frozen
+inventory retains its original bytes; new cache coverage notes remain in
+`docs/RIP154_CONFORMANCE.md`.
 
 ## Verification and acceptance
 

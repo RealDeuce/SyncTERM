@@ -502,6 +502,39 @@ st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	return st_rip3_surface_snapshot(ports->screen, palette, result);
 }
 
+int
+st_rip3_ports_screen_clone(const struct st_rip3_ports *ports,
+    struct st_rip3_surface **result)
+{
+	if (ports == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return st_rip3_surface_clone(result, ports->screen);
+}
+
+int
+st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
+    const struct st_rip3_surface *snapshot)
+{
+	struct st_rip3_surface *pixels;
+	uint32_t width, height;
+	int status;
+
+	if (ports == NULL || snapshot == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_surface_size(snapshot, &width, &height);
+	if (status != 0)
+		return status;
+	if (width != (uint32_t)ports->screen_bounds.x1 + 1
+	    || height != (uint32_t)ports->screen_bounds.y1 + 1)
+		return IO_ERROR_CONFLICT;
+	status = st_rip3_surface_clone(&pixels, snapshot);
+	if (status != 0)
+		return status;
+	st_rip3_surface_destroy(ports->screen);
+	ports->screen = pixels;
+	return 0;
+}
+
 struct port_snapshot {
 	struct st_rip3_rect screen_bounds;
 	unsigned current;
