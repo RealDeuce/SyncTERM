@@ -42,7 +42,11 @@ conflicting masks and protocol anchoring remain pending. K body tests add
 half-open interiors, explicit border on/off, solid COPY borders after every
 fill mode, protected records, wide geometry and border-allocation failure
 recovery. Independent RGB captures cover all canvases; the K/N pattern conflict
-and N context ownership remain blocked. These do not change the active route.
+and N context ownership remain blocked. C/G/o and canonical full O/V tests cover
+circle aspect, independent ellipse radii, all modes, protected/RGB state,
+patterned interiors, COPY borders, clipping and wide geometry. Independent
+all-canvas captures and mesh/coverage allocation faults check recovery; general
+angle-pair interpretation remains blocked. These do not change the active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

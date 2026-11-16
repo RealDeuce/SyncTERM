@@ -241,6 +241,8 @@ boundaries(void)
 	CHECK(st_rip3_ellipse_axes(&ellipse, 7, 8, -1, 3, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_ellipse_axes(&ellipse, NAN, 3, 2, 2, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_ellipse_axes(&ellipse, 3, 3, 2, 2, HUGE_VAL) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_ellipse_axes(&ellipse, 1024.0*INT32_MAX+1, 3, 2, 2, 0) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_ellipse_axes(&ellipse, 3, 3, 1024.0*INT32_MAX+1, 2, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(ellipse.center_x == 3 && ellipse.center_y == 3
 	    && ellipse.xx == 2 && ellipse.xy == 0 && ellipse.yx == 0 && ellipse.yy == -2);
 	CHECK(st_rip3_draw_ellipse_interior(ports, &ellipse, NAN, 360,
@@ -257,6 +259,10 @@ boundaries(void)
 	invalid.xx = HUGE_VAL;
 	CHECK(st_rip3_draw_ellipse_interior(ports, &invalid, 0, 360,
 	    ST_RIP3_ELLIPSE_PIE, &fill, 7, 4, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_ellipse_axes(&empty, 1024.0*INT32_MAX, -1024.0*INT32_MAX,
+	    1024.0*INT32_MAX, 1024.0*INT32_MAX, 0) == 0);
+	CHECK(empty.center_x == 1024.0*INT32_MAX && empty.center_y == -1024.0*INT32_MAX
+	    && empty.xx == 1024.0*INT32_MAX && empty.yy == -1024.0*INT32_MAX);
 	CHECK(st_rip3_draw_ellipse_interior(ports, &ellipse, 0, 0,
 	    ST_RIP3_ELLIPSE_PIE, &fill, 7, 4, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_draw_ellipse_interior(ports, &singular, 0, 360,

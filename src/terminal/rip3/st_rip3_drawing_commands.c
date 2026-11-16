@@ -105,8 +105,8 @@ font_style(struct st_rip3_style *style, const uint8_t *arguments,
 	    (unsigned)values[1], (unsigned)values[2], (unsigned)values[3]);
 }
 
-static int
-ink(const struct st_rip3_command_host *host, bool direct, uint32_t color, uint8_t *result)
+int
+st_rip3_command_ink(const struct st_rip3_command_host *host, bool direct, uint32_t color, uint8_t *result)
 {
 	if (!direct) {
 		if (color > 255)
@@ -194,7 +194,7 @@ shape(const struct st_rip3_command_host *host,
 		if (borders) {
 			/* Border COPY needs drawing ink even when the fill mode is NOT.
 			 * Resolve it before the fill can change any pixels. */
-			status = ink(host, environment->rgb_bits == 8, style->drawing_color, &border_color);
+			status = st_rip3_command_ink(host, environment->rgb_bits == 8, style->drawing_color, &border_color);
 			if (status != 0)
 				return status;
 		}
@@ -206,9 +206,9 @@ shape(const struct st_rip3_command_host *host,
 		}
 		if (style->write_mode != ST_RIP3_NOT) {
 			if (uses_foreground)
-				status = ink(host, environment->rgb_bits == 8, style->fill_color, &foreground);
+				status = st_rip3_command_ink(host, environment->rgb_bits == 8, style->fill_color, &foreground);
 			if (status == 0 && uses_background)
-				status = ink(host, environment->rgb_bits == 8, style->background_color, &background);
+				status = st_rip3_command_ink(host, environment->rgb_bits == 8, style->background_color, &background);
 			if (status != 0)
 				return status;
 		}
@@ -244,9 +244,9 @@ shape(const struct st_rip3_command_host *host,
 	/* Destination NOT ignores both colour operands. Background lookup is
 	 * only needed for a pen whose pattern-off pixels are painted. */
 	if (style->write_mode != ST_RIP3_NOT) {
-		status = ink(host, environment->rgb_bits == 8, style->drawing_color, &foreground);
+		status = st_rip3_command_ink(host, environment->rgb_bits == 8, style->drawing_color, &foreground);
 		if (status == 0 && style->pen.draw_background)
-			status = ink(host, environment->rgb_bits == 8, style->background_color, &background);
+			status = st_rip3_command_ink(host, environment->rgb_bits == 8, style->background_color, &background);
 		if (status != 0)
 			return status;
 	}

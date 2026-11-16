@@ -46,9 +46,9 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, B, K, s, S presets
- * 00/01/03/06/08/09/0A, 1w, v, 2p, rectangle-fit 2C, onscreen 2P, comments
- * and terminal grouping no-ops.
+ * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, B, K, C, G, o,
+ * canonical full O/V, s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
+ * rectangle-fit 2C, onscreen 2P, comments and terminal grouping no-ops.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
  * Q/a edit the bound palette table's current entry, independently of ENV
@@ -85,6 +85,11 @@ struct st_rip3_command_sink {
  * solid COPY using the resolved pen thickness (the N rule, pending #33).
  * Border ink still needs resolution in NOT mode. N and border context/save
  * ownership remain unsupported under #24; no missing-binding default is used.
+ * C/G map the radius horizontally and use equal device radii on the square-
+ * pixel canvases; ellipses map X/Y radii independently. Curves use solid pen
+ * thickness, ignoring the pen pattern. G/o require the explicit border binding;
+ * all ink lookup and border scratch allocation precede their fills. O/V accept
+ * only the documented start=0/end=360 form; other angle pairs remain under #14.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.

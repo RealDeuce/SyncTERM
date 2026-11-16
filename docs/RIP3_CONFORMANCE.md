@@ -1266,6 +1266,45 @@ shared-audio tests pass. Native Valgrind reports no errors or leaked allocations
 descriptors in the expanded fixture. The 93 frozen files and 41 legacy helper
 definitions still match the original preservation baseline.
 
+`rip3_curve_commands` adds complete `C`, `G` and `o` bodies, plus the explicitly
+documented start=0/end=360 full-ellipse forms of `O/V`. Numeric geometry follows
+the current ENV radix/coordinate width, including shortened final radii;
+angle fields remain two digits. Other raw O/V angle pairs are consumed as
+unsupported under #14, without choosing equal/wrapped/multi-turn policies.
+
+Circle radius projects horizontally and then supplies equal device radii on
+the three square-pixel canvases. Ellipse radii project independently in X/Y;
+default-world captures explicitly distinguish those shapes. The separate
+ellipse kernel now retains finite centers/bases up to +/-1024*INT32_MAX, matching
+the existing stroke geometry range. Five-digit projections stay wide through
+clipping, including a test where center and radius differ by one world unit
+after both exceed INT32_MAX; saturation would produce a false visible tangent.
+
+Curves use solid resolved pen thickness. Filled G/o consume the explicit borrowed
+border flag and retain the current fill pattern/phase. Interiors obey the current
+write mode; enabled borders always COPY drawing ink, even under NOT. All used
+ink lookups and border mesh/coverage allocations precede filling. Singular
+interiors do nothing; enabled degenerate borders draw their line/point. Inactive
+viewports skip lookup of the border setting and inks, and skip allocation.
+Parser failures remain
+local with no status returned to the terminal/session caller.
+
+Independent coherent RGB captures on all three canvases cover all five modes,
+protected records, nonzero viewport origins, direct-RGB nearest matches and
+backgrounds, patterned fills, explicit phase, circle aspect and ellipse scaling.
+Boundary tests cover both radices, all coordinate widths, full/short final
+fields, missing bindings, canvas mismatch, clipped/singular/wide geometry and
+recovery after unsupported angles. Test-local builds of the actual ellipse
+and drawing implementations inject both mesh allocation stages and stroke-mask
+allocation failure, preserving pixels and recovering on the next command.
+Constructor tests retain unchanged outputs on invalid finite/nonfinite bounds.
+
+The native CMake build and all 70 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports no errors or leaked allocations/descriptors in the
+new curve fixture. The original 93 frozen files and 41 legacy helper definitions
+remain unchanged. General arcs, complete N/context ownership, active routing and
+the rest of RIP3 acceptance remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

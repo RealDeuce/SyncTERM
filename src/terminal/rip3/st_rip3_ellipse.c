@@ -50,13 +50,15 @@ angle_units(double degrees, double *cosine, double *sine)
 static bool
 coordinate_valid(double value)
 {
-	return isfinite(value) && value >= INT32_MIN && value <= INT32_MAX;
+	/* Five-digit wire coordinates at small worlds project beyond int32_t.
+	 * Keep geometry wide until visible coverage, as in the stroke kernel. */
+	return isfinite(value) && fabs(value) <= 1024.0 * INT32_MAX;
 }
 
 static bool
 basis_valid(double value)
 {
-	return isfinite(value) && fabs(value) <= INT32_MAX;
+	return coordinate_valid(value);
 }
 
 int

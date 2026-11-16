@@ -9,7 +9,9 @@
  * y(t) = center_y + yx*cos(t) + yy*sin(t)
  * A general basis permits world scaling AFTER rotation, including unequal
  * x/y scales. The constructor uses screen coordinates (positive y downward)
- * and counterclockwise rotation/parameter angles. */
+ * and counterclockwise rotation/parameter angles. Finite centers and basis
+ * components up to +/-1024*INT32_MAX retain wide wire projections until
+ * visible raster coverage; no axis is saturated before clipping. */
 struct st_rip3_ellipse {
 	double center_x;
 	double center_y;
