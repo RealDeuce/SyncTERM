@@ -24,6 +24,11 @@ struct st_rip3_input_source {
 	uint64_t (*now_ns)(void *context);
 	bool (*next)(void *context, uint8_t *byte);
 	void (*consume)(void *context, uint8_t byte);
+	/* Optional bounded local continuation, run after the gate is ready and
+	 * before next(). False yields this pump without reading source bytes;
+	 * it is not a failure. May begin another delay even when returning true.
+	 * The owner retains/resumes/cancels its continuation, including at EOF. */
+	bool (*prepare)(void *context);
 };
 
 int st_rip3_input_create(struct st_rip3_input **result,
@@ -39,8 +44,8 @@ void st_rip3_input_delay(struct st_rip3_input *input, uint32_t ticks);
 /* Remaining relative wait, zero when ready. Does not take any source bytes;
  * callers can use it to bound their normal poll timeout without sleeping here. */
 uint64_t st_rip3_input_wait_ns(const struct st_rip3_input *input);
-/* Deliver at most budget bytes, stopping at a delay or empty source. Checks
- * again after each consumed byte, so a command-delimiter callback can pause
+/* Deliver at most budget bytes, stopping at a delay, local yield or empty
+ * source. Checks again after each consumed byte, so a command-delimiter callback can pause
  * before any following RIP or raw-text byte is taken. No processing status is
  * returned to the terminal/session failure path. */
 void st_rip3_input_process(struct st_rip3_input *input, size_t budget);

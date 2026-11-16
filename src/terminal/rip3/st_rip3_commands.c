@@ -3,7 +3,7 @@
 #include "st_rip3_audio.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_input.h"
-#include "st_rip3_host_internal.h"
+#include "st_rip3_query_internal.h"
 #include "st_rip3_number.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
@@ -119,7 +119,6 @@ immediate_query(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
 	struct st_rip3_environment environment;
-	struct st_rip3_builtin_reference reference;
 	unsigned number;
 	uint64_t mode, window, reserved;
 	int status;
@@ -138,20 +137,10 @@ immediate_query(const struct st_rip3_command_host *host,
 	(void)window; /* Immediate queries do not address a text window or port. */
 	if (mode != 0 || reserved != 0)
 		return IO_ERROR_NOT_SUPPORTED;
-	/* Reject compound/prefix/literal host expressions before executing any
-	 * partial reference. Their expansion/continuation grammar is separate.
-	 * Unknown names may require user lookup/prompting under #6, not a guessed
-	 * empty-string fallback. This branch accepts one ordinary known built-in. */
-	status = st_rip3_builtin_reference_parse(&reference,command+6,length-6);
-	if (status != 0 || !st_rip3_builtin_known(reference.name,strlen(reference.name)))
-		return IO_ERROR_NOT_SUPPORTED;
-	if (host->host_variables == NULL || host->query_sink == NULL || host->query_sink->reply == NULL)
-		return IO_ERROR_NOT_SUPPORTED;
 	*operation = true;
-	/* The nested void boundary emits replies/diagnostics without propagating
-	 * a variable's syntax/operation error into the session failure path. */
-	st_rip3_host_variables_process(host->host_variables,host->query_sink,command+6,length-6);
-	return 0;
+	/* Private ownership/preflight status is consumed by the void command
+	 * boundary. Nested variable diagnostics remain inside its void parser. */
+	return st_rip3_query_start(host->query,command+6,length-6);
 }
 
 static int

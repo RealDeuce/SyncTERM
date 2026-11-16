@@ -74,7 +74,7 @@ command(void *context, const uint8_t *bytes, size_t length)
 static int
 create(struct fixture *f, enum st_rip3_canvas canvas)
 {
-	const struct st_rip3_input_source source = {f,now,next,consume};
+	const struct st_rip3_input_source source = {.context=f,.now_ns=now,.next=next,.consume=consume};
 	const struct st_rip3_stream_sink sink = {.context=f,.text=text,.command=command};
 	CHECK(st_rip3_environments_create(&f->host.environments,canvas) == 0);
 	CHECK(st_rip3_input_create(&f->host.input,&source) == 0);

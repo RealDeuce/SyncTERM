@@ -169,6 +169,9 @@ Open clarification issues:
 - [#51](https://github.com/bbs-land/remote-imaging-protocol/issues/51): conflicting
   resident text-window/viewport query scan order and eligibility after earlier
   actions during the same click.
+- [#53](https://github.com/bbs-land/remote-imaging-protocol/issues/53): HCL
+  special-key literal brackets conflict with the no-bracket paragraph; undefined
+  control-notation input and malformed sequences.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -1602,45 +1605,61 @@ three inherited file descriptors in both new fixtures. All 93 frozen files and
 41 legacy helper definitions still match the RIP1.54 baseline; the reference pin,
 source blocks and document identities are unchanged. Temporary logs were removed.
 
-The ordinary `$D(duration)$` processor now requires one decimal argument in
-1..65535, returns no text and starts the bound input gate. It follows the
-explicit detailed 60ths rule and the agreeing inventory. The conflicting
-milliseconds summary is retained as blocked under issue #46. Invalid arity,
-values, capacity or missing bindings leave the current gate unchanged. This
-one-reference API does not suspend an enclosing compound expression's remaining
-actions; full host-evaluator continuation and interaction gating remain pending.
+The ordinary `$D(duration)$` processor requires one decimal argument in
+1..65535, emits no text and starts the bound input gate. It follows the explicit
+detailed 60ths rule and the agreeing inventory; the conflicting milliseconds
+summary remains blocked under #46. Invalid arity, values, capacity or missing
+bindings leave the existing gate unchanged.
 
-The command processor also recognizes explicit level-1 ASCII-27 queries for
-immediate mode zero with zero reserved digits and exactly one already expanded
-ordinary known built-in reference. The mode/window/reserved prefix uses current
-ENV radix; the immediate query does not address/select a window. Borrowed host
-variable and reply-sink bindings are required. Replies and variable diagnostics
-pass through the existing void host-variable boundary, including its complete
-borrowed TERMINFO phrases; variable errors do not become command/session errors.
-Compound/literal/prefix/macro/user expressions and deferred modes are declined
-before side effects. External launch names retain their unsupported behavior.
+Immediate level-1 ASCII-27 queries now use a session-owned evaluator. Mode zero,
+the unused window selector and zero reserved digits decode in current ENV radix.
+The evaluator preflights and copies the complete supported expression before
+side effects. It accepts literal CP437/UTF-8 bytes, documented control notation
+and concatenated ordinary known built-ins. It executes references in sequence,
+retains its cursor across D delays and reads current host state when resumed.
+Long borrowed TERMINFO replies pass through whole. Nested variable errors stay
+inside the void host-variable boundary and do not prevent later actions.
 
-`rip3_query_commands` drives the real byte framer, command processor, variable
-processor and input gate on all three ENV canvases. The corpus-shaped
-`1<ESC>0000$D(1)$` pauses following commands/replies, queued CP437/UTF-8 raw text
-and later arrivals. Consecutive queries, decimal D values across radix changes,
-last-nanosecond boundaries and reply order are checked against explicit expected
-times/bytes. Tests cover min/max/leading-zero D parameters, invalid references,
-missing services, preserved gates, zero reply capacity before side effects,
-unsupported compound text before partial execution, invalid query fields,
-long identity replies and nonfatal recovery into later valid queries. No actual
-host connection, real-time sleep or physical audio is used.
+The input driver has an optional bounded continuation callback before fetching
+more bytes, including when its source is empty. It rechecks the gate afterward,
+so a final D still pauses later input after the query has completed. A pending,
+ready continuation must be pumped again even without incoming network bytes.
+Resume allocates nothing and starts no thread or sleep. Cancellation releases
+owned text; the session owner separately resets its input gate/queue/parser.
+Borrowed services and sinks must outlive the evaluator. A busy submission keeps
+the existing program rather than replacing it.
 
-The detailed D paragraph's stop-everything-except-sound claim remains pending
-full evaluator/application integration; these tests do not establish audible
-output or frozen interaction during a delay. General RIP_QUERY and resident
-queries remain pending; issue #51 tracks their conflicting scan order. The
-active application route and frozen RIP1.54 implementation are unchanged.
+Both caret and backquote translate ASCII controls, lowercase control letters
+fold as in the documented query example, and doubled prefixes emit literals.
+Length-delimited replies retain NUL. The seven listed special-key sequences
+emit ESC, `[`, and their key letter. The absolute no-literal-bracket paragraph
+conflicts with those examples; upstream #53 tracks its interpretation and the
+undefined control-notation cases. Only the explicitly listed complete key forms
+are accepted. Other brackets, unknown controls, macro/user/prefix references,
+pick lists, templates and transport unquoting reject before partial execution.
+Deferred modes and the rest of HCL remain pending. External launch names stay
+unsupported and have no action.
+
+`rip3_query_commands` drives the real byte framer, command and variable parsers,
+evaluator and input driver on all three canvases. Independent expected bytes,
+times and state cover literal/compound replies, all 32 ASCII control values,
+lowercase and doubled prefixes, both forms of each special key, multiple and
+final delays, the last nanosecond before expiry, queued arrivals, CP437/UTF-8,
+state changes before/after suspension and later commands, long identity replies,
+nonfatal recovery, unsupported tails before any effect, caller-buffer reuse,
+bounded yields, empty-source resume, allocation failures and pending cleanup.
+No host connection, physical display/audio or real-time sleep is used.
+
 The native CMake build and all 78 selected RIP3/preservation/shared-audio tests
 pass. Native Valgrind reports zero errors, no retained heap allocations and only
-three inherited file descriptors in the new query fixture. All 93 frozen files
-and 41 legacy helper definitions still match the baseline; the pin, source
-blocks and document identities are retained. Temporary logs were removed.
+three inherited file descriptors in the expanded query fixture. The detailed
+D stop-everything-except-sound claim still requires interaction/application
+integration; these component checks do not establish that behavior. Resident
+queries remain pending under #51. The active application route and frozen
+RIP1.54 implementation are unchanged. All 93 frozen files and 41 legacy helper
+definitions still match the baseline; the pin, source blocks and document
+identities are retained. Temporary verification logs and issue payloads are
+removed automatically.
 
 ## Verification and acceptance
 

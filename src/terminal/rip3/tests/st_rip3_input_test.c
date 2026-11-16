@@ -51,7 +51,7 @@ consume(void *context, uint8_t byte)
 static int
 create(struct fixture *f)
 {
-	const struct st_rip3_input_source source = {f,now,next,consume};
+	const struct st_rip3_input_source source = {.context=f,.now_ns=now,.next=next,.consume=consume};
 	CHECK(st_rip3_input_create(&f->input,&source) == 0);
 	return 0;
 }
@@ -123,7 +123,7 @@ lifetime(void)
 {
 	struct fixture f = {.queue={'x','y'},.length=2};
 	struct st_rip3_input *unchanged = NULL;
-	struct st_rip3_input_source source = {&f,now,next,consume};
+	struct st_rip3_input_source source = {.context=&f,.now_ns=now,.next=next,.consume=consume};
 	CHECK(st_rip3_input_create(NULL,&source) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_input_create(&unchanged,NULL) == IO_ERROR_INVALID_ARGUMENT && unchanged == NULL);
 	source.next = NULL;

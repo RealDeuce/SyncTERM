@@ -66,6 +66,10 @@ st_rip3_input_process(struct st_rip3_input *input, size_t budget)
 		uint8_t byte;
 		if (st_rip3_input_wait_ns(input) != 0) return;
 		input->duration = 0;
+		if (input->source.prepare != NULL) {
+			if (!input->source.prepare(input->source.context)) return;
+			if (st_rip3_input_wait_ns(input) != 0) return;
+		}
 		if (!input->source.next(input->source.context,&byte)) return;
 		input->source.consume(input->source.context,byte);
 	}

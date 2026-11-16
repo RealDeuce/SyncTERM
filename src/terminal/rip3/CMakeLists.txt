@@ -12,7 +12,7 @@ add_custom_command(OUTPUT "${_rip3_font_data}"
 		"-DOUTPUT=${_rip3_font_data}" -P "${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"
 	DEPENDS ${_rip3_font_files} "${_rip3_font_directory}/manifest.json" GenerateFontData.cmake
 	VERBATIM)
-add_library(st_rip3 STATIC st_rip3_styles.c st_rip3_stream.c st_rip3_input.c st_rip3_number.c st_rip3_maf.c st_rip3_rff.c st_rip3_chr.c st_rip3_stroke_text.c st_rip3_variables.c st_rip3_variable_reference.c st_rip3_features.c st_rip3_builtin_reference.c st_rip3_table_host.c st_rip3_host_variables.c st_rip3_datetime.c st_rip3_viewport_host.c
+add_library(st_rip3 STATIC st_rip3_styles.c st_rip3_stream.c st_rip3_input.c st_rip3_query.c st_rip3_number.c st_rip3_maf.c st_rip3_rff.c st_rip3_chr.c st_rip3_stroke_text.c st_rip3_variables.c st_rip3_variable_reference.c st_rip3_features.c st_rip3_builtin_reference.c st_rip3_table_host.c st_rip3_host_variables.c st_rip3_datetime.c st_rip3_viewport_host.c
 	st_rip3_bitmap.c st_rip3_surface.c st_rip3_palettes.c st_rip3_backup.c st_rip3_geometry.c st_rip3_ports.c st_rip3_draw.c st_rip3_fill.c st_rip3_polygon.c st_rip3_ellipse.c st_rip3_rounded_rectangle.c st_rip3_bezier.c st_rip3_bitmap_text.c st_rip3_image.c st_rip3_outline_text.c st_rip3_environments.c st_rip3_environment_host.c st_rip3_classic_text.c st_rip3_port_query.c st_rip3_screen.c "${_rip3_font_data}")
 target_include_directories(st_rip3 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3 PUBLIC syncterm_io_error st_pixels)
@@ -107,7 +107,8 @@ if(BUILD_TESTING)
 	endforeach()
 	add_test(NAME rip3_input COMMAND st_rip3_input_test)
 	add_test(NAME rip3_delay_commands COMMAND st_rip3_delay_commands_test)
-	add_executable(st_rip3_query_commands_test tests/st_rip3_query_commands_test.c)
+	add_executable(st_rip3_query_commands_test tests/st_rip3_query_commands_test.c
+		tests/st_rip3_query_fault_impl.c)
 	target_link_libraries(st_rip3_query_commands_test PRIVATE st_rip3_commands)
 	set_target_properties(st_rip3_query_commands_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
