@@ -117,6 +117,42 @@ asset(const char *directory, const char *name, bool rgb, bool compressed)
 	free(path); return 0;
 }
 
+static uint32_t
+adopted_color(unsigned index, unsigned depth)
+{
+	/* Deliberately duplicate distinct palette indexes, including both 1-bit
+	 * entries. RGB equality must not collapse their logical pixel identity. */
+	if (depth == 1) return UINT32_C(0x4a9bc2);
+	if (index == 2) index = 1;
+	return ((index*37u&255u)<<16) | ((index*73u&255u)<<8) | (index*109u&255u);
+}
+
+static int
+adoption_asset(const char *directory, unsigned depth)
+{
+	uint8_t bytes[1100] = {0};
+	const uint8_t codes[] = {1,2,3,4,0,1}, mono[] = {1,0,1,0,1,0};
+	unsigned count = depth == 1 ? 2 : depth == 4 ? 5 : 256;
+	size_t offset = 54+count*4, size = offset+8;
+	char name[20]; char *path = NULL;
+	(void)snprintf(name,sizeof(name),"Adopt%u.BMP",depth);
+	bytes[0] = 'B'; bytes[1] = 'M'; put32(bytes+2,(uint32_t)size); put32(bytes+10,(uint32_t)offset);
+	put32(bytes+14,40); put32(bytes+18,3); put32(bytes+22,2);
+	put16(bytes+26,1); put16(bytes+28,depth); put32(bytes+46,count);
+	for (unsigned i = 0; i < count; i++) {
+		uint32_t rgb = adopted_color(i,depth);
+		bytes[54+i*4] = (uint8_t)rgb; bytes[55+i*4] = (uint8_t)(rgb>>8); bytes[56+i*4] = (uint8_t)(rgb>>16);
+	}
+	for (unsigned y = 0; y < 2; y++) for (unsigned x = 0; x < 3; x++) {
+		uint8_t code = depth == 1 ? mono[(1-y)*3+x] : codes[(1-y)*3+x];
+		if (depth == 1) bytes[offset+y*4] |= (uint8_t)(code<<(7-x));
+		else if (depth == 4) bytes[offset+y*4+x/2] |= (uint8_t)(code<<(x%2 == 0 ? 4 : 0));
+		else bytes[offset+y*4+x] = code;
+	}
+	CHECK(path_join_alloc(&path,directory,name) == 0 && fs_replace_file(path,bytes,size) == 0);
+	free(path); return 0;
+}
+
 static int
 create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
 {
@@ -207,6 +243,74 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *d
 }
 
 static int
+adoption(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
+    unsigned depth, const char *directory)
+{
+	struct fixture f = {0};
+	struct st_rip3_palette before, actual;
+	struct st_rip3_bitmap *capture = NULL;
+	char name[20], body[160];
+	const char *const positions[] = {"00000000","05000000","0A000000","0F000000","0K000000"};
+	const uint8_t modes[5][6] = {{1,2,3,4,0,1},{84,87,86,81,85,84},
+	    {85,87,87,85,85,85},{1,0,1,4,0,1},{254,253,252,251,255,254}};
+	const uint8_t mono[5][6] = {{1,0,1,0,1,0},{84,85,84,85,84,85},
+	    {85,85,85,85,85,85},{1,0,1,0,1,0},{254,255,254,255,254,255}};
+	const uint8_t (*expected_modes)[6] = depth == 1 ? mono : modes;
+	unsigned count = depth == 1 ? 2 : depth == 4 ? 5 : 256;
+	CHECK(create(&f,canvas,width,height,directory) == 0);
+	(void)snprintf(name,sizeof(name),"Adopt%u.BMP",depth);
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&before) == 0);
+	form(body,positions[0],'0',0,"02","00",name);
+	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 0);
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&actual) == 0 && memcmp(&before,&actual,sizeof(before)) == 0);
+	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0);
+	st_rip3_bitmap_stamp_test_fail_allocate = true;
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_allocate);
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&actual) == 0 && memcmp(&before,&actual,sizeof(before)) == 0);
+	uint8_t unchanged;
+	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&unchanged) == 0 && unchanged == 85);
+	for (unsigned mode = 0; mode < 5; mode++) {
+		form(body,positions[mode],'0',mode,"02","00",name); CHECK(process(&f,body,-1) == 0);
+	}
+	form(body,"00030000",'0',0,"0A","01",name); CHECK(process(&f,body,-1) == 0);
+	form(body,"0A030000",'0',0,"06","00",name); CHECK(process(&f,body,-1) == 0);
+	form(body,"0F030000",'0',4,"0E","01",name); CHECK(process(&f,body,-1) == 0);
+	CHECK(f.prompts == 0);
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&actual) == 0);
+	for (unsigned i = 0; i < 256; i++) CHECK(actual.rgb[i] == (i < count ? adopted_color(i,depth) : before.rgb[i]));
+	/* One owned capture holds both the index plane and its RGB palette,
+	 * including background pixels recoloured by palette adoption. */
+	CHECK(st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&actual) == 0);
+	CHECK(capture->pixels->width == width && capture->pixels->height == height);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		uint8_t expected = 0;
+		if (x >= 12 && x <= 59 && y >= 21 && y <= 38) {
+			uint32_t vx = x-12, vy = y-21; expected = 85;
+			for (unsigned mode = 0; mode < 5; mode++)
+				if (vx >= mode*5 && vx <= mode*5+2 && vy < 2) expected = expected_modes[mode][vy*3+vx-mode*5];
+			if (vx < 3 && vy >= 3 && vy <= 4) {
+				expected = expected_modes[0][(vy-3)*3+vx]; if (expected == 1) expected = 85;
+			}
+			if (vx >= 10 && vx <= 12 && vy >= 3 && vy <= 4) expected = expected_modes[0][(vy-3)*3+vx-10];
+			if (vx >= 15 && vx <= 17 && vy >= 3 && vy <= 4) {
+				uint32_t at = (vy-3)*3+vx-15;
+				expected = expected_modes[0][at] == 1 ? 85 : expected_modes[4][at];
+			}
+		}
+		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
+		CHECK(capture->palette[expected] == (expected < count ? adopted_color(expected,depth) : before.rgb[expected]));
+	}
+	unsigned number;
+	struct st_rip3_port_info info;
+	struct st_rip3_environment environment;
+	CHECK(st_rip3_ports_current(f.host.ports,&number) == 0 && number == 1);
+	CHECK(st_rip3_ports_info(f.host.ports,1,&info) == 0 && info.protected && !info.image.enabled && info.image.flags == 15);
+	CHECK(st_rip3_palettes_current(f.host.palettes,&number) == 0 && number == 1);
+	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.palette == 7 && environment.port == 9);
+	st_rip3_bitmap_destroy(capture); destroy(&f); return 0;
+}
+
+static int
 numeric(const char *directory)
 {
 	for (unsigned radix = 36; radix <= 64; radix += 28) for (size_t width = 2; width <= 5; width++) {
@@ -279,7 +383,7 @@ errors(const char *directory)
 	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 2 && !f.area_present);
 	form(body,"00000000",'0',0,"00","00","Compressed");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 3);
-	const char *const unsupported[] = {"01","02","04","0G"};
+	const char *const unsupported[] = {"01","04","0G"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		form(body,"00000000",'0',0,unsupported[i],"00","Tile");
 		CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 3);
@@ -336,6 +440,12 @@ main(int argc, char **argv)
 	CHECK(scene(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
+	for (unsigned depth = 1; depth <= 8; depth = depth == 1 ? 4 : depth*2) {
+		CHECK(adoption_asset(argv[1],depth) == 0);
+		CHECK(adoption(ST_RIP3_CANVAS_640_480,640,480,depth,argv[1]) == 0);
+		CHECK(adoption(ST_RIP3_CANVAS_800_600,800,600,depth,argv[1]) == 0);
+		CHECK(adoption(ST_RIP3_CANVAS_1024_768,1024,768,depth,argv[1]) == 0);
+	}
 	CHECK(errors(argv[1]) == 0 && numeric(argv[1]) == 0);
 	return 0;
 }

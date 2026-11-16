@@ -126,8 +126,11 @@ struct st_rip3_command_sink {
  * names. It maps to the bound palette and fits the inclusive destination, or
  * uses native file dimensions when both raw lower-right fields are zero.
  * Transfer modes 0..4 and indexed/mapped-RGB transparency are supported.
- * Same-port duplication is ignored as documented; actual duplication, indexed
- * palette adoption, dithering and unknown flags remain unsupported. Palette
+ * Indexed palette adoption replaces the corresponding prefix of the bound
+ * current table, preserves source indexes and suppresses dithering. Protection
+ * rejects adoption before painting; failed staging retains both palette and
+ * pixels. Same-port duplication is ignored as documented; actual duplication,
+ * dithering without adoption and unknown flags remain unsupported. Palette
  * adoption is ignored for true-colour files. Active loads require a bitmap
  * error UI sink; file failures request a box without ending parsing. Actual
  * application UI integration is separate. Inactive viewports ignore the load.

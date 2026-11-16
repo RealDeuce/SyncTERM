@@ -27,7 +27,8 @@ sample(uint64_t position, uint64_t span, uint32_t source)
 }
 
 static int
-validate(const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *palette)
+validate(const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *palette,
+    bool palette_adopted)
 {
 	if (bitmap == NULL || palette == NULL || bitmap->pixels == NULL
 	    || bitmap->pixels->primary == NULL || bitmap->pixels->width == 0 || bitmap->pixels->height == 0)
@@ -40,10 +41,13 @@ validate(const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *pale
 	if ((depth == 24 && bitmap->palette_size != 0)
 	    || (depth != 24 && (bitmap->palette_size == 0 || bitmap->palette_size > (1u << depth))))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (palette_adopted && depth == 24) return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < 256; i++)
 		if (palette->rgb[i] > 0xffffff) return IO_ERROR_OUT_OF_RANGE;
-	for (size_t i = 0; i < bitmap->palette_size; i++)
+	for (size_t i = 0; i < bitmap->palette_size; i++) {
 		if (bitmap->palette[i] > 0xffffff) return IO_ERROR_OUT_OF_RANGE;
+		if (palette_adopted && bitmap->palette[i] != palette->rgb[i]) return IO_ERROR_INVALID_ARGUMENT;
+	}
 	for (size_t i = 0; i < (size_t)bitmap->pixels->width*bitmap->pixels->height; i++) {
 		uint32_t pixel = bitmap->pixels->primary[i];
 		if (depth == 24) {
@@ -63,7 +67,8 @@ struct prepared_pixel {
 int
 st_rip3_draw_bitmap(struct st_rip3_ports *ports,
     const struct st_rip3_bitmap *bitmap, const struct st_rip3_bitmap_destination *destination,
-    const struct st_rip3_palette *palette, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette, bool palette_adopted,
+    enum st_rip3_transfer_mode mode,
     const uint8_t *transparent_color)
 {
 	const int64_t limit = INT64_C(1024)*INT32_MAX;
@@ -88,14 +93,16 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	if (destination->y0 > visible.y0) visible.y0 = (int32_t)destination->y0;
 	if (destination->x1 < visible.x1) visible.x1 = (int32_t)destination->x1;
 	if (destination->y1 < visible.y1) visible.y1 = (int32_t)destination->y1;
-	status = validate(bitmap,palette);
+	status = validate(bitmap,palette,palette_adopted);
 	if (status != 0) return status;
 	uint32_t width = (uint32_t)(visible.x1-visible.x0)+1, height = (uint32_t)(visible.y1-visible.y0)+1;
 	if (height > SIZE_MAX/sizeof(struct prepared_pixel)/width) return IO_ERROR_OUT_OF_RANGE;
 	struct prepared_pixel *pixels = malloc((size_t)width*height*sizeof(*pixels));
 	if (pixels == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	for (size_t i = 0; i < bitmap->palette_size; i++)
-		(void)st_rip3_palette_color(palette,true,bitmap->palette[i],&mapped[i]);
+	for (size_t i = 0; i < bitmap->palette_size; i++) {
+		if (palette_adopted) mapped[i] = (uint8_t)i;
+		else (void)st_rip3_palette_color(palette,true,bitmap->palette[i],&mapped[i]);
+	}
 	uint64_t span_x = (uint64_t)(destination->x1-destination->x0)+1;
 	uint64_t span_y = (uint64_t)(destination->y1-destination->y0)+1;
 	for (uint32_t y = 0; y < height; y++) {

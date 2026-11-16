@@ -4,6 +4,7 @@
 
 #include "st_rip3_bitmap.h"
 #include "st_rip3_surface.h"
+#include <stdbool.h>
 #include <stdint.h>
 
 struct st_rip3_ports;
@@ -22,7 +23,10 @@ struct st_rip3_bitmap_destination {
  * Indexed transparency compares original source indexes; RGB transparency
  * compares the resolved destination-palette index, before transfer inversion.
  * NULL transparent_color means opaque. Source/destination palettes remain
- * unchanged; this branch does no dithering, palette adoption or duplication.
+ * unchanged. palette_adopted requires an indexed source whose palette exactly
+ * matches the corresponding prefix of the supplied palette; it preserves raw
+ * source indexes, including equal-RGB entries. Otherwise nearest-color mapping
+ * applies. This kernel does not commit palettes, dither or duplicate ports.
  *
  * Disabled image style does not disable stamping. Inactive/empty viewport
  * coverage succeeds without dereferencing bitmap/palette. Otherwise complete
@@ -32,7 +36,8 @@ struct st_rip3_bitmap_destination {
 int st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	const struct st_rip3_bitmap *bitmap,
 	const struct st_rip3_bitmap_destination *destination,
-	const struct st_rip3_palette *palette, enum st_rip3_transfer_mode mode,
+	const struct st_rip3_palette *palette, bool palette_adopted,
+	enum st_rip3_transfer_mode mode,
 	const uint8_t *transparent_color);
 
 #endif
