@@ -9,6 +9,7 @@
 struct st_rip3_features;
 struct st_rip3_frame;
 struct st_rip3_table_host;
+struct st_rip3_input;
 
 /* Client identity values, not protocol-version/capability advertisements.
  * All three strings must be supplied; their literal bytes are emitted unchanged.
@@ -40,6 +41,9 @@ struct st_rip3_host_variables {
 	const char *time_zone;
 	/* Current graphics-style background, already resolved to a palette index. */
 	uint8_t background;
+	/* Active D references set this gate. The enclosing evaluator must yield
+	 * before executing another reference/host action while its wait is nonzero. */
+	struct st_rip3_input *input;
 };
 
 enum st_rip3_host_diagnostic {
@@ -67,7 +71,7 @@ struct st_rip3_host_sink {
  * command error to the terminal/session caller. Decoder/executor statuses are
  * private and must not be used as connection errors.
  *
- * Supports NULL, IFS, TERMINFO, RESX/RESY, the resolved date/time fields and the
+ * Supports NULL, IFS, TERMINFO, RESX/RESY, D, the resolved date/time fields and the
  * implemented table/viewport/environment-variable families, plus PORTW/PORTH
  * and PORTX0/Y0/X1/Y1 in explicit PORT/VIEW and WORLD/DEVICE domains. Lower
  * right query coordinates are exclusive. Unresolved PORTW/H two-field DOMAIN
@@ -77,6 +81,10 @@ struct st_rip3_host_sink {
  * from future scene-wide context activation. Undefined COLORMODE replies
  * remain blocked (#23). DATETIME formatting remains
  * blocked.
+ * D requires one decimal duration 1..65535 in 60ths of a second (the detailed
+ * rule; the milliseconds summary conflicts under #46). It emits no text and
+ * starts the bound input gate. General same-host-command continuation/yield
+ * integration remains with the enclosing evaluator, not this one-reference API.
  * Unknown names/user resolution and other built-ins remain pending; they emit
  * no reply and cannot abort later references. External launch names likewise
  * have no action. Framing, macro expansion and user-policy orchestration still

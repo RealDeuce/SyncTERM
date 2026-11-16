@@ -107,6 +107,16 @@ if(BUILD_TESTING)
 	endforeach()
 	add_test(NAME rip3_input COMMAND st_rip3_input_test)
 	add_test(NAME rip3_delay_commands COMMAND st_rip3_delay_commands_test)
+	add_executable(st_rip3_query_commands_test tests/st_rip3_query_commands_test.c)
+	target_link_libraries(st_rip3_query_commands_test PRIVATE st_rip3_commands)
+	set_target_properties(st_rip3_query_commands_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_query_commands_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_query_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_query_commands COMMAND st_rip3_query_commands_test)
 
 	add_executable(st_rip3_rounded_rectangle_test tests/st_rip3_rounded_rectangle_test.c
 		tests/st_rip3_drawing_fault_impl.c tests/st_rip3_ellipse_fault_impl.c)

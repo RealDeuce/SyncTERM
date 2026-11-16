@@ -3,6 +3,7 @@
 
 #include "st_rip3_features.h"
 #include "st_rip3_geometry.h"
+#include "st_rip3_input.h"
 #include "st_rip3_table_host.h"
 #include "io_error.h"
 
@@ -73,6 +74,23 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 			return IO_ERROR_INVALID_FORMAT;
 		if (capacity == 0)
 			return IO_ERROR_OUT_OF_RANGE;
+		result[0] = 0;
+		return 0;
+	}
+	if (strcmp(reference->name, "D") == 0) {
+		unsigned ticks;
+		if (reference->count != 1)
+			return IO_ERROR_INVALID_FORMAT;
+		int status = st_rip3_host_number(reference->parameters[0].text,1,65535,&ticks);
+		if (status != 0)
+			return status;
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (host->input == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		/* The detailed D rule and inventory specify 60ths; its summary's
+		 * milliseconds wording remains a documented conflict under #46. */
+		st_rip3_input_delay(host->input,(uint32_t)ticks);
 		result[0] = 0;
 		return 0;
 	}

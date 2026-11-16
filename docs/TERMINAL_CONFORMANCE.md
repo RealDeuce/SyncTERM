@@ -79,7 +79,13 @@ Separate 3D/input-gate tests check exact tick durations, monotonic clock wrap,
 queued RIP and CP437/UTF-8 bytes, consecutive delays/radix changes, cancellation,
 protected ENV and nonfatal recovery on all three ENV canvases. They use a
 client-owned queue and deterministic clock; real application source adapters,
-baud pacing and macro-delay integration remain pending.
+baud pacing and compound host-continuation integration remain pending.
+The ordinary D reference and single-known-reference immediate 1ESC query branch
+now have separate tests for queued delay/reply order, decimal arguments across
+radix changes, CP437/UTF-8 byte retention, long identity replies and nonfatal
+query/reference recovery on all ENV canvases. Compound host continuation and
+deferred queries remain pending; conflicting D summary units and resident-query
+ordering are tracked upstream. No physical audio/interaction-freeze claim is made.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

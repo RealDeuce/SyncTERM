@@ -13,6 +13,8 @@ struct st_rip3_palettes;
 struct st_rip3_ports;
 struct st_rip3_styles;
 struct st_rip3_input;
+struct st_rip3_host_variables;
+struct st_rip3_host_sink;
 
 /* Borrowed session-owned bindings. Missing services are unsupported. One
  * session thread processes commands and owns these objects; its audio engine
@@ -29,6 +31,10 @@ struct st_rip3_command_host {
 	const bool *borders;
 	/* Borrowed input gate. The owning source retains bytes during 3D delays. */
 	struct st_rip3_input *input;
+	/* Single-reference immediate query binding; a reply callback is required.
+	 * Variable replies/diagnostics use this sink, separately from command errors. */
+	const struct st_rip3_host_variables *host_variables;
+	const struct st_rip3_host_sink *query_sink;
 };
 
 enum st_rip3_command_diagnostic {
@@ -53,7 +59,7 @@ struct st_rip3_command_sink {
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
  * rectangle-fit 2C, onscreen 2P, 3D delays, 3e record edits, comments and terminal grouping
- * no-ops.
+ * no-ops, and single-reference immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
  * Q/a edit the bound palette table's current entry, independently of ENV
@@ -119,6 +125,11 @@ struct st_rip3_command_sink {
  * gate for ticks/60 seconds. It reads ENV without editing even protected records.
  * The gate stops subsequent queued RIP/text delivery without blocking this call;
  * the owner pumps its source when ready. No gate binding means unsupported.
+ * Immediate 1ESC mode zero supports exactly one already expanded ordinary
+ * known built-in reference, with zero reserved digits. Prefix/compound/literal
+ * host expressions and deferred queries remain unsupported before side effects.
+ * The query's window selector is unused. Its host-variable processor/sink must
+ * be explicitly bound; nested variable errors remain parser-owned and nonfatal.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.

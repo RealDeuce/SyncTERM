@@ -163,6 +163,13 @@ Open clarification issues:
   GET_IMAGE clipboard-slot searches, protected candidates, previous clipboard
   pointer and port/pixel state after failure.
 
+- [#46](https://github.com/bbs-land/remote-imaging-protocol/issues/46): D's
+  milliseconds summary conflicts with its detailed 60ths-of-a-second rule.
+
+- [#51](https://github.com/bbs-land/remote-imaging-protocol/issues/51): conflicting
+  resident text-window/viewport query scan order and eligibility after earlier
+  actions during the same click.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -1594,6 +1601,46 @@ pass. Native Valgrind reports zero errors, no retained heap allocations and only
 three inherited file descriptors in both new fixtures. All 93 frozen files and
 41 legacy helper definitions still match the RIP1.54 baseline; the reference pin,
 source blocks and document identities are unchanged. Temporary logs were removed.
+
+The ordinary `$D(duration)$` processor now requires one decimal argument in
+1..65535, returns no text and starts the bound input gate. It follows the
+explicit detailed 60ths rule and the agreeing inventory. The conflicting
+milliseconds summary is retained as blocked under issue #46. Invalid arity,
+values, capacity or missing bindings leave the current gate unchanged. This
+one-reference API does not suspend an enclosing compound expression's remaining
+actions; full host-evaluator continuation and interaction gating remain pending.
+
+The command processor also recognizes explicit level-1 ASCII-27 queries for
+immediate mode zero with zero reserved digits and exactly one already expanded
+ordinary known built-in reference. The mode/window/reserved prefix uses current
+ENV radix; the immediate query does not address/select a window. Borrowed host
+variable and reply-sink bindings are required. Replies and variable diagnostics
+pass through the existing void host-variable boundary, including its complete
+borrowed TERMINFO phrases; variable errors do not become command/session errors.
+Compound/literal/prefix/macro/user expressions and deferred modes are declined
+before side effects. External launch names retain their unsupported behavior.
+
+`rip3_query_commands` drives the real byte framer, command processor, variable
+processor and input gate on all three ENV canvases. The corpus-shaped
+`1<ESC>0000$D(1)$` pauses following commands/replies, queued CP437/UTF-8 raw text
+and later arrivals. Consecutive queries, decimal D values across radix changes,
+last-nanosecond boundaries and reply order are checked against explicit expected
+times/bytes. Tests cover min/max/leading-zero D parameters, invalid references,
+missing services, preserved gates, zero reply capacity before side effects,
+unsupported compound text before partial execution, invalid query fields,
+long identity replies and nonfatal recovery into later valid queries. No actual
+host connection, real-time sleep or physical audio is used.
+
+The detailed D paragraph's stop-everything-except-sound claim remains pending
+full evaluator/application integration; these tests do not establish audible
+output or frozen interaction during a delay. General RIP_QUERY and resident
+queries remain pending; issue #51 tracks their conflicting scan order. The
+active application route and frozen RIP1.54 implementation are unchanged.
+The native CMake build and all 78 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap allocations and only
+three inherited file descriptors in the new query fixture. All 93 frozen files
+and 41 legacy helper definitions still match the baseline; the pin, source
+blocks and document identities are retained. Temporary logs were removed.
 
 ## Verification and acceptance
 
