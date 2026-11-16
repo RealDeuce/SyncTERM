@@ -65,6 +65,11 @@ equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
 handling, RGB/NOT, protected records, wide clipping and allocation recovery.
 Independent all-canvas captures and one-byte malformed/unsupported recovery
 cover those cases; general arc angle-pair interpretation remains blocked.
+Ordinary P/l tests add open/closed outlines, continuing opaque/transparent
+patterns, all modes/bases/coordinate widths, protected contents, RGB/NOT and
+nonfatal allocation/field recovery. Independent all-canvas captures include the
+exact pinned examples; integer geometry checks cover thick joins, crossings and
+wide clipping. Wire count boundaries remain blocked and filled p is pending.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

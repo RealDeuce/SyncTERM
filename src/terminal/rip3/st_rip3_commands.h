@@ -47,7 +47,8 @@ struct st_rip3_command_sink {
  * entry does not buffer partial input or perform macro expansion.
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
- * canonical full O/V, s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
+ * canonical full O/V and full/equal A, ordinary P/l paths,
+ * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
  * rectangle-fit 2C, onscreen 2P, 3e record edits, comments and terminal grouping
  * no-ops.
  * Numeric commands use the current ENV record,
@@ -71,6 +72,12 @@ struct st_rip3_command_sink {
  * STYLE records reject attribute edits but permit drawing, as do protected
  * PORT records. Bootstrap/ENV activation and wire pen thickness are separate
  * unresolved policies (#11/#24); W period termination remains unsupported (#7).
+ * P/l decode the ordinary two-digit direct vertex count and all XY fields
+ * before rendering. P closes its outline; l retains an open path. Both use
+ * the bound resolved pen, retain phase across edges and apply each pixel once.
+ * P needs at least three vertices and l at least two for this supported branch;
+ * smaller counts and the unreachable stated 4096 encoding remain under #13.
+ * These commands do not fill interiors or mutate pen/style/port/ENV state.
  * Y validates all four two-digit current-radix fields before editing the bound
  * STYLE's classic font attributes. Conflicting justification flags discard the
  * complete command. This does not activate an extended font or text cursor.
@@ -91,6 +98,8 @@ struct st_rip3_command_sink {
  * thickness, ignoring the pen pattern. G/o require the explicit border binding;
  * all ink lookup and border scratch allocation precede their fills. O/V accept
  * only the documented start=0/end=360 form; other angle pairs remain under #14.
+ * A also accepts start=0/end=360 and validates equal-angle bodies as no-ops
+ * before accessing rendering services. Other A pairs remain under #14.
  * Argumentless E replaces the active viewport with resolved background ink in
  * COPY, independently of pen/fill/write mode. It retains attributes and table
  * references, skips inactive ink lookup and allows protected contents to clear.

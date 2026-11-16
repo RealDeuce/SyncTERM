@@ -81,7 +81,8 @@ Open clarification issues:
 - [#12](https://github.com/bbs-land/remote-imaging-protocol/issues/12): conflicting
   preset fill-mask bytes/radix examples and unspecified pattern anchoring.
 - [#13](https://github.com/bbs-land/remote-imaging-protocol/issues/13): two-digit
-  polygon counts versus the 4,096-vertex limit and multi-contour coordinate widths.
+  polygon counts versus the 4,096-vertex limit, undersized-count behavior and
+  multi-contour coordinate widths.
 - [#14](https://github.com/bbs-land/remote-imaging-protocol/issues/14): arc/pie/chord
   angle ordering and empty, wrapped, full and multi-turn sweep semantics.
 
@@ -1470,6 +1471,46 @@ the three inherited file descriptors in the expanded curve fixture. The frozen
 93 files and 41 helper definitions still match the original RIP1.54 baseline;
 all pinned source blocks and document identities are retained. Temporary logs
 were removed after verification.
+
+Ordinary `P` and `l` bodies now decode a two-digit direct vertex count followed
+by current-width/current-radix XY pairs. The final Y field may shorten. Every
+field and the declared payload length validate before any decoded-vertex or
+stroke-mask allocation. World endpoints retain their full integral projection
+until clipping; no coordinate saturation changes edge slopes or mask phase.
+P closes the outline without filling it; l omits the closing edge. Both use
+the bound resolved pen, continue phase across segments and apply each covered
+pixel once, including shared joins, self-crossings and repeated vertices.
+
+Drawing respects the current write mode, direct/indexed ink and protected
+contents. Transparent masks and solid pens skip unused background lookup; NOT
+needs neither ink. Inactive viewports skip colour lookup and allocation after
+body validation. Current STYLE/PORT/PAL bindings and ENV references are retained.
+All private statuses are consumed by the existing void parser boundary; a late
+bad coordinate or allocation failure discards only that command.
+
+`rip3_path_commands` adds independent literal path/mask maps and coherent RGB
+captures on all three canvases for both bases, widths 2..5, all five modes,
+opaque/transparent patterns, protected records and short final fields. Tests
+replay the exact pinned P/l examples against independently decoded world
+vertices and integer segment-distance expectations. Other cases cover thick
+joins, self-crossings, repeated vertices, partial clipping with retained phase,
+wide endpoints with an independent line-distance inequality, nearest RGB ink,
+NOT without a palette, inactive views and unchanged pixels after malformed
+fields or both allocation stages fail. One-byte streams continue from invalid
+and unsupported commands into a valid path. The largest two-digit direct
+counts (1295/4095) are exercised without writing repeated XOR pixels twice.
+
+This branch supports P counts at least 3 and l counts at least 2. Smaller
+counts remain nonfatal unsupported cases; their wire behavior is requested in
+[issue #13](https://github.com/bbs-land/remote-imaging-protocol/issues/13#issuecomment-6926736265).
+The stated 4096-vertex encoding, multi-contour layouts and l's N-versus-N-1
+wording remain blocked under #13/#11. Filled `p` integration remains pending.
+No full path-boundary compliance or active application routing is claimed.
+The native CMake build and all 73 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap allocations and only
+the three inherited file descriptors in the new path fixture. All 93 frozen
+files and 41 legacy helper definitions still match the RIP1.54 baseline; the pin,
+source blocks and document identities are unchanged. Temporary logs were removed.
 
 ## Verification and acceptance
 
