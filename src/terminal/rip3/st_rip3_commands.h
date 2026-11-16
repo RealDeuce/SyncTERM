@@ -15,6 +15,14 @@ struct st_rip3_styles;
 struct st_rip3_input;
 struct st_rip3_query;
 
+/* Explicit resolved clipboard pointer. Selection/GET_IMAGE allocation, reset,
+ * protection and backup ownership remain under #42. This binding supplies the
+ * pointer only; PUT_IMAGE neither selects a clipboard nor edits its state. */
+struct st_rip3_clipboard_selection {
+	bool set;
+	unsigned port; /* 1..35 when set; the pointed port may be reconfigured. */
+};
+
 /* Borrowed session-owned bindings. Missing services are unsupported. One
  * session thread processes commands and owns these objects; its audio engine
  * may concurrently pull PCM under the audio adapter's synchronization. */
@@ -33,6 +41,7 @@ struct st_rip3_command_host {
 	/* Session-owned immediate-query evaluator, resumed by the input source's prepare
 	 * callback before further bytes. Uses this source's same input gate. */
 	struct st_rip3_query *query;
+	const struct st_rip3_clipboard_selection *clipboard;
 };
 
 enum st_rip3_command_diagnostic {
@@ -56,8 +65,8 @@ struct st_rip3_command_sink {
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
- * rectangle-fit 2C, onscreen 2P, 3D delays, 3e record edits, comments and terminal grouping
- * no-ops, and resumable immediate 1ESC queries.
+ * rectangle-fit 2C, onscreen 2P, clipboard 1P, 3D delays, 3e record edits,
+ * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
  * Q/a edit the bound palette table's current entry, independently of ENV
@@ -70,6 +79,14 @@ struct st_rip3_command_sink {
  * source/destination fields mean the full viewport; explicit rectangles clip
  * then fit. A nonzero destination origin with both endpoints zero remains
  * unsupported (#10). Undefined/inactive operands are successful no-ops.
+ * 1P pastes the bound clipboard port's full current viewport without scaling,
+ * placing its top-left at the projected XY in the current viewport. The five
+ * transfer modes use source inversion for mode 4. Cleared/same-port pointers
+ * are no-ops. Missing bindings, dangling pointers and inactive clipboard
+ * viewports are unsupported; GET_IMAGE
+ * selection/reset/backup/protection policy stays under #42. Clipboard/port/ENV
+ * configuration and uncovered pixels remain unchanged; content protection
+ * does not prevent copying. All arguments validate before any pixels change.
  * Drawing commands use the bound STYLE record's explicit resolved pen and
  * write mode. c/k preserve raw colour values: current-radix palette indices
  * or four-digit UltraNum RGB (8 bits/channel), with last-field shortening.

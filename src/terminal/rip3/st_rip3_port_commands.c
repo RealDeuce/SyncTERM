@@ -257,6 +257,51 @@ copy_port(const struct st_rip3_command_host *host,
 	    all_zero(&destination_world) ? NULL : &destination, (enum st_rip3_transfer_mode)mode);
 }
 
+static int
+paste_clipboard(const struct st_rip3_command_host *host,
+    unsigned environment_number, const struct st_rip3_environment *environment,
+    const uint8_t *bytes, size_t length, bool *operation)
+{
+	uint64_t x, y, mode, reserved;
+	struct st_rip3_port_info info;
+	struct st_rip3_rect world, device;
+	unsigned destination;
+	size_t width = environment->coordinate_size, prefix = 2*width;
+	int status;
+
+	if (length <= prefix || length > prefix+3)
+		return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_field(&x,bytes,width,environment->base_math);
+	if (status == 0)
+		status = st_rip3_command_field(&y,bytes+width,width,environment->base_math);
+	if (status == 0)
+		status = st_rip3_command_field(&mode,bytes+prefix,
+		    length-prefix > 2 ? 2 : length-prefix,environment->base_math);
+	if (status == 0 && length == prefix+3) {
+		status = st_rip3_command_field(&reserved,bytes+prefix+2,1,environment->base_math);
+		if (status == 0 && reserved != 0) return IO_ERROR_NOT_SUPPORTED;
+	}
+	if (status != 0) return status;
+	if (x > INT32_MAX || y > INT32_MAX || mode > 4) return IO_ERROR_OUT_OF_RANGE;
+	if (host->clipboard == NULL) return IO_ERROR_NOT_SUPPORTED;
+	*operation = true;
+	if (!host->clipboard->set) return 0;
+	if (host->clipboard->port == 0 || host->clipboard->port > 35)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_ports_current(host->ports,&destination);
+	if (status != 0 || destination == host->clipboard->port) return status;
+	status = st_rip3_ports_info(host->ports,host->clipboard->port,&info);
+	if (status != 0) return status;
+	/* Pointer lifecycle and inactive-source paste behavior are unresolved
+	 * under #42. Do not invent a fallback or clear the owner's state. */
+	if (!info.defined || !info.viewport_active) return IO_ERROR_NOT_SUPPORTED;
+	world = (struct st_rip3_rect){(int32_t)x,(int32_t)y,(int32_t)x,(int32_t)y};
+	status = translate(host,environment_number,&world,&device);
+	if (status != 0) return status;
+	return st_rip3_ports_blit(host->ports,host->clipboard->port,NULL,destination,
+	    device.x0,device.y0,(enum st_rip3_transfer_mode)mode);
+}
+
 int
 st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
@@ -277,6 +322,8 @@ st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 	count = length - (size_t)(arguments - command);
 	if (memchr(arguments, ' ', count) != NULL)
 		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
+	if (command[0] == '1')
+		return paste_clipboard(host, number, &environment, arguments, count, operation);
 	if (command[0] != 'v') {
 		if (command[1] == 'C')
 			return copy_port(host, number, &environment, arguments, count, operation);

@@ -1661,6 +1661,42 @@ definitions still match the baseline; the pin, source blocks and document
 identities are retained. Temporary verification logs and issue payloads are
 removed automatically.
 
+The level-1 `1P` clipboard paste command now reads an explicit resolved clipboard
+selection. It decodes current-width/current-radix XY, mode 00..04 and a zero
+reserved digit. Reserved omission permits the mode's documented final-field
+shortening. It copies the selected port's entire current viewport without
+scaling, placing its upper-left at the projected point relative to the current
+viewport and clipping the destination. Mode 04 inverts source pixels. It retains
+uncovered pixels, current port, all port/ENV configuration and the clipboard
+selection, and permits protected content to be copied.
+
+A cleared selection or same-port source is a successful no-op. A missing binding
+is unsupported; an invalid typed port fails nonfatally. A dangling selection or
+inactive clipboard viewport is unsupported without guessing its lifecycle or whether deactivation permits
+pasting the stored rectangle. These cases are detailed in [issue #42 comment
+6930630327](https://github.com/bbs-land/remote-imaging-protocol/issues/42#issuecomment-6930630327).
+GET_IMAGE allocation/selection, reset, failure/protection policy and clipboard
+backups remain under #42. The binding selects no automatic defaults and does not
+claim a complete clipboard lifecycle or active application routing.
+
+`rip3_paste_commands` uses independent expected index values and coherent whole
+canvas snapshots on all three canvases. Split-input commands cover all five
+transfer modes, source/destination viewport offsets, source-subarea changes,
+destination-edge truncation, protected source/destination ports and recovery
+from an invalid mode to a later paste. The canonical literal `1PV4OM000` maps
+1120,886 in a 1280x960 world to 560,443 / 700,553 / 896,708 on the three canvases;
+the copied two-by-two tile remains two-by-two. Additional checks cover both
+bases, coordinate widths 2..5, optional/short fields, huge external projections,
+cleared/same-port/inactive-destination no-ops, unsupported inactive sources,
+missing/dangling bindings, onscreen aliasing and an atomic allocation failure followed by successful recovery. These are
+separate-engine component captures, without physical audio or a user display.
+
+The native CMake build and all 79 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap and only three
+inherited descriptors in the new paste fixture. All 93 frozen files and 41
+legacy helper definitions, all 6548 source blocks, 62 document identities and
+the reference pin are unchanged. Temporary verification logs were removed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

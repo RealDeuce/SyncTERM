@@ -189,7 +189,8 @@ execute(const struct st_rip3_command_host *host,
 		free(filename);
 		return status;
 	}
-	if (command[0] == 'v' || (length >= 2 && command[0] == '2'
+	if ((length >= 2 && command[0] == '1' && command[1] == 'P')
+	    || command[0] == 'v' || (length >= 2 && command[0] == '2'
 	    && (command[1] == 'P' || command[1] == 'p' || command[1] == 'C')))
 		return st_rip3_port_commands_execute(host, command, length, operation);
 	if (command[0] == 'A' || command[0] == 'C' || command[0] == 'G' || command[0] == 'o'
