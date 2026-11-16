@@ -14,6 +14,18 @@ struct st_rip3_ports;
 struct st_rip3_styles;
 struct st_rip3_input;
 struct st_rip3_query;
+struct st_rip3_bitmap_destination;
+
+/* Borrowed UI request, made on the session thread for file/decode failures.
+ * name and area live only during show(). Explicit areas are viewport-relative
+ * inclusive device coordinates; NULL asks the UI to choose a suitable box for
+ * a verbatim load whose source dimensions are unavailable. This callback must
+ * not reenter command processing or mutate its bindings. */
+struct st_rip3_bitmap_error_sink {
+	void *context;
+	void (*show)(void *context, const char *name, unsigned port,
+		const struct st_rip3_bitmap_destination *area);
+};
 
 /* Explicit resolved clipboard pointer. Selection/GET_IMAGE allocation, reset,
  * protection and backup ownership remain under #42. This binding supplies the
@@ -42,6 +54,7 @@ struct st_rip3_command_host {
 	 * callback before further bytes. Uses this source's same input gate. */
 	struct st_rip3_query *query;
 	const struct st_rip3_clipboard_selection *clipboard;
+	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 };
 
 enum st_rip3_command_diagnostic {
@@ -65,7 +78,8 @@ struct st_rip3_command_sink {
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
- * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 2W bitmap export, 3D delays, 3e record edits,
+ * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 2W bitmap export,
+ * ordinary/transparent 1b bitmap loads, 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
@@ -108,6 +122,15 @@ struct st_rip3_command_sink {
  * Partially external lower-rights and inactive sources remain unsupported under
  * #10. Reserved digits and literal filename must be present; current ENV width
  * and radix govern all numeric fields. Encoding/storage share 1W's path.
+ * 1b reads a BMP through media lookup, appending .BMP only for extensionless
+ * names. It maps to the bound palette and fits the inclusive destination, or
+ * uses native file dimensions when both raw lower-right fields are zero.
+ * Transfer modes 0..4 and indexed/mapped-RGB transparency are supported.
+ * Same-port duplication is ignored as documented; actual duplication, indexed
+ * palette adoption, dithering and unknown flags remain unsupported. Palette
+ * adoption is ignored for true-colour files. Active loads require a bitmap
+ * error UI sink; file failures request a box without ending parsing. Actual
+ * application UI integration is separate. Inactive viewports ignore the load.
  * Drawing commands use the bound STYLE record's explicit resolved pen and
  * write mode. c/k preserve raw colour values: current-radix palette indices
  * or four-digit UltraNum RGB (8 bits/channel), with last-field shortening.

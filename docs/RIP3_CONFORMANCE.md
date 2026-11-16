@@ -1897,6 +1897,49 @@ all 6548 source blocks, 62 document identities and the reference pin remain
 unchanged. Temporary logs and issue payloads were removed. Neither active
 application routing nor RIP1.54 behavior changed.
 
+### LOAD_BITMAP command placement and nonfatal file failures
+
+The separate command dispatcher now connects `1b` to BMP media loading and
+stamping. It decodes the current ENV coordinate width/radix, projects WORLD
+coordinates without narrowing far endpoints, and applies all five transfer
+modes in the current viewport with the current bound palette. A raw zero
+lower-right pair selects native file pixel dimensions, independently of WORLD
+scale. Explicit inclusive rectangles stretch the source before viewport clipping.
+Neither STYLE/image-style settings nor ENV table references select this path's
+port/palette. Protected contents can draw, and an inactive viewport ignores the
+load without consulting files, palettes or UI services.
+
+Indexed and mapped-RGB transparency are connected. Same-port duplication is
+ignored as documented, and a true-colour file ignores the palette-adoption bit.
+Actual duplication/clipboard selection, indexed palette adoption, dithering and
+unknown flags remain unsupported before painting. The flag-16 example stays
+blocked under #58; no undocumented meaning is inferred.
+
+Active loads require a borrowed void bitmap-error UI sink. Lookup/read/decode
+failures request an error box using the current port and complete projected
+rectangle, or a suitable UI-selected size for a verbatim load. Malformed names
+and memory failures use nonfatal diagnostics without a file-error UI request.
+All helper statuses are consumed inside the public void command boundary;
+neither file nor parser errors end a session. Actual application box rendering
+and routing are still pending: a recorded callback is not native UI coverage.
+
+`rip3_bitmap_load_commands` uses independently authored indexed and 24-bit BMPs
+with full coherent expected scene captures on all three canvases. It covers
+five modes, scaled/native placement, right-edge clipping, explicit single-column
+rectangles, transparency before source inversion, protected ports, disabled
+image styles and retained table state. Both numeric radices and widths 2..5
+are exercised with WORLD scaling, a protected nonzero ENV record, ignored unused
+fields and projections beyond int32_t. Missing/unsupported files, malformed or
+unsupported fields, missing services, loader/decode/staging allocation failures
+and a valid split-input load after earlier syntax/file failures are checked.
+
+The native CMake build and all 85 selected RIP3/preservation/shared-audio tests
+pass. Valgrind reports zero errors, zero retained heap and only three inherited
+descriptors for the new command fixture. All 93 frozen files and 41 legacy
+helpers still match the original baseline. The 6548 source blocks, 62 document
+identities and reference pin remain unchanged. Test directories and temporary
+verification logs are removed after use. Active routing and RIP1.54 are unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
