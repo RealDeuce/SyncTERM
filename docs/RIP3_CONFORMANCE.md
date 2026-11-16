@@ -151,7 +151,12 @@ Open clarification issues:
 
 - [#33](https://github.com/bbs-land/remote-imaging-protocol/issues/33): filled
   rectangle prose mentions line patterns, while the specific border rule says
-  only polygon-related borders use them and other filled-object borders are solid.
+  only polygon-related borders use them and other filled-object borders are solid;
+  rounded U/u pattern rules and continuity across straight/circular joins.
+
+- [#38](https://github.com/bbs-land/remote-imaging-protocol/issues/38): rounded
+  rectangle radius coordinate space/aspect conversion, oversized-radius handling,
+  reversed corners and degenerate-bound behavior.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -160,9 +165,10 @@ documentation revision and reconcile affected ledger entries/tests. Hypothesized
 names alone need not be behavioral gaps. Do not guess, silently exclude
 unresolved requirements or claim completion while blockers/reviews remain.
 
-Upstream status checked on 2026-11-16: `main` still equals the pinned revision.
-Five stacked clarification proposals are open. Their observed heads are recorded
-on the corresponding ledger blockers; none is adopted or treated as a resolution:
+An earlier 2026-11-16 upstream status check found `main` at the pinned revision
+and five open stacked clarification proposals. These are historical observations,
+not a complete live inventory. Their observed heads are recorded on the
+corresponding ledger blockers; none is adopted or treated as a resolution:
 
 | Blocker | Proposal | Observed head |
 | --- | --- | --- |
@@ -1366,6 +1372,38 @@ The native CMake build and all 70 selected RIP3/preservation/shared-audio tests
 pass. Native Valgrind reports no errors or leaked allocations/descriptors in the
 expanded complete-command fixture, whose audio checks use pull-only PCM. The
 original 93 frozen files and 41 legacy helper definitions remain unchanged.
+
+`rip3_rounded_rectangle` adds the missing resolved device-geometry service for
+rounded rectangles. An explicit nonnegative radius joins four truly circular
+quarter arcs and four straight spans. Opposing device corners normalize; this
+helper requires a radius no greater than half the smaller dimension and rejects
+oversized input. It does not select a wire clamping/aspect policy. Radius zero
+becomes an ordinary rectangle; degenerate bounds have no interior and can draw
+their outline line/point.
+
+Fills sample pixel centers with explicit pattern phase. Straight bounds are
+left/top inclusive and right/bottom exclusive; circular boundary ties are
+excluded, matching the existing conic fill policy. Solid outlines prepare all
+eight owned coverage pieces before painting and apply each destination pixel
+once across joins. Optional borders use COPY after the fill regardless of its
+write mode. The existing ellipse coverage collector is shared through a private
+header; no ellipse geometry algorithm changes. The test-local allocation shims
+exercise every corner mesh and every corner/edge coverage allocation stage.
+
+Independent literal outline/interior grids and coherent RGB captures cover all
+five modes on all three canvases, borders on/off, nonzero protected viewports,
+fill phase, thick/singular outlines, zero/maximal radius, fractional geometry,
+wide clipped corners, inactive views and unchanged pixels after invalid input or
+allocation failure. Constructor failures retain the supplied output unchanged.
+The native CMake build and all 71 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports no errors or leaked allocations/descriptors in the
+new fixture. All 93 frozen files and 41 legacy helper definitions remain intact.
+
+Wire `U/u` remains unsupported. Its radius units, oversized policy and reversed/
+degenerate bounds are requested in [issue #38](https://github.com/bbs-land/remote-imaging-protocol/issues/38).
+The line-pattern wording is also covered under
+[issue #33](https://github.com/bbs-land/remote-imaging-protocol/issues/33#issuecomment-6925249713).
+This is the required geometry foundation, not complete U/u or RIP3 acceptance.
 
 ## Verification and acceptance
 

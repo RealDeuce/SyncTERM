@@ -52,7 +52,11 @@ viewports, inactive/one-pixel cases and nonfatal split recovery. Native TTY
 overlap/context integration remains pending. Complete 3e record-edit tests check
 both radices, arbitrary/zero/maximal rates, protection and split-input recovery
 with BAUDEMUL readback; actual playback pacing/reset integration remains pending.
-These do not change the active route.
+Rounded-rectangle service tests add explicit circular corners, patterned fills,
+all modes, COPY borders and join coverage applied once. Independent all-canvas
+captures plus staged allocation faults cover clipped/wide, fractional and
+degenerate geometry; U/u wire units/pattern policies remain pending. These do not
+change the active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

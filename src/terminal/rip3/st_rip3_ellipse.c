@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_ellipse.h"
+#include "st_rip3_ellipse_internal.h"
 
 #include "st_rip3_ports.h"
 #include "st_rip3_draw_internal.h"
@@ -430,8 +431,8 @@ mesh_line(struct ellipse_mesh *mesh, const struct ellipse_clip *clip,
 	return status;
 }
 
-static int
-ellipse_outline_collect(struct st_rip3_ports *ports,
+int
+st_rip3_ellipse_collect(struct st_rip3_ports *ports,
     const struct st_rip3_ellipse *ellipse, double start_degrees,
     double sweep_degrees, enum st_rip3_ellipse_region region,
     uint32_t thickness, struct st_rip3_stroke_mask *result)
@@ -531,7 +532,7 @@ st_rip3_draw_ellipse_outline(struct st_rip3_ports *ports,
 
 	if (mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = ellipse_outline_collect(ports, ellipse, start_degrees, sweep_degrees,
+	status = st_rip3_ellipse_collect(ports, ellipse, start_degrees, sweep_degrees,
 	    region, thickness, &mask);
 	if (status == 0)
 		status = st_rip3_stroke_apply(ports, &mask, color, 0, mode);
@@ -554,7 +555,7 @@ st_rip3_draw_filled_ellipse(struct st_rip3_ports *ports,
 	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (border_thickness != 0) {
-		status = ellipse_outline_collect(ports, ellipse, start_degrees, sweep_degrees,
+		status = st_rip3_ellipse_collect(ports, ellipse, start_degrees, sweep_degrees,
 		    region, border_thickness, &mask);
 		if (status != 0)
 			return status;
