@@ -10,12 +10,22 @@ struct st_rip3_features;
 struct st_rip3_frame;
 struct st_rip3_table_host;
 
+/* Client identity values, not protocol-version/capability advertisements.
+ * All three strings must be supplied; their literal bytes are emitted unchanged.
+ * Storage remains owned by the client for the duration of processing. */
+struct st_rip3_terminal_identity {
+	const char *name;
+	const char *vendor;
+	const char *version;
+};
+
 /* Borrowed current-session services; one session thread owns invocation and
  * state. A frame must have been initialized by frame_init. Missing services
  * are explicitly unsupported, never assumed to exist. No lifetime ownership
  * or terminal/application integration is implied by assembling these bindings. */
 struct st_rip3_host_variables {
 	const struct st_rip3_features *features;
+	const struct st_rip3_terminal_identity *identity;
 	/* For port geometry queries the bound current ENV's live world frame takes
 	 * precedence. This snapshot is a fallback when no ENV service is bound;
 	 * its device canvas must match the queried PORT table. */
@@ -57,7 +67,7 @@ struct st_rip3_host_sink {
  * command error to the terminal/session caller. Decoder/executor statuses are
  * private and must not be used as connection errors.
  *
- * Supports NULL, IFS, RESX/RESY, the resolved date/time fields and the
+ * Supports NULL, IFS, TERMINFO, RESX/RESY, the resolved date/time fields and the
  * implemented table/viewport/environment-variable families, plus PORTW/PORTH
  * and PORTX0/Y0/X1/Y1 in explicit PORT/VIEW and WORLD/DEVICE domains. Lower
  * right query coordinates are exclusive. Unresolved PORTW/H two-field DOMAIN

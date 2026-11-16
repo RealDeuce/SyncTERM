@@ -22,6 +22,9 @@ int st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 int st_rip3_datetime_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 const char *st_rip3_datetime_zone(const struct st_rip3_host_variables *host);
+/* Select a borrowed, complete TERMINFO phrase for immediate parser emission. */
+int st_rip3_terminfo_select(const struct st_rip3_host_variables *host,
+	const struct st_rip3_builtin_reference *reference, const char **result);
 int st_rip3_host_number(const char *text, unsigned minimum, unsigned maximum,
 	unsigned *result);
 int st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,

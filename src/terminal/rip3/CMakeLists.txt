@@ -66,6 +66,17 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_rip3_terminfo_test tests/st_rip3_terminfo_test.c)
+	target_link_libraries(st_rip3_terminfo_test PRIVATE st_rip3)
+	set_target_properties(st_rip3_terminfo_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_terminfo_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_terminfo_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_terminfo COMMAND st_rip3_terminfo_test)
+
 	add_executable(st_rip3_screen_test tests/st_rip3_screen_test.c)
 	target_link_libraries(st_rip3_screen_test PRIVATE st_rip3)
 	set_target_properties(st_rip3_screen_test PROPERTIES

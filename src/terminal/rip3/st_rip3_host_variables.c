@@ -11,6 +11,43 @@
 #include <string.h>
 
 int
+st_rip3_terminfo_select(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference, const char **result)
+{
+	char keyword[13] = "NAME";
+	const char *value;
+	const struct st_rip3_terminal_identity *identity;
+
+	if (host == NULL || reference == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (strcmp(reference->name, "TERMINFO") != 0)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (reference->count > 1)
+		return IO_ERROR_INVALID_FORMAT;
+	if (reference->count == 1) {
+		size_t length = reference->parameters[0].length;
+		if (length > 12)
+			return IO_ERROR_OUT_OF_RANGE;
+		for (size_t i = 0; i < length; i++) {
+			unsigned char ch = (unsigned char)reference->parameters[0].text[i];
+			keyword[i] = ch >= 'a' && ch <= 'z' ? (char)(ch - 'a' + 'A') : (char)ch;
+		}
+		keyword[length] = 0;
+	}
+	identity = host->identity;
+	if (identity == NULL || identity->name == NULL || identity->vendor == NULL
+	    || identity->version == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (strcmp(keyword, "NAME") == 0) value = identity->name;
+	else if (strcmp(keyword, "VENDOR") == 0) value = identity->vendor;
+	else if (strcmp(keyword, "VERSION") == 0) value = identity->version;
+	else if (strcmp(keyword, "LIST") == 0) value = "LIST,NAME,VENDOR,VERSION";
+	else value = "NONE";
+	*result = value;
+	return 0;
+}
+
+int
 st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
@@ -20,6 +57,17 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (!st_rip3_builtin_known(reference->name, strlen(reference->name)))
 		return IO_ERROR_NOT_FOUND;
+	if (strcmp(reference->name, "TERMINFO") == 0) {
+		const char *value;
+		int status = st_rip3_terminfo_select(host, reference, &value);
+		if (status != 0)
+			return status;
+		size_t length = strlen(value);
+		if (length >= capacity)
+			return IO_ERROR_OUT_OF_RANGE;
+		memcpy(result, value, length + 1);
+		return 0;
+	}
 	if (strcmp(reference->name, "NULL") == 0) {
 		if (reference->count != 0)
 			return IO_ERROR_INVALID_FORMAT;
@@ -107,7 +155,18 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 				sink->reply(sink->context, (const uint8_t *)zone, strlen(zone));
 			return;
 		}
-		status = st_rip3_host_variables_execute(host, &reference, reply, sizeof(reply));
+		if (strcmp(reference.name, "TERMINFO") == 0) {
+			const char *value;
+			status = st_rip3_terminfo_select(host, &reference, &value);
+			if (status == 0) {
+				size_t size = strlen(value);
+				if (size != 0 && sink != NULL && sink->reply != NULL)
+					sink->reply(sink->context, (const uint8_t *)value, size);
+				return;
+			}
+		}
+		else
+			status = st_rip3_host_variables_execute(host, &reference, reply, sizeof(reply));
 	}
 	if (status == 0) {
 		size_t size = strlen(reply);

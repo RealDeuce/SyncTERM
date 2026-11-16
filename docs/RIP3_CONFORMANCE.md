@@ -138,6 +138,11 @@ Open clarification issues:
   context, active-palette slot ownership, status visibility and inherited
   RIPTERM*.SAV file side effects.
 
+- [#27](https://github.com/bbs-land/remote-imaging-protocol/issues/27): button-style
+  bootstrap defaults, mixed fixed dimensions, incompatible flag handling,
+  protected auto-clip style mutation, shipping transparency-bit semantics and
+  device-coordinate policy for effects/label indents.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -858,6 +863,23 @@ display variables cleared, including the current cache-directory fixtures.
 Native Valgrind reports no errors or leaks in the screen fixture. The frozen
 inventory retains its original bytes; new cache coverage notes remain in
 `docs/RIP154_CONFORMANCE.md`.
+
+`rip3_terminfo` covers RIPscrip's TERMINFO identity variable: default/NAME,
+VENDOR, VERSION, LIST and unknown-keyword NONE replies. The client supplies
+the three mandatory identity strings; an absent/incomplete binding is
+unsupported. LIST is exactly `LIST,NAME,VENDOR,VERSION`, uppercase and sorted,
+with no trailing comma or newline. Case-insensitive keywords use ASCII rules.
+These are client identity values, not protocol-version/capability claims.
+
+The public parser emits borrowed values whole, including empty values,
+literal CP437/UTF-8 bytes and a 5,000-byte name, without applying the numeric
+reply scratch-buffer limit or expanding macro-looking content. Private bounded
+copying preserves output on insufficient capacity. Invalid syntax/extra fields
+produce nonfatal diagnostics; valid references afterward still work, including
+with an absent sink. Application identity/profile binding and raw stream/macro
+integration remain pending. No system terminfo or frozen RIP154 code is used.
+The native CMake build and all 52 RIP3/preservation checks pass; native Valgrind
+reports no errors or allocations in the identity-query fixture.
 
 ## Verification and acceptance
 
