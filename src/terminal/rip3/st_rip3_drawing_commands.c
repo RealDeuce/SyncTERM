@@ -13,6 +13,25 @@
 #include <string.h>
 
 static int
+font_style(struct st_rip3_style *style, const uint8_t *arguments,
+    size_t count, unsigned radix)
+{
+	uint64_t values[4];
+	int status;
+
+	if (count < 7 || count > 8)
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 0; i < 4; i++) {
+		status = st_rip3_command_field(values+i, arguments+2*i,
+		    i == 3 ? count-6 : 2, radix);
+		if (status != 0)
+			return status;
+	}
+	return st_rip3_classic_text_style_set(&style->font, (unsigned)values[0],
+	    (unsigned)values[1], (unsigned)values[2], (unsigned)values[3]);
+}
+
+static int
 ink(const struct st_rip3_command_host *host, bool direct, uint32_t color, uint8_t *result)
 {
 	if (!direct) {
@@ -129,6 +148,13 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'L' || command[0] == 'R')
 		return shape(host, environment_number, &environment, &style, arguments,
 		    count, command[0] == 'R', operation);
+	if (command[0] == 'Y') {
+		status = font_style(&style, arguments, count, environment.base_math);
+		if (status != 0)
+			return status;
+		*operation = true;
+		return st_rip3_styles_set(host->styles, number, &style);
+	}
 	if (count == 0 || count > (command[0] == 'W' ? 2u : 4u))
 		return IO_ERROR_INVALID_FORMAT;
 	status = st_rip3_command_field(&value, arguments, count,

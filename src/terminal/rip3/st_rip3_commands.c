@@ -157,7 +157,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'v' || (length >= 2 && command[0] == '2'
 	    && (command[1] == 'P' || command[1] == 'p' || command[1] == 'C')))
 		return st_rip3_port_commands_execute(host, command, length, operation);
-	if (command[0] == 'c' || command[0] == 'k' || command[0] == 'W'
+	if (command[0] == 'c' || command[0] == 'k' || command[0] == 'W' || command[0] == 'Y'
 	    || command[0] == 'L' || command[0] == 'R')
 		return st_rip3_drawing_commands_execute(host, command, length, operation);
 	if (command[0] == 'Q' || command[0] == 'a')

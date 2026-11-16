@@ -30,7 +30,11 @@ overlap recovery. Separate style-record tests cover explicit attributes, owned
 snapshots and nonfatal metadata/COPY errors. Complete c/k/W/L/R command tests
 cover palette/direct RGB ink, all drawing modes, explicit patterns, reversed and
 clipped geometry, default-world mapping, wide endpoints and allocation recovery
-with coherent captures on all three canvases. These do not change the active route.
+with coherent captures on all three canvases. Numeric Y tests cover all classic
+font/direction/size values, conflicting flags, protected edits and split-input
+recovery; independent all-canvas text-kernel captures verify the selected
+orientation, justification, magnification and shadow. Text wire/cursor integration
+remains pending. These do not change the active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

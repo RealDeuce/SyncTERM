@@ -1172,6 +1172,28 @@ in the new fixture. The original 93 frozen files and 41 legacy helper definition
 still match the preservation baseline. Active terminal routing, unresolved
 context/default policies and the remaining protocol remain pending.
 
+`rip3_font_command` adds complete numeric `Y` decoding into the bound current
+STYLE's classic font attributes. Font, direction, size and flags remain
+two-digit current-radix fields regardless of coordinate width or RGB mode;
+the last field may shorten. All syntax, ranges and mutually exclusive flags
+validate before any record edit. Invalid commands preserve the whole style,
+protected styles reject edits, and protected ENV records do not prevent
+changes to another table. The command retains other attributes, selection and
+ENV references. Extended-font state, bootstrap defaults, text/cursor wire
+orchestration and active routing remain separate under #3/#24.
+
+Tests select every classic font, direction and magnification in both radices
+and exercise every legal/illegal flag combination. Split-input sequences
+recover from conflicting justification flags and drive the existing text
+kernel with the selected attributes. Coherent independent RGB captures on all
+three canvases use explicit synthetic ASCII/CP437 glyphs to check horizontal/
+vertical orientation, right justification, magnification and one-device-pixel
+shadow; this is not transport conversion or active T/@ coverage. The native
+CMake build and all 68 selected RIP3/preservation/shared-audio tests pass.
+Native Valgrind reports no errors or leaked allocations/descriptors in the new
+font-command fixture.
+The original 93 frozen files and 41 legacy helper definitions remain unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

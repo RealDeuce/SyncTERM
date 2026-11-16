@@ -42,7 +42,7 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f, Q, a, c, k, numeric W, L, R, 1w, v, 2p, rectangle-fit
+ * Implements J, n, f, Q, a, c, k, numeric W, Y, L, R, 1w, v, 2p, rectangle-fit
  * 2C, onscreen 2P, comments and terminal grouping no-ops.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
@@ -65,6 +65,9 @@ struct st_rip3_command_sink {
  * STYLE records reject attribute edits but permit drawing, as do protected
  * PORT records. Bootstrap/ENV activation and wire pen thickness are separate
  * unresolved policies (#11/#24); W period termination remains unsupported (#7).
+ * Y validates all four two-digit current-radix fields before editing the bound
+ * STYLE's classic font attributes. Conflicting justification flags discard the
+ * complete command. This does not activate an extended font or text cursor.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.
