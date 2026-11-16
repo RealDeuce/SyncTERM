@@ -178,6 +178,30 @@ st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
 }
 
 int
+st_rip3_ports_install_bitmap(struct st_rip3_ports *ports, unsigned number,
+    struct st_rip3_surface **bitmap)
+{
+	uint32_t width, height;
+	struct port value = {0};
+	int status;
+
+	if (ports == NULL || bitmap == NULL || *bitmap == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (number == 0 || number >= 36) return IO_ERROR_OUT_OF_RANGE;
+	if (ports->entries[number].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	status = st_rip3_surface_size(*bitmap,&width,&height);
+	if (status != 0) return status;
+	if (width == 0 || height == 0 || width > INT32_MAX || height > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+	value.info.defined = true; value.info.offscreen = true; value.info.viewport_active = true;
+	value.info.bounds = (struct st_rip3_rect){0,0,(int32_t)width-1,(int32_t)height-1};
+	value.info.viewport = value.info.bounds;
+	value.info.image = (struct st_rip3_image_style){.automatic=true,.enabled=true};
+	value.bitmap = *bitmap;
+	clear_port(&ports->entries[number]); ports->entries[number] = value;
+	*bitmap = NULL;
+	return 0;
+}
+
+int
 st_rip3_ports_switch(struct st_rip3_ports *ports, unsigned number)
 {
 	if (ports == NULL)

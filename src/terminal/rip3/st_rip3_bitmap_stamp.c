@@ -122,7 +122,7 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
     const struct st_rip3_bitmap *bitmap, const struct st_rip3_bitmap_destination *destination,
     const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
     enum st_rip3_transfer_mode mode,
-    const uint8_t *transparent_color)
+    const uint8_t *transparent_color, const unsigned *duplicate_port)
 {
 	const int64_t limit = INT64_C(1024)*INT32_MAX;
 	struct st_rip3_port_info info;
@@ -130,20 +130,29 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	unsigned current;
 	uint8_t mapped[256];
 	struct dither_color dithered[256];
+	struct st_rip3_surface *duplicate = NULL;
 	int status;
 
 	if (ports == NULL || destination == NULL || mode < ST_RIP3_TRANSFER_COPY || mode > ST_RIP3_TRANSFER_INVERT
 	    || colors < ST_RIP3_BITMAP_MATCH || colors > ST_RIP3_BITMAP_DITHER
 	    || destination->x0 > destination->x1 || destination->y0 > destination->y1)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (duplicate_port != NULL && (*duplicate_port == 0 || *duplicate_port > 35)) return IO_ERROR_OUT_OF_RANGE;
 	if (destination->x0 < -limit || destination->x1 > limit || destination->y0 < -limit || destination->y1 > limit)
 		return IO_ERROR_OUT_OF_RANGE;
 	status = st_rip3_ports_current(ports,&current);
 	if (status == 0) status = st_rip3_ports_info(ports,current,&info);
 	if (status != 0 || !info.viewport_active) return status;
+	bool copying = duplicate_port != NULL && *duplicate_port != current;
+	if (copying) {
+		struct st_rip3_port_info target;
+		status = st_rip3_ports_info(ports,*duplicate_port,&target);
+		if (status != 0) return status;
+		if (target.protected) return IO_ERROR_NOT_SUPPORTED;
+	}
 	visible = (struct st_rip3_rect){0,0,info.viewport.x1-info.viewport.x0,info.viewport.y1-info.viewport.y0};
 	if (destination->x0 > visible.x1 || destination->y0 > visible.y1 || destination->x1 < 0 || destination->y1 < 0)
-		return 0;
+		return copying ? IO_ERROR_NOT_SUPPORTED : 0;
 	if (destination->x0 > visible.x0) visible.x0 = (int32_t)destination->x0;
 	if (destination->y0 > visible.y0) visible.y0 = (int32_t)destination->y0;
 	if (destination->x1 < visible.x1) visible.x1 = (int32_t)destination->x1;
@@ -186,11 +195,37 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 		}
 	}
 	enum st_rip3_write_mode write_mode = mode == ST_RIP3_TRANSFER_INVERT ? ST_RIP3_COPY : (enum st_rip3_write_mode)mode;
+	if (copying) {
+		status = st_rip3_surface_create(&duplicate,width,height);
+		if (status != 0) { free(pixels); return status; }
+		/* Read the destination before any painting, then stage the final
+		 * result, including background through transparent pixels. No later
+		 * allocation can strand a partly drawn source or replacement port. */
+		for (uint32_t y = 0; status == 0 && y < height; y++) for (uint32_t x = 0; status == 0 && x < width; x++) {
+			const struct prepared_pixel *pixel = &pixels[(size_t)y*width+x];
+			uint8_t value;
+			status = st_rip3_ports_read(ports,current,info.viewport.x0+visible.x0+(int32_t)x,
+			    info.viewport.y0+visible.y0+(int32_t)y,&value);
+			if (status != 0) break;
+			if (pixel->opaque) switch (write_mode) {
+				case ST_RIP3_COPY: value = pixel->color; break;
+				case ST_RIP3_XOR: value ^= pixel->color; break;
+				case ST_RIP3_OR: value |= pixel->color; break;
+				case ST_RIP3_AND: value &= pixel->color; break;
+				case ST_RIP3_NOT: break; /* Transfer inversion already became COPY. */
+			}
+			status = st_rip3_surface_plot(duplicate,NULL,(int32_t)x,(int32_t)y,value,ST_RIP3_COPY);
+		}
+		if (status != 0) { st_rip3_surface_destroy(duplicate); free(pixels); return status; }
+	}
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		const struct prepared_pixel *pixel = &pixels[(size_t)y*width+x];
 		if (pixel->opaque)
 			(void)st_rip3_ports_plot(ports,visible.x0+(int32_t)x,visible.y0+(int32_t)y,pixel->color,write_mode);
 	}
 	free(pixels);
-	return 0;
+	/* Preflight and exclusive ownership make this an allocation-free commit. */
+	if (copying) status = st_rip3_ports_install_bitmap(ports,*duplicate_port,&duplicate);
+	st_rip3_surface_destroy(duplicate);
+	return status;
 }

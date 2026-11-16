@@ -161,7 +161,8 @@ Open clarification issues:
 
 - [#42](https://github.com/bbs-land/remote-imaging-protocol/issues/42): conflicting
   GET_IMAGE clipboard-slot searches, protected candidates, previous clipboard
-  pointer and port/pixel state after failure.
+  pointer and port/pixel state after failure; LOAD_BITMAP protected-target and
+  fully clipped duplicate behavior.
 
 - [#46](https://github.com/bbs-land/remote-imaging-protocol/issues/46): D's
   milliseconds summary conflicts with its detailed 60ths-of-a-second rule.
@@ -2025,6 +2026,55 @@ descriptors in each bitmap fixture. All 93 frozen files and 41 legacy helpers
 remain unchanged, as do the 6548 source blocks, 62 document identities and
 reference pin. Temporary fixtures/logs were removed. Active routing and RIP1.54
 behavior are unchanged.
+
+### LOAD_BITMAP explicit final-image duplication
+
+Flag 1 now duplicates into an explicitly numbered, unprotected target port.
+The staged bitmap contains the final visible rectangle after original-geometry
+scaling, palette mapping/dithering, transfer operations and viewport clipping.
+Transparent holes include the prior destination pixels. Successful replacement
+creates an offscreen port with those exact physical dimensions, a full active
+viewport and automatic image style, whether the target was undefined, offscreen
+or an onscreen alias. Redefining an onscreen target does not clear its underlying
+screen pixels. The drawing selection, source configuration, other ports and
+explicit clipboard binding remain unchanged. Same-port duplication is ignored.
+
+The renderer allocates and prepares the duplicate before painting anything.
+A narrow port-table installer consumes the prepared owned surface without a
+second allocation or selection change. Its protected-target rejection preserves
+caller ownership; the wire layer declines that unresolved branch before file
+access. Loader, source staging and duplicate allocation failures retain source
+pixels, palette and target definition/content. The allocation-free duplicate
+commit precedes the existing allocation-free palette-adoption commit under the
+same exclusive session ownership; no callbacks intervene.
+
+[Issue #42's LOAD_BITMAP clarification request](https://github.com/bbs-land/remote-imaging-protocol/issues/42#issuecomment-6932847506)
+asks whether protected targets reject the whole load, permit only painting or
+bypass protection, and whether they inherit DEFINE_PORT's selection fallback.
+It also asks what a completely clipped duplicate does to an existing target.
+Clipboard selector zero still depends on the original clipboard selection and
+lifecycle questions. These branches remain unsupported; the complete flag-1
+requirement is blocked rather than claimed implemented. No empty-port or
+implicit clipboard-pointer policy is invented.
+
+`rip3_bitmap_load_commands` checks independent duplicate indexes on all three
+canvases for five transfer modes, source inversion, transparent background,
+scaled images, right/bottom clipping, mapping/dithering/adoption, target resizing
+and target viewport/image-style reset. It verifies new/reused/overlapping onscreen
+targets, retained drawing selection/clipboard binding, onscreen-alias pixels and
+an offscreen drawing source. Fault cases cover file-buffer, pixel-staging and
+duplicate-surface allocation, protected-target preflight without file access,
+empty coverage and later recovery; an owned source capture confirms every pixel
+survives rejected attempts. `rip3_bitmap_stamp` adds duplicate checks for clipped
+negative-origin dither phase and invalid target numbers. `rip3_ports` tests
+ownership transfer, protected rejection and nonzero target bounds.
+
+The native CMake build and all 85 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, zero retained heap and only three
+inherited descriptors in both load-command and stamp fixtures. All 93 frozen
+files and 41 legacy helpers remain unchanged, as do the 6548 source blocks,
+62 document identities and reference pin. Temporary fixtures, issue payloads
+and verification logs were removed. Active routing and RIP1.54 are unchanged.
 
 ## Verification and acceptance
 

@@ -263,12 +263,40 @@ boundaries(void)
 	return 0;
 }
 
+static int
+install_bitmap(void)
+{
+	struct st_rip3_ports *ports = NULL;
+	struct st_rip3_surface *bitmap = NULL;
+	const struct st_rip3_rect bounds = {1,2,3,4};
+	unsigned current; uint8_t pixel;
+	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0
+	    && st_rip3_ports_define(ports,1,&bounds,false) == 0
+	    && st_rip3_ports_define(ports,2,&bounds,false) == 0
+	    && st_rip3_ports_switch(ports,1) == 0);
+	CHECK(st_rip3_surface_create(&bitmap,2,1) == 0
+	    && st_rip3_surface_plot(bitmap,NULL,0,0,7,ST_RIP3_COPY) == 0
+	    && st_rip3_surface_plot(bitmap,NULL,1,0,9,ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_ports_install_bitmap(ports,0,&bitmap) == IO_ERROR_OUT_OF_RANGE && bitmap != NULL);
+	CHECK(st_rip3_ports_install_bitmap(ports,36,&bitmap) == IO_ERROR_OUT_OF_RANGE && bitmap != NULL);
+	CHECK(st_rip3_ports_protect(ports,2,true) == 0);
+	CHECK(st_rip3_ports_install_bitmap(ports,2,&bitmap) == IO_ERROR_PERMISSION_DENIED && bitmap != NULL);
+	CHECK(st_rip3_ports_current(ports,&current) == 0 && current == 1);
+	CHECK(st_rip3_surface_get(bitmap,1,0,&pixel) == 0 && pixel == 9);
+	CHECK(st_rip3_ports_protect(ports,2,false) == 0 && st_rip3_ports_install_bitmap(ports,2,&bitmap) == 0 && bitmap == NULL);
+	CHECK(st_rip3_ports_read(ports,2,0,0,&pixel) == 0 && pixel == 7);
+	CHECK(st_rip3_ports_read(ports,2,1,0,&pixel) == 0 && pixel == 9);
+	CHECK(st_rip3_ports_current(ports,&current) == 0 && current == 1);
+	CHECK(st_rip3_ports_install_bitmap(ports,2,&bitmap) == IO_ERROR_INVALID_ARGUMENT);
+	st_rip3_ports_destroy(ports); return 0;
+}
+
 int
 main(void)
 {
 	CHECK(layout() == 0);
 	CHECK(lifecycle() == 0);
 	CHECK(copies() == 0);
-	CHECK(boundaries() == 0);
+	CHECK(boundaries() == 0 && install_bitmap() == 0);
 	return 0;
 }

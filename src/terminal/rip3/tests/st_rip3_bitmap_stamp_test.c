@@ -54,20 +54,20 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_image_style(ports,1,&disabled,15) == 0 && st_rip3_ports_protect(ports,1,true) == 0);
 	for (unsigned mode = 0; mode < 5; mode++) {
 		struct st_rip3_bitmap_destination destination = {5*(int64_t)mode,0,5*(int64_t)mode+2,1};
-		CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL) == 0);
+		CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL,NULL) == 0);
 	}
 	uint8_t transparent = 12;
 	const struct st_rip3_bitmap_destination first = {0,3,2,4}, second = {5,3,7,4};
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&first,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,&transparent) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&first,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,&transparent,NULL) == 0);
 	for (unsigned i = 0; i < 6; i++) codes[i] = ST_PIXEL_COLOR_RGB_TAG | palette.rgb[codes[i]];
 	bitmap.bit_depth = 24; bitmap.palette_size = 0;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&second,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_INVERT,&transparent) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&second,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_INVERT,&transparent,NULL) == 0);
 	for (unsigned i = 0; i < 6; i++) codes[i] &= 255;
 	bitmap.bit_depth = 8; bitmap.palette_size = 256;
 	const struct st_rip3_bitmap_destination enlarged = {0,6,5,9}, edge = {29,0,34,3}, left = {-2,10,3,11};
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&enlarged,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&edge,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&left,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&enlarged,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&edge,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&left,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == 0);
 	/* Equal source RGB values must not merge indexed transparency identities. */
 	uint32_t twins[] = {1,2};
 	struct st_pixel_buffer twin_pixels = {.width=2,.height=1,.primary=twins};
@@ -75,7 +75,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	    .palette={0,0x141414,0x141414}};
 	const struct st_rip3_bitmap_destination twin_area = {10,3,11,3};
 	transparent = 1;
-	CHECK(st_rip3_draw_bitmap(ports,&twin_bitmap,&twin_area,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,&transparent) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&twin_bitmap,&twin_area,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,&transparent,NULL) == 0);
 	CHECK(st_rip3_ports_snapshot(ports,&palette,&capture) == 0);
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		uint8_t expected = 0;
@@ -133,22 +133,23 @@ dithering(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_protect(ports,1,true) == 0);
 	struct st_rip3_bitmap_destination destination = {0,0,7,7};
 	st_rip3_bitmap_stamp_test_fail_allocate = true;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_OUT_OF_MEMORY);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_OUT_OF_MEMORY);
 	uint8_t actual;
 	CHECK(st_rip3_ports_read(ports,1,2,1,&actual) == 0 && actual == 85 && !st_rip3_bitmap_stamp_test_fail_allocate);
 	for (unsigned mode = 0; mode < 5; mode++) {
 		destination = (struct st_rip3_bitmap_destination){mode*10,0,mode*10+7,7};
-		CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,(enum st_rip3_transfer_mode)mode,NULL) == 0);
+		CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,(enum st_rip3_transfer_mode)mode,NULL,NULL) == 0);
 	}
 	uint8_t transparent = 0;
 	destination = (struct st_rip3_bitmap_destination){0,10,7,17};
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,&transparent) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,&transparent,NULL) == 0);
 	destination = (struct st_rip3_bitmap_destination){10,10,17,17};
-	CHECK(st_rip3_draw_bitmap(ports,&rgb_bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,&transparent) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&rgb_bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,&transparent,NULL) == 0);
 	destination = (struct st_rip3_bitmap_destination){20,10,27,17};
-	CHECK(st_rip3_draw_bitmap(ports,&rgb_bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_INVERT,&transparent) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&rgb_bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_INVERT,&transparent,NULL) == 0);
 	destination = (struct st_rip3_bitmap_destination){-3,20,4,27};
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,NULL) == 0);
+	unsigned duplicate = 2;
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,NULL,&duplicate) == 0);
 	CHECK(st_rip3_bitmap_capture(&capture,ports,0,NULL,&palette) == 0);
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		uint8_t expected = 0;
@@ -172,12 +173,17 @@ dithering(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	}
 	const uint32_t original[] = {0,1,2,3}, original_rgb[] = {0x80400000,0x80008000,0x800000c0,0x80000000};
 	CHECK(memcmp(codes,original,sizeof(codes)) == 0 && memcmp(rgb,original_rgb,sizeof(rgb)) == 0);
+	st_rip3_bitmap_destroy(capture); capture = NULL;
+	CHECK(st_rip3_bitmap_capture(&capture,ports,2,NULL,&palette) == 0);
+	CHECK(capture->pixels->width == 5 && capture->pixels->height == 8);
+	for (size_t y = 0; y < 8; y++) for (size_t x = 0; x < 5; x++)
+		CHECK(capture->pixels->primary[y*5+x] == (uint32_t)(pattern[y][x+3]-'0'));
 	st_rip3_bitmap_destroy(capture);
 	/* A degenerate palette has no usable mixing partner. Nonmatching RGB
 	 * must still reduce to the sole available colour without a zero divisor. */
 	palette = (struct st_rip3_palette){0};
 	destination = (struct st_rip3_bitmap_destination){0,0,7,7};
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,NULL) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,NULL,NULL) == 0);
 	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
 		CHECK(st_rip3_ports_read(ports,1,x+2,y+1,&actual) == 0 && actual == 0);
 	st_rip3_ports_destroy(ports); return 0;
@@ -198,34 +204,38 @@ boundaries(void)
 	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_ports_viewport(ports,&viewport) == 0 && st_rip3_ports_erase(ports,85) == 0);
 	st_rip3_bitmap_stamp_test_fail_allocate = true;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_OUT_OF_MEMORY);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_OUT_OF_MEMORY);
 	CHECK(!st_rip3_bitmap_stamp_test_fail_allocate);
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,(enum st_rip3_bitmap_colors)99,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,(enum st_rip3_bitmap_colors)99,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_INVALID_ARGUMENT);
+	unsigned duplicate = 0;
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,&duplicate) == IO_ERROR_OUT_OF_RANGE);
+	duplicate = 36;
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,&duplicate) == IO_ERROR_OUT_OF_RANGE);
 	palette.rgb[3] ^= 1;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_ADOPTED,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_ADOPTED,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_INVALID_ARGUMENT);
 	palette.rgb[3] ^= 1;
 	bitmap.bit_depth = 24; bitmap.palette_size = 0;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_ADOPTED,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_ADOPTED,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_INVALID_ARGUMENT);
 	bitmap.bit_depth = 8; bitmap.palette_size = 256;
 	for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 4; x++) {
 		uint8_t actual;
 		CHECK(st_rip3_ports_read(ports,0,x,y,&actual) == 0 && actual == 85);
 	}
 	codes[5] = 256;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_INVALID_FORMAT);
 	codes[5] = 255;
 	destination.x1 = limit+1;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_OUT_OF_RANGE);
 	destination.x1 = limit; destination.x0 = limit+1;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == IO_ERROR_INVALID_ARGUMENT);
 	destination.x0 = -limit;
-	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == 0);
 	for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 4; x++) {
 		uint8_t actual;
 		CHECK(st_rip3_ports_read(ports,0,x,y,&actual) == 0 && actual == 0);
 	}
 	CHECK(st_rip3_ports_activate(ports,false) == 0);
-	CHECK(st_rip3_draw_bitmap(ports,NULL,&destination,NULL,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,NULL,&destination,NULL,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL,NULL) == 0);
 	st_rip3_ports_destroy(ports);
 	/* Literal exact-integer rational expectations, including products wider
 	 * than uint64_t; no floating-point or renderer generates the oracle. */

@@ -131,9 +131,13 @@ struct st_rip3_command_sink {
  * rejects adoption before painting; failed staging retains both palette and
  * pixels. Flag 4 otherwise enables ordered dithering in the current palette,
  * with indexed transparency before mapping and RGB transparency after mapping.
- * Same-port duplication is ignored; actual duplication and unknown flags remain
- * unsupported. Palette
- * adoption is ignored for true-colour files. Active loads require a bitmap
+ * Explicit unprotected duplicate ports receive the final clipped pixels,
+ * including backgrounds through transparent holes, in a newly defined offscreen
+ * port. All staging completes before source pixels/target/palette commit.
+ * Same-port duplication is ignored. Clipboard selector zero, protected duplicate
+ * targets and empty duplicate coverage remain unsupported under #42; unknown
+ * flags remain unsupported. True-colour files ignore palette adoption.
+ * Active loads require a bitmap
  * error UI sink; file failures request a box without ending parsing. Actual
  * application UI integration is separate. Inactive viewports ignore the load.
  * Drawing commands use the bound STYLE record's explicit resolved pen and

@@ -12,6 +12,7 @@
 struct st_pixel_buffer;
 struct st_rip3_ports;
 struct st_rip3_backup;
+struct st_rip3_surface;
 
 struct st_rip3_image_style {
 	/* Device coordinates relative to the viewport. Automatic areas follow
@@ -48,6 +49,14 @@ int st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
  * the table unchanged. Defining does not select/protect/deactivate implicitly. */
 int st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
 	const struct st_rip3_rect *bounds, bool offscreen);
+/* Install an already-prepared owned bitmap as a nonzero offscreen port, with
+ * a full active viewport and automatic image style. No allocation or current
+ * selection change occurs. Success consumes *bitmap and sets it to NULL;
+ * failures retain both the table and caller ownership. Protected targets are
+ * rejected without DEFINE_PORT's wire-level fallback selection. The caller
+ * must resolve implicit replacement/clipboard/protection policy first. */
+int st_rip3_ports_install_bitmap(struct st_rip3_ports *ports, unsigned number,
+	struct st_rip3_surface **bitmap);
 /* Undefined switch targets select port zero and return NOT_FOUND. */
 int st_rip3_ports_switch(struct st_rip3_ports *ports, unsigned number);
 int st_rip3_ports_protect(struct st_rip3_ports *ports, unsigned number, bool protect);

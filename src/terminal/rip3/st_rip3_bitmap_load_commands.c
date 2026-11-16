@@ -53,7 +53,15 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	/* Drawing in a deactivated viewport is parsed but completely ignored. */
 	if (!info.viewport_active) return 0;
 	/* Zero is the clipboard selector, never a literal same-port shortcut. */
-	if ((flags&1) != 0 && (duplicate == 0 || duplicate != port)) return IO_ERROR_NOT_SUPPORTED;
+	if ((flags&1) != 0 && duplicate == 0) return IO_ERROR_NOT_SUPPORTED;
+	unsigned duplicate_number = (unsigned)duplicate;
+	const unsigned *duplicate_port = (flags&1) != 0 ? &duplicate_number : NULL;
+	if (duplicate_port != NULL && duplicate_number != port) {
+		struct st_rip3_port_info target;
+		status = st_rip3_ports_info(host->ports,duplicate_number,&target);
+		if (status != 0) return status;
+		if (target.protected) return IO_ERROR_NOT_SUPPORTED;
+	}
 	if (host->resources == NULL || host->palettes == NULL
 	    || host->bitmap_errors == NULL || host->bitmap_errors->show == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_frame(host,number,&frame);
@@ -92,7 +100,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	enum st_rip3_bitmap_colors colors = adopt ? ST_RIP3_BITMAP_ADOPTED
 	    : (flags&4) != 0 ? ST_RIP3_BITMAP_DITHER : ST_RIP3_BITMAP_MATCH;
 	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,colors,
-	    (enum st_rip3_transfer_mode)mode,(flags&8) != 0 ? &transparent_color : NULL);
+	    (enum st_rip3_transfer_mode)mode,(flags&8) != 0 ? &transparent_color : NULL,duplicate_port);
 	/* No callbacks run between palette preflight, staging/painting and this
 	 * allocation-free commit. One owner retains the current slot/protection,
 	 * and the exact RGB span was already validated. Failed staging therefore

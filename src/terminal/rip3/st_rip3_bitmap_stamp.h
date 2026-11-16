@@ -21,7 +21,7 @@ enum st_rip3_bitmap_colors {
 	ST_RIP3_BITMAP_DITHER,
 };
 
-/* Stamp a decoded BMP without image-style fitting, clearing or state edits.
+/* Stamp a decoded BMP without image-style fitting or clearing.
  * Nearest source pixel centers are computed against the original requested
  * destination, then clipped to the viewport. Each covered pixel is applied
  * once; mode 4 inverts the mapped SOURCE, independently of destination NOT.
@@ -34,10 +34,15 @@ enum st_rip3_bitmap_colors {
  * DITHER uses ordered 8x8 two-colour mixing, anchored to the original requested
  * rectangle before clipping. Exact palette matches remain exact. The algorithm
  * is client policy, not historical RIPtel pixel reproduction. This kernel
- * neither commits palettes nor duplicates ports.
+ * does not commit palettes. An optional resolved duplicate port (1..35) receives
+ * the final clipped index rectangle, including transfer results and background
+ * through transparent holes. It replaces an unprotected target with a new
+ * offscreen port after staging succeeds. Same-port duplication is ignored.
+ * Protected targets and empty duplicate coverage are unsupported pending #42.
+ * No clipboard selector or pointer lifecycle is inferred here.
  *
- * Disabled image style does not disable stamping. Inactive/empty viewport
- * coverage succeeds without dereferencing bitmap/palette. Otherwise complete
+ * Disabled image style does not disable stamping. Inactive viewports and empty
+ * coverage without duplication succeed without accessing bitmap/palette. Complete
  * validation and all scratch allocation precede drawing; protection allows
  * contents to change. One session thread owns source, ports and invocation.
  * Status belongs to the owning parser, never a terminal/session error path. */
@@ -46,6 +51,6 @@ int st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	const struct st_rip3_bitmap_destination *destination,
 	const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
 	enum st_rip3_transfer_mode mode,
-	const uint8_t *transparent_color);
+	const uint8_t *transparent_color, const unsigned *duplicate_port);
 
 #endif
