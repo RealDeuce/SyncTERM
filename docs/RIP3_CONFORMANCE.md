@@ -1557,6 +1557,44 @@ the three inherited file descriptors in both new fixtures. All 93 frozen files
 and 41 legacy helper definitions remain unchanged, as do the pin, 6548 source
 blocks and 62 document identities. Temporary verification logs were removed.
 
+`3D` now decodes one to four current-radix digits and starts an explicitly bound
+input gate for ticks/60 seconds. The duration rounds upward to nanoseconds, with
+zero acting immediately. ENV is read without edits, including protected records;
+malformed/commented or unbound commands recover through the existing void
+processor. The distinct macro D variable and baud-rate pacing remain separate.
+
+`st_rip3_input` is a nonblocking, budgeted source pump owned by one session thread.
+The client owns the receive/file queue and retains bytes until the pump takes
+them. A delay stops all following RIP/raw-text delivery before another source
+byte is taken. The owner can use the relative wait to bound its normal poll
+timeout, then resume in order. The driver copies its borrowed callback table,
+owns only gate state, allocates nothing during processing and neither sleeps nor
+starts a thread. Reset cancels the gate without reading/resetting the borrowed
+queue or parser; destruction invokes no callbacks. Unsigned elapsed arithmetic
+handles the supplied monotonic nanosecond counter's wraparound.
+
+`rip3_input` verifies exact independent durations through UINT32_MAX typed ticks,
+last-nanosecond boundaries, clock wrap, budget/empty-source behavior, arrivals
+while paused, absence of read-ahead, cancellation and borrowed-source lifetime.
+`rip3_delay_commands` connects the driver to the real stream framer/void command
+processor on all three ENV canvases. Deterministic clock/queue expectations check
+consecutive delays and radix changes, queued arrivals, CP437 and UTF-8 raw bytes,
+zero/short/maximal fields in both bases, the literal 002D example, protected ENV
+and unchanged baud/reference values. Malformed/unsupported commands retain the
+existing gate, and later valid input continues. These fixtures use no real-time
+sleep, display or physical audio.
+
+The real terminal/network and local-scene source adapters remain future routing
+work. These component tests establish the queue/gate contract, not buffering in
+the still-active application route. Full reset/context ownership and local-file
+orchestration are not inferred here. The frozen RIP1.54 implementation and active
+RIP3 route remain unchanged.
+The native CMake build and all 77 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap allocations and only
+three inherited file descriptors in both new fixtures. All 93 frozen files and
+41 legacy helper definitions still match the RIP1.54 baseline; the reference pin,
+source blocks and document identities are unchanged. Temporary logs were removed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

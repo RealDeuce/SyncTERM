@@ -75,6 +75,11 @@ coordinate widths, RGB and nonfatal preparation failures. Independent all-canvas
 captures include its pinned example. A separate wide integral-path kernel checks
 exact crossing arithmetic, coincident/subdivided edge parity and device-service
 count boundaries; unresolved wire counts/multi-contour grammar remain blocked.
+Separate 3D/input-gate tests check exact tick durations, monotonic clock wrap,
+queued RIP and CP437/UTF-8 bytes, consecutive delays/radix changes, cancellation,
+protected ENV and nonfatal recovery on all three ENV canvases. They use a
+client-owned queue and deterministic clock; real application source adapters,
+baud pacing and macro-delay integration remain pending.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

@@ -12,6 +12,7 @@ struct st_rip3_resource_paths;
 struct st_rip3_palettes;
 struct st_rip3_ports;
 struct st_rip3_styles;
+struct st_rip3_input;
 
 /* Borrowed session-owned bindings. Missing services are unsupported. One
  * session thread processes commands and owns these objects; its audio engine
@@ -26,6 +27,8 @@ struct st_rip3_command_host {
 	/* Explicit resolved scene setting. N ownership/switch/backup semantics
 	 * are unresolved under #24; no default is inferred from a missing binding. */
 	const bool *borders;
+	/* Borrowed input gate. The owning source retains bytes during 3D delays. */
+	struct st_rip3_input *input;
 };
 
 enum st_rip3_command_diagnostic {
@@ -49,7 +52,7 @@ struct st_rip3_command_sink {
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
- * rectangle-fit 2C, onscreen 2P, 3e record edits, comments and terminal grouping
+ * rectangle-fit 2C, onscreen 2P, 3D delays, 3e record edits, comments and terminal grouping
  * no-ops.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
@@ -112,6 +115,10 @@ struct st_rip3_command_sink {
  * 3e stores one to four current-radix digits in the current ENV baud-rate field,
  * respecting record protection and preserving all other values/references.
  * Playback pacing and reset persistence require future playback orchestration.
+ * 3D validates one to four current-radix tick digits and starts the bound input
+ * gate for ticks/60 seconds. It reads ENV without editing even protected records.
+ * The gate stops subsequent queued RIP/text delivery without blocking this call;
+ * the owner pumps its source when ready. No gate binding means unsupported.
  * Full-width f accepts the documented space-separated inline comment;
  * other comment-boundary/framing forms remain unsupported under #7. Filenames
  * retain spaces and literal $OFF$. Nonzero reserved fields remain unsupported.
