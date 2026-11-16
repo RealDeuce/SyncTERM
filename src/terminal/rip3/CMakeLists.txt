@@ -78,7 +78,39 @@ else()
 	target_compile_options(st_rip3_audio PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
+add_library(st_rip3_commands STATIC st_rip3_commands.c)
+target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio
+	PRIVATE syncterm_string_compat)
+set_target_properties(st_rip3_commands PROPERTIES
+	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_rip3_commands PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+else()
+	target_compile_options(st_rip3_commands PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+endif()
+
 if(BUILD_TESTING)
+	add_executable(st_rip3_commands_test tests/st_rip3_commands_test.c)
+	add_executable(st_rip3_commands_unavailable_test tests/st_rip3_commands_test.c
+		tests/st_rip3_audio_unavailable.c)
+	foreach(target IN ITEMS st_rip3_commands_test st_rip3_commands_unavailable_test)
+		target_link_libraries(${target} PRIVATE st_rip3_commands st_audio_file
+			syncterm_filesystem syncterm_path)
+		set_target_properties(${target} PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(MSVC)
+			target_compile_options(${target} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+		else()
+			target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+		endif()
+	endforeach()
+	add_test(NAME rip3_commands COMMAND st_rip3_commands_test
+		"${CMAKE_CURRENT_BINARY_DIR}/command-fixture")
+	add_test(NAME rip3_commands_unavailable COMMAND st_rip3_commands_unavailable_test
+		"${CMAKE_CURRENT_BINARY_DIR}/command-unavailable-fixture")
+	set_tests_properties(rip3_commands rip3_commands_unavailable PROPERTIES TIMEOUT 60)
+
 	add_executable(st_rip3_audio_test tests/st_rip3_audio_test.c)
 	add_executable(st_rip3_audio_unavailable_test tests/st_rip3_audio_test.c
 		tests/st_rip3_audio_unavailable.c)

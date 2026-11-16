@@ -67,7 +67,8 @@ Open clarification issues:
   ordering, uncertain predefined variables, transparent-mode prompt exceptions,
   prefix `=`/`%` scope and repeated directives.
 - [#7](https://github.com/bbs-land/remote-imaging-protocol/issues/7): framing,
-  escaping and identification.
+  escaping and identification; ignored inline text versus command-corrupting
+  extra data, clarified further in comment 6919726495.
 - [#8](https://github.com/bbs-land/remote-imaging-protocol/issues/8): inherited
   BMM mask raster and compositing convention.
 - [#9](https://github.com/bbs-land/remote-imaging-protocol/issues/9): conflicting
@@ -915,8 +916,9 @@ decoder-unavailable stub in the same native build and verifies that path without
 changing the client's decoder configuration.
 
 These are storage/playback service statuses for the RIP parser to consume,
-never a session-processing return. Raw `1w`/host-prefix parsing, reset/header
-dispatch, audio settings, IFS readiness and active session integration remain
+never a session-processing return. Complete `1w` body processing is tested below;
+raw framing/host-prefix parsing, reset/header dispatch, audio settings, IFS
+readiness and active session integration remain
 pending. Tone variables remain separate, including #28's unresolved recipes.
 No frozen RIP154 source or existing sound implementation is changed. Headless
 tests establish PCM behavior and ownership, not audible/native-device coverage.
@@ -926,6 +928,43 @@ checks pass. Native Valgrind reports no memory errors or definite/indirect losse
 in the PCM/concurrent-lifetime fixture, with only its three inherited file
 descriptors open at exit. The native installed decoder executed the PCM cases;
 the separate stub fixture executed unavailable-decoder rejection.
+
+`rip3_commands` adds a caller-facing void command-processing entry for complete
+framed command spans. It consumes syntax, unsupported-command and service
+failures internally, optionally reports nonfatal diagnostics, and remains ready
+for the next command. A compile-time function-type assertion prevents turning
+this entry into a status-returning session API. The optional command adapter
+depends on the independent core/audio components; it does not call the legacy
+parser or change terminal routing.
+
+J always reads MegaNums and defaults invalid numeric base settings to 36.
+n uses the current base, accepts zero reserved-field shortening/omission, and
+defaults invalid numeric coordinate sizes to two. f uses the current base and
+coordinate width, validates both axes before applying them, and enforces
+1..32767. The documented MegaNum dash-as-zero rule is local to wire fields;
+the reusable strict codec and all legacy parsing remain unchanged. Protected
+current environments reject edits. Other record values and client canvas
+dimensions are retained.
+
+1w validates its zero reserved block, preserves spaces in the filename and
+reaches the WAV playback service. Missing files remain no-ops; corrupt files
+produce nonfatal operation diagnostics without replacing current decoded PCM.
+Literal `$OFF$` works without resource paths. Independent tests drive complete
+command bodies through resource lookup to literal post-mixer PCM, with both
+the installed decoder and an unavailable-decoder stub.
+
+Tests cover the documented prologue/frame literals, all coordinate widths and
+canvases, lowercase/special UltraNum digits, fallbacks, shared `$WORLD$`/BASEMATH
+queries, protected state, excess/short fields, embedded NUL and SIZE_MAX input
+rejection, unsupported reserved values, absent services/sinks and continuation
+after errors. Only the explicit full-width f plus space-separated inline comment
+case is supported; other comment-boundary forms remain under #7. Raw byte-stream
+framing, escaping/expansion, packet-split orchestration, reset and remaining
+commands are still required before active session acceptance.
+The native CMake build and all 60 selected RIP3/preservation and shared-audio
+checks pass. Native Valgrind reports no errors, lost allocations or leaked file
+descriptors in the command fixture. The 93 frozen files and 41 legacy helper
+definitions still match the original preservation baseline.
 
 ## Verification and acceptance
 
