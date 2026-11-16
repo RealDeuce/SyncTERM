@@ -29,9 +29,34 @@ else()
 endif()
 
 # Client disk policy stays outside the pure protocol/graphics/data component.
-add_library(st_rip3_storage STATIC st_rip3_variables_file.c)
+if(WIN32)
+	set(_rip3_resource_directory st_rip3_resource_directory_windows.c)
+else()
+	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
+	syncterm_check_c17_source([=[
+#include <dirent.h>
+#include <errno.h>
+int main(void) {
+	DIR *directory = opendir(".");
+	if (directory == 0) return errno;
+	struct dirent *entry = readdir(directory);
+	int result = entry == 0 ? 0 : entry->d_name[0];
+	return closedir(directory) + result;
+}
+]=] ST_RIP3_HAVE_DIRECTORY_ENUMERATION)
+	if(NOT ST_RIP3_HAVE_DIRECTORY_ENUMERATION)
+		message(FATAL_ERROR "RIP3 resource lookup requires POSIX directory enumeration")
+	endif()
+	set(_rip3_resource_directory st_rip3_resource_directory_posix.c)
+endif()
+add_library(st_rip3_storage STATIC st_rip3_variables_file.c
+	st_rip3_resources.c ${_rip3_resource_directory})
 target_include_directories(st_rip3_storage PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE syncterm_filesystem)
+target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE syncterm_filesystem
+	syncterm_path st_unicode_compare)
+if(WIN32)
+	target_link_libraries(st_rip3_storage PRIVATE st_windows_utf)
+endif()
 set_target_properties(st_rip3_storage PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
@@ -404,6 +429,18 @@ if(BUILD_TESTING)
 	set_tests_properties(rip3_variables_file_read rip3_variables_file_errors PROPERTIES
 		FIXTURES_REQUIRED rip3_variable_file)
 	set_tests_properties(rip3_variables_file_cleanup PROPERTIES FIXTURES_CLEANUP rip3_variable_file)
+	add_executable(st_rip3_resources_test tests/st_rip3_resources_test.c)
+	target_link_libraries(st_rip3_resources_test PRIVATE st_rip3_storage
+		syncterm_filesystem syncterm_path)
+	set_target_properties(st_rip3_resources_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_resources_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_resources_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_resources COMMAND st_rip3_resources_test
+		"${CMAKE_CURRENT_BINARY_DIR}/resource-lookup")
 	add_test(NAME rip3_font_assets COMMAND "${CMAKE_COMMAND}"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/asset-check"
 		"-DGENERATOR=${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"

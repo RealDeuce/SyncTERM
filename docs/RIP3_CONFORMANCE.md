@@ -101,6 +101,11 @@ Open clarification issues:
   palette supplies legacy-icon conversion RGB values and whether 2.x source
   deletion/timestamp behavior belongs to RIPtel 3.1's conversion contract.
 
+- [#20](https://github.com/bbs-land/remote-imaging-protocol/issues/20): FILEDEL
+  directory scope and host-created restriction, plus its ignore-path guidance
+  conflicting with the inherited generic reject-path rule. Connection-only
+  deletion is explicitly a hypothesis, not an established shipping contract.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -603,6 +608,34 @@ single-pixel drawing and unaffected margins against independent literal colors.
 Native Valgrind reports no errors or definite/indirect leaks. Graphics-style
 background binding, remaining port metadata and terminal/stream integration
 remain pending.
+
+`rip3_resources` verifies the read-only storage adapter's host, shared and
+ordered user-search lookup, with the first usable hit winning. Missing/empty
+tiers and directories with a resource's name do not prevent fallback. All
+media extensions share the same namespace, while fonts resolve only through
+the separate global font directory; neither namespace leaks into the other.
+Bare filename validation rejects paths, drive/stream prefixes, wildcards and
+control characters, with unchanged outputs on failure. No directory is created
+by lookup. Returned streams begin at zero and own their resolved native paths.
+
+POSIX and Windows enumeration are selected in CMake, with a complete POSIX
+declaration/link probe. Existing UTF-8 filesystem/path services and Unicode
+caseless comparison are reused. Unicode equivalence beyond historical ASCII
+names is explicit modern client policy, not a reconstruction of RIPtel's
+code-page mapping. Case-colliding files reject the affected directory instead
+of choosing by enumeration order; all later tiers are still tried. If none
+succeeds, the first storage error is reported to the internal caller, with
+allocation failures stopping immediately. These are storage statuses, not
+session/parser errors. Tests exercise collision handling where the fixture
+volume supports distinct case spellings. Native Valgrind reports no errors or
+leaks; Windows code is reserved for CI, not claimed as locally executed.
+
+Per-profile directories, client-root resolution of relative search entries,
+configuration UI, host directory switching, deliveries, queries, playback and
+command-specific extension/default/path handling remain pending. The service
+does not infer a write/delete policy from read fallback. FILEDEL remains
+unsupported under #20, and the existing terminal route and RIP154 implementation
+remain unchanged.
 
 ## Verification and acceptance
 

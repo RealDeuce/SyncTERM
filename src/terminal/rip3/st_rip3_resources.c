@@ -1,0 +1,149 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_rip3_resources.h"
+#include "st_rip3_resources_internal.h"
+
+#include "filesystem.h"
+#include "io_error.h"
+#include "path.h"
+#include "st_unicode_compare.h"
+
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+
+void
+st_rip3_resource_dispose(struct st_rip3_resource *resource)
+{
+	if (resource == NULL)
+		return;
+	if (resource->stream != NULL)
+		(void)fclose(resource->stream);
+	free(resource->path);
+	*resource = (struct st_rip3_resource){0};
+}
+
+int
+st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name)
+{
+	char *key = NULL, *path = NULL;
+	size_t size;
+	struct fs_info info;
+	int status = st_unicode_caseless_key(&key, &size, name, strlen(name));
+	bool equal;
+
+	/* A POSIX directory may contain names outside the UTF-8 client namespace. */
+	if (status == IO_ERROR_INVALID_ENCODING)
+		return 0;
+	if (status != 0)
+		return status;
+	equal = size == match->key_size && memcmp(key, match->key, size) == 0;
+	free(key);
+	if (!equal)
+		return 0;
+	status = path_join_alloc(&path, match->directory, name);
+	if (status == 0)
+		status = fs_get_info(&info, path);
+	if (status == 0 && info.kind != FS_ENTRY_FILE)
+		status = IO_ERROR_NOT_FOUND;
+	if (status == 0 && match->path != NULL)
+		status = IO_ERROR_CONFLICT;
+	if (status != 0) {
+		free(path);
+		return status == IO_ERROR_NOT_FOUND ? 0 : status;
+	}
+	match->path = path;
+	return 0;
+}
+
+static int
+open_directory(struct st_rip3_resource *result, const char *directory,
+    const char *key, size_t key_size)
+{
+	struct st_rip3_resource_match match = {directory, key, key_size, NULL};
+	struct st_rip3_resource resource = {0};
+	int status;
+
+	if (directory == NULL || directory[0] == 0)
+		return IO_ERROR_NOT_FOUND;
+	status = st_rip3_resource_directory_scan(&match);
+	if (status == 0 && match.path == NULL)
+		status = IO_ERROR_NOT_FOUND;
+	if (status == 0) {
+		resource.path = match.path;
+		status = fs_open(&resource.stream, match.path, "rb");
+	}
+	if (status == 0)
+		*result = resource;
+	else
+		free(match.path);
+	return status;
+}
+
+static bool
+valid_name(const char *name)
+{
+	size_t size;
+
+	if (!path_untrusted_component_valid(name))
+		return false;
+	size = strlen(name);
+	if (name[size - 1] == '.' || name[size - 1] == ' ')
+		return false;
+	for (const unsigned char *p = (const unsigned char *)name; *p != 0; p++) {
+		if (*p < 32 || *p == 127 || strchr(":*?\"<>|", *p) != NULL)
+			return false;
+	}
+	return true;
+}
+
+int
+st_rip3_resource_open(struct st_rip3_resource *result,
+    const struct st_rip3_resource_paths *paths,
+    enum st_rip3_resource_kind kind, const char *name)
+{
+	char *key = NULL;
+	size_t key_size;
+	int status, first_error = IO_ERROR_NOT_FOUND;
+	const char *fixed[2];
+	size_t fixed_count;
+
+	if (result == NULL || paths == NULL || !valid_name(name)
+	    || (kind != ST_RIP3_RESOURCE_MEDIA && kind != ST_RIP3_RESOURCE_FONT)
+	    || (paths->search_count != 0 && paths->search == NULL))
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_unicode_caseless_key(&key, &key_size, name, strlen(name));
+	if (status != 0)
+		return status;
+	if (kind == ST_RIP3_RESOURCE_FONT) {
+		fixed[0] = paths->fonts;
+		fixed_count = 1;
+	}
+	else {
+		fixed[0] = paths->host;
+		fixed[1] = paths->shared;
+		fixed_count = 2;
+	}
+	/* Separate loops avoid overflowing a combined count supplied by a client. */
+	for (size_t i = 0; i < fixed_count; i++) {
+		status = open_directory(result, fixed[i], key, key_size);
+		if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY)
+			goto done;
+		if (first_error == IO_ERROR_NOT_FOUND && status != IO_ERROR_NOT_FOUND
+		    && status != IO_ERROR_NOT_DIRECTORY)
+			first_error = status;
+	}
+	if (kind == ST_RIP3_RESOURCE_MEDIA) {
+		for (size_t i = 0; i < paths->search_count; i++) {
+			status = open_directory(result, paths->search[i], key, key_size);
+			if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY)
+				goto done;
+			if (first_error == IO_ERROR_NOT_FOUND && status != IO_ERROR_NOT_FOUND
+			    && status != IO_ERROR_NOT_DIRECTORY)
+				first_error = status;
+		}
+	}
+	status = first_error;
+done:
+	free(key);
+	return status;
+}
