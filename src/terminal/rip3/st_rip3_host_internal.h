@@ -26,5 +26,7 @@ int st_rip3_host_number(const char *text, unsigned minimum, unsigned maximum,
 	unsigned *result);
 int st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+int st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
+	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 
 #endif

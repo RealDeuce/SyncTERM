@@ -115,6 +115,11 @@ Open clarification issues:
   and high-byte font character-code mapping. Type 1 ancestry alone does not
   establish RIPtel's defaults or the mapping from CP437/UTF-8 input to RFF slots.
 
+- [#23](https://github.com/bbs-land/remote-imaging-protocol/issues/23): undefined
+  COLORMODE replies conflict (`NONE` versus `-1`), and WORLDH/WORLDW syntax and
+  prose use inconsistent names/possible aliases. Explicit shipping v3 world
+  and RGB limits take precedence over the quoted older draft parameter tables.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -719,6 +724,40 @@ character-code mapping; #3 still blocks the extended-font wire/style fields.
 Point sizing, vertical alignment metrics, justification, transport mapping,
 cursor updates and terminal integration remain pending. No old parser, shared
 legacy font data or RIP154 expectations changed.
+
+`rip3_environments` adds 36 owned environment records, storing the five table
+references, world size, numeric base, coordinate width, RGB precision, mouse
+pointer and baud emulation setting. Initially only zero is defined/current;
+zero cannot be protected. Explicit definition/selection, protected edits and
+whole-table owned backups are checked on all three canvases. Restoring bypasses
+live protection, survives the original owner's destruction, and rejects a
+canvas mismatch without consuming a saved slot. The frame getter combines
+per-record world dimensions with the client's fixed device canvas.
+
+The public void-returning reference processor now handles BASEMATH, COORDSIZE,
+WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT and defined COLORMODE queries/updates through
+the ENV binding. It distinguishes missing-entry replies (`NONE` or `-1` as
+documented), validates complete changes before commit, preserves protected
+records, and continues after invalid/unsupported references. WORLD(DEFAULT)
+uses 1280x960 for base 36 and 4096x3072 for base 64. The explicit shipping v3
+restrictions are enforced: world dimensions 1..32767 and direct RGB precision
+eight. Older 65535/1..8 tables do not override those statements. COMPAT changes
+only its five documented record settings and never invokes the old parser.
+
+Tests check literal replies, noncurrent updates, minimum/maximum world fields,
+all coordinate widths' boundaries, large decimal baud values within the existing
+12-byte parameter limit, exact output capacity, and failed late-field recovery.
+ENV entry queries/protection and generic record COPY/backup status use the
+existing parser-owned table dispatcher. Native Valgrind reports no errors or
+leaks. Baud settings are stored without performing playback waits; color
+encoding settings do not imply physical true-color capability.
+
+Undefined COLORMODE queries and WORLDX/WORLDY aliases remain unsupported under
+#23. CUR(ENV,n), SWITCH_ENVIRONMENT, SENV and RENV runtime operations still need
+complete capture/activation of referenced live tables/UI state. The explicit
+record snapshots do not perform that transaction, alter pixels, or reset other
+tables. Scene reset in-use policy remains under #16. Raw framing, pacing and
+terminal routing remain pending; RIP154 behavior and the active route are intact.
 
 ## Verification and acceptance
 

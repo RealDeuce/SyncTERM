@@ -5,6 +5,7 @@
 #include "st_rip3_backup.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_environments.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -77,6 +78,8 @@ entry_current(enum st_rip3_table_type type, void *live, unsigned *result)
 		return st_rip3_palettes_current(live, result);
 	if (type == ST_RIP3_TABLE_PORT)
 		return st_rip3_ports_current(live, result);
+	if (type == ST_RIP3_TABLE_ENV)
+		return st_rip3_environments_current(live, result);
 	return IO_ERROR_NOT_SUPPORTED;
 }
 
@@ -98,6 +101,15 @@ entry_info(enum st_rip3_table_type type, void *live, unsigned index,
 	if (type == ST_RIP3_TABLE_PORT) {
 		struct st_rip3_port_info info;
 		int status = st_rip3_ports_info(live, index, &info);
+		if (status != 0)
+			return status;
+		*defined = info.defined;
+		*protected = info.protected;
+		return 0;
+	}
+	if (type == ST_RIP3_TABLE_ENV) {
+		struct st_rip3_environment_info info;
+		int status = st_rip3_environments_info(live, index, &info);
 		if (status != 0)
 			return status;
 		*defined = info.defined;
@@ -320,7 +332,7 @@ objects(const struct st_rip3_table_host *host,
 				return IO_ERROR_NOT_SUPPORTED; /* Missing definition, #16. */
 		}
 		if (uses_entries && (binding->live == NULL
-		    || (type != ST_RIP3_TABLE_PAL && type != ST_RIP3_TABLE_PORT)))
+		    || (type != ST_RIP3_TABLE_PAL && type != ST_RIP3_TABLE_PORT && type != ST_RIP3_TABLE_ENV)))
 			return IO_ERROR_NOT_SUPPORTED;
 		if ((uses_slots || selected == BASE || selected == STACK) && binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
@@ -334,8 +346,10 @@ objects(const struct st_rip3_table_host *host,
 				if (!entries[i]) continue;
 				if (type == ST_RIP3_TABLE_PAL)
 					(void)st_rip3_palettes_protect(binding->live, i, protect);
-				else
+				else if (type == ST_RIP3_TABLE_PORT)
 					(void)st_rip3_ports_protect(binding->live, i, protect);
+				else
+					(void)st_rip3_environments_protect(binding->live, i, protect);
 			}
 			for (unsigned i = 0; i < 10; i++) {
 				if (slots[i])

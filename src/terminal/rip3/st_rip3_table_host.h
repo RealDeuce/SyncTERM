@@ -29,12 +29,15 @@ struct st_rip3_table_host {
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
  * SCP/RCP, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
- * currently supports PAL and PORT; backup-slot operations work for any bound
+ * currently supports PAL, PORT and ENV; backup-slot operations work for any bound
  * object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
  * Parameter defaults and
  * decimal slot syntax follow the reference; entry COPY stays NOT_SUPPORTED
  * pending #16. Other built-ins return NOT_SUPPORTED for wider dispatch.
+ * CUR(ENV,n), SENV and RENV remain unsupported until complete scene context
+ * capture/activation is available. Generic ENV record snapshots do not
+ * activate referenced table/UI state.
  * Parsed references must come from builtin_reference_parse. Empty outputs
  * require capacity >= 1, validated before any active operation. Failures leave
  * caller output and bound table/save state unchanged. No host transmission,

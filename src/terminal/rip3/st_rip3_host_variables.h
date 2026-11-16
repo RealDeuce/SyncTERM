@@ -55,7 +55,11 @@ struct st_rip3_host_sink {
  * private and must not be used as connection errors.
  *
  * Supports NULL, IFS, RESX/RESY, the resolved date/time fields and the
- * implemented table/viewport-variable families. DATETIME formatting remains
+ * implemented table/viewport/environment-variable families. Environment
+ * records support BASEMATH, COORDSIZE, WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT
+ * and defined COLORMODE queries/sets; record backup/protection is separate
+ * from future scene-wide context activation. Undefined COLORMODE replies
+ * remain blocked (#23). DATETIME formatting remains
  * blocked.
  * Unknown names/user resolution and other built-ins remain pending; they emit
  * no reply and cannot abort later references. External launch names likewise
