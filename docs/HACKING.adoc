@@ -253,6 +253,18 @@ as described above. Packages include the application products, configuration
 report, build provenance, and bundled license notices. Optional runtime
 libraries may require separate installation.
 
+GitHub caches downloaded pinned source archives and the compiled dependency
+trees separately. Compiled caches require an exact match of platform, hosted
+runner image version, workspace path, CMake version, build type, compiler
+environment, and the contents of CMake inputs, CI drivers, and this workflow.
+Changes to pins, patches, recipes, or build policy therefore rebuild the
+dependencies; ordinary application source changes reuse them. Fresh checkouts
+normalize the hashed build inputs' timestamps so ExternalProject does not
+re-extract unchanged sources. Application objects and the parent CMake cache
+are rebuilt in each job. Older source archives may be reused across pin
+changes, with their SHA-256 hashes still verified before use. GitHub may evict
+caches; a miss performs the normal pinned source build.
+
 After all three builds succeed, the workflow replaces the mutable
 `latest-build` prerelease. Downloads work without a GitHub login:
 

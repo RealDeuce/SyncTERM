@@ -50,6 +50,39 @@ jobs:
             libsdl2-dev libncurses-dev libx11-dev libxrender-dev libxrandr-dev \
             libxinerama-dev libwayland-dev wayland-protocols libxkbcommon-dev \
             libasound2-dev libsndfile1-dev libjpeg-dev libjxl-dev
+      - name: Identify dependency cache environment
+        id: dependency-cache
+        shell: bash
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const {execFileSync} = require('node:child_process');
+          if (!process.env.ImageVersion) throw new Error('Missing hosted runner image version');
+          const identity = [process.env.ImageOS, process.env.ImageVersion,
+            process.cwd(), process.env.CI_BUILD_TYPE, process.env.CI_EXTRA_CMAKE_ARGS,
+            ...['CC', 'CXX', 'CFLAGS', 'CXXFLAGS', 'CPPFLAGS', 'LDFLAGS',
+              'CMAKE_GENERATOR', 'CMAKE_GENERATOR_PLATFORM', 'CMAKE_GENERATOR_TOOLSET',
+              'MACOSX_DEPLOYMENT_TARGET', 'SDKROOT'].map(name => process.env[name]),
+            execFileSync('cmake', ['--version']).toString()];
+          const digest = crypto.createHash('sha256').update(JSON.stringify(identity)).digest('hex');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `environment=${digest}\n`);
+          JS
+          # The compiled-cache key hashes all these inputs. Stable mtimes keep
+          # a fresh checkout from invalidating ExternalProject's cached steps.
+          git ls-files -z -- CMakeLists.txt '**/CMakeLists.txt' 'cmake/**' 'ci/**' |
+            TZ=UTC xargs -0 touch -t 200001010000
+      - name: Cache pinned source archives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build-ci/dependency-downloads/
+          key: dependency-sources-v1-${{ hashFiles('cmake/dependencies/lock.json') }}
+          restore-keys: dependency-sources-v1-
+      - name: Cache compiled pinned dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build-ci/dependencies/
+          key: dependencies-v1-${{ matrix.platform }}-${{ steps.dependency-cache.outputs.environment }}-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt', 'cmake/**', 'ci/**', '.github/workflows/latest-build.yml') }}
       - name: Build POSIX products
         if: runner.os != 'Windows'
         run: sh ci/posix.sh

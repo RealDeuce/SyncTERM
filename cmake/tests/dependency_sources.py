@@ -7,9 +7,11 @@ import http.server
 import io
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import threading
 
 if sys.argv[1] == '--build-pair':
@@ -82,4 +84,38 @@ with http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler) as server:
     finally:
         server.shutdown()
         worker.join()
+if result.returncode == 0:
+    # Model a hosted CI job restoring only the compiled dependencies into a
+    # fresh parent build at the same absolute path. Checkout input timestamps
+    # are normalized by the workflow; pinned source/recipe changes instead
+    # invalidate its exact cache key. Restoring files must actually avoid
+    # recompilation, including transitive dependencies.
+    build = root / 'build'
+    with tempfile.TemporaryDirectory(prefix='cache-restore-', dir=root) as temporary:
+        original = Path(temporary) / 'original'
+        build.rename(original)
+        build.mkdir()
+        shutil.copytree(original / 'dependencies', build / 'dependencies', symlinks=True)
+        objects = [p for p in (build / 'dependencies').rglob('*')
+                   if p.suffix in ('.o', '.obj')]
+        if not objects:
+            raise RuntimeError('Cache restore fixture has no compiled dependency objects')
+        timestamps = {p: p.stat().st_mtime_ns for p in objects}
+        for p in (root / 'modules').rglob('*'):
+            if p.is_file():
+                os.utime(p, (946684800, 946684800))
+        commands = [
+            ('cache-restore-configure', [sys.argv[1], '-S', str(root / 'consumer'),
+             '-B', str(build), f'-DMODULES={root / "modules"}',
+             f'-DSYNCTERM_DEPENDENCY_CACHE={root / "cache"}']),
+            ('cache-restore-build', [sys.argv[1], '--build', str(build),
+             '--config', 'Debug', '--parallel', '2']),
+        ]
+        for name, command in commands:
+            with open(root / f'{name}.log', 'wb') as log:
+                subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+        rebuilt = [str(p) for p, timestamp in timestamps.items()
+                   if p.stat().st_mtime_ns != timestamp]
+        if rebuilt:
+            raise RuntimeError(f'Cached dependency objects were recompiled: {rebuilt}')
 sys.exit(result.returncode)
