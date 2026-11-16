@@ -991,6 +991,39 @@ from direct drawing mode. These questions are recorded in
 [issue #2's palette clarification](https://github.com/bbs-land/remote-imaging-protocol/issues/2#issuecomment-6920509860).
 Raw framing, reset orchestration and active v3 session routing remain pending.
 
+`rip3_stream` adds incremental byte framing independent of the legacy parser.
+It recognizes line-start ! and anywhere SOH/STX, uses an optional text-window
+cursor callback after raw output, preserves bogus/escaped introducers as text,
+and buffers complete opaque command spans across arbitrary packet splits.
+Unquoted pipes chain commands; CR dispatches, mid-command LF is swallowed, and
+an odd final backslash continues a command across physical lines. Backslash
+quoting otherwise stays intact for subsequent argument/expansion processing.
+The framer does not adjudicate the unresolved level-depth or ESC/query priority
+rules under #7. Comments use their documented any-pipe boundary and bypass
+variable expansion in the command adapter. Terminal grouping begin/end are
+stateless no-ops, including nested or unmatched groups.
+
+The public byte-processing entry returns void. Invalid API spans preserve state;
+allocation failure reports one optional nonfatal diagnostic, discards the
+corrupt command and tracks quoting/continuation until its next valid boundary.
+A test-local allocator shim exercises initial/growth failures, recovery and
+reset without adding production allocation hooks. There is no fixed line limit;
+a split million-byte command exercises geometric buffer growth. Reset and
+destruction discard partial commands without callbacks or accidental execution.
+[File EOF delimiter policy is unresolved under #7](https://github.com/bbs-land/remote-imaging-protocol/issues/7#issuecomment-6920771540).
+
+Literal transcripts test every split and byte-at-a-time input, CR/LF behavior,
+backslash parity, comments, raw ANSI/CP437/UTF-8 byte preservation and cursor-based
+introducer recognition. A byte-stream-to-command integration sequence updates
+ENV/palette state, rejects an invalid command and continues to a coherent RGB
+capture on every agreed canvas. The full native CMake build and all 62 selected
+RIP3/preservation/shared-audio tests pass. Native Valgrind finds no errors,
+lost allocations or leaked file descriptors in either stream fixture. The
+frozen 93 files and 41 legacy helper definitions remain unchanged.
+This is framing and body processing;
+raw text-window rendering, expansion, binary-mode handoff, EOF playback policy,
+ANSI control/enablement, scene reset and active v3 routing remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

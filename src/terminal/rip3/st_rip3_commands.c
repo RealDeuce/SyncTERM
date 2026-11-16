@@ -108,6 +108,12 @@ execute(const struct st_rip3_command_host *host,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (memchr(command, 0, length) != NULL)
 		return IO_ERROR_INVALID_FORMAT;
+	/* Comments bypass every expansion/service, and terminal-only grouping
+	 * commands carry no state, including when nested or unmatched. */
+	if (command[0] == '!')
+		return 0;
+	if (command[0] == '(' || command[0] == ')')
+		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
 	if (length >= 2 && command[0] == '1' && command[1] == 'w') {
 		char *filename;
 		bool off;
