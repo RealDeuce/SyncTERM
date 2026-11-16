@@ -47,7 +47,7 @@ struct st_rip3_command_sink {
  * entry does not buffer partial input or perform macro expansion.
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
- * canonical full O/V and full/equal A, ordinary P/l paths,
+ * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p,
  * rectangle-fit 2C, onscreen 2P, 3e record edits, comments and terminal grouping
  * no-ops.
@@ -78,6 +78,11 @@ struct st_rip3_command_sink {
  * P needs at least three vertices and l at least two for this supported branch;
  * smaller counts and the unreachable stated 4096 encoding remain under #13.
  * These commands do not fill interiors or mutate pen/style/port/ENV state.
+ * Filled p shares the ordinary count/XY layout and requires an explicit border
+ * binding when active. Its integral wide path uses exact even-odd crossings,
+ * the current fill/mode, and optional patterned COPY borders. All used fill
+ * and border inks resolve before vertex/edge/mask allocations and painting.
+ * The same unresolved count boundaries apply; no full 4096 encoding is inferred.
  * Y validates all four two-digit current-radix fields before editing the bound
  * STYLE's classic font attributes. Conflicting justification flags discard the
  * complete command. This does not activate an extended font or text cursor.

@@ -4,6 +4,7 @@
 #include "st_rip3_styles.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_draw_internal.h"
+#include "st_rip3_polygon_internal.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -26,7 +27,8 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	unsigned environment_number, current;
 	const uint8_t *arguments = command+1;
 	size_t count = length-1, vertices, width, fields, total;
-	uint8_t foreground = 0, background = 0;
+	bool filled = command[0] == 'p', borders = false;
+	uint8_t foreground = 0, background = 0, drawing = 0;
 	int status;
 
 	if (memchr(arguments, ' ', count) != NULL)
@@ -42,7 +44,7 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	/* Only the documented two-digit direct count is decoded here. Zero may
 	 * have a special large-count meaning (#13); undersized paths' wire
 	 * policy is also unresolved, rather than a chosen degeneracy default. */
-	if (value < (command[0] == 'P' ? 3u : 2u))
+	if (value < (command[0] == 'l' ? 2u : 3u))
 		return IO_ERROR_NOT_SUPPORTED;
 	vertices = (size_t)value; /* At most 4095 in a two-digit current-base field. */
 	width = environment.coordinate_size;
@@ -73,7 +75,28 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0)
 		return status;
 	*operation = true;
-	if (style.write_mode != ST_RIP3_NOT) {
+	if (filled) {
+		bool fill_foreground = false, fill_background = false;
+		if (host->borders == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		borders = *host->borders;
+		for (size_t i = 0; i < 8; i++) {
+			fill_foreground |= style.fill.rows[i] != 0;
+			fill_background |= style.fill.rows[i] != 255;
+		}
+		/* Polygon borders retain their pattern but use COPY, even with a NOT
+		 * interior. Resolve every used operand before any geometry can paint. */
+		if (borders)
+			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
+		if (status == 0 && style.write_mode != ST_RIP3_NOT && fill_foreground)
+			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.fill_color,&foreground);
+		if (status == 0 && ((style.write_mode != ST_RIP3_NOT && fill_background)
+		    || (borders && style.pen.draw_background && style.pen.pattern != 0xffff)))
+			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.background_color,&background);
+		if (status != 0)
+			return status;
+	}
+	else if (style.write_mode != ST_RIP3_NOT) {
 		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.drawing_color, &foreground);
 		if (status == 0 && style.pen.draw_background && style.pen.pattern != 0xffff)
 			status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.background_color, &background);
@@ -95,6 +118,11 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 			points[i/2].x = (double)(value*frame.device_width/frame.world_width);
 		else
 			points[i/2].y = (double)(value*frame.device_height/frame.world_height);
+	}
+	if (filled) {
+		status = st_rip3_polygon_fill(host->ports,points,vertices,&style.fill,
+		    foreground,background,borders ? &style.pen : NULL,drawing,style.write_mode);
+		goto done;
 	}
 	status = st_rip3_stroke_path_vectors(host->ports, points, vertices,
 	    command[0] == 'P', &style.pen, &mask);

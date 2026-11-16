@@ -69,7 +69,12 @@ Ordinary P/l tests add open/closed outlines, continuing opaque/transparent
 patterns, all modes/bases/coordinate widths, protected contents, RGB/NOT and
 nonfatal allocation/field recovery. Independent all-canvas captures include the
 exact pinned examples; integer geometry checks cover thick joins, crossings and
-wide clipping. Wire count boundaries remain blocked and filled p is pending.
+wide clipping. Wire count boundaries remain blocked. Filled p tests now add
+even-odd interiors and optional patterned/thick COPY borders, all modes/bases/
+coordinate widths, RGB and nonfatal preparation failures. Independent all-canvas
+captures include its pinned example. A separate wide integral-path kernel checks
+exact crossing arithmetic, coincident/subdivided edge parity and device-service
+count boundaries; unresolved wire counts/multi-contour grammar remain blocked.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

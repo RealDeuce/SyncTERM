@@ -1504,13 +1504,58 @@ This branch supports P counts at least 3 and l counts at least 2. Smaller
 counts remain nonfatal unsupported cases; their wire behavior is requested in
 [issue #13](https://github.com/bbs-land/remote-imaging-protocol/issues/13#issuecomment-6926736265).
 The stated 4096-vertex encoding, multi-contour layouts and l's N-versus-N-1
-wording remain blocked under #13/#11. Filled `p` integration remains pending.
+wording remain blocked under #13/#11. Filled `p` integration follows below.
 No full path-boundary compliance or active application routing is claimed.
 The native CMake build and all 73 selected RIP3/preservation/shared-audio tests
 pass. Native Valgrind reports zero errors, no retained heap allocations and only
 the three inherited file descriptors in the new path fixture. All 93 frozen
 files and 41 legacy helper definitions still match the RIP1.54 baseline; the pin,
 source blocks and document identities are unchanged. Temporary logs were removed.
+
+Ordinary filled `p` bodies now share the P/l count/XY decoder and validation
+boundary. They require an explicit active border binding, retain wide integral
+world projections and fill using the current pattern/inks/write mode. Enabled
+polygon borders retain their resolved pen pattern and use COPY after the fill.
+All used inks resolve before vertex, edge, crossing and stroke-mask allocations;
+allocation failure cannot leave a partial fill. Solid/background-only fills skip
+unused operands. NOT skips fill inks but still resolves any enabled COPY-border
+inks. Protected contents remain writable; no table references or attributes are
+implicitly selected or edited. The parser consumes every failure nonfatally.
+
+The private `st_rip3_polygon_fill` service handles one integral path with finite
+coordinates up to +/-1024*INT32_MAX. Its local two-limb magnitude arithmetic
+retains exact determinants and cancellation without compiler integer extensions
+or assumptions about long-double precision. It computes clipped pixel crossing
+boundaries directly from rational edges at pixel centers, sorts those integral
+boundaries and fills paired half-open spans. This preserves even-odd parity for
+coincident/reversed/subdivided edges and repeated loops. Normal visible quotients
+use 64-bit division; a bounded integer search covers large offscreen viewport
+limits. The existing 32-bit polygon kernels are unchanged.
+
+`rip3_polygon_wide` checks independent all-canvas fill/border captures for all
+five modes, pattern phase, thick borders and protected viewports. Literal exact
+crossing expectations derived with Python Fraction cover 22 endpoint/scanline
+cases plus reversal, including offscreen limits without enormous allocations.
+Wide determinant cancellation, sample-center ties, reversed/subdivided paths,
+double-loop parity, invalid/fractional input, inactive views and every allocation
+stage are exercised. The typed kernel's one-/two-point degeneracies and 4096
+vertices are checked separately from unresolved wire count semantics.
+
+`rip3_filled_path_commands` verifies both bases, coordinate widths 2..5, short
+final fields, all fill modes, patterned/thick COPY borders, protected contents,
+used/unused inks and direct RGB matching on all canvases. The exact pinned p
+example is compared with independently decoded literal vertices and an integer
+pixel-center ray-crossing oracle. Tests cover 1295/4095 direct counts, wide
+unclamped edges, parity cancellation, NOT without a palette, inactive/missing
+bindings, malformed bodies and all preparation failures followed by recovery.
+Full 4096 wire encoding, undersized-count policy and multi-contour grammar remain
+blocked under #13. This is single-contour p integration; the active application
+route and the frozen RIP1.54 implementation are unchanged.
+The native CMake build and all 75 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap allocations and only
+the three inherited file descriptors in both new fixtures. All 93 frozen files
+and 41 legacy helper definitions remain unchanged, as do the pin, 6548 source
+blocks and 62 document identities. Temporary verification logs were removed.
 
 ## Verification and acceptance
 
