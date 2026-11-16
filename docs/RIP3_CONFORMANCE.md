@@ -1752,7 +1752,7 @@ choose a profile, accept a host-supplied directory, establish the client's root,
 or implement directory-switching, transfer or deletion policy. These remain
 pending. This storage helper does not capture pixels or implement a bitmap-export
 command. The `1W` path described below now composes capture, encoding and writing;
-`2W` and active application routing remain pending. Storage statuses remain for
+Complete `2W` behavior and active application routing remain pending. Storage statuses remain for
 the owning parser to consume internally.
 
 `rip3_resource_write` checks a literal BMP byte sequence without using the
@@ -1808,9 +1808,40 @@ checks cover clipping, empty/reversed areas, invalid palettes, unchanged results
 on failure, and owned pixels/palette after the original source is destroyed.
 The CMake and temporary verification fixtures remove their filesystem artifacts.
 
+`2W` now decodes a named source port, four current-width/current-radix world
+coordinates, four reserved zero digits and a literal filename. It shares the
+owned capture/encoding/writer transaction with `1W`, independently of clipboard
+state. Raw all-zero coordinates select the full viewport. Zero x1/y1 select the
+remainder from the projected upper-left; explicit inside rectangles keep their
+inclusive ending pixels. Sentinel recognition happens before projection, so
+positive endpoints rounded to zero remain an explicit one-pixel area. Wide
+projection retains wholly external origins until they become documented no-ops,
+without narrowing/wrapping them into a source pixel. Undefined ports are also
+no-ops, without requiring palette/storage bindings. Source/current selection,
+protection, contents and ENV references are retained.
+
+The paragraph describing a partly external ending corner switches from
+lower-right to lower-left terminology and does not distinguish resetting both
+ending axes from clipping only the external one. [Issue #10 comment
+6931396493](https://github.com/bbs-land/remote-imaging-protocol/issues/10#issuecomment-6931396493)
+requests concrete image dimensions and inactive-source behavior. These branches
+remain unsupported before any replacement; the generic capture kernel's clipping
+rule does not silently decide the wire contract.
+
+The existing bitmap-write fixture now verifies both commands. On each canvas,
+independent BMP expectations cover whole/remainder/inside exports, single rows
+and columns, the canonical `2W5000020200000FILENAME.BMP` example (a 73x73 region
+in an explicitly equal world/device frame), widths 2..5, both bases, port 0/35,
+noncurrent sources and offset viewports. It checks zero sentinels before rounding,
+huge external coordinates, invalid/reversed/reserved/filename input, undefined
+and outside-origin no-ops, unsupported inactive/partial-ending cases, and later
+valid exports. Capture and replacement failures retain the previous BMP. The
+expanded expectations inspect complete headers/palette/raster/padding without
+using the implementation to create expected bytes.
+
 The native CMake build and all 82 selected RIP3/preservation/shared-audio tests
 pass. Native Valgrind reports zero errors, no retained heap and three inherited
-descriptors in the complete bitmap-write fixture. All 93 frozen files and 41
+descriptors in the combined bitmap-export fixture. All 93 frozen files and 41
 legacy helpers still match RIP1.54's baseline; the source blocks, document
 identities and reference pin are unchanged. Temporary logs and file fixtures
 were removed. The active application route is unchanged.

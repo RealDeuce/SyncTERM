@@ -74,30 +74,44 @@ little32(const uint8_t *bytes)
 	return little16(bytes)+UINT32_C(65536)*little16(bytes+2);
 }
 
+
 static int
-expect(const char *directory, const char *name)
+expect_area(const char *directory, const char *name, unsigned width, unsigned height,
+    const uint8_t *pixels)
 {
 	char *path = NULL;
 	FILE *stream = NULL;
-	uint8_t bytes[1100];
-	const uint8_t raster[] = {128,3,200,0,0,17,255,0};
+	uint8_t bytes[1078], row[128];
+	unsigned stride = (width+3)/4*4;
+	CHECK(stride <= sizeof(row));
 	CHECK(path_join_alloc(&path,directory,name) == 0 && fs_open(&stream,path,"rb") == 0);
-	CHECK(fread(bytes,1,sizeof(bytes),stream) == 1086 && !ferror(stream));
-	CHECK(fclose(stream) == 0); free(path);
-	/* Full independent BMP header/palette/raster expectations; no decoder or
-	 * encoder from the engine constructs the expected file. */
-	CHECK(bytes[0] == 'B' && bytes[1] == 'M' && little32(bytes+2) == 1086);
+	CHECK(fread(bytes,1,sizeof(bytes),stream) == sizeof(bytes));
+	/* Independent BMP header, palette, raster and padding expectations. */
+	CHECK(bytes[0] == 'B' && bytes[1] == 'M' && little32(bytes+2) == 1078+stride*height);
 	CHECK(little32(bytes+6) == 0 && little32(bytes+10) == 1078 && little32(bytes+14) == 40);
-	CHECK(little32(bytes+18) == 3 && little32(bytes+22) == 2);
+	CHECK(little32(bytes+18) == width && little32(bytes+22) == height);
 	CHECK(little16(bytes+26) == 1 && little16(bytes+28) == 8 && little32(bytes+30) == 0);
-	CHECK(little32(bytes+34) == 0 && little32(bytes+38) == 3 && little32(bytes+42) == 2);
+	CHECK(little32(bytes+34) == 0 && little32(bytes+38) == width && little32(bytes+42) == height);
 	CHECK(little32(bytes+46) == 0 && little32(bytes+50) == 0);
 	for (unsigned i = 0; i < 256; i++) {
 		CHECK(bytes[54+4*i] == (i^0x55) && bytes[55+4*i] == 255-i
 		    && bytes[56+4*i] == i && bytes[57+4*i] == 0);
 	}
-	CHECK(memcmp(bytes+1078,raster,sizeof(raster)) == 0);
+	for (unsigned y = 0; y < height; y++) {
+		CHECK(fread(row,1,stride,stream) == stride);
+		CHECK(memcmp(row,pixels+(size_t)(height-1-y)*width,width) == 0);
+		for (unsigned x = width; x < stride; x++) CHECK(row[x] == 0);
+	}
+	CHECK(fgetc(stream) == EOF && !ferror(stream));
+	CHECK(fclose(stream) == 0); free(path);
 	return 0;
+}
+
+static int
+expect(const char *directory, const char *name)
+{
+	const uint8_t pixels[] = {0,17,255,128,3,200};
+	return expect_area(directory,name,3,2,pixels);
 }
 
 static int
@@ -248,6 +262,117 @@ recovery(const char *directory)
 }
 
 static int
+port_write(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	struct fixture f = {0};
+	struct st_rip3_environment environment;
+	const uint8_t tail[] = {17,255,3,200}, point[] = {0};
+	CHECK(create(&f,canvas,directory) == 0);
+	f.host.clipboard = NULL; /* 2W addresses a port, independently of clipboard state. */
+	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0);
+	environment.world_width = width; environment.world_height = height;
+	CHECK(st_rip3_environments_set(f.host.environments,0,&environment) == 0);
+	struct st_rip3_stream *stream = NULL;
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const uint8_t input[] = "!|2W1" "00000000" "0000Full.bmp|2W1" "01000000" "0000Tail.bmp|2W1" "01000201" "0000Explicit.bmp|2W1" "00000301" "0000Full.bmp|2W1" "00000000" "0000After.bmp\r";
+	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,input+i,1);
+	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_UNSUPPORTED);
+	CHECK(expect(directory,"Full.bmp") == 0 && expect(directory,"After.bmp") == 0);
+	CHECK(expect_area(directory,"Tail.bmp",2,2,tail) == 0 && expect_area(directory,"Explicit.bmp",2,2,tail) == 0);
+	unsigned initially_current;
+	CHECK(st_rip3_ports_current(f.host.ports,&initially_current) == 0 && initially_current == 0);
+	CHECK(process(&f,"2W1" "01000200" "0000Row.bmp",-1) == 0 && expect_area(directory,"Row.bmp",2,1,tail) == 0);
+	const uint8_t column[] = {0,128};
+	CHECK(process(&f,"2W1" "00000001" "0000Column.bmp",-1) == 0 && expect_area(directory,"Column.bmp",1,2,column) == 0);
+	st_rip3_bitmap_capture_test_failure = 1;
+	CHECK(process(&f,"2W1" "00000000" "0000Full.bmp",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
+	CHECK(st_rip3_bitmap_capture_test_failure == 0 && expect(directory,"Full.bmp") == 0);
+	st_rip3_resource_test_fail_replace = true;
+	CHECK(process(&f,"2W1" "00000000" "0000Full.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(!st_rip3_resource_test_fail_replace && expect(directory,"Full.bmp") == 0);
+	CHECK(process(&f,"2W1" "00000000" "0000Full.bmp",-1) == 0 && expect(directory,"Full.bmp") == 0);
+	const char *const short_commands[] = {"2W","2W1","2W1000","2W1000000000000"};
+	for (size_t i = 0; i < sizeof(short_commands)/sizeof(short_commands[0]); i++)
+		CHECK(process(&f,short_commands[i],ST_RIP3_COMMAND_INVALID) == 0);
+	const struct st_rip3_resource_paths *resources = f.host.resources;
+	struct st_rip3_palettes *palettes = f.host.palettes;
+	f.host.resources = NULL; f.host.palettes = NULL;
+	CHECK(process(&f,"2W7" "00000000" "0000Undefined.bmp",-1) == 0);
+	CHECK(process(&f,"2W1" "03000000" "0000Outside.bmp",-1) == 0);
+	f.host.resources = resources; f.host.palettes = palettes;
+	struct st_rip3_port_info source_info;
+	CHECK(st_rip3_ports_info(f.host.ports,1,&source_info) == 0 && source_info.protected
+	    && source_info.viewport_active && source_info.viewport.x0 == 1 && source_info.viewport.y0 == 1
+	    && source_info.viewport.x1 == 3 && source_info.viewport.y1 == 2);
+	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0);
+	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
+	CHECK(process(&f,"2W1" "00000000" "0000Full.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && expect(directory,"Full.bmp") == 0);
+	CHECK(st_rip3_ports_activate(f.host.ports,true) == 0 && st_rip3_ports_protect(f.host.ports,1,true) == 0);
+	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0);
+	CHECK(process(&f,"2W1" "03000000" "0000Outside.bmp",-1) == 0 && missing(directory,"Outside.bmp") == 0);
+	CHECK(process(&f,"2W7" "00000000" "0000Undefined.bmp",-1) == 0 && missing(directory,"Undefined.bmp") == 0);
+	CHECK(process(&f,"2W1" "02000101" "0000Reverse.bmp",ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&f,"2W1" "00000000" "0001Reserved.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"2W1" "00000000" "0000../escape.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	for (unsigned coordinate = 2; coordinate <= 5; coordinate++) {
+		char body[96];
+		(void)snprintf(body,sizeof(body),"n%u",coordinate); CHECK(process(&f,body,-1) == 0);
+		(void)snprintf(body,sizeof(body),"2W1%0*u%0*u%0*u%0*u0000Width.bmp",
+		    (int)coordinate,1u,(int)coordinate,0u,(int)coordinate,2u,(int)coordinate,1u);
+		CHECK(process(&f,body,-1) == 0 && expect_area(directory,"Width.bmp",2,2,tail) == 0);
+	}
+	CHECK(process(&f,"n2",-1) == 0);
+	const struct st_rip3_rect small = {0,0,2,1};
+	CHECK(st_rip3_ports_define(f.host.ports,35,&small,true) == 0);
+	CHECK(st_rip3_ports_copy(f.host.ports,1,NULL,35,NULL,ST_RIP3_TRANSFER_COPY) == 0);
+	CHECK(process(&f,"J1S",-1) == 0);
+	CHECK(process(&f,"2WZ" "00000201" "0000Ultra.bmp",-1) == 0 && expect(directory,"Ultra.bmp") == 0);
+	CHECK(process(&f,"2WZ" "0#000#00" "0000OutsideUltra.bmp",-1) == 0 && missing(directory,"OutsideUltra.bmp") == 0);
+	CHECK(process(&f,"2Wa" "00000000" "0000BadPort.bmp",ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&f,"J10",-1) == 0);
+	CHECK(process(&f,"2Wz" "00000000" "0000Mega.bmp",-1) == 0 && expect(directory,"Mega.bmp") == 0);
+	CHECK(process(&f,"2WZ" "0#000#00" "0000BadBase.bmp",ST_RIP3_COMMAND_INVALID) == 0);
+	/* Sentinel recognition precedes projection: positive endpoints which
+	 * round to device zero still describe one pixel rather than a full view. */
+	environment.world_width = width*2; environment.world_height = height*2;
+	CHECK(st_rip3_environments_set(f.host.environments,0,&environment) == 0);
+	CHECK(process(&f,"2W1" "00000101" "0000Point.bmp",-1) == 0 && expect_area(directory,"Point.bmp",1,1,point) == 0);
+	CHECK(process(&f,"2W1" "01010000" "0000RoundedTail.bmp",-1) == 0 && expect(directory,"RoundedTail.bmp") == 0);
+	/* Entirely external five-digit coordinates stay external after wide
+	 * projection; no overflow wraps them into a source pixel. */
+	environment.world_width = environment.world_height = 1;
+	CHECK(st_rip3_environments_set(f.host.environments,0,&environment) == 0);
+	CHECK(process(&f,"J1S",-1) == 0 && process(&f,"n5",-1) == 0);
+	CHECK(process(&f,"2W1" "&&&&&&&&&&&&&&&&&&&&" "0000Huge.bmp",-1) == 0 && missing(directory,"Huge.bmp") == 0);
+	CHECK(process(&f,"J10",-1) == 0 && process(&f,"n2",-1) == 0);
+	environment.world_width = width; environment.world_height = height;
+	CHECK(st_rip3_environments_set(f.host.environments,0,&environment) == 0);
+	const struct st_rip3_rect large = {0,0,72,72};
+	uint8_t canonical[73*73];
+	CHECK(st_rip3_ports_define(f.host.ports,5,&large,true) == 0 && st_rip3_ports_switch(f.host.ports,5) == 0);
+	for (int32_t y = 0; y < 73; y++) for (int32_t x = 0; x < 73; x++) {
+		uint8_t index = (uint8_t)((unsigned)x+3*(unsigned)y);
+		canonical[y*73+x] = index;
+		CHECK(st_rip3_ports_plot(f.host.ports,x,y,index,ST_RIP3_COPY) == 0);
+	}
+	CHECK(process(&f,"2W5000020200000FILENAME.BMP",-1) == 0);
+	CHECK(expect_area(directory,"FILENAME.BMP",73,73,canonical) == 0);
+	const struct st_rip3_rect screen_view = {5,7,7,8};
+	const uint8_t screen_pixels[] = {0,17,255,128,3,200};
+	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0 && st_rip3_ports_viewport(f.host.ports,&screen_view) == 0);
+	for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 3; x++)
+		CHECK(st_rip3_ports_plot(f.host.ports,x,y,screen_pixels[3*y+x],ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_ports_switch(f.host.ports,5) == 0);
+	CHECK(process(&f,"2W0" "00000000" "0000PortZero.bmp",-1) == 0 && expect(directory,"PortZero.bmp") == 0);
+	unsigned current;
+	CHECK(st_rip3_ports_current(f.host.ports,&current) == 0 && current == 5);
+	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.port == 9 && environment.palette == 7);
+	st_rip3_stream_destroy(stream); destroy(&f);
+	return 0;
+}
+
+static int
 capture(const char *directory)
 {
 	struct fixture f = {0};
@@ -282,5 +407,8 @@ main(int argc, char **argv)
 	CHECK(scene(ST_RIP3_CANVAS_800_600,argv[1]) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_1024_768,argv[1]) == 0);
 	CHECK(recovery(argv[1]) == 0 && capture(argv[1]) == 0);
+	CHECK(port_write(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(port_write(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(port_write(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
 	return 0;
 }

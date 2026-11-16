@@ -65,7 +65,7 @@ struct st_rip3_command_sink {
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
- * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 3D delays, 3e record edits,
+ * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 2W bitmap export, 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
@@ -101,6 +101,13 @@ struct st_rip3_command_sink {
  * are unsupported (#42).
  * Current port, protection, pixels, palette and ENV references are retained.
  * Source capture/encoding finish before any filesystem replacement is attempted.
+ * 2W exports a named port without selecting it or using the clipboard pointer.
+ * Raw all-zero coordinates select its full viewport; zero lower-right fields
+ * select the remainder from the projected upper-left. Explicit inside regions
+ * retain inclusive endpoints. Undefined ports/outside origins are no-ops.
+ * Partially external lower-rights and inactive sources remain unsupported under
+ * #10. Reserved digits and literal filename must be present; current ENV width
+ * and radix govern all numeric fields. Encoding/storage share 1W's path.
  * Drawing commands use the bound STYLE record's explicit resolved pen and
  * write mode. c/k preserve raw colour values: current-radix palette indices
  * or four-digit UltraNum RGB (8 bits/channel), with last-field shortening.
