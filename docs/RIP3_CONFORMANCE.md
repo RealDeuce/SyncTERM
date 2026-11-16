@@ -143,6 +143,10 @@ Open clarification issues:
   protected auto-clip style mutation, shipping transparency-bit semantics and
   device-coordinate policy for effects/label indents.
 
+- [#28](https://github.com/bbs-land/remote-imaging-protocol/issues/28): tone-variable
+  ordering/default conflicts, T's required versus optional parameters, BLIP's
+  duration example and MUSIC's literal recipe versus swept-segment evidence.
+
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
 silently override the contract: adopt clarification through a reviewed
@@ -880,6 +884,48 @@ with an absent sink. Application identity/profile binding and raw stream/macro
 integration remain pending. No system terminfo or frozen RIP154 code is used.
 The native CMake build and all 52 RIP3/preservation checks pass; native Valgrind
 reports no errors or allocations in the identity-query fixture.
+
+`rip3_audio` adds an optional WAV playback adapter using the existing resource
+resolver, audio-file decoder and client-owned audio engine. Its exclusive stream
+is pulled by the existing mixer consumer; no playback thread or physical device
+is created by the adapter. The client supplies stream volume and retains the
+engine until after player destruction. One session thread owns playback control.
+A mutex protects owned PCM and its cursor against the consumer. Source
+activation never holds that mutex, and stream destruction quiesces callbacks
+before PCM/mutex destruction.
+
+RIFF/PCM validation checks declared container/chunk bounds, word padding,
+format tag, sample rate, block alignment and complete frames before decoding.
+The shared decoder handles 8/16/24/32-bit samples and arbitrary supported rates,
+duplicates mono and uses the first two channels of multichannel files, yielding
+the client's fixed 44,100-Hz stereo format. Each valid file replaces the previous
+file in one channel; missing files are no-ops, and failed validation/decoding
+preserves prior decoded PCM. Literal `$OFF$` and the explicit stop service clear
+playback. Files remain unchanged in the common MEDIA namespace.
+
+Independent PCM fixtures check replacement/tail retention, stop, mono and
+multichannel handling, the 11,127-Hz rate and integral resampling, unknown odd
+chunks, data padding, truncated headers/payloads and malformed formats. Literal
+post-mixer expectations include the existing Q15 gain and limiter; they are not
+generated from the v3 adapter. A pull-only engine exercises concurrent play/stop
+and player destruction while a consumer remains active, followed by engine-stop
+cleanup. The unavailable-decoder configuration has an explicit rejection path;
+actual PCM checks require the decoder to be available. A second fixture links a
+decoder-unavailable stub in the same native build and verifies that path without
+changing the client's decoder configuration.
+
+These are storage/playback service statuses for the RIP parser to consume,
+never a session-processing return. Raw `1w`/host-prefix parsing, reset/header
+dispatch, audio settings, IFS readiness and active session integration remain
+pending. Tone variables remain separate, including #28's unresolved recipes.
+No frozen RIP154 source or existing sound implementation is changed. Headless
+tests establish PCM behavior and ownership, not audible/native-device coverage.
+
+The native CMake build and all 58 selected RIP3/preservation and shared audio
+checks pass. Native Valgrind reports no memory errors or definite/indirect losses
+in the PCM/concurrent-lifetime fixture, with only its three inherited file
+descriptors open at exit. The native installed decoder executed the PCM cases;
+the separate stub fixture executed unavailable-decoder rejection.
 
 ## Verification and acceptance
 

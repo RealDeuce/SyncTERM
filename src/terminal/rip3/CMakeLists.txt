@@ -65,7 +65,40 @@ else()
 	target_compile_options(st_rip3_storage PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
+# Playback policy is optional and reuses the client's existing mixer/decoder.
+add_library(st_rip3_audio STATIC st_rip3_audio.c)
+target_include_directories(st_rip3_audio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(st_rip3_audio PUBLIC st_rip3_storage st_audio
+	PRIVATE st_audio_file syncterm_filesystem syncterm_threads)
+set_target_properties(st_rip3_audio PROPERTIES
+	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_rip3_audio PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+else()
+	target_compile_options(st_rip3_audio PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+endif()
+
 if(BUILD_TESTING)
+	add_executable(st_rip3_audio_test tests/st_rip3_audio_test.c)
+	add_executable(st_rip3_audio_unavailable_test tests/st_rip3_audio_test.c
+		tests/st_rip3_audio_unavailable.c)
+	foreach(target IN ITEMS st_rip3_audio_test st_rip3_audio_unavailable_test)
+		target_link_libraries(${target} PRIVATE st_rip3_audio st_audio_file
+			syncterm_filesystem syncterm_path syncterm_threads)
+		syncterm_target_atomics(${target})
+		set_target_properties(${target} PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(MSVC)
+			target_compile_options(${target} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+		else()
+			target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+		endif()
+	endforeach()
+	add_test(NAME rip3_audio COMMAND st_rip3_audio_test "${CMAKE_CURRENT_BINARY_DIR}/audio-fixture")
+	add_test(NAME rip3_audio_unavailable COMMAND st_rip3_audio_unavailable_test
+		"${CMAKE_CURRENT_BINARY_DIR}/audio-unavailable-fixture")
+	set_tests_properties(rip3_audio rip3_audio_unavailable PROPERTIES TIMEOUT 60)
+
 	add_executable(st_rip3_terminfo_test tests/st_rip3_terminfo_test.c)
 	target_link_libraries(st_rip3_terminfo_test PRIVATE st_rip3)
 	set_target_properties(st_rip3_terminfo_test PROPERTIES
