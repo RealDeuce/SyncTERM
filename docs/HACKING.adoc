@@ -241,6 +241,54 @@ To exercise a native artifact job locally, use `sh ci/posix.sh`. Use
 for those variants. The CI helper does not push commits, register runners,
 install system packages or change GitLab project settings.
 
+=== GitHub mirror development downloads
+
+link:../.github/workflows/latest-build.yml[The Latest build workflow] builds
+Linux x86-64, Windows x86-64 (MSVC), and macOS arm64 independently on GitHub's
+hosted runners when the upstream push mirror updates `master`. It uses the
+same CMake build-only drivers as GitLab. Manual runs on the default branch
+can rebuild the current commit. These builds do not run the application test
+matrix and are unsigned; native GitLab full-test pipelines remain available
+as described above. Packages include the application products, configuration
+report, build provenance, and bundled license notices. Optional runtime
+libraries may require separate installation.
+
+After all three builds succeed, the workflow replaces the mutable
+`latest-build` prerelease. Downloads work without a GitHub login:
+
+* https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-linux-x86_64.zip[Linux x86-64]
+* https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-windows-x86_64.zip[Windows x86-64]
+* https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-macos-arm64.zip[macOS arm64]
+* https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/SHA256SUMS[SHA-256 checksums]
+
+These URLs remain fixed across builds. Old packages are replaced, rather than
+archived as additional releases. Superseded commits do not publish. A failed
+matrix leaves the previous release available; an upload failure leaves a
+hidden draft which the next successful run replaces. Downloads briefly become
+unavailable while the release assets are replaced, preventing a visible mix
+of packages from different commits. Publication and cleanup share a concurrency
+group and cannot interrupt each other.
+
+A daily cleanup deletes the prerelease and its tag once its newest upload is
+14 days old. Downloads then return 404 until a successful build recreates the
+release. Cleanup runs around 05:37 UTC, subject to GitHub scheduling delays.
+GitHub disables scheduled workflows after 60 days without repository activity;
+the normal 14-day expiry precedes that cutoff. Temporary workflow packages
+expire after one day and build diagnostics after seven days.
+
+Repository setup: enable GitHub Actions and permit the workflow's publish and
+cleanup jobs to use `contents: write`. No additional token or secret is needed;
+the jobs use GitHub's automatic `GITHUB_TOKEN`. The mirror credential must be
+allowed to push `.github/workflows/` (the `workflow` scope for a classic PAT,
+or Workflows write permission for a fine-grained token). Keep the `latest-build`
+tag writable by Actions; release immutability must be disabled for this mutable
+rolling release. The workflow and scripts belong upstream, so mirror updates
+preserve them. Branch filters must be updated if the default branch is renamed.
+
+The release lifecycle has offline API-fixture tests, included in the CI-driver
+CTest suite when Node.js is available. The GitHub publish job also runs them
+before changing the prerelease.
+
 == Component model
 
 Each component owns one responsibility, its allocation boundary, and its
