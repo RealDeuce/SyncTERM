@@ -174,6 +174,8 @@ Open clarification issues:
   control-notation input and malformed sequences.
 - [#54](https://github.com/bbs-land/remote-imaging-protocol/issues/54): opposing
   SWITCH_PORT protection flags and flag effects on an undefined destination.
+- [#58](https://github.com/bbs-land/remote-imaging-protocol/issues/58): canonical
+  LOAD_BITMAP example flags `0G` = 16, absent from the enumerated flag table.
 
 Continue unaffected work while issues remain open. File distinct additional
 gaps as discovered, checking existing issues first. Issue reports do not
@@ -1845,6 +1847,55 @@ descriptors in the combined bitmap-export fixture. All 93 frozen files and 41
 legacy helpers still match RIP1.54's baseline; the source blocks, document
 identities and reference pin are unchanged. Temporary logs and file fixtures
 were removed. The active application route is unchanged.
+
+The independent BMP file loader now combines media lookup with the existing
+memory decoder. It appends `.BMP` only when an extension is absent and retains
+explicit filenames/extensions. It validates the BMP file header's declared
+length against actual file size before allocating that file buffer, reads only
+the declared container, and preserves the caller's result on every failure.
+All streams/buffers close/free before return. Contents and modification times
+are retained; trailing bytes are ignored. Legacy conversion/deletion, deliveries,
+file-error UI and numeric load-command dispatch remain separate work.
+
+The new explicit bitmap-stamp kernel uses the requested device rectangle for
+nearest pixel-center sampling, then clips visible coverage without rescaling
+the surviving portion. Wide integer endpoints retain projection up to
++/-1024*INT32_MAX; rare products beyond uint64_t use exact bounded remainder
+arithmetic. It maps indexed/RGB colors through the supplied active palette,
+applies all five transfer modes, and compares indexed transparency against
+original indexes versus RGB transparency against mapped destination indexes.
+Source inversion happens after transparency comparison. It ignores image-style
+clearing/fitting/disable flags and retains source, palettes, current port,
+viewport/protection/image metadata and uncovered pixels. Validation and all
+scratch allocation precede drawing. Inactive/empty coverage remains a no-op.
+Palette adoption, dithering, duplicate ports and wire placement defaults are
+not silently implemented by this resolved rendering API.
+
+The pinned `1b0000HS0Y000G000000STRIP6.BMP` example contains flag `0G` = 16,
+but its flag table defines only 1/2/4/8. Issue #58 requests that missing behavior
+or a corrected example/layout. The reader/renderer do not interpret that flag,
+and full `1I`/`1b` command/context/prompt orchestration remains pending.
+
+`rip3_bitmap_stamp` checks independent full-canvas expectations on all three
+canvases for five modes, scaling, positive/negative clipping origins, indexed
+and RGB transparent holes, equal-RGB/different-index transparency, source
+inversion, protected/disabled-image-style ports and unchanged margins/state.
+Boundary tests cover allocation failure before effects, invalid source/destination
+values, far-offscreen geometry, no input access for inactive viewports and literal
+exact-rational sample results whose products exceed uint64_t.
+`rip3_bitmap_file` checks authored BMP bytes, default and literal extensions,
+Unicode/case/tier lookup, ignored trailers, truncated/bad/compressed files and unsupported DIB headers,
+invalid sizes/names, allocation/decode failures and later recovery. Its loaded
+RGB bitmap also stamps an offscreen destination and can be
+freed afterward while rendered pixels remain valid. CMake and temporary fixtures
+remove their complete filesystem trees after use.
+
+The native CMake build and all 84 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap and three inherited
+descriptors in each new fixture. All 93 frozen files and 41 legacy helpers,
+all 6548 source blocks, 62 document identities and the reference pin remain
+unchanged. Temporary logs and issue payloads were removed. Neither active
+application routing nor RIP1.54 behavior changed.
 
 ## Verification and acceptance
 
