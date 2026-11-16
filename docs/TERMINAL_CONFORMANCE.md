@@ -25,7 +25,8 @@ documentation and tracks requirements and upstream blockers. Its source guard
 freezes the existing RIP 1.54 implementation and historical fixtures. This is
 preservation/inventory coverage, not a claim of RIPtel 3.1 compliance. Separate
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port
-captures on all three canvases; they do not change the active terminal route.
+captures on all three canvases, including copy modes, clipping, scaling and
+overlap recovery. They do not change the active terminal route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

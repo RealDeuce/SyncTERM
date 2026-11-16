@@ -27,11 +27,21 @@ coordinates(struct st_rip3_rect *result, const uint8_t *bytes,
 		if (values[i] > INT32_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
 	}
-	if (values[0] > values[2] || values[1] > values[3])
-		return IO_ERROR_INVALID_FORMAT;
 	*result = (struct st_rip3_rect){(int32_t)values[0],(int32_t)values[1],
 	    (int32_t)values[2],(int32_t)values[3]};
 	return 0;
+}
+
+static bool
+ordered(const struct st_rip3_rect *area)
+{
+	return area->x0 <= area->x1 && area->y0 <= area->y1;
+}
+
+static bool
+all_zero(const struct st_rip3_rect *area)
+{
+	return area->x0 == 0 && area->y0 == 0 && area->x1 == 0 && area->y1 == 0;
 }
 
 static int32_t
@@ -143,6 +153,8 @@ define_port(const struct st_rip3_command_host *host,
 	if (status == 0)
 		status = coordinates(&world, bytes+1, coordinate_bytes,
 		    environment->coordinate_size, environment->base_math, false);
+	if (status == 0 && !ordered(&world))
+		return IO_ERROR_INVALID_FORMAT;
 	if (status == 0)
 		status = st_rip3_command_field(&flags, bytes+prefix,
 		    length - prefix > 4 ? 4 : length - prefix, environment->base_math);
@@ -182,6 +194,76 @@ define_port(const struct st_rip3_command_host *host,
 	return status;
 }
 
+static int
+copy_port(const struct st_rip3_command_host *host,
+    unsigned environment_number, const struct st_rip3_environment *environment,
+    const uint8_t *bytes, size_t length, bool *operation)
+{
+	struct st_rip3_rect source_world, destination_world, source, destination;
+	struct st_rip3_port_info source_info, destination_info;
+	uint64_t source_number, destination_number, mode, reserved;
+	size_t coordinate_bytes = 4*environment->coordinate_size;
+	size_t minimum = 2*coordinate_bytes+3, destination_offset = coordinate_bytes+1;
+	int status;
+
+	if (length < minimum || length > minimum+5)
+		return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_field(&source_number, bytes, 1, environment->base_math);
+	if (status == 0)
+		status = coordinates(&source_world, bytes+1, coordinate_bytes,
+		    environment->coordinate_size, environment->base_math, false);
+	if (status == 0)
+		status = st_rip3_command_field(&destination_number, bytes+destination_offset,
+		    1, environment->base_math);
+	if (status == 0)
+		status = coordinates(&destination_world, bytes+destination_offset+1,
+		    coordinate_bytes, environment->coordinate_size, environment->base_math, false);
+	if (status == 0)
+		status = st_rip3_command_field(&mode, bytes+minimum-1, 1, environment->base_math);
+	if (status == 0 && length > minimum) {
+		status = st_rip3_command_field(&reserved, bytes+minimum,
+		    length-minimum, environment->base_math);
+		if (status == 0 && reserved != 0)
+			return IO_ERROR_NOT_SUPPORTED;
+	}
+	if (status != 0)
+		return status;
+	if (source_number > 35 || destination_number > 35 || mode > 4)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (!ordered(&source_world))
+		return IO_ERROR_INVALID_FORMAT;
+	/* Zero destination endpoints with a nonzero origin request verbatim
+	 * size. Retain that syntax until after undefined/inactive no-op checks;
+	 * its clipped-size/scaling interpretation remains unresolved under #10. */
+	if ((destination_world.x1 != 0 || destination_world.y1 != 0)
+	    && !ordered(&destination_world))
+		return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_ports_info(host->ports, (unsigned)source_number, &source_info);
+	if (status == 0)
+		status = st_rip3_ports_info(host->ports, (unsigned)destination_number, &destination_info);
+	if (status != 0)
+		return status;
+	if (!source_info.defined || !destination_info.defined
+	    || !source_info.viewport_active || !destination_info.viewport_active)
+		return 0;
+	if (destination_world.x1 == 0 && destination_world.y1 == 0
+	    && !all_zero(&destination_world))
+		return IO_ERROR_NOT_SUPPORTED;
+	status = translate(host, environment_number, &source_world, &source);
+	if (status == 0)
+		status = translate(host, environment_number, &destination_world, &destination);
+	if (status != 0)
+		return status;
+	*operation = true;
+	/* These sentinels are checked before world-to-device rounding. Explicit
+	 * rectangles rounded to the origin pixel must remain explicit pointers.
+	 * Copy performs its own clip-then-fit and wholly-external no-op, unlike
+	 * the unresolved wholly-external v/2P definition branch. */
+	return st_rip3_ports_copy(host->ports, (unsigned)source_number,
+	    all_zero(&source_world) ? NULL : &source, (unsigned)destination_number,
+	    all_zero(&destination_world) ? NULL : &destination, (enum st_rip3_transfer_mode)mode);
+}
+
 int
 st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
@@ -203,19 +285,23 @@ st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 	if (memchr(arguments, ' ', count) != NULL)
 		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
 	if (command[0] != 'v') {
+		if (command[1] == 'C')
+			return copy_port(host, number, &environment, arguments, count, operation);
 		if (command[1] == 'p')
 			return delete_port(host->ports, arguments, count, environment.base_math, operation);
 		return define_port(host, number, &environment, arguments, count, operation);
 	}
 	status = coordinates(&world, arguments, count, environment.coordinate_size,
 	    environment.base_math, true);
+	if (status == 0 && !ordered(&world))
+		return IO_ERROR_INVALID_FORMAT;
 	if (status == 0)
 		status = translate(host, number, &world, &device);
 	if (status != 0)
 		return status;
 	/* The deactivation sentinel belongs to WORLD fields, before rounding.
 	 * A nonzero world rectangle can map to one device pixel at the origin. */
-	if (world.x0 == 0 && world.y0 == 0 && world.x1 == 0 && world.y1 == 0) {
+	if (all_zero(&world)) {
 		*operation = true;
 		return st_rip3_ports_activate(host->ports, false);
 	}

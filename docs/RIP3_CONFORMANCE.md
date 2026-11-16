@@ -1060,6 +1060,44 @@ lost allocations or leaked file descriptors in the port-command fixture.
 The original 93 frozen files and 41 legacy helper definitions remain unchanged.
 Active terminal routing is pending.
 
+The command adapter now executes 2C port copies with explicit source/destination
+rectangles and the all-zero full-viewport shorthand. It parses both ports,
+eight coordinate fields, transfer mode and optional zero reserved field before
+any copy. Current ENV supplies radix/coordinate width/world projection, with
+matching device canvases required. Source and destination are numbered operands;
+current port selection, ENV references, viewports and protection are retained. Protected ports permit copying their contents. Modes 0..4 include
+inversion of the source image for mode 4, distinct from drawing-mode NOT.
+
+World zero sentinels are resolved before projection, preserving explicitly
+specified rectangles that round to a single origin pixel. The existing device
+service clips both rectangles before fitting and copies from an owned snapshot
+for overlapping surfaces, including different onscreen ports sharing pixels.
+Undefined/inactive operands and wholly external copy rectangles are documented
+successful no-ops. Very large fields clip without intermediate projection or
+viewport-origin overflow. Nonzero destination origins with both lower-right
+fields zero remain unsupported under #10's unresolved verbatim-size policy.
+
+`rip3_copy_commands` uses independently specified indexed operands, literal
+transfer results and coherent RGB captures on all three canvases. It covers all
+five modes, viewport origins, protected content, source/destination clipping,
+scaling, full-viewport shorthands, rounded origin pixels, same-port and aliased
+screen overlap, both radices, all four coordinate widths, malformed late fields,
+reserved omission/shortening and recovery after invalid commands in a streamed
+sequence. A test-local build of the unchanged surface implementation injects
+overlap allocation failure: no pixels change and the next command succeeds.
+
+The preserved wipe command is exercised at world 1280x960 on all three canvases.
+Its literal destination `28` means 80, while the canonical explanation says 72;
+[that numeric discrepancy is recorded under #10](https://github.com/bbs-land/remote-imaging-protocol/issues/10#issuecomment-6921588539).
+The conflicting prose remains blocked in the ledger. The native CMake build and
+all 64 selected RIP3/preservation/shared-audio tests pass. Native Valgrind reports
+no errors, lost allocations or leaked file descriptors in the copy fixture.
+The original 93 frozen
+files and 41 legacy helper definitions still match the preservation baseline.
+This is complete-body processing and independent copy service integration;
+active v3 routing, unresolved 2P sizing/context and the remaining protocol remain
+pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
