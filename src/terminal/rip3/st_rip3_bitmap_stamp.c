@@ -64,10 +64,63 @@ struct prepared_pixel {
 	bool opaque;
 };
 
+struct dither_color {
+	uint8_t nearest, other;
+	uint32_t numerator, denominator;
+};
+
+static struct dither_color
+dither_prepare(const struct st_rip3_palette *palette, uint32_t rgb)
+{
+	struct dither_color result = {.denominator=1};
+	(void)st_rip3_palette_color(palette,true,rgb,&result.nearest);
+	result.other = result.nearest;
+	uint32_t base = palette->rgb[result.nearest];
+	if (base == rgb) return result;
+	int32_t channels[3], delta[3];
+	for (unsigned c = 0; c < 3; c++) {
+		unsigned shift = 16-c*8;
+		channels[c] = (int32_t)((base>>shift)&255);
+		delta[c] = (int32_t)((rgb>>shift)&255)-channels[c];
+	}
+	/* Choose the segment from the nearest colour which best approximates
+	 * the requested RGB. Projection weight dot/length^2 determines the mix.
+	 * Nearest-colour selection implies 0 < dot <= length^2/2. Compare exact
+	 * squared-error improvements without division; products are < 2^53 for
+	 * three 8-bit channels. Equal improvements retain the first index. */
+	for (unsigned i = 0; i < 256; i++) {
+		int32_t dot = 0;
+		uint32_t squared = 0;
+		for (unsigned c = 0; c < 3; c++) {
+			int32_t direction = (int32_t)((palette->rgb[i]>>(16-c*8))&255)-channels[c];
+			dot += delta[c]*direction; squared += (uint32_t)(direction*direction);
+		}
+		if (dot > 0 && (uint64_t)dot*(uint32_t)dot*result.denominator
+		    > (uint64_t)result.numerator*result.numerator*squared) {
+			result.other = (uint8_t)i; result.numerator = (uint32_t)dot; result.denominator = squared;
+		}
+	}
+	return result;
+}
+
+static uint8_t
+dither_pixel(const struct dither_color *color, uint64_t x, uint64_t y)
+{
+	static const uint8_t order[64] = {
+		0,48,12,60,3,51,15,63,32,16,44,28,35,19,47,31,
+		8,56,4,52,11,59,7,55,40,24,36,20,43,27,39,23,
+		2,50,14,62,1,49,13,61,34,18,46,30,33,17,45,29,
+		10,58,6,54,9,57,5,53,42,26,38,22,41,25,37,21,
+	};
+	unsigned threshold = 2u*order[(y&7)*8+(x&7)]+1u;
+	return (uint64_t)color->numerator*128 > (uint64_t)color->denominator*threshold
+	    ? color->other : color->nearest;
+}
+
 int
 st_rip3_draw_bitmap(struct st_rip3_ports *ports,
     const struct st_rip3_bitmap *bitmap, const struct st_rip3_bitmap_destination *destination,
-    const struct st_rip3_palette *palette, bool palette_adopted,
+    const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
     enum st_rip3_transfer_mode mode,
     const uint8_t *transparent_color)
 {
@@ -76,9 +129,11 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	struct st_rip3_rect visible;
 	unsigned current;
 	uint8_t mapped[256];
+	struct dither_color dithered[256];
 	int status;
 
 	if (ports == NULL || destination == NULL || mode < ST_RIP3_TRANSFER_COPY || mode > ST_RIP3_TRANSFER_INVERT
+	    || colors < ST_RIP3_BITMAP_MATCH || colors > ST_RIP3_BITMAP_DITHER
 	    || destination->x0 > destination->x1 || destination->y0 > destination->y1)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (destination->x0 < -limit || destination->x1 > limit || destination->y0 < -limit || destination->y1 > limit)
@@ -93,14 +148,15 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	if (destination->y0 > visible.y0) visible.y0 = (int32_t)destination->y0;
 	if (destination->x1 < visible.x1) visible.x1 = (int32_t)destination->x1;
 	if (destination->y1 < visible.y1) visible.y1 = (int32_t)destination->y1;
-	status = validate(bitmap,palette,palette_adopted);
+	status = validate(bitmap,palette,colors == ST_RIP3_BITMAP_ADOPTED);
 	if (status != 0) return status;
 	uint32_t width = (uint32_t)(visible.x1-visible.x0)+1, height = (uint32_t)(visible.y1-visible.y0)+1;
 	if (height > SIZE_MAX/sizeof(struct prepared_pixel)/width) return IO_ERROR_OUT_OF_RANGE;
 	struct prepared_pixel *pixels = malloc((size_t)width*height*sizeof(*pixels));
 	if (pixels == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	for (size_t i = 0; i < bitmap->palette_size; i++) {
-		if (palette_adopted) mapped[i] = (uint8_t)i;
+		if (colors == ST_RIP3_BITMAP_ADOPTED) mapped[i] = (uint8_t)i;
+		else if (colors == ST_RIP3_BITMAP_DITHER) dithered[i] = dither_prepare(palette,bitmap->palette[i]);
 		else (void)st_rip3_palette_color(palette,true,bitmap->palette[i],&mapped[i]);
 	}
 	uint64_t span_x = (uint64_t)(destination->x1-destination->x0)+1;
@@ -111,12 +167,19 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 			uint32_t sx = sample((uint64_t)((int64_t)visible.x0+x-destination->x0),span_x,bitmap->pixels->width);
 			uint32_t code = bitmap->pixels->primary[(size_t)sy*bitmap->pixels->width+sx];
 			struct prepared_pixel *pixel = &pixels[(size_t)y*width+x];
+			uint64_t phase_x = (uint64_t)((int64_t)visible.x0+x-destination->x0);
+			uint64_t phase_y = (uint64_t)((int64_t)visible.y0+y-destination->y0);
 			if (bitmap->bit_depth == 24) {
-				(void)st_rip3_palette_color(palette,true,code & ~ST_PIXEL_COLOR_RGB_TAG,&pixel->color);
+				if (colors == ST_RIP3_BITMAP_DITHER) {
+					struct dither_color color = dither_prepare(palette,code & ~ST_PIXEL_COLOR_RGB_TAG);
+					pixel->color = dither_pixel(&color,phase_x,phase_y);
+				}
+				else (void)st_rip3_palette_color(palette,true,code & ~ST_PIXEL_COLOR_RGB_TAG,&pixel->color);
 				pixel->opaque = transparent_color == NULL || pixel->color != *transparent_color;
 			}
 			else {
-				pixel->color = mapped[code];
+				pixel->color = colors == ST_RIP3_BITMAP_DITHER
+				    ? dither_pixel(&dithered[code],phase_x,phase_y) : mapped[code];
 				pixel->opaque = transparent_color == NULL || code != *transparent_color;
 			}
 			if (mode == ST_RIP3_TRANSFER_INVERT) pixel->color = (uint8_t)~pixel->color;

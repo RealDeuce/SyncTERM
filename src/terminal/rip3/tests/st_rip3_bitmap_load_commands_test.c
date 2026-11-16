@@ -311,6 +311,51 @@ adoption(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 }
 
 static int
+dithering(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	struct fixture f = {0};
+	uint32_t colors[256] = {0};
+	struct st_rip3_palette palette;
+	struct st_rip3_bitmap *capture = NULL;
+	char body[160];
+	/* Literal black/white quantization result for the authored 3x2 BMP
+	 * stretched to 8x8. This is an implementation-policy oracle, not a
+	 * historical RIPtel pixel capture. */
+	const char *const expected[] = {"10000000","00000000","00000010","00000000",
+	    "01000111","11100111","01000111","11100111"};
+	CHECK(create(&f,canvas,width,height,directory) == 0);
+	colors[1] = 0xffffff;
+	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0
+	    && st_rip3_palettes_rgb(f.host.palettes,0,8,colors,256) == 0
+	    && st_rip3_palettes_protect(f.host.palettes,1,true) == 0);
+	form(body,"00000707",'0',0,"04","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	/* True-colour ignores adoption but still dithers; palette protection
+	 * must not turn this into an attempted table edit. */
+	form(body,"0A000H07",'0',0,"06","00","Color.BMP"); CHECK(process(&f,body,-1) == 0);
+	form(body,"000A070H",'0',0,"0C","0C","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"0A0A0H0H",'0',4,"0E","00","Color.BMP"); CHECK(process(&f,body,-1) == 0);
+	CHECK(f.errors == 0 && f.prompts == 0 && st_rip3_palettes_get(f.host.palettes,1,&palette) == 0);
+	CHECK(memcmp(palette.rgb,colors,sizeof(colors)) == 0);
+	CHECK(st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		uint8_t value = 0;
+		if (x >= 12 && x <= 59 && y >= 21 && y <= 38) {
+			uint32_t vx = x-12, vy = y-21; value = 85;
+			if (vx < 8 && vy < 8) value = (uint8_t)(expected[vy][vx]-'0');
+			if (vx >= 10 && vx <= 17 && vy < 8) value = (uint8_t)(expected[vy][vx-10]-'0');
+			if (vx < 8 && vy >= 10 && vy <= 17) {
+				value = (uint8_t)(expected[vy-10][vx]-'0');
+				if (vx >= 3 && vx <= 4 && vy <= 13) value = 85;
+			}
+			if (vx >= 10 && vx <= 17 && vy >= 10 && vy <= 17)
+				value = expected[vy-10][vx-10] == '0' ? 85 : 254;
+		}
+		CHECK(capture->pixels->primary[(size_t)y*width+x] == value);
+	}
+	st_rip3_bitmap_destroy(capture); destroy(&f); return 0;
+}
+
+static int
 numeric(const char *directory)
 {
 	for (unsigned radix = 36; radix <= 64; radix += 28) for (size_t width = 2; width <= 5; width++) {
@@ -383,7 +428,7 @@ errors(const char *directory)
 	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 2 && !f.area_present);
 	form(body,"00000000",'0',0,"00","00","Compressed");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 3);
-	const char *const unsupported[] = {"01","04","0G"};
+	const char *const unsupported[] = {"01","0G"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		form(body,"00000000",'0',0,unsupported[i],"00","Tile");
 		CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 3);
@@ -446,6 +491,9 @@ main(int argc, char **argv)
 		CHECK(adoption(ST_RIP3_CANVAS_800_600,800,600,depth,argv[1]) == 0);
 		CHECK(adoption(ST_RIP3_CANVAS_1024_768,1024,768,depth,argv[1]) == 0);
 	}
+	CHECK(dithering(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(dithering(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(dithering(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
 	CHECK(errors(argv[1]) == 0 && numeric(argv[1]) == 0);
 	return 0;
 }

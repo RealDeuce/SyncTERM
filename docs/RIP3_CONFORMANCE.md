@@ -1981,6 +1981,51 @@ files and 41 legacy helpers match the original preservation baseline; all
 Temporary fixtures/logs were removed. Active application routing and RIP1.54
 behavior remain unchanged.
 
+### LOAD_BITMAP ordered dithering and transparency
+
+`1b` flag 4 now enables dithering for indexed and RGB files in the separate
+engine's current palette model. Successful indexed adoption still suppresses
+it; RGB files ignore adoption and retain the dither request. Protected palettes
+can be used for dithering without editing them. Transfer modes and transparent
+holes operate on the prepared result, with source inversion last. Indexed
+transparency retains the original source index; RGB transparency compares the
+mapped/dithered destination index, allowing the documented grainy boundary.
+
+The reference does not prescribe a dithering raster algorithm; exact RIPtel
+pixels are outside this goal. This renderer uses an ordered 8x8 threshold
+matrix. It starts with the nearest palette color and selects a mixing partner
+whose projected RGB mixture most reduces mean squared error. Integer-rational
+weights select between those colors. Exact matches stay exact, equal choices
+retain the first palette index, and a palette with no distinct usable partner
+reduces to its nearest color. All products fit uint64_t. Pattern phase is
+relative to the original requested device rectangle, before clipping, so a
+clipped bitmap retains the same surviving pattern. Source sampling still uses
+the existing exact nearest-center geometry. Indexed color plans are prepared
+once per palette entry; pixel staging finishes before painting, preserving the
+existing nonfatal failure boundary and avoiding palette changes.
+
+`rip3_bitmap_stamp` adds literal colored 8x8 expectations for indexed/RGB
+quadrants scaled from a 2x2 source on all three canvases. Full owned index-plane
+and palette captures check five transfer modes, exact matches, both transparent
+branches, source inversion, clipping phase, unchanged margins/source buffers,
+protection and pre-paint allocation failure. Degenerate palettes and invalid
+color-selection modes are checked separately. `rip3_bitmap_load_commands` adds
+independently authored BMP loads with literal grayscale dither expectations,
+RGB adoption-bit ignoring, transparency with source inversion and retained
+protected palettes. The new wire assertions first failed on the prior unsupported
+flag-4 implementation before the behavior changed.
+
+Full flag-4 device policies outside the current palette model, duplicate-port
+orchestration, error-box drawing and active application routing remain pending.
+The undocumented flag-16 example remains blocked under #58.
+
+The native CMake build and all 85 selected RIP3/preservation/shared-audio tests
+pass. Valgrind reports zero errors, no retained heap and only three inherited
+descriptors in each bitmap fixture. All 93 frozen files and 41 legacy helpers
+remain unchanged, as do the 6548 source blocks, 62 document identities and
+reference pin. Temporary fixtures/logs were removed. Active routing and RIP1.54
+behavior are unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

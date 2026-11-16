@@ -52,7 +52,6 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0) return status;
 	/* Drawing in a deactivated viewport is parsed but completely ignored. */
 	if (!info.viewport_active) return 0;
-	if ((flags&4) != 0 && (flags&2) == 0) return IO_ERROR_NOT_SUPPORTED;
 	/* Zero is the clipboard selector, never a literal same-port shortcut. */
 	if ((flags&1) != 0 && (duplicate == 0 || duplicate != port)) return IO_ERROR_NOT_SUPPORTED;
 	if (host->resources == NULL || host->palettes == NULL
@@ -78,9 +77,6 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 		goto done;
 	}
 	bool adopt = (flags&2) != 0 && bitmap->palette_size != 0;
-	if ((flags&4) != 0 && !adopt) {
-		status = IO_ERROR_NOT_SUPPORTED; goto done;
-	}
 	if (verbatim) {
 		area.x1 = area.x0+bitmap->pixels->width-1;
 		area.y1 = area.y0+bitmap->pixels->height-1;
@@ -93,7 +89,9 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 		if (status == 0) status = st_rip3_palette_rgb(&palette,0,8,bitmap->palette,bitmap->palette_size);
 	}
 	uint8_t transparent_color = (uint8_t)transparent;
-	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,adopt,
+	enum st_rip3_bitmap_colors colors = adopt ? ST_RIP3_BITMAP_ADOPTED
+	    : (flags&4) != 0 ? ST_RIP3_BITMAP_DITHER : ST_RIP3_BITMAP_MATCH;
+	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,colors,
 	    (enum st_rip3_transfer_mode)mode,(flags&8) != 0 ? &transparent_color : NULL);
 	/* No callbacks run between palette preflight, staging/painting and this
 	 * allocation-free commit. One owner retains the current slot/protection,

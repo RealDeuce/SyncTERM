@@ -4,7 +4,6 @@
 
 #include "st_rip3_bitmap.h"
 #include "st_rip3_surface.h"
-#include <stdbool.h>
 #include <stdint.h>
 
 struct st_rip3_ports;
@@ -16,6 +15,12 @@ struct st_rip3_bitmap_destination {
 	int64_t x0, y0, x1, y1;
 };
 
+enum st_rip3_bitmap_colors {
+	ST_RIP3_BITMAP_MATCH,
+	ST_RIP3_BITMAP_ADOPTED,
+	ST_RIP3_BITMAP_DITHER,
+};
+
 /* Stamp a decoded BMP without image-style fitting, clearing or state edits.
  * Nearest source pixel centers are computed against the original requested
  * destination, then clipped to the viewport. Each covered pixel is applied
@@ -23,10 +28,13 @@ struct st_rip3_bitmap_destination {
  * Indexed transparency compares original source indexes; RGB transparency
  * compares the resolved destination-palette index, before transfer inversion.
  * NULL transparent_color means opaque. Source/destination palettes remain
- * unchanged. palette_adopted requires an indexed source whose palette exactly
+ * unchanged. ADOPTED requires an indexed source whose palette exactly
  * matches the corresponding prefix of the supplied palette; it preserves raw
- * source indexes, including equal-RGB entries. Otherwise nearest-color mapping
- * applies. This kernel does not commit palettes, dither or duplicate ports.
+ * source indexes, including equal-RGB entries. MATCH selects nearest RGB.
+ * DITHER uses ordered 8x8 two-colour mixing, anchored to the original requested
+ * rectangle before clipping. Exact palette matches remain exact. The algorithm
+ * is client policy, not historical RIPtel pixel reproduction. This kernel
+ * neither commits palettes nor duplicates ports.
  *
  * Disabled image style does not disable stamping. Inactive/empty viewport
  * coverage succeeds without dereferencing bitmap/palette. Otherwise complete
@@ -36,7 +44,7 @@ struct st_rip3_bitmap_destination {
 int st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	const struct st_rip3_bitmap *bitmap,
 	const struct st_rip3_bitmap_destination *destination,
-	const struct st_rip3_palette *palette, bool palette_adopted,
+	const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
 	enum st_rip3_transfer_mode mode,
 	const uint8_t *transparent_color);
 

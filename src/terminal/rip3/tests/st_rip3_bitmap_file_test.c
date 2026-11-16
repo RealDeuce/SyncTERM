@@ -64,7 +64,7 @@ load_and_stamp(const struct st_rip3_resource_paths *paths)
 	CHECK(st_rip3_bitmap_load(&bitmap,paths,"Scene") == 0);
 	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_ports_define(ports,1,&area,true) == 0 && st_rip3_ports_switch(ports,1) == 0);
-	CHECK(st_rip3_draw_bitmap(ports,bitmap,&destination,&palette,false,ST_RIP3_TRANSFER_COPY,NULL) == 0);
+	CHECK(st_rip3_draw_bitmap(ports,bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
 	st_rip3_bitmap_destroy(bitmap);
 	for (int32_t y = 0; y < 4; y++) for (int32_t x = 0; x < 4; x++) {
 		uint8_t actual, expected = x >= 1 && x <= 2 && y >= 1 && y <= 2 ? 7 : 0;
