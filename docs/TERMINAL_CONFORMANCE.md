@@ -27,7 +27,10 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance. Separate
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port
 captures on all three canvases, including copy modes, clipping, scaling and
 overlap recovery. Separate style-record tests cover explicit attributes, owned
-snapshots and nonfatal metadata/COPY errors. These do not change the active route.
+snapshots and nonfatal metadata/COPY errors. Complete c/k/W/L/R command tests
+cover palette/direct RGB ink, all drawing modes, explicit patterns, reversed and
+clipped geometry, default-world mapping, wide endpoints and allocation recovery
+with coherent captures on all three canvases. These do not change the active route.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

@@ -1135,6 +1135,43 @@ descriptors in both style fixtures. The original 93 frozen files and 41 legacy
 helper definitions remain unchanged. This is record storage and explicit kernel
 integration; wire drawing/style commands and active terminal routing are pending.
 
+`rip3_drawing_commands` adds complete `c`, `k`, numeric `W`, `L` and `R`
+processing. Colour edits affect only the bound current STYLE attribute and retain
+the raw value. Palette mode follows the ENV radix; direct RGB uses UltraNums with
+8 bits/channel. Drawing matches RGB through the bound current palette.
+Destination NOT ignores both ink colours; transparent pattern-off pixels do
+not require background lookup. Protected STYLE/PORT content remains drawable,
+and inactive viewports skip colour lookup and allocation.
+
+Line and rectangle coordinates follow the current world, coordinate width and
+radix, including shortened last fields. Wide integral projection preserves far
+endpoints and line slopes until clipping. Explicit pen patterns retain phase
+through clipping and rectangle edges; owned coverage applies each write
+operation once at joins. Rectangles accept reversed corners, remain unfilled
+and become single lines when degenerate. Coverage allocation failure leaves
+pixels untouched; subsequent commands still execute through the public void
+parser boundary. This does not choose bootstrap defaults, decode wire pen
+thickness or activate ENV references (#11/#24).
+
+Independent coherent RGB captures cover all three canvases, both radices, all
+coordinate widths, default 640x350 and scaled worlds, palette/direct RGB ink,
+nearest-colour ties, all five drawing modes, protected records, viewport origins,
+reversed/clipped patterns, XOR corners and very large coordinates.
+Malformed/unsupported inputs, missing bindings, mismatched canvases and injected
+allocation failures recover without a session error. The test allocation shim
+compiles the unchanged drawing implementation without adding production hooks.
+
+Two further documentation conflicts are recorded upstream: the resulting mode
+after [`W` period termination](https://github.com/bbs-land/remote-imaging-protocol/issues/7#issuecomment-6922755531)
+is unspecified, and the default white colour row
+[uses `@` instead of the documented UltraNum digit `&`](https://github.com/bbs-land/remote-imaging-protocol/issues/9#issuecomment-6922756001).
+Period forms remain unsupported; strict UltraNum decoding retains its established
+alphabet. The native CMake build and all 67 selected RIP3/preservation/shared-audio
+tests pass. Native Valgrind reports no errors or leaked allocations/descriptors
+in the new fixture. The original 93 frozen files and 41 legacy helper definitions
+still match the preservation baseline. Active terminal routing, unresolved
+context/default policies and the remaining protocol remain pending.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

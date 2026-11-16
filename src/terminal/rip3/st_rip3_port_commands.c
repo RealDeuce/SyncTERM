@@ -61,17 +61,10 @@ translate(const struct st_rip3_command_host *host, unsigned environment,
     const struct st_rip3_rect *world, struct st_rip3_rect *result)
 {
 	struct st_rip3_frame frame;
-	struct st_rip3_port_info screen;
-	int status = st_rip3_environments_frame(host->environments, environment, &frame);
+	int status = st_rip3_command_frame(host, environment, &frame);
 
-	if (status == 0)
-		status = st_rip3_ports_info(host->ports, 0, &screen);
 	if (status != 0)
 		return status;
-	if (screen.bounds.x0 != 0 || screen.bounds.y0 != 0
-	    || (uint32_t)screen.bounds.x1 + 1 != frame.device_width
-	    || (uint32_t)screen.bounds.y1 + 1 != frame.device_height)
-		return IO_ERROR_INVALID_ARGUMENT;
 	*result = (struct st_rip3_rect){
 		clipped_coordinate(world->x0, frame.device_width, frame.world_width),
 		clipped_coordinate(world->y0, frame.device_height, frame.world_height),

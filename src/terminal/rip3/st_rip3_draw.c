@@ -417,6 +417,62 @@ failed:
 }
 
 int
+st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
+    const struct st_rip3_vector *vertices, size_t count, bool closed,
+    const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
+{
+	struct stroke_target target;
+	double min_x, min_y, max_x, max_y;
+	unsigned phase = 0;
+	int status;
+
+	if (result == NULL || vertices == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096)
+		return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i = 0; i < count; i++) {
+		if (!isfinite(vertices[i].x) || !isfinite(vertices[i].y)
+		    || fabs(vertices[i].x) > 1024.0 * INT32_MAX
+		    || fabs(vertices[i].y) > 1024.0 * INT32_MAX)
+			return IO_ERROR_OUT_OF_RANGE;
+	}
+	status = stroke_init(&target, ports, pen, 0, 0, ST_RIP3_COPY);
+	if (status != 0)
+		return status;
+	if (!target.active) {
+		*result = (struct st_rip3_stroke_mask){0};
+		return 0;
+	}
+	min_x = max_x = vertices[0].x;
+	min_y = max_y = vertices[0].y;
+	for (size_t i = 1; i < count; i++) {
+		min_x = fmin(min_x, vertices[i].x); max_x = fmax(max_x, vertices[i].x);
+		min_y = fmin(min_y, vertices[i].y); max_y = fmax(max_y, vertices[i].y);
+	}
+	status = stroke_allocate(&target, pen, min_x, min_y, max_x, max_y);
+	if (status != 0)
+		return status;
+	if (target.coverage == NULL) {
+		*result = (struct st_rip3_stroke_mask){0};
+		return 0;
+	}
+	for (size_t i = 0; i < (count == 1 ? 1 : closed ? count : count-1); i++) {
+		const struct st_rip3_vector *first = vertices+i, *last = vertices+(i+1)%count;
+		double major = fmax(fabs(last->x-first->x), fabs(last->y-first->y));
+
+		status = stroke_segment(&target, first, last, pen, phase);
+		if (status != 0) {
+			free(target.coverage);
+			return status;
+		}
+		phase = (phase + (unsigned)fmod(major, 16.0)) & 15;
+	}
+	*result = (struct st_rip3_stroke_mask){.bounds=target.clip,.width=target.width,
+	    .height=target.height,.coverage=target.coverage};
+	return 0;
+}
+
+int
 st_rip3_stroke_apply(struct st_rip3_ports *ports,
     const struct st_rip3_stroke_mask *mask, uint8_t foreground,
     uint8_t background, enum st_rip3_write_mode mode)

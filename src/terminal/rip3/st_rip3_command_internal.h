@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 struct st_rip3_environment;
+struct st_rip3_frame;
 
 /* Private wire-field and execution helpers. Every status is consumed by the
  * public void processing boundary; none is a terminal/session return status. */
@@ -16,6 +17,10 @@ int st_rip3_command_field(uint64_t *result, const uint8_t *bytes,
 	size_t length, unsigned radix);
 int st_rip3_command_environment(const struct st_rip3_command_host *host,
 	unsigned *number, struct st_rip3_environment *value);
+int st_rip3_command_frame(const struct st_rip3_command_host *host,
+	unsigned environment, struct st_rip3_frame *result);
+int st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
+	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 

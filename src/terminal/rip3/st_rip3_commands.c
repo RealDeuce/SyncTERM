@@ -4,6 +4,7 @@
 #include "st_rip3_environments.h"
 #include "st_rip3_number.h"
 #include "st_rip3_palettes.h"
+#include "st_rip3_ports.h"
 #include "string_compat.h"
 #include "io_error.h"
 
@@ -38,6 +39,26 @@ st_rip3_command_environment(const struct st_rip3_command_host *host, unsigned *n
 	if (status == 0)
 		status = st_rip3_environments_get(host->environments, *number, value);
 	return status;
+}
+
+int
+st_rip3_command_frame(const struct st_rip3_command_host *host,
+    unsigned environment, struct st_rip3_frame *result)
+{
+	struct st_rip3_frame frame;
+	struct st_rip3_port_info screen;
+	int status = st_rip3_environments_frame(host->environments, environment, &frame);
+
+	if (status == 0)
+		status = st_rip3_ports_info(host->ports, 0, &screen);
+	if (status != 0)
+		return status;
+	if (screen.bounds.x0 != 0 || screen.bounds.y0 != 0
+	    || (uint32_t)screen.bounds.x1 + 1 != frame.device_width
+	    || (uint32_t)screen.bounds.y1 + 1 != frame.device_height)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*result = frame;
+	return 0;
 }
 
 static int
@@ -136,6 +157,9 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'v' || (length >= 2 && command[0] == '2'
 	    && (command[1] == 'P' || command[1] == 'p' || command[1] == 'C')))
 		return st_rip3_port_commands_execute(host, command, length, operation);
+	if (command[0] == 'c' || command[0] == 'k' || command[0] == 'W'
+	    || command[0] == 'L' || command[0] == 'R')
+		return st_rip3_drawing_commands_execute(host, command, length, operation);
 	if (command[0] == 'Q' || command[0] == 'a')
 		return desktop_palette(host, command, length, operation);
 	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f')
