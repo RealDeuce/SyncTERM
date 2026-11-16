@@ -801,6 +801,22 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME rip3_resources COMMAND st_rip3_resources_test
 		"${CMAKE_CURRENT_BINARY_DIR}/resource-lookup")
+	add_executable(st_rip3_resource_write_test tests/st_rip3_resource_write_test.c
+		tests/st_rip3_resource_write_fault_impl.c)
+	target_link_libraries(st_rip3_resource_write_test PRIVATE st_rip3_storage
+		syncterm_filesystem syncterm_path st_unicode_compare)
+	set_target_properties(st_rip3_resource_write_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_resource_write_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_resource_write_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_resource_write COMMAND "${CMAKE_COMMAND}"
+		"-DTEST_PROGRAM=$<TARGET_FILE:st_rip3_resource_write_test>"
+		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/resource-write"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/resource_write.cmake")
+
 	add_test(NAME rip3_font_assets COMMAND "${CMAKE_COMMAND}"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/asset-check"
 		"-DGENERATOR=${CMAKE_CURRENT_SOURCE_DIR}/GenerateFontData.cmake"

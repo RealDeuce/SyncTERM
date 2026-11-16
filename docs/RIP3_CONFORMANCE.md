@@ -722,7 +722,8 @@ leaks; Windows code is reserved for CI, not claimed as locally executed.
 Per-profile directories, client-root resolution of relative search entries,
 configuration UI, host directory switching, deliveries, queries, playback and
 command-specific extension/default/path handling remain pending. The service
-does not infer a write/delete policy from read fallback. FILEDEL remains
+does not infer a write/delete policy from read fallback. The explicit host-directory
+writer is described below. FILEDEL remains
 unsupported under #20, and the existing terminal route and RIP154 implementation
 remain unchanged.
 
@@ -1734,6 +1735,43 @@ descriptors in the new switch fixture. All 93 frozen files and 41 legacy helper
 definitions still match the RIP1.54 baseline. The source blocks, document
 identities and reference pin are unchanged; temporary verification logs and the
 upstream issue payload were removed.
+
+`st_rip3_resource_write` adds the storage dependency for bitmap export. It takes
+complete bytes and a bare UTF-8 filename, using the explicitly bound trusted
+host directory. It creates that hierarchy if absent, preserves an existing
+unique regular file's spelling through caseless matching, and uses the existing
+atomic file-replacement service. Empty files are supported. Invalid names or
+UTF-8 reject before creating directories. Directory/link/reparse/non-file and
+ambiguous-name collisions reject; replacement failures retain prior contents.
+There is no write fallback to shared, font or search tiers, even if the host
+directory is missing or unusable. Existing read lookup retains its separate
+fallback and file-type policy.
+
+The caller must supply a client-owned session directory; this helper does not
+choose a profile, accept a host-supplied directory, establish the client's root,
+or implement directory-switching, transfer or deletion policy. These remain
+pending. The BMP encoder already exists, but port/clipboard capture and `1W`/`2W`
+wire orchestration remain separate work; this helper is not a bitmap-export
+command or an active application route. Storage statuses remain for the owning
+parser to consume internally.
+
+`rip3_resource_write` checks a literal BMP byte sequence without using the
+production encoder to create its expectation. It covers byte-preserving writes,
+case-insensitive replacement, Unicode equivalence, empty files, missing-directory
+creation, malformed names/encoding before creation, case-colliding entries where
+the volume permits them, directory collisions, injected replacement failure and
+later recovery, and missing/misconfigured host directories. Existing and dangling
+symbolic-link cases run where the fixture can create them; the native FreeBSD
+fixture exercises both. Shared/search/font bytes and an external sentinel remain
+unchanged. The CMake fixture removes its complete directory after either success
+or failure. Temporary Valgrind fixtures/logs also use automatic cleanup.
+
+The native CMake build and all 81 selected RIP3/preservation/shared-audio tests
+pass. Native Valgrind reports zero errors, no retained heap and three inherited
+descriptors for the resource writer, including both link cases. All 93 frozen
+files and 41 legacy helpers remain unchanged, as do all 6548 source blocks,
+62 document identities and the reference pin. Verification logs and filesystem
+fixtures were removed automatically. No Windows execution is claimed.
 
 ## Verification and acceptance
 

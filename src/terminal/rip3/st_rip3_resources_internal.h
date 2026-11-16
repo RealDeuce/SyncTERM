@@ -2,6 +2,7 @@
 #ifndef ST_RIP3_RESOURCES_INTERNAL_H_
 #define ST_RIP3_RESOURCES_INTERNAL_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 
 struct st_rip3_resource_match {
@@ -9,6 +10,7 @@ struct st_rip3_resource_match {
 	const char *key;
 	size_t key_size;
 	char *path;
+	bool writing; /* Detect non-file collisions without following final links. */
 };
 
 /* Platform code enumerates names only. Matching and regular-file policy

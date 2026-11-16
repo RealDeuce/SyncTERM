@@ -42,9 +42,9 @@ st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name
 		return 0;
 	status = path_join_alloc(&path, match->directory, name);
 	if (status == 0)
-		status = fs_get_info(&info, path);
+		status = match->writing ? fs_get_link_info(&info,path) : fs_get_info(&info,path);
 	if (status == 0 && info.kind != FS_ENTRY_FILE)
-		status = IO_ERROR_NOT_FOUND;
+		status = match->writing ? IO_ERROR_CONFLICT : IO_ERROR_NOT_FOUND;
 	if (status == 0 && match->path != NULL)
 		status = IO_ERROR_CONFLICT;
 	if (status != 0) {
@@ -59,7 +59,7 @@ static int
 open_directory(struct st_rip3_resource *result, const char *directory,
     const char *key, size_t key_size)
 {
-	struct st_rip3_resource_match match = {directory, key, key_size, NULL};
+	struct st_rip3_resource_match match = {.directory=directory,.key=key,.key_size=key_size};
 	struct st_rip3_resource resource = {0};
 	int status;
 
@@ -145,5 +145,36 @@ st_rip3_resource_open(struct st_rip3_resource *result,
 	status = first_error;
 done:
 	free(key);
+	return status;
+}
+
+int
+st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
+    const char *name, const void *bytes, size_t size)
+{
+	struct st_rip3_resource_match match = {.writing=true};
+	char *key = NULL;
+	size_t key_size;
+	int status;
+
+	if (paths == NULL || !valid_name(name) || (bytes == NULL && size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	/* A missing session directory is not authority to write into a shared
+	 * lookup tier. Its selection/confinement belongs to client setup. */
+	if (paths->host == NULL || paths->host[0] == 0)
+		return IO_ERROR_NOT_SUPPORTED;
+	status = st_unicode_caseless_key(&key,&key_size,name,strlen(name));
+	if (status != 0) return status;
+	match.directory = paths->host; match.key = key; match.key_size = key_size;
+	status = fs_create_directories(paths->host);
+	if (status == 0) status = st_rip3_resource_directory_scan(&match);
+	if (status == 0 && match.path == NULL)
+		status = path_join_alloc(&match.path,paths->host,name);
+	/* Preserve an existing unique file's spelling and prepare the whole
+	 * replacement before rename. Any failure retains its previous contents.
+	 * The directory match rejects links and other non-file entries; this
+	 * function never follows a host-named link or writes a fallback tier. */
+	if (status == 0) status = fs_replace_file(match.path,bytes,size);
+	free(match.path); free(key);
 	return status;
 }

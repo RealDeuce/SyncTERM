@@ -10,7 +10,7 @@ enum st_rip3_resource_kind {
 	ST_RIP3_RESOURCE_FONT,
 };
 
-/* Trusted client paths, borrowed for the duration of open(). NULL/empty
+/* Trusted client paths, borrowed for each resource operation. NULL/empty
  * directories are absent. Search entries are already split and ordered by
  * client configuration; no host-supplied path or directory switch is accepted. */
 struct st_rip3_resource_paths {
@@ -42,6 +42,19 @@ struct st_rip3_resource {
 int st_rip3_resource_open(struct st_rip3_resource *result,
     const struct st_rip3_resource_paths *paths,
     enum st_rip3_resource_kind kind, const char *name);
+/* Write complete resource bytes to the explicitly bound trusted host directory,
+ * creating its hierarchy if absent. Shared/fonts/search directories are never
+ * written, including after any error or when host is absent (NOT_SUPPORTED).
+ * The owner must bind a client-owned session directory; host text cannot select
+ * that path. Name validation/caseless matching use the same UTF-8 namespace as
+ * reads. Existing unique regular files retain their native spelling. Ambiguous
+ * matches, directories, links/reparse points and other non-files reject with
+ * CONFLICT. Bytes may be NULL only for an empty file. Replacement is atomic:
+ * pre-rename failures retain prior contents. This is a storage status for the
+ * owning parser to consume, never a terminal/session processing return.
+ * No clipboard/port capture, encoding, reset or connection setup is implied. */
+int st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
+	const char *name, const void *bytes, size_t size);
 void st_rip3_resource_dispose(struct st_rip3_resource *resource);
 
 #endif
