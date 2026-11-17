@@ -3308,6 +3308,51 @@ and 41 legacy helpers still match the original baseline, and no RIP1.54 capture,
 active application route, source pin or adoption identity changed. Temporary
 verification logs were removed. No additional issue content or code was published.
 
+## PIXEL/POINT coordinate and square consumers
+
+The separate parser recognizes `X` and `j` and implements their resolved COPY
+geometry. Both project each WORLD axis once. X attempts one context-absolute
+device pixel, retaining the documented omitted viewport origin; clipping still
+uses the stored viewport. j offsets by that origin once and fills an odd solid
+square with radius floor(effective thickness/2), ignoring line/fill patterns.
+The default screen-subport viewport already includes its screen origin; a later
+wire `v` replaces it with directly converted DEVICE coordinates. No second port
+origin is added. Offscreen drawing uses its own bitmap.
+
+Projection, origin subtraction and square expansion remain wide until clipped
+to the viewport's derived physical intersection. Huge legal input cannot wrap or
+saturate into a visible pixel, and huge stored viewports do not allocate staging
+storage for these primitives. Protected port/style state permits drawing while
+retaining configuration. Inactive or wholly invisible operations are no-ops.
+Visible non-COPY operations remain explicitly unsupported pending #74; the two
+attribute requirements and complete command-inventory claims remain blocked or
+pending. This milestone does not invent a mode policy or claim full X/j support.
+
+`rip3_point_commands` authors coherent complete-device expectations for every
+canvas, including an offscreen scene copied into the same final capture. Cases
+distinguish default and replaced origins, clipped unoffset X attempts, stored
+viewports outside declared port bounds, near/far viewport clipping, solid even/
+odd thickness squares, byte wrapping and one-pixel X coverage. A further 192
+captures span both radices, XY widths 2–5 and eight thickness boundary values.
+Independent compatibility/nonuniform mappings, physical-edge/INT32_MAX viewport
+cases, huge coordinates, RGB/indexed ink, protected references, missing bindings,
+malformed CP437/UTF-8 input and valid recovery are covered. The parser initially
+failed these expectations as unsupported before implementation. Public process
+entry points remain void; all rejected modes and malformed fields are handled
+internally. Active application routing and complete scene/context remain pending.
+
+Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
+compiler warnings. All 102 selected RIP3/preservation/JPEG/shared-audio/codepage
+tests pass (35.31 seconds); the expanded point fixture passes again after adding
+the compatibility/nonuniform cases (0.44 seconds). Valgrind reports zero errors,
+no retained heap, 510 allocations/frees and three inherited descriptors. The
+ledger reconciles 17 geometry units and retains the mode blocker: 253 implemented,
+1537 pending, 4604 unreviewed, 920 contextual, 24 excluded and 19 blocked among
+7357 source blocks. All 93 frozen files and 41 legacy helpers remain unchanged,
+as do the historical RIP1.54 capture inventory, stable pin/adoption identities,
+original artifact and active application route. Temporary logs were removed.
+No existing issue was modified and no changes were pushed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

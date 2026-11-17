@@ -154,6 +154,59 @@ st_rip3_command_ink(const struct st_rip3_command_host *host, bool direct, uint32
 }
 
 static int
+point(const struct st_rip3_command_host *host, unsigned environment_number,
+    const struct st_rip3_environment *environment, const struct st_rip3_style *style,
+    const uint8_t *arguments, size_t count, bool pixel, bool *operation)
+{
+	struct st_rip3_frame frame;
+	struct st_rip3_port_info port;
+	uint64_t world_x, world_y;
+	unsigned current;
+	size_t width = environment->coordinate_size;
+	uint8_t ink;
+	int status;
+
+	if (count <= width || count > 2*width) return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_field(&world_x,arguments,width,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&world_y,arguments+width,count-width,environment->base_math);
+	if (status != 0) return status;
+	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_command_frame(host,environment_number,&frame);
+	if (status == 0) status = st_rip3_ports_current(host->ports,&current);
+	if (status == 0) status = st_rip3_ports_info(host->ports,current,&port);
+	if (status != 0) return status;
+	*operation = true;
+	if (!port.viewport_active || port.clip.x1 < port.clip.x0 || port.clip.y1 < port.clip.y0) return 0;
+	/* Five wire digits can project far beyond int32_t. Retain their exact
+	 * integer projection through clipping, without wrapping or saturation. */
+	int64_t x = (int64_t)(world_x*frame.device_width/frame.world_width);
+	int64_t y = (int64_t)(world_y*frame.device_height/frame.world_height);
+	if (pixel) {
+		/* X's actual SetPixel call omits the viewport offset. Convert that
+		 * context-absolute position to this port API's viewport coordinates;
+		 * clipping still belongs to the stored viewport in the same context. */
+		x -= (int64_t)port.bounds.x0+port.viewport.x0;
+		y -= (int64_t)port.bounds.y0+port.viewport.y0;
+	}
+	int64_t radius = pixel ? 0 : style->pen.thickness/2;
+	int64_t left = x-radius, top = y-radius, right = x+radius, bottom = y+radius;
+	if (right < port.clip.x0 || bottom < port.clip.y0 || left > port.clip.x1 || top > port.clip.y1) return 0;
+	if (left < port.clip.x0) left = port.clip.x0;
+	if (top < port.clip.y0) top = port.clip.y0;
+	if (right > port.clip.x1) right = port.clip.x1;
+	if (bottom > port.clip.y1) bottom = port.clip.y1;
+	/* COPY is unambiguous. The listed Write Mode versus SetPixel/FillRect
+	 * behavior is separately tracked in #74; do not guess other modes. */
+	if (style->write_mode != ST_RIP3_COPY) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->drawing_color,&ink);
+	if (status != 0) return status;
+	const struct st_rip3_rect area = {(int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom};
+	/* POINT is a solid odd square, not a patterned or round-capped stroke.
+	 * Wrapped line byte zero is effective width one, hence radius zero. */
+	return st_rip3_ports_fill(host->ports,&area,ink,ST_RIP3_COPY);
+}
+
+static int
 shape(const struct st_rip3_command_host *host,
     unsigned environment_number, const struct st_rip3_environment *environment,
     const struct st_rip3_style *style, const uint8_t *arguments,
@@ -342,6 +395,8 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K')
 		return shape(host, environment_number, &environment, &style, arguments,
 		    count, command[0], operation);
+	if (command[0] == 'X' || command[0] == 'j')
+		return point(host,environment_number,&environment,&style,arguments,count,command[0] == 'X',operation);
 	if (command[0] == '=') {
 		status = line_style(host,environment_number,&environment,&style,arguments,count);
 		if (status != 0) return status;

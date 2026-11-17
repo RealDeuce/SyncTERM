@@ -36,6 +36,10 @@ selector/type/domain grammar and wide signed results have independent tests.
 Wire line-style decoding covers all four unit/background flags, fixed field
 widths, X-only world scaling, byte truncation and custom masks. All-canvas
 drawing captures configure those masks through split-input `=` commands.
+Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
+one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
+viewport clipping, both radices/widths, nonuniform mapping and recovery. Their
+effective non-COPY write modes remain blocked on the documented #74 question.
 Separate style-record tests cover explicit attributes, owned
 snapshots and nonfatal metadata/COPY errors. Complete c/k/W/L/R command tests
 cover palette/direct RGB ink, all drawing modes, explicit patterns, reversed and
