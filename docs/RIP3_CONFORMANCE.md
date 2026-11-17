@@ -2832,6 +2832,64 @@ capture inventory are intact. The queue now has 80 implemented, 1630 pending,
 temporary logs/assets and CMake fixture directories were removed. No upstream
 issue content, active application route or original artifact was modified.
 
+## PORT_WRITE source geometry reconciliation
+
+`2W` now follows the adopted original-client screen/offscreen distinction. Its
+four coordinate fields use the current radix and width but remain raw DEVICE
+offsets from the stored viewport origin. They are not projected through WORLD.
+Screen crops have half-open far boundaries, with independent right/bottom
+clipping. All-zero input selects the stored viewport; two zero ending fields
+select its remainder from the requested start. Explicit nonzero rectangles must
+have strictly increasing axes before clipping, without adding an inclusive
+pixel. For an 8×4 viewport, (1,1)–(9,2) exports 7×1 and (1,1)–(2,9) exports 1×3.
+
+Offscreen export deliberately ignores the validated crop and serializes the
+whole backing bitmap. A 10×6 backing allocation with an 8×4 viewport exports
+10×6. Defined inactive and protected sources remain readable in either path.
+Undefined and explicit empty/reversed sources diagnose within the void command
+parser and preserve the output file. Allocation, encoding and replacement
+failures also preserve the previous file; later valid commands still execute.
+No export changes port selection, definitions, viewport/image state, protection,
+source pixels, active palette or ENV references. The existing separate-engine
+`1W` viewport-capture policy is retained for its own later reconciliation.
+
+The contract comes from the pinned chapter 7 PORT_WRITE section and the adopted
+`issue-10-port-geometry.md` post-PR results, including original handler
+0x4699a–0x46bd8, writer 0x27a90 and whole-bitmap path 0x27c8d–0x27ce2. A bounded,
+read-only disassembly check confirms the handler's raw-coordinate arithmetic,
+strict explicit bounds and independent far clipping. No original DLL bytes,
+upstream issue content or pinned reference were changed.
+
+`rip3_bitmap_write_commands` now checks 3456 exports across all three canvases,
+screen/offscreen sources, all protection/activation combinations, both radices,
+coordinate widths 2–5 and three different WORLD sizes. Its independent labeled
+source pixels, BMP headers, palette bytes, bottom-up rows and padding distinguish
+half-open crops from inclusive capture and whole backing from viewport capture.
+The new whole-backing expectation fails against the previous implementation.
+Additional tests cover nonzero screen-port/viewport origins, current port zero,
+named ports zero/35, the preserved chapter example, base64-only digits, huge
+raw coordinates, unchanged source/ENV/palette state and byte-split error recovery.
+Both bitmap-allocation stages, encoding and atomic replacement are faulted for
+both source kinds while checking previous file bytes. Direct raw-capture tests
+cover inactive protected sources, invalid/external/undefined rectangles, owned
+pixels/palette and lifetime after source destruction. Existing `1W` tests remain.
+
+This milestone reconciles the documented export geometry in the separate v3
+engine. Full true-color device/export representation, filename macro expansion,
+clipboard export lifecycle and active application routing remain pending
+implementation; none is a request for further #21 documentation. RIP 1.54,
+its frozen helpers and historical capture inventory remain unchanged.
+
+The existing native FreeBSD Release CMake configuration with `/usr/bin/cc`
+configures/builds without new warnings; all 99 selected tests pass (26.90 seconds).
+Valgrind reports zero errors, no retained heap, 228215 allocations/frees and only
+three inherited descriptors for the expanded export fixture. The preservation
+check retains all 93 files and 41 helpers. Reference/adoption identities, the
+7353 source blocks and RIP1.54 capture inventory remain intact; only PORT_WRITE
+review metadata changed. The queue now has 97 implemented, 1623 pending, 4703
+unreviewed, 889 contextual, 24 excluded and 17 blocked blocks. Owned temporary
+logs/assets and CMake fixture directories were removed. No changes were pushed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

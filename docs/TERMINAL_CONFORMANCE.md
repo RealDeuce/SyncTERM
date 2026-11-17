@@ -77,6 +77,10 @@ fallback with coherent screen index/palette captures on all three canvases.
 JPEG wallpaper tests now cover raw image-area seeds, retained background,
 extra far rows/columns, staggered COPY phase and nonfatal post-draw failure.
 Actual JPEG scenes exercise all 64 flag combinations under every vector mode.
+PORT_WRITE file tests add raw DEVICE/half-open screen crops, independent far-axis
+clipping, whole-backing offscreen export, inactive/protected reads and nonfatal
+undefined/empty/allocation/write recovery, with independent BMP byte/pixel
+expectations across all canvases, both radices and coordinate widths 2–5.
 Complete scene/header reset orchestration and application routing remain pending.
 These do not change the active route. A body tests now add canonical full circles and validated
 equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect

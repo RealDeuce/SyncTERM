@@ -4,12 +4,16 @@
 #include "st_pixels.h"
 #include "io_error.h"
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
-int
-st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
+static int
+capture(struct st_rip3_bitmap **result,
     const struct st_rip3_ports *ports, unsigned number,
-    const struct st_rip3_rect *area, const struct st_rip3_palette *palette)
+    const struct st_rip3_rect *area, const struct st_rip3_palette *palette,
+    bool viewport)
 {
 	struct st_rip3_port_info info;
 	struct st_rip3_rect visible;
@@ -24,8 +28,10 @@ st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
 	status = st_rip3_ports_info(ports,number,&info);
 	if (status != 0) return status;
 	if (!info.defined) return IO_ERROR_NOT_FOUND;
-	if (!info.viewport_active) return IO_ERROR_NOT_SUPPORTED;
-	visible = (struct st_rip3_rect){0,0,info.viewport.x1-info.viewport.x0,info.viewport.y1-info.viewport.y0};
+	if (viewport && !info.viewport_active) return IO_ERROR_NOT_SUPPORTED;
+	visible = (struct st_rip3_rect){0,0,
+	    viewport ? info.viewport.x1-info.viewport.x0 : info.bounds.x1-info.bounds.x0,
+	    viewport ? info.viewport.y1-info.viewport.y0 : info.bounds.y1-info.bounds.y0};
 	if (area != NULL) {
 		if (area->x0 > visible.x0) visible.x0 = area->x0;
 		if (area->y0 > visible.y0) visible.y0 = area->y0;
@@ -43,8 +49,9 @@ st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
 	for (uint32_t y = 0; y < bitmap->pixels->height; y++) {
 		for (uint32_t x = 0; x < bitmap->pixels->width; x++) {
 			uint8_t index;
-			status = st_rip3_ports_read(ports,number,info.viewport.x0+visible.x0+(int32_t)x,
-			    info.viewport.y0+visible.y0+(int32_t)y,&index);
+			status = st_rip3_ports_read(ports,number,
+			    (viewport ? info.viewport.x0 : 0)+visible.x0+(int32_t)x,
+			    (viewport ? info.viewport.y0 : 0)+visible.y0+(int32_t)y,&index);
 			if (status != 0) goto failed;
 			bitmap->pixels->primary[(size_t)y*bitmap->pixels->width+x] = index;
 		}
@@ -54,4 +61,20 @@ st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
 failed:
 	st_rip3_bitmap_destroy(bitmap);
 	return status;
+}
+
+int
+st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
+    const struct st_rip3_ports *ports, unsigned number,
+    const struct st_rip3_rect *area, const struct st_rip3_palette *palette)
+{
+	return capture(result,ports,number,area,palette,true);
+}
+
+int
+st_rip3_bitmap_capture_port(struct st_rip3_bitmap **result,
+    const struct st_rip3_ports *ports, unsigned number,
+    const struct st_rip3_rect *area, const struct st_rip3_palette *palette)
+{
+	return capture(result,ports,number,area,palette,false);
 }
