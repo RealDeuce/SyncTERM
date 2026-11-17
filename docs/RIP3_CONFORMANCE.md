@@ -2130,6 +2130,49 @@ and 41 legacy helpers still match the original baseline. All 6548 source blocks,
 issue payloads and filesystem fixtures were removed. Active routing and RIP1.54
 behavior remain unchanged.
 
+### Concrete in-scene bitmap file-error boxes
+
+`st_rip3_bitmap_error_show` now supplies a concrete void callback for the
+bitmap-error sink. A valid missing-file command can paint the actual box rather
+than merely record a request. An explicit rectangle retains its complete
+inclusive device geometry before viewport clipping; an unknown-size load gets
+a suitable message/filename box at the viewport origin. Clipping does not add
+fake borders at viewport edges. The original canvas-native v3 MAF font is used
+by default, with an optional immutable custom font for embedding and independent
+expectations. Filename UTF-8 is decoded strictly and mapped through the existing
+CP437 converter; each unmappable scalar occupies one fallback glyph. No control
+sequences are executed and the original bundled font bytes are unchanged.
+
+The renderer uses the current palette's nearest black and most contrasting
+entry, without editing the palette. It ignores drawing STYLE, write mode,
+image-style fitting/disable settings and ENV references. Protected content may
+draw. Current selection and all port/palette/ENV configuration remain unchanged.
+It stages the complete visible box before COPY painting, so malformed inputs,
+invalid fonts, missing services or allocation failure leave pixels unchanged.
+An inactive or no-longer-current requested port is ignored. All paths return
+void; the owning parser still consumes the original file failure and can process
+the next command. Clipboard clearing/current-port/error-box ordering under #42
+is not resolved by this graphics service.
+
+`rip3_bitmap_error_ui` uses independent authored glyphs and literal full-canvas
+index/palette expectations on all three canvases. It drives real missing-file
+`1b` commands through the parser into the concrete renderer, covering explicit
+and default dimensions, negative-origin clipping, wide rectangles without fake
+edge borders, retained margins and protected/disabled-image-style ports. It also
+checks remapped palette indexes, native bundled fonts, CP437 e-acute, a four-byte
+Unicode scalar using one fallback glyph, invalid text/font/geometry, inactive or
+mismatched ports and staged allocation failure. A later baud-setting command
+succeeds after both normal file failure and UI allocation failure. These are
+in-scene bitmap expectations, not proof of modal native-window behavior or active
+application routing; those remain part of final engine integration.
+
+The native CMake build and all 87 selected RIP3/preservation/shared-audio/codepage
+tests pass. Valgrind reports zero errors, no retained heap and only three
+inherited descriptors in the new error-UI fixture. All 93 frozen files and
+41 legacy helpers match the original baseline; all 6548 source blocks,
+62 document identities and the reference pin remain unchanged. Temporary logs
+were removed. Active application routing and RIP1.54 behavior are unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

@@ -79,10 +79,10 @@ else()
 endif()
 
 add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_port_commands.c st_rip3_bitmap_commands.c
-	st_rip3_bitmap_load_commands.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c)
+	st_rip3_bitmap_load_commands.c st_rip3_bitmap_error_ui.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c)
 target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio
-	PRIVATE st_rip3_storage syncterm_string_compat)
+	PRIVATE st_rip3_storage syncterm_string_compat st_utf8 st_codepage)
 set_target_properties(st_rip3_commands PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
@@ -849,6 +849,18 @@ if(BUILD_TESTING)
 		"-DTEST_PROGRAM=$<TARGET_FILE:st_rip3_bitmap_load_commands_test>"
 		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/bitmap-load"
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/bitmap_load.cmake")
+
+	add_executable(st_rip3_bitmap_error_ui_test tests/st_rip3_bitmap_error_ui_test.c
+		tests/st_rip3_bitmap_error_ui_fault_impl.c)
+	target_link_libraries(st_rip3_bitmap_error_ui_test PRIVATE st_rip3_commands st_utf8 st_codepage)
+	set_target_properties(st_rip3_bitmap_error_ui_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_bitmap_error_ui_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_bitmap_error_ui_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_bitmap_error_ui COMMAND st_rip3_bitmap_error_ui_test)
 
 	add_executable(st_rip3_bitmap_stamp_test tests/st_rip3_bitmap_stamp_test.c
 		tests/st_rip3_bitmap_stamp_fault_impl.c)
