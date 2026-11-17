@@ -2,6 +2,7 @@
 #include "st_rip3_command_internal.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_image.h"
+#include "st_rip3_image_style.h"
 #include "st_rip3_jpeg_file.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
@@ -10,6 +11,40 @@
 
 #include <stdlib.h>
 #include <string.h>
+
+static int
+image_style(const struct st_rip3_command_host *host, const uint8_t *command,
+    size_t length, bool *operation)
+{
+	struct st_rip3_environment env; struct st_rip3_frame frame;
+	unsigned number, current; uint64_t values[4], flags, reserved;
+	int status = st_rip3_command_environment(host,&number,&env);
+	if (status != 0) return status;
+	size_t prefix = 2+4*env.coordinate_size;
+	if (length <= prefix || length > prefix+16) return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 0; i < 4; i++) {
+		status = st_rip3_command_field(values+i,command+2+i*env.coordinate_size,env.coordinate_size,env.base_math);
+		if (status != 0) return status;
+		if (values[i] > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+	}
+	size_t flags_size = length-prefix > 4 ? 4 : length-prefix;
+	status = st_rip3_command_field(&flags,command+prefix,flags_size,env.base_math);
+	if (status != 0) return status;
+	if (flags > 63) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i = prefix+4; i < length; i++) {
+		/* Reserved is a zero block, not one potentially >64-bit number. */
+		status = st_rip3_command_field(&reserved,command+i,1,env.base_math);
+		if (status != 0) return status;
+		if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
+	}
+	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_ports_current(host->ports,&current);
+	if (status == 0) status = st_rip3_command_frame(host,number,&frame);
+	if (status != 0) return status;
+	const struct st_rip3_rect world = {(int32_t)values[0],(int32_t)values[1],(int32_t)values[2],(int32_t)values[3]};
+	*operation = true;
+	return st_rip3_image_style_define(host->ports,current,&frame,&world,(unsigned)flags);
+}
 
 int
 st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
@@ -23,6 +58,7 @@ st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
 	unsigned number;
 	int status;
 
+	if (command[1] == 'i') return image_style(host,command,length,operation);
 	if (length <= 6) return IO_ERROR_INVALID_FORMAT;
 	status = st_rip3_command_environment(host,&number,&environment);
 	if (status == 0) status = st_rip3_command_field(&reserved,command+2,4,environment.base_math);

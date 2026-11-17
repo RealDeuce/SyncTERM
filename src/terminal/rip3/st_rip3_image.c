@@ -74,12 +74,21 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 	area = (struct st_rip3_rect){0,0,info.viewport.x1 - info.viewport.x0,
 	    info.viewport.y1 - info.viewport.y0};
 	if (!info.image.automatic) {
+		struct st_rip3_port_info screen;
+		status = st_rip3_ports_info(ports,0,&screen);
+		if (status != 0) return status;
+		/* Common presentation and the JPEG wrapper each consume a far-edge
+		 * unit. Nonpositive far coordinates use physical device dimensions;
+		 * notably wire all-zero style stores (0,0,1,1), not inhibit state. */
+		int64_t right = (int64_t)info.image.area.x1-2, bottom = (int64_t)info.image.area.y1-2;
+		if (right <= 0) right = screen.bounds.x1;
+		if (bottom <= 0) bottom = screen.bounds.y1;
 		area = (struct st_rip3_rect){
-		    clamp_coordinate(info.image.area.x0, area.x1),
-		    clamp_coordinate(info.image.area.y0, area.y1),
-		    clamp_coordinate(info.image.area.x1, area.x1),
-		    clamp_coordinate(info.image.area.y1, area.y1)};
+		    clamp_coordinate(info.image.area.x0,area.x1), clamp_coordinate(info.image.area.y0,area.y1),
+		    clamp_coordinate((int32_t)right,area.x1), clamp_coordinate((int32_t)bottom,area.y1)};
 	}
+
+	if (area.x0 > area.x1 || area.y0 > area.y1) return 0;
 	available_width = (uint32_t)(area.x1 - area.x0) + 1;
 	available_height = (uint32_t)(area.y1 - area.y0) + 1;
 	width = available_width;

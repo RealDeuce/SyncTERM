@@ -78,7 +78,7 @@ struct st_rip3_command_sink {
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
  * rectangle-fit 2C, onscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
- * ordinary/transparent 1b bitmap loads, ordinary 1I icons, literal 1p JPEGs,
+ * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
@@ -122,6 +122,13 @@ struct st_rip3_command_sink {
  * Partially external lower-rights and inactive sources remain unsupported under
  * #10. Reserved digits and literal filename must be present; current ENV width
  * and radix govern all numeric fields. Encoding/storage share 1W's path.
+ * 1i normalizes current-WORLD corners and stores projected DEVICE boundaries
+ * with a further far-edge unit, without clipping to the viewport. Flags 0..63
+ * replace the old flags. Protected/inactive current ports can be changed.
+ * Four flags digits and up to twelve reserved zeros are accepted; omitted
+ * reserved digits permit last-field shortening. Raw stored zero is a separate
+ * internal inhibit state: all-zero wire input stores (0,0,1,1), still enabled.
+ * World conversion failure and invalid fields retain all style/selection state.
  * 1b reads a BMP through media lookup, appending .BMP only for extensionless
  * names. It maps to the bound palette and fits the inclusive destination, or
  * uses native file dimensions when both raw lower-right fields are zero.
@@ -183,7 +190,7 @@ struct st_rip3_command_sink {
  * JPEG flag 8 changes no palette; flag 2 has no file-deletion effect. Inactive
  * viewports and the explicit internal inhibit state are no-ops before consulting
  * asset/palette bindings. That inhibit state is not wire 1i's all-zero rectangle.
- * Wallpaper, macro expansion, delivery, wire 1i/IMGSTYLE and reset/ownership
+ * JPEG wallpaper, macro expansion, delivery and whole-scene reset/ownership
  * integration remain separate pending work in the adopted #21/#24 contract.
  * Invalid names and load/decode/staging failures retain the scene and produce
  * only a nonfatal diagnostic; no file is deleted or changed.

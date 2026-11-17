@@ -69,7 +69,13 @@ fault injection cover ordering, retained keyed backgrounds and live port-zero
 fallback. Bitmap codec/key tests now cover all six BI_RGB depths, translated keys,
 raw-bit versus mapped-index selection, exact 24-bit RGB, keyed 16-bit rejection
 and the shipped 32-bit no-selection defect. Full true-color RGB raster/device
-and port-coordinate/application integration remain pending. These do not change the active route. A body tests now add canonical full circles and validated
+and port-coordinate/application integration remain pending. Wire IMAGE_STYLE and IMGSTYLE tests add stored far-boundary queries, distinct
+protected/inactive gates, keyword replacement, temporary-selection recovery and
+old-current/port-zero image reset state. Port-service activation and byte-split native/JPEG-disabled commands verify
+set/reactivate/display and full-viewport all-zero
+fallback with coherent screen index/palette captures on all three canvases.
+JPEG wallpaper and complete scene/header reset orchestration remain pending.
+These do not change the active route. A body tests now add canonical full circles and validated
 equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
 handling, RGB/NOT, protected records, wide clipping and allocation recovery.
 Independent all-canvas captures and one-byte malformed/unsupported recovery

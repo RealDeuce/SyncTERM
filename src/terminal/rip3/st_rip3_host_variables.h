@@ -77,8 +77,13 @@ struct st_rip3_host_sink {
  * right query coordinates are exclusive. Unresolved PORTW/H two-field DOMAIN
  * shorthand remains unsupported (#25). Environment
  * records support BASEMATH, COORDSIZE, WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT
- * and defined COLORMODE queries/sets; record backup/protection is separate
- * from future scene-wide context activation. Undefined COLORMODE replies
+ * and defined COLORMODE queries/sets; IMGSTYLE queries stored boundaries in
+ * the current WORLD without undoing the far increment. Its decimal setter
+ * replaces flags from ASPECT/DELETE/NOCLEAR/USEPAL keywords (none means zero),
+ * restores prior port selection, and skips protected targets without text/error.
+ * Undefined/inactive query/set targets reply -1 without mutation/error. Port
+ * record backup/protection is separate from future scene-wide activation.
+ * Undefined COLORMODE replies
  * remain blocked (#23). DATETIME formatting remains
  * blocked.
  * D requires one decimal duration 1..65535 in 60ths of a second (the detailed

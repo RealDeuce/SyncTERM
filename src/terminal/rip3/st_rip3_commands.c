@@ -176,7 +176,7 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_get_image_commands_execute(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && (command[1] == 'b' || command[1] == 'I'))
 		return st_rip3_bitmap_load_commands_execute(host,command,length,operation);
-	if (length >= 2 && command[0] == '1' && command[1] == 'p')
+	if (length >= 2 && command[0] == '1' && (command[1] == 'p' || command[1] == 'i'))
 		return st_rip3_image_commands_execute(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && command[1] == 'w') {
 		char *filename;

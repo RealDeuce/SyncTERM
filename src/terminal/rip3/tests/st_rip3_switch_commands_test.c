@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "image_area_fixture.h"
 #include "st_rip3_commands.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_ports.h"
@@ -86,7 +87,7 @@ flags(void)
 	const char *const fields[] = {"00","01","02","04","05","06","08","09","0A"};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	const struct st_rip3_rect image = {1,1,2,2};
-	CHECK(st_rip3_ports_image_style(f.host.ports,1,&image,5) == 0);
+	CHECK(rip3_test_image_area(f.host.ports,1,&image,5) == 0);
 	for (unsigned initial = 0; initial < 4; initial++) {
 		for (size_t i = 0; i < sizeof(masks)/sizeof(masks[0]); i++) {
 			bool first = (initial & 1) != 0, second = (initial & 2) != 0;
@@ -116,7 +117,7 @@ flags(void)
 	struct st_rip3_port_info info;
 	CHECK(st_rip3_ports_info(f.host.ports,1,&info) == 0 && info.image.enabled && !info.image.automatic
 	    && info.image.flags == 5 && info.image.area.x0 == 1 && info.image.area.y0 == 1
-	    && info.image.area.x1 == 2 && info.image.area.y1 == 2
+	    && info.image.area.x1 == 4 && info.image.area.y1 == 4
 	    && info.bounds.x0 == 10 && info.bounds.y0 == 20 && info.bounds.x1 == 13 && info.bounds.y1 == 23
 	    && info.viewport.x0 == 0 && info.viewport.y0 == 0 && info.viewport.x1 == 3 && info.viewport.y1 == 3);
 	destroy(&f);

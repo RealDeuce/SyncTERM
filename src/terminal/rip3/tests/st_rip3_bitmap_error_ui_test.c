@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "image_area_fixture.h"
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_commands.h"
 #include "st_rip3_bitmap_stamp.h"
@@ -83,7 +84,7 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	    && st_rip3_environments_create(&f->host.environments,canvas) == 0);
 	CHECK(st_rip3_ports_define(f->host.ports,1,&bounds,false) == 0 && st_rip3_ports_switch(f->host.ports,1) == 0
 	    && st_rip3_ports_viewport(f->host.ports,&viewport) == 0 && st_rip3_ports_erase(f->host.ports,85) == 0
-	    && st_rip3_ports_image_style(f->host.ports,1,&disabled,15) == 0 && st_rip3_ports_protect(f->host.ports,1,true) == 0);
+	    && rip3_test_image_area(f->host.ports,1,&disabled,15) == 0 && st_rip3_ports_protect(f->host.ports,1,true) == 0);
 	for (unsigned i = 0; i < 256; i++) colors[i] = i*UINT32_C(0x010101);
 	CHECK(st_rip3_palettes_switch(f->host.palettes,1) == 0 && st_rip3_palettes_rgb(f->host.palettes,0,8,colors,256) == 0
 	    && st_rip3_palettes_protect(f->host.palettes,1,true) == 0);

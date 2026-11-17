@@ -15,8 +15,10 @@ struct st_rip3_backup;
 struct st_rip3_surface;
 
 struct st_rip3_image_style {
-	/* Device coordinates relative to the viewport. Automatic areas follow
-	 * its current size, including a one-pixel viewport at the origin. */
+	/* Stored DEVICE boundaries relative to the viewport, without clipping.
+	 * All -1 is the default viewport-at-display marker; raw all-zero is the
+	 * separate internal inhibit sentinel. Wire all-zero input stores 0,0,1,1.
+	 * JPEG presentation consumes its own far-edge units before fitting. */
 	bool automatic;
 	bool enabled;
 	struct st_rip3_rect area;
@@ -64,7 +66,9 @@ int st_rip3_ports_protect(struct st_rip3_ports *ports, unsigned number, bool pro
  * port falls back to zero. Protected single deletes fail without changes. */
 int st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number);
 /* Restore port zero's full active viewport and select zero; normal resets
- * retain protected ports, hard resets discard all nonzero ports. Pixels are
+ * retain protected ports, hard resets discard all nonzero ports. Reset image
+ * state for the old current port (even if protected) and for zero; other
+ * protected survivors retain their records. Pixels are
  * retained for the scene reset's separate screen-clear operation. */
 int st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard);
 /* Configure the current port's viewport in port-relative device coordinates.
@@ -74,12 +78,11 @@ int st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard);
 int st_rip3_ports_viewport(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *viewport);
 int st_rip3_ports_activate(struct st_rip3_ports *ports, bool active);
-/* Set one defined port's image style without selecting it. NULL area means
- * automatic full viewport; an explicitly all-zero area disables images.
- * Other ordered coordinates clamp to the current viewport. Flags are the
- * documented low four bits. Protection rejects changes atomically; content
- * rendering is still allowed. Macro/wire defaults and file side effects are
- * policy of the owning parser, not inferred here. */
+/* Replace one defined port's raw image record without selecting it. NULL
+ * means all-minus-one viewport fallback; raw zero inhibits explicit display.
+ * Preserve unclipped boundaries and accept flags 0..63. Wire setters may edit
+ * protected/inactive ports; macros apply their own gates before this service.
+ * All input validation precedes mutation. No drawing or file policy occurs. */
 int st_rip3_ports_image_style(struct st_rip3_ports *ports, unsigned number,
 	const struct st_rip3_rect *area, unsigned flags);
 enum st_rip3_view_operation {

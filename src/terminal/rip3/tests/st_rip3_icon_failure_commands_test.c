@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "image_area_fixture.h"
 #include "st_rip3_commands.h"
 #include "st_rip3_bitmap.h"
 #include "st_rip3_environments.h"
@@ -157,12 +158,12 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	    && st_rip3_palettes_create(&f->host.palettes) == 0);
 	CHECK(st_rip3_ports_erase(f->host.ports,85) == 0 && st_rip3_ports_define(f->host.ports,1,offscreen ? &bitmap : &screen,offscreen) == 0
 	    && st_rip3_ports_switch(f->host.ports,1) == 0 && st_rip3_ports_erase(f->host.ports,85) == 0
-	    && st_rip3_ports_viewport(f->host.ports,&view) == 0 && st_rip3_ports_image_style(f->host.ports,1,&area,15) == 0);
+	    && st_rip3_ports_viewport(f->host.ports,&view) == 0 && rip3_test_image_area(f->host.ports,1,&area,15) == 0);
 	bool target_offscreen = pointer == OFFSCREEN || pointer == OFFSCREEN_PROTECTED;
 	if (target_offscreen || pointer == ONSCREEN || pointer == ONSCREEN_PROTECTED) {
 		CHECK(st_rip3_ports_define(f->host.ports,9,target_offscreen ? &target_bitmap : &target_screen,target_offscreen) == 0);
 		if (target_offscreen) CHECK(st_rip3_ports_switch(f->host.ports,9) == 0 && st_rip3_ports_erase(f->host.ports,60) == 0);
-		CHECK(st_rip3_ports_image_style(f->host.ports,9,&area,8) == 0 && st_rip3_ports_switch(f->host.ports,1) == 0);
+		CHECK(rip3_test_image_area(f->host.ports,9,&area,8) == 0 && st_rip3_ports_switch(f->host.ports,1) == 0);
 	}
 	if (pointer == OFFSCREEN_PROTECTED || pointer == ONSCREEN_PROTECTED) CHECK(st_rip3_ports_protect(f->host.ports,9,true) == 0);
 	if (pointer == CURRENT_PROTECTED) CHECK(st_rip3_ports_protect(f->host.ports,1,true) == 0);

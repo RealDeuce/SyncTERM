@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "image_area_fixture.h"
 #include "st_rip3_commands.h"
 #include "st_rip3_jpeg_file.h"
 #include "st_rip3_bitmap.h"
@@ -190,7 +191,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 	CHECK(create(&f,canvas,paths) == 0 && st_rip3_styles_get(f.host.styles,1,&style) == 0);
 	style.write_mode = mode;
 	CHECK(st_rip3_styles_set(f.host.styles,1,&style) == 0 && st_rip3_styles_protect(f.host.styles,1,true) == 0);
-	CHECK(st_rip3_ports_image_style(f.host.ports,1,&area,flags) == 0 && st_rip3_ports_protect(f.host.ports,1,true) == 0);
+	CHECK(rip3_test_image_area(f.host.ports,1,&area,flags) == 0 && st_rip3_ports_protect(f.host.ports,1,true) == 0);
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
 	/* Exercise the literal documented command with every byte boundary. */
@@ -251,7 +252,7 @@ background(const struct st_rip3_resource_paths *paths)
 	CHECK(st_rip3_environments_define(f.host.environments,2,&env) == 0);
 	CHECK(st_rip3_styles_get(f.host.styles,1,&style) == 0);
 	style.background_color = 0x606060; style.write_mode = ST_RIP3_COPY;
-	CHECK(st_rip3_styles_set(f.host.styles,1,&style) == 0 && st_rip3_ports_image_style(f.host.ports,1,&area,0) == 0);
+	CHECK(st_rip3_styles_set(f.host.styles,1,&style) == 0 && rip3_test_image_area(f.host.ports,1,&area,0) == 0);
 	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
 	CHECK(st_rip3_palettes_get(f.host.palettes,3,&palette) == 0
 	    && st_rip3_bitmap_capture(&capture,f.host.ports,1,NULL,&palette) == 0);
@@ -264,11 +265,11 @@ background(const struct st_rip3_resource_paths *paths)
 	env.rgb_bits = 0;
 	CHECK(st_rip3_environments_define(f.host.environments,2,&env) == 0);
 	style.background_color = 256; style.write_mode = ST_RIP3_COPY;
-	CHECK(st_rip3_styles_set(f.host.styles,1,&style) == 0 && st_rip3_ports_image_style(f.host.ports,1,&area,4) == 0);
+	CHECK(st_rip3_styles_set(f.host.styles,1,&style) == 0 && rip3_test_image_area(f.host.ports,1,&area,4) == 0);
 	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
 	/* Even when clearing is enabled, JPEG uses black rather than STYLE's
 	 * background. No STYLE service is required for presentation at all. */
-	CHECK(st_rip3_ports_image_style(f.host.ports,1,&area,0) == 0);
+	CHECK(rip3_test_image_area(f.host.ports,1,&area,0) == 0);
 	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
 	struct st_rip3_styles *styles = f.host.styles; f.host.styles = NULL;
 	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0); f.host.styles = styles;
@@ -308,16 +309,16 @@ recovery(const struct st_rip3_resource_paths *paths)
 	/* DELETE is stored without any file side effect. The explicit internal
 	 * inhibit state is not wire 1i's all-zero rectangle. */
 	const struct st_rip3_rect area = {1,1,18,18}, disabled = {0,0,0,0};
-	CHECK(st_rip3_ports_image_style(f.host.ports,1,&area,2) == 0);
+	CHECK(rip3_test_image_area(f.host.ports,1,&area,2) == 0);
 	CHECK(process(&f,"1p0000Gray.JPG",st_pixel_image_jpeg_compiled() ? -1 : ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
-	CHECK(st_rip3_ports_image_style(f.host.ports,1,&disabled,4) == 0);
+	CHECK(rip3_test_image_area(f.host.ports,1,&disabled,4) == 0);
 	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
-	CHECK(st_rip3_ports_image_style(f.host.ports,1,&disabled,0) == 0);
+	CHECK(rip3_test_image_area(f.host.ports,1,&disabled,0) == 0);
 	struct st_rip3_command_host saved = f.host;
 	f.host.resources = NULL; f.host.palettes = NULL; f.host.styles = NULL;
 	CHECK(process(&f,"1p0000Missing.JPG",-1) == 0);
-	CHECK(st_rip3_ports_image_style(f.host.ports,1,&area,0) == 0);
+	CHECK(rip3_test_image_area(f.host.ports,1,&area,0) == 0);
 	CHECK(st_rip3_ports_activate(f.host.ports,false) == 0 && process(&f,"1p0000Missing.JPG",-1) == 0);
 	CHECK(st_rip3_ports_activate(f.host.ports,true) == 0 && process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	f.host = saved;
@@ -333,6 +334,66 @@ recovery(const struct st_rip3_resource_paths *paths)
 	CHECK(f.errors == before+1 && st_rip3_environments_get(f.host.environments,2,&env) == 0 && env.base_math == 64);
 	CHECK(unchanged(&f) == 0);
 	st_rip3_stream_destroy(stream); destroy(&f); return 0;
+}
+
+static int
+inactive_style(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
+    const struct st_rip3_resource_paths *paths)
+{
+	struct fixture f = {0}; struct st_rip3_environment env;
+	CHECK(create(&f,canvas,paths) == 0 && st_rip3_environments_get(f.host.environments,2,&env) == 0);
+	env.world_width = width; env.world_height = height;
+	CHECK(st_rip3_environments_define(f.host.environments,2,&env) == 0);
+	CHECK(process(&f,"1i00000K0K000F",-1) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
+	CHECK(st_rip3_ports_protect(f.host.ports,1,true) == 0);
+	struct st_rip3_stream *stream = NULL;
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const char set[] = "!|1i01010J0J0005|";
+	for (size_t i = 0; i < sizeof(set)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)set+i,1);
+	struct st_rip3_port_info before, after;
+	CHECK(f.errors == 0 && st_rip3_ports_info(f.host.ports,1,&before) == 0 && !before.viewport_active && before.protected);
+	CHECK(before.image.enabled && !before.image.automatic && before.image.flags == 5
+	    && before.image.area.x0 == 1 && before.image.area.y0 == 1 && before.image.area.x1 == 20 && before.image.area.y1 == 20);
+	/* No allocator, lookup or decoder is reached while inactive, including
+	 * the JPEG-disabled build. The newly stored style remains intact. */
+	struct st_rip3_command_host saved = f.host;
+	f.host.resources = NULL; f.host.palettes = NULL;
+	st_rip3_image_commands_test_fail_allocate = true;
+	CHECK(process(&f,"1p0000Missing.JPG",-1) == 0 && st_rip3_image_commands_test_fail_allocate);
+	st_rip3_image_commands_test_fail_allocate = false; f.host = saved;
+	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_activate(f.host.ports,true) == 0
+	    && st_rip3_ports_protect(f.host.ports,1,true) == 0);
+	const char show[] = "1p0000Gray.JPG|"; st_rip3_image_test_fills = 0;
+	for (size_t i = 0; i < sizeof(show)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)show+i,1);
+	st_rip3_stream_destroy(stream);
+	bool decoded = st_pixel_image_jpeg_compiled();
+	CHECK(f.errors == (decoded ? 0u : 1u) && st_rip3_image_test_fills == 0);
+	CHECK(st_rip3_ports_info(f.host.ports,1,&after) == 0 && after.viewport_active && after.protected
+	    && memcmp(&before.image,&after.image,sizeof(before.image)) == 0);
+	struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
+	CHECK(st_rip3_palettes_get(f.host.palettes,3,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
+	CHECK(capture->pixels->width == width && capture->pixels->height == height);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		unsigned expected = decoded && x >= 13 && x <= 30 && y >= 28 && y <= 36 ? y == 36 ? 192 : 64 : 85;
+		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
+	}
+	st_rip3_bitmap_destroy(capture); capture = NULL;
+	/* Wire zeros are an enabled stored (0,0,1,1), reaching physical-device
+	 * fallback on a full viewport. They never create the inhibit sentinel. */
+	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0 && process(&f,"1i000000000004",-1) == 0);
+	CHECK(st_rip3_ports_info(f.host.ports,0,&after) == 0 && after.image.enabled && !after.image.automatic
+	    && after.image.area.x1 == 1 && after.image.area.y1 == 1 && after.image.flags == 4);
+	CHECK(process(&f,"1p0000Gray.JPG",decoded ? -1 : ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
+	/* Source row8 begins at these independently calculated nearest-center
+	 * thresholds for a 9-row DC-only authored JPEG fitted to each canvas. */
+	unsigned top = height == 480 ? 427 : height == 600 ? 533 : 683;
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		unsigned expected = decoded ? y < top ? 64 : 192 : 85;
+		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
+	}
+	st_rip3_bitmap_destroy(capture); destroy(&f); return 0;
 }
 
 int
@@ -355,6 +416,9 @@ main(int argc, char **argv)
 	CHECK(path_join_alloc(&path,host,"Gray.JPG") == 0 && fs_set_modified_time(path,INT64_C(1234567890)) == 0
 	    && fs_get_info(&before,path) == 0);
 	CHECK(files(&paths) == 0 && recovery(&paths) == 0);
+	CHECK(inactive_style(ST_RIP3_CANVAS_640_480,640,480,&paths) == 0);
+	CHECK(inactive_style(ST_RIP3_CANVAS_800_600,800,600,&paths) == 0);
+	CHECK(inactive_style(ST_RIP3_CANVAS_1024_768,1024,768,&paths) == 0);
 	if (st_pixel_image_jpeg_compiled()) {
 		const enum st_rip3_canvas canvases[] = {ST_RIP3_CANVAS_640_480,ST_RIP3_CANVAS_800_600,ST_RIP3_CANVAS_1024_768};
 		CHECK(background(&paths) == 0);

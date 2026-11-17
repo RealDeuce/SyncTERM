@@ -1,4 +1,5 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "image_area_fixture.h"
 #include "st_rip3_bitmap_stamp.h"
 #include "st_rip3_ports.h"
 #include "st_pixels.h"
@@ -51,7 +52,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_viewport(ports,&view) == 0 && st_rip3_ports_erase(ports,85) == 0);
 	/* Image-style disabling is unrelated to explicit bitmap stamping. */
 	const struct st_rip3_rect disabled = {0,0,0,0};
-	CHECK(st_rip3_ports_image_style(ports,1,&disabled,15) == 0 && st_rip3_ports_protect(ports,1,true) == 0);
+	CHECK(rip3_test_image_area(ports,1,&disabled,15) == 0 && st_rip3_ports_protect(ports,1,true) == 0);
 	for (unsigned mode = 0; mode < 5; mode++) {
 		struct st_rip3_bitmap_destination destination = {5*(int64_t)mode,0,5*(int64_t)mode+2,1};
 		CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL) == 0);

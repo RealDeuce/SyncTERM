@@ -2683,6 +2683,80 @@ The queue now has 62 implemented, 1635 pending, 4729 unreviewed, 886 contextual,
 24 excluded and 17 blocked blocks. Owned temporary logs/assets and CMake fixture
 directories were removed. The full compliance goal remains in progress.
 
+
+## IMAGE_STYLE wire, macro and reset-state reconciliation
+
+The separate engine now connects wire `1i` and the `IMGSTYLE` callback to one
+port-owned stored device record. The setter orders WORLD corners, projects once,
+and stores the extra far-edge unit. It preserves unclipped boundaries so queries
+can return the documented result rather than reconstructing the original input.
+Default records contain the actual all-minus-one viewport-at-display marker and
+flags zero. The distinct internal raw-zero inhibit remains available; all-zero
+wire coordinates produce enabled `(0,0,1,1)` instead.
+
+Wire `1i` accepts flags 0..63 and replaces the old flags even on protected or
+inactive current ports. The current ENV supplies XY width and radix without
+activating its referenced port/palette/style. The documented full reserved block,
+shorter zero blocks, omission and last-field shortening are accepted. Invalid
+fields and unrepresentable conversions retain the old image record and current
+selection. The canonical full-reserved example is independently decoded.
+
+`IMGSTYLE` has its separate callback behavior: decimal port or CUR, decimal WORLD
+coordinates, and case-insensitive ASPECT/DELETE/NOCLEAR/USEPAL keywords. Keywords
+OR together and replace the flags; none means zero. A target may be screen or
+offscreen. Undefined/inactive targets query and set as `-1` without mutation or
+error; protected enabled targets query normally, while setting returns no value
+and makes no change. A valid setter temporarily selects the target and always
+restores the old selection, including when conversion fails. Queries produce
+five unpadded colon-separated fields, converting stored device boundaries through
+the live current WORLD without undoing the far increment. The native example
+`20:40:222:242:5` is an independent expected reply.
+
+The port-reset component now resets the old current port's image record even
+when protected, and resets port zero independently. Other protected surviving
+ports retain their image state; unprotected nonzero ports are removed. Hard
+reset removes protected nonzero ports too. These are image/port component tests,
+not acceptance of the complete RESET_WINDOWS/HEADER family dispatch. Other reset
+families and header/global-state orchestration remain pending.
+
+The focused `rip3_image_style` fixture covers both radices, XY widths 2..5,
+all accepted wire flags and invalid 64, reserved lengths, reversed corners,
+protected/inactive updates, every keyword combination, literal queries, undefined
+targets, invalid arguments and temporary-selection recovery on all three canvases.
+New fixtures deactivate/reactivate through the port service around byte-split
+`1i`/`1p` commands on a protected port: an intervening inactive image accesses no allocator/file/decoder,
+then reactivation paints the new area. Native and disabled JPEG variants exercise
+both capability paths. Independent complete screen index/palette captures check
+the new fit and retained margins. Full-viewport all-zero wire style reaches the
+native decoder and physical-size fallback on each canvas, with authored JPEG
+DC values and independently calculated sampling thresholds.
+
+Existing raster fixtures retain their literal expectations. Their setup helper
+now expresses an inclusive visible pixel area as the stored record consumed by
+the JPEG presentation chain; wire/macro state oracles call the raw interface
+directly. A thin-area minimum-fit fixture uses a positive far coordinate to
+avoid the documented nonpositive-far physical fallback. The old draft setter's
+configuration clipping/protection expectations are replaced by the adopted raw
+record contract. Port backup tests retain exact image records.
+
+JPEG wallpaper, received-file/export and full playback/host-expansion integration,
+complete sub-viewport/offscreen fallback geometry, other coordinate producers
+and whole-scene activation/reset remain pending. #21 supplies the required
+answers; none of these implementation tasks is a request for more documentation.
+RIP1.54, its capture inventory, font assets and active application route are
+unchanged. No upstream issue content was added.
+
+The existing native FreeBSD Release CMake configure/build with `/usr/bin/cc`
+and all 98 selected tests pass (9.66 seconds), without compiler warnings in the
+final build. Valgrind reports zero errors, no retained heap and only three
+inherited descriptors for the style, native JPEG-command and disabled JPEG-command
+fixtures; their allocation/free counts are 54/54, 17166/17166 and 127/127.
+All 93 frozen files and 41 legacy helpers remain unchanged. The 7353 source
+blocks, 65 document identities, reference/adoption evidence and RIP1.54 capture
+inventory are intact. The queue now has 76 implemented, 1633 pending,
+4717 unreviewed, 886 contextual, 24 excluded and 17 blocked blocks. Owned
+temporary logs/assets and CMake fixture directories were removed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

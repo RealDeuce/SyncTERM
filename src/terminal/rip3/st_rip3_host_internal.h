@@ -7,6 +7,8 @@
 #include "st_rip3_table_host.h"
 #include "st_rip3_host_variables.h"
 
+struct st_rip3_ports;
+
 /* Private decoder/executor statuses for parser-owned recovery and focused unit
  * tests. Never call these from the terminal/session input path or propagate
  * their statuses to it. The public process entry consumes rejected references
@@ -30,6 +32,10 @@ int st_rip3_host_number(const char *text, unsigned minimum, unsigned maximum,
 int st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 int st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
+	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+int st_rip3_port_query_frame(const struct st_rip3_host_variables *host,
+	const struct st_rip3_ports *ports, struct st_rip3_frame *result);
+int st_rip3_image_style_host_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 int st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);

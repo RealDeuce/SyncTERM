@@ -14,6 +14,10 @@ struct port {
 	struct st_rip3_surface *bitmap;
 };
 
+static const struct st_rip3_image_style image_defaults = {
+	.automatic = true, .enabled = true, .area = {-1,-1,-1,-1},
+};
+
 struct st_rip3_ports {
 	struct st_rip3_surface *screen;
 	struct st_rip3_rect screen_bounds;
@@ -171,7 +175,7 @@ st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
 	value.info.offscreen = offscreen;
 	value.info.viewport_active = true;
 	value.info.viewport = port_bounds(&value);
-	value.info.image = (struct st_rip3_image_style){.automatic = true, .enabled = true};
+	value.info.image = image_defaults;
 	clear_port(&ports->entries[number]);
 	ports->entries[number] = value;
 	return 0;
@@ -194,7 +198,7 @@ st_rip3_ports_install_bitmap(struct st_rip3_ports *ports, unsigned number,
 	value.info.defined = true; value.info.offscreen = true; value.info.viewport_active = true;
 	value.info.bounds = (struct st_rip3_rect){0,0,(int32_t)width-1,(int32_t)height-1};
 	value.info.viewport = value.info.bounds;
-	value.info.image = (struct st_rip3_image_style){.automatic=true,.enabled=true};
+	value.info.image = image_defaults;
 	value.bitmap = *bitmap;
 	clear_port(&ports->entries[number]); ports->entries[number] = value;
 	*bitmap = NULL;
@@ -256,6 +260,7 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 {
 	if (ports == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	ports->entries[ports->current].info.image = image_defaults;
 	for (unsigned i = 1; i < 36; i++) {
 		if (hard || !ports->entries[i].info.protected)
 			clear_port(&ports->entries[i]);
@@ -265,7 +270,7 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 		.viewport_active = true,
 		.bounds = ports->screen_bounds,
 		.viewport = ports->screen_bounds,
-		.image = {.automatic = true, .enabled = true},
+		.image = image_defaults,
 	};
 	ports->current = 0;
 	return 0;
@@ -307,43 +312,21 @@ st_rip3_ports_activate(struct st_rip3_ports *ports, bool active)
 	return 0;
 }
 
-static int32_t
-clamp_image_coordinate(int32_t value, int32_t maximum)
-{
-	return value < 0 ? 0 : value > maximum ? maximum : value;
-}
-
 int
 st_rip3_ports_image_style(struct st_rip3_ports *ports, unsigned number,
     const struct st_rip3_rect *area, unsigned flags)
 {
-	struct st_rip3_image_style style = {.automatic = area == NULL,
-	    .enabled = true, .flags = flags};
-	struct port *port;
-
-	if (ports == NULL || (area != NULL && !rect_valid(area)))
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (number >= 36 || flags > 15)
-		return IO_ERROR_OUT_OF_RANGE;
-	port = &ports->entries[number];
-	if (!port->info.defined)
-		return IO_ERROR_NOT_FOUND;
-	if (port->info.protected)
-		return IO_ERROR_PERMISSION_DENIED;
+	if (ports == NULL || (area != NULL && !rect_valid(area))) return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36 || flags > 63) return IO_ERROR_OUT_OF_RANGE;
+	if (!ports->entries[number].info.defined) return IO_ERROR_NOT_FOUND;
+	struct st_rip3_image_style style = image_defaults;
+	style.flags = flags;
 	if (area != NULL) {
-		int32_t xmax = port->info.viewport.x1 - port->info.viewport.x0;
-		int32_t ymax = port->info.viewport.y1 - port->info.viewport.y0;
-
-		style.enabled = area->x0 != 0 || area->y0 != 0
-		    || area->x1 != 0 || area->y1 != 0;
-		style.area = (struct st_rip3_rect){
-		    clamp_image_coordinate(area->x0, xmax),
-		    clamp_image_coordinate(area->y0, ymax),
-		    clamp_image_coordinate(area->x1, xmax),
-		    clamp_image_coordinate(area->y1, ymax)};
+		style.area = *area;
+		style.automatic = area->x0 == -1 && area->y0 == -1 && area->x1 == -1 && area->y1 == -1;
+		style.enabled = area->x0 != 0 || area->y0 != 0 || area->x1 != 0 || area->y1 != 0;
 	}
-	port->info.image = style;
-	return 0;
+	ports->entries[number].info.image = style; return 0;
 }
 
 /* Translate through the viewport origin, intersect in wide arithmetic, then

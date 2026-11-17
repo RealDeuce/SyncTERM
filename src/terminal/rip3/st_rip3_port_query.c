@@ -22,8 +22,8 @@ equal(const char *text, const char *uppercase)
 	}
 }
 
-static int
-current_frame(const struct st_rip3_host_variables *host,
+int
+st_rip3_port_query_frame(const struct st_rip3_host_variables *host,
     const struct st_rip3_ports *ports, struct st_rip3_frame *result)
 {
 	const struct st_rip3_environments *environments = host->tables->tables[ST_RIP3_TABLE_ENV].live;
@@ -137,7 +137,7 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 		else if (x1) point.x = area.x1 + 1;
 		else point.y = area.y1 + 1;
 		if (!device) {
-			status = current_frame(host, ports, &frame);
+			status = st_rip3_port_query_frame(host, ports, &frame);
 			if (status == 0)
 				status = st_rip3_device_to_world(&frame, &point, &point);
 			if (status != 0)
