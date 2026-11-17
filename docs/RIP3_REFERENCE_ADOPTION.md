@@ -1,4 +1,4 @@
-# RIP3 reference adoption: PR #71
+# RIP3 reference adoption
 
 The user authorized adopting the open [documentation integration PR
 #71](https://github.com/bbs-land/remote-imaging-protocol/pull/71) at commit
@@ -9,13 +9,33 @@ silently included. Existing upstream issues must receive no further content.
 
 The reviewed inactive-viewport follow-up is now adopted at
 [`5ae9d165b1ac3e36161847e68db0d763228b779b`](https://github.com/bbs-land/remote-imaging-protocol/commit/5ae9d165b1ac3e36161847e68db0d763228b779b).
-This is the current pin. It changes the viewport and JPEG pages plus the #21
+It changes the viewport and JPEG pages plus the #21
 derivation: wire 1i updates inactive/protected current ports, and reactivation
 retains that configuration. IMAGE display and IMGSTYLE keep separate gates.
-The complete index now contains 7353 blocks in the same 65 documents. The
+That update indexed 7353 blocks in the same 65 documents. The
 adoption record's `updates` records this step; its claim-accounting IDs remain
 tied explicitly to the initial reviewed revision. Both downloaded source trees
 were independently reindexed and their temporary directories removed.
+
+The current pin is PR [#73](https://github.com/bbs-land/remote-imaging-protocol/pull/73)
+at [`ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c`](https://github.com/bbs-land/remote-imaging-protocol/commit/ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c),
+reviewed after the user supplied it as the answer to issue #72. It was open at
+adoption. The direct comparison with the previous pin changes seven normative
+pages; six have only formatting changes. The substantive DEFINE_PORT changes
+prioritize the published protocol over conflicting DLL observations: all four
+initial flags act independently, offscreen near coordinates are zeroed before
+sizing, protected redefinition selects port zero, and allocation-failure final
+state has no documented guarantee. No viewport contract changed. Documentation
+blocker B72 is resolved locally; DEFINE_PORT implementation remains pending.
+
+The current index contains **7357 blocks in 65 documents**. Exact and separately
+verified formatting-only matches retain their review evidence. New or changed
+DEFINE_PORT requirements remain pending. The adoption record retains the prior
+pin, archive digests, 35 derivation identities and hashes of both original
+protocol text sources. The original PR #71 claim accounting remains explicitly
+tied to its initial revision. Both reference archives were independently
+reindexed in automatically removed temporary directories; no upstream probe
+code ran and no GitHub issue was modified.
 
 The target remains RIPtel 3.1's RIPscrip 3.0 behavior, with geometric/spec
 compliance rather than pixel reproduction. The RIP1.54 source/data baseline
@@ -28,7 +48,7 @@ excluded. No code is pushed and no PR is published by this adoption.
 
 [`reference-review.json`](../src/tests/rip3/reference-review.json) records the
 exact archive digest, old pin and local ledger commit, all 65 normative document
-identities, 34 issue-derivation identities, changed/new document paths, and the
+identities, issue-derivation identities, changed/new document paths, and the
 implementation claims carried or reopened. The downloaded archive was extracted
 inside an automatically removed temporary directory. No upstream probe code was
 executed. The ordinary pinned-source indexer independently reproduced every new

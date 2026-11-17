@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
-  "revision": "5ae9d165b1ac3e36161847e68db0d763228b779b",
-  "previous_revision": "2fb17724b6122a5ad5cd1df38b69b8cce3a7079f",
-  "authorization": "User explicitly approved adopting the reviewed PR commit while open; do not add content to existing issues. Later PR commits require a separate source review.",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/73",
+  "revision": "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c",
+  "previous_revision": "5ae9d165b1ac3e36161847e68db0d763228b779b",
+  "authorization": "User supplied PR #73 as the answer to #72 during the active implementation goal; its exact head was separately reviewed and announced before adoption. Later commits are not silently included.",
   "upstream_state_at_adoption": "open, not merged",
-  "archive_sha256": "e62f3eebb750403160758854cfdbeabd2910b705d65a9275d45a5224fdbc96d3",
+  "archive_sha256": "9d3a28800e44bb1cbe01850b827e50889f82e11d42bfe268654012f4f09332b9",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1035,13 +1035,14 @@
     51,
     53,
     54,
-    58
+    58,
+    72
   ],
   "pending_followups": [],
   "derivations": [
     {
       "path": "version/3.0/research/issue-10-port-geometry.md",
-      "sha256": "b6a691d6565b9491bb3c09b3bd087e02fe439cc120dad7cb75aad212af817012",
+      "sha256": "799617764268f8b2ada3eebe9cbe26e3e8621a812dd1620a971048b369497ee3",
       "title": "Issue #10: Port extents, copy clipping and viewport arithmetic",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1053,13 +1054,13 @@
     },
     {
       "path": "version/3.0/research/issue-12-fill-masks.md",
-      "sha256": "7a224560ba5922f47e6698a5eb3a7bca3430d5569ad29393b1df6542ad5e4f7e",
+      "sha256": "54e785f1b6270024e4cc7b0bed0343591f49412d54fdb0716daa8cc147763f7c",
       "title": "Issue #12: Preset fill-mask bytes, radix examples and tiling phase",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-13-polygon-counts.md",
-      "sha256": "21bb5d0f88953995b77d10173fdc4b83893d03cd987d56fb74a2fa88f777dff6",
+      "sha256": "5345a79611a8e7a381f23458b352831607f62a02ae31778446d32b3eb29ec45d",
       "title": "Issue #13: Polygon wire counts and multi-contour limits",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1071,7 +1072,7 @@
     },
     {
       "path": "version/3.0/research/issue-15-bezier-contracts.md",
-      "sha256": "716d7b059065d6ad6dc52071f0dd7db0e843ad4956582c284579fd151a1492d9",
+      "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
       "title": "Issue #15: Bézier equations, subdivision and block grammar",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1107,7 +1108,7 @@
     },
     {
       "path": "version/3.0/research/issue-21-image-style.md",
-      "sha256": "3e4d102a22f3117a72bf9d265d63d73666aabb6c904df21b7328044bc43bb459",
+      "sha256": "868317ba2ffa02a20637160716360fd85281377dfcaf6c292788489a11eea4b9",
       "title": "Issue #21: image-style flags, target defaults, reset and clear modes",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1143,31 +1144,31 @@
     },
     {
       "path": "version/3.0/research/issue-27-button-style-contract.md",
-      "sha256": "af81f173781201afd093c042701336d63000e0d81f9e34705e9710420eddb992",
+      "sha256": "c7496d4a45801ad3b8421dd0ab93002cdd6d1788139552106a113aa271f0984a",
       "title": "Issue #27: button-style defaults, validation, geometry and transparency",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-28-tone-variable-contract.md",
-      "sha256": "afa20c8764bdf327bb4686e039e3042b8bee38471f6ac87965cd868887d732d4",
+      "sha256": "fd37287bd763a3ef3363945720fc89b9db627f5bf60a2906e2e2951bf3d658ac",
       "title": "Issue #28: tone defaults, sweep validation and MUSIC sequence",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-3-extended-font-style.md",
-      "sha256": "3db6cccd5b7c1c8cb775ced76e0bf6794b643b2f4f7375a9e866509c4c2499e3",
+      "sha256": "9d2a8ea1a836a5e48e3c71931d49f08d34af8d6932dec43af7b518c1651ceb82",
       "title": "Issue #3: shipped extended font style derivation",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-33-filled-rectangle-borders.md",
-      "sha256": "6af8af3373c9931217dc6517046fc33ab7f99933c6c28984ee2bcf7aef7ef229",
+      "sha256": "5a9c9a3e89efe6c1b072e8c6b251f1956790889d19861dbf355c46e7a93122f4",
       "title": "Issue #33: filled-rectangle border pattern and write mode",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-38-rounded-rectangle-geometry.md",
-      "sha256": "af34919b1cc6c5ba16e33b4da9760a529e01caf38a460e626d121c81f586fcc1",
+      "sha256": "94e48a3001328abe79bdd431b7da62e49285d548bb4a1a319a14e6e7eff25f93",
       "title": "Issue #38: rounded-rectangle wire radius, geometry and interior",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1179,13 +1180,13 @@
     },
     {
       "path": "version/3.0/research/issue-42-clipboard-capture-state.md",
-      "sha256": "3fbd2a470a501b79556f0b83618bb232bafdfa7e018eeb68bcd9757ea4f3844b",
+      "sha256": "5311e505fd0f994f675c5a6a14c5b975034abf24a2cda21f3b90feac8d0c319f",
       "title": "Issue #42: GET_IMAGE clipboard selection, protection and failure state",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-46-delay-variable-units.md",
-      "sha256": "f201f9385270a25c68a11b2809efe3dd764402edb36d9e7f0d3f267444343280",
+      "sha256": "3774af50a4b1c6ecea90e9572820996bea0f6192ea33bba93c55690334e879dc",
       "title": "Issue #46: D text-variable delay units and timing",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1197,31 +1198,31 @@
     },
     {
       "path": "version/3.0/research/issue-51-deferred-query-order.md",
-      "sha256": "5e929167a574f9ef1f1a47601089fcb0abda87a078038cb81c3f4a1dba1ff0e9",
+      "sha256": "1f031f1eb2608720ad60402744f9e3f67128ecf0a03b52247044cff1f529fa7a",
       "title": "Issue #51: deferred query order and live mutation",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-53-host-control-brackets.md",
-      "sha256": "27c88c78b1a0b4782f9519f502ab1883a7211b216acc91277933747cba292be9",
+      "sha256": "68650c291d76b0fb096b3110e24121494a873ae961e325c54addbfea127cc0cc",
       "title": "Issue #53: host control notation, special keys and brackets",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-54-switch-port-precedence.md",
-      "sha256": "810548baf25f65124a1d3317dd4e2db88dbb700f2980d3ecce7b368fda5f732e",
+      "sha256": "68d664c3c0a37a0c703097741e23b1fb1a10f32e8bda8ce26851d9e5423e79fc",
       "title": "Issue #54: SWITCH_PORT protection order and undefined targets",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-58-load-bitmap-flags.md",
-      "sha256": "44310d635b4603b85d0a5699bf30eeb9bdf5dfb56e20c55e2bb62190f5e011e6",
+      "sha256": "5c631b6b95194ce17879519b030fa1762f60011a703375f86d231961cf4b789d",
       "title": "Issue #58: LOAD_BITMAP flag16 and unknown bits",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-6-macro-evaluation.md",
-      "sha256": "6aa8ce355fa1975460c0bb6c5bc2f7b202e53bd336abb0ebae9a186e32df5b01",
+      "sha256": "4a9cdf428332f9b0177b2e338c974ba957fb5f2840e7669977371853ee7b1592",
       "title": "Issue #6: macro evaluation and predefined variables",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1242,6 +1243,12 @@
       "sha256": "64e154428a5e4d0d89163b5482f9b5c5c46d554fc7c5909391c723aea8396820",
       "title": "Issue #9: RGB example and palette-index arithmetic",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-72-define-port-contract.md",
+      "sha256": "22da7d17d9e7ae1a7a8832f50529ea4f599465cbff97c9584f3a0d3060af9e00",
+      "title": "Issue #72: DEFINE_PORT protocol contract",
+      "role": "Protocol-source derivation for DEFINE_PORT; implementation observations do not override explicit documented rules or define unspecified failure guarantees."
     }
   ],
   "documents": [
@@ -1359,7 +1366,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
-      "sha256": "86a7d4e6e38c66bead4950fb57938d30d1ec25ac2bc0265ff791c2d12994fc57"
+      "sha256": "34ee7fbcf88bf2e84c97af837ea229c6f2d0aa1283880b64297924ce551c2fb2"
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
@@ -1371,7 +1378,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "7f4ed218eb251359af98a8c03d3a0f1fb9fe736a79cf276b0b6240ff401c4c71"
+      "sha256": "23f4173992867b5cd6a579884eca6119e9df3bfbe5309f43273d0adb595d5f95"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1383,7 +1390,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "177cf0e7d176410048f854a1a1574901850b8f2c64e9280dd7b963579bb6c029"
+      "sha256": "2592d990fbab42ee3a3efb3471fcbe7f13813812d8c166a913631822507a856a"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1395,11 +1402,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "f9931c778e538fb74177eb9a075408014d28dc2aa12997a50ac5066c17626972"
+      "sha256": "848ba6583308442724f8260c9b3766dfe8064ac248cc06a3a3a490f9db1cdb56"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "581f86d85f56f74f191763ce00da4171a2b8a3847bffd74f601eb6cdc7399481"
+      "sha256": "d022e50f410b6962651cc09ddfb6166b0c054175800da36e9f375c6037014a65"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1415,7 +1422,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "e9711ef203cf19e7af950755d4f7aa9c781831e9b6f9b33bd57f7331479b3b2a"
+      "sha256": "a13925455edf751d1200c1cbed311139004f06dcac6b3f7a0fb89eeec1950204"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1431,7 +1438,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "0186798bc504204e1ffdef95dbc02ab141c1caa36cfa89cea0e1712fbd13db41"
+      "sha256": "fa3d00d399189b9df3250dfd43a6aea56a72459e92dae2edfaadf3a58f4942ad"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -1506,7 +1513,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "477ce4f143b17601e2d8cc337046bbbc60dedeca",
+  "previous_ledger_commit": "8f2ca4ca313906f69ec712eb78d6322c01a7491b",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -1604,6 +1611,192 @@
       "derivation": "version/3.0/research/issue-21-image-style.md",
       "source_blocks_after_update": 7353,
       "prior_adoption_commit": "0e960b156949823c189916015b3ea1ce53b670be"
+    },
+    {
+      "previous_revision": "5ae9d165b1ac3e36161847e68db0d763228b779b",
+      "revision": "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c",
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/73",
+      "reviewed_change": "Protocol-first DEFINE_PORT clarification for all initial flags, offscreen ignored near corner, protected fallback and unspecified allocation-failure state. Other changed normative pages are formatting-only.",
+      "archive_sha256": "9d3a28800e44bb1cbe01850b827e50889f82e11d42bfe268654012f4f09332b9",
+      "previous_archive_sha256": "e62f3eebb750403160758854cfdbeabd2910b705d65a9275d45a5224fdbc96d3",
+      "changed_documents": [
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+        "version/3.0/ripscrip/4.3-buttons.md",
+        "version/3.0/ripscrip/5.0-host-commands.md",
+        "version/3.0/ripscrip/5.1-text-variables.md",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+        "version/3.0/ripscrip/7.0-drawing-ports.md"
+      ],
+      "formatting_only_documents": [
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+        "version/3.0/ripscrip/4.3-buttons.md",
+        "version/3.0/ripscrip/5.0-host-commands.md",
+        "version/3.0/ripscrip/5.1-text-variables.md",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md"
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-10-port-geometry.md",
+          "previous_sha256": "b6a691d6565b9491bb3c09b3bd087e02fe439cc120dad7cb75aad212af817012",
+          "sha256": "799617764268f8b2ada3eebe9cbe26e3e8621a812dd1620a971048b369497ee3"
+        },
+        {
+          "path": "version/3.0/research/issue-12-fill-masks.md",
+          "previous_sha256": "7a224560ba5922f47e6698a5eb3a7bca3430d5569ad29393b1df6542ad5e4f7e",
+          "sha256": "54e785f1b6270024e4cc7b0bed0343591f49412d54fdb0716daa8cc147763f7c"
+        },
+        {
+          "path": "version/3.0/research/issue-13-polygon-counts.md",
+          "previous_sha256": "21bb5d0f88953995b77d10173fdc4b83893d03cd987d56fb74a2fa88f777dff6",
+          "sha256": "5345a79611a8e7a381f23458b352831607f62a02ae31778446d32b3eb29ec45d"
+        },
+        {
+          "path": "version/3.0/research/issue-15-bezier-contracts.md",
+          "previous_sha256": "716d7b059065d6ad6dc52071f0dd7db0e843ad4956582c284579fd151a1492d9",
+          "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa"
+        },
+        {
+          "path": "version/3.0/research/issue-21-image-style.md",
+          "previous_sha256": "3e4d102a22f3117a72bf9d265d63d73666aabb6c904df21b7328044bc43bb459",
+          "sha256": "868317ba2ffa02a20637160716360fd85281377dfcaf6c292788489a11eea4b9"
+        },
+        {
+          "path": "version/3.0/research/issue-27-button-style-contract.md",
+          "previous_sha256": "af81f173781201afd093c042701336d63000e0d81f9e34705e9710420eddb992",
+          "sha256": "c7496d4a45801ad3b8421dd0ab93002cdd6d1788139552106a113aa271f0984a"
+        },
+        {
+          "path": "version/3.0/research/issue-28-tone-variable-contract.md",
+          "previous_sha256": "afa20c8764bdf327bb4686e039e3042b8bee38471f6ac87965cd868887d732d4",
+          "sha256": "fd37287bd763a3ef3363945720fc89b9db627f5bf60a2906e2e2951bf3d658ac"
+        },
+        {
+          "path": "version/3.0/research/issue-3-extended-font-style.md",
+          "previous_sha256": "3db6cccd5b7c1c8cb775ced76e0bf6794b643b2f4f7375a9e866509c4c2499e3",
+          "sha256": "9d2a8ea1a836a5e48e3c71931d49f08d34af8d6932dec43af7b518c1651ceb82"
+        },
+        {
+          "path": "version/3.0/research/issue-33-filled-rectangle-borders.md",
+          "previous_sha256": "6af8af3373c9931217dc6517046fc33ab7f99933c6c28984ee2bcf7aef7ef229",
+          "sha256": "5a9c9a3e89efe6c1b072e8c6b251f1956790889d19861dbf355c46e7a93122f4"
+        },
+        {
+          "path": "version/3.0/research/issue-38-rounded-rectangle-geometry.md",
+          "previous_sha256": "af34919b1cc6c5ba16e33b4da9760a529e01caf38a460e626d121c81f586fcc1",
+          "sha256": "94e48a3001328abe79bdd431b7da62e49285d548bb4a1a319a14e6e7eff25f93"
+        },
+        {
+          "path": "version/3.0/research/issue-42-clipboard-capture-state.md",
+          "previous_sha256": "3fbd2a470a501b79556f0b83618bb232bafdfa7e018eeb68bcd9757ea4f3844b",
+          "sha256": "5311e505fd0f994f675c5a6a14c5b975034abf24a2cda21f3b90feac8d0c319f"
+        },
+        {
+          "path": "version/3.0/research/issue-46-delay-variable-units.md",
+          "previous_sha256": "f201f9385270a25c68a11b2809efe3dd764402edb36d9e7f0d3f267444343280",
+          "sha256": "3774af50a4b1c6ecea90e9572820996bea0f6192ea33bba93c55690334e879dc"
+        },
+        {
+          "path": "version/3.0/research/issue-51-deferred-query-order.md",
+          "previous_sha256": "5e929167a574f9ef1f1a47601089fcb0abda87a078038cb81c3f4a1dba1ff0e9",
+          "sha256": "1f031f1eb2608720ad60402744f9e3f67128ecf0a03b52247044cff1f529fa7a"
+        },
+        {
+          "path": "version/3.0/research/issue-53-host-control-brackets.md",
+          "previous_sha256": "27c88c78b1a0b4782f9519f502ab1883a7211b216acc91277933747cba292be9",
+          "sha256": "68650c291d76b0fb096b3110e24121494a873ae961e325c54addbfea127cc0cc"
+        },
+        {
+          "path": "version/3.0/research/issue-54-switch-port-precedence.md",
+          "previous_sha256": "810548baf25f65124a1d3317dd4e2db88dbb700f2980d3ecce7b368fda5f732e",
+          "sha256": "68d664c3c0a37a0c703097741e23b1fb1a10f32e8bda8ce26851d9e5423e79fc"
+        },
+        {
+          "path": "version/3.0/research/issue-58-load-bitmap-flags.md",
+          "previous_sha256": "44310d635b4603b85d0a5699bf30eeb9bdf5dfb56e20c55e2bb62190f5e011e6",
+          "sha256": "5c631b6b95194ce17879519b030fa1762f60011a703375f86d231961cf4b789d"
+        },
+        {
+          "path": "version/3.0/research/issue-6-macro-evaluation.md",
+          "previous_sha256": "6aa8ce355fa1975460c0bb6c5bc2f7b202e53bd336abb0ebae9a186e32df5b01",
+          "sha256": "4a9cdf428332f9b0177b2e338c974ba957fb5f2840e7669977371853ee7b1592"
+        }
+      ],
+      "derivation": "version/3.0/research/issue-72-define-port-contract.md",
+      "resolved_issues": [
+        72
+      ],
+      "upstream_authoring_policy": {
+        "path": "AGENTS.md",
+        "sha256": "451c756490605328a612364aa28855cedb0acfbe45d05357f77b583ac68a1057",
+        "scope": "Reviewed upstream evidence policy, not imported as SyncTERM development instructions."
+      },
+      "protocol_sources": [
+        {
+          "path": "version/2.0/text/RIPScrip-2.0-alpha-4.txt",
+          "sha256": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+          "bytes": 1202490
+        },
+        {
+          "path": "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt",
+          "sha256": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34",
+          "bytes": 89253
+        }
+      ],
+      "source_blocks_after_update": 7357,
+      "prior_adoption_commit": "8f2ca4ca313906f69ec712eb78d6322c01a7491b",
+      "moved_source_blocks": 122,
+      "formatting_matched_source_blocks": 64,
+      "new_or_substantively_changed_source_blocks": 8,
+      "states_after_update": {
+        "unreviewed": 4658,
+        "context": 898,
+        "pending": 1613,
+        "implemented": 147,
+        "blocked": 17,
+        "excluded": 24
+      }
     }
+  ],
+  "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
+  "initial_previous_revision": "2fb17724b6122a5ad5cd1df38b69b8cce3a7079f",
+  "initial_authorization": "User explicitly approved adopting the reviewed PR commit while open; do not add content to existing issues. Later PR commits require a separate source review.",
+  "initial_previous_ledger_commit": "477ce4f143b17601e2d8cc337046bbbc60dedeca",
+  "initial_upstream_issue_resolutions": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    33,
+    38,
+    42,
+    46,
+    51,
+    53,
+    54,
+    58
   ]
 }

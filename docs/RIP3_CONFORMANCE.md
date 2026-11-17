@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-5ae9d165b1ac3e36161847e68db0d763228b779b](https://github.com/bbs-land/remote-imaging-protocol/tree/5ae9d165b1ac3e36161847e68db0d763228b779b/version/3.0).
+ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c](https://github.com/bbs-land/remote-imaging-protocol/tree/ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c/version/3.0).
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
 required. RIPlib extensions and future proposals are outside the goal.
@@ -14,10 +14,11 @@ RIP 3 implementation remains active until the separate engine passes acceptance.
 Source indexing is discovery, not adjudication or working-feature evidence.
 
 The user approved adopting the open documentation integration PR #71. Its
-reviewed inactive-viewport #21 follow-up is included in the current pin.
+reviewed inactive-viewport #21 follow-up and PR #73's DEFINE_PORT clarification
+are included in the current pin.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7353 blocks in 65 normative
+provenance, scope and reopened claims. There are now 7357 blocks in 65 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -3125,6 +3126,30 @@ review metadata changed: 147 implemented, 1603 pending, 4660 unreviewed,
 898 contextual, 24 excluded and 21 blocked entries among 7353 source blocks.
 Owned temporary logs were removed. No application route or original artifact
 was changed, no existing issue was edited, and no changes were pushed.
+
+## DEFINE_PORT documentation adoption: PR #73
+
+PR #73 at `ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c` resolves documentation
+blocker #72. The protocol contract takes precedence over the conflicting DLL
+findings recorded above. Flags 1/2/4/8 are independent; offscreen near coordinates
+are ignored before sizing; protected redefinition preserves the port and selects
+zero. Resource-failure rollback, current port and clipboard final state are
+unspecified, leaving client policy rather than a required DLL defect.
+
+The direct comparison with the previous pin changes only DEFINE_PORT semantics;
+six other normative pages have independently checked formatting-only changes.
+All 65 document hashes and 7357 source blocks were reproduced from the pinned
+archive. Existing exact/formatting-only evidence is retained; DEFINE_PORT work
+remains pending. The queue contains 147 implemented, 1613 pending, 4658 unreviewed,
+898 contextual, 24 excluded and 17 blocked entries. B72 is resolved locally;
+GitHub issue content is unchanged. RIP1.54's 93 files and 41 helpers still match
+the original baseline. Verification and adoption provenance are recorded in
+`reference-review.json`; owned temporary archives were removed.
+
+Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
+compiler warnings. All 100 selected tests pass (32.35 seconds), including the
+source/adoption guards; the five focused guard tests also pass independently.
+No application route, frozen RIP1.54 data or original artifact changed.
 
 ## Verification and acceptance
 

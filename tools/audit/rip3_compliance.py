@@ -15,7 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "src/tests/rip3"
-REFERENCE = "5ae9d165b1ac3e36161847e68db0d763228b779b"
+REFERENCE = "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c"
 BASELINE = "e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a"
 UPSTREAM = "https://github.com/bbs-land/remote-imaging-protocol"
 
