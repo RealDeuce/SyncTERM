@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22)
 # One driver for POSIX and Windows: native-command failures must not be hidden
 # by shell pipelines or PowerShell's handling of nonzero native exit codes.
 get_filename_component(_project "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-foreach(_setting IN ITEMS SOURCE_DIR BUILD_DIR PROFILE BUILD_TYPE)
+foreach(_setting IN ITEMS SOURCE_DIR BUILD_DIR PROFILE BUILD_TYPE PACKAGE_NAME)
 	if(NOT DEFINED CI_${_setting} AND NOT "$ENV{CI_${_setting}}" STREQUAL "")
 		set(CI_${_setting} "$ENV{CI_${_setting}}")
 	endif()
@@ -45,6 +45,7 @@ file(REMOVE "${_reports}/junit.xml" "${_reports}/execution.txt"
 	"${_reports}/capabilities.txt" "${_reports}/build.log" "${_reports}/test.log"
 	"${_reports}/artifact-configure.log" "${_reports}/artifact-build.log"
 	"${_reports}/artifact-configuration.txt"
+	"${_reports}/package.log"
 	"${_reports}/CMakeConfigureLog.yaml" "${_reports}/CMakeError.log"
 	"${_reports}/CMakeOutput.log")
 file(GLOB _old_sanitizer_reports "${_reports}/asan.*" "${_reports}/ubsan.*"
@@ -56,6 +57,10 @@ file(GLOB _old_apps "${CI_BUILD_DIR}/artifacts/syncterm*"
 	"${CI_BUILD_DIR}/artifacts/SyncTERM.app")
 if(_old_apps)
 	file(REMOVE_RECURSE ${_old_apps})
+endif()
+file(GLOB _old_packages "${CI_BUILD_DIR}/packages/syncterm-*.zip")
+if(_old_packages)
+	file(REMOVE ${_old_packages})
 endif()
 file(WRITE "${_reports}/environment.txt"
 	"Host: ${CMAKE_HOST_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_VERSION}\n"
@@ -258,3 +263,7 @@ file(MAKE_DIRECTORY "${CI_BUILD_DIR}/artifacts")
 foreach(_product IN LISTS _products)
 	file(COPY "${_product}" DESTINATION "${CI_BUILD_DIR}/artifacts")
 endforeach()
+if(DEFINED CI_PACKAGE_NAME AND NOT CI_PACKAGE_NAME STREQUAL "")
+	ci_command(package "${CMAKE_COMMAND}" "-DCI_BUILD_DIR=${CI_BUILD_DIR}"
+		"-DPACKAGE_NAME=${CI_PACKAGE_NAME}" -P "${_project}/ci/package.cmake")
+endif()

@@ -23,10 +23,13 @@ function(check_case name failure extra profile)
 	file(WRITE "${_build}/artifacts/syncterm-stale" "stale binary")
 	file(MAKE_DIRECTORY "${_build}/artifacts/SyncTERM.app/Contents/Resources")
 	file(WRITE "${_build}/artifacts/SyncTERM.app/Contents/Resources/stale" "stale bundle resource")
+	file(MAKE_DIRECTORY "${_build}/packages")
+	file(WRITE "${_build}/packages/syncterm-build.zip" "stale package")
 	execute_process(COMMAND "${CMAKE_COMMAND}" -E env
 		"CI_EXTRA_CMAKE_ARGS=${extra}" "CMAKE_BUILD_PARALLEL_LEVEL=2"
 		"CTEST_PARALLEL_LEVEL=1"
 		"SYNCTERM_CI_MODE=${_mode}"
+		"CI_PACKAGE_NAME=syncterm-build"
 		"${CMAKE_COMMAND}" "-DCI_SOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}/fixture"
 		"-DCI_BUILD_DIR=${_build}" "-DCI_PROFILE=${profile}"
 		-P "${_ci}/run.cmake"
@@ -87,6 +90,22 @@ function(check_case name failure extra profile)
 		if(NOT _product_count EQUAL 2)
 			message(FATAL_ERROR "${name}: application/core artifact manifest was not copied")
 		endif()
+		set(_extract "${_build}/extracted-package")
+		file(REMOVE_RECURSE "${_extract}")
+		file(MAKE_DIRECTORY "${_extract}")
+		execute_process(COMMAND "${CMAKE_COMMAND}" -E tar xf "${_build}/packages/syncterm-build.zip"
+			WORKING_DIRECTORY "${_extract}" COMMAND_ERROR_IS_FATAL ANY)
+		file(GLOB _packaged RELATIVE "${_extract}" "${_extract}/*")
+		set(_expected "")
+		foreach(_product IN LISTS _app)
+			get_filename_component(_name "${_product}" NAME)
+			list(APPEND _expected "${_name}")
+		endforeach()
+		list(SORT _expected)
+		list(SORT _packaged)
+		if(NOT _packaged STREQUAL _expected)
+			message(FATAL_ERROR "${name}: package must contain only application products at its root: ${_packaged}")
+		endif()
 	else()
 		if("${_result}" STREQUAL "0" OR NOT "${_out}\n${_err}" MATCHES "CI ${failure} failed")
 			message(FATAL_ERROR "${name}: expected ${failure} failure, got ${_result}\n${_out}\n${_err}")
@@ -103,6 +122,9 @@ function(check_case name failure extra profile)
 		endif()
 	endif()
 	if(NOT failure STREQUAL "")
+		if(EXISTS "${_build}/packages/syncterm-build.zip")
+			message(FATAL_ERROR "${name}: published a stale package after ${failure} failure")
+		endif()
 		file(GLOB _products "${_build}/artifacts/*")
 		if(_products)
 			message(FATAL_ERROR "${name}: published products after ${failure} failure")

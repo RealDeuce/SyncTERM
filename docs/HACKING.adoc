@@ -195,7 +195,11 @@ isolation; resource groups are not cross-project locks.
 
 Job artifacts under `build-ci/reports/` retain configure/build/test logs,
 detected capabilities and, for native full-test jobs, JUnit results even on
-failure. Application binaries are under `build-ci/artifacts/`. In full-test
+failure. The downloadable binary-only ZIP is
+`build-ci/packages/syncterm-build.zip`; its application products are at the
+archive root, using the same packager as GitHub. The macOS application keeps
+its complete `SyncTERM.app` bundle. Uncompressed products are staged locally
+under `build-ci/artifacts/`. In full-test
 mode, after the test run (or test-target build for cross jobs), CI reconfigures
 the same build tree with `BUILD_TESTING=OFF` and
 `ST_CONSOLE_TEST=OFF` and rebuilds before collecting application binaries.
@@ -241,6 +245,29 @@ To exercise a native artifact job locally, use `sh ci/posix.sh`. Use
 for those variants. The CI helper does not push commits, register runners,
 install system packages or change GitLab project settings.
 
+==== GitLab development downloads
+
+Download `syncterm-build.zip` from the job's artifact browser for the same
+flat binary layout as GitHub. GitLab's *Download artifacts* action downloads
+an outer archive containing workspace paths and diagnostic reports; the
+following links download the binary-only ZIP directly from the latest
+successful `master` pipeline:
+
+* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=linux-gcc[Linux x86-64]
+* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=freebsd[FreeBSD]
+* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=macos-arm64[macOS arm64]
+* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=windows-msvc%3A%20%5Bx64%5D[Windows x86-64 (MSVC)]
+
+For other jobs, replace the `job` query parameter with the URL-encoded job
+name. These links become available after a pipeline with ZIP packaging
+succeeds. They follow successful pipelines as a whole; a failed platform
+keeps the links on the previous successful pipeline. Keep the project's
+*Settings > CI/CD > Artifacts > Keep artifacts from most recent successful
+jobs* enabled so that the latest successful downloads survive the one-week
+expiry applied to older artifacts. Project access settings still govern
+who can download them. Retrying a job removes its previous ZIP before
+building, so a failure cannot upload a stale download.
+
 === GitHub mirror development downloads
 
 link:../.github/workflows/latest-build.yml[The Latest build workflow] builds
@@ -249,9 +276,9 @@ hosted runners when the upstream push mirror updates `master`. It uses the
 same CMake build-only drivers as GitLab. Manual runs on the default branch
 can rebuild the current commit. These builds do not run the application test
 matrix and are unsigned; native GitLab full-test pipelines remain available
-as described above. Packages include the application products, configuration
-report, build provenance, and bundled license notices. Optional runtime
-libraries may require separate installation.
+as described above. Packages contain only application products at the archive
+root, with complete macOS bundles. Diagnostic reports are retained separately.
+Optional runtime libraries may require separate installation.
 
 GitHub caches downloaded pinned source archives and the compiled dependency
 trees separately. Compiled caches require an exact match of platform, hosted

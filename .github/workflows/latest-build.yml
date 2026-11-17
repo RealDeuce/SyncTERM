@@ -93,7 +93,7 @@ jobs:
           & ./ci/windows.ps1 -Compiler msvc -Architecture x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package
-        run: cmake -DCI_BUILD_DIR=build-ci -DPACKAGE_NAME=syncterm-${{ matrix.platform }} -P ci/github-package.cmake
+        run: cmake -DCI_BUILD_DIR=build-ci -DPACKAGE_NAME=syncterm-${{ matrix.platform }} -P ci/package.cmake
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: latest-build-${{ matrix.platform }}

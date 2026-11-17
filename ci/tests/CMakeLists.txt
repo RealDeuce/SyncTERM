@@ -5,9 +5,9 @@ project(SyncTERMCITests NONE)
 include(CTest)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/reports")
 if(BUILD_TESTING)
-	add_test(NAME ci_github_package COMMAND "${CMAKE_COMMAND}"
-		"-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/github package tests"
-		-P "${CMAKE_CURRENT_SOURCE_DIR}/github_package.cmake")
+	add_test(NAME ci_package COMMAND "${CMAKE_COMMAND}"
+		"-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/package tests"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/package.cmake")
 	find_program(SYNCTERM_NODE_EXECUTABLE NAMES node nodejs)
 	if(SYNCTERM_NODE_EXECUTABLE)
 		add_test(NAME ci_github_release COMMAND "${SYNCTERM_NODE_EXECUTABLE}"

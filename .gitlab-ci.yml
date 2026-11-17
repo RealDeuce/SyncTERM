@@ -23,6 +23,7 @@ variables:
   CTEST_PARALLEL_LEVEL: "1"
   CI_BUILD_TYPE: RelWithDebInfo
   CI_PROFILE: native
+  CI_PACKAGE_NAME: syncterm-build
   # This is an acknowledged coverage gap, not a successful Haiku build.
   SYNCTERM_CI_HAIKU: "0"
   # Enable only on a Linux runner provisioned with Clang.
@@ -39,7 +40,7 @@ default:
     expire_in: 1 week
     paths:
       - build-ci/reports/
-      - build-ci/artifacts/
+      - build-ci/packages/syncterm-build.zip
 
 include:
   - local: .gitlab/ci/tests.yml
@@ -86,7 +87,7 @@ include:
     name: "syncterm-$CI_JOB_NAME_SLUG-$CI_COMMIT_SHORT_SHA"
     when: always
     expire_in: 1 week
-    paths: [build-ci/reports/, build-ci/artifacts/]
+    paths: [build-ci/reports/, build-ci/packages/syncterm-build.zip]
 
 mingw32-cross:
   extends: .cross-artifacts

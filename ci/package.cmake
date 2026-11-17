@@ -14,7 +14,8 @@ file(REMOVE_RECURSE "${_stage}")
 file(MAKE_DIRECTORY "${_stage}")
 file(COPY ${_products} DESTINATION "${_stage}")
 file(GLOB _entries RELATIVE "${_stage}" "${_stage}/*")
-# libarchive retains executable permissions and the complete macOS bundle.
+# Both CI services use this layout. libarchive retains executable permissions
+# and the complete macOS bundle.
 execute_process(COMMAND "${CMAKE_COMMAND}" -E tar cf "${CI_BUILD_DIR}/packages/${PACKAGE_NAME}.zip"
 	--format=zip -- ${_entries}
 	WORKING_DIRECTORY "${_stage}" COMMAND_ERROR_IS_FATAL ANY)

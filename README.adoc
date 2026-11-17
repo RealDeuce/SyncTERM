@@ -8,6 +8,8 @@ https://github.com/RealDeuce/SyncTERM/releases/tag/latest-build[GitHub mirror's 
 They are replaced after successful upstream builds and expire after 14 days.
 See link:docs/HACKING.adoc#_github_mirror_development_downloads[the download workflow]
 for fixed download URLs and details.
+GitLab also provides link:docs/HACKING.adoc#_gitlab_development_downloads[binary-only
+ZIPs from the latest successful pipeline] for its native and cross-build jobs.
 
 == Build
 
