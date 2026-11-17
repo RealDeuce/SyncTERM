@@ -25,6 +25,10 @@ extern bool st_rip3_jpeg_file_test_fail_size, st_rip3_jpeg_file_test_fail_close;
 extern bool st_rip3_jpeg_file_test_unavailable;
 extern unsigned st_rip3_jpeg_file_test_read_fault;
 extern bool st_rip3_image_commands_test_fail_allocate, st_rip3_image_test_fail_allocate;
+extern unsigned st_rip3_image_test_fills;
+extern struct st_rip3_rect st_rip3_image_test_fill_area;
+extern uint8_t st_rip3_image_test_fill_color;
+extern enum st_rip3_write_mode st_rip3_image_test_fill_mode;
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -191,29 +195,28 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
 	/* Exercise the literal documented command with every byte boundary. */
 	const char wire[] = "!|1p0000gRaY.JpG\r";
+	st_rip3_image_test_fills = 0;
 	for (size_t i = 0; i < sizeof(wire)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)wire+i,1);
-	bool unsupported = mode != ST_RIP3_COPY && ((flags&4) == 0 || (flags&1) != 0);
-	CHECK(f.errors == (unsupported ? 1u : 0u));
-	if (unsupported) CHECK(f.kind == ST_RIP3_COMMAND_UNSUPPORTED);
+	CHECK(f.errors == 0);
+	CHECK(st_rip3_image_test_fills == ((flags&4) != 0 ? 0u : 1u));
+	if ((flags&4) == 0) {
+		CHECK(st_rip3_image_test_fill_color == 0 && st_rip3_image_test_fill_mode == ST_RIP3_COPY);
+		CHECK(st_rip3_image_test_fill_area.x0 == 1 && st_rip3_image_test_fill_area.x1 == 18
+		    && st_rip3_image_test_fill_area.y0 == ((flags&1) != 0 ? 5 : 1)
+		    && st_rip3_image_test_fill_area.y1 == ((flags&1) != 0 ? 13 : 18));
+	}
 	CHECK(st_rip3_palettes_get(f.host.palettes,3,&palette) == 0
 	    && st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
 	CHECK(capture->pixels->width == width && capture->pixels->height == height);
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		unsigned expected = 85;
-		if (!unsupported && x >= 13 && x <= 30 && y >= 24 && y <= 41) {
+		if (x >= 13 && x <= 30 && y >= 24 && y <= 41) {
 			unsigned row = y-24;
 			bool margin = (flags&1) != 0 && (row < 4 || row > 12);
-			if (margin) expected = 0;
+			if (margin) expected = 85;
 			else {
 				unsigned source = (flags&1) != 0 ? (row == 12 ? 192 : 64) : (row >= 16 ? 192 : 64);
-				unsigned base = (flags&4) != 0 ? 85 : 8;
-				switch (mode) {
-				case ST_RIP3_COPY: expected = source; break;
-				case ST_RIP3_XOR: expected = base^source; break;
-				case ST_RIP3_OR: expected = base|source; break;
-				case ST_RIP3_AND: expected = base&source; break;
-				case ST_RIP3_NOT: expected = base^255; break;
-				}
+				expected = source; /* JPEG rows ignore every vector write mode. */
 			}
 		}
 		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
@@ -263,9 +266,12 @@ background(const struct st_rip3_resource_paths *paths)
 	style.background_color = 256; style.write_mode = ST_RIP3_COPY;
 	CHECK(st_rip3_styles_set(f.host.styles,1,&style) == 0 && st_rip3_ports_image_style(f.host.ports,1,&area,4) == 0);
 	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
-	/* Re-enable clearing: the same invalid color fails before any load. */
+	/* Even when clearing is enabled, JPEG uses black rather than STYLE's
+	 * background. No STYLE service is required for presentation at all. */
 	CHECK(st_rip3_ports_image_style(f.host.ports,1,&area,0) == 0);
-	CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
+	struct st_rip3_styles *styles = f.host.styles; f.host.styles = NULL;
+	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0); f.host.styles = styles;
 	destroy(&f); return 0;
 }
 
@@ -294,17 +300,19 @@ recovery(const struct st_rip3_resource_paths *paths)
 		bool *const failures[] = {&st_rip3_jpeg_file_test_fail_allocate,&st_rip3_jpeg_file_test_fail_decode,
 		    &st_rip3_image_commands_test_fail_allocate,&st_rip3_image_test_fail_allocate};
 		for (size_t i = 0; i < sizeof(failures)/sizeof(failures[0]); i++) {
-			*failures[i] = true;
+			*failures[i] = true; st_rip3_image_test_fills = 0;
 			CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !*failures[i]);
+			CHECK(st_rip3_image_test_fills == 0);
 		}
 	}
-	/* Unsupported deletion policy rejects before reading/drawing. Disabled
-	 * viewing with disputed deletion bits remains unsupported under #21. */
+	/* DELETE is stored without any file side effect. The explicit internal
+	 * inhibit state is not wire 1i's all-zero rectangle. */
 	const struct st_rip3_rect area = {1,1,18,18}, disabled = {0,0,0,0};
 	CHECK(st_rip3_ports_image_style(f.host.ports,1,&area,2) == 0);
-	CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"1p0000Gray.JPG",st_pixel_image_jpeg_compiled() ? -1 : ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 	CHECK(st_rip3_ports_image_style(f.host.ports,1,&disabled,4) == 0);
-	CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
 	CHECK(st_rip3_ports_image_style(f.host.ports,1,&disabled,0) == 0);
 	struct st_rip3_command_host saved = f.host;
 	f.host.resources = NULL; f.host.palettes = NULL; f.host.styles = NULL;
@@ -351,7 +359,7 @@ main(int argc, char **argv)
 		const enum st_rip3_canvas canvases[] = {ST_RIP3_CANVAS_640_480,ST_RIP3_CANVAS_800_600,ST_RIP3_CANVAS_1024_768};
 		CHECK(background(&paths) == 0);
 		const uint32_t widths[] = {640,800,1024}, heights[] = {480,600,768};
-		const unsigned flags[] = {0,1,4,5,8,9,12,13};
+		const unsigned flags[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 		for (size_t i = 0; i < 3; i++) for (size_t j = 0; j < sizeof(flags)/sizeof(flags[0]); j++)
 			for (unsigned mode = ST_RIP3_COPY; mode <= ST_RIP3_NOT; mode++)
 				CHECK(scene(canvases[i],widths[i],heights[i],&paths,flags[j],(enum st_rip3_write_mode)mode) == 0);

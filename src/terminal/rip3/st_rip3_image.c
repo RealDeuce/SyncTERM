@@ -48,8 +48,7 @@ validate_image(const struct st_pixel_buffer *image,
 int
 st_rip3_draw_image(struct st_rip3_ports *ports,
     const struct st_pixel_buffer *image, const uint32_t *source_palette,
-    size_t source_palette_size, const struct st_rip3_palette *palette,
-    uint8_t background, enum st_rip3_write_mode mode)
+    size_t source_palette_size, const struct st_rip3_palette *palette)
 {
 	struct st_rip3_port_info info;
 	struct st_rip3_rect area, fitted;
@@ -58,13 +57,15 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 	uint8_t *pixels = NULL, mapped[256], black;
 	int status;
 
-	if (ports == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+	if (ports == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_rip3_ports_current(ports, &current);
 	if (status == 0)
 		status = st_rip3_ports_info(ports, current, &info);
 	if (status != 0 || !info.viewport_active || !info.image.enabled)
 		return status;
+	if ((info.image.flags & 16) != 0)
+		return IO_ERROR_NOT_SUPPORTED;
 	status = validate_image(image, source_palette, source_palette_size, palette);
 	if (status != 0)
 		return status;
@@ -105,7 +106,7 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 	if (pixels == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	/* Validation above makes color mapping infallible. Prepare the complete
-	 * fitted bitmap before COPY clears or destination write-mode operations. */
+	 * fitted bitmap before clearing or painting any destination pixels. */
 	(void)st_rip3_palette_color(palette, true, 0, &black);
 	for (size_t i = 0; i < source_palette_size; i++)
 		(void)st_rip3_palette_color(palette, true, source_palette[i], &mapped[i]);
@@ -127,16 +128,13 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 		}
 	}
 	if ((info.image.flags & 4) == 0)
-		(void)st_rip3_ports_fill(ports, &area, background, ST_RIP3_COPY);
-	/* Paint only the margins, so XOR/AND/NOT image pixels see the requested
-	 * background or retained scene rather than an intermediate black fill. */
-	for (int32_t y = area.y0; y <= area.y1; y++) {
-		for (int32_t x = area.x0; x <= area.x1; x++) {
-			if (x < fitted.x0 || x > fitted.x1 || y < fitted.y0 || y > fitted.y1)
-				(void)st_rip3_ports_plot(ports, x, y, black, ST_RIP3_COPY);
-			else
-				(void)st_rip3_ports_plot(ports, x, y,
-				    pixels[(size_t)(y - fitted.y0) * width + (uint32_t)(x - fitted.x0)], mode);
+		(void)st_rip3_ports_fill(ports, &fitted, black, ST_RIP3_COPY);
+	/* The original JPEG consumer uses SRCCOPY independently of the vector
+	 * ROP. The clear also covers only the fitted image, retaining margins. */
+	for (int32_t y = fitted.y0; y <= fitted.y1; y++) {
+		for (int32_t x = fitted.x0; x <= fitted.x1; x++) {
+			(void)st_rip3_ports_plot(ports, x, y,
+			    pixels[(size_t)(y - fitted.y0) * width + (uint32_t)(x - fitted.x0)], ST_RIP3_COPY);
 		}
 	}
 	free(pixels);

@@ -7,6 +7,16 @@ It replaces reference `2fb17724b6122a5ad5cd1df38b69b8cce3a7079f` for the separat
 RIP3 engine. The PR was open, not merged, at adoption. Later commits are not
 silently included. Existing upstream issues must receive no further content.
 
+The reviewed inactive-viewport follow-up is now adopted at
+[`5ae9d165b1ac3e36161847e68db0d763228b779b`](https://github.com/bbs-land/remote-imaging-protocol/commit/5ae9d165b1ac3e36161847e68db0d763228b779b).
+This is the current pin. It changes the viewport and JPEG pages plus the #21
+derivation: wire 1i updates inactive/protected current ports, and reactivation
+retains that configuration. IMAGE display and IMGSTYLE keep separate gates.
+The complete index now contains 7353 blocks in the same 65 documents. The
+adoption record's `updates` records this step; its claim-accounting IDs remain
+tied explicitly to the initial reviewed revision. Both downloaded source trees
+were independently reindexed and their temporary directories removed.
+
 The target remains RIPtel 3.1's RIPscrip 3.0 behavior, with geometric/spec
 compliance rather than pixel reproduction. The RIP1.54 source/data baseline
 remains `e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a`; upstream corrections to 1.54
@@ -32,7 +42,7 @@ provenance, not additional normative requirements; their final derivations are
 linked and hashed separately. The upstream backlog maps the 34 resolutions to
 their original-artifact evidence and focused PRs.
 
-The new index contains **7352 source blocks** across **65 documents**; 44 previous
+The initial adoption indexed **7352 source blocks** across **65 documents**; 44 previous
 documents changed and none was removed. Exact source/heading/content matches
 preserve prior review references despite line-number shifts. Changed source is
 new review work, not a silently overwritten old requirement. Git retains the
@@ -53,7 +63,7 @@ contextual, 24 excluded and 17 blocked source blocks. The remaining blocked rows
 refer to the earlier broad issue #2, which is outside PR #71's explicit closing
 list. The 34 adopted issue resolutions are documentation answers; source review,
 implementation and independent acceptance tests remain required. Issue #21 has
-a separately recorded follow-up newer than this pinned head.
+a separately recorded follow-up, now answered by the reviewed update above.
 
 Important reconciliations identified during adoption:
 
@@ -65,11 +75,11 @@ Important reconciliations identified during adoption:
 | Text cursor / #6, #24 | TEXTXY is a current per-port cursor query with decimal serialization, producer-dependent unit conversions and integer string advances. Fractional layout positions alone are not the query cursor; existing movement/advance tests need reconciliation. |
 | Tables, fonts, geometry and queries | The adopted pages provide the previously missing ownership, bootstrap/reset, font, arc/Bezier, polygon, fill, input, backup and query contracts. Existing prerequisite kernels remain available, but prior green tests do not establish the corrected wire/state behavior. |
 
-The new inactive-viewport wire IMAGE_STYLE question was posted before the user
-requested no further issue content. The user reports a PR update in progress.
-It is recorded by [its existing comment](https://github.com/bbs-land/remote-imaging-protocol/issues/21#issuecomment-6935800437),
-without another post or an assumption about its answer. Review that future commit
-separately when available. Work on settled requirements can continue meanwhile.
+The inactive-viewport wire IMAGE_STYLE question was posted before the user
+requested no further issue content. Its [existing comment](https://github.com/bbs-land/remote-imaging-protocol/issues/21#issuecomment-6935800437)
+is answered by the reviewed follow-up above. No additional issue content was
+posted. Documentation resolution does not imply that the wire setter, activation
+and display integration are already implemented.
 
 ## Acceptance
 

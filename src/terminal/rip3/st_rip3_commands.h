@@ -168,13 +168,14 @@ struct st_rip3_command_sink {
  * void and every helper status stays inside this nonfatal parser boundary.
  * 1p reads an exact bare UTF-8 filename through MEDIA lookup and the baseline
  * JPEG decoder, then uses the current port's explicitly bound DEVICE image
- * style, current palette and STYLE write mode. JPEG flag 8 changes no palette.
- * COPY is supported; other modes require flag 4 and no aspect margins until
- * clear/margin write-mode semantics are resolved (#21). Deletion flag 2 and
- * disabled images with disputed deletion bits are declined before file access.
- * Inactive viewports and disabled images without deletion ambiguity are no-ops
- * before consulting asset/style/palette bindings. Macro expansion, delivery,
- * wire 1i/IMGSTYLE and reset/ownership policy remain separate (#21/#24).
+ * style and current palette. Painting always uses COPY; no STYLE binding or
+ * background color is consulted. Initial clearing is black COPY over the fitted
+ * rectangle only, unless flag 4 skips it. Aspect margins retain their contents.
+ * JPEG flag 8 changes no palette; flag 2 has no file-deletion effect. Inactive
+ * viewports and the explicit internal inhibit state are no-ops before consulting
+ * asset/palette bindings. That inhibit state is not wire 1i's all-zero rectangle.
+ * Wallpaper, macro expansion, delivery, wire 1i/IMGSTYLE and reset/ownership
+ * integration remain separate pending work in the adopted #21/#24 contract.
  * Invalid names and load/decode/staging failures retain the scene and produce
  * only a nonfatal diagnostic; no file is deleted or changed.
  * Drawing commands use the bound STYLE record's explicit resolved pen and

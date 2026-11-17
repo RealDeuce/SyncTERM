@@ -16,23 +16,24 @@ struct st_rip3_ports;
  * palette entries are never changed; colors use its nearest RGB entry.
  *
  * Device-pixel policy: clamp area edges to the viewport, nearest source pixel
- * centers, and flag 1 fits/centers aspect ratio with black margins. Integer fit
- * rounds down with a minimum one-pixel dimension; odd extra margins go right
- * or below. This is geometric/spec rendering, not RIPtel pixel reproduction.
- * Flag 4 skips the initial COPY background clear. Black margins use COPY;
- * image pixels use mode. All source pixels/palettes and scratch allocation are
- * validated/prepared before any screen/offscreen pixel changes.
+ * centers, and flag 1 fits/centers aspect ratio while retaining margins.
+ * Integer fit rounds down with a minimum one-pixel dimension; odd extra margins
+ * go right or below. This is geometric/spec rendering, not RIPtel pixel reproduction.
+ * Flag 4 skips the initial black COPY clear of the fitted rectangle. Image
+ * pixels always use COPY, independently of vector write mode/background.
+ * Source pixels/palettes and scratch allocation are validated/prepared before
+ * any screen/offscreen pixel changes.
  *
- * Inactive viewport/disabled image style is a successful no-op, without
+ * Inactive viewport/internal inhibit state is a successful no-op, without
  * dereferencing image/palette. Protected ports permit drawing. Flag 8 is
  * ignored for RGB images; indexed palette commit is not implemented and is
- * rejected before drawing. Flag 2 has no memory-rendering effect: the owning
- * asset/parser layer must resolve delivery/file-deletion policy (#21).
+ * rejected before drawing. Flag 2 is stored without JPEG file deletion.
+ * Wallpaper flag 16 remains unsupported; flag 32 alone has no effect. The
+ * all-zero wire 1i producer/fallback and image-state reset remain separate.
  * No file access, macro expansion or session-error propagation happens here.
  */
 int st_rip3_draw_image(struct st_rip3_ports *ports,
 	const struct st_pixel_buffer *image, const uint32_t *source_palette,
-	size_t source_palette_size, const struct st_rip3_palette *palette,
-	uint8_t background, enum st_rip3_write_mode mode);
+	size_t source_palette_size, const struct st_rip3_palette *palette);
 
 #endif

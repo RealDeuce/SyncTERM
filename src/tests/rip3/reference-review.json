@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
-  "revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
+  "revision": "5ae9d165b1ac3e36161847e68db0d763228b779b",
   "previous_revision": "2fb17724b6122a5ad5cd1df38b69b8cce3a7079f",
   "authorization": "User explicitly approved adopting the reviewed PR commit while open; do not add content to existing issues. Later PR commits require a separate source review.",
   "upstream_state_at_adoption": "open, not merged",
-  "archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
+  "archive_sha256": "e62f3eebb750403160758854cfdbeabd2910b705d65a9275d45a5224fdbc96d3",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1037,13 +1037,7 @@
     54,
     58
   ],
-  "pending_followups": [
-    {
-      "issue": 21,
-      "comment": "https://github.com/bbs-land/remote-imaging-protocol/issues/21#issuecomment-6935800437",
-      "reason": "Postdates this pinned head; user reports an update in progress."
-    }
-  ],
+  "pending_followups": [],
   "derivations": [
     {
       "path": "version/3.0/research/issue-10-port-geometry.md",
@@ -1113,7 +1107,7 @@
     },
     {
       "path": "version/3.0/research/issue-21-image-style.md",
-      "sha256": "f3e224861ce438d93723d872e3e2d28e293ce1fd5164b22d9a2da99efd091610",
+      "sha256": "3e4d102a22f3117a72bf9d265d63d73666aabb6c904df21b7328044bc43bb459",
       "title": "Issue #21: image-style flags, target defaults, reset and clear modes",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1185,7 +1179,7 @@
     },
     {
       "path": "version/3.0/research/issue-42-clipboard-capture-state.md",
-      "sha256": "6caa0e2dd1a3764a171670de68462385c033f8ab80569defae28d87d23d88044",
+      "sha256": "3fbd2a470a501b79556f0b83618bb232bafdfa7e018eeb68bcd9757ea4f3844b",
       "title": "Issue #42: GET_IMAGE clipboard selection, protection and failure state",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1227,7 +1221,7 @@
     },
     {
       "path": "version/3.0/research/issue-6-macro-evaluation.md",
-      "sha256": "2468ec141cad9853902c98166e70a7d06353f53e1c05ea9ee3c43a22a3ed095f",
+      "sha256": "6aa8ce355fa1975460c0bb6c5bc2f7b202e53bd336abb0ebae9a186e32df5b01",
       "title": "Issue #6: macro evaluation and predefined variables",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1345,7 +1339,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "35a21da4709f42f30d5fd1b1c026d8472cf6d9626ada434388f8d95c64a26546"
+      "sha256": "50ce8662cc6f9fa3acbcf3e31fe3cb0369fa14476be7a420d77b22b6e0f42fa5"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1381,7 +1375,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
-      "sha256": "0340064a116c7331b295dff86e4a2fec85a9a490999163a9f690848413134b90"
+      "sha256": "dcddb3f8374207d96787d2d828384ccc84ef4611719d40f863ed5d793eaf3022"
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
@@ -1594,5 +1588,22 @@
     "blocked": 17,
     "excluded": 24
   },
-  "source_blocks_at_adoption": 7352
+  "source_blocks_at_adoption": 7352,
+  "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
+  "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
+  "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
+  "updates": [
+    {
+      "previous_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
+      "revision": "5ae9d165b1ac3e36161847e68db0d763228b779b",
+      "reviewed_change": "Wire IMAGE_STYLE updates inactive/protected current ports; activation retains its stored state. IMAGE display and IMGSTYLE retain separate gates.",
+      "changed_documents": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+        "version/3.0/ripscrip/4.1-jpeg-images.md"
+      ],
+      "derivation": "version/3.0/research/issue-21-image-style.md",
+      "source_blocks_after_update": 7353,
+      "prior_adoption_commit": "0e960b156949823c189916015b3ea1ce53b670be"
+    }
+  ]
 }

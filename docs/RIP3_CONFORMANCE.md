@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-a9e0c2f490714d82a0827675ffbc074aa5ae00e6](https://github.com/bbs-land/remote-imaging-protocol/tree/a9e0c2f490714d82a0827675ffbc074aa5ae00e6/version/3.0).
+5ae9d165b1ac3e36161847e68db0d763228b779b](https://github.com/bbs-land/remote-imaging-protocol/tree/5ae9d165b1ac3e36161847e68db0d763228b779b/version/3.0).
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
 required. RIPlib extensions and future proposals are outside the goal.
@@ -13,10 +13,11 @@ do not execute it, and report unsupported capabilities truthfully.
 RIP 3 implementation remains active until the separate engine passes acceptance.
 Source indexing is discovery, not adjudication or working-feature evidence.
 
-The user approved adopting the open documentation integration PR #71 at that
-exact commit. [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
+The user approved adopting the open documentation integration PR #71. Its
+reviewed inactive-viewport #21 follow-up is included in the current pin.
+[The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7352 blocks in 65 normative
+provenance, scope and reopened claims. There are now 7353 blocks in 65 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -24,7 +25,7 @@ RIP1.54 baseline, original font bytes, active application route and external-lau
 exclusion remain unchanged. No further content is to be added to existing
 upstream issues.
 
-Adoption verification used the existing native Release CMake configuration.
+Initial adoption verification used the existing native Release CMake configuration.
 Configure/build and all 93 selected RIP3/preservation/JPEG/shared-audio/codepage
 tests passed (4.62 seconds). The updated preservation/adoption guard also passed
 its five focused tests, including rejection of a stale pin/document inventory
@@ -74,9 +75,9 @@ requirements, and `implemented` only with implementation paths and independent
 CTest evidence. Context/exclusion entries require reasons.
 
 The following list records historical questions raised against the previous
-pin. PR #71 provides the adopted documentation answers for 34 of them; local
-implementation/review remains pending. The broad earlier #2 and the newer #21
-follow-up remain separately tracked in the ledger. Descriptions in this list
+pin. PR #71 provides the adopted documentation answers for 34 of them, including
+the reviewed newer #21 follow-up; local implementation/review remains pending.
+The broad earlier #2 remains separately tracked in the ledger. Descriptions in this list
 are the original questions, not a claim that the adopted PR lacks their answers.
 
 Historical clarification issues:
@@ -2356,6 +2357,59 @@ contains 1000 implemented, 724 pending, 455 blocked, 973 contextual, 24 excluded
 and 3372 unreviewed blocks. Verification logs and fixture directories were
 removed. These results establish this separate-engine milestone, not full
 compliance or active application/physical-device coverage.
+
+## JPEG presentation reconciled with the adopted reference
+
+The #21 inactive-viewport follow-up at `5ae9d165b1ac3e36161847e68db0d763228b779b`
+is now reviewed and pinned. It says that wire 1i updates inactive/protected current
+ports and that activation retains the new image style. The source index was
+independently reproduced from the complete pinned archive, now 7353 blocks in
+65 documents. The existing #21 follow-up is recorded as documentation-resolved;
+wire setter/activation integration remains pending. No issue content was added.
+
+JPEG presentation now follows the corrected contract. The renderer uses COPY,
+independently of vector STYLE write mode and background. Its optional initial
+clear replaces only the fitted image rectangle with the palette's black entry.
+NOCLEAR suppresses that operation. Aspect-ratio margins retain their previous
+pixels, and source pixels are copied over the fitted rectangle. Preparation and
+allocation still finish before any paint, so failures cannot partially clear
+the scene. The decoded-image API no longer accepts a vector write mode or
+background argument that JPEG does not use.
+
+Literal 1p no longer requires or consults a STYLE binding and accepts display
+with DELETE set. No image-style bit deletes a displayed or skipped JPEG, and
+USEPAL remains ignored for RGB JPEGs. The explicit internal inhibit state skips
+asset lookup without deleting files; it is not an interpretation of wire 1i's
+all-zero coordinates. Wallpaper remains unsupported before loading/painting.
+The raw-zero/one-pixel producer and physical fallback, wire 1i/IMGSTYLE, reset,
+delivery, wallpaper and full port-coordinate reconciliation remain pending.
+
+The updated expectations fail against the prior implementation before it changes.
+The byte-split command matrix now exercises all 16 low-bit flag combinations
+against all five vector write modes on all three canvases, expecting COPY output
+and retained margins throughout. Source size/time remains unchanged with DELETE.
+Missing STYLE bindings and unused/out-of-range STYLE backgrounds do not prevent
+JPEG display. Filename, file-buffer, decoder and draw-staging allocation failures
+occur before any clear. The normal disabled-JPEG backend and later-command
+recovery remain covered.
+
+The fixture records actual clear calls as well as complete index/palette captures:
+black replacement, COPY mode, the fitted bounds, and suppression by NOCLEAR.
+Black at palette index 7 is checked independently of index zero. Literal wide
+and tall 10x5/5x10 inputs reproduce the reference's two measured fitted rectangles
+on all three canvases. GDI's exclusive far edges are converted to this kernel's
+inclusive representation at the expectation boundary. These checks establish
+geometric/side-effect behavior, not exact JPEG sampling or Windows realization.
+
+The native Release CMake configure/build and all 93 selected tests pass
+(5.78 seconds). Both command fixtures report zero Valgrind errors, no retained
+heap and only three inherited descriptors. The rendering fixture also reports
+zero errors and only three inherited descriptors; its sole retained allocation
+is a suppressed 4096-byte C-library buffer. All 93 frozen files and 41 legacy
+helpers still match the original baseline. The current ledger has 22 implemented,
+1626 pending, 4789 unreviewed, 875 contextual, 24 excluded and 17 blocked blocks.
+All source/archive/verification temporary directories and logs were removed.
+Active application routing and the frozen RIP1.54 implementation remain unchanged.
 
 ## Verification and acceptance
 

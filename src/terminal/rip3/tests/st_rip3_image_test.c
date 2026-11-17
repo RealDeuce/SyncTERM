@@ -14,6 +14,11 @@
 #include <stdio.h>
 #include <string.h>
 
+extern unsigned st_rip3_image_test_fills;
+extern struct st_rip3_rect st_rip3_image_test_fill_area;
+extern uint8_t st_rip3_image_test_fill_color;
+extern enum st_rip3_write_mode st_rip3_image_test_fill_mode;
+
 #define CHECK(expression) do { \
 	if (!(expression)) { \
 		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
@@ -106,7 +111,7 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_viewport(ports, &view) == 0);
 	CHECK(st_rip3_ports_image_style(ports, 1, &square, 1) == 0);
 	CHECK(st_rip3_ports_protect(ports, 1, true) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette, 5, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette) == 0);
 	/* A second independent, taller-than-wide image lives offscreen. */
 	CHECK(st_rip3_ports_define(ports, 2, &offscreen, true) == 0);
 	CHECK(st_rip3_ports_switch(ports, 2) == 0);
@@ -115,12 +120,12 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	uint32_t vertical_rgb[] = {ST_PIXEL_COLOR_RGB_TAG | 0x0000ff,
 	    ST_PIXEL_COLOR_RGB_TAG | 0xffffff};
 	const struct st_pixel_buffer vertical = {vertical_rgb,NULL,1,2};
-	CHECK(st_rip3_draw_image(ports, &vertical, NULL, 0, &palette, 5, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &vertical, NULL, 0, &palette) == 0);
 	for (int32_t y = 0; y < 6; y++) {
 		for (int32_t x = 0; x < 6; x++) {
 			CHECK(st_rip3_ports_read(ports, 2, x, y, &value) == 0);
 			/* Default RGB cube blue (0,0,3) is entry 32+3. */
-			CHECK(value == (x < 1 || x > 3 ? 0 : y < 3 ? 35 : 15));
+			CHECK(value == (x < 1 || x > 3 ? 9 : y < 3 ? 35 : 15));
 		}
 	}
 	/* One coherent capture contains the entire related onscreen scene. */
@@ -133,7 +138,7 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 				expected = ST_PIXEL_COLOR_RGB_TAG | 0x00aa00;
 			if (x >= 11 && x <= 16 && y >= 11 && y <= 16) {
 				if (y < 12 || y > 14)
-					expected = ST_PIXEL_COLOR_RGB_TAG;
+					expected = ST_PIXEL_COLOR_RGB_TAG | 0x00aa00;
 				else
 					expected = ST_PIXEL_COLOR_RGB_TAG | (x < 14 ? 0xff0000 : 0x00ff00);
 			}
@@ -141,19 +146,20 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		}
 	}
 	st_pixel_buffer_destroy(capture);
-	/* A very thin image fits to at least one pixel; explicit zero stays disabled. */
+	/* A very thin image fits to at least one pixel. The explicit internal
+	 * inhibit state below is not wire 1i's all-zero rectangle producer. */
 	CHECK(st_rip3_ports_image_style(ports, 2, &tall, 1) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette, 5, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette) == 0);
 	for (int32_t y = 0; y < 6; y++) {
 		CHECK(st_rip3_ports_read(ports, 2, 0, y, &value) == 0);
 		/* A 1x1 fit samples the source center (green, RGB cube entry 60). */
-		CHECK(value == (y == 2 ? 60 : 0));
+		CHECK(value == (y == 2 ? 60 : 9));
 	}
 	CHECK(st_rip3_ports_image_style(ports, 2, &zero, 0) == 0);
-	CHECK(st_rip3_draw_image(ports, NULL, NULL, 0, NULL, 0, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, NULL, NULL, 0, NULL) == 0);
 	CHECK(st_rip3_ports_image_style(ports, 2, NULL, 0) == 0);
 	CHECK(st_rip3_ports_activate(ports, false) == 0);
-	CHECK(st_rip3_draw_image(ports, NULL, NULL, 0, NULL, 0, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, NULL, NULL, 0, NULL) == 0);
 	st_rip3_ports_destroy(ports);
 	return 0;
 }
@@ -194,41 +200,53 @@ compositing(void)
 	CHECK(st_rip3_ports_create(&ports, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_ports_define(ports, 1, &bounds, true) == 0);
 	CHECK(st_rip3_ports_switch(ports, 1) == 0);
-	for (int mode = ST_RIP3_COPY; mode <= ST_RIP3_NOT; mode++) {
+	for (unsigned flags = 0; flags <= 6; flags += 2) {
 		CHECK(st_rip3_ports_erase(ports, 9) == 0);
-		CHECK(st_rip3_ports_image_style(ports, 1, NULL, 4) == 0);
-		CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12,
-		    (enum st_rip3_write_mode)mode) == 0);
+		CHECK(st_rip3_ports_image_style(ports, 1, NULL, flags) == 0);
+		st_rip3_image_test_fills = 0;
+		CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == 0);
+		CHECK(st_rip3_image_test_fills == ((flags&4) != 0 ? 0u : 1u));
+		if ((flags&4) == 0) {
+			CHECK(st_rip3_image_test_fill_color == 7 && st_rip3_image_test_fill_mode == ST_RIP3_COPY);
+			CHECK(st_rip3_image_test_fill_area.x0 == 0 && st_rip3_image_test_fill_area.y0 == 0
+			    && st_rip3_image_test_fill_area.x1 == 7 && st_rip3_image_test_fill_area.y1 == 3);
+		}
 		for (int32_t y = 0; y < 4; y++) {
 			for (int32_t x = 0; x < 8; x++) {
 				uint8_t source = stretched[x];
-				uint8_t expected = mode == ST_RIP3_COPY ? source
-				    : mode == ST_RIP3_XOR ? 9 ^ source
-				    : mode == ST_RIP3_OR ? 9 | source
-				    : mode == ST_RIP3_AND ? 9 & source : (uint8_t)~9;
+				uint8_t expected = source;
 				CHECK(st_rip3_ports_read(ports, 1, x, y, &value) == 0 && value == expected);
 			}
 		}
 	}
 	CHECK(st_rip3_ports_erase(ports, 9) == 0);
 	CHECK(st_rip3_ports_image_style(ports, 1, NULL, 0) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_XOR) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == 0);
 	for (int32_t x = 0; x < 8; x++) {
 		CHECK(st_rip3_ports_read(ports, 1, x, 0, &value) == 0);
-		CHECK(value == (12 ^ stretched[x]));
+		CHECK(value == stretched[x]);
 	}
-	CHECK(st_rip3_ports_erase(ports, 9) == 0);
-	CHECK(st_rip3_ports_image_style(ports, 1, NULL, 5) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_NOT) == 0);
-	for (int32_t y = 0; y < 4; y++) {
-		for (int32_t x = 0; x < 8; x++) {
-			CHECK(st_rip3_ports_read(ports, 1, x, y, &value) == 0);
-			CHECK(value == (y == 0 || y == 3 ? 7 : (uint8_t)~9));
+	for (unsigned flags = 1; flags <= 5; flags += 4) {
+		CHECK(st_rip3_ports_erase(ports, 9) == 0);
+		CHECK(st_rip3_ports_image_style(ports, 1, NULL, flags) == 0);
+		st_rip3_image_test_fills = 0;
+		CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == 0);
+		CHECK(st_rip3_image_test_fills == (flags == 1 ? 1u : 0u));
+		if (flags == 1) {
+			CHECK(st_rip3_image_test_fill_color == 7 && st_rip3_image_test_fill_mode == ST_RIP3_COPY);
+			CHECK(st_rip3_image_test_fill_area.x0 == 0 && st_rip3_image_test_fill_area.x1 == 7
+			    && st_rip3_image_test_fill_area.y0 == 1 && st_rip3_image_test_fill_area.y1 == 2);
+		}
+		for (int32_t y = 0; y < 4; y++) {
+			for (int32_t x = 0; x < 8; x++) {
+				CHECK(st_rip3_ports_read(ports, 1, x, y, &value) == 0);
+				CHECK(value == (y == 0 || y == 3 ? 9 : stretched[x]));
+			}
 		}
 	}
 	CHECK(st_rip3_ports_erase(ports, 9) == 0);
 	CHECK(st_rip3_ports_image_style(ports, 1, &reduction, 0) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == 0);
 	for (int32_t y = 0; y < 4; y++) {
 		for (int32_t x = 0; x < 8; x++) {
 			CHECK(st_rip3_ports_read(ports, 1, x, y, &value) == 0);
@@ -236,42 +254,41 @@ compositing(void)
 		}
 	}
 	CHECK(st_rip3_ports_image_style(ports, 1, &extreme, 2) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == 0);
 	CHECK(memcmp(&palette, &before, sizeof(palette)) == 0);
 	CHECK(st_rip3_ports_erase(ports, 9) == 0);
 	/* An invalid final sample cannot partially clear or paint the scene. */
 	samples[2] = 3;
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == IO_ERROR_INVALID_FORMAT);
 	CHECK(all_pixels(ports, 9) == 0);
 	samples[2] = 0x81000000;
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == IO_ERROR_INVALID_FORMAT);
 	samples[2] = 2;
 	palette.rgb[255] = 0x1000000;
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == IO_ERROR_OUT_OF_RANGE);
 	palette = before;
 	colors[2] = 0x1000000;
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == IO_ERROR_OUT_OF_RANGE);
 	colors[2] = 0;
-	CHECK(st_rip3_draw_image(ports, &image, colors, 257, &palette, 12, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_draw_image(ports, &image, NULL, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_draw_image(ports, NULL, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, NULL, 12, ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_draw_image(NULL, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, (enum st_rip3_write_mode)99) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 257, &palette) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_draw_image(ports, &image, NULL, 3, &palette) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_image(ports, NULL, colors, 3, &palette) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_image(NULL, &image, colors, 3, &palette) == IO_ERROR_INVALID_ARGUMENT);
 	image.width = UINT32_MAX;
 	image.height = UINT32_MAX;
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == IO_ERROR_OUT_OF_RANGE);
 	image.width = 0;
 	image.height = 1;
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == IO_ERROR_INVALID_ARGUMENT);
 	image.width = 3;
 	CHECK(st_rip3_ports_image_style(ports, 1, NULL, 8) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette, 12, ST_RIP3_COPY) == IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_rip3_draw_image(ports, &image, colors, 3, &palette) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(all_pixels(ports, 9) == 0);
 	/* The JPEG/RGB path ignores palette-commit flag 8 and accepts no local palette. */
 	for (size_t i = 0; i < 3; i++)
 		samples[i] = ST_PIXEL_COLOR_RGB_TAG | colors[i];
-	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette, 12, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette) == 0);
 	CHECK(st_rip3_ports_read(ports, 1, 0, 0, &value) == 0 && value == 3);
 	/* An existing explicit area is reclamped when the viewport shrinks;
 	 * its origin is relative to the new viewport, never the underlying port. */
@@ -280,7 +297,7 @@ compositing(void)
 	CHECK(st_rip3_ports_image_style(ports, 1, &before_shrink, 0) == 0);
 	CHECK(st_rip3_ports_erase(ports, 9) == 0);
 	CHECK(st_rip3_ports_viewport(ports, &smaller_view) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette, 12, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette) == 0);
 	for (int32_t y = 0; y < 4; y++) {
 		for (int32_t x = 0; x < 8; x++) {
 			CHECK(st_rip3_ports_read(ports, 1, x, y, &value) == 0);
@@ -291,7 +308,7 @@ compositing(void)
 	/* A one-pixel automatic area is enabled even though its bounds are zero. */
 	CHECK(st_rip3_ports_define(ports, 2, &one_pixel, true) == 0);
 	CHECK(st_rip3_ports_switch(ports, 2) == 0);
-	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette, 12, ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_image(ports, &image, NULL, 0, &palette) == 0);
 	CHECK(st_rip3_ports_read(ports, 2, 0, 0, &value) == 0 && value == 5);
 	st_rip3_ports_destroy(ports);
 	return 0;
@@ -337,7 +354,7 @@ decoded_inputs(const char *jpeg_directory)
 		int status = st_pixel_image_decode_jpeg(&image, bytes, size);
 		if (jpeg_available) {
 			CHECK(status == 0 && image != NULL);
-			CHECK(st_rip3_draw_image(ports, image, NULL, 0, &palette, 0, ST_RIP3_COPY) == 0);
+			CHECK(st_rip3_draw_image(ports, image, NULL, 0, &palette) == 0);
 			st_pixel_buffer_destroy(image);
 		}
 		else
@@ -347,7 +364,7 @@ decoded_inputs(const char *jpeg_directory)
 	CHECK(st_rip3_ports_switch(ports, 3) == 0);
 	CHECK(st_rip3_bitmap_decode(&bitmap, bmp, sizeof(bmp)) == 0);
 	CHECK(st_rip3_draw_image(ports, bitmap->pixels, bitmap->palette,
-	    bitmap->palette_size, &palette, 0, ST_RIP3_COPY) == 0);
+	    bitmap->palette_size, &palette) == 0);
 	st_rip3_bitmap_destroy(bitmap);
 	CHECK(st_rip3_ports_snapshot(ports, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < 480; y++) {
@@ -369,6 +386,49 @@ decoded_inputs(const char *jpeg_directory)
 	return 0;
 }
 
+static int
+measured_regions(enum st_rip3_canvas canvas)
+{
+	struct st_rip3_ports *ports = NULL;
+	struct st_rip3_palette palette;
+	const struct st_rip3_rect bounds = {0,0,139,159};
+	/* The reference's GDI rectangles have exclusive right/bottom edges:
+	 * (10,20,110,120) fits to (10,45,110,95) or (35,20,85,120).
+	 * This kernel's rectangles are inclusive, so subtract one at that
+	 * representation boundary. Expected endpoints below are literal. */
+	const struct st_rip3_rect area = {10,20,109,119};
+	const struct st_rip3_rect expected[] = {{10,45,109,94},{35,20,84,119}};
+	uint32_t pixels[50];
+	for (unsigned i = 0; i < 50; i++) pixels[i] = ST_PIXEL_COLOR_RGB_VALUE(64,64,64);
+	for (unsigned i = 0; i < 256; i++) palette.rgb[i] = 0xffffff;
+	palette.rgb[5] = 0x404040; palette.rgb[7] = 0;
+	CHECK(st_rip3_ports_create(&ports,canvas) == 0
+	    && st_rip3_ports_define(ports,1,&bounds,true) == 0 && st_rip3_ports_switch(ports,1) == 0);
+	for (unsigned aspect = 0; aspect < 2; aspect++) for (unsigned flags = 1; flags <= 5; flags += 4) {
+		struct st_pixel_buffer image = {pixels,NULL,aspect == 0 ? 10u : 5u,aspect == 0 ? 5u : 10u};
+		struct st_rip3_bitmap *capture = NULL;
+		CHECK(st_rip3_ports_erase(ports,9) == 0 && st_rip3_ports_image_style(ports,1,&area,flags) == 0);
+		st_rip3_image_test_fills = 0;
+		CHECK(st_rip3_draw_image(ports,&image,NULL,0,&palette) == 0);
+		CHECK(st_rip3_image_test_fills == (flags == 1 ? 1u : 0u));
+		if (flags == 1) {
+			CHECK(st_rip3_image_test_fill_color == 7 && st_rip3_image_test_fill_mode == ST_RIP3_COPY);
+			CHECK(st_rip3_image_test_fill_area.x0 == expected[aspect].x0 && st_rip3_image_test_fill_area.y0 == expected[aspect].y0
+			    && st_rip3_image_test_fill_area.x1 == expected[aspect].x1 && st_rip3_image_test_fill_area.y1 == expected[aspect].y1);
+		}
+		CHECK(st_rip3_bitmap_capture(&capture,ports,1,NULL,&palette) == 0);
+		CHECK(capture->pixels->width == 140 && capture->pixels->height == 160);
+		for (int32_t y = 0; y < 160; y++) for (int32_t x = 0; x < 140; x++) {
+			unsigned value = x >= expected[aspect].x0 && x <= expected[aspect].x1
+			    && y >= expected[aspect].y0 && y <= expected[aspect].y1 ? 5 : 9;
+			CHECK(capture->pixels->primary[(size_t)y*140+(unsigned)x] == value);
+		}
+		for (unsigned i = 0; i < 256; i++) CHECK(capture->palette[i] == palette.rgb[i]);
+		st_rip3_bitmap_destroy(capture);
+	}
+	st_rip3_ports_destroy(ports); return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -379,5 +439,8 @@ main(int argc, char **argv)
 	CHECK(render(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
 	CHECK(render(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
 	CHECK(render(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);
+	CHECK(measured_regions(ST_RIP3_CANVAS_640_480) == 0);
+	CHECK(measured_regions(ST_RIP3_CANVAS_800_600) == 0);
+	CHECK(measured_regions(ST_RIP3_CANVAS_1024_768) == 0);
 	return 0;
 }
