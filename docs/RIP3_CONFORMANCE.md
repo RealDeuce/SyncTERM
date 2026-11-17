@@ -2757,6 +2757,81 @@ inventory are intact. The queue now has 76 implemented, 1633 pending,
 4717 unreviewed, 886 contextual, 24 excluded and 17 blocked blocks. Owned
 temporary logs/assets and CMake fixture directories were removed.
 
+
+## JPEG image-area wallpaper
+
+JPEG presentation now applies image-style bits 16/32 after a successful initial
+image draw, using the shared device-pixel COPY tiler. Initial palette mapping,
+aspect fitting, black clear and JPEG decoding happen once. Wallpaper copies the
+resulting raw image-area pixels, including retained background, across the live
+viewport. Bit 32 alone has no effect. No image-style bit deletes the JPEG or
+changes its palette. File/load/initial-staging failure skips wallpaper; wallpaper
+staging failure retains the completed initial image and reports only an optional
+nonfatal diagnostic. A later valid command continues through the void parser.
+
+The wallpaper seed is the **stored image-area record**, before the JPEG consumer's
+far-edge reductions, rather than the fitted JPEG rectangle. This distinction is
+confirmed by a read-only static review of the unchanged original RIPSCRIP.DLL
+(SHA-256 `83d71b358492b15bcfd3773c30a52784881a3a49a5b6e9029d986b3cba1fd5e8`).
+Common presentation tests successful display at RVA 0x38387 and calls 0x3f12f when
+bit 16 is set. That wrapper builds a RECT directly from the current port's
++0x4a/+0x4e/+0x52/+0x56 fields at 0x3f156–0x3f166, then passes it unchanged to
+0x3ea2e at 0x3f1ab. The helper computes width/height by subtracting RECT boundaries
+at 0x3ead3–0x3eaeb. No JPEG far reduction or aspect-fit rectangle replaces those
+fields on the wallpaper path. This supports the adopted #21/#58 derivations,
+without changing the normative reference or claiming original Windows rasters.
+
+The independent seed fixture makes the representation difference explicit:
+
+| Operation | Device boundaries (exclusive far) | Size |
+| --- | --- | --- |
+| Stored image-area record / wallpaper seed | (2,3)–(7,8) | 5×5 |
+| Initial reduced JPEG target | (2,3)–(6,7) | 4×4 |
+| ASPECT fit for its 2×1 source | (2,4)–(6,6) | 4×2 |
+
+The extra far row/column and aspect margins remain background in the seed and
+are repeated as pixels. The half-width stagger is based on this raw tile's
+trimmed width, with alternating phase above and below the seed row. Shared
+wallpaper staging snapshots the seed before copying, with no second aspect fit,
+clear, palette lookup or vector ROP. A full-viewport seed needs no extra staging;
+a raw default marker fails rectangle reconciliation after the initial draw,
+instead of silently becoming a fitted seed. Wire all-zero style still displays
+through physical-size fallback, then its stored 1×1 wallpaper seed repeats the
+top-left pixel over the viewport, for both plain and staggered flags.
+
+`rip3_image_wallpaper` checks independent literal 5×5 seed/phase tables on protected
+screen and offscreen ports across all canvases, retained viewport margins and
+source/palette/selection/record state, ignored bit 32, clear counts, initial and
+post-draw allocation failure, invalid source, inhibit/inactive no-ops, full-area
+bypass and raw-marker rejection. Its positive test fails against the previous
+unsupported path before the implementation changes. The actual JPEG wire fixture
+now covers every one of the 64 flag combinations under all five vector write
+modes on all three canvases, using independent full-screen index/palette captures
+and a distinguishing 19×19 raw tile around an 18×18 JPEG target. Extra tests cover
+one-pixel wire seeds, missing/bad files, unavailable decoders, initial/post-draw
+allocation failure and later recovery. A post-draw rectangle error is classified
+as an operation failure rather than an invalid filename. Native and deliberately
+disabled JPEG variants retain distinct capability expectations.
+
+Literal image rendering, ordinary style setters and wallpaper now share these
+rules in the separate engine. Complete host playback/macro expansion, received
+image/export consumers, sub-viewport/offscreen physical fallback, general port
+coordinate reconciliation, full scene resets and active application routing
+remain pending. This is implementation work under documented answers, not a
+request to extend #21. RIP1.54 and its historical captures remain unchanged.
+
+The existing native FreeBSD Release CMake configure/build with `/usr/bin/cc`
+and all 99 selected tests pass (18.03 seconds), without new compiler warnings.
+Valgrind reports zero errors, no retained heap and only three inherited
+descriptors for the new renderer, expanded native JPEG-command and disabled
+JPEG-command fixtures; allocation/free counts are 1079/1079, 63723/63723 and
+140/140. All 93 frozen files and 41 legacy helpers remain unchanged. The 7353
+source blocks, 65 document identities, reference/adoption evidence and RIP1.54
+capture inventory are intact. The queue now has 80 implemented, 1630 pending,
+4715 unreviewed, 887 contextual, 24 excluded and 17 blocked blocks. Owned
+temporary logs/assets and CMake fixture directories were removed. No upstream
+issue content, active application route or original artifact was modified.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

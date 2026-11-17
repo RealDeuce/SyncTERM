@@ -21,15 +21,20 @@ struct st_rip3_ports;
  * go right or below. This is geometric/spec rendering, not RIPtel pixel reproduction.
  * Flag 4 skips the initial black COPY clear of the fitted rectangle. Image
  * pixels always use COPY, independently of vector write mode/background.
- * Source pixels/palettes and scratch allocation are validated/prepared before
- * any screen/offscreen pixel changes.
+ * Source pixels/palettes and initial fit staging are validated/prepared before
+ * initial painting. Flag 16 then tiles the stored image-area rectangle with
+ * COPY, including retained margins and the extra far row/column beyond the
+ * reduced JPEG target. Flag 32 shifts alternate rows by half that tile width;
+ * without 16 it does nothing. Wallpaper staging failure retains the initial
+ * draw. A raw default marker fails rectangle reconciliation after drawing.
  *
  * Inactive viewport/internal inhibit state is a successful no-op, without
  * dereferencing image/palette. Protected ports permit drawing. Flag 8 is
  * ignored for RGB images; indexed palette commit is not implemented and is
  * rejected before drawing. Flag 2 is stored without JPEG file deletion.
- * Wallpaper flag 16 remains unsupported; flag 32 alone has no effect. The
- * all-zero wire 1i producer/fallback and image-state reset remain separate.
+ * Wire all-zero style remains enabled: initial drawing can use physical-size
+ * fallback while its stored 1x1 wallpaper seed repeats the top-left pixel.
+ * World/style production and whole-scene reset belong to the owning layer.
  * No file access, macro expansion or session-error propagation happens here.
  */
 int st_rip3_draw_image(struct st_rip3_ports *ports,

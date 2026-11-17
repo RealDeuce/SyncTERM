@@ -26,6 +26,7 @@ extern bool st_rip3_jpeg_file_test_fail_size, st_rip3_jpeg_file_test_fail_close;
 extern bool st_rip3_jpeg_file_test_unavailable;
 extern unsigned st_rip3_jpeg_file_test_read_fault;
 extern bool st_rip3_image_commands_test_fail_allocate, st_rip3_image_test_fail_allocate;
+extern bool st_rip3_wallpaper_test_fail_allocate;
 extern unsigned st_rip3_image_test_fills;
 extern struct st_rip3_rect st_rip3_image_test_fill_area;
 extern uint8_t st_rip3_image_test_fill_color;
@@ -220,6 +221,16 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 				expected = source; /* JPEG rows ignore every vector write mode. */
 			}
 		}
+		if ((flags&16) != 0 && x >= 12 && x <= 33 && y >= 23 && y <= 44) {
+			/* Stored area is [1,1,20,20): a 19x19 tile, including
+			 * the extra background column/row outside the 18x18 JPEG. */
+			const uint8_t rows[22] = {85,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,192,192,85,64,64};
+			const uint8_t aspect_rows[22] = {85,85,85,85,85,64,64,64,64,64,64,64,64,192,85,85,85,85,85,85,85,85};
+			unsigned vx = x-12, vy = y-23;
+			expected = (flags&1) != 0 ? aspect_rows[vy] : rows[vy];
+			bool odd = vy == 0 || vy >= 20;
+			if ((flags&32) != 0 && odd ? vx == 10 : vx == 0 || vx == 19) expected = 85;
+		}
 		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
 	}
 	for (unsigned i = 0; i < 256; i++) CHECK(capture->palette[i] == i*UINT32_C(0x010101));
@@ -393,7 +404,58 @@ inactive_style(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 		unsigned expected = decoded ? y < top ? 64 : 192 : 85;
 		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
 	}
-	st_rip3_bitmap_destroy(capture); destroy(&f); return 0;
+	st_rip3_bitmap_destroy(capture); capture = NULL;
+	/* Wallpaper uses the stored one-pixel seed after the physical-size JPEG
+	 * fallback, so the entire viewport becomes the top-left gray value. */
+	const char *const wallpaper_styles[] = {"1i00000000000G","1i00000000001C"};
+	for (size_t i = 0; i < 2; i++) {
+		CHECK(process(&f,wallpaper_styles[i],-1) == 0 && process(&f,"1p0000Gray.JPG",decoded ? -1 : ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+		if (!decoded) continue;
+		CHECK(st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
+		for (size_t p = 0; p < (size_t)width*height; p++) CHECK(capture->pixels->primary[p] == 64);
+		st_rip3_bitmap_destroy(capture); capture = NULL;
+	}
+	destroy(&f); return 0;
+}
+
+static int
+wallpaper_failures(const struct st_rip3_resource_paths *paths)
+{
+	struct fixture f = {0}; struct st_rip3_environment env;
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480,paths) == 0 && st_rip3_environments_get(f.host.environments,2,&env) == 0);
+	env.world_width = 640; env.world_height = 480;
+	CHECK(st_rip3_environments_define(f.host.environments,2,&env) == 0 && process(&f,"1i01010J0J000K",-1) == 0);
+	st_rip3_wallpaper_test_fail_allocate = st_rip3_image_commands_test_fail_allocate = true;
+	CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0
+	    && !st_rip3_image_commands_test_fail_allocate && st_rip3_wallpaper_test_fail_allocate);
+	if (!st_pixel_image_jpeg_compiled()) {
+		CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && st_rip3_wallpaper_test_fail_allocate);
+		st_rip3_wallpaper_test_fail_allocate = false; destroy(&f); return 0;
+	}
+	CHECK(process(&f,"1p0000Missing.JPG",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && st_rip3_wallpaper_test_fail_allocate);
+	CHECK(process(&f,"1p0000Broken.JPG",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && st_rip3_wallpaper_test_fail_allocate);
+	st_rip3_image_test_fail_allocate = true; st_rip3_image_test_fills = 0;
+	CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_image_test_fail_allocate
+	    && st_rip3_wallpaper_test_fail_allocate && st_rip3_image_test_fills == 0 && unchanged(&f) == 0);
+	/* Valid image draw survives a later wallpaper staging failure. */
+	CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_wallpaper_test_fail_allocate);
+	struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
+	CHECK(st_rip3_palettes_get(f.host.palettes,3,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,1,NULL,&palette) == 0);
+	for (uint32_t y = 0; y < 22; y++) for (uint32_t x = 0; x < 22; x++) {
+		unsigned expected = x >= 1 && x <= 18 && y >= 1 && y <= 18 ? y >= 17 ? 192 : 64 : 85;
+		CHECK(capture->pixels->primary[(size_t)y*22+x] == expected);
+	}
+	st_rip3_bitmap_destroy(capture); capture = NULL;
+	CHECK(process(&f,"1p0000Gray.JPG",-1) == 0);
+	uint8_t value; CHECK(st_rip3_ports_read(f.host.ports,1,22,23,&value) == 0 && value == 64);
+	/* A bad post-draw rectangle is an operation diagnostic, not an invalid
+	 * filename, and cannot escape the public void processing boundary. */
+	CHECK(st_rip3_ports_image_style(f.host.ports,1,NULL,16) == 0);
+	st_rip3_wallpaper_test_fail_allocate = true;
+	CHECK(process(&f,"1p0000Gray.JPG",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && st_rip3_wallpaper_test_fail_allocate);
+	st_rip3_wallpaper_test_fail_allocate = false;
+	CHECK(process(&f,"1i01010J0J0004",-1) == 0 && process(&f,"1p0000Gray.JPG",-1) == 0);
+	destroy(&f); return 0;
 }
 
 int
@@ -416,6 +478,7 @@ main(int argc, char **argv)
 	CHECK(path_join_alloc(&path,host,"Gray.JPG") == 0 && fs_set_modified_time(path,INT64_C(1234567890)) == 0
 	    && fs_get_info(&before,path) == 0);
 	CHECK(files(&paths) == 0 && recovery(&paths) == 0);
+	CHECK(wallpaper_failures(&paths) == 0);
 	CHECK(inactive_style(ST_RIP3_CANVAS_640_480,640,480,&paths) == 0);
 	CHECK(inactive_style(ST_RIP3_CANVAS_800_600,800,600,&paths) == 0);
 	CHECK(inactive_style(ST_RIP3_CANVAS_1024_768,1024,768,&paths) == 0);
@@ -423,10 +486,9 @@ main(int argc, char **argv)
 		const enum st_rip3_canvas canvases[] = {ST_RIP3_CANVAS_640_480,ST_RIP3_CANVAS_800_600,ST_RIP3_CANVAS_1024_768};
 		CHECK(background(&paths) == 0);
 		const uint32_t widths[] = {640,800,1024}, heights[] = {480,600,768};
-		const unsigned flags[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-		for (size_t i = 0; i < 3; i++) for (size_t j = 0; j < sizeof(flags)/sizeof(flags[0]); j++)
+		for (size_t i = 0; i < 3; i++) for (unsigned flags = 0; flags < 64; flags++)
 			for (unsigned mode = ST_RIP3_COPY; mode <= ST_RIP3_NOT; mode++)
-				CHECK(scene(canvases[i],widths[i],heights[i],&paths,flags[j],(enum st_rip3_write_mode)mode) == 0);
+				CHECK(scene(canvases[i],widths[i],heights[i],&paths,flags,(enum st_rip3_write_mode)mode) == 0);
 	}
 	CHECK(fs_get_info(&after,path) == 0 && before.size == after.size && before.modified_time == after.modified_time);
 	free(path); free(host); free(shared); free(search); return 0;

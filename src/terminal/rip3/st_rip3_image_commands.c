@@ -78,7 +78,6 @@ st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
 	/* This explicit internal inhibit state is not produced by wire 1i's
 	 * all-zero coordinates. No image-style bit deletes a skipped JPEG. */
 	if (!port.image.enabled) return 0;
-	if ((port.image.flags&16) != 0) return IO_ERROR_NOT_SUPPORTED; /* Wallpaper remains pending. */
 	if (host->resources == NULL || host->palettes == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_palettes_current(host->palettes,&number);
 	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
@@ -89,10 +88,11 @@ st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
 	memcpy(name,command+6,size); name[size] = 0;
 	*operation = true;
 	status = st_rip3_jpeg_load(&image,host->resources,name);
+	/* Invalid resource names are syntax; a later presentation/wallpaper
+	 * rectangle failure belongs to the operation, after any initial paint. */
+	if (status == IO_ERROR_INVALID_ARGUMENT || status == IO_ERROR_INVALID_ENCODING) *operation = false;
 	if (status == 0) status = st_rip3_draw_image(host->ports,image,NULL,0,&palette);
 	st_pixel_buffer_destroy(image); free(name);
-	/* Filename validity is syntax, even though storage detects it. All file,
-	 * decoder and allocation failures remain nonfatal inside command processing. */
-	if (status == IO_ERROR_INVALID_ARGUMENT || status == IO_ERROR_INVALID_ENCODING) *operation = false;
+	/* Every service failure remains inside the public void parser boundary. */
 	return status;
 }

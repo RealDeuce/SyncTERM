@@ -74,7 +74,10 @@ protected/inactive gates, keyword replacement, temporary-selection recovery and
 old-current/port-zero image reset state. Port-service activation and byte-split native/JPEG-disabled commands verify
 set/reactivate/display and full-viewport all-zero
 fallback with coherent screen index/palette captures on all three canvases.
-JPEG wallpaper and complete scene/header reset orchestration remain pending.
+JPEG wallpaper tests now cover raw image-area seeds, retained background,
+extra far rows/columns, staggered COPY phase and nonfatal post-draw failure.
+Actual JPEG scenes exercise all 64 flag combinations under every vector mode.
+Complete scene/header reset orchestration and application routing remain pending.
 These do not change the active route. A body tests now add canonical full circles and validated
 equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
 handling, RGB/NOT, protected records, wide clipping and allocation recovery.

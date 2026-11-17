@@ -190,9 +190,13 @@ struct st_rip3_command_sink {
  * JPEG flag 8 changes no palette; flag 2 has no file-deletion effect. Inactive
  * viewports and the explicit internal inhibit state are no-ops before consulting
  * asset/palette bindings. That inhibit state is not wire 1i's all-zero rectangle.
- * JPEG wallpaper, macro expansion, delivery and whole-scene reset/ownership
- * integration remain separate pending work in the adopted #21/#24 contract.
- * Invalid names and load/decode/staging failures retain the scene and produce
+ * After successful JPEG painting, flags 16/32 repeat the stored image-area
+ * pixels with COPY and optional staggered rows. Raw boundaries, not the fitted
+ * JPEG rectangle, define the tile. Post-draw wallpaper failures retain the
+ * initial paint and remain operation/resource diagnostics inside this parser.
+ * Macro expansion, delivery and whole-scene reset/ownership integration remain
+ * separate pending work in the adopted #21/#24 contract.
+ * Invalid names and load/decode/initial-staging failures retain the scene and produce
  * only a nonfatal diagnostic; no file is deleted or changed.
  * Drawing commands use the bound STYLE record's explicit resolved pen and
  * write mode. c/k preserve raw colour values: current-radix palette indices

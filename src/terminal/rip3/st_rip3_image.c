@@ -1,6 +1,8 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_image.h"
+#include "st_rip3_bitmap_stamp.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_wallpaper.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -64,8 +66,6 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 		status = st_rip3_ports_info(ports, current, &info);
 	if (status != 0 || !info.viewport_active || !info.image.enabled)
 		return status;
-	if ((info.image.flags & 16) != 0)
-		return IO_ERROR_NOT_SUPPORTED;
 	status = validate_image(image, source_palette, source_palette_size, palette);
 	if (status != 0)
 		return status;
@@ -147,5 +147,15 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 		}
 	}
 	free(pixels);
+	if ((info.image.flags&16) != 0) {
+		/* The presentation caller passes the stored image record directly to
+		 * wallpaper, not the JPEG wrapper's reduced or aspect-fitted rectangle.
+		 * Convert only its exclusive far boundaries to the shared service's
+		 * inclusive pixels. Retained margins and the extra far row/column tile
+		 * as device pixels; no palette, clear, aspect fit or ROP is repeated. */
+		const struct st_rip3_bitmap_destination seed = {info.image.area.x0,info.image.area.y0,
+		    (int64_t)info.image.area.x1-1,(int64_t)info.image.area.y1-1};
+		return st_rip3_wallpaper(ports,&seed,(info.image.flags&32) != 0);
+	}
 	return 0;
 }
