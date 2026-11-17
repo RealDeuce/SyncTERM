@@ -17,7 +17,7 @@ adoption record's `updates` records this step; its claim-accounting IDs remain
 tied explicitly to the initial reviewed revision. Both downloaded source trees
 were independently reindexed and their temporary directories removed.
 
-The current pin is PR [#73](https://github.com/bbs-land/remote-imaging-protocol/pull/73)
+The reviewed DEFINE_PORT clarification is PR [#73](https://github.com/bbs-land/remote-imaging-protocol/pull/73)
 at [`ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c`](https://github.com/bbs-land/remote-imaging-protocol/commit/ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c),
 reviewed after the user supplied it as the answer to issue #72. It was open at
 adoption. The direct comparison with the previous pin changes seven normative
@@ -36,6 +36,21 @@ protocol text sources. The original PR #71 claim accounting remains explicitly
 tied to its initial revision. Both reference archives were independently
 reindexed in automatically removed temporary directories; no upstream probe
 code ran and no GitHub issue was modified.
+
+The reference source is now
+[`RealDeuce/remote-imaging-protocol:stable`](https://github.com/RealDeuce/remote-imaging-protocol/tree/stable),
+pinned at `c9a66b27edc93d4522b21510c1379eb10230f85d`. All 65 normative documents,
+34 of 35 recorded derivations and both original protocol text sources are
+byte-identical to the reviewed PR #73 reference. The remaining derivation changes
+only its delivery-status link-check total, from 5,441 to 5,440. The complete
+reindex preserves every source block and review. Later branch movement requires
+a new review and exact pin.
+
+Documentation issues continue to be filed against the
+[parent repository](https://github.com/bbs-land/remote-imaging-protocol/issues),
+not the reference fork. Once an issue has a PR, put additional findings in a new
+issue referencing the related issue and PR. The user's existing instruction
+against adding content to existing issues remains in effect.
 
 The target remains RIPtel 3.1's RIPscrip 3.0 behavior, with geometric/spec
 compliance rather than pixel reproduction. The RIP1.54 source/data baseline

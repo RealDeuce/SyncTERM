@@ -7,7 +7,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from rip3_compliance import (BASELINE, REFERENCE, c_functions, check_freeze,
+from rip3_compliance import (BASELINE, REFERENCE, UPSTREAM, REFERENCE_BRANCH,
+                            ISSUE_REPOSITORY, c_functions, check_freeze,
                             check_reference_review, digest, index_reference)
 
 
@@ -91,13 +92,18 @@ class ReferenceTests(unittest.TestCase):
             self.assertEqual(result["reference_review"], "review.json")
             self.assertEqual(result["documents"], documents)
             self.assertIn(reviewed, result["requirements"])
+            self.assertEqual(result["repository"], UPSTREAM)
+            self.assertEqual(result["reference_branch"], REFERENCE_BRANCH)
+            self.assertEqual(result["issue_repository"], ISSUE_REPOSITORY)
 
     def test_adoption_record_cannot_lag_pin_or_document_inventory(self):
         with tempfile.TemporaryDirectory(prefix="syncterm-rip3-adoption-test-") as directory:
             root = Path(directory)
-            data = {"revision": REFERENCE, "reference_review": "review.json",
+            source = {"repository": UPSTREAM, "reference_branch": REFERENCE_BRANCH,
+                      "issue_repository": ISSUE_REPOSITORY}
+            data = {**source, "revision": REFERENCE, "reference_review": "review.json",
                     "documents": [{"path": "contract.md", "sha256": "a" * 64}]}
-            review = {"revision": REFERENCE, "previous_revision": "b" * 40,
+            review = {**source, "revision": REFERENCE, "previous_revision": "b" * 40,
                       "archive_sha256": "c" * 64, "documents": data["documents"]}
             path = root / "review.json"
             path.write_text(json.dumps(review))
@@ -113,6 +119,26 @@ class ReferenceTests(unittest.TestCase):
                 check_reference_review(data, root)
             with self.assertRaisesRegex(ValueError, "missing reference adoption"):
                 check_reference_review({"revision": REFERENCE}, root)
+
+    def test_source_move_cannot_redirect_parent_issues(self):
+        with tempfile.TemporaryDirectory(prefix="syncterm-rip3-source-test-") as directory:
+            root = Path(directory)
+            data = {"repository": UPSTREAM, "reference_branch": REFERENCE_BRANCH,
+                    "issue_repository": ISSUE_REPOSITORY, "revision": REFERENCE,
+                    "reference_review": "review.json", "documents": []}
+            review = {**data, "previous_revision": "b" * 40, "archive_sha256": "c" * 64}
+            path = root / "review.json"
+            path.write_text(json.dumps(review))
+            check_reference_review(data, root)
+            for key in ("repository", "reference_branch", "issue_repository"):
+                for target in (data, review):
+                    original = target[key]
+                    target[key] = "unexpected destination"
+                    path.write_text(json.dumps(review))
+                    with self.assertRaisesRegex(ValueError, key + " mismatch"):
+                        check_reference_review(data, root)
+                    target[key] = original
+                    path.write_text(json.dumps(review))
 
 
 if __name__ == "__main__":

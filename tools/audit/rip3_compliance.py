@@ -15,9 +15,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "src/tests/rip3"
-REFERENCE = "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c"
+REFERENCE = "c9a66b27edc93d4522b21510c1379eb10230f85d"
 BASELINE = "e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a"
-UPSTREAM = "https://github.com/bbs-land/remote-imaging-protocol"
+UPSTREAM = "https://github.com/RealDeuce/remote-imaging-protocol"
+REFERENCE_BRANCH = "stable"
+ISSUE_REPOSITORY = "https://github.com/bbs-land/remote-imaging-protocol"
 
 
 def digest(data):
@@ -146,6 +148,7 @@ def index_reference(directory):
                 row = prior
             requirements.append(row)
     result = {"schema": 1, "repository": UPSTREAM, "revision": REFERENCE,
+              "reference_branch": REFERENCE_BRANCH, "issue_repository": ISSUE_REPOSITORY,
               "license": UPSTREAM + "/blob/" + REFERENCE + "/LICENSE",
               "note": "Source blocks are a complete discovery/review queue for these documents, not individually adjudicated requirements or conformance evidence. Resolve inherited definitions against the v3 reference; classify contextual material explicitly.",
               "blockers": old.get("blockers", []),
@@ -160,6 +163,10 @@ def check_reference_review(data, root=ROOT):
     if not path:
         raise ValueError("missing reference adoption record")
     review = json.loads((root / path).read_text())
+    for key, expected in (("repository", UPSTREAM), ("reference_branch", REFERENCE_BRANCH),
+                          ("issue_repository", ISSUE_REPOSITORY)):
+        if data.get(key) != expected or review.get(key) != expected:
+            raise ValueError("reference adoption " + key + " mismatch")
     if review["revision"] != data["revision"]:
         raise ValueError("reference adoption revision mismatch")
     if review["documents"] != data["documents"]:

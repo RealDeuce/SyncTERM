@@ -2,7 +2,8 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c](https://github.com/bbs-land/remote-imaging-protocol/tree/ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c/version/3.0).
+c9a66b27edc93d4522b21510c1379eb10230f85d](https://github.com/RealDeuce/remote-imaging-protocol/tree/c9a66b27edc93d4522b21510c1379eb10230f85d/version/3.0)
+from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
 required. RIPlib extensions and future proposals are outside the goal.
@@ -25,6 +26,11 @@ historical behavior evidence; they do not prove the corrected contract. The
 RIP1.54 baseline, original font bytes, active application route and external-launch
 exclusion remain unchanged. No further content is to be added to existing
 upstream issues.
+
+The reference fork supplies documentation only. File new documentation issues
+against `bbs-land/remote-imaging-protocol`; reference related issues and PRs in
+each new issue. Once an issue has a PR, do not add further comments to it. The
+existing instruction against modifying existing issues remains in effect.
 
 Initial adoption verification used the existing native Release CMake configuration.
 Configure/build and all 93 selected RIP3/preservation/JPEG/shared-audio/codepage
@@ -3150,6 +3156,22 @@ Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
 compiler warnings. All 100 selected tests pass (32.35 seconds), including the
 source/adoption guards; the five focused guard tests also pass independently.
 No application route, frozen RIP1.54 data or original artifact changed.
+
+## Stable reference branch
+
+The user designated `RealDeuce/remote-imaging-protocol:stable` as the consolidated
+reference source and retained the parent repository for issues. Its exact head
+`c9a66b27edc93d4522b21510c1379eb10230f85d` has the same 65 normative documents and
+7357 source blocks as the reviewed PR #73 pin. Thirty-four derivations and both
+original protocol texts are unchanged; the #72 derivation changes only a link
+checker total in its delivery status. No requirement or review state changes.
+The adoption record retains both repository identities and exact archive hash.
+The guard now rejects changes to the source repository, reference branch or
+parent issue destination, and normal reindexing preserves those distinctions.
+Temporary source archives are removed after the independently checked reindex.
+Native Release CMake configure/build passes without compiler warnings. The
+source freeze, contract and preservation-guard CTests pass, including six focused
+Python guard cases. All 93 frozen files and 41 legacy helpers are unchanged.
 
 ## Verification and acceptance
 

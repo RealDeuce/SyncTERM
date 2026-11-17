@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/73",
-  "revision": "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c",
-  "previous_revision": "5ae9d165b1ac3e36161847e68db0d763228b779b",
-  "authorization": "User supplied PR #73 as the answer to #72 during the active implementation goal; its exact head was separately reviewed and announced before adoption. Later commits are not silently included.",
-  "upstream_state_at_adoption": "open, not merged",
-  "archive_sha256": "9d3a28800e44bb1cbe01850b827e50889f82e11d42bfe268654012f4f09332b9",
+  "revision": "c9a66b27edc93d4522b21510c1379eb10230f85d",
+  "previous_revision": "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c",
+  "authorization": "User directed future reference to RealDeuce/remote-imaging-protocol:stable, retaining parent issue filing and no further comments once a PR exists.",
+  "upstream_state_at_adoption": "Exact stable branch head reviewed and pinned; normative documents unchanged. One research delivery-status link total changes only.",
+  "archive_sha256": "bc71c792dfe459172e791ca584ec1ec8e697f4bd3145eaccc994275ba67c23ff",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1073,7 +1073,7 @@
     {
       "path": "version/3.0/research/issue-15-bezier-contracts.md",
       "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
-      "title": "Issue #15: Bézier equations, subdivision and block grammar",
+      "title": "Issue #15: B\u00e9zier equations, subdivision and block grammar",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1246,7 +1246,7 @@
     },
     {
       "path": "version/3.0/research/issue-72-define-port-contract.md",
-      "sha256": "22da7d17d9e7ae1a7a8832f50529ea4f599465cbff97c9584f3a0d3060af9e00",
+      "sha256": "799c658bf076bcb0cf74c03e13cc96a74b3f50a269cee4722e56791129d5e9c5",
       "title": "Issue #72: DEFINE_PORT protocol contract",
       "role": "Protocol-source derivation for DEFINE_PORT; implementation observations do not override explicit documented rules or define unspecified failure guarantees."
     }
@@ -1513,7 +1513,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "8f2ca4ca313906f69ec712eb78d6322c01a7491b",
+  "previous_ledger_commit": "ea9b32b659c436fde5b229b03895b5fc8a8cfad0",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -1757,6 +1757,27 @@
         "blocked": 17,
         "excluded": 24
       }
+    },
+    {
+      "previous_repository": "https://github.com/bbs-land/remote-imaging-protocol",
+      "repository": "https://github.com/RealDeuce/remote-imaging-protocol",
+      "reference_branch": "stable",
+      "issue_repository": "https://github.com/bbs-land/remote-imaging-protocol",
+      "previous_revision": "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c",
+      "revision": "c9a66b27edc93d4522b21510c1379eb10230f85d",
+      "archive_sha256": "bc71c792dfe459172e791ca584ec1ec8e697f4bd3145eaccc994275ba67c23ff",
+      "reviewed_change": "Stable branch source move: all 65 normative documents and original protocol texts are byte-identical to the reviewed PR #73 reference. One derivation delivery-status link total changes only.",
+      "changed_documents": [],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-72-define-port-contract.md",
+          "previous_sha256": "22da7d17d9e7ae1a7a8832f50529ea4f599465cbff97c9584f3a0d3060af9e00",
+          "sha256": "799c658bf076bcb0cf74c03e13cc96a74b3f50a269cee4722e56791129d5e9c5",
+          "reviewed_change": "Delivery-status link-check total changes 5,441 to 5,440; no contract or derivation change."
+        }
+      ],
+      "source_blocks_after_update": 7357,
+      "prior_adoption_commit": "ea9b32b659c436fde5b229b03895b5fc8a8cfad0"
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -1798,5 +1819,9 @@
     53,
     54,
     58
-  ]
+  ],
+  "initial_repository": "https://github.com/bbs-land/remote-imaging-protocol",
+  "repository": "https://github.com/RealDeuce/remote-imaging-protocol",
+  "reference_branch": "stable",
+  "issue_repository": "https://github.com/bbs-land/remote-imaging-protocol"
 }

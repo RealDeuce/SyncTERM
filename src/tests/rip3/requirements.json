@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "repository": "https://github.com/bbs-land/remote-imaging-protocol",
-  "revision": "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c",
-  "license": "https://github.com/bbs-land/remote-imaging-protocol/blob/ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c/LICENSE",
+  "repository": "https://github.com/RealDeuce/remote-imaging-protocol",
+  "revision": "c9a66b27edc93d4522b21510c1379eb10230f85d",
+  "license": "https://github.com/RealDeuce/remote-imaging-protocol/blob/c9a66b27edc93d4522b21510c1379eb10230f85d/LICENSE",
   "note": "Source blocks are a complete discovery/review queue for these documents, not individually adjudicated requirements or conformance evidence. Resolve inherited definitions against the v3 reference; classify contextual material explicitly.",
   "blockers": [
     {
@@ -701,6 +701,8 @@
     }
   ],
   "reference_review": "src/tests/rip3/reference-review.json",
+  "reference_branch": "stable",
+  "issue_repository": "https://github.com/bbs-land/remote-imaging-protocol",
   "requirements": [
     {"id": "version/1.54/techspecs/1.0-rip-stream-parsing.md:3", "heading": "`.RIP` Stream & File Parsing", "source": "version/1.54/techspecs/1.0-rip-stream-parsing.md", "lines": [3, 3], "text": "[Contents](README.md) · [Next: MegaNum Encoding ▶](1.1-meganum-encoding.md)\n", "sha256": "657e95e2efa2ffd0a3be1b61864301d0d16eb073e2209adc98743e5c23058f2d", "status": "unreviewed", "implementation": [], "tests": []},
     {"id": "version/1.54/techspecs/1.0-rip-stream-parsing.md:5", "heading": "`.RIP` Stream & File Parsing", "source": "version/1.54/techspecs/1.0-rip-stream-parsing.md", "lines": [5, 5], "text": "A `.RIP` file is not a distinct binary format: it is a captured RIPscrip command stream - exactly the bytes a host would transmit - stored as a DOS text file, so everything in the [protocol structure chapter](../ripscrip/1.1-protocol-and-command-hierarchy.md) applies verbatim.\n", "sha256": "5682465f1d9bdb01999b34937996eaf748269bf019a471213a6ae4a10fac9344", "status": "unreviewed", "implementation": [], "tests": []},
