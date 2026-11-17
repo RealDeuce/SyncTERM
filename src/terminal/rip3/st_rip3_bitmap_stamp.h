@@ -21,25 +21,37 @@ enum st_rip3_bitmap_colors {
 	ST_RIP3_BITMAP_DITHER,
 };
 
+/* Translate a wire key through the current DRAWING palette before image-palette
+ * adoption. Supported initialized direct-index limits are 2, 16 and 236. Below
+ * the limit the index is unchanged; otherwise the first exact RGB match wins,
+ * or the last equal-distance minimum. Failure retains result. This does not
+ * select a palette or infer a device profile from ENV RGB input precision. */
+int st_rip3_bitmap_translate_key(const struct st_rip3_palette *palette,
+	unsigned direct_index_limit, uint32_t color, uint8_t *result);
+
 /* Stamp a decoded BMP without image-style fitting or clearing.
  * Nearest source pixel centers are computed against the original requested
  * destination, then clipped to the viewport. Each covered pixel is applied
  * once; mode 4 inverts the mapped SOURCE, independently of destination NOT.
- * Indexed transparency compares original source indexes; RGB transparency
- * compares the resolved destination-palette index, before transfer inversion.
- * NULL transparent_color means opaque. Source/destination palettes remain
- * unchanged. ADOPTED requires an indexed source whose palette exactly
+ * transparent_color is an already translated output-palette key, not a file
+ * index. A 1-bit source compares raw bits to zero/nonzero key; 4/8-bit sources
+ * compare nearest output-palette indexes before dithering/transfer inversion.
+ * 24-bit sources compare exact source RGB to the output palette's key entry.
+ * The shipped 16-bit keyed path rejects before drawing; 32-bit keys never
+ * select transparent pixels. NULL transparent_color means opaque. Both palettes
+ * remain unchanged. ADOPTED requires an indexed source whose palette exactly
  * matches the corresponding prefix of the supplied palette; it preserves raw
- * source indexes, including equal-RGB entries. MATCH selects nearest RGB.
+ * draw indexes, including equal-RGB entries; key classification still uses
+ * the separate nearest-index map. MATCH selects nearest RGB.
  * DITHER uses ordered 8x8 two-colour mixing, anchored to the original requested
  * rectangle before clipping. Exact palette matches remain exact. The algorithm
  * is client policy, not historical RIPtel pixel reproduction. This kernel
  * does not commit palettes or duplicate ports. The command layer performs
  * duplication after the initial paint using the shared clipboard service.
  *
- * Disabled image style does not disable stamping. Inactive viewports and empty
- * coverage succeed without accessing bitmap/palette. Complete
- * validation and all scratch allocation precede drawing; protection allows
+ * Disabled image style does not disable stamping. Inactive viewports succeed
+ * before bitmap access. Empty coverage succeeds after the keyed-16-bit rejection
+ * check. Complete validation and scratch allocation precede drawing; protection allows
  * contents to change. One session thread owns source, ports and invocation.
  * Status belongs to the owning parser, never a terminal/session error path. */
 int st_rip3_draw_bitmap(struct st_rip3_ports *ports,

@@ -66,8 +66,10 @@ add post-draw explicit/clipboard duplication, protected screen/offscreen targets
 flags0..63 in both radices and COPY wallpaper with alternate half-width row
 phases. Independent screen index/palette captures on all three canvases and
 fault injection cover ordering, retained keyed backgrounds and live port-zero
-fallback. Corrected color-key/depth and full port-coordinate/application
-integration remain pending. These do not change the active route. A body tests now add canonical full circles and validated
+fallback. Bitmap codec/key tests now cover all six BI_RGB depths, translated keys,
+raw-bit versus mapped-index selection, exact 24-bit RGB, keyed 16-bit rejection
+and the shipped 32-bit no-selection defect. Full true-color RGB raster/device
+and port-coordinate/application integration remain pending. These do not change the active route. A body tests now add canonical full circles and validated
 equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
 handling, RGB/NOT, protected records, wide clipping and allocation recovery.
 Independent all-canvas captures and one-byte malformed/unsupported recovery

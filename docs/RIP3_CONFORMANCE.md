@@ -2610,6 +2610,79 @@ The reviewed queue now has 53 implemented, 1625 pending, 4754 unreviewed,
 880 contextual, 24 excluded and 17 blocked blocks. Owned temporary logs/assets
 and the CMake fixture directory were removed.
 
+
+## Bitmap depth and color-key reconciliation
+
+This milestone follows the adopted bitmap-mask delta and #8 derivation at the
+unchanged reference pin. The file decoder/encoder now supports all six profiled
+BI_RGB depths: 1/4/8/16/24/32. RGB555 expands components with floor(v*255/31);
+encoding quantizes RGB to the nearest five-bit component. This is the client's
+component policy, without a historical raster-rounding claim. Bit 15 in RGB555
+and the high byte in 32-bit files are unused, with no alpha semantics. Canonical
+output zeroes those bits/bytes and padding. Independent packed bytes exercise
+colors, row orientation, stride, truncation and malformed headers, with authored
+canonical output expectations rather than round-trip-only evidence.
+
+Wire key values remain limited to 0..255 when flag 8 is set. Translation uses
+the drawing palette before image-palette adoption: below the initialized direct
+limit the index remains unchanged; otherwise its stored RGB selects the first
+exact match, or the last equal nonzero minimum. The explicit translator supports
+the documented limits 2/16/236. The current 256-entry drawing device uses the
+normal limit 236; ENV RGB input precision is not a device-depth selector. All
+256 inputs at all three limits are independently checked, including duplicate
+colors on either side of the boundary and retained output on invalid arguments.
+A wire adoption case distinguishes translation before versus after adoption.
+
+Key classification now follows depth rather than a universal file-index test:
+1-bit compares the source bit to zero/nonzero translated key; 4/8-bit compares
+nearest output-palette indexes before dithering or transfer inversion; 24-bit
+compares exact source RGB to the output palette's key entry. Nearby RGB which
+quantizes to that same output index remains opaque. The shipped 16-bit key
+path fails before painting, and the shipped 32-bit path marks no pixels
+transparent even at an exact match. Adopted drawing indexes can remain distinct
+while the separate key map collapses equal RGB entries. The previous raw-index
+and post-dither RGB expectations are superseded, not preserved as conformance
+oracles for the corrected contract.
+
+`rip3_bitmap_key` uses authored index/selection tables for all modes, native,
+up/downscaled and left-clipped placements, including zero/nonzero 1-bit keys,
+nearby RGB, inverted/duplicate palettes, dithering and adoption. Complete screen
+index/palette captures on all three canvases check retained keyed backgrounds,
+unchanged viewport margins and source objects. The expanded load fixture checks
+all profiled depths through file/wire loading, explicit BMM use, ignored malformed
+same-name companions, missing explicit BMM handling, successful keyed-result
+duplication and ordinary RGB555/32-bit LOAD_ICON. A keyed RGB555 failure retains
+the prior clipboard, skips duplicate/wallpaper, requests the normal error sink
+and permits the following byte-split command to paint. All public parsing remains
+void, with failures consumed locally as optional diagnostics.
+
+This accepts the documented format and selection behaviors, without claiming
+the full true-color drawing-device contract. The current surface performs ROPs
+on mapped output indexes. Component-wise RGB raster operations, physical palette
+realization, complete file-role/conversion/playback/button consumers and full
+port-coordinate/application integration still need implementation and acceptance.
+The ledger records those RGB ROP paragraphs as pending. Supporting the codec
+or key selector is not evidence that those broader scene requirements work.
+
+The existing reference already answers every #21 documentation question,
+including inactive `1i` updates on protected ports. Its open GitHub state does
+not make those answers unresolved; remaining setter/macro/reset work is local
+implementation work. A read-only review found the newer PR #71 commit
+`61b8fedfe9d3a12442f65a73089a4f008037c519` changes prose spacing. The adopted
+pin remains unchanged. No issue comments or requests were added.
+
+The existing native FreeBSD Release CMake configure/build with `/usr/bin/cc`
+passes without new warnings. All 97 selected tests pass (8.49 seconds), and the
+final expanded wire fixture also passes after adding keyed-result duplication
+and ordinary LOAD_ICON cases. Valgrind reports zero errors, no retained heap
+and only three inherited descriptors for the codec, key and load fixtures;
+allocation/free counts are 51/51, 750/750 and 41601/41601. All 93 frozen files
+and 41 legacy helpers remain unchanged. The 7353 source blocks, 65 document
+identities, reference/adoption evidence and RIP1.54 capture inventory are intact.
+The queue now has 62 implemented, 1635 pending, 4729 unreviewed, 886 contextual,
+24 excluded and 17 blocked blocks. Owned temporary logs/assets and CMake fixture
+directories were removed. The full compliance goal remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

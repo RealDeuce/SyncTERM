@@ -125,12 +125,16 @@ struct st_rip3_command_sink {
  * 1b reads a BMP through media lookup, appending .BMP only for extensionless
  * names. It maps to the bound palette and fits the inclusive destination, or
  * uses native file dimensions when both raw lower-right fields are zero.
- * Transfer modes 0..4 and indexed/mapped-RGB transparency are supported.
+ * Transfer modes 0..4 operate on the current 256-entry device model. Key
+ * indices 0..255 translate through the drawing palette's normal direct-index
+ * limit 236 before adoption. Indexed keys use raw bit versus zero/nonzero for
+ * 1-bit, nearest mapped indexes for 4/8-bit; 24-bit keys compare exact RGB.
+ * 16-bit keyed loads fail without painting; 32-bit keys select no pixels.
  * Indexed palette adoption replaces the corresponding prefix of the bound
  * current table, preserves source indexes and suppresses dithering. Protection
  * rejects adoption before painting; failed staging retains both palette and
  * pixels. Flag 4 otherwise enables ordered dithering in the current palette,
- * with indexed transparency before mapping and RGB transparency after mapping.
+ * with key classification independent of dithered output and transfer inversion.
  * LOAD_BITMAP accepts flags 0..63; higher values reject before file access.
  * After the initial draw and palette commit, flag 1 duplicates the original
  * full requested rectangle. Zero uses the shared clipboard capture lifecycle;
@@ -140,8 +144,8 @@ struct st_rip3_command_sink {
  * Allocation/copy failures do not roll back initial drawing or deleted targets.
  * Same-current and >35 explicit selectors skip duplication. Flags 16/32 copy
  * the composited seed through the then-current viewport, using COPY and optional
- * alternating half-width row offsets. Flag 32 alone does nothing. Key/mapping
- * behavior above remains subject to the corrected color-key reconciliation.
+ * alternating half-width row offsets. Flag 32 alone does nothing. Complete
+ * physical-device/color-profile and port-coordinate integration remains separate.
  * Active loads require a bitmap
  * error UI sink; file failures request a box without ending parsing. Actual
  * application UI integration is separate. Inactive viewports ignore the load.

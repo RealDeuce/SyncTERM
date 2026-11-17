@@ -107,7 +107,7 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 		return IO_ERROR_NOT_SUPPORTED;
 	if (word(data + 26) != 1) return IO_ERROR_INVALID_FORMAT;
 	depth = word(data + 28);
-	if (depth != 1 && depth != 4 && depth != 8 && depth != 24)
+	if (depth != 1 && depth != 4 && depth != 8 && depth != 16 && depth != 24 && depth != 32)
 		return IO_ERROR_NOT_SUPPORTED;
 	width = dword(data + 18);
 	height = dword(data + 22);
@@ -118,7 +118,7 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 	stride = (((size_t)width * depth + 31) / 32) * 4;
 	if (height > (length - offset) / stride)
 		return IO_ERROR_INVALID_FORMAT;
-	if (depth < 24) {
+	if (depth <= 8) {
 		colours = dword(data + 46);
 		if (colours == 0) colours = 1U << depth;
 		if (colours > (1U << depth) || colours > (offset - 54) / 4)
@@ -139,8 +139,15 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 		const uint8_t *row = data + offset + (size_t)(height - 1 - y) * stride;
 		for (uint32_t x = 0; x < width; ++x) {
 			uint32_t pixel;
-			if (depth == 24) {
-				const uint8_t *bgr = row + (size_t)x * 3;
+			if (depth == 16) {
+				unsigned value = word(row+(size_t)x*2);
+				/* BI_RGB RGB555; high bit has no alpha. Expand to the
+				 * renderer's RGB components using floor(v*255/31). */
+				pixel = ST_PIXEL_COLOR_RGB_VALUE(((value>>10)&31)*255/31,
+				    ((value>>5)&31)*255/31,(value&31)*255/31);
+			}
+			else if (depth == 24 || depth == 32) {
+				const uint8_t *bgr = row + (size_t)x * (depth/8);
 				pixel = ST_PIXEL_COLOR_RGB_VALUE(bgr[2], bgr[1], bgr[0]);
 			}
 			else {
@@ -187,12 +194,12 @@ st_rip3_bitmap_encode(uint8_t **result, size_t *result_size,
 		return IO_ERROR_INVALID_ARGUMENT;
 	pixels = bitmap->pixels;
 	depth = bitmap->bit_depth;
-	if (depth != 1 && depth != 4 && depth != 8 && depth != 24)
+	if (depth != 1 && depth != 4 && depth != 8 && depth != 16 && depth != 24 && depth != 32)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (pixels->width == 0 || pixels->height == 0
 	    || pixels->width > INT32_MAX || pixels->height > INT32_MAX
-	    || bitmap->palette_size > (depth == 24 ? 0 : 1U << depth)
-	    || (depth != 24 && bitmap->palette_size == 0))
+	    || bitmap->palette_size > (depth > 8 ? 0 : 1U << depth)
+	    || (depth <= 8 && bitmap->palette_size == 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (pixels->width > (SIZE_MAX - 31) / depth)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -213,7 +220,7 @@ st_rip3_bitmap_encode(uint8_t **result, size_t *result_size,
 	put16(data + 26, 1); put16(data + 28, depth);
 	/* Match the documented RIP writer's advisory fields and zero image size. */
 	put32(data + 38, pixels->width); put32(data + 42, pixels->height);
-	if (depth < 24 && bitmap->palette_size != (1U << depth))
+	if (depth <= 8 && bitmap->palette_size != (1U << depth))
 		put32(data + 46, (uint32_t)bitmap->palette_size);
 	for (size_t i = 0; i < bitmap->palette_size; ++i) {
 		uint32_t rgb = bitmap->palette[i];
@@ -225,11 +232,19 @@ st_rip3_bitmap_encode(uint8_t **result, size_t *result_size,
 		uint8_t *row = data + offset + (size_t)(pixels->height - 1 - y) * stride;
 		for (uint32_t x = 0; x < pixels->width; ++x) {
 			uint32_t pixel = pixels->primary[(size_t)y * pixels->width + x];
-			if (depth == 24) {
-				if (!ST_PIXEL_COLOR_IS_RGB(pixel)) { free(data); return IO_ERROR_INVALID_ARGUMENT; }
-				row[(size_t)x * 3] = (uint8_t)pixel;
-				row[(size_t)x * 3 + 1] = (uint8_t)(pixel >> 8);
-				row[(size_t)x * 3 + 2] = (uint8_t)(pixel >> 16);
+			if (depth > 8) {
+				if (!ST_PIXEL_COLOR_IS_RGB(pixel) || (pixel & ~ST_PIXEL_COLOR_RGB_TAG) > 0xffffff) {
+					free(data); return IO_ERROR_INVALID_ARGUMENT;
+				}
+				if (depth == 16) {
+					unsigned r = ((pixel>>16)&255)*31+127, g = ((pixel>>8)&255)*31+127;
+					unsigned b = (pixel&255)*31+127;
+					put16(row+(size_t)x*2,(r/255)<<10 | (g/255)<<5 | b/255);
+				}
+				else {
+					size_t at = (size_t)x*(depth/8);
+					row[at] = (uint8_t)pixel; row[at+1] = (uint8_t)(pixel>>8); row[at+2] = (uint8_t)(pixel>>16);
+				}
 			}
 			else {
 				if (pixel >= bitmap->palette_size) { free(data); return IO_ERROR_INVALID_ARGUMENT; }

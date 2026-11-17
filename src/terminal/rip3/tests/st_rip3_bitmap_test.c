@@ -58,6 +58,26 @@ main(void)
 		0x21,0x43,0x65, 0,0,0, 0x80,0x80,0x80, 0xff,0xff,0, 0xff,0,0xff, 0xcc,
 		0,0,0xff, 0,0xff,0, 0xff,0,0, 0xff,0xff,0xff, 0x56,0x34,0x12, 0xcc,
 	};
+	static const uint8_t rows16[] = {
+		0,0x80,0x10,0x42,0xe0,0x7f,0x1f,0x7c,0xff,3,0xcc,0xcc,
+		0,0x7c,0xe0,3,0x1f,0,0xff,0xff,0x43,8,0xcc,0xcc,
+	};
+	static const uint8_t written16[] = {
+		0,0,0x10,0x42,0xe0,0x7f,0x1f,0x7c,0xff,3,0,0,
+		0,0x7c,0xe0,3,0x1f,0,0xff,0x7f,0x43,8,0,0,
+	};
+	static const uint8_t rows32[] = {
+		0x21,0x43,0x65,255,0,0,0,17,0x80,0x80,0x80,0,0xff,0xff,0,90,0xff,0,0xff,55,
+		0,0,0xff,0,0,0xff,0,1,0xff,0,0,128,0xff,0xff,0xff,255,0x56,0x34,0x12,127,
+	};
+	static const uint8_t written32[] = {
+		0x21,0x43,0x65,0,0,0,0,0,0x80,0x80,0x80,0,0xff,0xff,0,0,0xff,0,0xff,0,
+		0,0,0xff,0,0,0xff,0,0,0xff,0,0,0,0xff,0xff,0xff,0,0x56,0x34,0x12,0,
+	};
+	/* RGB555 expansion uses the geometric renderer's floor(v*255/31)
+	 * policy; bit15 and the 32-bit high byte carry no alpha. */
+	static const uint32_t expected16[] = {0x80ff0000,0x8000ff00,0x800000ff,0x80ffffff,0x80101018,
+	    0x80000000,0x80838383,0x80ffff00,0x80ff00ff,0x8000ffff};
 	static const uint32_t expected1[] = {0,1,0,1,1, 1,0,1,0,0};
 	static const uint32_t expected4[] = {0,1,2,3,4, 4,3,2,1,0};
 	static const uint32_t expected8[] = {0,15,16,127,255, 255,127,16,15,0};
@@ -82,7 +102,9 @@ main(void)
 		{1,2,rows1,sizeof(rows1),expected1,written1},
 		{4,16,rows4,sizeof(rows4),expected4,written4},
 		{8,256,rows8,sizeof(rows8),expected8,written8},
+		{16,0,rows16,sizeof(rows16),expected16,written16},
 		{24,0,rows24,sizeof(rows24),expected24,written24},
+		{32,0,rows32,sizeof(rows32),expected24,written32},
 	};
 	uint8_t bytes[1200], bad[sizeof(bytes)];
 	struct st_rip3_bitmap sentinel = {0}, *result = &sentinel;
@@ -127,7 +149,7 @@ main(void)
 			{10,UINT32_MAX,IO_ERROR_INVALID_FORMAT}, {14,12,IO_ERROR_NOT_SUPPORTED},
 			{14,124,IO_ERROR_NOT_SUPPORTED}, {18,0,IO_ERROR_INVALID_FORMAT},
 			{22,0,IO_ERROR_INVALID_FORMAT}, {22,UINT32_MAX,IO_ERROR_NOT_SUPPORTED},
-			{26,0,IO_ERROR_INVALID_FORMAT}, {28,32,IO_ERROR_NOT_SUPPORTED},
+			{26,0,IO_ERROR_INVALID_FORMAT}, {28,15,IO_ERROR_NOT_SUPPORTED},
 			{30,1,IO_ERROR_NOT_SUPPORTED},
 		};
 		for (size_t i = 0; i < sizeof(broken) / sizeof(*broken); ++i) {
@@ -174,7 +196,7 @@ main(void)
 		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);
 		invalid.palette[0] = 0; invalid.palette_size = 0; invalid.bit_depth = 24;
 		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);
-		invalid.bit_depth = 32;
+		invalid.bit_depth = 15;
 		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_NOT_SUPPORTED);
 		invalid.bit_depth = 24; pixels.width = 0;
 		CHECK(st_rip3_bitmap_encode(&output, &length, &invalid) == IO_ERROR_INVALID_ARGUMENT);

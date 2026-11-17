@@ -125,7 +125,7 @@ static uint32_t
 adopted_color(unsigned index, unsigned depth)
 {
 	/* Deliberately duplicate distinct palette indexes, including both 1-bit
-	 * entries. RGB equality must not collapse their logical pixel identity. */
+	 * entries. Drawing retains their indexes; key classification can collapse equal RGB. */
 	if (depth == 1) return UINT32_C(0x4a9bc2);
 	if (index == 2) index = 1;
 	return ((index*37u&255u)<<16) | ((index*73u&255u)<<8) | (index*109u&255u);
@@ -315,12 +315,12 @@ adoption(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 			for (unsigned mode = 0; mode < 5; mode++)
 				if (vx >= mode*5 && vx <= mode*5+2 && vy < 2) expected = expected_modes[mode][vy*3+vx-mode*5];
 			if (vx < 3 && vy >= 3 && vy <= 4) {
-				expected = expected_modes[0][(vy-3)*3+vx]; if (expected == 1) expected = 85;
+				expected = expected_modes[0][(vy-3)*3+vx]; if (expected == 1 || (depth != 1 && expected == 2)) expected = 85;
 			}
 			if (vx >= 10 && vx <= 12 && vy >= 3 && vy <= 4) expected = expected_modes[0][(vy-3)*3+vx-10];
 			if (vx >= 15 && vx <= 17 && vy >= 3 && vy <= 4) {
 				uint32_t at = (vy-3)*3+vx-15;
-				expected = expected_modes[0][at] == 1 ? 85 : expected_modes[4][at];
+				expected = (expected_modes[0][at] == 1 || (depth != 1 && expected_modes[0][at] == 2)) ? 85 : expected_modes[4][at];
 			}
 		}
 		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
@@ -371,10 +371,9 @@ dithering(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const cha
 			if (vx >= 10 && vx <= 17 && vy < 8) value = (uint8_t)(expected[vy][vx-10]-'0');
 			if (vx < 8 && vy >= 10 && vy <= 17) {
 				value = (uint8_t)(expected[vy-10][vx]-'0');
-				if (vx >= 3 && vx <= 4 && vy <= 13) value = 85;
 			}
 			if (vx >= 10 && vx <= 17 && vy >= 10 && vy <= 17)
-				value = expected[vy-10][vx-10] == '0' ? 85 : 254;
+				value = vx >= 13 && vx <= 14 && vy >= 14 ? 85 : expected[vy-10][vx-10] == '0' ? 255 : 254;
 		}
 		CHECK(capture->pixels->primary[(size_t)y*width+x] == value);
 	}
@@ -954,12 +953,168 @@ wallpaper_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, con
 	return 0;
 }
 
+static int
+key_asset(const char *directory, unsigned depth, bool translation)
+{
+	uint8_t bytes[1100] = {0}; char name[24]; char *path = NULL;
+	unsigned count = depth == 1 ? 2 : depth <= 8 ? 4 : 0;
+	size_t offset = 54+count*4, stride = depth <= 8 ? 4 : depth == 16 ? 8 : depth == 24 ? 12 : 16;
+	size_t size = offset+stride;
+	bytes[0] = 'B'; bytes[1] = 'M'; put32(bytes+2,(uint32_t)size); put32(bytes+10,(uint32_t)offset);
+	put32(bytes+14,40); put32(bytes+18,4); put32(bytes+22,1); put16(bytes+26,1); put16(bytes+28,depth);
+	put32(bytes+46,count);
+	const uint32_t colors[] = {0xffffff,0,0xffffff,0xfefefe}, translated[] = {0x070707,0,0x070708,0xffffff};
+	for (unsigned i = 0; i < count; i++) {
+		uint32_t color = translation ? translated[i] : colors[i];
+		bytes[54+i*4] = (uint8_t)color; bytes[55+i*4] = (uint8_t)(color>>8); bytes[56+i*4] = (uint8_t)(color>>16);
+	}
+	if (depth == 1) bytes[offset] = 0x50;
+	else if (depth == 4) { bytes[offset] = 0x01; bytes[offset+1] = 0x23; }
+	else if (depth == 8) { bytes[offset+1] = 1; bytes[offset+2] = 2; bytes[offset+3] = 3; }
+	else if (depth == 16) {
+		const uint8_t row[] = {0x10,0x42,0,0x80,0xff,0xff,0x42,0x08}; memcpy(bytes+offset,row,sizeof(row));
+	}
+	else {
+		const uint32_t rgb[] = {0x808080,0x808081,0,0xffffff};
+		for (unsigned i = 0; i < 4; i++) {
+			size_t at = offset+i*(depth/8);
+			bytes[at] = (uint8_t)rgb[i]; bytes[at+1] = (uint8_t)(rgb[i]>>8); bytes[at+2] = (uint8_t)(rgb[i]>>16);
+			if (depth == 32) bytes[at+3] = (uint8_t)(i*85); /* Not alpha. */
+		}
+	}
+	(void)snprintf(name,sizeof(name),translation ? "Translate.BMP" : "Key%u.BMP",depth);
+	CHECK(path_join_alloc(&path,directory,name) == 0 && fs_replace_file(path,bytes,size) == 0);
+	free(path); path = NULL;
+	if (!translation) {
+		(void)snprintf(name,sizeof(name),"Mask%u.BMM",depth);
+		CHECK(path_join_alloc(&path,directory,name) == 0 && fs_replace_file(path,bytes,size) == 0); free(path);
+	}
+	return 0;
+}
+
+static int
+keyed_depths(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	struct fixture f = {0}; char body[160], coordinates[9] = {0}, name[24];
+	uint64_t budget = UINT64_C(1000000);
+	const unsigned depths[] = {1,4,8,16,24,32};
+	const uint8_t mono[5][4] = {{255,85,255,85},{170,85,170,85},{255,85,255,85},{85,85,85,85},{0,85,0,85}};
+	const uint8_t indexed[5][4] = {{85,0,85,254},{85,85,85,171},{85,85,85,255},{85,0,85,84},{85,255,85,1}};
+	const uint8_t rgb[5][4] = {{85,128,0,255},{85,213,85,170},{85,213,85,255},{85,0,0,85},{85,127,255,0}};
+	const uint8_t rgb32[5][4] = {{128,128,0,255},{213,213,85,170},{213,213,85,255},{0,0,0,85},{127,127,255,0}};
+	CHECK(create(&f,canvas,width,height,directory) == 0);
+	f.host.clipboard = &f.selection; f.host.offscreen_pixel_budget = &budget;
+	f.selection = (struct st_rip3_clipboard_selection){true,9};
+	const struct st_rip3_rect old = {0,0,2,1};
+	CHECK(st_rip3_ports_define(f.host.ports,9,&old,true) == 0 && st_rip3_ports_switch(f.host.ports,9) == 0
+	    && st_rip3_ports_erase(f.host.ports,42) == 0 && st_rip3_ports_switch(f.host.ports,1) == 0);
+	for (size_t d = 0; d < sizeof(depths)/sizeof(*depths); d++) for (unsigned mode = 0; mode < 5; mode++) {
+		CHECK(st_rip3_number_encode(coordinates,2,mode*6,2,36) == 0
+		    && st_rip3_number_encode(coordinates+2,2,d*2,2,36) == 0);
+		memcpy(coordinates+4,"0000",4);
+		(void)snprintf(name,sizeof(name),mode%2 == 0 ? "Key%u.BMP" : "Mask%u.BMM",depths[d]);
+		form(body,coordinates,'9',mode,depths[d] == 16 ? "0P" : "08",depths[d] >= 24 ? "3K" : "73",name);
+		CHECK(process(&f,body,depths[d] == 16 ? ST_RIP3_COMMAND_UNSUPPORTED : -1) == 0);
+	}
+	/* Keyed RGB555 errors skip duplicate/wallpaper and retain the clipboard.
+	 * A later byte-split valid command must still paint. */
+	CHECK(f.prompts == 5 && f.selection.set && f.selection.port == 9);
+	const uint8_t prior[] = {42,42,42,42,42,42}; CHECK(duplicate_pixels(&f,9,3,2,prior) == 0);
+	struct st_rip3_stream *stream = NULL;
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	CHECK(st_rip3_stream_create(&stream,&sink) == 0); st_rip3_stream_process(stream,(const uint8_t *)"!|",2);
+	for (unsigned depth = 16; depth <= 32; depth += 16) {
+		(void)snprintf(name,sizeof(name),"Key%u.BMP",depth);
+		form(body,"000E0000",'9',0,depth == 16 ? "0P" : "08","3K",name);
+		for (size_t i = 0; i < strlen(body); i++) st_rip3_stream_process(stream,(const uint8_t *)body+i,1);
+		st_rip3_stream_process(stream,(const uint8_t *)"|",1);
+	}
+	st_rip3_stream_destroy(stream); CHECK(f.prompts == 6 && f.errors == 6 && f.selection.set && f.selection.port == 9);
+	CHECK(duplicate_pixels(&f,9,3,2,prior) == 0);
+	struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
+	CHECK(capture->pixels->width == width && capture->pixels->height == height);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		unsigned expected = 0;
+		if (x >= 12 && x <= 59 && y >= 21 && y <= 38) {
+			uint32_t vx = x-12, vy = y-21; expected = 85;
+			if (vy <= 10 && vy%2 == 0 && vx < 28 && vx%6 < 4) {
+				unsigned depth = depths[vy/2];
+				if (depth != 16) expected = depth == 1 ? mono[vx/6][vx%6]
+				    : depth == 24 ? rgb[vx/6][vx%6] : depth == 32 ? rgb32[vx/6][vx%6] : indexed[vx/6][vx%6];
+			}
+			if (vy == 14 && vx < 4) expected = rgb32[0][vx];
+		}
+		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
+	}
+	CHECK(memcmp(capture->palette,palette.rgb,sizeof(palette.rgb)) == 0);
+	st_rip3_bitmap_destroy(capture);
+	form(body,"00000000",'0',0,"08","00","MissingMask.BMM");
+	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 7
+	    && strcmp(f.last_name,"MissingMask.BMM") == 0 && f.selection.set && f.selection.port == 9);
+	/* Ordinary RGB555 succeeds through the same file loader. */
+	form(body,"000G0000",'0',0,"00","ZZ","Key16.BMP"); CHECK(process(&f,body,-1) == 0);
+	const uint8_t ordinary[] = {131,0,255,16};
+	for (int32_t x = 0; x < 4; x++) {
+		uint8_t actual; CHECK(st_rip3_ports_read(f.host.ports,1,2+x,17,&actual) == 0 && actual == ordinary[x]);
+	}
+	icon(body,"060G",0,0,0,"Key16.BMP"); CHECK(process(&f,body,-1) == 0);
+	icon(body,"0C0G",0,0,0,"Key32.BMP"); CHECK(process(&f,body,-1) == 0);
+	for (int32_t x = 0; x < 4; x++) {
+		uint8_t actual; CHECK(st_rip3_ports_read(f.host.ports,1,8+x,17,&actual) == 0 && actual == ordinary[x]);
+		CHECK(st_rip3_ports_read(f.host.ports,1,14+x,17,&actual) == 0 && actual == rgb32[0][x]);
+	}
+	destroy(&f); return 0;
+}
+
+static int
+translated_key_load(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	struct fixture f = {0}; char body[160];
+	CHECK(create(&f,canvas,width,height,directory) == 0 && st_rip3_palettes_protect(f.host.palettes,1,false) == 0);
+	uint64_t budget = UINT64_C(1000000);
+	f.host.clipboard = &f.selection; f.host.offscreen_pixel_budget = &budget;
+	f.selection = (struct st_rip3_clipboard_selection){true,9};
+	const struct st_rip3_rect old = {0,0,2,1}; CHECK(st_rip3_ports_define(f.host.ports,9,&old,true) == 0);
+	uint32_t duplicate = 0x070707;
+	CHECK(st_rip3_palettes_rgb(f.host.palettes,255,8,&duplicate,1) == 0);
+	/* Raw255 translates to7 before source mapping. File indices0 and2 map
+	 * to7; a key below236 remains a direct index. */
+	form(body,"00000000",'9',0,"09","73","Translate.BMP"); CHECK(process(&f,body,-1) == 0);
+	form(body,"00020000",'0',0,"08","5K","Translate.BMP"); CHECK(process(&f,body,-1) == 0);
+	const uint8_t keyed[] = {85,0,85,254}, direct[] = {7,0,7,254};
+	CHECK(duplicate_pixels(&f,9,4,1,keyed) == 0 && !f.selection.set);
+	for (int32_t x = 0; x < 4; x++) {
+		uint8_t actual; CHECK(st_rip3_ports_read(f.host.ports,1,2+x,1,&actual) == 0 && actual == keyed[x]);
+		CHECK(st_rip3_ports_read(f.host.ports,1,2+x,3,&actual) == 0 && actual == direct[x]);
+	}
+	/* Translation precedes adoption. After adopting entries0..3, RGB7 first
+	 * matches entry0; translating afterward would key out the first pixel. */
+	form(body,"00040000",'0',0,"0A","73","Translate.BMP"); CHECK(process(&f,body,-1) == 0);
+	for (int32_t x = 0; x < 4; x++) {
+		uint8_t actual; CHECK(st_rip3_ports_read(f.host.ports,1,2+x,5,&actual) == 0 && actual == x);
+	}
+	CHECK(f.prompts == 0 && f.errors == 0); destroy(&f); return 0;
+}
+
 int
 main(int argc, char **argv)
 {
 	CHECK(argc == 2 && fs_create_directories(argv[1]) == 0);
 	CHECK(asset(argv[1],"Tile.BMP",false,false) == 0 && asset(argv[1],"Color.BMP",true,false) == 0);
 	CHECK(asset(argv[1],"Compressed.BMP",false,true) == 0);
+	const unsigned keyed[] = {1,4,8,16,24,32};
+	for (size_t i = 0; i < sizeof(keyed)/sizeof(*keyed); i++) CHECK(key_asset(argv[1],keyed[i],false) == 0);
+	CHECK(key_asset(argv[1],8,true) == 0);
+	char *companion = NULL;
+	CHECK(path_join_alloc(&companion,argv[1],"Key8.BMM") == 0 && fs_replace_file(companion,"bad companion",13) == 0);
+	free(companion); /* Unreferenced companion cannot affect Key8.BMP loads. */
+	CHECK(keyed_depths(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(keyed_depths(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(keyed_depths(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
+	CHECK(translated_key_load(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(translated_key_load(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(translated_key_load(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
 	CHECK(wallpaper_scene(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
 	CHECK(wallpaper_scene(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
 	CHECK(wallpaper_scene(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);

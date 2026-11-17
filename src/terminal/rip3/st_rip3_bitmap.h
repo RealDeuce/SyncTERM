@@ -13,7 +13,7 @@ struct st_rip3_palette;
 
 struct st_rip3_bitmap {
 	/* Owned pixels: local palette indexes for 1/4/8-bit images, tagged RGB
-	 * for 24-bit images. The file palette is retained independently of the
+	 * for 16/24/32-bit images. The file palette is retained independently of the
 	 * active RIP drawing palette and transparent-index/mask policy. */
 	struct st_pixel_buffer *pixels;
 	uint32_t palette[256]; /* untagged 0x00RRGGBB */
@@ -22,8 +22,10 @@ struct st_rip3_bitmap {
 };
 
 /* Full Windows 3.x BMP file header + 40-byte info header; uncompressed
- * bottom-up 1/4/8/24-bit data only. Results remain unchanged on failure.
- * BMM transparency/compositing is a separate, unresolved wire requirement. */
+ * bottom-up 1/4/8/16/24/32-bit data only. RGB555 uses floor(v*255/31)
+ * component expansion; bit15 and 32-bit high bytes carry no alpha. Results
+ * remain unchanged on failure. BMM uses this ordinary decoder; depth-specific
+ * color-key selection and explicit put modes belong to the command/renderer. */
 int st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 	const void *data, size_t size);
 /* Independent legacy ICN/HIC/MSK memory decoding for the v3 converter. Four
@@ -41,7 +43,9 @@ int st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 int st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
 	const void *data, size_t size, const uint32_t palette[16]);
 /* Encode the primary plane with its local palette, retaining bit depth.
- * Returns malloc-owned bytes; both outputs remain unchanged on failure. */
+ * RGB555 components quantize to the nearest 5-bit value; unused high bits/
+ * bytes and row padding are zero. Returns malloc-owned bytes; both outputs
+ * remain unchanged on failure. */
 int st_rip3_bitmap_encode(uint8_t **result, size_t *size,
 	const struct st_rip3_bitmap *bitmap);
 /* Capture a named port's active viewport as an owned 8-bit bitmap with the

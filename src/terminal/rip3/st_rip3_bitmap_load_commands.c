@@ -174,12 +174,17 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	}
 	status = st_rip3_palettes_current(host->palettes,&number);
 	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
+	uint8_t transparent_color = (uint8_t)transparent;
+	/* This engine's initialized 256-entry device has the normal 236 direct
+	 * index limit. ENV RGB precision is an input format, not device depth.
+	 * Translate before any image-palette adoption changes the drawing table. */
+	if (status == 0 && (flags&8) != 0)
+		status = st_rip3_bitmap_translate_key(&palette,236,(uint32_t)transparent,&transparent_color);
 	if (status == 0 && adopt) {
 		status = st_rip3_palettes_info(host->palettes,number,&palette_info);
 		if (status == 0 && palette_info.protected) status = IO_ERROR_PERMISSION_DENIED;
 		if (status == 0) status = st_rip3_palette_rgb(&palette,0,8,bitmap->palette,bitmap->palette_size);
 	}
-	uint8_t transparent_color = (uint8_t)transparent;
 	enum st_rip3_bitmap_colors colors = adopt ? ST_RIP3_BITMAP_ADOPTED
 	    : (flags&4) != 0 ? ST_RIP3_BITMAP_DITHER : ST_RIP3_BITMAP_MATCH;
 	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,colors,

@@ -68,7 +68,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&enlarged,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
 	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&edge,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
 	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&left,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
-	/* Equal source RGB values must not merge indexed transparency identities. */
+	/* Key classification uses mapped indexes, not these raw file identities. */
 	uint32_t twins[] = {1,2};
 	struct st_pixel_buffer twin_pixels = {.width=2,.height=1,.primary=twins};
 	struct st_rip3_bitmap twin_bitmap = {.pixels=&twin_pixels,.palette_size=3,.bit_depth=8,
@@ -90,7 +90,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 				if (vx == 1 && vy == 3) expected = 85;
 			}
 			if (vx >= 5 && vx <= 7 && vy >= 3 && vy <= 4) expected = transparent_rgb[(vy-3)*3+vx-5];
-			if (vy == 3 && vx == 11) expected = 20;
+			if (vy == 3 && (vx == 10 || vx == 11)) expected = 20;
 			if (vx < 6 && vy >= 6 && vy <= 9) expected = scaled[(vy-6)*6+vx];
 			if (vx >= 29 && vy < 4) expected = clipped[vy*3+vx-29];
 			if (vx < 4 && vy >= 10) expected = negative[(vy-10)*4+vx];
@@ -158,12 +158,12 @@ dithering(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 				if (vx >= mode*10 && vx <= mode*10+7 && vy < 8)
 					expected = transfer[mode][(unsigned)(pattern[vy][vx-mode*10]-'0')];
 			if (vx < 8 && vy >= 10 && vy <= 17)
-				expected = vx < 4 && vy < 14 ? 85 : (uint8_t)(pattern[vy-10][vx]-'0');
+				expected = (vx < 4 && vy < 14) || (vx >= 4 && vy >= 14) ? 85 : (uint8_t)(pattern[vy-10][vx]-'0');
 			if (vx >= 10 && vx <= 17 && vy >= 10 && vy <= 17) {
-				expected = (uint8_t)(pattern[vy-10][vx-10]-'0'); if (expected == 0) expected = 85;
+				expected = vx >= 14 && vy >= 14 ? 85 : (uint8_t)(pattern[vy-10][vx-10]-'0');
 			}
 			if (vx >= 20 && vx <= 27 && vy >= 10 && vy <= 17) {
-				expected = (uint8_t)(pattern[vy-10][vx-20]-'0'); expected = expected == 0 ? 85 : (uint8_t)~expected;
+				expected = vx >= 24 && vy >= 14 ? 85 : (uint8_t)~(uint8_t)(pattern[vy-10][vx-20]-'0');
 			}
 			if (vx < 5 && vy >= 20 && vy <= 27) expected = (uint8_t)(pattern[vy-20][vx+3]-'0');
 		}

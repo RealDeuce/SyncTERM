@@ -7,6 +7,29 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+int
+st_rip3_bitmap_translate_key(const struct st_rip3_palette *palette,
+    unsigned direct_index_limit, uint32_t color, uint8_t *result)
+{
+	if (palette == NULL || result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (color > 255 || (direct_index_limit != 2 && direct_index_limit != 16 && direct_index_limit != 236))
+		return IO_ERROR_OUT_OF_RANGE;
+	for (unsigned i = 0; i < 256; i++) if (palette->rgb[i] > 0xffffff) return IO_ERROR_OUT_OF_RANGE;
+	uint8_t best = (uint8_t)color;
+	if (color >= direct_index_limit) {
+		uint32_t rgb = palette->rgb[color], distance = UINT32_MAX;
+		for (unsigned i = 0; i < 256; i++) {
+			int32_t r = (int32_t)((rgb>>16)&255)-(int32_t)((palette->rgb[i]>>16)&255);
+			int32_t g = (int32_t)((rgb>>8)&255)-(int32_t)((palette->rgb[i]>>8)&255);
+			int32_t b = (int32_t)(rgb&255)-(int32_t)(palette->rgb[i]&255);
+			uint32_t next = (uint32_t)(r*r+g*g+b*b);
+			if (next <= distance) { distance = next; best = (uint8_t)i; }
+			if (next == 0) break;
+		}
+	}
+	*result = best; return 0;
+}
+
 static uint32_t
 sample(uint64_t position, uint64_t span, uint32_t source)
 {
@@ -34,14 +57,14 @@ validate(const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *pale
 	    || bitmap->pixels->primary == NULL || bitmap->pixels->width == 0 || bitmap->pixels->height == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	unsigned depth = bitmap->bit_depth;
-	if (depth != 1 && depth != 4 && depth != 8 && depth != 24) return IO_ERROR_NOT_SUPPORTED;
+	if (depth != 1 && depth != 4 && depth != 8 && depth != 16 && depth != 24 && depth != 32) return IO_ERROR_NOT_SUPPORTED;
 	if (bitmap->pixels->width > INT32_MAX || bitmap->pixels->height > INT32_MAX
 	    || bitmap->pixels->height > SIZE_MAX/sizeof(uint32_t)/bitmap->pixels->width)
 		return IO_ERROR_OUT_OF_RANGE;
-	if ((depth == 24 && bitmap->palette_size != 0)
-	    || (depth != 24 && (bitmap->palette_size == 0 || bitmap->palette_size > (1u << depth))))
+	if ((depth > 8 && bitmap->palette_size != 0)
+	    || (depth <= 8 && (bitmap->palette_size == 0 || bitmap->palette_size > (1u << depth))))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (palette_adopted && depth == 24) return IO_ERROR_INVALID_ARGUMENT;
+	if (palette_adopted && depth > 8) return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < 256; i++)
 		if (palette->rgb[i] > 0xffffff) return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i = 0; i < bitmap->palette_size; i++) {
@@ -50,7 +73,7 @@ validate(const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *pale
 	}
 	for (size_t i = 0; i < (size_t)bitmap->pixels->width*bitmap->pixels->height; i++) {
 		uint32_t pixel = bitmap->pixels->primary[i];
-		if (depth == 24) {
+		if (depth > 8) {
 			if (!ST_PIXEL_COLOR_IS_RGB(pixel) || (pixel & ~ST_PIXEL_COLOR_RGB_TAG) > 0xffffff)
 				return IO_ERROR_INVALID_FORMAT;
 		}
@@ -141,6 +164,9 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	status = st_rip3_ports_current(ports,&current);
 	if (status == 0) status = st_rip3_ports_info(ports,current,&info);
 	if (status != 0 || !info.viewport_active) return status;
+	/* The shipped color-key mask creator rejects RGB555 before staging or
+	 * drawing. Ordinary 16-bit loads still reach the common RGB painter. */
+	if (transparent_color != NULL && bitmap != NULL && bitmap->bit_depth == 16) return IO_ERROR_NOT_SUPPORTED;
 	visible = (struct st_rip3_rect){0,0,info.viewport.x1-info.viewport.x0,info.viewport.y1-info.viewport.y0};
 	if (destination->x0 > visible.x1 || destination->y0 > visible.y1 || destination->x1 < 0 || destination->y1 < 0)
 		return 0;
@@ -155,9 +181,10 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	struct prepared_pixel *pixels = malloc((size_t)width*height*sizeof(*pixels));
 	if (pixels == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	for (size_t i = 0; i < bitmap->palette_size; i++) {
-		if (colors == ST_RIP3_BITMAP_ADOPTED) mapped[i] = (uint8_t)i;
-		else if (colors == ST_RIP3_BITMAP_DITHER) dithered[i] = dither_prepare(palette,bitmap->palette[i]);
-		else (void)st_rip3_palette_color(palette,true,bitmap->palette[i],&mapped[i]);
+		/* The internal selection mask sees nearest output-palette indexes,
+		 * before dithering and even when the draw preserves adopted indexes. */
+		(void)st_rip3_palette_color(palette,true,bitmap->palette[i],&mapped[i]);
+		if (colors == ST_RIP3_BITMAP_DITHER) dithered[i] = dither_prepare(palette,bitmap->palette[i]);
 	}
 	uint64_t span_x = (uint64_t)(destination->x1-destination->x0)+1;
 	uint64_t span_y = (uint64_t)(destination->y1-destination->y0)+1;
@@ -169,18 +196,23 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 			struct prepared_pixel *pixel = &pixels[(size_t)y*width+x];
 			uint64_t phase_x = (uint64_t)((int64_t)visible.x0+x-destination->x0);
 			uint64_t phase_y = (uint64_t)((int64_t)visible.y0+y-destination->y0);
-			if (bitmap->bit_depth == 24) {
+			if (bitmap->bit_depth > 8) {
 				if (colors == ST_RIP3_BITMAP_DITHER) {
 					struct dither_color color = dither_prepare(palette,code & ~ST_PIXEL_COLOR_RGB_TAG);
 					pixel->color = dither_pixel(&color,phase_x,phase_y);
 				}
 				else (void)st_rip3_palette_color(palette,true,code & ~ST_PIXEL_COLOR_RGB_TAG,&pixel->color);
-				pixel->opaque = transparent_color == NULL || pixel->color != *transparent_color;
+				/* 24-bit compares exact source RGB; 32-bit's shipped
+				 * classifier never selects ordinary byte-valued RGB keys. */
+				pixel->opaque = transparent_color == NULL || bitmap->bit_depth == 32
+				    || (code & ~ST_PIXEL_COLOR_RGB_TAG) != palette->rgb[*transparent_color];
 			}
 			else {
 				pixel->color = colors == ST_RIP3_BITMAP_DITHER
-				    ? dither_pixel(&dithered[code],phase_x,phase_y) : mapped[code];
-				pixel->opaque = transparent_color == NULL || code != *transparent_color;
+				    ? dither_pixel(&dithered[code],phase_x,phase_y)
+				    : colors == ST_RIP3_BITMAP_ADOPTED ? (uint8_t)code : mapped[code];
+				pixel->opaque = transparent_color == NULL || (bitmap->bit_depth == 1
+				    ? code != (*transparent_color != 0) : mapped[code] != *transparent_color);
 			}
 			if (mode == ST_RIP3_TRANSFER_INVERT) pixel->color = (uint8_t)~pixel->color;
 		}
