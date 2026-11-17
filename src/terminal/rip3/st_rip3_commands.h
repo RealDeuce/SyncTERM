@@ -94,7 +94,8 @@ struct st_rip3_command_sink {
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
  * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 2W bitmap export,
- * ordinary/transparent 1b bitmap loads, ordinary 1I icons, 3D delays, 3e record edits,
+ * ordinary/transparent 1b bitmap loads, ordinary 1I icons, literal 1p JPEGs,
+ * 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
@@ -165,6 +166,17 @@ struct st_rip3_command_sink {
  * Actual clipboard clearing/UI policy and clipboard=1 selection remain under
  * #42. Legacy ICN conversion/deletion policy remains under #19. All requests are
  * void and every helper status stays inside this nonfatal parser boundary.
+ * 1p reads an exact bare UTF-8 filename through MEDIA lookup and the baseline
+ * JPEG decoder, then uses the current port's explicitly bound DEVICE image
+ * style, current palette and STYLE write mode. JPEG flag 8 changes no palette.
+ * COPY is supported; other modes require flag 4 and no aspect margins until
+ * clear/margin write-mode semantics are resolved (#21). Deletion flag 2 and
+ * disabled images with disputed deletion bits are declined before file access.
+ * Inactive viewports and disabled images without deletion ambiguity are no-ops
+ * before consulting asset/style/palette bindings. Macro expansion, delivery,
+ * wire 1i/IMGSTYLE and reset/ownership policy remain separate (#21/#24).
+ * Invalid names and load/decode/staging failures retain the scene and produce
+ * only a nonfatal diagnostic; no file is deleted or changed.
  * Drawing commands use the bound STYLE record's explicit resolved pen and
  * write mode. c/k preserve raw colour values: current-radix palette indices
  * or four-digit UltraNum RGB (8 bits/channel), with last-field shortening.

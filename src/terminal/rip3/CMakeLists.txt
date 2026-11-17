@@ -49,10 +49,10 @@ int main(void) {
 	endif()
 	set(_rip3_resource_directory st_rip3_resource_directory_posix.c)
 endif()
-add_library(st_rip3_storage STATIC st_rip3_variables_file.c st_rip3_bitmap_file.c
+add_library(st_rip3_storage STATIC st_rip3_variables_file.c st_rip3_bitmap_file.c st_rip3_jpeg_file.c
 	st_rip3_resources.c ${_rip3_resource_directory})
 target_include_directories(st_rip3_storage PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE syncterm_filesystem
+target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE st_pixel_image syncterm_filesystem
 	syncterm_path st_unicode_compare)
 if(WIN32)
 	target_link_libraries(st_rip3_storage PRIVATE st_windows_utf)
@@ -79,7 +79,7 @@ else()
 endif()
 
 add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_port_commands.c st_rip3_bitmap_commands.c
-	st_rip3_bitmap_load_commands.c st_rip3_text_commands.c st_rip3_bitmap_error_ui.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c)
+	st_rip3_bitmap_load_commands.c st_rip3_image_commands.c st_rip3_text_commands.c st_rip3_bitmap_error_ui.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c)
 target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio
 	PRIVATE st_rip3_storage syncterm_string_compat st_utf8 st_codepage)
@@ -92,6 +92,28 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	foreach(variant IN ITEMS native disabled)
+		add_executable(st_rip3_image_commands_${variant}_test tests/st_rip3_image_commands_test.c
+			tests/st_rip3_image_commands_fault_impl.c tests/st_rip3_jpeg_file_fault_impl.c
+			tests/st_rip3_image_fault_impl.c)
+		if(variant STREQUAL "disabled")
+			target_sources(st_rip3_image_commands_${variant}_test PRIVATE ../../media/pixel_image/st_pixel_image_jpeg.c)
+		endif()
+		target_link_libraries(st_rip3_image_commands_${variant}_test PRIVATE st_rip3_commands
+			st_pixel_image syncterm_filesystem syncterm_path)
+		set_target_properties(st_rip3_image_commands_${variant}_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(MSVC)
+			target_compile_options(st_rip3_image_commands_${variant}_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+		else()
+			target_compile_options(st_rip3_image_commands_${variant}_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+		endif()
+		add_test(NAME rip3_image_commands_${variant} COMMAND "${CMAKE_COMMAND}"
+			"-DTEST_PROGRAM=$<TARGET_FILE:st_rip3_image_commands_${variant}_test>"
+			"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/image-commands-${variant}"
+			"-DJPEG_DIRECTORY=${CMAKE_CURRENT_SOURCE_DIR}/../../media/pixel_image/tests/jpeg"
+			-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/image_commands.cmake")
+	endforeach()
 	add_executable(st_rip3_input_test tests/st_rip3_input_test.c)
 	target_link_libraries(st_rip3_input_test PRIVATE st_rip3)
 	add_executable(st_rip3_delay_commands_test tests/st_rip3_delay_commands_test.c)

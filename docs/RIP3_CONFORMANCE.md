@@ -301,7 +301,8 @@ callbacks. `pixel_jpeg_disabled` checks the absent-backend API in the same nativ
 configuration; `pixel_jpeg_dependency` checks static/shared source-build policy.
 The backend uses the existing dependency controls with a hash-pinned
 libjpeg-turbo fallback and retained IJG notices. Runtime support validates the
-header/library ABI. JPEG host commands, file lookup and canvas rendering remain
+header/library ABI. The image and literal RIP_IMAGE milestones below add canvas
+rendering, file lookup and ordinary 1p processing; delivery and macros remain
 pending.
 
 `rip3_surface` checks an independent indexed 256-color surface and palette.
@@ -763,8 +764,8 @@ present. Native Valgrind reports no errors or definite/indirect leaks.
 
 Memory rendering never deletes files or changes palette definitions. RGB
 images ignore flag 8; indexed palette commit is explicitly unsupported.
-BMP macro auto-dithering, macro/wire processing, world coordinates, image
-delivery/lifetime and capability registration remain pending. The primitive's
+BMP macro auto-dithering, image-style wire/world processing and image
+delivery/lifetime remain pending. Literal 1p processing is covered below. The primitive's
 explicit background/margin policy is not a claim that #21's shipping behavior
 is resolved. No terminal route or RIP154 implementation changes are included.
 
@@ -2271,6 +2272,62 @@ inherited descriptors for the new text-command fixture. All 93 frozen files and
 41 legacy helpers remain unchanged; all 6548 source blocks, 62 document identities
 and the reference pin are unchanged. Temporary logs were removed. Active routing,
 original bundled font bytes and RIP1.54 behavior remain unchanged.
+
+## Literal JPEG file display
+
+`st_rip3_jpeg_load` connects the existing baseline JPEG decoder to the trusted
+MEDIA lookup order: host, shared, then configured search entries. Names are bare
+UTF-8 and matched caselessly; extensions are literal. No extension-completion
+rule is inferred. The loader checks the physical length and complete read,
+closes its stream before publishing an owned RGB image, and preserves the output
+on file, decode, allocation or close failure. An unavailable decoder is reported
+before file access. Sources are never rewritten or deleted.
+
+The void command processor now handles literal `1p` with the current ENV radix
+and four reserved zero digits. It loads before drawing into the current port's
+explicitly bound DEVICE image style, using the bound current palette and STYLE
+write mode. Protected port/style/palette records permit content display, with
+their selections, metadata and ENV references retained. JPEG flag 8 is ignored.
+COPY display supports stretching and aspect-ratio margins. Other modes require
+skip-clear and no aspect preservation: #21 still leaves the clear/margin write
+mode unspecified. Active deletion flag 2 and disabled-view deletion ambiguity
+are declined before loading or painting. Inactive viewports and disabled images
+without disputed flags ignore valid commands before asset/style/palette access.
+
+Unexpanded variables, conditionals, control notation and quoting are declined
+before file access. Invalid names, missing/corrupt/truncated files, absent JPEG
+support and all staged allocation failures stay inside the nonfatal parser
+boundary; no session-ending status is returned. General expansion, `1i` and
+IMGSTYLE wire/world semantics, delivery, deletion and reset/PORT-STYLE ownership
+remain pending or blocked under #21/#24. Active application routing is unchanged.
+
+`rip3_image_commands_native` and `rip3_image_commands_disabled` run in the same
+native build. They exercise the authored DC-only color and grayscale JPEGs,
+all supported subsampling profiles, host-over-shared precedence, ordered search,
+Unicode caseless names, literal extensions and unchanged source time/size. Fault
+injection checks complete-read/short-read/I/O/size/close failures and owned-image
+cleanup, filename/file-buffer/decode/draw-staging allocation failures, preserved
+outputs and recovery. Byte-split 1p streams produce independently expected full
+index/palette captures on all three canvases. The write-mode/flag matrix checks
+supported output and rejection of unresolved clear/margin combinations without
+scene changes. RGB background handling, unused backgrounds, disabled/inactive
+no-ops and a later valid command after a bad JPEG are included.
+
+The unresolved TEXTXY query remains unsupported. [Issue #6 now includes concrete
+questions](https://github.com/bbs-land/remote-imaging-protocol/issues/6#issuecomment-6935322623)
+about start versus end position, MOVE/empty-text effects, coordinate units,
+serialization and fractional CHR advances; its hypothetical reply is not adopted.
+
+The native Release CMake configure/build and all 93 selected tests passed
+(RIP3, RIP154 source preservation, JPEG decoder/dependency, shared audio and
+codepage). Both new command fixtures report zero Valgrind errors, no retained
+heap and only three inherited descriptors. The 93 frozen files and 41 legacy
+helpers still match the original baseline. All 6548 immutable source blocks,
+62 document identities and the reference pin are retained; the review queue
+contains 1000 implemented, 724 pending, 455 blocked, 973 contextual, 24 excluded
+and 3372 unreviewed blocks. Verification logs and fixture directories were
+removed. These results establish this separate-engine milestone, not full
+compliance or active application/physical-device coverage.
 
 ## Verification and acceptance
 
