@@ -19,32 +19,32 @@ file(WRITE "${_bundle}/MacOS/SyncTERM" "fixture app\n")
 file(WRITE "${_bundle}/Info.plist" "fixture plist\n")
 file(WRITE "${_bundle}/Resources/SyncTERM.icns" "fixture icon\n")
 set(_script "${CMAKE_CURRENT_LIST_DIR}/../github-package.cmake")
-execute_process(COMMAND "${CMAKE_COMMAND}" -E env "GITHUB_SHA=fixture-commit"
-	"${CMAKE_COMMAND}" "-DCI_BUILD_DIR=${_build}" -DPACKAGE_NAME=syncterm-fixture -P "${_script}"
+set(_stage "${_build}/packages/syncterm-fixture")
+file(MAKE_DIRECTORY "${_stage}/licenses/src/old")
+file(WRITE "${_stage}/licenses/src/old/LICENSE" "stale license\n")
+file(WRITE "${_stage}/BUILD.txt" "stale build information\n")
+execute_process(COMMAND "${CMAKE_COMMAND}" "-DCI_BUILD_DIR=${_build}"
+	-DPACKAGE_NAME=syncterm-fixture -P "${_script}"
 	COMMAND_ERROR_IS_FATAL ANY)
 set(_extract "${TEST_ROOT}/extract")
+file(REMOVE_RECURSE "${_extract}")
 file(MAKE_DIRECTORY "${_extract}")
 execute_process(COMMAND "${CMAKE_COMMAND}" -E tar xf "${_build}/packages/syncterm-fixture.zip"
 	WORKING_DIRECTORY "${_extract}" COMMAND_ERROR_IS_FATAL ANY)
-set(_package "${_extract}/syncterm-fixture")
-foreach(_file IN ITEMS syncterm syncterm_libretro.so LICENSE artifact-configuration.txt BUILD.txt
-	licenses/src/scripting/wren_vm/LICENSE
-	licenses/dependencies/example-1/Release/share/licenses/EXAMPLE/LICENSE
+set(_expected
+	SyncTERM.app SyncTERM.app/Contents SyncTERM.app/Contents/MacOS SyncTERM.app/Contents/Resources
 	SyncTERM.app/Contents/MacOS/SyncTERM SyncTERM.app/Contents/Info.plist
-	SyncTERM.app/Contents/Resources/SyncTERM.icns)
-	if(NOT EXISTS "${_package}/${_file}")
-		message(FATAL_ERROR "Package is missing ${_file}")
-	endif()
-endforeach()
-file(READ "${_package}/BUILD.txt" _provenance)
-if(NOT _provenance MATCHES "Commit: fixture-commit")
-	message(FATAL_ERROR "Package lost commit provenance")
+	SyncTERM.app/Contents/Resources/SyncTERM.icns syncterm syncterm_libretro.so)
+file(GLOB_RECURSE _contents LIST_DIRECTORIES TRUE RELATIVE "${_extract}" "${_extract}/*")
+list(SORT _expected)
+list(SORT _contents)
+if(NOT _contents STREQUAL _expected)
+	message(FATAL_ERROR "Package must contain only products at its root: ${_contents}")
 endif()
 if(NOT WIN32)
-	execute_process(COMMAND test -x "${_package}/syncterm" COMMAND_ERROR_IS_FATAL ANY)
+	execute_process(COMMAND test -x "${_extract}/syncterm" COMMAND_ERROR_IS_FATAL ANY)
 endif()
-file(REMOVE "${_build}/reports/artifact-configuration.txt")
-execute_process(COMMAND "${CMAKE_COMMAND}" "-DCI_BUILD_DIR=${_build}"
+execute_process(COMMAND "${CMAKE_COMMAND}" "-DCI_BUILD_DIR=${TEST_ROOT}/empty-build"
 	-DPACKAGE_NAME=syncterm-fixture -P "${_script}"
 	RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
 if(_result STREQUAL "0" OR NOT _err MATCHES "Missing CI products")

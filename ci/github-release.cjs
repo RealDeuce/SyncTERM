@@ -92,7 +92,7 @@ async function publish({github, context, core, directory = 'packages', now = new
     `Expires after ${expires} (removed by the next daily cleanup).`,
     `[Workflow run](${run})`,
     ...packages.map(name => `[${name}](${context.serverUrl}/${repo.owner}/${repo.repo}/releases/download/${tag}/${name})`),
-    'See the included configuration report for features and runtime dependencies.',
+    'ZIP archives contain only the binaries, including the complete macOS app bundle. See the workflow reports for build configuration.',
     'These builds are unsigned. Optional runtime libraries may require separate installation.',
   ].join('\n\n');
   await github.rest.repos.updateRelease({
