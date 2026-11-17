@@ -253,10 +253,10 @@ an outer archive containing workspace paths and diagnostic reports; the
 following links download the binary-only ZIP directly from the latest
 successful `master` pipeline:
 
-* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=linux-gcc[Linux x86-64]
-* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=freebsd[FreeBSD]
-* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=macos-arm64[macOS arm64]
-* https://gitlab.synchro.net/api/v4/projects/Deuce%2Fsyncterm/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=windows-msvc%3A%20%5Bx64%5D[Windows x86-64 (MSVC)]
+* https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=linux-gcc[Linux x86-64]
+* https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=freebsd[FreeBSD]
+* https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=macos-arm64[macOS arm64]
+* https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=windows-msvc%3A%20%5Bx64%5D[Windows x86-64 (MSVC)]
 
 For other jobs, replace the `job` query parameter with the URL-encoded job
 name. These links become available after a pipeline with ZIP packaging
