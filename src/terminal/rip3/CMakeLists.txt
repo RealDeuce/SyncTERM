@@ -79,7 +79,7 @@ else()
 endif()
 
 add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_port_commands.c st_rip3_bitmap_commands.c
-	st_rip3_bitmap_load_commands.c st_rip3_bitmap_error_ui.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c)
+	st_rip3_bitmap_load_commands.c st_rip3_text_commands.c st_rip3_bitmap_error_ui.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c)
 target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio
 	PRIVATE st_rip3_storage syncterm_string_compat st_utf8 st_codepage)
@@ -200,6 +200,18 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_fill_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_fill_commands COMMAND st_rip3_fill_commands_test)
+
+	add_executable(st_rip3_text_commands_test tests/st_rip3_text_commands_test.c
+		tests/st_rip3_text_commands_fault_impl.c tests/st_rip3_stroke_text_fault_impl.c)
+	target_link_libraries(st_rip3_text_commands_test PRIVATE st_rip3_commands st_utf8 st_codepage)
+	set_target_properties(st_rip3_text_commands_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_text_commands_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_text_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_text_commands COMMAND st_rip3_text_commands_test)
 
 	add_executable(st_rip3_font_command_test tests/st_rip3_font_command_test.c)
 	target_link_libraries(st_rip3_font_command_test PRIVATE st_rip3_commands)

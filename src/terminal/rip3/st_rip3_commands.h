@@ -15,6 +15,7 @@ struct st_rip3_styles;
 struct st_rip3_input;
 struct st_rip3_query;
 struct st_rip3_bitmap_destination;
+struct st_rip3_text_context;
 
 /* Borrowed UI request, made on the session thread for file/decode failures.
  * name and area live only during show(). Explicit areas are viewport-relative
@@ -67,6 +68,7 @@ struct st_rip3_command_host {
 	const struct st_rip3_clipboard_selection *clipboard;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	const struct st_rip3_clipboard_clear_sink *clipboard_clear;
+	struct st_rip3_text_context *text;
 };
 
 enum st_rip3_command_diagnostic {
@@ -88,6 +90,7 @@ struct st_rip3_command_sink {
  * entry does not buffer partial input or perform macro expansion.
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
+ * m, classic literal T and horizontal-left @,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
  * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 2W bitmap export,
@@ -185,6 +188,22 @@ struct st_rip3_command_sink {
  * Y validates all four two-digit current-radix fields before editing the bound
  * STYLE's classic font attributes. Conflicting justification flags discard the
  * complete command. This does not activate an extended font or text cursor.
+ * With a text context binding, successful Y selects the classic font family;
+ * rejected/protected edits preserve family selection as well as attributes.
+ * m projects XY into the explicitly bound viewport-relative device cursor.
+ * T draws at that cursor; horizontal-left @ positions and draws atomically.
+ * Literal graphics text uses the context's explicit CP437/UTF-8 encoding,
+ * mapping UTF-8 to original CP437 glyphs with one fallback per unmappable scalar.
+ * Unexpanded macro/control/template introducers are unsupported before effects.
+ * Classic fonts come from the current STYLE and original bundled canvas data,
+ * with an optional immutable override for that same font number. Only successful
+ * horizontal-left drawing commits the unrounded logical advance. Other T
+ * orientations retain the cursor; their @ forms remain under #24. Empty T
+ * retains it; empty horizontal-left @ positions it without ink. E and other
+ * geometry do not reset it. Inactive viewports ignore valid text/move commands
+ * before consulting text/style/encoding services. Protected content can draw.
+ * Reset, PORT/STYLE cursor ownership, TEXTXY replies, extended-font activation,
+ * macro expansion and application transport/routing remain separate work.
  * S/s replace the fill mask/colour and retain the caller's explicit device
  * pattern phase (#12). Custom rows use the current radix, top-to-bottom/MSB-left;
  * colour fields share c/k encoding. Conflicting stock masks remain unsupported.

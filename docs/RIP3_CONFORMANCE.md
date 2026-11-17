@@ -2217,6 +2217,61 @@ files and 41 legacy helpers remain unchanged, as do the 6548 source blocks,
 62 document identities and reference pin. Temporary logs were removed. Active
 routing, original font assets and RIP1.54 behavior remain unchanged.
 
+### Classic MOVE/TEXT/TEXT_XY command dispatch
+
+The separate dispatcher now connects `m`, literal classic `T`, and the documented
+horizontal-left `@` branch to wide text geometry. The caller supplies the live
+device cursor, input encoding and resolved font family explicitly. m projects
+current-radix/width WORLD coordinates into that cursor without drawing. T reads
+it; @ supplies an anchor and commits position/advance only after rendering
+succeeds. Logical advances retain fractions. Other T orientations/justifications
+retain the cursor; their @ forms remain unsupported before effects under #24.
+Neither this binding nor the command handler chooses PORT/STYLE cursor ownership,
+bootstrap, backup or reset activation. E and non-text geometry retain the cursor.
+
+The current STYLE supplies classic font attributes and raw ink/write mode. An
+optional immutable override supplies that numbered font; other numbers resolve
+to the original bundled canvas font. Successful Y selects the classic family
+when a text context is bound; protected/rejected Y changes neither family nor
+cursor. Active extended-family text remains unsupported. Direct RGB ink resolves
+through the current bound palette; unused shadow background and NOT-mode colors
+are not looked up. Glyph staging/validation finish before the cursor is committed,
+so unsupported SCAN records, malformed inputs, missing services and allocation
+failures cannot leave an advanced cursor or partially accepted text command.
+
+Input encoding is explicit CP437 or strict UTF-8 mapped to original CP437 glyphs,
+with one fallback glyph per unmappable scalar. Whole text is validated before
+painting. Unexpanded macro, variable, control-notation, template/pick-list and
+quoting introducers are declined before output; general expansion/transport
+unquoting remains separate. Empty T retains the cursor; empty horizontal-left @
+positions it without ink. Inactive viewports ignore valid move/text commands
+before consulting text/style/encoding services. Public processing remains void,
+with every private service failure consumed as a nonfatal command diagnostic.
+
+`rip3_text_commands` uses authored bitmap and CHR glyphs with independent expected
+index/palette captures on all three canvases. Byte-split scenes cover ASCII,
+CP437 e-acute/full-block and corresponding UTF-8 characters, spaces, fallback,
+T continuation, @ placement and preserved table selections/references/protection.
+Literal published m/T/@ examples, current-radix widths 2..5, shortened final MOVE
+fields, WORLD projection, huge offscreen anchors, five transfer modes, shadows,
+RGB/NOT/unused-background paths and non-advancing T orientations are checked.
+A fractional CHR advance survives successive T calls; valid Y activates the classic
+family, while protected Y and BOLD SCAN rejection preserve state. UTF-8-buffer and
+stroke-staging allocation failures retain both pixels and cursor; malformed split
+input recovers into later m/T commands. The initial MOVE test failed against the
+prior unsupported dispatcher before implementation changed.
+
+These are explicit-context classic literal commands, not complete text expansion,
+extended-font, cursor-reset/ownership, TEXTXY-query or active application coverage.
+The original font assets, 1.54 engine and active route are not changed.
+
+The native CMake build and all 88 selected RIP3/preservation/shared-audio/codepage
+tests pass. Valgrind reports zero errors, no retained heap and only three
+inherited descriptors for the new text-command fixture. All 93 frozen files and
+41 legacy helpers remain unchanged; all 6548 source blocks, 62 document identities
+and the reference pin are unchanged. Temporary logs were removed. Active routing,
+original bundled font bytes and RIP1.54 behavior remain unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

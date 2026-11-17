@@ -2,6 +2,7 @@
 #include "st_rip3_command_internal.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
+#include "st_rip3_text_commands.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_draw_internal.h"
@@ -320,7 +321,9 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		if (status != 0)
 			return status;
 		*operation = true;
-		return st_rip3_styles_set(host->styles, number, &style);
+		status = st_rip3_styles_set(host->styles, number, &style);
+		if (status == 0 && host->text != NULL) host->text->classic = true;
+		return status;
 	}
 	if (command[0] == 'W') {
 		if (count == 0 || count > 2)
