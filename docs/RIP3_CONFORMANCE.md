@@ -2967,6 +2967,90 @@ The 7353-block queue now has 114 implemented, 1614 pending, 4695 unreviewed,
 removed. No active application route, original artifact or upstream content was
 modified, and no changes were pushed.
 
+## SWITCH_PORT selection and protection reconciliation
+
+`2s` now uses the adopted three-character target/flags descriptor without a
+reserved field. Target validation precedes every protection change. Higher flag
+bits are accepted; only bits 1/2/4/8 act. The original order is source-protect,
+source-unprotect, select/create, destination-protect, destination-unprotect.
+Both conflicting pairs therefore end unprotected, and destination actions win
+when source and destination are the same port. Defined protected and inactive
+ports remain selectable. Port zero ignores all protection writes.
+
+Ordinary undefined destinations are created as default full-screen **screen**
+ports, then selected. Construction uses physical display dimensions, independent
+of the current WORLD, ENV reference or port-zero viewport/image record. A new
+`st_rip3_ports_select` service is shared by `2s` and `CUR(PORT,n)`; the existing
+strict device switch service retains its undefined-target contract for its other
+callers. Creation failure selects zero, preserves the failed target and retains
+already-applied source flags. Destination actions refer to actual fallback zero,
+never the requested absent target or old source. The private service result is
+consumed by the void command/macro boundary as an optional nonfatal diagnostic.
+
+The adopted `issue-54-switch-port-precedence.md` supplies handler 0x468eb,
+protection 0x3378a, selector 0x3393c, constructor 0x3326f and native table evidence.
+The new focused fixture reproduces all eight normative examples, including a
+protected-but-undefined target for the failure branch. A test-only implementation
+file creates that raw state; no production setter is exposed, and no claim is
+made that ordinary protection commands can create it. All source/target indices,
+low flag combinations and valid initial protection combinations are checked for
+screen/offscreen/ordinary-absent/stale-protected targets on every canvas, with
+all unrelated port records compared after every command. This is 235216 cases
+per canvas, 705648 total. Port zero starts with
+an inactive sub-viewport and nondefault image state, while a protected ENV has
+unrelated references and WORLD size 1×1, distinguishing fresh physical defaults
+from copied live state. Additional tests exhaust both two-digit flag domains,
+including all higher values in base36 and base64 (32352 additional cases),
+same-port precedence, zero
+immunity and invalid-target recovery. Independent coherent all-canvas captures
+check drawing through existing screen/offscreen and newly created screen ports,
+retained inactive geometry, selection and byte-split recovery.
+
+Cursor/style/device binding, disabled-graphics processing and active application
+routing remain separate implementation work. The ledger keeps the combined
+disabled-graphics requirement pending even though its nontransactional state
+outcomes are tested. This milestone does not claim complete context integration.
+The command API comments also reflect the already-reconciled `2C`/`2W` geometry;
+their executable paths are unchanged by this milestone.
+
+## New DEFINE_PORT documentation discrepancy
+
+Bounded read-only review of the unchanged original DLL identified a distinct
+DEFINE_PORT gap, filed as [#72](https://github.com/bbs-land/remote-imaging-protocol/issues/72)
+after checking related issues #10/#16/#54 and the issue list. No existing issue
+was edited. The pin remains `5ae9d165b1ac3e36161847e68db0d763228b779b`; open PR #71's
+head was still `61b8fedfe9d3a12442f65a73089a4f008037c519` and was not adopted.
+The artifact SHA-256 remains
+`83d71b358492b15bcfd3773c30a52784881a3a49a5b6e9029d986b3cba1fd5e8`.
+
+The static trace finds only bit 1 passed to initialization and bit 2 used for
+selection, despite the draft's promised bit-4 deactivation and bit-8 protection.
+The handler computes low-WORD endpoint differences before an offscreen origin
+is zeroed, conflicting with an interpretation that nonzero near coordinates are
+ignored before sizing. The protected-redefinition branch appears to diagnose
+without selecting zero, and unprotected replacement deletes the old entry before
+allocation with a separately restored current index on failure. Issue #72 gives
+exact RVAs and requests observable native state outcomes. These are static
+findings, not a newly executed original-client outcome matrix. The four directly
+affected source blocks are now blocked on that issue. Ordinary extent answers
+in #10 and all of #21 remain documented; no additional content is requested on
+those issues. DEFINE_PORT and raw viewport producer reconciliation remain
+unfinished rather than being claimed by passing historical tests.
+
+The existing native FreeBSD Release CMake configure/build with `/usr/bin/cc`
+passes without new compiler warnings. All 99 selected tests pass (26.67 seconds).
+After removing success-only fixture logging, the five focused selection/table/
+preservation tests pass again (0.83 seconds). Final Valgrind reports zero errors,
+no retained heap, 470480 allocations/frees and three inherited descriptors for
+the expanded switch fixture, without suppressed contexts. All 93 frozen files
+and 41 helpers remain unchanged. Source/pin/adoption identities and the RIP1.54
+capture inventory are intact; only switch/DEFINE_PORT review metadata and the
+new B72 blocker changed. The 7353-block queue now has 138 implemented, 1609
+pending, 4663 unreviewed, 898 contextual, 24 excluded and 21 blocked entries.
+Owned temporary request/log directories were removed. Unrelated concurrent CI
+edits were left untouched. No active application route or original artifact was
+modified, and no changes were pushed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

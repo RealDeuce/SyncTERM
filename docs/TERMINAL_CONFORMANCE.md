@@ -87,6 +87,11 @@ clipping, whole-backing offscreen export, inactive/protected reads and nonfatal
 undefined/empty/allocation/write recovery, with independent BMP byte/pixel
 expectations across all canvases, both radices and coordinate widths 2–5.
 Complete scene/header reset orchestration and application routing remain pending.
+SWITCH_PORT tests now cover source/selection/destination ordering, per-pair
+unprotect precedence, all port indices and flag domains, ordinary undefined-port
+creation and nontransactional failed creation. CUR(PORT,n) shares its selector.
+Independent all-canvas captures check drawing after selection and parser recovery;
+whole-scene disabled-graphics/context binding remains pending.
 These do not change the active route. A body tests now add canonical full circles and validated
 equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
 handling, RGB/NOT, protected records, wide clipping and allocation recovery.

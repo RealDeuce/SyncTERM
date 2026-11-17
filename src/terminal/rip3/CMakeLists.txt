@@ -213,7 +213,8 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME rip3_paste_commands COMMAND st_rip3_paste_commands_test)
 
-	add_executable(st_rip3_switch_commands_test tests/st_rip3_switch_commands_test.c)
+	add_executable(st_rip3_switch_commands_test tests/st_rip3_switch_commands_test.c
+		tests/st_rip3_switch_ports_impl.c)
 	target_link_libraries(st_rip3_switch_commands_test PRIVATE st_rip3_commands)
 	set_target_properties(st_rip3_switch_commands_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

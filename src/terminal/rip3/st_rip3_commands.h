@@ -77,7 +77,7 @@ struct st_rip3_command_sink {
  * m, classic literal T and horizontal-left @,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
- * rectangle-fit 2C, onscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
+ * rectangle-copy 2C, onscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
@@ -89,16 +89,20 @@ struct st_rip3_command_sink {
  * Port commands use the bound PORT table and current ENV world/width/radix,
  * without activating or updating ENV references. World geometry requires the
  * ENV and PORT device canvases to agree. Offscreen 2P and wholly external
- * port/viewport definitions remain unsupported pending #10. For 2C, all-zero
- * source/destination fields mean the full viewport; explicit rectangles clip
- * then fit. A nonzero destination origin with both endpoints zero remains
- * unsupported (#10). Undefined/inactive operands are successful no-ops.
- * 2s accepts the complete three-digit port/flags form used by the corpus.
- * It selects the bound port and applies consistent source/destination protect
- * flags, skipping protection edits to port zero. A missing destination with
- * zero flags falls back to zero. Conflicting flags, flags on an undefined
- * destination and disputed longer reserved forms are declined before changes.
- * It does not activate missing cursor/style/ENV context under #24.
+ * port/viewport definitions await producer reconciliation. DEFINE_PORT flag,
+ * origin and replacement discrepancies are tracked in #72. For 2C, projected
+ * all-zero source/destination boundaries mean the full viewport; otherwise
+ * zero destination ends synthesize an equal-size destination. Half-open extents
+ * select unscaled versus fit before clipping. Equal copies trim together;
+ * unequal copies clip independently and fit. Undefined/inactive operands are
+ * successful no-ops. Indexed transfers do not establish full RGB compliance.
+ * 2s has exactly three port/flag digits, with no reserved field. Only low
+ * flags 1/2/4/8 act; higher bits are accepted. Apply source-protect/unprotect,
+ * select/create the destination, then destination-protect/unprotect on the
+ * actual current port. Unprotect wins within each pair. Undefined targets
+ * become full-screen ports; failed creation selects zero and retains source
+ * effects. Zero ignores protection writes. CUR(PORT,n) shares this selector.
+ * Cursor/style/ENV activation and disabled-graphics routing remain separate.
  * 1P pastes the bound clipboard port's full current viewport without scaling,
  * placing its top-left at the projected XY in the current viewport. The five
  * transfer modes use source inversion for mode 4. Cleared/same-port pointers
@@ -116,12 +120,12 @@ struct st_rip3_command_sink {
  * Current port, protection, pixels, palette and ENV references are retained.
  * Source capture/encoding finish before any filesystem replacement is attempted.
  * 2W exports a named port without selecting it or using the clipboard pointer.
- * Raw all-zero coordinates select its full viewport; zero lower-right fields
- * select the remainder from the projected upper-left. Explicit inside regions
- * retain inclusive endpoints. Undefined ports/outside origins are no-ops.
- * Partially external lower-rights and inactive sources remain unsupported under
- * #10. Reserved digits and literal filename must be present; current ENV width
- * and radix govern all numeric fields. Encoding/storage share 1W's path.
+ * Coordinates are raw DEVICE offsets, decoded with current ENV width/radix.
+ * Screen sources use half-open crops, independent far clipping and full/remainder
+ * zero forms. Offscreen sources export the entire backing bitmap after explicit
+ * rectangle validation. Defined protected/inactive sources remain readable;
+ * undefined/empty sources diagnose without replacing the file. Reserved digits
+ * and literal filename must be present. Encoding/storage share 1W's path.
  * 1i normalizes current-WORLD corners and stores projected DEVICE boundaries
  * with a further far-edge unit, without clipping to the viewport. Flags 0..63
  * replace the old flags. Protected/inactive current ports can be changed.

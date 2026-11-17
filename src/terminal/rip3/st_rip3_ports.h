@@ -61,6 +61,12 @@ int st_rip3_ports_install_bitmap(struct st_rip3_ports *ports, unsigned number,
 	struct st_rip3_surface **bitmap);
 /* Undefined switch targets select port zero and return NOT_FOUND. */
 int st_rip3_ports_switch(struct st_rip3_ports *ports, unsigned number);
+/* Original wire/CUR selector: create an undefined target as a default full-
+ * screen port, then select it. Creation failure selects zero and returns its
+ * status without changing the failed entry. Defined protected/inactive ports
+ * select normally. Invalid indexes fail before changing selection. This does
+ * not apply protection flags or activate ENV references. */
+int st_rip3_ports_select(struct st_rip3_ports *ports, unsigned number);
 int st_rip3_ports_protect(struct st_rip3_ports *ports, unsigned number, bool protect);
 /* Delete zero means delete all unprotected nonzero ports. A deleted current
  * port falls back to zero. Protected single deletes fail without changes. */

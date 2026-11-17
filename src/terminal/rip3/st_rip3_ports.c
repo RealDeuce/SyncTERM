@@ -221,6 +221,23 @@ st_rip3_ports_switch(struct st_rip3_ports *ports, unsigned number)
 }
 
 int
+st_rip3_ports_select(struct st_rip3_ports *ports, unsigned number)
+{
+	int status;
+
+	if (ports == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36) return IO_ERROR_OUT_OF_RANGE;
+	if (!ports->entries[number].info.defined) {
+		status = st_rip3_ports_define(ports,number,&ports->screen_bounds,false);
+		if (status != 0) {
+			ports->current = 0;
+			return status;
+		}
+	}
+	return st_rip3_ports_switch(ports,number);
+}
+
+int
 st_rip3_ports_protect(struct st_rip3_ports *ports, unsigned number, bool protect)
 {
 	if (ports == NULL)
