@@ -162,7 +162,8 @@ Open clarification issues:
 - [#42](https://github.com/bbs-land/remote-imaging-protocol/issues/42): conflicting
   GET_IMAGE clipboard-slot searches, protected candidates, previous clipboard
   pointer and port/pixel state after failure; LOAD_BITMAP protected-target and
-  fully clipped duplicate behavior.
+  fully clipped duplicate behavior; LOAD_ICON failure clearing and error-box
+  ordering.
 
 - [#46](https://github.com/bbs-land/remote-imaging-protocol/issues/46): D's
   milliseconds summary conflicts with its detailed 60ths-of-a-second rule.
@@ -2075,6 +2076,59 @@ inherited descriptors in both load-command and stamp fixtures. All 93 frozen
 files and 41 legacy helpers remain unchanged, as do the 6548 source blocks,
 62 document identities and reference pin. Temporary fixtures, issue payloads
 and verification logs were removed. Active routing and RIP1.54 are unchanged.
+
+### LOAD_ICON ordinary placement and reference scaling
+
+The separate command dispatcher now connects `1I` with clipboard=0 to BMP media
+lookup and stamping. It validates current ENV coordinate width/radix, two-digit
+mode, clipboard/scale choices and reserved zero before effects. XY is projected
+through the current WORLD. Scale zero uses native file pixel counts; scale one
+projects the image size from a fixed 640x350 reference independently of that
+WORLD. Positive size counts round down consistently with the existing geometry
+mapper. All five transfer modes, current bound palette and viewport clipping
+apply. This branch does not adopt/dither palettes or consult image-style fitting,
+clearing or disable settings. Protected content permits drawing, and inactive
+viewports ignore valid commands before file or clipboard/UI services.
+
+Active ordinary loads require both a bitmap-error UI sink and a typed void
+clipboard-clear sink. Valid file/read/decode failures deliver a clear request
+and a suitable error-box request even when copying was disabled. Invalid names,
+syntax/unsupported fields and memory failures remain nonfatal diagnostics without
+those file-error requests. Failed staging retains pixels; a later command still
+runs through the same public void boundary. The borrowed clipboard owner may
+update its own state during clearing but must retain host bindings and avoid
+parser reentry. The new callback is an ownership interface, not evidence of a
+complete native clipboard clear or graphical error box.
+
+[Issue #42's LOAD_ICON clarification request](https://github.com/bbs-land/remote-imaging-protocol/issues/42#issuecomment-6933073823)
+asks what clearing clipboard contents means separately from clearing its pointer:
+port deletion, pixel erasure or a separate image; how protected/current/onscreen
+or dangling targets behave; and where/when the error box appears. Clipboard=1
+still depends on the unresolved GET_IMAGE selection policy. These paths remain
+blocked, and automatic legacy ICN conversion/deletion stays under #19. The BMP
+branch neither deletes arbitrary ports nor changes the preserved 1.54 engine.
+
+`rip3_bitmap_load_commands` adds full owned index/palette captures for ordinary
+1I loads on all three canvases. Independent expectations cover the exact published
+`1I001101010button` example, five transfer modes, indexed/RGB sources, native
+sizes, reference scaling, protected ENV/port/palette state, disabled image style
+and right/bottom clipping down to one visible pixel. An authored 35-row icon with
+10/15/10-row bands verifies the documented 48-row result at 640x480 and literal
+60/76-row results at 800x600/1024x768; changing WORLD dimensions affects placement
+without changing those reference sizes. Both radices and widths 2..5 are checked.
+File/malformed/unsupported/memory failures, missing services, inactive viewports
+and split-input recovery exercise owner-clear/UI requests and preserved state.
+The new ordinary-load assertions failed against the prior unsupported command
+before production behavior changed. Recorded requests do not establish native
+UI, clipboard-port clearing, automatic legacy conversion or active routing.
+
+The native CMake build and all 85 selected RIP3/preservation/shared-audio tests
+pass. Valgrind reports zero errors, no retained heap and only three inherited
+descriptors for the combined bitmap/icon command fixture. All 93 frozen files
+and 41 legacy helpers still match the original baseline. All 6548 source blocks,
+62 document identities and the reference pin are unchanged. Temporary logs,
+issue payloads and filesystem fixtures were removed. Active routing and RIP1.54
+behavior remain unchanged.
 
 ## Verification and acceptance
 

@@ -33,6 +33,9 @@ struct fixture {
 	struct st_rip3_command_host host;
 	struct st_rip3_resource_paths paths;
 	struct st_rip3_bitmap_error_sink feedback;
+	struct st_rip3_clipboard_clear_sink clear_sink;
+	struct st_rip3_clipboard_selection selection;
+	unsigned clears;
 	struct st_rip3_bitmap_destination last_area;
 	unsigned errors, prompts, last_port;
 	enum st_rip3_command_diagnostic kind;
@@ -56,6 +59,13 @@ show_error(void *context, const char *name, unsigned port,
 	if (area != NULL) f->last_area = *area;
 	if (strlen(name) >= sizeof(f->last_name)) { f->overflow = true; return; }
 	memcpy(f->last_name,name,strlen(name)+1);
+}
+
+static void
+clear_clipboard(void *context)
+{
+	struct fixture *f = context;
+	f->clears++; f->selection = (struct st_rip3_clipboard_selection){0};
 }
 
 static void
@@ -155,6 +165,28 @@ adoption_asset(const char *directory, unsigned depth)
 }
 
 static int
+tall_asset(const char *directory)
+{
+	uint8_t bytes[1218] = {0};
+	bytes[0] = 'B'; bytes[1] = 'M'; put32(bytes+2,sizeof(bytes)); put32(bytes+10,1078);
+	put32(bytes+14,40); put32(bytes+18,3); put32(bytes+22,35); put16(bytes+26,1); put16(bytes+28,8);
+	for (unsigned i = 0; i < 256; i++) bytes[54+4*i] = bytes[55+4*i] = bytes[56+4*i] = (uint8_t)i;
+	/* Three independently authored horizontal bands: 10,15,10 rows. */
+	for (unsigned y = 0; y < 35; y++) for (unsigned x = 0; x < 3; x++)
+		bytes[1078+(34-y)*4+x] = y < 10 ? 3 : y < 25 ? 12 : 48;
+	char *path = NULL;
+	CHECK(path_join_alloc(&path,directory,"Tall.BMP") == 0 && fs_replace_file(path,bytes,sizeof(bytes)) == 0);
+	free(path); return 0;
+}
+
+static void
+icon(char body[160], const char *coordinates, unsigned mode, unsigned clipboard,
+    unsigned scale, const char *name)
+{
+	(void)snprintf(body,160,"1I%s%02u%u%u0%s",coordinates,mode,clipboard,scale,name);
+}
+
+static int
 create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
 {
 	const struct st_rip3_rect bounds = {10,20,61,40}, viewport = {2,1,49,18};
@@ -174,6 +206,7 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	CHECK(st_rip3_environments_set(f->host.environments,0,&environment) == 0);
 	f->paths.host = directory; f->host.resources = &f->paths;
 	f->feedback = (struct st_rip3_bitmap_error_sink){f,show_error}; f->host.bitmap_errors = &f->feedback;
+	f->clear_sink = (struct st_rip3_clipboard_clear_sink){f,clear_clipboard}; f->host.clipboard_clear = &f->clear_sink;
 	return 0;
 }
 
@@ -492,6 +525,132 @@ duplicate_failures(const char *directory)
 }
 
 static int
+icons(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	struct fixture f = {0}; char body[160];
+	const char *const positions[] = {"0000","0500","0A00","0F00","0K00"};
+	const uint8_t modes[5][6] = {{3,12,48,192,0,255},{86,89,101,149,85,170},
+	    {87,93,117,213,85,255},{1,4,16,64,0,85},{252,243,207,63,255,0}};
+	const uint8_t scaled_640[] = {3,12,48,192,0,255};
+	const uint8_t scaled_800[] = {3,12,48,192,0,255,192,0,255};
+	const uint8_t scaled_1024[] = {3,12,12,48,3,12,12,48,192,0,0,255,192,0,0,255};
+	const uint8_t *scaled = width == 640 ? scaled_640 : width == 800 ? scaled_800 : scaled_1024;
+	unsigned scaled_width = width == 1024 ? 4 : 3, scaled_height = width == 640 ? 2 : width == 800 ? 3 : 4;
+	unsigned tall_height = width == 640 ? 48 : width == 800 ? 60 : 76;
+	unsigned band = width == 640 ? 14 : width == 800 ? 17 : 22;
+	const struct st_rip3_rect bounds = {10,20,89,139}, viewport = {2,1,65,100}, disabled = {0,0,0,0};
+	CHECK(create(&f,canvas,width,height,directory) == 0);
+	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_define(f.host.ports,1,&bounds,false) == 0
+	    && st_rip3_ports_viewport(f.host.ports,&viewport) == 0 && st_rip3_ports_erase(f.host.ports,85) == 0
+	    && st_rip3_ports_image_style(f.host.ports,1,&disabled,15) == 0 && st_rip3_ports_protect(f.host.ports,1,true) == 0);
+	f.selection = (struct st_rip3_clipboard_selection){true,9}; f.host.clipboard = &f.selection;
+	struct st_rip3_stream *stream = NULL;
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	st_rip3_stream_process(stream,(const uint8_t *)"!|",2);
+	for (unsigned mode = 0; mode < 5; mode++) {
+		icon(body,positions[mode],mode,0,0,"tiLE");
+		for (size_t i = 0; i < strlen(body); i++) st_rip3_stream_process(stream,(const uint8_t *)body+i,1);
+		st_rip3_stream_process(stream,(const uint8_t *)"|",1);
+	}
+	icon(body,"0004",0,0,1,"Tile.BMP"); CHECK(process(&f,body,-1) == 0);
+	icon(body,"0504",0,0,1,"Color.BMP"); CHECK(process(&f,body,-1) == 0);
+	CHECK(process(&f,"1I001101010button",-1) == 0);
+	struct st_rip3_environment environment;
+	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0);
+	environment.world_width = width/2; environment.world_height = height/2;
+	CHECK(st_rip3_environments_define(f.host.environments,2,&environment) == 0
+	    && st_rip3_environments_select(f.host.environments,2) == 0 && st_rip3_environments_protect(f.host.environments,2,true) == 0);
+	icon(body,"050A",0,0,1,"Tall"); CHECK(process(&f,body,-1) == 0);
+	icon(body,"0A0A",0,0,0,"Tall"); CHECK(process(&f,body,-1) == 0);
+	/* Verbatim clips the last source column at the viewport edge. */
+	icon(body,"0W1E",4,0,0,"Tile"); CHECK(process(&f,body,-1) == 0); /* device origin 64,100: outside. */
+	icon(body,"0V1D",4,0,0,"Tile"); CHECK(process(&f,body,-1) == 0); /* device origin 62,98: 2x2 visible. */
+	CHECK(st_rip3_environments_select(f.host.environments,0) == 0);
+	icon(body,"1R2R",4,0,0,"Tile"); CHECK(process(&f,body,-1) == 0); /* One visible corner pixel. */
+	CHECK(st_rip3_environments_select(f.host.environments,2) == 0);
+	CHECK(f.errors == 0 && f.prompts == 0 && f.clears == 0 && f.selection.set && f.selection.port == 9);
+	struct st_rip3_palette palette;
+	struct st_rip3_bitmap *capture = NULL;
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		uint8_t value = 0;
+		if (x >= 12 && x <= 75 && y >= 21 && y <= 120) {
+			uint32_t vx = x-12, vy = y-21; value = 85;
+			for (unsigned mode = 0; mode < 5; mode++)
+				if (vx >= mode*5 && vx <= mode*5+2 && vy < 2) value = modes[mode][vy*3+vx-mode*5];
+			if (vx < scaled_width && vy >= 4 && vy < 4+scaled_height) value = scaled[(vy-4)*scaled_width+vx];
+			if (vx >= 5 && vx < 5+scaled_width && vy >= 4 && vy < 4+scaled_height) value = scaled[(vy-4)*scaled_width+vx-5];
+			if (vx < scaled_width && vy >= 37 && vy < 37+scaled_height) value = scaled[(vy-37)*scaled_width+vx]^85;
+			if (vx >= 10 && vx < 10+scaled_width && vy >= 20 && vy < 20+tall_height)
+				value = vy < 20+band ? 3 : vy < 20+tall_height-band ? 12 : 48;
+			if (vx >= 20 && vx <= 22 && vy >= 20 && vy < 55) value = vy < 30 ? 3 : vy < 45 ? 12 : 48;
+			if (vx >= 62 && vy >= 98) value = modes[4][(vy-98)*3+vx-62];
+			if (vx == 63 && vy == 99) value = 252;
+		}
+		CHECK(capture->pixels->primary[(size_t)y*width+x] == value);
+	}
+	unsigned number; struct st_rip3_port_info info;
+	CHECK(st_rip3_ports_current(f.host.ports,&number) == 0 && number == 1
+	    && st_rip3_ports_info(f.host.ports,1,&info) == 0 && info.protected && !info.image.enabled && info.image.flags == 15);
+	CHECK(st_rip3_environments_current(f.host.environments,&number) == 0 && number == 2);
+	st_rip3_bitmap_destroy(capture); st_rip3_stream_destroy(stream); destroy(&f); return 0;
+}
+
+static int
+icon_failures(const char *directory)
+{
+	struct fixture f = {0}; char body[160];
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480,directory) == 0);
+	f.selection = (struct st_rip3_clipboard_selection){true,9}; f.host.clipboard = &f.selection;
+	icon(body,"0000",0,0,0,"Missing"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(f.clears == 1 && f.prompts == 1 && !f.selection.set && f.selection.port == 0
+	    && !f.area_present && f.last_port == 1 && strcmp(f.last_name,"Missing") == 0);
+	icon(body,"0000",0,0,1,"Compressed.BMP"); CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(f.clears == 2 && f.prompts == 2);
+	f.selection = (struct st_rip3_clipboard_selection){true,9};
+	icon(body,"0000",0,0,0,"../Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	icon(body,"0000",0,0,0,"\xff"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(f.clears == 2 && f.prompts == 2 && f.selection.set);
+	const char *const invalid[] = {"1I","1I0000","1I000000000"};
+	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
+	icon(body,"0000",5,0,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
+	icon(body,"0000",0,2,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
+	icon(body,"0000",0,0,2,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
+	icon(body,"0000",0,0,0,"Tile"); body[10] = '1'; CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	icon(body,"0000",0,1,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	icon(body,"0000",0,0,0,"Tile.BMP");
+	st_rip3_bitmap_file_test_fail_allocate = true;
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_file_test_fail_allocate);
+	st_rip3_bitmap_file_test_fail_decode = true;
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_file_test_fail_decode);
+	st_rip3_bitmap_stamp_test_fail_allocate = true;
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_allocate);
+	CHECK(f.clears == 2 && f.prompts == 2 && f.selection.set && f.selection.port == 9);
+	uint8_t actual;
+	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 85);
+	const struct st_rip3_clipboard_clear_sink *clear = f.host.clipboard_clear;
+	f.host.clipboard_clear = NULL; st_rip3_bitmap_file_test_fail_allocate = true;
+	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && st_rip3_bitmap_file_test_fail_allocate);
+	st_rip3_bitmap_file_test_fail_allocate = false; f.host.clipboard_clear = clear;
+	f.clear_sink.clear = NULL; CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.clear_sink.clear = clear_clipboard;
+	struct st_rip3_stream *stream = NULL;
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const char recovery[] = "!|1I|1I000000000Missing|1I000000000Tile|";
+	unsigned previous = f.errors;
+	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);
+	CHECK(f.errors == previous+2 && f.clears == 3 && f.prompts == 3 && !f.selection.set);
+	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 3);
+	st_rip3_stream_destroy(stream);
+	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
+	struct st_rip3_palettes *palettes = f.host.palettes;
+	f.host.palettes = NULL; f.host.resources = NULL; f.host.bitmap_errors = NULL; f.host.clipboard_clear = NULL;
+	icon(body,"0000",0,1,1,"Missing"); CHECK(process(&f,body,-1) == 0 && f.clears == 3 && f.prompts == 3);
+	f.host.palettes = palettes; destroy(&f); return 0;
+}
+
+static int
 numeric(const char *directory)
 {
 	for (unsigned radix = 36; radix <= 64; radix += 28) for (size_t width = 2; width <= 5; width++) {
@@ -526,6 +685,14 @@ numeric(const char *directory)
 			form(body,coordinates,'&',0,"01","00","Tile");
 			CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 		}
+		char icon_coordinates[11] = {0};
+		CHECK(st_rip3_number_encode(icon_coordinates,width,2,width,radix) == 0
+		    && st_rip3_number_encode(icon_coordinates+width,width,6,width,radix) == 0);
+		icon(body,icon_coordinates,0,0,0,"Tile"); CHECK(process(&f,body,-1) == 0);
+		const uint8_t icon_pixels[] = {3,12,48,192,0,255};
+		for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 3; x++)
+			CHECK(st_rip3_ports_read(f.host.ports,1,6+x,13+y,&actual) == 0 && actual == icon_pixels[y*3+x]);
+		CHECK(f.clears == 0);
 		struct st_rip3_environment_info info;
 		CHECK(st_rip3_environments_info(f.host.environments,2,&info) == 0 && info.protected);
 		destroy(&f);
@@ -633,6 +800,10 @@ main(int argc, char **argv)
 	CHECK(duplication(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
 	CHECK(duplication(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
 	CHECK(duplication(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
-	CHECK(errors(argv[1]) == 0 && numeric(argv[1]) == 0 && duplicate_failures(argv[1]) == 0);
+	CHECK(tall_asset(argv[1]) == 0 && asset(argv[1],"BUTTON.BMP",false,false) == 0);
+	CHECK(icons(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(icons(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(icons(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
+	CHECK(errors(argv[1]) == 0 && numeric(argv[1]) == 0 && duplicate_failures(argv[1]) == 0 && icon_failures(argv[1]) == 0);
 	return 0;
 }

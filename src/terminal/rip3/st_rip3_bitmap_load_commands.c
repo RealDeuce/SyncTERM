@@ -11,6 +11,81 @@
 
 #include <stdlib.h>
 
+static bool
+file_failure(int status)
+{
+	return status != 0 && status != IO_ERROR_INVALID_ARGUMENT
+	    && status != IO_ERROR_INVALID_ENCODING && status != IO_ERROR_OUT_OF_MEMORY;
+}
+
+static int
+load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
+    const struct st_rip3_environment *environment, const uint8_t *command,
+    size_t length, bool *operation)
+{
+	struct st_rip3_bitmap *bitmap = NULL;
+	struct st_rip3_frame frame;
+	struct st_rip3_port_info info;
+	struct st_rip3_palette palette;
+	struct st_rip3_bitmap_destination area;
+	uint64_t x, y, mode, clipboard, scale, reserved;
+	size_t width = environment->coordinate_size, suffix = 2+2*width, prefix = suffix+5;
+	unsigned port, number;
+	int status;
+
+	if (length <= prefix) return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_field(&x,command+2,width,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&y,command+2+width,width,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&mode,command+suffix,2,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&clipboard,command+suffix+2,1,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&scale,command+suffix+3,1,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&reserved,command+suffix+4,1,environment->base_math);
+	if (status != 0) return status;
+	if (x > INT32_MAX || y > INT32_MAX || mode > 4 || clipboard > 1 || scale > 1) return IO_ERROR_OUT_OF_RANGE;
+	if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
+	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_ports_current(host->ports,&port);
+	if (status == 0) status = st_rip3_ports_info(host->ports,port,&info);
+	if (status != 0 || !info.viewport_active) return status;
+	if (clipboard != 0) return IO_ERROR_NOT_SUPPORTED; /* Selection policy: #42. */
+	if (host->resources == NULL || host->palettes == NULL || host->bitmap_errors == NULL
+	    || host->bitmap_errors->show == NULL || host->clipboard_clear == NULL
+	    || host->clipboard_clear->clear == NULL) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_command_frame(host,environment_number,&frame);
+	if (status != 0) return status;
+	area.x0 = (int64_t)(x*frame.device_width/frame.world_width);
+	area.y0 = (int64_t)(y*frame.device_height/frame.world_height);
+	char *name = strndup((const char *)command+prefix,length-prefix);
+	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	*operation = true;
+	status = st_rip3_bitmap_load(&bitmap,host->resources,name);
+	if (status != 0) {
+		if (file_failure(status)) {
+			host->clipboard_clear->clear(host->clipboard_clear->context);
+			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
+		}
+		goto done;
+	}
+	/* XY belongs to the active WORLD; image size is either native pixels or
+	 * counts projected from the fixed 640x350 reference, independently of
+	 * that WORLD. Positive counts round down like the geometry mapper. The
+	 * supported devices are at least as large as the reference in each axis. */
+	uint64_t image_width = bitmap->pixels->width, image_height = bitmap->pixels->height;
+	if (scale != 0) {
+		image_width = image_width*frame.device_width/640;
+		image_height = image_height*frame.device_height/350;
+	}
+	area.x1 = area.x0+(int64_t)image_width-1;
+	area.y1 = area.y0+(int64_t)image_height-1;
+	status = st_rip3_palettes_current(host->palettes,&number);
+	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
+	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,
+	    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL,NULL);
+done:
+	st_rip3_bitmap_destroy(bitmap); free(name);
+	return status;
+}
+
 int
 st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
@@ -28,6 +103,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 
 	status = st_rip3_command_environment(host,&number,&environment);
 	if (status != 0) return status;
+	if (command[1] == 'I') return load_icon(host,number,&environment,command,length,operation);
 	size_t width = environment.coordinate_size, suffix = 2+4*width, prefix = suffix+10;
 	if (length <= prefix) return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < 4; i++) {
@@ -79,8 +155,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0) {
 		/* Invalid names have not passed the UTF-8 namespace contract. Memory
 		 * failures use the resource diagnostic, not a disk-error UI request. */
-		if (status != IO_ERROR_INVALID_ARGUMENT && status != IO_ERROR_INVALID_ENCODING
-		    && status != IO_ERROR_OUT_OF_MEMORY)
+		if (file_failure(status))
 			host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area);
 		goto done;
 	}

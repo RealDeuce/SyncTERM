@@ -19,7 +19,7 @@ struct st_rip3_bitmap_destination;
 /* Borrowed UI request, made on the session thread for file/decode failures.
  * name and area live only during show(). Explicit areas are viewport-relative
  * inclusive device coordinates; NULL asks the UI to choose a suitable box for
- * a verbatim load whose source dimensions are unavailable. This callback must
+ * a file whose source dimensions are unavailable. This callback must
  * not reenter command processing or mutate its bindings. */
 struct st_rip3_bitmap_error_sink {
 	void *context;
@@ -33,6 +33,17 @@ struct st_rip3_bitmap_error_sink {
 struct st_rip3_clipboard_selection {
 	bool set;
 	unsigned port; /* 1..35 when set; the pointed port may be reconfigured. */
+};
+
+/* Synchronous void request to the clipboard owner on a valid 1I file-load
+ * failure, including when copying was disabled. The owner clears its selection
+ * and image according to the resolved clipboard policy; port deletion/erasure,
+ * protection and UI ordering remain under #42. A recording callback alone is
+ * not complete clipboard integration. It may update owned clipboard state but
+ * must not reenter processing or replace the host's borrowed bindings. */
+struct st_rip3_clipboard_clear_sink {
+	void *context;
+	void (*clear)(void *context);
 };
 
 /* Borrowed session-owned bindings. Missing services are unsupported. One
@@ -55,6 +66,7 @@ struct st_rip3_command_host {
 	struct st_rip3_query *query;
 	const struct st_rip3_clipboard_selection *clipboard;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
+	const struct st_rip3_clipboard_clear_sink *clipboard_clear;
 };
 
 enum st_rip3_command_diagnostic {
@@ -79,7 +91,7 @@ struct st_rip3_command_sink {
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
  * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 2W bitmap export,
- * ordinary/transparent 1b bitmap loads, 3D delays, 3e record edits,
+ * ordinary/transparent 1b bitmap loads, ordinary 1I icons, 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.
@@ -140,6 +152,16 @@ struct st_rip3_command_sink {
  * Active loads require a bitmap
  * error UI sink; file failures request a box without ending parsing. Actual
  * application UI integration is separate. Inactive viewports ignore the load.
+ * 1I accepts clipboard=0, projects XY through the current WORLD and selects
+ * native file dimensions (scale=0) or fixed 640x350-reference image dimensions
+ * (scale=1), rounding positive counts down. It uses the current palette without
+ * adoption or dithering, with the same five transfer modes and viewport clipping.
+ * Active loads require a clipboard-clear sink as well as the bitmap-error sink;
+ * valid file/decode failures deliver both requests even with clipboard=0.
+ * Invalid names and memory failures do not request clearing or a file-error box.
+ * Actual clipboard clearing/UI policy and clipboard=1 selection remain under
+ * #42. Legacy ICN conversion/deletion policy remains under #19. All requests are
+ * void and every helper status stays inside this nonfatal parser boundary.
  * Drawing commands use the bound STYLE record's explicit resolved pen and
  * write mode. c/k preserve raw colour values: current-radix palette indices
  * or four-digit UltraNum RGB (8 bits/channel), with last-field shortening.
