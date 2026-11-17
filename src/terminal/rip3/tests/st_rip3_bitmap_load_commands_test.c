@@ -33,9 +33,7 @@ struct fixture {
 	struct st_rip3_command_host host;
 	struct st_rip3_resource_paths paths;
 	struct st_rip3_bitmap_error_sink feedback;
-	struct st_rip3_clipboard_clear_sink clear_sink;
 	struct st_rip3_clipboard_selection selection;
-	unsigned clears;
 	struct st_rip3_bitmap_destination last_area;
 	unsigned errors, prompts, last_port;
 	enum st_rip3_command_diagnostic kind;
@@ -59,13 +57,6 @@ show_error(void *context, const char *name, unsigned port,
 	if (area != NULL) f->last_area = *area;
 	if (strlen(name) >= sizeof(f->last_name)) { f->overflow = true; return; }
 	memcpy(f->last_name,name,strlen(name)+1);
-}
-
-static void
-clear_clipboard(void *context)
-{
-	struct fixture *f = context;
-	f->clears++; f->selection = (struct st_rip3_clipboard_selection){0};
 }
 
 static void
@@ -206,7 +197,6 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	CHECK(st_rip3_environments_set(f->host.environments,0,&environment) == 0);
 	f->paths.host = directory; f->host.resources = &f->paths;
 	f->feedback = (struct st_rip3_bitmap_error_sink){f,show_error}; f->host.bitmap_errors = &f->feedback;
-	f->clear_sink = (struct st_rip3_clipboard_clear_sink){f,clear_clipboard}; f->host.clipboard_clear = &f->clear_sink;
 	return 0;
 }
 
@@ -569,7 +559,7 @@ icons(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *d
 	CHECK(st_rip3_environments_select(f.host.environments,0) == 0);
 	icon(body,"1R2R",4,0,0,"Tile"); CHECK(process(&f,body,-1) == 0); /* One visible corner pixel. */
 	CHECK(st_rip3_environments_select(f.host.environments,2) == 0);
-	CHECK(f.errors == 0 && f.prompts == 0 && f.clears == 0 && f.selection.set && f.selection.port == 9);
+	CHECK(f.errors == 0 && f.prompts == 0 && f.selection.set && f.selection.port == 9);
 	struct st_rip3_palette palette;
 	struct st_rip3_bitmap *capture = NULL;
 	CHECK(st_rip3_palettes_get(f.host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
@@ -604,14 +594,14 @@ icon_failures(const char *directory)
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480,directory) == 0);
 	f.selection = (struct st_rip3_clipboard_selection){true,9}; f.host.clipboard = &f.selection;
 	icon(body,"0000",0,0,0,"Missing"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	CHECK(f.clears == 1 && f.prompts == 1 && !f.selection.set && f.selection.port == 0
+	CHECK(f.prompts == 1 && f.selection.set && f.selection.port == 9
 	    && !f.area_present && f.last_port == 1 && strcmp(f.last_name,"Missing") == 0);
 	icon(body,"0000",0,0,1,"Compressed.BMP"); CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(f.clears == 2 && f.prompts == 2);
+	CHECK(f.prompts == 2);
 	f.selection = (struct st_rip3_clipboard_selection){true,9};
 	icon(body,"0000",0,0,0,"../Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	icon(body,"0000",0,0,0,"\xff"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	CHECK(f.clears == 2 && f.prompts == 2 && f.selection.set);
+	CHECK(f.prompts == 2 && f.selection.set);
 	const char *const invalid[] = {"1I","1I0000","1I000000000"};
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
 	icon(body,"0000",5,0,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
@@ -626,27 +616,27 @@ icon_failures(const char *directory)
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_file_test_fail_decode);
 	st_rip3_bitmap_stamp_test_fail_allocate = true;
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_allocate);
-	CHECK(f.clears == 2 && f.prompts == 2 && f.selection.set && f.selection.port == 9);
+	CHECK(f.prompts == 5 && f.selection.set && f.selection.port == 9);
 	uint8_t actual;
 	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 85);
-	const struct st_rip3_clipboard_clear_sink *clear = f.host.clipboard_clear;
-	f.host.clipboard_clear = NULL; st_rip3_bitmap_file_test_fail_allocate = true;
+	const struct st_rip3_bitmap_error_sink *feedback = f.host.bitmap_errors;
+	f.host.bitmap_errors = NULL; st_rip3_bitmap_file_test_fail_allocate = true;
 	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && st_rip3_bitmap_file_test_fail_allocate);
-	st_rip3_bitmap_file_test_fail_allocate = false; f.host.clipboard_clear = clear;
-	f.clear_sink.clear = NULL; CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.clear_sink.clear = clear_clipboard;
+	st_rip3_bitmap_file_test_fail_allocate = false; f.host.bitmap_errors = feedback;
+	f.feedback.show = NULL; CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.feedback.show = show_error;
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
 	const char recovery[] = "!|1I|1I000000000Missing|1I000000000Tile|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);
-	CHECK(f.errors == previous+2 && f.clears == 3 && f.prompts == 3 && !f.selection.set);
+	CHECK(f.errors == previous+2 && f.prompts == 6 && f.selection.set && f.selection.port == 9);
 	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 3);
 	st_rip3_stream_destroy(stream);
 	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
 	struct st_rip3_palettes *palettes = f.host.palettes;
-	f.host.palettes = NULL; f.host.resources = NULL; f.host.bitmap_errors = NULL; f.host.clipboard_clear = NULL;
-	icon(body,"0000",0,1,1,"Missing"); CHECK(process(&f,body,-1) == 0 && f.clears == 3 && f.prompts == 3);
+	f.host.palettes = NULL; f.host.resources = NULL; f.host.bitmap_errors = NULL;
+	icon(body,"0000",0,1,1,"Missing"); CHECK(process(&f,body,-1) == 0 && f.prompts == 6);
 	f.host.palettes = palettes; destroy(&f); return 0;
 }
 
@@ -692,7 +682,6 @@ numeric(const char *directory)
 		const uint8_t icon_pixels[] = {3,12,48,192,0,255};
 		for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 3; x++)
 			CHECK(st_rip3_ports_read(f.host.ports,1,6+x,13+y,&actual) == 0 && actual == icon_pixels[y*3+x]);
-		CHECK(f.clears == 0);
 		struct st_rip3_environment_info info;
 		CHECK(st_rip3_environments_info(f.host.environments,2,&info) == 0 && info.protected);
 		destroy(&f);

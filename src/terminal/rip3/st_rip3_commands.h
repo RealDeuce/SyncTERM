@@ -36,17 +36,6 @@ struct st_rip3_clipboard_selection {
 	unsigned port; /* 1..35 when set; the pointed port may be reconfigured. */
 };
 
-/* Synchronous void request to the clipboard owner on a valid 1I file-load
- * failure, including when copying was disabled. The owner clears its selection
- * and image according to the resolved clipboard policy; port deletion/erasure,
- * protection and UI ordering remain under #42. A recording callback alone is
- * not complete clipboard integration. It may update owned clipboard state but
- * must not reenter processing or replace the host's borrowed bindings. */
-struct st_rip3_clipboard_clear_sink {
-	void *context;
-	void (*clear)(void *context);
-};
-
 /* Borrowed session-owned bindings. Missing services are unsupported. One
  * session thread processes commands and owns these objects; its audio engine
  * may concurrently pull PCM under the audio adapter's synchronization. */
@@ -67,7 +56,6 @@ struct st_rip3_command_host {
 	struct st_rip3_query *query;
 	const struct st_rip3_clipboard_selection *clipboard;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
-	const struct st_rip3_clipboard_clear_sink *clipboard_clear;
 	struct st_rip3_text_context *text;
 };
 
@@ -160,12 +148,16 @@ struct st_rip3_command_sink {
  * native file dimensions (scale=0) or fixed 640x350-reference image dimensions
  * (scale=1), rounding positive counts down. It uses the current palette without
  * adoption or dithering, with the same five transfer modes and viewport clipping.
- * Active loads require a clipboard-clear sink as well as the bitmap-error sink;
- * valid file/decode failures deliver both requests even with clipboard=0.
- * Invalid names and memory failures do not request clearing or a file-error box.
- * Actual clipboard clearing/UI policy and clipboard=1 selection remain under
- * #42. Legacy ICN conversion/deletion policy remains under #19. All requests are
- * void and every helper status stays inside this nonfatal parser boundary.
+ * Active loads require the bitmap-error sink. Valid file/decode failures request
+ * a placeholder on the current port for both clipboard=0 and 1, without clearing
+ * the pointer, deleting/replacing any port or changing selection. Render failures
+ * in the clipboard=0 path make the same request. Allocation failures may prevent
+ * the UI from drawing but never clear clipboard state. Invalid names do not
+ * request a placeholder. Successful clipboard=1 still needs the shared GET_IMAGE
+ * lifecycle and is declined before paint; its destructive capture/allocation
+ * failures are separate from ordinary LOAD_ICON failures. Legacy ICN conversion
+ * remains pending under the adopted #19 contract. All UI requests are void and
+ * every service status stays inside this nonfatal parser boundary.
  * 1p reads an exact bare UTF-8 filename through MEDIA lookup and the baseline
  * JPEG decoder, then uses the current port's explicitly bound DEVICE image
  * style and current palette. Painting always uses COPY; no STYLE binding or

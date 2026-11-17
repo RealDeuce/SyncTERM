@@ -92,6 +92,20 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_rip3_icon_failure_commands_test tests/st_rip3_icon_failure_commands_test.c
+		tests/st_rip3_bitmap_file_fault_impl.c tests/st_rip3_bitmap_stamp_fault_impl.c)
+	target_link_libraries(st_rip3_icon_failure_commands_test PRIVATE st_rip3_commands syncterm_filesystem syncterm_path)
+	set_target_properties(st_rip3_icon_failure_commands_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_icon_failure_commands_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_icon_failure_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_icon_failure_commands COMMAND "${CMAKE_COMMAND}"
+		"-DTEST_PROGRAM=$<TARGET_FILE:st_rip3_icon_failure_commands_test>"
+		"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/icon-failures"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/bitmap_load.cmake")
 	foreach(variant IN ITEMS native disabled)
 		add_executable(st_rip3_image_commands_${variant}_test tests/st_rip3_image_commands_test.c
 			tests/st_rip3_image_commands_fault_impl.c tests/st_rip3_jpeg_file_fault_impl.c

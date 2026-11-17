@@ -47,10 +47,8 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	status = st_rip3_ports_current(host->ports,&port);
 	if (status == 0) status = st_rip3_ports_info(host->ports,port,&info);
 	if (status != 0 || !info.viewport_active) return status;
-	if (clipboard != 0) return IO_ERROR_NOT_SUPPORTED; /* Selection policy: #42. */
 	if (host->resources == NULL || host->palettes == NULL || host->bitmap_errors == NULL
-	    || host->bitmap_errors->show == NULL || host->clipboard_clear == NULL
-	    || host->clipboard_clear->clear == NULL) return IO_ERROR_NOT_SUPPORTED;
+	    || host->bitmap_errors->show == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_frame(host,environment_number,&frame);
 	if (status != 0) return status;
 	area.x0 = (int64_t)(x*frame.device_width/frame.world_width);
@@ -60,12 +58,18 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	*operation = true;
 	status = st_rip3_bitmap_load(&bitmap,host->resources,name);
 	if (status != 0) {
-		if (file_failure(status)) {
-			host->clipboard_clear->clear(host->clipboard_clear->context);
+		/* Ordinary LOAD_ICON failures never enter GET_IMAGE, regardless of
+		 * the clipboard flag or assigned target. Even a failed placeholder
+		 * leaves selection, pointer and port resources intact. Resource
+		 * failure may prevent the UI from drawing, but still requests it. */
+		if (status != IO_ERROR_INVALID_ARGUMENT && status != IO_ERROR_INVALID_ENCODING)
 			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
-		}
 		goto done;
 	}
+	/* Successful clipboard capture needs the shared destructive GET_IMAGE
+	 * lifecycle. Until that helper is connected, decline before painting;
+	 * this does not suppress the ordinary failure path above. */
+	if (clipboard != 0) { status = IO_ERROR_NOT_SUPPORTED; goto done; }
 	/* XY belongs to the active WORLD; image size is either native pixels or
 	 * counts projected from the fixed 640x350 reference, independently of
 	 * that WORLD. Positive counts round down like the geometry mapper. The
@@ -79,8 +83,12 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	area.y1 = area.y0+(int64_t)image_height-1;
 	status = st_rip3_palettes_current(host->palettes,&number);
 	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
-	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,
-	    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL,NULL);
+	if (status == 0) {
+		status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,
+		    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL,NULL);
+		if (status != 0)
+			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
+	}
 done:
 	st_rip3_bitmap_destroy(bitmap); free(name);
 	return status;

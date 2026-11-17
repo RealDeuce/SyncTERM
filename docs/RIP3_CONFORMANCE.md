@@ -2411,6 +2411,57 @@ helpers still match the original baseline. The current ledger has 22 implemented
 All source/archive/verification temporary directories and logs were removed.
 Active application routing and the frozen RIP1.54 implementation remain unchanged.
 
+## LOAD_ICON failure retention after reference adoption
+
+The inherited clipboard-clearing LOAD_ICON path is removed. Ordinary load/decode
+failure now requests a placeholder on the current drawing port for both
+clipboard flag values, retaining the clipboard pointer, current selection and
+all port definitions/resources. Protected, screen/offscreen, current and undefined
+targets are not deletion candidates on this path. Invalid filenames remain
+nonfatal diagnostics without a placeholder request. Buffer/decode allocation
+failure may prevent drawing but makes the same placeholder request. Rendering
+failure in the clipboard=0 path also requests it, before returning only through
+the parser's optional nonfatal diagnostic. No session-ending status escapes.
+
+The obsolete clipboard-clear callback and its host binding are removed. Missing
+clipboard bindings do not prevent ordinary failure handling. A placeholder may
+change current pixels, including a screen clipboard alias; a separate offscreen
+clipboard retains its pixels. A placeholder that cannot draw still leaves all
+selection/definition state intact. Missing UI bindings decline before loading.
+
+Successful clipboard=1 capture still requires the shared GET_IMAGE helper and
+is declined before painting. That helper's destructive replacement/allocation
+failure and same-source behavior remain pending implementation; they must not
+be reused for an ordinary LOAD_ICON file failure. The literal success path,
+port-coordinate reconciliation, legacy conversion and active application
+integration remain separate. The relevant source block stays pending until
+the complete command/capture interaction is verified.
+
+`rip3_icon_failure_commands` adds 216 independent cases over the three canvases,
+both clipboard flags, onscreen/offscreen current sources, absent/unbound/dangling
+clipboard pointers, current targets and protected/unprotected onscreen/offscreen
+targets, with both a drawing and non-drawing placeholder. The controlled UI sink
+checks pointer/current state at invocation and paints one authored marker.
+Complete index/palette captures check that marker and untouched screen/offscreen
+content; field-wise snapshots check all 36 port definitions, ENV references and
+palette selection/protection. This is controlled placeholder-request coverage,
+not a new claim about native application UI rasterization.
+
+The initial fixture fails against the old clearing callback. Further cases cover
+bad files, file-buffer/decode/staging allocation failure, invalid names, valid
+clipboard=1 deferral without paint and byte-split recovery into a valid authored
+one-pixel BMP and later base-math command. Existing 1I load/scale/transfer and
+concrete bitmap-error UI tests are retained, with expectations reconciled to the
+adopted failure contract rather than the superseded draft.
+
+The existing native Release CMake configure/build and all 94 selected tests
+pass (7.38 seconds). The new failure fixture reports zero Valgrind errors,
+no retained heap, 6815 allocations/frees and only three inherited descriptors.
+All 93 frozen files and 41 legacy helpers are unchanged. The 7353 source blocks,
+65 document identities and reference pin are unchanged; the failure block is
+reviewed as pending with this partial implementation/test evidence, rather than
+claimed complete. All owned temporary logs and fixture directories were removed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
