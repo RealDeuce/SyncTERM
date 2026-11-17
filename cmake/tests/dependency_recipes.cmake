@@ -9,7 +9,7 @@ function(recipe_run label)
 endfunction()
 
 function(test_dependency_recipes)
-	if(TEST_RECIPE_CASE AND NOT TEST_RECIPE_CASE MATCHES "^(environment|cmake_install|cmake_paths|mpg_paths|versioned_shared|botan_make|botan_patch)$")
+	if(TEST_RECIPE_CASE AND NOT TEST_RECIPE_CASE MATCHES "^(environment|cmake_install|cmake_paths|mpg_paths|versioned_shared|botan_make|botan_patch|vorbis_patch)$")
 		message(FATAL_ERROR "Unknown dependency recipe test case: ${TEST_RECIPE_CASE}")
 	endif()
 	if(NOT RECIPE_MODULE_DIR)
@@ -17,6 +17,38 @@ function(test_dependency_recipes)
 	endif()
 	set(root "${TEST_ROOT}/recipe-fixtures")
 	file(MAKE_DIRECTORY "${root}")
+	if(NOT TEST_RECIPE_CASE OR TEST_RECIPE_CASE STREQUAL "vorbis_patch")
+		set(source "${root}/vorbis/source")
+		file(MAKE_DIRECTORY "${source}")
+		file(WRITE "${source}/CMakeLists.txt" [=[
+cmake_minimum_required(VERSION 2.8.12)
+project(VorbisPolicy NONE)
+# CMake 4 rejects policy versions below 3.5. Check an actual policy so
+# this regression is also detectable with older supported CMake releases.
+cmake_policy(GET CMP0054 quoted_conditions)
+if(NOT quoted_conditions STREQUAL "NEW")
+  message(FATAL_ERROR "Vorbis must use policies supported by CMake 4")
+endif()
+]=])
+		set(path "${source}/CMakeLists.txt")
+		recipe_run(vorbis-patch "${CMAKE_COMMAND}" -DNAME=VORBIS "-DSOURCE=${source}"
+			-P "${RECIPE_MODULE_DIR}/Patch.cmake")
+		recipe_run(vorbis-configure "${CMAKE_COMMAND}" -S "${source}" -B "${root}/vorbis/work")
+		file(READ "${path}" patched)
+		recipe_run(vorbis-patch-repeat "${CMAKE_COMMAND}" -DNAME=VORBIS "-DSOURCE=${source}"
+			-P "${RECIPE_MODULE_DIR}/Patch.cmake")
+		file(READ "${path}" repeated)
+		if(NOT repeated STREQUAL patched)
+			message(FATAL_ERROR "Vorbis CMake policy patch is not idempotent")
+		endif()
+		file(WRITE "${path}" "cmake_minimum_required(VERSION 3.0)\n")
+		execute_process(COMMAND "${CMAKE_COMMAND}" -DNAME=VORBIS "-DSOURCE=${source}"
+			-P "${RECIPE_MODULE_DIR}/Patch.cmake" RESULT_VARIABLE result
+			OUTPUT_VARIABLE output ERROR_VARIABLE errors)
+		if(result STREQUAL "0" OR NOT errors MATCHES "Vorbis CMake policy patch no longer applies")
+			message(FATAL_ERROR "Changed Vorbis sources must reject a stale policy patch: ${output}${errors}")
+		endif()
+	endif()
 	if(NOT TEST_RECIPE_CASE OR TEST_RECIPE_CASE MATCHES "^(environment|cmake_install|cmake_paths|mpg_paths)$")
 		file(MAKE_DIRECTORY "${root}/generator")
 		file(WRITE "${root}/generator/CMakeLists.txt"
