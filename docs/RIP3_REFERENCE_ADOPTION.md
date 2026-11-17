@@ -1,0 +1,81 @@
+# RIP3 reference adoption: PR #71
+
+The user authorized adopting the open [documentation integration PR
+#71](https://github.com/bbs-land/remote-imaging-protocol/pull/71) at commit
+[`a9e0c2f490714d82a0827675ffbc074aa5ae00e6`](https://github.com/bbs-land/remote-imaging-protocol/tree/a9e0c2f490714d82a0827675ffbc074aa5ae00e6).
+It replaces reference `2fb17724b6122a5ad5cd1df38b69b8cce3a7079f` for the separate
+RIP3 engine. The PR was open, not merged, at adoption. Later commits are not
+silently included. Existing upstream issues must receive no further content.
+
+The target remains RIPtel 3.1's RIPscrip 3.0 behavior, with geometric/spec
+compliance rather than pixel reproduction. The RIP1.54 source/data baseline
+remains `e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a`; upstream corrections to 1.54
+reference prose do not authorize changing the frozen local implementation,
+assets or expected results. External application and URL launching remain
+excluded. No code is pushed and no PR is published by this adoption.
+
+## Source and review evidence
+
+[`reference-review.json`](../src/tests/rip3/reference-review.json) records the
+exact archive digest, old pin and local ledger commit, all 65 normative document
+identities, 34 issue-derivation identities, changed/new document paths, and the
+implementation claims carried or reopened. The downloaded archive was extracted
+inside an automatically removed temporary directory. No upstream probe code was
+executed. The ordinary pinned-source indexer independently reproduced every new
+document identity and source block from that extracted tree.
+
+The index retains its normative scope: v3 command/techspec pages, referenced
+v2/v1.54 techspecs, the implementation/glossary pages and baseline ANSI reference.
+The three added normative documents specify arc consumers, Bezier consumers and
+bitmap/mask deltas. Intermediate research leads and probe-progress notes are
+provenance, not additional normative requirements; their final derivations are
+linked and hashed separately. The upstream backlog maps the 34 resolutions to
+their original-artifact evidence and focused PRs.
+
+The new index contains **7352 source blocks** across **65 documents**; 44 previous
+documents changed and none was removed. Exact source/heading/content matches
+preserve prior review references despite line-number shifts. Changed source is
+new review work, not a silently overwritten old requirement. Git retains the
+complete old ledger at local commit `477ce4f`.
+
+## Conformance claims reopened
+
+Of the previous 1000 implemented blocks, 12 concern unchanged JPEG/WAVE format
+and MicroANSI container documents and retain their existing independent evidence.
+Another 917 exact-text claims occur in changed documents and are reopened as
+pending: unchanged wording alone does not prove unchanged semantics. The other
+71 implemented blocks were replaced or changed and are part of the new review
+queue. Existing implementation paths and tests are retained where the source
+block matches. These changes withdraw claims, not implementation code or tests.
+
+At adoption the queue has 12 implemented, 1625 pending, 4799 unreviewed, 875
+contextual, 24 excluded and 17 blocked source blocks. The remaining blocked rows
+refer to the earlier broad issue #2, which is outside PR #71's explicit closing
+list. The 34 adopted issue resolutions are documentation answers; source review,
+implementation and independent acceptance tests remain required. Issue #21 has
+a separately recorded follow-up newer than this pinned head.
+
+Important reconciliations identified during adoption:
+
+| Area | Corrected contract and implementation consequence |
+| --- | --- |
+| JPEG display / #21 | JPEG rows use COPY regardless of vector write mode. The optional clear replaces the fitted rectangle with black; aspect margins retain their old pixels. The current general-mode/background-clear/black-margin kernel must change. |
+| IMAGE_STYLE / #21 | Wire `1i` orders corners, accepts flags 0..63 and can change a protected current port. All-zero coordinates do not disable viewing. DELETE is stored without presentation deletion; wallpaper adds bits 16/32. The old draft-based disable tests cannot become new wire expectations. |
+| Clipboard / #42 | Ordinary LOAD_ICON failure retains clipboard selection and resources while attempting a placeholder. The current callback that requests clipboard clearing on such failure must be removed or replaced. GET_IMAGE has separate failure behavior. |
+| Text cursor / #6, #24 | TEXTXY is a current per-port cursor query with decimal serialization, producer-dependent unit conversions and integer string advances. Fractional layout positions alone are not the query cursor; existing movement/advance tests need reconciliation. |
+| Tables, fonts, geometry and queries | The adopted pages provide the previously missing ownership, bootstrap/reset, font, arc/Bezier, polygon, fill, input, backup and query contracts. Existing prerequisite kernels remain available, but prior green tests do not establish the corrected wire/state behavior. |
+
+The new inactive-viewport wire IMAGE_STYLE question was posted before the user
+requested no further issue content. The user reports a PR update in progress.
+It is recorded by [its existing comment](https://github.com/bbs-land/remote-imaging-protocol/issues/21#issuecomment-6935800437),
+without another post or an assumption about its answer. Review that future commit
+separately when available. Work on settled requirements can continue meanwhile.
+
+## Acceptance
+
+The source guard checks that the pinned revision and complete document inventory
+match the adoption record, and normal reindexing retains that record. Focused
+tests reject missing/stale adoption records and changed document inventories.
+The unchanged RIP1.54 freeze check is still mandatory. Native build/CTest results
+for this adoption are recorded in `RIP3_CONFORMANCE.md`; legacy green fixtures are
+historical behavior evidence until reconciled with the adopted contract.

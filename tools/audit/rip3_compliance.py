@@ -15,7 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "src/tests/rip3"
-REFERENCE = "2fb17724b6122a5ad5cd1df38b69b8cce3a7079f"
+REFERENCE = "a9e0c2f490714d82a0827675ffbc074aa5ae00e6"
 BASELINE = "e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a"
 UPSTREAM = "https://github.com/bbs-land/remote-imaging-protocol"
 
@@ -150,13 +150,32 @@ def index_reference(directory):
               "note": "Source blocks are a complete discovery/review queue for these documents, not individually adjudicated requirements or conformance evidence. Resolve inherited definitions against the v3 reference; classify contextual material explicitly.",
               "blockers": old.get("blockers", []),
               "documents": documents, "requirements": requirements}
+    if "reference_review" in old:
+        result["reference_review"] = old["reference_review"]
     write_index(result)
+
+
+def check_reference_review(data, root=ROOT):
+    path = data.get("reference_review")
+    if not path:
+        raise ValueError("missing reference adoption record")
+    review = json.loads((root / path).read_text())
+    if review["revision"] != data["revision"]:
+        raise ValueError("reference adoption revision mismatch")
+    if review["documents"] != data["documents"]:
+        raise ValueError("reference adoption document inventory mismatch")
+    if (not re.fullmatch(r"[0-9a-f]{40}", review["previous_revision"])
+            or review["previous_revision"] == review["revision"]):
+        raise ValueError("invalid previous reference revision")
+    if not re.fullmatch(r"[0-9a-f]{64}", review["archive_sha256"]):
+        raise ValueError("invalid reference archive digest")
 
 
 def check_requirements():
     data = json.loads((DATA / "requirements.json").read_text())
     if data["revision"] != REFERENCE:
         raise ValueError("reference revision changed without contract review")
+    check_reference_review(data)
     documents = {d["path"] for d in data["documents"]}
     if len(documents) != len(data["documents"]) or not documents:
         raise ValueError("empty/duplicate source document inventory")

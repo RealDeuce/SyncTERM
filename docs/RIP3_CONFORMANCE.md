@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-2fb17724b6122a5ad5cd1df38b69b8cce3a7079f](https://github.com/bbs-land/remote-imaging-protocol/tree/2fb17724b6122a5ad5cd1df38b69b8cce3a7079f/version/3.0).
+a9e0c2f490714d82a0827675ffbc074aa5ae00e6](https://github.com/bbs-land/remote-imaging-protocol/tree/a9e0c2f490714d82a0827675ffbc074aa5ae00e6/version/3.0).
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
 required. RIPlib extensions and future proposals are outside the goal.
@@ -12,6 +12,26 @@ do not execute it, and report unsupported capabilities truthfully.
 **Status: implementation in progress; no full-compliance claim.** The existing
 RIP 3 implementation remains active until the separate engine passes acceptance.
 Source indexing is discovery, not adjudication or working-feature evidence.
+
+The user approved adopting the open documentation integration PR #71 at that
+exact commit. [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
+[`reference-review.json`](../src/tests/rip3/reference-review.json) record its
+provenance, scope and reopened claims. There are now 7352 blocks in 65 normative
+documents. Implementation milestones below describe work against the previous
+pin unless explicitly reconciled with this revision. Their passing tests remain
+historical behavior evidence; they do not prove the corrected contract. The
+RIP1.54 baseline, original font bytes, active application route and external-launch
+exclusion remain unchanged. No further content is to be added to existing
+upstream issues.
+
+Adoption verification used the existing native Release CMake configuration.
+Configure/build and all 93 selected RIP3/preservation/JPEG/shared-audio/codepage
+tests passed (4.62 seconds). The updated preservation/adoption guard also passed
+its five focused tests, including rejection of a stale pin/document inventory
+and retention of adoption provenance during reindexing. The completion gate
+correctly rejects the unfinished queue. All 93 frozen files and 41 legacy helpers
+are unchanged. Download/extraction directories, test fixtures and logs were
+removed. No native GUI, physical audio or Windows execution is claimed.
 
 ## RIP 1.54 preservation boundary
 
@@ -53,7 +73,13 @@ requirements awaiting implementation, `blocked` with issue links for unresolved
 requirements, and `implemented` only with implementation paths and independent
 CTest evidence. Context/exclusion entries require reasons.
 
-Open clarification issues:
+The following list records historical questions raised against the previous
+pin. PR #71 provides the adopted documentation answers for 34 of them; local
+implementation/review remains pending. The broad earlier #2 and the newer #21
+follow-up remain separately tracked in the ledger. Descriptions in this list
+are the original questions, not a claim that the adopted PR lacks their answers.
+
+Historical clarification issues:
 
 - [#2](https://github.com/bbs-land/remote-imaging-protocol/issues/2): existing
   command-width, radix, marker, article, delay and fill findings.
@@ -179,8 +205,9 @@ Open clarification issues:
 - [#58](https://github.com/bbs-land/remote-imaging-protocol/issues/58): canonical
   LOAD_BITMAP example flags `0G` = 16, absent from the enumerated flag table.
 
-Continue unaffected work while issues remain open. File distinct additional
-gaps as discovered, checking existing issues first. Issue reports do not
+Continue implementation from the adopted answers. Do not add content to existing
+issues, per the user's latest instruction. File distinct additional gaps only
+when they are not answered by the adopted contract or its pending update. Reports do not
 silently override the contract: adopt clarification through a reviewed
 documentation revision and reconcile affected ledger entries/tests. Hypothesized
 names alone need not be behavioral gaps. Do not guess, silently exclude
@@ -189,7 +216,8 @@ unresolved requirements or claim completion while blockers/reviews remain.
 An earlier 2026-11-16 upstream status check found `main` at the pinned revision
 and five open stacked clarification proposals. These are historical observations,
 not a complete live inventory. Their observed heads are recorded on the
-corresponding ledger blockers; none is adopted or treated as a resolution:
+corresponding ledger blockers. This was their status at that historical check;
+their integrated answers are now adopted through PR #71:
 
 | Blocker | Proposal | Observed head |
 | --- | --- | --- |
@@ -199,9 +227,9 @@ corresponding ledger blockers; none is adopted or treated as a resolution:
 | #6 macros/variables | [PR #32](https://github.com/bbs-land/remote-imaging-protocol/pull/32) | `e450e1d9cd85594e321cd1427833a36269d24993` |
 | #7 framing/identity | [PR #34](https://github.com/bbs-land/remote-imaging-protocol/pull/34) | `a6da898d495367b16e9c3a7b2a1d5f5e7752f13d` |
 
-These are proposal/status observations, not a semantic review or a new contract
-pin. Adoption still requires reviewing the changed requirements, derivations and
-affected tests before reconciling the source index.
+Those historical proposal/status observations were not a contract pin. The new
+pin and adoption process are documented in RIP3_REFERENCE_ADOPTION.md; individual
+requirements and affected expectations still require reconciliation.
 
 ## Work sequence
 
