@@ -406,7 +406,7 @@ duplication(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const c
 	const uint8_t modes[5][6] = {{3,12,48,192,0,255},{86,89,101,149,85,170},
 	    {87,93,117,213,85,255},{1,4,16,64,0,85},{252,243,207,63,255,0}};
 	CHECK(create(&f,canvas,width,height,directory) == 0);
-	const struct st_rip3_clipboard_selection clipboard = {.set=true,.port=9};
+	struct st_rip3_clipboard_selection clipboard = {.set=true,.port=9};
 	f.host.clipboard = &clipboard;
 	for (unsigned mode = 0; mode < 5; mode++) {
 		CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);

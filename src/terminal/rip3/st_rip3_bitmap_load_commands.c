@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
+#include "st_rip3_clipboard.h"
 #include "st_rip3_bitmap_file.h"
 #include "st_rip3_bitmap_stamp.h"
 #include "st_rip3_environments.h"
@@ -66,10 +67,11 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
 		goto done;
 	}
-	/* Successful clipboard capture needs the shared destructive GET_IMAGE
-	 * lifecycle. Until that helper is connected, decline before painting;
-	 * this does not suppress the ordinary failure path above. */
-	if (clipboard != 0) { status = IO_ERROR_NOT_SUPPORTED; goto done; }
+	/* Failure handling above is independent of capture bindings. A valid
+	 * image needs the complete capture context before any paint is allowed. */
+	if (clipboard != 0 && (host->clipboard == NULL || host->offscreen_pixel_budget == NULL)) {
+		status = IO_ERROR_NOT_SUPPORTED; goto done;
+	}
 	/* XY belongs to the active WORLD; image size is either native pixels or
 	 * counts projected from the fixed 640x350 reference, independently of
 	 * that WORLD. Positive counts round down like the geometry mapper. The
@@ -88,6 +90,13 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 		    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL,NULL);
 		if (status != 0)
 			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
+		else if (clipboard != 0) {
+			/* The renderer's requested rectangle is not reduced to visible
+			 * pixels. Capture owns its extra allocation unit and its separate
+			 * destructive failure semantics; those do not request a placeholder. */
+			const struct st_rip3_clipboard_area capture = {area.x0,area.y0,area.x1+1,area.y1+1};
+			status = st_rip3_clipboard_capture(host->ports,host->clipboard,&capture,*host->offscreen_pixel_budget);
+		}
 	}
 done:
 	st_rip3_bitmap_destroy(bitmap); free(name);

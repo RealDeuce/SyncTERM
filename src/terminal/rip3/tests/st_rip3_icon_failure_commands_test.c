@@ -235,6 +235,61 @@ failures(const char *directory)
 	st_rip3_stream_destroy(stream); destroy(&f); return 0;
 }
 
+static int
+capture_after_load(const char *directory, enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	for (unsigned offscreen = 0; offscreen < 2; offscreen++) for (unsigned pointer = ABSENT; pointer <= CURRENT_PROTECTED; pointer++) {
+		struct fixture f = {0}; uint64_t budget = UINT64_C(1000000);
+		CHECK(create(&f,canvas,width,height,directory,(enum pointer_state)pointer,offscreen != 0,false) == 0);
+		f.host.offscreen_pixel_budget = &budget;
+		bool protected = pointer == OFFSCREEN_PROTECTED || pointer == ONSCREEN_PROTECTED || pointer == CURRENT_PROTECTED;
+		CHECK(process(&f,"1I000000100Pixel.BMP",protected ? ST_RIP3_COMMAND_OPERATION_FAILED : -1) == 0 && f.placeholders == 0);
+		if (protected) {
+			CHECK(state(&f,36) == 0 && capture(&f,width,height,false,true) == 0);
+		}
+		else {
+			unsigned target = pointer == ABSENT ? 2 : pointer == CURRENT ? 1 : 9;
+			unsigned selected; struct st_rip3_port_info info; struct st_rip3_palette palette; struct st_rip3_bitmap *image = NULL;
+			CHECK(f.selection.set && f.selection.port == target && st_rip3_ports_current(f.host.ports,&selected) == 0
+			    && selected == (pointer == CURRENT ? 0u : 1u));
+			CHECK(st_rip3_ports_info(f.host.ports,target,&info) == 0 && info.defined && info.offscreen && info.bounds.x1 == 1 && info.bounds.y1 == 1);
+			CHECK(st_rip3_palettes_get(f.host.palettes,3,&palette) == 0 && st_rip3_bitmap_capture(&image,f.host.ports,target,NULL,&palette) == 0);
+			for (unsigned i = 0; i < 4; i++) CHECK(image->pixels->primary[i] == (pointer == CURRENT ? 85u : 1u));
+			st_rip3_bitmap_destroy(image);
+		}
+		destroy(&f);
+	}
+	/* Capture allocation failure happens after successful paint, with no
+	 * missing-file placeholder or restoration of the deleted old clipboard. */
+	struct fixture f = {0}; uint64_t budget = 0;
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480,directory,OFFSCREEN,false,false) == 0);
+	f.host.offscreen_pixel_budget = &budget;
+	CHECK(process(&f,"1I000000100Pixel.BMP",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && f.placeholders == 0 && !f.selection.set);
+	struct st_rip3_port_info info; uint8_t pixel;
+	CHECK(st_rip3_ports_info(f.host.ports,9,&info) == 0 && !info.defined
+	    && st_rip3_ports_read(f.host.ports,1,2,1,&pixel) == 0 && pixel == 1);
+	destroy(&f);
+	/* A renderer allocation failure happens before GET_IMAGE: protected
+	 * target rejection and destructive replacement must never be reached. */
+	f = (struct fixture){0}; budget = UINT64_C(1000000);
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480,directory,OFFSCREEN_PROTECTED,false,false) == 0);
+	f.host.offscreen_pixel_budget = &budget; st_rip3_bitmap_stamp_test_fail_allocate = true;
+	CHECK(process(&f,"1I000000100Pixel.BMP",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_allocate);
+	CHECK(f.placeholders == 1 && state(&f,36) == 0 && capture(&f,640,480,true,false) == 0);
+	destroy(&f);
+	/* A fully clipped ordinary stamp still returns its original rectangle:
+	 * GET_IMAGE replaces the old clipboard with a new clear 2x2 bitmap. */
+	f = (struct fixture){0};
+	CHECK(create(&f,canvas,width,height,directory,OFFSCREEN,false,false) == 0);
+	f.host.offscreen_pixel_budget = &budget;
+	CHECK(process(&f,"1IZZZZ00100Pixel.BMP",-1) == 0 && f.placeholders == 0);
+	struct st_rip3_palette palette; struct st_rip3_bitmap *image = NULL;
+	CHECK(st_rip3_palettes_get(f.host.palettes,3,&palette) == 0 && st_rip3_bitmap_capture(&image,f.host.ports,9,NULL,&palette) == 0);
+	CHECK(image->pixels->width == 2 && image->pixels->height == 2);
+	for (unsigned i = 0; i < 4; i++) CHECK(image->pixels->primary[i] == 0);
+	st_rip3_bitmap_destroy(image); destroy(&f); return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -249,5 +304,8 @@ main(int argc, char **argv)
 	CHECK(matrix(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
 	CHECK(matrix(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
 	CHECK(matrix(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
-	CHECK(failures(argv[1]) == 0); return 0;
+	CHECK(failures(argv[1]) == 0);
+	CHECK(capture_after_load(argv[1],ST_RIP3_CANVAS_640_480,640,480) == 0);
+	CHECK(capture_after_load(argv[1],ST_RIP3_CANVAS_800_600,800,600) == 0);
+	CHECK(capture_after_load(argv[1],ST_RIP3_CANVAS_1024_768,1024,768) == 0); return 0;
 }

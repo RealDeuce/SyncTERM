@@ -2429,9 +2429,9 @@ change current pixels, including a screen clipboard alias; a separate offscreen
 clipboard retains its pixels. A placeholder that cannot draw still leaves all
 selection/definition state intact. Missing UI bindings decline before loading.
 
-Successful clipboard=1 capture still requires the shared GET_IMAGE helper and
-is declined before painting. That helper's destructive replacement/allocation
-failure and same-source behavior remain pending implementation; they must not
+At that failure-retention milestone, successful clipboard=1 still awaited the
+shared GET_IMAGE helper and was declined before painting. Its replacement/allocation
+failure and same-source behavior were pending implementation; they must not
 be reused for an ordinary LOAD_ICON file failure. The literal success path,
 port-coordinate reconciliation, legacy conversion and active application
 integration remain separate. The relevant source block stays pending until
@@ -2461,6 +2461,81 @@ All 93 frozen files and 41 legacy helpers are unchanged. The 7353 source blocks,
 65 document identities and reference pin are unchanged; the failure block is
 reviewed as pending with this partial implementation/test evidence, rather than
 claimed complete. All owned temporary logs and fixture directories were removed.
+
+## Shared GET_IMAGE capture and LOAD_ICON integration
+
+`st_rip3_clipboard_capture` now implements the shared capture lifecycle from the
+adopted #42 contract. One session owner holds a mutable clipboard selection and
+binds an explicit offscreen pixel budget. Assigned targets are reused exactly;
+otherwise the first unused slot 1..35 wins, irrespective of existing offscreen
+ports. Full tables fail without deleting anything. Protected assigned targets
+and explicitly assigned zero reject without changing pointer or selection.
+
+An unprotected assigned target is deleted before checking the post-deletion
+budget and allocating its replacement. Failure clears the pointer and leaves
+the deleted target undefined. Unrelated definitions/pixels survive. Deleting a
+current target selects port zero; the source is read from the live selection
+after allocation, so the documented destructive same-source case copies from
+port zero and leaves it current. No old bitmap/source index is saved for rollback.
+Allocation counts use offscreen device pixels, with reclaimed target area removed
+before accounting. No universal display-sized budget is inferred.
+
+The input rectangle uses exclusive device far edges. The helper's extra low-WORD
+allocation unit is intentional. A wire (1,1)..(3,3) capture at unit mapping copies
+a 3x3 source into a 4x4 bitmap. Source clipping occurs before stretching to the
+new allocation. A completely outside source or a downstream copy failure retains
+the newly allocated clear clipboard and reports success, as the shared driver
+helper does. Nonzero wrapped allocation counts are supported. Wrapped zero counts
+remain unsupported before mutation: the pinned derivation disclaims a native
+zero-dimensional allocation result, so this edge remains pending rather than
+being inferred from an external graphics API.
+
+Wire 1C now decodes current ENV radix/coordinate width, normalizes corners,
+projects them through the current WORLD and adds the caller's first far-edge
+increment before shared capture. Reserved omission and final-coordinate
+shortening are supported. Inactive viewports ignore valid captures before
+clipboard/budget access. Missing bindings and malformed commands cannot mutate
+the clipboard. Public processing remains void; service failures remain optional
+nonfatal diagnostics. Read-only PUT_IMAGE/WRITE_ICON consumers use the same
+session selection without modifying it.
+
+LOAD_ICON clipboard=1 now paints first, then calls the shared helper with the
+renderer-requested unclipped rectangle. Protected-target rejection and allocation
+failure occur after painting and do not request a missing-file placeholder.
+Same-source capture uses the same deletion/fallback defect. Wholly clipped valid
+images can replace an old clipboard with a newly allocated clear bitmap.
+Ordinary load/renderer failure still requests its placeholder before capture and
+retains clipboard state. Missing capture bindings decline a valid file before
+painting without suppressing ordinary file failures.
+
+`rip3_clipboard` checks every documented target-selection example, protected
+screen-zero/current targets, full tables, exact budget reclamation, allocation
+failure, partial/empty clipping, copy failure and nonzero low-WORD wrapping.
+Independent literal 3x3-to-4x4 indexes, viewport offsets, radix 36/64 and widths
+2..5 are checked on all three canvases; complete source index/palette captures
+verify that capture does not alter screen contents. Byte-split 1C streams cover
+normal/reversed corners, shortening, malformed input and later recovery.
+
+The LOAD_ICON fixture also checks successful capture from onscreen/offscreen
+sources, protected and current targets, first-unused/assigned selection, clear
+outside captures, post-paint budget failure and pre-capture renderer failure on
+all three canvases. Its integration expectation failed against the previous
+unconnected clipboard=1 path before that path changed. These are independent
+geometric/index expectations; original Windows interpolation is not an oracle.
+Reset/whole-port backup ownership, other capture callers, complete port-coordinate
+producer reconciliation, legacy conversion and active application routing remain
+pending. The original RIP1.54 implementation and active route are unchanged.
+
+The native Release CMake configure/build and all 95 selected tests pass
+(7.64 seconds). Valgrind reports zero errors, no retained heap and only three
+inherited descriptors for both the clipboard and expanded LOAD_ICON fixtures.
+Their allocation/free counts are 599/599 and 8891/8891 respectively. All 93
+frozen files and 41 legacy helpers still match the original baseline. All 7353
+source blocks, 65 document identities and the reference pin are unchanged;
+42 blocks are implemented, 1624 pending, 4768 unreviewed, 878 contextual,
+24 excluded and 17 blocked. Temporary verification logs and fixture directories
+were removed. No active application, Windows, native-device or reset/backup
+coverage is inferred from these separate-engine tests.
 
 ## Verification and acceptance
 

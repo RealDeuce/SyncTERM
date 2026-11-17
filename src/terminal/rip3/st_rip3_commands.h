@@ -2,6 +2,8 @@
 #ifndef ST_RIP3_COMMANDS_H_
 #define ST_RIP3_COMMANDS_H_
 
+#include "st_rip3_clipboard.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -28,14 +30,6 @@ struct st_rip3_bitmap_error_sink {
 		const struct st_rip3_bitmap_destination *area);
 };
 
-/* Explicit resolved clipboard pointer. Selection/GET_IMAGE allocation, reset,
- * protection and backup ownership remain under #42. This binding supplies the
- * pointer only; PUT_IMAGE/WRITE_ICON neither select it nor edit its state. */
-struct st_rip3_clipboard_selection {
-	bool set;
-	unsigned port; /* 1..35 when set; the pointed port may be reconfigured. */
-};
-
 /* Borrowed session-owned bindings. Missing services are unsupported. One
  * session thread processes commands and owns these objects; its audio engine
  * may concurrently pull PCM under the audio adapter's synchronization. */
@@ -54,7 +48,9 @@ struct st_rip3_command_host {
 	/* Session-owned immediate-query evaluator, resumed by the input source's prepare
 	 * callback before further bytes. Uses this source's same input gate. */
 	struct st_rip3_query *query;
-	const struct st_rip3_clipboard_selection *clipboard;
+	struct st_rip3_clipboard_selection *clipboard;
+	/* Explicit client policy for captures, in offscreen device pixels. */
+	const uint64_t *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	struct st_rip3_text_context *text;
 };
@@ -81,7 +77,7 @@ struct st_rip3_command_sink {
  * m, classic literal T and horizontal-left @,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
- * rectangle-fit 2C, onscreen 2P, clipboard 1P/1W, 2W bitmap export,
+ * rectangle-fit 2C, onscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, literal 1p JPEGs,
  * 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
@@ -144,7 +140,17 @@ struct st_rip3_command_sink {
  * Active loads require a bitmap
  * error UI sink; file failures request a box without ending parsing. Actual
  * application UI integration is separate. Inactive viewports ignore the load.
- * 1I accepts clipboard=0, projects XY through the current WORLD and selects
+ * 1C normalizes both corners and projects XY through the current WORLD, adds
+ * the wire far-edge unit, then invokes shared clipboard capture. It requires
+ * a mutable session-owned clipboard selection and explicit pixel budget.
+ * Assigned targets are reused; otherwise the first unused nonzero slot wins.
+ * Protected targets/zero reject unchanged. Unprotected targets are deleted
+ * before allocation; failure clears the pointer without restoring old data.
+ * Same-source replacement selects zero and copies from that live current port.
+ * The helper adds a further low-WORD allocation unit and stretches the clipped
+ * source to the new bitmap. Copy/trim failure retains a clear new clipboard and
+ * is not propagated. Wrapped zero allocation counts remain unsupported.
+ * 1I projects XY through the current WORLD and selects
  * native file dimensions (scale=0) or fixed 640x350-reference image dimensions
  * (scale=1), rounding positive counts down. It uses the current palette without
  * adoption or dithering, with the same five transfer modes and viewport clipping.
@@ -153,9 +159,11 @@ struct st_rip3_command_sink {
  * the pointer, deleting/replacing any port or changing selection. Render failures
  * in the clipboard=0 path make the same request. Allocation failures may prevent
  * the UI from drawing but never clear clipboard state. Invalid names do not
- * request a placeholder. Successful clipboard=1 still needs the shared GET_IMAGE
- * lifecycle and is declined before paint; its destructive capture/allocation
- * failures are separate from ordinary LOAD_ICON failures. Legacy ICN conversion
+ * request a placeholder. Clipboard=1 uses shared GET_IMAGE after painting, with
+ * the renderer's original unclipped rectangle, including wholly outside areas.
+ * Its protected-target rejection/allocation failure is after painting and does
+ * not request a placeholder. Missing capture bindings decline before painting
+ * a valid file, without suppressing ordinary load failures. Legacy ICN conversion
  * remains pending under the adopted #19 contract. All UI requests are void and
  * every service status stays inside this nonfatal parser boundary.
  * 1p reads an exact bare UTF-8 filename through MEDIA lookup and the baseline

@@ -181,7 +181,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
 	const struct st_rip3_rect viewport = {1,1,2,2}, inactive = {30,40,31,41}, point = {0,0,0,0};
-	const struct st_rip3_clipboard_selection clipboard = {true,35};
+	struct st_rip3_clipboard_selection clipboard = {true,35};
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	const uint8_t input[] = "!|2s100|1P0000000|2s200|1P0000000|2s300|1P0000000|2s106|2s109|2s000|1P0000000|2s002\r";
 	CHECK(create(&f,canvas) == 0);
