@@ -30,6 +30,9 @@ overlap recovery. DEFINE_PORT tests cover independent
 initial flags, half-open screen/offscreen extents, ignored offscreen origins,
 protected fallback and client allocation policy on all canvases, radices and
 coordinate widths, with coherent captures and nonfatal split-input recovery.
+Port geometry queries use the documented numeric semantics, an explicit
+correction to RIPtel 3.1's inverted-success callbacks. Their shared decimal
+selector/type/domain grammar and wide signed results have independent tests.
 Separate style-record tests cover explicit attributes, owned
 snapshots and nonfatal metadata/COPY errors. Complete c/k/W/L/R command tests
 cover palette/direct RGB ink, all drawing modes, explicit patterns, reversed and

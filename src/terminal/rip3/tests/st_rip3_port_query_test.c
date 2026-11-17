@@ -65,6 +65,93 @@ run(const struct st_rip3_host_variables *host, const char *command,
 }
 
 static int
+grammar_and_wide_values(void)
+{
+	static const char *const names[] = {"PORTW","PORTH","PORTX0","PORTY0","PORTX1","PORTY1"};
+	static const char *const types[] = {"PORT","VIEW","pOrT","vIeW"};
+	static const char *const domains[] = {"WORLD","DEVICE","wOrLd","dEvIcE"};
+	/* Target 0/1/35, PORT/VIEW, WORLD/DEVICE, then W/H/X0/Y0/X1/Y1.
+	 * Literal independent values; no geometry helper supplies this oracle. */
+	static const char *const expected[3][2][2][6] = {
+		{{{"1280","960","0","0","1280","960"},{"640","480","0","0","640","480"}},
+		 {{"1280","960","0","0","1280","960"},{"640","480","0","0","640","480"}}},
+		{{{"40","40","22","46","62","86"},{"20","20","11","23","31","43"}},
+		 {{"18","24","6","10","24","34"},{"9","12","3","5","12","17"}}},
+		{{{"14","18","0","0","14","18"},{"7","9","0","0","7","9"}},
+		 {{"10","12","2","4","12","16"},{"5","6","1","2","6","8"}}},
+	};
+	static const char *const invalid[] = {"36","-1","A","WORLD","CUR,DEVICE","CUR,WORLD",
+	    "CUR,BAD","CUR,PORT,BAD","CUR,DEVICE,PORT","CUR,PORT,DEVICE,0","CUR,,DEVICE"};
+	struct st_rip3_ports *ports = NULL;
+	struct st_rip3_environments *envs = NULL;
+	struct st_rip3_environment env;
+	struct st_rip3_table_host tables = {0};
+	const struct st_rip3_host_variables host = {.tables=&tables};
+	const struct st_rip3_rect screen = {11,23,30,42}, view = {3,5,11,16}, offscreen = {0,0,6,8}, offview = {1,2,5,7};
+	char selector[16], expression[96];
+	const unsigned currents[] = {0,1,35};
+	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0);
+	CHECK(st_rip3_environments_create(&envs,ST_RIP3_CANVAS_640_480) == 0);
+	tables.tables[ST_RIP3_TABLE_PORT].live = ports; tables.tables[ST_RIP3_TABLE_ENV].live = envs;
+	CHECK(st_rip3_environments_get(envs,0,&env) == 0);
+	env.base_math = 64; env.world_width = 1280; env.world_height = 960;
+	CHECK(st_rip3_environments_set(envs,0,&env) == 0);
+	CHECK(st_rip3_ports_define(ports,1,&screen,false) == 0);
+	CHECK(st_rip3_ports_switch(ports,1) == 0 && st_rip3_ports_viewport(ports,&view) == 0);
+	CHECK(st_rip3_ports_protect(ports,1,true) == 0);
+	CHECK(st_rip3_ports_define(ports,35,&offscreen,true) == 0);
+	CHECK(st_rip3_ports_switch(ports,35) == 0 && st_rip3_ports_viewport(ports,&offview) == 0);
+	for (unsigned c = 0; c < 3; c++) {
+		CHECK(st_rip3_ports_switch(ports,currents[c]) == 0);
+		for (unsigned s = 0; s < 39; s++) {
+			if (s < 36) snprintf(selector,sizeof(selector),"%u",s);
+			else snprintf(selector,sizeof(selector),"%s",s == 36 ? "CUR" : s == 37 ? "cur" : "035");
+			for (unsigned t = 0; t < 4; t++) for (unsigned d = 0; d < 4; d++) for (unsigned count = 0; count <= 3; count++) {
+				unsigned number = count == 0 || s == 36 || s == 37 ? currents[c] : s == 38 ? 35 : s;
+				unsigned index = number == 0 ? 0 : number == 1 ? 1 : 2;
+				for (unsigned n = 0; n < 6; n++) {
+					if (count == 0) snprintf(expression,sizeof(expression),"$%s$",names[n]);
+					else if (count == 1) snprintf(expression,sizeof(expression),"$%s(%s)$",names[n],selector);
+					else if (count == 2) snprintf(expression,sizeof(expression),"$%s(%s,%s)$",names[n],selector,types[t]);
+					else snprintf(expression,sizeof(expression),"$%s(%s,%s,%s)$",names[n],selector,types[t],domains[d]);
+					const char *value = number != 0 && number != 1 && number != 35 ? (n < 2 ? "0" : "-1")
+					    : expected[index][count >= 2 ? t%2 : 0][count == 3 ? d%2 : 0][n];
+					CHECK(run(&host,expression,value,-1) == 0);
+				}
+			}
+		}
+	}
+	for (unsigned n = 0; n < 6; n++) for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
+		snprintf(expression,sizeof(expression),"$%s(%s)$",names[n],invalid[i]);
+		CHECK(run(&host,expression,NULL,ST_RIP3_HOST_INVALID_REFERENCE) == 0);
+		CHECK(run(&host,"$NULL$","",-1) == 0);
+	}
+	/* Corrected numeric semantics must not narrow a valid stored dimension
+	 * or exclusive far boundary back to the coordinate plane's int32_t. */
+	CHECK(st_rip3_ports_switch(ports,0) == 0);
+	const struct st_rip3_rect huge = {0,0,INT32_MAX,INT32_MAX};
+	CHECK(st_rip3_ports_viewport_device(ports,&huge) == 0);
+	CHECK(run(&host,"$PORTW(CUR,VIEW,DEVICE)$","2147483648",-1) == 0);
+	CHECK(run(&host,"$PORTY1(CUR,VIEW,DEVICE)$","2147483648",-1) == 0);
+	CHECK(run(&host,"$PORTH(CUR,VIEW,WORLD)$","4294967296",-1) == 0);
+	env.world_width = env.world_height = 32767;
+	CHECK(st_rip3_environments_set(envs,0,&env) == 0);
+	CHECK(run(&host,"$PORTX1(CUR,VIEW,WORLD)$","109947807334",-1) == 0);
+	CHECK(run(&host,"$PORTY1(CUR,VIEW,WORLD)$","146597076445",-1) == 0);
+	CHECK(st_rip3_ports_protect(ports,1,false) == 0 && st_rip3_ports_switch(ports,1) == 0);
+	const struct st_rip3_rect negative = {1,2,9,7};
+	CHECK(st_rip3_ports_viewport_device(ports,&negative) == 0);
+	env.world_width = 641; env.world_height = 481;
+	CHECK(st_rip3_environments_set(envs,0,&env) == 0);
+	CHECK(run(&host,"$PORTX0(CUR,VIEW,DEVICE)$","-10",-1) == 0);
+	CHECK(run(&host,"$PORTX0(CUR,VIEW,WORLD)$","-11",-1) == 0);
+	CHECK(run(&host,"$PORTY0(CUR,VIEW,WORLD)$","-22",-1) == 0);
+	CHECK(run(&host,"$PORTX1(CUR,VIEW,WORLD)$","-2",-1) == 0);
+	st_rip3_environments_destroy(envs); st_rip3_ports_destroy(ports);
+	return 0;
+}
+
+static int
 canvas(enum st_rip3_canvas canvas, const char *width, const char *height,
     const char *world_width, const char *world_height,
     const char *default_x, const char *default_y,
@@ -149,8 +236,8 @@ canvas(enum st_rip3_canvas canvas, const char *width, const char *height,
 		CHECK(run(&host, invalid[i], NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 		CHECK(run(&host, "$PORTW(CUR,PORT,DEVICE)$", "20", -1) == 0);
 	}
-	CHECK(run(&host, "$PORTW(1,DEVICE)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	CHECK(run(&host, "$PORTH(1,WORLD)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
+	CHECK(run(&host, "$PORTW(1,DEVICE)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
+	CHECK(run(&host, "$PORTH(1,WORLD)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 	/* Device replies need no world binding. No binding means no invented world. */
 	host.frame = NULL;
 	CHECK(run(&host, "$PORTW(1,PORT,DEVICE)$", "20", -1) == 0);
@@ -207,6 +294,7 @@ int
 main(void)
 {
 	const struct st_rip3_host_variables absent = {0};
+	CHECK(grammar_and_wide_values() == 0);
 	CHECK(run(&absent, "$PORTW$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	CHECK(run(&absent, "$PORTX1(CUR,VIEW,DEVICE)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	CHECK(run(&absent, "$PORTW(36)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);

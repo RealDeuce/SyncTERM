@@ -5,6 +5,7 @@
 #include "io_error.h"
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -62,13 +63,12 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 {
 	struct st_rip3_port_info info;
 	const struct st_rip3_ports *ports;
-	struct st_rip3_point point = {0};
 	struct st_rip3_rect area;
 	struct st_rip3_frame frame;
 	unsigned number;
 	bool view = false, device = false;
-	int32_t value;
-	char text[16];
+	int64_t value;
+	char text[24];
 	int status, length;
 
 	if (host == NULL || reference == NULL || result == NULL)
@@ -97,14 +97,8 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 		const char *type = reference->parameters[1].text;
 		if (equal(type, "VIEW"))
 			view = true;
-		else if (!equal(type, "PORT")) {
-			/* PORTW/H's two-field DOMAIN syntax conflicts with their explicit
-			 * three-field TYPE/DOMAIN prose/examples. Do not guess shorthand. */
-			if ((width || height) && reference->count == 2
-			    && (equal(type, "DEVICE") || equal(type, "WORLD")))
-				return IO_ERROR_NOT_SUPPORTED;
+		else if (!equal(type, "PORT"))
 			return IO_ERROR_INVALID_FORMAT;
-		}
 	}
 	if (reference->count == 3) {
 		const char *domain = reference->parameters[2].text;
@@ -137,19 +131,25 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 		else if (y0) coordinate = area.y0;
 		else if (x1) coordinate = (int64_t)area.x1+1;
 		else coordinate = (int64_t)area.y1+1;
-		if (coordinate < INT32_MIN || coordinate > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
-		if (width || x0 || x1) point.x = (int32_t)coordinate;
-		else point.y = (int32_t)coordinate;
+		value = coordinate;
 		if (!device) {
 			status = st_rip3_port_query_frame(host, ports, &frame);
-			if (status == 0)
-				status = st_rip3_device_to_world(&frame, &point, &point);
 			if (status != 0)
 				return status;
+			bool horizontal = width || x0 || x1;
+			uint32_t numerator = horizontal ? frame.world_width : frame.world_height;
+			uint32_t denominator = horizontal ? frame.device_width : frame.device_height;
+			/* Counts/exclusive ends can exceed int32_t even though every stored
+			 * coordinate fits. The validated frame and two int32_t endpoints
+			 * bound this product below 2^48. Retain signed floor for origins. */
+			int64_t product = coordinate*numerator;
+			value = product/denominator;
+			if (product < 0 && product%denominator != 0) value--;
 		}
-		value = width || x0 || x1 ? point.x : point.y;
 	}
-	length = snprintf(text, sizeof(text), "%" PRId32, value);
+	/* Spec correction: provide the documented numeric query instead of
+	 * reproducing the shipped all-six inverted-success callback defect. */
+	length = snprintf(text, sizeof(text), "%" PRId64, value);
 	if (length < 0 || (size_t)length >= sizeof(text))
 		return IO_ERROR_IO;
 	if ((size_t)length >= capacity)

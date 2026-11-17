@@ -73,9 +73,12 @@ struct st_rip3_host_sink {
  *
  * Supports NULL, IFS, TERMINFO, RESX/RESY, D, the resolved date/time fields and the
  * implemented table/viewport/environment-variable families, plus PORTW/PORTH
- * and PORTX0/Y0/X1/Y1 in explicit PORT/VIEW and WORLD/DEVICE domains. Lower
- * right query coordinates are exclusive. Unresolved PORTW/H two-field DOMAIN
- * shorthand remains unsupported (#25). Environment
+ * and PORTX0/Y0/X1/Y1 with the shared decimal-port, PORT/VIEW, WORLD/DEVICE
+ * grammar (only trailing fields optional). DOMAIN in the second position is
+ * invalid. Replies use the documented intended numeric semantics, an explicit
+ * correction to RIPtel 3.1's inverted-success callbacks; lower-right coordinates
+ * are exclusive, and wide counts/ends are retained through world conversion.
+ * Environment
  * records support BASEMATH, COORDSIZE, WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT
  * and defined COLORMODE queries/sets; IMGSTYLE queries stored boundaries in
  * the current WORLD without undoing the far increment. Its decimal setter

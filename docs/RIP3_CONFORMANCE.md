@@ -3220,6 +3220,59 @@ The stable pin, adoption identities, RIP1.54 capture inventory, original artifac
 and active application route are unchanged. Temporary logs were removed; no
 existing issue was modified and no changes were pushed.
 
+## Port query grammar and numeric correction
+
+PORTW/PORTH and PORTX0/Y0/X1/Y1 consistently accept the shared decimal selector,
+PORT/VIEW type and WORLD/DEVICE domain grammar. Only trailing fields are optional;
+a domain in the second position rejects as invalid rather than remaining an
+unresolved shorthand. Leading zeroes and case-insensitive keywords work under
+base64 too; numeric selectors remain decimal. Syntax errors remain inside the
+void reference processor and do not latch a session failure.
+
+These queries deliberately implement the documented intended numeric semantics,
+correcting RIPtel 3.1's all-six inverted-success callbacks. The stable reference's
+full-world query section explicitly permits identifying such a correction. Its
+original expression-preserving failures remain recorded as historical behavior;
+the new engine does not claim to reproduce them. Counts and exclusive ends stay
+wide through signed world conversion: a stored INT32_MAX last pixel can report
+2147483648 device pixels or a larger world count. Negative port-relative origins
+retain floor rounding. Undefined/inactive targets retain the intended 0/-1
+sentinels; protection does not block reads.
+
+`rip3_port_query` independently checks 44,928 name/selector/case/optional-prefix
+combinations against literal geometry tables, with base64, current slots 0/1/35,
+every decimal slot, CUR/cur and leading-zero selectors. Existing all-canvas
+captures verify unchanged pixels/state alongside replies, live ENV/frame
+precedence and nonfatal malformed CP437/UTF-8 references. Additional literals
+cover full 2^31 dimensions, large world results and negative fractional origins.
+Ordinary macro expansion and empty-comma collapse remain pending in their
+combined requirement; this API accepts already expanded references.
+
+Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
+compiler warnings. All 101 selected RIP3/preservation/JPEG/shared-audio/codepage
+tests pass (33.72 seconds). All 93 frozen files and 41 legacy helpers match the
+original baseline. Source/adoption identities, historical RIP1.54 captures and
+the active application route are unchanged. Verification logs were removed.
+
+## New PIXEL/POINT write-mode question
+
+New parent issue [#74](https://github.com/bbs-land/remote-imaging-protocol/issues/74)
+asks for the effective X/j mode matrix. The stable entries list Write Mode, while
+read-only original instructions call SetPixel (`0x1e2a8`) and a solid-brush
+FillRect (`0x1e405`). Their API contracts suggest replacement, but that inference
+does not establish native RIPtel outcomes or override protocol intent. The issue
+references the resolved coordinate/thickness work in #11 / PR #39 and the distinct
+filled-rectangle work in #33 / PR #63. No existing issue was modified. The two
+attribute requirements are blocked on this mode decision; the resolved placement
+and width contracts can proceed. The original artifact's SHA-256 still matches
+`83d71b358492b15bcfd3773c30a52784881a3a49a5b6e9029d986b3cba1fd5e8`.
+Only bounded static disassembly was performed; no original DLL instructions ran.
+The ledger now has 210 implemented, 1558 pending, 4631 unreviewed, 915 contextual,
+24 excluded and 19 blocked units among 7357 source blocks. Historical defective
+query replies are explicitly contextual; the combined macro-collapse requirement
+remains pending. The new mode question blocks only the two combined X/j attribute
+requirements. No changes were pushed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
