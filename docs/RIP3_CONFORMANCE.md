@@ -2890,6 +2890,83 @@ review metadata changed. The queue now has 97 implemented, 1623 pending, 4703
 unreviewed, 889 contextual, 24 excluded and 17 blocked blocks. Owned temporary
 logs/assets and CMake fixture directories were removed. No changes were pushed.
 
+## PORT_COPY extent and clipping reconciliation
+
+`2C` now uses the adopted half-open extent contract. WORLD corners are projected
+once, with wide intermediate coordinates retained until clipping. Both source
+and destination all-zero forms are resolved **after conversion**. A fully zero
+destination selects its whole viewport before considering the zero-ending
+verbatim shorthand; the latter instead adds the source's original physical
+width/height to the destination origin. Nonzero raw coordinates that round to
+zero therefore receive the shipped zero-form behavior.
+
+The initial physical extents choose the copy path before any viewport trimming.
+Equal-size copies shorten the source/destination far boundaries together and
+retain one source pixel per destination pixel. Unequal-size copies clip each
+rectangle independently, then fit the surviving source to the surviving
+destination. For a 4×1 source and 2×1 destination at X=1 with zero ending fields,
+only the first source pixel reaches destination X=1; an all-zero destination
+instead fits all four pixels to the two-pixel viewport. The same coupled rule
+applies to explicit equal-size rectangles. Empty/reversed projected rectangles
+diagnose within the void command parser. Undefined/inactive ports and valid
+wholly external rectangles produce no copy. Protection permits content copying;
+current selection, protection and stored viewport records are retained. Overlap
+reads original source pixels before drawing.
+
+This interpretation comes from the pinned chapter 7 and adopted
+`issue-10-port-geometry.md`, checked against read-only original DLL instructions
+at handler 0x46372, post-conversion zero tests 0x4656e/0x465ba, compositor size
+decision 0x13533–0x13555 and coupled far trim 0x13456. The original artifact's
+SHA-256 remains `83d71b358492b15bcfd3773c30a52784881a3a49a5b6e9029d986b3cba1fd5e8`.
+No new normative pin or upstream issue content was introduced.
+
+The command converts its final clipped rectangles to the existing device
+kernel's inclusive representation only at the call boundary. Shared generic
+fit-copy, unscaled blit and clipboard services retain their current contracts.
+Wide projected ends that differ above INT32_MAX remain unequal: a distinguishing
+four-pixel source/two-pixel target fixture fits the complete source when those
+ends differ, and copies its first two pixels when they are equal. Early
+saturation would merge those branches and fail the independent expectation.
+
+`rip3_copy_commands` adds ten literal geometry/pixel cases packed into one
+coherent full-device capture per mode/source-kind scene on every canvas. They
+cover both axes, source and destination clipping, explicit and synthesized equal
+sizes, fit/full-view precedence, one-pixel extents and protected screen/offscreen
+sources. A 25920-copy matrix varies source/destination widths 1–8, every valid
+horizontal destination origin, three destination forms, both destination kinds,
+all five indexed modes and all canvases. Fit matrix sources are uniform so their
+coverage checks do not assume Windows filtering; distinct unscaled pixels expose
+accidental refitting. Both radices and widths 2–5 exercise projected-zero forms;
+additional tests retain base64-only digits, source/selection state, reserved
+lengths 0–5, huge coordinates and the canonical wire literal. Both fit and
+unscaled overlap snapshots are faulted before drawing, with unchanged scene
+bytes and successful subsequent commands. Byte-split input also recovers from
+invalid mode and empty projected geometry within a coherent captured scene.
+
+Older authored scene pixel expectations are retained by correcting their wire
+far fields to exclusive boundaries. The preserved chapter literal now has its
+documented 40×480, 50×600 and 64×768 footprints on the three canvases, without an
+extra far pixel. No RIP1.54 expected image, capture inventory, frozen source or
+helper was changed.
+
+Geometry is reconciled in the separate engine; complete PORT_COPY compliance is
+not claimed. Its six general transfer-mode ledger blocks remain pending because
+the device still stores 8-bit indexes. Grayscale/index arithmetic does not prove
+COPY/XOR/OR/AND/inverted-source results for arbitrary RGB palettes. Full-color
+device representation, generic grammar/comment reconciliation and active
+application routing remain implementation work under the existing reference.
+
+The existing native FreeBSD Release CMake configure/build with `/usr/bin/cc`
+passes without new compiler warnings. All 99 selected tests pass (26.76 seconds).
+Valgrind reports zero errors, no retained heap, 531 allocations/frees and only
+three inherited descriptors for the expanded command fixture. All 93 frozen
+files and 41 helpers remain unchanged. Source/pin/adoption identities and the
+RIP1.54 capture inventory are intact; only PORT_COPY review metadata changed.
+The 7353-block queue now has 114 implemented, 1614 pending, 4695 unreviewed,
+889 contextual, 24 excluded and 17 blocked entries. Owned temporary logs were
+removed. No active application route, original artifact or upstream content was
+modified, and no changes were pushed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

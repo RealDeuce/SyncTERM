@@ -60,6 +60,11 @@ surface/port transfer tests add paired clipping, original-source overlap in all
 transfer modes, offscreen/protected content, extreme origins and allocation
 failure without mutation. Coherent RGB captures cover all three canvases;
 COPY_BLIT/SCROLL wire and clipboard reset/backup integration remain pending.
+PORT_COPY geometry tests now cover half-open WORLD extents, post-conversion
+zero forms and equal-size coupled trimming versus independently clipped fitting.
+Independent all-canvas coherent captures, a width/origin matrix, huge projected
+coordinates and fit/unscaled overlap-allocation recovery cover both source kinds
+and all indexed modes. General RGB transfer/device semantics remain pending.
 Shared GET_IMAGE and LOAD_ICON capture tests cover destructive replacement,
 selection/protection, budgets, clipping and nonfatal recovery. LOAD_BITMAP tests
 add post-draw explicit/clipboard duplication, protected screen/offscreen targets,
