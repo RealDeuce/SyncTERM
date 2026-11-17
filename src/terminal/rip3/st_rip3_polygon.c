@@ -158,7 +158,7 @@ st_rip3_polygon_fill(struct st_rip3_ports *ports,
 	}
 	status = st_rip3_ports_current(ports, &current);
 	if (status == 0) status = st_rip3_ports_info(ports,current,&info);
-	if (status != 0 || !info.viewport_active) return status;
+	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0)) return status;
 	first_y = last_y = (int64_t)points[0].y;
 	for (size_t i = 0; i < count; i++) {
 		int64_t y = (int64_t)points[i].y;
@@ -167,8 +167,8 @@ st_rip3_polygon_fill(struct st_rip3_ports *ports,
 		if (y != (int64_t)points[(i+1)%count].y) edge_count++;
 	}
 	if (first_y < 0) first_y = 0;
-	if (last_y > info.viewport.y1-info.viewport.y0+1)
-		last_y = info.viewport.y1-info.viewport.y0+1;
+	if (last_y > info.clip.y1+1)
+		last_y = info.clip.y1+1;
 	if (first_y < last_y && edge_count != 0) {
 		if (edge_count > SIZE_MAX/sizeof(*edges) || edge_count > SIZE_MAX/sizeof(*boundaries))
 			return IO_ERROR_OUT_OF_RANGE;
@@ -186,7 +186,7 @@ st_rip3_polygon_fill(struct st_rip3_ports *ports,
 	}
 	/* All fallible preparation is complete before any interior pixel changes. */
 	if (edges != NULL) {
-		int32_t limit = info.viewport.x1-info.viewport.x0+1;
+		int32_t limit = info.clip.x1+1;
 		for (int32_t y = (int32_t)first_y; y < last_y; y++) {
 			size_t found = 0;
 			for (size_t i = 0; i < edge_count; i++) {

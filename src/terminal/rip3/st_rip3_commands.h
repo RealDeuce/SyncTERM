@@ -89,13 +89,20 @@ struct st_rip3_command_sink {
  * Port commands use the bound PORT table and current ENV world/width/radix,
  * without activating or updating ENV references. World geometry requires the
  * ENV and PORT device canvases to agree. Offscreen 2P and wholly external
- * port/viewport definitions await producer reconciliation. DEFINE_PORT flag,
+ * port definitions await producer reconciliation. DEFINE_PORT flag,
  * origin and replacement discrepancies are tracked in #72. For 2C, projected
  * all-zero source/destination boundaries mean the full viewport; otherwise
  * zero destination ends synthesize an equal-size destination. Half-open extents
  * select unscaled versus fit before clipping. Equal copies trim together;
  * unequal copies clip independently and fit. Undefined/inactive operands are
  * successful no-ops. Indexed transfers do not establish full RGB compliance.
+ * v normalizes WORLD corners, projects once and stores a DEVICE viewport
+ * without adding the screen-port origin or clamping to the declared bounds.
+ * Projected all-zero coordinates deactivate while retaining geometry/image
+ * state. A nonzero replacement reactivates. Physical raster clipping does not
+ * change the stored viewport or fit scale. The current coordinate plane still
+ * rejects projected endpoints outside int32_t before mutation; complete wide
+ * producer support and scene/context integration remain pending.
  * 2s has exactly three port/flag digits, with no reserved field. Only low
  * flags 1/2/4/8 act; higher bits are accepted. Apply source-protect/unprotect,
  * select/create the destination, then destination-protect/unprotect on the

@@ -72,16 +72,16 @@ fill_area(struct st_rip3_ports *ports, struct st_rip3_rect area,
 	status = st_rip3_ports_info(ports, current, &info);
 	if (status != 0)
 		return status;
-	if (!info.viewport_active)
+	if ((!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0))
 		return 0;
 	if (area.x0 < 0)
 		area.x0 = 0;
 	if (area.y0 < 0)
 		area.y0 = 0;
-	if (area.x1 > info.viewport.x1 - info.viewport.x0)
-		area.x1 = info.viewport.x1 - info.viewport.x0;
-	if (area.y1 > info.viewport.y1 - info.viewport.y0)
-		area.y1 = info.viewport.y1 - info.viewport.y0;
+	if (area.x1 > info.clip.x1)
+		area.x1 = info.clip.x1;
+	if (area.y1 > info.clip.y1)
+		area.y1 = info.clip.y1;
 	for (int32_t y = area.y0; y <= area.y1; y++) {
 		/* Unsigned modular differences give Euclidean phase modulo eight,
 		 * even for negative or extreme origins, without signed overflow. */
@@ -240,7 +240,7 @@ st_rip3_draw_filled_polygons(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	status = st_rip3_ports_info(ports, current, &info);
-	if (status != 0 || !info.viewport_active)
+	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0))
 		return status;
 	min_y = max_y = contours[0].points[0].y;
 	for (size_t c = 0; c < count; c++) {
@@ -255,8 +255,8 @@ st_rip3_draw_filled_polygons(struct st_rip3_ports *ports,
 		}
 	}
 	start_y = fmax(min_y, 0);
-	end_y = fmin(max_y - 1, info.viewport.y1 - info.viewport.y0);
-	max_x = info.viewport.x1 - info.viewport.x0;
+	end_y = fmin(max_y - 1, info.clip.y1);
+	max_x = info.clip.x1;
 	if (start_y <= end_y && edge_count != 0) {
 		size_t index = 0;
 

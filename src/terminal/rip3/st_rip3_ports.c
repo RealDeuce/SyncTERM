@@ -136,6 +136,15 @@ st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
 	if (number >= 36)
 		return IO_ERROR_OUT_OF_RANGE;
 	*result = ports->entries[number].info;
+	result->clip = (struct st_rip3_rect){0,0,-1,-1};
+	if (result->defined) {
+		struct st_rip3_rect view = viewport_absolute(&ports->entries[number]);
+		struct st_rip3_rect visible = view;
+		const struct st_rip3_rect *physical = result->offscreen ? &result->bounds : &ports->screen_bounds;
+		if (clip(&visible,physical))
+			result->clip = (struct st_rip3_rect){visible.x0-view.x0,visible.y0-view.y0,
+			    visible.x1-view.x0,visible.y1-view.y0};
+	}
 	return 0;
 }
 
@@ -316,6 +325,27 @@ st_rip3_ports_viewport(struct st_rip3_ports *ports,
 }
 
 int
+st_rip3_ports_viewport_device(struct st_rip3_ports *ports,
+    const struct st_rip3_rect *viewport)
+{
+	struct port *port;
+
+	if (ports == NULL || !rect_valid(viewport) || viewport->x0 < 0 || viewport->y0 < 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	port = &ports->entries[ports->current];
+	if (!port->info.defined) return IO_ERROR_NOT_FOUND;
+	if (port->info.protected) return IO_ERROR_PERMISSION_DENIED;
+	/* Absolute inputs and nonnegative port origins fit int32_t. Subtraction
+	 * may produce negative relative coordinates, but addition in the drawing
+	 * path reconstructs the original representable absolute rectangle. */
+	port->info.viewport = (struct st_rip3_rect){
+	    viewport->x0-port->info.bounds.x0, viewport->y0-port->info.bounds.y0,
+	    viewport->x1-port->info.bounds.x0, viewport->y1-port->info.bounds.y0};
+	port->info.viewport_active = true;
+	return 0;
+}
+
+int
 st_rip3_ports_activate(struct st_rip3_ports *ports, bool active)
 {
 	struct port *port;
@@ -487,8 +517,8 @@ st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 	    || !translate(src, source_area, &from)
 	    || !translate(dst, destination_area, &to))
 		return 0;
-	return st_rip3_surface_copy(port_surface(ports, destination), NULL, &to,
-	    port_surface(ports, source), NULL, &from, mode);
+	return st_rip3_surface_copy_projected(port_surface(ports,destination),&to,
+	    port_surface(ports,source),&from,mode);
 }
 
 int
@@ -551,6 +581,23 @@ st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
 		return IO_ERROR_OUT_OF_RANGE;
 	return st_rip3_surface_get(port_surface(ports, number),
 	    x + port->info.bounds.x0, y + port->info.bounds.y0, result);
+}
+
+int
+st_rip3_ports_read_viewport(const struct st_rip3_ports *ports, unsigned number,
+    int32_t x, int32_t y, uint8_t *result)
+{
+	struct st_rip3_port_info info;
+	int status;
+
+	if (ports == NULL || result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rip3_ports_info(ports,number,&info);
+	if (status != 0) return status;
+	if (!info.defined) return IO_ERROR_NOT_FOUND;
+	if (x < info.clip.x0 || y < info.clip.y0 || x > info.clip.x1 || y > info.clip.y1)
+		return IO_ERROR_OUT_OF_RANGE;
+	const struct st_rip3_rect view = viewport_absolute(&ports->entries[number]);
+	return st_rip3_surface_get(port_surface(ports,number),view.x0+x,view.y0+y,result);
 }
 
 int

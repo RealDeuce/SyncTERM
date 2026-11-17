@@ -21,7 +21,8 @@ struct st_rip3_ports;
  * go right or below. This is geometric/spec rendering, not RIPtel pixel reproduction.
  * Flag 4 skips the initial black COPY clear of the fitted rectangle. Image
  * pixels always use COPY, independently of vector write mode/background.
- * Source pixels/palettes and initial fit staging are validated/prepared before
+ * Physical clipping retains the original fit/sample coordinates and stages only
+ * visible pixels. Source pixels/palettes and visible fit staging are prepared before
  * initial painting. Flag 16 then tiles the stored image-area rectangle with
  * COPY, including retained margins and the extra far row/column beyond the
  * reduced JPEG target. Flag 32 shifts alternate rows by half that tile width;

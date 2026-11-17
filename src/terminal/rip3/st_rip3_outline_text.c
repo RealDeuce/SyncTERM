@@ -298,9 +298,9 @@ fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
 		ymin = fmin(ymin, path->vertices[i].y); ymax = fmax(ymax, path->vertices[i].y);
 	}
 	left = fmax(0, ceil(xmin - 0.5));
-	right = fmin(info->viewport.x1 - info->viewport.x0, ceil(xmax - 0.5) - 1);
+	right = fmin(info->clip.x1, ceil(xmax - 0.5) - 1);
 	top = fmax(0, ceil(ymin - 0.5));
-	bottom = fmin(info->viewport.y1 - info->viewport.y0, ceil(ymax - 0.5) - 1);
+	bottom = fmin(info->clip.y1, ceil(ymax - 0.5) - 1);
 	if (left > right || top > bottom) {
 		*result = mask;
 		return 0;
@@ -397,7 +397,7 @@ st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 	status = st_rip3_ports_current(ports, &current);
 	if (status == 0)
 		status = st_rip3_ports_info(ports, current, &info);
-	if (status != 0 || !info.viewport_active)
+	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0))
 		return status;
 	if (length > SIZE_MAX / sizeof(*path.glyphs))
 		return IO_ERROR_OUT_OF_RANGE;

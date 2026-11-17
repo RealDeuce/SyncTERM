@@ -154,25 +154,25 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 	CHECK(st_rip3_ports_fill(host.ports, &fill, 1, ST_RIP3_COPY) == 0);
 	CHECK(query(&host, "$CUR(PORT)$", "1") == 0);
 	CHECK(query(&host, "$PORTW(1,VIEW,DEVICE)$", view_width) == 0);
-	CHECK(wire(stream, &scene, "!|2P20W0O1R1B2|v0000ZKQO\r") == 0);
+	CHECK(wire(stream, &scene, "!|2P20W0O1R1B2|v0W0O1R1B\r") == 0);
 	CHECK(st_rip3_ports_fill(host.ports, &fill, 4, ST_RIP3_COPY) == 0);
 	CHECK(wire(stream, &scene, "!|2p20|v00000000\r") == 0);
 	CHECK(st_rip3_ports_plot(host.ports, 10,10, 2, ST_RIP3_COPY) == 0); /* Inactive. */
-	CHECK(wire(stream, &scene, "!|v00000001\r") == 0); /* Nonzero world -> pixel at origin. */
+	CHECK(wire(stream, &scene, "!|v02000200\r") == 0); /* Nonzero DEVICE point; converted zeros deactivate. */
 	CHECK(st_rip3_ports_info(host.ports, 0, &info) == 0 && info.viewport_active);
-	CHECK(info.viewport.x0 == 0 && info.viewport.y0 == 0 && info.viewport.x1 == 0 && info.viewport.y1 == 0);
+	CHECK(info.viewport.x0 == 1 && info.viewport.y0 == 0 && info.viewport.x1 == 1 && info.viewport.y1 == 0);
 	CHECK(st_rip3_ports_fill(host.ports, &fill, 15, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_palette_defaults(&palette) == 0);
 	CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
-	/* One independently specified scene: white origin, blue clipped port,
+	/* One independently specified scene: white DEVICE point, blue clipped port,
 	 * red retained pixels from a deleted port, otherwise black. */
 	for (uint32_t y = 0; y < height; y++) {
 		for (uint32_t x = 0; x < width; x++) {
-			uint32_t rgb = x == 0 && y == 0 ? 0xffffff
-			    : x >= (uint32_t)blue.x0 && x <= (uint32_t)blue.x1
-			    && y >= (uint32_t)blue.y0 && y <= (uint32_t)blue.y1 ? 0x0000aa
+			uint32_t rgb = x == 1 && y == 0 ? 0xffffff
 			    : x >= (uint32_t)red.x0 && x <= (uint32_t)red.x1
-			    && y >= (uint32_t)red.y0 && y <= (uint32_t)red.y1 ? 0xaa0000 : 0;
+			    && y >= (uint32_t)red.y0 && y <= (uint32_t)red.y1 ? 0xaa0000
+			    : x >= (uint32_t)blue.x0 && x <= (uint32_t)blue.x1
+			    && y >= (uint32_t)blue.y0 && y <= (uint32_t)blue.y1 ? 0x0000aa : 0;
 			CHECK(capture->primary[(size_t)y * width+x] == (ST_PIXEL_COLOR_RGB_TAG | rgb));
 		}
 	}
@@ -192,7 +192,7 @@ validation(void)
 {
 	const char *invalid[] = {"2P", "2P1", "2P100000202", "2P0000002020",
 	    "2P100000202000000000", "2P1000002020000000?", "2P1000100000",
-	    "v", "v000000", "v000000000", "v0000000?", "v01000000",
+	    "v", "v000000", "v000000000", "v0000000?",
 	    "2p", "2p1", "2p10000", "2p1?00"};
 	const char *unsupported[] = {"2P1000002021", "2P100000202G", "2P10000020200000001",
 	    "2P1000002020 comment", "v00000202 comment", "2p1001", "2p10 comment"};
@@ -214,8 +214,7 @@ validation(void)
 		CHECK(process(&host, unsupported[i], ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 		CHECK(unchanged(host.ports, before, 1) == 0);
 	}
-	CHECK(process(&host, "vZZZZZZZZ", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&host, "2P1ZZZZZZZZ0", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+		CHECK(process(&host, "2P1ZZZZZZZZ0", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(unchanged(host.ports, before, 1) == 0);
 	CHECK(process(&missing, "2p10", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.ports = host.ports;
@@ -332,7 +331,7 @@ field_widths(void)
 	CHECK(process(&host, "2P#00000z0&2", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "n5", -1) == 0);
 	CHECK(process(&host, "f0000100001", -1) == 0);
-	CHECK(process(&host, "v0000000000&&&&&&&&&&", -1) == 0);
+	CHECK(process(&host, "v0000000000&&&&&&&&&&", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(st_rip3_ports_info(host.ports, 35, &info) == 0
 	    && info.viewport.x0 == 0 && info.viewport.y0 == 0
 	    && info.viewport.x1 == 61 && info.viewport.y1 == 63);
@@ -340,9 +339,9 @@ field_widths(void)
 	CHECK(st_rip3_ports_info(host.ports, 3, &info) == 0
 	    && info.bounds.x0 == 0 && info.bounds.y0 == 0
 	    && info.bounds.x1 == 639 && info.bounds.y1 == 479);
-	CHECK(process(&host, "v&&&&&&&&&&&&&&&&&&&&", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host, "v&&&&&&&&&&&&&&&&&&&&", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	/* Offscreen creation has an explicit DEVICE size in this fixture; v can
-	 * configure it without guessing 2P's unresolved offscreen wire extents. */
+	 * configure it independently of 2P's unresolved offscreen wire extents. */
 	{
 		const struct st_rip3_rect offscreen = {0,0,3,3};
 		uint8_t index = 0;
@@ -379,11 +378,11 @@ field_widths(void)
 int
 main(void)
 {
-	CHECK(scene(ST_RIP3_CANVAS_640_480, 640,480, (struct st_rip3_rect){88,66,159,119},
+	CHECK(scene(ST_RIP3_CANVAS_640_480, 640,480, (struct st_rip3_rect){8,6,79,59},
 	    (struct st_rip3_rect){16,12,31,23}, "72") == 0);
-	CHECK(scene(ST_RIP3_CANVAS_800_600, 800,600, (struct st_rip3_rect){110,82,199,149},
+	CHECK(scene(ST_RIP3_CANVAS_800_600, 800,600, (struct st_rip3_rect){10,7,99,74},
 	    (struct st_rip3_rect){20,15,39,29}, "90") == 0);
-	CHECK(scene(ST_RIP3_CANVAS_1024_768, 1024,768, (struct st_rip3_rect){140,105,255,191},
+	CHECK(scene(ST_RIP3_CANVAS_1024_768, 1024,768, (struct st_rip3_rect){12,9,127,95},
 	    (struct st_rip3_rect){25,19,50,37}, "116") == 0);
 	CHECK(validation() == 0);
 	CHECK(flags_and_delete() == 0);

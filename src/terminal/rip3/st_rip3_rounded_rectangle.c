@@ -141,8 +141,8 @@ fill_interior(struct st_rip3_ports *ports, const struct st_rip3_rounded_rectangl
 	if (rectangle->x0 == rectangle->x1 || rectangle->y0 == rectangle->y1) return 0;
 	status = st_rip3_ports_current(ports, &current);
 	if (status == 0) status = st_rip3_ports_info(ports, current, &info);
-	if (status != 0 || !info.viewport_active) return status;
-	right = info.viewport.x1-info.viewport.x0; bottom = info.viewport.y1-info.viewport.y0;
+	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0)) return status;
+	right = info.clip.x1; bottom = info.clip.y1;
 	if (min_x > right || min_y > bottom || max_x < left || max_y < top) return 0;
 	if (min_x > left) left = (int32_t)ceil(min_x);
 	if (min_y > top) top = (int32_t)ceil(min_y);

@@ -53,7 +53,7 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
     size_t source_palette_size, const struct st_rip3_palette *palette)
 {
 	struct st_rip3_port_info info;
-	struct st_rip3_rect area, fitted;
+	struct st_rip3_rect area, fitted, visible;
 	unsigned current;
 	uint32_t width, height, available_width, available_height;
 	uint8_t *pixels = NULL, mapped[256], black;
@@ -107,46 +107,44 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 	}
 	fitted.x0 = area.x0 + (int32_t)((available_width - width) / 2);
 	fitted.y0 = area.y0 + (int32_t)((available_height - height) / 2);
-	fitted.x1 = fitted.x0 + (int32_t)width - 1;
-	fitted.y1 = fitted.y0 + (int32_t)height - 1;
-	if ((uint64_t)width * height > SIZE_MAX)
-		return IO_ERROR_OUT_OF_RANGE;
-	pixels = malloc((size_t)width * height);
-	if (pixels == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	/* Validation above makes color mapping infallible. Prepare the complete
-	 * fitted bitmap before clearing or painting any destination pixels. */
-	(void)st_rip3_palette_color(palette, true, 0, &black);
-	for (size_t i = 0; i < source_palette_size; i++)
-		(void)st_rip3_palette_color(palette, true, source_palette[i], &mapped[i]);
-	for (uint32_t y = 0; y < height; y++) {
-		uint32_t sy = (uint32_t)(((uint64_t)y * 2 + 1) * image->height
-		    / (2 * (uint64_t)height));
-
-		for (uint32_t x = 0; x < width; x++) {
-			uint32_t sx = (uint32_t)(((uint64_t)x * 2 + 1) * image->width
-			    / (2 * (uint64_t)width));
-			uint32_t sample = image->primary[(size_t)sy * image->width + sx];
-			uint8_t *pixel = &pixels[(size_t)y * width + x];
-
-			if (ST_PIXEL_COLOR_IS_RGB(sample))
-				(void)st_rip3_palette_color(palette, true,
-				    sample & ~ST_PIXEL_COLOR_RGB_TAG, pixel);
-			else
-				*pixel = mapped[sample];
+	fitted.x1 = (int32_t)((int64_t)fitted.x0 + width - 1);
+	fitted.y1 = (int32_t)((int64_t)fitted.y0 + height - 1);
+	visible = fitted;
+	if (visible.x0 < info.clip.x0) visible.x0 = info.clip.x0;
+	if (visible.y0 < info.clip.y0) visible.y0 = info.clip.y0;
+	if (visible.x1 > info.clip.x1) visible.x1 = info.clip.x1;
+	if (visible.y1 > info.clip.y1) visible.y1 = info.clip.y1;
+	if (visible.x0 <= visible.x1 && visible.y0 <= visible.y1) {
+		uint32_t visible_width = (uint32_t)(visible.x1-visible.x0)+1;
+		uint32_t visible_height = (uint32_t)(visible.y1-visible.y0)+1;
+		if ((uint64_t)visible_width*visible_height > SIZE_MAX) return IO_ERROR_OUT_OF_RANGE;
+		pixels = malloc((size_t)visible_width*visible_height);
+		if (pixels == NULL) return IO_ERROR_OUT_OF_MEMORY;
+		/* Fit to stored geometry, then clip physical output without refitting.
+		 * Only visible pixels need staging, even for enormous raw viewports. */
+		(void)st_rip3_palette_color(palette,true,0,&black);
+		for (size_t i = 0; i < source_palette_size; i++)
+			(void)st_rip3_palette_color(palette,true,source_palette[i],&mapped[i]);
+		for (uint32_t y = 0; y < visible_height; y++) {
+			uint64_t offset_y = (uint64_t)(visible.y0-fitted.y0)+y;
+			uint32_t sy = (uint32_t)((2*offset_y+1)*image->height/(2*(uint64_t)height));
+			for (uint32_t x = 0; x < visible_width; x++) {
+				uint64_t offset_x = (uint64_t)(visible.x0-fitted.x0)+x;
+				uint32_t sx = (uint32_t)((2*offset_x+1)*image->width/(2*(uint64_t)width));
+				uint32_t sample = image->primary[(size_t)sy*image->width+sx];
+				uint8_t *pixel = pixels+(size_t)y*visible_width+x;
+				if (ST_PIXEL_COLOR_IS_RGB(sample))
+					(void)st_rip3_palette_color(palette,true,sample & ~ST_PIXEL_COLOR_RGB_TAG,pixel);
+				else *pixel = mapped[sample];
+			}
 		}
+		if ((info.image.flags&4) == 0)
+			(void)st_rip3_ports_fill(ports,&fitted,black,ST_RIP3_COPY);
+		for (uint32_t y = 0; y < visible_height; y++) for (uint32_t x = 0; x < visible_width; x++)
+			(void)st_rip3_ports_plot(ports,visible.x0+(int32_t)x,visible.y0+(int32_t)y,
+			    pixels[(size_t)y*visible_width+x],ST_RIP3_COPY);
+		free(pixels);
 	}
-	if ((info.image.flags & 4) == 0)
-		(void)st_rip3_ports_fill(ports, &fitted, black, ST_RIP3_COPY);
-	/* The original JPEG consumer uses SRCCOPY independently of the vector
-	 * ROP. The clear also covers only the fitted image, retaining margins. */
-	for (int32_t y = fitted.y0; y <= fitted.y1; y++) {
-		for (int32_t x = fitted.x0; x <= fitted.x1; x++) {
-			(void)st_rip3_ports_plot(ports, x, y,
-			    pixels[(size_t)(y - fitted.y0) * width + (uint32_t)(x - fitted.x0)], ST_RIP3_COPY);
-		}
-	}
-	free(pixels);
 	if ((info.image.flags&16) != 0) {
 		/* The presentation caller passes the stored image record directly to
 		 * wallpaper, not the JPEG wrapper's reduced or aspect-fitted rectangle.

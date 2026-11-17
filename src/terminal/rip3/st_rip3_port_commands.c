@@ -423,23 +423,22 @@ st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 	}
 	status = coordinates(&world, arguments, count, environment.coordinate_size,
 	    environment.base_math, true);
-	if (status == 0 && !ordered(&world))
-		return IO_ERROR_INVALID_FORMAT;
-	if (status == 0)
-		status = translate(host, number, &world, &device);
-	if (status != 0)
-		return status;
-	/* The deactivation sentinel belongs to WORLD fields, before rounding.
-	 * A nonzero world rectangle can map to one device pixel at the origin. */
-	if (all_zero(&world)) {
-		*operation = true;
-		return st_rip3_ports_activate(host->ports, false);
-	}
-	status = st_rip3_ports_current(host->ports, &number);
-	if (status == 0)
-		status = clip_to_port(host->ports, number, &device);
-	if (status != 0)
-		return status;
+	if (status != 0) return status;
+	if (world.x0 > world.x1) { int32_t swap = world.x0; world.x0 = world.x1; world.x1 = swap; }
+	if (world.y0 > world.y1) { int32_t swap = world.y0; world.y0 = world.y1; world.y1 = swap; }
+	struct st_rip3_frame frame;
+	struct st_rip3_point first = {world.x0,world.y0}, last = {world.x1,world.y1};
+	status = st_rip3_command_frame(host,number,&frame);
+	if (status != 0) return status;
 	*operation = true;
-	return st_rip3_ports_viewport(host->ports, &device);
+	status = st_rip3_world_to_device(&frame,&first,&first);
+	if (status == 0) status = st_rip3_world_to_device(&frame,&last,&last);
+	if (status != 0) return status;
+	device = (struct st_rip3_rect){first.x,first.y,last.x,last.y};
+	/* Original helper 0x33cc6 tests zero after conversion. Its stored viewport
+	 * uses DEVICE coordinates directly, without adding the port origin or
+	 * intersecting with port bounds. Internal rectangles already have inclusive
+	 * endpoints, so no extra far unit belongs in this representation. */
+	if (all_zero(&device)) return st_rip3_ports_activate(host->ports,false);
+	return st_rip3_ports_viewport_device(host->ports,&device);
 }

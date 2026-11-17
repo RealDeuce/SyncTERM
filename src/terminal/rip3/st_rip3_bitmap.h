@@ -65,6 +65,13 @@ int st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
 int st_rip3_bitmap_capture_port(struct st_rip3_bitmap **result,
 	const struct st_rip3_ports *ports, unsigned number,
 	const struct st_rip3_rect *area, const struct st_rip3_palette *palette);
+/* PORT_WRITE's stored viewport capture: viewport-relative inclusive DEVICE
+ * area, NULL for the full stored rectangle, independent of activation and
+ * port bounds. Crossing the physical bitmap is currently NOT_SUPPORTED;
+ * requested dimensions are never silently reduced. */
+int st_rip3_bitmap_capture_stored_viewport(struct st_rip3_bitmap **result,
+	const struct st_rip3_ports *ports, unsigned number,
+	const struct st_rip3_rect *area, const struct st_rip3_palette *palette);
 void st_rip3_bitmap_destroy(struct st_rip3_bitmap *bitmap);
 
 #endif

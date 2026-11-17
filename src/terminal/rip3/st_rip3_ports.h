@@ -31,9 +31,14 @@ struct st_rip3_port_info {
 	bool protected;
 	bool viewport_active;
 	/* Screen bounds are absolute device coordinates; offscreen bounds
-	 * start at zero. Viewport coordinates are relative to these bounds. */
+	 * start at zero. Viewport coordinates are relative to these bounds, but
+	 * wire definitions can be negative or extend beyond the port. */
 	struct st_rip3_rect bounds;
 	struct st_rip3_rect viewport;
+	/* Derived viewport-relative intersection with the underlying physical
+	 * surface, independent of activation. Empty is 0,0,-1,-1. This limits
+	 * raster work without changing the stored origin, extent or fitting. */
+	struct st_rip3_rect clip;
 	struct st_rip3_image_style image;
 };
 
@@ -79,9 +84,15 @@ int st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number);
 int st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard);
 /* Configure the current port's viewport in port-relative device coordinates.
  * Bounds clamp to the port. All-zero device bounds define one active pixel;
- * wire-level all-zero WORLD deactivation belongs to the command decoder.
+ * wire-level projected all-zero deactivation belongs to the command decoder.
  * Use st_rip3_ports_activate to deactivate while retaining the rectangle. */
 int st_rip3_ports_viewport(struct st_rip3_ports *ports,
+	const struct st_rip3_rect *viewport);
+/* Wire producer's absolute DEVICE rectangle (offscreen origin is zero).
+ * Inclusive endpoints, already normalized, must be nonnegative. Store it
+ * without port/surface intersection, activate, and retain image state. This
+ * differs from the bounded port-relative device setter above. */
+int st_rip3_ports_viewport_device(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *viewport);
 int st_rip3_ports_activate(struct st_rip3_ports *ports, bool active);
 /* Replace one defined port's raw image record without selecting it. NULL
@@ -114,8 +125,9 @@ int st_rip3_ports_plot(struct st_rip3_ports *ports, int32_t x, int32_t y,
 int st_rip3_ports_fill(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
 	uint8_t color, enum st_rip3_write_mode mode);
 int st_rip3_ports_erase(struct st_rip3_ports *ports, uint8_t background);
-/* Explicitly fitted rectangles in each viewport's local coordinates; NULL
- * means the full viewport. Undefined/inactive source/destination is a no-op. */
+/* Explicitly fitted rectangles in each stored viewport's local coordinates;
+ * NULL means the full viewport. Physical clipping preserves the original
+ * sampling rather than fitting again. Undefined/inactive operands are no-ops. */
 int st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 	const struct st_rip3_rect *source_area, unsigned destination,
 	const struct st_rip3_rect *destination_area, enum st_rip3_transfer_mode mode);
@@ -132,6 +144,11 @@ int st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
 	enum st_rip3_transfer_mode mode);
 /* Raw read coordinates are port-relative, independent of viewport activation. */
 int st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
+	int32_t x, int32_t y, uint8_t *result);
+/* Read a viewport-relative pixel from the underlying surface, without port-
+ * bound clipping or an activation gate. Outside physical pixels return RANGE;
+ * they do not wrap or become an invented padded pixel value. */
+int st_rip3_ports_read_viewport(const struct st_rip3_ports *ports, unsigned number,
 	int32_t x, int32_t y, uint8_t *result);
 int st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	const struct st_rip3_palette *palette, struct st_pixel_buffer **result);

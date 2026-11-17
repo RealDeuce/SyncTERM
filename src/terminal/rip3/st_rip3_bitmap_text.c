@@ -97,7 +97,7 @@ st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	status = st_rip3_ports_info(ports, current, &info);
-	if (status != 0 || !info.viewport_active)
+	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0))
 		return status;
 	span = style->vertical ? metrics.height : metrics.width;
 	left = (int64_t)origin->x;
@@ -112,10 +112,10 @@ st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
 		left = 0;
 	if (top < 0)
 		top = 0;
-	if (right > info.viewport.x1 - info.viewport.x0)
-		right = info.viewport.x1 - info.viewport.x0;
-	if (bottom > info.viewport.y1 - info.viewport.y0)
-		bottom = info.viewport.y1 - info.viewport.y0;
+	if (right > info.clip.x1)
+		right = info.clip.x1;
+	if (bottom > info.clip.y1)
+		bottom = info.clip.y1;
 	for (int64_t y = top; y <= bottom; y++) {
 		for (int64_t x = left; x <= right; x++) {
 			int pixel = glyph_pixel(font, style, text, span, origin, x, y);

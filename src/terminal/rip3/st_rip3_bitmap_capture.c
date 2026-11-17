@@ -13,7 +13,7 @@ static int
 capture(struct st_rip3_bitmap **result,
     const struct st_rip3_ports *ports, unsigned number,
     const struct st_rip3_rect *area, const struct st_rip3_palette *palette,
-    bool viewport)
+    bool viewport, bool active_required)
 {
 	struct st_rip3_port_info info;
 	struct st_rip3_rect visible;
@@ -28,7 +28,7 @@ capture(struct st_rip3_bitmap **result,
 	status = st_rip3_ports_info(ports,number,&info);
 	if (status != 0) return status;
 	if (!info.defined) return IO_ERROR_NOT_FOUND;
-	if (viewport && !info.viewport_active) return IO_ERROR_NOT_SUPPORTED;
+	if (active_required && !info.viewport_active) return IO_ERROR_NOT_SUPPORTED;
 	visible = (struct st_rip3_rect){0,0,
 	    viewport ? info.viewport.x1-info.viewport.x0 : info.bounds.x1-info.bounds.x0,
 	    viewport ? info.viewport.y1-info.viewport.y0 : info.bounds.y1-info.bounds.y0};
@@ -39,6 +39,11 @@ capture(struct st_rip3_bitmap **result,
 		if (area->y1 < visible.y1) visible.y1 = area->y1;
 	}
 	if (visible.x0 > visible.x1 || visible.y0 > visible.y1) return IO_ERROR_NOT_FOUND;
+	/* Out-of-physical export pixels remain a separate consumer policy. Do
+	 * not silently crop the requested dimensions or allocate an enormous
+	 * virtual rectangle that cannot be read from its physical source. */
+	if (viewport && (visible.x1 > info.clip.x1 || visible.y1 > info.clip.y1))
+		return IO_ERROR_NOT_SUPPORTED;
 	bitmap = calloc(1,sizeof(*bitmap));
 	if (bitmap == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	bitmap->bit_depth = 8; bitmap->palette_size = 256;
@@ -49,9 +54,9 @@ capture(struct st_rip3_bitmap **result,
 	for (uint32_t y = 0; y < bitmap->pixels->height; y++) {
 		for (uint32_t x = 0; x < bitmap->pixels->width; x++) {
 			uint8_t index;
-			status = st_rip3_ports_read(ports,number,
-			    (viewport ? info.viewport.x0 : 0)+visible.x0+(int32_t)x,
-			    (viewport ? info.viewport.y0 : 0)+visible.y0+(int32_t)y,&index);
+			status = viewport ? st_rip3_ports_read_viewport(ports,number,
+			    visible.x0+(int32_t)x,visible.y0+(int32_t)y,&index)
+			    : st_rip3_ports_read(ports,number,visible.x0+(int32_t)x,visible.y0+(int32_t)y,&index);
 			if (status != 0) goto failed;
 			bitmap->pixels->primary[(size_t)y*bitmap->pixels->width+x] = index;
 		}
@@ -68,7 +73,7 @@ st_rip3_bitmap_capture(struct st_rip3_bitmap **result,
     const struct st_rip3_ports *ports, unsigned number,
     const struct st_rip3_rect *area, const struct st_rip3_palette *palette)
 {
-	return capture(result,ports,number,area,palette,true);
+	return capture(result,ports,number,area,palette,true,true);
 }
 
 int
@@ -76,5 +81,13 @@ st_rip3_bitmap_capture_port(struct st_rip3_bitmap **result,
     const struct st_rip3_ports *ports, unsigned number,
     const struct st_rip3_rect *area, const struct st_rip3_palette *palette)
 {
-	return capture(result,ports,number,area,palette,false);
+	return capture(result,ports,number,area,palette,false,false);
+}
+
+int
+st_rip3_bitmap_capture_stored_viewport(struct st_rip3_bitmap **result,
+    const struct st_rip3_ports *ports, unsigned number,
+    const struct st_rip3_rect *area, const struct st_rip3_palette *palette)
+{
+	return capture(result,ports,number,area,palette,true,false);
 }

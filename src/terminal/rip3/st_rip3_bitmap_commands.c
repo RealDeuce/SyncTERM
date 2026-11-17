@@ -13,9 +13,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+enum bitmap_source { BITMAP_CLIPBOARD, BITMAP_PORT, BITMAP_VIEWPORT };
+
 static int
 write_bitmap(const struct st_rip3_command_host *host, unsigned source,
-    const struct st_rip3_rect *area, bool raw_port,
+    const struct st_rip3_rect *area, enum bitmap_source kind,
     const uint8_t *name, size_t name_length)
 {
 	struct st_rip3_palette palette;
@@ -34,8 +36,10 @@ write_bitmap(const struct st_rip3_command_host *host, unsigned source,
 	status = st_rip3_palettes_current(host->palettes,&number);
 	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
 	if (status == 0) {
-		if (raw_port)
+		if (kind == BITMAP_PORT)
 			status = st_rip3_bitmap_capture_port(&bitmap,host->ports,source,area,&palette);
+		else if (kind == BITMAP_VIEWPORT)
+			status = st_rip3_bitmap_capture_stored_viewport(&bitmap,host->ports,source,area,&palette);
 		else
 			status = st_rip3_bitmap_capture(&bitmap,host->ports,source,area,&palette);
 	}
@@ -78,7 +82,7 @@ port_write(const struct st_rip3_command_host *host,
 	/* The shipped writer ignores the computed crop for offscreen sources.
 	 * Inactive and protected defined sources remain readable in both paths. */
 	if (info.offscreen)
-		return write_bitmap(host,(unsigned)source,NULL,true,command+prefix,length-prefix);
+		return write_bitmap(host,(unsigned)source,NULL,BITMAP_PORT,command+prefix,length-prefix);
 	uint64_t view_width = (uint64_t)(info.viewport.x1-info.viewport.x0)+1;
 	uint64_t view_height = (uint64_t)(info.viewport.y1-info.viewport.y0)+1;
 	uint64_t right = remainder || fields[2] > view_width ? view_width : fields[2];
@@ -86,11 +90,11 @@ port_write(const struct st_rip3_command_host *host,
 	if (fields[0] >= right || fields[1] >= bottom) return IO_ERROR_INVALID_ARGUMENT;
 	/* 2W fields are raw DEVICE offsets. Convert its half-open far boundaries
 	 * to the capture kernel's inclusive endpoints only after independent
-	 * clipping; sums are then bounded by the stored viewport. */
+	 * clipping; the capture reads relative to the stored viewport. */
 	area = (struct st_rip3_rect){
-	    info.viewport.x0+(int32_t)fields[0], info.viewport.y0+(int32_t)fields[1],
-	    info.viewport.x0+(int32_t)(right-1), info.viewport.y0+(int32_t)(bottom-1)};
-	return write_bitmap(host,(unsigned)source,&area,true,command+prefix,length-prefix);
+	    (int32_t)fields[0], (int32_t)fields[1],
+	    (int32_t)(right-1), (int32_t)(bottom-1)};
+	return write_bitmap(host,(unsigned)source,&area,BITMAP_VIEWPORT,command+prefix,length-prefix);
 }
 
 int
@@ -112,7 +116,7 @@ st_rip3_bitmap_commands_execute(const struct st_rip3_command_host *host,
 	*operation = true;
 	if (!host->clipboard->set) return 0;
 	if (host->clipboard->port == 0 || host->clipboard->port > 35) return IO_ERROR_INVALID_ARGUMENT;
-	status = write_bitmap(host,host->clipboard->port,NULL,false,command+3,length-3);
+	status = write_bitmap(host,host->clipboard->port,NULL,BITMAP_CLIPBOARD,command+3,length-3);
 	/* Clipboard lifecycle/export reconciliation is separate. Do not clear or
 	 * reassign a dangling selection as an export side effect. */
 	return status;

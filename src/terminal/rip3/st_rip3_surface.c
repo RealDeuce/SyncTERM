@@ -361,6 +361,54 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 }
 
 int
+st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
+    const struct st_rip3_rect *destination_area,
+    const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode)
+{
+	struct st_rip3_rect src, dst;
+	uint8_t *saved = NULL;
+	if (source == NULL || destination == NULL || source_area == NULL || destination_area == NULL
+	    || !rect_valid(source_area) || !rect_valid(destination_area)
+	    || source_area->x0 < 0 || source_area->y0 < 0
+	    || destination_area->x0 < 0 || destination_area->y0 < 0
+	    || mode < ST_RIP3_TRANSFER_COPY || mode > ST_RIP3_TRANSFER_INVERT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	src = *source_area; dst = *destination_area;
+	if (!surface_clip(source,&src,NULL) || !surface_clip(destination,&dst,NULL)) return 0;
+	uint64_t sw = (uint64_t)source_area->x1-source_area->x0+1;
+	uint64_t sh = (uint64_t)source_area->y1-source_area->y0+1;
+	uint64_t dw = (uint64_t)destination_area->x1-destination_area->x0+1;
+	uint64_t dh = (uint64_t)destination_area->y1-destination_area->y0+1;
+	size_t saved_width = (size_t)(src.x1-src.x0)+1;
+	if (source == destination) {
+		size_t saved_height = (size_t)(src.y1-src.y0)+1;
+		saved = malloc(saved_width*saved_height);
+		if (saved == NULL) return IO_ERROR_OUT_OF_MEMORY;
+		for (size_t y = 0; y < saved_height; y++)
+			memcpy(saved+y*saved_width,source->pixels+((size_t)src.y0+y)*source->width+(uint32_t)src.x0,saved_width);
+	}
+	/* Nonnegative int32 endpoints bound every span to 2^31, so the doubled
+	 * center-sampling products fit uint64_t. Clip output without refitting.
+	 * Missing physical source pixels do not acquire invented padding values. */
+	for (int32_t y = dst.y0; y <= dst.y1; y++) {
+		uint64_t sy = (uint64_t)source_area->y0+((2*(uint64_t)(y-destination_area->y0)+1)*sh/(2*dh));
+		if (sy < (uint32_t)src.y0 || sy > (uint32_t)src.y1) continue;
+		for (int32_t x = dst.x0; x <= dst.x1; x++) {
+			uint64_t sx = (uint64_t)source_area->x0+((2*(uint64_t)(x-destination_area->x0)+1)*sw/(2*dw));
+			if (sx < (uint32_t)src.x0 || sx > (uint32_t)src.x1) continue;
+			uint8_t pixel = saved != NULL ? saved[(size_t)(sy-src.y0)*saved_width+(size_t)(sx-src.x0)]
+			    : source->pixels[(size_t)sy*source->width+(size_t)sx];
+			size_t offset = (size_t)y*destination->width+(uint32_t)x;
+			destination->pixels[offset] = mode == ST_RIP3_TRANSFER_INVERT ? (uint8_t)~pixel
+			    : write_pixel(destination->pixels[offset],pixel,(enum st_rip3_write_mode)mode);
+		}
+	}
+	free(saved);
+	return 0;
+}
+
+int
 st_rip3_surface_blit(struct st_rip3_surface *destination,
     const struct st_rip3_rect *destination_clip,
     int32_t destination_x, int32_t destination_y,

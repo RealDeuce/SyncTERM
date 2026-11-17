@@ -86,6 +86,15 @@ int st_rip3_surface_copy(struct st_rip3_surface *destination,
 	const struct st_rip3_rect *source_clip,
 	const struct st_rip3_rect *source_area,
 	enum st_rip3_transfer_mode mode);
+/* Port compositor after viewport fitting: retain the original nonnegative
+ * inclusive source/destination rectangles while clipping physical pixels.
+ * Missing physical source samples leave destination pixels unchanged. Only
+ * visible overlap pixels are snapshotted, before drawing. Both origins and
+ * endpoints must fit nonnegative int32_t; failure preserves the destination. */
+int st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
+	const struct st_rip3_rect *destination_area,
+	const struct st_rip3_surface *source,
+	const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode);
 /* Unscaled transfer: source_area's original upper-left maps to destination_x/y.
  * Clipping either operand discards the corresponding pixels in both operands,
  * preserving that translation. The uncovered source is retained. Overlap reads

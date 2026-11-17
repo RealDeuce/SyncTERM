@@ -157,7 +157,7 @@ st_rip3_draw_chr_text(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	status = st_rip3_ports_info(ports, current, &info);
-	if (status != 0 || !info.viewport_active)
+	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0))
 		return status;
 	status = stroke_count(font, text, length, &count);
 	if (status != 0 || count == 0)

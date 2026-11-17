@@ -167,7 +167,8 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	/* The shipped color-key mask creator rejects RGB555 before staging or
 	 * drawing. Ordinary 16-bit loads still reach the common RGB painter. */
 	if (transparent_color != NULL && bitmap != NULL && bitmap->bit_depth == 16) return IO_ERROR_NOT_SUPPORTED;
-	visible = (struct st_rip3_rect){0,0,info.viewport.x1-info.viewport.x0,info.viewport.y1-info.viewport.y0};
+	if (info.clip.x1 < 0 || info.clip.y1 < 0) return 0;
+	visible = (struct st_rip3_rect){0,0,info.clip.x1,info.clip.y1};
 	if (destination->x0 > visible.x1 || destination->y0 > visible.y1 || destination->x1 < 0 || destination->y1 < 0)
 		return 0;
 	if (destination->x0 > visible.x0) visible.x0 = (int32_t)destination->x0;

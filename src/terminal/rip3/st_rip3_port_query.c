@@ -130,12 +130,16 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 		area = view ? info.viewport : info.bounds;
 		/* Device tables store inclusive last pixels. Query lower-right
 		 * coordinates and dimensions are exclusive boundary/count values. */
-		if (width) point.x = area.x1 - area.x0 + 1;
-		else if (height) point.y = area.y1 - area.y0 + 1;
-		else if (x0) point.x = area.x0;
-		else if (y0) point.y = area.y0;
-		else if (x1) point.x = area.x1 + 1;
-		else point.y = area.y1 + 1;
+		int64_t coordinate;
+		if (width) coordinate = (int64_t)area.x1-area.x0+1;
+		else if (height) coordinate = (int64_t)area.y1-area.y0+1;
+		else if (x0) coordinate = area.x0;
+		else if (y0) coordinate = area.y0;
+		else if (x1) coordinate = (int64_t)area.x1+1;
+		else coordinate = (int64_t)area.y1+1;
+		if (coordinate < INT32_MIN || coordinate > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+		if (width || x0 || x1) point.x = (int32_t)coordinate;
+		else point.y = (int32_t)coordinate;
 		if (!device) {
 			status = st_rip3_port_query_frame(host, ports, &frame);
 			if (status == 0)

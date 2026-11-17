@@ -32,21 +32,25 @@ st_rip3_wallpaper(struct st_rip3_ports *ports,
 	int32_t right = seed->x1 > xmax ? xmax : (int32_t)seed->x1;
 	int32_t bottom = seed->y1 > ymax ? ymax : (int32_t)seed->y1;
 	if (left == 0 && top == 0 && right == xmax && bottom == ymax) return 0;
+	if (info.clip.x1 < 0 || info.clip.y1 < 0) return 0;
+	/* A seed crossing the physical bitmap still needs original-client pixel
+	 * policy reconciliation. Do not shrink its period or invent padding. */
+	if (right > info.clip.x1 || bottom > info.clip.y1) return IO_ERROR_NOT_SUPPORTED;
 	uint32_t width = (uint32_t)(right-left)+1, height = (uint32_t)(bottom-top)+1;
 	if ((uint64_t)width*height > SIZE_MAX) return IO_ERROR_OUT_OF_RANGE;
 	uint8_t *pixels = malloc((size_t)width*height);
 	if (pixels == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
-		status = st_rip3_ports_read(ports,current,info.viewport.x0+left+(int32_t)x,
-		    info.viewport.y0+top+(int32_t)y,pixels+(size_t)y*width+x);
+		status = st_rip3_ports_read_viewport(ports,current,left+(int32_t)x,
+		    top+(int32_t)y,pixels+(size_t)y*width+x);
 		if (status != 0) { free(pixels); return status; }
 	}
-	for (int32_t y = 0; y <= ymax; y++) {
+	for (int32_t y = 0; y <= info.clip.y1; y++) {
 		int64_t dy = (int64_t)y-top, row = dy/height;
 		if (dy < 0 && dy%height != 0) row--;
 		int64_t shift = stagger && row%2 != 0 ? width/2 : 0;
 		uint32_t sy = phase(dy,height);
-		for (int32_t x = 0; x <= xmax; x++) {
+		for (int32_t x = 0; x <= info.clip.x1; x++) {
 			uint32_t sx = phase((int64_t)x-left+shift,width);
 			(void)st_rip3_ports_plot(ports,x,y,pixels[(size_t)sy*width+sx],ST_RIP3_COPY);
 		}

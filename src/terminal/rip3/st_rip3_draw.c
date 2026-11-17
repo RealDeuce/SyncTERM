@@ -72,9 +72,9 @@ stroke_init(struct stroke_target *target, struct st_rip3_ports *ports,
 		return status;
 	*target = (struct stroke_target){
 		.ports = ports,
-		.clip = {0, 0, info.viewport.x1 - info.viewport.x0,
-		    info.viewport.y1 - info.viewport.y0},
-		.active = info.viewport_active,
+		.clip = {0, 0, info.clip.x1,
+		    info.clip.y1},
+		.active = info.viewport_active && info.clip.x1 >= 0 && info.clip.y1 >= 0,
 		.foreground = foreground,
 		.background = background,
 		.mode = mode,

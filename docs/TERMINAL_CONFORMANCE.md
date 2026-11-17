@@ -92,6 +92,13 @@ unprotect precedence, all port indices and flag domains, ordinary undefined-port
 creation and nontransactional failed creation. CUR(PORT,n) shares its selector.
 Independent all-canvas captures check drawing after selection and parser recovery;
 whole-scene disabled-graphics/context binding remains pending.
+Viewport producer tests now distinguish stored DEVICE geometry from visible
+pixels: no screen-port-origin addition or port-bound clamp, normalized corners
+and post-conversion zero deactivation. Independent all-canvas captures cover
+negative relative origins, image/copy sampling through physical clipping,
+viewport reads beyond declared bounds, backup state and huge virtual extents
+with bounded raster staging. Complete wide-coordinate records and out-of-physical
+capture/tile-source policy remain pending.
 These do not change the active route. A body tests now add canonical full circles and validated
 equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
 handling, RGB/NOT, protected records, wide clipping and allocation recovery.

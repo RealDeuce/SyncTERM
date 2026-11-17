@@ -3051,6 +3051,81 @@ Owned temporary request/log directories were removed. Unrelated concurrent CI
 edits were left untouched. No active application route or original artifact was
 modified, and no changes were pushed.
 
+## Viewport DEVICE producer and physical raster clipping
+
+Wire `v` now normalizes both WORLD axes, projects once and checks the zero
+sentinel after conversion. Converted all-zero input deactivates while retaining
+viewport geometry and image state. A nonzero replacement reactivates. The new
+DEVICE setter stores the supplied inclusive rectangle without adding a screen
+port's origin or intersecting with declared port bounds. The table represents
+that same rectangle relative to its bounds, allowing negative relative origins;
+conversion back to DEVICE recovers the original stored coordinates exactly.
+The existing bounded device-fixture setter keeps its separate contract.
+
+This follows the adopted issue-11 viewport producer and original handler
+0x20f87/helper 0x33cc6: normalization, far-boundary increment and direct storage
+at record+0x3a. Internal rectangles already use inclusive last pixels, so their
+representation needs no second far increment. The independent fixture converts
+WORLD (80,80)–(118,118) at 2:1 to DEVICE [40,40,60,60), then plots at (41,41).
+It fails against the former port-relative producer, which incorrectly adds the
+port's (25,25) and plots at (66,66). The original DLL identity is unchanged;
+read-only instructions were inspected, without Windows/GUI execution.
+
+Stored geometry and visible pixels are separate. The port-info getter derives a
+viewport-relative physical clip without changing stored origin or dimensions.
+Stroke, fill, polygon, ellipse, rounded-rectangle, text and bitmap preparation
+use that clip to bound work. JPEG fitting retains the original stored area and
+samples from the original fitted rectangle while staging only visible output.
+Port copies likewise retain their original fit/sample coordinates through
+physical clipping; overlap snapshots contain only actual source pixels.
+Physically absent source samples leave the old destination unchanged. Generic
+surface clip-then-fit and unscaled blit APIs keep their existing policies.
+
+Viewport-relative reads now reach the underlying screen/offscreen surface
+without restricting them to declared port bounds. Active and stored-viewport
+capture adapters share this reader, and `2W` screen crops use its viewport-relative
+coordinates. Wallpaper snapshots use it too, with output limited to the physical
+clip while retaining raw tile phase. A seed/capture crossing the physical source
+still declines rather than shrinking requested dimensions or inventing padding.
+Those consumer cases remain unfinished. Numeric query arithmetic now checks
+exclusive-boundary/count narrowing; the adopted callback/query semantics remain
+separate reconciliation work.
+
+`rip3_viewport_commands` adds independent full-device captures on every canvas
+for direct origins, negative port-relative origins, capture/copy/wallpaper reads
+outside declared bounds, image placement, normalized corner orders, both radices,
+all coordinate widths, zero deactivation and full-frame corpus input. Backup
+restoration retains unclipped geometry, protection, activation and image flags.
+Physical-edge fixtures distinguish original ten-pixel sampling from incorrectly
+refitting to two visible pixels, under all five indexed transfer modes and both
+image painters. Other fixtures cover wholly external active viewports, missing
+physical source samples, overlapping-copy allocation failure/recovery, enormous
+stored rectangles with only screen-sized staging, and nonfatal image allocation
+failure. Pixel/palette expectations are authored geometry tables, not generated
+from the implementation. Existing viewport scene expectations now use direct
+DEVICE origins and converted-zero deactivation; RIP1.54 expectations are intact.
+
+The current stored viewport plane remains int32_t. Larger legal WORLD
+projections reject nonfatally before mutation instead of wrapping or saturating
+the stored rectangle. Complete wide records, physical-outside capture/tile-source
+policy, POINT/PIXEL-specific wire behavior and scene/application integration
+remain pending. The ledger keeps those combined requirements pending rather
+than claiming full viewport compliance. This milestone still uses pin
+`5ae9d165b1ac3e36161847e68db0d763228b779b`; the newly supplied PR #73 is reviewed
+separately for adoption and does not silently change this verification baseline.
+
+Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
+new warnings; all 100 selected tests pass (33.72 seconds). The expanded viewport
+fixture passes again after additional transfer-mode checks (0.28 seconds for its
+focused run). Valgrind reports zero errors, no retained heap and three inherited
+descriptors for viewport/copy command fixtures; allocation/free counts are
+156/156 and 531/531. All 93 frozen files and 41 helpers remain unchanged, as do
+source/pin/adoption identities and the RIP1.54 capture inventory. Only viewport
+review metadata changed: 147 implemented, 1603 pending, 4660 unreviewed,
+898 contextual, 24 excluded and 21 blocked entries among 7353 source blocks.
+Owned temporary logs were removed. No application route or original artifact
+was changed, no existing issue was edited, and no changes were pushed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

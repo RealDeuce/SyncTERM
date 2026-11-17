@@ -196,11 +196,11 @@ st_rip3_draw_ellipse_interior(struct st_rip3_ports *ports,
 	if (status != 0)
 		return status;
 	status = st_rip3_ports_info(ports, current, &info);
-	if (status != 0 || !info.viewport_active)
+	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0))
 		return status;
 	left = top = 0;
-	right = info.viewport.x1 - info.viewport.x0;
-	bottom = info.viewport.y1 - info.viewport.y0;
+	right = info.clip.x1;
+	bottom = info.clip.y1;
 	x_extent = hypot(ellipse->xx, ellipse->xy);
 	y_extent = hypot(ellipse->yx, ellipse->yy);
 	min_x = ellipse->center_x - x_extent - 0.5;
@@ -462,14 +462,14 @@ st_rip3_ellipse_collect(struct st_rip3_ports *ports,
 	status = st_rip3_ports_info(ports, current, &info);
 	if (status != 0)
 		return status;
-	if (!info.viewport_active || sweep_degrees == 0) {
+	if ((!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0) || sweep_degrees == 0) {
 		*result = (struct st_rip3_stroke_mask){0};
 		return 0;
 	}
 	padding = thickness / 2.0 + 1;
 	clip = (struct ellipse_clip){-padding, -padding,
-	    info.viewport.x1 - info.viewport.x0 + padding,
-	    info.viewport.y1 - info.viewport.y0 + padding};
+	    info.clip.x1 + padding,
+	    info.clip.y1 + padding};
 	start = angle_units(start_degrees, &cosine, &sine);
 	end = start + sweep_degrees;
 	/* A positive sub-ULP sweep still has a round cap at its start. */
