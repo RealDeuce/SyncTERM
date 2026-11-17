@@ -2173,6 +2173,50 @@ inherited descriptors in the new error-UI fixture. All 93 frozen files and
 62 document identities and the reference pin remain unchanged. Temporary logs
 were removed. Active application routing and RIP1.54 behavior are unchanged.
 
+### Wide classic-text placement before wire integration
+
+The classic bitmap/CHR text geometry no longer narrows projected positions to
+signed 32-bit coordinates before justification or clipping. A text-specific
+device-position type retains finite wide coordinates and fractional pen positions
+through layout. Origins are rounded only after justification, using the existing
+nearest/half-positive rule. Direct bitmap placement uses that same rule; direct
+CHR baselines retain fractions through matrix transformation and stroke coverage.
+Text placements and generated strokes accept magnitudes up to
+1024*INT32_MAX, consistent with the separate engine's wide path/image geometry.
+Nonfinite or out-of-contract positions reject before painting; ordinary integer
+coordinates retain their previous expectations. Geometry for the frozen 1.54
+engine and its shared BGI implementation is untouched.
+
+`rip3_classic_text` first reproduced the old placement rejection with a new
+wide-anchor test before the range implementation changed. Its expanded full-canvas
+expectations on each canvas include a 32769-cell authored font span with advance
+2147483646 pixels: right justification brings a 2147483648.25 anchor back to
+visible device x=2 without truncation. Fractional CHR advances and anchors are
+combined before rounding, including an exact negative half tie. Invalid positions
+preserve the complete prior plan.
+
+`rip3_stroke_text` adds an independently authored rectangular CHR glyph whose
+large inverted matrix brings strokes from beyond the previous coordinate bound
+back into view. A fractional baseline shifts the visible stem correctly; one
+coherent full-canvas capture checks ink, one-pixel shadow, foreground precedence,
+protected viewport translation and unchanged margins. `rip3_bitmap_text` adds
+literal clipped glyph expectations for positive/negative half ties, large
+positive/negative offscreen origins and nonfinite/range failures. All three
+fixtures cover all agreed canvases; original font/style/shadow/capture tests
+remain unchanged apart from position types and the intentionally enlarged range.
+
+This is a prerequisite for m/T/@ command dispatch, not a claim that those commands
+or cursor/encoding/macro orchestration are implemented. Cursor ownership, reset
+activation and non-left TEXT_XY behavior remain under #24. No terminal/session
+processing error interface is introduced by these font services.
+
+The native CMake build and all 87 selected RIP3/preservation/shared-audio/codepage
+tests pass. Native Valgrind reports zero errors, no retained heap and only three
+inherited descriptors in each of the three updated text fixtures. All 93 frozen
+files and 41 legacy helpers remain unchanged, as do the 6548 source blocks,
+62 document identities and reference pin. Temporary logs were removed. Active
+routing, original font assets and RIP1.54 behavior remain unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

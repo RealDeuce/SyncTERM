@@ -6,6 +6,7 @@
 #include "st_pixels.h"
 
 #include <limits.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +31,7 @@ raster(void)
 	struct st_rip3_bitmap_text_style style = {1,false,false,false};
 	struct st_rip3_bitmap_text_metrics metrics;
 	const struct st_rip3_rect bounds = {0,0,23,15};
-	const struct st_rip3_point origin = {1,2};
+	const struct st_rip3_text_position origin = {1,2};
 	const unsigned expected_rows[] = {0x50,0xa8,0xe4};
 
 	glyphs[0] = 0x40; glyphs[1] = 0xa0; glyphs[2] = 0xe0;
@@ -79,7 +80,7 @@ raster(void)
 		uint8_t wide_glyphs[255 * 4] = {0};
 		struct st_rip3_maf_font wide = {9,2,2,4,wide_glyphs};
 		const uint8_t two[] = {1,1};
-		const struct st_rip3_point zero = {0,0};
+		const struct st_rip3_text_position zero = {0,0};
 
 		wide_glyphs[0] = 0x80; wide_glyphs[1] = 0xff;
 		wide_glyphs[2] = wide_glyphs[3] = 0xff;
@@ -109,7 +110,7 @@ vertical_and_shadow(void)
 	struct st_rip3_bitmap_text_style style = {1,true,false,false};
 	struct st_rip3_bitmap_text_metrics metrics;
 	const struct st_rip3_rect bounds = {0,0,11,9};
-	const struct st_rip3_point origin = {2,6};
+	const struct st_rip3_text_position origin = {2,6};
 	const uint8_t character = 1;
 	const char *const expected[] = {
 		"............", "............", "............", "............",
@@ -154,7 +155,7 @@ errors_and_clipping(void)
 	struct st_rip3_maf_font invalid;
 	struct st_rip3_bitmap_text_style style = {1,false,false,false};
 	struct st_rip3_bitmap_text_metrics metrics = {77,88,{99,100}};
-	struct st_rip3_point origin = {-1,-1};
+	struct st_rip3_text_position origin = {-1,-1};
 	const struct st_rip3_rect bounds = {0,0,5,5};
 	const uint8_t character = 1;
 
@@ -177,7 +178,7 @@ errors_and_clipping(void)
 	}
 	{
 		uint8_t *long_text = calloc(65536, 1);
-		const struct st_rip3_point long_origin = {-196605,0};
+		const struct st_rip3_text_position long_origin = {-196605,0};
 
 		CHECK(long_text != NULL);
 		long_text[65535] = 1;
@@ -211,7 +212,7 @@ errors_and_clipping(void)
 	CHECK(st_rip3_bitmap_text_measure(&font, &style, 1, &metrics) == 0
 	    && metrics.width == 30 && metrics.height == 30);
 	{
-		const struct st_rip3_point magnified = {-20,-10};
+		const struct st_rip3_text_position magnified = {-20,-10};
 
 		CHECK(st_rip3_draw_bitmap_text(ports, &font, &style, &character, 1,
 		    &magnified, 7, 3, ST_RIP3_COPY) == 0);
@@ -231,15 +232,15 @@ errors_and_clipping(void)
 	    &origin, 7, 3, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_bitmap_text_measure(&font, &style, 0, &metrics) == 0
 	    && metrics.width == 0 && metrics.height == 0 && metrics.advance.x == 0);
-	origin = (struct st_rip3_point){INT32_MAX,INT32_MIN};
+	origin = (struct st_rip3_text_position){INT32_MAX,INT32_MIN};
 	CHECK(st_rip3_draw_bitmap_text(ports, &font, &style, &character, 1,
 	    &origin, 7, 3, ST_RIP3_COPY) == 0);
-	origin = (struct st_rip3_point){INT32_MIN,INT32_MAX};
+	origin = (struct st_rip3_text_position){INT32_MIN,INT32_MAX};
 	style.vertical = true;
 	CHECK(st_rip3_draw_bitmap_text(ports, &font, &style, &character, 1,
 	    &origin, 7, 3, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_activate(ports, false) == 0);
-	origin = (struct st_rip3_point){0,0};
+	origin = (struct st_rip3_text_position){0,0};
 	CHECK(st_rip3_draw_bitmap_text(ports, &font, &style, &character, 1,
 	    &origin, 7, 3, ST_RIP3_COPY) == 0);
 	for (int32_t y = 0; y < 6; y++) {
@@ -263,7 +264,7 @@ original_font(void)
 	const struct st_rip3_bitmap_text_style style = {1,false,false,false};
 	const struct st_rip3_rect bounds = {10,20,29,35};
 	const struct st_rip3_rect view = {2,1,17,14};
-	const struct st_rip3_point origin = {2,1};
+	const struct st_rip3_text_position origin = {2,1};
 	const uint8_t character = 1;
 	/* Pinned documentation's 640x480 8x11 CP437 smiley, not sampled from
 	 * the decoder or generated from a renderer capture. */
@@ -307,9 +308,46 @@ original_font(void)
 	return 0;
 }
 
+static int
+wide_positions(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	struct st_rip3_ports *ports = NULL;
+	uint8_t glyphs[255*3] = {0x40,0xa0,0xe0};
+	struct st_rip3_maf_font font = {3,3,1,3,glyphs};
+	const struct st_rip3_bitmap_text_style style = {.magnification=1};
+	const struct st_rip3_rect viewport = {0,0,7,5};
+	const uint8_t character = 1;
+	struct st_rip3_text_position origin = {-0.5,1.5};
+	const char *const expected[] = {".......#","......#.",".#....##","#.#.....","###.....","........"};
+	CHECK(st_rip3_ports_create(&ports,canvas) == 0 && st_rip3_ports_viewport(ports,&viewport) == 0
+	    && st_rip3_ports_erase(ports,9) == 0);
+	CHECK(st_rip3_draw_bitmap_text(ports,&font,&style,&character,1,&origin,7,3,ST_RIP3_COPY) == 0
+	    && origin.x == -0.5 && origin.y == 1.5);
+	origin = (struct st_rip3_text_position){5.5,-0.5};
+	CHECK(st_rip3_draw_bitmap_text(ports,&font,&style,&character,1,&origin,7,3,ST_RIP3_COPY) == 0);
+	const struct st_rip3_text_position skipped[] = {{1099511627776.0,1099511627776.0},
+	    {-1099511627776.0,-1099511627776.0}};
+	for (size_t i = 0; i < 2; i++)
+		CHECK(st_rip3_draw_bitmap_text(ports,&font,&style,&character,1,skipped+i,7,3,ST_RIP3_COPY) == 0);
+	const struct st_rip3_text_position invalid[] = {{NAN,0},{0,INFINITY},{1024.0*INT32_MAX+1,0}};
+	for (size_t i = 0; i < 3; i++)
+		CHECK(st_rip3_draw_bitmap_text(ports,&font,&style,&character,1,invalid+i,7,3,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	struct st_rip3_palette palette; struct st_pixel_buffer *capture = NULL;
+	CHECK(st_rip3_palette_defaults(&palette) == 0 && st_rip3_ports_snapshot(ports,&palette,&capture) == 0);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		uint8_t index = 0;
+		if (x < 8 && y < 6) index = expected[y][x] == '#' ? 7 : 9;
+		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG|palette.rgb[index]));
+	}
+	st_pixel_buffer_destroy(capture); st_rip3_ports_destroy(ports); return 0;
+}
+
 int
 main(void)
 {
+	CHECK(wide_positions(ST_RIP3_CANVAS_640_480,640,480) == 0);
+	CHECK(wide_positions(ST_RIP3_CANVAS_800_600,800,600) == 0);
+	CHECK(wide_positions(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
 	CHECK(raster() == 0);
 	CHECK(vertical_and_shadow() == 0);
 	CHECK(errors_and_clipping() == 0);

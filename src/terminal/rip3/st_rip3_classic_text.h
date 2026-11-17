@@ -35,7 +35,7 @@ struct st_rip3_classic_text_plan {
 	 * ascent/descent are baseline-to-cell reference distances, not ink bounds.
 	 * Vector spans may be fractional and include endpoint scanlines. */
 	double advance, ascent, descent;
-	struct st_rip3_point origin;
+	struct st_rip3_text_position origin;
 	struct st_rip3_chr_text_matrix matrix;
 	bool advances_cursor; /* Horizontal and left justified only; no update here. */
 };
@@ -55,11 +55,13 @@ int st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
  * 640x350 reference to the device. Bitmap cells magnify integrally; their
  * nominal baseline projects the published (7*mag-1) reference metric into the
  * native cell height. Justification precedes counterclockwise rotation of the
- * physical glyph geometry. Origins round once to nearest, half ties positive.
+ * physical glyph geometry. Wide/fractional anchors are retained until final
+ * origin rounding to nearest, half ties positive; finite placements fit
+ * +/-1024*INT32_MAX. Logical advances remain fractional when required.
  * No world/cursor/style table is changed or inferred (#24). */
 int st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 	const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
-	const struct st_rip3_point *anchor, struct st_rip3_classic_text_plan *result);
+	const struct st_rip3_text_position *anchor, struct st_rip3_classic_text_plan *result);
 /* Canvas must match the ports object. Transparent bitmap graphics text and
  * solid CHR strokes delegate to the prepared-coverage kernels; shadow remains
  * one device pixel down/right in both orientations. Every error is for the
@@ -67,7 +69,7 @@ int st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 int st_rip3_draw_classic_text(struct st_rip3_ports *ports,
 	const struct st_rip3_classic_font *font,
 	const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
-	const struct st_rip3_point *anchor, uint8_t foreground, uint8_t background,
+	const struct st_rip3_text_position *anchor, uint8_t foreground, uint8_t background,
 	enum st_rip3_write_mode mode);
 
 #endif

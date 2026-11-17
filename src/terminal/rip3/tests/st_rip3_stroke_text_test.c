@@ -48,7 +48,7 @@ raster(void)
 	struct st_rip3_chr font;
 	struct st_rip3_chr_text_metrics metrics;
 	const struct st_rip3_rect bounds = {0,0,11,11};
-	const struct st_rip3_point origin = {2,9};
+	const struct st_rip3_text_position origin = {2,9};
 	const struct st_rip3_chr_text_matrix matrix = {1,0,0,-1};
 	const uint8_t a = 'A';
 	const uint8_t results[] = {7,14,15,1,246};
@@ -119,11 +119,11 @@ transforms(void)
 	CHECK(st_rip3_ports_create(&ports, ST_RIP3_CANVAS_800_600) == 0);
 	CHECK(st_rip3_ports_define(ports, 1, &bounds, true) == 0);
 	CHECK(st_rip3_ports_switch(ports, 1) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &(struct st_rip3_point){10,10},
+	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &(struct st_rip3_text_position){10,10},
 	    &(struct st_rip3_chr_text_matrix){0,-1,-1,0}, false, 7, 3, ST_RIP3_XOR) == 0);
 	CHECK(expect(ports, vertical, 7, 0) == 0);
 	CHECK(st_rip3_ports_erase(ports, 0) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &(struct st_rip3_point){2,9},
+	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &(struct st_rip3_text_position){2,9},
 	    &(struct st_rip3_chr_text_matrix){1,0.5,0,-1}, false, 7, 3, ST_RIP3_COPY) == 0);
 	{
 		uint8_t value;
@@ -133,7 +133,7 @@ transforms(void)
 		CHECK(st_rip3_ports_read(ports, 1, 9, 5, &value) == 0 && value == 0);
 	}
 	CHECK(st_rip3_ports_erase(ports, 0) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &(struct st_rip3_point){0,2},
+	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &(struct st_rip3_text_position){0,2},
 	    &(struct st_rip3_chr_text_matrix){1,0,0,-1}, false, 7, 3, ST_RIP3_COPY) == 0);
 	for (int32_t y = 0; y < 12; y++) {
 		for (int32_t x = 0; x < 12; x++) {
@@ -179,7 +179,7 @@ zero_advance_and_shadow_clip(void)
 	CHECK(st_rip3_ports_create(&ports, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_ports_define(ports, 1, &bounds, true) == 0);
 	CHECK(st_rip3_ports_switch(ports, 1) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_point){3,4},
+	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_text_position){3,4},
 	    &matrix, false, 7, 3, ST_RIP3_XOR) == 0);
 	for (int32_t y = 0; y < 6; y++) {
 		for (int32_t x = 0; x < 6; x++) {
@@ -190,7 +190,7 @@ zero_advance_and_shadow_clip(void)
 		}
 	}
 	CHECK(st_rip3_ports_erase(ports, 0) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_point){-1,2},
+	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_text_position){-1,2},
 	    &matrix, true, 7, 3, ST_RIP3_XOR) == 0);
 	for (int32_t y = 0; y < 6; y++) {
 		for (int32_t x = 0; x < 6; x++) {
@@ -212,7 +212,7 @@ errors_and_viewport(void)
 	struct st_rip3_chr_text_metrics metrics = {77,88};
 	const struct st_rip3_rect bounds = {10,20,21,31};
 	const struct st_rip3_rect view = {1,1,10,10};
-	const struct st_rip3_point origin = {1,8};
+	const struct st_rip3_text_position origin = {1,8};
 	const struct st_rip3_chr_text_matrix matrix = {1,0,0,-1};
 	const uint8_t a = 'A';
 	struct st_rip3_palette palette;
@@ -234,7 +234,7 @@ errors_and_viewport(void)
 	    &(struct st_rip3_chr_text_matrix){NAN,0,0,-1}, false,
 	    7, 0, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &origin,
-	    &(struct st_rip3_chr_text_matrix){INT32_MAX,INT32_MAX,0,-1}, false,
+	    &(struct st_rip3_chr_text_matrix){(double)INT32_MAX+1,0,0,-1}, false,
 	    7, 0, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_draw_chr_text(ports, &font, NULL, 1, &origin, &matrix,
 	    false, 7, 0, ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
@@ -271,9 +271,53 @@ errors_and_viewport(void)
 	return 0;
 }
 
+static int
+wide_positions(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	/* One authored 4x4 rectangular CHR glyph; no renderer/encoder builds it. */
+	uint8_t bytes[159] = {0};
+	const uint8_t program[] = {0x80,0,0x84,0x80,0x84,0x84,0x80,0x84,0x80,0x80,0,0};
+	struct st_rip3_chr font;
+	memcpy(bytes,"PK\010\010TEST\032",9); put_word(bytes+9,128); memcpy(bytes+11,"TEST",4);
+	put_word(bytes+15,31); bytes[17] = bytes[19] = 1;
+	bytes[128] = '+'; put_word(bytes+129,1); bytes[132] = 'A'; put_word(bytes+133,19);
+	bytes[136] = bytes[146] = 4; memcpy(bytes+147,program,sizeof(program));
+	CHECK(st_rip3_chr_open(&font,bytes,sizeof(bytes)) == 0);
+	struct st_rip3_ports *ports = NULL;
+	const struct st_rip3_rect bounds = {10,20,19,28}, viewport = {1,1,8,6};
+	struct st_rip3_text_position origin = {4.0*INT32_MAX+2.75,4};
+	const struct st_rip3_chr_text_matrix matrix = {-(double)INT32_MAX,0,0,-1};
+	const uint8_t character = 'A';
+	const char *const expected[] = {"...#####","...#ssss","...#s...","...#s...","...#####","....ssss"};
+	CHECK(st_rip3_ports_create(&ports,canvas) == 0 && st_rip3_ports_define(ports,1,&bounds,false) == 0
+	    && st_rip3_ports_switch(ports,1) == 0 && st_rip3_ports_viewport(ports,&viewport) == 0
+	    && st_rip3_ports_erase(ports,9) == 0 && st_rip3_ports_protect(ports,1,true) == 0);
+	CHECK(st_rip3_draw_chr_text(ports,&font,&character,1,&origin,&matrix,true,7,3,ST_RIP3_COPY) == 0);
+	CHECK(origin.x == 4.0*INT32_MAX+2.75 && origin.y == 4);
+	const struct st_rip3_chr_text_matrix ordinary = {1,0,0,-1};
+	origin = (struct st_rip3_text_position){1099511627776.0,1099511627776.0};
+	CHECK(st_rip3_draw_chr_text(ports,&font,&character,1,&origin,&ordinary,true,7,3,ST_RIP3_COPY) == 0);
+	const struct st_rip3_text_position invalid[] = {{NAN,0},{0,INFINITY},{1024.0*INT32_MAX+1,0}};
+	for (size_t i = 0; i < 3; i++)
+		CHECK(st_rip3_draw_chr_text(ports,&font,&character,1,invalid+i,&ordinary,false,7,3,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	struct st_rip3_palette palette; struct st_pixel_buffer *capture = NULL;
+	CHECK(st_rip3_palette_defaults(&palette) == 0 && st_rip3_ports_snapshot(ports,&palette,&capture) == 0);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		uint8_t index = 0;
+		if (x >= 11 && x <= 18 && y >= 21 && y <= 26) {
+			char value = expected[y-21][x-11]; index = value == '#' ? 7 : value == 's' ? 3 : 9;
+		}
+		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG|palette.rgb[index]));
+	}
+	st_pixel_buffer_destroy(capture); st_rip3_ports_destroy(ports); return 0;
+}
+
 int
 main(void)
 {
+	CHECK(wide_positions(ST_RIP3_CANVAS_640_480,640,480) == 0);
+	CHECK(wide_positions(ST_RIP3_CANVAS_800_600,800,600) == 0);
+	CHECK(wide_positions(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
 	CHECK(raster() == 0);
 	CHECK(transforms() == 0);
 	CHECK(zero_advance_and_shadow_clip() == 0);

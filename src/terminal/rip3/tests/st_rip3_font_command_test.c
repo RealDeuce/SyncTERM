@@ -193,7 +193,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	static const char *wire[] = {"!|Y00000100\r", "!|Y0000010X\r", "!|Y00000103|Y0001021\r"};
 	uint8_t glyphs[255*8] = {0};
 	const uint8_t text[] = {'A',219}; /* Explicit ASCII and CP437 glyph codes. */
-	const struct st_rip3_point anchors[] = {{20,10},{60,20},{100,50}};
+	const struct st_rip3_text_position anchors[] = {{20,10},{60,20},{100,50}};
 	struct st_rip3_classic_font font = {.canvas=canvas,.number=0};
 	struct st_rip3_command_host host = {0};
 	struct st_rip3_style style;

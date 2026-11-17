@@ -21,7 +21,8 @@ struct st_rip3_chr_text_metrics {
  * to device pixels: x=origin.x+xx*u+xy*v, y=origin.y+yx*u+yy*v.
  * Normal one-unit strokes use {1,0,0,-1}. Origin is a device baseline point.
  * World/style scaling, justification and orientation choose the matrix outside
- * this geometry kernel. All generated endpoints must fit +/-4*INT32_MAX. */
+ * this geometry kernel. All generated endpoints must fit +/-1024*INT32_MAX;
+ * fractional device baselines are retained through stroke transformation. */
 struct st_rip3_chr_text_matrix {
 	double xx, xy, yx, yy;
 };
@@ -40,7 +41,7 @@ int st_rip3_chr_text_measure(const struct st_rip3_chr *font,
  * cursor/style state are not changed. */
 int st_rip3_draw_chr_text(struct st_rip3_ports *ports,
 	const struct st_rip3_chr *font, const uint8_t *text, size_t length,
-	const struct st_rip3_point *origin, const struct st_rip3_chr_text_matrix *matrix,
+	const struct st_rip3_text_position *origin, const struct st_rip3_chr_text_matrix *matrix,
 	bool shadow, uint8_t foreground, uint8_t background,
 	enum st_rip3_write_mode mode);
 

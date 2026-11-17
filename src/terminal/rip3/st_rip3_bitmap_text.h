@@ -29,7 +29,9 @@ int st_rip3_bitmap_text_measure(const struct st_rip3_maf_font *font,
 	struct st_rip3_bitmap_text_metrics *result);
 /* Explicit CP437 byte span (including blank character zero), immutable MAF
  * view and device-pixel origin relative to the active viewport. Horizontal
- * origin is the top-left address. For vertical text the same address rotates
+ * origin is the top-left address, rounded once to nearest with half ties
+ * positive. Finite wide positions fit +/-1024*INT32_MAX before rounding.
+ * For vertical text the same address rotates
  * about origin: x'=origin.x+y, y'=origin.y-x. Shadow uses device-pixel offsets,
  * independent of rotation/magnification, and is outside measured text bounds.
  * Foreground wins over shadow/background; each pixel applies mode once for the
@@ -39,7 +41,7 @@ int st_rip3_bitmap_text_measure(const struct st_rip3_maf_font *font,
 int st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
 	const struct st_rip3_maf_font *font,
 	const struct st_rip3_bitmap_text_style *style,
-	const uint8_t *text, size_t length, const struct st_rip3_point *origin,
+	const uint8_t *text, size_t length, const struct st_rip3_text_position *origin,
 	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
 
 #endif

@@ -74,7 +74,7 @@ stroke_count(const struct st_rip3_chr *font, const uint8_t *text,
 }
 
 static struct st_rip3_vector
-transform(const struct st_rip3_point *origin,
+transform(const struct st_rip3_text_position *origin,
     const struct st_rip3_chr_text_matrix *matrix, size_t advance, int x, int y)
 {
 	double u = (double)advance + x;
@@ -85,7 +85,7 @@ transform(const struct st_rip3_point *origin,
 
 static int
 stroke_build(const struct st_rip3_chr *font, const uint8_t *text,
-    size_t length, const struct st_rip3_point *origin,
+    size_t length, const struct st_rip3_text_position *origin,
     const struct st_rip3_chr_text_matrix *matrix,
     struct st_rip3_vector *vertices, struct st_rip3_vector_run *runs, size_t capacity)
 {
@@ -127,7 +127,7 @@ stroke_build(const struct st_rip3_chr *font, const uint8_t *text,
 int
 st_rip3_draw_chr_text(struct st_rip3_ports *ports,
     const struct st_rip3_chr *font, const uint8_t *text, size_t length,
-    const struct st_rip3_point *origin, const struct st_rip3_chr_text_matrix *matrix,
+    const struct st_rip3_text_position *origin, const struct st_rip3_chr_text_matrix *matrix,
     bool shadow, uint8_t foreground, uint8_t background,
     enum st_rip3_write_mode mode)
 {
@@ -145,6 +145,8 @@ st_rip3_draw_chr_text(struct st_rip3_ports *ports,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (!isfinite(matrix->xx) || !isfinite(matrix->xy)
 	    || !isfinite(matrix->yx) || !isfinite(matrix->yy)
+	    || !isfinite(origin->x) || !isfinite(origin->y)
+	    || fabs(origin->x) > 1024.0*INT32_MAX || fabs(origin->y) > 1024.0*INT32_MAX
 	    || fabs(matrix->xx) > INT32_MAX || fabs(matrix->xy) > INT32_MAX
 	    || fabs(matrix->yx) > INT32_MAX || fabs(matrix->yy) > INT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;

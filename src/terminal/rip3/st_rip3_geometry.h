@@ -22,6 +22,14 @@ struct st_rip3_point {
 	int32_t y;
 };
 
+/* Device text placement retains wide projected coordinates and fractional
+ * pen positions through layout. Raster origins round only after justification.
+ * Text geometry accepts finite magnitudes up to 1024*INT32_MAX. */
+struct st_rip3_text_position {
+	double x;
+	double y;
+};
+
 /* Initialize the selected device frame with the 640x350 compatibility world.
  * World dimensions are counts, not the inclusive last pixel coordinate. */
 int st_rip3_frame_init(struct st_rip3_frame *frame, enum st_rip3_canvas canvas);

@@ -64,20 +64,20 @@ st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
 }
 
 static int
-round_origin(double x, double y, struct st_rip3_point *result)
+round_origin(double x, double y, struct st_rip3_text_position *result)
 {
 	x = floor(x + 0.5); y = floor(y + 0.5);
-	if (!isfinite(x) || !isfinite(y) || x < INT32_MIN || x > INT32_MAX
-	    || y < INT32_MIN || y > INT32_MAX)
+	if (!isfinite(x) || !isfinite(y) || fabs(x) > 1024.0*INT32_MAX
+	    || fabs(y) > 1024.0*INT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
-	*result = (struct st_rip3_point){(int32_t)x,(int32_t)y};
+	*result = (struct st_rip3_text_position){x,y};
 	return 0;
 }
 
 int
 st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
     const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
-    const struct st_rip3_point *anchor, struct st_rip3_classic_text_plan *result)
+    const struct st_rip3_text_position *anchor, struct st_rip3_classic_text_plan *result)
 {
 	static const unsigned numerator[] = {3,2,3,1,4,5,2,5,3,4};
 	static const unsigned denominator[] = {5,3,4,1,3,3,1,2,1,1};
@@ -90,6 +90,9 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 	if (font == NULL || style == NULL || result == NULL || anchor == NULL
 	    || (text == NULL && length != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (!isfinite(anchor->x) || !isfinite(anchor->y)
+	    || fabs(anchor->x) > 1024.0*INT32_MAX || fabs(anchor->y) > 1024.0*INT32_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
 	status = st_rip3_classic_text_style_set(&checked, style->font, style->direction,
 	    style->magnification, style->flags);
 	if (status != 0)
@@ -145,7 +148,7 @@ int
 st_rip3_draw_classic_text(struct st_rip3_ports *ports,
     const struct st_rip3_classic_font *font,
     const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
-    const struct st_rip3_point *anchor, uint8_t foreground, uint8_t background,
+    const struct st_rip3_text_position *anchor, uint8_t foreground, uint8_t background,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_classic_text_plan plan;

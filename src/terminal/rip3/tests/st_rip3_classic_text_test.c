@@ -8,6 +8,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK(expression) do { \
@@ -60,7 +61,7 @@ native_fonts(enum st_rip3_canvas canvas, unsigned cell_width, unsigned cell_heig
 	struct st_rip3_classic_font font;
 	struct st_rip3_classic_text_style style;
 	struct st_rip3_classic_text_plan plan;
-	const struct st_rip3_point anchor = {100,100};
+	const struct st_rip3_text_position anchor = {100,100};
 	const uint8_t text[] = {'A','A'};
 
 	CHECK(st_rip3_classic_font_builtin(&font, canvas, 0) == 0);
@@ -92,7 +93,7 @@ bitmap_scene(void)
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
 	struct st_rip3_classic_text_plan plan;
-	const struct st_rip3_point anchor[] = {{20,10},{40,10},{60,10},{80,30},{100,30},{120,30}};
+	const struct st_rip3_text_position anchor[] = {{20,10},{40,10},{60,10},{80,30},{100,30},{120,30}};
 	const unsigned flags[] = {0,1,2,4,8,16};
 	const uint8_t text[] = {'A','A'};
 
@@ -148,7 +149,7 @@ vector_layout_and_scene(void)
 	struct st_rip3_ports *ports = NULL;
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
-	const struct st_rip3_point anchor = {100,100}, horizontal = {10,10}, vertical = {80,70};
+	const struct st_rip3_text_position anchor = {100,100}, horizontal = {10,10}, vertical = {80,70};
 	const uint8_t text[] = {'A','A'};
 	static const double advances[] = {63,70,78.75,105,140,175,210,262.5,315,420};
 	static const double heights[] = {28.8,32,36,48,64,80,96,120,144,192};
@@ -169,6 +170,15 @@ vector_layout_and_scene(void)
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 3, 0) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 2, &anchor, &plan) == 0);
 	CHECK(plan.advance == 157.5); /* No per-character integer rounding. */
+	struct st_rip3_classic_text_style aligned = style;
+	struct st_rip3_classic_text_plan fractional;
+	struct st_rip3_text_position fractional_anchor = {100.25,100.25};
+	aligned.flags = 1;
+	CHECK(st_rip3_classic_text_plan(&font,&aligned,text,1,&fractional_anchor,&fractional) == 0
+	    && fractional.advance == 78.75 && fractional.origin.x == 22 && fractional.origin.y == 136);
+	fractional_anchor.x = 78.25;
+	CHECK(st_rip3_classic_text_plan(&font,&aligned,text,1,&fractional_anchor,&fractional) == 0
+	    && fractional.origin.x == 0); /* -0.5 rounds toward the positive tie. */
 	/* The other canvases scale physical dimensions, independently of world size. */
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 0) == 0);
 	font.canvas = ST_RIP3_CANVAS_800_600;
@@ -180,7 +190,7 @@ vector_layout_and_scene(void)
 	font.canvas = ST_RIP3_CANVAS_640_480;
 	/* Rejected placement and invalid styles preserve a complete prior plan. */
 	struct st_rip3_classic_text_plan saved = plan;
-	const struct st_rip3_point extreme = {INT32_MIN,INT32_MIN};
+	const struct st_rip3_text_position extreme = {-1024.0*INT32_MAX,-1024.0*INT32_MAX};
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 1) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &extreme, &plan) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(same_plan(&plan, &saved));
@@ -234,9 +244,54 @@ vector_layout_and_scene(void)
 	return 0;
 }
 
+static int
+wide_positions(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	struct st_rip3_classic_font font = {.canvas=canvas,.number=0};
+	struct st_rip3_classic_text_style style = {0,0,1,0};
+	struct st_rip3_classic_text_plan plan;
+	struct st_rip3_text_position far = {4294967300.25,2};
+	uint8_t *glyphs = calloc(255,8192), *text = malloc(32769);
+	struct st_rip3_ports *ports = NULL;
+	CHECK(glyphs != NULL && text != NULL);
+	font.data.bitmap = (struct st_rip3_maf_font){65534,1,8192,8192,glyphs};
+	glyphs[0] = 0x90;
+	memset(text,' ',32769); text[0] = 1;
+	CHECK(st_rip3_classic_text_plan(&font,&style,text,1,&far,&plan) == 0
+	    && plan.origin.x == 4294967300.0 && plan.origin.y == 2 && plan.advance == 65534);
+	/* 32769 cells of 65534 pixels advance 2147483646 pixels. The far anchor
+	 * right-justifies back to device x=2; clipping must preserve those glyph
+	 * columns instead of rejecting/narrowing the original anchor. */
+	far = (struct st_rip3_text_position){2147483648.25,2}; style.flags = 1;
+	CHECK(st_rip3_classic_text_plan(&font,&style,text,32769,&far,&plan) == 0
+	    && plan.advance == 2147483646.0 && plan.origin.x == 2 && plan.origin.y == 2);
+	CHECK(st_rip3_ports_create(&ports,canvas) == 0);
+	const struct st_rip3_rect viewport = {0,0,7,4};
+	CHECK(st_rip3_ports_viewport(ports,&viewport) == 0 && st_rip3_ports_erase(ports,9) == 0);
+	CHECK(st_rip3_draw_classic_text(ports,&font,&style,text,32769,&far,7,3,ST_RIP3_COPY) == 0);
+	struct st_rip3_palette palette; struct st_pixel_buffer *capture = NULL;
+	CHECK(st_rip3_palette_defaults(&palette) == 0 && st_rip3_ports_snapshot(ports,&palette,&capture) == 0);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		uint8_t expected = x < 8 && y < 5 ? 9 : 0;
+		if (y == 2 && (x == 2 || x == 5)) expected = 7;
+		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG|palette.rgb[expected]));
+	}
+	struct st_rip3_classic_text_plan saved = plan;
+	far = (struct st_rip3_text_position){NAN,0};
+	CHECK(st_rip3_classic_text_plan(&font,&style,text,1,&far,&plan) == IO_ERROR_OUT_OF_RANGE && same_plan(&plan,&saved));
+	far = (struct st_rip3_text_position){0,INFINITY};
+	CHECK(st_rip3_classic_text_plan(&font,&style,text,1,&far,&plan) == IO_ERROR_OUT_OF_RANGE && same_plan(&plan,&saved));
+	far = (struct st_rip3_text_position){1024.0*INT32_MAX+1,0};
+	CHECK(st_rip3_classic_text_plan(&font,&style,text,1,&far,&plan) == IO_ERROR_OUT_OF_RANGE && same_plan(&plan,&saved));
+	st_pixel_buffer_destroy(capture); st_rip3_ports_destroy(ports); free(glyphs); free(text); return 0;
+}
+
 int
 main(void)
 {
+	CHECK(wide_positions(ST_RIP3_CANVAS_640_480,640,480) == 0);
+	CHECK(wide_positions(ST_RIP3_CANVAS_800_600,800,600) == 0);
+	CHECK(wide_positions(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
 	CHECK(styles() == 0);
 	CHECK(native_fonts(ST_RIP3_CANVAS_640_480, 8, 11) == 0);
 	CHECK(native_fonts(ST_RIP3_CANVAS_800_600, 10, 13) == 0);

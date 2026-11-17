@@ -5,6 +5,7 @@
 #include "io_error.h"
 
 #include <stdint.h>
+#include <math.h>
 
 int
 st_rip3_bitmap_text_measure(const struct st_rip3_maf_font *font,
@@ -43,10 +44,10 @@ st_rip3_bitmap_text_measure(const struct st_rip3_maf_font *font,
 static int
 glyph_pixel(const struct st_rip3_maf_font *font,
     const struct st_rip3_bitmap_text_style *style, const uint8_t *text,
-    int64_t span, const struct st_rip3_point *origin, int64_t x, int64_t y)
+    int64_t span, const struct st_rip3_text_position *origin, int64_t x, int64_t y)
 {
-	int64_t dx = x - origin->x;
-	int64_t dy = y - origin->y;
+	int64_t dx = x - (int64_t)origin->x;
+	int64_t dy = y - (int64_t)origin->y;
 	int64_t u = style->vertical ? -dy : dx;
 	int64_t v = style->vertical ? dx : dy;
 	size_t column, row;
@@ -69,7 +70,7 @@ int
 st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
     const struct st_rip3_maf_font *font,
     const struct st_rip3_bitmap_text_style *style,
-    const uint8_t *text, size_t length, const struct st_rip3_point *origin,
+    const uint8_t *text, size_t length, const struct st_rip3_text_position *origin,
     uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_bitmap_text_metrics metrics;
@@ -77,10 +78,18 @@ st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
 	int64_t left, top, right, bottom, span;
 	unsigned current;
 	int status;
+	struct st_rip3_text_position snapped;
+	const double limit = 1024.0*INT32_MAX;
 
 	if (ports == NULL || origin == NULL || (text == NULL && length != 0)
 	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (!isfinite(origin->x) || !isfinite(origin->y)
+	    || fabs(origin->x) > limit || fabs(origin->y) > limit) return IO_ERROR_OUT_OF_RANGE;
+	/* Keep the caller's fractional pen position intact. Snap the final bitmap
+	 * address once, with the same half-positive rule as classic layout. */
+	snapped = (struct st_rip3_text_position){floor(origin->x+0.5),floor(origin->y+0.5)};
+	origin = &snapped;
 	status = st_rip3_bitmap_text_measure(font, style, length, &metrics);
 	if (status != 0 || length == 0)
 		return status;
@@ -91,9 +100,9 @@ st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
 	if (status != 0 || !info.viewport_active)
 		return status;
 	span = style->vertical ? metrics.height : metrics.width;
-	left = origin->x;
+	left = (int64_t)origin->x;
 	right = left + metrics.width - 1;
-	top = style->vertical ? (int64_t)origin->y - metrics.height + 1 : origin->y;
+	top = style->vertical ? (int64_t)origin->y - metrics.height + 1 : (int64_t)origin->y;
 	bottom = top + metrics.height - 1;
 	if (style->shadow) {
 		right++;

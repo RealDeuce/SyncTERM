@@ -360,10 +360,10 @@ st_rip3_stroke_vectors(struct st_rip3_ports *ports,
 			return IO_ERROR_OUT_OF_RANGE;
 	}
 	for (size_t i = 0; i < vertex_count; i++) {
-		/* Includes signed-32 centers plus both ellipse basis vectors. */
+		/* Includes projected text placement and signed-32 curve bases. */
 		if (!isfinite(vertices[i].x) || !isfinite(vertices[i].y)
-		    || fabs(vertices[i].x) > 4.0 * INT32_MAX
-		    || fabs(vertices[i].y) > 4.0 * INT32_MAX)
+		    || fabs(vertices[i].x) > 1024.0 * INT32_MAX
+		    || fabs(vertices[i].y) > 1024.0 * INT32_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
 	}
 	status = st_rip3_pen_set(&pen, false, 0, 0, thickness);
