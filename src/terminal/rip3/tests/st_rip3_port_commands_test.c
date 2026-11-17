@@ -194,7 +194,7 @@ validation(void)
 	    "2P100000202000000000", "2P1000002020000000?", "2P1000100000",
 	    "v", "v000000", "v000000000", "v0000000?",
 	    "2p", "2p1", "2p10000", "2p1?00"};
-	const char *unsupported[] = {"2P1000002021", "2P100000202G", "2P10000020200000001",
+	const char *unsupported[] = {"2P100000202G", "2P10000020200000001",
 	    "2P1000002020 comment", "v00000202 comment", "2p1001", "2p10 comment"};
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_port_info before[36];
@@ -214,7 +214,7 @@ validation(void)
 		CHECK(process(&host, unsupported[i], ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 		CHECK(unchanged(host.ports, before, 1) == 0);
 	}
-		CHECK(process(&host, "2P1ZZZZZZZZ0", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host, "2P1ZYZYZZZZ0", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(unchanged(host.ports, before, 1) == 0);
 	CHECK(process(&missing, "2p10", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.ports = host.ports;
@@ -305,10 +305,10 @@ field_widths(void)
 		CHECK(process(&host, definitions[i], -1) == 0);
 		CHECK(st_rip3_ports_info(host.ports, 1, &info) == 0
 		    && info.viewport.x0 == 0 && info.viewport.y0 == 0
-		    && info.viewport.x1 == 2 && info.viewport.y1 == 2);
+		    && info.viewport.x1 == 1 && info.viewport.y1 == 1);
 		CHECK(process(&host, views[i], -1) == 0);
 		CHECK(st_rip3_ports_info(host.ports, 1, &info) == 0);
-		CHECK(info.bounds.x0 == 0 && info.bounds.y0 == 0 && info.bounds.x1 == 2 && info.bounds.y1 == 2);
+		CHECK(info.bounds.x0 == 0 && info.bounds.y0 == 0 && info.bounds.x1 == 1 && info.bounds.y1 == 1);
 		CHECK(info.viewport.x0 == 1 && info.viewport.y0 == 1 && info.viewport.x1 == 2 && info.viewport.y1 == 2);
 	}
 	CHECK(process(&host, "n2", -1) == 0);
@@ -327,21 +327,20 @@ field_widths(void)
 	    && info.viewport.x1 == 61 && info.viewport.y1 == 63);
 	CHECK(process(&host, "2PZ00000z0&2", -1) == 0);
 	CHECK(st_rip3_ports_info(host.ports, 35, &info) == 0
-	    && info.bounds.x1 == 61 && info.bounds.y1 == 63);
+	    && info.bounds.x1 == 60 && info.bounds.y1 == 62);
 	CHECK(process(&host, "2P#00000z0&2", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "n5", -1) == 0);
 	CHECK(process(&host, "f0000100001", -1) == 0);
 	CHECK(process(&host, "v0000000000&&&&&&&&&&", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(st_rip3_ports_info(host.ports, 35, &info) == 0
 	    && info.viewport.x0 == 0 && info.viewport.y0 == 0
-	    && info.viewport.x1 == 61 && info.viewport.y1 == 63);
+	    && info.viewport.x1 == 60 && info.viewport.y1 == 62);
 	CHECK(process(&host, "2P30000000000&&&&&&&&&&0", -1) == 0);
 	CHECK(st_rip3_ports_info(host.ports, 3, &info) == 0
 	    && info.bounds.x0 == 0 && info.bounds.y0 == 0
 	    && info.bounds.x1 == 639 && info.bounds.y1 == 479);
 	CHECK(process(&host, "v&&&&&&&&&&&&&&&&&&&&", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	/* Offscreen creation has an explicit DEVICE size in this fixture; v can
-	 * configure it independently of 2P's unresolved offscreen wire extents. */
+	/* This device-level fixture keeps v independent of the wire 2P producer. */
 	{
 		const struct st_rip3_rect offscreen = {0,0,3,3};
 		uint8_t index = 0;

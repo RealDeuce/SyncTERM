@@ -3173,6 +3173,53 @@ Native Release CMake configure/build passes without compiler warnings. The
 source freeze, contract and preservation-guard CTests pass, including six focused
 Python guard cases. All 93 frozen files and 41 legacy helpers are unchanged.
 
+## DEFINE_PORT protocol implementation
+
+Wire `2P` now follows the stable branch's protocol contract for screen/offscreen
+definitions. It projects extent boundaries once, converts to the device table's
+inclusive last pixels, and zeroes offscreen near coordinates before sizing.
+The canonical 1280×960 world request allocates 640×480 on that device, with no
+extra edge. Larger offscreen allocations are not clamped to the display.
+Flags 1/2/4/8 establish storage, selection, viewport activity and protection
+independently. Protected redefinition retains the target and selects port zero
+before resource admission. Flag 1 does not assign or clear the clipboard pointer.
+
+Explicit client policy rejects reserved flags, nonpositive projected dimensions,
+out-of-range allocations and wholly external screen definitions. Partial screen
+definitions intersect the display. Offscreen allocation uses the supplied pixel
+budget, counting the final table without the replaced target. A replacement is
+staged before committing; failed admission/allocation retains old geometry,
+pixels, viewport/image state, selection and clipboard assignment. This is a
+client recovery policy, not a documented protocol rollback guarantee. Allocation
+does not use the conflicting DLL's low-WORD wrapping or dangling current index.
+Public command/stream parsers remain void and consume every failure internally.
+
+`rip3_define_commands` supplies independent full-device captures across all three
+canvases, both radices, coordinate widths 2–5 and all 16 flag combinations. It
+checks exact edge pixels, inactive/protected initial state, offscreen visibility
+through explicit copies, replacement defaults, ignored large origins, reserved
+field shortening, odd projection, display clipping and 65,536-pixel width without
+wrapping. Protected fallback, missing/exhausted budgets, both surface allocation
+failures and byte-split recovery have explicit state expectations. The fixture
+first failed against the old extra-pixel screen producer. Existing command tests
+now distinguish half-open port bounds from inclusive viewport coordinates.
+PORTW/PORTH's defective shipped callbacks, complete scene/context behavior and
+active application integration remain separate pending work.
+
+Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
+compiler warnings. All 101 selected RIP3/preservation/JPEG/shared-audio/codepage
+tests pass (33.25 seconds), followed by all 26 unchanged native/application RIP
+and graphics-scrollback expectations (104.89 seconds), with interactive display
+variables cleared and application audio disabled. Valgrind reports zero errors,
+no retained heap, 1595 allocations/frees and only three inherited descriptors for
+the new fixture. No GUI, physical audio or Windows execution is claimed for the
+separate engine. All 93 frozen files and 41 legacy helpers remain unchanged.
+The ledger reconciles 22 DEFINE_PORT units: 169 implemented, 1591 pending,
+4658 unreviewed, 898 contextual, 24 excluded and 17 blocked out of 7357 blocks.
+The stable pin, adoption identities, RIP1.54 capture inventory, original artifact
+and active application route are unchanged. Temporary logs were removed; no
+existing issue was modified and no changes were pushed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

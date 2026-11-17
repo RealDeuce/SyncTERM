@@ -75,24 +75,28 @@ translate(const struct st_rip3_command_host *host, unsigned environment,
 }
 
 static int
-clip_to_port(struct st_rip3_ports *ports, unsigned number, struct st_rip3_rect *area)
+definition_budget(const struct st_rip3_command_host *host, unsigned replacement,
+    uint64_t requested)
 {
-	struct st_rip3_port_info info;
-	int status = st_rip3_ports_info(ports, number, &info);
-	int32_t x1, y1;
+	uint64_t used = 0;
 
-	if (status != 0)
-		return status;
-	x1 = info.bounds.x1 - info.bounds.x0;
-	y1 = info.bounds.y1 - info.bounds.y0;
-	/* Partial intersections are defined. A wholly external wire rectangle's
-	 * edge-clamp/empty/reject policy is unresolved under #10. Do not infer
-	 * it from the device kernel's empty-intersection rejection. */
-	if (area->x0 > x1 || area->y0 > y1)
+	if (host->offscreen_pixel_budget == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	if (area->x1 > x1) area->x1 = x1;
-	if (area->y1 > y1) area->y1 = y1;
-	return 0;
+	/* Client admission policy counts the final table. Replacement is staged
+	 * atomically, so its old allocation remains alive until the new one exists;
+	 * the budget is a pixel-count limit, not a peak-memory guarantee. */
+	for (unsigned i = 1; i < 36; i++) {
+		struct st_rip3_port_info info;
+		int status = st_rip3_ports_info(host->ports,i,&info);
+		if (status != 0) return status;
+		if (i == replacement || !info.defined || !info.offscreen) continue;
+		uint64_t width = (uint64_t)((int64_t)info.bounds.x1-info.bounds.x0+1);
+		uint64_t height = (uint64_t)((int64_t)info.bounds.y1-info.bounds.y0+1);
+		uint64_t amount = width*height;
+		if (amount > *host->offscreen_pixel_budget-used) return IO_ERROR_OUT_OF_MEMORY;
+		used += amount;
+	}
+	return requested > *host->offscreen_pixel_budget-used ? IO_ERROR_OUT_OF_MEMORY : 0;
 }
 
 static int
@@ -132,6 +136,8 @@ define_port(const struct st_rip3_command_host *host,
     const uint8_t *bytes, size_t length, bool *operation)
 {
 	struct st_rip3_rect world, device;
+	struct st_rip3_frame frame;
+	struct st_rip3_port_info target;
 	uint64_t number, flags, reserved;
 	size_t coordinate_bytes = 4*environment->coordinate_size;
 	size_t prefix = 1 + coordinate_bytes;
@@ -146,8 +152,6 @@ define_port(const struct st_rip3_command_host *host,
 	if (status == 0)
 		status = coordinates(&world, bytes+1, coordinate_bytes,
 		    environment->coordinate_size, environment->base_math, false);
-	if (status == 0 && !ordered(&world))
-		return IO_ERROR_INVALID_FORMAT;
 	if (status == 0)
 		status = st_rip3_command_field(&flags, bytes+prefix,
 		    length - prefix > 4 ? 4 : length - prefix, environment->base_math);
@@ -161,15 +165,46 @@ define_port(const struct st_rip3_command_host *host,
 		return status;
 	if (number == 0 || number > 35)
 		return IO_ERROR_OUT_OF_RANGE;
-	if ((flags & ~UINT64_C(15)) != 0 || (flags & 1) != 0)
-		return IO_ERROR_NOT_SUPPORTED; /* Offscreen world extents: #10. */
-	status = translate(host, environment_number, &world, &device);
-	if (status == 0)
-		status = clip_to_port(host->ports, 0, &device);
+	/* Rejecting reserved flags is client policy; the protocol only requires
+	 * senders to leave them zero. Every combination of the low four is valid. */
+	if ((flags & ~UINT64_C(15)) != 0)
+		return IO_ERROR_NOT_SUPPORTED;
+	bool offscreen = (flags & 1) != 0;
+	if (offscreen) world.x0 = world.y0 = 0;
+	if (!ordered(&world)) return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_frame(host, environment_number, &frame);
+	if (status != 0) return status;
+	uint64_t x0 = (uint64_t)(uint32_t)world.x0*frame.device_width/frame.world_width;
+	uint64_t y0 = (uint64_t)(uint32_t)world.y0*frame.device_height/frame.world_height;
+	uint64_t x1 = (uint64_t)(uint32_t)world.x1*frame.device_width/frame.world_width;
+	uint64_t y1 = (uint64_t)(uint32_t)world.y1*frame.device_height/frame.world_height;
+	if (x0 >= x1 || y0 >= y1) return IO_ERROR_OUT_OF_RANGE;
+	if (offscreen) {
+		if (x1 > INT32_MAX || y1 > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+	}
+	else {
+		/* Supported screen definitions intersect the display. Keep the client
+		 * rejection policy for wholly external definitions; no edge allocation
+		 * or integer wrapping is inferred from the original DLL. */
+		if (x0 >= frame.device_width || y0 >= frame.device_height)
+			return IO_ERROR_NOT_SUPPORTED;
+		if (x1 > frame.device_width) x1 = frame.device_width;
+		if (y1 > frame.device_height) y1 = frame.device_height;
+	}
+	/* DEFINE_PORT supplies extent boundaries, whereas the device table takes
+	 * inclusive last pixels. Convert exactly once, after projection/clipping. */
+	device = (struct st_rip3_rect){(int32_t)x0,(int32_t)y0,(int32_t)(x1-1),(int32_t)(y1-1)};
+	status = st_rip3_ports_info(host->ports,(unsigned)number,&target);
 	if (status != 0)
 		return status;
 	*operation = true;
-	status = st_rip3_ports_define(host->ports, (unsigned)number, &device, false);
+	/* Protected redefinition reaches the table's port-zero fallback before
+	 * resource admission. The protocol specifies this rejection state. */
+	if (!target.protected && offscreen) {
+		status = definition_budget(host,(unsigned)number,x1*y1);
+		if (status != 0) return status;
+	}
+	status = st_rip3_ports_define(host->ports, (unsigned)number, &device, offscreen);
 	if (status != 0)
 		return status;
 	/* From this point all indices are defined/in range, and these operations

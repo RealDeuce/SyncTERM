@@ -49,7 +49,7 @@ struct st_rip3_command_host {
 	 * callback before further bytes. Uses this source's same input gate. */
 	struct st_rip3_query *query;
 	struct st_rip3_clipboard_selection *clipboard;
-	/* Explicit client policy for captures, in offscreen device pixels. */
+	/* Explicit client policy for captures/definitions, in offscreen device pixels. */
 	const uint64_t *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	struct st_rip3_text_context *text;
@@ -77,7 +77,7 @@ struct st_rip3_command_sink {
  * m, classic literal T and horizontal-left @,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
- * rectangle-copy 2C, onscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
+ * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
@@ -88,9 +88,14 @@ struct st_rip3_command_sink {
  * before changing the palette, whose own protection applies.
  * Port commands use the bound PORT table and current ENV world/width/radix,
  * without activating or updating ENV references. World geometry requires the
- * ENV and PORT device canvases to agree. Offscreen 2P and wholly external
- * port definitions await producer reconciliation. DEFINE_PORT flag,
- * origin and replacement discrepancies are tracked in #72. For 2C, projected
+ * ENV and PORT device canvases to agree. 2P projects half-open extent boundaries,
+ * treats offscreen near coordinates as zero, and applies all initial flags
+ * independently. Protected redefinition selects zero. Client policy rejects
+ * reserved flags, nonpositive dimensions, unsupported offscreen sizes and wholly
+ * external screen definitions. Offscreen definitions require a pixel budget, counting
+ * the final table without the replaced target; resource failures retain the old
+ * table/current/clipboard state. This rollback policy is not a protocol guarantee.
+ * Flag 1 never assigns the clipboard pointer. For 2C, projected
  * all-zero source/destination boundaries mean the full viewport; otherwise
  * zero destination ends synthesize an equal-size destination. Half-open extents
  * select unscaled versus fit before clipping. Equal copies trim together;

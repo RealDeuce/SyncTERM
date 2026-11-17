@@ -26,7 +26,11 @@ freezes the existing RIP 1.54 implementation and historical fixtures. This is
 preservation/inventory coverage, not a claim of RIPtel 3.1 compliance. Separate
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port
 captures on all three canvases, including copy modes, clipping, scaling and
-overlap recovery. Separate style-record tests cover explicit attributes, owned
+overlap recovery. DEFINE_PORT tests cover independent
+initial flags, half-open screen/offscreen extents, ignored offscreen origins,
+protected fallback and client allocation policy on all canvases, radices and
+coordinate widths, with coherent captures and nonfatal split-input recovery.
+Separate style-record tests cover explicit attributes, owned
 snapshots and nonfatal metadata/COPY errors. Complete c/k/W/L/R command tests
 cover palette/direct RGB ink, all drawing modes, explicit patterns, reversed and
 clipped geometry, default-world mapping, wide endpoints and allocation recovery

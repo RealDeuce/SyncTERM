@@ -26,7 +26,8 @@ prioritize the published protocol over conflicting DLL observations: all four
 initial flags act independently, offscreen near coordinates are zeroed before
 sizing, protected redefinition selects port zero, and allocation-failure final
 state has no documented guarantee. No viewport contract changed. Documentation
-blocker B72 is resolved locally; DEFINE_PORT implementation remains pending.
+blocker B72 is resolved locally; implementation acceptance is tracked separately
+in [the DEFINE_PORT milestone](RIP3_CONFORMANCE.md#define_port-protocol-implementation).
 
 The current index contains **7357 blocks in 65 documents**. Exact and separately
 verified formatting-only matches retain their review evidence. New or changed

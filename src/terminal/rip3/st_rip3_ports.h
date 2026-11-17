@@ -51,9 +51,11 @@ int st_rip3_ports_current(const struct st_rip3_ports *ports, unsigned *result);
 int st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
 	struct st_rip3_port_info *result);
 /* Screen bounds are clamped to the device. An entirely external rectangle
- * fails. For offscreen ports x0/y0 are ignored, as specified by DEFINE_PORT.
+ * fails. All endpoints here are inclusive; the wire producer converts extent
+ * boundaries before calling. For offscreen ports x0/y0 are ignored.
  * A protected redefinition fails and selects port zero. Other failures leave
- * the table unchanged. Defining does not select/protect/deactivate implicitly. */
+ * the table unchanged (client policy, not a protocol rollback guarantee).
+ * Defining does not select/protect/deactivate implicitly. */
 int st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
 	const struct st_rip3_rect *bounds, bool offscreen);
 /* Install an already-prepared owned bitmap as a nonzero offscreen port, with
