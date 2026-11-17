@@ -89,3 +89,16 @@ tests reject missing/stale adoption records and changed document inventories.
 The unchanged RIP1.54 freeze check is still mandatory. Native build/CTest results
 for this adoption are recorded in `RIP3_CONFORMANCE.md`; legacy green fixtures are
 historical behavior evidence until reconciled with the adopted contract.
+
+### LOAD_BITMAP duplication/wallpaper implementation follow-through
+
+The separate `1b` engine now follows the adopted #42/#58 ordering: initial
+paint/palette commit, full requested-rectangle duplicate, then COPY wallpaper
+on the live current viewport. Explicit deletion/protection and creation/copy
+failures retain their documented nontransactional state effects. Flags0..63,
+including stagger32 with wallpaper16, are accepted; higher values reject before
+lookup. The earlier draft-era clipped transactional duplicate path was removed
+from the painter. Detailed independent coverage and remaining color-key,
+coordinate-producer and application-integration limits are recorded in
+[`RIP3_CONFORMANCE.md`](RIP3_CONFORMANCE.md#load_bitmap-post-draw-duplication-and-wallpaper-reconciliation).
+The reference pin and recorded document/research identities are unchanged.

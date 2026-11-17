@@ -18,7 +18,9 @@
 #include <string.h>
 
 extern bool st_rip3_bitmap_stamp_test_fail_allocate;
-extern bool st_rip3_bitmap_stamp_test_fail_duplicate;
+extern bool st_rip3_wallpaper_test_fail_allocate;
+extern bool st_rip3_clipboard_test_fail_allocate;
+extern bool st_rip3_clipboard_test_fail_copy;
 extern bool st_rip3_bitmap_file_test_fail_allocate;
 extern bool st_rip3_bitmap_file_test_fail_decode;
 
@@ -285,7 +287,7 @@ adoption(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 	(void)snprintf(name,sizeof(name),"Adopt%u.BMP",depth);
 	CHECK(st_rip3_palettes_get(f.host.palettes,1,&before) == 0);
 	form(body,positions[0],'0',0,"02","00",name);
-	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 0);
+	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 1);
 	CHECK(st_rip3_palettes_get(f.host.palettes,1,&actual) == 0 && memcmp(&before,&actual,sizeof(before)) == 0);
 	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0);
 	st_rip3_bitmap_stamp_test_fail_allocate = true;
@@ -299,7 +301,7 @@ adoption(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 	form(body,"00030000",'0',0,"0A","01",name); CHECK(process(&f,body,-1) == 0);
 	form(body,"0A030000",'0',0,"06","00",name); CHECK(process(&f,body,-1) == 0);
 	form(body,"0F030000",'0',4,"0E","01",name); CHECK(process(&f,body,-1) == 0);
-	CHECK(f.prompts == 0);
+	CHECK(f.prompts == 2);
 	CHECK(st_rip3_palettes_get(f.host.palettes,1,&actual) == 0);
 	for (unsigned i = 0; i < 256; i++) CHECK(actual.rgb[i] == (i < count ? adopted_color(i,depth) : before.rgb[i]));
 	/* One owned capture holds both the index plane and its RGB palette,
@@ -380,14 +382,13 @@ dithering(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const cha
 }
 
 static int
-duplicate_pixels(struct fixture *f, unsigned number, uint32_t width, uint32_t height, const uint8_t *expected)
+duplicate_contents(struct fixture *f, unsigned number, uint32_t width, uint32_t height, const uint8_t *expected)
 {
 	struct st_rip3_port_info info;
 	struct st_rip3_palette palette;
 	struct st_rip3_bitmap *capture = NULL;
-	unsigned current;
 	CHECK(st_rip3_ports_info(f->host.ports,number,&info) == 0 && info.defined && info.offscreen
-	    && !info.protected && info.viewport_active && info.bounds.x0 == 0 && info.bounds.y0 == 0
+	    && info.viewport_active && info.bounds.x0 == 0 && info.bounds.y0 == 0
 	    && info.bounds.x1 == (int32_t)width-1 && info.bounds.y1 == (int32_t)height-1
 	    && memcmp(&info.bounds,&info.viewport,sizeof(info.bounds)) == 0
 	    && info.image.automatic && info.image.enabled && info.image.flags == 0);
@@ -395,19 +396,26 @@ duplicate_pixels(struct fixture *f, unsigned number, uint32_t width, uint32_t he
 	CHECK(st_rip3_bitmap_capture(&capture,f->host.ports,number,NULL,&palette) == 0);
 	CHECK(capture->pixels->width == width && capture->pixels->height == height);
 	for (size_t i = 0; i < (size_t)width*height; i++) CHECK(capture->pixels->primary[i] == expected[i]);
-	CHECK(st_rip3_ports_current(f->host.ports,&current) == 0 && current == 1);
 	st_rip3_bitmap_destroy(capture); return 0;
+}
+
+static int
+duplicate_pixels(struct fixture *f, unsigned number, uint32_t width, uint32_t height, const uint8_t *expected)
+{
+	struct st_rip3_port_info info;
+	CHECK(st_rip3_ports_info(f->host.ports,number,&info) == 0 && !info.protected);
+	return duplicate_contents(f,number,width,height,expected);
 }
 
 static int
 duplication(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
 {
-	struct fixture f = {0}; char body[160];
+	struct fixture f = {0}; uint64_t budget = UINT64_C(1000000); char body[160];
 	const uint8_t modes[5][6] = {{3,12,48,192,0,255},{86,89,101,149,85,170},
 	    {87,93,117,213,85,255},{1,4,16,64,0,85},{252,243,207,63,255,0}};
 	CHECK(create(&f,canvas,width,height,directory) == 0);
 	struct st_rip3_clipboard_selection clipboard = {.set=true,.port=9};
-	f.host.clipboard = &clipboard;
+	f.host.clipboard = &clipboard; f.host.offscreen_pixel_budget = &budget;
 	for (unsigned mode = 0; mode < 5; mode++) {
 		CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 		if (mode == 1) {
@@ -435,10 +443,11 @@ duplication(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const c
 	}
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 	form(body,"1A000000",'3',4,"09","0C","Tile"); CHECK(process(&f,body,-1) == 0);
-	const uint8_t clipped[] = {252,85,63,255};
-	CHECK(duplicate_pixels(&f,3,2,2,clipped) == 0);
+	const uint8_t clipped[] = {252,85,85,63,255,255};
+	CHECK(duplicate_pixels(&f,3,3,2,clipped) == 0);
 	form(body,"1A0H0000",'3',4,"09","0C","Tile"); CHECK(process(&f,body,-1) == 0);
-	CHECK(duplicate_pixels(&f,3,2,1,clipped) == 0);
+	const uint8_t bottom[] = {252,85,85,252,85,85};
+	CHECK(duplicate_pixels(&f,3,3,2,bottom) == 0);
 	form(body,"00030506",'3',0,"09","0C","Tile"); CHECK(process(&f,body,-1) == 0);
 	const uint8_t stretched[] = {3,3,85,85,48,48,3,3,85,85,48,48,
 	    192,192,0,0,255,255,192,192,0,0,255,255};
@@ -461,56 +470,51 @@ duplication(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const c
 static int
 duplicate_failures(const char *directory)
 {
-	struct fixture f = {0}; char body[160];
+	struct fixture f = {0}; char body[160]; uint64_t budget = UINT64_C(1000000);
 	struct st_rip3_palette before, after;
 	const struct st_rip3_rect bounds = {0,0,2,1};
-	const uint8_t original[] = {42,42,42,42,42,42};
+	const uint8_t original[] = {42,42,42,42,42,42}, clear[] = {0,0,0,0,0,0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480,directory) == 0);
+	f.host.clipboard = &f.selection; f.host.offscreen_pixel_budget = &budget;
+	f.selection = (struct st_rip3_clipboard_selection){true,2};
 	CHECK(st_rip3_ports_define(f.host.ports,2,&bounds,true) == 0 && st_rip3_ports_switch(f.host.ports,2) == 0
 	    && st_rip3_ports_erase(f.host.ports,42) == 0 && st_rip3_ports_switch(f.host.ports,1) == 0);
-	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0
-	    && st_rip3_palettes_get(f.host.palettes,1,&before) == 0);
-	form(body,"00000000",'2',0,"03","00","Adopt8.BMP");
+	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0 && st_rip3_palettes_get(f.host.palettes,1,&before) == 0);
+	form(body,"00000000",'2',0,"0J","00","Adopt8.BMP");
 	st_rip3_bitmap_file_test_fail_allocate = true;
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_file_test_fail_allocate);
 	st_rip3_bitmap_stamp_test_fail_allocate = true;
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_allocate);
-	st_rip3_bitmap_stamp_test_fail_duplicate = true;
-	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_duplicate);
-	CHECK(duplicate_pixels(&f,2,3,2,original) == 0);
+	CHECK(duplicate_pixels(&f,2,3,2,original) == 0 && f.selection.set && f.selection.port == 2);
 	CHECK(st_rip3_palettes_get(f.host.palettes,1,&after) == 0 && memcmp(&before,&after,sizeof(before)) == 0);
-	uint8_t value;
-	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&value) == 0 && value == 85);
+	uint8_t value; CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&value) == 0 && value == 85);
+	/* Protected explicit rejection is after initial painting/adoption and
+	 * before wallpaper; it retains target, pointer and current selection. */
 	CHECK(st_rip3_ports_protect(f.host.ports,2,true) == 0);
-	st_rip3_bitmap_file_test_fail_allocate = true;
-	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && st_rip3_bitmap_file_test_fail_allocate);
-	st_rip3_bitmap_file_test_fail_allocate = false;
-	struct st_rip3_port_info info;
-	unsigned current;
-	CHECK(st_rip3_ports_current(f.host.ports,&current) == 0 && current == 1
-	    && st_rip3_ports_info(f.host.ports,2,&info) == 0 && info.protected);
+	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 2);
+	CHECK(duplicate_contents(&f,2,3,2,original) == 0 && f.selection.set && f.selection.port == 2);
+	struct st_rip3_port_info protected_info;
+	CHECK(st_rip3_ports_info(f.host.ports,2,&protected_info) == 0 && protected_info.protected);
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&after) == 0 && after.rgb[1] == adopted_color(1,8));
+	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&value) == 0 && value == 1);
+	CHECK(st_rip3_ports_read(f.host.ports,1,12,11,&value) == 0 && value == 85);
 	CHECK(st_rip3_ports_protect(f.host.ports,2,false) == 0);
+	st_rip3_clipboard_test_fail_allocate = true;
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_clipboard_test_fail_allocate);
+	struct st_rip3_port_info info; unsigned current;
+	CHECK(st_rip3_ports_info(f.host.ports,2,&info) == 0 && !info.defined && !f.selection.set);
+	CHECK(st_rip3_ports_current(f.host.ports,&current) == 0 && current == 1);
+	CHECK(st_rip3_ports_read(f.host.ports,1,12,11,&value) == 0 && value == 2); /* wallpaper continued */
+	st_rip3_clipboard_test_fail_copy = true;
+	CHECK(process(&f,body,-1) == 0 && !st_rip3_clipboard_test_fail_copy && duplicate_pixels(&f,2,3,2,clear) == 0);
 	form(body,"1E000000",'2',0,"03","00","Adopt8.BMP");
-	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 0);
-	CHECK(duplicate_pixels(&f,2,3,2,original) == 0 && st_rip3_palettes_get(f.host.palettes,1,&after) == 0
-	    && memcmp(&before,&after,sizeof(before)) == 0);
-	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&value) == 0 && value == 85);
-	struct st_rip3_bitmap *unchanged = NULL;
-	CHECK(st_rip3_bitmap_capture(&unchanged,f.host.ports,1,NULL,&before) == 0);
-	for (size_t i = 0; i < (size_t)unchanged->pixels->width*unchanged->pixels->height; i++)
-		CHECK(unchanged->pixels->primary[i] == 85);
-	st_rip3_bitmap_destroy(unchanged);
-	/* A later command succeeds after every rejected/resource-failed attempt. */
+	CHECK(process(&f,body,-1) == 0 && duplicate_pixels(&f,2,3,2,clear) == 0 && f.prompts == 2);
 	form(body,"00000000",'2',0,"03","00","Adopt8.BMP"); CHECK(process(&f,body,-1) == 0);
 	const uint8_t copied[] = {1,2,3,4,0,1}; CHECK(duplicate_pixels(&f,2,3,2,copied) == 0);
-	/* The same current viewport can also be backed by an offscreen surface. */
 	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_define(f.host.ports,1,&bounds,true) == 0
 	    && st_rip3_ports_erase(f.host.ports,85) == 0 && st_rip3_ports_protect(f.host.ports,1,true) == 0);
 	form(body,"00000000",'3',0,"01","00","Adopt8.BMP"); CHECK(process(&f,body,-1) == 0);
-	/* Without adoption, equal RGB source indexes use the first nearest
-	 * active-palette entry; duplication retains that final mapped result. */
-	const uint8_t mapped[] = {1,1,3,4,0,1};
-	CHECK(duplicate_pixels(&f,3,3,2,mapped) == 0);
+	const uint8_t mapped[] = {1,1,3,4,0,1}; CHECK(duplicate_pixels(&f,3,3,2,mapped) == 0);
 	destroy(&f); return 0;
 }
 
@@ -673,7 +677,9 @@ numeric(const char *directory)
 		}
 		if (radix == 64) {
 			form(body,coordinates,'&',0,"01","00","Tile");
-			CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
+			CHECK(process(&f,body,-1) == 0); /* Duplicate >35 is ignored. */
+			form(body,coordinates,'&',0,"0H","00","Tile"); CHECK(process(&f,body,-1) == 0);
+			CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 3);
 		}
 		char icon_coordinates[11] = {0};
 		CHECK(st_rip3_number_encode(icon_coordinates,width,2,width,radix) == 0
@@ -720,10 +726,10 @@ errors(const char *directory)
 	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 2 && !f.area_present);
 	form(body,"00000000",'0',0,"00","00","Compressed");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 3);
-	const char *const unsupported[] = {"01","0G"};
+	const char *const unsupported[] = {"1S","ZZ"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		form(body,"00000000",'0',0,unsupported[i],"00","Tile");
-		CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 3);
+		CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0 && f.prompts == 3);
 	}
 	form(body,"00000000",'0',0,"00","00","../Tile");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 3);
@@ -741,7 +747,7 @@ errors(const char *directory)
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_file_test_fail_decode);
 	st_rip3_bitmap_stamp_test_fail_allocate = true;
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_allocate);
-	CHECK(f.prompts == 3);
+	CHECK(f.prompts == 6);
 	uint8_t actual;
 	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 85);
 	/* The real framer must deliver a valid load after both syntax and file errors. */
@@ -751,7 +757,7 @@ errors(const char *directory)
 	const char recovery[] = "!|1b|1b000000000000000000Missing|1b000000000000000000Tile|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);
-	CHECK(f.errors == previous+2 && f.prompts == 4);
+	CHECK(f.errors == previous+2 && f.prompts == 7);
 	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 3);
 	st_rip3_stream_destroy(stream);
 	const struct st_rip3_bitmap_error_sink *feedback = f.host.bitmap_errors;
@@ -760,11 +766,191 @@ errors(const char *directory)
 	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
 	struct st_rip3_palettes *palettes = f.host.palettes;
 	f.host.resources = NULL; f.host.palettes = NULL; f.host.bitmap_errors = NULL;
-	CHECK(process(&f,body,-1) == 0 && f.prompts == 4);
+	CHECK(process(&f,body,-1) == 0 && f.prompts == 7);
 	form(body,"00000000",'0',0,"0F","00","Missing");
-	CHECK(process(&f,body,-1) == 0 && f.prompts == 4);
+	CHECK(process(&f,body,-1) == 0 && f.prompts == 7);
 	/* Destruction follows after ignored input, with no outstanding callback ownership. */
 	f.host.palettes = palettes; destroy(&f);
+	return 0;
+}
+
+static int
+duplicate_routes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	struct fixture f = {0}; char body[160]; uint64_t budget = UINT64_C(1000000);
+	struct st_rip3_port_info info; unsigned current; uint8_t value;
+	CHECK(create(&f,canvas,width,height,directory) == 0);
+	f.host.clipboard = &f.selection; f.host.offscreen_pixel_budget = &budget;
+	form(body,"00000000",'0',0,"0H","00","Tile"); /* capture, then wallpaper */
+	CHECK(process(&f,body,-1) == 0 && f.selection.set && f.selection.port == 2);
+	const uint8_t stretched[] = {3,12,12,48,192,0,0,255,192,0,0,255};
+	CHECK(duplicate_pixels(&f,2,4,3,stretched) == 0);
+	CHECK(st_rip3_ports_read(f.host.ports,1,6,4,&value) == 0 && value == 0);
+	CHECK(st_rip3_ports_current(f.host.ports,&current) == 0 && current == 1);
+	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0 && st_rip3_ports_protect(f.host.ports,2,true) == 0);
+	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.selection.set && f.selection.port == 2);
+	CHECK(duplicate_contents(&f,2,4,3,stretched) == 0);
+	CHECK(st_rip3_ports_read(f.host.ports,1,6,4,&value) == 0 && value == 0); /* clipboard rejection still wallpapers */
+	CHECK(st_rip3_ports_protect(f.host.ports,2,false) == 0);
+	/* Same-current explicit skips only duplication, even without bindings. */
+	f.host.clipboard = NULL; f.host.offscreen_pixel_budget = NULL;
+	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
+	form(body,"00000000",'1',0,"1D","00","Tile");
+	CHECK(process(&f,body,-1) == 0);
+	CHECK(st_rip3_ports_read(f.host.ports,1,12,11,&value) == 0 && value == 48);
+	CHECK(duplicate_pixels(&f,2,4,3,stretched) == 0);
+	/* 32 alone accepts but does not wallpaper or access duplicate bindings. */
+	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
+	form(body,"00000000",'0',0,"0W","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	CHECK(st_rip3_ports_read(f.host.ports,1,12,11,&value) == 0 && value == 85);
+	/* Deleting an undefined explicit target does not clear a dangling pointer. */
+	f.host.clipboard = &f.selection; f.host.offscreen_pixel_budget = &budget;
+	/* The documented outside 4x2 image still replaces explicit targets with
+	 * 4x2 clear pixels, and the clipboard route allocates 5x3 clear pixels. */
+	const uint8_t clear_explicit[8] = {0}, clear_clipboard[15] = {0};
+	form(body,"1E001H01",'4',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	CHECK(duplicate_pixels(&f,4,4,2,clear_explicit) == 0);
+	f.selection = (struct st_rip3_clipboard_selection){true,2};
+	form(body,"1E001H01",'0',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	CHECK(duplicate_pixels(&f,2,5,3,clear_clipboard) == 0 && f.selection.set && f.selection.port == 2);
+	f.selection = (struct st_rip3_clipboard_selection){true,3};
+	form(body,"00000000",'3',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	const uint8_t tile[] = {3,12,48,192,0,255};
+	CHECK(duplicate_pixels(&f,3,3,2,tile) == 0 && f.selection.set && f.selection.port == 3);
+	/* A failed wallpaper snapshot retains both the initial draw and duplicate. */
+	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
+	st_rip3_wallpaper_test_fail_allocate = true;
+	form(body,"00000000",'3',0,"0H","00","Tile");
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_wallpaper_test_fail_allocate);
+	CHECK(duplicate_pixels(&f,3,3,2,tile) == 0 && !f.selection.set);
+	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&value) == 0 && value == 3);
+	CHECK(st_rip3_ports_read(f.host.ports,1,12,11,&value) == 0 && value == 85);
+	/* A post-deletion budget failure has the same wallpaper continuation. */
+	f.selection = (struct st_rip3_clipboard_selection){true,3}; budget = 0;
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
+	CHECK(st_rip3_ports_info(f.host.ports,3,&info) == 0 && !info.defined && !f.selection.set);
+	CHECK(st_rip3_ports_read(f.host.ports,1,12,11,&value) == 0 && value == 12);
+	CHECK(f.prompts == 0);
+	/* A protected screen target shares the initial draw, but retains its
+	 * definition, selection and pointer and prevents later wallpaper. */
+	const struct st_rip3_rect screen_target = {12,21,14,22};
+	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0 && st_rip3_ports_define(f.host.ports,3,&screen_target,false) == 0);
+	CHECK(st_rip3_ports_protect(f.host.ports,3,true) == 0);
+	f.selection = (struct st_rip3_clipboard_selection){true,3};
+	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.selection.set && f.selection.port == 3);
+	CHECK(st_rip3_ports_info(f.host.ports,3,&info) == 0 && info.protected && !info.offscreen
+	    && memcmp(&info.bounds,&screen_target,sizeof(screen_target)) == 0);
+	CHECK(st_rip3_ports_read(f.host.ports,3,0,0,&value) == 0 && value == 3);
+	CHECK(st_rip3_ports_read(f.host.ports,1,12,11,&value) == 0 && value == 85);
+	CHECK(st_rip3_ports_current(f.host.ports,&current) == 0 && current == 1);
+	destroy(&f); return 0;
+}
+
+static int
+clipboard_retarget(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	struct fixture f = {0}; char body[160]; uint64_t budget = UINT64_C(1000000);
+	const struct st_rip3_rect screen_view = {30,40,35,44}, offscreen = {0,0,5,4};
+	CHECK(create(&f,canvas,width,height,directory) == 0);
+	f.host.clipboard = &f.selection; f.host.offscreen_pixel_budget = &budget;
+	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0 && st_rip3_ports_viewport(f.host.ports,&screen_view) == 0);
+	for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 3; x++)
+		CHECK(st_rip3_ports_plot(f.host.ports,x,y,(uint8_t)(7+y*3+x),ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_define(f.host.ports,1,&offscreen,true) == 0
+	    && st_rip3_ports_switch(f.host.ports,1) == 0 && st_rip3_ports_erase(f.host.ports,85) == 0);
+	f.selection = (struct st_rip3_clipboard_selection){true,1};
+	/* Initial Tile is painted to offscreen 1, which capture then deletes.
+	 * The new clipboard reads port zero; wallpaper must also use zero. */
+	form(body,"00000000",'0',0,"0H","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	const uint8_t captured[] = {7,8,8,9,10,11,11,12,10,11,11,12};
+	CHECK(duplicate_pixels(&f,1,4,3,captured) == 0 && f.selection.set && f.selection.port == 1);
+	unsigned current; CHECK(st_rip3_ports_current(f.host.ports,&current) == 0 && current == 0);
+	struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
+	const struct st_rip3_rect full = {0,0,(int32_t)width-1,(int32_t)height-1};
+	CHECK(st_rip3_ports_define(f.host.ports,35,&full,false) == 0);
+	CHECK(st_rip3_palettes_get(f.host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,35,NULL,&palette) == 0);
+	CHECK(capture->pixels->width == width && capture->pixels->height == height);
+	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+		unsigned expected = 0;
+		if (x >= 12 && x <= 59 && y >= 21 && y <= 38) expected = 85; /* original fixture */
+		if (x >= 30 && x <= 35 && y >= 40 && y <= 44) expected = 7+3*((y-40)%2)+(x-30)%3;
+		CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
+	}
+	st_rip3_bitmap_destroy(capture);
+	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0);
+	st_rip3_clipboard_test_fail_allocate = true;
+	form(body,"00000000",'0',0,"1D","00","Tile");
+	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_clipboard_test_fail_allocate);
+	struct st_rip3_port_info info;
+	CHECK(st_rip3_ports_info(f.host.ports,1,&info) == 0 && !info.defined && !f.selection.set);
+	CHECK(st_rip3_ports_current(f.host.ports,&current) == 0 && current == 0 && f.prompts == 0);
+	uint8_t value; CHECK(st_rip3_ports_read(f.host.ports,0,30,42,&value) == 0 && value == 8); /* stagger on zero */
+	destroy(&f); return 0;
+}
+
+static int
+flag_range(const char *directory)
+{
+	struct fixture f = {0}; char body[160], flags[3] = {0};
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480,directory) == 0);
+	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0);
+	for (unsigned radix = 36; radix <= 64; radix += 28) {
+		struct st_rip3_environment env;
+		CHECK(st_rip3_environments_get(f.host.environments,0,&env) == 0);
+		env.base_math = radix; CHECK(st_rip3_environments_set(f.host.environments,0,&env) == 0);
+		for (unsigned value = 0; value < 64; value++) {
+			CHECK(st_rip3_number_encode(flags,2,value,2,radix) == 0);
+			form(body,"00000000",'1',0,flags,"0C","Tile"); CHECK(process(&f,body,-1) == 0);
+		}
+		/* Invalid flags precede filename access and every visible side effect. */
+		const unsigned invalid[] = {64,65,radix*radix-1};
+		for (size_t i = 0; i < sizeof(invalid)/sizeof(*invalid); i++) {
+			CHECK(st_rip3_number_encode(flags,2,invalid[i],2,radix) == 0);
+			st_rip3_bitmap_file_test_fail_allocate = true;
+			form(body,"00000000",'0',0,flags,"00","Missing");
+			CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0 && st_rip3_bitmap_file_test_fail_allocate);
+			st_rip3_bitmap_file_test_fail_allocate = false;
+		}
+	}
+	CHECK(f.prompts == 0); destroy(&f); return 0;
+}
+
+static int
+wallpaper_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *directory)
+{
+	for (unsigned stagger = 0; stagger < 2; stagger++) {
+		struct fixture f = {0}; char body[160]; uint64_t budget = UINT64_C(1000000);
+		CHECK(create(&f,canvas,width,height,directory) == 0);
+		f.host.clipboard = &f.selection; f.host.offscreen_pixel_budget = &budget;
+		f.selection = (struct st_rip3_clipboard_selection){true,9};
+		const struct st_rip3_rect old = {0,0,4,3};
+		CHECK(st_rip3_ports_define(f.host.ports,9,&old,true) == 0);
+		/* XOR + keyed background form the seed once. Explicit duplication
+		 * captures it before wallpaper, and deleting its clipboard assignment
+		 * clears that pointer without assigning the explicit replacement. */
+		form(body,"02030000",'9',1,stagger ? "1L" : "0P","0C","Tile");
+		struct st_rip3_stream *stream = NULL;
+		const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+		CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+		st_rip3_stream_process(stream,(const uint8_t *)"!|",2);
+		for (size_t i = 0; i < strlen(body); i++) st_rip3_stream_process(stream,(const uint8_t *)body+i,1);
+		st_rip3_stream_process(stream,(const uint8_t *)"|",1); st_rip3_stream_destroy(stream);
+		CHECK(f.errors == 0 && f.prompts == 0 && !f.selection.set);
+		const uint8_t seed[] = {86,85,101,149,85,170};
+		CHECK(duplicate_pixels(&f,9,3,2,seed) == 0);
+		struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
+		CHECK(st_rip3_palettes_get(f.host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
+		const uint8_t plain[2][3] = {{85,170,149},{85,101,86}};
+		const uint8_t shifted[4][3] = {{85,170,149},{101,86,85},{170,149,85},{85,101,86}};
+		for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
+			unsigned expected = 0;
+			if (x >= 12 && x <= 59 && y >= 21 && y <= 38)
+				expected = stagger ? shifted[(y-21)%4][(x-12)%3] : plain[(y-21)%2][(x-12)%3];
+			CHECK(capture->pixels->primary[(size_t)y*width+x] == expected);
+		}
+		for (unsigned i = 0; i < 256; i++) CHECK(capture->palette[i] == i*UINT32_C(0x010101));
+		st_rip3_bitmap_destroy(capture); destroy(&f);
+	}
 	return 0;
 }
 
@@ -774,6 +960,16 @@ main(int argc, char **argv)
 	CHECK(argc == 2 && fs_create_directories(argv[1]) == 0);
 	CHECK(asset(argv[1],"Tile.BMP",false,false) == 0 && asset(argv[1],"Color.BMP",true,false) == 0);
 	CHECK(asset(argv[1],"Compressed.BMP",false,true) == 0);
+	CHECK(wallpaper_scene(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(wallpaper_scene(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(wallpaper_scene(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
+	CHECK(duplicate_routes(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(duplicate_routes(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(duplicate_routes(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
+	CHECK(clipboard_retarget(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
+	CHECK(clipboard_retarget(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
+	CHECK(clipboard_retarget(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);
+	CHECK(flag_range(argv[1]) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_640_480,640,480,argv[1]) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_800_600,800,600,argv[1]) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_1024_768,1024,768,argv[1]) == 0);

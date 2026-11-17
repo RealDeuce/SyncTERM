@@ -131,12 +131,17 @@ struct st_rip3_command_sink {
  * rejects adoption before painting; failed staging retains both palette and
  * pixels. Flag 4 otherwise enables ordered dithering in the current palette,
  * with indexed transparency before mapping and RGB transparency after mapping.
- * Explicit unprotected duplicate ports receive the final clipped pixels,
- * including backgrounds through transparent holes, in a newly defined offscreen
- * port. All staging completes before source pixels/target/palette commit.
- * Same-port duplication is ignored. Clipboard selector zero, protected duplicate
- * targets and empty duplicate coverage remain unsupported under #42; unknown
- * flags remain unsupported. True-colour files ignore palette adoption.
+ * LOAD_BITMAP accepts flags 0..63; higher values reject before file access.
+ * After the initial draw and palette commit, flag 1 duplicates the original
+ * full requested rectangle. Zero uses the shared clipboard capture lifecycle;
+ * other valid non-current ports are deleted if defined, then allocated/copied
+ * without assigning the clipboard. Explicit deletion clears a matching pointer;
+ * protection retains it and skips wallpaper, with initial draw effects retained.
+ * Allocation/copy failures do not roll back initial drawing or deleted targets.
+ * Same-current and >35 explicit selectors skip duplication. Flags 16/32 copy
+ * the composited seed through the then-current viewport, using COPY and optional
+ * alternating half-width row offsets. Flag 32 alone does nothing. Key/mapping
+ * behavior above remains subject to the corrected color-key reconciliation.
  * Active loads require a bitmap
  * error UI sink; file failures request a box without ending parsing. Actual
  * application UI integration is separate. Inactive viewports ignore the load.

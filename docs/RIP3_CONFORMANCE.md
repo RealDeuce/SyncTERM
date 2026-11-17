@@ -2537,6 +2537,79 @@ source blocks, 65 document identities and the reference pin are unchanged;
 were removed. No active application, Windows, native-device or reset/backup
 coverage is inferred from these separate-engine tests.
 
+
+## LOAD_BITMAP post-draw duplication and wallpaper reconciliation
+
+This milestone uses the adopted `5ae9d165b1ac3e36161847e68db0d763228b779b`
+contract, including the #42 capture and #58 wallpaper derivations. It supersedes
+the earlier explicit-duplication milestone's staged, clipped, transactional
+replacement policy and its unresolved flag16/clipboard statements. Those earlier
+entries retain their historical provenance; their superseded expectations are
+not acceptance criteria for the adopted behavior.
+
+`1b` now accepts flags 0..63 and rejects higher values before filename access or
+any visible effects. Flag32 alone is accepted without wallpaper. Initial
+palette/key/dither/transfer processing paints the image first and commits palette
+adoption before duplication. The painter no longer owns a second duplicate-port
+path. File/initial-render failures request the bitmap-error sink and exit before
+duplication or wallpaper; failure to stage the UI itself remains nonfatal.
+
+Flag1 uses the full requested device rectangle even if partly or wholly outside
+the viewport. Duplicate0 invokes shared GET_IMAGE capture, including its extra
+allocation unit and destructive same-source behavior. Explicit current and >35
+selectors skip only duplication. A different defined explicit target is deleted
+before allocating its replacement, clearing a matching clipboard assignment;
+an undefined target skips deletion and retains a dangling assignment. Explicit
+replacement does not assign a new clipboard. A protected target retains its
+resources, pointer and current selection, with the initial draw/adoption already
+visible, and prevents wallpaper. This also applies to a screen target sharing
+pixels with the initial draw. Creation failure leaves the old target deleted
+and still reaches wallpaper; copy failure retains the newly clear allocation.
+The documented outside 4x2 image produces a clear explicit 4x2 bitmap or a clear
+clipboard 5x3 bitmap.
+
+Flags16/32 snapshot and repeat the composited seed through the live current
+viewport with COPY. Palette, dither, key and initial ROP are not reapplied;
+background retained through keyed holes becomes seed pixel data too. Far seed
+edges are trimmed to the viewport before repetition. Alternate rows shift left
+by floor(trimmed width/2), relative to the seed row in both directions. Invalid
+seed origins/reversed rectangles reject without additional painting. Inactive
+viewports and seeds already covering the full viewport need no staging.
+Wallpaper allocation failure retains already completed draw/duplication effects.
+The clipboard path can change current to port zero, including on allocation
+failure; wallpaper rereads that port and its viewport rather than restoring the
+old source.
+
+`rip3_wallpaper` uses independent literal odd/even/single-width grids, rows above
+and left of the seed, far clipping, protected content, inactive/full-viewport
+no-ops and staging failure. The expanded `rip3_bitmap_load_commands` fixture
+checks all 64 flag combinations in both radices, invalid high flags before file
+access, explicit/clipboard capture sizes, retained or cleared assignments,
+protected screen/offscreen targets and file/render/create/copy/wallpaper failure
+ordering. Byte-split wallpaper streams use independent XOR/key/background seeds
+and complete screen index/palette captures on all three canvases. Separate
+same-source capture cases verify the live port-zero fallback and its different
+viewport. Existing placement/transfer/adoption/dither/error/recovery tests remain.
+
+The ledger accepts these operation/order/phase blocks separately from the full
+LOAD_BITMAP contract. Corrected depth-specific color-key translation, additional
+bitmap depths/codecs, complete WORLD/port coordinate producer reconciliation,
+wrapped-zero shared capture allocation, reset/backup ownership and active
+application routing remain pending. These tests do not establish native device,
+Windows, auditory or exact RIPtel pixel reproduction. RIP1.54 and the current
+application route are unchanged. No content was added to upstream issues.
+
+The existing native FreeBSD Release CMake configure/build with `/usr/bin/cc`
+passes without new compiler warnings. All 96 selected tests pass (7.68 seconds).
+Valgrind reports zero errors, no retained heap and only three inherited file
+descriptors for the wallpaper and expanded bitmap-command fixtures; allocation/
+free counts are 17/17 and 15342/15342. All 93 frozen files and 41 legacy helpers
+still match the original baseline. All 7353 source blocks, 65 document identities,
+reference/adoption evidence and the RIP1.54 capture inventory are unchanged.
+The reviewed queue now has 53 implemented, 1625 pending, 4754 unreviewed,
+880 contextual, 24 excluded and 17 blocked blocks. Owned temporary logs/assets
+and the CMake fixture directory were removed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

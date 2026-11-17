@@ -6,6 +6,7 @@
 #include "st_rip3_environments.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_wallpaper.h"
 #include "st_pixels.h"
 #include "string_compat.h"
 #include "io_error.h"
@@ -16,7 +17,7 @@ static bool
 file_failure(int status)
 {
 	return status != 0 && status != IO_ERROR_INVALID_ARGUMENT
-	    && status != IO_ERROR_INVALID_ENCODING && status != IO_ERROR_OUT_OF_MEMORY;
+	    && status != IO_ERROR_INVALID_ENCODING;
 }
 
 static int
@@ -87,7 +88,7 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
 	if (status == 0) {
 		status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,
-		    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL,NULL);
+		    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL);
 		if (status != 0)
 			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
 		else if (clipboard != 0) {
@@ -134,27 +135,18 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status == 0) status = st_rip3_command_field(&transparent,command+suffix+4,2,environment.base_math);
 	if (status == 0) status = st_rip3_command_field(&reserved,command+suffix+6,4,environment.base_math);
 	if (status != 0) return status;
-	if (mode > 4 || ((flags&8) != 0 && transparent > 255)
-	    || ((flags&1) != 0 && duplicate > 35)) return IO_ERROR_OUT_OF_RANGE;
+	if (mode > 4 || flags > 63 || ((flags&8) != 0 && transparent > 255)) return IO_ERROR_OUT_OF_RANGE;
 	bool verbatim = fields[2] == 0 && fields[3] == 0;
 	if (!verbatim && (fields[0] > fields[2] || fields[1] > fields[3])) return IO_ERROR_INVALID_FORMAT;
-	if (reserved != 0 || (flags&~UINT64_C(15)) != 0) return IO_ERROR_NOT_SUPPORTED;
+	if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
 	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_ports_current(host->ports,&port);
 	if (status == 0) status = st_rip3_ports_info(host->ports,port,&info);
 	if (status != 0) return status;
 	/* Drawing in a deactivated viewport is parsed but completely ignored. */
 	if (!info.viewport_active) return 0;
-	/* Zero is the clipboard selector, never a literal same-port shortcut. */
-	if ((flags&1) != 0 && duplicate == 0) return IO_ERROR_NOT_SUPPORTED;
-	unsigned duplicate_number = (unsigned)duplicate;
-	const unsigned *duplicate_port = (flags&1) != 0 ? &duplicate_number : NULL;
-	if (duplicate_port != NULL && duplicate_number != port) {
-		struct st_rip3_port_info target;
-		status = st_rip3_ports_info(host->ports,duplicate_number,&target);
-		if (status != 0) return status;
-		if (target.protected) return IO_ERROR_NOT_SUPPORTED;
-	}
+	bool duplicating = (flags&1) != 0 && (duplicate == 0 || (duplicate <= 35 && duplicate != port));
+	if (duplicating && (host->clipboard == NULL || host->offscreen_pixel_budget == NULL)) return IO_ERROR_NOT_SUPPORTED;
 	if (host->resources == NULL || host->palettes == NULL
 	    || host->bitmap_errors == NULL || host->bitmap_errors->show == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_frame(host,number,&frame);
@@ -170,8 +162,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	*operation = true;
 	status = st_rip3_bitmap_load(&bitmap,host->resources,name);
 	if (status != 0) {
-		/* Invalid names have not passed the UTF-8 namespace contract. Memory
-		 * failures use the resource diagnostic, not a disk-error UI request. */
+		/* Invalid names have not passed the UTF-8 namespace contract. */
 		if (file_failure(status))
 			host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area);
 		goto done;
@@ -192,13 +183,30 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	enum st_rip3_bitmap_colors colors = adopt ? ST_RIP3_BITMAP_ADOPTED
 	    : (flags&4) != 0 ? ST_RIP3_BITMAP_DITHER : ST_RIP3_BITMAP_MATCH;
 	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,colors,
-	    (enum st_rip3_transfer_mode)mode,(flags&8) != 0 ? &transparent_color : NULL,duplicate_port);
+	    (enum st_rip3_transfer_mode)mode,(flags&8) != 0 ? &transparent_color : NULL);
+	if (status != 0) {
+		if (file_failure(status)) host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area);
+		goto done;
+	}
 	/* No callbacks run between palette preflight, staging/painting and this
 	 * allocation-free commit. One owner retains the current slot/protection,
 	 * and the exact RGB span was already validated. Failed staging therefore
 	 * changes neither the palette nor the pixels. Unspecified entries remain. */
 	if (status == 0 && adopt)
 		status = st_rip3_palettes_rgb(host->palettes,0,8,bitmap->palette,bitmap->palette_size);
+	if (status != 0) goto done;
+	if (duplicating) {
+		const struct st_rip3_clipboard_area capture = {area.x0,area.y0,area.x1+1,area.y1+1};
+		status = st_rip3_clipboard_duplicate(host->ports,host->clipboard,(unsigned)duplicate,&capture,*host->offscreen_pixel_budget);
+		/* Only explicit deletion rejection exits before wallpaper. Allocation
+		 * failure and the clipboard route retain their separate state effects. */
+		if (duplicate != 0 && status == IO_ERROR_PERMISSION_DENIED) goto done;
+	}
+	if ((flags&16) != 0) {
+		/* Shared clipboard capture may have changed the live current port. */
+		int wallpaper_status = st_rip3_wallpaper(host->ports,&area,(flags&32) != 0);
+		if (status == 0) status = wallpaper_status;
+	}
 done:
 	st_rip3_bitmap_destroy(bitmap); free(name);
 	return status;

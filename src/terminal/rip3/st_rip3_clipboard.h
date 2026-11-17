@@ -41,4 +41,15 @@ int st_rip3_clipboard_capture(struct st_rip3_ports *ports,
 	struct st_rip3_clipboard_selection *selection,
 	const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
 
+/* LOAD_BITMAP's explicit post-draw duplicate route. Zero uses shared capture;
+ * >35 and same-current nonzero selectors skip duplication. A different defined
+ * target is deleted before allocation, clearing a matching clipboard pointer.
+ * This route does not assign its replacement as the clipboard. Protection
+ * returns PERMISSION_DENIED without deletion/selection change. Creation failure
+ * leaves the target undefined; the caller may still perform wallpaper. Copy
+ * failures are ignored after allocation. Ordinary extents have no extra unit. */
+int st_rip3_clipboard_duplicate(struct st_rip3_ports *ports,
+	struct st_rip3_clipboard_selection *selection, unsigned number,
+	const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
+
 #endif

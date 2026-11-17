@@ -59,8 +59,15 @@ degenerate geometry; U/u wire units/pattern policies remain pending. Unscaled
 surface/port transfer tests add paired clipping, original-source overlap in all
 transfer modes, offscreen/protected content, extreme origins and allocation
 failure without mutation. Coherent RGB captures cover all three canvases;
-COPY_BLIT/SCROLL/clipboard wire integration remains pending. These do not change
-the active route. A body tests now add canonical full circles and validated
+COPY_BLIT/SCROLL wire and clipboard reset/backup integration remain pending.
+Shared GET_IMAGE and LOAD_ICON capture tests cover destructive replacement,
+selection/protection, budgets, clipping and nonfatal recovery. LOAD_BITMAP tests
+add post-draw explicit/clipboard duplication, protected screen/offscreen targets,
+flags0..63 in both radices and COPY wallpaper with alternate half-width row
+phases. Independent screen index/palette captures on all three canvases and
+fault injection cover ordering, retained keyed backgrounds and live port-zero
+fallback. Corrected color-key/depth and full port-coordinate/application
+integration remain pending. These do not change the active route. A body tests now add canonical full circles and validated
 equal-angle no-ops, both bases/all coordinate widths, horizontal-radius aspect
 handling, RGB/NOT, protected records, wide clipping and allocation recovery.
 Independent all-canvas captures and one-byte malformed/unsupported recovery

@@ -87,3 +87,43 @@ st_rip3_clipboard_capture(struct st_rip3_ports *ports,
 	(void)st_rip3_ports_copy(ports,source,&from,number,NULL,ST_RIP3_TRANSFER_COPY);
 	return 0;
 }
+
+int
+st_rip3_clipboard_duplicate(struct st_rip3_ports *ports,
+    struct st_rip3_clipboard_selection *selection, unsigned number,
+    const struct st_rip3_clipboard_area *area, uint64_t pixel_budget)
+{
+	struct st_rip3_surface *bitmap = NULL;
+	struct st_rip3_port_info target;
+	unsigned source;
+	int status;
+	const int64_t limit = INT64_C(1024)*INT32_MAX;
+
+	if (number == 0) return st_rip3_clipboard_capture(ports,selection,area,pixel_budget);
+	if (ports == NULL || selection == NULL || area == NULL
+	    || area->left >= area->right || area->top >= area->bottom
+	    || area->left < -limit || area->right > limit || area->top < -limit || area->bottom > limit)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number > 35) return 0;
+	status = st_rip3_ports_current(ports,&source);
+	if (status != 0 || number == source) return status;
+	status = st_rip3_ports_info(ports,number,&target);
+	if (status != 0) return status;
+	if (target.defined) {
+		status = st_rip3_ports_delete(ports,number);
+		if (status != 0) return status;
+		if (selection->set && selection->port == number)
+			*selection = (struct st_rip3_clipboard_selection){0};
+	}
+	uint64_t width = (uint64_t)area->right-(uint64_t)area->left;
+	uint64_t height = (uint64_t)area->bottom-(uint64_t)area->top;
+	if (width > INT32_MAX || height > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+	status = budget_available(ports,pixel_budget,width*height);
+	if (status == 0) status = st_rip3_surface_create(&bitmap,(uint32_t)width,(uint32_t)height);
+	if (status == 0) status = st_rip3_ports_install_bitmap(ports,number,&bitmap);
+	st_rip3_surface_destroy(bitmap);
+	if (status != 0) return status;
+	const struct st_rip3_rect from = {bounded(area->left),bounded(area->top),bounded(area->right-1),bounded(area->bottom-1)};
+	(void)st_rip3_ports_copy(ports,source,&from,number,NULL,ST_RIP3_TRANSFER_COPY);
+	return 0;
+}

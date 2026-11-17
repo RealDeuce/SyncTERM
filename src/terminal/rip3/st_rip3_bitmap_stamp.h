@@ -34,15 +34,11 @@ enum st_rip3_bitmap_colors {
  * DITHER uses ordered 8x8 two-colour mixing, anchored to the original requested
  * rectangle before clipping. Exact palette matches remain exact. The algorithm
  * is client policy, not historical RIPtel pixel reproduction. This kernel
- * does not commit palettes. An optional resolved duplicate port (1..35) receives
- * the final clipped index rectangle, including transfer results and background
- * through transparent holes. It replaces an unprotected target with a new
- * offscreen port after staging succeeds. Same-port duplication is ignored.
- * Protected targets and empty duplicate coverage are unsupported pending #42.
- * No clipboard selector or pointer lifecycle is inferred here.
+ * does not commit palettes or duplicate ports. The command layer performs
+ * duplication after the initial paint using the shared clipboard service.
  *
  * Disabled image style does not disable stamping. Inactive viewports and empty
- * coverage without duplication succeed without accessing bitmap/palette. Complete
+ * coverage succeed without accessing bitmap/palette. Complete
  * validation and all scratch allocation precede drawing; protection allows
  * contents to change. One session thread owns source, ports and invocation.
  * Status belongs to the owning parser, never a terminal/session error path. */
@@ -51,6 +47,6 @@ int st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	const struct st_rip3_bitmap_destination *destination,
 	const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
 	enum st_rip3_transfer_mode mode,
-	const uint8_t *transparent_color, const unsigned *duplicate_port);
+	const uint8_t *transparent_color);
 
 #endif
