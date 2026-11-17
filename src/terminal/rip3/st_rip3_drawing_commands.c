@@ -88,6 +88,39 @@ fill_style(struct st_rip3_style *style, const struct st_rip3_environment *enviro
 }
 
 static int
+line_style(const struct st_rip3_command_host *host, unsigned environment_number,
+    const struct st_rip3_environment *environment, struct st_rip3_style *style,
+    const uint8_t *arguments, size_t count)
+{
+	uint64_t flags, pattern, kind, thickness;
+	int status;
+
+	/* These field widths are fixed, independent of XY coordinate size.
+	 * Only the final thickness field can shorten. */
+	if (count < 7 || count > 8) return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_field(&flags,arguments,1,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&kind,arguments+1,1,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&pattern,arguments+2,4,environment->base_math);
+	if (status == 0) status = st_rip3_command_field(&thickness,arguments+6,count-6,environment->base_math);
+	if (status != 0) return status;
+	if (flags > 3 || kind > 4 || (kind == 4 && pattern > UINT16_MAX)) return IO_ERROR_OUT_OF_RANGE;
+	if (thickness == 0) thickness = 1;
+	if ((flags&2) != 0) {
+		struct st_rip3_frame frame;
+		status = st_rip3_environments_frame(host->environments,environment_number,&frame);
+		if (status != 0) return status;
+		thickness = thickness*frame.device_width/frame.world_width;
+		if (thickness == 0) thickness = 1;
+	}
+	/* The protocol stores a byte after conversion, not a saturated width.
+	 * The device kernels store effective pixel widths: wrapped byte zero is
+	 * the cosmetic one-pixel pen (and has POINT radius zero, like byte one). */
+	uint8_t stored = (uint8_t)thickness;
+	return st_rip3_pen_set(&style->pen,flags == 1,(unsigned)kind,
+	    (uint16_t)pattern,stored == 0 ? 1 : stored);
+}
+
+static int
 font_style(struct st_rip3_style *style, const uint8_t *arguments,
     size_t count, unsigned radix)
 {
@@ -309,6 +342,12 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K')
 		return shape(host, environment_number, &environment, &style, arguments,
 		    count, command[0], operation);
+	if (command[0] == '=') {
+		status = line_style(host,environment_number,&environment,&style,arguments,count);
+		if (status != 0) return status;
+		*operation = true;
+		return st_rip3_styles_set(host->styles,number,&style);
+	}
 	if (command[0] == 'S' || command[0] == 's') {
 		status = fill_style(&style, &environment, arguments, count, command[0] == 's');
 		if (status != 0)

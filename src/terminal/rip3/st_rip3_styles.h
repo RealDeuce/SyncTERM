@@ -14,7 +14,9 @@ struct st_rip3_backup;
 /* Resolved ordinary drawing attributes. Colours retain their raw index/RGB
  * values (up to 24 bits); the owning scene resolves its current colour mode.
  * Pen thickness and fill phase are explicit DEVICE values for the existing
- * kernels. No wire thickness/phase defaults are inferred (#11/#12).
+ * kernels. Wire '=' converts/clamps and truncates thickness to a byte, then
+ * normalizes the cosmetic zero byte to effective width one. Fill phase and
+ * bootstrap orchestration remain separate from this record service.
  *
  * This is the implemented subset of a STYLE record, not a complete protocol
  * context. Extended-font selection (#3), bootstrap values and ownership of

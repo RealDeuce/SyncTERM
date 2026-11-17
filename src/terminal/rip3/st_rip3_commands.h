@@ -73,7 +73,7 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f, Q, a, c, k, numeric W, Y, E, L, R, B, K, C, G, o,
+ * Implements J, n, f, Q, a, c, k, numeric W, Y, =, E, L, R, B, K, C, G, o,
  * m, classic literal T and horizontal-left @,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
  * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
@@ -86,6 +86,11 @@ struct st_rip3_command_sink {
  * Q/a edit the bound palette table's current entry, independently of ENV
  * reference activation; ENV supplies the radix only. All fields are validated
  * before changing the palette, whose own protection applies.
+ * '=' has fixed 1/1/4/2 numeric fields. Flags 0/1 use device thickness; 2/3
+ * convert using X scale only. Clamp before/after scaling, retain the low byte,
+ * and normalize cosmetic zero to effective width one. Only flag value 1 paints
+ * off pixels. Stock masks or nonblank custom 16-bit patterns feed the existing
+ * device kernels; protected STYLE entries retain their values on rejection.
  * Port commands use the bound PORT table and current ENV world/width/radix,
  * without activating or updating ENV references. World geometry requires the
  * ENV and PORT device canvases to agree. 2P projects half-open extent boundaries,

@@ -142,9 +142,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
 	wire(stream, input);
 	CHECK(scene.errors == 3);
-	CHECK(st_rip3_styles_switch(host.styles, 1) == 0 && st_rip3_styles_get(host.styles, 1, &style) == 0);
-	style.pen.pattern = 0xaaaa; style.pen.draw_background = true;
-	CHECK(st_rip3_styles_set(host.styles, 1, &style) == 0);
+	CHECK(st_rip3_styles_switch(host.styles, 1) == 0);
+	wire(stream, "!|=140XPM01\r");
 	wire(stream, "!|k1|c4|W0\r");
 	CHECK(st_rip3_styles_protect(host.styles, 1, true) == 0);
 	wire(stream, "!|c02|L020S0G0S|L0G0W020W|L2S0Y000Y|R0S0K0Y0O\r");
@@ -308,12 +307,90 @@ validation(void)
 }
 
 static int
+line_styles(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	static const unsigned widths[] = {0,1,2,3,4,5,255,256,257,511,512,1295,4095};
+	static const unsigned device[] = {1,1,2,3,4,5,255,1,1,255,1,15,255};
+	static const unsigned scaled[7][13] = {
+		{1,1,1,1,2,2,127,128,128,255,1,135,255},
+		{1,1,2,3,4,5,255,1,1,255,1,15,255},
+		{2,2,4,6,8,10,254,1,2,254,1,30,254},
+		{1,1,1,1,1,1,85,85,85,170,170,175,85},
+		{128,128,1,128,1,128,128,1,128,128,1,128,128},
+		{32,32,64,96,128,160,224,1,32,224,1,224,224},
+		{1,1,1,1,1,1,1,1,1,1,1,1,1},
+	};
+	const struct {
+		unsigned world_width, world_height;
+		const unsigned *scaled;
+	} profiles[] = {
+		{2*width,2*height,scaled[0]},
+		{width,350,scaled[1]},
+		{width/2,2*height,scaled[2]},
+		{3*width,height/2,scaled[3]},
+		{1,height,scaled[4+(unsigned)canvas]},
+	};
+	static const uint16_t patterns[] = {0xffff,0x3333,0x1e3f,0x1f1f,0xaaaa};
+	static const char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#&";
+	static const char *const invalid[] = {"=", "=000000", "=000000000", "=40000003", "=05000003", "=04000003", "=0400000?", "=04ZZZZ03"};
+	struct st_rip3_command_host host = {0}, missing;
+	struct st_rip3_style style;
+	struct st_rip3_environment env;
+	char bytes[10] = "=00000000";
+	CHECK(create(&host,canvas,width,height) == 0);
+	CHECK(st_rip3_environments_get(host.environments,0,&env) == 0);
+	for (unsigned radix = 36; radix <= 64; radix += 28) for (unsigned xy = 2; xy <= 5; xy++) {
+		env.base_math = radix; env.coordinate_size = xy;
+		for (size_t p = 0; p < sizeof(profiles)/sizeof(profiles[0]); p++) {
+			env.world_width = profiles[p].world_width; env.world_height = profiles[p].world_height;
+			CHECK(st_rip3_environments_set(host.environments,0,&env) == 0);
+			for (unsigned flags = 0; flags < 4; flags++) for (size_t w = 0; w < sizeof(widths)/sizeof(widths[0]); w++) {
+				if (widths[w] >= radix*radix) continue;
+				bytes[1] = digits[flags]; bytes[7] = digits[widths[w]/radix]; bytes[8] = digits[widths[w]%radix];
+				CHECK(process(&host,bytes,-1) == 0);
+				CHECK(st_rip3_styles_get(host.styles,0,&style) == 0);
+				CHECK(style.pen.pattern == 0xffff && style.pen.draw_background == (flags == 1));
+				CHECK(style.pen.thickness == (flags&2 ? profiles[p].scaled[w] : device[w]));
+				CHECK(style.drawing_color == 3 && style.background_color == 1 && style.fill_color == 2
+				    && style.write_mode == ST_RIP3_COPY && style.font.magnification == 1);
+			}
+		}
+	}
+	env.base_math = 36; env.world_width = width; env.world_height = height;
+	CHECK(st_rip3_environments_set(host.environments,0,&env) == 0);
+	for (unsigned s = 0; s < 5; s++) {
+		memcpy(bytes,"=000XPM03",10); bytes[2] = digits[s];
+		CHECK(process(&host,bytes,-1) == 0);
+		CHECK(st_rip3_styles_get(host.styles,0,&style) == 0 && style.pen.pattern == patterns[s]
+		    && style.pen.thickness == 3 && !style.pen.draw_background);
+	}
+	CHECK(process(&host,"=0000003",-1) == 0); /* Only the final thickness shortens. */
+	CHECK(process(&host,"=00ZZZZ03",-1) == 0); /* Stock patterns ignore user_pat. */
+	CHECK(process(&host,"=------03",-1) == 0); /* MegaNum dash-as-zero. */
+	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
+		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
+		CHECK(st_rip3_styles_get(host.styles,0,&style) == 0 && style.pen.pattern == 0xffff
+		    && style.pen.thickness == 3 && !style.pen.draw_background);
+	}
+	CHECK(process(&host,"=00000003 comment",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	missing = host; missing.ports = NULL; /* Attribute edits need no PORT binding. */
+	CHECK(process(&missing,"=20000003",-1) == 0);
+	missing.environments = NULL;
+	CHECK(process(&missing,"=00000003",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(st_rip3_styles_switch(host.styles,1) == 0);
+	CHECK(st_rip3_styles_protect(host.styles,1,true) == 0);
+	CHECK(process(&host,"=141BLC01",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(st_rip3_styles_get(host.styles,1,&style) == 0 && style.pen.pattern == 0xffff && style.pen.thickness == 3);
+	destroy(&host);
+	return 0;
+}
+
+static int
 widths(void)
 {
 	struct st_rip3_command_host host = {0};
 	const struct st_rip3_rect clear = {0,0,7,7};
 	char command[64];
-	struct st_rip3_style style;
 	CHECK(create(&host, ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	for (unsigned width = 2; width <= 5; width++) {
 		CHECK(st_rip3_ports_fill(host.ports, &clear, 0, ST_RIP3_COPY) == 0);
@@ -337,9 +414,7 @@ widths(void)
 	CHECK(process(&host, "c-", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "J10", -1) == 0 && process(&host, "c-", -1) == 0 && process(&host, "W--", -1) == 0);
 	CHECK(process(&host, "c03", -1) == 0);
-	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0);
-	style.pen.thickness = 3;
-	CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+	CHECK(process(&host, "=00000003", -1) == 0);
 	CHECK(process(&host, "L20102810", -1) == 0);
 	CHECK(pixel(host.ports, 0, 72,35, 3) == 0 && pixel(host.ports, 0, 72,37, 3) == 0);
 	CHECK(pixel(host.ports, 0, 72,34, 0) == 0 && pixel(host.ports, 0, 71,36, 3) == 0
@@ -529,6 +604,9 @@ large_coordinates(void)
 int
 main(void)
 {
+	CHECK(line_styles(ST_RIP3_CANVAS_640_480,640,480) == 0);
+	CHECK(line_styles(ST_RIP3_CANVAS_800_600,800,600) == 0);
+	CHECK(line_styles(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_800_600, 800,600) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);

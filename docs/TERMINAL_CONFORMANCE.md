@@ -33,6 +33,9 @@ coordinate widths, with coherent captures and nonfatal split-input recovery.
 Port geometry queries use the documented numeric semantics, an explicit
 correction to RIPtel 3.1's inverted-success callbacks. Their shared decimal
 selector/type/domain grammar and wide signed results have independent tests.
+Wire line-style decoding covers all four unit/background flags, fixed field
+widths, X-only world scaling, byte truncation and custom masks. All-canvas
+drawing captures configure those masks through split-input `=` commands.
 Separate style-record tests cover explicit attributes, owned
 snapshots and nonfatal metadata/COPY errors. Complete c/k/W/L/R command tests
 cover palette/direct RGB ink, all drawing modes, explicit patterns, reversed and

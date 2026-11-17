@@ -3273,6 +3273,41 @@ query replies are explicitly contextual; the combined macro-collapse requirement
 remains pending. The new mode question blocks only the two combined X/j attribute
 requirements. No changes were pushed.
 
+## LINE_STYLE wire units and byte truncation
+
+The separate parser implements `=` with fixed 1/1/4/2 fields, independent of
+XY width. Flags 0/1 take device thickness, while 2/3 convert using only X scale.
+The decoded width is clamped to at least one before conversion and again after
+conversion, then truncated to the low byte. The device pen stores an effective
+pixel width, so cosmetic byte zero becomes width one; this also preserves
+POINT's radius-zero meaning without changing the positive-width kernel API.
+Only the entire flag value 1 enables background off pixels; 3 does not.
+
+Stock masks use the existing documented patterns; a custom pattern must have
+on bits and fit 16 bits. Stock selections ignore user_pat. Field/range errors
+and protected STYLE edits retain the complete old record; attribute configuration
+does not require a PORT binding. Public parser entry points remain void.
+
+Independent literal tables exercise 6000 flag/width cases across three canvases,
+two radices, XY widths 2–5 and five uniform/nonuniform frame profiles. Boundaries
+include decoded zero, 255/256/257, 511/512 and both two-digit maxima. Other cases
+cover stock/custom masks, ignored user patterns, MegaNum dash zeroes, final-field
+shortening, malformed input, missing bindings and protection. Existing all-canvas
+coherent stroke captures now obtain the custom pattern/background flag through
+byte-split wire `=`; the thick-line fixture also uses the wire command. The
+earlier parser failed the new expectations as unsupported before implementation.
+Exact GDI edge/cap reproduction remains outside the target. Header/reset defaults
+and the separate X/j write-mode question #74 remain unfinished.
+
+Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
+compiler warnings; all 101 selected tests pass (33.34 seconds). The ledger now
+has 236 implemented, 1544 pending, 4616 unreviewed, 918 contextual, 24 excluded
+and 19 blocked units among 7357 source blocks. Twenty-six line-style units are
+reconciled; the combined reset requirement remains pending. All 93 frozen files
+and 41 legacy helpers still match the original baseline, and no RIP1.54 capture,
+active application route, source pin or adoption identity changed. Temporary
+verification logs were removed. No additional issue content or code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
