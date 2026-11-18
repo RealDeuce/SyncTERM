@@ -4060,6 +4060,47 @@ color-mask work. The ledger is now 618 implemented, 1552 pending, 4204 unreviewe
 radial behavior, skewed composition/revisits, complete outline font production
 and scene integration remain unfinished. No issue content or code was published.
 
+## PR #77 sector fill/border composition
+
+The I/i/_ wire consumers now accept patterned STYLE records and every W mode.
+The requested line mask/background-gap setting does not affect their solid
+borders. A nonempty region uses W; an enabled border, including closing/radial
+segments and a full Pie's internal radius, uses COPY. Equal-endpoint I/i has
+no fill area: N1 draws its solid COPY radius and N0 consumes no ink or geometry
+allocation. Equal-endpoint chords remain empty. A/V endpoint points retain W.
+The old historical unconditional radial LineTo table row is classified as context,
+not as a conflicting requirement to draw with N0.
+
+The existing independent sector scene now crosses all five modes with both N
+states, plus resolved-color COPY fixtures. It varies solid/custom masks and gap
+flags without changing the expected solid border. Eleven angle/topology cases
+include equal integer endpoints, equal projected rays/full regions, circular and
+noncircular radii, cardinal closures and inverted/raw whole-turn angles. Literal
+8-bit PR #77 operands use D=A5, Fill=3C, Back=66 and Draw=0F: fill results are
+3C/99/BD/24/5A or 66/C3/E7/24/5A; every enabled outline copies 0F and every disabled
+radial-only contour retains A5. A coherent capture covers each screen/offscreen
+scene on all canvases, both bases, XY widths and world scales. Geometry oracles
+remain independent radius-three annuli and pixel-center/half-plane inequalities.
+
+Error-path tests retain pre-paint allocation/ink failures, verify N0 radial no-ops
+without consuming allocation-failure hooks, and exercise valid patterned/XOR
+sectors plus recovery after a malformed split-input command. Borders always need
+Draw Color even when the fill uses NOT. Existing wide clipped radial and full-
+Pie allocation-order checks remain intact. The native CMake project builds without
+warnings. Only three affected CTests run, once: sector commands, curve commands
+and border ownership; all pass. No legacy or broad renderer tests are repeated.
+The edited ledger consistency is checked, while unchanged RIP1.54 preservation
+results are reused. Temporary build logs are automatically removed; unrelated
+concurrent documentation and the active application route remain untouched.
+
+One published 8-bit vector is implemented, one historical API observation becomes
+context and five broader requirements record their new evidence while retaining
+pending status for RGB/active-color-mask integration. Totals are 619 implemented,
+1550 pending, 4204 unreviewed, 1030 contextual, 24 excluded and 28 blocked among
+7455 blocks. Skewed composition/revisits, complete font production, color-plane
+integration and full engine acceptance remain unfinished. No existing issue
+received content and no code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

@@ -88,37 +88,33 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	}
 	if (chord && interval.kind == ST_RIP3_ARC_POINT)
 		return 0;
-	/* #75 tracks the conflict between solid-curve prose and the original
-	 * logical-pen/pass boundary. Do not guess patterned I/i/_ behavior. */
-	if ((pie || chord) && style.pen.pattern != 0xffff)
-		return IO_ERROR_NOT_SUPPORTED;
+	if (filled) borders = style.borders;
+	/* An equal-endpoint pie has only a radial outline, so N0 is empty. */
+	if (pie && interval.kind == ST_RIP3_ARC_POINT && !borders)
+		return 0;
 	*operation = true;
 	if (interval.kind == ST_RIP3_ARC_POINT) {
 		const struct st_rip3_vector points[] = {{x,y},
 		    {x+(double)interval.first.x,y+(double)interval.first.y}};
 		const struct st_rip3_pen pen = {.pattern=0xffff,.thickness=style.pen.thickness};
 		struct st_rip3_stroke_mask mask = {0};
+		enum st_rip3_write_mode mode = pie ? ST_RIP3_COPY : style.write_mode;
 
-		/* A/V use a point, I/i a center-to-endpoint line even without borders.
+		/* A/V use a point with W; enabled I/i outlines use solid COPY.
 		 * The raw endpoint can lie outside a noncircular ellipse. Prepare clipped
 		 * coverage first so an invisible operation needs neither ink nor scratch. */
 		status = st_rip3_stroke_path_vectors(host->ports,pie ? points : points+1,
 		    pie ? 2 : 1,false,&pen,&mask);
-		if (status == 0 && mask.coverage != NULL && style.write_mode != ST_RIP3_NOT)
+		if (status == 0 && mask.coverage != NULL && mode != ST_RIP3_NOT)
 			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
 		if (status == 0)
-			status = st_rip3_stroke_apply(host->ports,&mask,drawing,0,style.write_mode);
+			status = st_rip3_stroke_apply(host->ports,&mask,drawing,0,mode);
 		st_rip3_stroke_free(&mask);
 		return status;
 	}
 	if (filled) {
-		borders = style.borders;
 		if (!borders && (rx == 0 || ry == 0))
 			return 0;
-		/* Existing G/o behavior is retained. Newly exposed sector borders
-		 * accept the unambiguous solid COPY case while #75 is unresolved. */
-		if ((pie || chord) && borders && style.write_mode != ST_RIP3_COPY)
-			return IO_ERROR_NOT_SUPPORTED;
 	}
 	if (borders || (!filled && style.write_mode != ST_RIP3_NOT)) {
 		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.drawing_color, &drawing);
@@ -151,7 +147,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 
 		/* Different raw endpoints on one ray reach a full Pie, whose border
 		 * retains an internal radius. Prepare it before any fill can change pixels.
-		 * Repeated coverage is idempotent in the supported COPY border case. */
+		 * Repeated coverage is idempotent in the COPY border pass. */
 		status = st_rip3_stroke_path_vectors(host->ports,points,2,false,&pen,&radial);
 		if (status != 0)
 			return status;

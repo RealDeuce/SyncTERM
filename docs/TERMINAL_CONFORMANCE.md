@@ -43,12 +43,13 @@ Separate-engine A/V tests now cover integer endpoint rays, equal-endpoint
 point strokes, coincident-ray full curves and counterclockwise partial sweeps.
 O consumes its angle fields and always draws a complete ellipse. Coherent
 screen/offscreen captures cover all canvases, bases, coordinate widths and write
-modes. Separate I/i/_ consumers now cover pie/chord interiors, distinct radial
+modes. Separate I/i/_ consumers cover pie/chord interiors, distinct radial
 closures, equal-endpoint radial/empty branches and coincident-ray full figures.
-Their coherent captures include context-phased fill, five unbordered modes,
-solid COPY borders and parser-owned allocation/error recovery. PR #77 resolves
-the sector drawing contract; N0 radial suppression and complete consumer
-reconciliation remain pending, as does active-engine integration.
+Their coherent captures cross both N states with all five modes, custom/solid
+line masks and gap flags. Literal PR #77 operands establish W fills, solid COPY
+borders and N0 suppression of radial-only contours on all canvases/port kinds.
+Pre-paint allocation/ink failures and split-input recovery remain covered.
+Full RGB/active-color masks and active-engine integration remain pending.
 Separate Z/z/t/x tests cover wrapped fixed-point Bézier sampling, omitted
 samples, typed records/closures, low16 conversion and independent collection/
 expansion limits. Coherent captures cover fractional WORLD projection, all

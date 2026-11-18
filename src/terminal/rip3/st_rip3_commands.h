@@ -314,10 +314,13 @@ struct st_rip3_command_sink {
  * C/G map the radius horizontally and use equal device radii on the square-
  * pixel canvases; ellipses map X/Y radii independently. Curves use solid pen
  * thickness, ignoring the pen pattern. G/o read their STYLE border setting;
- * all ink lookup and border scratch allocation precede their fills. O/V accept
- * only the documented start=0/end=360 form; other angle pairs remain under #14.
- * A also accepts start=0/end=360 and validates equal-angle bodies as no-ops
- * before accessing rendering services. Other A pairs remain under #14.
+ * all ink lookup and border scratch allocation precede their fills. I/i/_
+ * use W for the region and solid COPY for every enabled border, independently
+ * of stored line patterns/gaps and W. N0 suppresses every radial/closing part.
+ * Axis angles compare integer endpoint rays: A/V equal endpoints draw a W
+ * point; I/i draw a COPY radius only with N1, and _ is empty. Full Pie retains
+ * its internal radius only with N1. O consumes angles but always draws a full
+ * ellipse. Numeric/topology behavior remains distinct from output composition.
  * Argumentless E replaces the active viewport with resolved background ink in
  * COPY, independently of pen/fill/write mode. It retains attributes and table
  * references, skips inactive ink lookup and allows protected contents to clear.

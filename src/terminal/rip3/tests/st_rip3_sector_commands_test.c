@@ -142,9 +142,9 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		{'I',0,1,3,3,5},{'_',0,1,3,3,6},{'I',450,810,3,3,7},
 		{'i',45,45,1,3,8},{'_',90,0,3,3,9},
 	};
-	static const unsigned fill_ink[] = {7,0x52,0x57,5,0xaa,7,7,7};
-	static const unsigned back_ink[] = {1,0x54,0x55,1,0xaa,1,1,1};
-	static const unsigned line_ink[] = {12,0x59,0x5d,4,0xaa,12,12,12};
+	/* PR #77 logical 8-bit vectors: D=A5, Fill=3C, Back=66, Draw=0F. */
+	static const unsigned fill_ink[] = {0x3c,0x99,0xbd,0x24,0x5a,0x3c};
+	static const unsigned back_ink[] = {0x66,0xc3,0xe7,0x24,0x5a,0x66};
 	struct st_rip3_command_host host = {0};
 	struct st_rip3_environment env;
 	struct st_rip3_style style;
@@ -153,8 +153,8 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	struct scene scene = {&host,0};
 	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_rect screen = {10,20,137,115}, bitmap = {0,0,127,95};
-	const struct st_rip3_rect view = {2,3,121,90}, copy = {250,101,369,188};
+	const struct st_rip3_rect screen = {10,20,137,155}, bitmap = {0,0,127,135};
+	const struct st_rip3_rect view = {2,3,121,130}, copy = {250,101,369,228};
 	bool borders = false;
 	CHECK(create(&host,canvas,width,height)==0);
 	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
@@ -168,22 +168,27 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		env.world_width=width*scale; env.world_height=height*scale*2;
 		env.base_math=base; env.coordinate_size=xy;
 		CHECK(st_rip3_ports_erase(host.ports,0)==0);
-		for (unsigned row=0; row<8; row++) {
-			bool rgb = row==5 || row==7;
+		for (unsigned row=0; row<12; row++) {
+			bool rgb = row%6==5;
 			borders=row>=6;
 			CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 			env.rgb_bits=rgb ? 8 : 0;
 			CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
-			style.write_mode=(enum st_rip3_write_mode)(row<5 ? row : 0);
-			style.drawing_color=rgb ? 0x0c0c0c : 12;
-			style.fill_color=rgb ? 0x070707 : 7; style.background_color=rgb ? 0x010101 : 1;
+			style.write_mode=(enum st_rip3_write_mode)(rgb ? 0 : row%6);
+			style.drawing_color=rgb ? 0x0f0f0f : 0x0f;
+			style.fill_color=rgb ? 0x3c3c3c : 0x3c; style.background_color=rgb ? 0x666666 : 0x66;
 			style.pen.draw_background=row%2!=0;
 			style.borders=borders;
 			CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 			for (unsigned c=0; c<sizeof(cases)/sizeof(cases[0]); c++) {
 				const struct st_rip3_rect cell={(int32_t)c*10,(int32_t)row*10,(int32_t)c*10+7,(int32_t)row*10+7};
 				char shape[32];
-				CHECK(st_rip3_ports_fill(host.ports,&cell,0x55,ST_RIP3_COPY)==0);
+				/* Filled sector borders are solid COPY even with a requested
+				 * custom mask and either background-gap flag. */
+				static const uint16_t patterns[]={0xffff,0xaaaa,1,0x3333};
+				style.pen.pattern=patterns[c%4]; style.line_type=c%5;
+				CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+				CHECK(st_rip3_ports_fill(host.ports,&cell,0xa5,ST_RIP3_COPY)==0);
 				command(shape,cases[c].kind,xy,base,(c*10+3)*scale,(row*10+3)*scale*2,
 				    cases[c].rx*scale,cases[c].ry*scale*2);
 				number(shape+1+2*xy,2,cases[c].first,base); number(shape+3+2*xy,2,cases[c].last,base);
@@ -205,7 +210,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		unsigned phase_x=offscreen ? 2 : 12, phase_y=offscreen ? 3 : 23;
 		for (uint32_t y=0; y<height; y++) for (uint32_t x=0; x<width; x++) {
 			unsigned expected=0;
-			if (x>=left && x<left+110 && y>=top && y<top+80) {
+			if (x>=left && x<left+110 && y>=top && y<top+120) {
 				unsigned c=(x-left)/10,row=(y-top)/10,u=(x-left)%10,v=(y-top)%10;
 				if (u<8 && v<8) {
 					int dx=2*(int)u-5,dy=2*(int)v-5;
@@ -226,10 +231,10 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 					    : picture==5 ? circle[v][u]=='#' || (v==3 && u>=3 && u<=6)
 					    : picture==6 ? circle[v][u]=='#'
 					    : picture==9 ? (circle[v][u]=='#' && (u<=3 || v>=3)) || ((int)u-(int)v==3 && u>=3 && u<=6) : false;
-					expected=0x55;
-					if (interior) expected=((phase_x+x-left+phase_y+y-top)%2==0 ? fill_ink : back_ink)[row];
-					if (line) expected=line_ink[row];
-					if (row>=6 && outline) expected=12;
+					expected=0xa5;
+					if (interior) expected=((phase_x+x-left+phase_y+y-top)%2==0 ? fill_ink : back_ink)[row%6];
+					if (row>=6 && line) expected=0x0f;
+					if (row>=6 && outline) expected=0x0f;
 				}
 			}
 			if (capture->primary[(size_t)y*width+x]!=(ST_PIXEL_COLOR_RGB_TAG | expected*UINT32_C(0x010101))) {
@@ -305,16 +310,22 @@ boundaries(void)
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"_0303002I0303",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
-	/* #75 gaps are explicit nonfatal unsupported diagnostics, not guessed
-	 * pen/ROP behavior. A later valid command in this stream still draws. */
+	/* PR #77: requested line masks do not affect solid filled borders,
+	 * and a non-COPY fill does not change their COPY operation. */
 	style=original; style.pen.pattern=0xaaaa;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	CHECK(process(&host,"I0303002I03",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0);
+	CHECK(process(&host,"I0303002I03",-1)==0);
+	uint8_t value;
+	CHECK(st_rip3_ports_read(host.ports,0,3,3,&value)==0 && value==12);
+	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	style=original; style.write_mode=ST_RIP3_XOR;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	CHECK(process(&host,"i0303002I0303",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0);
+	CHECK(process(&host,"i0303002I0303",-1)==0);
+	CHECK(st_rip3_ports_read(host.ports,0,3,3,&value)==0 && value==12);
+	CHECK(st_rip3_ports_read(host.ports,0,4,2,&value)==0 && value==0x52);
+	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	/* Equal chord does not consume pen, fill ink, N or storage. */
 	style=original; style.fill_color=style.drawing_color=0xffffff; style.pen.pattern=1;
 	style.borders=borders;
@@ -322,6 +333,12 @@ boundaries(void)
 	missing=host; missing.palettes=NULL;
 	st_rip3_drawing_test_fail_calloc=true; st_rip3_ellipse_test_realloc_countdown=1;
 	CHECK(process(&missing,"_030300A00303",-1)==0);
+	CHECK(st_rip3_drawing_test_fail_calloc && st_rip3_ellipse_test_realloc_countdown==1 && unchanged(&host)==0);
+	/* N0 equal-endpoint pies have no fill area or outline. They consume no
+	 * ink, palette, coverage storage or mesh allocation on an active port. */
+	style.borders=false;
+	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(process(&missing,"I030300A003",-1)==0 && process(&missing,"i030300A00303",-1)==0);
 	CHECK(st_rip3_drawing_test_fail_calloc && st_rip3_ellipse_test_realloc_countdown==1 && unchanged(&host)==0);
 	CHECK(st_rip3_ports_activate(host.ports,false)==0);
 	CHECK(process(&missing,"i0303002I0303",-1)==0 && unchanged(&host)==0);
@@ -334,9 +351,8 @@ boundaries(void)
 	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
 	struct st_rip3_stream *stream=NULL;
 	CHECK(st_rip3_stream_create(&stream,&sink)==0);
-	wire(stream,"!|I0303002I0?|W1|I0303002I03|W0|_030300A00303|I030300A003\r");
-	CHECK(scene.errors==2);
-	uint8_t value;
+	wire(stream,"!|I0303002I0?|W1|I030300A003|W0|_030300A00303|I030300A003\r");
+	CHECK(scene.errors==1);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(y==3 && x>=3 && x<=6 ? 12 : 0x55));
 	st_rip3_stream_destroy(stream);
