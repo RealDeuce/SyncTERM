@@ -16,7 +16,6 @@ int
 st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
-	static const uint16_t logical[] = {0xffff,0xaaaa,0xe8e8,0xf0f0,0xeaea};
 	struct st_rip3_environment environment;
 	struct st_rip3_frame frame;
 	struct st_rip3_style style;
@@ -57,15 +56,16 @@ st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
 		}
 	}
 	pen = style.pen;
-	pen.pattern = pen.thickness > 1 ? 0xffff : logical[style.line_type];
+	if (filled) { pen.pattern = 0xffff; pen.draw_background = false; }
 	background_used |= borders && pen.draw_background && pen.pattern != 0xffff;
 	*operation = true;
 	if (style.write_mode != ST_RIP3_NOT) {
 		if (foreground_used) status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.fill_color,&foreground);
 		if (status == 0 && background_used) status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.background_color,&background);
-		if (status == 0 && borders) status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
-		if (status != 0) return status;
 	}
+	if (status == 0 && borders && (filled || style.write_mode != ST_RIP3_NOT))
+		status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
+	if (status != 0) return status;
 	rectangle.x0 = (double)((values[0] < values[2] ? values[0] : values[2])*frame.device_width/frame.world_width);
 	rectangle.x1 = (double)((values[0] > values[2] ? values[0] : values[2])*frame.device_width/frame.world_width);
 	rectangle.y0 = (double)((values[1] < values[3] ? values[1] : values[3])*frame.device_height/frame.world_height);
@@ -80,5 +80,5 @@ st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
 	st_rip3_command_fill(&port,&style.fill,&fill);
 	return st_rip3_rounded_rectangle_render(host->ports,&rectangle,radius_y,
 	    borders ? &pen : NULL,filled ? &fill : NULL,foreground,background,drawing,
-	    style.write_mode,filled && pen.draw_background);
+	    style.write_mode);
 }

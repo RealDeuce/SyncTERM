@@ -117,28 +117,10 @@ rop(unsigned mode, unsigned source, unsigned destination)
 }
 
 static bool
-dot(unsigned type, unsigned phase)
+border(unsigned thickness, unsigned u, unsigned v)
 {
-	/* Independent logical dash descriptions, including custom type 4's
-	 * fixed dash/dot/dot mapping rather than the stored arbitrary mask. */
-	static const char *const runs[]={"########","#.#.#.#.","###.#...","####....","###.#.#."};
-	return runs[type][phase%8]=='#';
-}
-
-static bool
-border(unsigned type, unsigned thickness, unsigned u, unsigned v, bool opaque, unsigned *ink)
-{
-	if (thickness==3) {
-		if (u<1 || u>6 || v<1 || v>6) return false;
-		*ink=12;return true;
-	}
-	bool any=false,on=false;
-	if (v==2 && u>=2 && u<=5) {any=true;on |= dot(type,u-2);}
-	if (u==5 && v>=2 && v<=5) {any=true;on |= dot(type,3+v-2);}
-	if (v==5 && u>=2 && u<=5) {any=true;on |= dot(type,6+5-u);}
-	if (u==2 && v>=2 && v<=5) {any=true;on |= dot(type,9+5-v);}
-	if (!any || (!on && !opaque)) return false;
-	*ink=on ? 12 : 1;return true;
+	if (thickness==3) return u>=1 && u<=6 && v>=1 && v<=6;
+	return u>=2 && u<=5 && v>=2 && v<=5 && (u==2 || u==5 || v==2 || v==5);
 }
 
 static void
@@ -218,15 +200,14 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 			unsigned expected=0;
 			if (x>=left && x<left+320 && y>=top && y<top+96) {
 				unsigned col=(x-left)/8,row=(y-top)/8,u=(x-left)%8,v=(y-top)%8;
-				unsigned mode=row%6==5 ? 0 : row%6,thickness=row<6 ? 1 : 3,type=col%5,flags=(col/5)%4,ink=0;
-				bool covered=col>=20 && border(type,thickness,u,v,flags==1,&ink);
+				unsigned mode=row%6==5 ? 0 : row%6,thickness=row<6 ? 1 : 3;
+				bool covered=col>=20 && border(thickness,u,v);
 				bool interior=u>=2 && u<5 && v>=2 && v<5;
 				expected=0x55;
-				/* These are the documented pass operands: flags 1 partitions
-				 * brush and pen; other flags fill first, then transparent pen. */
-				if (interior && !(covered && flags==1))
+				/* PR #77: fill with W, then COPY a solid border. */
+				if (interior)
 					expected=rop(mode,(phase_x+x-left+phase_y+y-top)%2==0 ? 7 : 1,expected);
-				if (covered) expected=rop(mode,ink,expected);
+				if (covered) expected=12;
 			}
 			if (capture->primary[(size_t)y*width+x]!=(ST_PIXEL_COLOR_RGB_TAG | expected*UINT32_C(0x010101))) {
 				fprintf(stderr,"scene %u/%u/%u off=%d pixel %u,%u got %x expected %x\n",scale,base,xy,offscreen,x,y,capture->primary[(size_t)y*width+x],expected);return 1;
@@ -264,14 +245,14 @@ boundaries(void)
 	CHECK(unchanged(&host)==0);
 	CHECK(process(&host,"K01010505",-1)==0);
 	CHECK(st_rip3_ports_read(host.ports,0,1,1,&value)==0 && value==12);
-	CHECK(st_rip3_ports_read(host.ports,0,4,1,&value)==0 && value==1);
+	CHECK(st_rip3_ports_read(host.ports,0,4,1,&value)==0 && value==12);
 	char line[]="=04000001";number(line+3,4,65535,36);
 	CHECK(process(&host,line,-1)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0 && style.line_type==4 && style.pen.pattern==65535);
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"K01010505",-1)==0);
 	CHECK(st_rip3_ports_read(host.ports,0,1,1,&value)==0 && value==12);
-	CHECK(st_rip3_ports_read(host.ports,0,4,1,&value)==0 && value==1); /* Still DASHDOTDOT, not solid. */
-	/* NOT's single pass never needs a color lookup, including opaque gaps. */
+	CHECK(st_rip3_ports_read(host.ports,0,4,1,&value)==0 && value==12); /* All K borders are solid, independently of the custom mask. */
+	/* NOT ignores fill inks; an enabled COPY border still resolves Draw Color. */
 	CHECK(process(&host,"=14000101",-1)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);
 	style.write_mode=ST_RIP3_NOT;style.drawing_color=style.background_color=style.fill_color=0xffffff;
@@ -280,9 +261,12 @@ boundaries(void)
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);env.rgb_bits=8;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 	struct st_rip3_palettes *bound=host.palettes;host.palettes=NULL;
-	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"K01010505",-1)==0);
+	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"K01010505",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(unchanged(&host)==0);
+	host.palettes=bound; style.drawing_color=0x0c0c0c;
+	CHECK(st_rip3_styles_set(host.styles,0,&style)==0 && process(&host,"K01010505",-1)==0);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
-		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(x>=1 && x<=5 && y>=1 && y<=5 ? 0xaa : 0x55));
+		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(x>=1 && x<=5 && y>=1 && y<=5 ? (x==1 || x==5 || y==1 || y==5 ? 12 : 0xaa) : 0x55));
 	borders=false;
 	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	st_rip3_drawing_test_fail_calloc=true;
@@ -297,7 +281,7 @@ boundaries(void)
 	wire(stream,"!|K0101050?|=40000001|=10000001|K01010505\r");
 	CHECK(scene.errors==2);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
-		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(x>=1 && x<=5 && y>=1 && y<=5 ? 0xaa : 0x55));
+		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(x>=1 && x<=5 && y>=1 && y<=5 ? (x==1 || x==5 || y==1 || y==5 ? 12 : 0xaa) : 0x55));
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0 && style.line_type==0 && style.pen.pattern==65535);
 	host.palettes=bound;st_rip3_stream_destroy(stream);destroy(&host);return 0;
 }

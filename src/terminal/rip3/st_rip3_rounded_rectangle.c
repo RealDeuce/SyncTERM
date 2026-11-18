@@ -140,7 +140,7 @@ contains(const struct st_rip3_rounded_rectangle *rectangle, double radius_y, dou
 
 static int
 fill_interior(struct st_rip3_ports *ports, const struct st_rip3_rounded_rectangle *rectangle,
-    double radius_y, const struct rounded_outline *exclude,
+    double radius_y,
     const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_port_info info;
@@ -163,8 +163,7 @@ fill_interior(struct st_rip3_ports *ports, const struct st_rip3_rounded_rectangl
 	for (int32_t y = top; y <= bottom; y++) {
 		int32_t run = -1;
 		for (int32_t x = left; x <= right; x++) {
-			bool inside = contains(rectangle,radius_y,(double)x+0.5,(double)y+0.5)
-			    && outline_coverage(exclude,x,y) == 0;
+			bool inside = contains(rectangle,radius_y,(double)x+0.5,(double)y+0.5);
 			if (inside && run < 0) run = x;
 			if (!inside && run >= 0) {
 				const struct st_rip3_rect span = {run,y,x-1,y};
@@ -210,7 +209,7 @@ st_rip3_draw_filled_rounded_rectangle(struct st_rip3_ports *ports,
 	if (ports == NULL || rectangle == NULL || fill == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT) return IO_ERROR_INVALID_ARGUMENT;
 	if (!valid(rectangle) || border_thickness > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	if (border_thickness != 0) status = outline_collect(ports,rectangle,rectangle->radius,border_thickness,&outline);
-	if (status == 0) status = fill_interior(ports,rectangle,rectangle->radius,NULL,fill,foreground,background,mode);
+	if (status == 0) status = fill_interior(ports,rectangle,rectangle->radius,fill,foreground,background,mode);
 	if (status == 0) status = outline_apply(ports,&outline,border_color,0,ST_RIP3_COPY);
 	outline_free(&outline);
 	return status;
@@ -275,7 +274,7 @@ st_rip3_rounded_rectangle_render(struct st_rip3_ports *ports,
     const struct st_rip3_rounded_rectangle *rectangle, double radius_y,
     const struct st_rip3_pen *pen, const struct st_rip3_fill *fill,
     uint8_t foreground, uint8_t background, uint8_t drawing,
-    enum st_rip3_write_mode mode, bool combined)
+    enum st_rip3_write_mode mode)
 {
 	struct rounded_outline outline = {0};
 	struct st_rip3_rounded_rectangle checked;
@@ -310,8 +309,8 @@ st_rip3_rounded_rectangle_render(struct st_rip3_ports *ports,
 	}
 	/* All owned curve/coverage storage exists before either pass paints. */
 	if (fill != NULL) status = fill_interior(ports,&checked,radius_y,
-	    combined ? &outline : NULL,fill,foreground,background,mode);
-	if (status == 0 && pen != NULL) status = outline_apply(ports,&outline,drawing,background,mode);
+	    fill,foreground,background,mode);
+	if (status == 0 && pen != NULL) status = outline_apply(ports,&outline,drawing,background,fill == NULL ? mode : ST_RIP3_COPY);
 done:
 	outline_free(&outline);
 	return status;

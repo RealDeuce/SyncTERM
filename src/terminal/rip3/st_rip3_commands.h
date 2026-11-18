@@ -71,7 +71,7 @@ struct st_rip3_command_sink {
  * entry does not buffer partial input or perform macro expansion.
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, literal-name y, q, =, E, L, R, B, K, C, G, o,
- * COPY-mode X/j, m, classic literal T and nonzero-font @,
+ * X/j in all five modes, m, classic literal T and nonzero-font @,
  * the existing font-zero horizontal-left @ geometry,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
@@ -94,8 +94,9 @@ struct st_rip3_command_sink {
  * without the stored viewport offset; j adds that origin once and paints a
  * solid square with radius floor(effective thickness/2). Both clip against
  * the stored viewport/physical surface, ignore line/fill patterns and retain
- * wide coordinates until clipping. Visible non-COPY X/j operations remain
- * unsupported pending the effective Write Mode contract in #74.
+ * wide coordinates until clipping. Every covered pixel receives W once;
+ * destination-NOT skips source ink lookup. Repeated commands operate again
+ * on the latest destination, independently of thickness and line flags.
  * S/s use canonical 8x8 masks and fixed drawing-context (0,0) phase in device
  * pixels. Shape projection, port/viewport changes and adjacent primitives do
  * not restart or resize the tile. Screen ports share screen phase; offscreen
@@ -288,10 +289,9 @@ struct st_rip3_command_sink {
  * background-only fills skip unused ink lookup. NOT ignores both inks.
  * K reads the current STYLE border setting. Its interior excludes
  * the projected right/bottom edges. Degenerate rectangles draw only enabled
- * borders; border coverage is prepared before filling and then applied in
- * the current write mode with the selected logical pen (type 4 maps to fixed
- * DASHDOTDOT; widths above one are solid). Opaque flags partition fill/pen;
- * other flags fill then stroke. NOT needs no ink lookup.
+ * borders. Border coverage is prepared before filling, then applied as solid
+ * COPY with Draw Color/current thickness, independently of stored masks/gaps.
+ * NOT ignores fill inks but still resolves an enabled COPY border's color.
  * N decodes one/two current-base digits: zero disables borders, nonzero enables
  * them in the current STYLE, respecting its protection even on inactive ports.
  * ENV/PORT selection and protection do not own this setting. Fixed new-style
@@ -307,8 +307,9 @@ struct st_rip3_command_sink {
  * U/u consume five complete XY fields, normalize corners and scale radius
  * with X. Corner semiaxes fit each device span independently; the original
  * low-WORD Y-radius sign/zero behavior is retained. U always strokes; u uses
- * its STYLE border setting and current brush, logical pen and write mode.
- * Opaque flags combine disjoint coverage; other flags fill then stroke.
+ * its STYLE border setting and current brush. U honors the requested mask
+ * at every width, including custom masks, and applies W. u fills with W then
+ * COPYs a solid border. Line flags never partition brush/border contributions.
  * Curve/side coverage is prepared before filling; failures remain nonfatal.
  * C/G map the radius horizontally and use equal device radii on the square-
  * pixel canvases; ellipses map X/Y radii independently. Curves use solid pen

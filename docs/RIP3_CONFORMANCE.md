@@ -4015,6 +4015,51 @@ evidence are reused. No rendering or preservation suite is rerun. The downloaded
 reference tree and review scratch file are removed. Source implementation,
 legacy pins and the active application route are unchanged by this adoption.
 
+## PR #77 point and rectangle composition
+
+The separate wire engine now applies all five W operations to X and j. Their
+existing world projection, distinct origin rules, clipping and odd-square
+thickness are retained. Each covered pixel receives one contribution; repeated
+commands operate on the resulting destination. NOT ignores source ink and does
+not require palette lookup. This milestone uses the existing indexed 8-bit plane;
+full RGB and active-color-mask integration remain pending, and the unqualified
+primitive requirements retain pending status rather than claiming those modes.
+
+K and u now fill with W and then COPY an enabled solid border using Draw Color
+and current thickness. Stored line patterns, opaque-gap flags and historical
+single-pass behavior do not change that border or partition the fill. A NOT
+interior still requires a resolved enabled border color. Border coverage and all
+required inks are prepared before either phase paints; failures leave the scene
+unchanged. Degenerate/border-disabled cases retain their no-fill/no-border rules.
+Obsolete brush/pen exclusion paths were removed. Standalone U now honors the
+requested stock/custom mask at wide as well as narrow thicknesses, without a
+fixed DASHDOTDOT substitution or wide solid fallback. Stored STYLE state is
+unchanged by each drawing operation.
+
+Independent literal vectors reproduce S=3C, D=A5 results 3C/99/BD/24/5A, background
+66/C3/E7/24/5A and enabled COPY border 0F in every mode. One coherent capture per
+canvas combines single and repeated X/j operations, thick squares, screen and
+offscreen targets, K/u patterned fills and N0/N1 borders. Rounded zero-radius
+regions establish the same rectangular composition independently of edge pixels;
+the separate rounded scene retains its analytic curved coverage oracle. Existing
+rectangle/rounded captures were corrected from historical client pen/pass rules
+to the adopted protocol expectations, including RGB ink preflight and NOT's
+still-required border color. They cover both bases, coordinate widths, world
+scales, clipping, degeneracy, allocation failures, field/state retention and
+split-input recovery. No RIP1.54 sources, fixtures or expectations changed.
+
+Native FreeBSD Release CMake configure/build succeeds without warnings. Six
+affected CTests pass once (2.41 seconds): rounded rectangle kernel, rectangle
+commands, border commands, rounded commands, fill commands and point commands.
+No broad renderer/preservation suite is rerun: unchanged legacy hash evidence is
+reused, and only the edited ledger consistency is checked. Temporary build logs
+are automatically removed. Three published 8-bit vector units are implemented;
+ten broader primitive units record their partial evidence and remaining RGB/
+color-mask work. The ledger is now 618 implemented, 1552 pending, 4204 unreviewed,
+1029 contextual, 24 excluded and 28 blocked among 7455 source blocks. Sector N0
+radial behavior, skewed composition/revisits, complete outline font production
+and scene integration remain unfinished. No issue content or code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

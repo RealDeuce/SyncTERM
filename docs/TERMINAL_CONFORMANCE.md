@@ -59,20 +59,18 @@ widths, order-dependent spans, pie/chord closure and multiple-traversal fill
 parity. Captures cover all canvases/bases/widths, screen/offscreen contexts,
 context fill phase and parser-owned recovery. PR #77 resolves the numeric/pen/
 pass questions; implementation and repeated XOR/NOT visit handling remain pending.
-Existing K tests record historical logical pen/write mode, fixed type-4
-DASHDOTDOT mapping, wide solid pens, opaque single-pass versus transparent
-two-pass overlap, and NOT's unused inks. Style copies/backups preserve selected
-line type independently of custom masks. Coherent captures cover all canvases,
-bases, coordinate widths and border/flag combinations. K must be reconciled
-with PR #77's solid COPY-border rule before claiming current compliance.
+K now uses current-mode fill followed by an enabled solid COPY border,
+independently of masks/opaque gaps. Coherent captures cover all canvases,
+bases, coordinate widths, thicknesses and N/flag combinations. Required border
+inks resolve before a NOT fill; allocation/ink failures precede painting.
 Separate P/l/p/< tests reconcile direct small/maximum counts, asymmetric
 multi-contour count widths and the shared 8193-number budget. Coherent captures
 cover holes, overlap cancellation, nested islands, patterned COPY borders,
 current-mode fills and nonfatal rejection before painting. Exact original
 error wording and POLYPOLY.RIP corpus/continuation replay remain pending.
 Separate U/u tests cover X-world radius conversion, independent oversize fitting,
-normalized/zero/wide bounds, logical pens and historical current-mode passes.
-The filled u consumer still needs PR #77's solid COPY-border correction.
+normalized/zero/wide bounds, requested stock/custom patterns at every width
+for U, and current-mode fill followed by solid COPY borders for u.
 Coherent captures span all canvases, bases, widths and screen/offscreen contexts;
 allocation failures recover before painting. Extreme original DWORD overflow
 remains pending, while the low-WORD Y-radius sign/zero cases are covered.
@@ -95,10 +93,13 @@ captures combine rendered glyphs, replies and screen/bitmap cursor state in
 CP437/UTF-8. Nonzero classic TEXT_XY uses its shipped raw-coordinate stores;
 font-zero cached-outline metrics and complete scene reset/integration remain
 pending.
-Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
+Separate PIXEL/POINT tests cover all five modes and their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their
-non-COPY write modes await implementation against the adopted PR #77 answers.
+published 8-bit vectors include repeated operations and once-per-pixel thick
+squares on screen/offscreen targets. The same coherent captures check K/u
+foreground/background fills and solid COPY borders. Full RGB and active-color
+masks remain pending in the separate engine.
 All twelve stock fill masks and custom masks use fixed drawing-context phase
 in the separate wire engine. Coherent captures cover both world scales, all
 canvases/radices/widths, negative relative viewport origins, indexed modes, RGB

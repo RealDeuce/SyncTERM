@@ -129,13 +129,6 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_fill(f.host.ports,&whole,2,ST_RIP3_COPY) == 0);
 	CHECK(wire(&f,stream,"!|=00000001|c3|j0202|c4|X0404|v1O1O3C3C|c5|j0202|c7|X0202|c6|X1S1U\r") == 0);
 	CHECK(wire(&f,stream,"!|v00005I5I\r") == 0); /* Full 100x100 source viewport. */
-	for (unsigned mode = 1; mode < 5; mode++) {
-		char setting[] = "W0"; setting[1] += (char)mode;
-		CHECK(process(&f,setting,-1) == 0);
-		CHECK(process(&f,"X0404",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-		CHECK(process(&f,"j0404",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	}
-	CHECK(process(&f,"W0",-1) == 0);
 	/* Assemble screen and offscreen observations into one synchronous capture.
 	 * Half-open COPY destination [220,100,320,200), full source shorthand. */
 	CHECK(wire(&f,stream,"!|2C3000000000C85KHSB40\r") == 0);
@@ -336,6 +329,92 @@ validation(void)
 	destroy(&f); return 0;
 }
 
+static int
+composition_vectors(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	/* Published PR #77 vectors: source 3C, destination A5. Literal results
+	 * distinguish a single contribution per thick point from repeated writes. */
+	static const unsigned once[] = {0x3c,0x99,0xbd,0x24,0x5a};
+	static const unsigned twice[] = {0x3c,0xa5,0xbd,0x24,0xa5};
+	static const unsigned background[] = {0x66,0xc3,0xe7,0x24,0x5a};
+	struct fixture f;
+	struct st_rip3_style style;
+	struct st_rip3_port_info port;
+	struct st_rip3_palette palette;
+	struct st_pixel_buffer *capture = NULL;
+	const struct st_rip3_rect area = {0,0,119,51}, copy = {160,0,279,51};
+	CHECK(create(&f,canvas,width,height) == 0);
+	CHECK(st_rip3_ports_define(f.host.ports,3,&area,true) == 0);
+	for (unsigned target=0; target<=3; target+=3) {
+		CHECK(st_rip3_ports_switch(f.host.ports,target) == 0);
+		CHECK(st_rip3_ports_fill(f.host.ports,&area,0xa5,ST_RIP3_COPY) == 0);
+		CHECK(st_rip3_styles_get(f.host.styles,0,&style) == 0);
+		style.drawing_color=0x3c; style.background_color=0x66;
+		style.pen.pattern=1; style.pen.thickness=4; style.pen.draw_background=true;
+		CHECK(st_rip3_styles_set(f.host.styles,0,&style) == 0);
+		for (unsigned mode=0; mode<5; mode++) {
+			char setting[]="W0", bytes[6]; setting[1]+=(char)mode;
+			CHECK(process(&f,setting,-1) == 0);
+			for (unsigned row=0; row<2; row++) for (unsigned point=0; point<2; point++) {
+				unsigned x=mode*24+(point ? 14 : 5), y=row ? 16 : 6;
+				bytes[0]=point ? 'j' : 'X'; field(bytes+1,x*2,2,36); field(bytes+3,y*2,2,36); bytes[5]=0;
+				CHECK(process(&f,bytes,-1) == 0);
+				if (row) CHECK(process(&f,bytes,-1) == 0);
+			}
+		}
+		for (unsigned mode=0; mode<5; mode++) {
+			CHECK(st_rip3_styles_get(f.host.styles,0,&style) == 0);
+			style.write_mode=(enum st_rip3_write_mode)mode; style.fill_color=0x3c;
+			style.background_color=0x66; style.drawing_color=0x0f; style.pen.thickness=1;
+			memset(style.fill.rows,0xaa,8);
+			for (unsigned outlined=0; outlined<2; outlined++) {
+				style.borders=outlined!=0; CHECK(st_rip3_styles_set(f.host.styles,0,&style) == 0);
+				for (unsigned rounded=0; rounded<2; rounded++) {
+					unsigned x=mode*24+(rounded ? 14 : 2), y=outlined ? 40 : 28;
+					char bytes[12]; bytes[0]=rounded ? 'u' : 'K';
+					field(bytes+1,x*2,2,36); field(bytes+3,y*2,2,36);
+					field(bytes+5,(x+6)*2,2,36); field(bytes+7,(y+8)*2,2,36);
+					if (rounded) {bytes[9]='0'; bytes[10]='0'; bytes[11]=0;} else bytes[9]=0;
+					CHECK(process(&f,bytes,-1) == 0);
+				}
+			}
+		}
+		CHECK(st_rip3_ports_info(f.host.ports,target,&port) == 0 && port.cursor.x == 0 && port.cursor.y == 0);
+	}
+	CHECK(st_rip3_ports_copy(f.host.ports,3,NULL,0,&copy,ST_RIP3_TRANSFER_COPY) == 0);
+	CHECK(st_rip3_palettes_get(f.host.palettes,0,&palette) == 0
+	    && st_rip3_ports_snapshot(f.host.ports,&palette,&capture) == 0);
+	for (uint32_t y=0; y<height; y++) for (uint32_t x=0; x<width; x++) {
+		unsigned expected=0;
+		if (y<52 && (x<120 || (x>=160 && x<280))) {
+			unsigned u=x>=160 ? x-160 : x, mode=u/24, local=u%24;
+			expected=0xa5;
+			if ((local==5 && y==6) || (local>=12 && local<=16 && y>=4 && y<=8)) expected=once[mode];
+			if ((local==5 && y==16) || (local>=12 && local<=16 && y>=14 && y<=18)) expected=twice[mode];
+			for (unsigned outlined=0; outlined<2; outlined++) for (unsigned rounded=0; rounded<2; rounded++) {
+				unsigned left=rounded ? 14 : 2, top=outlined ? 40 : 28;
+				if (local>=left && local<left+6 && y>=top && y<top+8)
+					expected=u%2==0 ? once[mode] : background[mode];
+				if (outlined && local>=left && local<=left+6 && y>=top && y<=top+8
+				    && (local==left || local==left+6 || y==top || y==top+8)) expected=0x0f;
+			}
+		}
+		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | expected*UINT32_C(0x010101)));
+	}
+	st_pixel_buffer_destroy(capture);
+	/* Destination NOT neither resolves source ink nor requires a palette. */
+	struct st_rip3_palettes *bound=f.host.palettes; f.host.palettes=NULL;
+	struct st_rip3_environment env;
+	CHECK(st_rip3_environments_get(f.host.environments,0,&env) == 0); env.rgb_bits=8;
+	CHECK(st_rip3_environments_set(f.host.environments,0,&env) == 0);
+	CHECK(st_rip3_styles_get(f.host.styles,0,&style) == 0);
+	style.write_mode=ST_RIP3_NOT; style.drawing_color=style.background_color=0xffffff;
+	CHECK(st_rip3_styles_set(f.host.styles,0,&style) == 0);
+	CHECK(process(&f,"X0202",-1) == 0 && process(&f,"j0K0K",-1) == 0);
+	f.host.palettes=bound;
+	destroy(&f); return 0;
+}
+
 int
 main(void)
 {
@@ -351,6 +430,9 @@ main(void)
 	CHECK(nonuniform_mapping(ST_RIP3_CANVAS_640_480,640,480,10,13,20) == 0);
 	CHECK(nonuniform_mapping(ST_RIP3_CANVAS_800_600,800,600,12,17,25) == 0);
 	CHECK(nonuniform_mapping(ST_RIP3_CANVAS_1024_768,1024,768,16,21,32) == 0);
+	CHECK(composition_vectors(ST_RIP3_CANVAS_640_480,640,480) == 0);
+	CHECK(composition_vectors(ST_RIP3_CANVAS_800_600,800,600) == 0);
+	CHECK(composition_vectors(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
 	CHECK(validation() == 0);
 	return 0;
 }

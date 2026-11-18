@@ -118,16 +118,7 @@ rop(unsigned mode, unsigned source, unsigned destination)
 }
 
 static bool
-dot(unsigned type, unsigned phase)
-{
-	/* Independent logical dash descriptions, including custom type 4's
-	 * fixed dash/dot/dot mapping rather than the stored arbitrary mask. */
-	static const char *const runs[]={"########","#.#.#.#.","###.#...","####....","###.#.#."};
-	return runs[type][phase%8]=='#';
-}
-
-static bool
-border(unsigned type, unsigned thickness, unsigned u, unsigned v, bool opaque, unsigned *ink)
+border(const char *pattern, unsigned thickness, unsigned u, unsigned v, bool opaque, unsigned *ink)
 {
 	/* Signed distance to the radius-two contour (1,1)..(9,9), computed
 	 * independently of the production line/quarter-ellipse tessellation. */
@@ -144,7 +135,7 @@ border(unsigned type, unsigned thickness, unsigned u, unsigned v, bool opaque, u
 	else if (u>=7 && v>=3 && v<=7) phase=4+pi+(double)v-3;
 	else if (v>=7 && u>=3 && u<=7) phase=8+2*pi+7-(double)u;
 	else phase=12+3*pi+7-(double)v;
-	bool on=thickness>1 || dot(type,(unsigned)floor(phase));
+	bool on=pattern[(unsigned)floor(phase)%16]=='#';
 	if (!on && !opaque) return false;
 	*ink=on ? 12 : 1;return true;
 }
@@ -232,11 +223,14 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 			if (x>=left && x<left+240 && y>=top && y<top+432) {
 				unsigned col=(x-left)/12,row=(y-top)/12,u=(x-left)%12,v=(y-top)%12;
 				unsigned mode=row%6==5 ? 0 : row%6,group=(row/6)%3,thickness=row<18 ? 1 : 3,type=col%5,flags=col/5,ink=0;
-				bool covered=group!=1 && border(type,thickness,u,v,flags==1,&ink);
+				static const char *const patterns[]={"################","..##..##..##..##","...####...######","...#####...#####"};
+				const char *pattern=group==2 ? "################" : type<4 ? patterns[type]
+				    : col%2!=0 ? "################" : "...............#";
+				bool covered=group!=1 && border(pattern,thickness,u,v,group==0 && flags==1,&ink);
 				expected=0x55;
-				if (group!=0 && interior(u,v) && !(covered && flags==1))
+				if (group!=0 && interior(u,v))
 					expected=rop(mode,(phase_x+x-left+phase_y+y-top)%2==0 ? 7 : 1,expected);
-				if (covered) expected=rop(mode,ink,expected);
+				if (covered) expected=group==2 ? 12 : rop(mode,ink,expected);
 			}
 			if (capture->primary[(size_t)y*width+x]!=(ST_PIXEL_COLOR_RGB_TAG | expected*UINT32_C(0x010101))) {
 				fprintf(stderr,"scene %u/%u/%u off=%d pixel %u,%u got %x expected %x\n",scale,base,xy,offscreen,x,y,capture->primary[(size_t)y*width+x],expected);return 1;
@@ -297,7 +291,9 @@ boundaries(void)
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);env.rgb_bits=8;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 	struct st_rip3_palettes *palette=host.palettes;host.palettes=NULL;
-	CHECK(process(&host,"u0101090902",-1)==0);host.palettes=palette;
+	CHECK(process(&host,"u0101090902",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0);
+	CHECK(process(&host,"N00",-1)==0 && process(&host,"u0101090902",-1)==0);
+	host.palettes=palette; CHECK(process(&host,"N01",-1)==0);
 	style.write_mode=ST_RIP3_COPY;style.fill_color=7;style.drawing_color=12;style.background_color=1;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);env.rgb_bits=0;

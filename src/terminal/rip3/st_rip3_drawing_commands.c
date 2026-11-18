@@ -180,7 +180,7 @@ point(const struct st_rip3_command_host *host, unsigned environment_number,
 	uint64_t world_x, world_y;
 	unsigned current;
 	size_t width = environment->coordinate_size;
-	uint8_t ink;
+	uint8_t ink = 0;
 	int status;
 
 	if (count <= width || count > 2*width) return IO_ERROR_INVALID_FORMAT;
@@ -212,54 +212,13 @@ point(const struct st_rip3_command_host *host, unsigned environment_number,
 	if (top < port.clip.y0) top = port.clip.y0;
 	if (right > port.clip.x1) right = port.clip.x1;
 	if (bottom > port.clip.y1) bottom = port.clip.y1;
-	/* COPY is unambiguous. The listed Write Mode versus SetPixel/FillRect
-	 * behavior is separately tracked in #74; do not guess other modes. */
-	if (style->write_mode != ST_RIP3_COPY) return IO_ERROR_NOT_SUPPORTED;
-	status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->drawing_color,&ink);
+	if (style->write_mode != ST_RIP3_NOT)
+		status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->drawing_color,&ink);
 	if (status != 0) return status;
 	const struct st_rip3_rect area = {(int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom};
 	/* POINT is a solid odd square, not a patterned or round-capped stroke.
 	 * Wrapped line byte zero is effective width one, hence radius zero. */
-	return st_rip3_ports_fill(host->ports,&area,ink,ST_RIP3_COPY);
-}
-
-/* A combined GDI brush/pen pass does not apply the fill operation under
- * covered pen pixels. Prepare that coverage first, then paint disjoint runs. */
-static int
-rectangle_interior(struct st_rip3_ports *ports, const struct st_rip3_port_info *port,
-    struct st_rip3_rect area, const struct st_rip3_stroke_mask *exclude,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-    enum st_rip3_write_mode mode)
-{
-	if (exclude == NULL || exclude->coverage == NULL)
-		return st_rip3_draw_filled_rectangle(ports,&area,fill,foreground,background,NULL,0,mode);
-	if (area.x0 >= area.x1 || area.y0 >= area.y1) return 0;
-	area.x1--; area.y1--;
-	if (area.x0 < port->clip.x0) area.x0 = port->clip.x0;
-	if (area.y0 < port->clip.y0) area.y0 = port->clip.y0;
-	if (area.x1 > port->clip.x1) area.x1 = port->clip.x1;
-	if (area.y1 > port->clip.y1) area.y1 = port->clip.y1;
-	for (int32_t y = area.y0; y <= area.y1; y++) {
-		int32_t run = -1;
-		for (int32_t x = area.x0; x <= area.x1; x++) {
-			bool pen = x >= exclude->bounds.x0 && x <= exclude->bounds.x1
-			    && y >= exclude->bounds.y0 && y <= exclude->bounds.y1
-			    && exclude->coverage[(size_t)(y-exclude->bounds.y0)*exclude->width+(size_t)(x-exclude->bounds.x0)] != 0;
-			if (!pen && run < 0) run = x;
-			if (pen && run >= 0) {
-				const struct st_rip3_rect span = {run,y,x-1,y};
-				int status = st_rip3_draw_bar(ports,&span,fill,foreground,background,mode);
-				if (status != 0) return status;
-				run = -1;
-			}
-		}
-		if (run >= 0) {
-			const struct st_rip3_rect span = {run,y,area.x1,y};
-			int status = st_rip3_draw_bar(ports,&span,fill,foreground,background,mode);
-			if (status != 0) return status;
-		}
-	}
-	return 0;
+	return st_rip3_ports_fill(host->ports,&area,ink,style->write_mode);
 }
 
 static int
@@ -267,9 +226,6 @@ filled_rectangle(const struct st_rip3_command_host *host,
     const struct st_rip3_environment *environment, const struct st_rip3_style *style,
     const struct st_rip3_port_info *port, const struct st_rip3_vector *points, size_t vertices)
 {
-	/* Geometric dash patterns for the documented logical pen names. Exact
-	 * GDI dash lengths/edge pixels are outside the reproduction target. */
-	static const uint16_t logical[] = {0xffff,0xaaaa,0xe8e8,0xf0f0,0xeaea};
 	struct st_rip3_pen pen = style->pen;
 	struct st_rip3_stroke_mask mask = {0};
 	struct st_rip3_fill fill;
@@ -279,17 +235,17 @@ filled_rectangle(const struct st_rip3_command_host *host,
 	int status = 0;
 	bool borders = style->borders;
 	if (!borders && !interior) return 0;
-	pen.pattern = pen.thickness > 1 ? 0xffff : logical[style->line_type];
+	pen.pattern = 0xffff; pen.draw_background = false;
 	if (interior) for (size_t i = 0; i < 8; i++) {
 		foreground_used |= style->fill.rows[i] != 0;
 		background_used |= style->fill.rows[i] != 255;
 	}
-	background_used |= borders && pen.draw_background && pen.pattern != 0xffff;
 	if (style->write_mode != ST_RIP3_NOT) {
 		if (foreground_used) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->fill_color,&foreground);
 		if (status == 0 && background_used) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->background_color,&background);
-		if (status == 0 && borders) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->drawing_color,&drawing);
 	}
+	/* The border is COPY even when the interior is destination-NOT. */
+	if (status == 0 && borders) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->drawing_color,&drawing);
 	if (status != 0) return status;
 	if (borders) {
 		status = st_rip3_stroke_path_vectors(host->ports,points,vertices,interior,&pen,&mask);
@@ -302,10 +258,9 @@ filled_rectangle(const struct st_rip3_command_host *host,
 		    points[2].x > INT32_MAX ? INT32_MAX : (int32_t)points[2].x,
 		    points[2].y > INT32_MAX ? INT32_MAX : (int32_t)points[2].y};
 		st_rip3_command_fill(port,&style->fill,&fill);
-		status = rectangle_interior(host->ports,port,area,borders && pen.draw_background ? &mask : NULL,
-		    &fill,foreground,background,style->write_mode);
+		status = st_rip3_draw_filled_rectangle(host->ports,&area,&fill,foreground,background,NULL,0,style->write_mode);
 	}
-	if (status == 0 && borders) status = st_rip3_stroke_apply(host->ports,&mask,drawing,background,style->write_mode);
+	if (status == 0 && borders) status = st_rip3_stroke_apply(host->ports,&mask,drawing,0,ST_RIP3_COPY);
 	st_rip3_stroke_free(&mask);
 	return status;
 }
