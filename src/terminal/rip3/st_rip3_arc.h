@@ -17,7 +17,7 @@ struct st_rip3_arc {
 	double start, sweep;
 };
 
-/* Axis-aligned A/V endpoint rays, with radii already converted to device
+/* Axis-aligned A/V/I/i/_ endpoint rays, with radii already converted to device
  * counts. Equal integer endpoints retain a point at the raw endpoint;
  * different endpoints on the same ray produce a complete curve. A single
  * center-collapsed ray is empty. For a singular ellipse, nonzero rays use

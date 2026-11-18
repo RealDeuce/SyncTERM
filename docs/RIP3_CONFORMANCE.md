@@ -3479,6 +3479,66 @@ The ledger reviews 73 units: 346 implemented, 1504 pending, 4526 unreviewed,
 covering I/i/_, skewed arcs and other unimplemented consumers remain pending;
 full RIP3 compliance and active-engine integration are not claimed.
 
+## Axis-aligned filled pie/chord consumers
+
+The separate engine now dispatches I/i/_ through the same fixed-width parser,
+WORLD projection and integer-ray adapter as A/V. I uses its horizontal circular
+radius; i/_ use independent ellipse radii. Distinct endpoints form a PIE sector
+or CHORD segment from radial ellipse intersections. Equal computed endpoints
+produce a raw center-to-endpoint line for I/i, even with borders disabled, and
+no drawing for _. A quantized full Pie from different endpoints on the same
+ray retains its internal border radius; a full Chord has no internal chord.
+Raw full turns still take the earlier equality branch rather than becoming a
+filled ellipse. The generic device ellipse API's topology remains unchanged.
+
+The positive geometric cases are implemented with a solid logical pen:
+unbordered interiors use the current fill pattern/context phase and all five
+write modes; COPY borders use draw color/thickness and the curved/closing edges.
+The equal-endpoint radial fallback uses the current write mode and does not
+consume fill colors or N. Full-Pie radius scratch and ellipse scratch are both
+prepared before any pixels change. Clipped geometry remains wide through the
+existing stroke collector. All failures stay within the void public parser.
+
+A new documentation gap is tracked in
+[#75](https://github.com/bbs-land/remote-imaging-protocol/issues/75), separately
+referencing #14/PR #43, #33/PR #63 and #74. The angle contract is adopted and is
+not reopened. The gap concerns the original logical pen, ROP, background flag
+and fill/outline passes: the inherited COPY-border rule and solid-curve prose
+do not settle the observed I/i paths. Read-only inspection of the unchanged
+original DLL identifies current STYLE ROP setup at RVA `0xe6e9`, current-pen
+selection at `0x13cfc`, and single/two-Pie paths at `0x119e3`/`0x11a5d` and
+`0x12492`/`0x12510`. The published arc probe substitutes that boundary. The issue
+asks for explicit pass/operand semantics and a small independent pixel matrix;
+this milestone makes no Windows-raster claim. Patterned I/i/_ pens and
+non-COPY sector borders remain unsupported with nonfatal diagnostics, rather
+than implementing a guessed contract. Existing G/o behavior is not reconciled
+by this milestone. The reference pin remains `c9a66b27`; the fork's stable head
+was checked and still matches it. No existing issue received a comment.
+
+`rip3_sector_commands` failed against the prior implementation before the
+handlers were added. Its 96 coherent full-device matrix captures combine
+circular/elliptical sectors, minor/major chords, wrapped halves, raw equal/full
+turns, coincident-ray full figures and a radial endpoint outside a narrow ellipse.
+They cover three canvases, screen/offscreen contexts, both bases, XY widths 2–5,
+two unequal WORLD scales, short final fields, context-phased custom fill,
+five unbordered indexed modes, RGB COPY and solid COPY borders. A shifted bitmap
+copy preserves source fill phase. Focused checks cover malformed/split input,
+missing services, inactive ports, unsupported #75 combinations followed by valid
+commands, unused ink/N/scratch on equal chords, raw wide radial clipping and
+each radial/ellipse allocation failure before painting.
+
+Native FreeBSD Release configure/build passes without new warnings. All 98
+RIP3/preservation CTests pass (34.67 seconds). Valgrind reports zero errors,
+6,799 allocations/frees, zero retained heap and three inherited descriptors for
+the expanded fixture. Owned temporary issue/build logs are removed. All 93
+recorded file pins and 41 helper pins match, including the independently
+recorded font-maintenance exceptions; this milestone changes no RIP1.54 source,
+historical expectations, preservation manifest or active application routing.
+The ledger reviews 51 source blocks and adds B75: 369 implemented, 1490 pending,
+4509 unreviewed, 938 contextual, 24 excluded and 27 blocked among 7357 blocks.
+Complete filled-curve style/mode coverage, skewed curves and active-engine
+integration remain pending. No code or PR was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

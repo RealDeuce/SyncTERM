@@ -8,6 +8,7 @@
 #include "st_rip3_draw_internal.h"
 #include "io_error.h"
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -27,9 +28,11 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	uint64_t values[6];
 	unsigned environment_number, number;
 	bool arc = command[0] == 'A';
-	bool angles = arc || command[0] == 'O' || command[0] == 'V';
-	bool circle = arc || command[0] == 'C' || command[0] == 'G';
-	bool filled = command[0] == 'G' || command[0] == 'o';
+	bool pie = command[0] == 'I' || command[0] == 'i';
+	bool chord = command[0] == '_';
+	bool angles = arc || pie || chord || command[0] == 'O' || command[0] == 'V';
+	bool circle = arc || command[0] == 'I' || command[0] == 'C' || command[0] == 'G';
+	bool filled = pie || chord || command[0] == 'G' || command[0] == 'o';
 	bool borders = false;
 	size_t count = length-1, fields = angles ? (circle ? 5 : 6) : circle ? 3 : 4;
 	size_t width, total, position = 0;
@@ -77,35 +80,47 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 		status = st_rip3_ports_info(host->ports, number, &port);
 	if (status != 0 || !port.viewport_active)
 		return status;
-	if (filled) {
-		if (host->borders == NULL)
-			return IO_ERROR_NOT_SUPPORTED;
-		borders = *host->borders;
-		if (!borders && (rx == 0 || ry == 0))
-			return 0;
-	}
-	if (arc || command[0] == 'V') {
+	if (angles && command[0] != 'O') {
 		status = st_rip3_arc_axis(&interval,(uint64_t)rx,(uint64_t)ry,
 		    (unsigned)values[2],(unsigned)values[3]);
 		if (status != 0 || interval.kind == ST_RIP3_ARC_EMPTY)
 			return status;
 	}
+	if (chord && interval.kind == ST_RIP3_ARC_POINT)
+		return 0;
+	/* #75 tracks the conflict between solid-curve prose and the original
+	 * logical-pen/pass boundary. Do not guess patterned I/i/_ behavior. */
+	if ((pie || chord) && style.pen.pattern != 0xffff)
+		return IO_ERROR_NOT_SUPPORTED;
 	*operation = true;
 	if (interval.kind == ST_RIP3_ARC_POINT) {
-		const struct st_rip3_vector endpoint = {x+(double)interval.first.x,y+(double)interval.first.y};
+		const struct st_rip3_vector points[] = {{x,y},
+		    {x+(double)interval.first.x,y+(double)interval.first.y}};
 		const struct st_rip3_pen pen = {.pattern=0xffff,.thickness=style.pen.thickness};
 		struct st_rip3_stroke_mask mask = {0};
 
-		/* The original zero-length line uses the unprojected endpoint, which
-		 * can lie outside a noncircular ellipse. Prepare clipped coverage before
-		 * resolving ink so an invisible point needs neither ink nor allocation. */
-		status = st_rip3_stroke_path_vectors(host->ports,&endpoint,1,false,&pen,&mask);
+		/* A/V use a point, I/i a center-to-endpoint line even without borders.
+		 * The raw endpoint can lie outside a noncircular ellipse. Prepare clipped
+		 * coverage first so an invisible operation needs neither ink nor scratch. */
+		status = st_rip3_stroke_path_vectors(host->ports,pie ? points : points+1,
+		    pie ? 2 : 1,false,&pen,&mask);
 		if (status == 0 && mask.coverage != NULL && style.write_mode != ST_RIP3_NOT)
 			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
 		if (status == 0)
 			status = st_rip3_stroke_apply(host->ports,&mask,drawing,0,style.write_mode);
 		st_rip3_stroke_free(&mask);
 		return status;
+	}
+	if (filled) {
+		if (host->borders == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		borders = *host->borders;
+		if (!borders && (rx == 0 || ry == 0))
+			return 0;
+		/* Existing G/o behavior is retained. Newly exposed sector borders
+		 * accept the unambiguous solid COPY case while #75 is unresolved. */
+		if ((pie || chord) && borders && style.write_mode != ST_RIP3_COPY)
+			return IO_ERROR_NOT_SUPPORTED;
 	}
 	if (borders || (!filled && style.write_mode != ST_RIP3_NOT)) {
 		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.drawing_color, &drawing);
@@ -129,8 +144,26 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	if (!filled)
 		return st_rip3_draw_ellipse_outline(host->ports, &ellipse, interval.start,interval.sweep,
 		    ST_RIP3_ELLIPSE_ARC, style.pen.thickness, drawing, style.write_mode);
+	struct st_rip3_stroke_mask radial = {0};
+	if (pie && borders && interval.sweep == 360 && rx != 0 && ry != 0) {
+		double scale = hypot((double)interval.first.x/rx,(double)interval.first.y/ry);
+		const struct st_rip3_vector points[] = {{x,y},
+		    {x+(double)interval.first.x/scale,y+(double)interval.first.y/scale}};
+		const struct st_rip3_pen pen = {.pattern=0xffff,.thickness=style.pen.thickness};
+
+		/* Different raw endpoints on one ray reach a full Pie, whose border
+		 * retains an internal radius. Prepare it before any fill can change pixels.
+		 * Repeated coverage is idempotent in the supported COPY border case. */
+		status = st_rip3_stroke_path_vectors(host->ports,points,2,false,&pen,&radial);
+		if (status != 0)
+			return status;
+	}
 	st_rip3_command_fill(&port,&style.fill,&fill);
-	return st_rip3_draw_filled_ellipse(host->ports, &ellipse, 0,360,
-	    ST_RIP3_ELLIPSE_PIE, &fill, foreground, background,
+	status = st_rip3_draw_filled_ellipse(host->ports, &ellipse, interval.start,interval.sweep,
+	    chord ? ST_RIP3_ELLIPSE_CHORD : ST_RIP3_ELLIPSE_PIE, &fill, foreground, background,
 	    borders ? style.pen.thickness : 0, drawing, style.write_mode);
+	if (status == 0)
+		status = st_rip3_stroke_apply(host->ports,&radial,drawing,0,ST_RIP3_COPY);
+	st_rip3_stroke_free(&radial);
+	return status;
 }

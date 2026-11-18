@@ -40,7 +40,12 @@ Separate-engine A/V tests now cover integer endpoint rays, equal-endpoint
 point strokes, coincident-ray full curves and counterclockwise partial sweeps.
 O consumes its angle fields and always draws a complete ellipse. Coherent
 screen/offscreen captures cover all canvases, bases, coordinate widths and write
-modes; filled/skewed arc consumers and active-engine integration remain pending.
+modes. Separate I/i/_ consumers now cover pie/chord interiors, distinct radial
+closures, equal-endpoint radial/empty branches and coincident-ray full figures.
+Their coherent captures include context-phased fill, five unbordered modes,
+solid COPY borders and parser-owned allocation/error recovery. Patterned pens
+and non-COPY sector borders remain blocked on #75; skewed curves and
+active-engine integration remain pending.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their
