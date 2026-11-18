@@ -25,6 +25,7 @@ valid(const struct st_rip3_style *value)
 	return value->drawing_color <= 0xffffff && value->background_color <= 0xffffff
 	    && value->fill_color <= 0xffffff && value->pen.pattern != 0 && value->line_type <= 4
 	    && value->pen.thickness > 0 && value->pen.thickness <= INT32_MAX
+	    && value->font_mode >= ST_RIP3_FONT_CLASSIC && value->font_mode <= ST_RIP3_FONT_OUTLINE
 	    && value->write_mode >= ST_RIP3_COPY && value->write_mode <= ST_RIP3_NOT
 	    && st_rip3_classic_text_style_set(&font, value->font.font,
 	    value->font.direction, value->font.magnification, value->font.flags) == 0;

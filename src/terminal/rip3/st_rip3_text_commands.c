@@ -91,10 +91,11 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0 || !port.viewport_active) return status;
 	if (host->text == NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (command[0] == 'm') { *operation = true; host->text->cursor = anchor; return 0; }
-	if (!host->text->classic || host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_styles_current(host->styles,&number);
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
+	if (style.font_mode != ST_RIP3_FONT_CLASSIC) return IO_ERROR_NOT_SUPPORTED;
 	if (command[0] == '@' && (style.font.direction != 0 || (style.font.flags&3) != 0))
 		return IO_ERROR_NOT_SUPPORTED; /* Non-left/vertical @ cursor semantics: #24. */
 	status = text_bytes(arguments,count,host->text->encoding,&glyphs,&glyph_count,&owned);

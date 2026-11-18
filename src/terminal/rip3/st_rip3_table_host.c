@@ -280,6 +280,8 @@ objects(const struct st_rip3_table_host *host,
 			status = st_rip3_palettes_switch(binding->live, index);
 		else if (type == ST_RIP3_TABLE_PORT)
 			status = st_rip3_ports_select(binding->live, index);
+		else if (type == ST_RIP3_TABLE_STYLE)
+			status = st_rip3_styles_switch(binding->live,index);
 		else
 			return IO_ERROR_NOT_SUPPORTED;
 		if (status == 0)

@@ -3844,6 +3844,54 @@ build logs were removed; unrelated concurrent documentation was left untouched.
 The ledger reviews 36 units: 582 implemented, 1420 pending, 4302 unreviewed, 994 context, 24 excluded, 35 blocked among 7357 blocks. Full compliance remains
 unfinished; no code was published and no existing issue content was changed.
 
+## Wire and variable style selection
+
+The separate engine now accepts 2Y and CUR(STYLE,n) through the same fixed-default
+selector. Defined/protected records select without attribute changes; unused
+records receive normal defaults. Font family now belongs to STYLE, replacing
+the external graphics-text context flag. Y changes it under STYLE protection;
+text reads the selected record at paint time. Record copies and immutable
+backups include family metadata. Port, environment, cursor, encoding and
+immutable classic-font overrides stay independent. Outline parameter ownership
+and actual outline-command integration remain pending.
+
+The 2Y handler validates its complete body before applying source flags 4/8,
+selecting/defaulting, then applying destination flags 1/2. Unprotect runs last
+within each pair. Higher bits are ignored; decoded slots >=36 do nothing before
+flag effects. Protecting zero records a nonfatal diagnostic but does not prevent
+selection or later flags. The original descriptor/handler establish these
+behaviors, contradicting the pinned reserved-field table. New parent-repository
+[issue #79](https://github.com/bbs-land/remote-imaging-protocol/issues/79) requests
+that narrow clarification and identifies the remaining native-parser/disabled-
+graphics evidence boundary. It references #2/#24/PR #57 without commenting on
+existing issues.
+
+`rip3_style_commands` independently checks all low flags plus ignored high bits,
+source protection and undefined/writable/protected destinations at both bases
+and XY widths 2–5. It covers same-slot ordering, zero-protection continuation,
+invalid slot no-ops, malformed bodies, missing services, inactive graphics,
+fixed defaults, the literal 2YG0 example, decimal CUR selectors and unchanged
+PORT/ENV/cursor/encoding state. One coherent all-canvas capture combines wire
+and variable selections with distinct fills/borders, CP437/UTF-8 text contexts
+and byte-split recovery. Existing tests check atomic protected Y family changes,
+invalid family metadata and immutable snapshots with mixed family values.
+
+The attempted F consumer remains blocked by the existing B2 conflict. Original
+Level-0 slot27 has argc0 and points to the bare RET at RVA0x1b2fd, as already
+reported in #2, while pinned prose adopts a live solid flood. No flood renderer
+or guessed wire consumption was added, and no duplicate issue/comment was filed.
+
+Native FreeBSD Release CMake configure/build passes without warnings. The six
+affected native CTests pass (0.50 seconds); only the new style-selection test
+was rerun after adding source-zero diagnostic continuation coverage. Previous
+unaffected evidence was reused. The source/ledger audit matches all recorded
+93 file and 41 helper pins, including documented font maintenance. No RIP1.54
+source/capture/preservation pin, reference revision or active application routing
+changed. Scoped build logs were removed and unrelated concurrent documentation
+was left untouched. The ledger reviews 50 units: 589 implemented, 1419 pending, 4262 unreviewed, 1018 context, 24 excluded, 45 blocked among 7357 blocks.
+Full compliance remains unfinished; no code was published and no existing issue
+content was changed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

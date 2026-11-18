@@ -14,16 +14,15 @@ enum st_rip3_text_encoding {
 
 /* Explicit live graphics-text binding, owned by the session. Cursor coordinates
  * are viewport-relative device pixels, retaining fractional logical advances.
- * No bootstrap/reset, PORT/STYLE ownership or backup activation is inferred
- * (#24). Missing bindings are unsupported. classic identifies the resolved
- * active font family; successful Y selects classic without changing the cursor.
+ * Cursor/PORT ownership and whole-scene reset/backup orchestration remain
+ * separate. Missing bindings are unsupported. The current STYLE owns the font
+ * family; successful Y selects classic without changing this cursor.
  * Optional immutable font overrides that same numbered classic font; other
  * selected numbers use their original bundled font for the current canvas.
  * Encoding conversion does not expand macros or interpret terminal controls. */
 struct st_rip3_text_context {
 	struct st_rip3_text_position cursor;
 	enum st_rip3_text_encoding encoding;
-	bool classic;
 	const struct st_rip3_classic_font *font;
 };
 

@@ -477,10 +477,9 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		status = font_style(&style, arguments, count, environment.base_math);
 		if (status != 0)
 			return status;
+		style.font_mode = ST_RIP3_FONT_CLASSIC;
 		*operation = true;
-		status = st_rip3_styles_set(host->styles, number, &style);
-		if (status == 0 && host->text != NULL) host->text->classic = true;
-		return status;
+		return st_rip3_styles_set(host->styles,number,&style);
 	}
 	if (command[0] == 'N') {
 		if (count == 0 || count > 2) return IO_ERROR_INVALID_FORMAT;

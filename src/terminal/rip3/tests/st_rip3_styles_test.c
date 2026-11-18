@@ -28,7 +28,7 @@ value(unsigned number)
 		.drawing_color=0x112200+number, .background_color=0x445500+number,
 		.fill_color=0x330000+number, .pen={0},
 		.font={number%11,number%2,number%10+1,number%3 | vertical[number%4]},
-		.write_mode=(enum st_rip3_write_mode)(number%5), .line_type=number%5, .borders=number%2!=0,
+		.write_mode=(enum st_rip3_write_mode)(number%5), .line_type=number%5, .borders=number%2!=0, .font_mode=number%2!=0 ? ST_RIP3_FONT_OUTLINE : ST_RIP3_FONT_CLASSIC,
 	};
 	style.pen.pattern = (uint16_t)(0xa500+number);
 	style.pen.thickness = number+1;
@@ -48,7 +48,7 @@ equal(const struct st_rip3_style *a, const struct st_rip3_style *b)
 	    && a->fill.origin.x == b->fill.origin.x && a->fill.origin.y == b->fill.origin.y
 	    && a->font.font == b->font.font && a->font.direction == b->font.direction
 	    && a->font.magnification == b->font.magnification && a->font.flags == b->font.flags
-	    && a->write_mode == b->write_mode && a->borders == b->borders;
+	    && a->write_mode == b->write_mode && a->borders == b->borders && a->font_mode == b->font_mode;
 }
 
 static int
@@ -141,7 +141,7 @@ errors(void)
 	CHECK(st_rip3_styles_protect(styles, 0, true) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_styles_define(styles, 36, &initial) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_styles_define(styles, 1, NULL) == IO_ERROR_INVALID_ARGUMENT);
-	for (unsigned which = 0; which < 13; which++) {
+	for (unsigned which = 0; which < 15; which++) {
 		invalid = initial;
 		switch (which) {
 			case 0: invalid.drawing_color = 0x1000000; break;
@@ -156,7 +156,9 @@ errors(void)
 			case 9: invalid.font.flags = 3; break;
 			case 10: invalid.write_mode = (enum st_rip3_write_mode)5; break;
 			case 11: invalid.line_type = 5; break;
-			default: invalid.write_mode = (enum st_rip3_write_mode)-1; break;
+			case 12: invalid.write_mode = (enum st_rip3_write_mode)-1; break;
+			case 13: invalid.font_mode = (enum st_rip3_font_mode)2; break;
+			default: invalid.font_mode = (enum st_rip3_font_mode)-1; break;
 		}
 		CHECK(st_rip3_styles_create(&sentinel, &invalid) == IO_ERROR_OUT_OF_RANGE && sentinel == NULL);
 		CHECK(st_rip3_styles_define(styles, 1, &invalid) == IO_ERROR_OUT_OF_RANGE);
@@ -295,7 +297,7 @@ host_metadata(void)
 	CHECK(reference(&host, "$ISPROT(STYLE,1)$", "0") == 0);
 	CHECK(reference(&host, "$COPY(STYLE,TBL,BASE,S0,PUSH)$", "") == 0);
 	CHECK(st_rip3_styles_switch(styles, 2) == 0 && st_rip3_styles_set(styles, 1, &initial) == 0);
-	CHECK(reference(&host, "$CUR(STYLE,2)$", NULL) == 0); /* Full context/default activation is pending. */
+	CHECK(reference(&host, "$CUR(STYLE,2)$", "") == 0);
 	CHECK(reference(&host, "$CUR(STYLE)$", "2") == 0);
 	CHECK(reference(&host, "$COPY(STYLE,BASE,TBL)$", "") == 0);
 	CHECK(reference(&host, "$CUR(STYLE)$", "2") == 0 && expect(styles, 1, &changed) == 0);

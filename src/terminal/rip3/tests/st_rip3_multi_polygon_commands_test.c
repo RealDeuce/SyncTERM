@@ -277,7 +277,7 @@ counts(void)
 	struct st_rip3_command_host host={0},missing;
 	struct st_rip3_environment env;
 	struct st_rip3_style style,after;
-	struct st_rip3_text_context text={.cursor={7.25,8.5},.encoding=ST_RIP3_TEXT_UTF8,.classic=true};
+	struct st_rip3_text_context text={.cursor={7.25,8.5},.encoding=ST_RIP3_TEXT_UTF8};
 	const struct st_rip3_rect view={0,0,7,7};
 	bool borders=true;
 	char *bytes=malloc(70000);unsigned *sizes=malloc(1640*sizeof(*sizes));
@@ -310,7 +310,7 @@ counts(void)
 				CHECK(line_pixels(&host,*kind=='p' ? 12 : line[mode])==0);
 				CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.pen.pattern==style.pen.pattern
 				    && after.pen.thickness==style.pen.thickness && after.line_type==style.line_type && after.write_mode==style.write_mode);
-				CHECK(text.cursor.x==7.25 && text.cursor.y==8.5 && text.encoding==ST_RIP3_TEXT_UTF8 && text.classic);
+				CHECK(text.cursor.x==7.25 && text.cursor.y==8.5 && text.encoding==ST_RIP3_TEXT_UTF8);
 			}
 		}
 		style.borders=borders;

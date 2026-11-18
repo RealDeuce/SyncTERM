@@ -74,7 +74,7 @@ struct st_rip3_command_sink {
  * COPY-mode X/j, m, classic literal T and horizontal-left @,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
- * N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
+ * 2Y style selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits,
@@ -251,8 +251,15 @@ struct st_rip3_command_sink {
  * Y validates all four two-digit current-radix fields before editing the bound
  * STYLE's classic font attributes. Conflicting justification flags discard the
  * complete command. This does not activate an extended font or text cursor.
- * With a text context binding, successful Y selects the classic font family;
- * rejected/protected edits preserve family selection as well as attributes.
+ * Successful Y selects the classic font family in STYLE; rejected/protected
+ * edits preserve both family and attributes, independently of text bindings.
+ * 2Y accepts one style digit and one/two final flag digits. Source flags 4/8
+ * apply before selection/defaulting, destination flags 1/2 afterward, with
+ * unprotect last in each pair. High bits are ignored. Invalid slots >=36
+ * are ignored before any flag effects. Protect-zero diagnostics do not stop
+ * selection or remaining flags; failures are consumed at the void boundary.
+ * 2Y and CUR(STYLE,n) activate represented attributes/font family without
+ * changing PORT, ENV, graphics cursor, encoding or immutable font overrides.
  * m projects XY into the explicitly bound viewport-relative device cursor.
  * T draws at that cursor; horizontal-left @ positions and draws atomically.
  * Literal graphics text uses the context's explicit CP437/UTF-8 encoding,

@@ -29,13 +29,15 @@ struct st_rip3_table_host {
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
  * SCP/RCP, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
- * currently supports PAL, PORT, ENV and STYLE metadata; backup-slot operations
+ * supports PAL/PORT/STYLE selection and PAL/PORT/ENV/STYLE metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
  * Parameter defaults and
  * decimal slot syntax follow the reference; entry COPY stays NOT_SUPPORTED
  * pending #16. Other built-ins return NOT_SUPPORTED for wider dispatch.
- * CUR(ENV,n), CUR(STYLE,n), SENV, RENV, SGS and RGS remain unsupported until
+ * CUR(STYLE,n) selects/defaults the represented style and its font family,
+ * independently of PORT/ENV/text-cursor state. CUR(ENV,n), SENV, RENV, SGS and
+ * RGS remain unsupported until
  * complete scene context capture/activation is available. Generic ENV record snapshots do not
  * activate referenced table/UI state. STYLE snapshots capture only the resolved
  * drawing attributes currently stored in st_rip3_styles, not the unresolved

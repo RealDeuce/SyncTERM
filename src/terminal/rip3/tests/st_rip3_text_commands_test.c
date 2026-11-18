@@ -90,7 +90,7 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	memcpy(f->glyphs+('A'-1)*3,a,3); memcpy(f->glyphs+('B'-1)*3,b,3);
 	memcpy(f->glyphs+129*3,e,3); memcpy(f->glyphs+('?' -1)*3,q,3); memset(f->glyphs+218*3,0xe0,3);
 	f->font = (struct st_rip3_classic_font){.canvas=canvas,.number=0,.data.bitmap={3,3,1,3,f->glyphs}};
-	f->text = (struct st_rip3_text_context){.cursor={40,15},.encoding=ST_RIP3_TEXT_CP437,.classic=true,.font=&f->font};
+	f->text = (struct st_rip3_text_context){.cursor={40,15},.encoding=ST_RIP3_TEXT_CP437,.font=&f->font};
 	f->host.text = &f->text; return 0;
 }
 
@@ -257,9 +257,13 @@ static int
 vector_and_failures(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct fixture f = {0}; CHECK(create(&f,canvas,width,height) == 0);
-	f.text.classic = false;
+	struct st_rip3_style mode;
+	CHECK(st_rip3_styles_get(f.host.styles,3,&mode)==0);
+	mode.font_mode=ST_RIP3_FONT_OUTLINE;
+	CHECK(st_rip3_styles_protect(f.host.styles,3,false)==0 && st_rip3_styles_set(f.host.styles,3,&mode)==0
+	    && st_rip3_styles_protect(f.host.styles,3,true)==0);
 	CHECK(process(&f,"TA",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&f,"Y01000400",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && !f.text.classic);
+	CHECK(process(&f,"Y01000400",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && st_rip3_styles_get(f.host.styles,3,&mode)==0 && mode.font_mode==ST_RIP3_FONT_OUTLINE);
 	uint8_t bytes[159] = {0};
 	const uint8_t program[] = {0x80,0,0x84,0x80,0x84,0x84,0x80,0x84,0x80,0x80,0,0};
 	memcpy(bytes,"PK\010\010TEST\032",9); bytes[9] = 128; memcpy(bytes+11,"TEST",4); bytes[15] = 31;
@@ -269,7 +273,7 @@ vector_and_failures(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_chr_open(&font.data.stroke,bytes,sizeof(bytes)) == 0);
 	f.text.font = &font; f.text.cursor = (struct st_rip3_text_position){10.5,6.25};
 	CHECK(st_rip3_styles_protect(f.host.styles,3,false) == 0 && process(&f,"Y01000400",-1) == 0
-	    && f.text.classic && f.text.cursor.x == 10.5 && f.text.cursor.y == 6.25);
+	    && st_rip3_styles_get(f.host.styles,3,&mode)==0 && mode.font_mode==ST_RIP3_FONT_CLASSIC && f.text.cursor.x == 10.5 && f.text.cursor.y == 6.25);
 	CHECK(st_rip3_styles_protect(f.host.styles,3,true) == 0);
 	double step = width == 640 ? 5 : width == 800 ? 6.25 : 8;
 	CHECK(process(&f,"TA",-1) == 0 && process(&f,"TA",-1) == 0 && f.text.cursor.x == 10.5+2*step && f.text.cursor.y == 6.25);

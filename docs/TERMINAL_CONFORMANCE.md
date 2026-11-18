@@ -77,6 +77,12 @@ independence from ENV/PORT, immutable backups and live-selection retention on
 restore. Existing drawing captures use N or explicit prepared STYLE records.
 The nonzero argument-domain clarification is tracked in #78; complete reset and
 extended-style/context activation remain pending.
+2Y and CUR(STYLE,n) now select represented style attributes and STYLE-owned
+font family without moving the graphics cursor or selecting PORT/ENV. Tests
+cover protection flag ordering, fixed defaults, zero-slot diagnostics with
+continued effects, CP437/UTF-8 contexts and split-input recovery. Exact 2Y
+field/flag documentation is tracked in #79; contradictory live-F prose remains
+blocked under existing #2.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

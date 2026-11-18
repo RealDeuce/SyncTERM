@@ -19,9 +19,12 @@ struct st_rip3_backup;
  * context phase at paint time, independently of the device fill.origin value
  * retained here. Bootstrap orchestration remains separate from this service.
  *
- * This is the represented subset of STYLE. Extended-font selection is
- * separate; cursor/image state belongs to PORT and mouse/color mode to ENV.
+ * This is the represented subset of STYLE. Font family is owned here;
+ * outline parameters/realization are separate. Cursor/image state belongs
+ * to PORT and mouse/color mode to ENV.
  * The border setting belongs here and follows record protection/backup rules. */
+enum st_rip3_font_mode { ST_RIP3_FONT_CLASSIC, ST_RIP3_FONT_OUTLINE };
+
 struct st_rip3_style {
 	uint32_t drawing_color, background_color, fill_color;
 	struct st_rip3_pen pen;
@@ -32,6 +35,7 @@ struct st_rip3_style {
 	struct st_rip3_classic_text_style font;
 	enum st_rip3_write_mode write_mode;
 	bool borders;
+	enum st_rip3_font_mode font_mode;
 };
 
 struct st_rip3_style_info {

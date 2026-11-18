@@ -7,6 +7,7 @@
 #include "st_rip3_number.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_styles.h"
 #include "string_compat.h"
 #include "io_error.h"
 
@@ -144,6 +145,51 @@ immediate_query(const struct st_rip3_command_host *host,
 }
 
 static int
+style_protection(struct st_rip3_styles *styles, unsigned number, uint64_t flags,
+    unsigned protect, unsigned unprotect)
+{
+	int status = 0;
+	if ((flags&protect) != 0) {
+		/* The original setter diagnoses attempts to protect zero, but its
+		 * caller still selects/applies every remaining flag afterward. */
+		if (number == 0) status = IO_ERROR_PERMISSION_DENIED;
+		else status = st_rip3_styles_protect(styles,number,true);
+	}
+	if ((flags&unprotect) != 0 && number != 0) {
+		int cleared = st_rip3_styles_protect(styles,number,false);
+		if (status == 0) status = cleared;
+	}
+	return status;
+}
+
+static int
+switch_style(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	struct st_rip3_environment environment;
+	uint64_t number, flags;
+	unsigned current, environment_number;
+	int status, source, destination;
+	size_t count = length-2;
+	if (memchr(command+2,' ',count) != NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (count < 2 || count > 3) return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_environment(host,&environment_number,&environment);
+	if (status == 0) status = st_rip3_command_field(&number,command+2,1,environment.base_math);
+	if (status == 0) status = st_rip3_command_field(&flags,command+3,count-1,environment.base_math);
+	if (status != 0) return status;
+	if (number > 35) return 0; /* The shipped handler ignores invalid slots. */
+	if (host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_styles_current(host->styles,&current);
+	if (status != 0) return status;
+	*operation = true;
+	source = style_protection(host->styles,current,flags,4,8);
+	status = st_rip3_styles_switch(host->styles,(unsigned)number);
+	if (status != 0) return status;
+	destination = style_protection(host->styles,(unsigned)number,flags,1,2);
+	return source != 0 ? source : destination;
+}
+
+static int
 execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
@@ -168,6 +214,8 @@ execute(const struct st_rip3_command_host *host,
 		return 0;
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
+	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
+		return switch_style(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
 		return immediate_query(host,command,length,operation);
 	if (length >= 2 && (command[0] == '1' || command[0] == '2') && command[1] == 'W')
