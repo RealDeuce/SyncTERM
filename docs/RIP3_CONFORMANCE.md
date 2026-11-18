@@ -55,6 +55,16 @@ The frozen capture inventory includes its descriptive scope text. Keep new
 coverage notes in `docs/RIP154_CONFORMANCE.md` without modifying that inventory
 or advancing the preservation baseline.
 
+A separately developed RIPv3 text-video-mode repair landed as `4c230452` and
+is recorded in the manifest's `maintenance` entry, with previous checksums
+retained. Its two
+updated pins cover the RIPv3 branch of `rip_text_font` and a supplemental
+capture-inventory entry. RIPv1's original grid/status behavior and all
+historical images, expectations and exclusions are declared unchanged by that
+maintenance record, which reports 26 passing RIP regressions. The isolated fill
+milestone below verifies the original hashes separately; final acceptance must
+also account for this independently landed maintenance boundary.
+
 The 26 existing native/application RIP and graphics-scrollback CTests passed
 at the baseline on native FreeBSD with the existing Release CMake configuration.
 They cover CP437/UTF-8, historical captures, both pixel phases, replies,
