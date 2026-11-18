@@ -535,43 +535,73 @@ def host_command_cases(t):
 
 def font_mode_cases(args):
     for version in (1, 3):
-        for status in (False, True):
-            with connection(args.executable, args.reports, encoding=args.encoding,
-                            options=f"ScreenMode=Custom\nRIP=RIPv{version}\nNoStatus={str(not status).lower()}\n",
-                            settings="CustomColumns=160\nCustomRows=50\nCustomFontHeight=16\n"
-                                     "CustomAspectWidth=8\nCustomAspectHeight=5\nAudioModes=0\n") as (client, root, peer, send):
-                t = Terminal(client, root, peer, send)
-                for style, columns, rows, width, height in (
-                        (0, 80, 43, 8, 8), (1, 91, 43, 7, 8), (2, 80, 25, 8, 14),
-                        (3, 91, 25, 7, 14), (4, 40, 25, 16, 14), (0, 80, 43, 8, 8)):
-                    t.case(f"font-mode-v{version}-status-{status}-style-{style}")
-                    # The first switch is the command at the start of beziers.rip.
-                    # Preserve a specified scene through subsequent font switches.
-                    window = point(0, 0) + point(columns - 1, rows - 1 - status) + b"1" + mega(style, 1)
-                    frame = t.exchange(b"\r!|c0F|X2S2S|w" + window + b"\r\nA")
-                    assert tuple(frame.metadata[k] for k in
-                                 ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == (
-                                     columns, rows, width, height,
-                                     640 if version == 3 else 1280, 350 if version == 3 else 800), frame.metadata
-                    if status and version == 3:
-                        frame = client.wait_for(lambda s: s.lines[-1].lstrip().startswith("Capture"))
-                        text_font = cell_at(frame, 0, 0).font
-                        assert all(cell_at(frame, x, rows - 1).font == text_font for x in range(columns))
-                        # The new font must be rasterized, not just recorded in cells.
-                        assert any(pixel(frame, x, (rows - 1) * height + y) == 0xffff54
-                                   for x in range(width * 7) for y in range(height))
-                        assert all(pixel(frame, x, (rows - 1) * height) == 0x0000a8
-                                   for x in range(columns * width - width, columns * width))
+        resolutions = ((640, 480), (800, 600), (1024, 768), (1280, 800)) if version == 3 else ((1280, 800),)
+        for pixel_width, pixel_height in resolutions:
+            font_mode_resolution(args, version, pixel_width, pixel_height)
+
+
+def font_mode_resolution(args, version, pixel_width, pixel_height):
+    # Literal expected grids for each raster and the five existing cell sizes.
+    grids = {
+        (640, 480): ((80, 60), (91, 60), (80, 34), (91, 34), (40, 34)),
+        (800, 600): ((100, 75), (114, 75), (100, 42), (114, 42), (50, 42)),
+        (1024, 768): ((128, 96), (146, 96), (128, 54), (146, 54), (64, 54)),
+        (1280, 800): ((160, 100), (182, 100), (160, 57), (182, 57), (80, 57)),
+    }
+    for status in (False, True):
+        with connection(args.executable, args.reports, encoding=args.encoding,
+                        options=f"ScreenMode=Custom\nRIP=RIPv{version}\nNoStatus={str(not status).lower()}\n",
+                        settings=f"CustomColumns={pixel_width // 8}\nCustomRows={pixel_height // 8}\nCustomFontHeight=8\n"
+                                 "CustomAspectWidth=4\nCustomAspectHeight=3\nAudioModes=0\n") as (client, root, peer, send):
+            t = Terminal(client, root, peer, send)
+            initial = t.exchange()
+            output = tuple(initial.metadata[k] for k in ("output_width", "output_height"))
+            previous_bar = (pixel_height - 8, pixel_height)
+            for style, columns, rows, width, height in (
+                    (0, 80, 43, 8, 8), (1, 91, 43, 7, 8), (2, 80, 25, 8, 14),
+                    (3, 91, 25, 7, 14), (4, 40, 25, 16, 14), (0, 80, 43, 8, 8)):
+                if version == 3:
+                    columns, rows = grids[pixel_width, pixel_height][style]
+                t.case(f"font-mode-v{version}-{pixel_width}x{pixel_height}-status-{status}-style-{style}")
+                # The first switch is the command at the start of beziers.rip.
+                # Preserve a specified scene through subsequent font switches.
+                # The host's text window can cover a subset of the console;
+                # the local status row must span the complete derived grid.
+                window = point(0, 0) + point(39, 22) + b"1" + mega(style, 1)
+                frame = t.exchange(b"\r!|c0F|X2S2S|w" + window + b"\r\nA")
+                if status and version == 3:
+                    frame = client.wait_for(lambda s: s.lines[-1].lstrip().startswith("Capture")
+                                            and cell_at(s, 0, rows - 1).font == cell_at(s, 0, 0).font)
+                    text_font = cell_at(frame, 0, 0).font
+                    assert all(cell_at(frame, x, rows - 1).font == text_font for x in range(columns))
+                    # The new font must be rasterized, not just recorded in cells.
+                    bar = ((rows - 1) * height, rows * height)
                     for phase in ("primary", "alternate"):
-                        assert pixel(frame, 100, 100, phase) == 0xffffff
-                frame = t.exchange(b"\r!|*\r\n")
-                expected = (160, 50, 8, 16, 1280, 800) if version == 3 else (80, 43, 8, 8, 1280, 800)
+                        assert any(pixel(frame, x, bar[0] + y, phase) == 0xffff54
+                                   for x in range(width * 7) for y in range(height))
+                        assert all(pixel(frame, x, bar[0], phase) == 0x0000a8
+                                   for x in range(columns * width - width, columns * width))
+                        assert all(pixel(frame, x, bar[0], phase) == 0
+                                   for x in range(columns * width, pixel_width))
+                        # Moving the bar cannot leave its old pixels in the scene.
+                        assert all(pixel(frame, x, y, phase) == 0
+                                   for y in range(*previous_bar) if not bar[0] <= y < bar[1]
+                                   for x in range(pixel_width))
+                    previous_bar = bar
                 assert tuple(frame.metadata[k] for k in
-                             ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == expected
-                # Reset clears the scene and remains ready for further commands.
-                assert pixel(frame, 100, 100) == 0
-                frame = t.exchange(b"!|c0F|X2S2S\r\n")
-                assert pixel(frame, 100, 100) == 0xffffff
+                             ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == (
+                                 columns, rows, width, height, pixel_width, pixel_height), frame.metadata
+                assert tuple(frame.metadata[k] for k in ("output_width", "output_height")) == output
+                for phase in ("primary", "alternate"):
+                    assert pixel(frame, 100, 100, phase) == 0xffffff
+            frame = t.exchange(b"\r!|*\r\n")
+            expected = (pixel_width // 8, pixel_height // 8, 8, 8, pixel_width, pixel_height) if version == 3 else (80, 43, 8, 8, pixel_width, pixel_height)
+            assert tuple(frame.metadata[k] for k in
+                         ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == expected
+            # Reset clears the scene and remains ready for further commands.
+            assert pixel(frame, 100, 100) == 0
+            frame = t.exchange(b"!|c0F|X2S2S\r\n")
+            assert pixel(frame, 100, 100) == 0xffffff
 
 
 def live_cases(args):

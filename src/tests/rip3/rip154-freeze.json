@@ -10,6 +10,14 @@
         "src/tests/rip154/captures.json": "9208b18c996e3ab12e60b5e730638338f6ec0bf1facf6a4adc1e4a7c0839df5a",
         "src/terminal/cterm/st_cterm.c::rip_text_font": "d8ac9316a468f80d3c46d82bd0669c9ce0f117dbc6289e493465718e2a54ff93"
       }
+    },
+    {
+      "date": "2026-11-17",
+      "scope": "Correct the RIPv3 font-layout repair: retain the selected raster/aspect/window and derive console rows/columns from the current font cell size. Default-font reset retains the resolution. Extend the independent resolution/status regressions. RIPv1 behavior and all historical image expectations remain unchanged; separate RIPv3 MicroANSI/engine integration remains outside this repair.",
+      "previous_checksums": {
+        "src/tests/rip154/captures.json": "4e616576300b4128e6d02f4eff7c69357f135720800036d5826182a0b2b71bf9",
+        "src/terminal/cterm/st_cterm.c::rip_text_font": "44a392878b4bbb936f40f9100e2e053f9892abd3822de498a55447db4228aca1"
+      }
     }
   ],
   "files": {
@@ -52,7 +60,7 @@
     "src/terminal/cterm/tests/st_cterm_rip_v110a_live_test.c": "149c43a25c0dcf078ecacbdbf786e14e6e1a55513ee2bef44f633924de5bca1f",
     "src/terminal/term/tests/st_term_rip_historical_wire_test.c": "d656622e4f7dab423dedb13f448f348d9bfc5be6d5ca4d7f14dc27d206875036",
     "src/tests/rip154/README.md": "18fea3efd8b57355b83855e2dc2271a23c2db8a872585d7f5798edf806e9e5f9",
-    "src/tests/rip154/captures.json": "4e616576300b4128e6d02f4eff7c69357f135720800036d5826182a0b2b71bf9",
+    "src/tests/rip154/captures.json": "c96925f64529b9ec0ce90ebf3511c29d1647c6b7f4c8e63301db26ab7dabac15",
     "src/tests/rip154/test01_ellipses.rgb6.z": "822ff0edf7a5848bc906022869c99b15b80a81374a15659c6661a0ad23bbf861",
     "src/tests/rip154/test01_ellipses.rip": "e885d996a9f9d66e0406af8a9b180c165f54e69fb8697df6516566fb3e521143",
     "src/tests/rip154/test01b_ellipse_sweep.rgb6.z": "cd4e6ecc35d514b6c55517c3444664da9eaf2814878f8e766b948475fab9bfe8",
@@ -109,7 +117,7 @@
   },
   "functions": {
     "src/terminal/cterm/st_cterm.c": {
-      "rip_text_font": "44a392878b4bbb936f40f9100e2e053f9892abd3822de498a55447db4228aca1",
+      "rip_text_font": "62e1589abdd13807c8f690e22651f8d574b8db053fa9ed90e7976a8cdf9b6f0e",
       "rip_passthrough": "8638f388d8b2716f0b37dbbda363f9c5e4e5b28b5af437a5f413397d062d9e62",
       "rip_text_boundary": "667ff2113b21350c6eb7bff946f691b2eb901c02d0d4acc8e74a672d3835eb79",
       "rip_control": "58f9e9329657207f4bfe316996d17e4f743a8f23f422d1b6b752e9db959f6d21",

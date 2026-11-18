@@ -567,12 +567,13 @@ RIP `1G` now copies absolute screen regions with RIPv1 alignment quirks and
 RIPv3 outward alignment. Native whole-plane, overlap, split-input, state and
 reduced-mapping tests supplement 20 coherent application cases per version
 and encoding, with both pixel phases, clipboard preservation and recovery.
-RIPv3 text-window fonts enter a complete 640x350 video mode; the status row
-uses the new font, and reset restores the original session geometry. Native
-split-input/notification and whole-plane tests plus coherent CP437/UTF-8
-application captures cover all five fonts, a 1280x800 starting canvas, status
-on/off and reset/recovery. RIPv1's existing canvas and status-font behavior
-and historical capture expectations are retained.
+RIPv3 text-window fonts retain the selected resolution/aspect and derive the
+console grid from the current raster and font cell size. The status row uses
+the new font across that grid; reset restores the default font at the same
+resolution. Native split-input/notification and whole-plane tests plus coherent
+CP437/UTF-8 captures cover all five fonts at 640x480, 800x600, 1024x768 and
+1280x800, status on/off, old-status removal and reset/recovery. RIPv1's existing
+canvas/status-font behavior and historical capture expectations are retained.
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

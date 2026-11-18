@@ -154,10 +154,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 {
 	struct st_console_font font;
 	struct st_console_custom_cursor cursor;
-	struct st_console_config mode = {
-		.pixel_width = 640, .pixel_height = 350,
-		.aspect_width = 4, .aspect_height = 3,
-	};
+	struct st_console_config mode = {0};
 	struct st_console_cell *scrollback = NULL;
 	struct st_console_cell *old_scrollback;
 	struct st_pixel_buffer **history_pixels = NULL;
@@ -165,7 +162,6 @@ rip_text_font(st_cterm_t *terminal, int style)
 	size_t bitmap_size;
 	uint32_t cell_width, cell_height, columns, rows, old_width, old_height;
 	uint32_t old_cell_width, old_cell_height;
-	uint32_t pixel_width, pixel_height, aspect_width, aspect_height;
 	uint32_t status_rows;
 	uint16_t identifier = 0;
 	bool change_mode = terminal->rip_engine->raster.version == 3;
@@ -183,7 +179,6 @@ rip_text_font(st_cterm_t *terminal, int style)
 		rows = engine->default_text.rows;
 		identifier = engine->default_text.font_identifier;
 		codepage = engine->default_text.codepage;
-		mode = terminal->rip_default_mode;
 	}
 	else {
 		cell_width = style == 1 || style == 3 ? 7
@@ -192,6 +187,18 @@ rip_text_font(st_cterm_t *terminal, int style)
 		columns = style == 1 || style == 3 ? 91
 		    : style == 4 ? 40 : 80;
 		rows = cell_height == 8 ? 43 : cell_height == 16 ? 21 : 25;
+	}
+	if (change_mode) {
+		status = st_console_pixel_size(terminal->screen.console,
+		    &mode.pixel_width, &mode.pixel_height);
+		if (status == 0)
+			status = st_console_get_aspect_ratio(terminal->screen.console,
+			    &mode.aspect_width, &mode.aspect_height);
+		if (status != 0)
+			return status;
+		/* A RIP text font changes the grid, not the device resolution. */
+		columns = mode.pixel_width / cell_width;
+		rows = mode.pixel_height / cell_height;
 	}
 	status_rows = terminal->status_display_type >= 1 ? 1 : 0;
 	if (rows <= status_rows + terminal->api_reserved_rows)
@@ -234,13 +241,6 @@ rip_text_font(st_cterm_t *terminal, int style)
 	    &old_cell_width, &old_cell_height);
 	if (status != 0)
 		return status;
-	if (change_mode) {
-		status = st_console_pixel_size(terminal->screen.console, &pixel_width, &pixel_height);
-		if (status == 0)
-			status = st_console_get_aspect_ratio(terminal->screen.console, &aspect_width, &aspect_height);
-		if (status != 0)
-			return status;
-	}
 	if (old_cell_height != cell_height) {
 		status = st_console_get_default_cursor(terminal->screen.console, &cursor);
 		if (status != 0)
@@ -250,9 +250,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 		cursor.end = cell_height - 1U;
 	}
 	if (columns != old_width || rows != old_height
-	    || cell_width != old_cell_width || cell_height != old_cell_height
-	    || (change_mode && (pixel_width != mode.pixel_width || pixel_height != mode.pixel_height
-	    || aspect_width != mode.aspect_width || aspect_height != mode.aspect_height))) {
+	    || cell_width != old_cell_width || cell_height != old_cell_height) {
 		if (terminal->backlines != 0) {
 			status = resize_scrollback(terminal, columns, cell_width, cell_height, &scrollback, &history_pixels);
 			if (status != 0)
@@ -2346,15 +2344,6 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			status = st_console_cell_pixel_size(config->console,
 			    &terminal->rip_engine->default_text.cell_width,
 			    &terminal->rip_engine->default_text.cell_height);
-		if (status != 0) {
-			st_cterm_destroy(&terminal);
-			return status;
-		}
-		status = st_console_pixel_size(config->console,
-		    &terminal->rip_default_mode.pixel_width, &terminal->rip_default_mode.pixel_height);
-		if (status == 0)
-			status = st_console_get_aspect_ratio(config->console,
-			    &terminal->rip_default_mode.aspect_width, &terminal->rip_default_mode.aspect_height);
 		if (status != 0) {
 			st_cterm_destroy(&terminal);
 			return status;

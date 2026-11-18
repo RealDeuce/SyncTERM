@@ -430,9 +430,9 @@ test_rip_text_video_mode(void)
 		.columns = 160, .rows = 50, .cell_width = 8, .cell_height = 16,
 		.aspect_width = 8, .aspect_height = 5,
 	};
-	const struct { unsigned style, columns, rows, width, height; } modes[] = {
-		{0, 80, 43, 8, 8}, {1, 91, 43, 7, 8}, {2, 80, 25, 8, 14},
-		{3, 91, 25, 7, 14}, {4, 40, 25, 16, 14}, {0, 80, 43, 8, 8},
+	const struct { unsigned style, columns, rows, width, height, rip3_columns, rip3_rows; } modes[] = {
+		{0, 80, 43, 8, 8, 160, 100}, {1, 91, 43, 7, 8, 182, 100}, {2, 80, 25, 8, 14, 160, 57},
+		{3, 91, 25, 7, 14, 182, 57}, {4, 40, 25, 16, 14, 80, 57}, {0, 80, 43, 8, 8, 160, 100},
 	};
 	for (unsigned version = 1; version <= 3; version += 2) {
 		st_console_t *console = NULL;
@@ -468,16 +468,16 @@ test_rip_text_video_mode(void)
 			CHECK(feed(terminal, command + length - 2, 2) == 0);
 			CHECK(capture.calls == (version == 3 ? i + 1 : 0));
 			if (version == 3) {
-				CHECK(capture.columns == modes[i].columns && capture.rows == modes[i].rows - 1);
-				CHECK(capture.width == 640 && capture.height == 350);
+				CHECK(capture.columns == modes[i].rip3_columns && capture.rows == modes[i].rip3_rows - 1);
+				CHECK(capture.width == 1280 && capture.height == 800);
 			}
 			CHECK(st_console_size(console, &columns, &rows) == 0);
-			CHECK(columns == modes[i].columns && rows == modes[i].rows);
+			CHECK(columns == (version == 3 ? modes[i].rip3_columns : modes[i].columns));
+			CHECK(rows == (version == 3 ? modes[i].rip3_rows : modes[i].rows));
 			CHECK(st_console_cell_pixel_size(console, &width, &height) == 0);
 			CHECK(width == modes[i].width && height == modes[i].height);
 			CHECK(st_console_pixel_size(console, &width, &height) == 0);
-			CHECK(width == (version == 3 ? 640u : 1280u));
-			CHECK(height == (version == 3 ? 350u : 800u));
+			CHECK(width == 1280 && height == 800);
 			struct st_pixel_buffer *pixels = NULL;
 			const struct st_console_rect area = {0, 0, 640, 350};
 			CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);

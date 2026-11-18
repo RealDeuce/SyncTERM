@@ -6,16 +6,20 @@ recognizes only its own CSI `!`, `0!`, `1!` and `2!` forms, passing unrelated CS
 forms to ANSI handling. SkyPix commands do not activate a RIP graphics engine.
 Historical RIP captures and their exclusions remain unchanged.
 
-RIPv3 text-window font selection changes the complete video mode to its
-640x350 raster and 4:3 presentation, retaining both graphics planes and
-excluding the previous local status row from saved artwork. The status bar
-uses the selected font and the bottom row of the new grid. RIPv3 window reset
-restores the session's original raster, aspect, grid and font. RIPv1 retains
-its existing in-place text-grid changes and local status font.
+RIPv3 text-window font selection retains the selected pixel raster and aspect
+ratio. Console columns and rows are derived from that raster and the selected
+font's cell dimensions; the host's text window remains a region within that
+grid. Both graphics planes survive and old local status pixels are discarded.
+The status bar uses the selected font and the bottom row of the derived grid.
+RIPv3 window reset restores the session's default font and derives its grid
+without changing the resolution. RIPv1 retains its existing in-place text-grid
+changes and local status font. This repairs the current live path's layout;
+it does not activate the separate RIPv3 engine or its MicroANSI font banks.
 `cterm_rip_live` checks split fields, size notifications and independent
-whole-plane preservation; the CP437/UTF-8 wire suites start at 1280x800,
-exercise all five fonts with status enabled/disabled, and check coherent
-geometry, status font/pixels, graphics and reset/recovery. This RIPv3-only
+whole-plane preservation; the CP437/UTF-8 wire suites cover 640x480, 800x600,
+1024x768 and 1280x800, exercise all five fonts with status enabled/disabled,
+and check coherent raster/window geometry, status font/pixels, old-status
+removal, graphics and reset/recovery. This RIPv3-only
 maintenance change leaves the historical RIP 1.54 images and expectations
 unchanged.
 

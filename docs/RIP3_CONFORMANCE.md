@@ -65,6 +65,12 @@ maintenance record, which reports 26 passing RIP regressions. The isolated fill
 milestone below verifies the original hashes separately; final acceptance must
 also account for this independently landed maintenance boundary.
 
+The follow-up maintenance repair removes the forced 640x350 video switch.
+RIPv3 retains the selected raster/aspect and derives its console grid from
+the current text cell dimensions, including default-font reset. Its expanded
+resolution/status regressions cover the existing live font path; the separate
+engine's MicroANSI bank and rendering integration remain pending.
+
 The 26 existing native/application RIP and graphics-scrollback CTests passed
 at the baseline on native FreeBSD with the existing Release CMake configuration.
 They cover CP437/UTF-8, historical captures, both pixel phases, replies,

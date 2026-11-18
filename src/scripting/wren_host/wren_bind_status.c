@@ -111,7 +111,7 @@ blank_status_cell(struct st_wren_context *context,
 	struct st_cterm_state state;
 	enum st_codepage codepage;
 
-	/* RIPv3 changes the video font as well as the grid. Other emulations
+	/* RIPv3's status row follows the current text font and grid. Other emulations
 	 * retain the local UI font, independent of remote font assignments. */
 	if (context->cterm != NULL
 	    && st_cterm_state(context->cterm, &state) == 0
