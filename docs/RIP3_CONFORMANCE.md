@@ -3599,6 +3599,69 @@ or active application route changes in this milestone. The ledger reviews 98
 blocks: 440 implemented, 1482 pending, 4425 unreviewed, 959 contextual, 24 excluded
 and 27 blocked among 7357 units. No issue content or code was published.
 
+## Skewed ellipse contours and wire handlers
+
+The separate engine now dispatches &/-/]/+/[ with their distinct field layouts.
+& keeps two-digit radii independently of XY width; the other commands use XY
+radii. Rotation/start/end remain two digits in current base math, with only the
+last rotation field eligible for shortening. Center and radii undergo WORLD
+conversion before rotation, preserving wide geometry until physical clipping.
+
+`st_rip3_skew_span` implements the adopted order-dependent normalizer, including
+0..719 retaining two traversals and 0..720 reducing to one, displaced equal
+450..450 becoming a full turn, and 360..0 becoming zero span. The owned contour
+preserves every integer-degree sample and duplicate: ] supplies S..E, + appends
+the first point, [ appends center then first point, and &/- supply exactly 360
+points with polygon closure. A zero-span ] draws nothing; zero-span filled
+contours retain their documented degeneracy rather than sharing an empty rule.
+Full [ retains its internal radius, and double-traversal fills retain even-odd
+cancellation instead of becoming a single ellipse.
+
+Read-only original-generator inspection establishes two Q14 floor stages,
+parameter sampling then counterclockwise rotation. The embedded 91-value quarter
+table plus three asymmetries reconstruct both original 360-word tables exactly:
+sine RVA `0x7b638` / file offset `0x79c38`, SHA256
+`a08fb7e140b46078a0992959300412410fb2caa53f3f1c689dfcebdf5d4132fc`;
+cosine RVA `0x7b098` / file offset `0x79698`, SHA256
+`f4bde71f06d692151350f9837c06b7f12de444cccdd1d49cec9dd35db3beee72`.
+The implementation uses wide integer products rather than native overflowing
+32-bit products. This retains valid maximum wire geometry without wrapping
+far ellipses into the visible viewport. The existing v3 stroke/polygon coordinate
+limits suffice; no shared kernel limits were changed.
+
+[#76](https://github.com/bbs-land/remote-imaging-protocol/issues/76) requests the
+missing normative numeric/conversion and effective pen/background/ROP/pass
+contract, separately referencing #14/PR #43 and #75. The normalizer and contour
+answers remain adopted. This milestone supports single-turn patterned outlines
+in all five modes, unbordered fills in all five modes, and solid COPY borders.
+Multiple-turn XOR/NOT outlines and other filled-border combinations remain
+unsupported with parser-owned diagnostics while #76 is unresolved. Exact GDI
+edge/cap pixels and native arithmetic-overflow reproduction are not claimed.
+
+`rip3_skew` checks literal normalization, table/asymmetry coordinates, rotated
+points, counts, closures and repeated samples. `rip3_skew_commands` has 96
+coherent full-device matrix captures over three canvases, both bases, XY widths
+2–5, two unequal WORLD scales, screen/offscreen contexts, five indexed modes,
+RGB COPY, short final fields and context-phased custom fills. Expected grids
+come independently from original table data, unit-pen capsule inequalities and
+rational pixel-center even-odd tests, not from SyncTERM output. Copy destinations
+change checkerboard parity, proving source-phase preservation. Focused cases
+cover malformed/unsupported recovery, zero spans, continuing patterned phase,
+inactive/missing services, unused inks, each allocation before painting and
+maximum projected ellipses remaining clipped away.
+
+Native FreeBSD Release CMake configure/build passes without new warnings.
+Only the two new skew CTests and the source/ledger audit were run for final
+verification; no broad regression or additional Valgrind run was added. All
+recorded 93 file pins and 41 helper pins match, including the separately recorded
+font-maintenance exceptions. No RIP1.54 source, expectation, preservation pin,
+reference revision or active application routing changes. Owned temporary issue
+and build files were removed; unrelated concurrently created documentation was
+left untouched. The ledger reviews 81 units and adds B76: 492 implemented,
+1441 pending, 4393 unreviewed, 973 contextual, 24 excluded and 34 blocked among
+7357 blocks. Complete skewed pen/mode acceptance and engine integration remain
+pending. No existing issue received comments and no code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

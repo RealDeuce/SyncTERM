@@ -44,13 +44,18 @@ modes. Separate I/i/_ consumers now cover pie/chord interiors, distinct radial
 closures, equal-endpoint radial/empty branches and coincident-ray full figures.
 Their coherent captures include context-phased fill, five unbordered modes,
 solid COPY borders and parser-owned allocation/error recovery. Patterned pens
-and non-COPY sector borders remain blocked on #75; skewed curves and
-active-engine integration remain pending.
+and non-COPY sector borders remain blocked on #75; active-engine integration
+remains pending.
 Separate Z/z/t/x tests cover wrapped fixed-point Bézier sampling, omitted
 samples, typed records/closures, low16 conversion and independent collection/
 expansion limits. Coherent captures cover fractional WORLD projection, all
 canvases/bases/widths, patterned strokes and fills, COPY borders and nonfatal
 recovery. Original error-message/UI integration remains pending.
+Separate &/-/]/+/[ tests cover one-degree rotated contours, distinct field
+widths, order-dependent spans, pie/chord closure and multiple-traversal fill
+parity. Captures cover all canvases/bases/widths, screen/offscreen contexts,
+context fill phase and parser-owned recovery. Missing numeric/pen/pass acceptance
+and repeated XOR/NOT outline behavior are tracked in #76.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their
