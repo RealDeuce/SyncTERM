@@ -294,13 +294,13 @@ boundaries(void)
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"[04040302002I00",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	/* PR #77 removes the historical COPY/solid-only restriction from
-	 * filled contours. The separate repeated standalone visit path is pending. */
+	 * filled contours. A twice-traversed standalone XOR contour cancels. */
 	style=original;style.write_mode=ST_RIP3_XOR;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"[04040302002I00",-1)==0);
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
-	CHECK(process(&host,"]0404030200JZ00",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0); /* 0..719 */
+	CHECK(process(&host,"]0404030200JZ00",-1)==0 && unchanged(&host)==0); /* 0..719 */
 	style=original;style.pen.pattern=0xaaaa;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);

@@ -60,12 +60,18 @@ widths, order-dependent spans, pie/chord closure and multiple-traversal fill
 parity. Captures cover all canvases/bases/widths, screen/offscreen contexts,
 context fill phase and parser-owned recovery. Filled skewed contours now cross
 both N states with all five W modes and retain patterned COPY borders, including
-opaque/transparent gap checks on retraced zero-area contours. Numeric-profile
-acceptance and standalone repeated XOR/NOT visit handling remain pending.
+opaque/transparent gap checks on retraced zero-area contours. Standalone skewed
+revisits now apply W separately, including repeated-turn XOR/NOT cancellation.
+Numeric-profile and full color-plane acceptance remain pending.
 K now uses current-mode fill followed by an enabled solid COPY border,
 independently of masks/opaque gaps. Coherent captures cover all canvases,
 bases, coordinate widths, thicknesses and N/flag combinations. Required border
 inks resolve before a NOT fill; allocation/ink failures precede painting.
+Standalone L/R/P/l/Z/z/t/&/] now collect ordered visits before painting.
+Independent native vectors check crossings, adjacent retraces, subdivisions,
+closed seams, thick joins and later COPY foreground/background order. All-canvas
+screen/offscreen split-input captures combine repeated paths, cubic peaks,
+single/repeated skewed turns, parser recovery and unchanged PORT cursors.
 Separate P/l/p/< tests reconcile direct small/maximum counts, asymmetric
 multi-contour count widths and the shared 8193-number budget. Coherent captures
 cover holes, overlap cancellation, nested islands, patterned COPY borders,
@@ -188,8 +194,8 @@ cover those cases; general arc angle-pair interpretation remains blocked.
 Ordinary P/l tests add open/closed outlines, continuing opaque/transparent
 patterns, all modes/bases/coordinate widths, protected contents, RGB/NOT and
 nonfatal allocation/field recovery. Independent all-canvas captures include the
-exact pinned examples; integer geometry checks cover thick joins, crossings and
-wide clipping. Wire count boundaries remain blocked. Filled p tests now add
+exact pinned examples; integer geometry checks cover thick joins, distinct
+crossing visits and wide clipping. Later count milestones reconcile wire limits. Filled p tests now add
 even-odd interiors and optional patterned/thick COPY borders, all modes/bases/
 coordinate widths, RGB and nonfatal preparation failures. Independent all-canvas
 captures include its pinned example. A separate wide integral-path kernel checks

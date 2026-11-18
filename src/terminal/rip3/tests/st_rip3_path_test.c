@@ -52,7 +52,7 @@ paths(void)
 	};
 	const uint8_t cross_expected[] = {
 		0,0,0,0,0,0, 0,7,0,0,0,7, 0,0,7,0,7,0,
-		0,0,0,7,0,0, 0,0,7,0,7,0, 0,7,7,7,7,7,
+		0,0,0,0,0,0, 0,0,7,0,7,0, 0,7,7,7,7,7,
 	};
 	const uint8_t phase_expected[] = {
 		7,7,7,0,0,0, 0,0,7,0,0,0, 0,0,2,0,0,0,
@@ -76,11 +76,11 @@ paths(void)
 	CHECK(st_rip3_pen_set(&pen, true, 4, 0xf000, 1) == 0);
 	CHECK(st_rip3_draw_path(ports, phased, 3, false, &pen, 7, 2, ST_RIP3_COPY) == 0);
 	CHECK(expect(ports, phase_expected, 6, 6) == 0);
-	/* At a crossing, an on sample wins over another segment's off sample. */
+	/* Distinct visits keep their order: the later off sample COPYs background. */
 	CHECK(st_rip3_ports_erase(ports, 0) == 0);
 	CHECK(st_rip3_pen_set(&pen, true, 4, 0xf800, 1) == 0);
 	CHECK(st_rip3_draw_path(ports, crossing, 4, false, &pen, 7, 2, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_ports_read(ports, 1, 3, 3, &value) == 0 && value == 7);
+	CHECK(st_rip3_ports_read(ports, 1, 3, 3, &value) == 0 && value == 2);
 	CHECK(st_rip3_ports_erase(ports, 0) == 0);
 	CHECK(st_rip3_pen_set(&pen, false, 0, 0, 3) == 0);
 	CHECK(st_rip3_draw_path(ports, points, 3, false, &pen, 7, 0, ST_RIP3_XOR) == 0);

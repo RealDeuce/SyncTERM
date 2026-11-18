@@ -4125,6 +4125,49 @@ masks, standalone visits and complete numeric-profile acceptance. Counts remain
 28 blocked across 7455 blocks. No legacy source/fixture, active route or reference
 pin changes; temporary build logs are removed and no issue content is published.
 
+## Ordered standalone stroke visits
+
+Standalone L/R, P/l, Z/z/t and &/] now retain distinct traversal contributions
+instead of collapsing them into a whole-primitive union. The native path API
+uses the same collector. Coverage uses the existing geometric round caps: a
+continuous component through adjoining endpoint caps is one visit; leaving the
+pixel's stroke area and returning creates another. Duplicate vertices add no
+interval, closed seams join cyclically, and the documented two-vertex polygon
+remains a single line. Exact cap/join pixels are implementation geometry, outside
+the abstract protocol matrices. Filled COPY borders and text masks retain their
+separate union/aggregation policy.
+
+A bounded per-visible-pixel record holds the first/current component and composed
+operand. All geometry/allocations precede painting. COPY keeps the latest visit;
+XOR/OR/AND compose source operands and NOT retains visit parity. Foreground wins
+only inside a joined component. Holding the first component until the closed seam
+is resolved avoids both an extra seam write and losing later COPY source order.
+The repeated-turn skewed XOR/NOT rejection is removed. Parser entry points remain
+void; allocation and syntax failures stay nonfatal.
+
+New `rip3_stroke_visits` expectations independently cover PR #77's 8-bit once/
+twice vectors, crossings, adjacent backtracking, subdivisions/duplicates, closed
+seams, two complete turns, thick ordinary joins and mixed foreground/background
+COPY order. Failure cases cover allocation, invalid vertices/counts and inactive
+no-allocation paths. One coherent capture per canvas combines screen/offscreen
+split-input l/P/Z/&/] scenes, cursor retention and malformed/allocation recovery.
+Bézier peaks use independent Bernstein arithmetic; skewed cardinal checks compare
+one closed revolution with raw 0..719's genuine 90/450 visits. Historical crossing
+and retrace expectations change under the adopted protocol; wide clipping still
+has its independent single-pass slope oracle. No expectations were generated
+from the emulator.
+
+Native CMake configure/full build succeeds without warnings. Eight affected
+CTests pass: visits, native paths, native drawing, STYLE rendering, drawing/path/
+Bézier/skewed commands. Only new/changed or initially failing tests were rerun;
+passing evidence was reused. Ledger consistency is checked without repeating the
+unchanged legacy freeze. Temporary build logs are removed; the active route and
+RIP1.54 sources/data are unchanged. Three logical traversal/vector units become
+implemented and two broader units retain pending RGB/color-mask work. Totals are
+622 implemented, 1547 pending, 4204 unreviewed, 1030 contextual, 24 excluded and
+28 blocked across 7455 units. Font production, complete color-plane/numeric-
+profile acceptance and full engine integration remain unfinished.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

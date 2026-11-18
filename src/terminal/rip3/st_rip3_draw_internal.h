@@ -46,7 +46,7 @@ int st_rip3_contours_validate(const struct st_rip3_contour *contours,
 int st_rip3_stroke_collect(struct st_rip3_ports *ports,
 	const struct st_rip3_contour *contours, size_t count, bool closed,
 	const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result);
-/* One projected path with an explicit pen, used by complete drawing commands.
+/* Union coverage for a projected path with an explicit pen.
  * Integer world projection can exceed int32_t; finite coordinates up to
  * 1024*INT32_MAX are retained until visible coverage is collected. Phase
  * continues across edges and each destination pixel is applied once. */
@@ -58,6 +58,16 @@ int st_rip3_stroke_vector_contours(struct st_rip3_ports *ports,
 int st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
 	const struct st_rip3_vector *vertices, size_t count, bool closed,
 	const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result);
+
+/* Standalone traversal: preserve distinct visits and compose their operands
+ * before painting. Consecutive coverage joins through overlapping endpoint
+ * caps; duplicate vertices do not add visits. Closed seams join cyclically.
+ * Foreground wins within one joined component, while distinct visits retain
+ * their order/operation. Validation/allocation failure preserves the scene. */
+int st_rip3_stroke_visits(struct st_rip3_ports *ports,
+	const struct st_rip3_vector *points, size_t count, bool closed,
+	const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+	enum st_rip3_write_mode mode);
 
 int st_rip3_stroke_apply(struct st_rip3_ports *ports,
 	const struct st_rip3_stroke_mask *mask, uint8_t foreground,

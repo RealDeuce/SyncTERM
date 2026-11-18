@@ -240,7 +240,9 @@ struct st_rip3_command_sink {
  * unresolved policies (#11/#24); W period termination remains unsupported (#7).
  * P/l decode the ordinary two-digit direct vertex count and all XY fields
  * before rendering. P closes its outline; l retains an open path. Both use
- * the bound resolved pen, retain phase across edges and apply each pixel once.
+ * the bound resolved pen and retain phase across edges. Ordinary joins form
+ * one contribution; genuine reentries/crossings apply W again in traversal
+ * order. Duplicate vertices do not add visits; closed seams join cyclically.
  * Zero is diagnosed without pixels; one validates then draws nothing; two
  * retain ordinary pen behavior. The maximum direct counts are 1295/4095.
  * These commands do not fill interiors or mutate pen/style/port/ENV state.
@@ -323,8 +325,8 @@ struct st_rip3_command_sink {
  * ellipse. Numeric/topology behavior remains distinct from output composition.
  * Filled skewed -/+/[ paths use the shared even-odd polygon fill with W and
  * optional patterned COPY borders, including opaque/transparent gaps. Their
- * line masks do not restrict the selected fill mode. Standalone repeated-turn
- * XOR/NOT paths remain unsupported until genuine visits replace union coverage.
+ * line masks do not restrict the selected fill mode. Standalone skewed paths
+ * preserve repeated visits in every mode, including XOR/NOT cancellation.
  * Argumentless E replaces the active viewport with resolved background ink in
  * COPY, independently of pen/fill/write mode. It retains attributes and table
  * references, skips inactive ink lookup and allows protected contents to clear.

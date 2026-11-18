@@ -17,7 +17,6 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 {
 	struct st_rip3_style style;
 	const struct st_rip3_vector *points=path->points;
-	struct st_rip3_stroke_mask mask={0};
 	unsigned current;
 	uint8_t foreground=0,background=0,drawing=0;
 	bool borders=false;
@@ -27,12 +26,6 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	status=st_rip3_styles_current(host->styles,&current);
 	if (status==0) status=st_rip3_styles_get(host->styles,current,&style);
 	if (status!=0) return status;
-	/* Preserve the entire contour, including repeated turns. The effective
-	 * XOR/NOT contract requires distinct genuine visits; this union-mask
-	 * stroker still needs that implementation before accepting repeated turns. */
-	if (!filled && path->end-path->start>360
-	    && (style.write_mode==ST_RIP3_XOR || style.write_mode==ST_RIP3_NOT))
-		return IO_ERROR_NOT_SUPPORTED;
 	*operation=true;
 	if (filled) {
 		bool uses_foreground=false,uses_background=false;
@@ -61,9 +54,8 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 		    borders ? &style.pen : NULL,drawing,style.write_mode);
 	}
 	else {
-		status=st_rip3_stroke_path_vectors(host->ports,points,path->count,closed,&style.pen,&mask);
-		if (status==0) status=st_rip3_stroke_apply(host->ports,&mask,foreground,background,style.write_mode);
-		st_rip3_stroke_free(&mask);
+		status=st_rip3_stroke_visits(host->ports,points,path->count,closed,&style.pen,
+		    foreground,background,style.write_mode);
 	}
 	return status;
 }

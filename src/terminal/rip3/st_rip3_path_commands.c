@@ -63,7 +63,6 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_style style;
 	struct st_rip3_frame frame;
 	struct st_rip3_port_info port;
-	struct st_rip3_stroke_mask mask = {0};
 	struct st_rip3_vector *points;
 	struct st_rip3_vector_contour *contours = NULL;
 	uint64_t value;
@@ -178,12 +177,9 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 		    foreground,background,borders ? &style.pen : NULL,drawing,style.write_mode);
 		goto done;
 	}
-	status = st_rip3_stroke_path_vectors(host->ports, points, vertices,
-	    command[0] == 'P', &style.pen, &mask);
-	if (status == 0)
-		status = st_rip3_stroke_apply(host->ports, &mask, foreground, background, style.write_mode);
+	status = st_rip3_stroke_visits(host->ports,points,vertices,command[0]=='P',
+	    &style.pen,foreground,background,style.write_mode);
 done:
-	st_rip3_stroke_free(&mask);
 	free(contours); free(points);
 	return status;
 }

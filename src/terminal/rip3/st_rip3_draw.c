@@ -36,6 +36,15 @@ st_rip3_pen_init(struct st_rip3_pen *pen)
 	return st_rip3_pen_set(pen, false, 0, 0, 1);
 }
 
+struct stroke_visit {
+	size_t last_edge;
+	uint8_t current, first, operand, flags;
+};
+
+enum {
+	VISIT_END = 1, VISIT_START = 2, VISIT_FIRST_START = 4, VISIT_COMPOSED = 8,
+};
+
 struct stroke_target {
 	struct st_rip3_ports *ports;
 	struct st_rip3_rect clip;
@@ -43,11 +52,13 @@ struct stroke_target {
 	uint8_t foreground;
 	uint8_t background;
 	enum st_rip3_write_mode mode;
-	/* NULL emits directly for a single segment. Paths collect coverage so
-	 * adjacent segments cannot apply XOR twice at a join or crossing. */
+	/* NULL emits directly for a single segment. Geometry/text/border masks
+	 * collect union coverage; standalone paths use visits below instead. */
 	uint8_t *coverage;
 	size_t width;
 	size_t height;
+	struct stroke_visit *visits;
+	size_t edge;
 };
 
 static int
@@ -82,9 +93,56 @@ stroke_init(struct stroke_target *target, struct st_rip3_ports *ports,
 	return 0;
 }
 
-static int
-stroke_pixel(struct stroke_target *target, int32_t x, int32_t y, bool on)
+static void
+visit_compose(const struct stroke_target *target, struct stroke_visit *visit, uint8_t coverage)
 {
+	uint8_t source = coverage == 2 ? target->foreground : target->background;
+	if ((visit->flags&VISIT_COMPOSED) == 0)
+		visit->operand = target->mode == ST_RIP3_AND ? 255 : 0;
+	visit->flags |= VISIT_COMPOSED;
+	switch (target->mode) {
+		case ST_RIP3_XOR: visit->operand ^= source; break;
+		case ST_RIP3_OR: visit->operand |= source; break;
+		case ST_RIP3_AND: visit->operand &= source; break;
+		case ST_RIP3_NOT: visit->operand ^= 1; break;
+		default: visit->operand = source; break;
+	}
+}
+
+static void
+visit_flush(const struct stroke_target *target, struct stroke_visit *visit)
+{
+	/* Hold the first component until the closed-path seam can be resolved.
+	 * The remaining XOR/OR/AND/NOT operands commute; COPY keeps the latest. */
+	if (visit->first == 0) {
+		visit->first = visit->current;
+		if ((visit->flags&VISIT_START) != 0) visit->flags |= VISIT_FIRST_START;
+	}
+	else visit_compose(target,visit,visit->current);
+	visit->current = 0;
+}
+
+static int
+stroke_pixel(struct stroke_target *target, int32_t x, int32_t y, bool on, bool start, bool end)
+{
+	if (target->visits != NULL) {
+		size_t offset = (size_t)(y-target->clip.y0)*target->width+(size_t)(x-target->clip.x0);
+		struct stroke_visit *visit = target->visits+offset;
+		uint8_t coverage = on ? 2 : 1;
+		bool joined = visit->current != 0 && visit->last_edge+1 == target->edge
+		    && (visit->flags&VISIT_END) != 0 && start;
+		if (!joined) {
+			if (visit->current != 0) visit_flush(target,visit);
+			visit->current = coverage;
+			visit->flags &= (uint8_t)~VISIT_START;
+			if (target->edge == 1 && start) visit->flags |= VISIT_START;
+		}
+		else if (visit->current < coverage) visit->current = coverage;
+		visit->flags &= (uint8_t)~VISIT_END;
+		if (end) visit->flags |= VISIT_END;
+		visit->last_edge = target->edge;
+		return 0;
+	}
 	if (target->coverage != NULL) {
 		size_t offset = (size_t)(y - target->clip.y0) * target->width
 		    + (size_t)(x - target->clip.x0);
@@ -179,7 +237,13 @@ stroke_segment(struct stroke_target *target,
 			phase = (unsigned)fmod(floor(projection * major + 0.5) + initial_phase, 16.0);
 			on = (pen->pattern & (UINT16_C(0x8000) >> phase)) != 0;
 			if (on || pen->draw_background) {
-				status = stroke_pixel(target, x, y, on);
+				bool start = false, end = false;
+				if (target->visits != NULL) {
+					double sx = x-ax, sy = y-ay, ex = x-bx, ey = y-by;
+					start = sx*sx+sy*sy <= radius*radius;
+					end = ex*ex+ey*ey <= radius*radius;
+				}
+				status = stroke_pixel(target, x, y, on, start, end);
 				if (status != 0)
 					return status;
 			}
@@ -233,7 +297,7 @@ st_rip3_contours_validate(const struct st_rip3_contour *contours,
 }
 
 static int
-stroke_allocate(struct stroke_target *target, const struct st_rip3_pen *pen,
+stroke_bounds(struct stroke_target *target, const struct st_rip3_pen *pen,
     double min_x, double min_y, double max_x, double max_y)
 {
 	double margin = pen->thickness / 2.0 + 1;
@@ -258,6 +322,15 @@ stroke_allocate(struct stroke_target *target, const struct st_rip3_pen *pen,
 	target->height = (size_t)(target->clip.y1 - target->clip.y0) + 1;
 	if (target->width > SIZE_MAX / target->height)
 		return IO_ERROR_OUT_OF_RANGE;
+	return 0;
+}
+
+static int
+stroke_allocate(struct stroke_target *target, const struct st_rip3_pen *pen,
+    double min_x, double min_y, double max_x, double max_y)
+{
+	int status = stroke_bounds(target,pen,min_x,min_y,max_x,max_y);
+	if (status != 0 || target->width == 0) return status;
 	target->coverage = calloc(target->width * target->height, 1);
 	if (target->coverage == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -487,6 +560,78 @@ st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
 }
 
 int
+st_rip3_stroke_visits(struct st_rip3_ports *ports,
+    const struct st_rip3_vector *points, size_t count, bool closed,
+    const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+    enum st_rip3_write_mode mode)
+{
+	struct stroke_target target;
+	double min_x, min_y, max_x, max_y;
+	unsigned phase = 0;
+	int status;
+	if (points == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i = 0; i < count; i++) {
+		if (!isfinite(points[i].x) || !isfinite(points[i].y)
+		    || fabs(points[i].x) > 1024.0*INT32_MAX || fabs(points[i].y) > 1024.0*INT32_MAX)
+			return IO_ERROR_OUT_OF_RANGE;
+	}
+	status = stroke_init(&target,ports,pen,foreground,background,mode);
+	if (status != 0 || !target.active) return status;
+	min_x = max_x = points[0].x; min_y = max_y = points[0].y;
+	for (size_t i = 1; i < count; i++) {
+		min_x = fmin(min_x,points[i].x); max_x = fmax(max_x,points[i].x);
+		min_y = fmin(min_y,points[i].y); max_y = fmax(max_y,points[i].y);
+	}
+	status = stroke_bounds(&target,pen,min_x,min_y,max_x,max_y);
+	if (status != 0 || target.width == 0) return status;
+	size_t pixels = target.width*target.height;
+	if (pixels > SIZE_MAX/sizeof(*target.visits)) return IO_ERROR_OUT_OF_RANGE;
+	target.visits = calloc(pixels,sizeof(*target.visits));
+	if (target.visits == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	/* A two-vertex polygon is the documented degenerate single line. */
+	size_t edges = closed && count>2 ? count : count-1;
+	for (size_t i = 0; i < edges; i++) {
+		const struct st_rip3_vector *a = points+i, *b = points+(i+1)%count;
+		double major = fmax(fabs(b->x-a->x),fabs(b->y-a->y));
+		/* Duplicate vertices have no traversed interval or phase advance. */
+		if (major == 0) continue;
+		target.edge++;
+		status = stroke_segment(&target,a,b,pen,phase);
+		if (status != 0) goto done;
+		phase = (phase+(unsigned)fmod(major,16.0))&15;
+	}
+	if (target.edge == 0) {
+		target.edge = 1;
+		status = stroke_segment(&target,points,points,pen,0);
+		if (status != 0) goto done;
+	}
+	/* All contributions are collected before painting. A component crosses
+	 * an ordinary join only when both endpoint caps contain the pixel. Leaving
+	 * its coverage disk and returning is a distinct visit, even on adjacent
+	 * retracing edges. Close the cyclic seam without inventing another visit. */
+	for (size_t y = 0; y < target.height; y++) for (size_t x = 0; x < target.width; x++) {
+		struct stroke_visit *visit = target.visits+y*target.width+x;
+		if (visit->current == 0) continue;
+		if (visit->first == 0) visit_compose(&target,visit,visit->current);
+		else if (closed && (visit->flags&VISIT_FIRST_START) != 0
+		    && (visit->flags&VISIT_END) != 0 && visit->last_edge == target.edge) {
+			visit_compose(&target,visit,visit->current > visit->first ? visit->current : visit->first);
+		}
+		else {
+			visit_compose(&target,visit,visit->current);
+			if (mode != ST_RIP3_COPY) visit_compose(&target,visit,visit->first);
+		}
+		if (mode == ST_RIP3_NOT && visit->operand == 0) continue;
+		status = st_rip3_ports_plot(ports,target.clip.x0+(int32_t)x,target.clip.y0+(int32_t)y,
+		    visit->operand,mode);
+		if (status != 0) goto done;
+	}
+done:
+	free(target.visits); return status;
+}
+
+int
 st_rip3_stroke_apply(struct st_rip3_ports *ports,
     const struct st_rip3_stroke_mask *mask, uint8_t foreground,
     uint8_t background, enum st_rip3_write_mode mode)
@@ -577,17 +722,15 @@ st_rip3_draw_path(struct st_rip3_ports *ports,
     const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
     enum st_rip3_write_mode mode)
 {
-	struct st_rip3_contour contour = {points, count};
-	struct st_rip3_stroke_mask mask = {0};
+	struct st_rip3_vector *vectors;
 	int status;
-
-	if (mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
-		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rip3_stroke_collect(ports, &contour, 1, closed, pen, &mask);
-	if (status == 0)
-		status = st_rip3_stroke_apply(ports, &mask, foreground, background, mode);
-	st_rip3_stroke_free(&mask);
-	return status;
+	if (points == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096) return IO_ERROR_OUT_OF_RANGE;
+	vectors = malloc(count*sizeof(*vectors));
+	if (vectors == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < count; i++) vectors[i] = (struct st_rip3_vector){points[i].x,points[i].y};
+	status = st_rip3_stroke_visits(ports,vectors,count,closed,pen,foreground,background,mode);
+	free(vectors); return status;
 }
 
 int

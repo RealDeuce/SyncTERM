@@ -30,7 +30,8 @@ st_rip3_skew_span(unsigned *start, unsigned *end)
 
 /* Numeric constants from original sine RVA 0x7b638 / cosine 0x7b098.
  * The quarter table and three asymmetric entries reconstruct both complete
- * tables; their source identities/hashes and unresolved contract are in #76. */
+ * tables. Source identities/hashes are in the adopted #76 / PR #77 reference;
+ * this is its optional quantized numeric profile. */
 static int32_t
 sine(unsigned angle)
 {

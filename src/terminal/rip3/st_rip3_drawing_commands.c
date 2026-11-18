@@ -276,7 +276,6 @@ shape(const struct st_rip3_command_host *host,
 	struct st_rip3_frame frame;
 	struct st_rip3_port_info port;
 	unsigned current;
-	struct st_rip3_stroke_mask mask = {0};
 	size_t width = environment->coordinate_size, vertices = 2;
 	uint8_t foreground = 0, background = 0;
 	int status;
@@ -355,12 +354,8 @@ shape(const struct st_rip3_command_host *host,
 		if (status != 0)
 			return status;
 	}
-	status = st_rip3_stroke_path_vectors(host->ports, points, vertices,
-	    vertices == 4, &style->pen, &mask);
-	if (status == 0)
-		status = st_rip3_stroke_apply(host->ports, &mask, foreground, background, style->write_mode);
-	st_rip3_stroke_free(&mask);
-	return status;
+	return st_rip3_stroke_visits(host->ports,points,vertices,vertices==4,
+	    &style->pen,foreground,background,style->write_mode);
 }
 
 int

@@ -40,11 +40,12 @@ int st_rip3_draw_line(struct st_rip3_ports *ports,
 	const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
 	enum st_rip3_write_mode mode);
 
-/* Open/closed stroked path, 1..4096 vertices. Shared vertices, thick joins and
- * self-crossings are covered once per primitive before applying the write mode.
- * Pattern phase continues across segments; foreground wins where foreground and
- * background stroke coverage overlap. One vertex draws a point. Allocation
- * failure occurs before any pixels change. Inputs remain borrowed/unmodified. */
+/* Open/closed stroked path, 1..4096 vertices. Continuous endpoint-cap coverage
+ * forms one visit; leaving and reentering a pixel's stroke area applies the
+ * operation again. Duplicate vertices and ordinary closed seams add no visit.
+ * Pattern phase continues across segments; foreground wins within one joined
+ * visit. One vertex draws a point; a two-vertex polygon is a single line.
+ * Allocation failure preserves pixels. Inputs remain borrowed/unmodified. */
 int st_rip3_draw_path(struct st_rip3_ports *ports,
 	const struct st_rip3_point *points, size_t count, bool closed,
 	const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,

@@ -293,11 +293,14 @@ boundaries(void)
 	{
 		const unsigned points[][2] = {{0,0},{1073741822,536870911},{0,0}};
 		char shape[64];
-		command(shape,'P',3,points,5,64);
-		CHECK(st_rip3_ports_erase(host.ports, 0x55) == 0 && process(&host, shape,-1) == 0);
-		for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++) {
-			int32_t distance = 8*y-3*x;
-			CHECK(st_rip3_ports_read(host.ports, 0, x,y,&value) == 0 && value == (distance >= -4 && distance <= 4 ? 0x59 : 0x55));
+		for (unsigned retrace=0; retrace<2; retrace++) {
+			command(shape,retrace ? 'P' : 'l',retrace ? 3 : 2,points,5,64);
+			CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,shape,-1)==0);
+			for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++) {
+				int32_t distance=8*y-3*x;
+				bool on=retrace ? x==0 && y==0 : distance>=-4 && distance<=4;
+				CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(on ? 0x59 : 0x55));
+			}
 		}
 	}
 	st_rip3_stream_destroy(stream); destroy(&host);
@@ -398,7 +401,7 @@ shapes(void)
 		command(shape, variant == 1 ? 'l' : 'P', variant == 2 ? 5 : 4,bowtie,2,36);
 		CHECK(st_rip3_ports_erase(host.ports, 0x55) == 0 && process(&host, shape,-1) == 0);
 		for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++) {
-			bool on = expected[y][x] == 'F';
+			bool on = expected[y][x] == 'F' && !(x==3 && y==3);
 			if (variant == 1 && y == 1 && x > 1 && x < 5) on = false;
 			CHECK(st_rip3_ports_read(host.ports, 0,x,y,&value) == 0 && value == (on ? 0x59 : 0x55));
 		}
