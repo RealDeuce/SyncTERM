@@ -58,8 +58,10 @@ recovery. Original error-message/UI integration remains pending.
 Separate &/-/]/+/[ tests cover one-degree rotated contours, distinct field
 widths, order-dependent spans, pie/chord closure and multiple-traversal fill
 parity. Captures cover all canvases/bases/widths, screen/offscreen contexts,
-context fill phase and parser-owned recovery. PR #77 resolves the numeric/pen/
-pass questions; implementation and repeated XOR/NOT visit handling remain pending.
+context fill phase and parser-owned recovery. Filled skewed contours now cross
+both N states with all five W modes and retain patterned COPY borders, including
+opaque/transparent gap checks on retraced zero-area contours. Numeric-profile
+acceptance and standalone repeated XOR/NOT visit handling remain pending.
 K now uses current-mode fill followed by an enabled solid COPY border,
 independently of masks/opaque gaps. Coherent captures cover all canvases,
 bases, coordinate widths, thicknesses and N/flag combinations. Required border

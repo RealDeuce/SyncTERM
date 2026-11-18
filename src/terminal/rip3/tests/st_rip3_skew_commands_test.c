@@ -156,9 +156,9 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		".........." ".........." ".........." ".........." ".........." ".........." ".........." ".........." ".........." "..........",
 		".........." ".........." "...###...." "...###...." "..####...." "...###...." "...###...." ".........." ".........." "..........",
 	};
-	static const unsigned line[]={12,0x59,0x5d,4,0xaa,12,12,12};
-	static const unsigned fill[]={7,0x52,0x57,5,0xaa,7,7,7};
-	static const unsigned back[]={1,0x54,0x55,1,0xaa,1,1,1};
+	static const unsigned line[]={12,0x59,0x5d,4,0xaa,12};
+	static const unsigned fill[]={7,0x52,0x57,5,0xaa,7};
+	static const unsigned back[]={1,0x54,0x55,1,0xaa,1};
 	struct st_rip3_command_host host={0};
 	struct st_rip3_environment env;
 	struct st_rip3_style style;
@@ -167,8 +167,8 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	struct scene scene={&host,0};
 	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
 	struct st_rip3_stream *stream=NULL;
-	const struct st_rip3_rect screen={10,20,137,147},bitmap={0,0,127,127};
-	const struct st_rip3_rect view={2,3,121,122},copy={251,101,370,220};
+	const struct st_rip3_rect screen={10,20,137,187},bitmap={0,0,127,167};
+	const struct st_rip3_rect view={2,3,121,158},copy={251,101,370,256};
 	bool borders=false;
 	CHECK(create(&host,canvas,width,height)==0);
 	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
@@ -182,11 +182,11 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		env.world_width=width*scale;env.world_height=height*scale*2;
 		env.coordinate_size=xy;env.base_math=base;
 		CHECK(st_rip3_ports_erase(host.ports,0)==0);
-		for (unsigned row=0; row<8; row++) {
-			bool rgb=row==5 || row==7;env.rgb_bits=rgb ? 8 : 0;borders=row>=6;
+		for (unsigned row=0; row<12; row++) {
+			bool rgb=row%6==5;env.rgb_bits=rgb ? 8 : 0;borders=row>=6;
 			CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 			CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
-			style.write_mode=(enum st_rip3_write_mode)(row<5 ? row : 0);
+			style.write_mode=(enum st_rip3_write_mode)(rgb ? 0 : row%6);
 			style.drawing_color=rgb ? 0x0c0c0c : 12;style.fill_color=rgb ? 0x070707 : 7;
 			style.background_color=rgb ? 0x010101 : 1;
 			style.borders=borders;
@@ -209,14 +209,14 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		unsigned phase_x=offscreen ? 2 : 12,phase_y=offscreen ? 3 : 23;
 		for (uint32_t y=0; y<height; y++) for (uint32_t x=0; x<width; x++) {
 			unsigned expected=0;
-			if (x>=left && x<left+96 && y>=top && y<top+96) {
+			if (x>=left && x<left+96 && y>=top && y<top+144) {
 				unsigned col=(x-left)/12,row=(y-top)/12,u=(x-left)%12,v=(y-top)%12;
 				if (u<10 && v<10) {
 					bool outline=edge[col][v*10+u]=='#' || (col==7 && u==4 && v>=1 && v<=4);
 					expected=0x55;
 					if (col!=0 && col!=2 && inside[col][v*10+u]=='#')
-						expected=((phase_x+x-left+phase_y+y-top)%2==0 ? fill : back)[row];
-					if (outline && (col==0 || col==2)) expected=line[row];
+						expected=((phase_x+x-left+phase_y+y-top)%2==0 ? fill : back)[row%6];
+					if (outline && (col==0 || col==2)) expected=line[row%6];
 					if (outline && col!=0 && col!=2 && row>=6) expected=12;
 				}
 			}
@@ -293,16 +293,19 @@ boundaries(void)
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"[04040302002I00",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
-	/* #76 gaps are explicitly diagnosed, then the stream continues. */
+	/* PR #77 removes the historical COPY/solid-only restriction from
+	 * filled contours. The separate repeated standalone visit path is pending. */
 	style=original;style.write_mode=ST_RIP3_XOR;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	CHECK(process(&host,"[04040302002I00",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(process(&host,"[04040302002I00",-1)==0);
+	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(process(&host,"]0404030200JZ00",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0); /* 0..719 */
 	style=original;style.pen.pattern=0xaaaa;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	CHECK(process(&host,"-0404030200",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0);
+	CHECK(process(&host,"-0404030200",-1)==0);
+	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	/* A zero-radius vertical path gives an independent pattern-phase
 	 * check, including phase through repeated one-degree samples. */
 	style.write_mode=ST_RIP3_XOR;style.pen.draw_background=true;
@@ -312,14 +315,29 @@ boundaries(void)
 	uint8_t value;
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(x==3 && y<=3 ? (y%2!=0 ? 0x59 : 0x54) : 0x55));
+	/* A filled zero-width contour has no area. Its patterned COPY border
+	 * has identical results under every W, including NOT, in both gap modes.
+	 * Retraced vertical edges keep the same alternating phase on both visits. */
+	static const char *const vertical[]={"-0303000300","+03030003002I00","[03030003002I00"};
+	for (unsigned mode=0; mode<5; mode++) for (unsigned opaque=0; opaque<2; opaque++) {
+		style.write_mode=(enum st_rip3_write_mode)mode;style.pen.draw_background=opaque!=0;
+		CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+		for (unsigned kind=0; kind<3; kind++) {
+			CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,vertical[kind],-1)==0);
+			for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++) {
+				unsigned expected=x==3 && y<=(kind==0 ? 6 : 3) ? y%2!=0 ? 12 : opaque ? 1 : 0x55 : 0x55;
+				CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==expected);
+			}
+		}
+	}
 	original.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&original)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	struct scene scene={&host,0};
 	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
 	struct st_rip3_stream *stream=NULL;
 	CHECK(st_rip3_stream_create(&stream,&sink)==0);
-	wire(stream,"!|[04040302002I0?|W1|[04040302002I00|W0|]04040302000000|[03030003000000\r");
-	CHECK(scene.errors==2);
+	wire(stream,"!|[04040302002I0?|W1|[03030003000000|W0|]04040302000000|[03030003000000\r");
+	CHECK(scene.errors==1);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(x==3 && y==3 ? 12 : 0x55));
 	st_rip3_stream_destroy(stream);

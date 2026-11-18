@@ -4101,6 +4101,30 @@ pending status for RGB/active-color-mask integration. Totals are 619 implemented
 integration and full engine acceptance remain unfinished. No existing issue
 received content and no code was published.
 
+## PR #77 filled skewed composition
+
+Filled skewed `-`, `+` and `[` no longer reject non-COPY W or patterned line
+styles. They use the existing shared even-odd fill with W, then an N-enabled
+patterned COPY border with Draw/Back Color and the requested gap policy. The
+polygon kernel and contour generator are unchanged. Standalone repeated-turn
+XOR/NOT still requires genuine-visit stroking; the union-mask restriction is
+now described as pending implementation, not as an unanswered documentation gap.
+
+The skewed scene now crosses both N states with all five modes and resolved-
+color COPY on all canvases, screen/offscreen ports, bases, XY widths and world
+scales. Original-source Q14 contour literals and independent pixel-center parity
+oracles are retained. Additional zero-width whole/chord/pie paths verify patterned
+COPY borders independently of W and both gap settings, including retraced edges
+and transparent destination retention. Allocation/ink failure tests and split-
+input recovery remain covered. The native incremental build succeeds without
+warnings; only `rip3_skew_commands` runs for this second change, and passes.
+The three just-passed sector/curve/border tests are reused. Six broader ledger
+units record partial evidence and retain pending status for RGB/active-color
+masks, standalone visits and complete numeric-profile acceptance. Counts remain
+619 implemented, 1550 pending, 4204 unreviewed, 1030 contextual, 24 excluded and
+28 blocked across 7455 blocks. No legacy source/fixture, active route or reference
+pin changes; temporary build logs are removed and no issue content is published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

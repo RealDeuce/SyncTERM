@@ -321,6 +321,10 @@ struct st_rip3_command_sink {
  * point; I/i draw a COPY radius only with N1, and _ is empty. Full Pie retains
  * its internal radius only with N1. O consumes angles but always draws a full
  * ellipse. Numeric/topology behavior remains distinct from output composition.
+ * Filled skewed -/+/[ paths use the shared even-odd polygon fill with W and
+ * optional patterned COPY borders, including opaque/transparent gaps. Their
+ * line masks do not restrict the selected fill mode. Standalone repeated-turn
+ * XOR/NOT paths remain unsupported until genuine visits replace union coverage.
  * Argumentless E replaces the active viewport with resolved background ink in
  * COPY, independently of pen/fill/write mode. It retains attributes and table
  * references, skips inactive ink lookup and allows protected contents to clear.

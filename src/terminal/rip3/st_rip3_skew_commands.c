@@ -28,8 +28,8 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	if (status==0) status=st_rip3_styles_get(host->styles,current,&style);
 	if (status!=0) return status;
 	/* Preserve the entire contour, including repeated turns. The effective
-	 * repeated XOR/NOT visit contract is awaiting #76, rather than merging
-	 * those visits into a guessed one-write result. */
+	 * XOR/NOT contract requires distinct genuine visits; this union-mask
+	 * stroker still needs that implementation before accepting repeated turns. */
 	if (!filled && path->end-path->start>360
 	    && (style.write_mode==ST_RIP3_XOR || style.write_mode==ST_RIP3_NOT))
 		return IO_ERROR_NOT_SUPPORTED;
@@ -37,8 +37,6 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	if (filled) {
 		bool uses_foreground=false,uses_background=false;
 		borders = style.borders;
-		if (borders && (style.write_mode!=ST_RIP3_COPY || style.pen.pattern!=0xffff))
-			return IO_ERROR_NOT_SUPPORTED; /* Original Polygon pass contract: #76. */
 		for (size_t i=0; i<8; i++) {
 			uses_foreground |= style.fill.rows[i]!=0;
 			uses_background |= style.fill.rows[i]!=255;
