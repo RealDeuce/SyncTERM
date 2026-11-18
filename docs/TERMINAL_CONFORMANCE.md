@@ -46,9 +46,9 @@ screen/offscreen captures cover all canvases, bases, coordinate widths and write
 modes. Separate I/i/_ consumers now cover pie/chord interiors, distinct radial
 closures, equal-endpoint radial/empty branches and coincident-ray full figures.
 Their coherent captures include context-phased fill, five unbordered modes,
-solid COPY borders and parser-owned allocation/error recovery. Patterned pens
-and non-COPY sector borders remain blocked on #75; active-engine integration
-remains pending.
+solid COPY borders and parser-owned allocation/error recovery. PR #77 resolves
+the sector drawing contract; N0 radial suppression and complete consumer
+reconciliation remain pending, as does active-engine integration.
 Separate Z/z/t/x tests cover wrapped fixed-point Bézier sampling, omitted
 samples, typed records/closures, low16 conversion and independent collection/
 expansion limits. Coherent captures cover fractional WORLD projection, all
@@ -57,20 +57,22 @@ recovery. Original error-message/UI integration remains pending.
 Separate &/-/]/+/[ tests cover one-degree rotated contours, distinct field
 widths, order-dependent spans, pie/chord closure and multiple-traversal fill
 parity. Captures cover all canvases/bases/widths, screen/offscreen contexts,
-context fill phase and parser-owned recovery. Missing numeric/pen/pass acceptance
-and repeated XOR/NOT outline behavior are tracked in #76.
-Separate K tests now cover the current logical pen/write mode, fixed type-4
+context fill phase and parser-owned recovery. PR #77 resolves the numeric/pen/
+pass questions; implementation and repeated XOR/NOT visit handling remain pending.
+Existing K tests record historical logical pen/write mode, fixed type-4
 DASHDOTDOT mapping, wide solid pens, opaque single-pass versus transparent
 two-pass overlap, and NOT's unused inks. Style copies/backups preserve selected
 line type independently of custom masks. Coherent captures cover all canvases,
-bases, coordinate widths and border/flag combinations.
+bases, coordinate widths and border/flag combinations. K must be reconciled
+with PR #77's solid COPY-border rule before claiming current compliance.
 Separate P/l/p/< tests reconcile direct small/maximum counts, asymmetric
 multi-contour count widths and the shared 8193-number budget. Coherent captures
 cover holes, overlap cancellation, nested islands, patterned COPY borders,
 current-mode fills and nonfatal rejection before painting. Exact original
 error wording and POLYPOLY.RIP corpus/continuation replay remain pending.
 Separate U/u tests cover X-world radius conversion, independent oversize fitting,
-normalized/zero/wide bounds, logical pens and current-mode brush/pen passes.
+normalized/zero/wide bounds, logical pens and historical current-mode passes.
+The filled u consumer still needs PR #77's solid COPY-border correction.
 Coherent captures span all canvases, bases, widths and screen/offscreen contexts;
 allocation failures recover before painting. Extreme original DWORD overflow
 remains pending, while the low-WORD Y-radius sign/zero cases are covered.
@@ -96,7 +98,7 @@ pending.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their
-effective non-COPY write modes remain blocked on the documented #74 question.
+non-COPY write modes await implementation against the adopted PR #77 answers.
 All twelve stock fill masks and custom masks use fixed drawing-context phase
 in the separate wire engine. Coherent captures cover both world scales, all
 canvases/radices/widths, negative relative viewport origins, indexed modes, RGB

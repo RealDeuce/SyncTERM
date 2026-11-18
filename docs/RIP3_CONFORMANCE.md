@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-c9a66b27edc93d4522b21510c1379eb10230f85d](https://github.com/RealDeuce/remote-imaging-protocol/tree/c9a66b27edc93d4522b21510c1379eb10230f85d/version/3.0)
+72edbfc6c151d86a120fec3cabbde3cad32c9c0b](https://github.com/RealDeuce/remote-imaging-protocol/tree/72edbfc6c151d86a120fec3cabbde3cad32c9c0b/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -16,10 +16,11 @@ Source indexing is discovery, not adjudication or working-feature evidence.
 
 The user approved adopting the open documentation integration PR #71. Its
 reviewed inactive-viewport #21 follow-up and PR #73's DEFINE_PORT clarification
-are included in the current pin.
+are included in the current pin. PR [#77](https://github.com/bbs-land/remote-imaging-protocol/pull/77)
+now supplies the adopted drawing contract for issues #74, #75 and #76.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7357 blocks in 65 normative
+provenance, scope and reopened claims. There are now 7455 blocks in 67 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -3973,6 +3974,46 @@ snapshots. Six affected CTests pass once: extended font commands, classic font
 commands, text commands, STYLE commands, STYLE service and allocation failures.
 The native CMake project builds; no unrelated renderer tests were repeated.
 RIP1.54 and the active application route remain unchanged.
+
+## PR #77 drawing-contract adoption
+
+The fork's `stable` revision `72edbfc6c151d86a120fec3cabbde3cad32c9c0b`
+includes reviewed PR [#77](https://github.com/bbs-land/remote-imaging-protocol/pull/77)
+head `af5468de5f5d1e4ad91b389c5766be5ed1f1293f`. The PR is open upstream;
+its complete changes are already integrated in the reference branch. This
+adoption resolves local documentation blockers B74/B75/B76 without treating
+those requirements as implemented. No issue received comments or other content.
+
+The contract gives X/j all five drawing operations; filled regions use W before
+an optional COPY border. K/u/G/o borders are solid. Polygon-related borders use
+the requested pattern, including custom masks at supported widths. N0 removes
+radial/closing outlines. Genuine standalone stroke revisits apply W again;
+shared joins and redundant closure records do not automatically add visits.
+Skewed geometry converts to device coordinates before rotation. Its complete
+Q14 tables and staged floors are an optional compatibility profile, without
+requiring native integer overflow. Graphics-text color contributions honor W;
+historical FastFont fixed-copy behavior is not a protocol exception. Image
+source-NOT remains distinct from drawing destination-NOT.
+
+Fourteen existing normative documents change and two composition documents are
+added. Exact source/heading matches carry 7338 block reviews, including 927 moved
+line references. The 117 new or substantively changed blocks are reviewed as
+pending/context. Eleven old implementation claims are replaced or removed;
+five otherwise unchanged claims are reopened where the composition rules
+invalidate historical rendering evidence. Seventeen documentation-blocked units
+become pending. The ledger now has 615 implemented, 1555 pending, 4204 unreviewed,
+1029 contextual, 24 excluded and 28 blocked units across 7455 blocks. Old milestone
+tests remain historical evidence until their affected expectations and consumers
+are reconciled; in particular the prior K/u logical-pen/current-W behavior does
+not satisfy the new solid COPY-border contract.
+
+The adoption record preserves the exact archive digest, all 67 document hashes,
+changed claims and hashes for the new derivation and independent pixel/Q14 data.
+Only the changed ledger/adoption consistency is checked for this metadata update;
+the just-passed native build, six font-state tests and unchanged RIP1.54 freeze
+evidence are reused. No rendering or preservation suite is rerun. The downloaded
+reference tree and review scratch file are removed. Source implementation,
+legacy pins and the active application route are unchanged by this adoption.
 
 ## Verification and acceptance
 

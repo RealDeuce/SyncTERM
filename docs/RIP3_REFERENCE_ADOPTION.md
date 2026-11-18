@@ -29,7 +29,7 @@ state has no documented guarantee. No viewport contract changed. Documentation
 blocker B72 is resolved locally; implementation acceptance is tracked separately
 in [the DEFINE_PORT milestone](RIP3_CONFORMANCE.md#define_port-protocol-implementation).
 
-The current index contains **7357 blocks in 65 documents**. Exact and separately
+The PR #73 index contained **7357 blocks in 65 documents**. Exact and separately
 verified formatting-only matches retain their review evidence. New or changed
 DEFINE_PORT requirements remain pending. The adoption record retains the prior
 pin, archive digests, 35 derivation identities and hashes of both original
@@ -38,7 +38,7 @@ tied to its initial revision. Both reference archives were independently
 reindexed in automatically removed temporary directories; no upstream probe
 code ran and no GitHub issue was modified.
 
-The reference source is now
+The reference source moved to
 [`RealDeuce/remote-imaging-protocol:stable`](https://github.com/RealDeuce/remote-imaging-protocol/tree/stable),
 pinned at `c9a66b27edc93d4522b21510c1379eb10230f85d`. All 65 normative documents,
 34 of 35 recorded derivations and both original protocol text sources are
@@ -60,11 +60,38 @@ reference prose do not authorize changing the frozen local implementation,
 assets or expected results. External application and URL launching remain
 excluded. No code is pushed and no PR is published by this adoption.
 
+## Drawing-contract update from PR #77
+
+The current pin is stable revision
+[`72edbfc6c151d86a120fec3cabbde3cad32c9c0b`](https://github.com/RealDeuce/remote-imaging-protocol/tree/72edbfc6c151d86a120fec3cabbde3cad32c9c0b).
+It includes open [PR #77](https://github.com/bbs-land/remote-imaging-protocol/pull/77)
+head `af5468de5f5d1e4ad91b389c5766be5ed1f1293f`, answering issues #74–#76.
+Review covered the changed normative text, both new composition pages and their
+source/inference boundaries. The exact downloaded archive digest is
+`9a1b8592ad4dfcb953a0103f12393ddb63c23da23934ca7f834f2e3065e760a7`.
+
+Fourteen normative documents change and two are added: the index now contains
+7455 blocks in 67 documents. Exact source/heading matches retain 7338 reviews;
+927 line references move. Eleven implementation claims are replaced/removed and
+five otherwise unchanged claims are reopened. Seventeen requirements become
+pending after the documentation answers resolve B74/B75/B76. The new contract
+prioritizes protocol write operations, N0 suppression and COPY/solid or patterned
+filled borders over conflicting historical client observations. It supplies
+optional Q14 geometry without requiring integer-overflow reproduction. The
+[implementation inventory](RIP3_CONFORMANCE.md#pr-77-drawing-contract-adoption)
+records pending consumer changes; adoption is not implementation acceptance.
+
+Only ledger/adoption consistency is newly checked. The native build, affected
+font tests and legacy preservation results from the preceding implementation
+remain valid and are reused. No upstream checker or client is executed. The
+owned archive/extraction and scratch metadata are removed. No existing issue
+is modified, and no code is published.
+
 ## Source and review evidence
 
 [`reference-review.json`](../src/tests/rip3/reference-review.json) records the
-exact archive digest, old pin and local ledger commit, all 65 normative document
-identities, issue-derivation identities, changed/new document paths, and the
+exact archive digest, old pin and local ledger commit, the normative document
+identities (initially 65, now 67), issue-derivation identities, changed/new paths, and the
 implementation claims carried or reopened. The downloaded archive was extracted
 inside an automatically removed temporary directory. No upstream probe code was
 executed. The ordinary pinned-source indexer independently reproduced every new

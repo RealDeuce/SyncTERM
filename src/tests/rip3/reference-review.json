@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/73",
-  "revision": "c9a66b27edc93d4522b21510c1379eb10230f85d",
-  "previous_revision": "ea8eacdf83593d0e5ccdb706a9c065ffca2cda9c",
-  "authorization": "User directed future reference to RealDeuce/remote-imaging-protocol:stable, retaining parent issue filing and no further comments once a PR exists.",
-  "upstream_state_at_adoption": "Exact stable branch head reviewed and pinned; normative documents unchanged. One research delivery-status link total changes only.",
-  "archive_sha256": "bc71c792dfe459172e791ca584ec1ec8e697f4bd3145eaccc994275ba67c23ff",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/77",
+  "revision": "72edbfc6c151d86a120fec3cabbde3cad32c9c0b",
+  "previous_revision": "c9a66b27edc93d4522b21510c1379eb10230f85d",
+  "authorization": "User directed stable as the reference branch and supplied PR #77 as answers to open issues.",
+  "upstream_state_at_adoption": "PR open; reviewed head already integrated in fork stable.",
+  "archive_sha256": "9a1b8592ad4dfcb953a0103f12393ddb63c23da23934ca7f834f2e3065e760a7",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1073,7 +1073,7 @@
     {
       "path": "version/3.0/research/issue-15-bezier-contracts.md",
       "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
-      "title": "Issue #15: B\u00e9zier equations, subdivision and block grammar",
+      "title": "Issue #15: Bézier equations, subdivision and block grammar",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1298,11 +1298,15 @@
     },
     {
       "path": "version/2.0/techspecs/2.1-fill-defects.md",
-      "sha256": "b8ac75fcb197297f23a52e251f14839a2687331c8e6f88a5fe6d6619c2070f74"
+      "sha256": "b827b03589a70b2a8797294bfbaf772da7a95c3cd98df9212b9ef933949bad87"
+    },
+    {
+      "path": "version/2.0/techspecs/2.3-drawing-composition.md",
+      "sha256": "cdac6f7aebdb53d530b2ebeb2e2e2a0366da4f2e3da0ee3906ff2f2ded6b129c"
     },
     {
       "path": "version/2.0/techspecs/3.0-icon-formats.md",
-      "sha256": "943fe503bca72c15b4396cac0324e4a86e76e47b6969cc4aba3922bca1fa0313"
+      "sha256": "5927bac40eeca6d85c017ca0f78da41d097dade17cdffce301df3ccba202ce40"
     },
     {
       "path": "version/2.0/techspecs/3.1-jpeg-images.md",
@@ -1330,7 +1334,7 @@
     },
     {
       "path": "version/2.0/techspecs/README.md",
-      "sha256": "3773938d8de6ce38a2ae458fe55078b8bae2a7dff5692a44e8e9cc1399b110f9"
+      "sha256": "8273f8e54f2d85c00c2777c40b4ea720ccc81e1e6e40360874fc3443ecf611c2"
     },
     {
       "path": "version/3.0/ripscrip/1.0-introduction.md",
@@ -1354,23 +1358,23 @@
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "sha256": "00b90c9d7aefc2986ae3e0e60fd8541a260b9f79ab5c6334f7a2114340db4d0e"
+      "sha256": "c158002ba7b974fd3428ca4f11c8ac7128f84a531819645153eafaeca4f519bd"
     },
     {
       "path": "version/3.0/ripscrip/2.1-lines.md",
-      "sha256": "1f4a9c242c38bfddc770d784f290d29ac2db24746234cb5c7ac98c221dc8b985"
+      "sha256": "93920713e4a0dfb81affec46ed6ef6124edde97b704859db2600d892656d34c1"
     },
     {
       "path": "version/3.0/ripscrip/2.2-curves.md",
-      "sha256": "d3b9211fcc55b7556fe8c1687c609de2b2837039e738d5c01e6933a0bc795415"
+      "sha256": "f0b6368847adf70cbc75d4387d587a7137892ceae19eda91f73cacc8ecb15d45"
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
-      "sha256": "34ee7fbcf88bf2e84c97af837ea229c6f2d0aa1283880b64297924ce551c2fb2"
+      "sha256": "935795e6b227d6a6f312b34de22b0b14d18c28d9a74b7658a1223efbf7bea2ca"
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "98959921148524d3a0de33b6f103b17ef8f8e0c64e6216e514c673a3090f17b3"
+      "sha256": "02a4f70a78cf30cbc6af0b774797c23eb4ed8d3fb0ea01d7e576e6f71ee9e8fd"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1378,7 +1382,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "23f4173992867b5cd6a579884eca6119e9df3bfbe5309f43273d0adb595d5f95"
+      "sha256": "383580f1e000240373e8c3dd7622698fc9e221d281a63362f94e8020d17d6a06"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1474,19 +1478,23 @@
     },
     {
       "path": "version/3.0/techspecs/2.1-arc-consumer-contract.md",
-      "sha256": "6149f4239cfd79940b912a50ecdadfa895df720e0a8dbe29a03a5b34b8ae2854"
+      "sha256": "995195d4f365c9afc336e53f1258561d7049a2e9637ab928bdc150363e84192d"
     },
     {
       "path": "version/3.0/techspecs/2.2-bezier-consumer-contract.md",
-      "sha256": "a643f8722edb99739a1be06a4699f26eb5aa1fee364ab29ad3a73f27fc754a8f"
+      "sha256": "0fccd4d41a6fb0a1b77eee7c09fef13681e4b489d598d7c08a6fb489224edeac"
+    },
+    {
+      "path": "version/3.0/techspecs/2.3-drawing-composition.md",
+      "sha256": "a496db7fb21546db96d11be40373160c704bc693f76a81962996af6841cae674"
     },
     {
       "path": "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
-      "sha256": "fb46fb23b7719da4112e615ffc30677e90b9a73b3fa66fed06b19e1fee5f0d70"
+      "sha256": "c0d5ff1572a798d025de246d7d18fb67f11268dcf59899447c71bedd3ec6995e"
     },
     {
       "path": "version/3.0/techspecs/3.2-fastfont-additions.md",
-      "sha256": "6b88a577ae92a7490381df222172d5ea90206e090504e94523a089eb7d8a4840"
+      "sha256": "b2111b9ab2cbe98cae8e2759ab91b9c9b04a7c08202da8a73998fdd99f589c8c"
     },
     {
       "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
@@ -1498,7 +1506,7 @@
     },
     {
       "path": "version/3.0/techspecs/README.md",
-      "sha256": "809fa0c12b3fe4398a4100b1d92ecef46d9bac83039c73a221c5051b90115feb"
+      "sha256": "fea9404b32b85f30d8c8e488d29098b07781263e6f770dcc73124276342f1488"
     },
     {
       "path": "version/baseline/techspecs/ansi-vt-support.md",
@@ -1778,6 +1786,128 @@
       ],
       "source_blocks_after_update": 7357,
       "prior_adoption_commit": "ea9b32b659c436fde5b229b03895b5fc8a8cfad0"
+    },
+    {
+      "previous_revision": "c9a66b27edc93d4522b21510c1379eb10230f85d",
+      "revision": "72edbfc6c151d86a120fec3cabbde3cad32c9c0b",
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/77",
+      "pull_request_revision": "af5468de5f5d1e4ad91b389c5766be5ed1f1293f",
+      "upstream_state": "PR open; reviewed head already integrated in fork stable.",
+      "authorization": "User directed stable as the reference branch and supplied PR #77 as answers to open issues.",
+      "archive_sha256": "9a1b8592ad4dfcb953a0103f12393ddb63c23da23934ca7f834f2e3065e760a7",
+      "prior_adoption_commit": "1a74925b",
+      "changed_documents": [
+        "version/2.0/techspecs/2.1-fill-defects.md",
+        "version/2.0/techspecs/3.0-icon-formats.md",
+        "version/2.0/techspecs/README.md",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+        "version/3.0/ripscrip/2.1-lines.md",
+        "version/3.0/ripscrip/2.2-curves.md",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md",
+        "version/3.0/techspecs/2.2-bezier-consumer-contract.md",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
+        "version/3.0/techspecs/3.2-fastfont-additions.md",
+        "version/3.0/techspecs/README.md"
+      ],
+      "new_documents": [
+        "version/2.0/techspecs/2.3-drawing-composition.md",
+        "version/3.0/techspecs/2.3-drawing-composition.md"
+      ],
+      "retired_documents": [],
+      "matched_source_blocks": 7338,
+      "moved_source_blocks": 927,
+      "new_or_substantively_changed_source_blocks": 117,
+      "removed_or_replaced_implementation_claims": [
+        "version/3.0/ripscrip/2.1-lines.md:153",
+        "version/3.0/ripscrip/2.1-lines.md:162",
+        "version/3.0/ripscrip/2.2-curves.md:24",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:45",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:47",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:49",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:117",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:309",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:379",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:626",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:29"
+      ],
+      "reopened_implementation_claims": [
+        {
+          "id": "version/3.0/ripscrip/2.1-lines.md:103",
+          "previous_status": "implemented",
+          "reason": "PR #77 requires revised N/filled-border, custom-mask or genuine-revisit composition semantics."
+        },
+        {
+          "id": "version/3.0/ripscrip/2.2-curves.md:42",
+          "previous_status": "implemented",
+          "reason": "PR #77 requires revised N/filled-border, custom-mask or genuine-revisit composition semantics."
+        },
+        {
+          "id": "version/3.0/ripscrip/2.3-shapes-and-fills.md:95",
+          "previous_status": "implemented",
+          "reason": "PR #77 requires revised N/filled-border, custom-mask or genuine-revisit composition semantics."
+        },
+        {
+          "id": "version/3.0/ripscrip/2.3-shapes-and-fills.md:257",
+          "previous_status": "implemented",
+          "reason": "PR #77 requires revised N/filled-border, custom-mask or genuine-revisit composition semantics."
+        },
+        {
+          "id": "version/3.0/techspecs/2.1-arc-consumer-contract.md:34",
+          "previous_status": "implemented",
+          "reason": "PR #77 requires revised N/filled-border, custom-mask or genuine-revisit composition semantics."
+        }
+      ],
+      "carried_implementation_claims": 615,
+      "resolved_issues": [
+        74,
+        75,
+        76
+      ],
+      "source_blocks_after_update": 7455,
+      "states_after_update": {
+        "unreviewed": 4204,
+        "context": 1029,
+        "pending": 1555,
+        "implemented": 615,
+        "blocked": 28,
+        "excluded": 24
+      },
+      "reviewed_changes": [
+        "Point operations honor W on all ports; thick points contribute once per pixel.",
+        "Filled regions use W followed by optional COPY borders; N0 suppresses radial/closing outlines.",
+        "Polygon-related borders retain requested masks at supported widths; K/u/G/o borders are solid.",
+        "Standalone genuine repeated visits apply W again; joins/duplicate closure vertices do not automatically count twice.",
+        "Skewed geometry scales before rotation; full Q14 tables/staged floor rules form an optional compatibility profile; native overflow is not required.",
+        "Graphics text honors W; old FastFont fixed-copy presentation is historical behavior; coverage aggregation remains a font policy.",
+        "Image source-NOT is distinct from drawing destination-NOT; no global W pass after explicit image modes."
+      ],
+      "implementation_followups": [
+        "Remove COPY-only X/j restrictions and use independent nonblack-destination vectors.",
+        "Reconcile K/u/G/o and I/i/_ border operation/solidness and N0 radial suppression.",
+        "Reconcile polygon/custom wide masks and standalone repeated-visit composition.",
+        "Complete skewed device conversion/rotation and independently test geometry, traversal, fill parity and operation phases.",
+        "Resolve active indexed NOT mask and graphics-text coverage policy during scene integration."
+      ],
+      "supporting_sources": [
+        {
+          "path": "version/3.0/research/issues-74-76-drawing-contract.md",
+          "sha256": "d1917fd76dfd87547fa221a01f47733b35740b33c6f7dfbd0309ef85f2cc452c",
+          "bytes": 15684
+        },
+        {
+          "path": "version/2.0/techspecs/data/drawing-operations.json",
+          "sha256": "024e151b1a1da5db1676c69499553635258e57e0ccd72a7b9555473176686ab9",
+          "bytes": 2542
+        },
+        {
+          "path": "version/3.0/techspecs/data/skewed-ellipse-q14.json",
+          "sha256": "c545c1dd4a1e81993d1cc3518d96a3264115e2faf65766f2ef0b44c4cf30669d",
+          "bytes": 10137
+        }
+      ]
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
