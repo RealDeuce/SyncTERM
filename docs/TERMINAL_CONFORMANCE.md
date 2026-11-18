@@ -24,6 +24,9 @@ The separate [RIPscrip 3.0 implementation goal](RIP3_CONFORMANCE.md) pins its
 documentation and tracks requirements and upstream blockers. Its source guard
 freezes the existing RIP 1.54 implementation and historical fixtures. This is
 preservation/inventory coverage, not a claim of RIPtel 3.1 compliance. Separate
+RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
+fields/names, one-time baseline conversion and `q` attribute OR/protection.
+Font realization and outline text commands remain pending.
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port
 captures on all three canvases, including copy modes, clipping, scaling and
 overlap recovery. DEFINE_PORT tests cover independent

@@ -251,6 +251,8 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_port_commands_execute(host, command, length, operation);
 	if (command[0] == 'm' || command[0] == 'T' || command[0] == '@')
 		return st_rip3_text_commands_execute(host,command,length,operation);
+	if (command[0] == 'y' || command[0] == 'q')
+		return st_rip3_font_commands_execute(host,command,length,operation);
 	if (command[0] == 'A' || command[0] == 'C' || command[0] == 'G' || command[0] == 'o'
 	    || command[0] == 'O' || command[0] == 'V' || command[0] == 'I'
 	    || command[0] == 'i' || command[0] == '_')

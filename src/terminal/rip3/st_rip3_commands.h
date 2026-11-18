@@ -70,7 +70,7 @@ struct st_rip3_command_sink {
  * and resolved text (UTF-8 resource names, preserving control tokens). This
  * entry does not buffer partial input or perform macro expansion.
  *
- * Implements J, n, f, Q, a, c, k, numeric W, Y, =, E, L, R, B, K, C, G, o,
+ * Implements J, n, f, Q, a, c, k, numeric W, Y, literal-name y, q, =, E, L, R, B, K, C, G, o,
  * COPY-mode X/j, m, classic literal T and nonzero-font @,
  * the existing font-zero horizontal-left @ geometry,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
@@ -297,6 +297,13 @@ struct st_rip3_command_sink {
  * ENV/PORT selection and protection do not own this setting. Fixed new-style
  * defaults enable it, and STYLE snapshots preserve it. Scene reset wiring
  * and complete extended-style activation remain separate.
+ * y consumes 26 fixed UltraNum characters and an owned, truncated 39-byte
+ * literal name. It retains all flags/compatibility bytes, accepts size zero,
+ * validates rotations/positive spacing and converts optional world baseline
+ * magnitude once at definition. Ignored fields have no stored state. q ORs
+ * current-base attributes 0..15 into an unprotected outline STYLE; Y selects
+ * classic mode while retaining dormant outline fields. No font lookup,
+ * outline text production or name expansion is implied by these state edits.
  * U/u consume five complete XY fields, normalize corners and scale radius
  * with X. Corner semiaxes fit each device span independently; the original
  * low-WORD Y-radius sign/zero behavior is retained. U always strokes; u uses

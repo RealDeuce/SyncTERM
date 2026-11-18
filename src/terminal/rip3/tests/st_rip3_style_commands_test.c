@@ -124,7 +124,7 @@ matrix(void)
 				CHECK(st_rip3_environments_define(host.environments,1,&env)==0
 				    && st_rip3_environments_select(host.environments,1)==0 && st_rip3_environments_protect(host.environments,1,true)==0);
 				CHECK(st_rip3_styles_get(host.styles,0,&first)==0);
-				first.font_mode=ST_RIP3_FONT_OUTLINE;first.borders=false;
+				first.font_mode=ST_RIP3_FONT_OUTLINE;first.outline.spacing=100;first.borders=false;
 				CHECK(st_rip3_styles_define(host.styles,1,&first)==0 && st_rip3_styles_switch(host.styles,1)==0);
 				CHECK(st_rip3_styles_protect(host.styles,1,source!=0)==0);
 				last=first;last.drawing_color=5;last.fill_color=3;last.font_mode=ST_RIP3_FONT_CLASSIC;
@@ -252,7 +252,7 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(create(&host,canvas,width,height)==0);host.text=&text;
 	const struct st_rip3_cursor point={2,8};CHECK(st_rip3_ports_cursor(host.ports,0,&point)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0 && st_rip3_fill_solid(&style.fill,true)==0);
-	style.font_mode=ST_RIP3_FONT_OUTLINE;style.borders=false;
+	style.font_mode=ST_RIP3_FONT_OUTLINE;style.outline.spacing=100;style.borders=false;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"TA",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	CHECK(st_rip3_stream_create(&stream,&sink)==0);

@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct style_entry {
 	struct st_rip3_style_info info;
@@ -26,6 +27,12 @@ valid(const struct st_rip3_style *value)
 	    && value->fill_color <= 0xffffff && value->pen.pattern != 0 && value->line_type <= 4
 	    && value->pen.thickness > 0 && value->pen.thickness <= INT32_MAX
 	    && value->font_mode >= ST_RIP3_FONT_CLASSIC && value->font_mode <= ST_RIP3_FONT_OUTLINE
+	    && value->outline.compatibility_s <= 63 && value->outline.compatibility_f <= 63
+	    && value->outline.flags <= 0xffffff && value->outline.size <= 4095 && value->outline.shadow <= 4095
+	    && value->outline.string_rotation <= 2700 && value->outline.string_rotation%900 == 0
+	    && value->outline.character_rotation <= 2700 && value->outline.character_rotation%900 == 0
+	    && value->outline.spacing <= 4095 && (value->font_mode != ST_RIP3_FONT_OUTLINE || value->outline.spacing != 0)
+	    && value->outline.baseline <= INT32_MAX && memchr(value->outline.name,0,sizeof(value->outline.name)) != NULL
 	    && value->write_mode >= ST_RIP3_COPY && value->write_mode <= ST_RIP3_NOT
 	    && st_rip3_classic_text_style_set(&font, value->font.font,
 	    value->font.direction, value->font.magnification, value->font.flags) == 0;
@@ -37,7 +44,7 @@ st_rip3_style_defaults(struct st_rip3_style *result)
 	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_style value = {.drawing_color=15,.fill_color=15,
 	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},
-	    .write_mode=ST_RIP3_COPY,.borders=true};
+	    .write_mode=ST_RIP3_COPY,.borders=true,.outline={.spacing=100}};
 	(void)st_rip3_fill_solid(&value.fill,true);
 	*result = value;
 	return 0;

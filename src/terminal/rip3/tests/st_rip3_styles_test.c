@@ -28,8 +28,10 @@ value(unsigned number)
 		.drawing_color=0x112200+number, .background_color=0x445500+number,
 		.fill_color=0x330000+number, .pen={0},
 		.font={number%11,number%2,number%10+1,number%3 | vertical[number%4]},
+		.outline={.compatibility_s=number,.compatibility_f=35-number,.flags=number*73,.size=number,.shadow=number+1,.string_rotation=(number%4)*900,.character_rotation=((number+1)%4)*900,.spacing=100+number,.baseline=number*3},
 		.write_mode=(enum st_rip3_write_mode)(number%5), .line_type=number%5, .borders=number%2!=0, .font_mode=number%2!=0 ? ST_RIP3_FONT_OUTLINE : ST_RIP3_FONT_CLASSIC,
 	};
+	(void)snprintf(style.outline.name,sizeof(style.outline.name),"font-%u",number);
 	style.pen.pattern = (uint16_t)(0xa500+number);
 	style.pen.thickness = number+1;
 	style.pen.draw_background = (number%2) != 0;
@@ -48,7 +50,12 @@ equal(const struct st_rip3_style *a, const struct st_rip3_style *b)
 	    && a->fill.origin.x == b->fill.origin.x && a->fill.origin.y == b->fill.origin.y
 	    && a->font.font == b->font.font && a->font.direction == b->font.direction
 	    && a->font.magnification == b->font.magnification && a->font.flags == b->font.flags
-	    && a->write_mode == b->write_mode && a->borders == b->borders && a->font_mode == b->font_mode;
+	    && a->write_mode == b->write_mode && a->borders == b->borders && a->font_mode == b->font_mode
+	    && a->outline.compatibility_s == b->outline.compatibility_s && a->outline.compatibility_f == b->outline.compatibility_f
+	    && a->outline.flags == b->outline.flags && a->outline.size == b->outline.size && a->outline.shadow == b->outline.shadow
+	    && a->outline.string_rotation == b->outline.string_rotation && a->outline.character_rotation == b->outline.character_rotation
+	    && a->outline.spacing == b->outline.spacing && a->outline.baseline == b->outline.baseline
+	    && strcmp(a->outline.name,b->outline.name) == 0;
 }
 
 static int
@@ -64,7 +71,7 @@ defaults(void)
 {
 	struct st_rip3_style result = {.drawing_color=15,.fill_color=15,
 	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},
-	    .write_mode=ST_RIP3_COPY,.borders=true};
+	    .write_mode=ST_RIP3_COPY,.borders=true,.outline={.spacing=100}};
 	memset(result.fill.rows,255,8);
 	return result;
 }
@@ -141,7 +148,7 @@ errors(void)
 	CHECK(st_rip3_styles_protect(styles, 0, true) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_styles_define(styles, 36, &initial) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_styles_define(styles, 1, NULL) == IO_ERROR_INVALID_ARGUMENT);
-	for (unsigned which = 0; which < 15; which++) {
+	for (unsigned which = 0; which < 25; which++) {
 		invalid = initial;
 		switch (which) {
 			case 0: invalid.drawing_color = 0x1000000; break;
@@ -158,7 +165,17 @@ errors(void)
 			case 11: invalid.line_type = 5; break;
 			case 12: invalid.write_mode = (enum st_rip3_write_mode)-1; break;
 			case 13: invalid.font_mode = (enum st_rip3_font_mode)2; break;
-			default: invalid.font_mode = (enum st_rip3_font_mode)-1; break;
+			case 14: invalid.font_mode = (enum st_rip3_font_mode)-1; break;
+			case 15: invalid.outline.compatibility_s = 64; break;
+			case 16: invalid.outline.compatibility_f = 64; break;
+			case 17: invalid.outline.flags = 0x1000000; break;
+			case 18: invalid.outline.size = 4096; break;
+			case 19: invalid.outline.shadow = 4096; break;
+			case 20: invalid.outline.string_rotation = 3600; break;
+			case 21: invalid.outline.character_rotation = 1; break;
+			case 22: invalid.outline.spacing = 4096; break;
+			case 23: invalid.outline.baseline = UINT32_MAX; break;
+			default: memset(invalid.outline.name,'A',sizeof(invalid.outline.name)); break;
 		}
 		CHECK(st_rip3_styles_create(&sentinel, &invalid) == IO_ERROR_OUT_OF_RANGE && sentinel == NULL);
 		CHECK(st_rip3_styles_define(styles, 1, &invalid) == IO_ERROR_OUT_OF_RANGE);

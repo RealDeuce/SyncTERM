@@ -3943,6 +3943,37 @@ documentation was left untouched. The ledger reviews 33 units: 607 implemented, 
 7357 blocks. Full compliance and engine integration remain unfinished. No issue
 content or code was published.
 
+## Extended-font STYLE commands
+
+The separate engine now consumes the shipped 26-character `y` argument block,
+using UltraNum independently of ENV radix/coordinate width. STYLE owns the two
+compatibility bytes, all 24 flags, point size, shadow distance, independent
+quarter-turn rotations, converted baseline magnitude, positive spacing and a
+39-byte name. Numeric unused/reserved fields are validated and discarded.
+Definition accepts size zero; font realization will own its deferred render
+failure. Baseline conversion truncates once using the current world Y scale;
+subsequent frame changes retain that device magnitude. Normal STYLE defaults
+retain classic mode, empty outline name, zero dormant fields and spacing 100.
+
+`q` ORs current-base attributes 0..15 into the selected unprotected outline
+STYLE; zero retains all flags. A new `y` replaces those fields. `Y` selects
+classic mode while retaining the dormant outline state. Record selection and
+owned snapshots preserve the fields and names. Protected STYLE edits and
+malformed commands leave them unchanged, with failures consumed at the public
+void parser boundary. Missing/unavailable literal names do not trigger font
+lookup or classic fallback during definition. Macro notation remains explicitly
+unsupported; expanded names and outline text production remain unfinished.
+
+The new native `rip3_extended_font_commands` test checks literal published
+examples, both ENV bases, fixed widths, all sixteen rotation pairs, maximum
+fields/reserved input, size zero, name truncation/ownership, one-time baseline
+conversion on all canvases, inactive PORT/protected ENV independence, attribute
+OR/replacement, protected edits, malformed recovery, classic switching and
+snapshots. Six affected CTests pass once: extended font commands, classic font
+commands, text commands, STYLE commands, STYLE service and allocation failures.
+The native CMake project builds; no unrelated renderer tests were repeated.
+RIP1.54 and the active application route remain unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

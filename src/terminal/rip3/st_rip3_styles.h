@@ -20,10 +20,20 @@ struct st_rip3_backup;
  * retained here. Bootstrap orchestration remains separate from this service.
  *
  * This is the represented subset of STYLE. Font family is owned here;
- * outline parameters/realization are separate. Cursor/image state belongs
- * to PORT and mouse/color mode to ENV.
+ * outline parameters are owned values; realization is separate. Cursor/image
+ * state belongs to PORT and mouse/color mode to ENV.
  * The border setting belongs here and follows record protection/backup rules. */
 enum st_rip3_font_mode { ST_RIP3_FONT_CLASSIC, ST_RIP3_FONT_OUTLINE };
+
+struct st_rip3_outline_style {
+	unsigned compatibility_s, compatibility_f;
+	uint32_t flags; /* All 24 wire bits are retained. */
+	unsigned size, shadow, string_rotation, character_rotation, spacing;
+	/* Nonnegative device magnitude, converted once when y requests world Y
+	 * units. Flags retain the sign and conversion bits for later consumers. */
+	uint32_t baseline;
+	char name[40]; /* Owned, NUL terminated, at most 39 protocol bytes. */
+};
 
 struct st_rip3_style {
 	uint32_t drawing_color, background_color, fill_color;
@@ -36,6 +46,7 @@ struct st_rip3_style {
 	enum st_rip3_write_mode write_mode;
 	bool borders;
 	enum st_rip3_font_mode font_mode;
+	struct st_rip3_outline_style outline;
 };
 
 struct st_rip3_style_info {

@@ -281,7 +281,7 @@ vector_and_failures(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct fixture f = {0}; CHECK(create(&f,canvas,width,height) == 0);
 	struct st_rip3_style mode;
 	CHECK(st_rip3_styles_get(f.host.styles,3,&mode)==0);
-	mode.font_mode=ST_RIP3_FONT_OUTLINE;
+	mode.font_mode=ST_RIP3_FONT_OUTLINE;mode.outline.spacing=100;
 	CHECK(st_rip3_styles_protect(f.host.styles,3,false)==0 && st_rip3_styles_set(f.host.styles,3,&mode)==0
 	    && st_rip3_styles_protect(f.host.styles,3,true)==0);
 	CHECK(process(&f,"TA",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
