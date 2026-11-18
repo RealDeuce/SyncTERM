@@ -71,6 +71,13 @@ the current text cell dimensions, including default-font reset. Its expanded
 resolution/status regressions cover the existing live font path; the separate
 engine's MicroANSI bank and rendering integration remain pending.
 
+After the follow-up font repair `8ea0fddb`, the 26 native/application RIP and
+graphics-scrollback tests and all three preservation/contract checks pass
+again (29 tests, 129.05 seconds). The guard report now says that recorded
+checksums match and identifies the two maintained pins; it does not imply
+that those pins still equal the original baseline. No validation rules or
+preservation checksums changed in this reporting update.
+
 The 26 existing native/application RIP and graphics-scrollback CTests passed
 at the baseline on native FreeBSD with the existing Release CMake configuration.
 They cover CP437/UTF-8, historical captures, both pixel phases, replies,

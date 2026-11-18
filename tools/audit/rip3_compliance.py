@@ -224,7 +224,11 @@ def main():
     if args.reference:
         index_reference(args.reference)
     files, functions = check_freeze()
-    print(f"RIP154 preservation: {files} files, {functions} helper definitions unchanged")
+    manifest = json.loads((DATA / "rip154-freeze.json").read_text())
+    maintained = {name for entry in manifest.get("maintenance", [])
+                  for name in entry.get("previous_checksums", {})}
+    print(f"RIP154 preservation: {files} files, {functions} helper definitions match recorded checksums"
+          + (f" ({len(maintained)} documented maintenance updates)" if maintained else ""))
     if not args.freeze_only:
         counts = check_requirements()
         if args.require_complete:
