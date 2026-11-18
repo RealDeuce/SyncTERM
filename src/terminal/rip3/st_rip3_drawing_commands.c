@@ -277,8 +277,7 @@ filled_rectangle(const struct st_rip3_command_host *host,
 	bool interior = vertices == 4;
 	uint8_t foreground = 0, background = 0, drawing = 0;
 	int status = 0;
-	if (host->borders == NULL) return IO_ERROR_NOT_SUPPORTED;
-	bool borders = *host->borders;
+	bool borders = style->borders;
 	if (!borders && !interior) return 0;
 	pen.pattern = pen.thickness > 1 ? 0xffff : logical[style->line_type];
 	if (interior) for (size_t i = 0; i < 8; i++) {
@@ -483,7 +482,13 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		if (status == 0 && host->text != NULL) host->text->classic = true;
 		return status;
 	}
-	if (command[0] == 'W') {
+	if (command[0] == 'N') {
+		if (count == 0 || count > 2) return IO_ERROR_INVALID_FORMAT;
+		status = st_rip3_command_field(&value,arguments,count,environment.base_math);
+		if (status != 0) return status;
+		style.borders = value != 0;
+	}
+	else if (command[0] == 'W') {
 		if (count == 0 || count > 2)
 			return IO_ERROR_INVALID_FORMAT;
 		status = st_rip3_command_field(&value, arguments, count, environment.base_math);

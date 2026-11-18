@@ -67,6 +67,11 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	    .pen={.pattern=0xaaaa,.thickness=3,.draw_background=true},.font={0,0,1,0},.write_mode=ST_RIP3_COPY};
 	const struct st_rip3_rect bounds = {10,20,79,64}, viewport = {2,1,65,40};
 	CHECK(st_rip3_fill_solid(&style.fill,true) == 0 && st_rip3_styles_create(&f->host.styles,&style) == 0);
+	{
+		struct st_rip3_style prepared;
+		CHECK(st_rip3_styles_get(f->host.styles,0,&prepared)==0
+		    && st_rip3_styles_define(f->host.styles,3,&prepared)==0);
+	}
 	CHECK(st_rip3_styles_switch(f->host.styles,3) == 0 && st_rip3_styles_protect(f->host.styles,3,true) == 0);
 	CHECK(st_rip3_environments_create(&f->host.environments,canvas) == 0
 	    && st_rip3_ports_create(&f->host.ports,canvas) == 0 && st_rip3_palettes_create(&f->host.palettes) == 0);

@@ -50,8 +50,7 @@ st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
 	if (status == 0) status = st_rip3_styles_get(host->styles,current,&style);
 	if (status != 0) return status;
 	if (filled) {
-		if (host->borders == NULL) return IO_ERROR_NOT_SUPPORTED;
-		borders = *host->borders;
+		borders = style.borders;
 		for (size_t i = 0; i < 8; i++) {
 			foreground_used |= style.fill.rows[i] != 0;
 			background_used |= style.fill.rows[i] != 255;

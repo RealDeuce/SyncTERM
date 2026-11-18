@@ -20,7 +20,7 @@
 	} \
 } while (0)
 
-struct fixture { struct st_rip3_command_host host; unsigned errors; bool borders; };
+struct fixture { struct st_rip3_command_host host; unsigned errors; };
 
 static void
 diagnostic(void *context, enum st_rip3_command_diagnostic kind)
@@ -53,7 +53,7 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},.write_mode=ST_RIP3_COPY};
 	struct st_rip3_environment env;
 	uint32_t colors[256];
-	*f = (struct fixture){0}; f->host.borders = &f->borders;
+	*f = (struct fixture){0};
 	CHECK(st_rip3_fill_solid(&initial.fill,true) == 0);
 	/* Caller-owned device-kernel phase must not become wire phase or be
 	 * rewritten by drawing through different contexts. */

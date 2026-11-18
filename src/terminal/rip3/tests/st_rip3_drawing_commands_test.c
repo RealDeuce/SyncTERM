@@ -142,6 +142,11 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
 	wire(stream, input);
 	CHECK(scene.errors == 3);
+	{
+		struct st_rip3_style prepared;
+		CHECK(st_rip3_styles_get(host.styles,0,&prepared)==0
+		    && st_rip3_styles_define(host.styles,1,&prepared)==0);
+	}
 	CHECK(st_rip3_styles_switch(host.styles, 1) == 0);
 	wire(stream, "!|=140XPM01\r");
 	wire(stream, "!|k1|c4|W0\r");
@@ -271,6 +276,11 @@ validation(void)
 	missing.styles = host.styles;
 	CHECK(process(&missing, "L00000101", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&missing, "W0", -1) == 0);
+	{
+		struct st_rip3_style prepared;
+		CHECK(st_rip3_styles_get(host.styles,0,&prepared)==0
+		    && st_rip3_styles_define(host.styles,1,&prepared)==0);
+	}
 	CHECK(st_rip3_styles_switch(host.styles, 1) == 0 && st_rip3_styles_protect(host.styles, 1, true) == 0);
 	CHECK(process(&host, "W1", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(process(&host, "c01", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
@@ -377,6 +387,11 @@ line_styles(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(process(&missing,"=20000003",-1) == 0);
 	missing.environments = NULL;
 	CHECK(process(&missing,"=00000003",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	{
+		struct st_rip3_style prepared;
+		CHECK(st_rip3_styles_get(host.styles,0,&prepared)==0
+		    && st_rip3_styles_define(host.styles,1,&prepared)==0);
+	}
 	CHECK(st_rip3_styles_switch(host.styles,1) == 0);
 	CHECK(st_rip3_styles_protect(host.styles,1,true) == 0);
 	CHECK(process(&host,"=141BLC01",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
@@ -472,6 +487,11 @@ erase_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool di
 	CHECK(st_rip3_ports_switch(host.ports, 1) == 0 && st_rip3_ports_viewport(host.ports, &view) == 0);
 	CHECK(st_rip3_ports_protect(host.ports, 1, true) == 0);
 	CHECK(st_rip3_ports_info(host.ports, 1, &before) == 0);
+	{
+		struct st_rip3_style prepared;
+		CHECK(st_rip3_styles_get(host.styles,0,&prepared)==0
+		    && st_rip3_styles_define(host.styles,1,&prepared)==0);
+	}
 	CHECK(st_rip3_styles_switch(host.styles, 1) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 1, &style) == 0);
 	style.background_color = direct ? 0x112234 : 7;

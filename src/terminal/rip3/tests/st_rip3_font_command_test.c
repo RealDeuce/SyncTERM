@@ -148,6 +148,11 @@ recovery(void)
 	CHECK(st_rip3_environments_select(host.environments, 1) == 0);
 	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
 	saved = environment;
+	{
+		struct st_rip3_style prepared;
+		CHECK(st_rip3_styles_get(host.styles,0,&prepared)==0
+		    && st_rip3_styles_define(host.styles,2,&prepared)==0);
+	}
 	CHECK(st_rip3_styles_switch(host.styles, 2) == 0);
 	CHECK(process(&host, "Y0A010A1E", -1) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 2, &after) == 0 && after.font.font == 10

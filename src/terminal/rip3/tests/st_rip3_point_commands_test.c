@@ -116,6 +116,11 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(wire(&f,stream,"!|v28283A3A|c5|j0202|X0202|c7|X2G2G|=140XPM04|c8|j0K0K\r") == 0);
 	CHECK(wire(&f,stream,"!|=00000074|cA|j0U0U|cB|X3636|cC\r") == 0);
 	CHECK(st_rip3_ports_protect(f.host.ports,1,true) == 0);
+	{
+		struct st_rip3_style prepared;
+		CHECK(st_rip3_styles_get(f.host.styles,0,&prepared)==0
+		    && st_rip3_styles_define(f.host.styles,1,&prepared)==0);
+	}
 	CHECK(st_rip3_styles_switch(f.host.styles,1) == 0);
 	CHECK(st_rip3_styles_protect(f.host.styles,1,true) == 0);
 	CHECK(wire(&f,stream,"!|j0C0C\r") == 0); /* Protection locks attributes, not content. */

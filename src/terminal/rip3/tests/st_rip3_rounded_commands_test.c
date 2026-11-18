@@ -184,7 +184,8 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	const struct st_rip3_rect screen={10,20,261,467},bitmap={0,0,251,447};
 	const struct st_rip3_rect view={2,3,245,438},copy={251,31,494,466};
 	bool borders=false;
-	CHECK(create(&host,canvas,width,height)==0);host.borders=&borders;
+	CHECK(create(&host,canvas,width,height)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_define(host.ports,1,offscreen ? &bitmap : &screen,offscreen)==0);
 	CHECK(st_rip3_ports_switch(host.ports,1)==0 && st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
@@ -198,10 +199,12 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		for (unsigned row=0; row<36; row++) {
 			unsigned mode=row%6,group=(row/6)%3,thickness=row<18 ? 1 : 3;
 			bool rgb=mode==5,filled=group!=0;env.rgb_bits=rgb ? 8 : 0;borders=group==2;
+			CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 			CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 			style.write_mode=(enum st_rip3_write_mode)(rgb ? 0 : mode);
 			style.drawing_color=rgb ? 0x0c0c0c : 12;style.fill_color=rgb ? 0x070707 : 7;
 			style.background_color=rgb ? 0x010101 : 1;
+			style.borders=borders;
 			CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 			for (unsigned col=0; col<20; col++) {
 				unsigned type=col%5,flags=col/5;
@@ -262,7 +265,8 @@ boundaries(void)
 	const struct st_rip3_rect area={0,0,11,11};
 	bool borders=true;
 	uint8_t value;
-	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);host.borders=&borders;
+	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports,&area)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	const char *invalid[]={"U", "u01010909", "U010109090?", "u010109090200", "U01010909?2"};
 	st_rip3_drawing_test_fail_calloc=true;
@@ -279,25 +283,28 @@ boundaries(void)
 		CHECK(process(&host,"u0101090902",ST_RIP3_COMMAND_RESOURCE_FAILURE)==0);
 		CHECK(st_rip3_ellipse_test_realloc_countdown==0 && unchanged(&host)==0);
 	}
-	missing=host;missing.borders=NULL;
+	missing=host;missing.styles=NULL;
 	CHECK(process(&missing,"u0101090902",ST_RIP3_COMMAND_UNSUPPORTED)==0);
-	CHECK(process(&missing,"U0101090902",-1)==0); /* U does not consume N. */
+	CHECK(process(&host,"U0101090902",-1)==0); /* U uses STYLE independently of N. */
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(st_rip3_ports_activate(host.ports,false)==0);st_rip3_drawing_test_fail_calloc=true;
-	CHECK(process(&missing,"u0101090902",-1)==0 && st_rip3_drawing_test_fail_calloc);
+	CHECK(process(&host,"u0101090902",-1)==0 && st_rip3_drawing_test_fail_calloc);
 	st_rip3_drawing_test_fail_calloc=false;CHECK(st_rip3_ports_activate(host.ports,true)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0 && st_rip3_fill_solid(&style.fill,true)==0);
 	style.write_mode=ST_RIP3_NOT;style.fill_color=style.drawing_color=style.background_color=0xffffff;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);env.rgb_bits=8;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 	struct st_rip3_palettes *palette=host.palettes;host.palettes=NULL;
 	CHECK(process(&host,"u0101090902",-1)==0);host.palettes=palette;
 	style.write_mode=ST_RIP3_COPY;style.fill_color=7;style.drawing_color=12;style.background_color=1;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);env.rgb_bits=0;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 	/* Independently fitted 8x6 ellipse, not a common radius-three circle. */
 	borders=false;
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"u0101090705",-1)==0);
 	CHECK(st_rip3_ports_read(host.ports,0,2,1,&value)==0 && value==0x55);
 	CHECK(st_rip3_ports_read(host.ports,0,4,1,&value)==0 && value==7);
@@ -343,12 +350,15 @@ boundaries(void)
 	/* Accepted zero extents still consume their used inks; no radius growth. */
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"u0404040402",-1)==0 && unchanged(&host)==0);
 	borders=true;
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(process(&host,"U0404040402",-1)==0);
 	for (int32_t y=0; y<12; y++) for (int32_t x=0; x<12; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(x==4 && y==4 ? 12 : 0x55));
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"u0404040402",-1)==0);
 	CHECK(st_rip3_ports_read(host.ports,0,4,4,&value)==0 && value==12);
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);borders=false;
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
+	style.borders=borders;
 	style.fill_color=0xffffff;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"u0404040402",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	st_rip3_stream_destroy(stream);destroy(&host);return 0;
@@ -361,7 +371,8 @@ literal_examples(void)
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture=NULL;
 	bool borders=true;
-	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);host.borders=&borders;
+	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(process(&host,"U8K3KDK6C0K",-1)==0);
 	CHECK(process(&host,"u8K7GDKA80K",-1)==0);

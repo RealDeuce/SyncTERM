@@ -40,9 +40,6 @@ struct st_rip3_command_host {
 	struct st_rip3_palettes *palettes;
 	struct st_rip3_ports *ports;
 	struct st_rip3_styles *styles;
-	/* Explicit resolved scene setting. N ownership/switch/backup semantics
-	 * are unresolved under #24; no default is inferred from a missing binding. */
-	const bool *borders;
 	/* Borrowed input gate. The owning source retains bytes during 3D delays. */
 	struct st_rip3_input *input;
 	/* Session-owned immediate-query evaluator, resumed by the input source's prepare
@@ -77,7 +74,7 @@ struct st_rip3_command_sink {
  * COPY-mode X/j, m, classic literal T and horizontal-left @,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
- * s, all S presets 00..0B, 1w, v, 2p, 2s,
+ * N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits,
@@ -245,8 +242,8 @@ struct st_rip3_command_sink {
  * Zero is diagnosed without pixels; one validates then draws nothing; two
  * retain ordinary pen behavior. The maximum direct counts are 1295/4095.
  * These commands do not fill interiors or mutate pen/style/port/ENV state.
- * Filled p shares the ordinary count/XY layout and requires an explicit border
- * binding when active. Its integral wide path uses exact even-odd crossings,
+ * Filled p shares the ordinary count/XY layout and reads the current STYLE
+ * border setting. Its integral wide path uses exact even-odd crossings,
  * the current fill/mode, and optional patterned COPY borders. All used fill
  * and border inks resolve before vertex/edge/mask allocations and painting.
  * < uses C:2, N1:2 and later Ni:XY with Ni>=2 and 1+C+2V<=8193.
@@ -276,22 +273,26 @@ struct st_rip3_command_sink {
  * B normalizes opposing corners, includes the last device row/column and draws
  * without a border. Both used fill inks resolve before painting; solid and
  * background-only fills skip unused ink lookup. NOT ignores both inks.
- * K requires an explicit borders binding when active. Its interior excludes
+ * K reads the current STYLE border setting. Its interior excludes
  * the projected right/bottom edges. Degenerate rectangles draw only enabled
  * borders; border coverage is prepared before filling and then applied in
  * the current write mode with the selected logical pen (type 4 maps to fixed
  * DASHDOTDOT; widths above one are solid). Opaque flags partition fill/pen;
- * other flags fill then stroke. NOT needs no ink lookup. N and border context/save
- * ownership remain unsupported under #24; no missing-binding default is used.
+ * other flags fill then stroke. NOT needs no ink lookup.
+ * N decodes one/two current-base digits: zero disables borders, nonzero enables
+ * them in the current STYLE, respecting its protection even on inactive ports.
+ * ENV/PORT selection and protection do not own this setting. Fixed new-style
+ * defaults enable it, and STYLE snapshots preserve it. Scene reset wiring
+ * and complete extended-style activation remain separate.
  * U/u consume five complete XY fields, normalize corners and scale radius
  * with X. Corner semiaxes fit each device span independently; the original
  * low-WORD Y-radius sign/zero behavior is retained. U always strokes; u uses
- * the explicit border binding and current brush, logical pen and write mode.
+ * its STYLE border setting and current brush, logical pen and write mode.
  * Opaque flags combine disjoint coverage; other flags fill then stroke.
  * Curve/side coverage is prepared before filling; failures remain nonfatal.
  * C/G map the radius horizontally and use equal device radii on the square-
  * pixel canvases; ellipses map X/Y radii independently. Curves use solid pen
- * thickness, ignoring the pen pattern. G/o require the explicit border binding;
+ * thickness, ignoring the pen pattern. G/o read their STYLE border setting;
  * all ink lookup and border scratch allocation precede their fills. O/V accept
  * only the documented start=0/end=360 form; other angle pairs remain under #14.
  * A also accepts start=0/end=360 and validates equal-angle bodies as no-ops

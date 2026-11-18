@@ -71,6 +71,12 @@ normalized/zero/wide bounds, logical pens and current-mode brush/pen passes.
 Coherent captures span all canvases, bases, widths and screen/offscreen contexts;
 allocation failures recover before painting. Extreme original DWORD overflow
 remains pending, while the low-WORD Y-radius sign/zero cases are covered.
+N now owns its border setting in STYLE; filled consumers no longer take an
+external flag. Tests cover STYLE protection, fixed defaults on first selection,
+independence from ENV/PORT, immutable backups and live-selection retention on
+restore. Existing drawing captures use N or explicit prepared STYLE records.
+The nonzero argument-domain clarification is tracked in #78; complete reset and
+extended-style/context activation remain pending.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

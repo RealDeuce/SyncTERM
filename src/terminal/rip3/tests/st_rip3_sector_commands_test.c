@@ -156,7 +156,8 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	const struct st_rip3_rect screen = {10,20,137,115}, bitmap = {0,0,127,95};
 	const struct st_rip3_rect view = {2,3,121,90}, copy = {250,101,369,188};
 	bool borders = false;
-	CHECK(create(&host,canvas,width,height)==0); host.borders=&borders;
+	CHECK(create(&host,canvas,width,height)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_define(host.ports,1,offscreen ? &bitmap : &screen,offscreen)==0);
 	CHECK(st_rip3_ports_switch(host.ports,1)==0 && st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
@@ -170,12 +171,14 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		for (unsigned row=0; row<8; row++) {
 			bool rgb = row==5 || row==7;
 			borders=row>=6;
+			CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 			env.rgb_bits=rgb ? 8 : 0;
 			CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 			style.write_mode=(enum st_rip3_write_mode)(row<5 ? row : 0);
 			style.drawing_color=rgb ? 0x0c0c0c : 12;
 			style.fill_color=rgb ? 0x070707 : 7; style.background_color=rgb ? 0x010101 : 1;
 			style.pen.draw_background=row%2!=0;
+			style.borders=borders;
 			CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 			for (unsigned c=0; c<sizeof(cases)/sizeof(cases[0]); c++) {
 				const struct st_rip3_rect cell={(int32_t)c*10,(int32_t)row*10,(int32_t)c*10+7,(int32_t)row*10+7};
@@ -257,13 +260,14 @@ boundaries(void)
 	struct st_rip3_environment env;
 	const struct st_rip3_rect area={0,0,7,7};
 	bool borders=true;
-	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0); host.borders=&borders;
+	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports,&area)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&original)==0);
 	for (size_t i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++)
 		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
 	CHECK(process(&host,"I0303002I03 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
-	missing=host; missing.borders=NULL;
+	missing=host; missing.styles=NULL;
 	CHECK(process(&missing,"I0303002I03",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	missing=host; missing.styles=NULL;
 	CHECK(process(&missing,"i0303002I0303",ST_RIP3_COMMAND_UNSUPPORTED)==0);
@@ -294,23 +298,28 @@ boundaries(void)
 	CHECK(process(&host,"I030300A003",ST_RIP3_COMMAND_RESOURCE_FAILURE)==0);
 	CHECK(!st_rip3_drawing_test_fail_calloc && unchanged(&host)==0);
 	style=original; style.drawing_color=0xffffff;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"I0303002I03",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	style=original; style.fill_color=0xffffff;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"_0303002I0303",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	/* #75 gaps are explicit nonfatal unsupported diagnostics, not guessed
 	 * pen/ROP behavior. A later valid command in this stream still draws. */
 	style=original; style.pen.pattern=0xaaaa;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"I0303002I03",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0);
 	style=original; style.write_mode=ST_RIP3_XOR;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"i0303002I0303",ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0);
 	/* Equal chord does not consume pen, fill ink, N or storage. */
 	style=original; style.fill_color=style.drawing_color=0xffffff; style.pen.pattern=1;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	missing=host; missing.borders=NULL; missing.palettes=NULL;
+	missing=host; missing.palettes=NULL;
 	st_rip3_drawing_test_fail_calloc=true; st_rip3_ellipse_test_realloc_countdown=1;
 	CHECK(process(&missing,"_030300A00303",-1)==0);
 	CHECK(st_rip3_drawing_test_fail_calloc && st_rip3_ellipse_test_realloc_countdown==1 && unchanged(&host)==0);
@@ -319,6 +328,7 @@ boundaries(void)
 	CHECK(st_rip3_drawing_test_fail_calloc && st_rip3_ellipse_test_realloc_countdown==1);
 	st_rip3_drawing_test_fail_calloc=false; st_rip3_ellipse_test_realloc_countdown=0;
 	CHECK(st_rip3_ports_activate(host.ports,true)==0);
+	original.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&original)==0);
 	struct scene scene={&host,0};
 	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};

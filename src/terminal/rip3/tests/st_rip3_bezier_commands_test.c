@@ -153,7 +153,8 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	const struct st_rip3_rect screen={10,20,137,115},bitmap={0,0,127,95};
 	const struct st_rip3_rect view={2,3,121,90},copy={250,101,369,188};
 	bool borders=false;
-	CHECK(create(&host,canvas,width,height)==0);host.borders=&borders;
+	CHECK(create(&host,canvas,width,height)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_define(host.ports,1,offscreen ? &bitmap : &screen,offscreen)==0);
 	CHECK(st_rip3_ports_switch(host.ports,1)==0 && st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
@@ -170,6 +171,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 			style.write_mode=(enum st_rip3_write_mode)(rgb ? 0 : row);
 			style.drawing_color=rgb ? 0x0c0c0c : 12;style.fill_color=rgb ? 0x070707 : 7;
 			style.background_color=rgb ? 0x010101 : 1;
+			style.borders=borders;
 			CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 			for (unsigned col=0; col<8; col++) {
 				static const char kinds[]={'Z','Z','t','t','z','z','x','x'};
@@ -177,6 +179,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 				static const unsigned terminals[]={0,3,4};
 				const struct st_rip3_rect cell={(int32_t)col*10,(int32_t)row*10,(int32_t)col*10+7,(int32_t)row*10+7};
 				char bytes[64];borders=col==7;
+				CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 				CHECK(st_rip3_ports_fill(host.ports,&cell,0x55,ST_RIP3_COPY)==0);
 				shape(bytes,kinds[col],types[col],terminals[(col+row)%3],col*10,row*10,scale,xy,base,col==0 ? 2 : 4);
 				if (col%2!=0) {
@@ -235,7 +238,8 @@ boundaries(void)
 	struct st_rip3_style style,original;
 	const struct st_rip3_rect area={0,0,7,7};
 	bool borders=true;
-	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);host.borders=&borders;
+	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports,&area)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&original)==0);
 	st_rip3_bezier_command_test_malloc_countdown=1;
@@ -248,7 +252,7 @@ boundaries(void)
 	CHECK(process(&missing,"Z010101050505050100",-1)==0 && process(&missing,"Z01010105050505011",-1)==0);
 	/* One submitted point cannot draw through either native API. In
 	 * particular a lone N=1 cubic is distinct from its two scratch outputs. */
-	missing=host;missing.styles=NULL;missing.palettes=NULL;missing.borders=NULL;
+	missing=host;missing.styles=NULL;missing.palettes=NULL;missing.styles=NULL;
 	CHECK(process(&missing,"z01011010101050505",-1)==0 && unchanged(&host)==0);
 	CHECK(process(&missing,"x01011010101050505",-1)==0 && unchanged(&host)==0);
 	CHECK(process(&missing,"t010000101",-1)==0 && unchanged(&host)==0);
@@ -276,13 +280,16 @@ boundaries(void)
 		CHECK(st_rip3_polygon_test_malloc_countdown==0 && unchanged(&host)==0);
 	}
 	style=original;style.drawing_color=0xffffff;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"Z010101050505050104",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	style=original;style.fill_color=0xffffff;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,bytes,ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
+	original.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&original)==0);
-	missing=host;missing.borders=NULL;
+	missing=host;missing.styles=NULL;
 	CHECK(process(&missing,bytes,ST_RIP3_COMMAND_UNSUPPORTED)==0 && unchanged(&host)==0);
 	CHECK(st_rip3_ports_activate(host.ports,false)==0);
 	st_rip3_bezier_command_test_malloc_countdown=1;st_rip3_bezier_test_malloc_countdown=1;
@@ -303,26 +310,32 @@ boundaries(void)
 	/* Constant-y cubic/point joins test duplicate endpoint union, continuing
 	 * custom-pattern phase and one XOR at every covered pixel. */
 	style=original;style.pen.pattern=0xaaaa;style.pen.draw_background=true;style.write_mode=ST_RIP3_XOR;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"t0204100030203060300703",-1)==0);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(y==3 ? (x%2==0 ? 0x59 : 0x54) : 0x55));
+	original.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&original)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	/* Degenerate filled point records still use the polygon border's
 	 * patterned COPY rule; unused NOT-interior inks need no lookup. */
 	style=original;style.pen.pattern=0xaaaa;style.pen.draw_background=false;
 	style.write_mode=ST_RIP3_NOT;style.fill_color=style.background_color=0xffffff;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(process(&host,"x" "02" "00" "0" "0003" "0" "0703",-1)==0);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(y==3 && x%2==0 ? 12 : 0x55));
 	style.pen.draw_background=true;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(process(&host,"x" "02" "00" "0" "0003" "0" "0703",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
+	style.borders=borders;
 	style.background_color=1;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"x" "02" "00" "0" "0003" "0" "0703",-1)==0);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(y==3 ? (x%2==0 ? 12 : 1) : 0x55));
+	original.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&original)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	/* Valid complete original SHAPES.RIP sample, followed by truncation and
 	 * a simple curve. Recovery must be owned by the parser and preserve state. */
@@ -351,6 +364,7 @@ boundaries(void)
 	 * t applies the independent generated limit. Constant controls expose
 	 * a single XOR write despite thousands of repeated vertices. */
 	style=original;style.write_mode=ST_RIP3_XOR;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	for (unsigned i=0; i<8; i++) number(wide+1+5*i,5,i%2==0 ? 1 : 3,64);
 	number(wide+41,2,4095,64);
@@ -361,6 +375,7 @@ boundaries(void)
 	many[36]='4';number(many+37,5,1,64);number(many+42,5,3,64);many[47]=0;
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,many,-1)==0);
 	CHECK(st_rip3_ports_read(host.ports,0,1,3,&value)==0 && value==0x59);
+	original.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&original)==0);
 	/* Collection capacity is separate from the generated-point budget. */
 	env.coordinate_size=2;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);

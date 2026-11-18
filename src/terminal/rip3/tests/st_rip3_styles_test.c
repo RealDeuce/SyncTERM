@@ -28,7 +28,7 @@ value(unsigned number)
 		.drawing_color=0x112200+number, .background_color=0x445500+number,
 		.fill_color=0x330000+number, .pen={0},
 		.font={number%11,number%2,number%10+1,number%3 | vertical[number%4]},
-		.write_mode=(enum st_rip3_write_mode)(number%5), .line_type=number%5,
+		.write_mode=(enum st_rip3_write_mode)(number%5), .line_type=number%5, .borders=number%2!=0,
 	};
 	style.pen.pattern = (uint16_t)(0xa500+number);
 	style.pen.thickness = number+1;
@@ -48,7 +48,7 @@ equal(const struct st_rip3_style *a, const struct st_rip3_style *b)
 	    && a->fill.origin.x == b->fill.origin.x && a->fill.origin.y == b->fill.origin.y
 	    && a->font.font == b->font.font && a->font.direction == b->font.direction
 	    && a->font.magnification == b->font.magnification && a->font.flags == b->font.flags
-	    && a->write_mode == b->write_mode;
+	    && a->write_mode == b->write_mode && a->borders == b->borders;
 }
 
 static int
@@ -57,6 +57,16 @@ expect(struct st_rip3_styles *styles, unsigned number, const struct st_rip3_styl
 	struct st_rip3_style actual;
 	CHECK(st_rip3_styles_get(styles, number, &actual) == 0 && equal(&actual, expected));
 	return 0;
+}
+
+static struct st_rip3_style
+defaults(void)
+{
+	struct st_rip3_style result = {.drawing_color=15,.fill_color=15,
+	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},
+	    .write_mode=ST_RIP3_COPY,.borders=true};
+	memset(result.fill.rows,255,8);
+	return result;
 }
 
 static int
@@ -75,7 +85,7 @@ records(void)
 		CHECK(info.defined == (i == 0) && !info.protected);
 	}
 	for (unsigned i = 1; i < 36; i++) {
-		struct st_rip3_style previous = value(i-1), expected = value(i);
+		struct st_rip3_style previous = defaults(), expected = value(i);
 		CHECK(st_rip3_styles_protect(styles, i, true) == 0); /* Undefined is a no-op. */
 		CHECK(st_rip3_styles_switch(styles, i) == 0);
 		CHECK(expect(styles, i, &previous) == 0);
@@ -100,7 +110,8 @@ records(void)
 	st_rip3_styles_destroy(styles);
 	CHECK(st_rip3_styles_create(&styles, &initial) == 0);
 	CHECK(st_rip3_styles_switch(styles, 1) == 0 && st_rip3_styles_protect(styles, 1, true) == 0);
-	CHECK(st_rip3_styles_switch(styles, 2) == 0 && expect(styles, 2, &initial) == 0);
+	changed = defaults();
+	CHECK(st_rip3_styles_switch(styles, 2) == 0 && expect(styles, 2, &changed) == 0);
 	CHECK(st_rip3_styles_info(styles, 2, &info) == 0 && !info.protected);
 	st_rip3_styles_destroy(styles);
 	return 0;
@@ -114,6 +125,9 @@ errors(void)
 	struct st_rip3_style_info info = {true,true};
 	unsigned current = 77;
 
+	CHECK(st_rip3_style_defaults(NULL)==IO_ERROR_INVALID_ARGUMENT);
+	invalid=defaults();CHECK(st_rip3_style_defaults(&output)==0 && equal(&output,&invalid));
+	output=value(6);
 	CHECK(st_rip3_styles_create(NULL, &initial) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_styles_create(&sentinel, NULL) == IO_ERROR_INVALID_ARGUMENT && sentinel == NULL);
 	CHECK(st_rip3_styles_create(&styles, &initial) == 0);
@@ -180,8 +194,9 @@ snapshots(void)
 	CHECK(st_rip3_styles_define(original, 35, &changed) == 0);
 	CHECK(st_rip3_styles_protect(original, 35, true) == 0 && st_rip3_styles_switch(original, 35) == 0);
 	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, original) == 0);
-	CHECK(st_rip3_styles_info(original, 35, &info) == 0 && !info.defined && !info.protected);
-	CHECK(st_rip3_styles_current(original, &current) == 0 && current == 0);
+	CHECK(st_rip3_styles_info(original, 35, &info) == 0 && info.defined && !info.protected);
+	CHECK(st_rip3_styles_current(original, &current) == 0 && current == 35);
+	initial = defaults();CHECK(expect(original,35,&initial)==0);
 	for (unsigned i = 1; i < 36; i++) {
 		struct st_rip3_style expected = value(i);
 		CHECK(st_rip3_styles_define(original, i, &expected) == 0);
@@ -199,7 +214,7 @@ snapshots(void)
 	for (unsigned place = 0; place < 3; place++) {
 		CHECK(st_rip3_backup_restore(backup, place == 0 ? ST_RIP3_BACKUP_STACK
 		    : place == 1 ? ST_RIP3_BACKUP_SLOT : ST_RIP3_BACKUP_BASE, place == 1 ? 3 : 0, live) == 0);
-		CHECK(st_rip3_styles_current(live, &current) == 0 && current == 17);
+		CHECK(st_rip3_styles_current(live, &current) == 0 && current == 0);
 		for (unsigned i = 0; i < 36; i++) {
 			struct st_rip3_style expected = value(i);
 			CHECK(expect(live, i, &expected) == 0);
@@ -283,12 +298,12 @@ host_metadata(void)
 	CHECK(reference(&host, "$CUR(STYLE,2)$", NULL) == 0); /* Full context/default activation is pending. */
 	CHECK(reference(&host, "$CUR(STYLE)$", "2") == 0);
 	CHECK(reference(&host, "$COPY(STYLE,BASE,TBL)$", "") == 0);
-	CHECK(reference(&host, "$CUR(STYLE)$", "1") == 0 && expect(styles, 1, &changed) == 0);
+	CHECK(reference(&host, "$CUR(STYLE)$", "2") == 0 && expect(styles, 1, &changed) == 0);
 	CHECK(reference(&host, "$PROT(STYLE,S0)$", "") == 0);
 	CHECK(reference(&host, "$COPY(STYLE,S0,TBL)$", "") == 0 && expect(styles, 1, &changed) == 0);
 	CHECK(reference(&host, "$INUSE(STYLE,S0)$", "1") == 0);
 	CHECK(reference(&host, "$SGS$", NULL) == 0 && reference(&host, "$RGS$", NULL) == 0);
-	CHECK(reference(&host, "$CUR(STYLE)$", "1") == 0);
+	CHECK(reference(&host, "$CUR(STYLE)$", "2") == 0);
 	st_rip3_styles_destroy(styles);
 	st_rip3_backup_destroy(backup);
 	return 0;
@@ -312,6 +327,7 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_styles_get(styles, 0, &selected) == 0);
 	CHECK(st_rip3_draw_rectangle(ports, &rectangle, &selected.pen, (uint8_t)selected.drawing_color,
 	    (uint8_t)selected.background_color, selected.write_mode) == 0);
+	CHECK(st_rip3_styles_define(styles,1,&initial)==0);
 	CHECK(st_rip3_styles_switch(styles, 1) == 0 && st_rip3_styles_get(styles, 1, &selected) == 0);
 	selected.drawing_color = 4; selected.fill_color = 2; selected.write_mode = ST_RIP3_XOR;
 	selected.pen.pattern = 0xaaaa; selected.pen.draw_background = true;

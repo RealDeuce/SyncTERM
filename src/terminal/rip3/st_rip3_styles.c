@@ -31,6 +31,18 @@ valid(const struct st_rip3_style *value)
 }
 
 int
+st_rip3_style_defaults(struct st_rip3_style *result)
+{
+	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_style value = {.drawing_color=15,.fill_color=15,
+	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},
+	    .write_mode=ST_RIP3_COPY,.borders=true};
+	(void)st_rip3_fill_solid(&value.fill,true);
+	*result = value;
+	return 0;
+}
+
+int
 st_rip3_styles_create(struct st_rip3_styles **result, const struct st_rip3_style *initial)
 {
 	struct st_rip3_styles *styles;
@@ -121,7 +133,7 @@ st_rip3_styles_switch(struct st_rip3_styles *styles, unsigned number)
 	if (number >= 36)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (!styles->entries[number].info.defined) {
-		styles->entries[number].value = styles->entries[styles->current].value;
+		(void)st_rip3_style_defaults(&styles->entries[number].value);
 		styles->entries[number].info.defined = true;
 	}
 	styles->current = number;
@@ -160,8 +172,10 @@ style_restore(void *object, const void *saved)
 {
 	if (object == NULL || saved == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	*(struct st_rip3_styles *)object = *(const struct st_rip3_styles *)saved;
-	return 0;
+	struct st_rip3_styles *styles = object;
+	unsigned current = styles->current;
+	*styles = *(const struct st_rip3_styles *)saved;
+	return st_rip3_styles_switch(styles,current);
 }
 
 static void

@@ -19,9 +19,9 @@ struct st_rip3_backup;
  * context phase at paint time, independently of the device fill.origin value
  * retained here. Bootstrap orchestration remains separate from this service.
  *
- * This is the implemented subset of a STYLE record, not a complete protocol
- * context. Extended-font selection (#3), bootstrap values and ownership of
- * cursor/image/mouse/colour-mode state (#24) remain outside this component. */
+ * This is the represented subset of STYLE. Extended-font selection is
+ * separate; cursor/image state belongs to PORT and mouse/color mode to ENV.
+ * The border setting belongs here and follows record protection/backup rules. */
 struct st_rip3_style {
 	uint32_t drawing_color, background_color, fill_color;
 	struct st_rip3_pen pen;
@@ -31,6 +31,7 @@ struct st_rip3_style {
 	struct st_rip3_fill fill;
 	struct st_rip3_classic_text_style font;
 	enum st_rip3_write_mode write_mode;
+	bool borders;
 };
 
 struct st_rip3_style_info {
@@ -39,8 +40,10 @@ struct st_rip3_style_info {
 };
 
 /* One session thread owns 36 value records. Entry zero is initially current,
- * defined and unprotectable. Its attributes must be supplied explicitly:
- * this service does not invent the unresolved protocol bootstrap defaults. */
+ * defined and unprotectable. Supply its attributes explicitly, using
+ * style_defaults for normal protocol defaults or a deliberate prepared scene. */
+/* Normal startup/reset/unused-entry defaults for the fields represented here. */
+int st_rip3_style_defaults(struct st_rip3_style *result);
 int st_rip3_styles_create(struct st_rip3_styles **result,
 	const struct st_rip3_style *initial);
 void st_rip3_styles_destroy(struct st_rip3_styles *styles);
@@ -56,14 +59,15 @@ int st_rip3_styles_define(struct st_rip3_styles *styles,
 	unsigned number, const struct st_rip3_style *value);
 int st_rip3_styles_set(struct st_rip3_styles *styles,
 	unsigned number, const struct st_rip3_style *value);
-/* First-use SWITCH_STYLE copies current attribute values to an unprotected
- * new record. Existing entries retain their values/protection. This is only
- * record selection: it does not activate scene/ENV/port/UI state or implement
- * CUR(STYLE,n)'s distinct, unresolved default-initialization policy. */
+/* First use defines an unprotected record with fixed normal defaults.
+ * Existing entries retain their values/protection. Selection changes no
+ * PORT/ENV/cursor/image state. Extended-font activation remains separate. */
 int st_rip3_styles_switch(struct st_rip3_styles *styles, unsigned number);
 int st_rip3_styles_protect(struct st_rip3_styles *styles, unsigned number, bool protect);
-/* Owned snapshots of every attribute stored here, current index and metadata.
+/* Owned snapshots of every attribute stored here and table metadata.
  * Whole restore bypasses live protection and retains the immutable snapshot.
+ * The shipping restore retains the LIVE current index, reselecting/defaulting
+ * it after restoring table contents; the saved index does not become current.
  * This does not capture the unresolved parts of a complete RIP STYLE context,
  * implement SGS/RGS or perform scene reset/default initialization. */
 int st_rip3_styles_backup_create(struct st_rip3_backup **result);

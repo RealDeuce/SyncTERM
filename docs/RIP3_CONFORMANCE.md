@@ -3802,6 +3802,48 @@ This milestone reviews 27 units: 566 implemented, 1414 pending, 4328 unreviewed,
 integration and other pending contracts remain required; no code was published
 and no existing issue content was changed.
 
+## Border ownership and fixed style defaults
+
+N now edits the border flag in the current graphics-style record, subject to
+STYLE protection. All filled primitive consumers read that record; the external
+command-host flag has been removed. ENV/PORT selection, protection and inactive
+graphics do not own N. BAR and ordinary outlines retain their independent
+behavior. Syntax and protection failures stay inside the void parser.
+
+Unused STYLE entries now receive the adopted fixed normal defaults instead of
+copying the departing style. A helper supplies the defaults of represented
+fields, including drawing/fill 15, background 0, solid fill/pen, width 1, COPY,
+classic font 0/size 1 and enabled borders. Prepared test scenes explicitly copy
+custom records before selection where that is their intent; independent drawing
+expectations remain unchanged. STYLE backups preserve the border flag and all
+represented attributes/protection. Restore now retains and reactivates the live
+current index, reproducing the shipped saved-index defect, including defaulting
+that index if it is undefined in the restored table. Complete dormant font/user
+fields, wire style/context activation and scene reset/header wiring remain
+pending.
+
+`rip3_border_commands` covers numeric bases, fixed count width, shortened final
+fields, inactive graphics, independent ENV protection, STYLE protection/defaults,
+selection, immutable backups and byte-split malformed recovery. Its all-canvas
+capture distinguishes style-local border settings and confirms N never borders
+BAR. The original setter at RVA 0xdcf1 also accepts every nonzero value; its
+branch is exercised by N02, MegaNum NZZ and UltraNum N&& tests. The pinned prose
+specifies only 00/01, so new parent-repository [issue #78](https://github.com/bbs-land/remote-imaging-protocol/issues/78)
+requests the missing normalization, referencing the delivered #24/#33 work
+without adding comments to those issues. Original-instruction evidence is
+static; no Wine, Windows rasterization or desktop test was performed.
+
+Native FreeBSD Release CMake configure/build passes without warnings. Eighteen
+affected native CTests pass, including STYLE, border controls, all affected filled
+consumers, retained text/point/font/drawing fixtures and the native image-command
+fixture. Only failing/changed tests were rerun; previous unaffected results were
+reused. The source/ledger audit matches all recorded 93 file and 41 helper pins,
+including documented font maintenance. No RIP1.54 source, captures, preservation
+pins, reference revision or active application routing changed. Scoped temporary
+build logs were removed; unrelated concurrent documentation was left untouched.
+The ledger reviews 36 units: 582 implemented, 1420 pending, 4302 unreviewed, 994 context, 24 excluded, 35 blocked among 7357 blocks. Full compliance remains
+unfinished; no code was published and no existing issue content was changed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

@@ -85,8 +85,7 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	*operation=true;
 	if (filled) {
 		bool uses_foreground=false,uses_background=false;
-		if (host->borders==NULL) return IO_ERROR_NOT_SUPPORTED;
-		borders=*host->borders;
+		borders = style.borders;
 		for (size_t i=0; i<8; i++) {
 			uses_foreground |= style.fill.rows[i]!=0;
 			uses_background |= style.fill.rows[i]!=255;

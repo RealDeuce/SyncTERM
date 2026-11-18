@@ -173,7 +173,8 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	const struct st_rip3_rect screen={10,20,89,339},bitmap={0,0,79,319};
 	const struct st_rip3_rect view={2,3,65,306},copy={251,101,314,404};
 	bool borders=false;
-	CHECK(create(&host,canvas,width,height)==0);host.borders=&borders;
+	CHECK(create(&host,canvas,width,height)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_define(host.ports,1,offscreen ? &bitmap : &screen,offscreen)==0);
 	CHECK(st_rip3_ports_switch(host.ports,1)==0 && st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
@@ -186,11 +187,13 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 		CHECK(st_rip3_ports_erase(host.ports,0)==0);
 		for (unsigned row=0; row<24; row++) {
 			unsigned mode=row%6;bool rgb=mode==5;env.rgb_bits=rgb ? 8 : 0;borders=row>=6;
+			CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 			CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 			style.write_mode=(enum st_rip3_write_mode)(rgb ? 0 : mode);
 			style.drawing_color=rgb ? 0x0c0c0c : 12;style.fill_color=rgb ? 0x070707 : 7;
 			style.background_color=rgb ? 0x010101 : 1;
 			style.pen.pattern=row>=12 ? 0x8000 : 0xffff;style.pen.draw_background=row>=18;
+			style.borders=borders;
 			CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 			for (unsigned col=0; col<4; col++) {
 				const struct st_rip3_rect cell={(int32_t)col*12,(int32_t)row*12,(int32_t)col*12+10,(int32_t)row*12+10};
@@ -279,7 +282,9 @@ counts(void)
 	bool borders=true;
 	char *bytes=malloc(70000);unsigned *sizes=malloc(1640*sizeof(*sizes));
 	CHECK(bytes!=NULL && sizes!=NULL);
-	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);host.borders=&borders;host.text=&text;
+	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
+	host.text=&text;
 	CHECK(st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);style.pen.draw_background=false;
@@ -288,10 +293,11 @@ counts(void)
 		CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 		for (unsigned mode=0; mode<5; mode++) {
 			style.write_mode=(enum st_rip3_write_mode)mode;
+			style.borders=borders;
 			CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 			for (const char *kind="Plp"; *kind!=0; kind++) {
 				CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
-				missing=host;missing.styles=NULL;missing.ports=NULL;missing.palettes=NULL;missing.borders=NULL;
+				missing=host;missing.styles=NULL;missing.ports=NULL;missing.palettes=NULL;
 				st_rip3_path_test_fail_malloc=true;st_rip3_drawing_test_fail_calloc=true;
 				single(bytes,*kind,0,xy,base);CHECK(process(&missing,bytes,ST_RIP3_COMMAND_INVALID)==0);
 				size_t pos=single(bytes,*kind,1,xy,base);
@@ -307,6 +313,7 @@ counts(void)
 				CHECK(text.cursor.x==7.25 && text.cursor.y==8.5 && text.encoding==ST_RIP3_TEXT_UTF8 && text.classic);
 			}
 		}
+		style.borders=borders;
 		style.write_mode=ST_RIP3_COPY;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 		unsigned maximum=base*base-1;
 		for (const char *kind="Plp"; *kind!=0; kind++) {
@@ -348,7 +355,8 @@ boundaries(void)
 	const struct st_rip3_rect view={0,0,7,7};
 	bool borders=true;
 	char bytes[160];
-	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);host.borders=&borders;
+	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports,&view)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
 	st_rip3_path_test_fail_malloc=true;
 	for (size_t i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++) CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
@@ -365,19 +373,23 @@ boundaries(void)
 	st_rip3_drawing_test_fail_calloc=true;
 	CHECK(process(&host,bytes,ST_RIP3_COMMAND_RESOURCE_FAILURE)==0 && !st_rip3_drawing_test_fail_calloc && line_pixels(&host,0x55)==0);
 	CHECK(process(&host,"<010201010601 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
-	missing=host;missing.borders=NULL;
+	missing=host;missing.styles=NULL;
 	CHECK(process(&missing,bytes,ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	CHECK(st_rip3_ports_activate(host.ports,false)==0);st_rip3_path_test_fail_malloc=true;
-	CHECK(process(&missing,bytes,-1)==0 && st_rip3_path_test_fail_malloc);
+	CHECK(process(&host,bytes,-1)==0 && st_rip3_path_test_fail_malloc);
 	st_rip3_path_test_fail_malloc=false;CHECK(st_rip3_ports_activate(host.ports,true)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);
 	style.drawing_color=style.fill_color=style.background_color=0xffffff;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	borders=false;st_rip3_path_test_fail_malloc=true;
+	borders=false;
+	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
+	st_rip3_path_test_fail_malloc=true;
 	CHECK(process(&host,"p0201010601",-1)==0 && st_rip3_path_test_fail_malloc && line_pixels(&host,0x55)==0);
 	CHECK(process(&host,"<0202010106010201010601",-1)==0 && st_rip3_path_test_fail_malloc && line_pixels(&host,0x55)==0);
 	st_rip3_path_test_fail_malloc=false;
 	style.drawing_color=12;style.fill_color=7;style.background_color=1;
+	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	struct scene scene={&host,0};const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
 	struct st_rip3_stream *stream=NULL;
@@ -389,6 +401,7 @@ boundaries(void)
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 	env.coordinate_size=5;env.base_math=64;env.world_width=env.world_height=1;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
+	style.borders=borders;
 	CHECK(st_rip3_fill_solid(&style.fill,true)==0 && st_rip3_styles_set(host.styles,0,&style)==0);
 	const unsigned coords[]={0,0,1073741822,536870911,1073741822,0,0,0,1,0,1,1,0,1};
 	size_t pos=5;memcpy(bytes,"<0203",5);

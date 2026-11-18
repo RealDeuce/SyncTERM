@@ -112,9 +112,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 		return status;
 	}
 	if (filled) {
-		if (host->borders == NULL)
-			return IO_ERROR_NOT_SUPPORTED;
-		borders = *host->borders;
+		borders = style.borders;
 		if (!borders && (rx == 0 || ry == 0))
 			return 0;
 		/* Existing G/o behavior is retained. Newly exposed sector borders

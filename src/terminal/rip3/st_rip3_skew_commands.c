@@ -36,8 +36,7 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	*operation=true;
 	if (filled) {
 		bool uses_foreground=false,uses_background=false;
-		if (host->borders==NULL) return IO_ERROR_NOT_SUPPORTED;
-		borders=*host->borders;
+		borders = style.borders;
 		if (borders && (style.write_mode!=ST_RIP3_COPY || style.pen.pattern!=0xffff))
 			return IO_ERROR_NOT_SUPPORTED; /* Original Polygon pass contract: #76. */
 		for (size_t i=0; i<8; i++) {

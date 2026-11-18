@@ -122,9 +122,7 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	*operation = true;
 	if (filled) {
 		bool fill_foreground = false, fill_background = false;
-		if (host->borders == NULL)
-			return IO_ERROR_NOT_SUPPORTED;
-		borders = *host->borders;
+		borders = style.borders;
 		if (!interior && !borders) return 0;
 		for (size_t i = 0; interior && i < 8; i++) {
 			fill_foreground |= style.fill.rows[i] != 0;
