@@ -9,7 +9,8 @@
 /* Resolved device geometry, relative to the current viewport. The constructor
  * normalizes opposing corners. Coordinates are finite within +/-1024*INT32_MAX;
  * radius is nonnegative and no larger than half the smaller dimension.
- * Oversized radii reject here; wire conversion/clamping is not inferred (#38).
+ * Oversized radii reject here; U/u perform wire conversion and independent
+ * semiaxis fitting in their separate command path.
  * A zero radius is a rectangle; a zero dimension has no filled interior. */
 struct st_rip3_rounded_rectangle {
 	double x0, y0, x1, y1, radius;
@@ -19,7 +20,7 @@ int st_rip3_rounded_rectangle_set(struct st_rip3_rounded_rectangle *result,
 	double x0, double y0, double x1, double y1, double radius);
 /* Solid geometric outline, with round-capped segments and quarter circles.
  * Thickness is an explicit positive device-pixel count. Shared joins are
- * applied once. U/u wire line-pattern policy remains unresolved (#33). */
+ * applied once. U/u separately resolve logical pens and their pass policy. */
 int st_rip3_draw_rounded_rectangle(struct st_rip3_ports *ports,
 	const struct st_rip3_rounded_rectangle *rectangle,
 	uint32_t thickness, uint8_t color, enum st_rip3_write_mode mode);

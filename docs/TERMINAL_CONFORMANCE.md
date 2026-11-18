@@ -66,6 +66,11 @@ multi-contour count widths and the shared 8193-number budget. Coherent captures
 cover holes, overlap cancellation, nested islands, patterned COPY borders,
 current-mode fills and nonfatal rejection before painting. Exact original
 error wording and POLYPOLY.RIP corpus/continuation replay remain pending.
+Separate U/u tests cover X-world radius conversion, independent oversize fitting,
+normalized/zero/wide bounds, logical pens and current-mode brush/pen passes.
+Coherent captures span all canvases, bases, widths and screen/offscreen contexts;
+allocation failures recover before painting. Extreme original DWORD overflow
+remains pending, while the low-WORD Y-radius sign/zero cases are covered.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

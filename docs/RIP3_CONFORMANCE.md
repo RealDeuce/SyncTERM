@@ -3758,6 +3758,50 @@ was left untouched. This review covers 57 source units: 547 implemented, 1417 pe
 Full compliance and active-engine integration remain pending. No issue content
 or code was published.
 
+## Rounded-rectangle wire consumers
+
+The separate engine now accepts U/u with five complete XY-width fields in the
+current base. Both corner pairs normalize before wide integer conversion;
+radius uses the X ratio once. Ordinary corner semiaxes fit X/Y spans
+independently, including oversized radii, rather than imposing a common circular
+clamp. Zero radius produces square corners. Zero extents are accepted and still
+consume the operation's used inks; a radius does not expand those bounds.
+The shipped low-WORD Y-radius sign/zero defect is retained. Extreme original
+DWORD multiplication/doubling overflow remains an explicit pending ledger item.
+
+U always selects its logical pen independently of N; u consumes the explicit
+border binding and established device-context brush phase. Both use current
+write mode and the same logical pen mapping as K, including fixed type-4
+DASHDOTDOT and solid widths above one. Opaque flags partition prepared pen and
+brush coverage; other flags fill then stroke with transparent gaps. Removing
+the pen adds no inset or shrink. Corner curves and straight sides share one
+application per covered border pixel; all fallible mesh/coverage preparation
+precedes either paint pass. The existing standalone circular-radius/solid-COPY
+API retains its geometry and explicit service contract.
+
+`rip3_rounded_commands` uses 96 coherent full-device scenes across all canvases,
+screen/offscreen ports, both bases, XY widths 2–5 and unequal WORLD scales.
+Independent circular signed distances, perimeter lengths, fill inequalities and
+Boolean operations check all logical types, flags, border states, thin/wide
+pens, five indexed modes and RGB COPY. Shifted bitmap copies preserve source
+brush phase. Focused checks replay the literal U/u examples and cover independent
+oversize fitting, X-only radius scaling, high-radius Y sign/zero cases, maximum
+five-digit WORLD=1 geometry, zero extents, all sixteen mesh/mask allocations,
+unused NOT operands, absent/inactive bindings and split-input error recovery.
+Exact GDI dash lengths and curved-edge pixels remain outside the target.
+
+Native FreeBSD Release CMake configure/build passed without warnings. The new
+rounded-command CTest passed in 1.31 seconds, and the affected standalone rounded
+rectangle test passed. Only the new test was rerun while correcting its wire
+matrix and adding boundary coverage; no broad suite or extra Valgrind run was
+added. The source/ledger audit matches the recorded 93 file and 41 helper pins,
+including documented font maintenance. No RIP1.54 source/capture/preservation
+pin, reference revision or active application route changed. Temporary build
+logs were removed and unrelated concurrent documentation was left untouched.
+This milestone reviews 27 units: 566 implemented, 1414 pending, 4328 unreviewed, 991 context, 24 excluded, 34 blocked among 7357 blocks. Complete engine
+integration and other pending contracts remain required; no code was published
+and no existing issue content was changed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

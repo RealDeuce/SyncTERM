@@ -242,14 +242,15 @@ struct st_rip3_command_sink {
  * P/l decode the ordinary two-digit direct vertex count and all XY fields
  * before rendering. P closes its outline; l retains an open path. Both use
  * the bound resolved pen, retain phase across edges and apply each pixel once.
- * P needs at least three vertices and l at least two for this supported branch;
- * smaller counts and the unreachable stated 4096 encoding remain under #13.
+ * Zero is diagnosed without pixels; one validates then draws nothing; two
+ * retain ordinary pen behavior. The maximum direct counts are 1295/4095.
  * These commands do not fill interiors or mutate pen/style/port/ENV state.
  * Filled p shares the ordinary count/XY layout and requires an explicit border
  * binding when active. Its integral wide path uses exact even-odd crossings,
  * the current fill/mode, and optional patterned COPY borders. All used fill
  * and border inks resolve before vertex/edge/mask allocations and painting.
- * The same unresolved count boundaries apply; no full 4096 encoding is inferred.
+ * < uses C:2, N1:2 and later Ni:XY with Ni>=2 and 1+C+2V<=8193.
+ * Its contours share an even-odd interior and prepared patterned COPY border.
  * Y validates all four two-digit current-radix fields before editing the bound
  * STYLE's classic font attributes. Conflicting justification flags discard the
  * complete command. This does not activate an extended font or text cursor.
@@ -278,9 +279,16 @@ struct st_rip3_command_sink {
  * K requires an explicit borders binding when active. Its interior excludes
  * the projected right/bottom edges. Degenerate rectangles draw only enabled
  * borders; border coverage is prepared before filling and then applied in
- * solid COPY using the resolved pen thickness (the N rule, pending #33).
- * Border ink still needs resolution in NOT mode. N and border context/save
+ * the current write mode with the selected logical pen (type 4 maps to fixed
+ * DASHDOTDOT; widths above one are solid). Opaque flags partition fill/pen;
+ * other flags fill then stroke. NOT needs no ink lookup. N and border context/save
  * ownership remain unsupported under #24; no missing-binding default is used.
+ * U/u consume five complete XY fields, normalize corners and scale radius
+ * with X. Corner semiaxes fit each device span independently; the original
+ * low-WORD Y-radius sign/zero behavior is retained. U always strokes; u uses
+ * the explicit border binding and current brush, logical pen and write mode.
+ * Opaque flags combine disjoint coverage; other flags fill then stroke.
+ * Curve/side coverage is prepared before filling; failures remain nonfatal.
  * C/G map the radius horizontally and use equal device radii on the square-
  * pixel canvases; ellipses map X/Y radii independently. Curves use solid pen
  * thickness, ignoring the pen pattern. G/o require the explicit border binding;
