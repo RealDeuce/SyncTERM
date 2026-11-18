@@ -3662,6 +3662,61 @@ left untouched. The ledger reviews 81 units and adds B76: 492 implemented,
 7357 blocks. Complete skewed pen/mode acceptance and engine integration remain
 pending. No existing issue received comments and no code was published.
 
+## Filled-rectangle logical pen and pass reconciliation
+
+K now follows the adopted #33/PR #63 exception rather than the earlier solid
+COPY-border prerequisite described above. STYLE retains the original selected
+line type 0–4 alongside the resolved ordinary/custom mask. The `=` decoder
+updates both atomically; style validation, selection/copy/protection and owned
+backup/restore preserve that type. The stored custom bits remain available to
+other drawing consumers and are not rewritten by K.
+
+K maps the selected type to SOLID/DOT/DASHDOT/DASH/DASHDOTDOT, with custom type
+4 selecting fixed DASHDOTDOT rather than its arbitrary mask. Effective widths
+above one select a solid pen; cosmetic byte-zero width already resolves to one
+at the existing wire boundary. Geometric dash coverage uses explicit repeating
+runs (`#`, `#.`, `###.#...`, `####....`, `###.#.#.`); exact GDI dash lengths,
+caps and edge-pixel reproduction are outside the target. Both brush and border
+use the current Write Mode. NOT therefore requires no palette/color lookup for
+either operand, including opaque pen gaps.
+
+Flags exactly 1 take the combined brush/opaque-pen path: prepared pen coverage
+is excluded from the interior fill, then the pen applies the operation once.
+Flags 0/2/3 fill first and then draw the current pen with transparent gaps,
+retaining the two sequential operations where fill and pen overlap. All used
+inks and owned coverage are prepared before painting. Border-free degenerates
+remain successful no-ops, and normalized/wide endpoints and context fill phase
+retain their existing geometry. No parser error propagates to the session.
+The standalone device filled-rectangle kernel keeps its explicit solid COPY
+border API; wire K now resolves its different policy before using that kernel's
+fill-only path.
+
+`rip3_rectangle_commands` combines five logical types, four flags, widths one
+and three, both border states and five indexed modes plus RGB COPY in each
+coherent scene. Its 96 full-device captures span all canvases, both bases, XY
+widths 2–5, unequal WORLD scales, reversed/shortened fields and screen/offscreen
+contexts. Expected pixels come from independent perimeter/run descriptions and
+Boolean-operation algebra, with explicit single/two-pass overlap operands.
+Shifted copies preserve the source checkerboard phase. Focused cases distinguish
+custom masks 1/65535 from K's fixed type-4 pen, verify NOT with absent palettes,
+allocation failure before fill, unused degenerate inks, and malformed recovery.
+Existing fill/RGB expectations now use current-mode borders, including two NOT
+operations restoring a region. Style tests cover all type values through copies
+and immutable snapshots and reject invalid metadata without mutation.
+
+Native FreeBSD Release CMake configure/build passes without warnings. The five
+affected CTests pass: rectangle commands, fill commands, drawing commands,
+pattern commands and styles (0.62 seconds total). No broad regression or extra
+Valgrind run was added. The source/ledger audit matches all recorded 93 file
+pins and 41 helper pins, including the separately recorded font-maintenance
+exceptions. No RIP1.54 source/capture/preservation pin, reference revision or
+active application route changes. Temporary build logs were removed and
+unrelated concurrent documentation was left untouched. The ledger reconciles
+16 units: 503 implemented, 1434 pending, 4388 unreviewed, 974 contextual,
+24 excluded and 34 blocked among 7357 blocks. Other filled primitive exceptions,
+bootstrap/N lifecycle and active-engine integration remain pending. No issue
+content or code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

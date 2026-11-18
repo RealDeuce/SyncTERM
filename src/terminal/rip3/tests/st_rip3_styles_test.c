@@ -28,7 +28,7 @@ value(unsigned number)
 		.drawing_color=0x112200+number, .background_color=0x445500+number,
 		.fill_color=0x330000+number, .pen={0},
 		.font={number%11,number%2,number%10+1,number%3 | vertical[number%4]},
-		.write_mode=(enum st_rip3_write_mode)(number%5),
+		.write_mode=(enum st_rip3_write_mode)(number%5), .line_type=number%5,
 	};
 	style.pen.pattern = (uint16_t)(0xa500+number);
 	style.pen.thickness = number+1;
@@ -42,7 +42,7 @@ static bool
 equal(const struct st_rip3_style *a, const struct st_rip3_style *b)
 {
 	return a->drawing_color == b->drawing_color && a->background_color == b->background_color
-	    && a->fill_color == b->fill_color && a->pen.pattern == b->pen.pattern
+	    && a->fill_color == b->fill_color && a->pen.pattern == b->pen.pattern && a->line_type == b->line_type
 	    && a->pen.thickness == b->pen.thickness && a->pen.draw_background == b->pen.draw_background
 	    && memcmp(a->fill.rows, b->fill.rows, 8) == 0
 	    && a->fill.origin.x == b->fill.origin.x && a->fill.origin.y == b->fill.origin.y
@@ -127,7 +127,7 @@ errors(void)
 	CHECK(st_rip3_styles_protect(styles, 0, true) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_styles_define(styles, 36, &initial) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_styles_define(styles, 1, NULL) == IO_ERROR_INVALID_ARGUMENT);
-	for (unsigned which = 0; which < 12; which++) {
+	for (unsigned which = 0; which < 13; which++) {
 		invalid = initial;
 		switch (which) {
 			case 0: invalid.drawing_color = 0x1000000; break;
@@ -141,6 +141,7 @@ errors(void)
 			case 8: invalid.font.magnification = 0; break;
 			case 9: invalid.font.flags = 3; break;
 			case 10: invalid.write_mode = (enum st_rip3_write_mode)5; break;
+			case 11: invalid.line_type = 5; break;
 			default: invalid.write_mode = (enum st_rip3_write_mode)-1; break;
 		}
 		CHECK(st_rip3_styles_create(&sentinel, &invalid) == IO_ERROR_OUT_OF_RANGE && sentinel == NULL);

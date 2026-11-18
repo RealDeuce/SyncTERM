@@ -349,7 +349,7 @@ line_styles(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 				bytes[1] = digits[flags]; bytes[7] = digits[widths[w]/radix]; bytes[8] = digits[widths[w]%radix];
 				CHECK(process(&host,bytes,-1) == 0);
 				CHECK(st_rip3_styles_get(host.styles,0,&style) == 0);
-				CHECK(style.pen.pattern == 0xffff && style.pen.draw_background == (flags == 1));
+				CHECK(style.pen.pattern == 0xffff && style.line_type == 0 && style.pen.draw_background == (flags == 1));
 				CHECK(style.pen.thickness == (flags&2 ? profiles[p].scaled[w] : device[w]));
 				CHECK(style.drawing_color == 3 && style.background_color == 1 && style.fill_color == 2
 				    && style.write_mode == ST_RIP3_COPY && style.font.magnification == 1);
@@ -361,7 +361,7 @@ line_styles(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	for (unsigned s = 0; s < 5; s++) {
 		memcpy(bytes,"=000XPM03",10); bytes[2] = digits[s];
 		CHECK(process(&host,bytes,-1) == 0);
-		CHECK(st_rip3_styles_get(host.styles,0,&style) == 0 && style.pen.pattern == patterns[s]
+		CHECK(st_rip3_styles_get(host.styles,0,&style) == 0 && style.pen.pattern == patterns[s] && style.line_type == s
 		    && style.pen.thickness == 3 && !style.pen.draw_background);
 	}
 	CHECK(process(&host,"=0000003",-1) == 0); /* Only the final thickness shortens. */

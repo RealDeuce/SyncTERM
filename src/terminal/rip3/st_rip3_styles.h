@@ -25,6 +25,9 @@ struct st_rip3_backup;
 struct st_rip3_style {
 	uint32_t drawing_color, background_color, fill_color;
 	struct st_rip3_pen pen;
+	/* Original logical type 0..4, distinct from the resolved/custom mask.
+	 * K maps this to SOLID/DOT/DASHDOT/DASH/DASHDOTDOT. */
+	unsigned line_type;
 	struct st_rip3_fill fill;
 	struct st_rip3_classic_text_style font;
 	enum st_rip3_write_mode write_mode;

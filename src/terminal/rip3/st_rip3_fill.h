@@ -22,7 +22,8 @@ int st_rip3_fill_solid(struct st_rip3_fill *fill, bool foreground);
 /* Device-pixel rectangles; opposing corners are normalized. BAR includes the
  * last row/column and ignores border state. Pattern-off pixels use background.
  * FILLED_RECTANGLE excludes the last row/column of its interior. A non-NULL
- * border pen adds a COPY border, ignoring its mask as specified for this shape.
+ * border pen adds an explicit device-kernel solid COPY border; wire K resolves
+ * its logical pen, write mode and drawing passes separately.
  * Degenerate filled rectangles draw only that border (when enabled). */
 int st_rip3_draw_bar(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *area, const struct st_rip3_fill *fill,

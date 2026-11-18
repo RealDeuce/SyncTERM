@@ -56,6 +56,11 @@ widths, order-dependent spans, pie/chord closure and multiple-traversal fill
 parity. Captures cover all canvases/bases/widths, screen/offscreen contexts,
 context fill phase and parser-owned recovery. Missing numeric/pen/pass acceptance
 and repeated XOR/NOT outline behavior are tracked in #76.
+Separate K tests now cover the current logical pen/write mode, fixed type-4
+DASHDOTDOT mapping, wide solid pens, opaque single-pass versus transparent
+two-pass overlap, and NOT's unused inks. Style copies/backups preserve selected
+line type independently of custom masks. Coherent captures cover all canvases,
+bases, coordinate widths and border/flag combinations.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

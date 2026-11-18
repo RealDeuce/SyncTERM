@@ -80,7 +80,7 @@ static bool
 same(const struct st_rip3_style *a, const struct st_rip3_style *b, bool fill)
 {
 	return a->drawing_color == b->drawing_color && a->background_color == b->background_color
-	    && a->pen.pattern == b->pen.pattern && a->pen.thickness == b->pen.thickness
+	    && a->pen.pattern == b->pen.pattern && a->pen.thickness == b->pen.thickness && a->line_type == b->line_type
 	    && a->pen.draw_background == b->pen.draw_background && a->write_mode == b->write_mode
 	    && a->font.font == b->font.font && a->font.direction == b->font.direction
 	    && a->font.magnification == b->font.magnification && a->font.flags == b->font.flags
@@ -369,6 +369,7 @@ filled_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	static const char initial[] = "!|S013|N01|K08080202|K0A0A0A0E\r";
 	static const char *commands[] = {"K020K0A0S","K0I0K0Q0S","K0Y0K160S","K02100A18","K0I100Q18"};
 	static const uint8_t modes[] = {15,0x5a,0x5f,5,0xaa};
+	static const uint8_t border_modes[] = {12,0x59,0x5d,4,0xaa};
 	static const struct st_rip3_point origins[] = {{1,10},{9,10},{17,10},{1,18},{9,18}};
 	struct st_rip3_command_host host = {0};
 	struct st_rip3_style style;
@@ -412,7 +413,7 @@ filled_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		CHECK(st_rip3_ports_fill(host.ports, &underlay, 0x55, ST_RIP3_COPY) == 0);
 		CHECK(process(&host, commands[i], -1) == 0);
 	}
-	CHECK(process(&host, "K1E021E0A", -1) == 0); /* Degenerate COPY border only. */
+	CHECK(process(&host, "K1E021E0A", -1) == 0); /* Degenerate NOT border only. */
 	CHECK(process(&host, "K1E0E1E0E", -1) == 0);
 	CHECK(st_rip3_styles_switch(host.styles, 0) == 0);
 	CHECK(process(&host, "W0", -1) == 0);
@@ -429,9 +430,9 @@ filled_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		for (size_t i = 0; i < 5; i++) {
 			uint32_t left = 12+(uint32_t)origins[i].x, top = 23+(uint32_t)origins[i].y;
 			if (x >= left && x <= left+4 && y >= top && y <= top+4)
-				expected = x == left || x == left+4 || y == top || y == top+4 ? 12 : modes[i];
+				expected = x == left || x == left+4 || y == top || y == top+4 ? border_modes[i] : modes[i];
 		}
-		if (x == 37 && ((y >= 24 && y <= 28) || y == 30)) expected = 12;
+		if (x == 37 && ((y >= 24 && y <= 28) || y == 30)) expected = 255;
 		if (x >= 37 && x <= 39 && y >= 48 && y <= 50)
 			expected = x == 37 || y == 48 ? 12 : 15;
 		if (x >= 36 && x <= 38 && y >= 37 && y <= 42) expected = 12;
@@ -474,7 +475,7 @@ filled_rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(process(&host, "K01010606", -1) == 0);
 	bound = host.palettes; host.palettes = NULL;
 	CHECK(process(&host, "W4", -1) == 0);
-	CHECK(process(&host, "K08010D06", ST_RIP3_COMMAND_UNSUPPORTED) == 0); /* COPY border still needs ink. */
+	CHECK(process(&host, "K08010D06", -1) == 0); /* NOT fill and border ignore both inks. */
 	borders = false;
 	CHECK(process(&host, "K0F010I04", -1) == 0); /* NOT fill needs neither ink. */
 	CHECK(process(&host, "W0", -1) == 0);
@@ -493,7 +494,7 @@ filled_rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		if (x >= 1 && x <= 6 && y >= 1 && y <= 6)
 			expected = x == 1 || x == 6 || y == 1 || y == 6 ? 0x445566 : y%2 == 0 ? 0x112233 : 0x112235;
 		if (x >= 8 && x <= 13 && y >= 1 && y <= 6)
-			expected = x == 8 || x == 13 || y == 1 || y == 6 ? 0x445566 : 0xffffff;
+			expected = 0; /* Two complete NOT operations restore the original region. */
 		if (x >= 15 && x <= 17 && y >= 1 && y <= 3) expected = 0xffffff;
 		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | expected));
 	}
