@@ -404,6 +404,98 @@ test_rip3_reset_default_font(void)
 	return 0;
 }
 
+struct mode_capture {
+	uint32_t columns, rows, width, height;
+	unsigned calls;
+};
+
+static void
+capture_mode(void *context, uint32_t columns, uint32_t rows,
+    uint32_t width, uint32_t height)
+{
+	struct mode_capture *capture = context;
+
+	capture->columns = columns;
+	capture->rows = rows;
+	capture->width = width;
+	capture->height = height;
+	capture->calls++;
+}
+
+static int
+test_rip_text_video_mode(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config screen = {
+		.columns = 160, .rows = 50, .cell_width = 8, .cell_height = 16,
+		.aspect_width = 8, .aspect_height = 5,
+	};
+	const struct { unsigned style, columns, rows, width, height; } modes[] = {
+		{0, 80, 43, 8, 8}, {1, 91, 43, 7, 8}, {2, 80, 25, 8, 14},
+		{3, 91, 25, 7, 14}, {4, 40, 25, 16, 14}, {0, 80, 43, 8, 8},
+	};
+	for (unsigned version = 1; version <= 3; version += 2) {
+		st_console_t *console = NULL;
+		st_font_catalog_t *fonts = NULL;
+		st_cterm_t *terminal = NULL;
+		struct mode_capture capture = {0};
+		uint32_t columns, rows, width, height;
+
+		CHECK(st_console_create(&console, &display, &screen) == 0);
+		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		const struct st_cterm_config config = {
+			.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_CP437,
+			.graphics_mode = version == 1 ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_RIP_3,
+			.status_line = true, .size_changed = capture_mode, .size_context = &capture,
+		};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		CHECK(feed(terminal, "\r", 1) == 0);
+		struct st_pixel_buffer *seed = NULL;
+		CHECK(st_pixel_buffer_create(&seed, 640, 350, true) == 0);
+		seed->primary[100 * 640 + 100] = 3;
+		seed->alternate[100 * 640 + 100] = 5;
+		seed->primary[330 * 640 + 639] = seed->alternate[330 * 640 + 639] = 7;
+		const struct st_pixel_blit blit = {.width = 640, .height = 350, .scale_x = 1, .scale_y = 1};
+		CHECK(st_console_blit_pixels(console, seed, NULL, &blit) == 0);
+		for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); i++) {
+			char command[32];
+			int length = snprintf(command, sizeof(command), "\r!|w000027161%u\r", modes[i].style);
+
+			/* Split the text-window field; geometry commits only on dispatch. */
+			CHECK(feed(terminal, command, (size_t)length - 2) == 0);
+			CHECK(capture.calls == (version == 3 ? i : 0));
+			CHECK(feed(terminal, command + length - 2, 2) == 0);
+			CHECK(capture.calls == (version == 3 ? i + 1 : 0));
+			if (version == 3) {
+				CHECK(capture.columns == modes[i].columns && capture.rows == modes[i].rows - 1);
+				CHECK(capture.width == 640 && capture.height == 350);
+			}
+			CHECK(st_console_size(console, &columns, &rows) == 0);
+			CHECK(columns == modes[i].columns && rows == modes[i].rows);
+			CHECK(st_console_cell_pixel_size(console, &width, &height) == 0);
+			CHECK(width == modes[i].width && height == modes[i].height);
+			CHECK(st_console_pixel_size(console, &width, &height) == 0);
+			CHECK(width == (version == 3 ? 640u : 1280u));
+			CHECK(height == (version == 3 ? 350u : 800u));
+			struct st_pixel_buffer *pixels = NULL;
+			const struct st_console_rect area = {0, 0, 640, 350};
+			CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
+			CHECK(memcmp(seed->primary, pixels->primary, 640u * 350u * sizeof(uint32_t)) == 0);
+			CHECK(memcmp(seed->alternate, pixels->alternate, 640u * 350u * sizeof(uint32_t)) == 0);
+			st_pixel_buffer_destroy(pixels);
+		}
+		CHECK(feed(terminal, "\r!|*\r", 5) == 0);
+		CHECK(st_console_pixel_size(console, &width, &height) == 0);
+		CHECK(width == 1280 && height == 800);
+		st_pixel_buffer_destroy(seed);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
+	}
+	return 0;
+}
+
 struct output_capture {
 	char bytes[32];
 	size_t size;
@@ -558,6 +650,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(test_text_window_reinit_wrap() == 0);
 	CHECK(test_text_window_reinit_keeps_start_state() == 0);
 	CHECK(test_rip3_reset_default_font() == 0);
+	CHECK(test_rip_text_video_mode() == 0);
 	CHECK(test_v110a_flood(
 	    "!|*|c0F|R0A0A1E1E|S010C|F0K0K0F|#\n", false) == 0);
 	CHECK(test_v110a_flood(

@@ -6,6 +6,19 @@ recognizes only its own CSI `!`, `0!`, `1!` and `2!` forms, passing unrelated CS
 forms to ANSI handling. SkyPix commands do not activate a RIP graphics engine.
 Historical RIP captures and their exclusions remain unchanged.
 
+RIPv3 text-window font selection changes the complete video mode to its
+640x350 raster and 4:3 presentation, retaining both graphics planes and
+excluding the previous local status row from saved artwork. The status bar
+uses the selected font and the bottom row of the new grid. RIPv3 window reset
+restores the session's original raster, aspect, grid and font. RIPv1 retains
+its existing in-place text-grid changes and local status font.
+`cterm_rip_live` checks split fields, size notifications and independent
+whole-plane preservation; the CP437/UTF-8 wire suites start at 1280x800,
+exercise all five fonts with status enabled/disabled, and check coherent
+geometry, status font/pixels, graphics and reset/recovery. This RIPv3-only
+maintenance change leaves the historical RIP 1.54 images and expectations
+unchanged.
+
 The [RIP input-loss report](https://github.com/RealDeuce/SyncTERM/issues/2)
 was checked against the v1.10b fix `8642e3451be5b872042daf88fce0cf366d737dcc`.
 The modern path changes text geometry in place, retaining the terminal and its

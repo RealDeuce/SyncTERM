@@ -533,6 +533,47 @@ def host_command_cases(t):
     assert frame.primary == before.primary and frame.palette == before.palette
 
 
+def font_mode_cases(args):
+    for version in (1, 3):
+        for status in (False, True):
+            with connection(args.executable, args.reports, encoding=args.encoding,
+                            options=f"ScreenMode=Custom\nRIP=RIPv{version}\nNoStatus={str(not status).lower()}\n",
+                            settings="CustomColumns=160\nCustomRows=50\nCustomFontHeight=16\n"
+                                     "CustomAspectWidth=8\nCustomAspectHeight=5\nAudioModes=0\n") as (client, root, peer, send):
+                t = Terminal(client, root, peer, send)
+                for style, columns, rows, width, height in (
+                        (0, 80, 43, 8, 8), (1, 91, 43, 7, 8), (2, 80, 25, 8, 14),
+                        (3, 91, 25, 7, 14), (4, 40, 25, 16, 14), (0, 80, 43, 8, 8)):
+                    t.case(f"font-mode-v{version}-status-{status}-style-{style}")
+                    # The first switch is the command at the start of beziers.rip.
+                    # Preserve a specified scene through subsequent font switches.
+                    window = point(0, 0) + point(columns - 1, rows - 1 - status) + b"1" + mega(style, 1)
+                    frame = t.exchange(b"\r!|c0F|X2S2S|w" + window + b"\r\nA")
+                    assert tuple(frame.metadata[k] for k in
+                                 ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == (
+                                     columns, rows, width, height,
+                                     640 if version == 3 else 1280, 350 if version == 3 else 800), frame.metadata
+                    if status and version == 3:
+                        frame = client.wait_for(lambda s: s.lines[-1].lstrip().startswith("Capture"))
+                        text_font = cell_at(frame, 0, 0).font
+                        assert all(cell_at(frame, x, rows - 1).font == text_font for x in range(columns))
+                        # The new font must be rasterized, not just recorded in cells.
+                        assert any(pixel(frame, x, (rows - 1) * height + y) == 0xffff54
+                                   for x in range(width * 7) for y in range(height))
+                        assert all(pixel(frame, x, (rows - 1) * height) == 0x0000a8
+                                   for x in range(columns * width - width, columns * width))
+                    for phase in ("primary", "alternate"):
+                        assert pixel(frame, 100, 100, phase) == 0xffffff
+                frame = t.exchange(b"\r!|*\r\n")
+                expected = (160, 50, 8, 16, 1280, 800) if version == 3 else (80, 43, 8, 8, 1280, 800)
+                assert tuple(frame.metadata[k] for k in
+                             ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == expected
+                # Reset clears the scene and remains ready for further commands.
+                assert pixel(frame, 100, 100) == 0
+                frame = t.exchange(b"!|c0F|X2S2S\r\n")
+                assert pixel(frame, 100, 100) == 0xffffff
+
+
 def live_cases(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=80x43\nRIP=RIPv1\n", settings="AudioModes=0\n") as (client, root, peer, send):
@@ -543,6 +584,7 @@ def live_cases(args):
             host_command_cases(t)
         print(f"Passed {len(t.completed)} live {args.group} cases", flush=True)
     if args.group == "wire":
+        font_mode_cases(args)
         with connection(args.executable, args.reports, encoding=args.encoding,
                         options="ScreenMode=80x43\nRIP=RIPv3\n", settings="AudioModes=0\n") as (client, root, peer, send):
             t = Terminal(client, root, peer, send)

@@ -118,6 +118,7 @@ struct cterminal {
 	void *rip_transfer_context;
 	bool rip_text_disabled;
 	int rip_text_font_style;
+	struct st_console_config rip_default_mode;
 	struct {
 		int x;
 		int y;

@@ -108,8 +108,18 @@ blank_status_cell(struct st_wren_context *context,
 {
 	uint16_t font;
 	uint8_t columns;
+	struct st_cterm_state state;
+	enum st_codepage codepage;
 
-	if (!st_wren_font_identifier(context, 0, &font))
+	/* RIPv3 changes the video font as well as the grid. Other emulations
+	 * retain the local UI font, independent of remote font assignments. */
+	if (context->cterm != NULL
+	    && st_cterm_state(context->cterm, &state) == 0
+	    && state.graphics_mode == ST_CTERM_GRAPHICS_RIP_3) {
+		if (!st_cterm_font_info(context->cterm, 0, &font, &codepage))
+			return IO_ERROR_NOT_FOUND;
+	}
+	else if (!st_wren_font_identifier(context, 0, &font))
 		return IO_ERROR_NOT_FOUND;
 	*blank = (struct st_console_cell){
 		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 84),

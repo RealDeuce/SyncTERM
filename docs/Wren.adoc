@@ -6837,6 +6837,9 @@ pre-filled to the default attribute (yellow on blue, spaces).  The
 callable mutates cells in place and returns; its return value is
 ignored.
 
+In RIPv3, the supplied cells use the active RIP text-window font after a
+video-mode change. Other emulations retain the local status font.
+
 [source,wren]
 ----
 import "syncterm" for Status, Surface, Screen, Session, CTerm
