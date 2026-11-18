@@ -3539,6 +3539,66 @@ The ledger reviews 51 source blocks and adds B75: 369 implemented, 1490 pending,
 Complete filled-curve style/mode coverage, skewed curves and active-engine
 integration remain pending. No code or PR was published.
 
+## Original integer Bézier consumers
+
+The earlier nearest-rounded, N+1-point prerequisite kernel above has been
+replaced by the adopted #15/PR #44 numerical and wire contract. Its former API
+had no application consumers. The separate engine now dispatches Z/z/t/x and
+shares the original fixed-point generator and typed-record expansion.
+
+Controls are converted to integer device coordinates before sampling. The
+sampler uses eight fractional bits, explicit modulo-32-bit subtraction/products
+and signed truncating division at each interpolation level, then floors and
+narrows interior outputs to signed16. P0 retains its input integer and P3 narrows
+to signed16. N>=2 submits P0, samples i/N for 1..N-2, then P3: the penultimate
+sample is deliberately absent. Standalone Z accepts 0/1 as non-drawing counts
+and retains the full two-digit range through 4095 without poly reduction.
+
+The z/t/x parser consumes only num/count headers and the seven literal type
+digits. Point records contribute their unsigned16 first pair; cubic records
+retain converted P0/P1/P2 and take unsigned16 P3 from the next record's first
+pair. Closed z/x permit a terminal cubic returning to the first record; open t
+rejects it before any drawing. N=1 contributes only the cubic's P0, and repeated
+join endpoints are preserved. The independent 8193-number collection limit
+and common-N reduction to at most 4094 submitted points are both enforced.
+Paths with fewer than two submitted points draw nothing, matching both native
+APIs' minimum. The adapter uses wide WORLD division followed by explicit
+device-word conversion; it does not claim native multiplication-overflow parity
+before that division.
+
+Unfilled Z/t/z preserve line pattern, thickness, background-gap policy and Write
+Mode across the generated path. Filled x uses the existing even-odd polygon
+kernel and drawing-context fill phase, with optional patterned COPY borders as
+specified by x's own entry. All parse, expansion and paint failures are consumed
+inside the void public parser; malformed/oversized vectors cannot paint a
+prefix. The final choice of original silent common-consumer errors versus the
+num=0 message remains pending with diagnostic/UI integration. Existing GDI
+edge/cap and repeated-XOR pixel defects are outside the reproduction target.
+
+`rip3_bezier` has independent literal fixed-point examples, negative floors,
+signed/unsigned narrowing, wraparound discontinuities, N=0/1/2/4095, terminal
+closure, duplicate joins and exact input/generated budget boundaries. Literal
+complete original z/t vectors submit 203/81 points. `rip3_bezier_commands` adds
+96 coherent full-device screen/offscreen captures over all canvases, both
+bases, XY widths 2–5, two fractional unequal WORLD mappings, five indexed modes
+and RGB COPY. The independent arch/triangle grids distinguish N=2 from N=4 and
+conversion-before-sampling. Tests also cover all type digits, short last fields,
+filled mode/border differences, patterned phase and COPY gaps, full counts,
+malformed/terminal/overflow rejection, missing services, inactive ports,
+nonfatal split-input recovery, and each owned allocation before painting.
+
+Native FreeBSD Release configure/build and the 99-test RIP3/preservation run
+pass. Valgrind reports zero errors, no retained heap, 19,341 allocations/frees
+and three inherited descriptors for the expanded wire fixture. A subsequent
+correction enforces Polygon's two-point minimum as well as Polyline's; only the
+affected wire test was rebuilt/rerun after adding its focused no-ink/no-N cases.
+The broad suite and Valgrind were not repeated for that correction. Scoped
+verification logs were removed. All 93 recorded file pins and 41 helper pins
+matched; no RIP1.54 source, historical expectation, manifest, stable reference
+or active application route changes in this milestone. The ledger reviews 98
+blocks: 440 implemented, 1482 pending, 4425 unreviewed, 959 contextual, 24 excluded
+and 27 blocked among 7357 units. No issue content or code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

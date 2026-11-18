@@ -2,23 +2,15 @@
 #ifndef ST_RIP3_BEZIER_H_
 #define ST_RIP3_BEZIER_H_
 
-#include "st_rip3_fill.h"
+#include "st_rip3_geometry.h"
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
-/* Device geometry, after world translation. Smooth/jointed differ only in
- * authoring constraints; both supply two controls and an endpoint. A line
- * supplies its endpoint in points[0]. No source geometry is modified. */
-enum st_rip3_bezier_type {
-	ST_RIP3_BEZIER_LINE,
-	ST_RIP3_BEZIER_SMOOTH,
-	ST_RIP3_BEZIER_JOINTED,
-};
-
-struct st_rip3_bezier_segment {
-	enum st_rip3_bezier_type type;
+/* Converted device controls. Types 0/3/4 supply points[0]; 1/2/5/6 supply
+ * P0/P1/P2, with P3 taken from the next record (or first for closed paths). */
+struct st_rip3_bezier_record {
+	unsigned type;
 	struct st_rip3_point points[3];
 };
 
@@ -27,33 +19,22 @@ struct st_rip3_bezier_path {
 	size_t count;
 };
 
-/* Owned, uniformly subdivided cubic Bernstein path. This kernel takes an
- * explicit positive subdivision count (1..4095), and limits the total expanded
- * path to 4096 vertices, including the start. Samples t=i/subdivisions use
- * double arithmetic and round to the nearest device-pixel address (half ties
- * toward positive infinity); endpoints are exact. Errors leave result unchanged.
- * Destroy successful results before reuse. Wire count/range/recovery and final
- * block rules are separate policies pending documentation clarification #15. */
-int st_rip3_bezier_build(struct st_rip3_bezier_path *result,
-	const struct st_rip3_point *start,
-	const struct st_rip3_bezier_segment *segments, size_t count,
-	size_t subdivisions);
+/* Original eight-fractional-bit, wrapping signed-32 interpolation. The caller
+ * supplies room for max(N,2) points. N>=2 writes P0, samples i/N for i=1..N-2,
+ * then signed16(P3); the (N-1)/N sample is deliberately absent. N=0/1 writes
+ * two scratch endpoints; the drawing consumer still submits only N points.
+ * P0 retains its original integer. Interior coordinates floor then signed16.
+ * N is 0..4095. Invalid arguments leave output unchanged. */
+int st_rip3_bezier_sample(struct st_rip3_point *output,
+	const struct st_rip3_point controls[4], unsigned count);
+/* Original z/t/x record expansion, including low16 point/P3 conversion,
+ * repeated joins and common-N reduction to at most 4094 submitted points.
+ * The 8193-number input budget is independently checked. An open path rejects
+ * a terminal cubic. N=1 contributes only P0, without its scratch endpoint.
+ * Errors preserve result; destroy successful owned results before reuse. */
+int st_rip3_bezier_expand(struct st_rip3_bezier_path *result,
+	const struct st_rip3_bezier_record *records, size_t count,
+	unsigned requested, bool closed);
 void st_rip3_bezier_free(struct st_rip3_bezier_path *path);
-
-/* Strokes preserve line pattern/phase and write mode across the entire path.
- * A closed path adds its final edge even when the input endpoint differs from
- * the start. Filled paths close implicitly, use even-odd interiors and optional
- * patterned COPY borders. Both allocate/validate before changing pixels. */
-int st_rip3_draw_bezier_path(struct st_rip3_ports *ports,
-	const struct st_rip3_point *start,
-	const struct st_rip3_bezier_segment *segments, size_t count,
-	size_t subdivisions, bool closed, const struct st_rip3_pen *pen,
-	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
-int st_rip3_draw_filled_bezier_path(struct st_rip3_ports *ports,
-	const struct st_rip3_point *start,
-	const struct st_rip3_bezier_segment *segments, size_t count,
-	size_t subdivisions, const struct st_rip3_fill *fill,
-	uint8_t foreground, uint8_t background, const struct st_rip3_pen *border,
-	uint8_t border_color, enum st_rip3_write_mode mode);
 
 #endif

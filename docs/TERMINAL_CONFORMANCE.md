@@ -46,6 +46,11 @@ Their coherent captures include context-phased fill, five unbordered modes,
 solid COPY borders and parser-owned allocation/error recovery. Patterned pens
 and non-COPY sector borders remain blocked on #75; skewed curves and
 active-engine integration remain pending.
+Separate Z/z/t/x tests cover wrapped fixed-point Bézier sampling, omitted
+samples, typed records/closures, low16 conversion and independent collection/
+expansion limits. Coherent captures cover fractional WORLD projection, all
+canvases/bases/widths, patterned strokes and fills, COPY borders and nonfatal
+recovery. Original error-message/UI integration remains pending.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their
