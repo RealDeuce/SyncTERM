@@ -1,0 +1,92 @@
+= SyncTERM ATASCII manual
+:toc:
+
+== Selection and character interpretation
+
+Atari and Atari XEP80 screen modes select Atari 8-bit ATASCII. ATASCII is
+distinct from Atari ST VT52. The Atari mode uses its native character bank;
+the XEP80 preset changes geometry. Select ATASCII encoding for the wire
+stream. Controls are recognized before ordinary bytes are mapped to glyphs.
+
+Most byte values, including many ASCII C0 positions, are printable Atari
+glyph codes. Only the controls listed below take special actions. Inverse
+glyphs occupy the upper half of the character bank. ASCII `CR` / `LF` are
+not substitutes for ATASCII end-of-line `9B`.
+
+== Complete control reference
+
+[cols="1,2,5",options="header"]
+|===
+|Hex |Name |Action
+|`1B` |Escape |Quote exactly one following byte as a literal glyph, with the `9B` exception below.
+|`1C` |Up |Move up; wrap from the first row to the last in the same column.
+|`1D` |Down |Move down; wrap from the last row to the first in the same column.
+|`1E` |Left |Move left; wrap to the last column of the same row.
+|`1F` |Right |Move right; wrap to the first column of the same row.
+|`7D` |Clear screen |Clear with the current attribute through the terminal clear operation.
+|`7E` |Backspace |Move left and erase one character; do nothing at the left edge.
+|`7F` |Tab |Move to the next tab stop, wrapping to the next row when needed.
+|`9B` |End of line |Move to the first column of the next row and scroll if required.
+|`9C` |Delete line |Delete one line and move to the first column.
+|`9D` |Insert line |Move lower rows down, blank this row and move to its first column.
+|`9E` |Clear tab |Remove the tab stop at the current column.
+|`9F` |Set tab |Add a tab stop at the current column.
+|`FD` |Bell |Beep unless quiet.
+|`FE` |Delete character |Shift remaining cells in this row left and blank its final cell; preserve the cursor.
+|`FF` |Insert character |Shift remaining cells in this row right and blank the current cell; preserve the cursor.
+|===
+
+Directional cursor controls wrap within their row/column. They do not perform
+the scrolling of end-of-line or printable text. Editing is bounded by the
+current terminal area. There is no ANSI CSI or VT52 escape-command language.
+
+== Literal quoting and screen-code conversion
+
+`1B byte` consumes its second byte even when it is normally a control.
+It draws one translated screen-code cell and returns to normal parsing.
+This state survives receive-buffer boundaries. A quoted `9B` still performs
+end-of-line and cannot be used to paint that control's glyph.
+
+The quoted byte is converted as follows:
+
+[cols="2,3",options="header"]
+|===
+|ATASCII range |Screen-code operation
+|`00`–`1F` |Add 64
+|`20`–`5F` |Subtract 32
+|`60`–`7F` |Unchanged
+|`80`–`9F` |Add 64
+|`A0`–`DF` |Subtract 32
+|`E0`–`FF` |Unchanged
+|===
+
+For example, `1B 1C` paints the up-arrow glyph instead of moving the cursor.
+Quoting also installs the implementation's literal-cell attribute and restores
+the normal attribute after the one byte; it is not a persistent inverse-video
+toggle. The local inverse-input key described in the user manual affects
+outgoing keyboard bytes, independently of received quoting.
+
+== Outgoing keyboard bytes
+
+Up/down/left/right send `1C/1D/1E/1F`, Insert sends `FF`, and Delete sends
+`7E`. Ordinary Return and Tab pass through the selected ATASCII codepage
+mapping as `9B` and `7F`; explicit Control combinations retain their control
+identity. The grave-accent key toggles local inverse-input mode and sends
+no byte itself. This is independent of received `1B` quoting. Character
+conversion and local UI shortcuts occur before the emulation key table.
+
+== Tabs, reset and replies
+
+Tab stops use the shared terminal stop list. Reset installs the normal
+eight-column defaults; `9E` / `9F` edit individual stops. A tab with no
+remaining stop advances to the next row and can scroll at the bottom.
+Remote ATASCII has no implemented identification, cursor query or font-upload
+reply in this emulation. A terminal reset clears partial quoting and restores
+the initial session state.
+
+== Implementation and verification references
+
+link:../src/terminal/cterm/cterm_atascii.c[cterm_atascii.c] defines every
+control and the quoted-cell conversion. link:TERMINAL_CONFORMANCE.md[Terminal
+conformance] and native CTerm text tests record byte-mode, tab and split-input
+coverage. See link:Manual.txt[the user manual] for local keyboard behavior.

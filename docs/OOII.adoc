@@ -1,0 +1,176 @@
+= SyncTERM Operation Overkill II terminal manual
+:toc:
+
+== Selection and placement
+
+Operation Overkill II (OOII, also written Operation Overkill ][) is an
+embedded ANSI-art/menu expansion protocol. It runs at the connected-session
+wire boundary and passes ordinary bytes to the configured terminal. It is
+not another raster graphics mode. Expanded resources always render as
+ANSI/CP437 independently of the ordinary connection encoding.
+
+Mode zero leaves OOII command interpretation disabled and watches for the
+original maintenance-complete banners. One banner ends in the question
+`Do you have the Overkill Ansiterm installed? (y/N)`; the other contains
+`HX Force retinal scan in progress ...`. Detection compares their complete
+original bytes, including color controls, backspaces and padding, across
+receive-buffer boundaries. Merely sending the visible text is insufficient.
+The banner itself is passed through before following commands are enabled.
+
+Modes 1–3 select the retained artwork generations. Local mode selection
+clamps to this range (or zero/off) and discards incomplete frames and
+partial banner matches. Negotiation below can change the active generation.
+
+== Frame and argument grammar
+
+A frame begins with raw byte `AB` hex and ends with `7C` hex (ASCII pipe).
+Inside it, commands are case sensitive and can follow one another. Parameter
+blocks use underscore separators; numeric blocks are decimal strings. No
+Unicode encoding of the opening byte is used: UTF-8 for U+00AB is not the
+OOII introducer.
+
+The frame buffer is 256 bytes including its trailing NUL storage. At most
+255 wire bytes, including introducer and closing pipe, execute as one frame.
+A NUL or excessive length discards the frame through its closing pipe.
+An incomplete frame is not executed. Mode changes also clear unfinished
+collection. Fields and resource-table indices are bounded in the native port.
+
+There is no escaping for a pipe inside a field. The block reader optionally
+skips an initial underscore, reads through the next underscore or frame end,
+and leaves later command parsing to the caller. Empty/nonnumeric numeric
+fields follow the decimal conversion's zero result. Artwork contains its
+own terminal movement and attributes rather than pixels addressed by the
+wire command.
+
+== Frame command reference
+
+[cols="2,5",options="header"]
+|===
+|Command |Action
+|A–E |Full complex artwork: main, barracks, headquarters, communications, wastelands, respectively.
+|F–K |Base artwork: main menu, barracks, storage, tech center, control room, radio room.
+|0 |Choose one of ten embedded logon pictures for the active generation.
+|1 |Print the embedded games-room bar narrative.
+|2–9 |Recognized text-dispatch range without an additional implemented narrative.
+|a–v |Expand the small menus below, consuming their command-specific blocks.
+|w–z |Recognized small-menu dispatch range without an implemented menu body.
+|! |Build the recruit-status display, reading its initial attribute block.
+|# |Scanner/map subprotocol, described below.
+|$ |Play an embedded sound selected by the following byte.
+|? |Negotiate artwork generation and send the compact reply below.
+|Backslash |Disable OOII after the current frame.
+|===
+
+Uppercase L–Z enter the artwork dispatcher but select no embedded picture;
+the dispatcher still performs its clear/home prefix. Unknown commands are
+consumed without inventing a payload length.
+
+== Small menus
+
+Blocks listed here are underscore-delimited. Several commands interpret a
+block numerically for item lookup or to decide which options to display.
+The data are supplied by the game; menus do not query local gameplay state.
+
+[cols="1,3,5",options="header"]
+|===
+|Command |Menu |Payload
+|a |Supply room |No blocks.
+|b |Recruit chambers |No blocks.
+|c |Adjust specifications |No blocks.
+|d |Storage bank |Four blocks for account/loan display, squadron availability and carried crystals.
+|e |Games room |Games-left block.
+|f |Sentry post |Guard/items availability block.
+|g |Electronic mail |Squadron/mass-mail availability block.
+|h |Help information |No blocks.
+|i |Medical center |Four blocks for displayed health/training information and disease index.
+|j |Records room |No blocks.
+|k |Supply armor |Armor index and remaining-hit blocks.
+|l |Armor prices |Price/availability block.
+|m |Supply equipment |No blocks.
+|n |Equipment prices |Price/availability block.
+|o |Supply suits |Current suit index.
+|p |Suit prices |Price/availability block.
+|q |Supply weapons |Native branch-specific weapon, ammunition and round-count fields.
+|r |Weapon prices |Price/availability block.
+|s |Squadrons |Squadron-state block.
+|t |Sighting |Name/description and option-selector blocks.
+|u |Camp |Camp identity and two option/state blocks.
+|v |Recruit condition |Seven blocks: current/max hit points, current/total applications, radiation, hunger, ration availability.
+|===
+
+== Scanner and status
+
+`#` reads a subcommand. F draws the full scanner frame; T draws its text
+panel. M reads location/style bytes and nine numeric map blocks, then renders
+the nine cells using the original tile/color tables. O supplies object/detail
+updates, D supplies descriptive scanner content, and P positions the scanner
+output. These are native game-field formats, not ANSI escape arguments.
+The retained tile mappings include walls, terrain, recruits, objects and
+unknown cells in CP437. Rendering is clipped/handled by the ANSI terminal
+and cannot overwrite SyncTERM's separately owned status bar.
+
+The `!` status command first clears/homes and reads a decimal attribute.
+It draws the fixed recruit, location, training, squadron, strength, dexterity,
+hit-point, radiation, accuracy, bravery, crystals, disease, kills, experience,
+level, hunger, weapon, armor, outfit and equipment field layout. Later game
+output supplies its values. Embedded lookup tables are bounded; an invalid
+item index does not read unrelated memory.
+
+== Embedded sounds
+
+The byte after `$` selects these resources:
+
+[cols="1,3,1,3",options="header"]
+|===
+|Selector |Sound |Selector |Sound
+|1 |Welcome |2 |Explosion
+|3 |Countdown then explosion |4 |Clone
+|5 |Random danger variant |6 |Steam
+|7 |Scream 1 |8 |Watch
+|9 |Level-up |A |Inflame
+|B |Random hit variant |C |Time is up
+|D |Healing |E |Long range 2
+|F |Cackle |G |Teleport
+|H |Genetics |I |Remote
+|J |AFB door |K |Alarm
+|L |Reverse |M |Aerial
+|N |Phaser |O |Random miss variant
+|P |Random music variant |Q |Device
+|R |Death |S |Good
+|T |Yahoo |U |Scream 2
+|V |Wap |W |Zip
+|X |Long range 3 |Y |Snip
+|Z |Pow |Other |No sample
+|===
+
+Sound bytes are embedded resources; no remote file download is needed.
+The shared audio subsystem applies local playback policy. Disabling physical
+audio does not reinterpret the remaining frame or change its terminator.
+
+== Negotiation, examples and lifecycle
+
+`?` reads a numeric block, normalizes it to 1 or 2, sets local mode to
+that value plus one, and replies with raw `AF`, ASCII selected value, pipe.
+There is no CR, LF or NUL. An absent/old-version number selects 1.
+
+For example, frame bytes `AB 3F 32 7C` request generation 2, select local
+mode 3, and reply `AF 32 7C`. `AB 24 31 7C` selects the welcome sample;
+`AB 41 7C` clears/homes and expands the main complex artwork. These examples
+require OOII already enabled by detection or local selection.
+
+Ordinary connection bytes outside frames retain their encoding and receive
+path. Expanded ANSI uses CP437 without recursively executing newly expanded
+OOII frames. A mode change while rendering is honored after stable resource
+selection. Disconnect/destruction discards incomplete state. OOII does not
+add a generic terminal identity, graphics coordinate query or mouse report.
+
+== Sources and verification
+
+link:../src/terminal/ooii/st_ooii.c[st_ooii.c] contains command dispatch,
+menu fields, scanner tiles and normalization; neighboring resource files
+contain the three artwork generations and sample bytes.
+link:../src/terminal/ooii/tests/st_ooii_test.c[Native OOII tests] cover exact
+banner detection, split frames, negotiation, artwork/sound callbacks,
+malformed collection, mode changes and errors. Session integration is in
+link:../src/terminal/term/st_term.c[st_term.c]. ANSI rendering itself is
+specified in link:cterm.adoc[CTerm].

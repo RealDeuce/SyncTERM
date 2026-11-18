@@ -1,0 +1,165 @@
+= SyncTERM Prestel and BBC Mode 7 manual
+:toc:
+
+== Selection and display model
+
+Prestel and BBC Micro screen modes select the two serial-attribute text
+emulations. Both render SAA5050-style alphanumeric characters and six-element
+mosaics, with color, flash, conceal and double height. These are cell-based
+page displays. Prestel cursor motion wraps around the page. BBC motion wraps
+between columns/rows but scrolls at the top and bottom page boundaries.
+
+An attribute control occupies a cell. Its effect can begin at that cell
+(`set-at`) or the following cell (`set-after`). Editing an earlier control
+re-evaluates subsequent cells in the row. Moving into an existing row rebuilds
+the current attribute state from its earlier controls. Each row starts white
+on black, normal height, steady, alphanumeric, unconcealed, contiguous and
+with hold disabled. Attributes do not carry across a row boundary.
+
+== Attribute encoding and timing
+
+Prestel accepts `ESC code`, with `code` in `40`–`5F`, and the equivalent
+single-byte C1 value `code+40` hex (`80`–`9F`). BBC Mode 7 receives the raw
+C1 attribute bytes. The table uses the escaped Prestel code; add `0x40` to
+obtain the BBC/raw byte.
+
+[cols="1,2,4",options="header"]
+|===
+|Code |Timing |Effect
+|`41`–`47` |After |Alphanumeric red, green, yellow, blue, magenta, cyan, white; clear conceal and mosaic/hold state.
+|`48` |After |Flashing display.
+|`49` |At |Steady display.
+|`4C` |At |Normal height; clear held mosaic.
+|`4D` |After |Double height; clear held mosaic.
+|`51`–`57` |After |Mosaic red, green, yellow, blue, magenta, cyan, white; clear conceal.
+|`58` |At |Conceal display.
+|`59` |At |Contiguous mosaics.
+|`5A` |At |Separated mosaics.
+|`5C` |At |Black background.
+|`5D` |At |Background becomes the current foreground color.
+|`5E` |At |Hold mosaics.
+|`5F` |After |Release mosaics and clear the held glyph.
+|Other `40`–`5F` |Cell only |Retain an attribute-control cell without an additional implemented state change.
+|===
+
+Under hold, control cells can display the last mosaic instead of a space.
+The contiguous/separated setting and transitions into normal/double height
+affect that held state. Conceal preserves character data; the local reveal
+action exposes it. Clear-screen turns reveal off. Double-height rendering
+retains the relationship between the upper and lower rows instead of merely
+stretching independently stored glyphs.
+
+In mosaic mode, `20`–`3F` and `60`–`7F` select mosaics. The intervening
+`40`–`5F` range remains alphanumeric. A background change affects subsequent
+cells according to its set-at rule, not the whole page.
+
+== Prestel control characters
+
+[cols="1,5",options="header"]
+|===
+|Hex |Action
+|`00` |Flush pending text; no displayed cell.
+|`05` ENQ |Send programmable memory slot zero.
+|`08` APB |Move left one cell with page wrapping.
+|`09` APF |Move right one cell with page wrapping.
+|`0A` APD |Move down one row with page wrapping.
+|`0B` APU |Move up one row with page wrapping.
+|`0C` CS |Clear/home, restore row defaults and turn reveal off.
+|`0D` CR |Carriage return through the text path.
+|`11` |Show underline cursor.
+|`14` |Hide cursor.
+|`1B` ESC |Start an attribute or memory-programming sequence.
+|`1E` APH |Home and restore row defaults.
+|Other C0 |Ignored.
+|===
+
+== Programmable Prestel replies
+
+Seven slots contain 16 bytes each. Begin memory access with `ESC 1 ESC 2`;
+this selects slot zero. Each following `ESC 3` advances one slot, up to
+slot six. Then either send ENQ to return that slot, or `ESC 4` to load it.
+
+At terminal creation their literal contents are:
+
+[cols="1,3",options="header"]
+|===
+|Slot |Initial bytes
+|0 |`????????????????`
+|1 |`:2:?4967?89:1???`
+|2 |`:1632?123?456???`
+|3–6 |`;???????????????`
+|===
+
+The stored colons in those initial constants remain colons; colon-to-zero
+conversion applies to subsequently programmed input.
+
+Programming collects exactly 16 accepted characters: `1`–`9`, `:`, `;` and
+`?`. A colon is stored as ASCII `0`. NUL is ignored during programming;
+an unsupported character cancels the partial operation. A complete block
+is stored and its reply is sent. Replies send the slot's bytes in order,
+omitting every `?`, with no additional terminator or separator. Memory bytes
+are not painted into the page. Plain ENQ always requests slot zero.
+
+== BBC Mode 7 differences
+
+BBC mode shares APB/APF/APD/APU, clear and home. It also implements:
+
+[cols="2,5",options="header"]
+|===
+|Bytes |Action
+|`07` |Bell unless quiet.
+|`17` followed by 9 bytes |VDU 23 collection. Only `1,visible,0,0,0,0,0,0,0`, with visible 0/1, changes cursor visibility; other complete payloads are consumed.
+|`1C` followed by 2 bytes |Position collection. The implementation consumes row+32 first and column+32 second, then positions using one-based host coordinates.
+|`7F` |Destructive backspace, expressed as BS, space, BS.
+|===
+
+The two-byte position command is the implemented BBC terminal dialect; it is
+not the full four-operand BBC BASIC text-window VDU 28 API. The nine-byte
+VDU 23 collector is likewise not a general user-defined-character uploader.
+Parameters can cross input-buffer boundaries and remain raw bytes.
+
+BBC printable substitutions cycle `#` to `_`, `_` to the grave-accent code,
+and the grave-accent code to `#` before the Mode 7 glyph mapping. BBC does
+not use Prestel's escaped-attribute/programmed-memory grammar or its ENQ
+reply. Its raw `80`–`9F` serial attributes still occupy cells.
+
+== Outgoing keyboard bytes
+
+F3 or Page Down toggles reveal locally and sends no byte. Backspace/Delete
+send `7F` and F7 sends ESC in both modes. BBC Home sends `1F`; arrows send
+`8F/8E/8C/8D` for up/down/left/right. In Prestel, Home sends `1E`; arrows
+send those same high bytes while the cursor is hidden, but `0B/0A/08/09`
+while the underline cursor is enabled. These choices support cursor-addressed
+editing as well as page navigation.
+
+Prestel Return sends underscore (`5F`), the byte used for its hash-key
+convention; LF sends CR. Control-L sends `0C`, Control-T sends `18`, and
+Escape passes through. The outgoing printable substitutions are hash to
+underscore, underscore to grave-accent, grave-accent to hash. BBC ordinary
+Return remains CR.
+
+Shift-F1 through Shift-F9 send `91`–`99`, Shift-F10 sends `90`.
+Control-F1 through Control-F9 send `A1`–`A9`, Control-F10 sends `A0`.
+Shift-arrows up/down/left/right send `9F/9E/9C/9D`; Control-arrows send
+`AF/AE/AC/AD`. Shift-End sends `9B`, Control-End `AB` (copy).
+Unmapped Prestel byte keys are restricted to `20`–`7F`; BBC allows `00`–`7F`.
+Local UI interception precedes these mappings.
+
+== Examples and compatibility
+
+In Prestel, bytes `0C 1B 41 52 45 44` clear the page, consume a red-alpha
+attribute cell, and print `RED` starting at the following cell. In BBC mode,
+use `0C 81 52 45 44` for the same attribute selection.
+
+Keep page width and encoding appropriate to the selected preset. These modes
+do not interpret ANSI SGR or install arbitrary fonts from the wire. Shared
+Unicode presentation preserves semantic cell content without changing the
+serial attribute language.
+
+== Implementation and verification references
+
+link:../src/terminal/cterm/cterm_prestel.c[cterm_prestel.c] owns serial
+attributes, motion, memory replies and both byte dispatchers. Retained
+SAA5050 cell rendering is in the console component. See
+link:TERMINAL_CONFORMANCE.md[Terminal conformance] for the existing mosaic,
+double-height, editing, reveal and text-boundary checks.

@@ -61,6 +61,9 @@ Libraries keep their own CMake targets, tests, licenses, and data under:
 `scripts/` contains runtime Wren modules. `cmake/` contains build helpers,
 and `ci/` contains CI drivers and their tests.
 
+See link:docs/Emulations.adoc[the terminal emulation manuals] for protocol
+syntax, commands, replies and compatibility limits.
+
 See link:docs/Manual.txt[the user manual], link:docs/HACKING.adoc[the development
 guide], and link:docs/Wren.adoc[the Wren API manual]. Development rules are in
 link:AGENTS.md[AGENTS.md]. Licensing information is in link:LICENSE[LICENSE]

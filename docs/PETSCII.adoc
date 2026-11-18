@@ -1,0 +1,101 @@
+= SyncTERM PETSCII manual
+:toc:
+
+== Selection, characters and geometry
+
+C64, C128 40-column and C128 80-column screen modes select PETSCII. These
+are byte-oriented Commodore terminals, with separate upper/graphics and
+lower/upper character banks. Use the corresponding PETSCII encoding and
+bundled font; CP437 and ASCII glyph positions are not interchangeable with
+PETSCII. Text decoding follows control recognition, so a high-bit control
+byte is not a Unicode character.
+
+Printable ranges are `20`–`7F` and `A0`–`FF`. Every byte in `00`–`1F` and
+`80`–`9F` is a control or a reserved byte. Reserved bytes are silently
+discarded. There is no ANSI escape-sequence interpretation in this mode.
+
+== Movement, editing and character-bank controls
+
+[cols="1,2,5",options="header"]
+|===
+|Hex |Name |Action
+|`07` |Bell |Beep unless quiet.
+|`0D` |Return |Move to the first column of the next row, scrolling as needed, and turn reverse video off.
+|`8D` |Shift-return |Move to the first column of the next row without changing reverse video.
+|`0E` |Lowercase |Select the lower/upper bank for subsequent characters.
+|`8E` |Uppercase |Select the upper/graphics bank for subsequent characters.
+|`11` |Down |Move down with bottom-edge scrolling.
+|`91` |Up |Move up without top-edge scrolling.
+|`1D` |Right |Move right using PETSCII's wrapping movement.
+|`9D` |Left |Move left using PETSCII's wrapping movement.
+|`12` |Reverse on |Exchange foreground/background for subsequently printed cells.
+|`92` |Reverse off |Restore ordinary printing.
+|`13` |Home |Move to the upper-left corner.
+|`93` |Clear/home |Clear with the current attribute and home.
+|`14` |Delete |Move back and delete a cell, shifting following cells left; no operation at the upper-left corner.
+|`94` |Insert |Shift the remainder of the row right and blank the cell under the cursor; retain cursor position.
+|===
+
+Delete at the left edge of a nonfirst row moves to the first column of the
+preceding row in this implementation. It does not emulate a Commodore BASIC
+logical-line editor. Insert/delete affect one displayed row rather than an
+arbitrarily long wrapped logical line. Selecting a bank affects subsequent
+text and does not reinterpret all retained cells as a new screen-code bank.
+
+== Foreground colors
+
+Color controls retain the current background. The hardware palette numbering
+differs between 40-column and 80-column video, so identical wire bytes have
+the following internal color selections:
+
+[cols="1,2,1,1",options="header"]
+|===
+|Hex |Commodore name |40-column index |80-column index
+|`90` |Black |0 |0
+|`05` |White |1 |15
+|`1C` |Red |2 |4
+|`9F` |Cyan |3 |11
+|`9C` |Purple |4 |13
+|`1E` |Green |5 |2
+|`1F` |Blue |6 |1
+|`9E` |Yellow |7 |14
+|`81` |Orange |8 |5
+|`95` |Brown |9 |6
+|`96` |Light red |10 |12
+|`97` |Dark gray |11 |3
+|`98` |Medium gray |12 |8
+|`99` |Light green |13 |10
+|`9A` |Light blue |14 |9
+|`9B` |Light gray |15 |7
+|===
+
+These are mode palette indices, not ANSI SGR numbers or packed RGB values.
+Reverse video is a printing flag independent of the selected foreground.
+
+== Outgoing keyboard bytes
+
+Return/LF send `0D`; Backspace and Delete send `14`; Insert sends `94`.
+Home sends `13`, End sends `93`, and up/down/left/right send `91/11/9D/1D`.
+F1 through F8 send `85,89,86,8A,87,8B,88,8C`, respectively. Other encodable
+byte keys use the PETSCII connection mapping. These are outgoing keyboard
+values: their function-key bytes are reserved/ignored in the received control
+table above. Local menu shortcuts take precedence over terminal translation.
+
+== Reset, replies and example
+
+PETSCII does not define an implemented terminal-identification or cursor
+position query here. A local terminal reset restores the session's initial
+terminal state; use explicit bank, color and reverse controls when producing
+a self-contained screen. Newlines are PETSCII returns, not an assumed
+ASCII LF translation.
+
+Bytes `93 0E 05 12 48 65 6C 6C 6F 92 0D` clear/home, select lowercase and
+white, print a reverse-video greeting, then end reverse and return.
+
+== Implementation and verification references
+
+link:../src/terminal/cterm/cterm_petscii.c[cterm_petscii.c] contains every
+control and both color tables. link:TERMINAL_CONFORMANCE.md[Terminal conformance]
+and the native CTerm text tests cover byte dispatch, retained cells, encoding
+and input partitions. See link:Manual.txt[the user manual] for local keyboard
+translation and connection setup.

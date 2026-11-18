@@ -1,6 +1,10 @@
 = CTerm Manual
 :toc:
 
+This manual describes the ANSI-BBS/ECMA-48 terminal. See
+link:Emulations.adoc[the emulation manual index] for VT52, PETSCII, ATASCII,
+Prestel/BBC Mode 7, SkyPix, IGS, BIG and Operation Overkill II.
+
 == CTerm terminal characteristics
 
 === End of line behaviour (wrapping):

@@ -1,0 +1,75 @@
+= SyncTERM emulation manuals
+:toc:
+
+These manuals describe the input, output and compatibility behavior implemented
+by SyncTERM. They are references for BBS authors and terminal users. The
+`*_CONFORMANCE.md` documents record evidence and test coverage; the
+`*_IMPLEMENTATION.adoc` documents retain implementation decisions and history.
+
+== Choosing an emulation
+
+Screen Mode selects the base text emulation and its initial geometry. Graphics
+selects an additional protocol parser. Encoding selects the interpretation of
+ordinary text; it does not translate command bytes or binary payloads.
+
+[cols="2,3,4",options="header"]
+|===
+|Manual |Selection |Scope
+|link:cterm.adoc[CTerm] |Ordinary PC screen modes |ANSI-BBS, ECMA-48, private modes, replies, fonts and music
+|link:VT52.adoc[VT52 / Atari ST] |Atari ST screen modes |VT52 escapes, TOS extensions and the native IGS console
+|link:PETSCII.adoc[PETSCII] |C64, C128 40/80-column |Commodore text, colors, character sets and editing
+|link:ATASCII.adoc[ATASCII] |Atari, Atari XEP80 |Atari 8-bit text, quoting, editing and tabs
+|link:Prestel.adoc[Prestel / BBC Mode 7] |Prestel, BBC Micro |Serial attributes, mosaics, double height and programmable replies
+|link:SkyPix.adoc[SkyPix] |SkyPix (Kick 1.3 / Kick 3.1) |Amiga graphics, native fonts, brushes, transfers and input reports
+|link:IGS.adoc[IGS 2.21] |IGS (2.21) |Atari graphics, VT52 console, images, sound and interactive scripts
+|link:BIG.adoc[BIG 1.03] |BIG (1.03) |PC graphics, BGI text, pages, sound and interactive scripts
+|link:OOII.adoc[Operation Overkill II] |Automatic banner detection / local OOII mode |Embedded ANSI artwork, menus, scanner and sampled sounds
+|===
+
+RIP is outside this manual expansion. Existing RIP implementation and
+conformance documents retain their own scope.
+
+== Notation
+
+`ESC` means byte `0x1B`, `CSI` means `ESC [` unless stated otherwise, `CR`
+means `0x0D`, and `LF` means `0x0A`. Hexadecimal values describe bytes, not
+Unicode code points. Spaces inserted between bytes in explanatory notation
+are not sent unless explicitly required by the protocol.
+
+Coordinates are zero-based unless a command says otherwise. Parameters named
+`x,y` are numbers to supply; they are not literal characters. Examples in
+code blocks show the printable part of the stream. An `ESC` in a block must
+be replaced by the actual escape byte when transmitting it.
+
+Commands and payloads can span receive buffers. A TCP packet boundary is not
+a command terminator. Counted binary payloads belong entirely to their
+protocol until their count is exhausted, even when they contain escape bytes,
+newlines, attention prefixes or text terminators.
+
+== Shared behavior and boundaries
+
+Text emulations share SyncTERM's text placement, history, logging and session
+lifecycle. A raw capture preserves connection bytes; text capture observes
+decoded text and omits opaque payloads. Local UI and the optional status bar
+have their own fonts and geometry. Remote palette/font changes do not redefine
+the local menus.
+
+The graphics manuals distinguish graphical text from console text, physical
+palette indices from logical pens, and graphics points from text cursors.
+Selecting a font or encoding does not make those objects interchangeable.
+Audio commands still consume their input and advance their protocol state
+when physical playback is disabled. Reset and disconnect cancel pending
+input, local waits and session-owned playback.
+
+See link:Manual.txt[the user manual] for connection setup and local keys,
+link:Console.adoc[the console interface] for rendering, and
+link:UnicodeBoundary.adoc[the Unicode boundary] for text conversion.
+
+== Maintaining these references
+
+Update the corresponding manual when changing a command, reply, default,
+reset rule, encoding rule or compatibility exception. Document current
+observable behavior, and identify an unsupported operation explicitly.
+An available font file, decoder or rendering primitive alone does not establish
+that its wire command is implemented. Keep evidence and independent test
+coverage in the existing conformance inventories.

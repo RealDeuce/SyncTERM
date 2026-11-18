@@ -886,6 +886,9 @@ These modes use the Atari ST VT52 emulation and do not support ANSI-BBS.
 --
 +
 
+Protocol syntax, control characters, keyboard bytes and compatibility limits
+are described in link:Emulations.adoc[the emulation manuals].
+
 See <<_current_screen_mode,Current Screen Mode>> and
 <<custom_screen_mode,Custom Screen Mode>> for additional information.
 

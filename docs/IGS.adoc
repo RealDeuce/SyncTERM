@@ -1,0 +1,392 @@
+= SyncTERM IGS 2.21 manual
+:toc:
+:toclevels: 3
+
+== Selection and target
+
+Select *IGS (2.21)* in Graphics. The initial preferences are Atari ST low
+resolution, Atari ST encoding and the ST font. Low (320x200, 16 colors),
+medium (640x200, 4 colors) and monochrome high (640x400, 2 colors) are supported.
+Color modes have 8x8 console cells; high has 8x16. The status row, when shown,
+reserves part of that canvas. Host-window resizing scales the canvas rather
+than changing its protocol resolution.
+
+The target is the intended IGS 2.21 accessory serial dialect with US TOS 1.04
+software graphics. Older IGS, BIG and CONDOR are separate implementations.
+SyncTERM bounds unsafe memory accesses and uses local timing; it does not
+reproduce arbitrary Atari RAM corruption, instruction timing or interrupts.
+
+== Framing, numbers and byte ownership
+
+An IGS invocation starts with the case-sensitive bytes `G#`, followed by a
+command identifier and one chain-indicator byte. `>` retains command mode
+after that command. A space is the usual non-chain indicator. Each numeric
+field consumes its terminating nondigit. A chained identifier follows that
+delimiter directly, without another `G#`:
+
+----
+G#C>1,2:L 10,10,100,100:
+----
+
+This selects line pen 2 and draws one line. The space after L belongs to
+dispatch, not to the first numeric field. A colon is a convenient numeric
+delimiter, not a universal statement terminator. `W` text ends at `@`;
+counted raw payloads can contain colons, bangs, `G#`, ESC, CR/LF and NUL.
+
+Ordinary numeric input uses four decimal positions. CR and LF are skipped
+while collecting IGS numbers. `_` consumes the following two bytes and then
+resumes the same field. The field reader, auxiliary-byte reader and graphical
+text reader have their own acquisition boundaries and local deadlines.
+Do not insert an extra separator between a numeric payload length's delimiter
+and the first raw byte.
+
+Numeric results use signed 16-bit words. This language has special encodings
+in place of a general signed-integer syntax:
+
+[cols="2,5",options="header"]
+|===
+|Token |Meaning
+|`x`, `y` |Loop-substitution sentinels, evaluated by the active stored-operand loop.
+|`r`, `R` |Random values from the two retained ranges.
+|`+n`, `-n`, `!n` |Loop step plus n, step minus n, and n minus step, respectively.
+|`index]` |Read a retained math-array word; the reader also consumes its ending byte.
+|===
+
+Fields are classified as unscaled, X or Y by their command. `g0` disables
+scaling; `g1` maps positive coordinates from the 0–9999 logical range using
+the captured resolution and original integer-division/rounding rules;
+`g2` doubles Y only for monochrome. Zero bypasses positive-coordinate scaling.
+Loop-supplied values have their own evaluation path and are not uniformly
+rescaled after substitution. Changing R does not refresh g's captured mode;
+send g again when that capture should change.
+
+Graphics-owned bytes are recognized before base text decoding. Ordinary text
+can use the configured Atari ST, CP437 or UTF-8 connection encoding; graphical
+W text retains its byte-glyph contract. Native console output uses the
+link:VT52.adoc[Atari ST VT52] parser.
+
+== Initialization and state
+
+[cols="2,5",options="header"]
+|===
+|Command arguments |Action
+|`I operation` |0 restores the saved palette and selected attributes/controls; 1 restores palette only; 2 restores attributes/controls; 3 selects IGS palette; 4 selects VDI palette; 5 restores saved color resolution and full clipping.
+|`R resolution,palette` |Select low 0 or medium 1 where a color transition is allowed; monochrome remains locked. Palette 1 restores the snapshot, 2 selects IGS defaults, 3 VDI defaults; other palette selectors retain current colors.
+|`g mode` |Select scaling 0–2 and capture the current resolution; invalid modes select zero.
+|===
+
+I is a selective restore, not a full terminal reset. Graphical pens, text,
+Drawto coordinates, clipping, pattern source slots, active user pattern,
+image banks, math, input/loop controls and console state are distinct objects.
+Preserve these distinctions when composing commands. The startup snapshot
+belongs to the session rather than to a hard-coded desktop palette.
+
+Color resolution changes retain both image banks' full native data under
+their new plane layout, restore canvas clipping, and use a local sync wait.
+They preserve the physical window by updating display scaling. Full terminal
+reset and disconnect additionally cancel parser continuations, waits, input
+acquisition, scripts and session audio.
+
+== Drawing attributes
+
+[cols="2,5",options="header"]
+|===
+|Command arguments |Action
+|`M mode` |Writing mode 1 replace, 2 transparent, 3 XOR, 4 reverse transparent; out-of-range values select 1.
+|`C kind,pen` |Select one independent pen: kind 0 marker, 1 line, 2 fill, 3 graphical text. Does not change console colors.
+|`S pen,red,green,blue` |Set a logical VDI pen with IGS component values 0–7; values outside 1–7 map to zero.
+|`H flag` |1 selects hollow fill, transparent mode and perimeter on; 0 selects solid fill, replace mode and perimeter off. This updates multiple attributes together.
+|`A interior,index,border` |Select interior 0 hollow, 1 solid, 2 pattern, 3 hatch, 4 user, plus pattern index and perimeter.
+|`T kind,...` |Kind 1 reads marker type and height; kind 2 reads line type and width/end selector. Other kinds read no suffix.
+|`E effects,points,rotation` |Select graphical-text effects, point size and quarter-turn rotation.
+|===
+
+Logical pen identities differ from hardware indices:
+
+----
+VDI pen:   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+physical:  0 15  1  2  4  6  3  5  7  8  9 10 12 14 11 13
+----
+
+The available planes constrain effective colors. Raw palette X commands use
+physical register identities instead. S maps components to
+0,142,285,428,571,714,857,1000 before native DAC conversion. ST raw palette
+words carry three-bit RGB in bits 10–8, 6–4 and 2–0; monochrome has its own
+black/white polarity behavior. Palette edits recolor retained indexed pixels.
+
+User fill patterns have eight source slots, each sixteen 16-bit rows. A4
+copies the selected source into the active pattern. Index 8 randomizes source
+slot zero; index 9 or above restores that source's default before selection.
+Editing a source with X7 does not by itself select it.
+
+=== Markers, lines and endpoints
+
+T kind 1 accepts type 1–7 (native type 7 resolves to type 3) and height
+multiplier 1–8, passed as eleven times that multiplier. T kind 2 accepts line
+styles 1–7. For widths 1–41, solid lines use the native odd-width
+quantization, capped at 39; non-solid styles force width one. Custom style 7
+selects source-slot-6 rows for selector 1–16 and slot-7 rows for 17–32.
+Zero rows use fallback masks `AAAA` / `5555`. Selectors 33–41 retain the
+previous custom mask. Width/end requests outside that width range need not
+change width.
+
+[cols="1,2,2",options="header"]
+|===
+|End selector |Beginning |End
+|0 |Square |Square
+|50 |Arrow |Arrow
+|51 |Arrow |Square
+|52 |Square |Arrow
+|53,64 |Arrow |Round
+|54,63 |Round |Arrow
+|60 |Round |Round
+|61 |Round |Square
+|62 |Square |Round
+|===
+
+Endpoint selectors do not implicitly reset width. Attribute processing can
+change the working third operand before the endpoint tests, so a custom-mask
+row selection is not also an arbitrary endpoint request.
+
+== Graphics command reference
+
+X/Y arguments below use their corresponding scaling classes. Radii in
+circular commands are X-scaled. Angles are integer degrees, converted to
+native tenths of a degree. Clipping, pattern, writing mode, line width,
+endcaps and perimeter apply according to the primitive.
+
+[cols="2,4,5",options="header"]
+|===
+|Command |Arguments |Action
+|P |`x,y` |Draw current marker and retain its center as the Drawto endpoint.
+|L |`x1,y1,x2,y2` |Draw a line, retaining requested start and endpoint.
+|D |`x,y` |Draw from remembered endpoint and update both remembered point pairs to the requested new endpoint.
+|z |`count,x0,y0,...` |Draw a connected polyline; count clamps to 2–128. Does not change Drawto pairs.
+|Z |`x1,y1,x2,y2` |Fill an inclusive raster rectangle, without B's added perimeter.
+|B |`x1,y1,x2,y2,rounded` |Bar when rounded is zero, filled rounded box for any nonzero value.
+|U |`x1,y1,x2,y2,filled` |Rounded outline for zero, filled rounded box for positive, no drawing for negative.
+|O |`xc,yc,r` |Filled circle with native pixel aspect.
+|Q |`xc,yc,rx,ry` |Filled ellipse with explicit radii.
+|K |`xc,yc,r,begin,end` |Open circular arc.
+|J |`xc,yc,rx,ry,begin,end` |Open elliptical arc.
+|V |`xc,yc,r,begin,end` |Patterned circular pie closed through its center.
+|Y |`xc,yc,rx,ry,begin,end` |Patterned elliptical pie.
+|f |`count,x0,y0,...` |Filled polygon; count clamps to 1–128, including degenerate one/two-point cases.
+|F |`x,y` |Seed-color contour fill, rather than an arbitrary boundary-color fill.
+|W |`x,y,text@` |Draw graphical text at its reference baseline, without changing Drawto.
+|===
+
+Count clamps determine how many coordinate pairs are actually acquired: an
+oversized count does not make the parser drain discarded pairs. Arrowheads
+can shorten internal raster lines without shortening the saved endpoint used
+by the next D command.
+
+=== Graphical text
+
+Effects bits are 1 bold, 2 light, 4 skew, 8 underline, 16 outline. Points
+clamp to 8–20 and select native 6x6, 8x8 or 8x16 forms and their doubled
+sizes, not continuously resampled host fonts. Rotation is supplied in
+quarter turns; use 0–3 for ordinary quadrant rotation. The accepted value 4
+has native stale-origin compatibility behavior, rather than a stateless
+alias for zero.
+
+W uses a shared text buffer. CR/LF are consumed without storage, `@` ends
+the text, and reaching 128 stored bytes also completes acquisition immediately.
+An empty text field becomes a literal at-sign. A NUL in the acquired bytes
+ends visible output even when more bytes were collected. Loop modes can
+reuse this shared text or request a fresh field. Graphic text uses native
+byte glyphs, effects and baseline geometry; console font and cursor are
+independent.
+
+== Console commands
+
+Every console operand is unscaled. These commands feed raw bytes to the
+persistent native link:VT52.adoc[VT52 console], including its one-shot save
+slot, counted cursor visibility and raw-background erasure.
+
+[cols="2,5",options="header"]
+|===
+|Command arguments |Action
+|`c kind,color` |Kind 0 background, 1 foreground. The color is a physical register byte; no added coordinate bias.
+|`p column,row` |Add 32 to each operand and emit VT52 direct address, row first. Native low-byte wrapping/clamping applies.
+|`m selector,count` |0 home, 1 up, 2 down, 3 right, 4 left; execute at least once even when count is zero/negative.
+|`r selector` |0 save cursor, 1 restore once.
+|`k selector` |0 hide cursor, 1 show, 2 enable destructive serial backspace, 3 disable it.
+|`v flag` |0 reverse off, 1 reverse on.
+|`w flag` |0 wrapping off, 1 wrapping on.
+|`l selector` |0 whole line, 1 start through cursor, 2 cursor through end.
+|`s selector` |0 console clear/home, 1 beginning through cursor, 2 cursor through end, 3 VDI clear, 4 console then VDI clear, 5 native default-console sequence.
+|`d count` |Delete lines, at least once.
+|`i selector,count` |0 reverse index, 1 insert lines, at least once.
+|===
+
+Selectors above each command's maximum generally select zero; negative
+selectors can emit only an ESC and leave the console parser pending. Do not
+replace these operations by independent ANSI translations. Console output
+does not reposition graphical W text or the Drawto endpoint.
+
+== Image transfers
+
+`G operation,logic,x1,y1,...` uses the retained X14 route. Operations 0, 3
+and 4 additionally read `x2,y2,dx,dy`; operation 1 reads `x2,y2`; operation
+2 uses retained image extents at the supplied destination and reads no more
+coordinates. The native Boolean logic is a four-bit truth-table operation
+on physical color-plane bits, not host RGB. The image banks retain native
+capacity, stride, padding and independent captures across resolution changes.
+
+The supported route/operation combinations are:
+
+[cols="1,3,3,3,3",options="header"]
+|===
+|X14 route |G0 |G1 |G2/G3 |G4
+|0 |Screen to screen |Screen to memory 0 |Memory 0 to screen |Within memory 0
+|1 |Screen to screen |Screen to memory 1 |Memory 1 to screen |Within memory 1
+|2 |No copy |Memory 0 to memory 1 |G3: memory 1 to memory 0; G2 rejected |No copy
+|3 |No copy |Memory 1 to memory 0 |G3: memory 0 to memory 1; G2 rejected |No copy
+|4 |No copy |Retain memory-0 extent without copy |Screen to memory 0 |No copy
+|5 |No copy |Retain memory-1 extent without copy |Screen to memory 1 |No copy
+|===
+
+G1 retains source extents for routes 0/1/4/5. G2 reuses those extents,
+whereas G3 reads an explicit source rectangle and destination. X14 changes
+routing without moving pixels. G and X11 operate on indexed images; copies do not
+re-encode a full planar framebuffer. q's control selectors can request an
+additional copy after local sync waits. Invalid/unsafe extents are bounded
+instead of reading unrelated process memory.
+
+The sixteen logic codes are: 0 zero, 1 source AND destination, 2 source AND
+NOT destination, 3 source, 4 NOT source AND destination, 5 destination,
+6 XOR, 7 OR, 8 NOR, 9 equivalence, 10 NOT destination, 11 source OR NOT
+destination, 12 NOT source, 13 NOT source OR destination, 14 NAND, 15 all
+active bits set. Complements are masked to the active planes.
+
+== Extended command reference
+
+Send X followed by its chain byte, then the numeric selector and operands.
+For example, `G#X 10,30,40:` sets Drawto to `(30,40)` without drawing.
+
+[cols="1,4,6",options="header"]
+|===
+|Selector |Operands after selector |Action
+|0 |`x,y,rangeX,rangeY,count` |Scatter markers, with retained random state and native persistent color-cycling conventions.
+|1 |`register,value` |Set a raw ST palette word; negative values query without a write, with no returned query reply here.
+|2 |`from,to[,secondTo]` |Set the first random range; equality requests the second range's additional bound.
+|3 |`operation,...` |0 disable right-button macro; 1 enable and read append-CR byte; 2 read enable, append-CR, length, then counted bytes plus one discarded byte.
+|4 |`zone[,x1,y1,x2,y2,length,bytes]` |Define zone 0–47; acquire normalized payload length plus one discarded byte. 9999 clears bounds, 9998 enables loopback, 9997 disables it.
+|5 |`mode[,byte,repetitions]` |Configure serial flow. Modes 2/3 read custom-byte/repetition operands; loop state can override mode and arity.
+|6 |`mode` |Outer-loop left-only press/release output: zero off, 2 CR+LF, other nonzero low bytes CR.
+|7 |`slot,row0@...row15@` |Load sixteen pattern rows. `x`/`X` sets each bit; other positions clear it.
+|8 |`first,last,times,delay` |Rotate palette entries; the all-ones tuple captures palettes, and times zero restores the selected snapshot.
+|9 |`operation[,script bytes]` |0 load a nested script through the `\|\|}` sentinel, 1 execute, 2 clear; shares storage with N and guards recursion.
+|10 |`x,y` |Set remembered Drawto endpoint; SyncTERM uses ordinary X/Y scaling for this intended coordinate pair.
+|11 |`operation,section[,value or bytes]` |0 wipe memory image, 1 load, 2 load and show. Native data is 32,000 bytes for the full image or 4,000 for a section.
+|12 |`group,c0,c1,c2,c3` |Set four consecutive raw palette registers; normal groups are 0–3.
+|13 |`operation,...` |Signed-word array arithmetic and decimal output, detailed below.
+|14 |`route` |Retain image route 0–5; values above 5 select zero.
+|15 |`anchorX,anchorY,fromX,fromY,axis,to,add,step,vsync` |Anchored line sweep with unscaled fields, exclusive bounds and local post-line waits.
+|===
+
+Macro lengths use a signed low byte normalized to 1–80. Zone payloads and
+script loads are opaque, not graphical W text. Right-button macros send once,
+optionally append CR, then wait for release; they do not repeat continuously
+while held. X6 is an outer-loop action and does not replace the input/query
+commands' own mouse ownership.
+
+X13 operation 0 reads `value,index`; 1–5 read `a,b,index` for add, subtract,
+multiply, signed quotient and signed remainder. Operation 6 reads inclusive
+clear-range endpoints. Operation 7 reads `kind,index`: kind 0 writes signed
+decimal and LF to console output; kind 1 additionally reads graphical x,y.
+The math array has 128 words. Out-of-array accesses and zero division are
+handled safely; they do not expose Atari code or host process memory.
+
+== Input and exact replies
+
+[cols="2,5",options="header"]
+|===
+|Query |Response
+|`? 0` |ASCII `2.21`, with no colon, NUL or newline.
+|`? 1,wait` |Three raw bytes: zero-based console column+32, row+32, buttons+32. Nonzero wait performs cursor/mouse interaction before replying.
+|`? 2,style` |ASCII pixel coordinates with commas after each coordinate, then buttons+'0' and `:`. Style zero samples immediately; other styles acquire a press/release using a marker or native pointer.
+|`? 3` |ASCII resolution digit followed by `:`: `0:`, `1:` or `2:`.
+|===
+
+Interactive pixel replies retain press buttons and final release coordinates.
+Unsafe pointer styles above 10 are rejected. Local UI/status/outside presses
+are suppressed until release. Reset/EOF cancels an active query without
+fabricating a click or reply and restores pointer/marker background.
+
+`< appendCR,type,output` collects keyboard or zone input. Type 0 (or negative)
+finishes after one key; type 1 collects a line through Return; higher types
+select pointer/zone acquisition (2 is the marker path, 3–10 native forms).
+Output 0 retains a reply without echo, 1 echoes and retains, 2 echoes and
+discards, 3 discards without echo. A nonzero appendCR byte adds CR to a
+retained reply. Printable keyboard input is ASCII 32–126; Backspace/Delete
+edit the retained bytes. It can use a
+visible marker/native pointer, echo locally under the retained loopback
+policy, discard input, or retain a reply for chain completion. Zone strings
+are counted byte payloads. Replies deferred by `<` are sent when the entire
+graphics chain exits, rather than between every primitive. Active input owns
+its mouse events; they do not simultaneously trigger outer X3/X6 actions.
+
+== Loops, scripts and flow
+
+`&` reads `from,to,step,delay`, a raw target command byte, a raw loop-kind
+byte, a stored-operand count and that many numeric operands. Target `>`
+instead collects an at-sign-terminated command-gang string before the kind
+byte. Stored operands supply repeated command fields; `x`, `y` and the
+arithmetic encodings are evaluated in that context. Negative-step XOR
+double-pass behavior and text-reuse/fresh-text modes are retained.
+
+Counts are bounded to 1–2048 stored operands and command gangs to 128 bytes.
+Nested X9 execution uses the same parser/source ownership and math/loop state;
+it is not a second unrelated interpreter. Numeric, text and raw acquisition
+have distinct source rules. Local abort keys, reset, EOF and error cancel
+continuations without executing incomplete commands. Commands may already
+have committed an earlier operand's state change before a later read fails.
+
+IGS retains configurable XON/XOFF flow and repeat counts. Serial polygon,
+polyline, flood, pause, loop and load paths apply their own guards; script
+input has different flow behavior. These bytes are protocol output, not
+automatic terminal character translations. Local waits keep unread remote
+input buffered and the UI responsive.
+
+== Time and sound
+
+`t seconds` is a key-interruptible local pause with an upper bound of thirty
+seconds. `q count` clamps an ordinary count to 1–180 and performs count+1
+sync waits. Initial conversion is 60 sync units/second. q9995–9999 set
+double-copy controls 4 through 0, respectively, and themselves wait twice;
+zero disables the second copy. These are local scheduling rules, not emulated
+PAL/NTSC video interrupts or hardware throughput.
+
+`b effect` plays one of twenty editable effects (0–19). Selector 20 reads
+patch-edit operands, 21 stops immediately, 22 restores a saved patch, and
+23 changes repeated-trigger count. `n effect,voice,volume,pitch,delay,stop`
+uses GIST/PSG voices 0–2, volumes 0–15 and pitch through 255. Delay uses
+200 units/second and can be interrupted locally. Stop 0 leaves running,
+1 releases the selected voice, 2 stops it, 3 releases all, 4 stops all.
+Release preserves the envelope tail; it is not immediate silence.
+
+N0/N1 read a byte count followed by that many opaque MIDI byte/delay bytes
+(N1 plays); N2 replays MIDI. N3/N4 similarly load six-byte chip-note data
+(N4 plays), N5 replays notes, and N6 reads FROM/END record indices when
+at least one full retained record exists. The shared buffer holds 10,001
+bytes; an excessive count is rejected. MIDI pairs contain a byte to send and
+a following delay byte in 200-Hz units. A chip-note record contains six bytes:
+effect, voice, volume, pitch, delay, stop. The raw buffer shares storage
+with X9 scripts. Counted bytes remain opaque through their complete load.
+MIDI uses SyncTERM's MIDI facilities; PSG effects use the native synthesizer.
+Disabled physical playback does not change command ownership or cleanup.
+
+== Sources, corrections and verification
+
+link:IGS_CONFORMANCE.md[IGS conformance] records per-command behavior,
+intentional safe corrections, primary source identities, audio limits and
+independent tests. link:IGS_IMPLEMENTATION.adoc[Implementation history]
+records detailed reset ordering, parser/numeric rules, image routes and
+native command composition. The complete 47 top-level / 16-selector
+inventory is link:../src/tests/igs/conformance.json[the command ledger].
+link:../src/terminal/cterm/cterm_igs.c[The command dispatcher] and its
+neighboring console, image, input, audio and loop modules define the current
+executable behavior. Functional synthesis and headless tests do not establish
+physical MIDI, audible-device or cycle-accurate Atari equivalence.

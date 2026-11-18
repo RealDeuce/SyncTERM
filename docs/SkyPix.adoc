@@ -1,0 +1,237 @@
+= SyncTERM SkyPix manual
+:toc:
+:toclevels: 3
+
+== Selection and compatibility target
+
+Select *SkyPix (Kick 1.3)* or *SkyPix (Kick 3.1)* in Graphics. Both use the
+same wire language and SyncTERM's documented combination of JR-Comm and
+SkyTERM behavior. The variant selects native ellipse arithmetic and
+proportional-font overhang rules, rather than changing command syntax.
+
+Selection initially prefers Latin-1 and the Amiga 640x200, 4:3 screen mode.
+Screen Mode, Encoding and Font remain configurable. Amiga 640x400 provides
+more vertical room with the same native font pixel sizes. System cells are
+8x8 in either preset: 80x25 or 80x50. The optional status row reserves eight
+pixels, leaving 192 or 392 drawable lines. Native-font text does not resize
+the local menus or status bar.
+
+== Wire grammar
+
+----
+ESC [ command ; argument ; argument ... !
+----
+
+Numbers are unsigned decimal ASCII, accumulated modulo 65536. Coordinates
+are subsequently interpreted as signed words. Empty numeric fields are zero.
+Whitespace, signed decimal literals and hexadecimal notation are not numeric
+syntax. Strings have their own argument list:
+
+----
+ESC [ 10 ; height ! family.font !
+ESC [ 16 ; type ; width ; height ! filename !
+----
+
+The actual streams contain no explanatory spaces. The first bang completes
+the numeric part. The second bang completes the string. Additional numeric
+fields, including an empty trailing field, do not move the string's position.
+`10;0!` completes at its first bang and collects no name. There is no escape
+for a literal bang in a name.
+
+The parser accepts at most 17 numeric fields including the command, 32 digits
+per field, and one string of at most 1,024 bytes. An oversized recognized
+string command is discarded through its closing bang. ESC can interrupt
+collection; EOF clears unfinished string state. Non-SkyPix ANSI sequences
+continue to the base parser. SkyPix-looking bytes inside opaque ANSI strings
+are not executed. Unknown or rejected SkyPix commands have no drawing effect.
+
+== Complete command reference
+
+Each syntax below omits the `ESC [` prefix. Supply the listed arguments;
+ordinary drawing operations require the exact listed count. Commands 10 and
+16 accept extra numeric fields after their required prefix.
+
+[cols="1,4,6",options="header"]
+|===
+|Command |Syntax |Action
+|0 |`0!` |No operation.
+|1 |`1;x;y!` |Set one pixel to the current foreground pen.
+|2 |`2;x;y!` |Draw a line from the graphics pen to `(x,y)` and update that pen.
+|3 |`3;mode;x;y!` |Seed-color flood with the foreground pen. The mode argument is consumed but mode 1 is always used.
+|4 |`4;x1;y1;x2;y2!` |Fill an inclusive rectangle with the foreground pen. Reversed corners produce no fill.
+|5 |`5;x;y;rx;ry!` |Outline an ellipse centered at `(x,y)`, with radii `rx,ry`.
+|6 |`6;x;y;w;h!` |Replace the brush with a screen capture starting at `(x,y+1)` and measuring `w` by `h` pixels.
+|7 |`7;sx;sy;dx;dy;w;h;minterm;mask!` |Blit from the current brush to the canvas using the Boolean minterm and plane mask.
+|8 |`8;x;y!` |Move the graphics pen without drawing.
+|9 |`9;speed;start;end;loops!` |Play the loaded type-3 sample. Only `loops` affects playback; the other arguments are consumed.
+|10 |`10;height!family.font!` |Select a native font strike. `10;0!` restores the configured default font.
+|11 |`11;c0;c1;...;c15!` |Replace all sixteen RGB4 palette entries. Each value must be 0–4095.
+|12 |`12!` |Restore the default palette and foreground 2/background 0; retain display depth.
+|13 |`13;x;y;rx;ry!` |Draw an ellipse outline, then boundary-fill its center.
+|14 |`14;ticks!` |Pause for `ticks/50` seconds. Zero is a no-op.
+|15 |`15;pen!` |Select foreground pen from the low four bits.
+|16 |`16;type;w;h!filename!` |Request a cache lookup or CRC-XMODEM asset reception.
+|17 |`17;mode!` |Mode 1 selects eight colors; mode 2 selects sixteen. Restore default palette and pens, retaining geometry and contents.
+|18 |`18;pen!` |Select background pen from the low four bits.
+|19 |`19;x;y!` |Set the native text pixel anchor, independently of the graphics pen.
+|20 |`20!` |No operation.
+|21 |`21;controller;x;y!` |Outgoing mouse report format; no incoming command action.
+|22 |`22;n;c;x1;y1;x2;y2!` |Retain a gadget record in slot 1–20 and paint its inclusive rectangle with the current foreground pen.
+|99 |`99!` |Idempotently retain enabled scrolling. No font, position or palette reset, and no disabling argument.
+|===
+
+== Pixels, palette and brushes
+
+Coordinates are native zero-based pixels, clipped to the drawable canvas.
+Ellipse arguments are radii, not diameters, and have no automatic aspect
+correction. Rectangle endpoints are inclusive. Setting the text position does
+not change the graphics pen, and moving the graphics pen does not position
+subsequent text. Establish a pen explicitly with command 8 before a line.
+
+Initial depth is sixteen colors. Reducing to eight masks away the upper
+color-plane bit in existing SkyPix pixels and cells; expanding again cannot
+recover it. Command 11 retains all sixteen palette entries at either depth.
+The default RGB4 words, in index order, are:
+
+----
+000 11F DDD F00 0F1 3AF FF2 C0E
+0B6 0DD 0AF 07C 00F 70F C0E C08
+----
+
+Transmit their decimal equivalents in command 11. Each nibble expands to an
+8-bit component by multiplication by 17. Pens are masked by active depth
+when drawing. Remote palette edits do not recolor local UI.
+
+Command 6 retains the captured depth and palette. Its Y+1 source convention
+is intentional; it is not the same rectangle as `(x,y,w,h)`. Invalid captures
+preserve the old brush. Command 7 has no effect without a brush. `minterm`
+and `mask` must fit one byte; mask bits select color planes, not transparent
+pixels. Common minterms are 192 (`C0`, source copy) and 96 (`60`, source XOR
+destination); mask 255 enables all available source planes. Disabled planes
+retain their destination bits.
+
+Received brushes support ILBM with one to four planes, uncompressed or
+standard ByteRun1 BODY data. CMAP must precede BODY; colors are quantized
+using each component's upper nibble. BMHD determines dimensions, independently
+of the requested transfer width/height. Decoded brushes are limited to four
+million pixels. Mask planes are unsupported. A brush's supplied palette is
+applied once on its first blit, preserving unspecified entries; a deeper brush
+promotes the display to sixteen colors.
+
+== Native text, fonts and cursor
+
+Named fonts use transparent JAM1 rendering. Reset to the default uses JAM2
+and paints glyph backgrounds, including spaces. These are drawing modes;
+neither disables scrolling. Installed native Amiga disk-font families and
+the compiled catalog provide strikes with original baseline, signed kerning,
+spacing and proportional advances. Unsupported/missing selections fall back
+safely. Color fonts and outline disk fonts are unsupported.
+
+The text anchor is a pixel position; native drawing derives its baseline
+from the current strike. CR resets X and preserves Y; LF advances by the
+current font height; BS subtracts nominal font width, and HT uses eight
+nominal widths. VT is inert. ANSI cursor commands use the system eight-pixel
+grid, preserving the untouched native pixel axis for relative movement.
+
+Wrapping measures each mapped glyph's actual advance before painting,
+independently of receive-buffer boundaries. Kick 1.3 clips each character's
+trailing overhang; Kick 3.1 retains it. UTF-8 ordinary text maps into the
+Latin-1 font repertoire; selecting UTF-8 does not turn numeric/string command
+fields into Unicode syntax.
+
+Scrolling moves the full drawable raster, including any pixels below the
+last complete native-font row. The current strike controls line advance and
+the bottom baseline. Thus normal text can scroll previously drawn artwork.
+ANSI line erasure uses the native text X and strike ascent/descent, preserving
+the anchor; it is not limited to the system 8x8 cell containing the cursor.
+
+The cursor is a one-scanline complement underline of exactly the strike's
+nominal width, at anchor Y plus height minus one. It has no idle blink timer.
+Any SkyPix command removes the visible cursor and disables cursor operations
+at the first bang, even if the command is unknown or later rejected. Default
+font reset and SGR 0 re-enable cursor operations. DECTCEM is a supported
+visibility extension. Cursor background is restored before movement, text,
+scrolling, capture and reset; stale underlines are not retained as artwork.
+
+== Transfers and cache replies
+
+All supported transfer types share the active BBS cache's `SkyPix` directory:
+
+[cols="1,3,5",options="header"]
+|===
+|Type |Asset |Completion behavior
+|1 |ILBM brush |Validate and install the received/cached brush.
+|2 |IFF sound |Cache bytes only; no IFF/8SVX decoder or playback.
+|3 |FutureSound sample |Cache bytes and load signed mono PCM for command 9.
+|20 |General file |Cache bytes without changing the brush or sample.
+|Other |Unsupported |Decline with cancellation.
+|===
+
+The filename's second bang is the exact handoff to transfer processing.
+There is no extra CR/LF skip. Filenames are confined to the cache; path
+escapes are rejected. Cache hits send ten CAN bytes (`18` hex), ten BS bytes
+(`08`), then CR. Misses enter the shared CRC-XMODEM receiver, including retry
+and duplicate-block handling. Successful publication preserves XMODEM padding;
+failure/cancellation discards partial files. Invalid replacement leaves the
+previous brush/sample available. A failed type-3 sample decode can leave the
+completed file cached without replacing the loaded sample. Declined requests
+use two CAN bytes.
+
+== Sound and waits
+
+Type-3 files begin with a big-endian 32-bit PCM byte count and big-endian
+16-bit sample rate, followed by signed 8-bit mono PCM. Both count and rate
+must be positive; count is limited to 4 MiB. Odd lengths are accepted and
+trailing file padding is ignored. Playback derives the native 16-bit period
+from `(3579545/rate) & 65535`, linearly converts to the shared audio output,
+and uses logical effects channel 1 with existing gain/pan controls.
+
+Command 9 loops zero times means one play in SyncTERM. This deliberately
+avoids the originals' indefinite wait for zero. Remote parsing remains
+suspended through playback and backend latency, while local UI stays
+responsive. Disabled/unavailable/failed audio releases that suspension.
+EOF cancels playback; reset/destruction also unloads the sample. Paula analog
+filters and physical-device gaps are not emulated.
+
+Command 14 uses 50-Hz ticks, including one- and two-tick waits. Incoming
+bytes remain buffered during the local deadline and resume in order. Reset
+or EOF cancels the wait.
+
+== Mouse, gadgets and replies
+
+An enabled left-button-down sends `ESC[21;1;x;y!`, with zero-based native
+pixel coordinates and no newline. Motion, release, other buttons, local
+UI/status events and off-canvas clicks do not report. The local mouse-forward
+toggle and online menu control reporting. Gadget records are independent
+of this report: they do not execute stored commands, create local buttons,
+provide feedback or acknowledge drawing. Replacing a gadget paints the new
+rectangle without erasing the old one. Full terminal reset clears records.
+Controller-2 reports are unsupported.
+
+Normal supported ANSI replies remain available. Selecting SkyPix does not
+advertise a RIP identity. There are no per-primitive drawing acknowledgments.
+
+== Example
+
+The following shows three consecutive commands, with each `ESC` replaced by
+byte `1B` and no inserted newlines:
+
+----
+ESC[15;3!ESC[8;10;10!ESC[2;100;50!
+----
+
+It selects foreground 3, moves the graphics pen to `(10,10)`, and draws to
+`(100,50)`. `ESC[10;8;!Pearl.font!` demonstrates a valid trailing empty
+numeric field before the independent font name.
+
+== Sources and verification
+
+The executable contracts are in
+link:../src/terminal/cterm/cterm_skypix_parser.c[the parser],
+link:../src/terminal/cterm/cterm_skypix.c[the renderer], and
+link:../src/terminal/cterm/cterm_skypix_audio.c[the sample player].
+link:SKYPIX_CONFORMANCE.md[SkyPix conformance] records the primary JR-Comm,
+SkyTERM and ROM provenance, intentional dialect choices, independent raster
+expectations, native tests and application captures. Its remaining text
+compatibility gaps qualify exact Amiga equivalence; headless PCM checks
+do not establish audible-device coverage.

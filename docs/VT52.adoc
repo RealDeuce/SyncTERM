@@ -1,0 +1,165 @@
+= SyncTERM VT52 and Atari ST manual
+:toc:
+:toclevels: 3
+
+== Selection and scope
+
+Atari ST screen modes select the Atari ST VT52 base emulation. Its shared
+escape table implements the VT52 movement/erasure subset and TOS console
+extensions below. IGS 2.21 also uses these handlers, with the native TOS
+byte parser and indexed console behavior described separately below.
+
+This is the implemented SyncTERM dialect. DEC graphics-character selection,
+hold-screen, identification and switching to a VT100 are not implied by the
+VT52 name. Ordinary PC/ANSI modes use link:cterm.adoc[CTerm] instead.
+
+== Wire format and text
+
+Commands begin with `ESC` and a case-sensitive command byte. `ESC Y` consumes
+two additional raw bytes, row first, column second. `ESC b` and `ESC c`
+consume one raw color byte. These operands are not decimal strings and are
+not interpreted as controls, even if an operand equals `ESC`.
+
+Ordinary Atari ST text uses its selected byte encoding and font. The native
+IGS console emits Atari ST glyph codes as individual cells. UTF-8 connection
+support does not convert escape parameters to Unicode or make them variable
+length.
+
+[cols="1,5",options="header"]
+|===
+|Byte |Action
+|`07` BEL |Beep unless quiet.
+|`08` BS |Move left through the shared text path; IGS can enable destructive serial backspace with its `k` command.
+|`09` HT |Tab; native IGS uses fixed eight-cell boundaries, clipped at the right edge.
+|`0A` LF |Advance one line, scrolling at the bottom; the connection's LF policy applies outside native IGS console output.
+|`0B` VT, `0C` FF |Advance one line with scrolling. FF is not a clear-screen command.
+|`0D` CR |Return to the left edge.
+|`1B` ESC |Begin escape collection.
+|Other `00`–`1F` |Ignored by the VT52 dispatcher.
+|===
+
+The right-edge wrapping flag is controlled by `ESC v` / `ESC w`. Wrapping
+uses SyncTERM's shared text placement; erasing and moving do not insert
+characters into the received stream.
+
+== Complete escape reference
+
+=== Movement and editing
+
+[cols="2,5",options="header"]
+|===
+|Sequence |Action
+|`ESC A` |Move up one row without scrolling.
+|`ESC B` |Move down one row without scrolling.
+|`ESC C` |Move right one column.
+|`ESC D` |Move left one column.
+|`ESC H` |Home to the upper-left corner of the current area.
+|`ESC I` |Reverse line feed; scroll down when already at the top.
+|`ESC Y row col` |Direct cursor address, with each zero-based coordinate encoded as a byte plus 32.
+|`ESC E` |Clear screen and home.
+|`ESC J` |Erase from the cursor through the end of the screen.
+|`ESC K` |Erase from the cursor through the end of the line.
+|`ESC L` |Insert a blank line at the current row, moving lower rows down.
+|`ESC M` |Delete the current line, moving lower rows up and blanking the last row.
+|`ESC d` |Erase the start of the screen through the cursor.
+|`ESC l` |Erase the entire current line.
+|`ESC o` |Erase the start of the line through the cursor.
+|`ESC j` |Save cursor position.
+|`ESC k` |Restore cursor position; native IGS consumes the saved slot once.
+|===
+
+Both endpoints of a partial erasure are included. In the standalone path,
+`ESC Y` rejects negative decoded coordinates, caps columns above 79 at 79,
+and uses the current row when the decoded row exceeds 23. Native IGS instead
+subtracts 32 as an unsigned 16-bit operation and clamps to its actual drawable
+cell grid. A byte below 32 therefore selects the far edge in native IGS.
+
+Outside IGS, insert-line restores the old column and whole-line erasure
+preserves it. Native IGS insert/delete-line finishes at the left edge. Its
+whole-line erase finishes at the left edge plus the retained cursor-hide
+depth, capped at the last column; this TOS compatibility rule matters when
+the cursor has been hidden repeatedly.
+
+=== Attributes and cursor
+
+[cols="2,5",options="header"]
+|===
+|Sequence |Action
+|`ESC b color` |Select text foreground from the color byte's low four bits.
+|`ESC c color` |Select text background from the color byte's low four bits.
+|`ESC p` |Enable reverse video.
+|`ESC q` |Disable reverse video.
+|`ESC e` |Show cursor; underline in the standalone path, indexed block in native IGS.
+|`ESC f` |Hide cursor.
+|`ESC v` |Enable right-edge wrapping.
+|`ESC w` |Disable right-edge wrapping.
+|`ESC =` |Set alternate-keypad state in the standalone path.
+|`ESC >` |Clear alternate-keypad state in the standalone path.
+|===
+
+Color operands are raw bytes: both byte `3` and ASCII `3` (`0x33`) select
+low-nibble color 3. Do not send a variable-length decimal palette number.
+These commands select existing colors; they do not load a palette. Reverse
+video exchanges displayed text colors. Native Atari blanking uses the raw
+background selection even while reverse video is enabled.
+
+=== Consumed operations without an effect
+
+`ESC F` and `ESC G` do not install a DEC graphics character set. `ESC [` and
+`ESC \` have no hold-screen action. The standalone parser also shares the
+ECMA escape accumulator, so it is not a strict DEC hardware parser. Native
+IGS consumes one command byte after ESC and ignores unknown commands; it
+also ignores `ESC =` and `ESC >`. `ESC Z` has no implemented VT52 identity
+reply, and `ESC <` does not switch to ANSI emulation.
+
+== Native IGS console state
+
+IGS graphics and console text share the indexed canvas. Low and medium
+resolution use 8x8 console cells; monochrome high resolution uses 8x16.
+Status reservation reduces the available rows. Erasure and line scrolling
+operate on that drawable viewport, preserve the status area, and fill with
+the raw console background.
+
+Cursor visibility has a saturating hide-depth word. Reset starts with depth
+one and a hidden cursor. Each hide increments the depth; show clears it to
+zero rather than decrementing once. The cursor complements the active
+palette-plane bits and restores pixels when removed.
+
+Cursor save is a one-shot slot. Restore clears its valid flag before use;
+an absent or out-of-bounds saved position homes instead. IGS `r` and raw
+`ESC j` / `ESC k` share this slot. IGS console commands feed the same persistent
+escape parser: an incomplete escape from one command can consume bytes emitted
+by the next. Graphical `W` text and the remembered Drawto point are separate.
+
+== Outgoing keyboard bytes
+
+The VT52 key table sends arrows as `ESC A/B/C/D` for up/down/right/left,
+and F1/F2/F3 as `ESC P/Q/R`. Unmapped ordinary byte keys are sent literally.
+Alternate-keypad state does not install a complete DEC keypad translation
+table. Backspace/Delete use the shared DECBKM policy: by default Backspace
+sends DEL (`7F`) and Delete sends `ESC[3~`; with DECBKM set they send BS
+(`08`) and DEL respectively. Local UI shortcuts are handled before terminal
+key translation. Active IGS input/queries can instead own keys as described
+in link:IGS.adoc[the IGS manual].
+
+== Examples
+
+Home and write a heading:
+
+----
+ESC HSyncTERM
+----
+
+Position at zero-based row 4, column 9: send bytes `1B 59 24 29`.
+Clear and select foreground 3: send `1B 45 1B 62 33`.
+None of those examples requires a CR/LF terminator.
+
+== Implementation and verification references
+
+The command table and native console policies are in
+link:../src/terminal/cterm/cterm_vt52.c[cterm_vt52.c]. Text placement and
+encoding are described in link:../src/terminal/cterm/README.md[the input guide].
+link:TERMINAL_CONFORMANCE.md[Terminal conformance] records base-terminal
+coverage; link:IGS_CONFORMANCE.md[IGS conformance] records native cursor,
+erasure, movement, wrapping and reset expectations. See link:IGS.adoc[IGS]
+for its higher-level console commands and timing.

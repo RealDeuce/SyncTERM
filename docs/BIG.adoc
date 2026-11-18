@@ -1,0 +1,348 @@
+= SyncTERM BIG 1.03 manual
+:toc:
+:toclevels: 3
+
+== Selection and compatibility target
+
+Select *BIG (1.03)* in Graphics. The target is the fully enabled BIG 1.03
+terminal with VGA-capable graphics. BF's file-viewer dialect, DOS client UI,
+demo restrictions and CONDOR are outside this implementation. BIG and
+link:IGS.adoc[Atari IGS] share ancestry and command letters, but differ in
+numbers, fonts, colors, pages, input and sound.
+
+[cols="1,2,2,2",options="header"]
+|===
+|Resolution |Canvas |Console grid |Cell size
+|1 |640x200 |80x25 |8x8
+|2 |640x350 |80x25 |8x14
+|3 |640x480 |80x30 |8x16
+|===
+
+The corresponding initial presets are CGA 80x25, EGA 80x25 and 80x30.
+Other initial screen choices fall back to EGA for BIG. Physical presentation
+uses the preset's 4:3 aspect. Graphics has its own indexed pixels and retained
+pages; the local status reservation and menus retain their own ownership.
+
+== Wire grammar
+
+An invocation begins with case-sensitive `I#`, a command identifier, and a
+chain-indicator byte. `>` continues command mode; a space normally ends it
+after the current command. Numeric fields consume their ending nondigit.
+The next chained identifier immediately follows that consumed separator:
+
+----
+I#C>1,12:L 0,0,100,100:
+----
+
+Graphical text ends at `@`, so a text-to-line chain can be written:
+
+----
+I#W>20,50,Chain@L 0,0,300,190:
+----
+
+Neither colon nor CR/LF universally terminates an invocation. Payload readers
+own raw bytes until their declared count is exhausted. A colon, ESC, NUL,
+`I#` or `@` inside music/zone data is not command framing.
+
+=== Numeric acquisition and scaling
+
+Use ordinary decimal operands with one to four digits and explicit delimiters.
+The original reader keeps four digit slots and a 16-bit digit count. Five
+ordinary digits consume all five plus their separator and normally return
+zero. Leading zeros count. CR/LF are nondigit delimiters in BIG, unlike IGS's
+numeric newline skipping. `_` discards exactly the next two bytes and resumes
+the current field; inserting it after digits can reweight retained digit
+slots rather than simply concatenate decimal text.
+
+`x`, `y` and `r` are special substitution tokens with auxiliary-byte
+consumption. Lowercase r uses the retained random range; uppercase R is not
+its second-range equivalent. `+n`, `-n` and `!n` encode loop-step arithmetic,
+not general signed decimal constants. Numeric values and stored expressions
+use original signed/unsigned 16-bit operations at their respective consumers.
+Do not replace this grammar with a whitespace-tolerant host integer parser.
+
+`g0` / `g1` do not apply an ordinary Y conversion. `g2` scales class-Y
+operands in resolution 2 by the original 7/4 rule; `g3` does so in resolution
+3 using original finite rounding. In particular, g3 maps Y=5 to 11, not 12.
+X, Y and unscaled classes are assigned per argument. Stored-loop operands
+bypass ordinary read-time scaling rather than receiving a second transform.
+
+Partial reads preserve already committed prefixes. A later timeout, error or
+reset does not imply that every earlier operand store was rolled back.
+Unknown X selectors consume the selector, without guessing an extension
+payload or scanning forward to the next colon.
+
+== State and initialization
+
+`I0` installs the EGA/default BGI state, selects actual visual/active page zero,
+restores marker zero/size one, four application colors 15, solid fill,
+COPY mode and resolution cache 2. `I1` restores the default sixteen-entry
+palette. Both clear hollow state; invalid selectors become zero. `R resolution`
+selects the mode above and its native console font; invalid resolutions become 1.
+These are distinct from a full session reset. Maintain separate graphical
+marker/line/fill/text colors, BGI current color, three graphics-point owners,
+console cursor, logical page selections, actual active/visual pages, image
+bytes, palette snapshots, text ratios, pattern slots, zones and music state.
+
+The port preserves ordinary WORD arithmetic and valid rendering behavior while
+bounding unsafe source/image/buffer accesses. It does not emulate arbitrary
+DOS memory corruption or uninitialized host memory. Rendering is synchronous;
+local waits, command input and sound progression use existing session timing.
+
+== Attributes and graphical text
+
+[cols="2,5",options="header"]
+|===
+|Command arguments |Action
+|`C kind,color` |Retain application color for kind 0 marker, 1 line, 2 fill, 3 graphical text. Invalid kind selects marker; color stores the full WORD without an immediate draw.
+|`M mode` |1 selects COPY; 2 or 3 selects XOR. Other values become COPY. Retain the application setting separately.
+|`A pattern` |Install built-in or retained user fill pattern with current fill color.
+|`H flag` |Store hollow state; effective native fill interpretation is separate from the raw WORD.
+|`S register,value` |Update the public palette cache and effective device color through native EGA/VGA conversion.
+|`T kind,...` |Marker or line style, with selector-dependent arguments.
+|`E font,size,rotation` |Select graphical text style. Font 0–4, size 0–4, rotation 0/1 after original normalization.
+|`W x,y,text@` |Draw byte-glyph text using the selected style and graphical text color.
+|===
+
+Fill patterns 0–11 are the built-in empty, solid, line, slash, backslash,
+hatch/dot families. Slots 12–23 are the twelve editable eight-row patterns;
+invalid A selections become solid pattern 1. Installation expands the current
+fill color into a retained 8x8 indexed tile; zero pattern bits use opaque pen
+zero. A later C fill-color store alone does not rebuild that tile.
+
+Palette values are PC EGA/VGA color encodings, not Atari ST RGB words or
+SkyPix RGB4. Palette cache values, effective device entries and pixels stored
+in images remain distinct: an edit can recolor existing indexed pixels.
+
+T kind <=1 consumes `kind,type,size` for markers. Kind >1 consumes
+`kind,style,pattern,factor,width` for lines. Marker type is a low byte capped
+at 7, and size is a low byte normalized to 1–8 (invalid selects 1). Line
+style is 0 solid, 1 dotted, 2 center, 3 dashed, 4 custom; invalid selects
+custom. Its 16-bit custom mask is the low-word product of pattern and factor.
+Wire width 0 maps to thin 1, width 1 to thick 3; other widths retain the
+native validation path. Line masks, width and writing state belong to BGI.
+
+Font 0 is the default bitmap; fonts 1–4 are Triplex, Small, Sans Serif and
+Gothic stroke fonts. SyncTERM intentionally uses its current shared BGI/RIP
+font bytes and glyph kernels. The early V100 BIG fonts are not a second
+installed font set. Placement, clipping, custom ratios and word errors
+retain BIG-specific adapters. Rotation 0 is horizontal and 1 vertical.
+Size zero selects custom ratios supplied by X3; ordinary sizes use native
+tables. E normalizes invalid font to zero, invalid size to one, and invalid
+rotation to zero.
+
+W acquires up to 128 bytes, consumes CR/LF without storage, and ends at `@`
+or immediately at the 128th stored byte. An empty string becomes a literal
+at-sign. NUL truncates visible output. Reused text and freshly acquired
+per-iteration text are separate loop modes. W does not reposition the console
+cursor. Ordinary connection text still follows the configured text encoding;
+graphical W payloads retain their original glyph-byte interpretation.
+
+== Drawing reference
+
+[cols="1,4,6",options="header"]
+|===
+|Command |Arguments |Action
+|P |`x,y` |Draw the current polymarker or point and update graphics-point state.
+|L |`x1,y1,x2,y2` |Draw a styled line with application line color.
+|D |`x,y` |Draw to an absolute endpoint from the graphics point.
+|d |`signX,deltaX,signY,deltaY` |Relative line. Nonzero signX negates X; the original signY defect leaves Y displacement unchanged.
+|m |`operation,x,y` or `operation,deltaX,signY,deltaY` |Operation >1 moves absolutely; operation <=1 moves relatively, with zero positive X and other values negative X. The same Y-sign defect applies.
+|B |`x1,y1,x2,y2,typeOrDepth[,top]` |Opaque bar or projected 3D box with conditional extra operand.
+|Z |`x1,y1,x2,y2` |Four outline strokes, followed by conditional interior flood according to hollow state.
+|F |`x,y,borderOperation` |Boundary fill using an application-operation color as boundary; preserves graphics-point ownership.
+|K |`xc,yc,r,begin,end` |Circular arc with native aspect/decimal rounding.
+|J |`xc,yc,rx,ry,begin,end` |Explicit-radius elliptical arc.
+|O |`xc,yc,r` |Circle outline and conditional center flood.
+|Q |`xc,yc,rx,ry` |Ellipse outline and conditional center flood.
+|V |`xc,yc,r,begin,end` |Circular pie through native sector/polygon operations.
+|Y |`xc,yc,rx,ry,begin,end` |Explicit-radius elliptical sector.
+|===
+
+Angles are integer degrees. Circular and explicit-radius commands have
+different radius scaling classes; graphics geometry is not a generic host
+ellipse API. Inclusive endpoints, duplicate-point XOR effects, line style,
+clipping and fill state are preserved by their native drawing paths.
+For B, the fifth operand is signed: negative draws nothing, zero draws a
+direct bar, one draws a depth-zero outlined bar3d, and values above one are
+the projection depth and acquire a sixth top operand. Top uses its low byte,
+not a strict Boolean WORD. The line/fill attribute prefix occurs before any
+sixth-operand wait. Opaque bar filling and the outline-plus-flood composition of O/Q/Z are
+different operations; substituting an ordinary filled ellipse changes output.
+
+== Images and pages: G
+
+[cols="1,4,5",options="header"]
+|===
+|Operation |Arguments after operation |Action
+|0 |`mode,x1,y1,x2,y2,dx,dy` |Capture active-page rectangle, then paste on the same page.
+|1 |`mode,x1,y1,x2,y2` |Capture; in multipage modes also paste at the original first corner on the memory page, then restore active selection.
+|2 |`mode,dx,dy` |Paste the retained image on the active page.
+|3 |`mode,x1,y1,x2,y2,dx,dy` |Capture from memory page and paste on active page, restoring active selection.
+|4 |`page` |Remember memory-page selection without a device page switch.
+|5 |`page` |Remember and select the visual page.
+|6 |`page` |Remember and select the active drawing page.
+|===
+
+Image modes are 0 COPY, 1 XOR, 2 OR, 3 AND, 4 NOT; invalid modes become zero.
+Logic applies to indexed color bits in both retained blink phases. Capture
+normalizes its source rectangle; paste retains native physical clipping and
+right-edge rejection. The image's native header and data have bounded retained
+capacity, including padding and old tail bytes; no uninitialized image is
+invented when a paste precedes capture.
+
+Each fresh `I#` invocation starts logical memory=1, active=0, visual=0;
+chaining and stored repetitions retain those local selections. This does not
+itself switch the device's actual pages. A new invocation can therefore have
+logical active zero while the device still draws on a previously selected
+page until a G operation requests another switch. Resolution 3 forces all
+three logical selections to zero. Console writes and graphical writes also
+have separate page/cursor rules.
+
+== Console, pauses and replies
+
+`p column,row` is one-based within the cached console window, unlike graphics
+coordinates. It uses low-byte cursor validation and
+the original page-zero cursor service. It is not a graphics moveto.
+`s0` clears graphics and positions the console at 1,1, `s1` clears graphics
+without repositioning the console, and `s2` clears/homes the console only.
+Negative operations become zero; those above two become two. Graphics clear
+resets its own points; console
+clear uses console attributes rather than the current BGI fill color.
+
+`t seconds` drains pending local keys before acquiring its argument, clamps
+to 1–30 seconds, and waits on a local deadline. A local key ends the pause
+and is consumed. Remote bytes remain buffered, including a received tail
+after the command. Local UI stays responsive; reset/EOF cancels pending waits.
+
+[cols="1,5",options="header"]
+|===
+|Question |Exact normal reply
+|0 |`1.03R` for the fully enabled registration gate; the original conditional R is evaluated after the four version bytes. No colon or newline.
+|1 |Resolution digit and colon: `1:`, `2:` or `3:`.
+|2 |Music-buffer availability plus ASCII zero, then colon; normally `1:` when allocation/setup succeeded, `0:` when unavailable.
+|Other |No own reply.
+|===
+
+Replies use cached state at their original sequence points, not a new hardware
+probe or decimal string conversion. An earlier `<` reply can independently
+be waiting for the containing chain to end.
+
+== Extended X reference
+
+X itself reads a numeric selector. All selectors below are implemented;
+other full-WORD selectors consume no selector-specific suffix.
+
+[cols="1,4,6",options="header"]
+|===
+|Selector |Operands after selector |Action
+|0 |`x,y,rangeX,rangeY,count` |Reseed the shared generator and spray markers with retained native rejection/position rules.
+|1 |`slot,alter[,row0,...,row7]` |Alter=1 reads eight raw low-byte pattern rows; alter=0 restores defaults. Other alter values normalize to restore and read no rows. Invalid slots select user slot 12.
+|2 |`from,to` |Reseed, store bounds in acquisition order, then apply native signed range repair.
+|3 |`xNumerator,xDenominator,yNumerator,yDenominator` |Install custom text ratios; signed inputs normalize independently to 1–4 and returning setup selects size zero.
+|4 |`zone[,x1,y1,x2,y2,length,bytes]` |Define a counted zone string with an extra discarded raw byte, or perform special clear/loopback actions.
+|5 |`mode[,byte,repetitions]` |Retain original flow configuration and dynamic arity. Native transport uses buffering, not automatic flow-byte transmission.
+|6 |`stepX,stepY` |Set keyboard pointer movement steps using axis-classified values and native clamps.
+|7 |`flag` |Retain raw music-progress synchronization WORD; eligible command entry can wait for playback progress.
+|8 |`first,last,shifts,delay` |Capture, restore or rotate the retained palette range using native inclusive endpoints and local pacing.
+|===
+
+Editing a pattern source does not install it until A selects it. Random
+sampling advances the original shared generator even across rejected samples;
+it is not replaced by modulo arithmetic. A partially updated random range
+can already be visible to the next operand read. BIG has one r range, unlike
+IGS's two-range r/R language.
+
+X4 special zone IDs 9999 clear rectangles, 9998 enable loopback, 9997 disable
+it. Ordinary zone payloads are byte-counted and can include NUL or `@`.
+The loader's extra discarded byte must still be supplied. Pointer/zone state
+does not reinterpret these payloads as command streams on arrival.
+
+== Interactive input and loops
+
+`< appendCR,type,output` collects keyboard/zone input: type 0 collects one
+key, 1 a line through Return, 2 a pointer/zone selection. Output 0 retains
+without echo, 1 echoes and retains, 2 echoes and discards, 3 discards without
+echo. A nonzero appendCR byte appends CR to retained output at chain exit.
+The original keyboard pointer
+and X6 steps coexist with native mouse movement: the latest movement controls
+the software pointer, and stationary button samples do not undo key movement.
+The pointer starts at `(318,98)`; arrow keys use X6 steps and Return confirms
+the current zone. Outside-zone selections retry with a bell when loopback is
+enabled; otherwise native fallback uses the last zone's payload.
+A left release confirms only after a valid press. Local UI, disabled forwarding,
+outside/status presses and reset/EOF do not create selections. There is no
+OS-pointer warp.
+
+Replies deferred by `<` are released at chain exit. Queued keys remain ordered
+behind a suspended acquisition or remaining graphics chain. Mode selection,
+source EOF and reset discard partial acquisitions instead of inventing a
+confirmation.
+
+`&` acquires `from,to,step,delay`, a target command byte, a loop-type byte,
+an operand count and its stored WORDs. Target `>` additionally acquires an
+at-sign-terminated gang string before the type byte. Gang entries select
+commands and their operand groups rather than parsing a fresh `I#` stream.
+The loop evaluator owns x/y/step expressions, random use, repeats, text reuse
+and fresh-text branches. Unread wire data remains owned by whichever numeric,
+text or auxiliary source is active. Cancellation and numeric errors preserve
+completed state prefixes and pass through the normal chain/footer rules.
+
+== Sound and synchronization
+
+BIG sound uses logical channel 1 for b/n speaker output and channel 0 for N
+OPL2 music. Channel gain/pan and mute controls are shared with normal SyncTERM
+audio. OPL2 is synthesized directly; N data is not passed to the MIDI decoder.
+The speaker timbre is a square oscillator with a small stateful low-pass
+filter. Effects are procedural schedules, not stored samples.
+
+[cols="2,5",options="header"]
+|===
+|Command |Operands and behavior
+|`b effect` |Twenty original effects, 0–19, using the shared speaker and RNG.
+|`n 0,frequency,sustain,off` |Set frequency, wait sustain milliseconds, and stop if off is nonzero. A held tone can remain active afterward.
+|`n 1,from,to,step,delay,sustain,off` |Stepped frequency sweep with per-step millisecond delay and final sustain. Step clamps to at least one; the destination is an exclusive sweep bound.
+|`N 0,...` |Load music buffer without starting it.
+|`N 1,...` |Load and start music buffer.
+|`N 2` |Start retained whole buffer.
+|`N 3,...` |Read FROM/TO pairs and start a retained slice.
+|`N 4` |Perform the original warm register reset when music storage is available.
+|`N 5,...` |Read a clock pair and update playback divider when enabled.
+|===
+
+Each N numeric pair is two ordinary numbers, combined as
+`(first*1000+second) & 65535`. N0/N1 read a length pair (65535 becomes
+65534), then exactly that many raw bytes. N3 reads FROM and TO pairs;
+N5 reads one clock pair. The buffer begins with a little-endian clock/divider;
+playback consumes address-byte/little-endian-value-word records. Address-255
+records carry delays, while other addresses write OPL2 registers using their
+native byte fields. Load lengths, endpoints and slice alignment are bounded
+against actual allocated storage. If storage is unavailable, original
+selector-specific consumption still applies; callers must query availability
+rather than assume every N mode drains an arbitrary supplied buffer.
+
+X7 waits at eligible command-entry boundaries for actual music progress;
+N5 and X8 pacing changes interact with that same schedule. Mute/unavailable
+output preserves local progression and command completion. Natural completion
+retains valid release tails and held chip voices instead of unconditionally
+resetting the chip. Reset/disconnect detach session sources and cancel waits.
+
+BIG uses parser backpressure and connection buffering and sends no automatic
+XON/XOFF or custom X5 flow bytes. A remote peer need not implement software
+flow control. Artificial baud pacing resumes without banking catch-up credit
+for time spent paused. DOS PIT/BIOS interrupt timing and host CPU throughput
+are not reproduced.
+
+== Sources, compatibility decisions and verification
+
+link:BIG_CONFORMANCE.md[BIG conformance] describes the completed native
+contract, safe corrections, headless captures and audio coverage limits.
+link:BIG_IMPLEMENTATION.adoc[Implementation history] retains full command
+ordering and numeric, page, clear, loop, PCM and source-lifetime decisions.
+The complete 36 top-level / 9-selector list is
+link:../src/tests/big/conformance.json[the command ledger].
+The active wire descriptors are in
+link:../src/terminal/cterm/cterm_big.c[cterm_big.c], with native drawing and
+state components in `src/terminal/big/`. Independent expected-result tests
+cover native command streams and coherent application captures; physical
+audio/MIDI and audible-device equivalence are not established by those checks.
