@@ -221,7 +221,10 @@ boundaries(void)
 	CHECK(st_rip3_ports_viewport(host.ports,&view) == 0 && st_rip3_ports_erase(host.ports,0x55) == 0);
 	CHECK(process(&host,"p0401010601060601?6",ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host,"p0401010601060601060",ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&host,"p0201010606",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host,"p0201010606",-1) == 0);
+	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
+		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value) == 0 && value == (x == y && x >= 1 && x <= 6 ? 12 : 0x55));
+	CHECK(st_rip3_ports_erase(host.ports,0x55) == 0);
 	missing = host; missing.borders = NULL;
 	CHECK(process(&missing,"p040101060106060106",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	st_rip3_path_test_fail_malloc = true;

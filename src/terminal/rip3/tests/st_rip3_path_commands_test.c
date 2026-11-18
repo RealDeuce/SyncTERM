@@ -219,9 +219,8 @@ static int
 boundaries(void)
 {
 	static const char *const invalid[] = {"P", "P0", "P?4", "P0401010601060601?6",
-	    "P0401010601060601", "P0401010601060601060", "l020101060?"};
-	static const char *const unsupported[] = {"P00", "P010101", "P0201010606", "l010101",
-	    "P040101060106060106 comment"};
+	    "P0401010601060601", "P0401010601060601060", "l020101060?", "P00"};
+	static const char *const unsupported[] = {"P040101060106060106 comment"};
 	struct st_rip3_command_host host = {0}, missing;
 	struct st_rip3_environment environment;
 	struct st_rip3_style style;

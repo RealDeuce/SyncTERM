@@ -13,6 +13,48 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int
+multiple_contours(const uint8_t *bytes, size_t length,
+    const struct st_rip3_environment *environment, const struct st_rip3_frame *frame,
+    struct st_rip3_vector_contour *contours, struct st_rip3_vector *points,
+    size_t *contour_count, size_t *vertices)
+{
+	uint64_t value;
+	size_t position = 2, numbers = 1;
+	int status;
+	if (length < 4) return IO_ERROR_INVALID_FORMAT;
+	status = st_rip3_command_field(&value,bytes,2,environment->base_math);
+	if (status != 0) return status;
+	if (value == 0 || value > 8192/5) return IO_ERROR_OUT_OF_RANGE;
+	*contour_count = (size_t)value; *vertices = 0;
+	for (size_t c = 0; c < *contour_count; c++) {
+		size_t width = c == 0 ? 2 : environment->coordinate_size;
+		if (width > length-position) return IO_ERROR_INVALID_FORMAT;
+		status = st_rip3_command_field(&value,bytes+position,width,environment->base_math);
+		if (status != 0) return status;
+		position += width; numbers++;
+		if (value < 2) return IO_ERROR_INVALID_FORMAT;
+		if (numbers > 8193 || value > (8193-numbers)/2) return IO_ERROR_OUT_OF_RANGE;
+		size_t count = (size_t)value;
+		numbers += 2*count;
+		if (contours != NULL) contours[c] = (struct st_rip3_vector_contour){points+*vertices,count};
+		for (size_t i = 0; i < 2*count; i++) {
+			width = environment->coordinate_size;
+			if (c+1 == *contour_count && i+1 == 2*count && length-position < width) width = length-position;
+			if (width == 0 || width > length-position) return IO_ERROR_INVALID_FORMAT;
+			status = st_rip3_command_field(&value,bytes+position,width,environment->base_math);
+			if (status != 0) return status;
+			position += width;
+			if (points != NULL) {
+				if (i%2 == 0) points[*vertices+i/2].x = (double)(value*frame->device_width/frame->world_width);
+				else points[*vertices+i/2].y = (double)(value*frame->device_height/frame->world_height);
+			}
+		}
+		*vertices += count;
+	}
+	return position == length ? 0 : IO_ERROR_INVALID_FORMAT;
+}
+
 int
 st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
@@ -23,11 +65,13 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_port_info port;
 	struct st_rip3_stroke_mask mask = {0};
 	struct st_rip3_vector *points;
+	struct st_rip3_vector_contour *contours = NULL;
 	uint64_t value;
 	unsigned environment_number, current;
 	const uint8_t *arguments = command+1;
-	size_t count = length-1, vertices, width, fields, total;
-	bool filled = command[0] == 'p', borders = false;
+	size_t count = length-1, vertices = 0, width, fields = 0, total, contour_count = 1;
+	bool multiple = command[0] == '<';
+	bool filled = command[0] == 'p' || multiple, borders = false, interior;
 	uint8_t foreground = 0, background = 0, drawing = 0;
 	int status;
 
@@ -38,28 +82,29 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_command_environment(host, &environment_number, &environment);
 	if (status != 0)
 		return status;
-	status = st_rip3_command_field(&value, arguments, 2, environment.base_math);
-	if (status != 0)
-		return status;
-	/* Only the documented two-digit direct count is decoded here. Zero may
-	 * have a special large-count meaning (#13); undersized paths' wire
-	 * policy is also unresolved, rather than a chosen degeneracy default. */
-	if (value < (command[0] == 'l' ? 2u : 3u))
-		return IO_ERROR_NOT_SUPPORTED;
-	vertices = (size_t)value; /* At most 4095 in a two-digit current-base field. */
 	width = environment.coordinate_size;
-	fields = vertices*2;
-	total = 2+fields*width;
-	if (count <= total-width || count > total)
-		return IO_ERROR_INVALID_FORMAT;
-	/* Reject a malformed late field before allocating or looking up inks.
-	 * Inactive viewports still consume and validate the entire command. */
-	for (size_t i = 0; i < fields; i++) {
-		status = st_rip3_command_field(&value, arguments+2+i*width,
-		    i == fields-1 ? count-2-i*width : width, environment.base_math);
-		if (status != 0)
-			return status;
+	if (multiple) {
+		status = multiple_contours(arguments,count,&environment,NULL,NULL,NULL,&contour_count,&vertices);
+		if (status != 0) return status;
 	}
+	else {
+		status = st_rip3_command_field(&value,arguments,2,environment.base_math);
+		if (status != 0) return status;
+		if (value == 0) return IO_ERROR_INVALID_FORMAT; /* Diagnosed zero, never 4096. */
+		vertices = (size_t)value;
+		fields = vertices*2;
+		total = 2+fields*width;
+		if (count <= total-width || count > total) return IO_ERROR_INVALID_FORMAT;
+		/* Validate the complete body before any allocation or ink lookup,
+		 * including a one-vertex command which ultimately draws nothing. */
+		for (size_t i = 0; i < fields; i++) {
+			status = st_rip3_command_field(&value,arguments+2+i*width,
+			    i == fields-1 ? count-2-i*width : width,environment.base_math);
+			if (status != 0) return status;
+		}
+		if (vertices == 1) return 0;
+	}
+	interior = multiple ? vertices > 2*contour_count : vertices >= 3;
 	if (host->ports == NULL || host->styles == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_frame(host, environment_number, &frame);
@@ -80,7 +125,8 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 		if (host->borders == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
 		borders = *host->borders;
-		for (size_t i = 0; i < 8; i++) {
+		if (!interior && !borders) return 0;
+		for (size_t i = 0; interior && i < 8; i++) {
 			fill_foreground |= style.fill.rows[i] != 0;
 			fill_background |= style.fill.rows[i] != 255;
 		}
@@ -106,7 +152,13 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	points = malloc(vertices*sizeof(*points));
 	if (points == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	for (size_t i = 0; i < fields; i++) {
+	if (multiple) {
+		contours = malloc(contour_count*sizeof(*contours));
+		if (contours == NULL) {status = IO_ERROR_OUT_OF_MEMORY;goto done;}
+		status = multiple_contours(arguments,count,&environment,&frame,contours,points,&contour_count,&vertices);
+		if (status != 0) goto done;
+	}
+	else for (size_t i = 0; i < fields; i++) {
 		status = st_rip3_command_field(&value, arguments+2+i*width,
 		    i == fields-1 ? count-2-i*width : width, environment.base_math);
 		if (status != 0)
@@ -122,7 +174,9 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	if (filled) {
 		struct st_rip3_fill fill;
 		st_rip3_command_fill(&port,&style.fill,&fill);
-		status = st_rip3_polygon_fill(host->ports,points,vertices,&fill,
+		if (multiple) status = st_rip3_polygon_fill_contours(host->ports,contours,contour_count,&fill,
+		    foreground,background,borders ? &style.pen : NULL,drawing,style.write_mode);
+		else status = st_rip3_polygon_fill(host->ports,points,vertices,&fill,
 		    foreground,background,borders ? &style.pen : NULL,drawing,style.write_mode);
 		goto done;
 	}
@@ -132,6 +186,6 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 		status = st_rip3_stroke_apply(host->ports, &mask, foreground, background, style.write_mode);
 done:
 	st_rip3_stroke_free(&mask);
-	free(points);
+	free(contours); free(points);
 	return status;
 }

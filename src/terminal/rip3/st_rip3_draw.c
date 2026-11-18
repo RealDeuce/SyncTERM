@@ -417,24 +417,27 @@ failed:
 }
 
 int
-st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
-    const struct st_rip3_vector *vertices, size_t count, bool closed,
+st_rip3_stroke_vector_contours(struct st_rip3_ports *ports,
+    const struct st_rip3_vector_contour *contours, size_t count, bool closed,
     const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
 {
 	struct stroke_target target;
 	double min_x, min_y, max_x, max_y;
-	unsigned phase = 0;
+	size_t total = 0;
 	int status;
 
-	if (result == NULL || vertices == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (count == 0 || count > 4096)
-		return IO_ERROR_OUT_OF_RANGE;
-	for (size_t i = 0; i < count; i++) {
-		if (!isfinite(vertices[i].x) || !isfinite(vertices[i].y)
-		    || fabs(vertices[i].x) > 1024.0 * INT32_MAX
-		    || fabs(vertices[i].y) > 1024.0 * INT32_MAX)
-			return IO_ERROR_OUT_OF_RANGE;
+	if (result == NULL || contours == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (count == 0 || count > 4096) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t c = 0; c < count; c++) {
+		if (contours[c].points == NULL) return IO_ERROR_INVALID_ARGUMENT;
+		if (contours[c].count == 0 || contours[c].count > 4096-total) return IO_ERROR_OUT_OF_RANGE;
+		total += contours[c].count;
+		for (size_t i = 0; i < contours[c].count; i++) {
+			const struct st_rip3_vector *point = contours[c].points+i;
+			if (!isfinite(point->x) || !isfinite(point->y)
+			    || fabs(point->x) > 1024.0*INT32_MAX || fabs(point->y) > 1024.0*INT32_MAX)
+				return IO_ERROR_OUT_OF_RANGE;
+		}
 	}
 	status = stroke_init(&target, ports, pen, 0, 0, ST_RIP3_COPY);
 	if (status != 0)
@@ -443,11 +446,12 @@ st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
 		*result = (struct st_rip3_stroke_mask){0};
 		return 0;
 	}
-	min_x = max_x = vertices[0].x;
-	min_y = max_y = vertices[0].y;
-	for (size_t i = 1; i < count; i++) {
-		min_x = fmin(min_x, vertices[i].x); max_x = fmax(max_x, vertices[i].x);
-		min_y = fmin(min_y, vertices[i].y); max_y = fmax(max_y, vertices[i].y);
+	min_x = max_x = contours[0].points[0].x;
+	min_y = max_y = contours[0].points[0].y;
+	for (size_t c = 0; c < count; c++) for (size_t i = 0; i < contours[c].count; i++) {
+		const struct st_rip3_vector *point = contours[c].points+i;
+		min_x = fmin(min_x,point->x); max_x = fmax(max_x,point->x);
+		min_y = fmin(min_y,point->y); max_y = fmax(max_y,point->y);
 	}
 	status = stroke_allocate(&target, pen, min_x, min_y, max_x, max_y);
 	if (status != 0)
@@ -456,20 +460,30 @@ st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
 		*result = (struct st_rip3_stroke_mask){0};
 		return 0;
 	}
-	for (size_t i = 0; i < (count == 1 ? 1 : closed ? count : count-1); i++) {
-		const struct st_rip3_vector *first = vertices+i, *last = vertices+(i+1)%count;
-		double major = fmax(fabs(last->x-first->x), fabs(last->y-first->y));
-
-		status = stroke_segment(&target, first, last, pen, phase);
-		if (status != 0) {
-			free(target.coverage);
-			return status;
+	for (size_t c = 0; c < count; c++) {
+		const struct st_rip3_vector *vertices = contours[c].points;
+		size_t vertices_count = contours[c].count;
+		unsigned phase = 0;
+		for (size_t i = 0; i < (vertices_count == 1 ? 1 : closed ? vertices_count : vertices_count-1); i++) {
+			const struct st_rip3_vector *first = vertices+i, *last = vertices+(i+1)%vertices_count;
+			double major = fmax(fabs(last->x-first->x),fabs(last->y-first->y));
+			status = stroke_segment(&target,first,last,pen,phase);
+			if (status != 0) {free(target.coverage);return status;}
+			phase = (phase+(unsigned)fmod(major,16.0))&15;
 		}
-		phase = (phase + (unsigned)fmod(major, 16.0)) & 15;
 	}
 	*result = (struct st_rip3_stroke_mask){.bounds=target.clip,.width=target.width,
 	    .height=target.height,.coverage=target.coverage};
 	return 0;
+}
+
+int
+st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
+    const struct st_rip3_vector *vertices, size_t count, bool closed,
+    const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result)
+{
+	const struct st_rip3_vector_contour contour = {vertices,count};
+	return st_rip3_stroke_vector_contours(ports,&contour,1,closed,pen,result);
 }
 
 int

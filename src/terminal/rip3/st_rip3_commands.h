@@ -75,7 +75,8 @@ struct st_rip3_command_sink {
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, =, E, L, R, B, K, C, G, o,
  * COPY-mode X/j, m, classic literal T and horizontal-left @,
- * canonical full O/V and full/equal A, ordinary P/l/p paths,
+ * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
+ * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
  * s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,

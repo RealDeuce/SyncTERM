@@ -3717,6 +3717,47 @@ unrelated concurrent documentation was left untouched. The ledger reconciles
 bootstrap/N lifecycle and active-engine integration remain pending. No issue
 content or code was published.
 
+## Polygon count and multi-contour reconciliation
+
+P/l/p now use the adopted direct count boundaries: zero produces a nonfatal
+parser diagnostic, one validates its body and draws nothing, and two retain
+ordinary outline behavior without an enclosed fill area. They preserve drawing
+style and cursor state. Counts remain two digits at every coordinate width;
+1295 MegaNum and 4095 UltraNum vertices are reachable. Exactly N coordinate
+pairs are read; the historical stale scratch pair is never accessed.
+
+The separate engine now dispatches `<` to a multi-contour polygon decoder.
+C and N1 use two digits, later Ni use XY digits, and every contour has at least
+two vertices. Full grammar and the aggregate 1+C+2V<=8193 numeric budget are
+validated before allocation or painting. All contours contribute to one even-odd
+interior and one prepared border mask. Holes, overlapping contours and nested
+islands use current-mode fill with optional patterned COPY borders. Each contour
+restarts pen phase; shared border pixels apply once. Existing single-contour
+entry points use the same geometry through one-contour wrappers.
+
+`rip3_multi_polygon_commands` has 96 coherent full-device captures across all
+canvases, screen/offscreen ports, both bases, widths 2–5 and unequal WORLD
+scales. Independent box parity, perimeter distances and Boolean algebra check
+holes, overlap cancellation, nested islands, transparent/opaque border patterns,
+five indexed modes and RGB COPY. Focused cases check small counts without state
+mutation, maximum single and aggregate counts, maximum contour counts, shortened
+final fields, complete rejection of late malformed/oversized bodies, wide exact
+crossings and every allocation failure before painting. An adopted literal
+XY=3 stream exercises the asymmetric count widths and parser recovery. Original
+diagnostic wording and exact POLYPOLY.RIP corpus/continuation replay remain
+pending; these are not claimed by the new coverage.
+
+Native FreeBSD Release CMake configure/build completed. Only the four affected
+CTests were run: multi-polygon commands, path commands, filled-path commands and
+wide polygon crossings; all passed in 0.71 seconds. Previous unaffected evidence
+was reused. The source/ledger audit matches the recorded 93 files and 41 helper
+pins, including documented font maintenance. No RIP1.54 source, capture,
+preservation pin, reference revision or active application routing changed.
+Owned temporary build files were removed and unrelated concurrent documentation
+was left untouched. This review covers 57 source units: 547 implemented, 1417 pending, 4351 unreviewed, 984 context, 24 excluded, 34 blocked among 7357 blocks.
+Full compliance and active-engine integration remain pending. No issue content
+or code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

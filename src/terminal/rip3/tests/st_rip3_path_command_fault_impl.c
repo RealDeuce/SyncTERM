@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 bool st_rip3_path_test_fail_malloc;
+unsigned st_rip3_path_test_malloc_countdown;
 
 static void *
 test_malloc(size_t size)
@@ -12,6 +13,7 @@ test_malloc(size_t size)
 		st_rip3_path_test_fail_malloc = false;
 		return NULL;
 	}
+	if (st_rip3_path_test_malloc_countdown != 0 && --st_rip3_path_test_malloc_countdown == 0) return NULL;
 	return malloc(size);
 }
 

@@ -211,7 +211,7 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_skew_commands_execute(host,command,length,operation);
 	if (command[0] == 'Z' || command[0] == 'z' || command[0] == 't' || command[0] == 'x')
 		return st_rip3_bezier_commands_execute(host,command,length,operation);
-	if (command[0] == 'P' || command[0] == 'l' || command[0] == 'p')
+	if (command[0] == 'P' || command[0] == 'l' || command[0] == 'p' || command[0] == '<')
 		return st_rip3_path_commands_execute(host, command, length, operation);
 	if (command[0] == 'c' || command[0] == 'k' || command[0] == 'W' || command[0] == 'Y'
 	    || command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K'

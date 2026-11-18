@@ -22,6 +22,11 @@ struct st_rip3_vector {
 	double y;
 };
 
+struct st_rip3_vector_contour {
+	const struct st_rip3_vector *points;
+	size_t count;
+};
+
 struct st_rip3_vector_run {
 	size_t first;
 	size_t count;
@@ -45,6 +50,11 @@ int st_rip3_stroke_collect(struct st_rip3_ports *ports,
  * Integer world projection can exceed int32_t; finite coordinates up to
  * 1024*INT32_MAX are retained until visible coverage is collected. Phase
  * continues across edges and each destination pixel is applied once. */
+/* Multiple projected contours share one coverage allocation. Pattern phase
+ * restarts for each contour; foreground wins at overlapping borders. */
+int st_rip3_stroke_vector_contours(struct st_rip3_ports *ports,
+	const struct st_rip3_vector_contour *contours, size_t count, bool closed,
+	const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result);
 int st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
 	const struct st_rip3_vector *vertices, size_t count, bool closed,
 	const struct st_rip3_pen *pen, struct st_rip3_stroke_mask *result);

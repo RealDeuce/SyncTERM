@@ -126,8 +126,8 @@ boundary_compare(const void *first, const void *second)
 }
 
 int
-st_rip3_polygon_fill(struct st_rip3_ports *ports,
-    const struct st_rip3_vector *points, size_t count,
+st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
+    const struct st_rip3_vector_contour *contours, size_t count,
     const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
     const struct st_rip3_pen *border, uint8_t border_color,
     enum st_rip3_write_mode mode)
@@ -137,20 +137,26 @@ st_rip3_polygon_fill(struct st_rip3_ports *ports,
 	struct st_rip3_pen checked_border;
 	struct polygon_edge *edges = NULL;
 	int32_t *boundaries = NULL;
-	size_t edge_count = 0;
+	size_t edge_count = 0, vertices = 0;
 	int64_t first_y, last_y;
 	unsigned current;
 	int status;
 
-	if (ports == NULL || points == NULL || fill == NULL
+	if (ports == NULL || contours == NULL || fill == NULL
 	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (count == 0 || count > 4096) return IO_ERROR_OUT_OF_RANGE;
-	for (size_t i = 0; i < count; i++) {
-		if (!isfinite(points[i].x) || !isfinite(points[i].y)
-		    || fabs(points[i].x) > 1024.0*INT32_MAX || fabs(points[i].y) > 1024.0*INT32_MAX
-		    || trunc(points[i].x) != points[i].x || trunc(points[i].y) != points[i].y)
-			return IO_ERROR_OUT_OF_RANGE;
+	for (size_t c = 0; c < count; c++) {
+		if (contours[c].points == NULL) return IO_ERROR_INVALID_ARGUMENT;
+		if (contours[c].count == 0 || contours[c].count > 4096-vertices) return IO_ERROR_OUT_OF_RANGE;
+		vertices += contours[c].count;
+		for (size_t i = 0; i < contours[c].count; i++) {
+			const struct st_rip3_vector *point = contours[c].points+i;
+			if (!isfinite(point->x) || !isfinite(point->y)
+			    || fabs(point->x) > 1024.0*INT32_MAX || fabs(point->y) > 1024.0*INT32_MAX
+			    || trunc(point->x) != point->x || trunc(point->y) != point->y)
+				return IO_ERROR_OUT_OF_RANGE;
+		}
 	}
 	if (border != NULL) {
 		status = st_rip3_pen_set(&checked_border,border->draw_background,4,border->pattern,border->thickness);
@@ -159,12 +165,13 @@ st_rip3_polygon_fill(struct st_rip3_ports *ports,
 	status = st_rip3_ports_current(ports, &current);
 	if (status == 0) status = st_rip3_ports_info(ports,current,&info);
 	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0)) return status;
-	first_y = last_y = (int64_t)points[0].y;
-	for (size_t i = 0; i < count; i++) {
+	first_y = last_y = (int64_t)contours[0].points[0].y;
+	for (size_t c = 0; c < count; c++) for (size_t i = 0; i < contours[c].count; i++) {
+		const struct st_rip3_vector *points = contours[c].points;
 		int64_t y = (int64_t)points[i].y;
 		if (y < first_y) first_y = y;
 		if (y > last_y) last_y = y;
-		if (y != (int64_t)points[(i+1)%count].y) edge_count++;
+		if (y != (int64_t)points[(i+1)%contours[c].count].y) edge_count++;
 	}
 	if (first_y < 0) first_y = 0;
 	if (last_y > info.clip.y1+1)
@@ -175,13 +182,15 @@ st_rip3_polygon_fill(struct st_rip3_ports *ports,
 		edges = malloc(edge_count*sizeof(*edges));
 		boundaries = malloc(edge_count*sizeof(*boundaries));
 		if (edges == NULL || boundaries == NULL) { status = IO_ERROR_OUT_OF_MEMORY; goto done; }
-		for (size_t i = 0, next = 0; i < count; i++) {
-			const struct st_rip3_vector *a = points+i, *b = points+(i+1)%count;
+		size_t next = 0;
+		for (size_t c = 0; c < count; c++) for (size_t i = 0; i < contours[c].count; i++) {
+			const struct st_rip3_vector *a = contours[c].points+i;
+			const struct st_rip3_vector *b = contours[c].points+(i+1)%contours[c].count;
 			if (a->y != b->y) edges[next++] = make_edge(a,b);
 		}
 	}
 	if (border != NULL) {
-		status = st_rip3_stroke_path_vectors(ports,points,count,true,&checked_border,&outline);
+		status = st_rip3_stroke_vector_contours(ports,contours,count,true,&checked_border,&outline);
 		if (status != 0) goto done;
 	}
 	/* All fallible preparation is complete before any interior pixel changes. */
@@ -207,4 +216,15 @@ done:
 	st_rip3_stroke_free(&outline);
 	free(boundaries); free(edges);
 	return status;
+}
+
+int
+st_rip3_polygon_fill(struct st_rip3_ports *ports,
+    const struct st_rip3_vector *points, size_t count,
+    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *border, uint8_t border_color,
+    enum st_rip3_write_mode mode)
+{
+	const struct st_rip3_vector_contour contour = {points,count};
+	return st_rip3_polygon_fill_contours(ports,&contour,1,fill,foreground,background,border,border_color,mode);
 }

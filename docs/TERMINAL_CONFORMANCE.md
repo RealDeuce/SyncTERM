@@ -61,6 +61,11 @@ DASHDOTDOT mapping, wide solid pens, opaque single-pass versus transparent
 two-pass overlap, and NOT's unused inks. Style copies/backups preserve selected
 line type independently of custom masks. Coherent captures cover all canvases,
 bases, coordinate widths and border/flag combinations.
+Separate P/l/p/< tests reconcile direct small/maximum counts, asymmetric
+multi-contour count widths and the shared 8193-number budget. Coherent captures
+cover holes, overlap cancellation, nested islands, patterned COPY borders,
+current-mode fills and nonfatal rejection before painting. Exact original
+error wording and POLYPOLY.RIP corpus/continuation replay remain pending.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

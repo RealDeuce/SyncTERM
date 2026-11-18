@@ -12,6 +12,13 @@
  * A supplied border preserves the resolved pen pattern and uses COPY after the
  * fill. All validation/allocations precede painting. Wire count/border/default
  * policy belongs to the decoder; this kernel accepts 1..4096 vertices. */
+/* One shared even-odd interior and border coverage over multiple contours.
+ * The aggregate device-kernel vertex budget remains 4096. */
+int st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
+	const struct st_rip3_vector_contour *contours, size_t count,
+	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+	const struct st_rip3_pen *border, uint8_t border_color,
+	enum st_rip3_write_mode mode);
 int st_rip3_polygon_fill(struct st_rip3_ports *ports,
 	const struct st_rip3_vector *points, size_t count,
 	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
