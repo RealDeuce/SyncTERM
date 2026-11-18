@@ -36,6 +36,11 @@ selector/type/domain grammar and wide signed results have independent tests.
 Wire line-style decoding covers all four unit/background flags, fixed field
 widths, X-only world scaling, byte truncation and custom masks. All-canvas
 drawing captures configure those masks through split-input `=` commands.
+Separate-engine A/V tests now cover integer endpoint rays, equal-endpoint
+point strokes, coincident-ray full curves and counterclockwise partial sweeps.
+O consumes its angle fields and always draws a complete ellipse. Coherent
+screen/offscreen captures cover all canvases, bases, coordinate widths and write
+modes; filled/skewed arc consumers and active-engine integration remain pending.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

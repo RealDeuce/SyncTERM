@@ -4,6 +4,8 @@
 #include "st_rip3_styles.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_ellipse.h"
+#include "st_rip3_arc.h"
+#include "st_rip3_draw_internal.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -21,6 +23,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_port_info port;
 	struct st_rip3_ellipse ellipse;
 	struct st_rip3_fill fill;
+	struct st_rip3_arc interval = {.kind=ST_RIP3_ARC_CURVE,.start=0,.sweep=360};
 	uint64_t values[6];
 	unsigned environment_number, number;
 	bool arc = command[0] == 'A';
@@ -52,15 +55,6 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 			return status;
 		position += field_width;
 	}
-	/* A explicitly defines equal angles as empty, including equal values
-	 * greater than 360. Validate the complete body first; no geometry, style,
-	 * ink or scratch storage is needed for that successful no-op. */
-	if (arc && values[2] == values[3])
-		return 0;
-	/* The documented 0..360 full circle/ellipse is unambiguous. Other wire
-	 * pairs remain unsupported under #14; O/V's equal-angle policy is open. */
-	if (angles && (values[2] != 0 || values[3] != 360))
-		return IO_ERROR_NOT_SUPPORTED;
 	if (host->styles == NULL || host->ports == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_styles_current(host->styles, &number);
@@ -90,7 +84,29 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 		if (!borders && (rx == 0 || ry == 0))
 			return 0;
 	}
+	if (arc || command[0] == 'V') {
+		status = st_rip3_arc_axis(&interval,(uint64_t)rx,(uint64_t)ry,
+		    (unsigned)values[2],(unsigned)values[3]);
+		if (status != 0 || interval.kind == ST_RIP3_ARC_EMPTY)
+			return status;
+	}
 	*operation = true;
+	if (interval.kind == ST_RIP3_ARC_POINT) {
+		const struct st_rip3_vector endpoint = {x+(double)interval.first.x,y+(double)interval.first.y};
+		const struct st_rip3_pen pen = {.pattern=0xffff,.thickness=style.pen.thickness};
+		struct st_rip3_stroke_mask mask = {0};
+
+		/* The original zero-length line uses the unprojected endpoint, which
+		 * can lie outside a noncircular ellipse. Prepare clipped coverage before
+		 * resolving ink so an invisible point needs neither ink nor allocation. */
+		status = st_rip3_stroke_path_vectors(host->ports,&endpoint,1,false,&pen,&mask);
+		if (status == 0 && mask.coverage != NULL && style.write_mode != ST_RIP3_NOT)
+			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
+		if (status == 0)
+			status = st_rip3_stroke_apply(host->ports,&mask,drawing,0,style.write_mode);
+		st_rip3_stroke_free(&mask);
+		return status;
+	}
 	if (borders || (!filled && style.write_mode != ST_RIP3_NOT)) {
 		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.drawing_color, &drawing);
 		if (status != 0)
@@ -111,7 +127,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 			return status;
 	}
 	if (!filled)
-		return st_rip3_draw_ellipse_outline(host->ports, &ellipse, 0,360,
+		return st_rip3_draw_ellipse_outline(host->ports, &ellipse, interval.start,interval.sweep,
 		    ST_RIP3_ELLIPSE_ARC, style.pen.thickness, drawing, style.write_mode);
 	st_rip3_command_fill(&port,&style.fill,&fill);
 	return st_rip3_draw_filled_ellipse(host->ports, &ellipse, 0,360,

@@ -3429,6 +3429,56 @@ freeze-manifest and supplemental-capture updates remain outside this milestone;
 its commit retains the original guard, hashes and preservation baseline. The
 independent maintenance exception is outside this milestone's acceptance claim.
 
+## Axis-aligned A/V/O consumer reconciliation
+
+The stable reference's arc consumer contract supersedes the earlier restricted
+0..360/equal-angle policy described above. The separate engine now accepts all
+valid two-digit angle pairs for A/V, reduces each endpoint independently and
+uses the original five-degree integer sine table after device conversion.
+A uses its horizontal circular radius; V uses the larger converted radius for
+its endpoint rays, then intersects those rays with the actual ellipse.
+
+Identical integer endpoints produce a solid geometric pen point at the raw
+endpoint, before ellipse projection. Thus A/V 0..360 and 450..810 are point
+strokes rather than full curves. Different integer endpoints on the same ray
+produce a complete curve: radius-three 0..1 and 0..719 exercise that distinction.
+Other distinct rays advance counterclockwise through the appropriate radial
+ellipse intersections. O consumes and validates its angle fields but ignores
+their values and always requests the complete ellipse. These commands ignore
+line patterns/background painting while retaining thickness and Write Mode.
+
+The narrow `st_rip3_arc_axis` adapter retains wide signed integer rays, compares
+primitive directions without overflowing cross products, and converts radial
+bearings to ellipse parameters. Its cross/dot angle calculation preserves tiny
+positive spans on thin ellipses. The existing geometric ellipse kernel's API
+and zero-sweep policy are unchanged. A single center-collapsed ray is an empty
+client degeneracy; two identical collapsed rays produce a center point. Singular
+ellipses use ordinary ray bearings and the existing degenerate curve kernel.
+These explicit geometric policies do not claim original GDI caps, singular API
+behavior or exact pixel reproduction.
+
+`rip3_arc` checks literal rays across quadrants, turns, table quantization,
+noncircular parameter conversion, zero radii, wide bounds and tiny spans.
+`rip3_curve_commands` adds 96 coherent screen/offscreen matrix captures across
+three canvases, both bases, XY widths 2–5 and two unequal WORLD scales. Each
+capture combines point/full/partial/O cases under five indexed modes plus RGB
+COPY, short final fields and deliberately gapped pens. Additional checks retain
+all earlier complete-figure coverage, exercise partial A/V grammar, odd/even
+point thickness, invisible wide endpoints, missing services, malformed recovery,
+inactive viewports and allocation failure before drawing. Public parser entry
+points remain void; diagnostics never propagate a session-ending parse error.
+
+Native FreeBSD Release configure/build passes without new warnings. All 97
+RIP3/preservation CTests pass (33.24 seconds), and Valgrind reports no errors or
+leaks for the expanded curve fixture. The earlier 29-test legacy/preservation
+run is recorded above. This milestone changes no legacy source, capture,
+preservation pin, reference revision or active application routing. Scoped
+build logs were removed. No upstream issue content or code was published.
+The ledger reviews 73 units: 346 implemented, 1504 pending, 4526 unreviewed,
+938 contextual, 24 excluded and 19 blocked among 7357 blocks. Shared requirements
+covering I/i/_, skewed arcs and other unimplemented consumers remain pending;
+full RIP3 compliance and active-engine integration are not claimed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
