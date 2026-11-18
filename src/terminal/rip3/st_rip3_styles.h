@@ -15,8 +15,9 @@ struct st_rip3_backup;
  * values (up to 24 bits); the owning scene resolves its current colour mode.
  * Pen thickness and fill phase are explicit DEVICE values for the existing
  * kernels. Wire '=' converts/clamps and truncates thickness to a byte, then
- * normalizes the cosmetic zero byte to effective width one. Fill phase and
- * bootstrap orchestration remain separate from this record service.
+ * normalizes the cosmetic zero byte to effective width one. Wire fills derive
+ * context phase at paint time, independently of the device fill.origin value
+ * retained here. Bootstrap orchestration remains separate from this service.
  *
  * This is the implemented subset of a STYLE record, not a complete protocol
  * context. Extended-font selection (#3), bootstrap values and ownership of

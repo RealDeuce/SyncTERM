@@ -120,7 +120,9 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 			points[i/2].y = (double)(value*frame.device_height/frame.world_height);
 	}
 	if (filled) {
-		status = st_rip3_polygon_fill(host->ports,points,vertices,&style.fill,
+		struct st_rip3_fill fill;
+		st_rip3_command_fill(&port,&style.fill,&fill);
+		status = st_rip3_polygon_fill(host->ports,points,vertices,&fill,
 		    foreground,background,borders ? &style.pen : NULL,drawing,style.write_mode);
 		goto done;
 	}

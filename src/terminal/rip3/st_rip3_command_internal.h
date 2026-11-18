@@ -10,6 +10,8 @@
 
 struct st_rip3_environment;
 struct st_rip3_frame;
+struct st_rip3_port_info;
+struct st_rip3_fill;
 
 /* Private wire-field and execution helpers. Every status is consumed by the
  * public void processing boundary; none is a terminal/session return status. */
@@ -21,6 +23,10 @@ int st_rip3_command_frame(const struct st_rip3_command_host *host,
 	unsigned environment, struct st_rip3_frame *result);
 int st_rip3_command_ink(const struct st_rip3_command_host *host,
 	bool direct, uint32_t color, uint8_t *result);
+/* Resolve fixed drawing-context phase into the device kernel's viewport-
+ * relative phase, without changing the caller's stored mask/phase record. */
+void st_rip3_command_fill(const struct st_rip3_port_info *port,
+	const struct st_rip3_fill *source, struct st_rip3_fill *result);
 int st_rip3_bitmap_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,

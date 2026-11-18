@@ -20,6 +20,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_frame frame;
 	struct st_rip3_port_info port;
 	struct st_rip3_ellipse ellipse;
+	struct st_rip3_fill fill;
 	uint64_t values[6];
 	unsigned environment_number, number;
 	bool arc = command[0] == 'A';
@@ -112,7 +113,8 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	if (!filled)
 		return st_rip3_draw_ellipse_outline(host->ports, &ellipse, 0,360,
 		    ST_RIP3_ELLIPSE_ARC, style.pen.thickness, drawing, style.write_mode);
+	st_rip3_command_fill(&port,&style.fill,&fill);
 	return st_rip3_draw_filled_ellipse(host->ports, &ellipse, 0,360,
-	    ST_RIP3_ELLIPSE_PIE, &style.fill, foreground, background,
+	    ST_RIP3_ELLIPSE_PIE, &fill, foreground, background,
 	    borders ? style.pen.thickness : 0, drawing, style.write_mode);
 }

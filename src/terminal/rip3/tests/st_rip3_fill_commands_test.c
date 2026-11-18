@@ -145,11 +145,10 @@ attributes(void)
 	}
 	for (unsigned pattern = 2; pattern <= 11; pattern++) {
 		char stock[] = "S0203";
-		bool blocked = pattern == 2 || pattern == 4 || pattern == 5 || pattern == 7 || pattern == 11;
 		pair(stock+1, pattern, 36);
 		CHECK(st_rip3_styles_get(host.styles, 0, &before) == 0);
-		CHECK(process(&host, stock, blocked ? ST_RIP3_COMMAND_UNSUPPORTED : -1) == 0);
-		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && same(&before,&after,blocked));
+		CHECK(process(&host, stock, -1) == 0);
+		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && same(&before,&after,false));
 	}
 	CHECK(process(&host, "S0103 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&host, "s000000000000000003 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
@@ -187,7 +186,9 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	    "!|s3K1S0W0G0804020107|B000K0E0Y|B0U0Y0G0K\r"
 	    "!|S0105|B1E1E2S2S|S010F|W0|B140K1A0K|W1|B140M1A0M|W2|B140O1A0O|W3|B140Q1A0Q|W4|B140S1A0S\r"
 	    "!|W0|S0C03|S010B|B0Q0A0S0C\r";
-	static const uint16_t rows[] = {0x4040,0x2020,0x1010,0x0808,0x0404,0x0202,0x0101,0x8080};
+	/* Context rows 33..40, columns 12..27: the diagonal samples X mod 8
+	 * equal to Y mod 8, independent of the stored viewport/caller phase. */
+	static const uint16_t rows[] = {0x0404,0x0202,0x0101,0x8080,0x4040,0x2020,0x1010,0x0808};
 	static const uint8_t modes[] = {15,0x5a,0x5f,5,0xaa};
 	struct st_rip3_command_host host = {0};
 	struct st_rip3_style style;

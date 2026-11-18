@@ -55,6 +55,13 @@ The frozen capture inventory includes its descriptive scope text. Keep new
 coverage notes in `docs/RIP154_CONFORMANCE.md` without modifying that inventory
 or advancing the preservation baseline.
 
+A separate user-requested RIPv3 text-video-mode repair is recorded in the
+manifest's `maintenance` entry, with the previous checksums retained. Its two
+updated pins cover the RIPv3 branch of `rip_text_font` and a supplemental
+capture-inventory entry. RIPv1's original grid/status behavior and all
+historical images, expectations and exclusions remain unchanged; the 26 RIP
+regressions pass with this repair.
+
 The 26 existing native/application RIP and graphics-scrollback CTests passed
 at the baseline on native FreeBSD with the existing Release CMake configuration.
 They cover CP437/UTF-8, historical captures, both pixel phases, replies,
@@ -3352,6 +3359,59 @@ ledger reconciles 17 geometry units and retains the mode blocker: 253 implemente
 as do the historical RIP1.54 capture inventory, stable pin/adoption identities,
 original artifact and active application route. Temporary logs were removed.
 No existing issue was modified and no changes were pushed.
+
+## Canonical fill masks and drawing-context phase
+
+`S` now accepts every preset 00..0B using the stable reference's canonical eight
+row bytes. The formerly unsupported 02/04/05/07/0B masks are implemented, including
+04's corrected 0E row and 0B's 22 rows. `S` and `s` still replace only the mask
+and fill ink; invalid/protected edits retain the record, and border state remains
+independent. Palette/direct-RGB decoding and current background selection are
+preserved.
+
+Wire BAR, filled-rectangle, polygon and filled-circle/oval consumers now derive
+phase from the selected drawing context's (0,0) for each paint. The mask keeps
+its eight-device-pixel period after world conversion. Port/viewport origins,
+primitive starts and clipping do not restart it. Screen ports share screen phase;
+each bitmap has local phase. Copies move the painted pixels without re-tiling.
+The helper converts this phase into the device kernel's viewport-relative
+representation, with unsigned residues for negative/extreme relative origins.
+It does not mutate STYLE metadata or change the explicit device-kernel phase API.
+The legacy RIP_FILL solid exception and unsupported primitive/header/context
+integration remain separate work.
+
+`rip3_pattern_commands` compares independent literal pictures for every preset
+under all five indexed modes and RGB COPY. Its 96 matrix captures span three
+canvases, both numeric bases, XY widths 2–5, two world scales and screen/offscreen
+contexts, including negative port-relative viewport origins. Additional coherent
+consumer captures cover the exact reference phase example, adjacent bars,
+rectangle/polygon/ellipse masks and a viewport change without another `s` command.
+The bitmap copy lands at a different destination phase, retaining source samples.
+Unrelated drawing attributes and caller-owned kernel phase remain unchanged.
+Existing diagonal/chequerboard expectations now use authored context coordinates
+instead of the old caller-relative phase. RIP1.54 expectations are untouched.
+
+The new phase fixture failed against the old implementation before the fix.
+Native configure/build and the shared-tree functional tests passed, but its two
+preservation checks detected concurrent edits to frozen `rip_text_font` in
+`src/terminal/cterm/st_cterm.c`, outside this milestone. Those edits, their header
+and test changes were left untouched. Verification therefore used an isolated
+snapshot of `5398e67e` plus only this milestone, in a scoped temporary directory.
+The same native FreeBSD Release compiler/configuration was used; no alternate
+toolchain, GUI, physical audio or Windows execution was added.
+
+The isolated configure/build passes without warnings, all 103 selected tests
+pass (22.47 seconds), and preservation confirms all 93 files and 41 helpers match
+the original baseline. Valgrind reports zero errors, no retained heap, 273
+allocations/frees and three inherited descriptors for the expanded pattern
+fixture. Its temporary source, build and logs were removed. The ledger reconciles
+64 fill units: 317 implemented, 1491 pending, 4580 unreviewed, 926 contextual,
+24 excluded and 19 blocked among 7357 source blocks. Pin/adoption identities,
+capture inventory, original artifact and the committed active application route
+are unchanged. No issue content or code was published. Concurrent terminal,
+freeze-manifest and supplemental-capture updates remain outside this milestone;
+its commit retains the original guard, hashes and preservation baseline. The
+independent maintenance exception is outside this milestone's acceptance claim.
 
 ## Verification and acceptance
 

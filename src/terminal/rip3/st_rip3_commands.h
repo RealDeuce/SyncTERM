@@ -76,7 +76,7 @@ struct st_rip3_command_sink {
  * Implements J, n, f, Q, a, c, k, numeric W, Y, =, E, L, R, B, K, C, G, o,
  * COPY-mode X/j, m, classic literal T and horizontal-left @,
  * canonical full O/V and full/equal A, ordinary P/l/p paths,
- * s, S presets 00/01/03/06/08/09/0A, 1w, v, 2p, 2s,
+ * s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits,
@@ -97,6 +97,10 @@ struct st_rip3_command_sink {
  * the stored viewport/physical surface, ignore line/fill patterns and retain
  * wide coordinates until clipping. Visible non-COPY X/j operations remain
  * unsupported pending the effective Write Mode contract in #74.
+ * S/s use canonical 8x8 masks and fixed drawing-context (0,0) phase in device
+ * pixels. Shape projection, port/viewport changes and adjacent primitives do
+ * not restart or resize the tile. Screen ports share screen phase; offscreen
+ * bitmaps have their own local context. Copies move already painted pixels.
  * Port commands use the bound PORT table and current ENV world/width/radix,
  * without activating or updating ENV references. World geometry requires the
  * ENV and PORT device canvases to agree. 2P projects half-open extent boundaries,

@@ -10,8 +10,8 @@
 
 struct st_rip3_fill {
 	uint8_t rows[8];
-	/* Explicit device-pixel phase, relative to the current viewport. Host
-	 * pattern anchoring is not inferred from the undocumented wire policy. */
+	/* Explicit device-kernel phase relative to the viewport. Wire commands
+	 * derive this from drawing-context (0,0) separately for each paint. */
 	struct st_rip3_point origin;
 };
 

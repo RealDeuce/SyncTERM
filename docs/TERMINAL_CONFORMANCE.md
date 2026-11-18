@@ -40,6 +40,10 @@ Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their
 effective non-COPY write modes remain blocked on the documented #74 question.
+All twelve stock fill masks and custom masks use fixed drawing-context phase
+in the separate wire engine. Coherent captures cover both world scales, all
+canvases/radices/widths, negative relative viewport origins, indexed modes, RGB
+fills and copies that preserve painted bitmap patterns at a shifted destination.
 Separate style-record tests cover explicit attributes, owned
 snapshots and nonfatal metadata/COPY errors. Complete c/k/W/L/R command tests
 cover palette/direct RGB ink, all drawing modes, explicit patterns, reversed and
@@ -563,6 +567,12 @@ RIP `1G` now copies absolute screen regions with RIPv1 alignment quirks and
 RIPv3 outward alignment. Native whole-plane, overlap, split-input, state and
 reduced-mapping tests supplement 20 coherent application cases per version
 and encoding, with both pixel phases, clipboard preservation and recovery.
+RIPv3 text-window fonts enter a complete 640x350 video mode; the status row
+uses the new font, and reset restores the original session geometry. Native
+split-input/notification and whole-plane tests plus coherent CP437/UTF-8
+application captures cover all five fonts, a 1280x800 starting canvas, status
+on/off and reset/recovery. RIPv1's existing canvas and status-font behavior
+and historical capture expectations are retained.
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

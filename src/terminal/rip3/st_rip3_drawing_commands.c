@@ -60,15 +60,20 @@ fill_style(struct st_rip3_style *style, const struct st_rip3_environment *enviro
 		status = st_rip3_fill_custom(&style->fill, rows, &style->fill.origin);
 	}
 	else {
-		/* Background/solid fills and patterned masks whose table columns
-		 * agree. Conflicting masks (02/04/05/07/0B) remain under #12. */
+		/* Canonical driver 3.0.7 rows from the adopted #12 reconstruction.
+		 * Pattern bits select fill/background ink; they are not inverted. */
 		static const uint8_t masks[12][8] = {
 		    [0] = {0}, [1] = {255,255,255,255,255,255,255,255},
+		    [2] = {255,255,0,0,255,255,0,0},
 		    [3] = {1,2,4,8,16,32,64,128},
+		    [4] = {0xe0,0xc1,0x83,7,0x0e,0x1c,0x38,0x70},
+		    [5] = {0xf0,0x78,0x3c,0x1e,0x0f,0x87,0xc3,0xe1},
 		    [6] = {0xa5,0xd2,0x69,0xb4,0x5a,0x2d,0x96,0x4b},
+		    [7] = {255,0x88,0x88,0x88,255,0x88,0x88,0x88},
 		    [8] = {0x81,0x42,0x24,0x18,0x18,0x24,0x42,0x81},
 		    [9] = {0xcc,0x33,0xcc,0x33,0xcc,0x33,0xcc,0x33},
 		    [10] = {0x80,0,8,0,0x80,0,8,0},
+		    [11] = {0x88,0,0x22,0,0x88,0,0x22,0},
 		};
 
 		status = st_rip3_command_field(&value, arguments, 2, environment->base_math);
@@ -76,10 +81,8 @@ fill_style(struct st_rip3_style *style, const struct st_rip3_environment *enviro
 			return status;
 		if (value > 11)
 			return IO_ERROR_OUT_OF_RANGE;
-		if (value == 2 || value == 4 || value == 5 || value == 7 || value == 11)
-			return IO_ERROR_NOT_SUPPORTED; /* Stock masks awaiting #12. */
-		/* Only the mask/ink are specified here. Retain the caller's explicit
-		 * resolved device phase until wire anchoring is clarified under #12. */
+		/* S/s replace mask and ink. Wire phase is resolved from the selected
+		 * drawing context at paint time, not stored in a STYLE entry. */
 		memcpy(style->fill.rows, masks[value], sizeof(style->fill.rows));
 	}
 	if (status == 0)
@@ -151,6 +154,18 @@ st_rip3_command_ink(const struct st_rip3_command_host *host, bool direct, uint32
 	if (host->palettes == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	return st_rip3_palettes_color(host->palettes, true, color, result);
+}
+
+void
+st_rip3_command_fill(const struct st_rip3_port_info *port,
+    const struct st_rip3_fill *source, struct st_rip3_fill *result)
+{
+	*result = *source;
+	/* Kernel samples use (local-origin) mod 8. Adding the stored viewport's
+	 * context origin instead gives the fixed context-(0,0) tile. Unsigned
+	 * residues avoid signed overflow, including negative relative origins. */
+	result->origin.x = -(int32_t)(((uint32_t)port->bounds.x0+(uint32_t)port->viewport.x0)&7);
+	result->origin.y = -(int32_t)(((uint32_t)port->bounds.y0+(uint32_t)port->viewport.y0)&7);
 }
 
 static int
@@ -265,10 +280,12 @@ shape(const struct st_rip3_command_host *host,
 		return status;
 	*operation = true;
 	if (command == 'B' || command == 'K') {
+		struct st_rip3_fill fill;
 		bool uses_foreground = false, uses_background = false;
 		bool borders = false, interior = true;
 		uint8_t border_color = 0;
 		struct st_rip3_rect area;
+		st_rip3_command_fill(&port,&style->fill,&fill);
 
 		if (command == 'K') {
 			if (host->borders == NULL)
@@ -318,14 +335,14 @@ shape(const struct st_rip3_command_host *host,
 				if (status != 0)
 					return status;
 			}
-			status = st_rip3_draw_filled_rectangle(host->ports, &area, &style->fill,
+			status = st_rip3_draw_filled_rectangle(host->ports, &area, &fill,
 			    foreground, background, NULL, 0, style->write_mode);
 			if (status == 0 && borders)
 				status = st_rip3_stroke_apply(host->ports, &mask, border_color, 0, ST_RIP3_COPY);
 			st_rip3_stroke_free(&mask);
 			return status;
 		}
-		return st_rip3_draw_bar(host->ports, &area, &style->fill,
+		return st_rip3_draw_bar(host->ports, &area, &fill,
 		    foreground, background, style->write_mode);
 	}
 	/* Destination NOT ignores both colour operands. Background lookup is
