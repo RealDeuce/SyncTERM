@@ -71,7 +71,8 @@ struct st_rip3_command_sink {
  * entry does not buffer partial input or perform macro expansion.
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, =, E, L, R, B, K, C, G, o,
- * COPY-mode X/j, m, classic literal T and horizontal-left @,
+ * COPY-mode X/j, m, classic literal T and nonzero-font @,
+ * the existing font-zero horizontal-left @ geometry,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
  * 2Y style selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
@@ -260,20 +261,25 @@ struct st_rip3_command_sink {
  * selection or remaining flags; failures are consumed at the void boundary.
  * 2Y and CUR(STYLE,n) activate represented attributes/font family without
  * changing PORT, ENV, graphics cursor, encoding or immutable font overrides.
- * m projects XY into the explicitly bound viewport-relative device cursor.
- * T draws at that cursor; horizontal-left @ positions and draws atomically.
- * Literal graphics text uses the context's explicit CP437/UTF-8 encoding,
- * mapping UTF-8 to original CP437 glyphs with one fallback per unmappable scalar.
- * Unexpanded macro/control/template introducers are unsupported before effects.
- * Classic fonts come from the current STYLE and original bundled canvas data,
- * with an optional immutable override for that same font number. Only successful
- * horizontal-left drawing commits the unrounded logical advance. Other T
- * orientations retain the cursor; their @ forms remain under #24. Empty T
- * retains it; empty horizontal-left @ positions it without ink. E and other
- * geometry do not reset it. Inactive viewports ignore valid text/move commands
- * before consulting text/style/encoding services. Protected content can draw.
- * Reset, PORT/STYLE cursor ownership, TEXTXY replies, extended-font activation,
- * macro expansion and application transport/routing remain separate work.
+ * m stores a WORLD-converted point plus the viewport origin in the current
+ * PORT's context-absolute integer cursor, without needing a text binding.
+ * T renders at that cursor relative to the current viewport, then advances X
+ * by the signed low WORD of the whole integer string metric for every classic
+ * orientation/justification; Y is retained. Raster advances remain fractional.
+ * Nonzero classic-font @ uses its separately converted drawing anchor, but
+ * stores raw input X/Y plus viewport origin and that integer width, matching
+ * the shipped mixed-unit cursor defect. The font-zero cached-outline metric
+ * branch remains pending; its existing horizontal-left geometry stays limited.
+ * Empty T retains the cursor silently; empty @ diagnoses without moving it.
+ * E, STYLE/ENV selection and viewport changes do not move the stored cursor.
+ * Literal text uses the explicit CP437/UTF-8 transport binding, mapping UTF-8
+ * to CP437 with one fallback per unmappable scalar. Macro expansion, outline
+ * activation and application routing remain separate. Classic fonts come from
+ * STYLE and original bundled canvas data, with an optional immutable override.
+ * All used inks/owned coverage prepare before painting; failures preserve cursor
+ * state and remain inside the void parser. Inactive viewports skip valid text
+ * and MOVE before consulting text/style/encoding services. Protected content
+ * can draw and MOVE. PORT backups retain live cursors rather than saved values.
  * S/s replace the fill mask/colour and retain the caller's explicit device
  * pattern phase (#12). Custom rows use the current radix, top-to-bottom/MSB-left;
  * colour fields share c/k encoding. Conflicting stock masks remain unsupported.

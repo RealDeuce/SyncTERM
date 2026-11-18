@@ -360,6 +360,20 @@ st_rip3_ports_activate(struct st_rip3_ports *ports, bool active)
 }
 
 int
+st_rip3_ports_cursor(struct st_rip3_ports *ports, unsigned number,
+    const struct st_rip3_cursor *position)
+{
+	const int64_t limit = INT64_C(1024)*INT32_MAX;
+	if (ports == NULL || position == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36) return IO_ERROR_OUT_OF_RANGE;
+	if (!ports->entries[number].info.defined) return IO_ERROR_NOT_FOUND;
+	if (position->x < -limit || position->x > limit || position->y < -limit || position->y > limit)
+		return IO_ERROR_OUT_OF_RANGE;
+	ports->entries[number].info.cursor = *position;
+	return 0;
+}
+
+int
 st_rip3_ports_image_style(struct st_rip3_ports *ports, unsigned number,
     const struct st_rip3_rect *area, unsigned flags)
 {
@@ -665,6 +679,8 @@ clone_entry(struct port *result, const struct port *source)
 {
 	struct port value = {.info = source->info};
 	int status;
+	/* The original offscreen save path has no cursor record. */
+	if (source->info.offscreen) value.info.cursor = (struct st_rip3_cursor){0};
 
 	if (source->bitmap != NULL) {
 		status = st_rip3_surface_clone(&value.bitmap, source->bitmap);
@@ -719,6 +735,9 @@ port_backup_restore(void *object, const void *saved)
 				clear_port(&entries[j]);
 			return status;
 		}
+		/* Shipping restore reads saved screen cursor bytes but never copies
+		 * them back. Retain live cursor state by port, including offscreen. */
+		entries[i].info.cursor = ports->entries[i].info.cursor;
 	}
 	for (size_t i = 0; i < 36; i++) {
 		clear_port(&ports->entries[i]);

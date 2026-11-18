@@ -25,6 +25,11 @@ struct st_rip3_image_style {
 	unsigned flags;
 };
 
+/* Context-absolute graphics cursor. Wide integer storage preserves converted
+ * wire positions until raster clipping; TEXTXY applies its own signed-WORD
+ * reply narrowing. The display text encoding is not part of this record. */
+struct st_rip3_cursor { int64_t x, y; };
+
 struct st_rip3_port_info {
 	bool defined;
 	bool offscreen;
@@ -40,6 +45,7 @@ struct st_rip3_port_info {
 	 * raster work without changing the stored origin, extent or fitting. */
 	struct st_rip3_rect clip;
 	struct st_rip3_image_style image;
+	struct st_rip3_cursor cursor;
 };
 
 /* Device-pixel port state, owned by one session thread. World translation and
@@ -82,7 +88,8 @@ int st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number);
  * retain protected ports, hard resets discard all nonzero ports. Reset image
  * state for the old current port (even if protected) and for zero; other
  * protected survivors retain their records. Pixels are
- * retained for the scene reset's separate screen-clear operation. */
+ * retained for the scene reset's separate screen-clear operation. Port zero's
+ * cursor initializes to zero; protected surviving ports retain their cursors. */
 int st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard);
 /* Configure the current port's viewport in port-relative device coordinates.
  * Bounds clamp to the port. All-zero device bounds define one active pixel;
@@ -97,6 +104,11 @@ int st_rip3_ports_viewport(struct st_rip3_ports *ports,
 int st_rip3_ports_viewport_device(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *viewport);
 int st_rip3_ports_activate(struct st_rip3_ports *ports, bool active);
+/* Raw cursor setter for a defined port, independent of protection/activation.
+ * Coordinates are finite integers bounded by +/-1024*INT32_MAX. Failure leaves
+ * the complete record unchanged. Info supplies the current stored value. */
+int st_rip3_ports_cursor(struct st_rip3_ports *ports, unsigned number,
+	const struct st_rip3_cursor *position);
 /* Replace one defined port's raw image record without selecting it. NULL
  * means all-minus-one viewport fallback; raw zero inhibits explicit display.
  * Preserve unclipped boundaries and accept flags 0..63. Wire setters may edit
@@ -168,9 +180,9 @@ int st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore
  * prepares all bitmap copies before replacing any live entry, bypasses live
  * protection, and requires the same device canvas. The backup survives the
- * original ports object. Image styles are included. Query/cursor/clipboard
- * metadata is not implemented
- * in this device table yet and must be added to its snapshot with that state. */
+ * original ports object. Image styles are included. Restore retains each live
+ * cursor instead of the saved screen cursor; offscreen cursors are not saved.
+ * Query/clipboard metadata and complete scene orchestration remain separate. */
 int st_rip3_ports_backup_create(struct st_rip3_backup **result);
 
 #endif

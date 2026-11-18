@@ -89,6 +89,14 @@ number(char *result, size_t width, unsigned value, unsigned base)
 }
 
 static bool
+cursor(const struct st_rip3_command_host *host, int64_t x, int64_t y)
+{
+	unsigned number;struct st_rip3_port_info info;
+	return st_rip3_ports_current(host->ports,&number)==0 && st_rip3_ports_info(host->ports,number,&info)==0
+	    && info.cursor.x==x && info.cursor.y==y;
+}
+
+static bool
 protection(bool previous, unsigned flags, unsigned set, unsigned clear)
 {
 	if ((flags&set)!=0) previous=true;
@@ -106,10 +114,11 @@ matrix(void)
 				struct st_rip3_environment env,after;
 				struct st_rip3_style first,last,selected;
 				struct st_rip3_style_info info;
-				struct st_rip3_text_context text={.cursor={33.75,66.25},.encoding=ST_RIP3_TEXT_UTF8};
+				struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_UTF8};
 				unsigned index;
 				char command[6]="2Y200";
 				CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);host.text=&text;
+				const struct st_rip3_cursor point={33,66};CHECK(st_rip3_ports_cursor(host.ports,0,&point)==0);
 				CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 				env.base_math=base;env.coordinate_size=xy;env.graphics_style=7;env.port=9;env.palette=11;
 				CHECK(st_rip3_environments_define(host.environments,1,&env)==0
@@ -139,7 +148,7 @@ matrix(void)
 				CHECK(st_rip3_environments_get(host.environments,1,&after)==0
 				    && after.graphics_style==7 && after.port==9 && after.palette==11 && after.base_math==base && after.coordinate_size==xy);
 				CHECK(st_rip3_ports_current(host.ports,&index)==0 && index==0);
-				CHECK(text.cursor.x==33.75 && text.cursor.y==66.25 && text.encoding==ST_RIP3_TEXT_UTF8 && text.font==NULL);
+				CHECK(cursor(&host,33,66) && text.encoding==ST_RIP3_TEXT_UTF8 && text.font==NULL);
 				destroy(&host);
 			}
 	return 0;
@@ -234,13 +243,14 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct st_rip3_command_host host={0};
 	struct st_rip3_style style;
-	struct st_rip3_text_context text={.cursor={2.25,8.5},.encoding=ST_RIP3_TEXT_CP437};
+	struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture=NULL;
 	struct st_rip3_stream *stream=NULL;
 	struct stream_state state={&host,0};
 	const struct st_rip3_stream_sink sink={.context=&state,.command=stream_command};
 	CHECK(create(&host,canvas,width,height)==0);host.text=&text;
+	const struct st_rip3_cursor point={2,8};CHECK(st_rip3_ports_cursor(host.ports,0,&point)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0 && st_rip3_fill_solid(&style.fill,true)==0);
 	style.font_mode=ST_RIP3_FONT_OUTLINE;style.borders=false;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
@@ -248,12 +258,12 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_stream_create(&stream,&sink)==0);
 	const char *wire="!|2Y10?|2Y10|c03|S0109|K08010C05|T\r";
 	for (size_t i=0; wire[i]!=0; i++) st_rip3_stream_process(stream,(const uint8_t *)wire+i,1);
-	CHECK(state.errors==1 && text.cursor.x==2.25 && text.cursor.y==8.5 && text.encoding==ST_RIP3_TEXT_CP437);
+	CHECK(state.errors==1 && cursor(&host,2,8) && text.encoding==ST_RIP3_TEXT_CP437);
 	CHECK(select_reference(&host,"$CUR(STYLE,0)$",false)==0 && process(&host,"K01010505",-1)==0);
 	CHECK(process(&host,"TA",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	text.encoding=ST_RIP3_TEXT_UTF8;
 	CHECK(select_reference(&host,"$CUR(STYLE,1)$",false)==0 && process(&host,"T",-1)==0);
-	CHECK(text.cursor.x==2.25 && text.cursor.y==8.5 && text.encoding==ST_RIP3_TEXT_UTF8);
+	CHECK(cursor(&host,2,8) && text.encoding==ST_RIP3_TEXT_UTF8);
 	CHECK(st_rip3_palettes_get(host.palettes,0,&palette)==0 && st_rip3_ports_snapshot(host.ports,&palette,&capture)==0);
 	for (uint32_t y=0; y<height; y++) for (uint32_t x=0; x<width; x++) {
 		unsigned expected=0;

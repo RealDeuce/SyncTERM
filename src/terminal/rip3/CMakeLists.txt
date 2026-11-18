@@ -308,6 +308,16 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_style_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_style_commands COMMAND st_rip3_style_commands_test)
+	add_executable(st_rip3_cursor_test tests/st_rip3_cursor_test.c)
+	target_link_libraries(st_rip3_cursor_test PRIVATE st_rip3_commands)
+	set_target_properties(st_rip3_cursor_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_cursor_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_cursor_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_cursor COMMAND st_rip3_cursor_test)
 	add_executable(st_rip3_bezier_commands_test tests/st_rip3_bezier_commands_test.c
 		tests/st_rip3_drawing_fault_impl.c tests/st_rip3_polygon_fault_impl.c
 		tests/st_rip3_bezier_fault_impl.c tests/st_rip3_bezier_command_fault_impl.c)

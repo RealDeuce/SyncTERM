@@ -35,9 +35,11 @@ struct st_rip3_classic_text_plan {
 	 * ascent/descent are baseline-to-cell reference distances, not ink bounds.
 	 * Vector spans may be fractional and include endpoint scanlines. */
 	double advance, ascent, descent;
+	/* Whole-string metric, rationally scaled then truncated once. Raster
+	 * advance above remains fractional; wire consumers own WORD narrowing. */
+	uint64_t integer_advance;
 	struct st_rip3_text_position origin;
 	struct st_rip3_chr_text_matrix matrix;
-	bool advances_cursor; /* Horizontal and left justified only; no update here. */
 };
 
 /* Font 0..10, direction 0/1, magnification 1..10. Flags 1/2 are mutually

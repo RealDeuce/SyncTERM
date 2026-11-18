@@ -3892,6 +3892,57 @@ was left untouched. The ledger reviews 50 units: 589 implemented, 1419 pending, 
 Full compliance remains unfinished; no code was published and no existing issue
 content was changed.
 
+## Port-owned graphics cursors and TEXTXY
+
+Graphics cursors now live in PORT records as context-absolute wide integers;
+the external text binding carries only encoding and an immutable font override.
+MOVE converts WORLD coordinates and adds the viewport origin without needing
+text/style/ink services. Text translates the stored position back to its raster
+viewport, so changing viewport geometry does not move it. STYLE/ENV switches,
+image-style edits and erase retain it. PORT backups restore image/selection state
+while retaining each live cursor, including the documented screen-cursor restore
+defect; offscreen cursor fields are not saved.
+
+Classic TEXT advances stored X for every orientation/justification by the signed
+low WORD of the whole integer string metric, retaining Y. A separate metric in
+the classic font plan scales summed raw widths with integer rational arithmetic,
+then truncates once; fractional raster geometry remains available. This avoids
+losing a cursor pixel when a floating raster width lies just below an integer.
+The obsolete horizontal/left cursor-policy hint was removed from the geometry
+plan. Nonzero classic TEXT_XY retains its converted drawing anchor but stores
+raw input X/Y plus viewport origin and metric. Empty TEXT is silent and empty
+TEXT_XY diagnoses without moving the cursor. Outline producers and font-zero
+TEXT_XY's cached-outline metric branch remain pending; the existing limited
+font-zero geometric branch is not claimed as a completed original cursor rule.
+
+TEXTXY now implements decimal port/CUR plus optional WORLD/DEVICE, current-frame
+reconversion, truncation toward zero, signed16 narrowing and unpadded X:Y.
+Explicit undefined/inactive ports return -1; bare omission reads the current
+cursor even when deactivated. Failures remain parser-owned and preserve outputs.
+
+`rip3_cursor` checks all canvases, both transport encodings, all ten classic
+magnifications, both orientations and seven justification/shadow variants,
+whole-string versus fractional raster advances, signed-WORD widths and mixed-
+unit TEXT_XY stores. It reproduces the published 800x600/1280x960 example exactly.
+One coherent full-canvas scene follows two independent screen/bitmap cursors,
+STYLE selection, a viewport-origin change, rendered line glyphs and a shifted
+bitmap copy. Separate checks cover inactive/undefined/protected state, negative
+and wrapped replies, malformed/capacity/missing-service recovery, range rejection,
+and 515:616 / 717:818 backup retention. Existing text pixel oracles are retained;
+only cursor expectations change where the adopted contract corrects them.
+
+Native FreeBSD Release CMake configure/build passes without warnings. Eight
+affected native CTests pass: cursor, classic text, text commands, STYLE commands,
+polygon state preservation, port queries, ports and port backups. Only failing
+or changed tests were rerun; no broad suite, compiler matrix or extra Valgrind
+run was added. The preservation/ledger audit matches all recorded 93 file and
+41 helper pins, including documented font maintenance. No RIP1.54 source,
+expectations, preservation pins, reference revision or active application route
+changed. Scoped temporary build logs were removed and unrelated concurrent
+documentation was left untouched. The ledger reviews 33 units: 607 implemented, 1414 pending, 4243 unreviewed, 1024 context, 24 excluded, 45 blocked among
+7357 blocks. Full compliance and engine integration remain unfinished. No issue
+content or code was published.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

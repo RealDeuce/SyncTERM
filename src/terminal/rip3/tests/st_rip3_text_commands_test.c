@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_commands.h"
+#include "io_error.h"
 #include "st_rip3_text_commands.h"
 #include "st_rip3_classic_text.h"
 #include "st_rip3_bitmap.h"
@@ -60,6 +61,27 @@ process(struct fixture *f, const char *body, int error)
 	return 0;
 }
 
+static struct st_rip3_cursor
+cursor(struct fixture *f)
+{
+	struct st_rip3_port_info info;
+	unsigned number;
+	if (st_rip3_ports_current(f->host.ports,&number)!=0 || st_rip3_ports_info(f->host.ports,number,&info)!=0)
+		return (struct st_rip3_cursor){INT64_MIN,INT64_MIN};
+	return (struct st_rip3_cursor){info.cursor.x-info.bounds.x0-info.viewport.x0,
+	    info.cursor.y-info.bounds.y0-info.viewport.y0};
+}
+
+static int
+position(struct fixture *f, int64_t x, int64_t y)
+{
+	struct st_rip3_port_info info;
+	unsigned number;
+	CHECK(st_rip3_ports_current(f->host.ports,&number)==0 && st_rip3_ports_info(f->host.ports,number,&info)==0);
+	struct st_rip3_cursor point={x+info.bounds.x0+info.viewport.x0,y+info.bounds.y0+info.viewport.y0};
+	CHECK(st_rip3_ports_cursor(f->host.ports,number,&point)==0);return 0;
+}
+
 static int
 create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
@@ -90,8 +112,8 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	memcpy(f->glyphs+('A'-1)*3,a,3); memcpy(f->glyphs+('B'-1)*3,b,3);
 	memcpy(f->glyphs+129*3,e,3); memcpy(f->glyphs+('?' -1)*3,q,3); memset(f->glyphs+218*3,0xe0,3);
 	f->font = (struct st_rip3_classic_font){.canvas=canvas,.number=0,.data.bitmap={3,3,1,3,f->glyphs}};
-	f->text = (struct st_rip3_text_context){.cursor={40,15},.encoding=ST_RIP3_TEXT_CP437,.font=&f->font};
-	f->host.text = &f->text; return 0;
+	f->text = (struct st_rip3_text_context){.encoding=ST_RIP3_TEXT_CP437,.font=&f->font};
+	f->host.text = &f->text; CHECK(position(f,40,15)==0); return 0;
 }
 
 static void
@@ -106,18 +128,18 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct fixture f = {0}; struct st_rip3_stream *stream = NULL;
 	CHECK(create(&f,canvas,width,height) == 0);
-	CHECK(process(&f,"m0509",-1) == 0 && f.text.cursor.x == 5 && f.text.cursor.y == 9);
+	CHECK(process(&f,"m0509",-1) == 0 && cursor(&f).x == 5 && cursor(&f).y == 9);
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
 	const uint8_t wire[] = "!|TAB|LZZZZZZZZ|T\x82|@0K02A|m020D|TA B|m0F0D|T\xdb|";
 	for (size_t i = 0; i < sizeof(wire)-1; i++) st_rip3_stream_process(stream,wire+i,1);
-	CHECK(f.errors == 0 && f.text.cursor.x == 18 && f.text.cursor.y == 13);
+	CHECK(f.errors == 0 && cursor(&f).x == 18 && cursor(&f).y == 13);
 	f.text.encoding = ST_RIP3_TEXT_UTF8;
-	CHECK(process(&f,"@0U02\xc3\xa9",-1) == 0 && f.text.cursor.x == 33 && f.text.cursor.y == 2);
+	CHECK(process(&f,"@0U02\xc3\xa9",-1) == 0 && cursor(&f).x == 33 && cursor(&f).y == 2);
 	CHECK(process(&f,"@0Z02\xf0\x9f\x99\x82",-1) == 0);
-	CHECK(process(&f,"@1402\xe2\x96\x88",-1) == 0 && f.text.cursor.x == 43);
-	CHECK(process(&f,"T",-1) == 0 && f.text.cursor.x == 43 && f.text.cursor.y == 2);
-	CHECK(process(&f,"@0203",-1) == 0 && f.text.cursor.x == 2 && f.text.cursor.y == 3);
+	CHECK(process(&f,"@1402\xe2\x96\x88",-1) == 0 && cursor(&f).x == 43);
+	CHECK(process(&f,"T",-1) == 0 && cursor(&f).x == 43 && cursor(&f).y == 2);
+	CHECK(process(&f,"@0203",ST_RIP3_COMMAND_INVALID) == 0 && cursor(&f).x == 43 && cursor(&f).y == 2);
 	struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
 	CHECK(st_rip3_palettes_get(f.host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
 	const struct { unsigned x,y; const char *rows[3]; } glyphs[] = {
@@ -173,7 +195,7 @@ modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	for (unsigned mode = 0; mode < 5; mode++) {
 		style.write_mode = (enum st_rip3_write_mode)mode; CHECK(set_style(&f,&style) == 0);
 		CHECK(st_rip3_ports_erase(f.host.ports,85) == 0 && process(&f,"@0202A",-1) == 0 && process(&f,"TB",-1) == 0);
-		CHECK(f.text.cursor.x == 8 && f.text.cursor.y == 2);
+		CHECK(cursor(&f).x == 8 && cursor(&f).y == 2);
 		const char *const rows[] = {".#.##.","#.##.#","#####."};
 		struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
 		CHECK(st_rip3_palettes_get(f.host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f.host.ports,1,NULL,&palette) == 0);
@@ -184,20 +206,20 @@ modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		st_rip3_bitmap_destroy(capture);
 	}
 	style.write_mode = ST_RIP3_COPY; style.font.flags = 32; CHECK(set_style(&f,&style) == 0);
-	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0 && process(&f,"@0202A",-1) == 0 && f.text.cursor.x == 5);
+	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0 && process(&f,"@0202A",-1) == 0 && cursor(&f).x == 5);
 	const char *const shadow[] = {".F..","F.F.","FFFS",".SSS"};
 	for (int32_t y = 0; y < 4; y++) for (int32_t x = 0; x < 4; x++) {
 		uint8_t actual, expected = shadow[y][x] == 'F' ? 12 : shadow[y][x] == 'S' ? 8 : 85;
 		CHECK(st_rip3_ports_read(f.host.ports,1,4+x,3+y,&actual) == 0 && actual == expected);
 	}
-	CHECK(process(&f,"E",-1) == 0 && f.text.cursor.x == 5 && f.text.cursor.y == 2 && flat(&f,8) == 0);
+	CHECK(process(&f,"E",-1) == 0 && cursor(&f).x == 5 && cursor(&f).y == 2 && flat(&f,8) == 0);
 	for (unsigned variant = 0; variant < 3; variant++) {
 		style.font.flags = variant == 0 ? 0 : variant == 1 ? 1 : 2;
 		style.font.direction = variant == 0 ? 1 : 0;
 		CHECK(set_style(&f,&style) == 0 && st_rip3_ports_erase(f.host.ports,85) == 0);
-		f.text.cursor = (struct st_rip3_text_position){20,20};
-		CHECK(process(&f,"TA",-1) == 0 && f.text.cursor.x == 20 && f.text.cursor.y == 20);
-		CHECK(process(&f,"@0101A",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.text.cursor.x == 20 && f.text.cursor.y == 20);
+		CHECK(position(&f,20,20)==0);
+		CHECK(process(&f,"TA",-1) == 0 && cursor(&f).x == 23 && cursor(&f).y == 20);
+		CHECK(process(&f,"@0101A",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && cursor(&f).x == 23 && cursor(&f).y == 20);
 		const char *const a[] = {".#.","#.#","###"}, *const vertical[] = {".##","#.#",".##"};
 		unsigned ox = variant == 0 ? 20 : variant == 1 ? 17 : 19, oy = variant == 0 ? 18 : 20;
 		struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
@@ -227,10 +249,10 @@ numeric(void)
 		char body[32] = {'m'};
 		CHECK(st_rip3_number_encode(body+1,size,2,size,radix) == 0 && st_rip3_number_encode(body+1+size,size,3,size,radix) == 0);
 		body[1+2*size] = 0;
-		CHECK(process(&f,body,-1) == 0 && f.text.cursor.x == 4 && f.text.cursor.y == 6);
-		CHECK(process(&f,"TA",-1) == 0 && f.text.cursor.x == 7 && f.text.cursor.y == 6);
+		CHECK(process(&f,body,-1) == 0 && cursor(&f).x == 4 && cursor(&f).y == 6);
+		CHECK(process(&f,"TA",-1) == 0 && cursor(&f).x == 7 && cursor(&f).y == 6);
 		body[0] = '@'; body[1+2*size] = 'B'; body[2+2*size] = 0;
-		CHECK(process(&f,body,-1) == 0 && f.text.cursor.x == 7 && f.text.cursor.y == 6);
+		CHECK(process(&f,body,-1) == 0 && cursor(&f).x == 7 && cursor(&f).y == 6);
 		const uint8_t expected[] = {12,12,85,12,85,12,12,12,85};
 		/* COPY B overwrites only its ink; the previous A's uncovered pixels remain. */
 		for (int32_t y = 0; y < 3; y++) for (int32_t x = 0; x < 3; x++) {
@@ -242,14 +264,14 @@ numeric(void)
 	}
 	struct fixture f = {0}; struct st_rip3_environment environment;
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480) == 0 && process(&f,"m050",-1) == 0
-	    && f.text.cursor.x == 5 && f.text.cursor.y == 0);
-	CHECK(process(&f,"m0509",-1) == 0 && process(&f,"Thello world",-1) == 0 && f.text.cursor.x == 38 && f.text.cursor.y == 9);
-	CHECK(process(&f,"@HS2ARIPscrip Buttons",-1) == 0 && f.text.cursor.x == 688 && f.text.cursor.y == 82);
+	    && cursor(&f).x == 5 && cursor(&f).y == 0);
+	CHECK(process(&f,"m0509",-1) == 0 && process(&f,"Thello world",-1) == 0 && cursor(&f).x == 38 && cursor(&f).y == 9);
+	CHECK(process(&f,"@HS2ARIPscrip Buttons",-1) == 0 && cursor(&f).x == 688 && cursor(&f).y == 82);
 	CHECK(st_rip3_environments_get(f.host.environments,2,&environment) == 0);
 	environment.base_math = 64; environment.coordinate_size = 5; environment.world_width = environment.world_height = 1;
 	CHECK(st_rip3_environments_protect(f.host.environments,2,false) == 0 && st_rip3_environments_set(f.host.environments,2,&environment) == 0);
-	CHECK(process(&f,"m&&&&&&&&&&",-1) == 0 && f.text.cursor.x == 687194766720.0 && f.text.cursor.y == 515396075040.0);
-	CHECK(process(&f,"TA",-1) == 0 && f.text.cursor.x == 687194766723.0 && flat(&f,85) == 0);
+	CHECK(process(&f,"m&&&&&&&&&&",-1) == 0 && cursor(&f).x == 687194766720.0 && cursor(&f).y == 515396075040.0);
+	CHECK(process(&f,"TA",-1) == 0 && cursor(&f).x == 687194766723.0 && flat(&f,85) == 0);
 	destroy(&f); return 0;
 }
 
@@ -271,22 +293,22 @@ vector_and_failures(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	bytes[136] = 4; bytes[146] = 5; memcpy(bytes+147,program,sizeof(program));
 	struct st_rip3_classic_font font = {.canvas=canvas,.number=1};
 	CHECK(st_rip3_chr_open(&font.data.stroke,bytes,sizeof(bytes)) == 0);
-	f.text.font = &font; f.text.cursor = (struct st_rip3_text_position){10.5,6.25};
+	f.text.font = &font; CHECK(position(&f,10,6)==0);
 	CHECK(st_rip3_styles_protect(f.host.styles,3,false) == 0 && process(&f,"Y01000400",-1) == 0
-	    && st_rip3_styles_get(f.host.styles,3,&mode)==0 && mode.font_mode==ST_RIP3_FONT_CLASSIC && f.text.cursor.x == 10.5 && f.text.cursor.y == 6.25);
+	    && st_rip3_styles_get(f.host.styles,3,&mode)==0 && mode.font_mode==ST_RIP3_FONT_CLASSIC && cursor(&f).x == 10 && cursor(&f).y == 6);
 	CHECK(st_rip3_styles_protect(f.host.styles,3,true) == 0);
-	double step = width == 640 ? 5 : width == 800 ? 6.25 : 8;
-	CHECK(process(&f,"TA",-1) == 0 && process(&f,"TA",-1) == 0 && f.text.cursor.x == 10.5+2*step && f.text.cursor.y == 6.25);
-	CHECK(process(&f,"E",-1) == 0 && f.text.cursor.x == 10.5+2*step && flat(&f,8) == 0);
+	int64_t step = width == 640 ? 5 : width == 800 ? 6 : 8;
+	CHECK(process(&f,"TA",-1) == 0 && process(&f,"TA",-1) == 0 && cursor(&f).x == 10+2*step && cursor(&f).y == 6);
+	CHECK(process(&f,"E",-1) == 0 && cursor(&f).x == 10+2*step && flat(&f,8) == 0);
 	st_rip3_stroke_text_test_fail_allocate = true;
 	CHECK(process(&f,"TA",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_stroke_text_test_fail_allocate
-	    && f.text.cursor.x == 10.5+2*step && flat(&f,8) == 0);
-	CHECK(process(&f,"TA",-1) == 0 && f.text.cursor.x == 10.5+3*step);
+	    && cursor(&f).x == 10+2*step && flat(&f,8) == 0);
+	CHECK(process(&f,"TA",-1) == 0 && cursor(&f).x == 10+3*step);
 	CHECK(st_rip3_styles_protect(f.host.styles,3,false) == 0 && process(&f,"Y0A000400",-1) == 0
 	    && st_rip3_styles_protect(f.host.styles,3,true) == 0);
 	CHECK(process(&f,"E",-1) == 0);
-	double previous = f.text.cursor.x;
-	CHECK(process(&f,"TA:",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.text.cursor.x == previous && flat(&f,8) == 0);
+	int64_t previous = cursor(&f).x;
+	CHECK(process(&f,"TA:",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && cursor(&f).x == previous && flat(&f,8) == 0);
 	destroy(&f); return 0;
 }
 
@@ -301,29 +323,29 @@ errors(void)
 	CHECK(process(&f,"T\xc3",ST_RIP3_COMMAND_INVALID) == 0);
 	st_rip3_text_commands_test_fail_allocate = true;
 	CHECK(process(&f,"TA",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_text_commands_test_fail_allocate);
-	CHECK(f.text.cursor.x == 40 && f.text.cursor.y == 15 && flat(&f,85) == 0);
-	f.text.cursor.x = NAN;
-	CHECK(process(&f,"TA",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && isnan(f.text.cursor.x));
-	f.text.cursor = (struct st_rip3_text_position){40,15};
+	CHECK(cursor(&f).x == 40 && cursor(&f).y == 15 && flat(&f,85) == 0);
+	const struct st_rip3_cursor invalid={INT64_MAX,0};
+	CHECK(st_rip3_ports_cursor(f.host.ports,1,&invalid)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(cursor(&f).x==40 && cursor(&f).y==15);
 	f.font.canvas = ST_RIP3_CANVAS_800_600;
-	CHECK(process(&f,"TA",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.text.cursor.x == 40 && flat(&f,85) == 0);
+	CHECK(process(&f,"TA",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && cursor(&f).x == 40 && flat(&f,85) == 0);
 	f.font.canvas = ST_RIP3_CANVAS_640_480;
 	struct st_rip3_text_context *context = f.host.text; f.host.text = NULL;
 	CHECK(process(&f,"TA",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.text = context;
-	CHECK(process(&f,"@0000A",-1) == 0 && f.text.cursor.x == 3 && f.text.cursor.y == 0);
+	CHECK(process(&f,"@0000A",-1) == 0 && cursor(&f).x == 3 && cursor(&f).y == 0);
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
 	const uint8_t recovery[] = "!|m0|T\xc3|m0202|TA|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,recovery+i,1);
-	CHECK(f.errors == previous+2 && f.text.cursor.x == 5 && f.text.cursor.y == 2);
+	CHECK(f.errors == previous+2 && cursor(&f).x == 5 && cursor(&f).y == 2);
 	st_rip3_stream_destroy(stream);
 	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
 	struct st_rip3_styles *styles = f.host.styles; struct st_rip3_palettes *palettes = f.host.palettes;
 	f.host.styles = NULL; f.host.palettes = NULL; f.host.text = NULL;
 	CHECK(process(&f,"m0101",-1) == 0 && process(&f,"TA",-1) == 0 && process(&f,"@0101A",-1) == 0);
-	CHECK(f.text.cursor.x == 5 && f.text.cursor.y == 2);
+	CHECK(cursor(&f).x == 5 && cursor(&f).y == 2);
 	f.host.styles = styles; f.host.palettes = palettes; f.host.text = context; destroy(&f); return 0;
 }
 
@@ -346,18 +368,18 @@ color_modes(void)
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 	style.write_mode = ST_RIP3_NOT; CHECK(set_style(&f,&style) == 0);
 	struct st_rip3_palettes *palettes = f.host.palettes; f.host.palettes = NULL;
-	CHECK(process(&f,"@0202A",-1) == 0 && f.text.cursor.x == 5);
+	CHECK(process(&f,"@0202A",-1) == 0 && cursor(&f).x == 5);
 	for (int32_t y = 0; y < 4; y++) for (int32_t x = 0; x < 4; x++) {
 		uint8_t actual, expected = rows[y][x] == '.' ? 85 : 170;
 		CHECK(st_rip3_ports_read(f.host.ports,1,x+4,y+3,&actual) == 0 && actual == expected);
 	}
 	style.write_mode = ST_RIP3_COPY; CHECK(set_style(&f,&style) == 0);
-	CHECK(process(&f,"@0404A",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.text.cursor.x == 5 && f.text.cursor.y == 2);
+	CHECK(process(&f,"@0404A",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && cursor(&f).x == 5 && cursor(&f).y == 2);
 	/* Palette-index ink needs no RGB service; unused shadow background is not
 	 * looked up after changing the ENV mode back from RGB to palette indexes. */
 	environment.rgb_bits = 0; CHECK(st_rip3_environments_set(f.host.environments,2,&environment) == 0);
 	style.drawing_color = 12; style.font.flags = 0; CHECK(set_style(&f,&style) == 0);
-	CHECK(process(&f,"@0404A",-1) == 0 && f.text.cursor.x == 7 && f.text.cursor.y == 4);
+	CHECK(process(&f,"@0404A",-1) == 0 && cursor(&f).x == 7 && cursor(&f).y == 4);
 	f.host.palettes = palettes; destroy(&f); return 0;
 }
 

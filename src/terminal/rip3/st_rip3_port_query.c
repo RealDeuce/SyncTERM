@@ -23,6 +23,67 @@ equal(const char *text, const char *uppercase)
 	}
 }
 
+static int64_t
+signed_word(int64_t value)
+{
+	uint64_t low = (uint64_t)value&UINT64_C(65535);
+	return low >= 32768 ? (int64_t)low-65536 : (int64_t)low;
+}
+
+static int
+text_cursor(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	const struct st_rip3_ports *ports;
+	struct st_rip3_port_info info;
+	struct st_rip3_frame frame;
+	unsigned number;
+	bool current = reference->count == 0, device = false;
+	char text[32];
+	int status, length;
+	if (reference->count > 2) return IO_ERROR_INVALID_FORMAT;
+	if (reference->count != 0) {
+		current = equal(reference->parameters[0].text,"CUR");
+		if (!current) {
+			status = st_rip3_host_number(reference->parameters[0].text,0,35,&number);
+			if (status != 0) return status;
+		}
+	}
+	if (reference->count == 2) {
+		device = equal(reference->parameters[1].text,"DEVICE");
+		if (!device && !equal(reference->parameters[1].text,"WORLD")) return IO_ERROR_INVALID_FORMAT;
+	}
+	if (capacity == 0) return IO_ERROR_OUT_OF_RANGE;
+	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_PORT].live == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	ports = host->tables->tables[ST_RIP3_TABLE_PORT].live;
+	if (current) {
+		status = st_rip3_ports_current(ports,&number);
+		if (status != 0) return status;
+	}
+	status = st_rip3_ports_info(ports,number,&info);
+	if (status != 0) return status;
+	if (reference->count != 0 && (!info.defined || !info.viewport_active)) {
+		memcpy(text,"-1",3);length = 2;
+	}
+	else {
+		int64_t x = info.cursor.x, y = info.cursor.y;
+		if (device) {
+			status = st_rip3_port_query_frame(host,ports,&frame);
+			if (status != 0) return status;
+			/* The shipped DEVICE branch converts the stored pair again;
+			 * WORLD returns it raw, regardless of its producer's units. */
+			x = x*frame.device_width/frame.world_width;
+			y = y*frame.device_height/frame.world_height;
+		}
+		length = snprintf(text,sizeof(text),"%" PRId64 ":%" PRId64,signed_word(x),signed_word(y));
+		if (length < 0 || (size_t)length >= sizeof(text)) return IO_ERROR_IO;
+	}
+	if ((size_t)length >= capacity) return IO_ERROR_OUT_OF_RANGE;
+	memcpy(result,text,(size_t)length+1);
+	return 0;
+}
+
 int
 st_rip3_port_query_frame(const struct st_rip3_host_variables *host,
     const struct st_rip3_ports *ports, struct st_rip3_frame *result)
@@ -74,6 +135,7 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 	if (host == NULL || reference == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	const char *name = reference->name;
+	if (strcmp(name,"TEXTXY") == 0) return text_cursor(host,reference,result,capacity);
 	bool width = strcmp(name, "PORTW") == 0, height = strcmp(name, "PORTH") == 0;
 	bool x0 = strcmp(name, "PORTX0") == 0, y0 = strcmp(name, "PORTY0") == 0;
 	bool x1 = strcmp(name, "PORTX1") == 0, y1 = strcmp(name, "PORTY1") == 0;

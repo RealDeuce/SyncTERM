@@ -83,6 +83,13 @@ cover protection flag ordering, fixed defaults, zero-slot diagnostics with
 continued effects, CP437/UTF-8 contexts and split-input recovery. Exact 2Y
 field/flag documentation is tracked in #79; contradictory live-F prose remains
 blocked under existing #2.
+PORT now owns context-absolute integer graphics cursors. MOVE/TEXT and TEXTXY
+checks cover viewport-origin changes, independent ports, signed whole-string
+metrics, current-frame reconversion and backup retention. Coherent all-canvas
+captures combine rendered glyphs, replies and screen/bitmap cursor state in
+CP437/UTF-8. Nonzero classic TEXT_XY uses its shipped raw-coordinate stores;
+font-zero cached-outline metrics and complete scene reset/integration remain
+pending.
 Separate COPY-mode PIXEL/POINT tests cover their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

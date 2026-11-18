@@ -22,11 +22,11 @@ static bool
 same_plan(const struct st_rip3_classic_text_plan *a,
     const struct st_rip3_classic_text_plan *b)
 {
-	return a->advance == b->advance && a->ascent == b->ascent
+	return a->advance == b->advance && a->integer_advance == b->integer_advance && a->ascent == b->ascent
 	    && a->descent == b->descent && a->origin.x == b->origin.x
 	    && a->origin.y == b->origin.y && a->matrix.xx == b->matrix.xx
 	    && a->matrix.xy == b->matrix.xy && a->matrix.yx == b->matrix.yx
-	    && a->matrix.yy == b->matrix.yy && a->advances_cursor == b->advances_cursor;
+	    && a->matrix.yy == b->matrix.yy;
 }
 
 static int
@@ -71,7 +71,6 @@ native_fonts(enum st_rip3_canvas canvas, unsigned cell_width, unsigned cell_heig
 	CHECK(plan.advance == cell_width * 4 && plan.origin.x == 100 && plan.origin.y == 100);
 	CHECK(fabs(plan.ascent - cell_height * 13.0 / 8) < 1e-10);
 	CHECK(fabs(plan.ascent + plan.descent - (cell_height * 2 - 1)) < 1e-10);
-	CHECK(plan.advances_cursor);
 	for (unsigned number = 1; number <= 10; number++) {
 		CHECK(st_rip3_classic_font_builtin(&font, canvas, number) == 0);
 		for (unsigned mag = 1; mag <= 10; mag++) {
@@ -105,7 +104,6 @@ bitmap_scene(void)
 	for (unsigned i = 0; i < 6; i++) {
 		CHECK(st_rip3_classic_text_style_set(&style, 0, i >= 3, 1, flags[i]) == 0);
 		CHECK(st_rip3_classic_text_plan(&font, &style, text, 2, &anchor[i], &plan) == 0);
-		CHECK(plan.advances_cursor == (i == 0));
 		CHECK(st_rip3_draw_classic_text(ports, &font, &style, text, 2, &anchor[i],
 		    12, 8, ST_RIP3_COPY) == 0);
 	}
@@ -226,7 +224,6 @@ vector_layout_and_scene(void)
 	CHECK(st_rip3_chr_open(&font.data.stroke, bytes, sizeof(bytes)) == 0);
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 8) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0 && plan.origin.y == 107);
-	CHECK(plan.advances_cursor);
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 4) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0 && plan.origin.y == 90);
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 16) == 0);

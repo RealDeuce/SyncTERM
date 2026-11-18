@@ -78,6 +78,11 @@ struct st_rip3_host_sink {
  * invalid. Replies use the documented intended numeric semantics, an explicit
  * correction to RIPtel 3.1's inverted-success callbacks; lower-right coordinates
  * are exclusive, and wide counts/ends are retained through world conversion.
+ * TEXTXY reads the PORT-owned cursor as an unpadded signed-WORD X:Y pair.
+ * Its optional decimal port/CUR precedes optional WORLD/DEVICE. WORLD returns
+ * stored coordinates; DEVICE converts them again with the current frame,
+ * truncating toward zero. Explicit undefined/inactive ports return -1; bare
+ * omission reads the current cursor even with a deactivated viewport.
  * CUR(STYLE,n) uses fixed defaults for unused styles, permits selecting
  * protected records, and changes no PORT/ENV/cursor/encoding state.
  * Environment records support BASEMATH, COORDSIZE, WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT

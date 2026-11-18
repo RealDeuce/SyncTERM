@@ -2,9 +2,6 @@
 #ifndef ST_RIP3_TEXT_COMMANDS_H_
 #define ST_RIP3_TEXT_COMMANDS_H_
 
-#include "st_rip3_geometry.h"
-#include <stdbool.h>
-
 struct st_rip3_classic_font;
 
 enum st_rip3_text_encoding {
@@ -12,16 +9,11 @@ enum st_rip3_text_encoding {
 	ST_RIP3_TEXT_UTF8,
 };
 
-/* Explicit live graphics-text binding, owned by the session. Cursor coordinates
- * are viewport-relative device pixels, retaining fractional logical advances.
- * Cursor/PORT ownership and whole-scene reset/backup orchestration remain
- * separate. Missing bindings are unsupported. The current STYLE owns the font
- * family; successful Y selects classic without changing this cursor.
- * Optional immutable font overrides that same numbered classic font; other
- * selected numbers use their original bundled font for the current canvas.
- * Encoding conversion does not expand macros or interpret terminal controls. */
+/* Session-owned transport encoding and optional immutable classic-font override.
+ * The current PORT owns the context-absolute integer cursor; STYLE owns font
+ * family/attributes. Matching overrides affect raster/metrics for that font
+ * number only. Encoding conversion expands no macros or terminal controls. */
 struct st_rip3_text_context {
-	struct st_rip3_text_position cursor;
 	enum st_rip3_text_encoding encoding;
 	const struct st_rip3_classic_font *font;
 };

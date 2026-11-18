@@ -53,11 +53,13 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_environment environment;
 	struct st_rip3_frame frame;
 	struct st_rip3_port_info port;
-	struct st_rip3_text_position anchor, next;
+	struct st_rip3_text_position anchor;
+	struct st_rip3_cursor next;
+	uint64_t raw_x = 0, raw_y = 0;
 	struct st_rip3_classic_font builtin;
 	struct st_rip3_classic_text_plan plan;
 	struct st_rip3_style style;
-	unsigned environment_number, number;
+	unsigned environment_number, number, port_number;
 	const uint8_t *arguments = command+1, *glyphs;
 	size_t count = length-1, glyph_count;
 	uint8_t *owned = NULL, foreground = 0, background = 0;
@@ -79,7 +81,11 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 		if (status != 0) return status;
 		anchor = (struct st_rip3_text_position){(double)(x*frame.device_width/frame.world_width),
 		    (double)(y*frame.device_height/frame.world_height)};
-		if (command[0] == '@') { arguments += 2*width; count -= 2*width; }
+		raw_x = x; raw_y = y;
+		if (command[0] == '@') {
+			arguments += 2*width; count -= 2*width;
+			if (count == 0) return IO_ERROR_INVALID_FORMAT;
+		}
 	}
 	else {
 		if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -89,19 +95,28 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_ports_current(host->ports,&number);
 	if (status == 0) status = st_rip3_ports_info(host->ports,number,&port);
 	if (status != 0 || !port.viewport_active) return status;
+	port_number = number;
+	int64_t origin_x = (int64_t)port.bounds.x0+port.viewport.x0;
+	int64_t origin_y = (int64_t)port.bounds.y0+port.viewport.y0;
+	if (command[0] == 'm') {
+		next = (struct st_rip3_cursor){(int64_t)anchor.x+origin_x,(int64_t)anchor.y+origin_y};
+		*operation = true;
+		return st_rip3_ports_cursor(host->ports,port_number,&next);
+	}
+	if (count == 0) return 0; /* Empty TEXT never consumes font/ink state. */
 	if (host->text == NULL) return IO_ERROR_NOT_SUPPORTED;
-	if (command[0] == 'm') { *operation = true; host->text->cursor = anchor; return 0; }
 	if (host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_styles_current(host->styles,&number);
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
 	if (style.font_mode != ST_RIP3_FONT_CLASSIC) return IO_ERROR_NOT_SUPPORTED;
-	if (command[0] == '@' && (style.font.direction != 0 || (style.font.flags&3) != 0))
+	if (command[0] == '@' && style.font.font == 0 && (style.font.direction != 0 || (style.font.flags&3) != 0))
 		return IO_ERROR_NOT_SUPPORTED; /* Non-left/vertical @ cursor semantics: #24. */
 	status = text_bytes(arguments,count,host->text->encoding,&glyphs,&glyph_count,&owned);
 	if (status != 0) return status;
 	*operation = true;
-	if (!positioned) anchor = host->text->cursor;
+	if (!positioned) anchor = (struct st_rip3_text_position){
+	    (double)(port.cursor.x-origin_x),(double)(port.cursor.y-origin_y)};
 	const struct st_rip3_classic_font *font = host->text->font;
 	if (font == NULL || font->number != style.font.font) {
 		enum st_rip3_canvas canvas = frame.device_width == 640 ? ST_RIP3_CANVAS_640_480
@@ -112,9 +127,25 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	}
 	status = st_rip3_classic_text_plan(font,&style.font,glyphs,glyph_count,&anchor,&plan);
 	if (status != 0) goto done;
-	next = host->text->cursor;
-	if (plan.advances_cursor) { next = anchor; next.x += plan.advance; }
-	if (!isfinite(next.x) || !isfinite(next.y) || fabs(next.x) > 1024.0*INT32_MAX || fabs(next.y) > 1024.0*INT32_MAX) {
+	if (!isfinite(plan.advance)) { status = IO_ERROR_OUT_OF_RANGE; goto done; }
+	/* The metric scales the complete string, truncates, then returns its
+	 * signed low WORD. Raster advances can still be fractional. */
+	int64_t advance = (int64_t)(plan.integer_advance&UINT64_C(65535));
+	if (advance >= 32768) advance -= 65536;
+	next = port.cursor;
+	if (!positioned) next.x += advance;
+	else if (style.font.font != 0) {
+		/* The classic TEXT_XY cursor store uses raw world X/Y, unlike MOVE
+		 * and its separate converted drawing anchor. */
+		next = (struct st_rip3_cursor){origin_x+(int64_t)raw_x+advance,origin_y+(int64_t)raw_y};
+	}
+	else {
+		/* The font-zero cached-outline metric branch remains pending. Keep
+		 * this existing supported geometric branch explicitly separate. */
+		next = (struct st_rip3_cursor){origin_x+(int64_t)anchor.x+advance,origin_y+(int64_t)anchor.y};
+	}
+	const int64_t limit = INT64_C(1024)*INT32_MAX;
+	if (next.x < -limit || next.x > limit || next.y < -limit || next.y > limit) {
 		status = IO_ERROR_OUT_OF_RANGE; goto done;
 	}
 	if (style.write_mode != ST_RIP3_NOT) {
@@ -124,7 +155,7 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	}
 	if (status == 0) status = st_rip3_draw_classic_text(host->ports,font,&style.font,glyphs,glyph_count,
 	    &anchor,foreground,background,style.write_mode);
-	if (status == 0 && plan.advances_cursor) host->text->cursor = next;
+	if (status == 0) status = st_rip3_ports_cursor(host->ports,port_number,&next);
 done:
 	free(owned); return status;
 }

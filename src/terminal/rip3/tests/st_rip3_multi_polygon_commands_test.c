@@ -277,7 +277,7 @@ counts(void)
 	struct st_rip3_command_host host={0},missing;
 	struct st_rip3_environment env;
 	struct st_rip3_style style,after;
-	struct st_rip3_text_context text={.cursor={7.25,8.5},.encoding=ST_RIP3_TEXT_UTF8};
+	struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_UTF8};
 	const struct st_rip3_rect view={0,0,7,7};
 	bool borders=true;
 	char *bytes=malloc(70000);unsigned *sizes=malloc(1640*sizeof(*sizes));
@@ -286,6 +286,8 @@ counts(void)
 	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	host.text=&text;
 	CHECK(st_rip3_ports_viewport(host.ports,&view)==0);
+	const struct st_rip3_cursor point={7,8};struct st_rip3_port_info cursor_info;
+	CHECK(st_rip3_ports_cursor(host.ports,0,&point)==0);
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);style.pen.draw_background=false;
 	for (unsigned base=36; base<=64; base+=28) for (unsigned xy=2; xy<=5; xy++) {
@@ -310,7 +312,8 @@ counts(void)
 				CHECK(line_pixels(&host,*kind=='p' ? 12 : line[mode])==0);
 				CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.pen.pattern==style.pen.pattern
 				    && after.pen.thickness==style.pen.thickness && after.line_type==style.line_type && after.write_mode==style.write_mode);
-				CHECK(text.cursor.x==7.25 && text.cursor.y==8.5 && text.encoding==ST_RIP3_TEXT_UTF8);
+				CHECK(st_rip3_ports_info(host.ports,0,&cursor_info)==0 && cursor_info.cursor.x==7
+				    && cursor_info.cursor.y==8 && text.encoding==ST_RIP3_TEXT_UTF8);
 			}
 		}
 		style.borders=borders;

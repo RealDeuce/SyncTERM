@@ -110,6 +110,7 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 		if (status != 0)
 			return status;
 		plan.advance = metrics.width;
+		plan.integer_advance = metrics.width;
 		plan.ascent = (7.0 * style->magnification - 1) * font->data.bitmap.height / 8;
 		plan.descent = (double)font->data.bitmap.height * style->magnification - 1 - plan.ascent;
 	}
@@ -123,6 +124,8 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 		if (status != 0)
 			return status;
 		plan.advance = metrics.advance * sx;
+		plan.integer_advance = (uint64_t)metrics.advance*numerator[style->magnification-1]*frame.device_width
+		    / ((uint64_t)denominator[style->magnification-1]*640);
 		plan.ascent = (font->data.stroke.capital - font->data.stroke.baseline) * sy;
 		plan.descent = (font->data.stroke.baseline - font->data.stroke.descender) * sy;
 		baseline = font->data.stroke.baseline * sy;
@@ -139,7 +142,6 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 	    : round_origin(anchor->x + v, anchor->y - u, &plan.origin);
 	if (status != 0)
 		return status;
-	plan.advances_cursor = style->direction == 0 && (style->flags & 3) == 0;
 	*result = plan;
 	return 0;
 }
