@@ -4904,6 +4904,57 @@ font assets, RIP1.54, active application route and external-launch exclusion are
 unchanged. Scoped build logs are removed; no code is pushed or PR published.
 The complete RIP3 compliance goal remains active.
 
+## Immediate queries with resumable user-variable dispatch
+
+The immediate evaluator now routes unknown decoded user references to the
+optional session-owned processor. It recognizes known built-ins first; invalid
+arguments or unsupported built-ins do not enter user lookup or prompt over a
+same-named stored value. Known names with unsupported extended reference syntax
+reject during full-expression preflight. P is removed from the predefined
+registry as the adopted documentation requires: `$P$` can prompt/retrieve a user
+value and performs no paste. PCB remains the executable paste name. The pinned
+inventory guard now explicitly checks this exclusion rather than adding P from
+an earlier superseded help interpretation.
+
+The query owns its immutable expression across prompts as it already did across
+D delays. Its active-user pointer identifies only an operation started by that
+query; a prompt at the last token still keeps the query pending. The common
+source prepare/pump path waits without reading subsequent RIP or raw bytes.
+After a response, the completed replacement is emitted exactly once without
+rescan in this ordinary pass. A resumed result consumes one work-budget token,
+including suppressed output. Required cancellation retains the pending prompt;
+forced query cancellation/EOF aborts only query-owned state, preserving another
+consumer's prompt and leaving the independent input-delay gate unchanged.
+A value already accepted into a store is not rolled back by later query abort.
+
+Whole-expression preflight still precedes output or storage. Unsupported tails
+cannot partially apply an earlier silent assignment, and an engine already
+awaiting another consumer's response cannot be captured by a new query. User
+format/storage errors are consumed at the void processor boundary; following
+references continue. Query processing itself returns no session error. The
+client must keep the borrowed user binding stable and exclusive while pending,
+supply dialog/editor behavior and coordinate UI/source shutdown.
+
+Native query/source fixtures on all three canvases cover silent assignment,
+retrieval, final prompts, caller-buffer reuse, required/empty/normal/transparent
+cancellation, literal replacement bytes resembling controls/callbacks, delayed
+prompt activation, blocked source reads, later radix changes and CP437/UTF-8 raw
+input. Recovery cases cover unavailable formatting adapters, busy ownership,
+unsupported tail atomicity, known-name precedence, excluded launch callbacks,
+query-owned abort and pending destruction. No original client or GUI is run.
+Full host two-pass processing, angle/template/playback dispatch, complete control
+handling within references, dialog presentation, deferred queries and active
+application routing remain pending; this does not claim complete query coverage.
+
+Native CMake configure/full build succeeds without compiler/build diagnostics.
+The four affected CTests pass: rip3_query_commands, rip3_host_variables,
+rip3_builtin_catalog and rip3_builtin_inventory. Earlier matrix/font/legacy
+results are reused. Edited ledger consistency passes. Counts are 784 implemented,
+1580 pending, 4117 unreviewed, 1099 contextual, 24 excluded and 27 blocked across
+7631 units. The documentation pin, original fonts, RIP1.54 and active application
+route are unchanged. Temporary logs are removed; no issue thread or remote code
+is modified. The full implementation goal remains active.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

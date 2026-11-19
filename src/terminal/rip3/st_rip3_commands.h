@@ -345,9 +345,13 @@ struct st_rip3_command_sink {
  * the owner pumps its source when ready. No gate binding means unsupported.
  * Immediate 1ESC mode zero uses the bound owned evaluator with zero reserved
  * digits and an unused window selector. It accepts literals, control notation
- * and ordinary known built-ins, preserving its position across D delays. Full
- * expression preflight rejects unsupported macro/prefix/user/template/pick-list
- * forms before any side effects. Deferred query modes remain unsupported.
+ * and ordinary known built-ins, preserving its position across D delays. With
+ * a bound user processor, unknown user references execute its prompt/storage
+ * matrix and suspend the same source pump until a response. A final prompt
+ * remains pending; cancellation/EOF releases only query-owned prompt state.
+ * Full expression preflight rejects unsupported macro/playback/template/pick-list
+ * forms before any side effects. Full host two-pass/control expansion, dialog
+ * presentation and deferred query modes remain pending.
  * Nested variable errors remain parser-owned and nonfatal; private evaluator
  * allocation/busy/preflight statuses are consumed at this command boundary.
  * Full-width f accepts the documented space-separated inline comment;

@@ -5,6 +5,7 @@
 #include "st_rip3_input.h"
 #include "st_rip3_query_internal.h"
 #include "st_rip3_stream.h"
+#include "st_rip3_user_variables.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -25,6 +26,9 @@ struct fixture {
 	struct st_rip3_host_variables variables;
 	struct st_rip3_host_sink query_sink;
 	struct st_rip3_frame frame;
+	struct st_rip3_variables *session,*persistent;
+	unsigned user_errors;
+	enum st_rip3_user_variable_diagnostic user_kind;
 	struct st_rip3_stream *stream;
 	uint64_t now;
 	uint8_t queue[2048], text[2048], reply[8192];
@@ -123,6 +127,8 @@ static void
 destroy(struct fixture *f)
 {
 	st_rip3_query_destroy(f->host.query);
+	st_rip3_user_variables_destroy(f->variables.user_variables);
+	st_rip3_variables_destroy(f->session);st_rip3_variables_destroy(f->persistent);
 	st_rip3_input_destroy(f->host.input); st_rip3_stream_destroy(f->stream);
 	st_rip3_environments_destroy(f->host.environments);
 }
@@ -412,6 +418,143 @@ controls(void)
 	return 0;
 }
 
+static void
+user_diagnostic(void *context, enum st_rip3_user_variable_diagnostic kind)
+{
+	struct fixture *f=context;
+	f->user_errors++;f->user_kind=kind;
+}
+
+static int
+bind_users(struct fixture *f)
+{
+	CHECK(st_rip3_variables_create(&f->session)==0 && st_rip3_variables_create(&f->persistent)==0);
+	struct st_rip3_user_variable_host host={.session=f->session,.persistent=f->persistent,
+	    .context=f,.diagnostic=user_diagnostic};
+	CHECK(st_rip3_user_variables_create(&f->variables.user_variables,&host)==0);
+	return 0;
+}
+
+static int
+user_value(struct st_rip3_variables *store, const char *name, const char *expected)
+{
+	struct st_rip3_variable_value value;
+	int status=st_rip3_variables_get(store,name,strlen(name),&value);
+	if (expected==NULL) CHECK(status==IO_ERROR_NOT_FOUND);
+	else CHECK(status==0 && value.length==strlen(expected) && memcmp(value.bytes,expected,value.length)==0);
+	return 0;
+}
+
+static int
+user_queries(enum st_rip3_canvas canvas, const char *width)
+{
+	struct fixture f={0};
+	CHECK(create(&f,canvas)==0 && bind_users(&f)==0);
+	CHECK(process(&f,"1\0330000$-=NAME=Ada$<$&name$>",-1)==0);
+	CHECK(f.reply_length==5 && memcmp(f.reply,"<Ada>",5)==0 && user_value(f.session,"NAME","Ada")==0
+	    && !st_rip3_query_pending(f.host.query) && st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE);
+	f.reply_length=0;
+	/* An unsupported tail prevents the earlier silent write and all output. */
+	CHECK(process(&f,"1\0330000pre$-=NAME=changed$<<macro>>",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(user_value(f.session,"NAME","Ada")==0 && f.reply_length==0);
+	/* Known invalid/unsupported built-ins never prompt, including excluded
+	 * external-launch names. P has no built-in registration and does prompt. */
+	CHECK(st_rip3_variables_set(f.session,"D",1,(const uint8_t *)"fake",4)==0);
+	CHECK(process(&f,"1\0330000$D(0)$$APP$$GOTOURL$$BEEP$end",-1)==0);
+	CHECK(f.host_errors==4 && f.reply_length==3 && memcmp(f.reply,"end",3)==0
+	    && st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000$P$",-1)==0 && st_rip3_query_pending(f.host.query));
+	CHECK(strcmp(st_rip3_user_variables_prompt(f.variables.user_variables)->name,"P")==0);
+	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,true);
+	st_rip3_query_process(f.host.query,1);
+	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==4 && memcmp(f.reply,"NONE",4)==0);
+	f.reply_length=0;
+	/* The final token itself may suspend. Accepted replacement bytes are
+	 * skipped by this ordinary pass, even if they resemble controls/callbacks. */
+	char body[]="1\0330000$=NAME@Please enter=default$";
+	CHECK(process(&f,body,-1)==0 && st_rip3_query_pending(f.host.query));
+	memset(body,'?',sizeof(body)-1);
+	CHECK(st_rip3_user_variables_initial(f.variables.user_variables)->length==3);
+	CHECK(process(&f,"1\0330000other",ST_RIP3_COMMAND_OPERATION_FAILED)==0);
+	const uint8_t literal[]="^m$D(1)$";
+	st_rip3_user_variables_respond(f.variables.user_variables,literal,sizeof(literal)-1,false);
+	st_rip3_query_process(f.host.query,0);
+	CHECK(f.reply_length==0 && st_rip3_query_pending(f.host.query));
+	st_rip3_query_process(f.host.query,1);
+	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==sizeof(literal)-1
+	    && memcmp(f.reply,literal,sizeof(literal)-1)==0 && st_rip3_input_wait_ns(f.host.input)==0);
+	f.reply_length=0;
+	/* Delays, prompts and subsequent source bytes share one ordered pump. */
+	CHECK(append(&f,"!|1\0330000a$D(1)$$*=&NEW$z$D(1)$|J1S|1\0330000$RESX$\rraw\r\n")==0);
+	st_rip3_input_process(f.host.input,2048);
+	size_t stopped=f.read;unsigned reads=f.reads;
+	CHECK(f.reply_length==1 && f.reply[0]=='a' && st_rip3_query_pending(f.host.query));
+	CHECK(st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
+	f.now=16666667;st_rip3_input_process(f.host.input,2048);
+	CHECK(f.read==stopped && f.reads==reads && strcmp(st_rip3_user_variables_prompt(f.variables.user_variables)->name,"NEW")==0);
+	st_rip3_input_process(f.host.input,2048);
+	CHECK(f.reads==reads && f.reply_length==1);
+	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,true);
+	CHECK(f.user_errors==1 && f.user_kind==ST_RIP3_USER_VARIABLE_CANCELLATION_DISABLED);
+	st_rip3_input_process(f.host.input,2048);CHECK(f.reads==reads);
+	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,false);
+	st_rip3_input_process(f.host.input,2048);
+	CHECK(f.read==stopped && f.reads==reads && f.reply_length==6 && memcmp(f.reply,"aNULLz",6)==0
+	    && user_value(f.session,"NEW","")==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
+	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	CHECK(f.read==f.length && f.reply_length==6+strlen(width) && memcmp(f.reply+6,width,strlen(width))==0
+	    && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0 && !st_rip3_query_pending(f.host.query));
+	struct st_rip3_environment environment;
+	CHECK(st_rip3_environments_get(f.host.environments,0,&environment)==0 && environment.base_math==64);
+	destroy(&f);return 0;
+}
+
+static int
+user_recovery(void)
+{
+	struct fixture f={0};
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0 && bind_users(&f)==0);
+	/* Formatting without its required adapter fails nonfatally, and following
+	 * user/built-in/literal tokens still execute. No prompt or write occurs. */
+	CHECK(process(&f,"1\0330000$=NAME(ALPHA)$$-=NAME=ok$$&NAME$$NULL$tail",-1)==0);
+	CHECK(f.user_errors==1 && f.user_kind==ST_RIP3_USER_VARIABLE_OPERATION_FAILED && f.reply_length==6
+	    && memcmp(f.reply,"oktail",6)==0 && user_value(f.session,"NAME","ok")==0);
+	f.reply_length=0;
+	/* Recognized built-in names with user-only syntax cannot become prompts. */
+	CHECK(process(&f,"1\0330000before$DATE,20@question$",ST_RIP3_COMMAND_UNSUPPORTED)==0 && f.reply_length==0);
+	CHECK(process(&f,"1\0330000$=P$discarded",-1)==0 && st_rip3_query_pending(f.host.query));
+	st_rip3_query_cancel(f.host.query);
+	CHECK(!st_rip3_query_pending(f.host.query) && st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE
+	    && user_value(f.session,"P",NULL)==0);
+	/* Cancelling a query which has not used the engine cannot cancel another
+	 * owner's pending prompt. Busy user preflight causes no earlier output. */
+	struct st_rip3_variable_reference reference;
+	CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)"$P$",3)==0);
+	st_rip3_user_variables_process(f.variables.user_variables,&reference);
+	CHECK(process(&f,"1\0330000before$&NAME$",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && f.reply_length==0);
+	st_rip3_query_cancel(f.host.query);
+	CHECK(st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_PROMPT);
+	st_rip3_user_variables_abort(f.variables.user_variables);
+	/* Transparent cancellation emits nothing; normal cancellation emits NONE. */
+	CHECK(process(&f,"1\0330000$=&MISSING$tail",-1)==0);
+	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,true);
+	st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==4 && memcmp(f.reply,"tail",4)==0 && user_value(f.session,"MISSING",NULL)==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000$=MISSING$tail",-1)==0);
+	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,true);
+	st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==8 && memcmp(f.reply,"NONEtail",8)==0);
+	/* Abort/EOF of a suspended last token still releases owned prompt data. */
+	CHECK(process(&f,"1\0330000$*+=FINAL$",-1)==0 && st_rip3_query_pending(f.host.query));
+	st_rip3_query_cancel(f.host.query);
+	CHECK(st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE && user_value(f.persistent,"FINAL",NULL)==0);
+	CHECK(process(&f,"1\0330000$*+=FINAL$",-1)==0);
+	destroy(&f);
+	return 0;
+}
+
 extern unsigned st_rip3_query_test_allocation_countdown;
 
 static int
@@ -470,6 +613,10 @@ main(void)
 	CHECK(compound(ST_RIP3_CANVAS_640_480,"640") == 0);
 	CHECK(compound(ST_RIP3_CANVAS_800_600,"800") == 0);
 	CHECK(compound(ST_RIP3_CANVAS_1024_768,"1024") == 0);
+	CHECK(user_queries(ST_RIP3_CANVAS_640_480,"640")==0);
+	CHECK(user_queries(ST_RIP3_CANVAS_800_600,"800")==0);
+	CHECK(user_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);
+	CHECK(user_recovery()==0);
 	CHECK(owned_and_recovery() == 0);
 	CHECK(active_order() == 0);
 	CHECK(controls() == 0);

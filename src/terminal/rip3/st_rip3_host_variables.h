@@ -10,6 +10,7 @@ struct st_rip3_features;
 struct st_rip3_frame;
 struct st_rip3_table_host;
 struct st_rip3_input;
+struct st_rip3_user_variables;
 
 /* Client identity values, not protocol-version/capability advertisements.
  * All three strings must be supplied; their literal bytes are emitted unchanged.
@@ -53,6 +54,11 @@ struct st_rip3_host_variables {
 	struct st_rip3_input *input;
 	/* RAND advances only this state, after validation and reply preparation. */
 	struct st_rip3_random *random;
+	/* Optional borrowed user-variable processor for the enclosing immediate
+	 * query evaluator, not the single-built-in API below. Keep this binding
+	 * stable and reserve the processor exclusively while that query is pending.
+	 * Its stores, format/dialog adapter and diagnostics belong to the client. */
+	struct st_rip3_user_variables *user_variables;
 };
 
 enum st_rip3_host_diagnostic {

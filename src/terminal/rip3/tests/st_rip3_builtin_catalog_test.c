@@ -15,13 +15,13 @@ int
 main(int argc, char **argv)
 {
 	const char *const absent[] = {
-		"", "FIRST_NAME", "UNKNOWN", "APP10", "APPX", "SAVE10", "RESTORE10",
+		"", "P", "FIRST_NAME", "UNKNOWN", "APP10", "APPX", "SAVE10", "RESTORE10",
 		"FEATURE", "SWITCH", "TERMDATA", "TERMNAME", "TERMMFG", "TERMVER",
 		"VIEWX", "VIEWY", "VIEWX0", "VIEWY0", "VIEWX1", "VIEWY1",
 		"CLIP2CLIPOK", "CLIPSAVEOK", "STACKPOS", "STACKCLEAR", "TEXTQUERY", "VIEWQUERY",
 		"_IFS", "1IFS", "$IFS$", "IFS()", "NULL ", "ABCDEFGHIJKLMNOPQRSTU",
 	};
-	const char *const present[] = {"IFS","NULL","COPY","RESX","RESY","P","PROTECT","HOSTDIR","SAVE0","RESTORE0","APP9","T"};
+	const char *const present[] = {"IFS","NULL","COPY","RESX","RESY","PROTECT","HOSTDIR","SAVE0","RESTORE0","APP9","T"};
 	const char unterminated[] = {'I','F','S'};
 	const char embedded[] = {'I','F','S',0,'X'};
 

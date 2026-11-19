@@ -9,7 +9,7 @@
 
 /* Documented names, not an implementation/capability claim. Pinned 9.1's
  * inventory plus the APP/SAVE/RESTORE fixed-slot families and HLP-attested
- * SHIFT/CTRL/HOSTDIR/XFER (5.1), P (5.1) and PROTECT (7.1). Their unrecovered
+ * SHIFT/CTRL/HOSTDIR/XFER (5.1) and PROTECT (7.1). Their unrecovered
  * semantics remain unsupported. Renamed/removed 1.54 names are not aliases. */
 static const char *const builtin_names[] = {
 	"ADOW",
@@ -89,7 +89,6 @@ static const char *const builtin_names[] = {
 	"OFFSCREEN",
 	"OPTION",
 	"OVERFLOW",
-	"P",
 	"PALENTRY",
 	"PASSWORD",
 	"PCB",

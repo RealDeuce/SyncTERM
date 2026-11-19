@@ -31,7 +31,7 @@ def main():
             raise ValueError("review changed fixed-slot family: " + family)
         names.update(family + str(index) for index in range(10))
     for document, additions in (
-            ("5.1-text-variables.md", ("SHIFT", "CTRL", "HOSTDIR", "XFER", "P")),
+            ("5.1-text-variables.md", ("SHIFT", "CTRL", "HOSTDIR", "XFER")),
             ("7.1-data-tables.md", ("PROTECT",))):
         text = "".join(row["text"] for row in ledger["requirements"]
                        if row["source"] == prefix + document)
@@ -39,6 +39,10 @@ def main():
             if not re.search(r"(?<![A-Z])" + name + r"(?![A-Z])", text):
                 raise ValueError("missing attested extra processor: " + name)
             names.add(name)
+    # The current reference explicitly excludes P as a predefined paste alias.
+    # Its user-variable path is exercised separately by the query test.
+    if "P" in names or "excluded as a predefined alias" not in source:
+        raise ValueError("review changed P user-variable classification")
     subprocess.run([str(args.executable.resolve()), *sorted(names)], check=True)
     print(f"Compiled RIP3 recognizer accepts {len(names)} pinned built-in names")
 

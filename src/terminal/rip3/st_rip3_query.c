@@ -2,6 +2,7 @@
 #include "st_rip3_query_internal.h"
 #include "st_rip3_host_internal.h"
 #include "st_rip3_input.h"
+#include "st_rip3_user_variables.h"
 #include "io_error.h"
 
 #include <stdlib.h>
@@ -12,9 +13,11 @@ struct st_rip3_query {
 	const struct st_rip3_host_sink *sink;
 	uint8_t *bytes;
 	size_t length, cursor;
+	/* Non-NULL only for an operation begun by this query. */
+	struct st_rip3_user_variables *active_user;
 };
 
-enum token_kind { LITERAL, CONTROL, REFERENCE };
+enum token_kind { LITERAL, CONTROL, REFERENCE, USER_REFERENCE };
 struct token {
 	enum token_kind kind;
 	size_t length;
@@ -31,7 +34,7 @@ reserved(const uint8_t *bytes, size_t length)
 }
 
 static bool
-token(const uint8_t *bytes, size_t length, struct token *result)
+token(const uint8_t *bytes, size_t length, bool users, struct token *result)
 {
 	struct token value = {.kind=LITERAL,.length=1};
 	if (reserved(bytes,length)) return false;
@@ -46,8 +49,16 @@ token(const uint8_t *bytes, size_t length, struct token *result)
 			if (reserved(bytes+i,value.length-i) || bytes[i] == '^' || bytes[i] == '`')
 				return false;
 		}
-		if (st_rip3_builtin_reference_parse(&reference,bytes,value.length) != 0
-		    || !st_rip3_builtin_known(reference.name,strlen(reference.name))) return false;
+		if (st_rip3_builtin_reference_parse(&reference,bytes,value.length)!=0
+		    || !st_rip3_builtin_known(reference.name,strlen(reference.name))) {
+			struct st_rip3_variable_reference user;
+			if (!users || st_rip3_variable_reference_parse(&user,bytes,value.length)!=0)
+				return false;
+			/* A known callback with unsupported extended syntax must never
+			 * become a prompt/storage operation on a same-named user value. */
+			if (st_rip3_builtin_known(user.name,strlen(user.name))) return false;
+			value.kind=USER_REFERENCE;
+		}
 	}
 	else if (bytes[0] == '^' || bytes[0] == '`') {
 		if (length < 2) return false;
@@ -94,6 +105,10 @@ void
 st_rip3_query_cancel(struct st_rip3_query *query)
 {
 	if (query == NULL) return;
+	if (query->active_user!=NULL) {
+		st_rip3_user_variables_abort(query->active_user);
+		query->active_user=NULL;
+	}
 	free(query->bytes); query->bytes = NULL;
 	query->length = query->cursor = 0;
 }
@@ -108,7 +123,22 @@ st_rip3_query_destroy(struct st_rip3_query *query)
 bool
 st_rip3_query_pending(const struct st_rip3_query *query)
 {
-	return query != NULL && query->cursor < query->length;
+	return query != NULL && (query->cursor < query->length || query->active_user!=NULL);
+}
+
+/* Return false while the query-owned prompt awaits its owner. Completed
+ * replacement bytes are emitted once, without rescanning; idle means a failed
+ * or forcibly aborted operation, whose own nonfatal diagnostic was consumed. */
+static bool
+user_result(struct st_rip3_query *query)
+{
+	if (st_rip3_user_variables_state(query->active_user)==ST_RIP3_USER_VARIABLE_PROMPT) return false;
+	const struct st_rip3_variable_value *result=st_rip3_user_variables_result(query->active_user);
+	if (result!=NULL && result->length!=0)
+		query->sink->reply(query->sink->context,result->bytes,result->length);
+	st_rip3_user_variables_abort(query->active_user);
+	query->active_user=NULL;
+	return true;
 }
 
 void
@@ -118,15 +148,28 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 	for (size_t i = 0; i < budget && st_rip3_query_pending(query); i++) {
 		struct token value;
 		if (st_rip3_input_wait_ns(query->variables->input) != 0) return;
+		if (query->active_user!=NULL) {
+			if (!user_result(query)) return;
+			continue; /* A resumed result consumes one work-budget token. */
+		}
 		const uint8_t *bytes = query->bytes+query->cursor;
 		/* The owned immutable program passed this scan before any effects. */
-		if (!token(bytes,query->length-query->cursor,&value)) {
+		if (!token(bytes,query->length-query->cursor,query->variables->user_variables!=NULL,&value)) {
 			st_rip3_query_cancel(query);
 			return;
 		}
 		query->cursor += value.length;
 		if (value.kind == REFERENCE)
 			st_rip3_host_variables_process(query->variables,query->sink,bytes,value.length);
+		else if (value.kind==USER_REFERENCE) {
+			struct st_rip3_variable_reference reference;
+			if (st_rip3_variable_reference_parse(&reference,bytes,value.length)!=0) {
+				st_rip3_query_cancel(query);return;
+			}
+			query->active_user=query->variables->user_variables;
+			st_rip3_user_variables_process(query->active_user,&reference);
+			if (!user_result(query)) return;
+		}
 		else if (value.kind == CONTROL) {
 			uint8_t output[3] = {value.control,'[',bytes[value.length-1]};
 			query->sink->reply(query->sink->context,output,value.special_key ? 3 : 1);
@@ -144,7 +187,9 @@ st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t le
 	if ((bytes == NULL && length != 0) || length == SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < length;) {
 		struct token value;
-		if (!token(bytes+i,length-i,&value)) return IO_ERROR_NOT_SUPPORTED;
+		if (!token(bytes+i,length-i,query->variables->user_variables!=NULL,&value)) return IO_ERROR_NOT_SUPPORTED;
+		if (value.kind==USER_REFERENCE && st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
+			return IO_ERROR_BUSY; /* Do not take another consumer's pending prompt. */
 		i += value.length;
 	}
 	if (length == 0) return 0;

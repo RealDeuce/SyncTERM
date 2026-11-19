@@ -101,8 +101,9 @@ separate session/persistent tables, including memory-first shadows, persistent
 destination precedence, empty values, suppression, NULL/NONE and cancellation.
 Its native test covers 768 matrix combinations plus owned suspended prompt state,
 format-adapter handoff, failed allocation/write/format and nonfatal recovery.
-Dialog/editor formatting, persistent disk flushing, hang-up and macro/query/
-application routing remain pending. Completed macro-ordering and argument-byte
+Immediate-query dispatch now uses that processor and suspends the shared input
+pump until the prompt completes. Dialog/editor formatting, persistent disk
+flushing, hang-up, complete macro processing and application routing remain pending. Completed macro-ordering and argument-byte
 answers are retained.
 The typed condition stage now compares wrapped signed decimals or literal
 case-insensitive byte strings and performs the original staged Boolean reduction.
@@ -297,12 +298,20 @@ queued RIP and CP437/UTF-8 bytes, consecutive delays/radix changes, cancellation
 protected ENV and nonfatal recovery on all three ENV canvases. They use a
 client-owned queue and deterministic clock; real application source adapters,
 baud pacing and compound host-continuation integration remain pending.
-The ordinary D reference and single-known-reference immediate 1ESC query branch
-now have separate tests for queued delay/reply order, decimal arguments across
-radix changes, CP437/UTF-8 byte retention, long identity replies and nonfatal
-query/reference recovery on all ENV canvases. Compound host continuation and
-deferred queries remain pending; conflicting D summary units and resident-query
-ordering are tracked upstream. No physical audio/interaction-freeze claim is made.
+The ordinary D reference and resumable immediate 1ESC query evaluator have
+separate tests for queued delay/reply order, decimal arguments across radix
+changes, CP437/UTF-8 byte retention, long identity replies and nonfatal recovery
+on all ENV canvases. Optional user-variable dispatch shares that ordered source
+pump: final-token prompts remain pending, accepted responses emit once, and
+cancel/EOF releases only query-owned state. Literal replacement text is not
+rescanned within the current pass. All-canvas query fixtures cover prompt/delay
+ordering, silent assignment/retrieval, empty/required/cancelled responses, blocked
+source reads and following RIP/raw input. Known rejected built-ins never prompt;
+P now follows the adopted user-variable path rather than a paste alias. The
+independent pinned inventory and compiled catalog check that classification.
+Complete host two-pass/angle/template processing, GUI dialog/editor presentation,
+application routing and deferred queries remain pending. No physical audio or
+interactive application coverage is claimed by these native parser fixtures.
 
 The shared graphics parser supports an optional owner-defined numeric reader.
 `graphics_protocol_number` checks opaque byte ownership, every split, signed

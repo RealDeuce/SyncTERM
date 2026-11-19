@@ -144,7 +144,7 @@ main(void)
 	CHECK(run(&host, "$PALENTRY(CUR,15)$", 0, "8;255:255:255") == 0);
 	CHECK(run(&host, "$UNRECOGNIZED$", IO_ERROR_NOT_FOUND, NULL) == 0);
 	CHECK(run(&host, "$SHIFT$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
-	CHECK(run(&host, "$P$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
+	CHECK(run(&host, "$P$", IO_ERROR_NOT_FOUND, NULL) == 0);
 	CHECK(run(&host, "$SAVE0$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	memset(output, 'Q', sizeof(output)); memcpy(before, output, sizeof(output));
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$CUR(PAL,7)$", 12) == 0);
