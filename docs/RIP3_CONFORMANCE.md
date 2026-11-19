@@ -4237,6 +4237,49 @@ context. Counts are 632 implemented, 1555 pending, 4182 unreviewed, 1034 context
 24 excluded and 28 blocked across 7455 units. Reference pin, original font assets,
 RIP1.54 and active application routing are unchanged.
 
+## Outline baseline, spacing and shadow layout
+
+The native outline layout service consumes stored STYLE values and the current
+frame. String direction is a device-axis unit vector; character rotation stays
+independent and selects the original font-instance mapping 0/3/2/1. Baseline
+displacement applies the documented sixteen-case branch table, including its
+ignored cases and reversed half-turn Y offset. Flag 0x100 reverses the stored
+magnitude. Definition-time flag 0x200 does not rescale it again, including after
+world-frame changes. These are additions to an already aligned zero-B origin;
+font metric acquisition and zero-baseline alignment precede this operation.
+
+Shadow distance uses the current canvas/world X ratio on both device axes,
+truncates, and enforces minimum displacement one for positive wire distances.
+The direction flags select signs independently of both rotations. Device advance
+conversion truncates signed 1/1440-inch font metrics at the explicitly selected
+DPI. Spacing then adds the per-glyph or constant font-bbox extra gap, truncating
+negative adjustments toward zero. The bbox is already in device units. Signed
+wide accumulation supports large advances and gaps without intermediate native
+int overflow; output positions retain fractions. A complete preflight preserves
+all positions and the returned layout advance on failure. That advance is not
+the cached whole-string metric used by cursor stores.
+
+The changed outline-text scenes now consume prepared policy and positions. One
+coherent capture per canvas checks all sixteen rotation pairs with signed branch
+offsets and P125/bbox spacing against literal rectangles. Four-direction shadow
+scenes consume the prepared displacement through every character rotation and
+write mode. New `rip3_outline_layout` checks every baseline branch under all four
+justification selectors and both signs, frame changes, anisotropic X-only shadow
+scaling, zero/minimum/maximum distances, published spacing and original F metric
+examples, negative gaps, signed metric boundaries, wide spacing arithmetic and
+unchanged output on errors. Native CMake configure/full build succeeds without
+warnings. Only the two affected CTests run; after adding signed boundary and
+prepared-shadow integration cases, only those changed tests are rebuilt/repeated.
+Both pass. Other passing evidence and the unchanged legacy freeze are reused.
+
+Ten baseline/spacing/shadow formula units become implemented; broader outline
+font/command units stay pending. Two table headers become context. Counts are
+642 implemented, 1552 pending, 4173 unreviewed, 1036 contextual, 24 excluded and
+28 blocked across 7455 units. Font metric acquisition, glyph-matrix production,
+zero-baseline alignment, cached cursor metrics and ordinary outline T/@ remain
+unfinished. Reference pin, original font assets, RIP1.54 and active application
+routing are unchanged. Temporary build logs are removed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

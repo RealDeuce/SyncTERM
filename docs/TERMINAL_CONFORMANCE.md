@@ -32,7 +32,14 @@ The outline geometry kernel accepts independent per-byte device positions and
 glyph matrices, plus explicit device-axis shadows. Independent rectangle
 expectations cover all sixteen direction/rotation pairs on the three canvases,
 four shadow directions in five write modes, fractional/clipped placement and
-allocation-failure atomicity. Wire metrics, alignment and placement remain pending.
+allocation-failure atomicity. Wire metric acquisition, alignment and command
+integration remain pending.
+Outline layout tests resolve string direction and independent font orientation,
+the complete signed additive-baseline table, one-time baseline conversion,
+device-axis shadow distance/direction and device advance/spacing arithmetic.
+Native captures now consume those prepared positions and shadows on all canvases.
+Font metric acquisition, zero-baseline alignment and command integration remain
+pending; adjusted layout advances are separate from cached cursor metrics.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

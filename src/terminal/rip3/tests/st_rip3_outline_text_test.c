@@ -1,8 +1,10 @@
 /* Authored FastFont paths and analytic pixel/advance expectations. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_outline_text.h"
+#include "st_rip3_outline_layout.h"
 #include "st_rip3_font_data.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_styles.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -454,24 +456,40 @@ inside(int32_t x, int32_t y, const struct st_rip3_rect *bounds)
 static int
 positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
-	static const struct st_rip3_point step[] = {{14,0},{0,-14},{-14,0},{0,14}};
+	/* P125 with ordinary advance 8 and bbox reference 12 gives 8+3=11.
+	 * Character columns alternate the sign of the stored B=4 displacement. */
+	static const struct st_rip3_point step[] = {{11,0},{0,-11},{-11,0},{0,11}};
+	static const struct st_rip3_point baseline[][4] = {
+		{{0,4},{-4,0},{0,0},{0,0}},
+		{{4,0},{-4,0},{0,0},{0,0}},
+		{{0,0},{-4,0},{0,-4},{0,0}},
+		{{0,4},{0,0},{0,0},{0,0}},
+	};
 	uint8_t bytes[1900];
 	struct st_rip3_rff font;
+	struct st_rip3_frame frame;
 	struct st_rip3_ports *ports = NULL;
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
 
 	fixture(bytes);
 	CHECK(st_rip3_rff_open(&font,bytes,sizeof(bytes)) == 0);
+	CHECK(st_rip3_frame_init(&frame,canvas) == 0 && st_rip3_frame_world(&frame,width,height) == 0);
 	CHECK(st_rip3_ports_create(&ports,canvas) == 0);
 	CHECK(st_rip3_ports_erase(ports,1) == 0);
 	for (unsigned string = 0; string < 4; string++) {
 		for (unsigned character = 0; character < 4; character++) {
-			struct st_rip3_rff_text_style style = turned_style(character);
-			struct st_rip3_text_position positions[] = {
-				{32+64*character,32+64*string},
-				{32+64*character+step[string].x,32+64*string+step[string].y},
-			};
+			const struct st_rip3_outline_style wire = {.size=25,.spacing=125,.baseline=4,
+			    .flags=0x400|(character%2!=0 ? 0x100 : 0),
+			    .string_rotation=900*string,.character_rotation=900*character};
+			struct st_rip3_outline_layout layout;
+			struct st_rip3_text_position positions[2], zero = {32+64*character,32+64*string};
+			const int32_t advances[] = {8,8};
+			int64_t total;
+			CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
+			CHECK(st_rip3_outline_layout_positions(&layout,&zero,advances,2,12,positions,&total) == 0 && total == 22);
+			struct st_rip3_rff_text_style style = turned_style(layout.character_turns);
+			style.shadow = layout.shadow;
 			CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
 			    positions,&style,12,8,ST_RIP3_COPY) == 0);
 		}
@@ -484,7 +502,8 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 			bool ink = false;
 			if (x < 256 && y < 256) {
 				unsigned string = y/64, character = x/64;
-				int32_t u = (int32_t)(x%64)-32, v = (int32_t)(y%64)-32;
+				int32_t u = (int32_t)(x%64)-32-baseline[string][character].x;
+				int32_t v = (int32_t)(y%64)-32-baseline[string][character].y;
 				ink = inside(u,v,&turned_bounds[character])
 				    || inside(u-step[string].x,v-step[string].y,&turned_bounds[character]);
 			}
@@ -506,16 +525,23 @@ positioned_shadows(void)
 	struct st_rip3_ports *ports = NULL;
 	const struct st_rip3_rect bounds = {0,0,63,63};
 	const struct st_rip3_text_position position = {32,32};
+	struct st_rip3_frame frame;
 
 	fixture(bytes);
 	CHECK(st_rip3_rff_open(&font,bytes,sizeof(bytes)) == 0);
+	CHECK(st_rip3_frame_init(&frame,ST_RIP3_CANVAS_640_480) == 0
+	    && st_rip3_frame_world(&frame,640,480) == 0);
 	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_ports_define(ports,1,&bounds,true) == 0);
 	CHECK(st_rip3_ports_switch(ports,1) == 0);
 	for (unsigned character = 0; character < 4; character++) {
 		for (unsigned direction = 0; direction < 4; direction++) {
-			struct st_rip3_rff_text_style style = turned_style(character);
-			style.shadow = shadows[direction];
+			const struct st_rip3_outline_style wire = {.size=25,.spacing=100,.shadow=11,
+			    .flags=direction<<6,.character_rotation=900*character};
+			struct st_rip3_outline_layout layout;
+			CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
+			struct st_rip3_rff_text_style style = turned_style(layout.character_turns);
+			style.shadow = layout.shadow;
 			for (int mode = ST_RIP3_COPY; mode <= ST_RIP3_NOT; mode++) {
 				CHECK(st_rip3_ports_erase(ports,5) == 0);
 				CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"A",1,
@@ -523,7 +549,7 @@ positioned_shadows(void)
 				for (int32_t y = 0; y < 64; y++) {
 					for (int32_t x = 0; x < 64; x++) {
 						bool ink = inside(x-32,y-32,&turned_bounds[character]);
-						bool shade = inside(x-32-style.shadow.x,y-32-style.shadow.y,
+						bool shade = inside(x-32-shadows[direction].x,y-32-shadows[direction].y,
 						    &turned_bounds[character]);
 						unsigned source = ink ? 10 : 8;
 						unsigned expected = mode == ST_RIP3_COPY ? source
