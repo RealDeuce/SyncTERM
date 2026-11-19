@@ -67,6 +67,8 @@ st_rip3_rff_open(struct st_rip3_rff *result, const void *bytes, size_t size)
 	    || word(data + file.base + 14) != file.first_character
 	    || word(data + file.base + 16) != file.characters)
 		return IO_ERROR_INVALID_FORMAT;
+	file.bold_hollow_strength = data[file.base + 0x12];
+	file.hollow_strength = data[file.base + 0x13];
 	advances = word(data + file.base + 38);
 	offsets = word(data + file.base + 46);
 	if (advances > size - file.base || offsets > size - file.base)

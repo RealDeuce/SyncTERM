@@ -4168,6 +4168,38 @@ implemented and two broader units retain pending RGB/color-mask work. Totals are
 28 blocked across 7455 units. Font production, complete color-plane/numeric-
 profile acceptance and full engine integration remain unfinished.
 
+## Outline-font catalogue and realization
+
+The separate engine has a stateless outline-font realization service. It resolves
+all 80 bundled style names case-insensitively, preserving suffixes and spaces,
+and retains validated immutable RFF views with the selected face. Filename aliases,
+trimming and default-font fallback are not inferred. Missing/invalid requests
+leave the previous result unchanged. Binding externally owned RFF bytes reopens
+the validated container instead of trusting mutable view metadata; byte ownership
+and lifetime remain explicit. No ATF cache file or mutable global registry is needed.
+
+Point sizes 1..4095 derive independent integer X/Y DPI by truncating 72 times
+the client/world ratio before calculating font-unit raster scales. Orientation
+selects X or Y DPI for hollow realization. The RFF decoder now exposes the two
+metrics-block strength bytes; shipped values 4/2 and a modified 6/3 fixture feed
+the prescribed low-WORD arithmetic and bold/normal caps. The resulting nominal
+stamp diameter stays in device pixels, independent of the horizontal face scale.
+These are prepared font values; ordinary T/@ outline placement/rendering and
+cached font-zero metrics still require integration.
+
+Native CMake configure/build succeeds without warnings. Only two affected CTests
+run, once: new `rip3_outline_font` and the changed RFF decoder's `rip3_rff` test.
+Coverage includes all catalogue names/faces, DEFAULT Ex's 140%, published 72-DPI
+stamp cases, anisotropic orientation, BOLD/ITALIC, world-frame extremes exposing
+WORD narrowing, invalid/missing requests, forged view metadata and retained prior
+results. No existing text/renderer/preservation suite is rerun. Edited ledger
+consistency is checked, with unchanged legacy hash evidence reused; temporary
+build logs are removed. Ten formula/catalogue units become implemented, two
+preambles become context and two broader text requirements retain pending
+production work. Counts are 632 implemented, 1548 pending, 4191 unreviewed,
+1032 contextual, 24 excluded and 28 blocked across 7455 units. Original fonts,
+RIP1.54, the active application route and reference pin remain unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

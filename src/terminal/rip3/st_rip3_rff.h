@@ -12,6 +12,7 @@ struct st_rip3_rff {
 	size_t size, style_offset, styles, base, advances, offsets, trailer;
 	unsigned first_character, characters, units_per_em;
 	int ascender, descender;
+	uint8_t bold_hollow_strength, hollow_strength;
 };
 
 struct st_rip3_rff_style {

@@ -28,7 +28,8 @@ struct st_rip3_rff_text_style {
 	bool shadow; /* One device pixel down/right, foreground takes precedence. */
 	enum st_rip3_outline_fill_rule fill_rule;
 	/* Positive device-pixel width for hollow faces, independent of scaling.
-	 * Ignored for solid faces. Wire defaults await #3/#22. */
+	 * Ignored for solid faces. Outline-font realization supplies the wire
+	 * point/DPI-dependent nominal width; this kernel takes it explicitly. */
 	uint32_t hollow_thickness;
 };
 
@@ -48,9 +49,10 @@ int st_rip3_rff_text_measure(const struct st_rip3_rff *font,
  * painting. Each covered pixel receives its write mode once. The font, text,
  * matrix, port cursor and graphics state remain unchanged.
  *
- * This geometry kernel does not assign unresolved RIPtel fill/overlap/hollow
- * defaults/character-code mapping (#22), extended-font wire fields (#3), or
- * session-error policy.
+ * This geometry kernel does not select wire point sizes, text placement,
+ * expansion, encoding or session-error policy. Its explicit whole-text union
+ * is a coverage choice; the adopted protocol requires graphics-text W while
+ * treating original per-glyph fixed-copy observations as historical behavior.
  * Parser processing must absorb any helper failure at its nonfatal boundary.
  */
 int st_rip3_draw_rff_text(struct st_rip3_ports *ports,

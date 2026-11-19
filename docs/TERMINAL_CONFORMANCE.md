@@ -24,6 +24,10 @@ The separate [RIPscrip 3.0 implementation goal](RIP3_CONFORMANCE.md) pins its
 documentation and tracks requirements and upstream blockers. Its source guard
 freezes the existing RIP 1.54 implementation and historical fixtures. This is
 preservation/inventory coverage, not a claim of RIPtel 3.1 compliance. Separate
+RIP3 outline-font realization resolves all 80 bundled names and prepares
+world-derived DPI/scales plus device-space hollow widths. Tests cover caps,
+WORD narrowing, orientation, file strength bytes and cache preservation on
+failure. Outline text production remains pending.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Font realization and outline text commands remain pending.
