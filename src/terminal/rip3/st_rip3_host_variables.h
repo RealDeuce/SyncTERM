@@ -20,6 +20,13 @@ struct st_rip3_terminal_identity {
 	const char *version;
 };
 
+/* One session thread owns this explicit generator state. Initialize state to
+ * the client's chosen seed before binding it; the protocol promises no initial
+ * seed or cross-session sequence. No process-global CRT random state is used. */
+struct st_rip3_random {
+	uint32_t state;
+};
+
 /* Borrowed current-session services; one session thread owns invocation and
  * state. A frame must have been initialized by frame_init. Missing services
  * are explicitly unsupported, never assumed to exist. No lifetime ownership
@@ -44,6 +51,8 @@ struct st_rip3_host_variables {
 	/* Active D references set this gate. The enclosing evaluator must yield
 	 * before executing another reference/host action while its wait is nonzero. */
 	struct st_rip3_input *input;
+	/* RAND advances only this state, after validation and reply preparation. */
+	struct st_rip3_random *random;
 };
 
 enum st_rip3_host_diagnostic {
@@ -71,7 +80,7 @@ struct st_rip3_host_sink {
  * command error to the terminal/session caller. Decoder/executor statuses are
  * private and must not be used as connection errors.
  *
- * Supports NULL, IFS, TERMINFO, RESX/RESY, D, the resolved date/time fields and the
+ * Supports NULL, IFS, TERMINFO, RESX/RESY, D, RAND, the resolved date/time fields and the
  * implemented table/viewport/environment-variable families, plus PORTW/PORTH
  * and PORTX0/Y0/X1/Y1 with the shared decimal-port, PORT/VIEW, WORLD/DEVICE
  * grammar (only trailing fields optional). DOMAIN in the second position is

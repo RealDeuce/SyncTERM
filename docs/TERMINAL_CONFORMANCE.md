@@ -78,6 +78,14 @@ limits, UTF-8 byte counts and public nonfatal recovery have native coverage.
 Double quotes, excluded punctuation and consecutive backslashes reject without
 state changes. Outer ordinary/host passes and general user/prompt grammar remain
 pending; local acceptance does not claim complete expansion.
+RAND now uses explicit session-owned CRT generator state and the adopted wrapped
+decimal/arithmetic contract, including maximum+1 at the endpoint and zeroes
+prepended before a minus sign. Native vectors cover the original sequence,
+independent sessions, solved endpoint seeds, oversized tokens, signed overflow,
+byte validation, exact reply capacity and nonfatal error recovery. No initial
+seed, global CRT state or application-route integration is assumed. User-variable
+prefix/repetition/scope and transparency decisions remain under follow-up #87;
+completed macro-ordering and argument-byte answers are retained.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

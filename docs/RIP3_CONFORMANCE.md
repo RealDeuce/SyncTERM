@@ -4603,6 +4603,63 @@ RIP1.54, the active application route and external-launch exclusion are unchange
 Reference processing stays in memory and scoped build logs are removed. No
 existing issue thread is modified, and no code is pushed or PR published.
 
+## RAND production and user-variable policy follow-up
+
+RAND now executes through the public void host-reference boundary. Its bound
+state belongs to one session thread and is explicitly initialized by the client;
+the protocol does not promise an initial seed or a cross-session sequence. The
+service advances the original 32-bit CRT recurrence and extracts its 15-bit draw,
+without using or reseeding process-global libc state. The active application
+adapter has not yet bound this service, so full stream/command integration is
+still pending.
+
+One to three nonempty raw digit-only arguments are converted modulo 2^32 before
+the adopted range checks. Conversion handles twenty-digit tokens beyond uint64_t
+without overflowing signed C. Maximum must be 1..32767; padding width and minimum
+use the documented signed comparisons. The range product wraps to 32 bits before
+signed division by 32767, and the final addition wraps too. Explicit unsigned
+arithmetic and signed-representation decoding preserve these byte-visible
+compatibility rules without implementation-defined narrowing or signed overflow.
+The inclusive-span endpoint returns maximum+1. Formatting prepends zero bytes
+to the complete signed number, including its minus sign; it never truncates to
+the requested width. Missing provider state is reported unsupported, and every
+syntax/range/capacity failure preserves both caller output and generator state.
+
+Independent native vectors cover the original seed-one sequence, isolated session
+states, modularly solved zero/midpoint/maximum draws, normal endpoint/padding,
+20-digit wrapping, negative wrapped width/minimum, signed multiply/add overflow
+and padding before a minus sign. Omitted fields and a locally quoted digit pass
+through the new argument decoder. Raw CP437 and UTF-8 nondigits reject. Malformed
+references diagnose nonfatally without advancing the generator, followed by a
+successful reference. Private capacity cases reject before state/output changes;
+five digits plus their terminator fit exactly. Tests exercise no original DLL,
+desktop, external transmission or physical audio.
+
+New upstream [issue #87](https://github.com/bbs-land/remote-imaging-protocol/issues/87)
+isolates the earlier #6 user-variable questions that remain unspecified despite
+the adopted PR #32/#71 macro answers. The current section says `%` and one use of
+each directive, but also endorses `$-=NAME=value$`; retained draft prose says
+repetitions are ignored and persistent scope wins. Its transparent prompt/default
+and cancellation cases also need an explicit protocol choice. The #6 derivation
+uses a controlled user-variable provider and does not independently prove those
+policies. A read-only original prefix-classifier lead recognizes `=`; no client
+instructions or prompt path were executed. The new issue references #6's existing
+comment and PRs #32/#71/#85 without adding content to them. Completed evaluation,
+built-in and argument-local contracts remain adopted. Only the specific disputed
+rows are blocked under B87; the existing six-bit syntax decoder retains unsupported
+prefix/repetition behavior without inventing scope or prompts. The broad earlier
+B6 resolution is retained with an explicit follow-up link.
+
+Native CMake configure/full build passes without warnings. The new rip3_random
+test and affected rip3_host_variables/rip3_host_recovery cases pass. Added CP437
+and exact-capacity boundaries rerun only rip3_random. Edited ledger consistency
+passes; prior argument-byte, font/drawing, adoption and RIP1.54 evidence is reused.
+Counts are 718 implemented, 1536 pending, 4155 unreviewed, 1068 contextual,
+24 excluded and 43 blocked across the unchanged 7544 units. The reference pin,
+original fonts, RIP1.54, active route and external-launch exclusion are unchanged.
+Scoped build logs are removed. No existing issue thread is modified; no code is
+pushed or PR published. Full RIP3 implementation remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
