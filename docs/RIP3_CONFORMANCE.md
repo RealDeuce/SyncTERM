@@ -4200,6 +4200,43 @@ production work. Counts are 632 implemented, 1548 pending, 4191 unreviewed,
 1032 contextual, 24 excluded and 28 blocked across 7455 units. Original fonts,
 RIP1.54, the active application route and reference pin remain unchanged.
 
+## Independently positioned outline glyphs
+
+The outline geometry kernel now accepts one device-space origin per input byte.
+Glyph-local transforms and horizontal face scaling do not rotate, scale or
+otherwise alter those supplied origins. Layout can therefore advance an upright
+string upward, or rotate its glyphs while advancing rightward. This entry point
+does not reapply raw advances or pair kerning after placement. Missing and damaged
+glyphs contribute no ink, while fractional positions remain available to the
+rasterizer. The existing raw-font-unit text entry point shares the same geometry,
+coverage and painting implementation.
+
+Shadows use an explicit signed device displacement instead of a fixed down/right
+pixel. One displaced background copy is collected independently of glyph rotation;
+foreground takes precedence in overlapping coverage. Clipping either copy does
+not suppress the other. All validation, geometry and mask allocation still precede
+painting. Invalid later glyphs, overflowing shadow geometry and failures at every
+local allocation preserve the entire destination. Neither entry point changes the
+graphics cursor or caller-owned layout/font data. These remain geometry services;
+ordinary command metrics, zero-baseline alignment, spacing and shadow-distance
+conversion are pending.
+
+Native CMake configure/full build succeeds without warnings. The single affected
+CTest, `rip3_outline_text`, passes once. Its independent rectangle bounds cover
+all sixteen string-direction/character-rotation pairs in one coherent capture per
+canvas. Additional checks cover four shadow directions across character rotations
+and all five write modes, foreground/shadow and glyph/glyph overlaps, fractional
+placement, missing/damaged codes, viewport offsets, clipped solid/hollow shadows,
+cursor preservation, inactive allocation avoidance and each geometry/fill/shadow
+allocation failure. Existing outline coverage, analytic curves and all bundled
+faces remain in that affected test. No unrelated passing suite or legacy freeze
+was repeated; edited ledger consistency alone is checked. Temporary build logs
+are removed. Seven rotation/shadow units move from unreviewed to pending, with
+explicit kernel evidence and remaining command work; two table headers become
+context. Counts are 632 implemented, 1555 pending, 4182 unreviewed, 1034 contextual,
+24 excluded and 28 blocked across 7455 units. Reference pin, original font assets,
+RIP1.54 and active application routing are unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

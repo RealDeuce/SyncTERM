@@ -674,7 +674,8 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_environments_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_environments COMMAND st_rip3_environments_test)
-	add_executable(st_rip3_outline_text_test tests/st_rip3_outline_text_test.c)
+	add_executable(st_rip3_outline_text_test tests/st_rip3_outline_text_test.c
+		tests/st_rip3_outline_text_fault_impl.c)
 	target_link_libraries(st_rip3_outline_text_test PRIVATE st_rip3)
 	set_target_properties(st_rip3_outline_text_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

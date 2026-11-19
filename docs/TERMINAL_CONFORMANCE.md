@@ -28,9 +28,14 @@ RIP3 outline-font realization resolves all 80 bundled names and prepares
 world-derived DPI/scales plus device-space hollow widths. Tests cover caps,
 WORD narrowing, orientation, file strength bytes and cache preservation on
 failure. Outline text production remains pending.
+The outline geometry kernel accepts independent per-byte device positions and
+glyph matrices, plus explicit device-axis shadows. Independent rectangle
+expectations cover all sixteen direction/rotation pairs on the three canvases,
+four shadow directions in five write modes, fractional/clipped placement and
+allocation-failure atomicity. Wire metrics, alignment and placement remain pending.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
-Font realization and outline text commands remain pending.
+Outline text commands remain pending.
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port
 captures on all three canvases, including copy modes, clipping, scaling and
 overlap recovery. DEFINE_PORT tests cover independent

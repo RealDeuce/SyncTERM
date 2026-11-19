@@ -25,7 +25,9 @@ struct st_rip3_rff_text_style {
 	 * World scaling, orientation and justification are caller policy. */
 	double xx, xy, yx, yy;
 	bool kerning;
-	bool shadow; /* One device pixel down/right, foreground takes precedence. */
+	/* One device-space displaced copy; {0,0} disables it. The displacement
+	 * is independent of the glyph matrix. Foreground takes precedence. */
+	struct st_rip3_point shadow;
 	enum st_rip3_outline_fill_rule fill_rule;
 	/* Positive device-pixel width for hollow faces, independent of scaling.
 	 * Ignored for solid faces. Outline-font realization supplies the wire
@@ -58,6 +60,20 @@ int st_rip3_rff_text_measure(const struct st_rip3_rff *font,
 int st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 	const struct st_rip3_rff *font, const uint8_t *text, size_t length,
 	const struct st_rip3_point *origin, const struct st_rip3_rff_text_style *style,
+	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+
+/* Rasterize already-positioned bytes using the same coverage/atomicity policy.
+ * positions supplies one viewport-relative device origin per byte; it is not
+ * transformed by the glyph matrix or horizontal face percentage. The matrix
+ * maps only glyph-local coordinates, permitting independent string direction,
+ * character rotation, spacing and fractional placement. Raw font advances and
+ * style.kerning are ignored: the caller has already performed layout. Missing
+ * and damaged codes retain their positions but contribute no ink. All supplied
+ * origins and transformed vertices must be finite and fit +/-4*INT32_MAX.
+ * Empty text permits NULL text/positions. No cursor or font state changes. */
+int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
+	const struct st_rip3_rff *font, const uint8_t *text, size_t length,
+	const struct st_rip3_text_position *positions, const struct st_rip3_rff_text_style *style,
 	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
 
 #endif

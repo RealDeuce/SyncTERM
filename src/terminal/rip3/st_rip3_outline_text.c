@@ -190,7 +190,7 @@ flatten(struct outlines *path, const struct st_rip3_vector p[4], unsigned depth)
 }
 
 static struct st_rip3_vector
-transform(const struct st_rip3_point *origin,
+transform(const struct st_rip3_text_position *origin,
     const struct st_rip3_rff_text_style *style, unsigned percent,
     int32_t advance, int x, int y)
 {
@@ -203,6 +203,7 @@ transform(const struct st_rip3_point *origin,
 static int
 build(struct outlines *path, const struct st_rip3_rff *font,
     const uint8_t *text, size_t length, const struct st_rip3_point *origin,
+    const struct st_rip3_text_position *positions,
     const struct st_rip3_rff_text_style *style, unsigned percent)
 {
 	int32_t advance = 0, position;
@@ -213,7 +214,20 @@ build(struct outlines *path, const struct st_rip3_rff *font,
 		struct glyph_group *group = &path->glyphs[i];
 		size_t cursor = 0;
 		bool positioned = false;
-		int status = next_glyph(font, text, i, style->kerning, &advance, &position, &glyph);
+		struct st_rip3_text_position placed;
+		int status;
+
+		if (positions != NULL) {
+			placed = positions[i];
+			position = 0;
+			status = st_rip3_rff_glyph(&glyph,font,text[i]);
+			if (status == IO_ERROR_NOT_FOUND)
+				continue;
+		}
+		else {
+			placed = (struct st_rip3_text_position){origin->x,origin->y};
+			status = next_glyph(font, text, i, style->kerning, &advance, &position, &glyph);
+		}
 
 		if (status != 0)
 			return status;
@@ -222,7 +236,7 @@ build(struct outlines *path, const struct st_rip3_rff *font,
 			struct st_rip3_vector points[4];
 
 			for (unsigned j = 0; j < segment.points; j++) {
-				points[j + 1] = transform(origin, style, percent, position, segment.x[j], segment.y[j]);
+				points[j + 1] = transform(&placed, style, percent, position, segment.x[j], segment.y[j]);
 				if (!valid_vector(points[j + 1]))
 					return IO_ERROR_OUT_OF_RANGE;
 			}
@@ -359,10 +373,11 @@ fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
 	return 0;
 }
 
-int
-st_rip3_draw_rff_text(struct st_rip3_ports *ports,
+static int
+draw(struct st_rip3_ports *ports,
     const struct st_rip3_rff *font, const uint8_t *text, size_t length,
-    const struct st_rip3_point *origin, const struct st_rip3_rff_text_style *style,
+    const struct st_rip3_point *origin, const struct st_rip3_text_position *positions,
+    const struct st_rip3_rff_text_style *style,
     uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_rff checked;
@@ -374,10 +389,12 @@ st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 	unsigned current;
 	int status;
 
-	if (ports == NULL || font == NULL || origin == NULL || style == NULL
+	if (ports == NULL || font == NULL || style == NULL
 	    || (text == NULL && length != 0) || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT
 	    || (style->fill_rule != ST_RIP3_OUTLINE_NONZERO && style->fill_rule != ST_RIP3_OUTLINE_EVEN_ODD))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (length > SIZE_MAX / sizeof(*path.glyphs))
+		return IO_ERROR_OUT_OF_RANGE;
 	if (!isfinite(style->xx) || !isfinite(style->xy) || !isfinite(style->yx)
 	    || !isfinite(style->yy) || fabs(style->xx) > INT32_MAX || fabs(style->xy) > INT32_MAX
 	    || fabs(style->yx) > INT32_MAX || fabs(style->yy) > INT32_MAX)
@@ -391,7 +408,14 @@ st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 		return IO_ERROR_INVALID_FORMAT;
 	if (face.hollow && (style->hollow_thickness == 0 || style->hollow_thickness > INT32_MAX))
 		return IO_ERROR_OUT_OF_RANGE;
-	status = measure(&checked, text, length, style->kerning, &advance);
+	if (positions != NULL) {
+		for (size_t i = 0; i < length; i++) {
+			if (!valid_vector((struct st_rip3_vector){positions[i].x,positions[i].y}))
+				return IO_ERROR_OUT_OF_RANGE;
+		}
+	}
+	else
+		status = measure(&checked, text, length, style->kerning, &advance);
 	if (status != 0 || length == 0)
 		return status;
 	status = st_rip3_ports_current(ports, &current);
@@ -399,13 +423,11 @@ st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 		status = st_rip3_ports_info(ports, current, &info);
 	if (status != 0 || (!info.viewport_active || info.clip.x1 < 0 || info.clip.y1 < 0))
 		return status;
-	if (length > SIZE_MAX / sizeof(*path.glyphs))
-		return IO_ERROR_OUT_OF_RANGE;
 	path.glyphs = calloc(length, sizeof(*path.glyphs));
 	if (path.glyphs == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	path.glyph_count = length;
-	status = build(&path, &checked, text, length, origin, style, face.horizontal_percent);
+	status = build(&path, &checked, text, length, origin, positions, style, face.horizontal_percent);
 	if (status != 0 || path.vertex_count == 0)
 		goto done;
 	status = face.hollow ? st_rip3_stroke_vectors(ports, path.vertices, path.vertex_count,
@@ -413,10 +435,10 @@ st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 	    : fill_collect(&path, &info, style->fill_rule, &ink);
 	if (status != 0)
 		goto done;
-	if (style->shadow) {
+	if (style->shadow.x != 0 || style->shadow.y != 0) {
 		for (size_t i = 0; i < path.vertex_count; i++) {
-			path.vertices[i].x++;
-			path.vertices[i].y++;
+			path.vertices[i].x += style->shadow.x;
+			path.vertices[i].y += style->shadow.y;
 			if (!valid_vector(path.vertices[i])) {
 				status = IO_ERROR_OUT_OF_RANGE;
 				goto done;
@@ -437,4 +459,26 @@ done:
 	free(path.runs);
 	free(path.glyphs);
 	return status;
+}
+
+int
+st_rip3_draw_rff_text(struct st_rip3_ports *ports,
+    const struct st_rip3_rff *font, const uint8_t *text, size_t length,
+    const struct st_rip3_point *origin, const struct st_rip3_rff_text_style *style,
+    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+{
+	if (origin == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return draw(ports,font,text,length,origin,NULL,style,foreground,background,mode);
+}
+
+int
+st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
+    const struct st_rip3_rff *font, const uint8_t *text, size_t length,
+    const struct st_rip3_text_position *positions, const struct st_rip3_rff_text_style *style,
+    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+{
+	if (positions == NULL && length != 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return draw(ports,font,text,length,NULL,positions,style,foreground,background,mode);
 }

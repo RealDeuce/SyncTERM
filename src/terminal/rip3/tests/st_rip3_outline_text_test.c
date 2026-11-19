@@ -19,6 +19,9 @@
 	} \
 } while (0)
 
+extern size_t st_rip3_outline_test_allocations;
+extern size_t st_rip3_outline_test_fail_at;
+
 static void
 word(uint8_t *p, unsigned value)
 {
@@ -167,7 +170,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_erase(ports, 1) == 0);
 	for (size_t i = 0; i < 5; i++) {
 		style.face = i == 3 ? 1 : 0;
-		style.shadow = i == 4;
+		style.shadow = i == 4 ? (struct st_rip3_point){1,1} : (struct st_rip3_point){0,0};
 		CHECK(st_rip3_draw_rff_text(ports, &font, &texts[i], 1, &origins[i], &style,
 		    12, 8, ST_RIP3_COPY) == 0);
 	}
@@ -328,7 +331,7 @@ behavior(void)
 	}
 	/* Clipped-away foreground must still cast a shadow into the viewport. */
 	const struct st_rip3_point clipped = {-6,0}, hollow_clipped = {-4,-1};
-	style = normal(); style.shadow = true;
+	style = normal(); style.shadow = (struct st_rip3_point){1,1};
 	CHECK(st_rip3_ports_erase(ports, 5) == 0);
 	CHECK(st_rip3_draw_rff_text(ports, &font, (const uint8_t *)"A", 1,
 	    &clipped, &style, 10, 8, ST_RIP3_COPY) == 0);
@@ -339,7 +342,7 @@ behavior(void)
 	    &hollow_clipped, &style, 10, 8, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_read(ports, 1, 0, 0, &value) == 0 && value == 8);
 	/* Explicit hollow width, independent of face scaling and the line style. */
-	style.shadow = false; style.hollow_thickness = 3;
+	style.shadow = (struct st_rip3_point){0,0}; style.hollow_thickness = 3;
 	CHECK(st_rip3_ports_erase(ports, 5) == 0);
 	CHECK(st_rip3_draw_rff_text(ports, &font, (const uint8_t *)"A", 1,
 	    &shear_origin, &style, 10, 8, ST_RIP3_COPY) == 0);
@@ -423,6 +426,245 @@ builtin_faces(void)
 	return 0;
 }
 
+/* Device rectangles after rotating the authored 6x6 glyph with its 150%
+ * horizontal face. These bounds are independent of the string direction. */
+static const struct st_rip3_rect turned_bounds[] = {
+	{0,-6,8,-1}, {-6,-9,-1,-1}, {-9,0,-1,5}, {0,0,5,8},
+};
+
+static struct st_rip3_rff_text_style
+turned_style(unsigned turn)
+{
+	static const int matrix[][4] = {
+		{1,0,0,1}, {0,1,-1,0}, {-1,0,0,-1}, {0,-1,1,0},
+	};
+	struct st_rip3_rff_text_style style = normal();
+	style.face = 2;
+	style.xx = matrix[turn][0]; style.xy = matrix[turn][1];
+	style.yx = matrix[turn][2]; style.yy = matrix[turn][3];
+	return style;
+}
+
+static bool
+inside(int32_t x, int32_t y, const struct st_rip3_rect *bounds)
+{
+	return x >= bounds->x0 && x <= bounds->x1 && y >= bounds->y0 && y <= bounds->y1;
+}
+
+static int
+positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	static const struct st_rip3_point step[] = {{14,0},{0,-14},{-14,0},{0,14}};
+	uint8_t bytes[1900];
+	struct st_rip3_rff font;
+	struct st_rip3_ports *ports = NULL;
+	struct st_pixel_buffer *capture = NULL;
+	struct st_rip3_palette palette;
+
+	fixture(bytes);
+	CHECK(st_rip3_rff_open(&font,bytes,sizeof(bytes)) == 0);
+	CHECK(st_rip3_ports_create(&ports,canvas) == 0);
+	CHECK(st_rip3_ports_erase(ports,1) == 0);
+	for (unsigned string = 0; string < 4; string++) {
+		for (unsigned character = 0; character < 4; character++) {
+			struct st_rip3_rff_text_style style = turned_style(character);
+			struct st_rip3_text_position positions[] = {
+				{32+64*character,32+64*string},
+				{32+64*character+step[string].x,32+64*string+step[string].y},
+			};
+			CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+			    positions,&style,12,8,ST_RIP3_COPY) == 0);
+		}
+	}
+	CHECK(st_rip3_palette_defaults(&palette) == 0);
+	CHECK(st_rip3_ports_snapshot(ports,&palette,&capture) == 0);
+	CHECK(capture->width == width && capture->height == height);
+	for (uint32_t y = 0; y < height; y++) {
+		for (uint32_t x = 0; x < width; x++) {
+			bool ink = false;
+			if (x < 256 && y < 256) {
+				unsigned string = y/64, character = x/64;
+				int32_t u = (int32_t)(x%64)-32, v = (int32_t)(y%64)-32;
+				ink = inside(u,v,&turned_bounds[character])
+				    || inside(u-step[string].x,v-step[string].y,&turned_bounds[character]);
+			}
+			CHECK(capture->primary[(size_t)y*width+x]
+			    == (ST_PIXEL_COLOR_RGB_TAG | (ink ? 0xff5555 : 0x0000aa)));
+		}
+	}
+	st_pixel_buffer_destroy(capture);
+	st_rip3_ports_destroy(ports);
+	return 0;
+}
+
+static int
+positioned_shadows(void)
+{
+	static const struct st_rip3_point shadows[] = {{-11,-11},{11,-11},{-11,11},{11,11}};
+	uint8_t bytes[1900], value;
+	struct st_rip3_rff font;
+	struct st_rip3_ports *ports = NULL;
+	const struct st_rip3_rect bounds = {0,0,63,63};
+	const struct st_rip3_text_position position = {32,32};
+
+	fixture(bytes);
+	CHECK(st_rip3_rff_open(&font,bytes,sizeof(bytes)) == 0);
+	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0);
+	CHECK(st_rip3_ports_define(ports,1,&bounds,true) == 0);
+	CHECK(st_rip3_ports_switch(ports,1) == 0);
+	for (unsigned character = 0; character < 4; character++) {
+		for (unsigned direction = 0; direction < 4; direction++) {
+			struct st_rip3_rff_text_style style = turned_style(character);
+			style.shadow = shadows[direction];
+			for (int mode = ST_RIP3_COPY; mode <= ST_RIP3_NOT; mode++) {
+				CHECK(st_rip3_ports_erase(ports,5) == 0);
+				CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"A",1,
+				    &position,&style,10,8,(enum st_rip3_write_mode)mode) == 0);
+				for (int32_t y = 0; y < 64; y++) {
+					for (int32_t x = 0; x < 64; x++) {
+						bool ink = inside(x-32,y-32,&turned_bounds[character]);
+						bool shade = inside(x-32-style.shadow.x,y-32-style.shadow.y,
+						    &turned_bounds[character]);
+						unsigned source = ink ? 10 : 8;
+						unsigned expected = mode == ST_RIP3_COPY ? source
+						    : mode == ST_RIP3_XOR ? 5^source : mode == ST_RIP3_OR ? 5|source
+						    : mode == ST_RIP3_AND ? 5&source : 250;
+						CHECK(st_rip3_ports_read(ports,1,x,y,&value) == 0);
+						CHECK(value == (ink || shade ? expected : 5));
+					}
+				}
+			}
+		}
+	}
+	st_rip3_ports_destroy(ports);
+	return 0;
+}
+
+static int
+positioned_behavior(void)
+{
+	uint8_t bytes[1900], value;
+	struct st_rip3_rff font;
+	struct st_rip3_ports *ports = NULL;
+	struct st_rip3_rff_text_style style = normal();
+	struct st_rip3_text_position positions[] = {{2.25,10.25},{12.25,10.25}};
+	const struct st_rip3_text_position saved[] = {{2.25,10.25},{12.25,10.25}};
+	const struct st_rip3_rect bounds = {0,0,31,15};
+	const struct st_rip3_cursor cursor = {103,-17};
+	struct st_rip3_port_info info;
+
+	fixture(bytes);
+	/* Positioned text uses neither raw advances nor pair kerning. */
+	word(bytes+284,65535); word(bytes+1808,65535);
+	CHECK(st_rip3_rff_open(&font,bytes,sizeof(bytes)) == 0);
+	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0);
+	CHECK(st_rip3_ports_define(ports,1,&bounds,true) == 0);
+	CHECK(st_rip3_ports_switch(ports,1) == 0);
+	CHECK(st_rip3_ports_cursor(ports,1,&cursor) == 0);
+	style.face = 2; style.kerning = true;
+	CHECK(st_rip3_ports_erase(ports,5) == 0);
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+	    positions,&style,10,8,ST_RIP3_COPY) == 0);
+	for (int32_t y = 0; y < 16; y++) {
+		for (int32_t x = 0; x < 32; x++) {
+			bool ink = y >= 4 && y < 10 && ((x >= 2 && x < 11) || (x >= 12 && x < 21));
+			CHECK(st_rip3_ports_read(ports,1,x,y,&value) == 0 && value == (ink ? 10 : 5));
+		}
+	}
+	CHECK(memcmp(positions,saved,sizeof(positions)) == 0);
+	CHECK(st_rip3_ports_info(ports,1,&info) == 0 && info.cursor.x == 103 && info.cursor.y == -17);
+	const uint8_t sparse[] = {'A',0,'D','E'};
+	const struct st_rip3_text_position sparse_positions[] = {{2,10},{12,10},{18,10},{24,10}};
+	CHECK(st_rip3_ports_erase(ports,5) == 0);
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,sparse,sizeof(sparse),
+	    sparse_positions,&style,10,8,ST_RIP3_COPY) == 0);
+	for (int32_t y = 0; y < 16; y++) {
+		for (int32_t x = 0; x < 32; x++) {
+			bool ink = x >= 2 && x < 11 && y >= 4 && y < 10;
+			CHECK(st_rip3_ports_read(ports,1,x,y,&value) == 0 && value == (ink ? 10 : 5));
+		}
+	}
+	CHECK(st_rip3_ports_erase(ports,5) == 0);
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,NULL,0,NULL,&style,10,8,ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+	    NULL,&style,10,8,ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,NULL,2,
+	    positions,&style,10,8,ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",SIZE_MAX,
+	    positions,&style,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	positions[1].x = NAN;
+	/* Even an empty/missing glyph must not conceal an invalid placement. */
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AE",2,
+	    positions,&style,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	positions[1].x = 4.0*INT32_MAX;
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+	    positions,&style,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	positions[1].x = 3.5*INT32_MAX;
+	style.shadow = (struct st_rip3_point){INT32_MAX,0};
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+	    positions,&style,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(unchanged(ports) == 0);
+	positions[0] = (struct st_rip3_text_position){2,10};
+	positions[1] = (struct st_rip3_text_position){5,10};
+	style.shadow = (struct st_rip3_point){-2,3};
+	st_rip3_outline_test_allocations = 0;
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+	    positions,&style,10,8,ST_RIP3_XOR) == 0);
+	size_t allocations = st_rip3_outline_test_allocations;
+	CHECK(allocations >= 7);
+	for (int32_t y = 0; y < 16; y++) {
+		for (int32_t x = 0; x < 32; x++) {
+			bool ink = x >= 2 && x < 14 && y >= 4 && y < 10;
+			bool shade = x >= 0 && x < 12 && y >= 7 && y < 13;
+			CHECK(st_rip3_ports_read(ports,1,x,y,&value) == 0);
+			CHECK(value == (ink ? 15 : shade ? 13 : 5));
+		}
+	}
+	for (size_t i = 0; i < allocations; i++) {
+		CHECK(st_rip3_ports_erase(ports,5) == 0);
+		st_rip3_outline_test_allocations = 0;
+		st_rip3_outline_test_fail_at = i;
+		CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+		    positions,&style,10,8,ST_RIP3_XOR) == IO_ERROR_OUT_OF_MEMORY);
+		st_rip3_outline_test_fail_at = SIZE_MAX;
+		CHECK(unchanged(ports) == 0);
+	}
+	CHECK(st_rip3_ports_activate(ports,false) == 0);
+	st_rip3_outline_test_allocations = 0;
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
+	    positions,&style,10,8,ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_outline_test_allocations == 0);
+	CHECK(unchanged(ports) == 0);
+	CHECK(st_rip3_ports_activate(ports,true) == 0);
+	const struct st_rip3_rect viewport = {4,3,27,14};
+	CHECK(st_rip3_ports_viewport_device(ports,&viewport) == 0);
+	/* Shadow survives when its foreground is entirely outside the viewport.
+	 * Both positions and displacements stay viewport-relative device values. */
+	positions[0] = (struct st_rip3_text_position){-9,6};
+	style.shadow = (struct st_rip3_point){11,0};
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"A",1,
+	    positions,&style,10,8,ST_RIP3_COPY) == 0);
+	for (int32_t y = 0; y < 16; y++) {
+		for (int32_t x = 0; x < 32; x++) {
+			bool shade = x >= 6 && x < 15 && y >= 3 && y < 9;
+			CHECK(st_rip3_ports_read(ports,1,x,y,&value) == 0 && value == (shade ? 8 : 5));
+		}
+	}
+	CHECK(st_rip3_ports_erase(ports,5) == 0);
+	positions[0] = (struct st_rip3_text_position){-4,-1};
+	style.face = 1; style.shadow = (struct st_rip3_point){3,2};
+	CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"A",1,
+	    positions,&style,10,8,ST_RIP3_COPY) == 0);
+	for (int32_t y = 0; y < 16; y++) {
+		for (int32_t x = 0; x < 32; x++) {
+			bool shade = (x == 6 && y == 3) || (x >= 4 && x <= 6 && y == 4);
+			CHECK(st_rip3_ports_read(ports,1,x,y,&value) == 0 && value == (shade ? 8 : 5));
+		}
+	}
+	st_rip3_ports_destroy(ports);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -432,5 +674,10 @@ main(void)
 	CHECK(scene(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);
+	CHECK(positioned_behavior() == 0);
+	CHECK(positioned_shadows() == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_640_480,640,480) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_800_600,800,600) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
 	return 0;
 }
