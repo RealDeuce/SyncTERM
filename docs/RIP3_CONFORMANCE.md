@@ -5310,6 +5310,58 @@ application route, RIP1.54 and original font/assets remain unchanged. No code is
 pushed or PR published, no existing issue is modified, and scoped logs are
 removed. Full compliance remains in progress.
 
+## Local-state data references and outline-effect boundary follow-up
+
+Ordinary host dispatch now implements SHIFT/CTRL, MSTAT, COLORS and captured XY
+through explicit borrowed client services. A nonblocking modifier provider is
+read only when its reference executes; no default keyboard state or key injection
+is substituted. Mouse-presence and destination-device color capacity are separate
+bindings, independent of a palette's entries or the current ENV color mode.
+Missing services remain unsupported at the existing void parser boundary.
+
+XY formats captured signed device coordinates as minimum-four-column decimal
+WORD pairs, rather than hexadecimal. WORLD converts through the current ENV's
+frame when bound, otherwise the explicit fallback frame, truncating signed
+products before final WORD narrowing. No drawing PORT is required. A text-window
+query's omitted domain instead computes/clamps coordinates using the owner's
+resolved DEVICE cell grid and formats minimum-two-column pairs; explicit WORLD
+or DEVICE bypasses that default. Invalid domains/counts reject before providers,
+and malformed/unavailable local data never enter same-named user-variable lookup.
+
+Independent native cases cover both modifiers and their combinations, MSTAT
+YES/NO, typical and non-power-of-two device capacities, published 297/321 and
+80x25 cell examples on all canvases, nonzero cell origins, outside-window clamps,
+wide signed WORDs, negative conversion truncation, current/protected ENV
+precedence, absent/invalid services, bounded output and provider failure/recovery.
+A delayed compound host query reads changed local values when reached and gates
+later raw bytes. The existing conditional source evaluator consumes real local
+data references, preserving ordered, non-short-circuit leaf evaluation and false
+failed comparisons. These are fixture/provider tests, without physical keyboard,
+mouse, native device or application-route coverage.
+
+The native CMake configure/full build passes without compiler/build diagnostics.
+Affected rip3_query_commands, rip3_host_variables and rip3_host_recovery CTests
+pass initially. The new rip3_local_variables test finds an XY domain case-folding
+omission; that is corrected, and only the failing local suite is rerun and passes.
+Unchanged font/layout/query-grammar/adoption/RIP1.54 evidence is reused.
+
+The remaining outline-effect review found that the reference establishes effect
+bits, q accumulation, unchanged logical advances and hollow BOLD strength, but
+does not fully distinguish mandatory decoration placement/composition from
+renderer-chosen synthetic geometry. New upstream
+[#97](https://github.com/bbs-land/remote-imaging-protocol/issues/97) requests that
+portable boundary, explicitly excluding a pixel-identical reconstruction request
+and retaining the completed PR #29/#55/#77/#88/#94 answers. Existing issues receive
+no comments/content. Solid BOLD/ITALIC and underline/strike-through remain pending
+their ink contract.
+
+Edited ledger consistency passes. Counts are 972 implemented, 1572 pending,
+4028 unreviewed, 1139 contextual, 24 excluded and 32 blocked across 7767 units.
+Full angle/text-window/application owners and
+platform local-input adapters remain pending. Original fonts, RIP1.54, the active
+application route and the reference pin remain unchanged. Scoped build logs are
+removed. No code is pushed or PR published. Full compliance remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

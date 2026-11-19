@@ -89,6 +89,10 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	}
 	if (strcmp(reference->name,"RAND")==0)
 		return st_rip3_random_execute(host,reference,result,capacity);
+	{
+		int status=st_rip3_local_variables_execute(host,reference,result,capacity);
+		if (status!=IO_ERROR_NOT_SUPPORTED) return status;
+	}
 	if (strcmp(reference->name, "D") == 0) {
 		unsigned ticks;
 		if (reference->count != 1)

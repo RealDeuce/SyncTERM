@@ -7,6 +7,7 @@
 #include "st_rip3_stream.h"
 #include "st_rip3_user_variables.h"
 #include "st_rip3_templates.h"
+#include "st_rip3_local_variables.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -878,6 +879,38 @@ embedding_limits(enum st_rip3_canvas canvas)
 
 extern unsigned st_rip3_query_test_allocation_countdown;
 
+struct local_modifiers {bool shift,ctrl;unsigned calls;};
+static int
+local_modifier(void *context, enum st_rip3_modifier which, bool *down)
+{
+	struct local_modifiers *value=context;value->calls++;
+	*down=which==ST_RIP3_MODIFIER_SHIFT ? value->shift : value->ctrl;return 0;
+}
+
+static int
+local_queries(void)
+{
+	struct fixture f={0};CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0);
+	struct local_modifiers keys={.shift=true};bool mouse=true;unsigned colors=256;
+	struct st_rip3_point position={0,0};
+	const struct st_rip3_local_queries local={.context=&keys,.modifier=local_modifier,.mouse_position=&position,
+	    .mouse_installed=&mouse,.colors=&colors};f.variables.local=&local;
+	CHECK(st_rip3_frame_world(&f.frame,1280,960)==0);
+	CHECK(process(&f,"1\0330000$SHIFT$/$D(1)$$SHIFT$/$CTRL$/$MSTAT$/$COLORS$/$XY$",-1)==0
+	    && keys.calls==1 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
+	CHECK(append(&f,"raw\r\n")==0);st_rip3_input_process(f.host.input,2048);CHECK(f.read==0);
+	keys.shift=false;keys.ctrl=true;mouse=false;colors=16777216;position=(struct st_rip3_point){297,321};
+	f.now=16666667;st_rip3_input_process(f.host.input,2048);
+	const char *expected="1/0/1/NO/16777216/0594:0642";
+	CHECK(keys.calls==3 && f.reply_length==strlen(expected) && memcmp(f.reply,expected,strlen(expected))==0
+	    && f.errors==0 && f.host_errors==0 && f.read==f.length && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000$SHIFT(BAD)$$XY(BAD)$ok",-1)==0 && f.host_errors==2 && f.reply_length==2
+	    && memcmp(f.reply,"ok",2)==0 && keys.calls==3);
+	CHECK(process(&f,"1\0330000$CTRL$",-1)==0 && keys.calls==4 && f.reply_length==3 && f.reply[2]=='1');
+	destroy(&f);return 0;
+}
+
 static int
 allocation_and_budget(void)
 {
@@ -953,6 +986,7 @@ main(void)
 	CHECK(active_order() == 0);
 	CHECK(controls() == 0);
 	CHECK(allocation_and_budget() == 0);
+	CHECK(local_queries()==0);
 	CHECK(fields() == 0);
 	CHECK(query_forms() == 0);
 	CHECK(recovery() == 0);

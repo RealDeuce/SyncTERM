@@ -1,0 +1,40 @@
+/* Borrowed local device/query state for ordinary RIP3 data references. */
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#ifndef ST_RIP3_LOCAL_VARIABLES_H_
+#define ST_RIP3_LOCAL_VARIABLES_H_
+
+#include "st_rip3_geometry.h"
+
+#include <stdbool.h>
+
+enum st_rip3_modifier { ST_RIP3_MODIFIER_SHIFT, ST_RIP3_MODIFIER_CTRL };
+
+/* The text-window owner supplies its resolved DEVICE cell grid. Coordinates
+ * here are not another WORLD frame. Nonzero cell sizes and row/column counts
+ * are required; XY clamps its computed zero-based cell to this grid. */
+struct st_rip3_query_cells {
+	struct st_rip3_point origin;
+	unsigned cell_width, cell_height, columns, rows;
+};
+
+/* One interpreter thread borrows these bindings and their backing values.
+ * Keep binding pointers stable while an enclosing query is pending; values
+ * may change between processing calls. Read each reference when reached,
+ * including after a delay. No keyboard injection, mouse sampling or device
+ * discovery is performed by the protocol code. */
+struct st_rip3_local_queries {
+	void *context;
+	/* Nonblocking current modifier query; status is absorbed below the void
+	 * parser boundary. Do not reenter or mutate the parser from this callback. */
+	int (*modifier)(void *context, enum st_rip3_modifier modifier, bool *down);
+	/* Captured coordinates of this host/query event, not a fresh live-pointer
+	 * request. A missing capture is unsupported, independently of MSTAT. */
+	const struct st_rip3_point *mouse_position;
+	const bool *mouse_installed;
+	/* Destination device capacity, independently of current palette/ENV mode. */
+	const unsigned *colors;
+	bool text_window_query;
+	const struct st_rip3_query_cells *text_window;
+};
+
+#endif

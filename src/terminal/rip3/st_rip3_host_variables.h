@@ -12,6 +12,7 @@ struct st_rip3_table_host;
 struct st_rip3_input;
 struct st_rip3_user_variables;
 struct st_rip3_template_host;
+struct st_rip3_local_queries;
 
 /* Client identity values, not protocol-version/capability advertisements.
  * All three strings must be supplied; their literal bytes are emitted unchanged.
@@ -63,6 +64,10 @@ struct st_rip3_host_variables {
 	/* Optional borrowed template slots and required-selection callback. Stable
 	 * while a query is pending; definitions become active in command order. */
 	const struct st_rip3_template_host *templates;
+	/* Optional local modifier/captured-mouse/device-capacity/query-cell services.
+	 * Missing values are unsupported, never invented from palette size or a
+	 * default keyboard/mouse state. The client owns their platform mechanism. */
+	const struct st_rip3_local_queries *local;
 };
 
 enum st_rip3_host_diagnostic {
@@ -90,7 +95,8 @@ struct st_rip3_host_sink {
  * command error to the terminal/session caller. Decoder/executor statuses are
  * private and must not be used as connection errors.
  *
- * Supports NULL, IFS, TERMINFO, RESX/RESY, D, RAND, the resolved date/time fields and the
+ * Supports NULL, IFS, TERMINFO, RESX/RESY, D, RAND, SHIFT/CTRL, MSTAT, COLORS,
+ * captured XY, the resolved date/time fields and the
  * implemented table/viewport/environment-variable families, plus PORTW/PORTH
  * and PORTX0/Y0/X1/Y1 with the shared decimal-port, PORT/VIEW, WORLD/DEVICE
  * grammar (only trailing fields optional). DOMAIN in the second position is
@@ -118,6 +124,13 @@ struct st_rip3_host_sink {
  * rule; the milliseconds summary conflicts under #46). It emits no text and
  * starts the bound input gate. General same-host-command continuation/yield
  * integration remains with the enclosing evaluator, not this one-reference API.
+ * Local queries use explicit borrowed client services. SHIFT/CTRL read current
+ * modifier state; MSTAT/COLORS report client mouse/device capacity rather than
+ * guessing from the palette. XY formats captured DEVICE/WORLD signed-WORD pairs
+ * as decimal with minimum width four, using current ENV before fallback frame.
+ * In a text-window query, omission instead computes/clamps supplied DEVICE-grid
+ * cells with minimum width two; explicit domains bypass that grid. Missing local
+ * services diagnose unsupported. No input injection or global device probe.
  * Unknown names/user resolution and other built-ins remain pending; they emit
  * no reply and cannot abort later references. External launch names likewise
  * have no action. Framing, macro expansion and user-policy orchestration still

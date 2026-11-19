@@ -134,6 +134,15 @@ total with the final gap, selector 3 starts normally, and the baseline table is
 added once. PR #95's working-response/storage limits are implemented in the
 immediate evaluator, with the all-canvas boundary evidence described below.
 The completed numeric/Boolean and PR #85/#89 rules remain adopted independently.
+Local data references now use explicit client services for SHIFT/CTRL, MSTAT,
+COLORS and captured XY. Independent native replies cover both modifier states,
+device capacity independently of palette mode, signed decimal WORD padding,
+current-ENV world conversion and clamped text-window cell defaults on all canvases.
+Explicit WORLD/DEVICE override the cell default. A delayed compound host query
+reads changed local values only when reached, with ordered resume/recovery;
+real data references also feed the existing condition evaluator without short
+circuit. Platform input/device adapters and full angle/application routing remain
+pending; these tests query fixture state and operate no physical keyboard/mouse.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 The y-selected outline face now resolves on T/@ use against the bundled catalogue
@@ -148,7 +157,8 @@ RGB ink lookup, NOT without a palette, CP437/UTF-8, blank/clipped text, 700-byte
 width wrapping, owned cache lifecycle, allocation failures and split recovery.
 Plain solid/hollow and bold hollow render; synthetic solid bold/italic/decorations,
 name/text expansion, full reset orchestration and application routing remain
-pending. These are separate-engine parser/bitmap fixtures, without GUI or native
+pending; upstream #97 tracks the portable synthetic-effect/decorations boundary.
+These are separate-engine parser/bitmap fixtures, without GUI or native
 font-device coverage.
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port
 captures on all three canvases, including copy modes, clipping, scaling and
