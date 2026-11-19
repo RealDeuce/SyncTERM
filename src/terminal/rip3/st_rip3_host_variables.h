@@ -11,6 +11,7 @@ struct st_rip3_frame;
 struct st_rip3_table_host;
 struct st_rip3_input;
 struct st_rip3_user_variables;
+struct st_rip3_template_host;
 
 /* Client identity values, not protocol-version/capability advertisements.
  * All three strings must be supplied; their literal bytes are emitted unchanged.
@@ -59,6 +60,9 @@ struct st_rip3_host_variables {
 	 * stable and reserve the processor exclusively while that query is pending.
 	 * Its stores, format/dialog adapter and diagnostics belong to the client. */
 	struct st_rip3_user_variables *user_variables;
+	/* Optional borrowed template slots and required-selection callback. Stable
+	 * while a query is pending; definitions become active in command order. */
+	const struct st_rip3_template_host *templates;
 };
 
 enum st_rip3_host_diagnostic {

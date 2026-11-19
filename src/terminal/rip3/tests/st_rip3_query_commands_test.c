@@ -6,6 +6,7 @@
 #include "st_rip3_query_internal.h"
 #include "st_rip3_stream.h"
 #include "st_rip3_user_variables.h"
+#include "st_rip3_templates.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -27,6 +28,8 @@ struct fixture {
 	struct st_rip3_host_sink query_sink;
 	struct st_rip3_frame frame;
 	struct st_rip3_variables *session,*persistent;
+	struct st_rip3_template_host templates;
+	unsigned required_calls,required_group;
 	unsigned user_errors;
 	enum st_rip3_user_variable_diagnostic user_kind;
 	struct st_rip3_stream *stream;
@@ -128,6 +131,7 @@ destroy(struct fixture *f)
 {
 	st_rip3_query_destroy(f->host.query);
 	st_rip3_user_variables_destroy(f->variables.user_variables);
+	st_rip3_templates_destroy(f->templates.slots);
 	st_rip3_variables_destroy(f->session);st_rip3_variables_destroy(f->persistent);
 	st_rip3_input_destroy(f->host.input); st_rip3_stream_destroy(f->stream);
 	st_rip3_environments_destroy(f->host.environments);
@@ -616,6 +620,94 @@ two_passes(void)
 	destroy(&f);return 0;
 }
 
+extern bool st_rip3_templates_test_fail;
+
+static void
+selection_required(void *context, unsigned group)
+{
+	struct fixture *f=context;
+	f->required_calls++;f->required_group=group;
+}
+
+static int
+template_value(struct fixture *f, unsigned number, const char *expected)
+{
+	struct st_rip3_template_bytes value;
+	CHECK(st_rip3_templates_resolve(f->templates.slots,number,&value)==0 && value.length==strlen(expected)
+	    && memcmp(value.bytes,expected,value.length)==0);return 0;
+}
+
+static int
+template_queries(enum st_rip3_canvas canvas)
+{
+	struct fixture f={0};
+	CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots)==0);
+	f.templates.context=&f;f.templates.selection_required=selection_required;f.variables.templates=&f.templates;
+	/* Compose the complete chain before callbacks. The unused feed and the
+	 * first template's D are discarded by the marker-free final template. */
+	CHECK(process(&f,"1\0330000[3:]$D(1)$[4:]FOUR[34]$-=FLAG=bad$",-1)==0);
+	CHECK(f.reply_length==4 && memcmp(f.reply,"FOUR",4)==0 && st_rip3_input_wait_ns(f.host.input)==0
+	    && user_value(f.session,"FLAG",NULL)==0 && template_value(&f,3,"$D(1)$")==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000[1:]red green $?$ blue[E:]LOUD QUIET $?$ YELL[5:]soft $?$ hard smooth gritty[1E5](host command)",-1)==0);
+	const char *composed="soft LOUD QUIET red green (host command) blue YELL hard smooth gritty";
+	CHECK(f.reply_length==strlen(composed) && memcmp(f.reply,composed,f.reply_length)==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000[4:]print(\"$?$\")^m[44]HELLO",-1)==0);
+	const char *nested="print(\"print(\"HELLO\")\r\")\r";
+	CHECK(f.reply_length==strlen(nested) && memcmp(f.reply,nested,f.reply_length)==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000prefix[]next[3:]first[3:]last[3]ignored[]tail",-1)==0);
+	CHECK(f.reply_length==18 && memcmp(f.reply,"prefixnextlasttail",18)==0 && template_value(&f,3,"last")==0);
+	/* Segmentation sees complete directives even after ESC or backslash. */
+	CHECK(process(&f,"1\0330000[a:]TEN[3:]THREE",-1)==0);
+	const struct {const char *source,*expected;} forms[]={
+		{"[a]","TEN"},{"^[[A]","\033TEN"},{"\033[A]","\033TEN"},{"^[x[3]","\033xTHREE"},{"\\[3]","THREE"},
+	};
+	for (size_t i=0; i<sizeof(forms)/sizeof(forms[0]); i++) {
+		char source[100];(void)snprintf(source,sizeof(source),"1\0330000%s",forms[i].source);f.reply_length=0;
+		CHECK(process(&f,source,-1)==0 && f.reply_length==strlen(forms[i].expected)
+		    && memcmp(f.reply,forms[i].expected,f.reply_length)==0);
+	}
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000[0]discarded",-1)==0 && f.reply_length==0 && !st_rip3_query_pending(f.host.query));
+	CHECK(st_rip3_templates_required(f.templates.slots,2,true)==0);
+	unsigned errors=f.host_errors;
+	CHECK(process(&f,"1\0330000[2]feed[]unreached",-1)==0 && f.reply_length==0 && f.required_calls==1
+	    && f.required_group==2 && f.host_errors==errors+1 && f.host_kind==ST_RIP3_HOST_OPERATION_FAILED
+	    && !st_rip3_query_pending(f.host.query));
+	CHECK(process(&f,"1\0330000[2:]selected[2]feed",-1)==0 && f.reply_length==8 && memcmp(f.reply,"selected",8)==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000[Z:]\xb3 \xe2\x98\x83[Z]",-1)==0 && f.reply_length==5
+	    && memcmp(f.reply,"\xb3 \xe2\x98\x83",5)==0);
+	/* Chain truncation precedes both ordinary passes, so discarded callbacks
+	 * beyond 4096 bytes cannot run. The stored definition remains complete. */
+	uint8_t large[4102];memset(large,'X',4096);memcpy(large+4096,"$D(1)$",6);
+	CHECK(st_rip3_templates_set(f.templates.slots,35,large,sizeof(large))==0);f.reply_length=0;
+	CHECK(process(&f,"1\0330000[Z]feed",-1)==0 && f.reply_length==4096 && st_rip3_input_wait_ns(f.host.input)==0);
+	for (size_t i=0; i<4096; i++) CHECK(f.reply[i]=='X');
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"$?$",3)==0);
+	char levels[60]="1\0330000[";memset(levels+7,'3',36);memcpy(levels+43,"]KEEP",6);f.reply_length=0;
+	CHECK(process(&f,levels,-1)==0 && f.reply_length==4 && memcmp(f.reply,"KEEP",4)==0);
+	memset(levels+7,'3',37);memcpy(levels+44,"]KEEP",6);f.reply_length=0;
+	CHECK(process(&f,levels,ST_RIP3_COMMAND_INVALID)==0 && f.reply_length==0 && template_value(&f,3,"$?$")==0);
+	/* Suspended source owns the later definition as well as its current reply. */
+	char owned[]="1\0330000[3:]before[]$D(1)$[3:]after[3]ignored";
+	CHECK(process(&f,owned,-1)==0 && st_rip3_query_pending(f.host.query) && template_value(&f,3,"before")==0);
+	memset(owned,'?',sizeof(owned)-1);
+	CHECK(append(&f,"post\r\n")==0);unsigned reads=f.reads;
+	st_rip3_input_process(f.host.input,2048);CHECK(f.reads==reads && f.reply_length==0);
+	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==5 && memcmp(f.reply,"after",5)==0
+	    && template_value(&f,3,"after")==0 && f.text_length==6 && memcmp(f.text,"post\r\n",6)==0);
+	f.reply_length=0;errors=f.host_errors;st_rip3_templates_test_fail=true;
+	CHECK(process(&f,"1\0330000[3:]lost[3]unused",-1)==0 && f.host_errors==errors+1
+	    && f.host_kind==ST_RIP3_HOST_RESOURCE_FAILURE && f.reply_length==0 && template_value(&f,3,"after")==0);
+	st_rip3_templates_test_fail=false;
+	CHECK(process(&f,"1\0330000[3]X",-1)==0 && f.reply_length==5 && memcmp(f.reply,"after",5)==0);
+	destroy(&f);return 0;
+}
+
 extern unsigned st_rip3_query_test_allocation_countdown;
 
 static int
@@ -637,7 +729,7 @@ allocation_and_budget(void)
 	CHECK(st_rip3_query_start(f.host.query,NULL,1) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)"x",SIZE_MAX) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_query_start(f.host.query,NULL,0) == 0);
-	for (unsigned allocation=2; allocation<=3; allocation++) {
+	for (unsigned allocation=2; allocation<=4; allocation++) {
 		unsigned errors=f.host_errors;
 		st_rip3_query_test_allocation_countdown=allocation;
 		CHECK(process(&f,"1\0330000safe",-1)==0 && f.reply_length==0 && !st_rip3_query_pending(f.host.query));
@@ -683,6 +775,9 @@ main(void)
 	CHECK(user_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);
 	CHECK(user_recovery()==0);
 	CHECK(two_passes()==0);
+	CHECK(template_queries(ST_RIP3_CANVAS_640_480)==0);
+	CHECK(template_queries(ST_RIP3_CANVAS_800_600)==0);
+	CHECK(template_queries(ST_RIP3_CANVAS_1024_768)==0);
 	CHECK(owned_and_recovery() == 0);
 	CHECK(active_order() == 0);
 	CHECK(controls() == 0);

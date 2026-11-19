@@ -3,6 +3,7 @@
 #include "st_rip3_host_internal.h"
 #include "st_rip3_input.h"
 #include "st_rip3_user_variables.h"
+#include "st_rip3_templates.h"
 #include "io_error.h"
 
 #include <stdlib.h>
@@ -11,9 +12,10 @@
 struct st_rip3_query {
 	const struct st_rip3_host_variables *variables;
 	const struct st_rip3_host_sink *sink;
-	uint8_t *bytes, *output;
+	uint8_t *bytes, *output, *program;
+	size_t program_length, program_cursor;
 	size_t length, cursor, used, capacity;
-	unsigned pass;
+	unsigned pass; /* 0 idle; 1/2 ordinary expansion; 3 prepare the next block. */
 	bool allocation_failed;
 	/* Non-NULL only for an operation begun by this query. */
 	struct st_rip3_user_variables *active_user;
@@ -101,6 +103,62 @@ token(const uint8_t *bytes, size_t length, bool users, unsigned pass, bool prefl
 	*result=value;return true;
 }
 
+static bool
+slot(uint8_t byte)
+{
+	return (byte>='0' && byte<='9') || (byte>='A' && byte<='Z') || (byte>='a' && byte<='z');
+}
+
+enum block_kind { DIRECT, DEFINITION, CHAIN };
+struct delimiter {
+	enum block_kind kind;
+	size_t length, count;
+	uint8_t numbers[36];
+};
+
+enum delimiter_kind { NO_DELIMITER, VALID_DELIMITER, LONG_DELIMITER };
+
+static enum delimiter_kind
+delimiter(const uint8_t *bytes, size_t length, struct delimiter *result)
+{
+	if (length<2 || bytes[0]!='[') return NO_DELIMITER;
+	struct delimiter value={.kind=DIRECT,.length=2};
+	if (bytes[1]==']') { *result=value;return VALID_DELIMITER; }
+	size_t at=1;
+	while (at<length && slot(bytes[at])) {
+		uint8_t digit=bytes[at];
+		if (digit>='a' && digit<='z') digit-='a'-'A';
+		if (value.count<36) value.numbers[value.count]=(uint8_t)(digit<='9' ? digit-'0' : digit-'A'+10);
+		value.count++;at++;
+	}
+	if (value.count==0 || at==length) return NO_DELIMITER;
+	if (bytes[at]==']') {
+		if (value.count>36) return LONG_DELIMITER;
+		value.kind=CHAIN;value.length=at+1;
+	}
+	else if (value.count==1 && bytes[at]==':' && at+1<length && bytes[at+1]==']') {
+		value.kind=DEFINITION;value.length=at+2;
+	}
+	else return NO_DELIMITER;
+	*result=value;return VALID_DELIMITER;
+}
+
+struct block { struct delimiter directive; size_t begin, end; };
+
+static struct block
+block(const uint8_t *bytes, size_t length, size_t start)
+{
+	struct block result={.directive={.kind=DIRECT},.begin=start,.end=length};
+	struct delimiter value;
+	if (delimiter(bytes+start,length-start,&value)==VALID_DELIMITER) {
+		result.directive=value;result.begin+=value.length;
+	}
+	for (size_t at=result.begin; at<length; at++) {
+		if (delimiter(bytes+at,length-at,&value)==VALID_DELIMITER) { result.end=at;break; }
+	}
+	return result;
+}
+
 static void
 diagnose(struct st_rip3_query *query, enum st_rip3_host_diagnostic kind)
 {
@@ -151,10 +209,50 @@ st_rip3_query_cancel(struct st_rip3_query *query)
 	if (query->active_user!=NULL) {
 		st_rip3_user_variables_abort(query->active_user);query->active_user=NULL;
 	}
-	free(query->bytes);free(query->output);
-	query->bytes=query->output=NULL;
+	free(query->bytes);free(query->output);free(query->program);
+	query->bytes=query->output=query->program=NULL;
 	query->length=query->cursor=query->used=query->capacity=0;
+	query->program_length=query->program_cursor=0;
 	query->pass=0;query->allocation_failed=false;
+}
+
+static void
+operation_failed(struct st_rip3_query *query, int status, unsigned missing)
+{
+	const struct st_rip3_template_host *host=query->variables->templates;
+	st_rip3_query_cancel(query);
+	if (status==IO_ERROR_NOT_FOUND && host!=NULL && host->selection_required!=NULL)
+		host->selection_required(host->context,missing);
+	diagnose(query,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE : ST_RIP3_HOST_OPERATION_FAILED);
+}
+
+/* The source was structurally preflighted. Composition/definitions precede any
+ * ordinary expansion, and each resulting direct response gets its own passes. */
+static void
+prepare_block(struct st_rip3_query *query)
+{
+	struct block value=block(query->program,query->program_length,query->program_cursor);
+	query->program_cursor=value.end;
+	const uint8_t *feed=query->program+value.begin;
+	size_t length=value.end-value.begin;
+	const struct st_rip3_template_host *host=query->variables->templates;
+	int status=0;
+	if (value.directive.kind==DEFINITION) {
+		status=st_rip3_templates_set(host->slots,value.directive.numbers[0],feed,length);
+		if (status!=0) operation_failed(query,status,0);
+		return;
+	}
+	uint8_t composed[4096];unsigned missing=0;
+	if (value.directive.kind==CHAIN) {
+		status=st_rip3_templates_chain(host->slots,value.directive.numbers,value.directive.count,
+		    feed,length,composed,sizeof(composed),&length,&missing);
+		if (status!=0) { operation_failed(query,status,missing);return; }
+		feed=composed;
+	}
+	uint8_t *copy=length==0 ? NULL : malloc(length);
+	if (length!=0 && copy==NULL) { operation_failed(query,IO_ERROR_OUT_OF_MEMORY,0);return; }
+	if (length!=0) memcpy(copy,feed,length);
+	query->bytes=copy;query->length=length;query->cursor=0;query->pass=1;
 }
 
 void
@@ -189,10 +287,14 @@ settle(struct st_rip3_query *query)
 		st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_RESOURCE_FAILURE);return;
 	}
 	if (query->active_user!=NULL || st_rip3_input_wait_ns(query->variables->input)!=0) return;
-	while (query->cursor==query->length && query->pass!=0) {
+	if (query->pass==3 && query->program_cursor==query->program_length) { st_rip3_query_cancel(query);return; }
+	while (query->cursor==query->length && (query->pass==1 || query->pass==2)) {
 		if (query->pass==2) {
 			if (query->used!=0) query->sink->reply(query->sink->context,query->output,query->used);
-			st_rip3_query_cancel(query);return;
+			free(query->bytes);free(query->output);query->bytes=query->output=NULL;
+			query->length=query->cursor=query->used=query->capacity=0;query->pass=3;
+			if (query->program_cursor==query->program_length) st_rip3_query_cancel(query);
+			return;
 		}
 		free(query->bytes);query->bytes=query->output;query->length=query->used;query->cursor=0;
 		query->output=NULL;query->used=query->capacity=0;query->pass=2;
@@ -207,6 +309,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		if (st_rip3_input_wait_ns(query->variables->input)!=0) return;
 		settle(query);
 		if (!st_rip3_query_pending(query)) return;
+		if (query->pass==3) { prepare_block(query);settle(query);continue; }
 		if (query->active_user!=NULL) {
 			if (!user_result(query)) return;
 			settle(query);continue;
@@ -226,6 +329,9 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 			if (st_rip3_variable_reference_parse(&decoded,bytes,value.length)!=0) {
 				st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_INVALID_REFERENCE);return;
 			}
+			if (st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT) {
+				operation_failed(query,IO_ERROR_BUSY,0);return;
+			}
 			query->active_user=query->variables->user_variables;
 			st_rip3_user_variables_process(query->active_user,&decoded);
 			if (!user_result(query)) return;
@@ -239,12 +345,6 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 	}
 }
 
-static bool
-slot(uint8_t byte)
-{
-	return (byte>='0' && byte<='9') || (byte>='A' && byte<='Z');
-}
-
 int
 st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 {
@@ -256,28 +356,32 @@ st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t le
 		if (bytes[i]==0 || (i+1<length && ((bytes[i]=='<' && bytes[i+1]=='<')
 		    || (bytes[i]=='(' && bytes[i+1]=='(')))) return IO_ERROR_NOT_SUPPORTED;
 		if (bytes[i]=='[') {
-			if (i+1<length && bytes[i+1]==']') return IO_ERROR_NOT_SUPPORTED;
-			if (i+1<length && slot(bytes[i+1])) {
-				size_t end=i+1;
-				while (end<length && slot(bytes[end])) end++;
-				if (end<length && (bytes[end]==']' || (bytes[end]==':' && end+1<length && bytes[end+1]==']')))
-					return IO_ERROR_NOT_SUPPORTED; /* Complete template stage is separate. */
-				incomplete_templates++;
+			struct delimiter value;
+			enum delimiter_kind kind=delimiter(bytes+i,length-i,&value);
+			if (kind==LONG_DELIMITER) return IO_ERROR_OUT_OF_RANGE;
+			if (kind==VALID_DELIMITER) {
+				if (value.kind!=DIRECT && (query->variables->templates==NULL || query->variables->templates->slots==NULL))
+					return IO_ERROR_NOT_SUPPORTED;
 			}
+			else if (i+1<length && slot(bytes[i+1])) incomplete_templates++;
 		}
 	}
-	for (size_t i=0; i<length;) {
-		struct token value;
-		if (!token(bytes+i,length-i,query->variables->user_variables!=NULL,1,true,&value)) return IO_ERROR_NOT_SUPPORTED;
-		if (value.kind==USER_REFERENCE && st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
-			return IO_ERROR_BUSY;
-		i+=value.length;
+	for (size_t offset=0; offset<length;) {
+		struct block value=block(bytes,length,offset);
+		if (value.directive.kind==DIRECT) for (size_t at=value.begin; at<value.end;) {
+			struct token parsed;
+			if (!token(bytes+at,value.end-at,query->variables->user_variables!=NULL,1,true,&parsed)) return IO_ERROR_NOT_SUPPORTED;
+			if (parsed.kind==USER_REFERENCE && st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
+				return IO_ERROR_BUSY;
+			at+=parsed.length;
+		}
+		offset=value.end;
 	}
 	if (length==0) return 0;
 	uint8_t *copy=malloc(length);
 	if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(copy,bytes,length);
-	query->bytes=copy;query->length=length;query->cursor=0;query->pass=1;
+	query->program=copy;query->program_length=length;query->program_cursor=0;query->pass=3;
 	for (size_t i=0; i<incomplete_templates; i++) diagnose(query,ST_RIP3_HOST_INVALID_REFERENCE);
 	st_rip3_query_process(query,64);
 	return 0;

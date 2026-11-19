@@ -140,8 +140,12 @@ immediate_query(const struct st_rip3_command_host *host,
 		return IO_ERROR_NOT_SUPPORTED;
 	*operation = true;
 	/* Private ownership/preflight status is consumed by the void command
-	 * boundary. Nested variable diagnostics remain inside its void parser. */
-	return st_rip3_query_start(host->query,command+6,length-6);
+	 * boundary. Rejected source syntax has not started an operation. Nested
+	 * execution diagnostics remain inside the evaluator's void processing. */
+	status=st_rip3_query_start(host->query,command+6,length-6);
+	if (status==IO_ERROR_INVALID_ARGUMENT || status==IO_ERROR_INVALID_FORMAT || status==IO_ERROR_OUT_OF_RANGE)
+		*operation=false;
+	return status;
 }
 
 static int

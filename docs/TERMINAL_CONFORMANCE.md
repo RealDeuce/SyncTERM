@@ -316,8 +316,16 @@ ordering, silent assignment/retrieval, empty/required/cancelled responses, block
 source reads and following RIP/raw input. Known rejected built-ins never prompt;
 P now follows the adopted user-variable path rather than a paste alias. The
 independent pinned inventory and compiled catalog check that classification.
-Earlier angle/template/pick-list/playback processing, GUI dialog/editor
-presentation, application routing and deferred queries remain pending. No physical audio or
+Owned templates now support [] direct blocks, [N:] raw definitions and [ABC]
+chaining before expansion. Native table/query tests cover all 36 slots, intended
+$?$ insertion (correcting the original unsafe offset), repeated/list-order chains,
+marker-free discarded callbacks, raw 4096-byte truncation, source-order replacement,
+required-selection callback/abort, lower/uppercase MegaNums, allocations and
+recovery. All-canvas queries combine segmentation after ESC/backslashes with
+owned delayed source and CP437/UTF-8 template bytes. Angle preprocessing,
+$?N$ embedding and its truncation timing (#93), button-group aggregation and
+highlighting, pick lists/playback, dialog presentation, application routing and
+deferred queries remain pending. No physical audio or
 interactive application coverage is claimed by these native parser fixtures.
 
 The shared graphics parser supports an optional owner-defined numeric reader.

@@ -16,8 +16,10 @@ struct st_rip3_host_sink;
  * is read when each reference executes, including after a suspension.
  *
  * Commands submit complete immediate expressions through the private parser
- * boundary. The evaluator copies and preflights the entire expression before
- * effects, retaining its own bytes even when the command buffer is reused.
+ * boundary. The evaluator owns the whole source across blocks/suspensions and
+ * preflights its supported structure and direct-text syntax before effects.
+ * Definitions retain raw ordinary text until use; later chain composition may
+ * discard a feed without executing its variables. Caller buffers may be reused.
  * This branch supports literals, documented control notation and ordinary
  * known built-ins plus user references when variables.user_variables is bound.
  * Known built-ins never fall back to same-named user values after rejection.
@@ -29,9 +31,16 @@ struct st_rip3_host_sink;
  * defers outer control/backslash decoding while retaining dollar-local quoting;
  * pass two decodes ASCII control pairs and outer quotes. No third pass or angle/
  * bracket rescan occurs on inserted values. A final D also delays transmission.
- * Earlier angle/template/pick-list/playback processing remains separate. Complete
- * recognized template directives reject during source preflight; literal and
- * unrecognized brackets pass through, with nonfatal incomplete-slot diagnostics.
+ * Complete [] direct blocks, [N:] definitions and [ABC] chains are segmented
+ * before ordinary expansion, independently of preceding ESC/backslashes. Slot
+ * definitions/chains require variables.templates; direct blocks do not. Each
+ * response has its own two passes. Chaining uses intended $?$ composition,
+ * correcting the native wrong-buffer defect, with at most 36 listed slots and
+ * a 4096-byte composed response before expansion. Required empty groups request
+ * selection through the borrowed callback and abort the current host program.
+ * Literal/unrecognized brackets pass through; incomplete slots diagnose without
+ * suppressing bytes. Angle preprocessing, $?N$ embedding (limit timing under
+ * #93), pick lists, playback and button-associated aggregation remain separate.
  * Unsupported extended syntax on known names never enters the user path.
  * Syntax/operation errors never return to a terminal/session failure path. */
 int st_rip3_query_create(struct st_rip3_query **result,
@@ -51,7 +60,8 @@ bool st_rip3_query_pending(const struct st_rip3_query *query);
  * discard the unfinished response nonfatally; no buffered prefix is transmitted.
  * Previously executed active effects are not rolled back. No sleeping, threads
  * or terminal-error status. A resumed user result consumes one budget token,
- * including suppressed output; pass transitions themselves consume none. */
+ * including suppressed output. Preparing one command block consumes one token;
+ * ordinary pass transitions themselves consume none. */
 void st_rip3_query_process(struct st_rip3_query *query, size_t budget);
 
 #endif

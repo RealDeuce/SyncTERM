@@ -5017,6 +5017,70 @@ No reference pin, original asset, RIP1.54 or active application path changes.
 Temporary logs are removed; no issue thread or remote code is modified. The
 complete implementation goal remains active.
 
+## Owned template definitions, command blocks and intended chaining
+
+The template component owns 36 independently replaceable definitions plus a
+required-selection flag per group. Definitions copy complete caller strings;
+C-string NUL terminates storage, and ordinary high/UTF-8 bytes are retained.
+Replacing a definition preserves its group requirement. Empty ordinary/check-box
+slots resolve to an empty value, while an empty required group reports missing.
+The button owner still supplies selected-group aggregation and UI state; the
+query's typed callback can request selection/highlighting without implementing
+those buttons or a dialog here. Missing required selection aborts the current
+host program nonfatally and leaves its stored definitions intact.
+
+The immediate evaluator now owns its complete source program independently of
+the current response and segments [] direct blocks, [N:] definitions and [ABC]
+chains before ordinary expansion. Numeric slot identifiers are fixed MegaNums,
+including inherited lowercase folding. A complete directive is recognized after
+ESC or backslash too. Literal/unrecognized brackets remain ordinary bytes.
+Definitions install raw ordinary text in source order and transmit nothing;
+a later definition of the same slot wins. Each direct/composed response receives
+its own two ordinary passes. All remaining source survives delays/prompts and
+caller-buffer reuse. Cancellation/shutdown releases program/response buffers and
+only query-owned pending user state.
+
+Chaining visits 1..36 slots in list order and substitutes every literal $?$ with
+its current feed. A template without that marker discards its feed, including
+any callbacks in it, before ordinary processing. Repeated slots are supported.
+The implementation deliberately uses the documented intended composition as a
+correction to RIPtel's unsafe wrong-buffer offset; it does not emulate corrupted
+memory or label intended outputs as native-client observations. Raw composed
+responses retain only their first 4096 bytes before expansion; callbacks wholly
+beyond that boundary never enter an ordinary pass. Partial helper results are
+not published on lookup/index/preparation failure.
+
+New upstream [#93](https://github.com/bbs-land/remote-imaging-protocol/issues/93)
+requests the separately unclear embedding/final-response boundary: whether the
+4096 limit applies at insertion, pass boundaries or final decoded transmission,
+which suffix callbacks survive, and how it relates to direct responses/stored
+definition bounds. Existing composition-before-expansion order, two ordinary
+passes and the intended chaining correction remain adopted. $?N$ embedding and
+that final cap policy are explicitly pending; no existing issue is modified.
+
+Independent native table vectors cover all slots, multiple/repeated markers,
+exact inherited intended chain output, blank versus required values, 36/37 levels,
+4096 truncation, full owned backing strings, alias-safe replacement, C-string
+termination and failed allocation/index/size operations with unchanged results.
+Native query fixtures on all three canvases cover deferred/discarded actions,
+source-ordered definitions, direct/chain block mixtures, ESC/backslash boundaries,
+case-folded slots, required-selection callback and recovery, CP437/UTF-8 bytes,
+truncated-away D, suspended source ownership and failed definition replacement.
+Too-long chains classify as invalid source before any effects; busy/runtime errors
+remain nonfatal operation diagnostics.
+
+Native CMake configure/full build and focused rebuilds pass without compiler
+warnings. An initial missing test fault-source link and response/source-pointer
+initialization error were corrected before acceptance. rip3_templates passes;
+rip3_query_commands passes after the pointer, invalid-preflight classification
+and inherited lowercase-slot fixes. Only the failing/changed query suite is
+rerun; passing table and prior matrix/control/font/legacy evidence is reused.
+Edited ledger consistency passes. Counts are 840 implemented, 1577 pending,
+4062 unreviewed, 1099 contextual, 24 excluded and 29 blocked across 7631 units.
+The reference pin, original fonts, RIP1.54 and active application route remain
+unchanged. Scoped build logs are removed; no code is pushed or PR published.
+The complete compliance goal remains active.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
