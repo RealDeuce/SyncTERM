@@ -21,7 +21,20 @@ struct st_rip3_query {
 	struct st_rip3_user_variables *active_user;
 };
 
-enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE };
+static bool
+slot(uint8_t byte)
+{
+	return (byte>='0' && byte<='9') || (byte>='A' && byte<='Z') || (byte>='a' && byte<='z');
+}
+
+static uint8_t
+slot_number(uint8_t byte)
+{
+	if (byte>='a' && byte<='z') byte-='a'-'A';
+	return (uint8_t)(byte<='9' ? byte-'0' : byte-'A'+10);
+}
+
+enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE, TEMPLATE_REFERENCE };
 struct token {
 	enum token_kind kind;
 	size_t length;
@@ -62,7 +75,7 @@ reference(const uint8_t *bytes, size_t length, bool users, struct token *result)
 }
 
 static bool
-token(const uint8_t *bytes, size_t length, bool users, unsigned pass, bool preflight,
+token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned pass,
     struct token *result)
 {
 	struct token value={.kind=LITERAL,.length=1};
@@ -72,10 +85,13 @@ token(const uint8_t *bytes, size_t length, bool users, unsigned pass, bool prefl
 		value.length=reference_length(bytes,length,&literal);
 		if (value.length==0) {
 			/* The documented host quote-both-dollars form has no unquoted
-			 * terminator in pass one. Preserve it until outer unquoting.
-			 * A stray dollar left after a quoted opener in pass two is literal. */
-			if (preflight && literal==0) return false;
+			 * terminator in pass one. Preserve it until outer unquoting. */
+			if (literal==0) return false;
 			value.length=pass==1 && literal!=0 ? literal : 1;
+		}
+		else if (value.length==4 && bytes[1]=='?' && slot(bytes[2])) {
+			if (!templates) return false;
+			value.kind=TEMPLATE_REFERENCE;value.control=slot_number(bytes[2]);
 		}
 		else if (!reference(bytes,value.length,users,&value)) return false;
 	}
@@ -103,12 +119,6 @@ token(const uint8_t *bytes, size_t length, bool users, unsigned pass, bool prefl
 	*result=value;return true;
 }
 
-static bool
-slot(uint8_t byte)
-{
-	return (byte>='0' && byte<='9') || (byte>='A' && byte<='Z') || (byte>='a' && byte<='z');
-}
-
 enum block_kind { DIRECT, DEFINITION, CHAIN };
 struct delimiter {
 	enum block_kind kind;
@@ -126,9 +136,7 @@ delimiter(const uint8_t *bytes, size_t length, struct delimiter *result)
 	if (bytes[1]==']') { *result=value;return VALID_DELIMITER; }
 	size_t at=1;
 	while (at<length && slot(bytes[at])) {
-		uint8_t digit=bytes[at];
-		if (digit>='a' && digit<='z') digit-='a'-'A';
-		if (value.count<36) value.numbers[value.count]=(uint8_t)(digit<='9' ? digit-'0' : digit-'A'+10);
+		if (value.count<36) value.numbers[value.count]=slot_number(bytes[at]);
 		value.count++;at++;
 	}
 	if (value.count==0 || at==length) return NO_DELIMITER;
@@ -169,8 +177,9 @@ static void
 append(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_query *query=context;
-	if (query->allocation_failed || length==0) return;
-	if (length>SIZE_MAX-query->used) { query->allocation_failed=true;return; }
+	if (query->allocation_failed) return;
+	if (length>4096-query->used) length=4096-query->used;
+	if (length==0) return;
 	size_t needed=query->used+length;
 	if (needed>query->capacity) {
 		size_t capacity=query->capacity==0 ? 64 : query->capacity;
@@ -183,6 +192,19 @@ append(void *context, const uint8_t *bytes, size_t length)
 		query->output=replacement;query->capacity=capacity;
 	}
 	memcpy(query->output+query->used,bytes,length);query->used=needed;
+}
+
+/* Logical working text is the processed prefix plus this unread source suffix.
+ * Every replacement clips that suffix permanently before the next token; later
+ * shrinking/control decoding can never re-expose discarded source bytes. */
+static void
+replace(void *context, const uint8_t *bytes, size_t length)
+{
+	struct st_rip3_query *query=context;
+	append(query,bytes,length);
+	if (query->allocation_failed) return;
+	size_t retained=4096-query->used;
+	if (query->length-query->cursor>retained) query->length=query->cursor+retained;
 }
 
 static void
@@ -249,6 +271,7 @@ prepare_block(struct st_rip3_query *query)
 		if (status!=0) { operation_failed(query,status,missing);return; }
 		feed=composed;
 	}
+	if (length>4096) length=4096;
 	uint8_t *copy=length==0 ? NULL : malloc(length);
 	if (length!=0 && copy==NULL) { operation_failed(query,IO_ERROR_OUT_OF_MEMORY,0);return; }
 	if (length!=0) memcpy(copy,feed,length);
@@ -272,7 +295,7 @@ user_result(struct st_rip3_query *query)
 {
 	if (st_rip3_user_variables_state(query->active_user)==ST_RIP3_USER_VARIABLE_PROMPT) return false;
 	const struct st_rip3_variable_value *result=st_rip3_user_variables_result(query->active_user);
-	if (result!=NULL) append(query,result->bytes,result->length);
+	if (result!=NULL) replace(query,result->bytes,result->length);
 	st_rip3_user_variables_abort(query->active_user);query->active_user=NULL;
 	return true;
 }
@@ -316,12 +339,13 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		}
 		const uint8_t *bytes=query->bytes+query->cursor;
 		struct token value;
-		if (!token(bytes,query->length-query->cursor,query->variables->user_variables!=NULL,query->pass,false,&value)) {
+		if (!token(bytes,query->length-query->cursor,query->variables->user_variables!=NULL,
+		    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,query->pass,&value)) {
 			st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_UNSUPPORTED_REFERENCE);return;
 		}
 		query->cursor+=value.length;
 		if (value.kind==REFERENCE) {
-			const struct st_rip3_host_sink sink={query,append,forward_diagnostic};
+			const struct st_rip3_host_sink sink={query,replace,forward_diagnostic};
 			st_rip3_host_variables_process(query->variables,&sink,bytes,value.length);
 		}
 		else if (value.kind==USER_REFERENCE) {
@@ -336,8 +360,14 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 			st_rip3_user_variables_process(query->active_user,&decoded);
 			if (!user_result(query)) return;
 		}
+		else if (value.kind==TEMPLATE_REFERENCE) {
+			struct st_rip3_template_bytes template;
+			int status=st_rip3_templates_resolve(query->variables->templates->slots,value.control,&template);
+			if (status!=0) { operation_failed(query,status,value.control);return; }
+			replace(query,template.bytes,template.length);
+		}
 		else if (value.kind==ESCAPED) {
-			if (value.length>1) append(query,bytes+1,1);
+			append(query,bytes+(value.length>1 ? 1 : 0),1);
 		}
 		else if (value.kind==CONTROL && query->pass==2) append(query,&value.control,1);
 		else append(query,bytes,value.length);
@@ -368,11 +398,16 @@ st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t le
 	}
 	for (size_t offset=0; offset<length;) {
 		struct block value=block(bytes,length,offset);
-		if (value.directive.kind==DIRECT) for (size_t at=value.begin; at<value.end;) {
+		size_t working_end=value.begin+(value.end-value.begin>4096 ? 4096 : value.end-value.begin);
+		if (value.directive.kind==DIRECT) for (size_t at=value.begin; at<working_end;) {
 			struct token parsed;
-			if (!token(bytes+at,value.end-at,query->variables->user_variables!=NULL,1,true,&parsed)) return IO_ERROR_NOT_SUPPORTED;
+			if (!token(bytes+at,working_end-at,query->variables->user_variables!=NULL,
+			    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,1,&parsed)) return IO_ERROR_NOT_SUPPORTED;
 			if (parsed.kind==USER_REFERENCE && st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
 				return IO_ERROR_BUSY;
+			/* A replacement can discard the remaining ordinary source. Its
+			 * syntax must only be examined if the bounded scanner reaches it. */
+			if (parsed.kind==REFERENCE || parsed.kind==USER_REFERENCE || parsed.kind==TEMPLATE_REFERENCE) break;
 			at+=parsed.length;
 		}
 		offset=value.end;

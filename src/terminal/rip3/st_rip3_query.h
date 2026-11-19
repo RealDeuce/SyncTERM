@@ -17,7 +17,8 @@ struct st_rip3_host_sink;
  *
  * Commands submit complete immediate expressions through the private parser
  * boundary. The evaluator owns the whole source across blocks/suspensions and
- * preflights its supported structure and direct-text syntax before effects.
+ * preflights its supported structure and the first direct-text replacement.
+ * Ordinary suffix syntax is checked when reached, after replacement clipping.
  * Definitions retain raw ordinary text until use; later chain composition may
  * discard a feed without executing its variables. Caller buffers may be reused.
  * This branch supports literals, documented control notation and ordinary
@@ -36,12 +37,15 @@ struct st_rip3_host_sink;
  * definitions/chains require variables.templates; direct blocks do not. Each
  * response has its own two passes. Chaining uses intended $?$ composition,
  * correcting the native wrong-buffer defect, with at most 36 listed slots and
- * a 4096-byte composed response before expansion. Required empty groups request
+ * a 4096-byte composed response before expansion. $?N$ embeds a stored slot in
+ * either ordinary pass. Every response is clipped to 4096 working bytes before
+ * pass one and after every replacement; discarded suffixes never execute or
+ * return after later decoding/shrinking. Definitions retain at most 4096 bytes.
+ * A trailing outer backslash stays literal. Required empty groups request
  * selection through the borrowed callback and abort the current host program.
  * Literal/unrecognized brackets pass through; incomplete slots diagnose without
- * suppressing bytes. Angle preprocessing, $?N$ embedding, PR95 entry/replacement
- * caps and trailing-backslash policy, pick lists, playback and button-associated
- * aggregation remain separate.
+ * suppressing bytes. Angle preprocessing, pick lists, playback and button-
+ * associated aggregation remain separate.
  * Unsupported extended syntax on known names never enters the user path.
  * Syntax/operation errors never return to a terminal/session failure path. */
 int st_rip3_query_create(struct st_rip3_query **result,

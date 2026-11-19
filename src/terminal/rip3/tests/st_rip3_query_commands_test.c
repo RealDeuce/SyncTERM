@@ -244,7 +244,7 @@ query_forms(void)
 {
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
-	const char *const unsupported[] = {"1\0331000$D(1)$","1\0330001$D(1)$","1\0330000$D(1)$tail$UNKNOWN$",
+	const char *const unsupported[] = {"1\0331000$D(1)$","1\0330001$D(1)$",
 	    "1\0330000literal[3]","1\0330000((question::one,two))","1\0330000$>FILE.RIP$","1\0330000$UNKNOWN_NAME$"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		CHECK(process(&f,unsupported[i],ST_RIP3_COMMAND_UNSUPPORTED) == 0);
@@ -266,7 +266,7 @@ query_forms(void)
 	CHECK(process(&f,"1\0330000$APP$",-1) == 0 && f.host_errors == 2 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
 	CHECK(process(&f,"1\0330000$GOTOURL$",-1) == 0 && f.host_errors == 3 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 0);
-	/* No reply truncation or artificial fixed buffer in the query bridge. */
+	/* Results below the response limit are retained in full. */
 	char name[4096]; memset(name,'x',sizeof(name)-1); name[sizeof(name)-1] = 0;
 	const struct st_rip3_terminal_identity identity = {name,"Vendor","Version"};
 	f.variables.identity = &identity; f.reply_length = 0; f.replies = 0;
@@ -283,11 +283,15 @@ recovery(void)
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(append(&f,"!|1\0330000$D(0)$|1\0330000$D(1)$tail$UNKNOWN$|1\0330000$TERMINFO(NAME)$|J1S|1\0330000$D(1)$|1\0330000$RESX$\r") == 0);
 	st_rip3_input_process(f.host.input,2048);
-	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_UNSUPPORTED);
+	CHECK(f.errors == 0);
 	CHECK(f.host_errors == 1 && f.host_kind == ST_RIP3_HOST_INVALID_REFERENCE);
-	CHECK(f.replies == 1 && f.reply_length == 7 && memcmp(f.reply,"Fixture",7) == 0);
+	CHECK(f.replies == 0 && f.reply_length == 0);
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667 && f.read < f.length);
 	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
+	CHECK(f.errors == 0 && f.host_errors == 2 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
+	CHECK(f.replies == 1 && f.reply_length == 7 && memcmp(f.reply,"Fixture",7) == 0);
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667 && f.read < f.length);
+	f.now += 16666667; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read == f.length && f.replies == 2 && f.reply_length == 10 && memcmp(f.reply,"Fixture640",10) == 0);
 	destroy(&f);
 	return 0;
@@ -348,8 +352,8 @@ owned_and_recovery(void)
 	st_rip3_input_reset(f.host.input);
 	f.reply_length = 0;
 	CHECK(process(&f,"1\0330000after",-1) == 0 && f.reply_length == 5 && memcmp(f.reply,"after",5) == 0);
-	/* Every unsupported tail is preflighted before any literal or D effect. */
-	const char *const tails[] = {"$UNKNOWN$","$>FILE.RIP$","<<macro>>","((x::a,b))","[0]","$D(1)"};
+	/* Earlier structural stages are still checked before any ordinary effect. */
+	const char *const tails[] = {"<<macro>>","((x::a,b))","[0]"};
 	for (size_t i = 0; i < sizeof(tails)/sizeof(tails[0]); i++) {
 		char body[160];
 		(void)snprintf(body,sizeof(body),"1\0330000no$D(1)$%s",tails[i]);
@@ -662,7 +666,7 @@ template_queries(enum st_rip3_canvas canvas)
 	/* Segmentation sees complete directives even after ESC or backslash. */
 	CHECK(process(&f,"1\0330000[a:]TEN[3:]THREE",-1)==0);
 	const struct {const char *source,*expected;} forms[]={
-		{"[a]","TEN"},{"^[[A]","\033TEN"},{"\033[A]","\033TEN"},{"^[x[3]","\033xTHREE"},{"\\[3]","THREE"},
+		{"[a]","TEN"},{"^[[A]","\033TEN"},{"\033[A]","\033TEN"},{"^[x[3]","\033xTHREE"},{"\\[3]","\\THREE"},
 	};
 	for (size_t i=0; i<sizeof(forms)/sizeof(forms[0]); i++) {
 		char source[100];(void)snprintf(source,sizeof(source),"1\0330000%s",forms[i].source);f.reply_length=0;
@@ -680,8 +684,8 @@ template_queries(enum st_rip3_canvas canvas)
 	f.reply_length=0;
 	CHECK(process(&f,"1\0330000[Z:]\xb3 \xe2\x98\x83[Z]",-1)==0 && f.reply_length==5
 	    && memcmp(f.reply,"\xb3 \xe2\x98\x83",5)==0);
-	/* Chain truncation precedes both ordinary passes, so discarded callbacks
-	 * beyond 4096 bytes cannot run. The stored definition remains complete. */
+	/* Definition storage is capped before composition, so a callback beyond
+	 * its stored boundary cannot reach either ordinary pass. */
 	uint8_t large[4102];memset(large,'X',4096);memcpy(large+4096,"$D(1)$",6);
 	CHECK(st_rip3_templates_set(f.templates.slots,35,large,sizeof(large))==0);f.reply_length=0;
 	CHECK(process(&f,"1\0330000[Z]feed",-1)==0 && f.reply_length==4096 && st_rip3_input_wait_ns(f.host.input)==0);
@@ -705,6 +709,170 @@ template_queries(enum st_rip3_canvas canvas)
 	    && f.host_kind==ST_RIP3_HOST_RESOURCE_FAILURE && f.reply_length==0 && template_value(&f,3,"after")==0);
 	st_rip3_templates_test_fail=false;
 	CHECK(process(&f,"1\0330000[3]X",-1)==0 && f.reply_length==5 && memcmp(f.reply,"after",5)==0);
+	destroy(&f);return 0;
+}
+
+static int
+expect_x(struct fixture *f, size_t length, int first, int last)
+{
+	CHECK(f->reply_length==length);
+	for (size_t i=0; i<length; i++) {
+		int expected=i==0 && first>=0 ? first : i+1==length && last>=0 ? last : 'X';
+		CHECK(f->reply[i]==expected);
+	}
+	return 0;
+}
+
+static int
+capped_query(struct fixture *f, const uint8_t *bytes, size_t length)
+{
+	f->reply_length=0;
+	/* Exercise the existing void command parser with explicit byte spans. */
+	uint8_t command_bytes[8300];CHECK(length<=sizeof(command_bytes)-6);
+	memcpy(command_bytes,"1\0330000",6);memcpy(command_bytes+6,bytes,length);
+	unsigned errors=f->errors;
+	command(f,command_bytes,length+6);
+	CHECK(f->errors==errors && !f->overflow);
+	while (st_rip3_query_pending(f->host.query) && st_rip3_input_wait_ns(f->host.input)==0
+	    && st_rip3_user_variables_prompt(f->variables.user_variables)==NULL)
+		st_rip3_query_process(f->host.query,64);
+	return 0;
+}
+
+static int
+embedding_limits(enum st_rip3_canvas canvas)
+{
+	struct fixture f={0};
+	CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots)==0);
+	f.templates=(struct st_rip3_template_host){f.templates.slots,&f,selection_required};f.variables.templates=&f.templates;
+	for (unsigned slot=0; slot<36; slot++) {
+		uint8_t name=(uint8_t)(slot<10 ? '0'+slot : 'A'+slot-10);
+		uint8_t value[]={'V',name},reference[]={'$','?',name,'$'};
+		CHECK(st_rip3_templates_set(f.templates.slots,slot,value,sizeof(value))==0);
+		CHECK(capped_query(&f,reference,sizeof(reference))==0 && f.reply_length==sizeof(value) && memcmp(f.reply,value,sizeof(value))==0);
+		if (slot>=10) {
+			reference[2]=(uint8_t)(name+'a'-'A');
+			CHECK(capped_query(&f,reference,sizeof(reference))==0 && f.reply_length==sizeof(value) && memcmp(f.reply,value,sizeof(value))==0);
+		}
+		CHECK(st_rip3_templates_set(f.templates.slots,slot,NULL,0)==0);
+	}
+	uint8_t bytes[8300];memset(bytes,'X',sizeof(bytes));
+	for (size_t length=4095; length<=4097; length++) {
+		CHECK(capped_query(&f,bytes,length)==0 && expect_x(&f,length>4096 ? 4096 : length,-1,-1)==0);
+		CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,length)==0);
+		struct st_rip3_template_bytes stored;
+		CHECK(st_rip3_templates_resolve(f.templates.slots,3,&stored)==0 && stored.length==(length>4096 ? 4096 : length));
+	}
+	memcpy(bytes,"[3:]",4);memset(bytes+4,'X',4097);memcpy(bytes+4101,"[]$?3$",6);
+	CHECK(capped_query(&f,bytes,4107)==0 && expect_x(&f,4096,-1,-1)==0);
+	memset(bytes,'X',sizeof(bytes));
+	CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4095)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$Y",5)==0 && expect_x(&f,4096,-1,'Y')==0);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4096)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$Y",5)==0 && expect_x(&f,4096,-1,-1)==0);
+	CHECK(st_rip3_variables_set(f.session,"FLAG",4,(const uint8_t *)"old",3)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$$D(1)$$-=FLAG=changed$",strlen("$?3$$D(1)$$-=FLAG=changed$"))==0
+	    && expect_x(&f,4096,-1,-1)==0 && st_rip3_input_wait_ns(f.host.input)==0 && user_value(f.session,"FLAG","old")==0);
+	/* Retained suffix actions still execute. Growing insertion drops exactly
+	 * one final X before D later frees its own six source bytes. */
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"ABCDE",5)==0);
+	memcpy(bytes,"$?3$$D(1)$",10);memset(bytes+10,'X',4086);
+	CHECK(capped_query(&f,bytes,4096)==0 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
+	f.now+=16666667;st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==4090 && memcmp(f.reply,"ABCDE",5)==0);
+	for (size_t i=5; i<f.reply_length; i++) CHECK(f.reply[i]=='X');
+	/* Second-pass insertion, and permanent loss after later shrinking. */
+	memset(bytes,'X',4096);CHECK(st_rip3_templates_set(f.templates.slots,4,bytes,4096)==0);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"$?4$",4)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$Y",5)==0 && expect_x(&f,4096,-1,-1)==0);
+	memset(bytes,'X',4092);memcpy(bytes+4092,"$?4$",4);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4096)==0 && st_rip3_templates_set(f.templates.slots,4,(const uint8_t *)"Z",1)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$Y",5)==0 && expect_x(&f,4093,-1,'Z')==0);
+	/* Raw notation is clipped before decoding; no early CR or backslash pair. */
+	memset(bytes,'X',4094);memcpy(bytes+4094,"^m",2);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4096)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"A$?3$",5)==0 && expect_x(&f,4096,'A','^')==0);
+	memcpy(bytes+4094,"\\Z",2);CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4096)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"A$?3$",5)==0 && expect_x(&f,4096,'A','\\')==0);
+	CHECK(capped_query(&f,(const uint8_t *)"\\",1)==0 && f.reply_length==1 && f.reply[0]=='\\');
+	/* Earlier decoding can free capacity for a later replacement; it cannot
+	 * restore the original tail. A pass-two inserted value is not decoded. */
+	memset(bytes,'X',4094);memcpy(bytes+4094,"^m",2);CHECK(st_rip3_templates_set(f.templates.slots,4,bytes,4096)==0);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"^m$?4$",6)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && expect_x(&f,4096,13,'^')==0);
+	/* Template insertion in pass one defers effects to pass two. Two nested
+	 * embeddings are finite; the second inserted reference gets no third pass. */
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"$?4$",4)==0);
+	CHECK(st_rip3_templates_set(f.templates.slots,4,(const uint8_t *)"$?3$",4)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && f.reply_length==4 && memcmp(f.reply,"$?3$",4)==0);
+	/* Blank groups insert empty, while a required missing slot requests selection
+	 * and aborts the host program. Later blocks are never run on that failure. */
+	CHECK(capped_query(&f,(const uint8_t *)"a$?0$b",6)==0 && f.reply_length==2 && memcmp(f.reply,"ab",2)==0);
+	CHECK(st_rip3_templates_required(f.templates.slots,0,true)==0);unsigned required=f.required_calls,errors=f.host_errors;
+	CHECK(capped_query(&f,(const uint8_t *)"$?0$[]unreached",strlen("$?0$[]unreached"))==0 && f.reply_length==0 && f.required_calls==required+1
+	    && f.required_group==0 && f.host_errors==errors+1 && !st_rip3_query_pending(f.host.query));
+	CHECK(st_rip3_templates_required(f.templates.slots,0,false)==0);
+	/* A full replacement discards even unsupported or malformed ordinary
+	 * references before they are validated, without requiring their service. */
+	memset(bytes,'X',4096);CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4096)==0);
+	struct st_rip3_user_variables *users=f.variables.user_variables;f.variables.user_variables=NULL;
+	errors=f.host_errors;
+	const char *const discarded[]={"$?3$$UNKNOWN$","$?3$$D(+1)$","$?3$$>FILE.RIP$","$?3$$D(1)"};
+	for (size_t i=0; i<sizeof(discarded)/sizeof(discarded[0]); i++) {
+		CHECK(capped_query(&f,(const uint8_t *)discarded[i],strlen(discarded[i]))==0
+		    && expect_x(&f,4096,-1,-1)==0 && f.host_errors==errors && st_rip3_input_wait_ns(f.host.input)==0);
+	}
+	f.variables.user_variables=users;
+	/* Entry clipping ignores discarded ordinary references, even when their
+	 * service is absent, and does not borrow a clipped terminator. */
+	memset(bytes,'X',4096);memcpy(bytes+4096,"$*MISSING$",10);
+	CHECK(capped_query(&f,bytes,4106)==0 && expect_x(&f,4096,-1,-1)==0
+	    && st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
+	memset(bytes,'X',4094);memcpy(bytes+4094,"$D(1)$",6);
+	uint8_t source[4110];memcpy(source,"1\0330000",6);memcpy(source+6,bytes,4100);
+	errors=f.errors;f.reply_length=0;command(&f,source,4106);
+	CHECK(f.errors==errors+1 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==0 && !st_rip3_query_pending(f.host.query));
+	memset(bytes,'X',4093);CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4093)==0);errors=f.host_errors;
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$$D(1)$",10)==0 && f.host_errors==errors+1
+	    && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==0 && !st_rip3_query_pending(f.host.query));
+	memset(bytes,'X',4095);CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4095)==0);errors=f.host_errors;
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$$D(1)$",10)==0 && f.host_errors==errors+1
+	    && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==0 && !st_rip3_query_pending(f.host.query));
+	/* An incomplete inserted reference is rejected when the next pass scans
+	 * it. The same byte inserted in the final pass has no later scan. */
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"$",1)==0);errors=f.host_errors;
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && f.host_errors==errors+1 && f.reply_length==0);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"$?4$",4)==0
+	    && st_rip3_templates_set(f.templates.slots,4,(const uint8_t *)"$",1)==0);errors=f.host_errors;
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && f.host_errors==errors && f.reply_length==1 && f.reply[0]=='$');
+	CHECK(capped_query(&f,(const uint8_t *)"recovered",9)==0 && f.reply_length==9 && memcmp(f.reply,"recovered",9)==0);
+	/* Limits are per block; the whole source and multiple responses are larger. */
+	memset(bytes,'X',4096);memcpy(bytes+4096,"[][3:]value",11);
+	CHECK(capped_query(&f,bytes,4107)==0 && expect_x(&f,4096,-1,-1)==0 && template_value(&f,3,"value")==0);
+	memset(bytes,'X',4096);memcpy(bytes+4096,"[]",2);memset(bytes+4098,'Y',4096);
+	CHECK(capped_query(&f,bytes,8194)==0 && f.reply_length==8192);
+	for (size_t i=0; i<8192; i++) CHECK(f.reply[i]==(i<4096 ? 'X' : 'Y'));
+	/* Raw composition may itself grow beyond the cap even when its stored
+	 * template is short. Its D suffix is discarded before ordinary expansion. */
+	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"Q$?$$D(1)$",10)==0);
+	memcpy(bytes,"[3]",3);memset(bytes+3,'X',4096);
+	CHECK(capped_query(&f,bytes,4099)==0 && expect_x(&f,4096,'Q',-1)==0 && st_rip3_input_wait_ns(f.host.input)==0);
+	/* Generic dollar results share the exact same cap and discarded-suffix rule. */
+	char identity_name[5001];memset(identity_name,'X',5000);identity_name[5000]=0;
+	const struct st_rip3_terminal_identity identity={identity_name,"Tests","0"};f.variables.identity=&identity;
+	CHECK(capped_query(&f,(const uint8_t *)"$TERMINFO(NAME)$$D(1)$$-=FLAG=bad$",strlen("$TERMINFO(NAME)$$D(1)$$-=FLAG=bad$"))==0
+	    && expect_x(&f,4096,-1,-1)==0 && st_rip3_input_wait_ns(f.host.input)==0 && user_value(f.session,"FLAG","old")==0);
+	/* Successful assignment which itself causes clipping remains committed. */
+	memset(bytes,'X',4089);memcpy(bytes+4089,"$=NAME$",7);
+	CHECK(capped_query(&f,bytes,4096)==0 && st_rip3_query_pending(f.host.query));
+	st_rip3_user_variables_respond(f.variables.user_variables,(const uint8_t *)"Ada Lovelace",12,false);
+	st_rip3_query_process(f.host.query,64);
+	CHECK(user_value(f.session,"NAME","Ada Lovelace")==0 && f.reply_length==4096 && memcmp(f.reply+4089,"Ada Lov",7)==0);
+	/* The cap counts raw UTF-8 bytes without repairing a split scalar. */
+	memset(bytes,'X',4094);memcpy(bytes+4094,"\xe2\x98\x83",3);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4097)==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && f.reply_length==4096
+	    && f.reply[4094]==0xe2 && f.reply[4095]==0x98);
 	destroy(&f);return 0;
 }
 
@@ -778,6 +946,9 @@ main(void)
 	CHECK(template_queries(ST_RIP3_CANVAS_640_480)==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_800_600)==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_1024_768)==0);
+	CHECK(embedding_limits(ST_RIP3_CANVAS_640_480)==0);
+	CHECK(embedding_limits(ST_RIP3_CANVAS_800_600)==0);
+	CHECK(embedding_limits(ST_RIP3_CANVAS_1024_768)==0);
 	CHECK(owned_and_recovery() == 0);
 	CHECK(active_order() == 0);
 	CHECK(controls() == 0);

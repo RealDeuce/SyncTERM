@@ -357,8 +357,11 @@ struct st_rip3_command_sink {
  * ordinary text and [ABC] composes up to 36 slots before expansion. Chaining
  * uses intended $?$ insertion, correcting the native unsafe offset defect;
  * its raw response truncates to 4096 bytes. Missing required groups request
- * selection and abort that host command nonfatally. Earlier angle/playback/
- * pick-list stages and $?N$ embedding remain pending; literal/unrecognized
+ * selection and abort that host command nonfatally. $?N$ embeds a stored slot
+ * in either ordinary pass. Definitions, each response's entry text and every
+ * replacement are capped at 4096 bytes; discarded suffix callbacks do not run
+ * or return after later shrinking. A trailing outer backslash remains literal.
+ * Earlier angle/playback/pick-list stages remain pending; literal/unrecognized
  * brackets pass and incomplete slots diagnose without suppressing output.
  * Dialog presentation, button-group aggregation and deferred modes remain pending.
  * Nested variable errors remain parser-owned and nonfatal; private evaluator

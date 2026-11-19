@@ -329,9 +329,17 @@ $?$ insertion (correcting the original unsafe offset), repeated/list-order chain
 marker-free discarded callbacks, raw 4096-byte truncation, source-order replacement,
 required-selection callback/abort, lower/uppercase MegaNums, allocations and
 recovery. All-canvas queries combine segmentation after ESC/backslashes with
-owned delayed source and CP437/UTF-8 template bytes. Angle preprocessing,
-$?N$ embedding and PR #95's newly adopted entry/replacement clipping and storage
-caps, button-group aggregation and highlighting, pick lists/playback, dialog presentation, application routing and
+owned delayed source and CP437/UTF-8 template bytes. $?N$ now embeds any of the
+36 slots, including case-folded letters, in either ordinary pass. PR #95's
+4096-byte bound applies to stored definitions, each response before pass one
+and working text after every replacement. Discarded suffixes never execute or
+return after later shrinking; retained callbacks and the causing operation's
+side effects survive. A trailing outer backslash stays literal. Independent
+all-canvas boundary cases cover the published vectors, both passes, controls,
+raw UTF-8 cuts, required-empty selection/recovery and generic/user results.
+Earlier structural stages still precede clipping; ordinary syntax after a
+replacement is checked only when reached. Angle preprocessing, button-group
+aggregation and highlighting, pick lists/playback, dialog presentation, application routing and
 deferred queries remain pending. No physical audio or
 interactive application coverage is claimed by these native parser fixtures.
 

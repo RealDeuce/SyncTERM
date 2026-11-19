@@ -5150,6 +5150,56 @@ active application route and external-launch exclusion remain unchanged.
 Owned review files and scoped logs are removed. No existing issue is modified,
 code pushed or PR published. Full compliance remains in progress.
 
+## PR #95 host-response limits and slot embedding
+
+The immediate host evaluator now implements $?N$ for all 36 case-folded slots
+in either of its two ordinary passes. Regular empty slots insert nothing;
+required empty slots request selection and abort the current host program
+nonfatally, without running later blocks. Inserted values are skipped within
+their producing pass; nested/cyclic references never create a third pass.
+
+PR #95's portable policy now caps stored definitions at their first 4096 raw
+ordinary bytes, each response before pass one, and working text immediately
+after every successful dollar/template replacement. The processed prefix and
+monotonically bounded unread suffix represent that working text without an
+oversized intermediate allocation. Permanently discarded tails never return
+after decoding or a smaller replacement frees space. Retained callbacks still
+execute, and clipping never rolls back an accepted assignment that caused it.
+Each block has its own bound; later definitions/blocks are not discarded by an
+entire-source or session budget.
+
+The previous direct-text preflight now stops after the first replacement:
+ordinary suffix syntax is checked only when reached after clipping. Earlier
+structural angle/pick-list/bracket checks still precede this ordinary stage.
+This permits an insertion to discard unsupported/malformed ordinary references
+without rejecting or invoking them. Retained incomplete references cannot borrow
+a terminator beyond the boundary and fail internally without partial output or
+ending the session. A trailing outer backslash stays literal, including after
+clipping; argument-local dangling-escape validation remains separate.
+
+Independent native query cases on all three canvases cover every published
+4095/4096/4097 boundary/side-effect vector, both-pass growth, retained delays,
+discarded assignments, permanent suffix loss, decoded-prefix capacity, raw
+control/backslash cuts, byte-split UTF-8, generic identity results and accepted
+user assignments whose output is clipped. Additional cases cover every numeric/
+upper/lowercase slot spelling, command-submitted oversized definitions, required
+selection/recovery, cycles, multiple full response blocks and post-error queries.
+The separate table fixture checks capped owned storage and alias-safe replacement.
+No original-client, GUI, physical-device or application coverage is inferred.
+
+Native CMake configure/full build passes without compiler/build diagnostics.
+The changed rip3_templates and rip3_query_commands CTests pass; after adding
+slot/command-submission and lone-dollar edge cases, only the changed query suite
+is rebuilt/rerun.
+Edited ledger consistency passes. Counts are 918 implemented, 1620 pending,
+4059 unreviewed, 1121 contextual, 24 excluded and 25 blocked across 7767 units.
+Button-group aggregation/highlighting, full angle/conditional preprocessing,
+playback, deferred modes and application routing remain pending. Prior passing
+adoption, condition, drawing/font and RIP1.54 checks are reused; their inputs are
+unchanged. The pin, original fonts, RIP1.54 and active application route remain
+unchanged. Scoped build logs are removed. No existing issue is modified, code
+pushed or PR published. Full compliance remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

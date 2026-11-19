@@ -31,6 +31,7 @@ st_rip3_templates_set(struct st_rip3_templates *templates, unsigned number,
 {
 	if (templates==NULL || (bytes==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	if (number>=36 || length==SIZE_MAX) return IO_ERROR_OUT_OF_RANGE;
+	if (length>4096) length=4096;
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
 	if (end!=NULL) length=(size_t)(end-bytes);
 	uint8_t *copy=NULL;

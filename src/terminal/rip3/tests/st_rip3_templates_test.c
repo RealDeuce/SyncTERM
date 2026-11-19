@@ -62,11 +62,11 @@ main(void)
 	CHECK(set(slots,0,"selected")==0 && st_rip3_templates_resolve(slots,0,&view)==0 && view.length==8);
 	CHECK(set(slots,0,"")==0 && st_rip3_templates_resolve(slots,0,&view)==IO_ERROR_NOT_FOUND);
 	CHECK(st_rip3_templates_required(slots,0,false)==0 && st_rip3_templates_resolve(slots,0,&view)==0);
-	/* Definitions own their bytes, retain more than the response limit and
-	 * can safely be replaced from their own borrowed view. */
+	/* Definitions own their capped bytes and can safely be replaced from
+	 * their own borrowed view. Storage counts raw, unexpanded bytes. */
 	uint8_t source[5000];memset(source,'A',sizeof(source));
 	CHECK(st_rip3_templates_set(slots,35,source,sizeof(source))==0);memset(source,'B',sizeof(source));
-	CHECK(st_rip3_templates_resolve(slots,35,&view)==0 && view.length==5000 && view.bytes[4999]=='A');
+	CHECK(st_rip3_templates_resolve(slots,35,&view)==0 && view.length==4096 && view.bytes[4095]=='A');
 	CHECK(st_rip3_templates_set(slots,35,view.bytes,view.length)==0);
 	CHECK(st_rip3_templates_chain(slots,(const uint8_t[]){35},1,NULL,0,result,sizeof(result),&length,NULL)==0 && length==4096);
 	for (size_t i=0; i<length; i++) CHECK(result[i]=='A');
