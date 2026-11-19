@@ -4955,6 +4955,68 @@ results are reused. Edited ledger consistency passes. Counts are 784 implemented
 route are unchanged. Temporary logs are removed; no issue thread or remote code
 is modified. The full implementation goal remains active.
 
+## Two ordinary host passes and corrected ASCII controls
+
+Immediate host responses now complete exactly two ordinary expansion passes
+before transmission. The evaluator accumulates each pass in owned bounded-growth
+storage, moves the completed first buffer into immutable second-pass input, and
+only publishes the completed second buffer. Producing-pass insertions are skipped;
+values introduced in pass one can expand in pass two, but second-pass results
+receive no third scan. Angle and bracket stages do not restart on replacements.
+This replaces the earlier intermediate streaming-output behavior, including its
+incorrect transmission of a prefix before a later D in the same response.
+A final delay now also suspends transmission and the subsequent source stream.
+
+Pass one retains outer backslashes and control notation while applying the
+dollar parser's own local argument quoting. Pass two removes an outer quote and
+skips its next byte as literal, then performs the documented ASCII control-pair
+conversion. Quoting only an opening dollar still permits first-pass lookup;
+quoting both dollars transmits a literal reference. Quoted argument dollars are
+not terminators, and a quoted argument letter is decoded before the first-pass
+callback. Known built-in precedence and optional user prompt/storage semantics
+remain unchanged.
+
+Caret/backquote decoding now preserves ^@, unknown ASCII pairs and trailing
+prefixes. Only the documented letters/punctuation and doubled prefix convert;
+backquote-caret produces RS while doubled caret stays literal. Decoded prefixes
+are skipped rather than interpreted again. Special-key strings have no atomic
+whitelist: unlisted ^[[Z also produces ESC+[Z. Lone/unrecognized brackets remain
+literal. Each incomplete slot-looking bracket produces a nonfatal diagnostic
+without suppressing the response. Earlier complete recognized template directives
+remain unsupported by source preflight until the template stage is implemented;
+this milestone does not invent an ESC/backslash exemption from that earlier stage.
+
+Both ordinary passes and pending user responses share the bounded work pump.
+A prompt introduced by the first pass can suspend the second, and its accepted
+replacement is transmitted without a third expansion. Either response-buffer
+allocation can fail nonfatally; unfinished bytes are discarded without sending
+a prefix. Source/response/prompt ownership is released on cancellation or shutdown.
+Previously executed active operations and accepted store writes are not rolled
+back after later allocation failure or cancellation. No parser/session processing
+entry returns an error status.
+
+Independent native vectors distinguish one/two/three indirection levels, ordinary
+versus later angle expansion, inserted bracket literals, quote-one/quote-both
+host forms, argument-local dollars/letters and a second-pass prompt. Explicit
+expected byte tables cover the published controls, literal ^@/unknown/trailing
+forms, doubled-prefix nonrecursion, listed/unlisted keys and bracket diagnostics.
+Existing all-canvas delay/prompt/source fixtures now expect buffered transmission
+rather than streaming prefixes. Work-budget checks independently traverse 130
+control tokens in each pass before one final send. Deterministic failures in
+each buffer test no partial reply and following-query recovery.
+
+Native CMake configure/full build succeeds without compiler/build diagnostics.
+The affected rip3_query_commands CTest passes after correcting incomplete-bracket
+counting and a stale one-pass prompt-budget expectation. Only that failing suite
+is rerun after fixes; earlier catalog, variable-matrix, graphics and preservation
+evidence is reused. Edited ledger consistency passes. Counts are 815 implemented,
+1577 pending, 4089 unreviewed, 1099 contextual, 24 excluded and 27 blocked across
+7631 units. Earlier angle/conditional/template/pick-list/playback stages, dialog
+presentation, deferred modes and active application routing remain pending.
+No reference pin, original asset, RIP1.54 or active application path changes.
+Temporary logs are removed; no issue thread or remote code is modified. The
+complete implementation goal remains active.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

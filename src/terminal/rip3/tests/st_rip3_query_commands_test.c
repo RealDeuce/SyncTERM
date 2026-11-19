@@ -241,7 +241,7 @@ query_forms(void)
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	const char *const unsupported[] = {"1\0331000$D(1)$","1\0330001$D(1)$","1\0330000$D(1)$tail$UNKNOWN$",
-	    "1\0330000literal[template]","1\0330000((question::one,two))","1\0330000$>FILE.RIP$","1\0330000$UNKNOWN_NAME$"};
+	    "1\0330000literal[3]","1\0330000((question::one,two))","1\0330000$>FILE.RIP$","1\0330000$UNKNOWN_NAME$"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		CHECK(process(&f,unsupported[i],ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 		CHECK(st_rip3_input_wait_ns(f.host.input) == 0 && f.replies == 0 && f.host_errors == 0);
@@ -297,23 +297,22 @@ compound(enum st_rip3_canvas canvas, const char *width)
 	CHECK(append(&f,"!|1\0330000a$D(1)$b$RESX$$D(2)$c^@^m``^^`G^[[A^[[K|J1S\rraw\r\n") == 0);
 	st_rip3_input_process(f.host.input,2048);
 	const size_t stopped = f.read;
-	CHECK(f.reply_length == 1 && f.reply[0] == 'a' && st_rip3_query_pending(f.host.query));
+	CHECK(f.reply_length == 0 && st_rip3_query_pending(f.host.query));
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667);
 	f.now = 16666666; st_rip3_input_process(f.host.input,2048);
-	CHECK(f.read == stopped && f.reply_length == 1);
+	CHECK(f.read == stopped && f.reply_length == 0);
 	f.now++; st_rip3_input_process(f.host.input,2048);
-	CHECK(f.read == stopped && f.reply_length == 2+strlen(width));
-	CHECK(memcmp(f.reply,"ab",2) == 0 && memcmp(f.reply+2,width,strlen(width)) == 0);
+	CHECK(f.read == stopped && f.reply_length == 0);
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 33333334);
 	f.now += 33333333; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read == stopped && st_rip3_query_pending(f.host.query));
 	f.now++; st_rip3_input_process(f.host.input,2048);
-	const uint8_t tail[] = {'c',0,13,'`','^',7,27,'[','A',27,'[','K'};
+	const uint8_t tail[] = {'c','^','@',13,'`','^',7,27,'[','A',27,'[','K'};
 	CHECK(f.read == f.length && !st_rip3_query_pending(f.host.query));
 	CHECK(f.reply_length == 2+strlen(width)+sizeof(tail));
 	CHECK(memcmp(f.reply+2+strlen(width),tail,sizeof(tail)) == 0);
 	CHECK(f.text_length == 5 && memcmp(f.text,"raw\r\n",5) == 0);
-	CHECK(f.errors == 0 && f.host_errors == 0 && !f.overflow);
+	CHECK(f.errors == 0 && f.host_errors == 2 && f.host_kind==ST_RIP3_HOST_INVALID_REFERENCE && !f.overflow);
 	struct st_rip3_environment environment;
 	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.base_math == 64);
 	destroy(&f);
@@ -333,12 +332,12 @@ owned_and_recovery(void)
 	CHECK(append(&f,"later\r\n") == 0);
 	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
 	const char expected[] = "owned \xb3 \xe2\x98\x83" "end";
-	CHECK(f.reply_length == sizeof(expected)-1 && memcmp(f.reply,expected,sizeof(expected)-1) == 0);
-	CHECK(f.host_errors == 2 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
-	CHECK(!st_rip3_query_pending(f.host.query) && f.read == 0);
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667); /* Even a final delay blocks later input. */
-	f.now += 16666667; st_rip3_input_process(f.host.input,2048);
-	CHECK(f.read == f.length && f.text_length == 7);
+	CHECK(f.reply_length==0 && f.host_errors==2 && f.host_kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
+	CHECK(st_rip3_query_pending(f.host.query) && f.read==0);
+	CHECK(st_rip3_input_wait_ns(f.host.input)==16666667); /* Final delay precedes transmission too. */
+	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	CHECK(f.read==f.length && f.text_length==7 && !st_rip3_query_pending(f.host.query));
+	CHECK(f.reply_length==sizeof(expected)-1 && memcmp(f.reply,expected,sizeof(expected)-1)==0);
 	CHECK(process(&f,"1\0330000$D(1)$cancelled",-1) == 0);
 	st_rip3_query_cancel(f.host.query);
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667);
@@ -346,7 +345,7 @@ owned_and_recovery(void)
 	f.reply_length = 0;
 	CHECK(process(&f,"1\0330000after",-1) == 0 && f.reply_length == 5 && memcmp(f.reply,"after",5) == 0);
 	/* Every unsupported tail is preflighted before any literal or D effect. */
-	const char *const tails[] = {"$UNKNOWN$","$>FILE.RIP$","<<macro>>","((x::a,b))","[0]","$D(1)","^?","^","`","\\!"};
+	const char *const tails[] = {"$UNKNOWN$","$>FILE.RIP$","<<macro>>","((x::a,b))","[0]","$D(1)"};
 	for (size_t i = 0; i < sizeof(tails)/sizeof(tails[0]); i++) {
 		char body[160];
 		(void)snprintf(body,sizeof(body),"1\0330000no$D(1)$%s",tails[i]);
@@ -387,7 +386,7 @@ controls(void)
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	/* Explicit ASCII control values, independent of the evaluator's scanner. */
 	const struct { const char *text; uint8_t byte; } codes[] = {
-		{"^@",0},{"^A",1},{"^B",2},{"^C",3},{"^D",4},{"^E",5},{"^F",6},{"^G",7},
+		{"^A",1},{"^B",2},{"^C",3},{"^D",4},{"^E",5},{"^F",6},{"^G",7},
 		{"^H",8},{"^I",9},{"^J",10},{"^K",11},{"^L",12},{"^M",13},{"^N",14},{"^O",15},
 		{"^P",16},{"^Q",17},{"^R",18},{"^S",19},{"^T",20},{"^U",21},{"^V",22},{"^W",23},
 		{"^X",24},{"^Y",25},{"^Z",26},{"^[",27},{"^\\",28},{"^]",29},{"`^",30},{"^_",31},
@@ -404,9 +403,18 @@ controls(void)
 		body[7] = (char)('a'+i); f.reply_length = 0;
 		CHECK(process(&f,body,-1) == 0 && f.reply_length == 1 && f.reply[0] == i+1);
 	}
-	const char *const keys[] = {"^[[A","^[[B","^[[C","^[[D","^[[H","^[[K","^[[L"};
+	const struct {const char *source,*expected;} preserved[]={
+		{"^@","^@"},{"^?","^?"},{"`?","`?"},{"^0","^0"},{"^~","^~"},
+		{"^","^"},{"`","`"},{"^^M","^M"},{"``M","`M"},
+	};
+	for (size_t i=0; i<sizeof(preserved)/sizeof(preserved[0]); i++) {
+		char body[40];(void)snprintf(body,sizeof(body),"1\0330000%s",preserved[i].source);f.reply_length=0;
+		CHECK(process(&f,body,-1)==0 && f.reply_length==strlen(preserved[i].expected)
+		    && memcmp(f.reply,preserved[i].expected,f.reply_length)==0);
+	}
+	const char *const keys[] = {"^[[A","^[[B","^[[C","^[[D","^[[H","^[[K","^[[L","^[[Z"};
 	const uint8_t expected[][3] = {{27,'[','A'},{27,'[','B'},{27,'[','C'},{27,'[','D'},
-	    {27,'[','H'},{27,'[','K'},{27,'[','L'}};
+	    {27,'[','H'},{27,'[','K'},{27,'[','L'},{27,'[','Z'}};
 	for (size_t i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
 		char body[12];
 		(void)snprintf(body,sizeof(body),"1\0330000%s",keys[i]); f.reply_length = 0;
@@ -468,6 +476,8 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	CHECK(strcmp(st_rip3_user_variables_prompt(f.variables.user_variables)->name,"P")==0);
 	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,true);
 	st_rip3_query_process(f.host.query,1);
+	CHECK(st_rip3_query_pending(f.host.query) && f.reply_length==0); /* First-pass result only. */
+	st_rip3_query_process(f.host.query,1);
 	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==4 && memcmp(f.reply,"NONE",4)==0);
 	f.reply_length=0;
 	/* The final token itself may suspend. Accepted replacement bytes are
@@ -482,28 +492,31 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	st_rip3_query_process(f.host.query,0);
 	CHECK(f.reply_length==0 && st_rip3_query_pending(f.host.query));
 	st_rip3_query_process(f.host.query,1);
-	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==sizeof(literal)-1
-	    && memcmp(f.reply,literal,sizeof(literal)-1)==0 && st_rip3_input_wait_ns(f.host.input)==0);
+	CHECK(st_rip3_query_pending(f.host.query) && f.reply_length==0);
+	st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
+	f.now+=16666667;st_rip3_query_process(f.host.query,64);
+	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==1 && f.reply[0]==13);
 	f.reply_length=0;
 	/* Delays, prompts and subsequent source bytes share one ordered pump. */
 	CHECK(append(&f,"!|1\0330000a$D(1)$$*=&NEW$z$D(1)$|J1S|1\0330000$RESX$\rraw\r\n")==0);
 	st_rip3_input_process(f.host.input,2048);
 	size_t stopped=f.read;unsigned reads=f.reads;
-	CHECK(f.reply_length==1 && f.reply[0]=='a' && st_rip3_query_pending(f.host.query));
+	CHECK(f.reply_length==0 && st_rip3_query_pending(f.host.query));
 	CHECK(st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
-	f.now=16666667;st_rip3_input_process(f.host.input,2048);
+	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read==stopped && f.reads==reads && strcmp(st_rip3_user_variables_prompt(f.variables.user_variables)->name,"NEW")==0);
 	st_rip3_input_process(f.host.input,2048);
-	CHECK(f.reads==reads && f.reply_length==1);
+	CHECK(f.reads==reads && f.reply_length==0);
 	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,true);
 	CHECK(f.user_errors==1 && f.user_kind==ST_RIP3_USER_VARIABLE_CANCELLATION_DISABLED);
 	st_rip3_input_process(f.host.input,2048);CHECK(f.reads==reads);
 	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,false);
 	st_rip3_input_process(f.host.input,2048);
-	CHECK(f.read==stopped && f.reads==reads && f.reply_length==6 && memcmp(f.reply,"aNULLz",6)==0
+	CHECK(f.read==stopped && f.reads==reads && f.reply_length==0
 	    && user_value(f.session,"NEW","")==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
 	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
-	CHECK(f.read==f.length && f.reply_length==6+strlen(width) && memcmp(f.reply+6,width,strlen(width))==0
+	CHECK(f.read==f.length && f.reply_length==6+strlen(width) && memcmp(f.reply,"aNULLz",6)==0 && memcmp(f.reply+6,width,strlen(width))==0
 	    && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0 && !st_rip3_query_pending(f.host.query));
 	struct st_rip3_environment environment;
 	CHECK(st_rip3_environments_get(f.host.environments,0,&environment)==0 && environment.base_math==64);
@@ -555,6 +568,54 @@ user_recovery(void)
 	return 0;
 }
 
+static int
+two_passes(void)
+{
+	struct fixture f={0};
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0 && bind_users(&f)==0);
+	CHECK(st_rip3_variables_set(f.session,"A",1,(const uint8_t *)"$&B$",4)==0);
+	const char *indirect="$TERMINFO(NAME)$";
+	CHECK(st_rip3_variables_set(f.session,"B",1,(const uint8_t *)indirect,strlen(indirect))==0);
+	CHECK(process(&f,"1\0330000$&A$",-1)==0 && f.reply_length==strlen(indirect)
+	    && memcmp(f.reply,indirect,f.reply_length)==0 && f.host_errors==0);
+	const struct {const char *stored,*expected;} values[]={
+		{"$TERMINFO(NAME)$","Fixture"},{"<<N>>","<<N>>"},{"[3]","[3]"},
+		{"\\$&MISSING\\$","$&MISSING$"},
+	};
+	for (size_t i=0; i<sizeof(values)/sizeof(values[0]); i++) {
+		CHECK(st_rip3_variables_set(f.session,"A",1,(const uint8_t *)values[i].stored,strlen(values[i].stored))==0);
+		f.reply_length=0;
+		CHECK(process(&f,"1\0330000$&A$",-1)==0 && f.reply_length==strlen(values[i].expected)
+		    && memcmp(f.reply,values[i].expected,f.reply_length)==0 && f.host_errors==0 && f.user_errors==0);
+	}
+	const struct {const char *source,*expected;} forms[]={
+		{"\\$TERMINFO(NAME)$","Fixture"},
+		{"\\$TERMINFO(NAME)\\$","$TERMINFO(NAME)$"},
+		{"$TERMINFO(NA\\ME)$","Fixture"},
+		{"$TERMINFO(A\\$B)$","NONE"},
+		{"^$RESX$","^640"},{"[","["},{"[?]","[?]"},{"\\[?]","[?]"},
+	};
+	for (size_t i=0; i<sizeof(forms)/sizeof(forms[0]); i++) {
+		char source[100];(void)snprintf(source,sizeof(source),"1\0330000%s",forms[i].source);f.reply_length=0;
+		CHECK(process(&f,source,-1)==0 && f.reply_length==strlen(forms[i].expected)
+		    && memcmp(f.reply,forms[i].expected,f.reply_length)==0 && f.host_errors==0);
+	}
+	/* A callback introduced by pass one can prompt in pass two. Its accepted
+	 * response is transmitted literally, with no third ordinary pass. */
+	CHECK(st_rip3_variables_set(f.session,"A",1,(const uint8_t *)"$=NEW$",6)==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000$&A$",-1)==0 && st_rip3_query_pending(f.host.query) && f.reply_length==0
+	    && strcmp(st_rip3_user_variables_prompt(f.variables.user_variables)->name,"NEW")==0);
+	st_rip3_user_variables_respond(f.variables.user_variables,(const uint8_t *)"$RESX$",6,false);
+	st_rip3_query_process(f.host.query,64);
+	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==6 && memcmp(f.reply,"$RESX$",6)==0
+	    && user_value(f.session,"NEW","$RESX$")==0);
+	f.reply_length=0;unsigned errors=f.host_errors;
+	CHECK(process(&f,"1\0330000[3",-1)==0 && f.reply_length==2 && memcmp(f.reply,"[3",2)==0
+	    && f.host_errors==errors+1 && f.host_kind==ST_RIP3_HOST_INVALID_REFERENCE);
+	destroy(&f);return 0;
+}
+
 extern unsigned st_rip3_query_test_allocation_countdown;
 
 static int
@@ -576,24 +637,28 @@ allocation_and_budget(void)
 	CHECK(st_rip3_query_start(f.host.query,NULL,1) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)"x",SIZE_MAX) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_query_start(f.host.query,NULL,0) == 0);
+	for (unsigned allocation=2; allocation<=3; allocation++) {
+		unsigned errors=f.host_errors;
+		st_rip3_query_test_allocation_countdown=allocation;
+		CHECK(process(&f,"1\0330000safe",-1)==0 && f.reply_length==0 && !st_rip3_query_pending(f.host.query));
+		CHECK(f.host_errors==errors+1 && f.host_kind==ST_RIP3_HOST_RESOURCE_FAILURE);
+	}
 	/* Bounded continuation yields before taking bytes, even without a delay. */
 	char body[6+260+1];
 	memcpy(body,"1\0330000",6);
 	for (size_t i = 0; i < 130; i++) { body[6+2*i] = '^'; body[7+2*i] = 'M'; }
 	body[sizeof(body)-1] = 0;
-	CHECK(process(&f,body,-1) == 0 && f.reply_length == 64 && st_rip3_query_pending(f.host.query));
-	CHECK(append(&f,"later\r\n") == 0);
-	st_rip3_input_process(f.host.input,0);
-	CHECK(f.reply_length == 64 && f.reads == 0);
-	st_rip3_query_test_allocation_countdown = 1;
+	CHECK(process(&f,body,-1)==0 && f.reply_length==0 && st_rip3_query_pending(f.host.query));
+	CHECK(append(&f,"later\r\n")==0);
+	st_rip3_input_process(f.host.input,0);CHECK(f.reply_length==0 && f.reads==0);
+	for (unsigned pump=0; pump<3; pump++) {
+		st_rip3_input_process(f.host.input,2048);
+		CHECK(f.reply_length==0 && f.reads==0 && st_rip3_query_pending(f.host.query));
+	}
 	st_rip3_input_process(f.host.input,2048);
-	CHECK(f.reply_length == 128 && f.reads == 0 && st_rip3_query_pending(f.host.query));
-	st_rip3_input_process(f.host.input,2048);
-	CHECK(f.reply_length == 130 && f.read == f.length && !st_rip3_query_pending(f.host.query));
-	CHECK(st_rip3_query_test_allocation_countdown == 1);
-	st_rip3_query_test_allocation_countdown = 0;
-	for (size_t i = 0; i < 130; i++) CHECK(f.reply[i] == 13);
-	CHECK(f.text_length == 7 && memcmp(f.text,"later\r\n",7) == 0);
+	CHECK(f.reply_length==130 && f.read==f.length && !st_rip3_query_pending(f.host.query));
+	for (size_t i=0; i<130; i++) CHECK(f.reply[i]==13);
+	CHECK(f.text_length==7 && memcmp(f.text,"later\r\n",7)==0);
 	/* Known operations read current state when resumed, rather than caching
 	 * future values in preflight. There need not be another source byte. */
 	CHECK(process(&f,"1\0330000$D(1)$$TERMINFO(NAME)$",-1) == 0);
@@ -617,6 +682,7 @@ main(void)
 	CHECK(user_queries(ST_RIP3_CANVAS_800_600,"800")==0);
 	CHECK(user_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);
 	CHECK(user_recovery()==0);
+	CHECK(two_passes()==0);
 	CHECK(owned_and_recovery() == 0);
 	CHECK(active_order() == 0);
 	CHECK(controls() == 0);

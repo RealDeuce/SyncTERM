@@ -303,14 +303,21 @@ separate tests for queued delay/reply order, decimal arguments across radix
 changes, CP437/UTF-8 byte retention, long identity replies and nonfatal recovery
 on all ENV canvases. Optional user-variable dispatch shares that ordered source
 pump: final-token prompts remain pending, accepted responses emit once, and
-cancel/EOF releases only query-owned state. Literal replacement text is not
-rescanned within the current pass. All-canvas query fixtures cover prompt/delay
+cancel/EOF releases only query-owned state. Each response now completes exactly two ordinary passes before transmission;
+inserted text is skipped within its producing pass, and there is no third pass.
+Outer controls/backslashes are deferred to pass two; argument-local quoting runs
+in pass one. Published ASCII rules preserve ^@, unknown pairs and trailing
+prefixes. Special keys have no atomic whitelist; raw/unrecognized brackets stay
+literal and incomplete slot forms diagnose without suppressing their bytes.
+Independent cases cover indirection limits, inserted angle/bracket literals,
+quoted dollars, second-pass prompts and buffer-allocation failures without
+partial transmission. All-canvas query fixtures cover prompt/delay
 ordering, silent assignment/retrieval, empty/required/cancelled responses, blocked
 source reads and following RIP/raw input. Known rejected built-ins never prompt;
 P now follows the adopted user-variable path rather than a paste alias. The
 independent pinned inventory and compiled catalog check that classification.
-Complete host two-pass/angle/template processing, GUI dialog/editor presentation,
-application routing and deferred queries remain pending. No physical audio or
+Earlier angle/template/pick-list/playback processing, GUI dialog/editor
+presentation, application routing and deferred queries remain pending. No physical audio or
 interactive application coverage is claimed by these native parser fixtures.
 
 The shared graphics parser supports an optional owner-defined numeric reader.

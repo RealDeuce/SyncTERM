@@ -24,18 +24,22 @@ struct st_rip3_host_sink;
  * The optional processor is reserved exclusively while this query is pending;
  * the owner supplies its dialog/editor and resumes responses through it. A
  * pending last-token prompt still makes pending() true. User values and built-in
- * replies pass through unchanged, without recursive interpretation in this pass.
- * Angle/template/pick-list/playback dispatch, outer transport unquoting and
- * complete host two-pass processing remain separate; unsupported introducers
- * reject before partial output. Extended syntax on known built-in names likewise
- * rejects rather than entering the user path.
+ * replies are skipped for the remainder of their producing ordinary pass.
+ * Exactly two ordinary passes build each response before transmission. Pass one
+ * defers outer control/backslash decoding while retaining dollar-local quoting;
+ * pass two decodes ASCII control pairs and outer quotes. No third pass or angle/
+ * bracket rescan occurs on inserted values. A final D also delays transmission.
+ * Earlier angle/template/pick-list/playback processing remains separate. Complete
+ * recognized template directives reject during source preflight; literal and
+ * unrecognized brackets pass through, with nonfatal incomplete-slot diagnostics.
+ * Unsupported extended syntax on known names never enters the user path.
  * Syntax/operation errors never return to a terminal/session failure path. */
 int st_rip3_query_create(struct st_rip3_query **result,
 	const struct st_rip3_host_variables *variables, const struct st_rip3_host_sink *sink);
 void st_rip3_query_destroy(struct st_rip3_query *query);
 /* Release pending text and abort only a user operation begun by this query.
  * Do not reset the borrowed input gate or another consumer's pending prompt.
- * A value already accepted into a store is not rolled back. The session owner
+ * Previously executed actions/accepted store values are not rolled back. The owner
  * coordinates cancellation/reset of its queue, parser, dialog and input gate. */
 void st_rip3_query_cancel(struct st_rip3_query *query);
 bool st_rip3_query_pending(const struct st_rip3_query *query);
@@ -43,9 +47,11 @@ bool st_rip3_query_pending(const struct st_rip3_query *query);
  * resumes this before fetching more source bytes. A final D may leave a wait
  * even after pending() becomes false; the input driver must recheck its gate.
  * When pending and ready, schedule another pump even without new input bytes.
- * No evaluator allocation, sleeping, threads or terminal-error status during
- * resume. User format/store adapters may allocate; failures stay nonfatal. A
- * resumed user result consumes one budget token, including suppressed output. */
+ * Response buffers and user adapters may allocate during resume. Resource errors
+ * discard the unfinished response nonfatally; no buffered prefix is transmitted.
+ * Previously executed active effects are not rolled back. No sleeping, threads
+ * or terminal-error status. A resumed user result consumes one budget token,
+ * including suppressed output; pass transitions themselves consume none. */
 void st_rip3_query_process(struct st_rip3_query *query, size_t budget);
 
 #endif

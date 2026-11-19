@@ -349,9 +349,13 @@ struct st_rip3_command_sink {
  * a bound user processor, unknown user references execute its prompt/storage
  * matrix and suspend the same source pump until a response. A final prompt
  * remains pending; cancellation/EOF releases only query-owned prompt state.
- * Full expression preflight rejects unsupported macro/playback/template/pick-list
- * forms before any side effects. Full host two-pass/control expansion, dialog
- * presentation and deferred query modes remain pending.
+ * Exactly two ordinary passes buffer each response before transmission, with
+ * outer controls/backslashes deferred to pass two. Inserted values are skipped
+ * in their producing pass, and neither angle nor bracket stages restart on them.
+ * Unrecognized ASCII control pairs/trailing prefixes stay literal; ^@ is not NUL.
+ * Earlier complete macro/playback/template/pick-list forms remain unsupported
+ * during source preflight. Literal/unrecognized brackets pass; incomplete slot
+ * forms diagnose nonfatally. Dialog presentation and deferred modes remain pending.
  * Nested variable errors remain parser-owned and nonfatal; private evaluator
  * allocation/busy/preflight statuses are consumed at this command boundary.
  * Full-width f accepts the documented space-separated inline comment;
