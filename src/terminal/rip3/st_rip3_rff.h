@@ -11,7 +11,9 @@ struct st_rip3_rff {
 	const uint8_t *data;
 	size_t size, style_offset, styles, base, advances, offsets, trailer;
 	unsigned first_character, characters, units_per_em;
-	int ascender, descender;
+	/* Signed y-down font-unit rectangle from the validated metrics block.
+	 * Header copies repeat these edges; none is a typographic ascent/advance. */
+	int xmin, ymin, xmax, ymax;
 	uint8_t bold_hollow_strength, hollow_strength;
 };
 

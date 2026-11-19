@@ -46,10 +46,13 @@ pairs have coherent native captures on every canvas with isotropic and unequal
 X/Y DPI. Shadow/write-mode scenes use that same production path; hollow bold's
 minimum width, pending-effect rejection and failure atomicity have focused checks.
 Solid bold, italic, decorations and ordinary outline commands remain pending.
-Global RFF bbox/header metric labels are under clarification in
-[issue #82](https://github.com/bbs-land/remote-imaging-protocol/issues/82).
-The prepared renderer consumes point/DPI scales and paths; it does not use the
-disputed header words as typographic ascent or bbox-width measurements.
+PR #83's signed RFF global-bbox correction is adopted. Realization transforms
+all four corners through face percentage, orientation and device-axis DPI,
+retaining wide y-down edges. Spacing uses their horizontal max-minus-min span.
+Literal font tuples, negative upper bounds, rational half ties, zero/oversized
+spans and realized-width spacing on all canvases have focused native coverage.
+Typographic alignment, glyph advance and effect-specific ink extents remain
+separate from the global coordinate box.
 The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization
 and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
 and destination requests now diagnose separately without ending processing;

@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/81",
-  "revision": "a52985019cbf4754d4d08a07b4f7755761390661",
-  "previous_revision": "72edbfc6c151d86a120fec3cabbde3cad32c9c0b",
-  "authorization": "User directed fork stable as the continuing reference; issues remain in the parent repository and existing threads are not modified.",
-  "upstream_state_at_adoption": "Both PRs open; reviewed heads included in fork stable.",
-  "archive_sha256": "c66c70ba2ebf4be9a2b6d8585c8a258b2c7800dea4918f3f2f04464ef1a17b08",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/83",
+  "revision": "f77f918229934bfc4560860e044c48aaf86e28b4",
+  "previous_revision": "a52985019cbf4754d4d08a07b4f7755761390661",
+  "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
+  "upstream_state_at_adoption": "PR open; reviewed head already integrated in fork stable.",
+  "archive_sha256": "8b8b8ab08f944d441f29a063e7c910e7c7193490806ba0b129ae0d02e2694fc8",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1038,7 +1038,8 @@
     58,
     72,
     78,
-    79
+    79,
+    82
   ],
   "pending_followups": [],
   "derivations": [
@@ -1261,6 +1262,11 @@
       "path": "version/3.0/research/issue-79-switch-style-flags.md",
       "sha256": "5fc3b479390fc70c7904f48d6f272e940a8eae4e4bc96a18c3c9ea3aa28e35b5",
       "role": "Primary-artifact/protocol source-boundary derivation for the adopted N and 2Y contract; intermediate research statements are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-82-rff-global-bounds.md",
+      "sha256": "3289cc3f0bb85e3db6445e448a90bd21c82eb922507c85cc19eaa73c5727d982",
+      "role": "Read-only byte/consumer derivation for signed global coordinate bounds and realized horizontal spacing width; no new exact hinting or raster guarantee."
     }
   ],
   "documents": [
@@ -1326,7 +1332,7 @@
     },
     {
       "path": "version/2.0/techspecs/3.2-fastfont-fonts.md",
-      "sha256": "b90ceff38b1adbdf7b05087e912f74819d981aa7f556f80548b3b328a216ad94"
+      "sha256": "a5c755892a997359d3d884a83237ef27b8d2d23368a1fb751724a7ac62fb7806"
     },
     {
       "path": "version/2.0/techspecs/3.3-microansi-fonts.md",
@@ -1386,7 +1392,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "02a4f70a78cf30cbc6af0b774797c23eb4ed8d3fb0ea01d7e576e6f71ee9e8fd"
+      "sha256": "71be2d75c7411d36c523fe56b96b2e48bf655a2b6314a8225d99b82891864aed"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1506,7 +1512,7 @@
     },
     {
       "path": "version/3.0/techspecs/3.2-fastfont-additions.md",
-      "sha256": "b2111b9ab2cbe98cae8e2759ab91b9c9b04a7c08202da8a73998fdd99f589c8c"
+      "sha256": "5100da1a9ef3baf20f0dcfb0ea0ffe266a324d5ef9eecdcb27d014679f467110"
     },
     {
       "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
@@ -1972,6 +1978,43 @@
         "excluded": 24
       },
       "reviewed_change": "N current-base zero/nonzero normalization, shortening and STYLE protection; 2Y one-plus-two fields, ordered source/destination protection, independent protect-zero diagnostics, ignored high bits/targets and separate global suppression."
+    },
+    {
+      "revision": "f77f918229934bfc4560860e044c48aaf86e28b4",
+      "archive_sha256": "8b8b8ab08f944d441f29a063e7c910e7c7193490806ba0b129ae0d02e2694fc8",
+      "changed_documents": [
+        "version/2.0/techspecs/3.2-fastfont-fonts.md",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+        "version/3.0/techspecs/3.2-fastfont-additions.md"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-82-rff-global-bounds.md",
+          "sha256": "3289cc3f0bb85e3db6445e448a90bd21c82eb922507c85cc19eaa73c5727d982"
+        }
+      ],
+      "matched_source_blocks": 7466,
+      "moved_source_blocks": 70,
+      "new_source_blocks": 38,
+      "removed_implementation_claims": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:513"
+      ],
+      "previous_revision": "a52985019cbf4754d4d08a07b4f7755761390661",
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/83",
+      "pull_request_revision": "e8591c1af34e0e47aceef354c6d80e095d72978f",
+      "upstream_state": "PR open; reviewed head already integrated in fork stable.",
+      "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
+      "prior_adoption_commit": "d34263e1",
+      "source_blocks_after_update": 7504,
+      "states_after_update": {
+        "unreviewed": 4171,
+        "context": 1055,
+        "pending": 1543,
+        "implemented": 685,
+        "blocked": 26,
+        "excluded": 24
+      },
+      "reviewed_change": "All four global FF1/RFF metric/header bounds are signed coordinates; native metrics consume the metrics rectangle, with realized horizontal span used for bbox spacing. Original font bytes, prior winding/hollow rules and exact-raster nonrequirement are retained."
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",

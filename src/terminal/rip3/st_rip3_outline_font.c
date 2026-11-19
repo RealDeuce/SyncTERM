@@ -23,6 +23,43 @@ request(struct st_rip3_outline_font *value, const struct st_rip3_frame *frame,
 	return 0;
 }
 
+/* Exact rational edge rounding, independent of floating-point half ties.
+ * scaled is a signed s16 coordinate multiplied by at most 255; legal point/
+ * DPI products fit int64_t, including custom units_per_em=1 realizations. */
+static int64_t
+edge(int64_t scaled, unsigned points, unsigned dpi, unsigned units)
+{
+	int64_t numerator=scaled*(int64_t)points*(int64_t)dpi, denominator=(int64_t)units*72*100;
+	int64_t quotient=numerator/denominator, remainder=numerator%denominator;
+	if (remainder*2>=denominator) quotient++;
+	else if (remainder*2 < -denominator) quotient--;
+	return quotient;
+}
+
+static void
+realize_bounds(struct st_rip3_outline_font *font)
+{
+	for (unsigned corner=0; corner<4; corner++) {
+		int64_t u=(int64_t)((corner&1)!=0 ? font->file.xmax : font->file.xmin)*(int64_t)font->style.horizontal_percent;
+		int64_t v=(int64_t)((corner&2)!=0 ? font->file.ymax : font->file.ymin)*100;
+		int64_t x=u,y=v;
+		switch (font->orientation) {
+			case 1:x=-v;y=u;break;
+			case 2:x=-u;y=-v;break;
+			case 3:x=v;y=-u;break;
+		}
+		x=edge(x,font->points,font->dpi_x,font->file.units_per_em);
+		y=edge(y,font->points,font->dpi_y,font->file.units_per_em);
+		if (corner==0) font->bounds=(struct st_rip3_outline_bounds){x,y,x,y};
+		else {
+			if (x<font->bounds.xmin) font->bounds.xmin=x;
+			if (x>font->bounds.xmax) font->bounds.xmax=x;
+			if (y<font->bounds.ymin) font->bounds.ymin=y;
+			if (y>font->bounds.ymax) font->bounds.ymax=y;
+		}
+	}
+}
+
 static int
 bind_face(struct st_rip3_outline_font *value, const struct st_rip3_rff *file, size_t face)
 {
@@ -30,11 +67,13 @@ bind_face(struct st_rip3_outline_font *value, const struct st_rip3_rff *file, si
 	int status = st_rip3_rff_style_at(&style,file,face);
 	if (status != 0) return status;
 	if (style.horizontal_percent == 0) return IO_ERROR_OUT_OF_RANGE;
+	if (file->xmin>file->xmax || file->ymin>file->ymax) return IO_ERROR_INVALID_FORMAT;
 	value->file = *file;
 	value->style = style;
 	value->face = face;
 	value->scale_x = (double)value->points*value->dpi_x/(72.0*file->units_per_em);
 	value->scale_y = (double)value->points*value->dpi_y/(72.0*file->units_per_em);
+	realize_bounds(value);
 	if (style.hollow) {
 		unsigned dpi = value->orientation%2 == 0 ? value->dpi_x : value->dpi_y;
 		bool bold = (value->flags&1) != 0;
@@ -99,4 +138,17 @@ st_rip3_outline_font_builtin(struct st_rip3_outline_font *result,
 		return IO_ERROR_INVALID_FORMAT;
 	}
 	return IO_ERROR_NOT_FOUND;
+}
+
+int
+st_rip3_outline_font_bbox_width(int32_t *result, const struct st_rip3_outline_font *font)
+{
+	if (result==NULL || font==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (font->bounds.xmax<font->bounds.xmin) return IO_ERROR_OUT_OF_RANGE;
+	/* Unsigned subtraction also handles an externally forged ordered pair
+	 * spanning INT64_MIN..INT64_MAX without signed overflow. */
+	uint64_t span=(uint64_t)font->bounds.xmax-(uint64_t)font->bounds.xmin;
+	if (span>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+	*result=(int32_t)span;
+	return 0;
 }

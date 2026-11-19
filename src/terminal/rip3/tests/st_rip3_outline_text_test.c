@@ -69,7 +69,7 @@ fixture(uint8_t bytes[1900])
 	memset(bytes, 0, 1900);
 	memcpy(bytes + 16, signature, sizeof(signature));
 	dword(bytes, 1800);
-	word(bytes + 30, 1000); word(bytes + 32, 65536 - 200);
+	word(bytes + 30, 8); word(bytes + 32, 65536 - 8);
 	word(bytes + 36, 6); word(bytes + 38, 'A');
 	word(bytes + 42, 3); word(bytes + 44, 1000); word(bytes + 52, 0x5426);
 	bytes[57] = 100; memcpy(bytes + 66, "Solid", 6);
@@ -79,6 +79,8 @@ fixture(uint8_t bytes[1900])
 	word(bytes + 192, 1); word(bytes + 194, 208);
 	word(bytes + 208, 0xf31e); word(bytes + 210, 0x100);
 	word(bytes + 220, 1000); word(bytes + 222, 'A'); word(bytes + 224, 6);
+	word(bytes + 230, 0); word(bytes + 232, 65536 - 8);
+	word(bytes + 234, 8); word(bytes + 236, 0);
 	word(bytes + 246, 0x4c); word(bytes + 254, 0x20c);
 	const unsigned advances[] = {6,6,8,10,3,0};
 	const uint32_t offsets[] = {800-208,850-208,930-208,UINT32_MAX,1000-208,800-208};
@@ -444,9 +446,11 @@ inside(int32_t x, int32_t y, const struct st_rip3_rect *bounds)
 static int
 positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool anisotropic)
 {
-	/* P125 with ordinary advance 8 and bbox reference 12 gives 8+3=11.
+	/* Global bbox 8x8, 150% horizontal face: realized widths are 12 for
+	 * upright/half and 8 for quarter turns. P125 adds 3/2 to advance 8.
+	 * Double X DPI gives widths 24/16 and adds 6/4. Positions remain DEVICE.
 	 * Character columns alternate the sign of the stored B=4 displacement. */
-	static const struct st_rip3_point step[] = {{11,0},{0,-11},{-11,0},{0,11}};
+	static const struct st_rip3_point direction[] = {{1,0},{0,-1},{-1,0},{0,1}};
 	static const struct st_rip3_point baseline[][4] = {
 		{{0,4},{-4,0},{0,0},{0,0}},
 		{{4,0},{-4,0},{0,0},{0,0}},
@@ -476,9 +480,12 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bo
 			struct st_rip3_text_position positions[2], zero = {32+64*character,32+64*string};
 			const int32_t advances[] = {8,8};
 			int64_t total;
+			int32_t bbox_width;
 			CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
-			CHECK(st_rip3_outline_layout_positions(&layout,&zero,advances,2,12,positions,&total) == 0 && total == 22);
 			CHECK(st_rip3_outline_font_bind(&realized,&font,2,&frame,wire.size,wire.flags,layout.font_orientation) == 0);
+			CHECK(st_rip3_outline_font_bbox_width(&bbox_width,&realized) == 0);
+			CHECK(st_rip3_outline_layout_positions(&layout,&zero,advances,2,bbox_width,positions,&total) == 0);
+			CHECK(total == 2*(8+(character%2!=0 ? (anisotropic ? 4 : 2) : (anisotropic ? 6 : 3))));
 			CHECK(st_rip3_draw_outline_positioned(ports,&realized,&layout,(const uint8_t *)"AA",2,
 			    positions,12,8,ST_RIP3_COPY) == 0);
 		}
@@ -495,7 +502,8 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bo
 				int32_t v = (int32_t)(y%64)-32-baseline[string][character].y;
 				struct st_rip3_rect bounds = turned_bounds[character];
 				bounds.x0 *= (int32_t)scale_x; bounds.x1 = (bounds.x1+1)*(int32_t)scale_x-1;
-				ink = inside(u,v,&bounds) || inside(u-step[string].x,v-step[string].y,&bounds);
+				int32_t step = character%2!=0 ? (anisotropic ? 12 : 10) : (anisotropic ? 14 : 11);
+				ink = inside(u,v,&bounds) || inside(u-step*direction[string].x,v-step*direction[string].y,&bounds);
 			}
 			CHECK(capture->primary[(size_t)y*width+x]
 			    == (ST_PIXEL_COLOR_RGB_TAG | (ink ? 0xff5555 : 0x0000aa)));

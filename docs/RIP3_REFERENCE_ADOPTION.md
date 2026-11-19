@@ -89,7 +89,7 @@ is modified, and no code is published.
 
 ## Border/style update from PRs #80 and #81
 
-The current pin is fork stable
+That adoption used fork stable
 [`a52985019cbf4754d4d08a07b4f7755761390661`](https://github.com/RealDeuce/remote-imaging-protocol/tree/a52985019cbf4754d4d08a07b4f7755761390661).
 It includes open [PR #80](https://github.com/bbs-land/remote-imaging-protocol/pull/80)
 head `ca75dd486c3b7099c7c127edc29170a841396d1c` and open
@@ -115,6 +115,31 @@ focused adoption guard cases are required; unchanged font/render/freeze evidence
 is reused. No upstream issue was modified. Issue #82 remains independently open;
 these PRs do not address its RFF bbox labels. No temporary archive or extracted
 tree is left behind: archive and selected source data were processed in memory.
+
+## Signed font-bbox update from PR #83
+
+The current pin is fork stable
+[`f77f918229934bfc4560860e044c48aaf86e28b4`](https://github.com/RealDeuce/remote-imaging-protocol/tree/f77f918229934bfc4560860e044c48aaf86e28b4),
+including open [PR #83](https://github.com/bbs-land/remote-imaging-protocol/pull/83)
+head `e8591c1af34e0e47aceef354c6d80e095d72978f`. Archive digest:
+`8b8b8ab08f944d441f29a063e7c910e7c7193490806ba0b129ae0d02e2694fc8`.
+The new field/signedness derivation has a recorded hash and explicit read-only
+evidence boundaries. No new original-engine execution or exact hinting guarantee
+is inferred from its correction.
+
+Three normative documents change in the unchanged 67-document inventory. The
+index preserves 7466 heading/content matches, moves 70 line references and reviews
+38 new/replaced blocks, yielding 7504 total. The replaced spacing claim is
+reconciled with the new realized horizontal-span producer and independent native
+captures. B82 is resolved in the pinned contract. FF1 predecessor/header-copy
+material remains contextual; the native decoder/realizer consumes the canonical
+signed metrics rectangle. B84's argument-byte/escape question remains pending.
+
+The [implementation inventory](RIP3_CONFORMANCE.md#pr-83-adoption-and-realized-font-bounds)
+records decoder, realization, rounding policy, spacing integration and affected
+tests. Unchanged font bytes, legacy preservation and argument-parser evidence are
+reused. No existing issue thread is modified and no code is published. Scoped
+build logs are removed; no reference archive/extraction artifact is retained.
 
 ## Source and review evidence
 

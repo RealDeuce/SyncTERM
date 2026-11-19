@@ -45,7 +45,8 @@ test_records(void)
 
 	memcpy(bytes + 16, signature, sizeof(signature));
 	put32(bytes, 800);
-	put16(bytes + 30, 1000); put16(bytes + 32, 65536 - 921);
+	put16(bytes + 28, 250); put16(bytes + 30, 1000);
+	put16(bytes + 32, 65536 - 921); put16(bytes + 34, 65536 - 44);
 	put16(bytes + 36, 3); put16(bytes + 38, 32);
 	put16(bytes + 42, 1); put16(bytes + 44, 1000);
 	put16(bytes + 52, 0x5426);
@@ -55,6 +56,8 @@ test_records(void)
 	put16(bytes + 100, 1); put16(bytes + 102, 116);
 	put16(bytes + 116, 0xf31e); put16(bytes + 118, 0x100);
 	put16(bytes + 128, 1000); put16(bytes + 130, 32); put16(bytes + 132, 3);
+	put16(bytes + 138, 65536 - 44); put16(bytes + 140, 65536 - 921);
+	put16(bytes + 142, 1000); put16(bytes + 144, 250);
 	put16(bytes + 154, 0x4c); put16(bytes + 162, 0x20c);
 	put16(bytes + 192, 277); put16(bytes + 194, 666); put16(bytes + 196, 666);
 	put32(bytes + 640, 700 - 116); put32(bytes + 644, 720 - 116);
@@ -71,7 +74,7 @@ test_records(void)
 	CHECK(st_rip3_rff_open(&file, bytes, sizeof(bytes)) == 0);
 	unchanged = file;
 	CHECK(file.characters == 3 && file.units_per_em == 1000
-	    && file.ascender == 1000 && file.descender == -921);
+	    && file.xmin == -44 && file.ymin == -921 && file.xmax == 1000 && file.ymax == 250);
 	CHECK(st_rip3_rff_find_style(&style, &file, "tEsT") == 0);
 	CHECK(strcmp(style.name, "Test") == 0 && style.horizontal_percent == 100);
 	CHECK(st_rip3_rff_find_style(&style, &file, "Testhidden") == IO_ERROR_NOT_FOUND);
@@ -157,6 +160,20 @@ test_records(void)
 	CHECK(st_rip3_rff_find_style(&style, &file, NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_rff_glyph(&alias, NULL, '!') == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_rff_kerning(NULL, &file, '!', '!') == IO_ERROR_INVALID_ARGUMENT);
+	/* Every coordinate, including both upper bounds, is signed. The original
+	 * consumer takes this rectangle from the metrics block, not header labels. */
+	for (unsigned axis = 0; axis < 4; axis++) {
+		static const unsigned header[] = {34,32,30,28};
+		static const int values[] = {-32768,-1,32767};
+		for (size_t i = 0; i < sizeof(values)/sizeof(values[0]); i++) {
+			memcpy(bad,bytes,sizeof(bytes));
+			put16(bad+116+0x16+2*axis,(unsigned)values[i]&65535);
+			put16(bad+header[axis],1234); /* Ignored duplicate, deliberately different. */
+			CHECK(st_rip3_rff_open(&file,bad,sizeof(bad)) == 0);
+			const int bounds[] = {file.xmin,file.ymin,file.xmax,file.ymax};
+			CHECK(bounds[axis] == values[i]);
+		}
+	}
 	return 0;
 }
 
@@ -166,6 +183,10 @@ main(void)
 	static const char *const families[] = {"Brush", "Cobb", "DEFAULT", "Dixon", "Eureka", "Marin", "Oakland", "Symbol"};
 	static const unsigned flags[] = {0,1,2,4,8,16,17,18,20,24};
 	static const unsigned percent[] = {100,85,75,125,150,100,85,75,125,150};
+	static const int bounds[][4] = {
+		{-159,-767,1184,305},{-32,-775,613,274},{-2,-750,500,250},{-44,-921,1000,250},
+		{-36,-952,1093,358},{-78,-916,1059,250},{-127,-894,1249,250},{-133,-1110,1095,328},
+	};
 	unsigned damaged = 0;
 
 	for (size_t i = 0; i < 8; ++i) {
@@ -176,6 +197,8 @@ main(void)
 
 		CHECK(st_rip3_rff_open(&file, asset->data, asset->size) == 0);
 		CHECK(file.characters == 224 && file.first_character == 32 && file.styles == 10 && file.units_per_em == 1000);
+		CHECK(file.xmin == bounds[i][0] && file.ymin == bounds[i][1]
+		    && file.xmax == bounds[i][2] && file.ymax == bounds[i][3]);
 		CHECK(st_rip3_rff_find_style(&style, &file, families[i]) == 0);
 		CHECK(style.flags == 0 && style.horizontal_percent == 100);
 		for (size_t j = 0; j < 10; ++j) {

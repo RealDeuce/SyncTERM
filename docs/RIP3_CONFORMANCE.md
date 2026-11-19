@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-a52985019cbf4754d4d08a07b4f7755761390661](https://github.com/RealDeuce/remote-imaging-protocol/tree/a52985019cbf4754d4d08a07b4f7755761390661/version/3.0)
+f77f918229934bfc4560860e044c48aaf86e28b4](https://github.com/RealDeuce/remote-imaging-protocol/tree/f77f918229934bfc4560860e044c48aaf86e28b4/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -21,9 +21,11 @@ now supplies the adopted drawing contract for issues #74, #75 and #76.
 PRs [#80](https://github.com/bbs-land/remote-imaging-protocol/pull/80) and
 [#81](https://github.com/bbs-land/remote-imaging-protocol/pull/81) supply the
 adopted N normalization and 2Y field/protection/diagnostic contracts.
+PR [#83](https://github.com/bbs-land/remote-imaging-protocol/pull/83) supplies
+the adopted signed global font-bbox/header field correction for #82.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7480 blocks in 67 normative
+provenance, scope and reopened claims. There are now 7504 blocks in 67 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -4441,6 +4443,56 @@ provenance becomes context. Counts are 670 implemented, 1544 pending, 4171
 unreviewed, 1040 contextual, 24 excluded and 31 blocked across 7480 units. Scoped
 build logs are removed. No existing issue, original font, RIP1.54 source/fixture,
 active application route or external-launch policy is changed.
+
+## PR #83 adoption and realized font bounds
+
+The reference now pins fork stable f77f918229934bfc4560860e044c48aaf86e28b4,
+including open PR #83 head e8591c1af34e0e47aceef354c6d80e095d72978f. The archive
+digest, 67 document identities and new read-only derivation hash are recorded in
+the adoption ledger. Three normative documents change; 7466 heading/content
+matches preserve their reviews and 70 line references move. Thirty-eight source
+blocks are new/replaced, including the expanded global-bounds field map and eight
+font tuples. The replaced spacing clause gains fresh implementation evidence.
+B82 receives an adopted documentation resolution; B84 remains independent.
+
+The RFF view replaces its misleading ascender/descender names with four signed
+xmin/ymin/xmax/ymax coordinates from the validated metrics block. This is the
+rectangle consumed by the original engine. Header copies are not substituted
+for it, and no additional header-copy consistency policy is imposed. Raw views
+can inspect inverted bounds; realization rejects them without replacing the
+caller's previous font. All eight original tuples have literal expectations;
+custom records test negative upper bounds and signed extrema on both axes.
+
+Font realization transforms all four global corners, applying horizontal face
+percentage, independent character orientation and device-axis DPI scaling. DEVICE
+edges remain y-down and use exact rational nearest rounding with half ties positive.
+This is the geometric implementation's explicit edge policy, not a claim of native
+hinting or pixel reproduction. Wide signed edges preserve legal custom-unit/world
+realizations. Spacing's bbox reference is xmax-minus-xmin after this realization,
+without an inclusive-pixel increment or substitution of glyph advance. A zero
+span remains zero. The current int32 layout consumer rejects an oversized span
+without wrapping/changing its output, including forged extreme prepared bounds.
+Global bbox edges are not typographic ascent/descent lines or effect-specific ink
+extents; ordinary metric/alignment/effect integration remains pending.
+
+The native scene pipeline now obtains bbox widths from realized fonts before
+layout. One coherent capture per canvas/DPI profile checks all sixteen direction/
+rotation pairs against literal rectangles and spacing arithmetic. The authored
+8x8 global rectangle with a 150% face yields widths 12/8 for upright/quarter turns;
+P125 adds 3/2 to ordinary advance 8. Doubled X DPI yields widths 24/16 and adds
+6/4, while supplied origins and signed baseline additions remain DEVICE values.
+Separate font tests cover the published Marin upright width 102, independent
+rotation/DPI cases, face scaling, half ties, collapsed zero spans, custom one-unit
+em extremes, invalid rectangles and unchanged results on failures.
+
+Native CMake configure/full build succeeds without warnings. Only three affected
+CTests run, once: rip3_rff, rip3_outline_font and rip3_outline_text. All pass, as
+do three focused adoption guards and edited ledger consistency. Existing argument,
+drawing and legacy preservation evidence is reused. Counts are 685 implemented,
+1543 pending, 4171 unreviewed, 1055 contextual, 24 excluded and 26 blocked across
+7504 units. The active route, original fonts, RIP1.54 and external-launch exclusion
+are unchanged. Scoped logs are removed; archive/source processing leaves no
+temporary extraction tree. No existing issue thread or code publication changes.
 
 ## Verification and acceptance
 

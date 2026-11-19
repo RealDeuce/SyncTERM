@@ -139,9 +139,92 @@ errors(void)
 	return 0;
 }
 
+static void
+put16(uint8_t *bytes, unsigned value)
+{
+	bytes[0]=(uint8_t)value;bytes[1]=(uint8_t)(value>>8);
+}
+
+static int
+bounds(void)
+{
+	/* Device Y stays down in our geometric renderer. Nearest-edge rounding,
+	 * half ties positive, is an explicit policy, not a native hinting oracle. */
+	static const int expected[][4]={
+		{-7,-82,95,23},{-22,-7,82,95},{-95,-22,7,82},{-82,-95,23,7},
+	};
+	static const int unequal[][4]={
+		{-14,-82,191,23},{-45,-7,165,95},{-191,-22,14,82},{-165,-95,45,7},
+	};
+	struct st_rip3_frame frame;
+	struct st_rip3_outline_font font,saved;
+	int32_t width=77;
+	CHECK(st_rip3_frame_init(&frame,ST_RIP3_CANVAS_640_480)==0
+	    && st_rip3_frame_world(&frame,640,480)==0);
+	for (unsigned orientation=0; orientation<4; orientation++) {
+		CHECK(st_rip3_outline_font_builtin(&font,"Marin",&frame,90,0,orientation)==0);
+		CHECK(font.bounds.xmin==expected[orientation][0] && font.bounds.ymin==expected[orientation][1]
+		    && font.bounds.xmax==expected[orientation][2] && font.bounds.ymax==expected[orientation][3]);
+		CHECK(st_rip3_outline_font_bbox_width(&width,&font)==0
+		    && width==expected[orientation][2]-expected[orientation][0]);
+		CHECK(st_rip3_frame_world(&frame,320,480)==0);
+		CHECK(st_rip3_outline_font_builtin(&font,"Marin",&frame,90,0,orientation)==0);
+		CHECK(font.bounds.xmin==unequal[orientation][0] && font.bounds.ymin==unequal[orientation][1]
+		    && font.bounds.xmax==unequal[orientation][2] && font.bounds.ymax==unequal[orientation][3]);
+		CHECK(st_rip3_frame_world(&frame,640,480)==0);
+	}
+	CHECK(st_rip3_outline_font_builtin(&font,"Marin HE",&frame,90,0,0)==0);
+	CHECK(font.bounds.xmin==-11 && font.bounds.xmax==143 && font.hollow_thickness==2);
+	CHECK(st_rip3_outline_font_bbox_width(&width,&font)==0 && width==154);
+	CHECK(st_rip3_outline_font_builtin(&font,"Marin HE",&frame,90,0,3)==0);
+	CHECK(font.bounds.xmin==-82 && font.bounds.xmax==23 && font.bounds.ymin==-143 && font.bounds.ymax==11);
+	CHECK(st_rip3_outline_font_bbox_width(&width,&font)==0 && width==105);
+	const struct st_rip3_font_asset *asset=st_rip3_font_asset_at(5);
+	uint8_t *bytes=malloc(asset->size);
+	CHECK(bytes!=NULL);memcpy(bytes,asset->data,asset->size);
+	struct st_rip3_rff file;
+	CHECK(st_rip3_rff_open(&file,bytes,asset->size)==0);
+	const int negative[]={-10,-20,-2,-4};
+	for (unsigned i=0; i<4; i++) put16(bytes+file.base+0x16+2*i,(unsigned)negative[i]&65535);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1000,0,0)==0);
+	CHECK(font.file.xmax==-2 && font.file.ymax==-4 && font.bounds.xmin==-10 && font.bounds.ymin==-20
+	    && font.bounds.xmax==-2 && font.bounds.ymax==-4);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1000,0,1)==0);
+	CHECK(font.bounds.xmin==4 && font.bounds.ymin==-10 && font.bounds.xmax==20 && font.bounds.ymax==-2);
+	put16(bytes+file.base+0x16,65536-5);put16(bytes+file.base+0x18,65536-5);
+	put16(bytes+file.base+0x1a,5);put16(bytes+file.base+0x1c,5);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,500,0,0)==0);
+	CHECK(font.bounds.xmin==-2 && font.bounds.ymin==-2 && font.bounds.xmax==3 && font.bounds.ymax==3);
+	CHECK(st_rip3_frame_world(&frame,32767,32767)==0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1,0,0)==0);
+	CHECK(st_rip3_outline_font_bbox_width(&width,&font)==0 && width==0);
+	/* Legal custom font units and world extremes exceed int32 DEVICE span.
+	 * Font realization retains wide bounds; the narrow layout consumer fails
+	 * without wrapping or modifying its prior width. */
+	put16(bytes+44,1);put16(bytes+file.base+12,1);
+	put16(bytes+file.base+0x16,32768);put16(bytes+file.base+0x18,32768);
+	put16(bytes+file.base+0x1a,32767);put16(bytes+file.base+0x1c,32767);
+	CHECK(st_rip3_frame_world(&frame,1,1)==0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,4095,0,0)==0);
+	CHECK(font.bounds.xmax>INT32_MAX && font.bounds.xmin<INT32_MIN);
+	width=77;CHECK(st_rip3_outline_font_bbox_width(&width,&font)==IO_ERROR_OUT_OF_RANGE && width==77);
+	memcpy(&saved,&font,sizeof(saved));
+	put16(bytes+file.base+0x16,1);put16(bytes+file.base+0x1a,0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,90,0,0)==IO_ERROR_INVALID_FORMAT
+	    && memcmp(&font,&saved,sizeof(font))==0);
+	font.bounds.xmin=INT64_MIN;font.bounds.xmax=INT64_MAX;
+	CHECK(st_rip3_outline_font_bbox_width(&width,&font)==IO_ERROR_OUT_OF_RANGE && width==77);
+	font.bounds.xmin=1;font.bounds.xmax=0;
+	CHECK(st_rip3_outline_font_bbox_width(&width,&font)==IO_ERROR_OUT_OF_RANGE && width==77);
+	CHECK(st_rip3_outline_font_bbox_width(NULL,&font)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_outline_font_bbox_width(&width,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	free(bytes);
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(catalogue()==0 && sizes()==0 && coefficients()==0 && errors()==0);
+	CHECK(catalogue()==0 && sizes()==0 && coefficients()==0 && errors()==0 && bounds()==0);
 	return 0;
 }

@@ -50,8 +50,6 @@ st_rip3_rff_open(struct st_rip3_rff *result, const void *bytes, size_t size)
 	file.characters = word(data + 36);
 	file.first_character = word(data + 38);
 	file.trailer = dword(data);
-	file.ascender = word(data + 30);
-	file.descender = signed_word(data + 32);
 	if (file.styles == 0 || file.units_per_em == 0 || file.characters == 0
 	    || file.first_character > 255 || file.characters > 256 - file.first_character
 	    || file.style_offset > size || file.styles > (size - file.style_offset) / 46)
@@ -69,6 +67,10 @@ st_rip3_rff_open(struct st_rip3_rff *result, const void *bytes, size_t size)
 		return IO_ERROR_INVALID_FORMAT;
 	file.bold_hollow_strength = data[file.base + 0x12];
 	file.hollow_strength = data[file.base + 0x13];
+	file.xmin = signed_word(data + file.base + 0x16);
+	file.ymin = signed_word(data + file.base + 0x18);
+	file.xmax = signed_word(data + file.base + 0x1a);
+	file.ymax = signed_word(data + file.base + 0x1c);
 	advances = word(data + file.base + 38);
 	offsets = word(data + file.base + 46);
 	if (advances > size - file.base || offsets > size - file.base)
