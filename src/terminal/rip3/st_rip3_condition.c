@@ -1,6 +1,6 @@
 /* RIPtel comparison values and staged Boolean reduction. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
-#include "st_rip3_condition.h"
+#include "st_rip3_condition_internal.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -152,6 +152,18 @@ st_rip3_condition_evaluate(bool *result, const struct st_rip3_condition_token *t
 			(void)st_rip3_condition_compare(&answer,comparison->operation,&value,&comparison->literal);
 		work[i]=(struct st_rip3_condition_token){.kind=ST_RIP3_CONDITION_BOOLEAN,.value.boolean=answer};
 	}
+	status=st_rip3_condition_reduce(result,work,count);
+	free(work);return status;
+}
+
+int
+st_rip3_condition_reduce(bool *result, struct st_rip3_condition_token *work, size_t count)
+{
+	if (result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=st_rip3_condition_validate(work,count);
+	if (status!=0) return status;
+	for (size_t i=0; i<count; i++)
+		if (work[i].kind==ST_RIP3_CONDITION_COMPARISON) return IO_ERROR_INVALID_FORMAT;
 	while (count>1) {
 		size_t before=count;
 		for (size_t i=0; i+2<count;) {
@@ -175,10 +187,9 @@ st_rip3_condition_evaluate(bool *result, const struct st_rip3_condition_token *t
 			    && work[i+2].kind==ST_RIP3_CONDITION_CLOSE)
 				collapse(work,&count,i,3,work[i+1].value.boolean);
 		}
-		if (count==before) {free(work);return IO_ERROR_INVALID_FORMAT;}
+		if (count==before) return IO_ERROR_INVALID_FORMAT;
 	}
 	bool answer=work[0].value.boolean;
-	free(work);
 	*result=answer;
 	return 0;
 }

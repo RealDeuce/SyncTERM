@@ -12,6 +12,13 @@ struct st_rip3_condition_program {
 	struct st_rip3_condition_token tokens[];
 };
 
+struct st_rip3_condition_evaluation {
+	size_t count, cursor;
+	enum st_rip3_condition_evaluation_state state;
+	bool result;
+	struct st_rip3_condition_token tokens[];
+};
+
 struct scanner {
 	const uint8_t *source;
 	size_t length, at, count, payload;
@@ -261,6 +268,20 @@ st_rip3_condition_program_destroy(struct st_rip3_condition_program *program)
 	free(program);
 }
 
+static bool
+provider_reference_valid(const struct st_rip3_condition_bytes *reference)
+{
+	if (reference->length==2 && reference->bytes[0]=='?') return reference->bytes[1]<36;
+	/* Validate the complete synthesized reference without executing a
+	 * provider on an unintended prefix. The source lexer stays broader. */
+	uint8_t ordinary[257];size_t size=reference->length-1;
+	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+2,reference->length-2);
+	struct st_rip3_builtin_reference builtin;
+	struct st_rip3_variable_reference user;
+	return st_rip3_builtin_reference_parse(&builtin,ordinary,size)==0
+	    || st_rip3_variable_reference_parse(&user,reference->bytes,reference->length)==0;
+}
+
 static int
 provider_value(void *context, const struct st_rip3_condition_bytes *reference,
     struct st_rip3_condition_bytes *result)
@@ -273,15 +294,7 @@ provider_value(void *context, const struct st_rip3_condition_bytes *reference,
 		status=provider->template(provider->context,reference->bytes[1],result);
 	}
 	else {
-		/* Validate the complete synthesized reference without executing a
-		 * provider on an unintended prefix. The source lexer stays broader. */
-		uint8_t ordinary[257];size_t size=reference->length-1;
-		ordinary[0]='$';memcpy(ordinary+1,reference->bytes+2,reference->length-2);
-		struct st_rip3_builtin_reference builtin;
-		struct st_rip3_variable_reference user;
-		if (st_rip3_builtin_reference_parse(&builtin,ordinary,size)!=0
-		    && st_rip3_variable_reference_parse(&user,reference->bytes,reference->length)!=0)
-			return IO_ERROR_INVALID_FORMAT;
+		if (!provider_reference_valid(reference)) return IO_ERROR_INVALID_FORMAT;
 		if (provider->reference==NULL) return IO_ERROR_NOT_FOUND;
 		status=provider->reference(provider->context,reference,result);
 	}
@@ -295,6 +308,110 @@ st_rip3_condition_program_evaluate(bool *result, const struct st_rip3_condition_
     const struct st_rip3_condition_provider *provider)
 {
 	if (result==NULL || program==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	const struct st_rip3_condition_source source={(void *)provider,provider_value};
-	return st_rip3_condition_evaluate(result,program->tokens,program->count,&source);
+	struct st_rip3_condition_evaluation *evaluation=NULL;
+	int status=st_rip3_condition_evaluation_create(&evaluation,program);
+	if (status!=0) return status;
+	for (;;) {
+		st_rip3_condition_evaluation_process(evaluation,SIZE_MAX);
+		const struct st_rip3_condition_bytes *request=st_rip3_condition_evaluation_request(evaluation);
+		if (request==NULL) break;
+		struct st_rip3_condition_bytes value={0};
+		status=provider_value((void *)provider,request,&value);
+		st_rip3_condition_evaluation_supply(evaluation,&value,status);
+	}
+	status=st_rip3_condition_evaluation_result(evaluation,result) ? 0 : IO_ERROR_INVALID_FORMAT;
+	st_rip3_condition_evaluation_destroy(evaluation);return status;
+}
+
+int
+st_rip3_condition_evaluation_create(struct st_rip3_condition_evaluation **result,
+    const struct st_rip3_condition_program *program)
+{
+	if (result==NULL || program==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	size_t count=program->count,payload=0;
+	if (count>(SIZE_MAX-sizeof(struct st_rip3_condition_evaluation))/sizeof(struct st_rip3_condition_token))
+		return IO_ERROR_OUT_OF_RANGE;
+	size_t size=sizeof(struct st_rip3_condition_evaluation)+count*sizeof(struct st_rip3_condition_token);
+	for (size_t i=0; i<count; i++) {
+		if (program->tokens[i].kind!=ST_RIP3_CONDITION_COMPARISON) continue;
+		const struct st_rip3_condition_comparison *comparison=&program->tokens[i].value.comparison;
+		if (comparison->reference.length>SIZE_MAX-payload) return IO_ERROR_OUT_OF_RANGE;
+		payload+=comparison->reference.length;
+		if (comparison->literal.length>SIZE_MAX-payload) return IO_ERROR_OUT_OF_RANGE;
+		payload+=comparison->literal.length;
+	}
+	if (payload>SIZE_MAX-size) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_condition_evaluation *evaluation=calloc(1,size+payload);
+	if (evaluation==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	evaluation->count=count;
+	memcpy(evaluation->tokens,program->tokens,count*sizeof(*program->tokens));
+	uint8_t *storage=(uint8_t *)(evaluation->tokens+count);
+	for (size_t i=0; i<count; i++) {
+		if (evaluation->tokens[i].kind!=ST_RIP3_CONDITION_COMPARISON) continue;
+		struct st_rip3_condition_comparison *comparison=&evaluation->tokens[i].value.comparison;
+		memcpy(storage,comparison->reference.bytes,comparison->reference.length);
+		comparison->reference.bytes=storage;storage+=comparison->reference.length;
+		if (comparison->literal.length!=0) memcpy(storage,comparison->literal.bytes,comparison->literal.length);
+		comparison->literal.bytes=storage;storage+=comparison->literal.length;
+	}
+	*result=evaluation;return 0;
+}
+
+void
+st_rip3_condition_evaluation_destroy(struct st_rip3_condition_evaluation *evaluation)
+{
+	free(evaluation);
+}
+
+enum st_rip3_condition_evaluation_state
+st_rip3_condition_evaluation_state(const struct st_rip3_condition_evaluation *evaluation)
+{
+	return evaluation==NULL ? ST_RIP3_CONDITION_FAILED : evaluation->state;
+}
+
+const struct st_rip3_condition_bytes *
+st_rip3_condition_evaluation_request(const struct st_rip3_condition_evaluation *evaluation)
+{
+	return st_rip3_condition_evaluation_state(evaluation)==ST_RIP3_CONDITION_VALUE
+	    ? &evaluation->tokens[evaluation->cursor].value.comparison.reference : NULL;
+}
+
+void
+st_rip3_condition_evaluation_supply(struct st_rip3_condition_evaluation *evaluation,
+    const struct st_rip3_condition_bytes *value, int status)
+{
+	if (st_rip3_condition_evaluation_state(evaluation)!=ST_RIP3_CONDITION_VALUE) return;
+	struct st_rip3_condition_token *token=&evaluation->tokens[evaluation->cursor];
+	bool answer=false;
+	if (status==0 && value!=NULL && value->length<=255
+	    && (value->length==0 || value->bytes!=NULL))
+		(void)st_rip3_condition_compare(&answer,token->value.comparison.operation,value,&token->value.comparison.literal);
+	*token=(struct st_rip3_condition_token){.kind=ST_RIP3_CONDITION_BOOLEAN,.value.boolean=answer};
+	evaluation->cursor++;evaluation->state=ST_RIP3_CONDITION_RUNNING;
+}
+
+void
+st_rip3_condition_evaluation_process(struct st_rip3_condition_evaluation *evaluation, size_t budget)
+{
+	if (st_rip3_condition_evaluation_state(evaluation)!=ST_RIP3_CONDITION_RUNNING || budget==0) return;
+	for (size_t i=0; i<budget && evaluation->cursor<evaluation->count; i++) {
+		struct st_rip3_condition_token *token=&evaluation->tokens[evaluation->cursor];
+		if (token->kind==ST_RIP3_CONDITION_COMPARISON) {
+			evaluation->state=ST_RIP3_CONDITION_VALUE;
+			if (provider_reference_valid(&token->value.comparison.reference)) return;
+			st_rip3_condition_evaluation_supply(evaluation,NULL,IO_ERROR_INVALID_FORMAT);
+		}
+		else evaluation->cursor++;
+	}
+	if (evaluation->cursor==evaluation->count) {
+		int status=st_rip3_condition_reduce(&evaluation->result,evaluation->tokens,evaluation->count);
+		evaluation->state=status==0 ? ST_RIP3_CONDITION_COMPLETE : ST_RIP3_CONDITION_FAILED;
+	}
+}
+
+bool
+st_rip3_condition_evaluation_result(const struct st_rip3_condition_evaluation *evaluation, bool *result)
+{
+	if (st_rip3_condition_evaluation_state(evaluation)!=ST_RIP3_CONDITION_COMPLETE || result==NULL) return false;
+	*result=evaluation->result;return true;
 }

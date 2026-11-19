@@ -5200,6 +5200,57 @@ unchanged. The pin, original fonts, RIP1.54 and active application route remain
 unchanged. Scoped build logs are removed. No existing issue is modified, code
 pushed or PR published. Full compliance remains in progress.
 
+## Resumable conditional values and outer-scanner follow-up
+
+The conditional source service now prepares an owned evaluation continuation
+before any provider action. It copies all parsed tokens and operand payloads;
+the source and parsed program can be released while an operand awaits a dialog.
+The void processing boundary examines a caller-budgeted number of prepared tokens
+and stops at each valid ordinary or template request. An owner may keep that
+request pending across source pumps without repeating earlier provider actions.
+Supply compares borrowed bytes immediately and consumes only that request, so
+the provider can reuse scratch storage and the next lookup is independently
+scheduled. Every evaluated leaf still runs in source order without short circuit.
+
+Invalid synthesized provider references become false without reaching a provider.
+Unavailable/failed/oversized/invalid spans likewise become false, including !=;
+successful empty values remain valid. The final reduction shares the existing
+allocation-free Boolean/NOT/group phases. No allocation occurs while requesting,
+supplying or reducing; complete token/payload preparation precedes all provider
+actions. Pending destruction releases the owner without callbacks. The former
+synchronous source evaluator now drives this same continuation, preserving its
+private helper boundary and failure-atomic result publication.
+
+Independent native cases cover zero/one-token budgets, repeated waiting pumps,
+one-at-a-time requests, copied source/program ownership, simultaneous independent
+runs, numeric template zero and case-folded letter slots, borrowed scratch reuse,
+no short circuit and equal binary precedence, invalid references skipped before
+later leaves, 255/256-byte values, successful empty spans, failed != comparisons,
+pending destruction and failed preparation followed by recovery. Existing source
+byte/escape/quote and typed numeric/reduction vectors exercise the shared path.
+Native CMake configure/full build and the two affected rip3_condition and
+rip3_condition_parser CTests pass once without build/compiler diagnostics.
+Unchanged query/drawing/font/adoption/RIP1.54 evidence is reused.
+
+Full outer preprocessing remains a separate pending owner. Read-only inspection
+of the catalogued original worker found fixed IF-space/ELSEIF-space and exact
+ELSE>>/ENDIF>> dispatch strings, a special backslash-before-<< path, outer
+terminator/nested-introducer lookahead and explicit branch-state/depth checks.
+These are not all defined by the operand parser's independently adopted byte
+grammar. New upstream [#96](https://github.com/bbs-land/remote-imaging-protocol/issues/96)
+requests that outer-scanner/branch contract, with exact instruction/data leads
+and references to completed PRs #32/#92/#95. No existing issue is modified; no
+original instruction/client, GUI, prompt or provider was executed. The reference
+pin and completed operand/comparison/pass-count answers remain adopted.
+
+Edited ledger consistency passes. Counts are 918 implemented, 1619 pending,
+4057 unreviewed, 1121 contextual, 24 excluded and 28 blocked across 7767 units.
+This milestone supplies resumable evaluation for the future branch owner; it
+does not claim IF/ELSE text filtering, real host/user provider binding or
+application integration. Original fonts, RIP1.54 and the active application route
+remain unchanged. Scoped logs are removed; no code is pushed or PR published.
+The complete compliance goal remains active.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

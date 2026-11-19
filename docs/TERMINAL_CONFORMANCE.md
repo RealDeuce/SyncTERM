@@ -110,8 +110,8 @@ case-insensitive byte strings and performs the original staged Boolean reduction
 Native vectors distinguish equal AND/OR precedence, late NOT, grouping and
 multiple-NOT phase boundaries. Provider calls are ordered without short-circuiting;
 failed values become false, and complete preflight/allocation precedes callbacks.
-Validation-only use makes no provider calls. These are helper-stage tests; source
-lexing, full angle preprocessing and consumer integration remain pending.
+Validation-only use makes no provider calls. These are helper-stage tests;
+full angle preprocessing and consumer integration remain pending.
 PR #92 now supplies the conditional operand grammar; its private source parser
 preflights complete structure without allocation/providers, owns decoded operands,
 validates exact synthesized references and routes template indexes separately.
@@ -119,9 +119,18 @@ The native parser test covers all 256 initial/quoted-payload byte classes,
 independent escape stages, quoted/empty literals, connector-space boundaries,
 255-byte pre-trim/provider bounds, long encoded input, ordered callbacks, nested
 structure, owned source and nonfatal helper recovery. Existing typed reduction is
-reused. Full IF/ELSE branch preprocessing and real consumer providers remain pending.
-PR #94's ordinary outline origin/justification policy and PR #95's working-response
-clipping/storage policy are also adopted; their implementation remains pending.
+reused. A private owned continuation now exposes one validated operand request
+at a time, letting a future branch owner wait for a prompt without replaying
+earlier provider actions. Supplied borrowed bytes are compared immediately,
+all leaves still run in source order, and resumed processing/reduction allocates
+nothing. The synchronous evaluator uses the same continuation. Independent native
+tests cover waiting/budgets, independent owned runs, unavailable/oversized values,
+pending destruction and allocator failure. Full IF/ELSE branch preprocessing and
+real consumer providers remain pending; outer angle-scanner boundaries are
+tracked in upstream #96 separately from the adopted operand grammar.
+PR #94's ordinary outline origin/justification policy remains pending
+implementation. PR #95's working-response/storage limits are implemented in the
+immediate evaluator, with the all-canvas boundary evidence described below.
 The completed numeric/Boolean and PR #85/#89 rules remain adopted independently.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.

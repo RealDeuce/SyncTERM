@@ -162,6 +162,111 @@ bytes_and_structure(void)
 }
 
 static int
+continuations(void)
+{
+	char source[]="n=1 OR ?a=2 AND M=3>>";
+	struct st_rip3_condition_program *program=NULL;
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL)==0);
+	struct st_rip3_condition_evaluation *a=NULL,*b=NULL;
+	CHECK(st_rip3_condition_evaluation_create(&a,program)==0
+	    && st_rip3_condition_evaluation_create(&b,program)==0);
+	st_rip3_condition_program_destroy(program);program=NULL;
+	memset(source,'?',sizeof(source)-1);
+	CHECK(st_rip3_condition_evaluation_state(a)==ST_RIP3_CONDITION_RUNNING);
+	CHECK(st_rip3_condition_evaluation_request(a)==NULL);
+	bool result=true;
+	CHECK(!st_rip3_condition_evaluation_result(a,&result) && result);
+	st_rip3_condition_evaluation_process(a,0);
+	CHECK(st_rip3_condition_evaluation_request(a)==NULL);
+	st_rip3_condition_evaluation_supply(a,NULL,IO_ERROR_NOT_FOUND); /* No request yet. */
+	st_rip3_condition_evaluation_process(a,1);
+	const struct st_rip3_condition_bytes *request=st_rip3_condition_evaluation_request(a);
+	CHECK(request!=NULL && request->length==4 && memcmp(request->bytes,"$&n$",4)==0);
+	/* A prompt can remain open across arbitrary source pumps without replay. */
+	for (unsigned i=0; i<20; i++) {
+		st_rip3_condition_evaluation_process(a,64);
+		CHECK(st_rip3_condition_evaluation_request(a)==request
+		    && st_rip3_condition_evaluation_state(a)==ST_RIP3_CONDITION_VALUE);
+	}
+	uint8_t scratch='1';struct st_rip3_condition_bytes value={&scratch,1};
+	st_rip3_condition_evaluation_supply(a,&value,0);scratch='0';
+	CHECK(st_rip3_condition_evaluation_request(a)==NULL && st_rip3_condition_evaluation_state(a)==ST_RIP3_CONDITION_RUNNING);
+	st_rip3_condition_evaluation_process(a,1); /* OR consumes one token. */
+	CHECK(st_rip3_condition_evaluation_request(a)==NULL);
+	st_rip3_condition_evaluation_process(a,1);
+	request=st_rip3_condition_evaluation_request(a);
+	CHECK(request!=NULL && request->length==2 && request->bytes[0]=='?' && request->bytes[1]==10);
+	/* An earlier true result does not short-circuit the OR's second operand. */
+	scratch='2';st_rip3_condition_evaluation_supply(a,&value,0);scratch='0';
+	st_rip3_condition_evaluation_process(a,64);request=st_rip3_condition_evaluation_request(a);
+	CHECK(request!=NULL && request->length==4 && memcmp(request->bytes,"$&M$",4)==0);
+	scratch='0';st_rip3_condition_evaluation_supply(a,&value,0);
+	/* No allocation is permitted during continuation/reduction. */
+	size_t allocations=st_rip3_condition_parser_test_allocations;
+	st_rip3_condition_parser_test_fail=true;
+	st_rip3_condition_evaluation_process(a,1);
+	CHECK(st_rip3_condition_evaluation_result(a,&result) && !result
+	    && st_rip3_condition_evaluation_state(a)==ST_RIP3_CONDITION_COMPLETE
+	    && st_rip3_condition_parser_test_allocations==allocations);
+	st_rip3_condition_evaluation_supply(a,&value,0);st_rip3_condition_evaluation_process(a,64);
+	CHECK(st_rip3_condition_evaluation_result(a,&result) && !result);
+	st_rip3_condition_parser_test_fail=false;
+	/* Independent continuations of one parsed program do not share progress. */
+	unsigned calls=0;
+	for (;;) {
+		st_rip3_condition_evaluation_process(b,64);request=st_rip3_condition_evaluation_request(b);
+		if (request==NULL) break;
+		calls++;scratch=(uint8_t)('0'+calls);st_rip3_condition_evaluation_supply(b,&value,0);
+	}
+	CHECK(calls==3 && st_rip3_condition_evaluation_result(b,&result) && result);
+	st_rip3_condition_evaluation_destroy(a);st_rip3_condition_evaluation_destroy(b);
+	/* Invalid synthesized references do not reach a provider; syntax was still
+	 * valid at the broader conditional operand stage. Later leaves still run. */
+	const char *invalid="$N\\$TAIL$!=A OR ?0=>>";
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)invalid,strlen(invalid),NULL)==0);
+	CHECK(st_rip3_condition_evaluation_create(&a,program)==0);st_rip3_condition_program_destroy(program);program=NULL;
+	st_rip3_condition_evaluation_process(a,1);
+	CHECK(st_rip3_condition_evaluation_request(a)==NULL && st_rip3_condition_evaluation_state(a)==ST_RIP3_CONDITION_RUNNING);
+	st_rip3_condition_evaluation_process(a,64);request=st_rip3_condition_evaluation_request(a);
+	CHECK(request!=NULL && request->length==2 && request->bytes[1]==0);
+	value=(struct st_rip3_condition_bytes){0};st_rip3_condition_evaluation_supply(a,&value,0);
+	st_rip3_condition_evaluation_process(a,64);
+	CHECK(st_rip3_condition_evaluation_result(a,&result) && result);
+	st_rip3_condition_evaluation_destroy(a);
+	const char *single="N!=A>>";
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)single,strlen(single),NULL)==0);
+	uint8_t long_value[256];memset(long_value,'B',sizeof(long_value));
+	const struct {const uint8_t *bytes;size_t length;int status;bool expected;} values[]={
+		{long_value,255,0,true},{long_value,256,0,false},{NULL,1,0,false},
+		{NULL,0,0,true},{long_value,1,IO_ERROR_NOT_FOUND,false},{long_value,1,IO_ERROR_OUT_OF_MEMORY,false},
+	};
+	for (size_t i=0; i<sizeof(values)/sizeof(values[0]); i++) {
+		CHECK(st_rip3_condition_evaluation_create(&a,program)==0);st_rip3_condition_evaluation_process(a,64);
+		value=(struct st_rip3_condition_bytes){values[i].bytes,values[i].length};
+		st_rip3_condition_evaluation_supply(a,&value,values[i].status);st_rip3_condition_evaluation_process(a,64);
+		CHECK(st_rip3_condition_evaluation_result(a,&result) && result==values[i].expected);
+		st_rip3_condition_evaluation_destroy(a);
+	}
+	CHECK(st_rip3_condition_evaluation_create(&a,program)==0);
+	st_rip3_condition_evaluation_process(a,64);
+	st_rip3_condition_evaluation_supply(a,NULL,0);st_rip3_condition_evaluation_process(a,64);
+	CHECK(st_rip3_condition_evaluation_result(a,&result) && !result);st_rip3_condition_evaluation_destroy(a);
+	a=NULL;st_rip3_condition_parser_test_fail=true;
+	CHECK(st_rip3_condition_evaluation_create(&a,program)==IO_ERROR_OUT_OF_MEMORY && a==NULL);
+	st_rip3_condition_parser_test_fail=false;
+	CHECK(st_rip3_condition_evaluation_create(&a,program)==0);
+	st_rip3_condition_evaluation_process(a,64); /* Destroy an outstanding prompt. */
+	st_rip3_condition_evaluation_destroy(a);st_rip3_condition_program_destroy(program);
+	CHECK(st_rip3_condition_evaluation_create(NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	a=NULL;CHECK(st_rip3_condition_evaluation_create(&a,NULL)==IO_ERROR_INVALID_ARGUMENT && a==NULL);
+	st_rip3_condition_evaluation_process(NULL,1);st_rip3_condition_evaluation_supply(NULL,NULL,0);
+	st_rip3_condition_evaluation_destroy(NULL);
+	CHECK(st_rip3_condition_evaluation_request(NULL)==NULL && !st_rip3_condition_evaluation_result(NULL,&result));
+	CHECK(st_rip3_condition_evaluation_state(NULL)==ST_RIP3_CONDITION_FAILED);
+	return 0;
+}
+
+static int
 limits_and_failures(void)
 {
 	uint8_t source[1600],value[256];memset(value,'A',sizeof(value));
@@ -230,6 +335,6 @@ limits_and_failures(void)
 int
 main(void)
 {
-	CHECK(examples()==0 && bytes_and_structure()==0 && limits_and_failures()==0);
+	CHECK(examples()==0 && bytes_and_structure()==0 && continuations()==0 && limits_and_failures()==0);
 	return 0;
 }
