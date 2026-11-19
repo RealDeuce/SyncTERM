@@ -204,6 +204,19 @@ read_glyph(struct st_rip3_rff_glyph *glyph, const struct st_rip3_rff *file,
 }
 
 int
+st_rip3_rff_advance(unsigned *result, const struct st_rip3_rff *file, uint8_t character)
+{
+	if (result==NULL || file==NULL || file->data==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (character<file->first_character || (unsigned)character-file->first_character>=file->characters)
+		return IO_ERROR_NOT_FOUND;
+	size_t index=(unsigned)character-file->first_character;
+	if (file->advances>file->size || !span(file->size-file->advances,2*index,2))
+		return IO_ERROR_INVALID_FORMAT;
+	*result=word(file->data+file->advances+2*index);
+	return 0;
+}
+
+int
 st_rip3_rff_glyph(struct st_rip3_rff_glyph *result,
 	const struct st_rip3_rff *file, uint8_t character)
 {
@@ -212,11 +225,9 @@ st_rip3_rff_glyph(struct st_rip3_rff_glyph *result,
 
 	if (result == NULL || file == NULL || file->data == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (character < file->first_character
-	    || (unsigned)character - file->first_character >= file->characters)
-		return IO_ERROR_NOT_FOUND;
+	int status=st_rip3_rff_advance(&glyph.advance,file,character);
+	if (status!=0) return status;
 	index = character - file->first_character;
-	glyph.advance = word(file->data + file->advances + index * 2);
 	if (!read_glyph(&glyph, file, index)) {
 		glyph = (struct st_rip3_rff_glyph){.advance = glyph.advance, .damaged = true};
 	}

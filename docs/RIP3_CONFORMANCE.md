@@ -4787,6 +4787,54 @@ and external-launch exclusion are unchanged. Archive processing stays in memory;
 scoped build logs are removed. No code is pushed or PR published. Full compliance
 is still in progress.
 
+## Owned outline snapshots and classic font-zero cursor widths
+
+The logical cache service now owns a complete 256-code metric snapshot per text
+context, shared across its ports and styles. It copies the rounded logical map,
+preparation-time X DPI, spacing, bbox flag and realized horizontal span; it keeps
+no font-file or backend bitmap pointers. Preparation validates every field and
+step before replacing the old snapshot. Failure retains the complete last good
+state. Creation/reset yields invalid zero width, and disposal belongs to the
+context owner. Ordinary outline commands and full drawing-reset orchestration
+still need to call these services at their specified lifecycle boundaries.
+
+Cached measurement reads unsigned codes, stops at a bounded C-string terminator,
+uses the snapshot's X DPI for every direction and includes each final spacing
+step. It has no 255-byte limit or intermediate WORD narrowing. Checked wide sums
+reject overflow atomically, and only the final cursor value decodes the signed
+low WORD. RFF metric reads are now independent of outline decoding, so damaged
+or undrawable outlines retain their declared advance. Copied metrics survive
+destruction of the complete backing font allocation.
+
+Classic font-zero TEXT_XY now reads that snapshot without preparing a font. All
+classic TEXT_XY orientations/justifications store raw input anchors plus viewport
+origin and the selected metric, while painting uses its separately converted
+anchor. Fonts 1..10 retain their own classic width; classic TEXT also retains its
+classic metric. Cold font-zero TEXT_XY advances by zero. Successful outline
+T/@ preparation, their accepted-call failure/cursor ordering, typographic
+alignment, effects and application routing remain pending.
+
+Independent native vectors cover every string/character rotation at unequal DPI,
+MARIN F=50, ordinary vertical F=25, raw high bytes, missing-code bbox gaps,
+P=125 widths 62/75, negative spacing, 260/700-byte widths and final wrap to
+-30536. Failure checks cover invalid fonts, spacing/bounds, failed allocations
+and late sum overflow with unchanged outputs. All-canvas CP437/UTF-8 cursor
+captures check cold/warm states, raw anchors (105:87, 155:87 and 130:87), stale
+metrics after frame/style/port changes, empty/inactive calls, overflow recovery
+and a following classic TEXT with its own metric. Existing raster fixtures now
+explicitly prepare their independent uniform-width snapshot before drawing.
+
+The native CMake build produced the new artifacts. All six affected CTests pass:
+rip3_rff, rip3_outline_font, rip3_outline_text, rip3_outline_cache, rip3_cursor and
+rip3_text_commands. The existing GNU make clock-skew warning is environmental;
+no compiler diagnostics were introduced. These results are reused without
+repeating the passing tests. Edited requirement-ledger consistency passes.
+Counts are 747 implemented, 1615 pending, 4122 unreviewed, 1097 contextual,
+24 excluded and 26 blocked across the unchanged 7631 units. No reference pin,
+original font asset, RIP1.54 source/fixture or active application route changes.
+Temporary build logs are removed; no existing issue is modified or code pushed.
+The full compliance goal remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

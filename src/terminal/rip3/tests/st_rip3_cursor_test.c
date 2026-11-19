@@ -6,6 +6,8 @@
 #include "st_rip3_chr.h"
 #include "st_rip3_classic_text.h"
 #include "st_rip3_text_commands.h"
+#include "st_rip3_outline_cache.h"
+#include "st_rip3_outline_font.h"
 #include "io_error.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
@@ -300,6 +302,92 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	st_pixel_buffer_destroy(capture);destroy(&host);return 0;
 }
 
+static int
+cached_zero(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	struct st_rip3_command_host host={0};struct st_rip3_style style;
+	struct st_rip3_frame frame;struct st_rip3_outline_font prepared;
+	struct st_rip3_environment environment;
+	uint8_t blank[255]={0};
+	const struct st_rip3_classic_font bitmap={.canvas=canvas,.number=0,.data.bitmap={1,1,1,1,blank}};
+	struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437,.font=&bitmap};
+	const struct st_rip3_rect bounds={0,0,159,159},view={5,7,154,156};
+	CHECK(create(&host,canvas,width,height)==0);host.text=&text;
+	CHECK(st_rip3_ports_define(host.ports,1,&bounds,false)==0 && st_rip3_ports_switch(host.ports,1)==0
+	    && st_rip3_ports_viewport_device(host.ports,&view)==0);
+	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);
+	/* Missing binding is the cold snapshot, not a classic-width substitute. */
+	CHECK(process(&host,"@2S28F",-1)==0 && cursor(&host,1,105,87)==0);
+	CHECK(st_rip3_outline_cache_create(&text.outline_cache)==0);
+	for (unsigned direction=0; direction<2; direction++) for (unsigned justify=0; justify<3; justify++) {
+		style.font.direction=direction;style.font.flags=justify;
+		CHECK(st_rip3_styles_set(host.styles,0,&style)==0
+		    && process(&host,"@2S28F",-1)==0 && cursor(&host,1,105,87)==0);
+	}
+	CHECK(st_rip3_frame_init(&frame,canvas)==0 && st_rip3_frame_world(&frame,width,height)==0);
+	CHECK(st_rip3_outline_font_builtin(&prepared,"Marin",&frame,90,0,0)==0
+	    && st_rip3_outline_cache_prepare(text.outline_cache,&prepared,100)==0);
+	for (unsigned direction=0; direction<2; direction++) for (unsigned justify=0; justify<3; justify++) {
+		style.font.direction=direction;style.font.flags=justify;
+		CHECK(st_rip3_styles_set(host.styles,0,&style)==0
+		    && process(&host,"@2S28F",-1)==0 && cursor(&host,1,155,87)==0);
+	}
+	CHECK(query(&host,"$TEXTXY$","155:87")==0);
+	CHECK(process(&host,"@2S28\x80\xff",-1)==0 && cursor(&host,1,210,87)==0);
+	text.encoding=ST_RIP3_TEXT_UTF8;
+	CHECK(process(&host,"@2S28\xc3\x87\xc2\xa0",-1)==0 && cursor(&host,1,210,87)==0);
+	CHECK(st_rip3_styles_define(host.styles,4,&style)==0 && st_rip3_styles_switch(host.styles,4)==0);
+	CHECK(st_rip3_ports_define(host.ports,2,&bounds,true)==0 && st_rip3_ports_switch(host.ports,2)==0);
+	CHECK(process(&host,"@2S28F",-1)==0 && cursor(&host,2,150,80)==0 && cursor(&host,1,210,87)==0);
+	CHECK(st_rip3_ports_switch(host.ports,1)==0);
+	/* Classic selection and viewport erase retain the context-wide snapshot. */
+	CHECK(process(&host,"Y00000100",-1)==0 && st_rip3_styles_get(host.styles,4,&style)==0);
+	style.background_color=0;CHECK(st_rip3_styles_set(host.styles,4,&style)==0);
+	CHECK(process(&host,"E",-1)==0 && process(&host,"@2S28F",-1)==0 && cursor(&host,1,155,87)==0);
+	CHECK(st_rip3_environments_get(host.environments,0,&environment)==0);
+	environment.world_width=2*width;environment.world_height=2*height;
+	CHECK(st_rip3_environments_set(host.environments,0,&environment)==0);
+	struct st_rip3_outline_font bad=prepared;bad.points=0;
+	CHECK(st_rip3_outline_cache_prepare(text.outline_cache,&bad,125)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(process(&host,"@2S28F",-1)==0 && cursor(&host,1,155,87)==0);
+	CHECK(st_rip3_frame_world(&frame,2*width,2*height)==0);
+	CHECK(st_rip3_outline_font_builtin(&prepared,"Marin",&frame,90,0,0)==0
+	    && st_rip3_outline_cache_prepare(text.outline_cache,&prepared,100)==0);
+	CHECK(process(&host,"@2S28F",-1)==0 && cursor(&host,1,130,87)==0);
+	CHECK(process(&host,"@2S28\xc3",ST_RIP3_COMMAND_INVALID)==0 && cursor(&host,1,130,87)==0);
+	CHECK(process(&host,"@2S28F",-1)==0 && cursor(&host,1,130,87)==0);
+	CHECK(process(&host,"T",-1)==0 && process(&host,"@2S28",ST_RIP3_COMMAND_INVALID)==0
+	    && cursor(&host,1,130,87)==0);
+	CHECK(st_rip3_ports_activate(host.ports,false)==0 && process(&host,"@2S28F",-1)==0
+	    && cursor(&host,1,130,87)==0 && st_rip3_outline_cache_valid(text.outline_cache));
+	CHECK(st_rip3_ports_activate(host.ports,true)==0);
+	/* Restore the old frame for preparation, then change it without preparing:
+	 * the cached 50 stays, including its final signed-WORD handoff. */
+	environment.world_width=width;environment.world_height=height;
+	CHECK(st_rip3_environments_set(host.environments,0,&environment)==0
+	    && st_rip3_frame_world(&frame,width,height)==0);
+	CHECK(st_rip3_outline_font_builtin(&prepared,"Marin",&frame,90,0,0)==0
+	    && st_rip3_outline_cache_prepare(text.outline_cache,&prepared,100)==0);
+	environment.world_width=2*width;environment.world_height=2*height;
+	CHECK(st_rip3_environments_set(host.environments,0,&environment)==0);
+	char long_text[706]="@2S28";memset(long_text+5,'F',700);long_text[705]=0;
+	CHECK(process(&host,long_text,-1)==0 && cursor(&host,1,-30431,87)==0);
+	/* A late cached-width failure remains inside the void command boundary. */
+	bad=prepared;bad.flags|=0x400;bad.bounds.xmin=0;bad.bounds.xmax=INT64_MAX;
+	CHECK(st_rip3_outline_cache_prepare(text.outline_cache,&bad,101)==0);
+	long_text[105]=0;
+	CHECK(process(&host,long_text,ST_RIP3_COMMAND_OPERATION_FAILED)==0 && cursor(&host,1,-30431,87)==0);
+	st_rip3_outline_cache_reset(text.outline_cache);
+	CHECK(process(&host,"@2S28F",-1)==0 && cursor(&host,1,105,87)==0);
+	CHECK(process(&host,"TF",-1)==0 && cursor(&host,1,106,87)==0); /* Classic T keeps its own metric. */
+	struct st_rip3_palette palette;struct st_pixel_buffer *capture=NULL;
+	CHECK(st_rip3_palettes_get(host.palettes,0,&palette)==0 && st_rip3_ports_snapshot(host.ports,&palette,&capture)==0);
+	for (size_t i=0; i<(size_t)width*height; i++) CHECK(capture->primary[i]==ST_PIXEL_COLOR_RGB_TAG);
+	CHECK(query(&host,"$TEXTXY$","106:87")==0 && !st_rip3_outline_cache_valid(text.outline_cache));
+	st_pixel_buffer_destroy(capture);st_rip3_outline_cache_destroy(text.outline_cache);destroy(&host);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -310,5 +398,8 @@ main(void)
 	CHECK(metrics(ST_RIP3_CANVAS_640_480,640,480)==0);
 	CHECK(metrics(ST_RIP3_CANVAS_800_600,800,600)==0);
 	CHECK(metrics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
+	CHECK(cached_zero(ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(cached_zero(ST_RIP3_CANVAS_800_600,800,600)==0);
+	CHECK(cached_zero(ST_RIP3_CANVAS_1024_768,1024,768)==0);
 	return 0;
 }

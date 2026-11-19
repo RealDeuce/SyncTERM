@@ -74,8 +74,8 @@ struct st_rip3_command_sink {
  * entry does not buffer partial input or perform macro expansion.
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, literal-name y, q, =, E, L, R, B, K, C, G, o,
- * X/j in all five modes, m, classic literal T and nonzero-font @,
- * the existing font-zero horizontal-left @ geometry,
+ * X/j in all five modes, m, classic literal T and @,
+ * including font-zero @ with the context's cached outline width,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
  * 2Y style selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
@@ -272,10 +272,12 @@ struct st_rip3_command_sink {
  * T renders at that cursor relative to the current viewport, then advances X
  * by the signed low WORD of the whole integer string metric for every classic
  * orientation/justification; Y is retained. Raster advances remain fractional.
- * Nonzero classic-font @ uses its separately converted drawing anchor, but
- * stores raw input X/Y plus viewport origin and that integer width, matching
- * the shipped mixed-unit cursor defect. The font-zero cached-outline metric
- * branch remains pending; its existing horizontal-left geometry stays limited.
+ * Classic @ uses its separately converted drawing anchor, but stores raw input
+ * X/Y plus viewport origin and its selected metric for every direction and
+ * justification. Fonts 1..10 use their classic integer width; font zero reads
+ * the context's last outline snapshot, or zero when invalid, without preparing
+ * another font. Successful outline-call preparation and full drawing-reset
+ * orchestration remain pending with ordinary outline T/@ integration.
  * Empty T retains the cursor silently; empty @ diagnoses without moving it.
  * E, STYLE/ENV selection and viewport changes do not move the stored cursor.
  * Literal text uses the explicit CP437/UTF-8 transport binding, mapping UTF-8

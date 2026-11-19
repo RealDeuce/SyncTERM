@@ -73,6 +73,13 @@ test_records(void)
 	bytes[810] = '!'; bytes[811] = '"'; put16(bytes + 812, 65536 - 50);
 	CHECK(st_rip3_rff_open(&file, bytes, sizeof(bytes)) == 0);
 	unchanged = file;
+	unsigned advance=77;
+	CHECK(st_rip3_rff_advance(&advance,&file,32)==0 && advance==277);
+	CHECK(st_rip3_rff_advance(&advance,&file,'!')==0 && advance==666);
+	CHECK(st_rip3_rff_advance(&advance,&file,31)==IO_ERROR_NOT_FOUND && advance==666);
+	struct st_rip3_rff invalid=file;invalid.advances=SIZE_MAX;
+	CHECK(st_rip3_rff_advance(&advance,&invalid,'!')==IO_ERROR_INVALID_FORMAT && advance==666);
+	CHECK(st_rip3_rff_advance(NULL,&file,'!')==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(file.characters == 3 && file.units_per_em == 1000
 	    && file.xmin == -44 && file.ymin == -921 && file.xmax == 1000 && file.ymax == 250);
 	CHECK(st_rip3_rff_find_style(&style, &file, "tEsT") == 0);
@@ -132,6 +139,7 @@ test_records(void)
 		CHECK(st_rip3_rff_open(&file, bad, sizeof(bad)) == 0);
 		CHECK(st_rip3_rff_glyph(&alias, &file, '!') == 0 && alias.damaged
 		    && alias.path == NULL && alias.advance == 666);
+		CHECK(st_rip3_rff_advance(&advance,&file,'!')==0 && advance==666);
 	}
 	CHECK(st_rip3_rff_open(&file, bytes, 740) == 0);
 	CHECK(st_rip3_rff_glyph(&alias, &file, '!') == 0 && alias.damaged);

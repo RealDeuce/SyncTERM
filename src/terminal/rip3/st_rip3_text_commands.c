@@ -2,6 +2,7 @@
 #include "st_rip3_command_internal.h"
 #include "st_rip3_text_commands.h"
 #include "st_rip3_classic_text.h"
+#include "st_rip3_outline_cache.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_ports.h"
@@ -110,8 +111,6 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
 	if (style.font_mode != ST_RIP3_FONT_CLASSIC) return IO_ERROR_NOT_SUPPORTED;
-	if (command[0] == '@' && style.font.font == 0 && (style.font.direction != 0 || (style.font.flags&3) != 0))
-		return IO_ERROR_NOT_SUPPORTED; /* Non-left/vertical @ cursor semantics: #24. */
 	status = text_bytes(arguments,count,host->text->encoding,&glyphs,&glyph_count,&owned);
 	if (status != 0) return status;
 	*operation = true;
@@ -132,17 +131,19 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	 * signed low WORD. Raster advances can still be fractional. */
 	int64_t advance = (int64_t)(plan.integer_advance&UINT64_C(65535));
 	if (advance >= 32768) advance -= 65536;
+	if (positioned && style.font.font==0) {
+		struct st_rip3_outline_width cached;
+		status=st_rip3_outline_cache_measure(&cached,host->text->outline_cache,glyphs,glyph_count);
+		if (status!=0) goto done;
+		advance=cached.cursor;
+	}
 	next = port.cursor;
 	if (!positioned) next.x += advance;
-	else if (style.font.font != 0) {
-		/* The classic TEXT_XY cursor store uses raw world X/Y, unlike MOVE
-		 * and its separate converted drawing anchor. */
-		next = (struct st_rip3_cursor){origin_x+(int64_t)raw_x+advance,origin_y+(int64_t)raw_y};
-	}
 	else {
-		/* The font-zero cached-outline metric branch remains pending. Keep
-		 * this existing supported geometric branch explicitly separate. */
-		next = (struct st_rip3_cursor){origin_x+(int64_t)anchor.x+advance,origin_y+(int64_t)anchor.y};
+		/* The classic TEXT_XY cursor store uses raw world X/Y, unlike MOVE
+		 * and its separate converted drawing anchor. Font zero uses the last
+		 * logical outline snapshot without realizing/preparing another font. */
+		next = (struct st_rip3_cursor){origin_x+(int64_t)raw_x+advance,origin_y+(int64_t)raw_y};
 	}
 	const int64_t limit = INT64_C(1024)*INT32_MAX;
 	if (next.x < -limit || next.x > limit || next.y < -limit || next.y > limit) {

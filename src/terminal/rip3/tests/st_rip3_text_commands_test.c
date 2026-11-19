@@ -3,6 +3,9 @@
 #include "io_error.h"
 #include "st_rip3_text_commands.h"
 #include "st_rip3_classic_text.h"
+#include "st_rip3_outline_cache.h"
+#include "st_rip3_outline_font.h"
+#include "st_rip3_font_data.h"
 #include "st_rip3_bitmap.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
@@ -15,6 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <string.h>
 
@@ -113,12 +117,26 @@ create(struct fixture *f, enum st_rip3_canvas canvas, uint32_t width, uint32_t h
 	memcpy(f->glyphs+129*3,e,3); memcpy(f->glyphs+('?' -1)*3,q,3); memset(f->glyphs+218*3,0xe0,3);
 	f->font = (struct st_rip3_classic_font){.canvas=canvas,.number=0,.data.bitmap={3,3,1,3,f->glyphs}};
 	f->text = (struct st_rip3_text_context){.encoding=ST_RIP3_TEXT_CP437,.font=&f->font};
+	/* Raster cases use an explicit warm snapshot with uniform advance 3.
+	 * Cold and differing-cache cursor behavior has its own cursor fixtures. */
+	const struct st_rip3_font_asset *asset=st_rip3_font_asset_at(5);
+	uint8_t *copy=malloc(asset->size);struct st_rip3_rff metrics;
+	struct st_rip3_outline_font prepared;struct st_rip3_frame frame;
+	CHECK(copy!=NULL);memcpy(copy,asset->data,asset->size);
+	CHECK(st_rip3_rff_open(&metrics,copy,asset->size)==0);
+	for (unsigned i=0; i<metrics.characters; i++) {copy[metrics.advances+2*i]=3;copy[metrics.advances+2*i+1]=0;}
+	CHECK(st_rip3_frame_init(&frame,canvas)==0 && st_rip3_frame_world(&frame,width,height)==0);
+	CHECK(st_rip3_outline_font_bind(&prepared,&metrics,0,&frame,1000,0,0)==0);
+	CHECK(st_rip3_outline_cache_create(&f->text.outline_cache)==0
+	    && st_rip3_outline_cache_prepare(f->text.outline_cache,&prepared,100)==0);
+	free(copy);
 	f->host.text = &f->text; CHECK(position(f,40,15)==0); return 0;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	st_rip3_outline_cache_destroy(f->text.outline_cache);
 	st_rip3_styles_destroy(f->host.styles); st_rip3_environments_destroy(f->host.environments);
 	st_rip3_ports_destroy(f->host.ports); st_rip3_palettes_destroy(f->host.palettes);
 }
@@ -219,7 +237,6 @@ modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		CHECK(set_style(&f,&style) == 0 && st_rip3_ports_erase(f.host.ports,85) == 0);
 		CHECK(position(&f,20,20)==0);
 		CHECK(process(&f,"TA",-1) == 0 && cursor(&f).x == 23 && cursor(&f).y == 20);
-		CHECK(process(&f,"@0101A",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && cursor(&f).x == 23 && cursor(&f).y == 20);
 		const char *const a[] = {".#.","#.#","###"}, *const vertical[] = {".##","#.#",".##"};
 		unsigned ox = variant == 0 ? 20 : variant == 1 ? 17 : 19, oy = variant == 0 ? 18 : 20;
 		struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
@@ -231,6 +248,7 @@ modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 			CHECK(capture->pixels->primary[(size_t)y*64+x] == expected);
 		}
 		st_rip3_bitmap_destroy(capture);
+		CHECK(process(&f,"@0101A",-1)==0 && cursor(&f).x==4 && cursor(&f).y==1);
 	}
 	destroy(&f); return 0;
 }
@@ -252,7 +270,7 @@ numeric(void)
 		CHECK(process(&f,body,-1) == 0 && cursor(&f).x == 4 && cursor(&f).y == 6);
 		CHECK(process(&f,"TA",-1) == 0 && cursor(&f).x == 7 && cursor(&f).y == 6);
 		body[0] = '@'; body[1+2*size] = 'B'; body[2+2*size] = 0;
-		CHECK(process(&f,body,-1) == 0 && cursor(&f).x == 7 && cursor(&f).y == 6);
+		CHECK(process(&f,body,-1) == 0 && cursor(&f).x == 5 && cursor(&f).y == 3);
 		const uint8_t expected[] = {12,12,85,12,85,12,12,12,85};
 		/* COPY B overwrites only its ink; the previous A's uncovered pixels remain. */
 		for (int32_t y = 0; y < 3; y++) for (int32_t x = 0; x < 3; x++) {

@@ -54,6 +54,10 @@ int st_rip3_rff_style_at(struct st_rip3_rff_style *result,
 	const struct st_rip3_rff *file, size_t index);
 int st_rip3_rff_find_style(struct st_rip3_rff_style *result,
 	const struct st_rip3_rff *file, const char *name);
+/* Declared font-unit advance, independent of outline framing/ink. Missing
+ * codes return NOT_FOUND; failures preserve result. The validated view borrows
+ * immutable bytes as above. Damaged glyph paths do not invalidate metrics. */
+int st_rip3_rff_advance(unsigned *result, const struct st_rip3_rff *file, uint8_t character);
 int st_rip3_rff_glyph(struct st_rip3_rff_glyph *result,
 	const struct st_rip3_rff *file, uint8_t character);
 /* NOT_FOUND marks end of an outline; coordinates remain signed, y-down,

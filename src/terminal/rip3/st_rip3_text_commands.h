@@ -3,6 +3,7 @@
 #define ST_RIP3_TEXT_COMMANDS_H_
 
 struct st_rip3_classic_font;
+struct st_rip3_outline_cache;
 
 enum st_rip3_text_encoding {
 	ST_RIP3_TEXT_CP437,
@@ -16,6 +17,10 @@ enum st_rip3_text_encoding {
 struct st_rip3_text_context {
 	enum st_rip3_text_encoding encoding;
 	const struct st_rip3_classic_font *font;
+	/* Optional context-owned logical snapshot, shared across ports/styles.
+	 * NULL means cold/invalid, whose cached width is zero. The owner resets
+	 * it on full drawing reset; individual font/port/style selection retains it. */
+	struct st_rip3_outline_cache *outline_cache;
 };
 
 #endif

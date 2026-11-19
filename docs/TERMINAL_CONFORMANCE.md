@@ -38,8 +38,8 @@ Outline layout tests resolve string direction and independent font orientation,
 the complete signed additive-baseline table, one-time baseline conversion,
 device-axis shadow distance/direction and device advance/spacing arithmetic.
 Native captures now consume those prepared positions and shadows on all canvases.
-Cached cursor metrics, zero-baseline alignment and command integration remain
-pending; adjusted layout advances are separate from cached cursor metrics.
+Zero-baseline alignment and outline command integration remain pending;
+adjusted layout advances are separate from cached cursor metrics.
 Prepared outline fonts now supply production glyph matrices, nonzero fill and
 device-space hollow widths to the positioned renderer. All sixteen rotation
 pairs have coherent native captures on every canvas with isotropic and unequal
@@ -59,11 +59,18 @@ transactional overflow/error paths have native expectations. This geometric
 service now applies PR #88's no-kerning, effect-independent metric policy, using
 X DPI for horizontal strings and Y for vertical strings under every character
 orientation. Wide logical intermediates survive to final device conversion.
-Cached X-width snapshots and their newly specified lifecycle remain pending
-consumers. Existing cursor-store answers remain adopted. Ordinary outline
-commands still remain pending. Earlier unrelated test and legacy evidence is reused.
-Typographic alignment, cached widths and effect-specific ink extents remain
-separate from the global coordinate box.
+Context-owned cached X-width snapshots now copy all unsigned logical metrics,
+DPI, spacing and bbox values independently of font/backend storage. Preparation
+is atomic; failures retain the complete prior snapshot. Tests cover high/missing
+bytes, damaged outlines, freed backing fonts, negative gaps, strings beyond 255
+bytes, final signed-WORD wrapping and nonfatal overflow. Classic font-zero @
+reads that snapshot in every direction/justification, with raw cursor anchors
+and separately converted drawing anchors. Cold/warm, port/style/frame changes,
+CP437/UTF-8 and recovery have coherent native captures on all three canvases.
+Successful outline-call preparation, full drawing reset and ordinary outline
+commands remain pending. Earlier unrelated test and legacy evidence is reused.
+Typographic alignment and effect-specific ink extents remain separate from the
+global coordinate box.
 The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization
 and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
 and destination requests now diagnose separately without ending processing;
@@ -176,9 +183,9 @@ PORT now owns context-absolute integer graphics cursors. MOVE/TEXT and TEXTXY
 checks cover viewport-origin changes, independent ports, signed whole-string
 metrics, current-frame reconversion and backup retention. Coherent all-canvas
 captures combine rendered glyphs, replies and screen/bitmap cursor state in
-CP437/UTF-8. Nonzero classic TEXT_XY uses its shipped raw-coordinate stores;
-font-zero cached-outline metrics and complete scene reset/integration remain
-pending.
+CP437/UTF-8. All classic TEXT_XY uses its shipped raw-coordinate stores;
+font zero reads the context's cached outline width. Complete outline commands
+and scene reset/integration remain pending.
 Separate PIXEL/POINT tests cover all five modes and their distinct stored origins,
 one-pixel versus odd-square coverage, screen/offscreen contexts, physical and
 viewport clipping, both radices/widths, nonuniform mapping and recovery. Their

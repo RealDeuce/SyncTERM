@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_outline_font.h"
+#include "st_rip3_outline_font_internal.h"
 #include "st_rip3_font_data.h"
 #include "io_error.h"
 
@@ -153,38 +154,75 @@ st_rip3_outline_font_bbox_width(int32_t *result, const struct st_rip3_outline_fo
 	return 0;
 }
 
+static int
+metric_parameters(struct st_rip3_rff *file, struct st_rip3_rff_style *style,
+    const struct st_rip3_outline_font *font)
+{
+	if (font==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (font->points==0 || font->points>4095
+	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->dpi_y==0 || font->dpi_y>72*1024
+	    || font->orientation>3 || font->flags>0xffffff)
+		return IO_ERROR_OUT_OF_RANGE;
+	int status=st_rip3_rff_open(file,font->file.data,font->file.size);
+	if (status==0) status=st_rip3_rff_style_at(style,file,font->face);
+	if (status==0 && style->horizontal_percent==0) status=IO_ERROR_OUT_OF_RANGE;
+	return status;
+}
+
+static uint64_t
+logical_advance(unsigned advance, const struct st_rip3_outline_font *font,
+    const struct st_rip3_rff *file, const struct st_rip3_rff_style *style)
+{
+	uint64_t numerator=(uint64_t)advance*font->points*20*style->horizontal_percent;
+	uint64_t denominator=(uint64_t)file->units_per_em*100;
+	return (numerator+denominator/2)/denominator;
+}
+
+int
+st_rip3_outline_font_metric_map(uint64_t result[256], const struct st_rip3_outline_font *font)
+{
+	if (result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_rff file;
+	struct st_rip3_rff_style style;
+	int status=metric_parameters(&file,&style,font);
+	if (status!=0) return status;
+	uint64_t values[256]={0};
+	for (unsigned code=0; code<256; code++) {
+		unsigned advance;
+		status=st_rip3_rff_advance(&advance,&file,(uint8_t)code);
+		if (status==IO_ERROR_NOT_FOUND) continue;
+		if (status!=0) return status;
+		values[code]=logical_advance(advance,font,&file,&style);
+	}
+	memcpy(result,values,sizeof(values));
+	return 0;
+}
+
 int
 st_rip3_outline_font_advances(int32_t *result,
     const struct st_rip3_outline_font *font, unsigned string_rotation,
     const uint8_t *text, size_t length)
 {
-	if (font==NULL || (length!=0 && (result==NULL || text==NULL)))
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (length>SIZE_MAX/sizeof(*result) || font->points==0 || font->points>4095
-	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->dpi_y==0 || font->dpi_y>72*1024
-	    || font->orientation>3 || font->flags>0xffffff || string_rotation>2700 || string_rotation%900!=0)
+	if (font==NULL || (length!=0 && (result==NULL || text==NULL))) return IO_ERROR_INVALID_ARGUMENT;
+	if (length>SIZE_MAX/sizeof(*result) || string_rotation>2700 || string_rotation%900!=0)
 		return IO_ERROR_OUT_OF_RANGE;
-	unsigned dpi=string_rotation%1800==0 ? font->dpi_x : font->dpi_y;
 	struct st_rip3_rff file;
 	struct st_rip3_rff_style style;
-	int status=st_rip3_rff_open(&file,font->file.data,font->file.size);
-	if (status==0) status=st_rip3_rff_style_at(&style,&file,font->face);
+	int status=metric_parameters(&file,&style,font);
 	if (status!=0) return status;
-	if (style.horizontal_percent==0) return IO_ERROR_OUT_OF_RANGE;
+	unsigned dpi=string_rotation%1800==0 ? font->dpi_x : font->dpi_y;
 	int32_t advances[256]={0};
 	bool measured[256]={false};
 	for (size_t i=0; i<length; i++) {
 		uint8_t code=text[i];
 		if (measured[code]) continue;
-		struct st_rip3_rff_glyph glyph;
-		status=st_rip3_rff_glyph(&glyph,&file,code);
+		unsigned advance;
+		status=st_rip3_rff_advance(&advance,&file,code);
 		if (status!=0 && status!=IO_ERROR_NOT_FOUND) return status;
 		if (status==0) {
 			/* Max u16 advance, wire point size and byte percentage fit uint64_t.
 			 * Round logical units before device truncation, never a string sum. */
-			uint64_t numerator=(uint64_t)glyph.advance*font->points*20*style.horizontal_percent;
-			uint64_t denominator=(uint64_t)file.units_per_em*100;
-			uint64_t logical=(numerator+denominator/2)/denominator;
+			uint64_t logical=logical_advance(advance,font,&file,&style);
 			uint64_t device=logical*dpi/1440;
 			if (device>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 			advances[code]=(int32_t)device;
