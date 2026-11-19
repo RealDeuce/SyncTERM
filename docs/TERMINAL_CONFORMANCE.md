@@ -86,6 +86,13 @@ byte validation, exact reply capacity and nonfatal error recovery. No initial
 seed, global CRT state or application-route integration is assumed. User-variable
 prefix/repetition/scope and transparency decisions remain under follow-up #87;
 completed macro-ordering and argument-byte answers are retained.
+The typed condition stage now compares wrapped signed decimals or literal
+case-insensitive byte strings and performs the original staged Boolean reduction.
+Native vectors distinguish equal AND/OR precedence, late NOT, grouping and
+multiple-NOT phase boundaries. Provider calls are ordered without short-circuiting;
+failed values become false, and complete preflight/allocation precedes callbacks.
+Validation-only use makes no provider calls. These are helper-stage tests; source
+lexing, full angle preprocessing and consumer integration remain pending.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

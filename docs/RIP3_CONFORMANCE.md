@@ -4660,6 +4660,61 @@ original fonts, RIP1.54, active route and external-launch exclusion are unchange
 Scoped build logs are removed. No existing issue thread is modified; no code is
 pushed or PR published. Full RIP3 implementation remains in progress.
 
+## Typed conditional comparisons and staged reduction
+
+The condition service now implements the value and Boolean-reduction stage needed
+by angle preprocessing. It consumes typed operands/operators after source lexing;
+it is not a public stream/session parser. Six comparisons select signed numeric
+ordering only when both complete effective values contain ASCII decimal digits
+with an optional leading minus and at least one digit. Conversion wraps modulo
+2^32 without signed C overflow. Other values use byte-string ordering with ASCII
+case folding and unchanged high bytes. Quotes do not select a comparison mode;
+the future lexer supplies already decoded literal bytes. A C-string NUL ends the
+effective operand, and returned dollar text is not recursively interpreted.
+
+The service validates the entire typed operand/operator/group structure before
+allocation or provider effects. Inactive parents can run validation alone with
+no provider call/allocation. Active evaluation prepares its private scratch copy,
+then resolves every comparison left to right without Boolean short-circuiting.
+Failed or unavailable value providers make their comparison false, including !=.
+Provider bytes are borrowed only until their next call and are compared before
+that call. Tokens/bindings remain unchanged; validation and allocation failures
+preserve the result, with no provider side effects. Parser owners must absorb
+these internal helper statuses at their existing nonfatal boundaries.
+
+Reduction repeatedly handles adjacent Boolean/AND-or-OR/Boolean triples from
+left to right, then NOT/Boolean pairs, then grouped single Booleans. Binary
+reduction revisits its collapsed position; NOT does not move backward to an
+earlier NOT before the next binary phase. Group reduction advances its scan.
+Read-only original reducer instructions at RVA 0x4bf60..0x4c141 confirm those
+phase/cursor details, consistent with the adopted derivation. No original code
+is executed. This preserves equal AND/OR precedence and the shipped late-NOT
+behavior instead of conventional expression precedence.
+
+Independent native vectors cover every comparison/operator, signed wrapping,
+twenty-digit values, numeric versus lexical whitespace/plus/empty cases,
+CP437/UTF-8 byte order and C-string termination. Typed equivalents of all three
+published N=1 precedence examples and additional multiple-NOT/group boundaries
+have literal expectations. A 128-level grouped case uses iterative validation
+and reduction. Provider fixtures prove ordered non-short-circuited calls,
+scratch-value lifetime and failed != behavior. Deterministic allocation failure
+occurs before any provider invocation; malformed complete structure/operands
+reject before allocation, and a following valid evaluation succeeds.
+
+Native CMake configure/full build succeeds, and the new rip3_condition CTest
+passes. GNU make reported clock-skew warnings during the build. The new objects
+and executable postdate their source files, and a subsequent timestamp inspection
+found no remaining future-dated build files; the focused test exercises those
+new artifacts. No redundant compiler matrix or prior test suites are rerun.
+Edited ledger consistency passes; unchanged RAND/argument/font/drawing and legacy
+evidence is reused. Counts are 719 implemented, 1546 pending, 4140 unreviewed,
+1072 contextual, 24 excluded and 43 blocked across 7544 units. Source lexing,
+IF/ELSEIF/ELSE/ENDIF branching, angle/template substitution and consumer routing
+remain explicitly pending; helper tests do not claim end-to-end preprocessing.
+The reference pin, original fonts, RIP1.54 and active application route remain
+unchanged. Scoped logs are removed, no issue thread is modified and no code is
+published. The full implementation goal remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
