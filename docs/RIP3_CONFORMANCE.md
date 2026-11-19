@@ -4280,6 +4280,41 @@ zero-baseline alignment, cached cursor metrics and ordinary outline T/@ remain
 unfinished. Reference pin, original font assets, RIP1.54 and active application
 routing are unchanged. Temporary build logs are removed.
 
+## Prepared-font glyph rendering
+
+The separate engine now renders already positioned bytes through a realized-font
+entry point. It constructs the glyph matrix from independent character quarter
+turns and the font's world-derived X/Y DPI scales: font coordinates rotate first,
+then device-axis scaling applies. The existing kernel applies the selected face
+percentage exactly once. Layout origins, additive baseline positions, gaps and
+device-axis shadow displacements are not transformed again. Realized hollow
+width and nonzero interior fill are selected by production code. Font-instance
+orientation must match the layout; invalid sizes, flags, DPI, scales and orientation
+fail before painting. Solid bold, italic and decorations remain unfinished and
+are explicitly rejected rather than silently omitted. Plain solid/hollow and
+bold hollow use the prepared-font path.
+
+Native scene tests no longer supply their own glyph matrices. One coherent capture
+per canvas/DPI profile covers all sixteen rotation pairs, signed baseline offsets
+and bbox spacing against analytic rectangles. A second profile doubles device X
+scaling while retaining Y, checking axis order and single face scaling without
+moving the supplied origins. Prepared-font scenes also cover all four shadow
+directions across character rotations and write modes. Focused cases establish
+nonzero winding, custom-font normal/bold hollow width 1/2, retained cursor, rejected
+pending effects without allocation, invalid realizations and allocation-failure
+atomicity. The original raw geometry tests remain in the affected CTest.
+
+Native CMake configure/full build succeeds without warnings. Only the changed
+`rip3_outline_text` CTest runs, once, and passes. Existing font and layout evidence
+is reused. Edited ledger consistency alone is checked; the unchanged legacy freeze
+and unrelated passing suites are not repeated. Six sizing/rotation units become
+implemented, while broader font selection/ordinary text requirements retain their
+pending integration work. Counts are 648 implemented, 1546 pending, 4173 unreviewed,
+1036 contextual, 24 excluded and 28 blocked across 7455 units. Metric acquisition,
+zero-baseline alignment, cached whole-string cursor metrics, effects and ordinary
+outline T/@ remain unfinished. Reference pin, original font assets, RIP1.54 and
+active application routing are unchanged. Temporary build logs are removed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

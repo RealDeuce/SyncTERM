@@ -40,6 +40,12 @@ device-axis shadow distance/direction and device advance/spacing arithmetic.
 Native captures now consume those prepared positions and shadows on all canvases.
 Font metric acquisition, zero-baseline alignment and command integration remain
 pending; adjusted layout advances are separate from cached cursor metrics.
+Prepared outline fonts now supply production glyph matrices, nonzero fill and
+device-space hollow widths to the positioned renderer. All sixteen rotation
+pairs have coherent native captures on every canvas with isotropic and unequal
+X/Y DPI. Shadow/write-mode scenes use that same production path; hollow bold's
+minimum width, pending-effect rejection and failure atomicity have focused checks.
+Solid bold, italic, decorations and ordinary outline commands remain pending.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

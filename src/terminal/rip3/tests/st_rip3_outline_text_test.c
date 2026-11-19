@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_outline_text.h"
 #include "st_rip3_outline_layout.h"
+#include "st_rip3_outline_font.h"
 #include "st_rip3_font_data.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_styles.h"
@@ -434,19 +435,6 @@ static const struct st_rip3_rect turned_bounds[] = {
 	{0,-6,8,-1}, {-6,-9,-1,-1}, {-9,0,-1,5}, {0,0,5,8},
 };
 
-static struct st_rip3_rff_text_style
-turned_style(unsigned turn)
-{
-	static const int matrix[][4] = {
-		{1,0,0,1}, {0,1,-1,0}, {-1,0,0,-1}, {0,-1,1,0},
-	};
-	struct st_rip3_rff_text_style style = normal();
-	style.face = 2;
-	style.xx = matrix[turn][0]; style.xy = matrix[turn][1];
-	style.yx = matrix[turn][2]; style.yy = matrix[turn][3];
-	return style;
-}
-
 static bool
 inside(int32_t x, int32_t y, const struct st_rip3_rect *bounds)
 {
@@ -454,7 +442,7 @@ inside(int32_t x, int32_t y, const struct st_rip3_rect *bounds)
 }
 
 static int
-positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool anisotropic)
 {
 	/* P125 with ordinary advance 8 and bbox reference 12 gives 8+3=11.
 	 * Character columns alternate the sign of the stored B=4 displacement. */
@@ -474,24 +462,25 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 
 	fixture(bytes);
 	CHECK(st_rip3_rff_open(&font,bytes,sizeof(bytes)) == 0);
-	CHECK(st_rip3_frame_init(&frame,canvas) == 0 && st_rip3_frame_world(&frame,width,height) == 0);
+	unsigned scale_x = anisotropic ? 2 : 1;
+	CHECK(st_rip3_frame_init(&frame,canvas) == 0 && st_rip3_frame_world(&frame,width/scale_x,height) == 0);
 	CHECK(st_rip3_ports_create(&ports,canvas) == 0);
 	CHECK(st_rip3_ports_erase(ports,1) == 0);
 	for (unsigned string = 0; string < 4; string++) {
 		for (unsigned character = 0; character < 4; character++) {
-			const struct st_rip3_outline_style wire = {.size=25,.spacing=125,.baseline=4,
+			const struct st_rip3_outline_style wire = {.size=1000,.spacing=125,.baseline=4,
 			    .flags=0x400|(character%2!=0 ? 0x100 : 0),
 			    .string_rotation=900*string,.character_rotation=900*character};
 			struct st_rip3_outline_layout layout;
+			struct st_rip3_outline_font realized;
 			struct st_rip3_text_position positions[2], zero = {32+64*character,32+64*string};
 			const int32_t advances[] = {8,8};
 			int64_t total;
 			CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
 			CHECK(st_rip3_outline_layout_positions(&layout,&zero,advances,2,12,positions,&total) == 0 && total == 22);
-			struct st_rip3_rff_text_style style = turned_style(layout.character_turns);
-			style.shadow = layout.shadow;
-			CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"AA",2,
-			    positions,&style,12,8,ST_RIP3_COPY) == 0);
+			CHECK(st_rip3_outline_font_bind(&realized,&font,2,&frame,wire.size,wire.flags,layout.font_orientation) == 0);
+			CHECK(st_rip3_draw_outline_positioned(ports,&realized,&layout,(const uint8_t *)"AA",2,
+			    positions,12,8,ST_RIP3_COPY) == 0);
 		}
 	}
 	CHECK(st_rip3_palette_defaults(&palette) == 0);
@@ -504,8 +493,9 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 				unsigned string = y/64, character = x/64;
 				int32_t u = (int32_t)(x%64)-32-baseline[string][character].x;
 				int32_t v = (int32_t)(y%64)-32-baseline[string][character].y;
-				ink = inside(u,v,&turned_bounds[character])
-				    || inside(u-step[string].x,v-step[string].y,&turned_bounds[character]);
+				struct st_rip3_rect bounds = turned_bounds[character];
+				bounds.x0 *= (int32_t)scale_x; bounds.x1 = (bounds.x1+1)*(int32_t)scale_x-1;
+				ink = inside(u,v,&bounds) || inside(u-step[string].x,v-step[string].y,&bounds);
 			}
 			CHECK(capture->primary[(size_t)y*width+x]
 			    == (ST_PIXEL_COLOR_RGB_TAG | (ink ? 0xff5555 : 0x0000aa)));
@@ -536,16 +526,16 @@ positioned_shadows(void)
 	CHECK(st_rip3_ports_switch(ports,1) == 0);
 	for (unsigned character = 0; character < 4; character++) {
 		for (unsigned direction = 0; direction < 4; direction++) {
-			const struct st_rip3_outline_style wire = {.size=25,.spacing=100,.shadow=11,
+			const struct st_rip3_outline_style wire = {.size=1000,.spacing=100,.shadow=11,
 			    .flags=direction<<6,.character_rotation=900*character};
 			struct st_rip3_outline_layout layout;
+			struct st_rip3_outline_font realized;
 			CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
-			struct st_rip3_rff_text_style style = turned_style(layout.character_turns);
-			style.shadow = layout.shadow;
+			CHECK(st_rip3_outline_font_bind(&realized,&font,2,&frame,wire.size,wire.flags,layout.font_orientation) == 0);
 			for (int mode = ST_RIP3_COPY; mode <= ST_RIP3_NOT; mode++) {
 				CHECK(st_rip3_ports_erase(ports,5) == 0);
-				CHECK(st_rip3_draw_rff_positioned(ports,&font,(const uint8_t *)"A",1,
-				    &position,&style,10,8,(enum st_rip3_write_mode)mode) == 0);
+				CHECK(st_rip3_draw_outline_positioned(ports,&realized,&layout,(const uint8_t *)"A",1,
+				    &position,10,8,(enum st_rip3_write_mode)mode) == 0);
 				for (int32_t y = 0; y < 64; y++) {
 					for (int32_t x = 0; x < 64; x++) {
 						bool ink = inside(x-32,y-32,&turned_bounds[character]);
@@ -691,6 +681,94 @@ positioned_behavior(void)
 	return 0;
 }
 
+static int
+realized_behavior(void)
+{
+	uint8_t bytes[1900], value;
+	struct st_rip3_rff file;
+	struct st_rip3_outline_font font, saved;
+	struct st_rip3_outline_style wire = {.size=1000,.spacing=100};
+	struct st_rip3_outline_layout layout;
+	struct st_rip3_frame frame;
+	struct st_rip3_ports *ports = NULL;
+	const struct st_rip3_rect bounds = {0,0,31,15};
+	const struct st_rip3_text_position position = {2,10}, hollow_position = {10,10};
+	const struct st_rip3_cursor cursor = {-5,103};
+	struct st_rip3_port_info info;
+
+	fixture(bytes);
+	CHECK(st_rip3_rff_open(&file,bytes,sizeof(bytes)) == 0);
+	CHECK(st_rip3_frame_init(&frame,ST_RIP3_CANVAS_640_480) == 0
+	    && st_rip3_frame_world(&frame,640,480) == 0);
+	CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,wire.size,wire.flags,layout.font_orientation) == 0);
+	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0);
+	CHECK(st_rip3_ports_define(ports,1,&bounds,true) == 0 && st_rip3_ports_switch(ports,1) == 0);
+	CHECK(st_rip3_ports_cursor(ports,1,&cursor) == 0);
+	CHECK(st_rip3_ports_erase(ports,5) == 0);
+	/* The authored inner contour has the same winding as its outer contour.
+	 * The realized-font path must select nonzero, independently of the raw
+	 * test kernel's optional even/odd fill rule. */
+	CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"B",1,
+	    &position,10,8,ST_RIP3_COPY) == 0);
+	CHECK(st_rip3_ports_read(ports,1,4,6,&value) == 0 && value == 10);
+	CHECK(st_rip3_ports_erase(ports,5) == 0);
+	memcpy(&saved,&font,sizeof(saved));
+	for (unsigned which = 0; which < 8; which++) {
+		font = saved;
+		switch (which) {
+			case 0:font.scale_x=NAN;break; case 1:font.scale_y=-1;break;
+			case 2:font.orientation=3;break; case 3:font.points=0;break;
+			case 4:font.dpi_x=0;break; case 5:font.dpi_y=73729;break;
+			case 6:font.flags=0x1000000;break; default:font.scale_x=0;break;
+		}
+		CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,
+		    &position,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	}
+	font = saved;
+	layout.character_turns=4;
+	CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,
+	    &position,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	layout.character_turns=0; layout.font_orientation=1;
+	CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,
+	    &position,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);
+	layout.font_orientation=0;
+	CHECK(st_rip3_draw_outline_positioned(ports,NULL,&layout,(const uint8_t *)"A",1,
+	    &position,10,8,ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_draw_outline_positioned(ports,&font,NULL,(const uint8_t *)"A",1,
+	    &position,10,8,ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
+	/* Pending effects may not be silently dropped by the production bridge. */
+	for (unsigned flags = 1; flags < 16; flags++) {
+		CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1000,flags,0) == 0);
+		st_rip3_outline_test_allocations=0;
+		CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,
+		    &position,10,8,ST_RIP3_COPY) == IO_ERROR_NOT_SUPPORTED);
+		CHECK(st_rip3_outline_test_allocations == 0);
+	}
+	CHECK(unchanged(ports) == 0);
+	font = saved;
+	st_rip3_outline_test_allocations=0; st_rip3_outline_test_fail_at=0;
+	CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,
+	    &position,10,8,ST_RIP3_COPY) == IO_ERROR_OUT_OF_MEMORY);
+	st_rip3_outline_test_fail_at=SIZE_MAX;
+	CHECK(unchanged(ports) == 0);
+	/* Custom zero strength bytes give ordinary hollow width 1; bold's minimum
+	 * produces width 2. At this glyph's left edge only the latter reaches x11. */
+	for (unsigned bold = 0; bold < 2; bold++) {
+		CHECK(st_rip3_ports_erase(ports,5) == 0);
+		CHECK(st_rip3_outline_font_bind(&font,&file,1,&frame,1000,bold,0) == 0);
+		CHECK(font.hollow_thickness == bold+1);
+		CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,
+		    &hollow_position,10,8,ST_RIP3_COPY) == 0);
+		CHECK(st_rip3_ports_read(ports,1,10,7,&value) == 0 && value == 10);
+		CHECK(st_rip3_ports_read(ports,1,11,7,&value) == 0 && value == (bold ? 10 : 5));
+		CHECK(st_rip3_ports_read(ports,1,12,7,&value) == 0 && value == 5);
+	}
+	CHECK(st_rip3_ports_info(ports,1,&info) == 0 && info.cursor.x == -5 && info.cursor.y == 103);
+	st_rip3_ports_destroy(ports);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -701,9 +779,13 @@ main(void)
 	CHECK(scene(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
 	CHECK(scene(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);
 	CHECK(positioned_behavior() == 0);
+	CHECK(realized_behavior() == 0);
 	CHECK(positioned_shadows() == 0);
-	CHECK(positioned_scene(ST_RIP3_CANVAS_640_480,640,480) == 0);
-	CHECK(positioned_scene(ST_RIP3_CANVAS_800_600,800,600) == 0);
-	CHECK(positioned_scene(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_640_480,640,480,false) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_800_600,800,600,false) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_1024_768,1024,768,false) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_640_480,640,480,true) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_800_600,800,600,true) == 0);
+	CHECK(positioned_scene(ST_RIP3_CANVAS_1024_768,1024,768,true) == 0);
 	return 0;
 }

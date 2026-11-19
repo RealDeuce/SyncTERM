@@ -1,5 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_outline_text.h"
+#include "st_rip3_outline_font.h"
+#include "st_rip3_outline_layout.h"
 #include "st_rip3_draw_internal.h"
 #include "st_rip3_ports.h"
 #include "io_error.h"
@@ -481,4 +483,33 @@ st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
 	if (positions == NULL && length != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	return draw(ports,font,text,length,NULL,positions,style,foreground,background,mode);
+}
+
+int
+st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
+    const struct st_rip3_outline_font *font, const struct st_rip3_outline_layout *layout,
+    const uint8_t *text, size_t length, const struct st_rip3_text_position *positions,
+    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+{
+	static const unsigned orientation[]={0,3,2,1};
+	static const int cosine[]={1,0,-1,0}, sine[]={0,1,0,-1};
+	if (font==NULL || layout==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (font->points==0 || font->points>4095 || font->flags>0xffffff
+	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->dpi_y==0 || font->dpi_y>72*1024
+	    || !isfinite(font->scale_x) || !isfinite(font->scale_y) || font->scale_x<=0 || font->scale_y<=0
+	    || layout->character_turns>3 || layout->font_orientation!=orientation[layout->character_turns]
+	    || font->orientation!=layout->font_orientation)
+		return IO_ERROR_OUT_OF_RANGE;
+	if ((font->flags&14)!=0 || ((font->flags&1)!=0 && !font->style.hollow))
+		return IO_ERROR_NOT_SUPPORTED;
+	unsigned turn=layout->character_turns;
+	struct st_rip3_rff_text_style style={
+	    .face=font->face,
+	    .xx=cosine[turn]*font->scale_x,.xy=sine[turn]*font->scale_x,
+	    .yx=-sine[turn]*font->scale_y,.yy=cosine[turn]*font->scale_y,
+	    .shadow=layout->shadow,.fill_rule=ST_RIP3_OUTLINE_NONZERO,
+	    .hollow_thickness=font->hollow_thickness,
+	};
+	return st_rip3_draw_rff_positioned(ports,&font->file,text,length,positions,&style,
+	    foreground,background,mode);
 }

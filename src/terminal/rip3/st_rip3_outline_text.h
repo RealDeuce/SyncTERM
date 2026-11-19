@@ -11,6 +11,8 @@
 #include <stdint.h>
 
 struct st_rip3_ports;
+struct st_rip3_outline_font;
+struct st_rip3_outline_layout;
 
 enum st_rip3_outline_fill_rule {
 	ST_RIP3_OUTLINE_NONZERO,
@@ -74,6 +76,23 @@ int st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
 	const struct st_rip3_rff *font, const uint8_t *text, size_t length,
 	const struct st_rip3_text_position *positions, const struct st_rip3_rff_text_style *style,
+	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+
+/* Prepared-font rendering for an already laid-out byte string. Derive the
+ * glyph matrix from the realized point/DPI scales and independent character
+ * rotation: rotate in font coordinates, then apply device-axis X/Y scales.
+ * The kernel applies the selected horizontal face percentage exactly once.
+ * Device origins, layout baseline/spacing and shadow displacement are not
+ * transformed again. The font must be realized for layout.font_orientation.
+ * Nonzero interior fill and realized device-space hollow width are selected
+ * here. Plain solid/hollow and bold hollow faces are supported. Until their
+ * renderers exist, solid BOLD, ITALIC and decorations return NOT_SUPPORTED
+ * before allocation/painting rather than omit the selected effect. Parser
+ * entry points must absorb all service failures nonfatally. Other validation,
+ * atomicity and coverage contracts are those of draw_rff_positioned above. */
+int st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
+	const struct st_rip3_outline_font *font, const struct st_rip3_outline_layout *layout,
+	const uint8_t *text, size_t length, const struct st_rip3_text_position *positions,
 	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
 
 #endif
