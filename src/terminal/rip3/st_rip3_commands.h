@@ -74,7 +74,7 @@ struct st_rip3_command_sink {
  * entry does not buffer partial input or perform macro expansion.
  *
  * Implements J, n, f, Q, a, c, k, numeric W, Y, literal-name y, q, =, E, L, R, B, K, C, G, o,
- * X/j in all five modes, m, classic literal T and @,
+ * X/j in all five modes, m, classic/outline literal T and @,
  * including font-zero @ with the context's cached outline width,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
@@ -276,16 +276,26 @@ struct st_rip3_command_sink {
  * X/Y plus viewport origin and its selected metric for every direction and
  * justification. Fonts 1..10 use their classic integer width; font zero reads
  * the context's last outline snapshot, or zero when invalid, without preparing
- * another font. Successful outline-call preparation and full drawing-reset
- * orchestration remain pending with ordinary outline T/@ integration.
+ * another font. Outline T/@ realize the current y selection on use and prepare
+ * its logical snapshot before measuring the cached X width. Their accepted-call
+ * cursor stores use that width even on failed preparation or later ink failure;
+ * failed preparation retains the previous snapshot, or zero when cold. Outline
+ * @ stores its converted anchor, while T advances only the prior stored X.
+ * Raster origins use the signed ordinary string-axis total for end/center,
+ * including the final gap; center truncates toward zero and selector 3 starts
+ * at the anchor. Add the baseline table once after that alignment. Full drawing-
+ * reset orchestration remains pending.
  * Empty T retains the cursor silently; empty @ diagnoses without moving it.
  * E, STYLE/ENV selection and viewport changes do not move the stored cursor.
  * Literal text uses the explicit CP437/UTF-8 transport binding, mapping UTF-8
- * to CP437 with one fallback per unmappable scalar. Macro expansion, outline
- * activation and application routing remain separate. Classic fonts come from
+ * to CP437 with one fallback per unmappable scalar. Macro expansion and
+ * application routing remain separate. Classic fonts come from
  * STYLE and original bundled canvas data, with an optional immutable override.
- * All used inks/owned coverage prepare before painting; failures preserve cursor
- * state and remain inside the void parser. Inactive viewports skip valid text
+ * Outline faces use exact case-insensitive catalogue names or a matching borrowed
+ * RFF override. Plain solid/hollow and bold hollow render; other synthetic effects
+ * remain unsupported without silently dropping their flags. All used inks/owned
+ * coverage prepare before painting. Accepted outline failures retain their adopted
+ * cursor/cache effects; failures remain inside the void parser. Inactive viewports skip valid text
  * and MOVE before consulting text/style/encoding services. Protected content
  * can draw and MOVE. PORT backups retain live cursors rather than saved values.
  * S/s replace the fill mask/colour and retain the caller's explicit device

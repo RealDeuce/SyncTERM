@@ -37,6 +37,7 @@ st_rip3_outline_layout_prepare(struct st_rip3_outline_layout *result,
 	    .baseline={baseline[string][character].x*displacement,baseline[string][character].y*displacement},
 	    .character_turns=character,.font_orientation=orientation[character],
 	    .spacing=style->spacing,.bounding_box_spacing=(style->flags&0x400)!=0,
+	    .justification=(style->flags>>4)&3,
 	};
 	if (style->shadow!=0) {
 		int32_t distance=(int32_t)((uint64_t)style->shadow*frame->device_width/frame->world_width);
@@ -77,34 +78,40 @@ adjusted(const struct st_rip3_outline_layout *layout, int32_t advance, int32_t b
 
 int
 st_rip3_outline_layout_positions(const struct st_rip3_outline_layout *layout,
-    const struct st_rip3_text_position *zero_baseline, const int32_t *advances,
+    const struct st_rip3_text_position *anchor, const int32_t *advances,
     size_t length, int32_t bbox_width, struct st_rip3_text_position *positions,
     int64_t *total)
 {
-	if (layout==NULL || zero_baseline==NULL || total==NULL
+	if (layout==NULL || anchor==NULL || total==NULL
 	    || (length!=0 && (advances==NULL || positions==NULL)))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (length>SIZE_MAX/sizeof(*positions) || bbox_width<0 || layout->spacing==0 || layout->spacing>4095
+	if (length>SIZE_MAX/sizeof(*positions) || bbox_width<0 || layout->spacing==0 || layout->spacing>4095 || layout->justification>3
 	    || !((layout->direction.x==0 && (layout->direction.y==1 || layout->direction.y==-1))
 	    || (layout->direction.y==0 && (layout->direction.x==1 || layout->direction.x==-1))))
 		return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_outline_layout value=*layout;
-	struct st_rip3_text_position origin=*zero_baseline;
+	struct st_rip3_text_position origin=*anchor;
 	if (!valid_position(origin)) return IO_ERROR_OUT_OF_RANGE;
-	origin.x+=value.baseline.x; origin.y+=value.baseline.y;
 	int64_t advance=0;
 	for (size_t i=0; i<length; i++) {
-		struct st_rip3_text_position position={origin.x+value.direction.x*(double)advance,
-		    origin.y+value.direction.y*(double)advance};
-		if (!valid_position(position)) return IO_ERROR_OUT_OF_RANGE;
 		int64_t delta=adjusted(&value,advances[i],bbox_width);
 		if ((delta>0 && advance>INT64_MAX-delta) || (delta<0 && advance<INT64_MIN-delta))
 			return IO_ERROR_OUT_OF_RANGE;
 		advance+=delta;
 	}
-	/* The first pass proved every position and sum. No allocation or fallible
-	 * operation remains, so a later bad glyph cannot partially publish output. */
+	int64_t alignment=value.justification==1 ? advance : value.justification==2 ? advance/2 : 0;
+	origin.x+=value.baseline.x-value.direction.x*(double)alignment;
+	origin.y+=value.baseline.y-value.direction.y*(double)alignment;
 	int64_t offset=0;
+	for (size_t i=0; i<length; i++) {
+		struct st_rip3_text_position position={origin.x+value.direction.x*(double)offset,
+		    origin.y+value.direction.y*(double)offset};
+		if (!valid_position(position)) return IO_ERROR_OUT_OF_RANGE;
+		offset+=adjusted(&value,advances[i],bbox_width);
+	}
+	/* The preflight proved every position and sum. No allocation or fallible
+	 * operation remains, so a later bad glyph cannot partially publish output. */
+	offset=0;
 	for (size_t i=0; i<length; i++) {
 		positions[i]=(struct st_rip3_text_position){origin.x+value.direction.x*(double)offset,
 		    origin.y+value.direction.y*(double)offset};

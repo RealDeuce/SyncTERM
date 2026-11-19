@@ -128,13 +128,28 @@ tests cover waiting/budgets, independent owned runs, unavailable/oversized value
 pending destruction and allocator failure. Full IF/ELSE branch preprocessing and
 real consumer providers remain pending; outer angle-scanner boundaries are
 tracked in upstream #96 separately from the adopted operand grammar.
-PR #94's ordinary outline origin/justification policy remains pending
-implementation. PR #95's working-response/storage limits are implemented in the
+PR #94's ordinary outline origin/justification policy now drives literal T/@:
+design origins start at the supplied anchor, end/center use the signed ordinary
+total with the final gap, selector 3 starts normally, and the baseline table is
+added once. PR #95's working-response/storage limits are implemented in the
 immediate evaluator, with the all-canvas boundary evidence described below.
 The completed numeric/Boolean and PR #85/#89 rules remain adopted independently.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
-Outline text commands remain pending.
+The y-selected outline face now resolves on T/@ use against the bundled catalogue
+or a matching immutable RFF override. Actual y face transitions cover Marin,
+condensed, wide and hollow-expanded metrics/ink. Accepted outline calls commit a
+logical snapshot before cursor measurement; failed preparation uses the retained
+snapshot, and later raster/ink failures still perform the adopted cursor update.
+Independent all-canvas captures cover sixteen rotation pairs, four selectors,
+five modes, negative bbox spacing and signed baseline displacement. Unequal DPI
+separates vertical layout from cached X width. Native cases also cover shadows,
+RGB ink lookup, NOT without a palette, CP437/UTF-8, blank/clipped text, 700-byte
+width wrapping, owned cache lifecycle, allocation failures and split recovery.
+Plain solid/hollow and bold hollow render; synthetic solid bold/italic/decorations,
+name/text expansion, full reset orchestration and application routing remain
+pending. These are separate-engine parser/bitmap fixtures, without GUI or native
+font-device coverage.
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port
 captures on all three canvases, including copy modes, clipping, scaling and
 overlap recovery. DEFINE_PORT tests cover independent

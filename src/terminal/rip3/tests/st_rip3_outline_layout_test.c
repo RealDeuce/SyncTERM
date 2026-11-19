@@ -142,6 +142,47 @@ metrics_and_spacing(void)
 }
 
 static int
+justification(void)
+{
+	/* PR94's independent fixture supplies these spans and advances explicitly;
+	 * it does not require a raster backend's bbox rotation convention. */
+	static const int64_t negative[4][4]={{-27,-7,-27,-7},{-39,-19,-39,-19},
+	    {-27,-7,-27,-7},{-39,-19,-39,-19}};
+	static const struct st_rip3_point end_positive[]={{-23,0},{0,11},{23,0},{0,-11}};
+	static const struct st_rip3_point center_positive[]={{-11,0},{0,5},{11,0},{0,-5}};
+	static const struct st_rip3_point end_negative[4][2]={
+	    {{27,0},{7,0}},{{0,-39},{0,-19}},{{-27,0},{-7,0}},{{0,39},{0,19}}};
+	static const struct st_rip3_point center_negative[4][2]={
+	    {{13,0},{3,0}},{{0,-19},{0,-9}},{{-13,0},{-3,0}},{{0,19},{0,9}}};
+	struct st_rip3_frame frame;
+	CHECK(st_rip3_frame_init(&frame,ST_RIP3_CANVAS_640_480)==0 && st_rip3_frame_world(&frame,320,480)==0);
+	const struct st_rip3_text_position anchor={100,80};
+	for (unsigned s=0; s<4; s++) for (unsigned r=0; r<4; r++)
+		for (unsigned profile=0; profile<2; profile++) for (unsigned j=0; j<4; j++) {
+			struct st_rip3_outline_style style=normal();
+			style.string_rotation=900*s;style.character_rotation=900*r;
+			style.flags=(j<<4)|(profile ? 0x400 : 0);style.spacing=profile ? 10 : 100;
+			struct st_rip3_outline_layout layout;
+			CHECK(st_rip3_outline_layout_prepare(&layout,&style,&frame)==0);
+			const int32_t advances[]={s%2 ? 7 : 15,s%2 ? 4 : 8};
+			struct st_rip3_text_position positions[2];int64_t total;
+			CHECK(st_rip3_outline_layout_positions(&layout,&anchor,advances,2,r%2 ? 17 : 28,positions,&total)==0);
+			struct st_rip3_point offset={0,0};
+			if (j==1) offset=profile ? end_negative[s][r%2] : end_positive[s];
+			else if (j==2) offset=profile ? center_negative[s][r%2] : center_positive[s];
+			CHECK(total==(profile ? negative[s][r] : s%2 ? 11 : 23));
+			CHECK(positions[0].x==100+offset.x && positions[0].y==80+offset.y);
+			/* Reusing the same anchor with B=11 adds the existing device table
+			 * exactly once after justification, without changing total. */
+			style.baseline=11;CHECK(st_rip3_outline_layout_prepare(&layout,&style,&frame)==0);
+			struct st_rip3_text_position shifted[2];int64_t after;
+			CHECK(st_rip3_outline_layout_positions(&layout,&anchor,advances,2,r%2 ? 17 : 28,shifted,&after)==0 && after==total);
+			CHECK(shifted[0].x==positions[0].x+layout.baseline.x && shifted[0].y==positions[0].y+layout.baseline.y);
+		}
+	return 0;
+}
+
+static int
 errors(void)
 {
 	struct st_rip3_frame frame;
@@ -180,6 +221,9 @@ errors(void)
 	origin=(struct st_rip3_text_position){10,12}; layout.direction.x=2;
 	CHECK(st_rip3_outline_layout_positions(&layout,&origin,advances,2,12,positions,&total)==IO_ERROR_OUT_OF_RANGE);
 	layout=saved;
+	layout.justification=4;
+	CHECK(st_rip3_outline_layout_positions(&layout,&origin,advances,2,12,positions,&total)==IO_ERROR_OUT_OF_RANGE);
+	layout=saved;
 	CHECK(st_rip3_outline_layout_positions(&layout,&origin,NULL,2,12,positions,&total)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_outline_layout_positions(&layout,&origin,advances,2,12,NULL,&total)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_outline_layout_positions(NULL,&origin,advances,2,12,positions,&total)==IO_ERROR_INVALID_ARGUMENT);
@@ -196,6 +240,6 @@ errors(void)
 int
 main(void)
 {
-	CHECK(branches()==0 && shadows()==0 && metrics_and_spacing()==0 && errors()==0);
+	CHECK(branches()==0 && shadows()==0 && metrics_and_spacing()==0 && justification()==0 && errors()==0);
 	return 0;
 }

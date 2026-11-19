@@ -3,6 +3,9 @@
 #include "st_rip3_text_commands.h"
 #include "st_rip3_classic_text.h"
 #include "st_rip3_outline_cache.h"
+#include "st_rip3_outline_font.h"
+#include "st_rip3_outline_layout.h"
+#include "st_rip3_outline_text.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_ports.h"
@@ -14,6 +17,72 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+static int
+outline_font(struct st_rip3_outline_font *result, const struct st_rip3_text_context *context,
+    const struct st_rip3_outline_style *style, const struct st_rip3_frame *frame, unsigned orientation)
+{
+	if (context->outline_font!=NULL) {
+		struct st_rip3_rff checked;
+		struct st_rip3_rff_style found;
+		int status=st_rip3_rff_open(&checked,context->outline_font->data,context->outline_font->size);
+		if (status==0) status=st_rip3_rff_find_style(&found,&checked,style->name);
+		if (status!=0 && status!=IO_ERROR_NOT_FOUND) return status;
+		if (status==0) for (size_t face=0; face<checked.styles; face++) {
+			struct st_rip3_rff_style candidate;
+			status=st_rip3_rff_style_at(&candidate,&checked,face);
+			if (status!=0) return status;
+			if (candidate.name==found.name)
+				return st_rip3_outline_font_bind(result,&checked,face,frame,style->size,style->flags,orientation);
+		}
+	}
+	return st_rip3_outline_font_builtin(result,style->name,frame,style->size,style->flags,orientation);
+}
+
+static int
+outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style *style,
+    const struct st_rip3_frame *frame, bool rgb, unsigned port_number,
+    const struct st_rip3_port_info *port, const struct st_rip3_text_position *anchor,
+    const uint8_t *glyphs, size_t length, bool positioned)
+{
+	struct st_rip3_outline_layout layout;
+	struct st_rip3_outline_font font;
+	int status=st_rip3_outline_layout_prepare(&layout,&style->outline,frame);
+	if (status==0) status=outline_font(&font,host->text,&style->outline,frame,layout.font_orientation);
+	if (status==0 && host->text->outline_cache==NULL)
+		status=st_rip3_outline_cache_create(&host->text->outline_cache);
+	if (status==0) status=st_rip3_outline_cache_prepare(host->text->outline_cache,&font,layout.spacing);
+	/* Every accepted outline call stores its cursor even on failed preparation
+	 * or later ink production. A failed preparation reads the previous snapshot. */
+	struct st_rip3_outline_width width;
+	int measured=st_rip3_outline_cache_measure(&width,host->text->outline_cache,glyphs,length);
+	if (measured!=0) return measured;
+	struct st_rip3_cursor next=port->cursor;
+	if (positioned) next=(struct st_rip3_cursor){
+	    (int64_t)port->bounds.x0+port->viewport.x0+(int64_t)anchor->x,
+	    (int64_t)port->bounds.y0+port->viewport.y0+(int64_t)anchor->y};
+	next.x+=width.cursor;
+	measured=st_rip3_ports_cursor(host->ports,port_number,&next);
+	if (measured!=0) return measured;
+	if (status!=0) return status;
+	if (length>SIZE_MAX/sizeof(struct st_rip3_text_position) || length>SIZE_MAX/sizeof(int32_t))
+		return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_text_position *positions=malloc(length*sizeof(*positions));
+	int32_t *advances=malloc(length*sizeof(*advances));
+	if (positions==NULL || advances==NULL) { free(positions);free(advances);return IO_ERROR_OUT_OF_MEMORY; }
+	int32_t bbox=0;int64_t total;
+	status=st_rip3_outline_font_advances(advances,&font,style->outline.string_rotation,glyphs,length);
+	if (status==0 && layout.bounding_box_spacing) status=st_rip3_outline_font_bbox_width(&bbox,&font);
+	if (status==0) status=st_rip3_outline_layout_positions(&layout,anchor,advances,length,bbox,positions,&total);
+	uint8_t foreground=0,background=0;
+	if (status==0 && style->write_mode!=ST_RIP3_NOT) {
+		status=st_rip3_command_ink(host,rgb,style->drawing_color,&foreground);
+		if (status==0 && style->outline.shadow!=0) status=st_rip3_command_ink(host,rgb,style->background_color,&background);
+	}
+	if (status==0) status=st_rip3_draw_outline_positioned(host->ports,&font,&layout,glyphs,length,positions,
+	    foreground,background,style->write_mode);
+	free(positions);free(advances);return status;
+}
 
 static int
 text_bytes(const uint8_t *text, size_t length, enum st_rip3_text_encoding encoding,
@@ -110,12 +179,15 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_styles_current(host->styles,&number);
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
-	if (style.font_mode != ST_RIP3_FONT_CLASSIC) return IO_ERROR_NOT_SUPPORTED;
 	status = text_bytes(arguments,count,host->text->encoding,&glyphs,&glyph_count,&owned);
 	if (status != 0) return status;
 	*operation = true;
 	if (!positioned) anchor = (struct st_rip3_text_position){
 	    (double)(port.cursor.x-origin_x),(double)(port.cursor.y-origin_y)};
+	if (style.font_mode==ST_RIP3_FONT_OUTLINE) {
+		status=outline_text(host,&style,&frame,environment.rgb_bits==8,port_number,&port,&anchor,glyphs,glyph_count,positioned);
+		goto done;
+	}
 	const struct st_rip3_classic_font *font = host->text->font;
 	if (font == NULL || font->number != style.font.font) {
 		enum st_rip3_canvas canvas = frame.device_width == 640 ? ST_RIP3_CANVAS_640_480

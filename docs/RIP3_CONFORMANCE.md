@@ -5251,6 +5251,65 @@ application integration. Original fonts, RIP1.54 and the active application rout
 remain unchanged. Scoped logs are removed; no code is pushed or PR published.
 The complete compliance goal remains active.
 
+## Ordinary outline T/@ selection, placement and cursor integration
+
+The separate command engine now renders literal outline TEXT and TEXT_XY using
+the current y-selected face/settings. Selection remains an owned STYLE edit;
+each accepted nonempty draw realizes that exact case-insensitive name against
+the bundled catalogue or a matching borrowed immutable RFF view. There is no
+default-classic replacement for an unavailable face. The transport conversion
+continues to map UTF-8 scalars to raw CP437 font codes. Source expansion remains
+explicitly unsupported until its owning preprocessing stages are integrated.
+
+PR #94 justification now uses the signed, spacing-adjusted ordinary total,
+including the final gap: start/selector 3 subtract zero, end subtracts the total
+along the string axis, and center divides by two toward zero. All sixteen string/
+character rotation pairs use the design origin at the converted drawing anchor;
+the existing device baseline table is added once afterward. No global-bbox edge
+or tentative typographic alignment field relocates that origin. Negative totals
+remain signed, and glyph rotation precedes independent device-axis scaling.
+
+Successful requested metric preparation atomically commits the context's logical
+snapshot before cursor measurement. A cold context creates that owned cache on
+first successful preparation; its client destroys/resets it at shutdown/full
+drawing reset. Failed font/metric preparation retains the previous snapshot or
+zero when cold. Every accepted outline call performs its adopted cursor store
+even when preparation or later ink/raster work fails. T advances prior stored X
+only; outline @ uses the converted supplied anchor and cached X width. Classic
+font-zero @ continues reading that snapshot through its separate raw-anchor path.
+Layout advances and justification do not substitute for the cached cursor width.
+
+Independent native captures on all three canvases cover sixteen rotation pairs,
+four justification selectors, positive/negative bbox spacing and signed baselines,
+and all five W operations: 1920 command scenes. Pure placement cases assert the
+published PR #94 positive/negative offsets with the explicitly supplied fixture
+bounds. A separate unequal-DPI case checks rotated ink and the distinction between
+vertical ordinary steps and cached X width. Actual y transitions render Marin,
+Marin Cn, Marin Wd and Marin HE, checking visible ink and independent 50/37/62/75
+F widths. Other cases cover visible T output, four shadow quadrants, RGB ink,
+palette-free NOT, blank/clipped text, CP437/UTF-8, cold/warm/frame-change failure
+vectors, 700-byte signed-WORD cursor handoff, retained metrics after failed
+lookup/validation/allocation, inactive viewports and split-input recovery.
+
+Native CMake configure/full build passes without diagnostics. The five initially
+affected outline layout/text, text command, cursor and new outline command CTests
+pass. Only changed outline/layout tests are rerun after adding face/shadow/RGB/
+unequal-DPI acceptance cases. The STYLE fixture's old unsupported-outline checks
+now expect the documented stored-size-zero failure on use; that separately
+affected STYLE suite passes. Passing unrelated source/adoption/condition/query/
+font-asset/RIP1.54 checks are reused. Edited ledger consistency passes. Counts
+are 958 implemented, 1571 pending, 4057 unreviewed, 1129 contextual, 24 excluded
+and 28 blocked across 7767 units.
+
+These are separate-engine parser/bitmap fixtures, without original-client, GUI
+or native font-device execution. Plain solid/hollow and bold hollow use the
+existing renderer; synthetic solid bold, italic and decorations remain explicitly
+unsupported with accepted-call cursor/cache effects. Name/text expansion, full
+drawing-reset orchestration and application routing remain pending. The active
+application route, RIP1.54 and original font/assets remain unchanged. No code is
+pushed or PR published, no existing issue is modified, and scoped logs are
+removed. Full compliance remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

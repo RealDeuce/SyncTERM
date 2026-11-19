@@ -4,6 +4,7 @@
 
 struct st_rip3_classic_font;
 struct st_rip3_outline_cache;
+struct st_rip3_rff;
 
 enum st_rip3_text_encoding {
 	ST_RIP3_TEXT_CP437,
@@ -18,9 +19,15 @@ struct st_rip3_text_context {
 	enum st_rip3_text_encoding encoding;
 	const struct st_rip3_classic_font *font;
 	/* Optional context-owned logical snapshot, shared across ports/styles.
-	 * NULL means cold/invalid, whose cached width is zero. The owner resets
-	 * it on full drawing reset; individual font/port/style selection retains it. */
+	 * NULL means cold/invalid, whose cached width is zero. A successful outline
+	 * preparation creates it on first use. The client destroys the resulting
+	 * object at shutdown and resets it on full drawing reset; individual font/
+	 * port/style selection retains it. */
 	struct st_rip3_outline_cache *outline_cache;
+	/* Optional immutable RFF view. Exact matching style names use this file;
+	 * other names use the bundled catalogue, without substituting another face.
+	 * The client owns file lookup/loading and the view's backing bytes. */
+	const struct st_rip3_rff *outline_font;
 };
 
 #endif
