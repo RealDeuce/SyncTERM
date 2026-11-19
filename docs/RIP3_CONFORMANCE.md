@@ -4835,6 +4835,75 @@ original font asset, RIP1.54 source/fixture or active application route changes.
 Temporary build logs are removed; no existing issue is modified or code pushed.
 The full compliance goal remains in progress.
 
+## Resumable user-variable prompt and storage execution
+
+The user-variable processor now executes PR #89's complete sixteen-row matrix
+below macro dispatch and above the existing owned stores. Session lookup precedes
+persistent lookup independently of destination flags, including defined empty
+values. A supplied default remains distinct from absence. Transparent define
+selects its default even over an existing value; transparent retrieve alone
+prefers an existing value. The remaining rows expose a pending prompt with an
+owned copy of the reference and initial field. No stack command buffer, table
+entry or UI pointer is retained across suspension.
+
+The owner supplies two distinct borrowed stores and an optional format/editor
+adapter. The adapter receives the copied reference, logical value and its source
+(existing/default/accepted response) once before any storage/output. Without an
+adapter, ANY/unconverted values work; other modes/conversions reject before a
+prompt or write. This milestone implements matrix execution and the adapter
+handoff, not the UI/editor's format rules, world-coordinate prompt placement or
+mask rendering. The client still owns persistent disk flushing, hang-up cleanup
+and macro/query/application integration. The processor itself has no dialog,
+network or disk effects.
+
+A successful operation writes only its selected destination; persistent wins
+when both destination bits occur. Cross-store copying leaves the other store
+and any session shadow intact. No destination means no update, even for an
+existing variable. Storage precedes result publication. Transparent define
+without retrieve suppresses replacement. Other successful empty values emit
+literal NULL while storing actual empty bytes. Cancellation emits NONE only
+without either transparent bit and never writes a store; required prompts
+remain pending after an attempted user cancellation, but accept empty input.
+Forced abort releases pending/result state for EOF/shutdown without a write or
+protocol replacement, independently of required-prompt policy.
+
+Processing and responses are void nonfatal boundaries. Busy starts preserve the
+pending prompt; malformed typed input and failed formatting/storage diagnose
+without publishing a partial value. Source references and initial values are
+owned during suspension. Complete results are borrowed until the next operation;
+no prior result is exposed after a failed new operation. Deterministic allocation
+and store failures test unchanged tables and recovery through the same processor.
+Response bytes truncate to 255 while preserving explicit CP437/NUL byte spans;
+the enclosing macro/framing stages retain their separate C-string policies.
+
+Independent native tests exercise all sixteen literal rows across four storage
+selections, four required/masked combinations and three lookup/shadow locations:
+768 combinations. Additional checks cover successful-empty/default/cancellation
+and literal-sentinel distinctions, required transparent calls, copied dialog
+metadata, suspended source lifetime, busy protection, adapter handoff, long/raw
+responses, failed factory/format/store operations, resumed-prompt write failure,
+forced abort and following successful operations. These are processor tests;
+they do not claim GUI, durable disk or complete macro/query execution coverage.
+
+While preparing ordinary outline command integration, the adopted documents
+leave the zero-B origin relative to the command anchor unspecified. Existing
+additive displacement tables and advances do not identify the typographic
+origin or selector-specific subtraction for independently rotated strings and
+glyphs. New upstream [#91](https://github.com/bbs-land/remote-imaging-protocol/issues/91)
+requests that focused placement contract and independent asymmetric vectors,
+referencing answered #3/#22/#24/#86 and their PRs. Their existing field, raster,
+metric and cursor answers remain adopted. No existing issue receives comments;
+only the additional placement obligation is blocked.
+
+Native CMake configure/full build succeeds without compiler or build diagnostics.
+The new rip3_user_variables CTest passes, including the resumed error/recovery
+addition. Passing unrelated suites are reused. Edited ledger consistency passes.
+Counts are 782 implemented, 1580 pending, 4121 unreviewed, 1097 contextual,
+24 excluded and 27 blocked across the unchanged 7631 units. The reference pin,
+font assets, RIP1.54, active application route and external-launch exclusion are
+unchanged. Scoped build logs are removed; no code is pushed or PR published.
+The complete RIP3 compliance goal remains active.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

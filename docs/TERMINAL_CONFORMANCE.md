@@ -96,9 +96,14 @@ seed, global CRT state or application-route integration is assumed. PR #89's
 user-variable contract is now adopted: the syntax decoder accepts session prefix
 `=`, ignores repeated flags and rejects `%` atomically. Tests cover all flag subsets
 in both orders with repetition, mixed prefixes and absent/empty defaults. The
-normative persistent precedence, store shadow/copy, prompt/effect and cancellation
-rules remain pending execution. Completed macro-ordering and argument-byte answers
-are retained.
+resumable user-variable processor now executes the full prompt/effect matrix over
+separate session/persistent tables, including memory-first shadows, persistent
+destination precedence, empty values, suppression, NULL/NONE and cancellation.
+Its native test covers 768 matrix combinations plus owned suspended prompt state,
+format-adapter handoff, failed allocation/write/format and nonfatal recovery.
+Dialog/editor formatting, persistent disk flushing, hang-up and macro/query/
+application routing remain pending. Completed macro-ordering and argument-byte
+answers are retained.
 The typed condition stage now compares wrapped signed decimals or literal
 case-insensitive byte strings and performs the original staged Boolean reduction.
 Native vectors distinguish equal AND/OR precedence, late NOT, grouping and
@@ -106,6 +111,8 @@ multiple-NOT phase boundaries. Provider calls are ordered without short-circuiti
 failed values become false, and complete preflight/allocation precedes callbacks.
 Validation-only use makes no provider calls. These are helper-stage tests; source
 lexing, full angle preprocessing and consumer integration remain pending.
+Ordinary outline zero-baseline anchor/justification formulas are tracked in #91;
+existing additive baseline, metric and cursor rules remain adopted.
 Conditional operand byte/escape/terminator and limit details are tracked in #90;
 the completed numeric/Boolean and PR #85/#89 rules remain adopted independently.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE

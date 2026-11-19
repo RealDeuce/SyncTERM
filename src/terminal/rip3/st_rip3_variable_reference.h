@@ -57,7 +57,7 @@ struct st_rip3_variable_reference {
  *
  * Prefix '=' selects the session-storage bit; post-name '=default' remains a
  * separate field. Repetitions accumulate idempotently; '%' is invalid. Both
- * persistent '+' and session '=' bits are retained for the executor, where
+ * persistent '+' and session '=' bits are retained for the user-variable processor, where
  * persistent storage wins under the adopted PR #89 policy. The decoder performs
  * no storage or prompt action. No whitespace or undocumented
  * format aliases are accepted. Malformed syntax fails atomically; stream
