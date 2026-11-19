@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-5224b709268fbda7d38a4c40cd2635374d9a6023](https://github.com/RealDeuce/remote-imaging-protocol/tree/5224b709268fbda7d38a4c40cd2635374d9a6023/version/3.0)
+ab37e09a1d239f21ae5d748c5b6cddbea9522a20](https://github.com/RealDeuce/remote-imaging-protocol/tree/ab37e09a1d239f21ae5d748c5b6cddbea9522a20/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -25,9 +25,14 @@ PR [#83](https://github.com/bbs-land/remote-imaging-protocol/pull/83) supplies
 the adopted signed global font-bbox/header field correction for #82.
 PR [#85](https://github.com/bbs-land/remote-imaging-protocol/pull/85) supplies
 the adopted argument byte/backslash/decoded-limit contract for #84.
+PRs [#88](https://github.com/bbs-land/remote-imaging-protocol/pull/88) and
+[#89](https://github.com/bbs-land/remote-imaging-protocol/pull/89) supply the
+adopted outline advance/cache policy and user-variable directive/storage/prompt
+reconciliation for #86/#87. Their explicit interoperability choices are normative;
+native index-loop, sign-extension and unsafe behavior are not reproduced.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7544 blocks in 67 normative
+provenance, scope and reopened claims. There are now 7631 blocks in 68 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -4714,6 +4719,73 @@ remain explicitly pending; helper tests do not claim end-to-end preprocessing.
 The reference pin, original fonts, RIP1.54 and active application route remain
 unchanged. Scoped logs are removed, no issue thread is modified and no code is
 published. The full implementation goal remains in progress.
+
+## PR #88/#89 adoption, ordinary metric axes and actual user prefixes
+
+The reference now pins fork stable ab37e09a1d239f21ae5d748c5b6cddbea9522a20,
+including open PR #88 head 9962a60dce7df526cfe42051d70757f3b43a9172 and open
+PR #89 head 3240a25d2026d4be3275f066b898a07192884c54. Seven existing normative
+documents change and the outline advance/cache page is added. Reindexing retains
+7480 exact source/heading/content reviews, moves 2093 line references and reviews
+151 new/replaced blocks, giving 7631 across 68 documents. No prior implementation
+claim is silently retained across changed text. Both derivations have recorded
+hashes; their native evidence is distinguished from explicit protocol policies.
+B86/B87 are resolved in the adopted documentation, independently of implementation
+acceptance. Existing issue threads receive no added content.
+
+Ordinary outline metrics now select effective DPI by string axis: X for 0/1800,
+Y for 900/2700. Character rotation remains independent. Rational face/point scaling
+rounds to 1/1440-inch units per byte before device truncation. Logical intermediates
+are uint64_t through conversion, removing the unnecessary int32 intermediate
+restriction; a custom 5,367,316,500-logical-unit metric now produces the valid
+3,727,303-device-unit result at one DPI. The existing bounded int32 layout input
+still rejects oversized final device values atomically. Synthetic bold/italic/
+decorations no longer reject metric acquisition or alter widths; their ink
+renderers remain separately pending. No ordinary pair kerning is applied.
+
+Native font vectors cover all sixteen string/character rotations and every low
+effect combination for base and 150% hollow faces at unequal DPI. MARIN F at 90
+points gives ordinary widths 50/25 for Dx=72/Dy=36, and the hollow 150% face gives
+75/37. Real unsigned bytes 0x80/0xff give 15/90 at 72 DPI. FF at 10 points and
+36 DPI gives two separate advances of 2, rather than whole-string width 5.
+Coherent captures on every canvas now use string-axis advances but retain the
+horizontal realized bbox reference for spacing. With doubled X DPI, horizontal
+steps are 24/22 and vertical steps 15/13; isotropic steps remain 12/11.
+
+The user-variable decoder now recognizes actual session prefix `=` and rejects
+`%`, correcting the prior help transcription. Repeated directives are accumulated
+idempotently instead of reporting unsupported. Prefix storage and post-name
+default equal signs remain distinct. All 64 flag subsets in both directions with
+tripled occurrences, canonical mixed/silent forms, absent versus empty defaults
+and invalid percent combinations have independent expectations. The decoder
+retains persistent/session bits for the future executor, where `+` must win; it
+does not perform prompts or storage. PR #89's complete sixteen-row effect matrix,
+memory-first shadow/copy policy, successful-empty NULL and cancellation behavior
+remain pending execution work, with their explicit policy boundaries recorded.
+
+The cache contract now completely specifies unsigned finite X-DPI snapshots,
+final signed-WORD cursor handoff and atomic lifecycle/failure retention. Those
+are adopted pending requirements; no cache or cursor consumer is inferred from
+the completed ordinary-metric service. Earlier source grammar/condition work also
+remains pending and is not replaced by this reference update. New upstream
+[#90](https://github.com/bbs-land/remote-imaging-protocol/issues/90) requests the
+conditional operand byte/escape/terminator/limit grammar that the existing macro
+and argument answers do not specify. Read-only original operand-parser leads
+show distinct quoting and length paths; no original code is executed. Its report
+references completed #6/PR #32/#85/#89 without adding to their issue threads.
+Only that separate lexical requirement is blocked; established comparison and
+Boolean semantics remain adopted and implemented.
+
+Native CMake configure/full build succeeds. The only build warning class is GNU
+make clock skew; no compiler warning/error is emitted. The three affected native
+CTests pass once: rip3_variable_reference, rip3_outline_font and rip3_outline_text.
+Three focused reference-adoption guards and edited ledger consistency pass;
+unchanged condition/RAND/argument/legacy evidence is reused. Counts are 737
+implemented, 1625 pending, 4122 unreviewed, 1097 contextual, 24 excluded and 26
+blocked across 7631 units. The original fonts, RIP1.54, active application route
+and external-launch exclusion are unchanged. Archive processing stays in memory;
+scoped build logs are removed. No code is pushed or PR published. Full compliance
+is still in progress.
 
 ## Verification and acceptance
 

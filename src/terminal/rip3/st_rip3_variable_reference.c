@@ -41,7 +41,7 @@ directive(uint8_t ch)
 	switch (ch) {
 	case '*': return ST_RIP3_VARIABLE_REQUIRED;
 	case '+': return ST_RIP3_VARIABLE_PERSISTENT;
-	case '%': return ST_RIP3_VARIABLE_SESSION;
+	case '=': return ST_RIP3_VARIABLE_SESSION;
 	case '#': return ST_RIP3_VARIABLE_MASKED;
 	case '-': return ST_RIP3_VARIABLE_SET;
 	case '&': return ST_RIP3_VARIABLE_GET;
@@ -169,13 +169,9 @@ st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
 			return IO_ERROR_INVALID_FORMAT;
 	}
 	while ((flag = directive(peek(&parser))) != 0) {
-		if ((reference.directives & flag) != 0)
-			return IO_ERROR_NOT_SUPPORTED;
 		reference.directives |= flag;
 		parser.at++;
 	}
-	if (peek(&parser) == '=')
-		return IO_ERROR_NOT_SUPPORTED;
 	if (peek(&parser) == ',' || digit(peek(&parser))) {
 		reference.has_position = true;
 		status = coordinate(&parser, &reference.x, &reference.has_x);

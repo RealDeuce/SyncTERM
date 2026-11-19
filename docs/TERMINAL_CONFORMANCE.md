@@ -52,15 +52,17 @@ retaining wide y-down edges. Spacing uses their horizontal max-minus-min span.
 Literal font tuples, negative upper bounds, rational half ties, zero/oversized
 spans and realized-width spacing on all canvases have focused native coverage.
 Prepared fonts now provide independent unkerned per-byte DEVICE advances to the
-native layout/render scenes. Logical advances use explicit rational half-up
-rounding before separate X-DPI truncation; the published Marin F result and
+native layout/render scenes. Logical advances use the adopted rational half-up
+rounding before separate string-axis DPI truncation; the published Marin F result and
 authored half ties, face percentages, high/missing/damaged codes, long arrays and
 transactional overflow/error paths have native expectations. This geometric
-service does not select final ordinary kerning/effect policy or cached Woutline
-compatibility. New upstream #86 tracks those decisions and cache lifecycle;
-existing cursor-store answers remain adopted. Ordinary outline commands still
-remain pending. Earlier unrelated test and legacy evidence is reused.
-Typographic alignment, glyph advance and effect-specific ink extents remain
+service now applies PR #88's no-kerning, effect-independent metric policy, using
+X DPI for horizontal strings and Y for vertical strings under every character
+orientation. Wide logical intermediates survive to final device conversion.
+Cached X-width snapshots and their newly specified lifecycle remain pending
+consumers. Existing cursor-store answers remain adopted. Ordinary outline
+commands still remain pending. Earlier unrelated test and legacy evidence is reused.
+Typographic alignment, cached widths and effect-specific ink extents remain
 separate from the global coordinate box.
 The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization
 and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
@@ -83,9 +85,13 @@ decimal/arithmetic contract, including maximum+1 at the endpoint and zeroes
 prepended before a minus sign. Native vectors cover the original sequence,
 independent sessions, solved endpoint seeds, oversized tokens, signed overflow,
 byte validation, exact reply capacity and nonfatal error recovery. No initial
-seed, global CRT state or application-route integration is assumed. User-variable
-prefix/repetition/scope and transparency decisions remain under follow-up #87;
-completed macro-ordering and argument-byte answers are retained.
+seed, global CRT state or application-route integration is assumed. PR #89's
+user-variable contract is now adopted: the syntax decoder accepts session prefix
+`=`, ignores repeated flags and rejects `%` atomically. Tests cover all flag subsets
+in both orders with repetition, mixed prefixes and absent/empty defaults. The
+normative persistent precedence, store shadow/copy, prompt/effect and cancellation
+rules remain pending execution. Completed macro-ordering and argument-byte answers
+are retained.
 The typed condition stage now compares wrapped signed decimals or literal
 case-insensitive byte strings and performs the original staged Boolean reduction.
 Native vectors distinguish equal AND/OR precedence, late NOT, grouping and
@@ -93,6 +99,8 @@ multiple-NOT phase boundaries. Provider calls are ordered without short-circuiti
 failed values become false, and complete preflight/allocation precedes callbacks.
 Validation-only use makes no provider calls. These are helper-stage tests; source
 lexing, full angle preprocessing and consumer integration remain pending.
+Conditional operand byte/escape/terminator and limit details are tracked in #90;
+the completed numeric/Boolean and PR #85/#89 rules remain adopted independently.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

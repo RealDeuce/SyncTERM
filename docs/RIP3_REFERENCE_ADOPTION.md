@@ -143,7 +143,7 @@ build logs are removed; no reference archive/extraction artifact is retained.
 
 ## Dollar-argument grammar update from PR #85
 
-The current pin is fork stable
+That adoption used fork stable
 [`5224b709268fbda7d38a4c40cd2635374d9a6023`](https://github.com/RealDeuce/remote-imaging-protocol/tree/5224b709268fbda7d38a4c40cd2635374d9a6023),
 including open [PR #85](https://github.com/bbs-land/remote-imaging-protocol/pull/85)
 head `a47aa2d40405a3e156f745736601abe016766a9d`. Archive digest:
@@ -167,6 +167,43 @@ Only affected native tests, three reference guard cases and ledger consistency
 are checked. Prior font/drawing/legacy evidence is reused. The archive is processed
 in memory without extraction; scoped build logs are removed. Existing upstream
 issue threads receive no comments or changes. No code is published.
+
+## Outline metrics and user-variable policy from PR #88/#89
+
+The current pin is fork stable
+[`ab37e09a1d239f21ae5d748c5b6cddbea9522a20`](https://github.com/RealDeuce/remote-imaging-protocol/tree/ab37e09a1d239f21ae5d748c5b6cddbea9522a20),
+including open [PR #88](https://github.com/bbs-land/remote-imaging-protocol/pull/88)
+head `9962a60dce7df526cfe42051d70757f3b43a9172` and open
+[PR #89](https://github.com/bbs-land/remote-imaging-protocol/pull/89) head
+`3240a25d2026d4be3275f066b898a07192884c54`. Exact archive digest:
+`d3fb8b6046b8102cc7c10612daa25fad6de306f37423b0c4089db6571b79dcd0`.
+Both new derivations have recorded digests and explicit evidence/policy boundaries.
+
+Seven existing normative documents change; the new outline advance/cache page
+increases the inventory to 68. The complete block reindex retains 7480 exact
+reviews, moves 2093 line references and adds/replaces 151 blocks, giving 7631.
+The update record preserves prior accounting and records no removed implementation
+claim. New/replaced text is reviewed independently rather than silently inheriting
+its old classification. B86/B87 are resolved in the pinned documentation;
+implementation acceptance remains separate.
+
+The reviewed metric policy separates ordinary string-axis DPI from cached X-width
+and prescribes wide per-byte rounding, no ordinary kerning, effect-independent
+advances and atomic context-wide snapshot lifetime. User-variable policy corrects
+session storage to `=`, rejects `%`, ignores repetitions and specifies memory-first
+lookup, persistent precedence, the complete prompt/effect matrix and distinct
+empty/cancelled/suppressed output. The explicit portable choices are normative
+without being attributed to unexecuted original client paths. Existing #3/#6/#22/
+#24/#82/#84 answers remain in force.
+
+The [implementation milestone](RIP3_CONFORMANCE.md#pr-8889-adoption-ordinary-metric-axes-and-actual-user-prefixes)
+records corrected ordinary metric axes/wide arithmetic and user prefix decoding,
+three affected native tests, the adoption guards and pending cache/prompt execution.
+Prior unrelated evidence is reused. Original assets and RIP1.54 remain unchanged.
+The separate conditional operand grammar is requested in parent issue #90;
+adopting these PRs does not reopen their completed contracts or modify their issues.
+Archive processing is in memory and scoped build logs are removed. No existing
+issue thread is modified and no code is published.
 
 ## Source and review evidence
 

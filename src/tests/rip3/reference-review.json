@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/85",
-  "revision": "5224b709268fbda7d38a4c40cd2635374d9a6023",
-  "previous_revision": "f77f918229934bfc4560860e044c48aaf86e28b4",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/89",
+  "revision": "ab37e09a1d239f21ae5d748c5b6cddbea9522a20",
+  "previous_revision": "5224b709268fbda7d38a4c40cd2635374d9a6023",
   "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
   "upstream_state_at_adoption": "PR open; reviewed head already integrated in fork stable.",
-  "archive_sha256": "3456c9cbcd3e591b50e6f63c035e02c947d47450bdfa81cd0b645d32485cf7c1",
+  "archive_sha256": "d3fb8b6046b8102cc7c10612daa25fad6de306f37423b0c4089db6571b79dcd0",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -16,10 +16,17 @@
     "version/baseline/techspecs/ansi-vt-support.md"
   ],
   "changed_documents": [
+    "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+    "version/3.0/ripscrip/5.0-host-commands.md",
     "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
+    "version/3.0/techspecs/2.3-drawing-composition.md",
+    "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
+    "version/3.0/techspecs/3.2-fastfont-additions.md",
+    "version/3.0/techspecs/README.md"
   ],
-  "new_documents": [],
+  "new_documents": [
+    "version/3.0/techspecs/2.4-outline-advance-and-cache.md"
+  ],
   "retired_documents": [],
   "matched_source_blocks": 5666,
   "reopened_implementation_claims": [
@@ -1225,6 +1232,14 @@
     {
       "path": "version/3.0/research/issue-84-dollar-argument-grammar.md",
       "sha256": "716029d580fc54fb83cf51d5458e7713609fc1fcca39e7bac07be9d7f654778f"
+    },
+    {
+      "path": "version/3.0/research/issue-86-outline-advance-policy.md",
+      "sha256": "bb386f79e8d3135f2944bd485f636f858cbb4a2e7009935038b3174175a9fc94"
+    },
+    {
+      "path": "version/3.0/research/issue-87-user-variable-directives.md",
+      "sha256": "2703a703d1edcce1e5852bde687a5b62e4bfdff63148162998c8c30cc43f8d02"
     }
   ],
   "documents": [
@@ -1350,7 +1365,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "71be2d75c7411d36c523fe56b96b2e48bf655a2b6314a8225d99b82891864aed"
+      "sha256": "7f12e0feec50be04a4779a19249c75755ec9e4d723a332a58327a374c8cc61a7"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1382,11 +1397,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "848ba6583308442724f8260c9b3766dfe8064ac248cc06a3a3a490f9db1cdb56"
+      "sha256": "33f211fa34b526dca969f3760803b2be1f282d213786a2fa8293d82a45450e1a"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "ec495160c5c6501e1b2dad486572f7d4bae727797a38b934db8f14dc14e15eeb"
+      "sha256": "054124348587e2c2b5a969d9022ad186604faa40345199b292f5c59f4bec1db3"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1462,15 +1477,19 @@
     },
     {
       "path": "version/3.0/techspecs/2.3-drawing-composition.md",
-      "sha256": "61d9948776f91c518ef1dab51fc6653b7b62cc53fc5a83f17e82bac2a82e9e36"
+      "sha256": "6e166b0c540fa08f3a8c1177a94d64832df4e5c3d8c912e54af96d2d40a011a4"
+    },
+    {
+      "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
+      "sha256": "8e8c49371766eafac61490a25edda62b68f6194ba2e8b5aa006302ba3c7a2745"
     },
     {
       "path": "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
-      "sha256": "c0d5ff1572a798d025de246d7d18fb67f11268dcf59899447c71bedd3ec6995e"
+      "sha256": "e6af8a721a16bd06f16ebd4faf7d106423807e9cc7d79bc6ae65558e7185f0d0"
     },
     {
       "path": "version/3.0/techspecs/3.2-fastfont-additions.md",
-      "sha256": "5100da1a9ef3baf20f0dcfb0ea0ffe266a324d5ef9eecdcb27d014679f467110"
+      "sha256": "0dc8746c9bfff3cd78038bde27a127be72edc5ef14a6696687d7cc0397df2990"
     },
     {
       "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
@@ -1482,7 +1501,7 @@
     },
     {
       "path": "version/3.0/techspecs/README.md",
-      "sha256": "fea9404b32b85f30d8c8e488d29098b07781263e6f770dcc73124276342f1488"
+      "sha256": "ad82437f88f1c2db2d733ac9e3b1b53079293ff2adf16b04610f9762e55be28c"
     },
     {
       "path": "version/baseline/techspecs/ansi-vt-support.md",
@@ -1497,7 +1516,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "03b648e3",
+  "previous_ledger_commit": "64c0592c",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2007,6 +2026,62 @@
         "blocked": 32,
         "excluded": 24
       }
+    },
+    {
+      "revision": "ab37e09a1d239f21ae5d748c5b6cddbea9522a20",
+      "previous_revision": "5224b709268fbda7d38a4c40cd2635374d9a6023",
+      "archive_sha256": "d3fb8b6046b8102cc7c10612daa25fad6de306f37423b0c4089db6571b79dcd0",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/88",
+          "revision": "9962a60dce7df526cfe42051d70757f3b43a9172"
+        },
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/89",
+          "revision": "3240a25d2026d4be3275f066b898a07192884c54"
+        }
+      ],
+      "upstream_state": "Both PRs open; reviewed heads integrated in fork stable.",
+      "authorization": "User directed fork stable as the continuing reference, with new parent issues instead of content on existing issue threads.",
+      "prior_adoption_commit": "64c0592c",
+      "changed_documents": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+        "version/3.0/ripscrip/5.0-host-commands.md",
+        "version/3.0/ripscrip/5.1-text-variables.md",
+        "version/3.0/techspecs/2.3-drawing-composition.md",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
+        "version/3.0/techspecs/3.2-fastfont-additions.md",
+        "version/3.0/techspecs/README.md"
+      ],
+      "new_documents": [
+        "version/3.0/techspecs/2.4-outline-advance-and-cache.md"
+      ],
+      "retired_documents": [],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-86-outline-advance-policy.md",
+          "sha256": "bb386f79e8d3135f2944bd485f636f858cbb4a2e7009935038b3174175a9fc94"
+        },
+        {
+          "path": "version/3.0/research/issue-87-user-variable-directives.md",
+          "sha256": "2703a703d1edcce1e5852bde687a5b62e4bfdff63148162998c8c30cc43f8d02"
+        }
+      ],
+      "matched_source_blocks": 7480,
+      "moved_source_blocks": 2093,
+      "new_source_blocks": 151,
+      "removed_implementation_claims": [],
+      "source_blocks_after_update": 7631,
+      "reviewed_change": "PR88 defines portable ordinary string-axis metrics, final cached X-width and atomic snapshot lifecycle independently of native defects. PR89 corrects memory directive to =, rejects %, accumulates repetitions, and specifies memory-first lookup, persistent precedence, full prompt/write/output matrix and explicit empty/cancellation policies.",
+      "states_after_update": {
+        "unreviewed": 4122,
+        "context": 1097,
+        "pending": 1625,
+        "implemented": 737,
+        "blocked": 26,
+        "excluded": 24
+      },
+      "pending_follow_up": "https://github.com/bbs-land/remote-imaging-protocol/issues/90"
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",

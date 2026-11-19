@@ -448,7 +448,8 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bo
 {
 	/* Global bbox 8x8, 150% horizontal face: realized widths are 12 for
 	 * upright/half and 8 for quarter turns. P125 adds 3/2 to advance 9.
-	 * Double X DPI gives widths 24/16 and adds 6/4. Positions remain DEVICE.
+	 * Double X DPI gives widths 24/16 and adds 6/4, but vertical strings retain
+	 * the Y-axis advance 9. Positions remain DEVICE.
 	 * Character columns alternate the sign of the stored B=4 displacement. */
 	static const struct st_rip3_point direction[] = {{1,0},{0,-1},{-1,0},{0,1}};
 	static const struct st_rip3_point baseline[][4] = {
@@ -484,10 +485,11 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bo
 			CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
 			CHECK(st_rip3_outline_font_bind(&realized,&font,2,&frame,wire.size,wire.flags,layout.font_orientation) == 0);
 			CHECK(st_rip3_outline_font_bbox_width(&bbox_width,&realized) == 0);
-			CHECK(st_rip3_outline_font_advances(advances,&realized,(const uint8_t *)"AA",2) == 0);
-			CHECK(advances[0] == (anisotropic ? 18 : 9) && advances[1] == advances[0]);
+			CHECK(st_rip3_outline_font_advances(advances,&realized,wire.string_rotation,(const uint8_t *)"AA",2) == 0);
+			CHECK(advances[0] == (anisotropic && string%2==0 ? 18 : 9) && advances[1] == advances[0]);
 			CHECK(st_rip3_outline_layout_positions(&layout,&zero,advances,2,bbox_width,positions,&total) == 0);
-			CHECK(total == 2*(character%2!=0 ? (anisotropic ? 22 : 11) : (anisotropic ? 24 : 12)));
+			CHECK(total == 2*(anisotropic ? (string%2==0 ? 18 : 9)+(character%2!=0 ? 4 : 6)
+			    : (character%2!=0 ? 11 : 12)));
 			CHECK(st_rip3_draw_outline_positioned(ports,&realized,&layout,(const uint8_t *)"AA",2,
 			    positions,12,8,ST_RIP3_COPY) == 0);
 		}
@@ -504,7 +506,8 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bo
 				int32_t v = (int32_t)(y%96)-48-baseline[string][character].y;
 				struct st_rip3_rect bounds = turned_bounds[character];
 				bounds.x0 *= (int32_t)scale_x; bounds.x1 = (bounds.x1+1)*(int32_t)scale_x-1;
-				int32_t step = character%2!=0 ? (anisotropic ? 22 : 11) : (anisotropic ? 24 : 12);
+				int32_t step = anisotropic ? (string%2==0 ? 18 : 9)+(character%2!=0 ? 4 : 6)
+				    : (character%2!=0 ? 11 : 12);
 				ink = inside(u,v,&bounds) || inside(u-step*direction[string].x,v-step*direction[string].y,&bounds);
 			}
 			CHECK(capture->primary[(size_t)y*width+x]

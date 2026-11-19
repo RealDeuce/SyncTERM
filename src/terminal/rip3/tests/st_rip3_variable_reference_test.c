@@ -54,12 +54,45 @@ examples(void)
 	CHECK(parse(&reference, "$NAME$") == 0);
 	CHECK(!reference.has_position && !reference.has_width && !reference.has_question && !reference.has_default);
 	CHECK(reference.mode == ST_RIP3_VARIABLE_ANY && reference.conversion == ST_RIP3_VARIABLE_UNCONVERTED);
-	CHECK(parse(&reference, "$&-#%+*NAME$") == 0 && reference.directives == 63);
-	CHECK(parse(&reference, "$*+%#-&NAME$") == 0 && reference.directives == 63);
+	CHECK(parse(&reference, "$&-#=+*NAME$") == 0 && reference.directives == 63);
+	CHECK(parse(&reference, "$*+=#-&NAME$") == 0 && reference.directives == 63);
 	/* Keeping both scope bits is deliberate; this parser selects no precedence. */
-	CHECK(parse(&reference, "$-%NAME=value$") == 0);
+	CHECK(parse(&reference, "$-=NAME=value$") == 0);
 	CHECK(reference.directives == (ST_RIP3_VARIABLE_SET | ST_RIP3_VARIABLE_SESSION));
 	CHECK(parse(&reference, "$&NAME$") == 0 && reference.directives == ST_RIP3_VARIABLE_GET);
+	return 0;
+}
+
+static int
+directives(void)
+{
+	static const char flags[]="*+=#-&";
+	struct st_rip3_variable_reference reference;
+	/* Every flag combination, in both orders, with repeated occurrences. The
+	 * post-name equals sign must remain the default delimiter in every case. */
+	for (unsigned mask=0; mask<64; mask++) for (unsigned reverse=0; reverse<2; reverse++) {
+		char text[100];size_t at=0;
+		text[at++]='$';
+		for (unsigned i=0; i<6; i++) {
+			unsigned which=reverse!=0 ? 5-i : i;
+			if ((mask&(1u<<which))==0) continue;
+			for (unsigned repetition=0; repetition<3; repetition++) text[at++]=flags[which];
+		}
+		memcpy(text+at,"nAmE=%literal$",15);at+=14;
+		CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)text,at)==0
+		    && reference.directives==mask && strcmp(reference.name,"NAME")==0
+		    && reference.has_default && strcmp((const char *)reference.default_value.bytes,"%literal")==0);
+	}
+	CHECK(parse(&reference,"$--==NAME=value$")==0
+	    && reference.directives==(ST_RIP3_VARIABLE_SET|ST_RIP3_VARIABLE_SESSION));
+	CHECK(parse(&reference,"$++==NAME=value$")==0
+	    && reference.directives==(ST_RIP3_VARIABLE_PERSISTENT|ST_RIP3_VARIABLE_SESSION));
+	CHECK(parse(&reference,"$=-+NAME=$")==0 && reference.has_default && reference.default_value.length==0
+	    && reference.directives==(ST_RIP3_VARIABLE_SESSION|ST_RIP3_VARIABLE_SET|ST_RIP3_VARIABLE_PERSISTENT));
+	CHECK(parse(&reference,"$-=NAME$")==0 && !reference.has_default);
+	CHECK(parse(&reference,"$==NAME==value$")==0
+	    && reference.directives==ST_RIP3_VARIABLE_SESSION
+	    && strcmp((const char *)reference.default_value.bytes,"=value")==0);
 	return 0;
 }
 
@@ -135,18 +168,14 @@ failures(void)
 		"$20:NAME$", "$20,NAME$", "$20,50NAME$", "$,:$", "$20,-1:NAME$",
 		"$NAME,$", "$NAME,-1$", "$NAME,+1$", "$NAME,1x$", "$NAME@bad$tail$",
 		"$?0$", "$&MSG<<FIELDID>>$", "$N\x82$",
+		"$%NAME$", "$%%NAME$", "$-%NAME=value$", "$+%NAME=value$", "$+%=NAME=value$",
 	};
-	const char *const unsupported[] = {"$-=NAME=value$", "$=NAME$", "$**NAME$", "$%%NAME$", "$&&NAME$"};
 	const char *const oversized[] = {"$ABCDEFGHIJKLMNOPQRSTU$", "$2147483648,0:NAME$", "$0,999999999999999999999:NAME$", "$NAME,4294967296$"};
 	struct st_rip3_variable_reference reference, before;
 
 	memset(&reference, 0xa5, sizeof(reference)); before = reference;
 	for (size_t i = 0; i < sizeof(malformed) / sizeof(*malformed); i++) {
 		CHECK(parse(&reference, malformed[i]) == IO_ERROR_INVALID_FORMAT);
-		CHECK(memcmp(&reference, &before, sizeof(reference)) == 0);
-	}
-	for (size_t i = 0; i < sizeof(unsupported) / sizeof(*unsupported); i++) {
-		CHECK(parse(&reference, unsupported[i]) == IO_ERROR_NOT_SUPPORTED);
 		CHECK(memcmp(&reference, &before, sizeof(reference)) == 0);
 	}
 	for (size_t i = 0; i < sizeof(oversized) / sizeof(*oversized); i++) {
@@ -167,6 +196,7 @@ int
 main(void)
 {
 	CHECK(examples() == 0);
+	CHECK(directives() == 0);
 	CHECK(format_options() == 0);
 	CHECK(boundaries() == 0);
 	CHECK(failures() == 0);

@@ -1,7 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_outline_font.h"
 #include "st_rip3_font_data.h"
-#include "st_rip3_outline_layout.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -156,14 +155,16 @@ st_rip3_outline_font_bbox_width(int32_t *result, const struct st_rip3_outline_fo
 
 int
 st_rip3_outline_font_advances(int32_t *result,
-    const struct st_rip3_outline_font *font, const uint8_t *text, size_t length)
+    const struct st_rip3_outline_font *font, unsigned string_rotation,
+    const uint8_t *text, size_t length)
 {
 	if (font==NULL || (length!=0 && (result==NULL || text==NULL)))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (length>SIZE_MAX/sizeof(*result) || font->points==0 || font->points>4095
-	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->orientation>3 || font->flags>0xffffff)
+	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->dpi_y==0 || font->dpi_y>72*1024
+	    || font->orientation>3 || font->flags>0xffffff || string_rotation>2700 || string_rotation%900!=0)
 		return IO_ERROR_OUT_OF_RANGE;
-	if ((font->flags&3)!=0) return IO_ERROR_NOT_SUPPORTED;
+	unsigned dpi=string_rotation%1800==0 ? font->dpi_x : font->dpi_y;
 	struct st_rip3_rff file;
 	struct st_rip3_rff_style style;
 	int status=st_rip3_rff_open(&file,font->file.data,font->file.size);
@@ -184,9 +185,9 @@ st_rip3_outline_font_advances(int32_t *result,
 			uint64_t numerator=(uint64_t)glyph.advance*font->points*20*style.horizontal_percent;
 			uint64_t denominator=(uint64_t)file.units_per_em*100;
 			uint64_t logical=(numerator+denominator/2)/denominator;
-			if (logical>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
-			status=st_rip3_outline_metric_device(&advances[code],(int32_t)logical,font->dpi_x);
-			if (status!=0) return status;
+			uint64_t device=logical*dpi/1440;
+			if (device>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+			advances[code]=(int32_t)device;
 		}
 		measured[code]=true;
 	}

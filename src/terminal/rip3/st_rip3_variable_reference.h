@@ -55,9 +55,11 @@ struct st_rip3_variable_reference {
  * Unsigned decimal coordinates fit int32, field widths fit uint32; these are
  * representation bounds, not inferred RIPtel numeric limits/defaults.
  *
- * Prefix '=' and repeated directives return NOT_SUPPORTED while their 3.x
- * behavior remains unresolved (follow-up #87 to #6 / PR #32). Both '+' and '%'
- * may be retained; no precedence is selected here. No whitespace or undocumented
+ * Prefix '=' selects the session-storage bit; post-name '=default' remains a
+ * separate field. Repetitions accumulate idempotently; '%' is invalid. Both
+ * persistent '+' and session '=' bits are retained for the executor, where
+ * persistent storage wins under the adopted PR #89 policy. The decoder performs
+ * no storage or prompt action. No whitespace or undocumented
  * format aliases are accepted. Malformed syntax fails atomically; stream
  * framing, escaping and error recovery belong to the owning RIP parser.
  * The status-returning decoder is private to that parser and its unit tests. */
