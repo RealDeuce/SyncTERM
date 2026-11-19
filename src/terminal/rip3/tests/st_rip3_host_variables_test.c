@@ -18,6 +18,48 @@
 	} \
 } while (0)
 
+struct observation {
+	unsigned errors, replies;
+	enum st_rip3_host_diagnostic kind;
+	size_t length;
+	uint8_t bytes[8];
+};
+
+static void
+receive(void *context, const uint8_t *bytes, size_t length)
+{
+	struct observation *seen=context;
+	seen->replies++;seen->length=length;
+	if (length<=sizeof(seen->bytes)) memcpy(seen->bytes,bytes,length);
+}
+
+static void
+diagnose(void *context, enum st_rip3_host_diagnostic kind)
+{
+	struct observation *seen=context;
+	seen->errors++;seen->kind=kind;
+}
+
+static int
+recovery(const struct st_rip3_host_variables *host, struct st_rip3_palettes *palettes)
+{
+	struct observation seen={0};
+	const struct st_rip3_host_sink sink={&seen,receive,diagnose};
+	const char *const invalid[]={"$CUR(\"PAL\",7)$","$CUR(PAL,7\\,8)$","$CUR(PAL,7/8)$"};
+	for (size_t i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++) {
+		unsigned current;
+		st_rip3_host_variables_process(host,&sink,(const uint8_t *)invalid[i],strlen(invalid[i]));
+		CHECK(seen.errors==i+1 && seen.replies==0 && seen.kind==ST_RIP3_HOST_INVALID_REFERENCE);
+		CHECK(st_rip3_palettes_current(palettes,&current)==0 && current==5);
+	}
+	const char *valid="$CUR(P\\AL,7)$";
+	st_rip3_host_variables_process(host,&sink,(const uint8_t *)valid,strlen(valid));
+	CHECK(seen.errors==3 && seen.replies==0);
+	st_rip3_host_variables_process(host,&sink,(const uint8_t *)"$CUR(PAL)$",10);
+	CHECK(seen.errors==3 && seen.replies==1 && seen.length==1 && seen.bytes[0]=='7');
+	return 0;
+}
+
 static int
 run(const struct st_rip3_host_variables *host, const char *command,
     int expected, const char *reply)
@@ -114,6 +156,7 @@ main(void)
 	CHECK(st_rip3_host_variables_execute(&host, NULL, output, sizeof(output)) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_host_variables_execute(&host, &reference, NULL, 1) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(memcmp(output, before, sizeof(output)) == 0);
+	CHECK(recovery(&host,palettes)==0);
 	st_rip3_backup_destroy(backup);
 	st_rip3_palettes_destroy(palettes);
 	return 0;

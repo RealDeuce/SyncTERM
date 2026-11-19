@@ -6,6 +6,8 @@
 #include "st_rip3_ports.h"
 #include "io_error.h"
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -86,6 +88,100 @@ parser(void)
 	}
 	CHECK(st_rip3_builtin_reference_parse(NULL, (const uint8_t *)"$A$", 3) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_builtin_reference_parse(&reference, NULL, 0) == IO_ERROR_INVALID_ARGUMENT);
+	return 0;
+}
+
+static int
+argument_bytes(void)
+{
+	struct st_rip3_builtin_reference reference, before;
+	static const struct {
+		const char *text, *first, *second;
+	} examples[]={
+		{"$F(MY BBS)$","MY BBS",NULL}, {"$F('AB')$","'AB'",NULL},
+		{"$F(\"AB\")$",NULL,NULL}, {"$F(A,B)$","A","B"},
+		{"$F(A\\,B)$",NULL,NULL}, {"$F(A(B)$","A(B",NULL},
+		{"$F(A(B\\))$","A(B)",NULL}, {"$F(A\\)B)$","A)B",NULL},
+		{"$F(A\\$B)$","A$B",NULL}, {"$F(\\$N\\$)$","$N$",NULL},
+		{"$F(A$B)$",NULL,NULL}, {"$F(A\\B)$","AB",NULL},
+		{"$F(A\\\\B)$",NULL,NULL}, {"$F(A/B)$",NULL,NULL},
+		{"$F(A\\)$",NULL,NULL}, {"$F(A\\))$","A)",NULL},
+		{"$F(\\\")$",NULL,NULL}, {"$F(\\/)$",NULL,NULL},
+	};
+	memset(&before,0x5a,sizeof(before));
+	for (size_t i=0; i<sizeof(examples)/sizeof(examples[0]); i++) {
+		memcpy(&reference,&before,sizeof(reference));
+		int status=st_rip3_builtin_reference_parse(&reference,(const uint8_t *)examples[i].text,strlen(examples[i].text));
+		if (examples[i].first==NULL) {
+			CHECK(status==IO_ERROR_INVALID_FORMAT && memcmp(&reference,&before,sizeof(reference))==0);
+			continue;
+		}
+		CHECK(status==0 && strcmp(reference.name,"F")==0);
+		CHECK(reference.count==(examples[i].second==NULL ? 1u : 2u));
+		CHECK(strcmp(reference.parameters[0].text,examples[i].first)==0
+		    && reference.parameters[0].length==strlen(examples[i].first));
+		if (examples[i].second!=NULL) CHECK(strcmp(reference.parameters[1].text,examples[i].second)==0);
+	}
+	/* Independent byte-set expectations from the published table. Probe each
+	 * value as plain payload and after one local quote, preserving high bytes. */
+	unsigned plain_count=0, quoted_count=0;
+	for (unsigned byte=0; byte<256; byte++) {
+		bool payload=byte>=32 && strchr("\"*+,/;<=>?[]|\\",(int)byte)==NULL;
+		bool plain=payload && byte!='$' && byte!=')';
+		const uint8_t raw[]={'$','F','(',(uint8_t)byte,')','$'};
+		const uint8_t quoted[]={'$','F','(','\\',(uint8_t)byte,')','$'};
+		for (unsigned mode=0; mode<2; mode++) {
+			memcpy(&reference,&before,sizeof(reference));
+			bool valid=mode!=0 ? payload : plain;
+			int status=st_rip3_builtin_reference_parse(&reference,mode!=0 ? quoted : raw,
+			    mode!=0 ? sizeof(quoted) : sizeof(raw));
+			if (mode==0 && byte==',') CHECK(status==0 && reference.count==0);
+			else if (valid) {
+				CHECK(status==0 && reference.count==1 && reference.parameters[0].length==1
+				    && (uint8_t)reference.parameters[0].text[0]==byte && reference.parameters[0].text[1]==0);
+				if (mode==0) plain_count++; else quoted_count++;
+			}
+			else CHECK(status==IO_ERROR_INVALID_FORMAT && memcmp(&reference,&before,sizeof(reference))==0);
+		}
+	}
+	CHECK(plain_count==208 && quoted_count==210);
+	uint8_t text[1700];size_t length=0;
+	memcpy(text,"$F(",3);length=3;
+	for (unsigned i=0; i<20; i++) {text[length++]='\\';text[length++]='A';}
+	memcpy(text+length,")$",2);length+=2;
+	CHECK(st_rip3_builtin_reference_parse(&reference,text,length)==0
+	    && reference.count==1 && reference.parameters[0].length==20
+	    && strcmp(reference.parameters[0].text,"AAAAAAAAAAAAAAAAAAAA")==0);
+	memcpy(&before,&reference,sizeof(before));
+	memcpy(text+length-2,"\\A)$",4);length+=2;
+	CHECK(st_rip3_builtin_reference_parse(&reference,text,length)==IO_ERROR_OUT_OF_RANGE
+	    && memcmp(&reference,&before,sizeof(reference))==0);
+	/* Forty decoded arguments can occupy twice as many source bytes. */
+	memcpy(text,"$F(",3);length=3;
+	for (unsigned argument=0; argument<40; argument++) {
+		if (argument!=0) text[length++]=',';
+		for (unsigned i=0; i<20; i++) {text[length++]='\\';text[length++]='a';}
+	}
+	memcpy(text+length,",,)$",4);length+=4;
+	CHECK(st_rip3_builtin_reference_parse(&reference,text,length)==0 && reference.count==40
+	    && reference.parameters[39].length==20 && strcmp(reference.parameters[39].text,"aaaaaaaaaaaaaaaaaaaa")==0);
+	memcpy(&before,&reference,sizeof(before));
+	memcpy(text+length-2,"\\B)$",4);length+=2;
+	CHECK(st_rip3_builtin_reference_parse(&reference,text,length)==IO_ERROR_OUT_OF_RANGE
+	    && memcmp(&reference,&before,sizeof(reference))==0);
+	/* Raw CP437 bytes were checked above. UTF-8 payload remains bytes too:
+	 * ten U+00E9 encodings fill twenty slots, eleven exceed the byte limit. */
+	memcpy(text,"$F(",3);length=3;
+	for (unsigned i=0; i<10; i++) {text[length++]=0xc3;text[length++]=0xa9;}
+	memcpy(text+length,")$",2);length+=2;
+	CHECK(st_rip3_builtin_reference_parse(&reference,text,length)==0
+	    && reference.count==1 && reference.parameters[0].length==20
+	    && memcmp(reference.parameters[0].text,text+3,20)==0);
+	memcpy(&before,&reference,sizeof(before));
+	text[length-2]=0xc3;text[length-1]=0xa9;
+	memcpy(text+length,")$",2);length+=2;
+	CHECK(st_rip3_builtin_reference_parse(&reference,text,length)==IO_ERROR_OUT_OF_RANGE
+	    && memcmp(&reference,&before,sizeof(reference))==0);
 	return 0;
 }
 
@@ -214,6 +310,7 @@ int
 main(void)
 {
 	CHECK(parser() == 0);
+	CHECK(argument_bytes() == 0);
 	CHECK(palette_expressions() == 0);
 	CHECK(port_expressions() == 0);
 	return 0;

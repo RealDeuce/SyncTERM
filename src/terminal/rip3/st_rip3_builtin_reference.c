@@ -200,6 +200,18 @@ letter(uint8_t ch)
 	return upper(ch) >= 'A' && upper(ch) <= 'Z';
 }
 
+static bool
+argument_byte(uint8_t ch)
+{
+	if (ch<0x20) return false;
+	switch (ch) {
+		case '"': case '*': case '+': case ',': case '/': case ';':
+		case '<': case '=': case '>': case '?': case '[': case ']': case '|':
+			return false;
+		default:return true;
+	}
+}
+
 int
 st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
     const uint8_t *text, size_t length)
@@ -224,37 +236,35 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 		*result = reference;
 		return 0;
 	}
-	if (text[at] != '(' || text[end - 1] != ')')
+	if (text[at] != '(')
 		return IO_ERROR_INVALID_FORMAT;
 	at++;
-	end--; /* Closing parenthesis. */
-	for (;;) {
-		size_t first = at, stop;
-		struct st_rip3_builtin_parameter *parameter;
-
-		while (at < end && text[at] != ',') {
-			if (text[at] == 0 || text[at] == '$' || text[at] == '(' || text[at] == ')')
-				return IO_ERROR_INVALID_FORMAT;
-			at++;
+	size_t stored=0;
+	bool quote=false;
+	while (at<end) {
+		uint8_t ch=text[at++];
+		if (quote) {
+			if (ch=='\\' || !argument_byte(ch)) return IO_ERROR_INVALID_FORMAT;
+			/* The prefix already occupied a slot: overwriting can complete
+			 * byte 20 without requiring an additional payload byte. */
+			reference.parameters[reference.count].text[stored-1]=(char)ch;
+			quote=false;
+			continue;
 		}
-		stop = at;
-		if (stop - first > 20)
-			return IO_ERROR_OUT_OF_RANGE;
-		if (stop-first==2 && text[first]=='"' && text[first+1]=='"')
-			return IO_ERROR_INVALID_FORMAT;
-		if (stop != first) {
-			if (reference.count == 40)
-				return IO_ERROR_OUT_OF_RANGE;
-			parameter = &reference.parameters[reference.count++];
-			parameter->length = stop - first;
-			memcpy(parameter->text, text + first, parameter->length);
+		if (ch==',' || ch==')') {
+			if (stored!=0) reference.parameters[reference.count++].length=stored;
+			stored=0;
+			if (ch==',') continue; /* Empty fields occupy no slot. */
+			if (at!=end) return IO_ERROR_INVALID_FORMAT;
+			*result=reference;
+			return 0;
 		}
-		if (at == end)
-			break;
-		at++; /* Empty fields, including a final comma, occupy no slot. */
+		if (ch=='$' || !argument_byte(ch)) return IO_ERROR_INVALID_FORMAT;
+		if (reference.count==40 || stored==20) return IO_ERROR_OUT_OF_RANGE;
+		reference.parameters[reference.count].text[stored++]=(char)ch;
+		quote=ch=='\\';
 	}
-	*result = reference;
-	return 0;
+	return IO_ERROR_INVALID_FORMAT; /* No unquoted closing parenthesis. */
 }
 
 int

@@ -24,10 +24,15 @@ struct st_rip3_builtin_reference {
  * parameter bytes retain case and surrounding spaces for handler normalization.
  * Empty () and empty comma-separated fields occupy no parameter slots. At most
  * 40 nonempty parameters of 20 bytes each; oversized input rejects rather than
- * silently truncating. Quoted-empty arguments are rejected by the parser.
- * Parentheses/dollar delimiters cannot nest here; no recursive expansion,
- * quoting, escape interpretation, numeric conversion or default substitution
- * is performed. NULs reject. Decoding/recovery belongs to the parser; use the
+ * silently truncating. Limits count decoded bytes. Double quotes, controls,
+ * asterisk/plus/slash/comparison/bracket/pipe punctuation reject even when
+ * locally quoted. A backslash occupies a slot until the next accepted byte
+ * overwrites it; consecutive backslashes reject. Opening parentheses are
+ * payload; the first unquoted closing parenthesis ends the list. Payload
+ * dollars require a local backslash. Single quotes and high bytes are retained.
+ * No recursive expansion, outer unquoting, numeric conversion or default
+ * substitution is performed. Enclosing ordinary/host pass policy is separate.
+ * Decoding/recovery belongs to the parser; use the
  * public host-variable process entry rather than exposing decoder errors. */
 /* Case-insensitive exact name recognition from the pinned 3.x inventory,
  * including obsolete fixed-slot forms and attested unrecovered processors.

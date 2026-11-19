@@ -118,7 +118,7 @@ tree is left behind: archive and selected source data were processed in memory.
 
 ## Signed font-bbox update from PR #83
 
-The current pin is fork stable
+That adoption used fork stable
 [`f77f918229934bfc4560860e044c48aaf86e28b4`](https://github.com/RealDeuce/remote-imaging-protocol/tree/f77f918229934bfc4560860e044c48aaf86e28b4),
 including open [PR #83](https://github.com/bbs-land/remote-imaging-protocol/pull/83)
 head `e8591c1af34e0e47aceef354c6d80e095d72978f`. Archive digest:
@@ -140,6 +140,33 @@ records decoder, realization, rounding policy, spacing integration and affected
 tests. Unchanged font bytes, legacy preservation and argument-parser evidence are
 reused. No existing issue thread is modified and no code is published. Scoped
 build logs are removed; no reference archive/extraction artifact is retained.
+
+## Dollar-argument grammar update from PR #85
+
+The current pin is fork stable
+[`5224b709268fbda7d38a4c40cd2635374d9a6023`](https://github.com/RealDeuce/remote-imaging-protocol/tree/5224b709268fbda7d38a4c40cd2635374d9a6023),
+including open [PR #85](https://github.com/bbs-land/remote-imaging-protocol/pull/85)
+head `a47aa2d40405a3e156f745736601abe016766a9d`. Archive digest:
+`3456c9cbcd3e591b50e6f63c035e02c947d47450bdfa81cd0b645d32485cf7c1`.
+The argument-state/byte-predicate derivation has its own recorded digest. Only
+two normative documents change in the same 67-document inventory. The complete
+source-block reindex retains 7502 exact reviews, moves 1831 line references and
+adds/replaces 42 blocks, for 7544 total. Existing implementation claims all match
+unchanged source; the replaced B84 argument block receives fresh local-decoder
+evidence rather than carrying its old blocked state.
+
+The reviewed contract specifies accepted payload bytes, local quote overwrite,
+delimiter precedence and decoded-byte limits, and distinguishes these from outer
+ordinary/host pass handling. B84 is resolved in the adopted reference. Existing
+#6 count/slot/space answers, earlier references, original assets and B86's font
+metric/cache questions are unchanged. The [implementation milestone](RIP3_CONFORMANCE.md#pr-85-adoption-and-argument-local-decoding)
+records completed local argument parsing, affected tests and explicitly pending
+outer expansion work. It does not claim full ordinary/host processing.
+
+Only affected native tests, three reference guard cases and ledger consistency
+are checked. Prior font/drawing/legacy evidence is reused. The archive is processed
+in memory without extraction; scoped build logs are removed. Existing upstream
+issue threads receive no comments or changes. No code is published.
 
 ## Source and review evidence
 

@@ -71,8 +71,13 @@ Shared dollar-reference decoding now uses forty nonempty twenty-byte argument
 slots, omits empty comma fields and preserves raw spaces. Numeric/keyword handlers
 normalize their own bounded copies. Recovery, 20/21-byte and 40/41-argument limits,
 trailing commas and widened TERMINFO/viewport scratch buffers have native coverage.
-Complete byte/escape acceptance remains under
-[issue #84](https://github.com/bbs-land/remote-imaging-protocol/issues/84).
+PR #85's argument-byte contract is adopted: the decoder now applies its unsigned
+payload alphabet, local quote overwrite and delimiter rules before callback
+normalization. Exhaustive raw/quoted byte sets, published examples, decoded
+limits, UTF-8 byte counts and public nonfatal recovery have native coverage.
+Double quotes, excluded punctuation and consecutive backslashes reject without
+state changes. Outer ordinary/host passes and general user/prompt grammar remain
+pending; local acceptance does not claim complete expansion.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-f77f918229934bfc4560860e044c48aaf86e28b4](https://github.com/RealDeuce/remote-imaging-protocol/tree/f77f918229934bfc4560860e044c48aaf86e28b4/version/3.0)
+5224b709268fbda7d38a4c40cd2635374d9a6023](https://github.com/RealDeuce/remote-imaging-protocol/tree/5224b709268fbda7d38a4c40cd2635374d9a6023/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -23,9 +23,11 @@ PRs [#80](https://github.com/bbs-land/remote-imaging-protocol/pull/80) and
 adopted N normalization and 2Y field/protection/diagnostic contracts.
 PR [#83](https://github.com/bbs-land/remote-imaging-protocol/pull/83) supplies
 the adopted signed global font-bbox/header field correction for #82.
+PR [#85](https://github.com/bbs-land/remote-imaging-protocol/pull/85) supplies
+the adopted argument byte/backslash/decoded-limit contract for #84.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7504 blocks in 67 normative
+provenance, scope and reopened claims. There are now 7544 blocks in 67 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -4552,6 +4554,54 @@ and 33 blocked across the unchanged 7504 units. The pin, original assets, RIP1.5
 active application route and external-launch policy are unchanged. Scoped build
 logs are removed; no reference extraction, probe or temporary issue body remains.
 No code is pushed or PR published. The implementation goal remains in progress.
+
+## PR #85 adoption and argument-local decoding
+
+The reference now pins fork stable 5224b709268fbda7d38a4c40cd2635374d9a6023,
+including open PR #85 head a47aa2d40405a3e156f745736601abe016766a9d. Two normative
+documents change; their reviewed additions distinguish dollar-argument quoting
+from outer ordinary/host passes. The exact archive and new read-only derivation
+hashes are recorded in the adoption ledger. The block index retains 7502 exact
+source/heading/content reviews, moves 1831 line references and adds/replaces 42
+blocks, yielding 7544. No implementation claim is silently carried across changed
+text. B84 is resolved in the adopted documentation; B86 remains independent.
+
+The shared exact-reference decoder now enforces the published unsigned payload
+alphabet. Double quotes, controls and excluded punctuation reject even following
+a backslash. Opening parentheses remain data. The first unquoted closing
+parenthesis ends the argument list. A local quote prefix occupies the next slot,
+then its accepted following byte overwrites it without increasing decoded length.
+This permits a literal dollar/right-parenthesis, rejects consecutive backslashes
+and quoted commas, and preserves single quotes, case, raw spaces and high bytes.
+The 20-byte limit counts decoded bytes; forty nonempty argument slots still omit
+empty comma fields. Result publication remains transactional. Handler-specific
+numeric/keyword normalization remains separate, and public processing absorbs
+all syntax failures without returning a session error or invoking a handler.
+
+Independent native expectations cover all 256 byte values both raw and locally
+quoted, the published 208 plain/210 quoted representable payload values, every
+distinguishing lexical example and pending-quote failure. Twenty quoted bytes
+occupy forty source bytes; a twenty-first decoded byte rejects. Forty maximum
+decoded arguments and following empty fields fit; a forty-first argument rejects.
+CP437/high bytes are retained, and ten two-byte UTF-8 encodings fill the same
+twenty-byte limit. Public recovery rejects malformed CUR references without
+changing palette selection, then processes a valid locally quoted keyword and
+replies from the new selection. No original client/parser code is executed.
+
+This implements the argument stage, not the complete expansion pipeline. General
+post-argument user/prompt grammar, outer backslash processing, host two-pass
+replacement scheduling, macro/control/template expansion and text consumers
+remain pending. Their new source blocks are explicitly pending; table labels
+and provenance are contextual. Existing #6 answers remain adopted.
+
+Native CMake configure/full build succeeds without warnings. All twenty direct
+consumer CTests pass once; three focused reference-adoption guard cases and the
+edited ledger consistency check pass. Unchanged font/drawing and legacy freeze
+evidence is reused. Counts are 711 implemented, 1545 pending, 4166 unreviewed,
+1066 contextual, 24 excluded and 32 blocked across 7544 units. Original assets,
+RIP1.54, the active application route and external-launch exclusion are unchanged.
+Reference processing stays in memory and scoped build logs are removed. No
+existing issue thread is modified, and no code is pushed or PR published.
 
 ## Verification and acceptance
 

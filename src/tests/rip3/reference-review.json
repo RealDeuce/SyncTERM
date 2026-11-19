@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/83",
-  "revision": "f77f918229934bfc4560860e044c48aaf86e28b4",
-  "previous_revision": "a52985019cbf4754d4d08a07b4f7755761390661",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/85",
+  "revision": "5224b709268fbda7d38a4c40cd2635374d9a6023",
+  "previous_revision": "f77f918229934bfc4560860e044c48aaf86e28b4",
   "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
   "upstream_state_at_adoption": "PR open; reviewed head already integrated in fork stable.",
-  "archive_sha256": "8b8b8ab08f944d441f29a063e7c910e7c7193490806ba0b129ae0d02e2694fc8",
+  "archive_sha256": "3456c9cbcd3e591b50e6f63c035e02c947d47450bdfa81cd0b645d32485cf7c1",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -16,56 +16,10 @@
     "version/baseline/techspecs/ansi-vt-support.md"
   ],
   "changed_documents": [
-    "version/1.54/techspecs/3.0-icon-format.md",
-    "version/1.54/techspecs/3.1-bgi-stroked-fonts.md",
-    "version/1.54/techspecs/4.0-connection-directory-model.md",
-    "version/2.0/techspecs/2.1-fill-defects.md",
-    "version/2.0/techspecs/3.0-icon-formats.md",
-    "version/2.0/techspecs/3.2-fastfont-fonts.md",
-    "version/2.0/techspecs/README.md",
-    "version/3.0/ripscrip/1.0-introduction.md",
-    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-    "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-    "version/3.0/ripscrip/2.1-lines.md",
-    "version/3.0/ripscrip/2.2-curves.md",
-    "version/3.0/ripscrip/2.3-shapes-and-fills.md",
-    "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-    "version/3.0/ripscrip/3.1-column-text-system.md",
-    "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-    "version/3.0/ripscrip/4.1-jpeg-images.md",
-    "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-    "version/3.0/ripscrip/4.3-buttons.md",
-    "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
-    "version/3.0/ripscrip/4.5-audio-files.md",
-    "version/3.0/ripscrip/5.0-host-commands.md",
     "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-    "version/3.0/ripscrip/5.3-local-playback.md",
-    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-    "version/3.0/ripscrip/6.0-writing-rip-files.md",
-    "version/3.0/ripscrip/6.1-content-file-roles.md",
-    "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-    "version/3.0/ripscrip/7.0-drawing-ports.md",
-    "version/3.0/ripscrip/7.1-data-tables.md",
-    "version/3.0/ripscrip/7.2-data-backup-areas.md",
-    "version/3.0/ripscrip/9.0-command-reference.md",
-    "version/3.0/ripscrip/9.1-text-variable-reference.md",
-    "version/3.0/ripscrip/9.2-versions.md",
-    "version/3.0/ripscrip/9.3-host-command-reference.md",
-    "version/3.0/ripscrip/README.md",
-    "version/3.0/techspecs/2.0-fill-defects-delta.md",
-    "version/3.0/techspecs/3.2-fastfont-additions.md",
-    "version/3.0/techspecs/4.0-connection-directory-model-delta.md",
-    "version/3.0/techspecs/README.md"
+    "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
   ],
-  "new_documents": [
-    "version/3.0/techspecs/2.1-arc-consumer-contract.md",
-    "version/3.0/techspecs/2.2-bezier-consumer-contract.md",
-    "version/3.0/techspecs/3.0-bitmap-mask-delta.md"
-  ],
+  "new_documents": [],
   "retired_documents": [],
   "matched_source_blocks": 5666,
   "reopened_implementation_claims": [
@@ -1076,7 +1030,7 @@
     {
       "path": "version/3.0/research/issue-15-bezier-contracts.md",
       "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
-      "title": "Issue #15: Bézier equations, subdivision and block grammar",
+      "title": "Issue #15: B\u00e9zier equations, subdivision and block grammar",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1267,6 +1221,10 @@
       "path": "version/3.0/research/issue-82-rff-global-bounds.md",
       "sha256": "3289cc3f0bb85e3db6445e448a90bd21c82eb922507c85cc19eaa73c5727d982",
       "role": "Read-only byte/consumer derivation for signed global coordinate bounds and realized horizontal spacing width; no new exact hinting or raster guarantee."
+    },
+    {
+      "path": "version/3.0/research/issue-84-dollar-argument-grammar.md",
+      "sha256": "716029d580fc54fb83cf51d5458e7713609fc1fcca39e7bac07be9d7f654778f"
     }
   ],
   "documents": [
@@ -1428,11 +1386,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "d022e50f410b6962651cc09ddfb6166b0c054175800da36e9f375c6037014a65"
+      "sha256": "ec495160c5c6501e1b2dad486572f7d4bae727797a38b934db8f14dc14e15eeb"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "ee8196dc149701eb49705e47a155e3a69632c0f71947cb156aed7c0fc270da67"
+      "sha256": "fd42be17626325766715b42a08952e474d6db482c41a8834234bbf98e69b7a76"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1539,7 +1497,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "ea9b32b659c436fde5b229b03895b5fc8a8cfad0",
+  "previous_ledger_commit": "03b648e3",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2015,6 +1973,40 @@
         "excluded": 24
       },
       "reviewed_change": "All four global FF1/RFF metric/header bounds are signed coordinates; native metrics consume the metrics rectangle, with realized horizontal span used for bbox spacing. Original font bytes, prior winding/hollow rules and exact-raster nonrequirement are retained."
+    },
+    {
+      "revision": "5224b709268fbda7d38a4c40cd2635374d9a6023",
+      "previous_revision": "f77f918229934bfc4560860e044c48aaf86e28b4",
+      "archive_sha256": "3456c9cbcd3e591b50e6f63c035e02c947d47450bdfa81cd0b645d32485cf7c1",
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/85",
+      "pull_request_revision": "a47aa2d40405a3e156f745736601abe016766a9d",
+      "upstream_state": "PR open; reviewed head integrated in fork stable.",
+      "authorization": "User directed fork stable as the continuing reference; parent issues receive new deduplicated reports only, without existing-thread comments.",
+      "prior_adoption_commit": "03b648e3",
+      "changed_documents": [
+        "version/3.0/ripscrip/5.1-text-variables.md",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-84-dollar-argument-grammar.md",
+          "sha256": "716029d580fc54fb83cf51d5458e7713609fc1fcca39e7bac07be9d7f654778f"
+        }
+      ],
+      "matched_source_blocks": 7502,
+      "moved_source_blocks": 1831,
+      "new_source_blocks": 42,
+      "removed_implementation_claims": [],
+      "source_blocks_after_update": 7544,
+      "reviewed_change": "Unsigned argument alphabet, local quote overwrite and delimiter ordering, decoded 20-byte/nonempty 40-slot limits, and distinct outer/host passes. Existing #6 answers and font/cache question B86 are retained independently.",
+      "states_after_update": {
+        "unreviewed": 4166,
+        "context": 1066,
+        "pending": 1545,
+        "implemented": 711,
+        "blocked": 32,
+        "excluded": 24
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
