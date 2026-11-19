@@ -46,6 +46,10 @@ pairs have coherent native captures on every canvas with isotropic and unequal
 X/Y DPI. Shadow/write-mode scenes use that same production path; hollow bold's
 minimum width, pending-effect rejection and failure atomicity have focused checks.
 Solid bold, italic, decorations and ordinary outline commands remain pending.
+Global RFF bbox/header metric labels are under clarification in
+[issue #82](https://github.com/bbs-land/remote-imaging-protocol/issues/82).
+The prepared renderer consumes point/DPI scales and paths; it does not use the
+disputed header words as typographic ascent or bbox-width measurements.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

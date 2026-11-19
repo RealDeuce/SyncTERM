@@ -4315,6 +4315,36 @@ zero-baseline alignment, cached whole-string cursor metrics, effects and ordinar
 outline T/@ remain unfinished. Reference pin, original font assets, RIP1.54 and
 active application routing are unchanged. Temporary build logs are removed.
 
+## Global RFF metric-label conflict
+
+Read-only byte inspection found that the four metrics words +0x16..+0x1C equal
+the union of framed glyph-record bboxes in all eight original RFF files. Their
+observed order is xmin, ymin, xmax, ymax. The pinned table instead labels +0x1A
+as ascender/bbox ymax and +0x1C as a width metric; corresponding RFF header labels
+also assign the apparent horizontal/vertical bounds incorrectly. For Marin the
+four words and glyph union both are (-78,-916,1059,250). The existing original
+90-point/72-DPI oracle's device bounds (-7,-22)..(95,82) support that interpretation,
+without establishing exact raster rounding or signedness for every field.
+
+New parent-repository [issue #82](https://github.com/bbs-land/remote-imaging-protocol/issues/82)
+records all eight comparisons, a read-only reproduction and the requested consumer
+confirmation/correction. It references #3/PR #29 and #22/PR #55; none of those
+existing issue threads was modified. A deduplication read found no existing bbox
+field issue. The labels still occur at current stable head a52985019cbf4754d4d08a07b4f7755761390661;
+the local normative pin remains 72edbfc6c151d86a120fec3cabbde3cad32c9c0b. That newer
+stable head also contains PR #80/#81 for the recorded border/style questions;
+their reference adoption is separate pending work.
+
+Five in-scope RFF/header source units become blocked by B82. Two FF1 predecessor
+rows remain contextual with an explicit cross-reference. Metric acquisition must
+not treat a global X maximum as typographic ascent or the Y maximum as font width.
+The newly committed prepared-font renderer does not consume these disputed words,
+so its verified geometry is unaffected. Counts are 648 implemented, 1545 pending,
+4173 unreviewed, 1032 contextual, 24 excluded and 33 blocked across 7455 units.
+Only the edited ledger consistency is checked for this documentation update;
+native source and existing passing tests are unchanged. No temporary files,
+font changes, RIP1.54 changes or active-route changes are introduced.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
