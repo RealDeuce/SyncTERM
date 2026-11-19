@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/89",
-  "revision": "ab37e09a1d239f21ae5d748c5b6cddbea9522a20",
-  "previous_revision": "5224b709268fbda7d38a4c40cd2635374d9a6023",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/95",
+  "revision": "d046bb4b1f9d066b8534ac9b1369a63abee4563c",
+  "previous_revision": "ab37e09a1d239f21ae5d748c5b6cddbea9522a20",
   "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
-  "upstream_state_at_adoption": "PR open; reviewed head already integrated in fork stable.",
-  "archive_sha256": "d3fb8b6046b8102cc7c10612daa25fad6de306f37423b0c4089db6571b79dcd0",
+  "upstream_state_at_adoption": "Three PRs open; reviewed heads integrated in fork stable.",
+  "archive_sha256": "77203e133e339d8f5ff2e8d3fa2a82506d98a77bb0950c5bef0097d353f95f92",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -19,14 +19,11 @@
     "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
     "version/3.0/ripscrip/5.0-host-commands.md",
     "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/techspecs/2.3-drawing-composition.md",
-    "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
-    "version/3.0/techspecs/3.2-fastfont-additions.md",
+    "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+    "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
     "version/3.0/techspecs/README.md"
   ],
-  "new_documents": [
-    "version/3.0/techspecs/2.4-outline-advance-and-cache.md"
-  ],
+  "new_documents": [],
   "retired_documents": [],
   "matched_source_blocks": 5666,
   "reopened_implementation_claims": [
@@ -1240,6 +1237,18 @@
     {
       "path": "version/3.0/research/issue-87-user-variable-directives.md",
       "sha256": "2703a703d1edcce1e5852bde687a5b62e4bfdff63148162998c8c30cc43f8d02"
+    },
+    {
+      "path": "version/3.0/research/issue-90-conditional-operand-grammar.md",
+      "sha256": "0a4dd0c5c2f421cca110a4e12016d24e76571fc8cc1ab362d3c6bb96ca54abd7"
+    },
+    {
+      "path": "version/3.0/research/issue-91-outline-anchor-placement.md",
+      "sha256": "eddbe32105fd2b426714d4a5bb79ca5ef4d668d15ae6d1489e8300f7f4bb2391"
+    },
+    {
+      "path": "version/3.0/research/issue-93-template-embedding-limits.md",
+      "sha256": "acf56d18792a8d626ceabdce606d79e1d506b27ca049a2f5d93319578f586114"
     }
   ],
   "documents": [
@@ -1365,7 +1374,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "7f12e0feec50be04a4779a19249c75755ec9e4d723a332a58327a374c8cc61a7"
+      "sha256": "19a1ff00a5777af7bbc39956b33d9db4ec1d7c513ab3bbdc65862c0900542f5a"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1397,15 +1406,15 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "33f211fa34b526dca969f3760803b2be1f282d213786a2fa8293d82a45450e1a"
+      "sha256": "2b17dab8ba163b6c2becfa7e05c09bf1c88aca8260b1a7b2de7e2b8e98458291"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "054124348587e2c2b5a969d9022ad186604faa40345199b292f5c59f4bec1db3"
+      "sha256": "a5665cd7a10c6dc19b53fd2726e014dabde435fb34115480bbca9d63dc81a484"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "fd42be17626325766715b42a08952e474d6db482c41a8834234bbf98e69b7a76"
+      "sha256": "37fc072c3e2002690200a67db3a1af05ba600ad63fdc74ba57ff08cec5665b5b"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1481,7 +1490,7 @@
     },
     {
       "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
-      "sha256": "8e8c49371766eafac61490a25edda62b68f6194ba2e8b5aa006302ba3c7a2745"
+      "sha256": "2abbebc2e42118e76a60d4f64989d91506e39fdc5d2001db488bdb53aeb64156"
     },
     {
       "path": "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
@@ -1501,7 +1510,7 @@
     },
     {
       "path": "version/3.0/techspecs/README.md",
-      "sha256": "ad82437f88f1c2db2d733ac9e3b1b53079293ff2adf16b04610f9762e55be28c"
+      "sha256": "8c0e044b85fbe177d31f156018003158ae306e593f765acce6f48b1fb19dc011"
     },
     {
       "path": "version/baseline/techspecs/ansi-vt-support.md",
@@ -1516,7 +1525,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "64c0592c",
+  "previous_ledger_commit": "86b2c4e383b2c62d8dc566b421c9e04976c83a6a",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2082,6 +2091,71 @@
         "excluded": 24
       },
       "pending_follow_up": "https://github.com/bbs-land/remote-imaging-protocol/issues/90"
+    },
+    {
+      "revision": "d046bb4b1f9d066b8534ac9b1369a63abee4563c",
+      "previous_revision": "ab37e09a1d239f21ae5d748c5b6cddbea9522a20",
+      "archive_sha256": "77203e133e339d8f5ff2e8d3fa2a82506d98a77bb0950c5bef0097d353f95f92",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/92",
+          "revision": "63e6e1541de7fe99693efeadcc1e5cb11fd3e801"
+        },
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/94",
+          "revision": "74ac57b4e7cbd70519eff5d39f04accd60cc5722"
+        },
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/95",
+          "revision": "485806ce6fb9fd10957e634295e725e7f84a5291"
+        }
+      ],
+      "upstream_state": "Three PRs open; reviewed heads integrated in fork stable.",
+      "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
+      "prior_adoption_commit": "86b2c4e383b2c62d8dc566b421c9e04976c83a6a",
+      "changed_documents": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+        "version/3.0/ripscrip/5.0-host-commands.md",
+        "version/3.0/ripscrip/5.1-text-variables.md",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+        "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
+        "version/3.0/techspecs/README.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-90-conditional-operand-grammar.md",
+          "sha256": "0a4dd0c5c2f421cca110a4e12016d24e76571fc8cc1ab362d3c6bb96ca54abd7"
+        },
+        {
+          "path": "version/3.0/research/issue-91-outline-anchor-placement.md",
+          "sha256": "eddbe32105fd2b426714d4a5bb79ca5ef4d668d15ae6d1489e8300f7f4bb2391"
+        },
+        {
+          "path": "version/3.0/research/issue-93-template-embedding-limits.md",
+          "sha256": "acf56d18792a8d626ceabdce606d79e1d506b27ca049a2f5d93319578f586114"
+        }
+      ],
+      "matched_source_blocks": 7625,
+      "moved_source_blocks": 2275,
+      "new_source_blocks": 142,
+      "removed_implementation_claims": [],
+      "source_blocks_after_update": 7767,
+      "reviewed_change": "PR92 completes ASCII conditional operand grammar, distinct quoting/provider normalization and 255-byte bounds. PR94 supplies explicit design-origin/signed-total outline justification. PR95 specifies stored-template and per-response entry/replacement 4096-byte clipping, suffix effects and literal trailing outer backslash. Existing comparisons, cache/cursor and intended chain corrections remain adopted.",
+      "states_after_update": {
+        "unreviewed": 4062,
+        "context": 1113,
+        "pending": 1703,
+        "implemented": 840,
+        "blocked": 25,
+        "excluded": 24
+      },
+      "resolved_documentation_blockers": [
+        "B90",
+        "B91",
+        "B93"
+      ]
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",

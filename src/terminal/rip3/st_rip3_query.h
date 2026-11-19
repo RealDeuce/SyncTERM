@@ -39,8 +39,9 @@ struct st_rip3_host_sink;
  * a 4096-byte composed response before expansion. Required empty groups request
  * selection through the borrowed callback and abort the current host program.
  * Literal/unrecognized brackets pass through; incomplete slots diagnose without
- * suppressing bytes. Angle preprocessing, $?N$ embedding (limit timing under
- * #93), pick lists, playback and button-associated aggregation remain separate.
+ * suppressing bytes. Angle preprocessing, $?N$ embedding, PR95 entry/replacement
+ * caps and trailing-backslash policy, pick lists, playback and button-associated
+ * aggregation remain separate.
  * Unsupported extended syntax on known names never enters the user path.
  * Syntax/operation errors never return to a terminal/session failure path. */
 int st_rip3_query_create(struct st_rip3_query **result,

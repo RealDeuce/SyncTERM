@@ -112,10 +112,17 @@ multiple-NOT phase boundaries. Provider calls are ordered without short-circuiti
 failed values become false, and complete preflight/allocation precedes callbacks.
 Validation-only use makes no provider calls. These are helper-stage tests; source
 lexing, full angle preprocessing and consumer integration remain pending.
-Ordinary outline zero-baseline anchor/justification formulas are tracked in #91;
-existing additive baseline, metric and cursor rules remain adopted.
-Conditional operand byte/escape/terminator and limit details are tracked in #90;
-the completed numeric/Boolean and PR #85/#89 rules remain adopted independently.
+PR #92 now supplies the conditional operand grammar; its private source parser
+preflights complete structure without allocation/providers, owns decoded operands,
+validates exact synthesized references and routes template indexes separately.
+The native parser test covers all 256 initial/quoted-payload byte classes,
+independent escape stages, quoted/empty literals, connector-space boundaries,
+255-byte pre-trim/provider bounds, long encoded input, ordered callbacks, nested
+structure, owned source and nonfatal helper recovery. Existing typed reduction is
+reused. Full IF/ELSE branch preprocessing and real consumer providers remain pending.
+PR #94's ordinary outline origin/justification policy and PR #95's working-response
+clipping/storage policy are also adopted; their implementation remains pending.
+The completed numeric/Boolean and PR #85/#89 rules remain adopted independently.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.
@@ -323,8 +330,8 @@ marker-free discarded callbacks, raw 4096-byte truncation, source-order replacem
 required-selection callback/abort, lower/uppercase MegaNums, allocations and
 recovery. All-canvas queries combine segmentation after ESC/backslashes with
 owned delayed source and CP437/UTF-8 template bytes. Angle preprocessing,
-$?N$ embedding and its truncation timing (#93), button-group aggregation and
-highlighting, pick lists/playback, dialog presentation, application routing and
+$?N$ embedding and PR #95's newly adopted entry/replacement clipping and storage
+caps, button-group aggregation and highlighting, pick lists/playback, dialog presentation, application routing and
 deferred queries remain pending. No physical audio or
 interactive application coverage is claimed by these native parser fixtures.
 

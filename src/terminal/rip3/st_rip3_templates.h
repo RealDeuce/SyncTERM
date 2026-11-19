@@ -25,8 +25,9 @@ struct st_rip3_template_host {
  * No GUI, network, expansion or button state is owned by this table. */
 int st_rip3_templates_create(struct st_rip3_templates **result);
 void st_rip3_templates_destroy(struct st_rip3_templates *templates);
-/* Copy the complete definition; its own stored size is not the 4096-byte
- * response limit. First NUL ends a C-string definition. Replacing it retains
+/* Current storage service copies the complete definition. The newly adopted
+ * PR95 storage cap remains pending enforcement. First NUL ends a C-string
+ * definition. Replacing it retains
  * the group's required flag. Failure preserves the old definition. */
 int st_rip3_templates_set(struct st_rip3_templates *templates, unsigned number,
 	const uint8_t *bytes, size_t length);

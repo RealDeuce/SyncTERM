@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-ab37e09a1d239f21ae5d748c5b6cddbea9522a20](https://github.com/RealDeuce/remote-imaging-protocol/tree/ab37e09a1d239f21ae5d748c5b6cddbea9522a20/version/3.0)
+d046bb4b1f9d066b8534ac9b1369a63abee4563c](https://github.com/RealDeuce/remote-imaging-protocol/tree/d046bb4b1f9d066b8534ac9b1369a63abee4563c/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -30,9 +30,15 @@ PRs [#88](https://github.com/bbs-land/remote-imaging-protocol/pull/88) and
 adopted outline advance/cache policy and user-variable directive/storage/prompt
 reconciliation for #86/#87. Their explicit interoperability choices are normative;
 native index-loop, sign-extension and unsafe behavior are not reproduced.
+PRs [#92](https://github.com/bbs-land/remote-imaging-protocol/pull/92),
+[#94](https://github.com/bbs-land/remote-imaging-protocol/pull/94) and
+[#95](https://github.com/bbs-land/remote-imaging-protocol/pull/95) now provide the
+adopted conditional operand grammar, ordinary outline origin/justification and
+host-response/embedding clipping policies for #90/#91/#93. Their documentation
+answers are adopted independently of remaining implementation acceptance.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7631 blocks in 68 normative
+provenance, scope and reopened claims. There are now 7767 blocks in 68 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -5080,6 +5086,69 @@ Edited ledger consistency passes. Counts are 840 implemented, 1577 pending,
 The reference pin, original fonts, RIP1.54 and active application route remain
 unchanged. Scoped build logs are removed; no code is pushed or PR published.
 The complete compliance goal remains active.
+
+## PR #92/#94/#95 adoption and conditional source parsing
+
+The reference now pins stable d046bb4b1f9d066b8534ac9b1369a63abee4563c,
+including reviewed open PRs #92, #94 and #95. Six normative documents change,
+with 7625 exact reviews retained, 2275 moved line references and 142 new/replaced
+blocks: 7767 units across the same 68 documents. All 840 implementation claims
+at adoption remain tied to unchanged source clauses; no new policy is inferred
+from their old tests. B90/B91/B93 are resolved as documentation questions.
+The exact archive and three derivation hashes are recorded in the adoption file.
+
+The private conditional parser now consumes source after IF/ELSEIF through a real
+>> terminator and returns its consumed byte count. It defines ASCII whitespace,
+letter-only initial references, one case-folded MegaNum template digit, bare versus
+dollar-enclosed left scanning, six operators and separate right literal rules.
+Local backslash handling bypasses delimiters; the special escaped >> pair is data,
+while an unescaped pair terminates even inside an unclosed quote. Right quotes
+preserve whitespace, and unquoted values trim decoded trailing whitespace only.
+Connector keywords require their exact ASCII-space suffix. No locale, Unicode
+identifier, named C escape or ordinary-argument restriction is imported into this
+separate source grammar.
+
+Validation checks complete operand/group/operator structure without allocating
+or invoking a provider, serving future inactive-parent handling. Program creation
+preflights first, then copies all typed tokens/decoded bytes into one owned
+allocation; caller storage can be released or reused. Both decoded operands are
+bounded to 255 bytes before right trimming, with no separate smaller raw-source
+limit. All parse/allocation failures preserve destination pointers and consumed
+counts. These status-returning services are private below the owning void RIP
+preprocessor; no terminal/session processing API is added or changed.
+
+The provider bridge passes ordinary input as exactly $& + decoded L + $, retaining
+its original case/bytes. Existing dollar decoders validate the complete synthetic
+reference before callback invocation, rejecting embedded terminators and malformed
+arguments without evaluating an unintended prefix. Numeric template indexes use
+a distinct callback, including slot zero. Unavailable/rejected/failed providers
+or results beyond 255 bytes become false comparisons, including !=; successful
+empty values remain valid. Returned bytes are not expanded recursively and live
+only until the next provider call. Existing typed comparison/staged reduction is
+reused, resolving every comparison in order without short circuit.
+
+Independent native cases cover the published parser-stage examples, one/two/three
+backslash distinctions and the separate provider-argument pass. Exhaustive byte
+sets check every possible initial byte and quoted literal payload. Additional
+vectors cover raw high/control and UTF-8 bytes, keyword tabs/spaces, adjacent quoted
+text, empty/unmatched groups, escaped delimiters, exact decoded/source capacities,
+pre-trim overflow, failed/empty/oversized providers, ordered borrowed scratch
+values, 128-level iterative nesting, owned source and deterministic allocation
+failure followed by recovery. Syntax validation makes no allocation/provider call.
+No original client, GUI or physical device is run.
+
+Native CMake configure/full build and the new rip3_condition_parser CTest pass
+without compiler/build diagnostics. Three adoption guards pass; unrelated typed
+condition, variable/query/font/drawing and RIP1.54 results are reused. Edited
+ledger consistency passes. Counts are 893 implemented, 1644 pending, 4062
+unreviewed, 1119 contextual, 24 excluded and 25 blocked across 7767 units.
+Full IF/ELSEIF/ELSE/ENDIF preprocessing and real provider/application binding remain
+pending. PR #94 ordinary outline placement and PR #95 bounded working-text,
+embedding/storage and trailing-quote policies are adopted pending implementation;
+current old tests do not claim their new cases. The original fonts, RIP1.54,
+active application route and external-launch exclusion remain unchanged.
+Owned review files and scoped logs are removed. No existing issue is modified,
+code pushed or PR published. Full compliance remains in progress.
 
 ## Verification and acceptance
 

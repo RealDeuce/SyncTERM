@@ -170,7 +170,7 @@ issue threads receive no comments or changes. No code is published.
 
 ## Outline metrics and user-variable policy from PR #88/#89
 
-The current pin is fork stable
+That adoption pinned fork stable
 [`ab37e09a1d239f21ae5d748c5b6cddbea9522a20`](https://github.com/RealDeuce/remote-imaging-protocol/tree/ab37e09a1d239f21ae5d748c5b6cddbea9522a20),
 including open [PR #88](https://github.com/bbs-land/remote-imaging-protocol/pull/88)
 head `9962a60dce7df526cfe42051d70757f3b43a9172` and open
@@ -204,6 +204,43 @@ The separate conditional operand grammar is requested in parent issue #90;
 adopting these PRs does not reopen their completed contracts or modify their issues.
 Archive processing is in memory and scoped build logs are removed. No existing
 issue thread is modified and no code is published.
+
+## Conditional, outline-placement and response-limit updates
+
+The current pin is fork stable
+[`d046bb4b1f9d066b8534ac9b1369a63abee4563c`](https://github.com/RealDeuce/remote-imaging-protocol/tree/d046bb4b1f9d066b8534ac9b1369a63abee4563c).
+It includes reviewed open PR #92 head `63e6e1541de7fe99693efeadcc1e5cb11fd3e801`,
+PR #94 head `74ac57b4e7cbd70519eff5d39f04accd60cc5722` and PR #95 head
+`485806ce6fb9fd10957e634295e725e7f84a5291`. Exact archive SHA256 is
+`77203e133e339d8f5ff2e8d3fa2a82506d98a77bb0950c5bef0097d353f95f92`.
+Three added research derivations have recorded hashes and read-only evidence
+boundaries. No original client/probe code is executed by this adoption.
+
+Six normative documents change in the unchanged 68-document inventory. Reindexing
+retains 7625 exact source/heading/content reviews, moves 2275 line references and
+reviews 142 added/replaced blocks, yielding 7767. No implemented source claim is
+removed. New explicit cross-cutting policies still require their own implementation
+and independent tests; prior green tests do not establish new response bounds,
+outline origin placement or complete preprocessing.
+
+B90/B91/B93 are resolved in the documentation, separately from implementation.
+PR #92 defines conditional ALPHA/WS classes, bare/dollar/template operands,
+independent local escaping, exact synthesized provider input, connector-space
+boundaries and safe 255-byte decoded/provider limits. PR #94 selects a design-origin
+baseline anchor, signed ordinary-total justification and truncation of center
+halves; it does not reinterpret tentative RFF alignment fields. PR #95 caps stored
+definitions and response entry/per-replacement working text at 4096 bytes, removes
+discarded suffix effects, preserves a trailing outer backslash and retains exactly
+two ordinary passes. These explicit portable policies supplement the existing
+contracts without requiring native unsafe behavior.
+
+The conditional source-parser milestone below implements the newly specified
+lexing/typed-provider bridge. Complete IF/ELSE branching and actual consumer
+providers remain pending, along with the new outline-placement and response-cap
+integration. Three focused adoption guards pass; the normal indexer independently
+reproduces the source blocks/document hashes. Both review archives are processed
+in memory, selected temporary review inputs and build logs are removed, and no
+existing issue receives content. No code is published.
 
 ## Source and review evidence
 
