@@ -261,7 +261,7 @@ host_variables(void)
 	    "$WORLD(CUR,20,BAD)$", "$WORLDH(CUR,32768)$", "$WORLDW(CUR,-1)$",
 	    "$BASEMATH(CUR,63)$", "$COORDSIZE(CUR,1)$", "$COORDSIZE(CUR,6)$",
 	    "$COLORMODE(CUR,RGB)$", "$COLORMODE(CUR,PAL,8)$", "$COLORMODE(CUR,RGB,9)$",
-	    "$BAUDEMUL(CUR,1000000000000)$", "$BAUDEMUL(CUR,-1)$", "$WORLD(3,100,100)$",
+	    "$BAUDEMUL(CUR,18446744073709551616)$", "$BAUDEMUL(CUR,-1)$", "$WORLD(3,100,100)$",
 	    "$COMPAT(3)$", "$WORLD(36)$", "$WORLD(CUR,1,2,3)$", "$BASEMATH(,36)$"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(*invalid); i++) {
 		struct st_rip3_environment before, after;
@@ -271,6 +271,10 @@ host_variables(void)
 		CHECK(run(&host, "$WORLD$", "1234:777", -1) == 0);
 	}
 	CHECK(run(&host, "$WORLDX$", "", ST_RIP3_HOST_UNKNOWN_REFERENCE) == 0);
+	/* BAUDEMUL permits arbitrary nonnegative rates; thirteen digits are not
+	 * a syntax error. Its concrete storage still checks uint64_t overflow. */
+	CHECK(run(&host,"$BAUDEMUL(CUR,1000000000000)$","",-1)==0);
+	CHECK(run(&host,"$BAUDEMUL$","1000000000000",-1)==0);
 	CHECK(run(&host, "$CUR(ENV)$", "0", -1) == 0);
 	CHECK(run(&host, "$CUR(ENV,35)$", "", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	CHECK(run(&host, "$INUSE(ENV,35)$", "1", -1) == 0);

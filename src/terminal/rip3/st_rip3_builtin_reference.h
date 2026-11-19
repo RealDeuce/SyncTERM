@@ -8,7 +8,7 @@
 
 struct st_rip3_builtin_parameter {
 	size_t length;
-	char text[13];
+	char text[21];
 };
 
 struct st_rip3_builtin_reference {
@@ -21,10 +21,10 @@ struct st_rip3_builtin_reference {
  * reference, after
  * macro expansion and special prefix/user-variable dispatch. This is not the
  * user prompt grammar or a raw stream framer. Names fold to uppercase ASCII;
- * parameter bytes retain case, trimming surrounding ASCII spaces as shown in
- * the published built-in examples. Empty () means no parameters; explicit
- * empty comma-separated fields remain present. At most 40 parameters of 12
- * bytes each; oversized input rejects rather than silently truncating.
+ * parameter bytes retain case and surrounding spaces for handler normalization.
+ * Empty () and empty comma-separated fields occupy no parameter slots. At most
+ * 40 nonempty parameters of 20 bytes each; oversized input rejects rather than
+ * silently truncating. Quoted-empty arguments are rejected by the parser.
  * Parentheses/dollar delimiters cannot nest here; no recursive expansion,
  * quoting, escape interpretation, numeric conversion or default substitution
  * is performed. NULs reject. Decoding/recovery belongs to the parser; use the

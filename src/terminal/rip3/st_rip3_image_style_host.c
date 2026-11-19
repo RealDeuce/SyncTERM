@@ -40,6 +40,10 @@ st_rip3_image_style_host_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
 	if (strcmp(reference->name,"IMGSTYLE") != 0) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_builtin_reference words;
+	int normalization=st_rip3_builtin_reference_words(&words,reference);
+	if (normalization!=0) return normalization;
+	reference=&words;
 	if (capacity == 0) return IO_ERROR_OUT_OF_RANGE;
 	bool setting = reference->count > 1;
 	if (setting && reference->count < 5) return IO_ERROR_INVALID_FORMAT;

@@ -55,6 +55,12 @@ and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
 and destination requests now diagnose separately without ending processing;
 tests inspect state at each diagnostic and recover through split-input drawing
 on all canvases. The global disabled-graphics session gate remains pending.
+Shared dollar-reference decoding now uses forty nonempty twenty-byte argument
+slots, omits empty comma fields and preserves raw spaces. Numeric/keyword handlers
+normalize their own bounded copies. Recovery, 20/21-byte and 40/41-argument limits,
+trailing commas and widened TERMINFO/viewport scratch buffers have native coverage.
+Complete byte/escape acceptance remains under
+[issue #84](https://github.com/bbs-land/remote-imaging-protocol/issues/84).
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

@@ -228,41 +228,53 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 		return IO_ERROR_INVALID_FORMAT;
 	at++;
 	end--; /* Closing parenthesis. */
-	{
-		size_t nonspace = at;
-		while (nonspace < end && text[nonspace] == ' ')
-			nonspace++;
-		if (nonspace == end) {
-			*result = reference;
-			return 0;
-		}
-	}
 	for (;;) {
 		size_t first = at, stop;
 		struct st_rip3_builtin_parameter *parameter;
 
-		if (reference.count == 40)
-			return IO_ERROR_OUT_OF_RANGE;
 		while (at < end && text[at] != ',') {
 			if (text[at] == 0 || text[at] == '$' || text[at] == '(' || text[at] == ')')
 				return IO_ERROR_INVALID_FORMAT;
 			at++;
 		}
 		stop = at;
-		while (first < stop && text[first] == ' ')
-			first++;
-		while (stop > first && text[stop - 1] == ' ')
-			stop--;
-		if (stop - first > 12)
+		if (stop - first > 20)
 			return IO_ERROR_OUT_OF_RANGE;
-		parameter = &reference.parameters[reference.count++];
-		parameter->length = stop - first;
-		memcpy(parameter->text, text + first, parameter->length);
+		if (stop-first==2 && text[first]=='"' && text[first+1]=='"')
+			return IO_ERROR_INVALID_FORMAT;
+		if (stop != first) {
+			if (reference.count == 40)
+				return IO_ERROR_OUT_OF_RANGE;
+			parameter = &reference.parameters[reference.count++];
+			parameter->length = stop - first;
+			memcpy(parameter->text, text + first, parameter->length);
+		}
 		if (at == end)
 			break;
-		at++; /* Comma; a final comma leaves an explicit empty parameter. */
+		at++; /* Empty fields, including a final comma, occupy no slot. */
 	}
 	*result = reference;
+	return 0;
+}
+
+int
+st_rip3_builtin_reference_words(struct st_rip3_builtin_reference *result,
+    const struct st_rip3_builtin_reference *reference)
+{
+	if (result==NULL || reference==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (reference->count>40) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_builtin_reference value=*reference;
+	for (size_t i=0; i<value.count; i++) {
+		const struct st_rip3_builtin_parameter *source=&reference->parameters[i];
+		if (source->length>20 || source->text[source->length]!=0) return IO_ERROR_INVALID_FORMAT;
+		size_t first=0, last=source->length;
+		while (first<last && source->text[first]==' ') first++;
+		while (last>first && source->text[last-1]==' ') last--;
+		memset(value.parameters[i].text,0,sizeof(value.parameters[i].text));
+		value.parameters[i].length=last-first;
+		memcpy(value.parameters[i].text,source->text+first,last-first);
+	}
+	*result=value;
 	return 0;
 }
 

@@ -38,7 +38,7 @@ main(void)
 		"$PALENTRY$", "$PALENTRY(CUR)$", "$PALENTRY(CUR,1,2,3)$",
 		"$PALENTRY(36,0)$", "$PALENTRY(-1,0)$", "$PALENTRY(CUR,256)$",
 		"$PALENTRY(CUR,2,1)$", "$PALENTRY(CUR,1,256)$", "$PALENTRY(CUR,ALL,255)$",
-		"$PALENTRY(CUR,)$", "$PALENTRY(CUR,1,)$", "$PALENTRY(CUR,1x)$",
+		"$PALENTRY(CUR,)$", "$PALENTRY(CUR,1x)$",
 		"$PALENTRY(CUR, 5, 7);",
 	};
 
@@ -48,6 +48,8 @@ main(void)
 	 * specified rather than read back to manufacture expected replies. */
 	CHECK(execute(&host, "$PALENTRY(CUR,15)$", output, sizeof(output)) == 0);
 	CHECK(strcmp(output, "8;255:255:255") == 0);
+	CHECK(execute(&host,"$PALENTRY(,CUR,,15,)$",output,sizeof(output))==0);
+	CHECK(strcmp(output,"8;255:255:255")==0);
 	CHECK(execute(&host, "$PALENTRY(0,5,7)$", output, sizeof(output)) == 0);
 	CHECK(strcmp(output, "8;170:0:170,170:85:0,170:170:170") == 0);
 	CHECK(execute(&host, "$PALENTRY(12,0)$", output, sizeof(output)) == 0);

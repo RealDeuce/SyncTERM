@@ -4394,6 +4394,54 @@ Unchanged font, drawing and legacy preservation evidence is reused. Counts are
 and adoption-test temporary directories are removed. No existing upstream issue,
 original font, RIP1.54 source/fixture or active application route is changed.
 
+## Shared ordinary-variable argument reconciliation
+
+Before binding text expansion, the shared dollar-reference decoder is reconciled
+with the adopted #6/PR #32 argument contract. Its slots now hold twenty original
+bytes plus NUL, with at most forty nonempty arguments. Empty comma fields are
+omitted, including trailing fields after forty real arguments; raw spaces remain
+part of the decoded argument. Empty parentheses differ from a space-only argument.
+Quoted-empty input is rejected. All validation precedes replacement of the decoded
+result. Parser statuses remain private to the public void recovery boundaries.
+
+Existing numeric/keyword handler families normalize their own bounded copies.
+This retains their established spaced-keyword behavior while allowing future
+literal/path handlers to receive original text. Empty normalized words still
+occupy their original slots. TERMINFO and viewport keyword buffers now accommodate
+the full twenty-byte slot, and normalizer bounds guard copied fields. Comma
+omission changes cases such as DVP(2,), PALENTRY(,CUR,,15,) and TERMINFO(,): these
+now reach handlers with compacted arguments. Thirteen/twenty-byte zero-padded D
+durations and wide nonnegative BAUDEMUL values are no longer rejected merely by
+the old twelve-byte ceiling; callback numeric bounds still apply.
+
+The existing text-command expansion precondition remains explicit; this decoder
+milestone does not claim complete expansion or prompt integration. Additional
+read-only inspection found a separate argument-byte predicate and backslash branch
+whose full composition is not specified by the current reference. New parent
+[issue #84](https://github.com/bbs-land/remote-imaging-protocol/issues/84) requests
+that byte/escape/quotation contract, referencing #6 and PR #32 without modifying
+their existing threads. B84 does not reopen the delivered count/size/empty/space
+answers. PR #83 now delivers the independent B82 bbox-field answers; adoption is
+pending separately, with the local normative pin unchanged in this milestone.
+
+Native CMake configure/full build succeeds without warnings. All twenty direct
+consumer CTests pass. Only tests with changed/new or initially failing cases were
+rebuilt/repeated; sixteen initial passes were reused. Cases cover raw space slots,
+empty compaction, 20/21 bytes, 40/41 nonempty arguments, trailing empties at capacity,
+quoted-empty rejection, preserved decoder outputs on errors, long keyword buffers,
+callback range rejection and valid-reference recovery. Old invalid expectations
+based solely on the twelve-byte limit/retained empty fields are corrected against
+the adopted source; a new palette fixture now queries the intended literal white
+entry. No expected image is derived from the emulator. Unchanged drawing/font/
+legacy evidence is reused; only edited ledger consistency is newly checked.
+
+The broad argument block records implemented subrules but remains blocked for
+B84's complete lexical contract; the name-case unit becomes implemented and its
+provenance becomes context. Counts are 670 implemented, 1544 pending, 4171
+unreviewed, 1040 contextual, 24 excluded and 31 blocked across 7480 units. Scoped
+build logs are removed. No existing issue, original font, RIP1.54 source/fixture,
+active application route or external-launch policy is changed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

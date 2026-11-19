@@ -230,12 +230,13 @@ canvas(enum st_rip3_canvas canvas, const char *width, const char *height,
 	/* Syntax errors stay inside the public processor; a valid query follows each. */
 	static const char *const invalid[] = {"$PORTW(36)$","$PORTW(-1)$","$PORTW(A)$",
 	    "$PORTW(1,BAD)$","$PORTW(1,PORT,BAD)$","$PORTW(1,PORT,DEVICE,0)$",
-	    "$PORTW(1,)$","$PORTW(,PORT,DEVICE)$","$PORTX0(1,DEVICE)$",
+	    "$PORTW(,PORT,DEVICE)$","$PORTX0(1,DEVICE)$",
 	    "$PORTW(1,PORT,\202)$","$PORTW(1,PORT,\303\251)$"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(run(&host, invalid[i], NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 		CHECK(run(&host, "$PORTW(CUR,PORT,DEVICE)$", "20", -1) == 0);
 	}
+	CHECK(run(&host,"$PORTW(1,PORT,DEVICE,)$","20",-1)==0);
 	CHECK(run(&host, "$PORTW(1,DEVICE)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 	CHECK(run(&host, "$PORTH(1,WORLD)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 	/* Device replies need no world binding. No binding means no invented world. */

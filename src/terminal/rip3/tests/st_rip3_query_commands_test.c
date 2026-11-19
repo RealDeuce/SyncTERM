@@ -198,13 +198,16 @@ fields(void)
 		{"$D(1)$",16666667},{"$d(2)$",33333334},{"$D(3)$",50000000},
 		{"$D(60)$",1000000000},{"$D(000000000060)$",1000000000},
 		{"$D(65535)$",1092250000000},
+		/* Leading zeros count against the documented 20-byte argument slot,
+		 * not the old decoder's artificial twelve-byte ceiling. */
+		{"$D(0000000000001)$",16666667},{"$D(00000000000000000001)$",16666667},
 	};
 	for (size_t i = 0; i < sizeof(valid)/sizeof(valid[0]); i++) {
 		CHECK(reference(&f,valid[i].text,-1) == 0 && st_rip3_input_wait_ns(f.host.input) == valid[i].duration);
 		CHECK(f.replies == 0);
 	}
 	const char *const invalid[] = {"$D$","$D()$","$D(0)$","$D(-1)$","$D(+1)$","$D(1.0)$",
-	    "$D(1O)$","$D(65536)$","$D(999999999999)$","$D(0000000000001)$","$D(1,2)$"};
+	    "$D(1O)$","$D(65536)$","$D(999999999999)$","$D(000000000000000000001)$","$D(1,2)$"};
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		st_rip3_input_delay(f.host.input,60);
 		CHECK(reference(&f,invalid[i],ST_RIP3_HOST_INVALID_REFERENCE) == 0);

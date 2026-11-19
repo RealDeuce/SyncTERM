@@ -134,6 +134,10 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 
 	if (host == NULL || reference == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_builtin_reference words;
+	status=st_rip3_builtin_reference_words(&words,reference);
+	if (status!=0) return status;
+	reference=&words;
 	const char *name = reference->name;
 	if (strcmp(name,"TEXTXY") == 0) return text_cursor(host,reference,result,capacity);
 	bool width = strcmp(name, "PORTW") == 0, height = strcmp(name, "PORTH") == 0;

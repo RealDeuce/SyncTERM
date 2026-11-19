@@ -118,7 +118,10 @@ main(void)
 	CHECK(run(&host, "$MVP(2,4)$", -1) == 0);
 	CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
 	CHECK(check_view(ports, 4, true, 0,0,0,0) == 0); /* Maximize is not deactivation. */
-	CHECK(run(&host, "$DVP(2,)$", ST_RIP3_HOST_INVALID_REFERENCE) == 0);
+	CHECK(run(&host, "$DVP(2,)$", -1) == 0);
+	CHECK(check_view(ports, 2, false, 0,0,3,3) == 0);
+	CHECK(run(&host, "$AVP(2)$", -1) == 0);
+	CHECK(run(&host, "$DVP(ABCDEFGHIJKLMNOPQRST)$", ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 	CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
 	CHECK(run(&host, "$EGW$", -1) == 0);
 	CHECK(st_rip3_ports_read(ports, 2, 0, 0, &pixel) == 0 && pixel == 8);

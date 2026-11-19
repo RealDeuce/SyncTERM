@@ -70,7 +70,10 @@ main(void)
 	CHECK(run(&host, "$IFS(LIST)$", 0, "_IMAGE") == 0);
 	CHECK(run(&host, "$IFS(JPEG,ALL)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
 	CHECK(run(&host, "$IFS(LIST,ALL,EXTRA)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
-	CHECK(run(&host, "$IFS(,ALL)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
+	CHECK(run(&host, "$IFS(,ALL)$", 0, "0") == 0);
+	CHECK(run(&host, "$IFS(,LIST,,ALL,)$", 0, "BMP,JPEG") == 0);
+	const struct st_rip3_terminal_identity identity={"Client","Vendor","1"};host.identity=&identity;
+	CHECK(run(&host,"$TERMINFO(ABCDEFGHIJKLMNOPQRST)$",0,"NONE")==0);
 	CHECK(run(&host, "$APP(program)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(run(&host, "$GOTOURL(url)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(run(&host, "$RIPVER$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);

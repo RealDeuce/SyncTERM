@@ -30,39 +30,48 @@ static int
 parser(void)
 {
 	struct st_rip3_builtin_reference reference, before;
-	char text[700];
+	char text[1000];
 	size_t length;
 	const char *const malformed[] = {
 		"", "$", "$$", "$1NAME$", "$_NAME$", "$A$B$", "$A($", "$A)$",
-		"$A((B))$", "$A(B)C$", "$A(B$C)$", "$A(ONE)()$", "$NAME()$$", "$A,1$",
+		"$A((B))$", "$A(B)C$", "$A(B$C)$", "$A(ONE)()$", "$NAME()$$", "$A,1$", "$HOSTDIR(\"\")$",
 	};
 
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$sCp$", 5) == 0);
 	CHECK(strcmp(reference.name, "SCP") == 0 && reference.count == 0);
-	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$SCP( )$", 8) == 0 && reference.count == 0);
+	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$SCP( )$", 8) == 0
+	    && reference.count == 1 && reference.parameters[0].length == 1 && strcmp(reference.parameters[0].text," ")==0);
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$copy(Pal, tBl , S3, BASE, s5)$", 31) == 0);
 	CHECK(strcmp(reference.name, "COPY") == 0 && reference.count == 5);
 	CHECK(strcmp(reference.parameters[0].text, "Pal") == 0 && reference.parameters[0].length == 3);
-	CHECK(strcmp(reference.parameters[1].text, "tBl") == 0 && strcmp(reference.parameters[4].text, "s5") == 0);
+	CHECK(strcmp(reference.parameters[1].text, " tBl ") == 0 && strcmp(reference.parameters[4].text, " s5") == 0);
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$ABCDEFGHIJKLMNOPQRST$", 22) == 0);
 	CHECK(strlen(reference.name) == 20 && reference.count == 0);
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$NAME(, x,)$", 12) == 0);
-	CHECK(reference.count == 3 && reference.parameters[0].length == 0
-	    && reference.parameters[1].length == 1 && reference.parameters[2].length == 0);
+	CHECK(reference.count == 1 && reference.parameters[0].length == 2
+	    && strcmp(reference.parameters[0].text," x")==0);
+	CHECK(st_rip3_builtin_reference_parse(&reference,(const uint8_t *)"$RAND(9,,2)$",12)==0
+	    && reference.count==2 && strcmp(reference.parameters[0].text,"9")==0 && strcmp(reference.parameters[1].text,"2")==0);
+	CHECK(st_rip3_builtin_reference_parse(&reference,(const uint8_t *)"$NAME(,,)$",10)==0 && reference.count==0);
+	CHECK(st_rip3_builtin_reference_parse(&reference,(const uint8_t *)"$HOSTDIR(MY BBS)$",17)==0
+	    && reference.count==1 && strcmp(reference.parameters[0].text,"MY BBS")==0);
 	memcpy(text, "$NAME(", 6); length = 6;
 	for (unsigned i = 0; i < 40; i++) {
 		if (i != 0) text[length++] = ',';
-		memcpy(text + length, "ABCDEFGHIJKL", 12); length += 12;
+		memcpy(text + length, "ABCDEFGHIJKLMNOPQRST", 20); length += 20;
 	}
 	memcpy(text + length, ")$", 2); length += 2;
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)text, length) == 0);
-	CHECK(reference.count == 40 && reference.parameters[39].length == 12);
+	CHECK(reference.count == 40 && reference.parameters[39].length == 20);
+	/* Empty fields after forty real arguments consume no additional slot. */
+	memcpy(text+length-2,",,,)$",5);length+=3;
+	CHECK(st_rip3_builtin_reference_parse(&reference,(const uint8_t *)text,length)==0 && reference.count==40);
 	before = reference;
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$ABCDEFGHIJKLMNOPQRSTU$", 23) == IO_ERROR_OUT_OF_RANGE);
 	memcpy(text + length - 2, ",A)$", 4); length += 2;
 	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)text, length) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(memcmp(&reference, &before, sizeof(reference)) == 0);
-	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$NAME(ABCDEFGHIJKLM)$", 21) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)"$NAME(ABCDEFGHIJKLMNOPQRSTU)$", 29) == IO_ERROR_OUT_OF_RANGE);
 	for (size_t i = 0; i < sizeof(malformed) / sizeof(*malformed); i++) {
 		CHECK(st_rip3_builtin_reference_parse(&reference, (const uint8_t *)malformed[i], strlen(malformed[i])) == IO_ERROR_INVALID_FORMAT);
 		CHECK(memcmp(&reference, &before, sizeof(reference)) == 0);

@@ -15,6 +15,11 @@ struct st_rip3_ports;
  * internally and continues; these results are not connection errors. */
 int st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 	const uint8_t *text, size_t length);
+/* Existing numeric/keyword handlers normalize their own parameter copies.
+ * Raw parser slots retain spaces; literal/path handlers must not use this to
+ * discard significant whitespace. Empty normalized words remain present. */
+int st_rip3_builtin_reference_words(struct st_rip3_builtin_reference *result,
+	const struct st_rip3_builtin_reference *reference);
 int st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
 	const uint8_t *text, size_t length);
 int st_rip3_table_host_execute(const struct st_rip3_table_host *host,

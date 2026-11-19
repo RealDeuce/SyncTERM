@@ -62,15 +62,17 @@ main(void)
 	struct st_rip3_host_variables host = {.identity=&identity}, absent = {0};
 	static const struct {const char *command, *expected;} cases[] = {
 		{"$TERMINFO$","SyncTERM"}, {"$TERMINFO()$","SyncTERM"},
-		{"$TERMINFO( )$","SyncTERM"}, {"$TERMINFO(NAME)$","SyncTERM"},
+		{"$TERMINFO( )$","NONE"}, {"$TERMINFO(NAME)$","SyncTERM"},
+		{"$TERMINFO(,)$","SyncTERM"},
 		{"$tErMiNfO(vEnDoR)$","Test vendor"}, {"$TERMINFO( VERSION )$","1.2.3"},
 		{"$TERMINFO(LIST)$","LIST,NAME,VENDOR,VERSION"},
 		{"$TERMINFO(GOOSE)$","NONE"}, {"$TERMINFO(ABCDEFGHIJKL)$","NONE"},
+		{"$TERMINFO(ABCDEFGHIJKLM)$","NONE"}, {"$TERMINFO(ABCDEFGHIJKLMNOPQRST)$","NONE"},
 	};
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
 		CHECK(run(&host, cases[i].command, cases[i].expected, -1) == 0);
-	static const char *const invalid[] = {"$TERMINFO(NAME,VENDOR)$","$TERMINFO(,)$",
-	    "$TERMINFO(ABCDEFGHIJKLM)$","$TERMINFO(NAME$","$TERMINFO((NAME))$"};
+	static const char *const invalid[] = {"$TERMINFO(NAME,VENDOR)$",
+	    "$TERMINFO(ABCDEFGHIJKLMNOPQRSTU)$","$TERMINFO(NAME$","$TERMINFO((NAME))$"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(run(&host, invalid[i], NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 		CHECK(run(&host, "$TERMINFO(NAME)$", "SyncTERM", -1) == 0);

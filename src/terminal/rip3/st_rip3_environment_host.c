@@ -75,6 +75,10 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 
 	if (!base && !coord && !world && !width && !height && !color && !baud && !compat)
 		return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_builtin_reference words;
+	status=st_rip3_builtin_reference_words(&words,reference);
+	if (status!=0) return status;
+	reference=&words;
 	if (capacity == 0)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (reference->count > (compat ? 1u : world || color ? 3u : 2u))

@@ -408,8 +408,10 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 
 	if (host == NULL || reference == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (reference->count > 40)
-		return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_builtin_reference words;
+	status=st_rip3_builtin_reference_words(&words,reference);
+	if (status!=0) return status;
+	reference=&words;
 	if (strcmp(reference->name, "PALENTRY") == 0)
 		return palette_entries(host, reference, result, capacity);
 	if (strcmp(reference->name, "CUR") == 0 || strcmp(reference->name, "INUSE") == 0

@@ -15,7 +15,7 @@ int
 st_rip3_terminfo_select(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, const char **result)
 {
-	char keyword[13] = "NAME";
+	char keyword[21] = "NAME";
 	const char *value;
 	const struct st_rip3_terminal_identity *identity;
 
@@ -23,11 +23,15 @@ st_rip3_terminfo_select(const struct st_rip3_host_variables *host,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (strcmp(reference->name, "TERMINFO") != 0)
 		return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_builtin_reference words;
+	int status=st_rip3_builtin_reference_words(&words,reference);
+	if (status!=0) return status;
+	reference=&words;
 	if (reference->count > 1)
 		return IO_ERROR_INVALID_FORMAT;
 	if (reference->count == 1) {
 		size_t length = reference->parameters[0].length;
-		if (length > 12)
+		if (length > 20)
 			return IO_ERROR_OUT_OF_RANGE;
 		for (size_t i = 0; i < length; i++) {
 			unsigned char ch = (unsigned char)reference->parameters[0].text[i];
@@ -52,12 +56,18 @@ int
 st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
+	struct st_rip3_builtin_reference words;
 	if (host == NULL || reference == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (reference->count > 40)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (!st_rip3_builtin_known(reference->name, strlen(reference->name)))
 		return IO_ERROR_NOT_FOUND;
+	if (strcmp(reference->name,"D")==0 || strcmp(reference->name,"IFS")==0) {
+		int status=st_rip3_builtin_reference_words(&words,reference);
+		if (status!=0) return status;
+		reference=&words;
+	}
 	if (strcmp(reference->name, "TERMINFO") == 0) {
 		const char *value;
 		int status = st_rip3_terminfo_select(host, reference, &value);

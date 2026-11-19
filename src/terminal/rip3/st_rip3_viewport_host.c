@@ -23,13 +23,15 @@ st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 	else if (strcmp(reference->name, "MVP") == 0) operation = ST_RIP3_VIEW_MAXIMIZE;
 	else if (strcmp(reference->name, "EGW") == 0) operation = ST_RIP3_VIEW_ERASE;
 	else return IO_ERROR_NOT_SUPPORTED;
-	if (reference->count > 40)
-		return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_builtin_reference words;
+	status=st_rip3_builtin_reference_words(&words,reference);
+	if (status!=0) return status;
+	reference=&words;
 	if (capacity == 0)
 		return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i = 0; i < reference->count; i++) {
 		const char *parameter = reference->parameters[i].text;
-		char word[13];
+		char word[21];
 
 		for (size_t j = 0; j <= reference->parameters[i].length; j++) {
 			unsigned char ch = (unsigned char)parameter[j];
