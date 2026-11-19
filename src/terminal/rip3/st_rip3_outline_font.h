@@ -53,5 +53,19 @@ int st_rip3_outline_font_builtin(struct st_rip3_outline_font *result,
  * Failure leaves result unchanged. No advance-width substitution. */
 int st_rip3_outline_font_bbox_width(int32_t *result,
 	const struct st_rip3_outline_font *font);
+/* Independent, unkerned DEVICE advances for raw unsigned font bytes. Scale
+ * the declared advance by points*20*face-percent/(units_per_em*100), rounding
+ * to the nearest 1/1440-inch unit with positive half ties upward, then truncate
+ * each byte's logical advance*dpi_x/1440 separately. This explicit geometric
+ * rounding policy does not reproduce native WORD overflow/hinting. Character
+ * orientation does not rotate this scalar; layout chooses string direction.
+ * No spacing, pair kerning, alignment or cached cursor-width policy is applied.
+ * Missing codes have zero advance; damaged glyphs keep the declared advance.
+ * Bold/italic metrics are not yet supported. Result is one int32_t per byte;
+ * its storage must not overlap the inputs. NULL text/result is valid for zero
+ * length. Validation and all fallible metric work precede any output change.
+ * Parser/session entry points must absorb failures at their nonfatal boundary. */
+int st_rip3_outline_font_advances(int32_t *result,
+	const struct st_rip3_outline_font *font, const uint8_t *text, size_t length);
 
 #endif

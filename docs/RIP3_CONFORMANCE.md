@@ -4494,6 +4494,65 @@ drawing and legacy preservation evidence is reused. Counts are 685 implemented,
 are unchanged. Scoped logs are removed; archive/source processing leaves no
 temporary extraction tree. No existing issue thread or code publication changes.
 
+## Unkerned per-glyph metrics and cached-width follow-up
+
+Prepared fonts now provide per-byte DEVICE advances for the positioned text
+pipeline. Each declared unsigned RFF advance is scaled by whole points and face
+horizontal percentage into 1/1440-inch units, rounded to nearest with positive
+half ties upward, then converted separately through X DPI with truncation.
+This is an explicit geometric rounding policy, not a claim to reproduce all
+native intermediate WORD overflow, hinting or final ordinary effect/kerning
+semantics. Character rotation leaves the scalar unchanged; layout separately
+chooses the string direction and extra spacing. Pair kerning, alignment and
+cached cursor widths are not applied by this unkerned service. Bold/italic
+metrics report unsupported until their producers are defined/implemented.
+
+The service uses unsigned raw font codes, gives missing codes zero advance,
+retains damaged glyphs' declared advances and publishes its output array only
+after every distinct byte succeeds. It allocates no memory and uses a bounded
+256-code scratch table with size_t input indexing. Legal custom font/unit/world
+extremes fail before partial output when logical or DEVICE int32 limits would be
+exceeded. Native expectations include the independently published Marin F
+1001-logical/50-DEVICE oracle, 150%/75% face examples, separate X/Y DPI,
+all character orientations, half-up-before-truncation, per-byte rather than
+whole-string scaling, unsigned high bytes, missing/damaged glyphs, unkerned
+pairs, 512-byte inputs and retained outputs on invalid/unsupported requests.
+
+All sixteen direction/rotation scenes on the three canvases now obtain their
+advances from the actual prepared synthetic font. Raw advance 6 at 1000 points
+and 150% face yields 9 DEVICE units, doubled to 18 with X DPI. P125 adds the
+already established bbox gaps 3/2 or 6/4. Literal independent rectangles use
+steps 12/11 or 24/22. The scene grid is widened to contain those longer strings;
+the first anisotropic capture correctly exposed overlap beyond its former
+64-unit cells. No expected image is generated from the emulator.
+
+New upstream [issue #86](https://github.com/bbs-land/remote-imaging-protocol/issues/86)
+requests the independent ordinary/cached-width contract and cache lifecycle.
+Read-only inspection of the preserved original DLL (SHA256
+83d71b358492b15bcfd3773c30a52784881a3a49a5b6e9029d986b3cba1fd5e8)
+found per-byte conversion/spacing/WORD summation at RVA 0x3fcd0, signed-byte
+extension and an eight-bit input index there, unsigned realized-code range
+checking at 0x527d0, and rounded integer scaling at 0x54340. These static leads
+do not establish all caller limits or failed/stale cache behavior. Original
+instructions were not executed. Existing #24 fixtures use controlled widths
+13/37 and explicitly do not prove real font measurements. The new issue
+references #3/#22/#24 and PRs #29/#55/#57/#83 without adding content to them.
+The adopted cursor-store formulas and established classic paths are retained;
+unresolved Woutline consumers are accurately marked blocked. The new geometric
+service is not silently substituted for their width. PR #85 is recorded as a
+proposed, not yet adopted, resolution of the independent B84 argument grammar.
+
+Native CMake configure/full build passes without warnings. Only the two affected
+CTests are exercised: rip3_outline_font and rip3_outline_text. The corrected
+scene fixture reruns only its affected test, and the additional boundary cases
+rerun only the font test. Edited ledger consistency passes; existing drawing,
+argument, source-adoption and legacy preservation evidence is reused. Counts
+are 685 implemented, 1538 pending, 4167 unreviewed, 1057 contextual, 24 excluded
+and 33 blocked across the unchanged 7504 units. The pin, original assets, RIP1.54,
+active application route and external-launch policy are unchanged. Scoped build
+logs are removed; no reference extraction, probe or temporary issue body remains.
+No code is pushed or PR published. The implementation goal remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

@@ -222,9 +222,107 @@ bounds(void)
 	return 0;
 }
 
+static int
+advances(void)
+{
+	struct st_rip3_frame frame;
+	struct st_rip3_outline_font font;
+	int32_t values[4]={77,77,77,77};
+	CHECK(st_rip3_frame_init(&frame,ST_RIP3_CANVAS_640_480)==0
+	    && st_rip3_frame_world(&frame,640,480)==0);
+	/* Published unmodified Marin oracle: F is 1001 logical units, then 50
+	 * DEVICE units at 90 points/72 DPI. Character rotation does not rotate
+	 * the scalar advance; string layout chooses its direction separately. */
+	for (unsigned orientation=0; orientation<4; orientation++) {
+		CHECK(st_rip3_outline_font_builtin(&font,"Marin",&frame,90,0,orientation)==0);
+		CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"FF",2)==0
+		    && values[0]==50 && values[1]==50);
+	}
+	CHECK(st_rip3_outline_font_builtin(&font,"Marin HE",&frame,90,0,0)==0);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"F",1)==0 && values[0]==75);
+	CHECK(st_rip3_outline_font_builtin(&font,"Marin Cn",&frame,90,0,0)==0);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"F",1)==0 && values[0]==37);
+	CHECK(st_rip3_frame_world(&frame,32,480)==0); /* X=1440, Y=72 DPI. */
+	CHECK(st_rip3_outline_font_builtin(&font,"Marin",&frame,90,0,3)==0);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"F",1)==0 && values[0]==1001);
+	const struct st_rip3_font_asset *asset=st_rip3_font_asset_at(5);
+	uint8_t *bytes=malloc(asset->size);
+	struct st_rip3_rff file;
+	CHECK(bytes!=NULL);memcpy(bytes,asset->data,asset->size);
+	CHECK(st_rip3_rff_open(&file,bytes,asset->size)==0);
+	/* Authored advances exercise half-up logical rounding before DEVICE
+	 * truncation. 975 units at one point is .975 DEVICE, but 19.5 logical
+	 * rounds to 20 first, so its DEVICE result is 1, not zero. */
+	put16(bytes+file.advances+2*('A'-file.first_character),0);
+	put16(bytes+file.advances+2*('B'-file.first_character),25);
+	put16(bytes+file.advances+2*('C'-file.first_character),975);
+	put16(bytes+file.advances+2*('D'-file.first_character),65535);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1,0,0)==0);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"ABCD",4)==0
+	    && values[0]==0 && values[1]==1 && values[2]==20 && values[3]==1311);
+	CHECK(st_rip3_frame_world(&frame,640,480)==0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1,0,0)==0);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"ABCD",4)==0
+	    && values[0]==0 && values[1]==0 && values[2]==1 && values[3]==65);
+	put16(bytes+file.advances+2*('F'-file.first_character),6);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,90,0,0)==0);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"FF",2)==0
+	    && values[0]==0 && values[1]==0); /* Do not scale the string sum. */
+	/* Raw high bytes are unsigned font codes; missing codes are zero, while
+	 * damaged glyph records keep their declared advance without needing ink. */
+	const uint8_t sparse[]={0,31,128,'F'};
+	put16(bytes+file.advances+2*(128-file.first_character),1234);
+	memset(bytes+file.offsets+4*('F'-file.first_character),255,4);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1000,0,0)==0);
+	CHECK(st_rip3_outline_font_advances(values,&font,sparse,4)==0
+	    && values[0]==0 && values[1]==0 && values[2]==1234 && values[3]==6);
+	/* This is an unkerned service: raw pair-table data does not change it. */
+	put16(bytes+file.advances+2*('A'-file.first_character),600);
+	put16(bytes+file.advances+2*('V'-file.first_character),500);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"AV",2)==0
+	    && values[0]==600 && values[1]==500);
+	uint8_t long_text[512];
+	int32_t long_advances[512];
+	memset(long_text,'F',sizeof(long_text));
+	CHECK(st_rip3_outline_font_advances(long_advances,&font,long_text,sizeof(long_text))==0);
+	for (size_t i=0; i<512; i++) CHECK(long_advances[i]==6);
+	CHECK(st_rip3_outline_font_advances(NULL,&font,NULL,0)==0);
+	for (unsigned which=0; which<10; which++) {
+		struct st_rip3_outline_font bad=font;
+		switch (which) {
+			case 0:bad.points=0;break; case 1:bad.points=4096;break;
+			case 2:bad.dpi_x=0;break; case 3:bad.dpi_x=73729;break;
+			case 4:bad.orientation=4;break; case 5:bad.flags=0x1000000;break;
+			case 6:bad.face=10;break; case 7:bad.file.size=1;break;
+			case 8:bad.flags=1;break; default:bad.flags=2;break;
+		}
+		values[0]=77;values[1]=88;
+		CHECK(st_rip3_outline_font_advances(values,&bad,(const uint8_t *)"AV",2)!=0
+		    && values[0]==77 && values[1]==88);
+	}
+	/* The last byte's oversized custom-unit metric must not publish the
+	 * first byte's valid result. All intermediate arithmetic is wide. */
+	put16(bytes+44,1);put16(bytes+file.base+12,1);
+	put16(bytes+file.advances+2*('A'-file.first_character),0);
+	CHECK(st_rip3_frame_world(&frame,1,1)==0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,4095,0,0)==0);
+	values[0]=77;values[1]=88;
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"AD",2)==IO_ERROR_OUT_OF_RANGE
+	    && values[0]==77 && values[1]==88);
+	/* C fits logical int32, but its DEVICE conversion exceeds int32. */
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"AC",2)==IO_ERROR_OUT_OF_RANGE
+	    && values[0]==77 && values[1]==88);
+	CHECK(st_rip3_outline_font_advances(NULL,&font,(const uint8_t *)"A",1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_outline_font_advances(values,NULL,(const uint8_t *)"A",1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_outline_font_advances(values,&font,NULL,1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_outline_font_advances(values,&font,(const uint8_t *)"A",SIZE_MAX)==IO_ERROR_OUT_OF_RANGE);
+	free(bytes);
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(catalogue()==0 && sizes()==0 && coefficients()==0 && errors()==0 && bounds()==0);
+	CHECK(catalogue()==0 && sizes()==0 && coefficients()==0 && errors()==0 && bounds()==0 && advances()==0);
 	return 0;
 }

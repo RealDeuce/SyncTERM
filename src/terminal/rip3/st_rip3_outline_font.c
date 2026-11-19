@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_outline_font.h"
 #include "st_rip3_font_data.h"
+#include "st_rip3_outline_layout.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -150,5 +151,47 @@ st_rip3_outline_font_bbox_width(int32_t *result, const struct st_rip3_outline_fo
 	uint64_t span=(uint64_t)font->bounds.xmax-(uint64_t)font->bounds.xmin;
 	if (span>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	*result=(int32_t)span;
+	return 0;
+}
+
+int
+st_rip3_outline_font_advances(int32_t *result,
+    const struct st_rip3_outline_font *font, const uint8_t *text, size_t length)
+{
+	if (font==NULL || (length!=0 && (result==NULL || text==NULL)))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (length>SIZE_MAX/sizeof(*result) || font->points==0 || font->points>4095
+	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->orientation>3 || font->flags>0xffffff)
+		return IO_ERROR_OUT_OF_RANGE;
+	if ((font->flags&3)!=0) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_rff file;
+	struct st_rip3_rff_style style;
+	int status=st_rip3_rff_open(&file,font->file.data,font->file.size);
+	if (status==0) status=st_rip3_rff_style_at(&style,&file,font->face);
+	if (status!=0) return status;
+	if (style.horizontal_percent==0) return IO_ERROR_OUT_OF_RANGE;
+	int32_t advances[256]={0};
+	bool measured[256]={false};
+	for (size_t i=0; i<length; i++) {
+		uint8_t code=text[i];
+		if (measured[code]) continue;
+		struct st_rip3_rff_glyph glyph;
+		status=st_rip3_rff_glyph(&glyph,&file,code);
+		if (status!=0 && status!=IO_ERROR_NOT_FOUND) return status;
+		if (status==0) {
+			/* Max u16 advance, wire point size and byte percentage fit uint64_t.
+			 * Round logical units before device truncation, never a string sum. */
+			uint64_t numerator=(uint64_t)glyph.advance*font->points*20*style.horizontal_percent;
+			uint64_t denominator=(uint64_t)file.units_per_em*100;
+			uint64_t logical=(numerator+denominator/2)/denominator;
+			if (logical>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+			status=st_rip3_outline_metric_device(&advances[code],(int32_t)logical,font->dpi_x);
+			if (status!=0) return status;
+		}
+		measured[code]=true;
+	}
+	/* Publish only after every distinct code succeeded. This also keeps a
+	 * late oversized advance from leaving a partially written layout input. */
+	for (size_t i=0; i<length; i++) result[i]=advances[text[i]];
 	return 0;
 }

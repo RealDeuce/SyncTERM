@@ -32,13 +32,13 @@ The outline geometry kernel accepts independent per-byte device positions and
 glyph matrices, plus explicit device-axis shadows. Independent rectangle
 expectations cover all sixteen direction/rotation pairs on the three canvases,
 four shadow directions in five write modes, fractional/clipped placement and
-allocation-failure atomicity. Wire metric acquisition, alignment and command
+allocation-failure atomicity. Ordinary metric policy, alignment and command
 integration remain pending.
 Outline layout tests resolve string direction and independent font orientation,
 the complete signed additive-baseline table, one-time baseline conversion,
 device-axis shadow distance/direction and device advance/spacing arithmetic.
 Native captures now consume those prepared positions and shadows on all canvases.
-Font metric acquisition, zero-baseline alignment and command integration remain
+Cached cursor metrics, zero-baseline alignment and command integration remain
 pending; adjusted layout advances are separate from cached cursor metrics.
 Prepared outline fonts now supply production glyph matrices, nonzero fill and
 device-space hollow widths to the positioned renderer. All sixteen rotation
@@ -51,6 +51,15 @@ all four corners through face percentage, orientation and device-axis DPI,
 retaining wide y-down edges. Spacing uses their horizontal max-minus-min span.
 Literal font tuples, negative upper bounds, rational half ties, zero/oversized
 spans and realized-width spacing on all canvases have focused native coverage.
+Prepared fonts now provide independent unkerned per-byte DEVICE advances to the
+native layout/render scenes. Logical advances use explicit rational half-up
+rounding before separate X-DPI truncation; the published Marin F result and
+authored half ties, face percentages, high/missing/damaged codes, long arrays and
+transactional overflow/error paths have native expectations. This geometric
+service does not select final ordinary kerning/effect policy or cached Woutline
+compatibility. New upstream #86 tracks those decisions and cache lifecycle;
+existing cursor-store answers remain adopted. Ordinary outline commands still
+remain pending. Earlier unrelated test and legacy evidence is reused.
 Typographic alignment, glyph advance and effect-specific ink extents remain
 separate from the global coordinate box.
 The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization

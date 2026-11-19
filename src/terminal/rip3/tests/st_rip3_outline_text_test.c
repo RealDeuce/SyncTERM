@@ -447,7 +447,7 @@ static int
 positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool anisotropic)
 {
 	/* Global bbox 8x8, 150% horizontal face: realized widths are 12 for
-	 * upright/half and 8 for quarter turns. P125 adds 3/2 to advance 8.
+	 * upright/half and 8 for quarter turns. P125 adds 3/2 to advance 9.
 	 * Double X DPI gives widths 24/16 and adds 6/4. Positions remain DEVICE.
 	 * Character columns alternate the sign of the stored B=4 displacement. */
 	static const struct st_rip3_point direction[] = {{1,0},{0,-1},{-1,0},{0,1}};
@@ -477,15 +477,17 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bo
 			    .string_rotation=900*string,.character_rotation=900*character};
 			struct st_rip3_outline_layout layout;
 			struct st_rip3_outline_font realized;
-			struct st_rip3_text_position positions[2], zero = {32+64*character,32+64*string};
-			const int32_t advances[] = {8,8};
+			struct st_rip3_text_position positions[2], zero = {48+96*character,48+96*string};
+			int32_t advances[2];
 			int64_t total;
 			int32_t bbox_width;
 			CHECK(st_rip3_outline_layout_prepare(&layout,&wire,&frame) == 0);
 			CHECK(st_rip3_outline_font_bind(&realized,&font,2,&frame,wire.size,wire.flags,layout.font_orientation) == 0);
 			CHECK(st_rip3_outline_font_bbox_width(&bbox_width,&realized) == 0);
+			CHECK(st_rip3_outline_font_advances(advances,&realized,(const uint8_t *)"AA",2) == 0);
+			CHECK(advances[0] == (anisotropic ? 18 : 9) && advances[1] == advances[0]);
 			CHECK(st_rip3_outline_layout_positions(&layout,&zero,advances,2,bbox_width,positions,&total) == 0);
-			CHECK(total == 2*(8+(character%2!=0 ? (anisotropic ? 4 : 2) : (anisotropic ? 6 : 3))));
+			CHECK(total == 2*(character%2!=0 ? (anisotropic ? 22 : 11) : (anisotropic ? 24 : 12)));
 			CHECK(st_rip3_draw_outline_positioned(ports,&realized,&layout,(const uint8_t *)"AA",2,
 			    positions,12,8,ST_RIP3_COPY) == 0);
 		}
@@ -496,13 +498,13 @@ positioned_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bo
 	for (uint32_t y = 0; y < height; y++) {
 		for (uint32_t x = 0; x < width; x++) {
 			bool ink = false;
-			if (x < 256 && y < 256) {
-				unsigned string = y/64, character = x/64;
-				int32_t u = (int32_t)(x%64)-32-baseline[string][character].x;
-				int32_t v = (int32_t)(y%64)-32-baseline[string][character].y;
+			if (x < 384 && y < 384) {
+				unsigned string = y/96, character = x/96;
+				int32_t u = (int32_t)(x%96)-48-baseline[string][character].x;
+				int32_t v = (int32_t)(y%96)-48-baseline[string][character].y;
 				struct st_rip3_rect bounds = turned_bounds[character];
 				bounds.x0 *= (int32_t)scale_x; bounds.x1 = (bounds.x1+1)*(int32_t)scale_x-1;
-				int32_t step = character%2!=0 ? (anisotropic ? 12 : 10) : (anisotropic ? 14 : 11);
+				int32_t step = character%2!=0 ? (anisotropic ? 22 : 11) : (anisotropic ? 24 : 12);
 				ink = inside(u,v,&bounds) || inside(u-step*direction[string].x,v-step*direction[string].y,&bounds);
 			}
 			CHECK(capture->primary[(size_t)y*width+x]
