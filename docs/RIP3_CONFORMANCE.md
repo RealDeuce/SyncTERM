@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-72edbfc6c151d86a120fec3cabbde3cad32c9c0b](https://github.com/RealDeuce/remote-imaging-protocol/tree/72edbfc6c151d86a120fec3cabbde3cad32c9c0b/version/3.0)
+a52985019cbf4754d4d08a07b4f7755761390661](https://github.com/RealDeuce/remote-imaging-protocol/tree/a52985019cbf4754d4d08a07b4f7755761390661/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -18,9 +18,12 @@ The user approved adopting the open documentation integration PR #71. Its
 reviewed inactive-viewport #21 follow-up and PR #73's DEFINE_PORT clarification
 are included in the current pin. PR [#77](https://github.com/bbs-land/remote-imaging-protocol/pull/77)
 now supplies the adopted drawing contract for issues #74, #75 and #76.
+PRs [#80](https://github.com/bbs-land/remote-imaging-protocol/pull/80) and
+[#81](https://github.com/bbs-land/remote-imaging-protocol/pull/81) supply the
+adopted N normalization and 2Y field/protection/diagnostic contracts.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7455 blocks in 67 normative
+provenance, scope and reopened claims. There are now 7480 blocks in 67 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -4344,6 +4347,52 @@ so its verified geometry is unaffected. Counts are 648 implemented, 1545 pending
 Only the edited ledger consistency is checked for this documentation update;
 native source and existing passing tests are unchanged. No temporary files,
 font changes, RIP1.54 changes or active-route changes are introduced.
+
+## PR #80 and PR #81 adoption and ordered STYLE diagnostics
+
+The reference now pins fork stable a52985019cbf4754d4d08a07b4f7755761390661,
+including PR #80 head ca75dd486c3b7099c7c127edc29170a841396d1c and PR #81 head
+35fd9731bb8686d8830ee0bd21fb8d67ba856c5a. The source/adoption record contains the
+archive digest, all 67 document hashes, two new derivation identities and update
+accounting. Four normative pages change. Heading/content matches preserve 7445
+reviews, 68 line references move, and 35 new/replaced blocks are adjudicated.
+The queue contains 7480 blocks. B78/B79 receive adopted documentation resolutions;
+the independent RFF bbox-label question B82 remains open.
+
+N retains current-base parsing, last-field shortening and zero/nonzero Boolean
+storage under current STYLE protection. This follows the explicit protocol rule
+despite the conflicting native fixed-MegaNum descriptor. Its existing normalization
+code already matches the adopted contract. Tests now include shortened N2 and a
+protected nonzero update, alongside N02/NZZ/N&&, ownership, backup and rendering.
+
+2Y retains one current-base style digit and up to two flag digits. Source requests
+4/8 precede selection/defaulting; destination requests 1/2 follow it. Higher bits
+are ignored, protected destinations select normally, and destinations >=36 skip
+all changes. The previous single status result collapsed source/destination
+protect-zero diagnostics. Each zero-protection request now produces its own
+nonfatal observation at the point it occurs; remaining requests and selection
+continue. Optional observations do not control behavior, and processing remains
+void. Callbacks may inspect state but may not reenter or mutate bound objects.
+
+Published decimal cases 12/3/6/9/4/5/15/16 have independent state checks in both
+bases. The tests distinguish a source-16/destination-zero single diagnostic from
+source-zero/destination-zero's two, inspect current index and source protection
+during observations, and repeat transitions without a diagnostic sink. Split-input
+scenes on all three canvases recover after two zero-protection diagnostics and a
+malformed command, retaining coherent pixel/cursor/encoding expectations. Inactive
+viewports still permit STYLE switching. The separate global disabled-graphics
+gate remains pending session integration; its combined domain/suppression unit
+is not claimed implemented.
+
+Native CMake configure/full build succeeds without warnings. General command and
+border CTests pass once. The style CTest passes after correcting its new test's
+source-slot setup expectation; only that failed/changed test is rebuilt/repeated.
+Three focused reference/adoption guard cases and edited ledger consistency pass.
+Unchanged font, drawing and legacy preservation evidence is reused. Counts are
+669 implemented, 1545 pending, 4173 unreviewed, 1039 contextual, 24 excluded and
+30 blocked. The archive/source data were processed in memory; scoped build logs
+and adoption-test temporary directories are removed. No existing upstream issue,
+original font, RIP1.54 source/fixture or active application route is changed.
 
 ## Verification and acceptance
 

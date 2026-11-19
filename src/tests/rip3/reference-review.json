@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/77",
-  "revision": "72edbfc6c151d86a120fec3cabbde3cad32c9c0b",
-  "previous_revision": "c9a66b27edc93d4522b21510c1379eb10230f85d",
-  "authorization": "User directed stable as the reference branch and supplied PR #77 as answers to open issues.",
-  "upstream_state_at_adoption": "PR open; reviewed head already integrated in fork stable.",
-  "archive_sha256": "9a1b8592ad4dfcb953a0103f12393ddb63c23da23934ca7f834f2e3065e760a7",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/81",
+  "revision": "a52985019cbf4754d4d08a07b4f7755761390661",
+  "previous_revision": "72edbfc6c151d86a120fec3cabbde3cad32c9c0b",
+  "authorization": "User directed fork stable as the continuing reference; issues remain in the parent repository and existing threads are not modified.",
+  "upstream_state_at_adoption": "Both PRs open; reviewed heads included in fork stable.",
+  "archive_sha256": "c66c70ba2ebf4be9a2b6d8585c8a258b2c7800dea4918f3f2f04464ef1a17b08",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1036,7 +1036,9 @@
     53,
     54,
     58,
-    72
+    72,
+    78,
+    79
   ],
   "pending_followups": [],
   "derivations": [
@@ -1249,6 +1251,16 @@
       "sha256": "799c658bf076bcb0cf74c03e13cc96a74b3f50a269cee4722e56791129d5e9c5",
       "title": "Issue #72: DEFINE_PORT protocol contract",
       "role": "Protocol-source derivation for DEFINE_PORT; implementation observations do not override explicit documented rules or define unspecified failure guarantees."
+    },
+    {
+      "path": "version/3.0/research/issue-78-border-normalization.md",
+      "sha256": "bab1ab7f41b7f9a3d4f27259c2b2cd873d175476577066a8bf97fadcfa17757e",
+      "role": "Primary-artifact/protocol source-boundary derivation for the adopted N and 2Y contract; intermediate research statements are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-79-switch-style-flags.md",
+      "sha256": "5fc3b479390fc70c7904f48d6f272e940a8eae4e4bc96a18c3c9ea3aa28e35b5",
+      "role": "Primary-artifact/protocol source-boundary derivation for the adopted N and 2Y contract; intermediate research statements are not additional normative requirements."
     }
   ],
   "documents": [
@@ -1370,7 +1382,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
-      "sha256": "935795e6b227d6a6f312b34de22b0b14d18c28d9a74b7658a1223efbf7bea2ca"
+      "sha256": "31ff9ee4d72339e03c438be93c9155542385b0a3fd9fd8e594ad1db9dd3b311b"
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
@@ -1446,7 +1458,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "c3967bbbdc1eb7ada28adf03792228d8da63c5fcf08e4b61b1eb8db2d5bc642b"
+      "sha256": "e41938a248c35a420f41015db79d191d8be05782112a364e8ee11fd567d5630c"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
@@ -1454,7 +1466,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "4fc83f6edd2ed0e0953bcfa679403486283d27aead14ce311834a978952dcc8e"
+      "sha256": "48b6edf08667da5857acf1b606ebba6d29377b8f44f996d40249a159014a0b0e"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1486,7 +1498,7 @@
     },
     {
       "path": "version/3.0/techspecs/2.3-drawing-composition.md",
-      "sha256": "a496db7fb21546db96d11be40373160c704bc693f76a81962996af6841cae674"
+      "sha256": "61d9948776f91c518ef1dab51fc6653b7b62cc53fc5a83f17e82bac2a82e9e36"
     },
     {
       "path": "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
@@ -1908,6 +1920,58 @@
           "bytes": 10137
         }
       ]
+    },
+    {
+      "revision": "a52985019cbf4754d4d08a07b4f7755761390661",
+      "archive_sha256": "c66c70ba2ebf4be9a2b6d8585c8a258b2c7800dea4918f3f2f04464ef1a17b08",
+      "changed_documents": [
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+        "version/3.0/ripscrip/7.1-data-tables.md",
+        "version/3.0/ripscrip/9.0-command-reference.md",
+        "version/3.0/techspecs/2.3-drawing-composition.md"
+      ],
+      "matched_source_blocks": 7445,
+      "moved_source_blocks": 68,
+      "new_source_blocks": 35,
+      "removed_implementation_claims": [
+        "version/3.0/ripscrip/7.1-data-tables.md:211",
+        "version/3.0/ripscrip/7.1-data-tables.md:212",
+        "version/3.0/ripscrip/7.1-data-tables.md:215"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-78-border-normalization.md",
+          "sha256": "bab1ab7f41b7f9a3d4f27259c2b2cd873d175476577066a8bf97fadcfa17757e"
+        },
+        {
+          "path": "version/3.0/research/issue-79-switch-style-flags.md",
+          "sha256": "5fc3b479390fc70c7904f48d6f272e940a8eae4e4bc96a18c3c9ea3aa28e35b5"
+        }
+      ],
+      "previous_revision": "72edbfc6c151d86a120fec3cabbde3cad32c9c0b",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/80",
+          "revision": "ca75dd486c3b7099c7c127edc29170a841396d1c"
+        },
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/81",
+          "revision": "35fd9731bb8686d8830ee0bd21fb8d67ba856c5a"
+        }
+      ],
+      "authorization": "User directed fork stable as the continuing reference; issues remain in the parent repository and existing threads are not modified.",
+      "upstream_state": "Both PRs open; reviewed heads included in fork stable.",
+      "prior_adoption_commit": "743fcc65",
+      "source_blocks_after_update": 7480,
+      "states_after_update": {
+        "unreviewed": 4173,
+        "context": 1039,
+        "pending": 1545,
+        "implemented": 669,
+        "blocked": 30,
+        "excluded": 24
+      },
+      "reviewed_change": "N current-base zero/nonzero normalization, shortening and STYLE protection; 2Y one-plus-two fields, ordered source/destination protection, independent protect-zero diagnostics, ignored high bits/targets and separate global suppression."
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",

@@ -50,6 +50,11 @@ Global RFF bbox/header metric labels are under clarification in
 [issue #82](https://github.com/bbs-land/remote-imaging-protocol/issues/82).
 The prepared renderer consumes point/DPI scales and paths; it does not use the
 disputed header words as typographic ascent or bbox-width measurements.
+The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization
+and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
+and destination requests now diagnose separately without ending processing;
+tests inspect state at each diagnostic and recover through split-input drawing
+on all canvases. The global disabled-graphics session gate remains pending.
 RIP3 extended-font state tests cover the fixed UltraNum `y` block, owned STYLE
 fields/names, one-time baseline conversion and `q` attribute OR/protection.
 Outline text commands remain pending.

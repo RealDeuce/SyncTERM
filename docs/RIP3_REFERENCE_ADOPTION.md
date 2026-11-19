@@ -62,7 +62,7 @@ excluded. No code is pushed and no PR is published by this adoption.
 
 ## Drawing-contract update from PR #77
 
-The current pin is stable revision
+That adoption used stable revision
 [`72edbfc6c151d86a120fec3cabbde3cad32c9c0b`](https://github.com/RealDeuce/remote-imaging-protocol/tree/72edbfc6c151d86a120fec3cabbde3cad32c9c0b).
 It includes open [PR #77](https://github.com/bbs-land/remote-imaging-protocol/pull/77)
 head `af5468de5f5d1e4ad91b389c5766be5ed1f1293f`, answering issues #74–#76.
@@ -86,6 +86,35 @@ font tests and legacy preservation results from the preceding implementation
 remain valid and are reused. No upstream checker or client is executed. The
 owned archive/extraction and scratch metadata are removed. No existing issue
 is modified, and no code is published.
+
+## Border/style update from PRs #80 and #81
+
+The current pin is fork stable
+[`a52985019cbf4754d4d08a07b4f7755761390661`](https://github.com/RealDeuce/remote-imaging-protocol/tree/a52985019cbf4754d4d08a07b4f7755761390661).
+It includes open [PR #80](https://github.com/bbs-land/remote-imaging-protocol/pull/80)
+head `ca75dd486c3b7099c7c127edc29170a841396d1c` and open
+[PR #81](https://github.com/bbs-land/remote-imaging-protocol/pull/81) head
+`35fd9731bb8686d8830ee0bd21fb8d67ba856c5a`, answering #78/#79. Archive digest:
+`c66c70ba2ebf4be9a2b6d8585c8a258b2c7800dea4918f3f2f04464ef1a17b08`.
+Both new derivation documents have recorded hashes and source-boundary review.
+
+Four normative documents change; the inventory remains 67 documents. Matching
+heading/content blocks retain 7445 reviews, with 68 moved line references. There
+are 35 new/replaced source blocks and 7480 total. Three replaced implementation
+claim IDs were table cells with changed layout/format spelling; their replacement
+rows receive evidence under the newly reviewed contract. Existing unrelated
+claims are retained. N uses the explicit protocol current-base rule over the
+native fixed-MegaNum descriptor; native normalization alone does not establish
+UltraNum wire support. 2Y uses one plus two current-base digits and independent
+ordered protect-zero diagnostics. The global graphics-processing gate remains
+pending session integration, separate from inactive viewport behavior.
+
+The [implementation inventory](RIP3_CONFORMANCE.md#pr-80-and-pr-81-adoption-and-ordered-style-diagnostics)
+records changed code/tests and remaining work. Only affected native tests and
+focused adoption guard cases are required; unchanged font/render/freeze evidence
+is reused. No upstream issue was modified. Issue #82 remains independently open;
+these PRs do not address its RFF bbox labels. No temporary archive or extracted
+tree is left behind: archive and selected source data were processed in memory.
 
 ## Source and review evidence
 

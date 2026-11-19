@@ -146,13 +146,19 @@ immediate_query(const struct st_rip3_command_host *host,
 
 static int
 style_protection(struct st_rip3_styles *styles, unsigned number, uint64_t flags,
-    unsigned protect, unsigned unprotect)
+    unsigned protect, unsigned unprotect, const struct st_rip3_command_sink *sink)
 {
 	int status = 0;
 	if ((flags&protect) != 0) {
 		/* The original setter diagnoses attempts to protect zero, but its
 		 * caller still selects/applies every remaining flag afterward. */
-		if (number == 0) status = IO_ERROR_PERMISSION_DENIED;
+		if (number == 0) {
+			/* Source and destination requests are distinct observations, even
+			 * for 0 -> 0. Diagnose here so neither is collapsed into the final
+			 * command status, and continue through the remaining ordered steps. */
+			if (sink != NULL && sink->diagnostic != NULL)
+				sink->diagnostic(sink->context,ST_RIP3_COMMAND_OPERATION_FAILED);
+		}
 		else status = st_rip3_styles_protect(styles,number,true);
 	}
 	if ((flags&unprotect) != 0 && number != 0) {
@@ -164,7 +170,7 @@ style_protection(struct st_rip3_styles *styles, unsigned number, uint64_t flags,
 
 static int
 switch_style(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, bool *operation)
+    const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
 	struct st_rip3_environment environment;
 	uint64_t number, flags;
@@ -182,16 +188,16 @@ switch_style(const struct st_rip3_command_host *host,
 	status = st_rip3_styles_current(host->styles,&current);
 	if (status != 0) return status;
 	*operation = true;
-	source = style_protection(host->styles,current,flags,4,8);
+	source = style_protection(host->styles,current,flags,4,8,sink);
 	status = st_rip3_styles_switch(host->styles,(unsigned)number);
 	if (status != 0) return status;
-	destination = style_protection(host->styles,(unsigned)number,flags,1,2);
+	destination = style_protection(host->styles,(unsigned)number,flags,1,2,sink);
 	return source != 0 ? source : destination;
 }
 
 static int
 execute(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, bool *operation)
+    const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
 	struct st_rip3_environment value;
 	unsigned number;
@@ -215,7 +221,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
 	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
-		return switch_style(host,command,length,operation);
+		return switch_style(host,command,length,operation,sink);
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
 		return immediate_query(host,command,length,operation);
 	if (length >= 2 && (command[0] == '1' || command[0] == '2') && command[1] == 'W')
@@ -356,7 +362,7 @@ st_rip3_commands_process(const struct st_rip3_command_host *host,
     const struct st_rip3_command_sink *sink, const uint8_t *command, size_t length)
 {
 	bool operation;
-	int status = execute(host, command, length, &operation);
+	int status = execute(host, command, length, &operation, sink);
 	enum st_rip3_command_diagnostic kind;
 
 	if (status == 0)

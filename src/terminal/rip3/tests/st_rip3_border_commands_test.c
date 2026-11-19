@@ -109,8 +109,8 @@ state(void)
 		CHECK(st_rip3_environments_get(host.environments,0,&environment)==0);
 		environment.base_math=base;environment.coordinate_size=5;
 		CHECK(st_rip3_environments_set(host.environments,0,&environment)==0);
-		const char *const commands[]={"N00","N01","N0","N1","N02",base==36 ? "NZZ" : "N&&"};
-		for (unsigned i=0; i<6; i++) {
+		const char *const commands[]={"N00","N01","N0","N1","N02","N2",base==36 ? "NZZ" : "N&&"};
+		for (unsigned i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
 			CHECK(process(&host,commands[i],-1)==0);
 			CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.borders==(i!=0 && i!=2));
 			CHECK(after.drawing_color==before.drawing_color && after.background_color==before.background_color
@@ -135,6 +135,7 @@ state(void)
 	CHECK(st_rip3_styles_get(host.styles,1,&after)==0 && after.borders && after.drawing_color==15);
 	CHECK(st_rip3_styles_protect(host.styles,1,true)==0);
 	CHECK(process(&host,"N00",ST_RIP3_COMMAND_OPERATION_FAILED)==0);
+	CHECK(process(&host,"N02",ST_RIP3_COMMAND_OPERATION_FAILED)==0);
 	CHECK(st_rip3_styles_get(host.styles,1,&after)==0 && after.borders);
 	CHECK(st_rip3_styles_protect(host.styles,1,false)==0 && process(&host,"N00",-1)==0);
 	CHECK(st_rip3_styles_switch(host.styles,0)==0 && st_rip3_styles_get(host.styles,0,&after)==0 && !after.borders);

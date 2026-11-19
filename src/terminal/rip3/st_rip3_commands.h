@@ -61,7 +61,10 @@ enum st_rip3_command_diagnostic {
 
 struct st_rip3_command_sink {
 	void *context;
-	/* Optional nonfatal observation. No raw command or filename is exposed. */
+	/* Optional nonfatal observation. No raw command or filename is exposed.
+	 * Ordered protection requests can diagnose more than once during one
+	 * command; later requests/selection still run. The callback may inspect
+	 * state, but must not reenter processing or mutate bindings/bound objects. */
 	void (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
 };
 
