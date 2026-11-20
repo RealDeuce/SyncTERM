@@ -82,6 +82,10 @@ void st_rip3_session_destroy(struct st_rip3_session *session);
  * user prompts; no sleeping or threads. Syntax/resource/operation failures are
  * absorbed internally and never returned to a terminal/session failure path. */
 void st_rip3_session_process(struct st_rip3_session *session, size_t budget);
+/* Text callbacks still receive ordinary bytes for ANSI/RIP control framing.
+ * The client must suppress ANSI display/side effects while this gate is off;
+ * RIP identification/control handling remains independent of TTY visibility. */
+bool st_rip3_session_text_active(const struct st_rip3_session *session);
 /* Presentation services. Revision advances after commands/host continuations;
  * it does not promise that pixels changed. Damage is borrowed through unbind
  * or destruction, one byte per canvas pixel; see surface_damage. */

@@ -31,6 +31,15 @@ including split CR/LF; ordinary text keeps its own line endings. Processing
 failures are diagnosed and discarded inside RIP3, never returned as connection
 errors. Constructor/accessor and transport failures remain distinct.
 
+The documented all-zero `w` tuple now deactivates the default text window on
+connected sessions. It suppresses ordinary text, line feeds and ANSI side
+effects while RIP parsing, identification, graphics and immediate replies stay
+live. Parsing uses the current ENV radix/coordinate width, prevalidates the
+complete tuple and absorbs malformed/unsupported layouts without changing the
+gate. This does not implement nonzero window geometry, reactivation, switching
+or the complete TW table. Native tests cover widths 2–5, both radices and
+error recovery; connected CP437/UTF-8 captures verify the output gate.
+
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
 playback and deferred queries remain incomplete. The historical milestones below

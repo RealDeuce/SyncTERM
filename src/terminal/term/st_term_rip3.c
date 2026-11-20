@@ -138,6 +138,7 @@ present(struct st_term_rip3 *rip)
 static void
 ansi(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 {
+	if (!st_rip3_session_text_active(rip->session)) return;
 	size_t used=0;
 	if (st_cterm_write(rip->text,bytes,length,&used)!=0 || used!=length)
 		diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);

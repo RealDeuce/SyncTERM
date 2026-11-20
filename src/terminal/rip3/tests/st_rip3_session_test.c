@@ -265,6 +265,30 @@ borrowed_user(void)
 }
 
 static int
+text_deactivation(void)
+{
+	for (unsigned width=2;width<=5;width++) for (unsigned base=0;base<2;base++) {
+		struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+		CHECK(st_rip3_session_create(&f.session,&options)==0 && st_rip3_session_text_active(f.session));
+		char setup[32];(void)snprintf(setup,sizeof(setup),"!|J%s|n%u\r",base ? "1S" : "10",width);
+		CHECK(append(&f,setup)==0 && pump(&f)==0 && f.errors==0);
+		char line[32]="!|w";size_t length=4*width+2;
+		memset(line+3,'0',length);line[3+length]='\r';line[4+length]=0;
+		/* Reject partial/malformed/unsupported layouts without disabling TTY. */
+		line[3+length-1]='?';CHECK(append(&f,line)==0 && pump(&f)==0 && f.errors==1
+		    && st_rip3_session_text_active(f.session));
+		line[3+length-1]='1';CHECK(append(&f,line)==0 && pump(&f)==0 && f.errors==2
+		    && st_rip3_session_text_active(f.session));
+		line[3+length-1]='0';CHECK(append(&f,line)==0 && pump(&f)==0 && f.errors==2
+		    && !st_rip3_session_text_active(f.session));
+		CHECK(query(&f,"$RESX$","640")==0);
+		st_rip3_session_cancel(f.session);CHECK(!st_rip3_session_text_active(f.session));
+		st_rip3_session_destroy(f.session);
+	}
+	CHECK(!st_rip3_session_text_active(NULL));return 0;
+}
+
+static int
 construction(bool device)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -301,6 +325,6 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && construction(false)==0 && construction(true)==0);
+	    && text_deactivation()==0 && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;
 }

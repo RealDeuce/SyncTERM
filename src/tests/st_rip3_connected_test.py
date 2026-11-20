@@ -125,6 +125,25 @@ def run(args, width, height, advance):
         assert all(pixel(frame, px, py) == 0 for py in range(8) for px in range(8))
         assert frame.application["connected"] == 1
 
+        t.case("rip3-deactivated-text-window-keeps-rip-live")
+        before = frame
+        # Use a RIP reply as the fence: deactivated TTY must discard ANSI
+        # controls as well as visible text and line feeds.
+        send(b"\r!|w0000000000\r\n" + b"HIDDEN\r\n" * (height // 8 + 10)
+             + b"\x1b[2J\x1b[6n" + query(b"deactivated"))
+        receive(peer, b"deactivated", root / "replies.bin")
+        frame = client.capture()
+        assert frame.primary == before.primary
+        assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (
+            before.application["cterm.x"], before.application["cterm.y"])
+        send(b"\x1b[!")
+        receive(peer, b"RIPSCRIP030001", root / "replies.bin")
+        send(b"\r!|c0C|X0808\r\n" + query(b"still-live"))
+        receive(peer, b"still-live", root / "replies.bin")
+        frame = client.capture()
+        assert pixel(frame, 8, 8) == 0xff5555
+        assert frame.application["connected"] == 1
+
 
 def mega(number):
     digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

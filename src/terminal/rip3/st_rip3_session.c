@@ -37,6 +37,7 @@ struct st_rip3_session {
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool ready;
+	bool text_active;
 	uint64_t revision;
 	struct st_rip3_bitmap_error_ui bitmap_ui;
 	struct st_rip3_bitmap_error_sink bitmap_errors;
@@ -90,7 +91,13 @@ static bool
 line_start(void *context)
 {
 	struct st_rip3_session *session=context;
-	return session->sink.at_line_start!=NULL && session->sink.at_line_start(session->sink.context);
+	return session->text_active && session->sink.at_line_start!=NULL && session->sink.at_line_start(session->sink.context);
+}
+
+bool
+st_rip3_session_text_active(const struct st_rip3_session *session)
+{
+	return session!=NULL && session->text_active;
 }
 
 static void
@@ -200,6 +207,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	struct st_rip3_session *session=calloc(1,sizeof(*session));
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
+	session->text_active=true;session->commands.text_active=&session->text_active;
 	session->commands.audio=config->audio;session->commands.resources=config->resources;
 	session->commands.offscreen_pixel_budget=config->offscreen_pixel_budget;session->commands.bitmap_errors=config->bitmap_errors;
 	session->commands.clipboard=&session->clipboard;session->commands.text=&session->text;

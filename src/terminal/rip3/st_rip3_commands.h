@@ -50,6 +50,9 @@ struct st_rip3_command_host {
 	const uint64_t *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	struct st_rip3_text_context *text;
+	/* Current text-window output gate. The session owns the default window;
+	 * full text-window definitions/switching remain a separate table milestone. */
+	bool *text_active;
 };
 
 enum st_rip3_command_diagnostic {
@@ -81,7 +84,7 @@ struct st_rip3_command_sink {
  * 2Y style selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
- * 3D delays, 3e record edits,
+ * 3D delays, 3e record edits, the all-zero w text-window deactivation tuple,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.

@@ -200,6 +200,27 @@ switch_style(const struct st_rip3_command_host *host,
 }
 
 static int
+deactivate_text(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	struct st_rip3_environment environment;unsigned number;
+	int status=st_rip3_command_environment(host,&number,&environment);
+	if (status!=0) return status;
+	if (length!=1+4*environment.coordinate_size+2) return IO_ERROR_INVALID_FORMAT;
+	bool zero=true;
+	for (size_t i=1;i<length;i++) {
+		uint64_t value;
+		status=st_rip3_command_field(&value,command+i,1,environment.base_math);
+		if (status!=0) return status;
+		if (value!=0) zero=false;
+	}
+	/* Only the fully zero deactivation tuple is implemented here. A rejected
+	 * layout request must retain the active/default window and cursor. */
+	if (!zero || host->text_active==NULL) return IO_ERROR_NOT_SUPPORTED;
+	*operation=true;*host->text_active=false;return 0;
+}
+
+static int
 execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
@@ -224,6 +245,7 @@ execute(const struct st_rip3_command_host *host,
 		return 0;
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
+	if (command[0]=='w') return deactivate_text(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
 		return switch_style(host,command,length,operation,sink);
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)

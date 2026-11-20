@@ -28,8 +28,10 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 normal executable over TCP with the control bitmap backend. They cover the
 literal Dixon selection and drawing sequence, bold advance, nonfatal recovery,
 live WORLD/device queries, templates/angles, empty-input continuations, delays,
-offscreen BMP export/load and clipboard paste, repeated paint over ANSI, and
-command-only CRLF without scrolling. The entry's grid/raster is retained at
+offscreen BMP export/load and clipboard paste, repeated paint over ANSI,
+command-only CRLF without scrolling, and default-window deactivation with
+ordinary text/ANSI suppressed while RIP graphics/replies remain live. The
+entry's grid/raster is retained at
 the three presets and at 1280x800 and 720x400. These tests disable physical
 audio. Full-compliance acceptance and incomplete command families remain open.
 The internal fixture descriptions below retain their narrower coverage scope;
