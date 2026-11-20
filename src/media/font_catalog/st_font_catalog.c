@@ -318,6 +318,22 @@ st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector,
 }
 
 int
+st_font_catalog_load_bitmap(st_font_catalog_t *catalog, uint8_t selector,
+    const struct st_console_font *font, enum st_codepage codepage)
+{
+	if (catalog==NULL || font==NULL || selector<ST_FONT_CATALOG_FIRST_CUSTOM
+	    || font->glyph_count!=256 || codepage<ST_CODEPAGE_CP437 || codepage>=ST_CODEPAGE_COUNT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t identifier;
+	int status=st_console_register_font_copy(catalog->console,font,&identifier);
+	if (status!=0) return status;
+	if (catalog->valid[selector]) catalog->identifier_valid[catalog->identifiers[selector]]=false;
+	catalog->identifiers[selector]=identifier;catalog->valid[selector]=true;
+	catalog->codepages[selector]=codepage;catalog->selector_by_identifier[identifier]=selector;
+	catalog->identifier_valid[identifier]=true;return 0;
+}
+
+int
 st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
 	uint8_t selector, const char *path, enum st_codepage codepage)
 {

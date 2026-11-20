@@ -2360,6 +2360,9 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 
 	if (connected == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	/* Remote output may have replaced a RIP3 virtual TTY since the last
+	 * script call. Native transfer/poll consumers need the current parser too. */
+	(void)st_wren_context_from_vm(connected->vm);
 	collect_removed_hooks(connected);
 	status = st_wren_operation_collect(connected->vm);
 	if (status != 0)

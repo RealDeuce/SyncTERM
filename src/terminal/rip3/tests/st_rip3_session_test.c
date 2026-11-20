@@ -6,6 +6,7 @@
 #include "st_rip3_host_internal.h"
 #include "st_rip3_number.h"
 #include "st_rip3_audio.h"
+#include "st_rip3_text_window.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -25,6 +26,10 @@ struct fixture {
 	uint64_t now;
 	enum st_rip3_command_diagnostic kind;
 	bool overflow;
+	unsigned windows;
+	int window_status;
+	bool identical;
+	struct st_rip3_text_window_layout window;
 };
 
 static uint64_t
@@ -265,6 +270,54 @@ borrowed_user(void)
 }
 
 static int
+window(void *context, const struct st_rip3_text_window_layout *layout, bool identical)
+{
+	struct fixture *f=context;f->windows++;f->window=*layout;f->identical=identical;
+	return f->window_status;
+}
+
+static int
+normal_window(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_window=window;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(append(&f,"!|w0A050C0700\r")==0 && pump(&f)==0 && f.windows==1 && !f.identical
+	    && f.window.x==80 && f.window.y==54 && f.window.columns==3 && f.window.rows==3
+	    && f.window.cell_width==8 && f.window.cell_height==11 && !f.window.wrap);
+	CHECK(append(&f,"!|w0000000000\r")==0 && pump(&f)==0 && !st_rip3_session_text_active(f.session));
+	f.window_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(append(&f,"!|w0A050C0710\r")==0 && pump(&f)==0 && f.windows==2 && f.identical
+	    && f.errors==1 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE && !st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$RESX$","640")==0);
+	f.window_status=0;
+	CHECK(append(&f,"!|w0A050C0710\r")==0 && pump(&f)==0 && f.windows==3 && f.identical
+	    && f.window.wrap && st_rip3_session_text_active(f.session));
+	CHECK(append(&f,"!|w0A050C0715\r")==0 && pump(&f)==0 && f.windows==3 && f.errors==2
+	    && f.kind==ST_RIP3_COMMAND_INVALID && st_rip3_session_text_active(f.session));
+	CHECK(append(&f,"!|w0A050A0710\r")==0 && pump(&f)==0 && f.windows==4 && !f.identical && f.window.columns==1);
+	CHECK(append(&f,"!|w00001B0M10\r")==0 && pump(&f)==0 && f.windows==5
+	    && f.window.columns==48 && f.window.rows==23 && f.window.x==0 && f.window.y==0);
+	st_rip3_session_destroy(f.session);
+	for (unsigned width=2;width<=5;width++) for (unsigned base=0;base<2;base++) {
+		struct fixture encoded={0};options=config(&encoded,ST_RIP3_CANVAS_640_480);
+		options.sink.text_window=window;
+		CHECK(st_rip3_session_create(&encoded.session,&options)==0);
+		char setup[32];(void)snprintf(setup,sizeof(setup),"!|J%s|n%u\r",base ? "1S" : "10",width);
+		CHECK(append(&encoded,setup)==0 && pump(&encoded)==0);
+		/* 47 distinguishes MegaNum 1B from UltraNum 0l. */
+		const unsigned values[]={10,5,47,22};char line[32]="!|w";
+		for (unsigned i=0;i<4;i++) CHECK(st_rip3_number_encode(line+3+i*width,width,
+		    values[i],width,base ? 64 : 36)==0);
+		size_t at=3+4*width;memcpy(line+at,"10\r",4);
+		CHECK(append(&encoded,line)==0 && pump(&encoded)==0 && encoded.errors==0 && encoded.windows==1
+		    && encoded.window.columns==38 && encoded.window.rows==18 && encoded.window.x==80 && encoded.window.y==54);
+		st_rip3_session_destroy(encoded.session);
+	}
+	return 0;
+}
+
+static int
 text_deactivation(void)
 {
 	for (unsigned width=2;width<=5;width++) for (unsigned base=0;base<2;base++) {
@@ -325,6 +378,6 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && text_deactivation()==0 && construction(false)==0 && construction(true)==0);
+	    && normal_window()==0 && text_deactivation()==0 && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;
 }

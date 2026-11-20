@@ -52,7 +52,7 @@ struct st_term_session {
 static bool
 input_paused(st_term_session_t *session)
 {
-	return st_term_rip3_paused(session->rip3) || st_cterm_input_paused(session->cterm);
+	return st_term_rip3_paused(session->rip3) || st_cterm_input_paused(st_term_session_cterm(session));
 }
 
 static int
@@ -421,7 +421,7 @@ st_term_session_create(st_term_session_t **result,
 		return status;
 	}
 	if (config->graphics_mode==ST_CTERM_GRAPHICS_RIP_3) {
-		status=st_term_rip3_create(&session->rip3,config,session->cterm,cterm_output,session);
+		status=st_term_rip3_create(&session->rip3,config,session->cterm,&cterm_config);
 		if (status!=0) {st_term_session_destroy(&session);return status;}
 	}
 	*result = session;
@@ -486,7 +486,19 @@ st_term_session_destroy(st_term_session_t **session)
 st_cterm_t *
 st_term_session_cterm(st_term_session_t *session)
 {
-	return session == NULL ? NULL : session->cterm;
+	return session == NULL ? NULL : session->rip3==NULL ? session->cterm : st_term_rip3_text(session->rip3);
+}
+
+int
+st_term_session_begin_local_text(st_term_session_t *session)
+{
+	return session==NULL ? IO_ERROR_INVALID_ARGUMENT : st_term_rip3_begin_local_text(session->rip3);
+}
+
+int
+st_term_session_end_local_text(st_term_session_t *session)
+{
+	return session==NULL ? IO_ERROR_INVALID_ARGUMENT : st_term_rip3_end_local_text(session->rip3);
 }
 
 bool
@@ -956,8 +968,8 @@ st_term_session_send_key(st_term_session_t *session,
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
 		if (session->config.encoding == ST_CTERM_ENCODING_CODEPAGE
-		    && st_cterm_encoding(session->cterm) == ST_CTERM_ENCODING_CODEPAGE) {
-			*handled = st_cterm_handle_codepage_key(session->cterm,
+		    && st_cterm_encoding(st_term_session_cterm(session)) == ST_CTERM_ENCODING_CODEPAGE) {
+			*handled = st_cterm_handle_codepage_key(st_term_session_cterm(session),
 			    event->data.codepage_byte);
 			return session->output_error;
 		}
@@ -978,20 +990,20 @@ st_term_session_send_key(st_term_session_t *session,
 			return IO_ERROR_INVALID_ENCODING;
 		ptrdiff_t size = st_utf8_encode_one(utf8, sizeof(utf8), codepoint);
 		*handled = true;
-		if (st_cterm_handle_text_key(session->cterm, codepoint))
+		if (st_cterm_handle_text_key(st_term_session_cterm(session), codepoint))
 			return session->output_error;
 		return size < 0 ? IO_ERROR_INVALID_ENCODING
 		    : st_term_session_send_text(session, utf8, (size_t)size);
 	}
 	case ST_CONSOLE_EVENT_KEY_CODE:
-		*handled = st_cterm_handle_key(session->cterm, event->data.key.code,
+		*handled = st_cterm_handle_key(st_term_session_cterm(session), event->data.key.code,
 		    event->data.key.modifiers);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_PHYSICAL_KEY:
-		*handled = st_cterm_handle_physical_keys(session->cterm, event, 1);
+		*handled = st_cterm_handle_physical_keys(st_term_session_cterm(session), event, 1);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_DOORWAY_KEY:
-		*handled = st_cterm_handle_doorway_key(session->cterm,
+		*handled = st_cterm_handle_doorway_key(st_term_session_cterm(session),
 		    event->data.doorway_key.scan_code);
 		return session->output_error;
 	default:
@@ -1004,13 +1016,13 @@ handle_event(st_term_session_t *session,
 	const struct st_console_event *event,
 	enum st_term_disposition *disposition, bool *finished)
 {
-	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF
+	if (st_cterm_musicomm_state(st_term_session_cterm(session)) != ST_CTERM_MUSICOMM_OFF
 	    && (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE || event->type == ST_CONSOLE_EVENT_TEXT
 	    || event->type == ST_CONSOLE_EVENT_KEY_CODE || event->type == ST_CONSOLE_EVENT_DOORWAY_KEY
 	    || (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY && event->data.physical_key.pressed))) {
-		if (st_cterm_musicomm_stop(session->cterm)) return 0;
+		if (st_cterm_musicomm_stop(st_term_session_cterm(session))) return 0;
 	}
-	st_cterm_observe_mouse(session->cterm, event);
+	st_cterm_observe_mouse(st_term_session_cterm(session), event);
 	if (session->config.event_hook != NULL) {
 		bool consumed;
 		int status = session->config.event_hook(
@@ -1034,16 +1046,17 @@ handle_event(st_term_session_t *session,
 	}
 	case ST_CONSOLE_EVENT_MOUSE:
 		if (!session->mouse_disabled)
-			(void)st_cterm_handle_mouse(session->cterm, event);
+			(void)st_cterm_handle_mouse(st_term_session_cterm(session), event);
 		else
-			st_cterm_sync_mouse_buttons(session->cterm, event->data.mouse.buttons);
+			st_cterm_sync_mouse_buttons(st_term_session_cterm(session), event->data.mouse.buttons);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_FOCUS:
-		(void)st_cterm_handle_focus(session->cterm,
+		(void)st_cterm_handle_focus(st_term_session_cterm(session),
 		    event->data.focus.focused);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_RESIZE: {
-		if (session->config.graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+		if (session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_3
+		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
 		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
 		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_IGS_221
 		    || session->config.graphics_mode == ST_CTERM_GRAPHICS_BIG_103) return 0;
@@ -1059,7 +1072,7 @@ handle_event(st_term_session_t *session,
 		if ((capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0
 		    && session->config.screen_mode != ST_SCREEN_MODE_CURRENT)
 			return 0;
-		status = st_cterm_resize(session->cterm,
+		status = st_cterm_resize(st_term_session_cterm(session),
 		    event->data.resize.columns, event->data.resize.rows);
 		if (status != 0)
 			return status;
@@ -1092,11 +1105,11 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	/* A stopped transport has no recipient for asynchronous reports.
 	 * Still drain its received bytes and take the normal disconnect path. */
-	bool parser_was_paused = st_cterm_input_paused(session->cterm);
+	bool parser_was_paused = st_cterm_input_paused(st_term_session_cterm(session));
 	parser_was_paused |= st_term_rip3_paused(session->rip3);
 	if (st_connection_is_connected(session->config.connection)) {
 		st_term_rip3_poll(session->rip3);
-		status = st_cterm_poll(session->cterm);
+		status = st_cterm_poll(st_term_session_cterm(session));
 		if (status != 0 || session->output_error != 0)
 			return status != 0 ? status : session->output_error;
 	}
@@ -1245,6 +1258,8 @@ st_term_session_pump(st_term_session_t *session,
 		const struct timespec pause = {.tv_nsec = 10000000L};
 		(void)st_thread_sleep(&pause, NULL);
 	}
+	/* Publish the consumed text batch before local keys/scripts inspect it. */
+	st_term_rip3_flush(session->rip3);
 	while ((status = st_console_event_try(session->config.console,
 	    &event)) == 0) {
 		status = handle_event(session, &event, disposition, finished);

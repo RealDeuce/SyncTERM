@@ -22,6 +22,36 @@
 	} \
 } while (0)
 
+static int check_bitmap_registration(void)
+{
+	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry={.columns=2,.rows=1,.cell_width=8,.cell_height=8};
+	st_console_t *console=NULL;st_font_catalog_t *catalog=NULL;
+	CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&catalog,console)==0);
+	uint8_t bitmap[256*8]={0};bitmap['A'*8]=0x81;bitmap['A'*8+7]=0x18;
+	const struct st_console_font_mapping mapping[]={{'A','A'}};
+	struct st_console_font font={.bitmap=bitmap,.bitmap_size=sizeof(bitmap),.width=8,.height=8,
+	    .glyph_count=256,.row_stride=1,.glyph_stride=8,.mapping=mapping,.mapping_count=1};
+	CHECK(st_font_catalog_load_bitmap(catalog,46,&font,ST_CODEPAGE_CP437)==0);
+	uint16_t identifier,retained;uint8_t selector;
+	CHECK(st_font_catalog_identifier(catalog,46,&identifier));retained=identifier;
+	CHECK(st_font_catalog_selector(catalog,identifier,&selector) && selector==46);
+	font.glyph_count=255;CHECK(st_font_catalog_load_bitmap(catalog,46,&font,ST_CODEPAGE_CP437)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_font_catalog_identifier(catalog,46,&identifier) && identifier==retained);
+	font.glyph_count=256;CHECK(st_font_catalog_load_bitmap(catalog,45,&font,ST_CODEPAGE_CP437)==IO_ERROR_INVALID_ARGUMENT);
+	bitmap['A'*8]=bitmap['A'*8+7]=0; /* Registration owns an independent raster. */
+	const struct st_console_style style={.font=identifier,.foreground=ST_PIXEL_COLOR_RGB_VALUE(255,255,255),
+	    .background=ST_PIXEL_COLOR_RGB_VALUE(0,0,0)};
+	CHECK(st_console_set_style(console,&style)==0 && st_console_write_utf8(console,"A",1)==0);
+	const struct st_console_rect area={0,0,8,8};struct st_pixel_buffer *pixels=NULL;
+	CHECK(st_console_get_pixels(&pixels,console,&area,false)==0);
+	for (unsigned y=0;y<8;y++) for (unsigned x=0;x<8;x++) {
+		bool ink=(y==0 && (x==0 || x==7)) || (y==7 && (x==3 || x==4));
+		CHECK(pixels->primary[y*8+x]==(ST_PIXEL_COLOR_RGB_TAG|(ink ? 0xffffff : 0)));
+	}
+	st_pixel_buffer_destroy(pixels);st_font_catalog_destroy(catalog);st_console_destroy(console);return 0;
+}
+
 static int check_amiga_descenders(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -231,6 +261,7 @@ check_small_font_tofu(uint32_t height)
 int
 st_font_catalog_test_main(void)
 {
+	CHECK(check_bitmap_registration()==0);
 	CHECK(check_amiga_descenders()==0);
 	CHECK(check_mode_change_retained_cells() == 0);
 	CHECK(check_small_font_tofu(8) == 0);

@@ -119,8 +119,14 @@ enum st_screen_mode st_term_profile_screen_mode(const struct st_profile *);
 int st_term_session_create(st_term_session_t **result,
 	const struct st_term_config *config);
 void st_term_session_destroy(st_term_session_t **session);
-/* Borrowed until session destruction; the caller must not write through it. */
+/* Borrowed active parser. Reacquire after remote output can select/redefine a
+ * RIP3 text window; do not cache across pumps. Bracket local writes below. */
 st_cterm_t *st_term_session_cterm(st_term_session_t *session);
+/* Bracket local operations on that borrowed parser (such as script writes).
+ * RIP3 imports/presents its virtual TTY surface; other modes are no-ops.
+ * These are local renderer services, not incoming protocol processing. */
+int st_term_session_begin_local_text(st_term_session_t *session);
+int st_term_session_end_local_text(st_term_session_t *session);
 bool st_term_session_font_selector(const st_term_session_t *session,
 	uint16_t identifier, uint8_t *selector);
 void st_term_session_request_end(st_term_session_t *session, bool exit_app);

@@ -18,6 +18,7 @@ struct st_rip3_rff;
 struct st_rip3_variable_reference;
 struct st_rip3_variable_value;
 struct st_pixel_buffer;
+struct st_rip3_text_window_layout;
 
 struct st_rip3_session_source {
 	void *context;
@@ -34,6 +35,11 @@ struct st_rip3_session_sink {
 	bool (*at_line_start)(void *context);
 	void (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
 	void (*selection_required)(void *context, unsigned group);
+	/* Commit pending ordinary text before changing graphics/window state. */
+	void (*before_command)(void *context);
+	/* Resource/renderer adapter. Prepare before committing a new view; the
+	 * parser consumes failures nonfatally and retains its prior layout/gate. */
+	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical);
 };
 
 struct st_rip3_session_config {

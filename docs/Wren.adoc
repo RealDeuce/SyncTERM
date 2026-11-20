@@ -4241,6 +4241,11 @@ The active terminal's state and local operations. Most state properties are
 read-only. Useful from `Hook.onInput` and `Status.callable` for emulation-aware
 logic. Terminal operations are available in the connected VM.
 
+For RIP3, these properties and local operations address the selected virtual
+text window. Its cursor and dimensions are independent of the main `Screen`
+canvas, which retains the entry's configured video mode. `CTerm.write` and
+`CTerm.reset` present their local changes inside that window.
+
 [options="header",cols="2,3"]
 |===
 | Group | Members

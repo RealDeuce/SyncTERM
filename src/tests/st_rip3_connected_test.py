@@ -27,11 +27,36 @@ def pixel(frame, x, y):
 
 
 def run(args, width, height, advance):
+    script = r'''
+import "syncterm" for CTerm, Conn, Hook, Key
+Hook.onKey(Key.f12) {|event|
+  Conn.sendText("WINDOW:%(CTerm.width):%(CTerm.height):%(CTerm.x):%(CTerm.y)")
+  return true
+}
+Hook.onKey(Key.f11) {|event|
+  CTerm.write("\u001b[1;1H\u001b[97mW")
+  Conn.sendText("LOCAL:%(CTerm.x):%(CTerm.y)")
+  return true
+}
+Hook.onKey(Key.f10) {|event|
+  CTerm.reset()
+  Conn.sendText("RESET:%(CTerm.width):%(CTerm.height):%(CTerm.x):%(CTerm.y)")
+  return true
+}
+Hook.onKey(Key.f9) {|event|
+  Hook.onInput(65) {|scalar|
+    Conn.sendText("INPUT:%(CTerm.x):%(CTerm.y)")
+    return false
+  }
+  Conn.sendText("WATCHING")
+  return true
+}
+'''
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
                     settings=f"CustomColumns={width // 8}\nCustomRows={height // 8}\n"
                              "CustomFontHeight=8\nCustomAspectWidth=4\nCustomAspectHeight=3\n"
-                             "AudioModes=0\n") as (client, root, peer, send):
+                             "AudioModes=0\n", script=script) as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
         for probe in (b"\x1b[!", b"\x1b[0!"):
             send(probe)
@@ -143,6 +168,94 @@ def run(args, width, height, advance):
         frame = client.capture()
         assert pixel(frame, 8, 8) == 0xff5555
         assert frame.application["connected"] == 1
+
+        t.case("rip3-normal-text-window-layout-wrap-and-reactivation")
+        before = frame
+        # Character origin (10,5) scales from reference (80,40) in 640x350.
+        # Font zero cells divide this device into an 80x43 nominal grid.
+        ox, oy = 80 * width // 640, 40 * height // 350
+        cw, ch = width // 80, height // 43
+        frame = t.exchange(b"\r!|w0A050C0700\r\n\x1b[97mABCDEF\x1b[6n", b"\x1b[1;3R")
+        assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (3, 1)
+        assert (frame.metadata["plane_width"], frame.metadata["plane_height"]) == (width, height)
+        assert (frame.metadata["columns"], frame.metadata["rows"]) == (width // 8, height // 8)
+        assert any(pixel(frame, px, py) == 0xffffff
+                   for py in range(oy, oy + ch) for px in range(ox, ox + 3 * cw))
+        assert all(pixel(frame, px, py) == pixel(before, px, py)
+                   for py in range(height) for px in range(width)
+                   if not (ox <= px < ox + 3 * cw and oy <= py < oy + 3 * ch))
+        # SOH introduces RIP without moving the TTY cursor with a leading CR.
+        t.exchange(b"\x01|w0A050C0710\r\n\x1b[6n", b"\x1b[1;3R")
+        frame = t.exchange(b"ZQ\x1b[6n", b"\x1b[2;2R")
+        assert frame.application["cterm.y"] == 2
+        send(b"\x01|w0000000000\r\nIGNORED" + query(b"off"))
+        receive(peer, b"off", root / "replies.bin")
+        frame = t.exchange(b"\x01|w0A050C0710\r\n\x1b[6n", b"\x1b[2;2R")
+        assert frame.application["cterm.x"] == 2 and frame.application["cterm.y"] == 2
+        # Malformed policy retains the live window, cursor and connection.
+        t.exchange(b"\x01|w0A050C0790\r\n\x1b[6n", b"\x1b[2;2R")
+        label = b"\x82" if args.encoding == "CP437" else "é".encode()
+        frame = t.exchange(b"\x1b[3;1H" + label + b"\x1b[6n", b"\x1b[3;2R")
+        assert any(pixel(frame, px, py) == 0xffffff
+                   for py in range(oy + 2 * ch, oy + 3 * ch) for px in range(ox, ox + cw))
+        client.key("f12")
+        receive(peer, b"WINDOW:3:3:2:3", root / "replies.bin")
+        # ANSI-BBS forwards Up as CSI A from the selected virtual TTY.
+        client.key("up")
+        receive(peer, b"\x1b[A", root / "replies.bin")
+        client.key("f11")
+        receive(peer, b"LOCAL:2:1", root / "replies.bin")
+        frame = client.capture()
+        assert any(pixel(frame, px, py) == 0xffffff
+                   for py in range(oy, oy + ch) for px in range(ox, ox + cw))
+        client.key("f10")
+        receive(peer, b"RESET:3:3:1:1", root / "replies.bin")
+        client.key("f9")
+        receive(peer, b"WATCHING", root / "replies.bin")
+        t.exchange(b"\x1b[97mA", b"INPUT:1:1")
+        t.case("rip3-normal-text-window-scroll-is-clipped")
+        before = client.capture()
+        frame = t.exchange(b"\x1b[41m\x1b[2J\x1b[H\x1b[42m\x1b[2K\r\n"
+                           b"\x1b[44m\x1b[2K\r\n\x1b[45m\x1b[2K\r\n\x1b[6n",
+                           b"\x1b[3;1R")
+        # The first row scrolls away; only this 3x3 window can move/clear.
+        # ANSI's default VGA DAC channels are A8, independently of RIP's PAL.
+        for row, colour in enumerate((0x0000a8, 0xa800a8, 0xa800a8)):
+            assert all(pixel(frame, px, py) == colour
+                       for py in range(oy + row * ch, oy + (row + 1) * ch)
+                       for px in range(ox, ox + 3 * cw))
+        assert all(pixel(frame, px, py) == pixel(before, px, py)
+                   for py in range(height) for px in range(width)
+                   if not (ox <= px < ox + 3 * cw and oy <= py < oy + 3 * ch))
+        frame = t.exchange(b"\x1b[46m    \x1b[6n", b"\x1b[3;2R")
+        # A fourth space wraps past the bottom right and scrolls again.
+        for row, colour in enumerate((0xa800a8, 0x00a8a8, 0x00a8a8)):
+            assert all(pixel(frame, px, py) == colour
+                       for py in range(oy + row * ch, oy + (row + 1) * ch)
+                       for px in range(ox, ox + 3 * cw))
+        assert all(pixel(frame, px, py) == pixel(before, px, py)
+                   for py in range(height) for px in range(width)
+                   if not (ox <= px < ox + 3 * cw and oy <= py < oy + 3 * ch))
+        # RIP painting under the window survives later boundaries/reactivation;
+        # the ANSI view must import actual artwork instead of replaying old pixels.
+        px, py = ox + cw, oy + ch
+        frame = t.exchange(b"\x01|c0C|X" + mega(px) + mega(py) + b"|!boundary\r\n")
+        assert pixel(frame, px, py) == 0xff5555
+        send(b"\x01|w0000000000\r\n\x01|c0A|X" + mega(px) + mega(py)
+             + b"\r\n" + query(b"off-painted"))
+        receive(peer, b"off-painted", root / "replies.bin")
+        frame = t.exchange(b"\x01|w0A050C0710\r\n")
+        assert pixel(frame, px, py) == 0x55ff55
+        for font, nominal_cols, nominal_rows, ref_cw, ref_ch in (
+                (1, 91, 43, 7, 8), (2, 80, 25, 8, 14),
+                (3, 91, 25, 7, 14), (4, 40, 25, 16, 14)):
+            frame = t.exchange(b"\x01|w0A050C071" + str(font).encode()
+                               + b"\r\n\x1b[97mF\x1b[6n", b"\x1b[1;2R")
+            fx, fy = 10 * ref_cw * width // 640, 5 * ref_ch * height // 350
+            fw, fh = width // nominal_cols, height // nominal_rows
+            assert any(pixel(frame, cx, cy) == 0xffffff
+                       for cy in range(fy, fy + fh) for cx in range(fx, fx + fw))
+            assert (frame.metadata["plane_width"], frame.metadata["plane_height"]) == (width, height)
 
 
 def mega(number):

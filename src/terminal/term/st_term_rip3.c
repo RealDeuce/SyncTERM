@@ -1,6 +1,7 @@
 /* RIP3 transport, display, resource, prompt and mixer integration. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_term_rip3.h"
+#include "st_term_rip3_view.h"
 #include "st_rip3_session.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_features.h"
@@ -23,6 +24,11 @@
 struct st_term_rip3 {
 	struct st_term_config config;
 	st_cterm_t *text;
+	struct st_cterm_config text_config;
+	struct st_term_rip3_view *view;
+	uint8_t tty[4096];
+	size_t tty_length;
+	bool flushing;
 	st_cterm_output_callback_t output;
 	void *output_context;
 	struct st_rip3_session *session;
@@ -44,6 +50,14 @@ struct st_term_rip3 {
 	uint8_t escape[3];
 	size_t escape_length;
 };
+
+static void flush_text(void *context);
+
+st_cterm_t *
+st_term_rip3_text(struct st_term_rip3 *rip)
+{
+	return rip==NULL ? NULL : rip->view==NULL ? rip->text : st_term_rip3_view_text(rip->view);
+}
 
 static void
 diagnostic(void *context, enum st_rip3_command_diagnostic kind)
@@ -139,9 +153,90 @@ static void
 ansi(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 {
 	if (!st_rip3_session_text_active(rip->session)) return;
-	size_t used=0;
-	if (st_cterm_write(rip->text,bytes,length,&used)!=0 || used!=length)
-		diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	for (size_t i=0;i<length;i++) {
+		if (rip->tty_length==sizeof(rip->tty)) flush_text(rip);
+		rip->tty[rip->tty_length++]=bytes[i];
+		/* Streaming hooks can inspect state or suspend after this scalar.
+		 * Keep their per-byte ordering; batch only the hook-free path. */
+		if ((rip->config.input_filter!=NULL && (rip->config.input_filter_active==NULL
+		    || rip->config.input_filter_active(rip->config.input_filter_context)))
+		    || (rip->config.wire_filter!=NULL && (rip->config.wire_filter_active==NULL
+		    || rip->config.wire_filter_active(rip->config.wire_filter_context)))) flush_text(rip);
+	}
+}
+
+static void
+flush_text(void *context)
+{
+	struct st_term_rip3 *rip=context;
+	if (rip->tty_length==0 || rip->flushing) return;
+	rip->flushing=true;size_t length=rip->tty_length,used=0;rip->tty_length=0;
+	int status=rip->view==NULL ? 0 : st_term_rip3_view_begin(rip->view,rip->config.console);
+	if (status==0) status=st_cterm_write(st_term_rip3_text(rip),rip->tty,length,&used);
+	if (rip->view!=NULL && status==0) status=st_term_rip3_view_present(rip->view,rip->config.console,
+	    st_rip3_session_text_active(rip->session));
+	if (status!=0 || used!=length) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	rip->flushing=false;
+}
+
+void
+st_term_rip3_flush(struct st_term_rip3 *rip)
+{
+	if (rip!=NULL) flush_text(rip);
+}
+
+int
+st_term_rip3_begin_local_text(struct st_term_rip3 *rip)
+{
+	if (rip==NULL || rip->flushing) return 0;
+	flush_text(rip);
+	return rip->view==NULL ? 0 : st_term_rip3_view_begin(rip->view,rip->config.console);
+}
+
+int
+st_term_rip3_end_local_text(struct st_term_rip3 *rip)
+{
+	return rip==NULL || rip->view==NULL || rip->flushing ? 0
+	    : st_term_rip3_view_present(rip->view,rip->config.console,st_rip3_session_text_active(rip->session));
+}
+
+static int
+text_window(void *context, const struct st_rip3_text_window_layout *layout, bool identical)
+{
+	struct st_term_rip3 *rip=context;
+	if (identical && rip->view!=NULL) {
+		int status=st_term_rip3_view_begin(rip->view,rip->config.console);
+		return status!=0 ? status : st_cterm_set_text_wrap(st_term_rip3_view_text(rip->view),layout->wrap);
+	}
+	uint32_t width,height;
+	int status=st_console_pixel_size(rip->config.console,&width,&height);
+	struct st_term_rip3_view *view=NULL;
+	if (status==0) status=st_term_rip3_view_create(&view,&rip->text_config,layout,width,height);
+	if (status==0) {
+		st_cterm_set_music_mode(st_term_rip3_view_text(view),st_cterm_music_mode(st_term_rip3_text(rip)));
+		st_cterm_set_doorway_mode(st_term_rip3_view_text(view),st_cterm_doorway_mode(st_term_rip3_text(rip)));
+	}
+	if (status==0) status=st_term_rip3_view_begin(view,rip->config.console);
+	if (status==0) status=st_term_rip3_view_present(view,rip->config.console,true);
+	if (status!=0) {st_term_rip3_view_destroy(view);return status;}
+	st_term_rip3_view_destroy(rip->view);rip->view=view;
+	if (rip->text_config.size_changed!=NULL)
+		rip->text_config.size_changed(rip->text_config.size_context,layout->columns,layout->rows,
+		    layout->columns*layout->cell_width,layout->rows*layout->cell_height);
+	return 0;
+}
+
+static void
+before_command(void *context)
+{
+	struct st_term_rip3 *rip=context;
+	flush_text(rip);
+	int status=rip->view!=NULL && st_rip3_session_text_active(rip->session)
+	    ? st_term_rip3_view_begin(rip->view,rip->config.console) : 0;
+	if (status==0) status=st_cterm_text_boundary(st_term_rip3_text(rip));
+	if (status==0 && rip->view!=NULL && st_rip3_session_text_active(rip->session))
+		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
+	if (status!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 }
 
 static void
@@ -179,8 +274,9 @@ static bool
 line_start(void *context)
 {
 	struct st_term_rip3 *rip=context;
+	flush_text(rip);
 	struct st_cterm_state state;
-	return st_cterm_state(rip->text,&state)==0 && state.x==1;
+	return st_cterm_state(st_term_rip3_text(rip),&state)==0 && state.x==1;
 }
 
 static int
@@ -224,14 +320,23 @@ prompt(struct st_term_rip3 *rip)
 		st_rip3_session_cancel(rip->session);
 }
 
-void
-st_term_rip3_poll(struct st_term_rip3 *rip)
+static void
+process(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
 	(void)cterm_rip_localtime(time(NULL),&rip->local_time);
 	st_rip3_session_process(rip->session,4096);
 	present(rip);prompt(rip);present(rip);
+	if (rip->view!=NULL && st_term_rip3_view_active(rip->view,rip->config.console,
+	    st_rip3_session_text_active(rip->session))!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	if (rip->position==rip->length) rip->position=rip->length=0;
+}
+
+void
+st_term_rip3_poll(struct st_term_rip3 *rip)
+{
+	if (rip==NULL) return;
+	process(rip);flush_text(rip);
 }
 
 bool
@@ -254,13 +359,19 @@ st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length
 	}
 	if (length!=0) memcpy(rip->queue+rip->length,bytes,length);
 	rip->length+=length;
-	st_term_rip3_poll(rip);
+	process(rip);
 }
 
 void
 st_term_rip3_cancel(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
+	flush_text(rip);
+	if (rip->view!=NULL) {
+		(void)st_cterm_finish(st_term_rip3_text(rip));
+		if (st_rip3_session_text_active(rip->session))
+			(void)st_term_rip3_view_present(rip->view,rip->config.console,true);
+	}
 	present(rip);st_rip3_session_cancel(rip->session);
 	rip->position=rip->length=0;
 	if (rip->escape_length!=0) {ansi(rip,rip->escape,rip->escape_length);rip->escape_length=0;}
@@ -278,6 +389,7 @@ st_term_rip3_destroy(struct st_term_rip3 *rip)
 	}
 	st_rip3_session_destroy(rip->session);
 	st_rip3_audio_destroy(rip->audio);
+	st_term_rip3_view_destroy(rip->view);
 	st_rip3_user_variables_destroy(rip->user);
 	st_rip3_variables_destroy(rip->session_values);
 	st_rip3_variables_destroy(rip->persistent_values);
@@ -287,11 +399,13 @@ st_term_rip3_destroy(struct st_term_rip3 *rip)
 
 int
 st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *config,
-    st_cterm_t *ansi, st_cterm_output_callback_t output, void *output_context)
+    st_cterm_t *ansi, const struct st_cterm_config *text_config)
 {
 	struct st_term_rip3 *rip=calloc(1,sizeof(*rip));
 	if (rip==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	rip->config=*config;rip->text=ansi;rip->output=output;rip->output_context=output_context;
+	rip->config=*config;rip->text=ansi;rip->text_config=*text_config;
+	rip->text_config.palette_mapping=NULL;rip->text_config.palette_override=NULL;
+	rip->output=text_config->output;rip->output_context=text_config->output_context;
 	uint32_t width,height;
 	int status=st_console_pixel_size(config->console,&width,&height);
 	if (status!=0) {st_term_rip3_destroy(rip);return status;}
@@ -340,7 +454,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .canvas=width==1024 ? ST_RIP3_CANVAS_1024_768 : width==800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480,
 	    .device_width=width,.device_height=height,
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
-	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic},
+	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
+	        .before_command=before_command,.text_window=text_window},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);
@@ -350,8 +465,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	if (status==0) status=st_rip3_session_damage(rip->session,rip->damage,rip->pixels);
 	/* Start ANSI before the first graphics command; its lazy startup clears
 	 * the text window. It must never clear a subsequently drawn RIP scene. */
-	size_t used;
-	if (status==0) status=st_cterm_write(ansi,"\0",1,&used);
+	if (status==0) status=st_cterm_start_text(ansi);
 	if (status!=0) {st_term_rip3_destroy(rip);return status;}
 	rip->ready=true;*result=rip;return 0;
 }

@@ -15,6 +15,7 @@
 #include "st_builtin_fonts.h"
 #include "st_console.h"
 #include "st_font_catalog.h"
+#include "st_term.h"
 #include "st_emoji_locale.h"
 #include "st_screen_mode.h"
 #include "st_session_history.h"
@@ -1794,7 +1795,12 @@ st_wren_host_from_vm(WrenVM *vm)
 struct st_wren_context *
 st_wren_context_from_vm(WrenVM *vm)
 {
-	return wrenGetUserData(vm);
+	struct st_wren_context *context=wrenGetUserData(vm);
+	/* A connected RIP3 session may select a different virtual ANSI surface.
+	 * Menu/picker contexts deliberately retain their unavailable CTerm. */
+	if (context!=NULL && context->cterm!=NULL && context->session!=NULL)
+		context->cterm=st_term_session_cterm(context->session);
+	return context;
 }
 
 void

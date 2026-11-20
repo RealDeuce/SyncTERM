@@ -58,6 +58,12 @@ int st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector,
 	const char *path);
 int st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
 	uint8_t selector, const char *path, enum st_codepage codepage);
+/* Register a client-owned 256-glyph bitmap without a temporary font file.
+ * The console copies its raster/mappings. Native source dimensions may differ
+ * from the cell; the bitmap renderer supplies its existing cell scaling.
+ * Only custom selectors are replaced; failure preserves their registration. */
+int st_font_catalog_load_bitmap(st_font_catalog_t *catalog, uint8_t selector,
+	const struct st_console_font *font, enum st_codepage codepage);
 /* Shared loader used by hosts that retain their own selector tables. */
 int st_font_catalog_register_custom(st_console_t *console, const char *path,
 	uint16_t *identifier);

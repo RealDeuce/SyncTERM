@@ -31,14 +31,24 @@ including split CR/LF; ordinary text keeps its own line endings. Processing
 failures are diagnosed and discarded inside RIP3, never returned as connection
 errors. Constructor/accessor and transport failures remain distinct.
 
-The documented all-zero `w` tuple now deactivates the default text window on
-connected sessions. It suppresses ordinary text, line feeds and ANSI side
-effects while RIP parsing, identification, graphics and immediate replies stay
-live. Parsing uses the current ENV radix/coordinate width, prevalidates the
-complete tuple and absorbs malformed/unsupported layouts without changing the
-gate. This does not implement nonzero window geometry, reactivation, switching
-or the complete TW table. Native tests cover widths 2–5, both radices and
-error recovery; connected CP437/UTF-8 captures verify the output gate.
+Ordinary `w` definitions now configure the default text window on connected
+sessions: all five MicroANSI font modes, inclusive bounds, device-sized cells,
+independently scaled reference origin, wrap/chop and clipped ANSI scrolling.
+The all-zero tuple deactivates output while RIP parsing, identification,
+graphics and immediate replies stay live. An identical layout retains its
+cursor across wrap changes and deactivation/reactivation. Parsing uses the
+current ENV radix/coordinate width, prevalidates the complete tuple and absorbs
+malformed layouts or renderer failures without disconnecting. Local scripts
+and native key forwarding address the selected virtual TTY; the main canvas
+retains the entry's raster. Native tests cover widths 2–5, both radices, exact
+geometry/ranges and error recovery; CP437/UTF-8 connection captures cover all
+five modes, placement, scrolling, wrap/chop, reactivation and script operations.
+The full TW table, protected entries, switching and extended `b` remain pending.
+Changed definitions currently construct a fresh ANSI parser without clearing
+underlying artwork. Their final ANSI-state/reset contract and the out-of-range
+font-2 placement example are tracked in upstream
+[#100](https://github.com/bbs-land/remote-imaging-protocol/issues/100); those
+details are not claimed compliant.
 
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
@@ -51,7 +61,7 @@ backend in CP437 and UTF-8. It verifies Dixon selection/ink/cursor advance,
 bold's unchanged advance, classic fonts, nonfatal command recovery, long
 command-only CRLF runs without scrolling, isolated identification probes,
 live queries, templates/angles, local continuations, delays, a real prompt,
-offscreen export/load and clipboard paste. Coherent captures retain the entry's
+offscreen export/load, clipboard paste and ordinary text windows. Coherent captures retain the entry's
 grid/raster at all three presets and at 1280x800 and 720x400. Physical audio is
 disabled. Relevant native tests cover device-frame validation, typed tables,
 text, source splitting, damage/copy behavior and constructor failure cleanup
@@ -5671,6 +5681,44 @@ pick lists, playback, button-associated aggregation and application routing rema
 pending. The reference pin, original fonts and RIP1.54 are unchanged. Scoped logs
 are removed; no existing issue is modified, code pushed or PR published.
 Full compliance and connection integration remain in progress.
+
+## Connected ordinary text windows
+
+The default unprotected window now accepts nonzero `w` layouts through the
+normal connection route. A private headless ANSI surface uses the original
+MAF bank, the documented device-cell calculation and absolute reference-origin
+placement. It imports current artwork before text batches and publishes before
+ANSI replies, so capture fences include completed output and scrolling stays
+inside the window. Identical bounds/font retain the parser and cursor; wrap
+changes and all-zero deactivation/reactivation preserve that identity. Invalid
+fields and resource failures retain the prior window and recover inside RIP3.
+No legacy RIP helper is used or changed.
+
+The active parser is reacquired for keys, scripts and native Wren polling.
+Local `CTerm.write`/`reset` publish inside the virtual TTY. Native geometry and
+session tests cover five font modes, exact reference/device placement, nominal
+bounds, both radices, coordinate widths 2–5 and failed definition recovery.
+CP437/UTF-8 TCP fixtures cover all five device rasters, five fonts, chop/wrap,
+explicit and bottom-right scrolling, outside-window pixel preservation,
+cursor/size queries, local writes/reset/input hooks, and artwork surviving
+deactivation/reactivation. Their command-only CRLF and split-CR/LF regressions
+continue to verify that RIP lines do not scroll artwork.
+
+The native Wren fixture now expects the existing baseline-JPEG build option.
+Its legacy scene-stack/ICN transfer test explicitly uses RIP1.54 on a private
+console; it no longer dereferences the deliberately absent legacy engine in a
+connected RIP3 session or changes later fixtures' font geometry. RIP3 block
+transfers/playback remain pending and are not claimed by that legacy coverage.
+Native CMake builds without diagnostics; the changed native tests, Wren suite
+and connected CP437/UTF-8 checks pass. Existing unrelated passing tests are reused.
+The preservation/index guard still matches all 93 frozen files and 41 helpers.
+
+Upstream [#100](https://github.com/bbs-land/remote-imaging-protocol/issues/100)
+tracks normal redefinition's unspecified ANSI-state/clearing boundary and the
+font-2 example outside its declared row range. Existing issues were untouched.
+The ledger records 1076 implemented, 1597 pending, 3976 unreviewed, 1167 context,
+24 excluded and 27 blocked blocks. Full TW tables/protection/switching,
+extended windows and the unresolved redefinition details remain unfinished.
 
 ## Verification and acceptance
 

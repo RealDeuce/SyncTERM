@@ -30,7 +30,12 @@ literal Dixon selection and drawing sequence, bold advance, nonfatal recovery,
 live WORLD/device queries, templates/angles, empty-input continuations, delays,
 offscreen BMP export/load and clipboard paste, repeated paint over ANSI,
 command-only CRLF without scrolling, and default-window deactivation with
-ordinary text/ANSI suppressed while RIP graphics/replies remain live. The
+ordinary text/ANSI suppressed while RIP graphics/replies remain live. Ordinary
+`w` definitions cover all five MAF modes, scaled placement, wrap/chop, clipped
+scrolling, cursor-preserving reactivation, key forwarding and local Wren
+writes/reset/state. Changed-definition ANSI-state semantics remain under
+upstream clarification; full TW tables/protection/switching and extended `b`
+remain pending. The
 entry's grid/raster is retained at
 the three presets and at 1280x800 and 720x400. These tests disable physical
 audio. Full-compliance acceptance and incomplete command families remain open.

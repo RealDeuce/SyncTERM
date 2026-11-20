@@ -3883,8 +3883,14 @@ static bool rip_confirmation_ready(st_console_t *console)
 				return true;
 	return false;
 }
-static int exercise_rip_transfer(st_wren_host_t *host, st_console_t *console)
+static int exercise_rip_transfer(st_wren_host_t *host)
 {
+	/* Legacy RIP reset selects 8x14 cells. Keep its graphics geometry local
+	 * instead of changing the console used by subsequent font/API fixtures. */
+	st_console_t *console=NULL;
+	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry={.columns=80,.rows=25,.cell_width=8,.cell_height=16};
+	CHECK(st_console_create(&console,&display,&geometry)==0);
 	CHECK(setenv("ST_RIP_TEST_PYTHON", ST_RIP_TEST_PYTHON, 1) == 0);
 	const char *cache = ST_WREN_TEST_DIRECTORY "/rip-cache";
 	CHECK(fs_create_directories(cache) == 0);
@@ -3911,7 +3917,9 @@ static int exercise_rip_transfer(st_wren_host_t *host, st_console_t *console)
 		bool binary = st_connection_binary_mode(connection);
 		const struct st_term_config term_config = {.console = console, .connection = connection,
 		    .fonts = fonts, .encoding = mode == 5 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
-		    .codepage = ST_CODEPAGE_CP437, .hide_status = true, .graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
+		    /* This fixture exercises the legacy scene stack and ICN renderer.
+		     * The separate RIP3 owner has its own pending block-mode path. */
+		    .codepage = ST_CODEPAGE_CP437, .hide_status = true, .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		    .rip_directory = cache, .rip_transfer = rip_transfer_request, .rip_transfer_context = &connected,
 		    .wire_filter = auto_transfer_filter, .wire_filter_context = &connected,
 		    .event_hook = rip_transfer_event, .event_hook_context = &connected,
@@ -3992,6 +4000,7 @@ static int exercise_rip_transfer(st_wren_host_t *host, st_console_t *console)
 		CHECK(fs_remove_file(path) == 0);
 	}
 	CHECK(fs_remove_directory(cache) == 0);
+	st_console_destroy(console);
 	return 0;
 }
 #endif
@@ -5998,10 +6007,11 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "var rows = Menu.buildOptions\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
-	    "if (Menu.buildOptions.count != 37 "
+	    "if (Menu.buildOptions.count != 38 "
 	    "|| !options.containsKey(\"DeuceSSH (SSH)\") "
 	    "|| !options.containsKey(\"OpenSSL (TLS, symmetric ciphers)\") "
 	    "|| !options.containsKey(\"Operation Overkill ][ Terminal\") "
+	    "|| !options.containsKey(\"Baseline JPEG support\") "
 	    "|| !options.containsKey(\"X11 Support\") "
 	    "|| !options.containsKey(\"Wayland\") "
 	    "|| !options.containsKey(\"Core Audio\") "
@@ -6036,6 +6046,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		{"Crypto", "Botan 3 (TLS, symmetric ciphers)", strcmp(crypto, "Botan") == 0},
 		{"Crypto", "Encrypted BBS lists", st_list_crypto_encryption_available()},
 		{"Terminal", "Operation Overkill ][ Terminal", true},
+		{"Terminal", "Baseline JPEG support", st_pixel_image_jpeg_supported()},
 		{"Terminal", "JPEG XL support", st_pixel_image_jxl_compiled()},
 		{"Video", "SDL", (console & ST_CONSOLE_BUILD_SDL) != 0},
 		{"Video", "X11 Support", (console & ST_CONSOLE_BUILD_X11) != 0},
@@ -9468,7 +9479,7 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_throttle(host, console) == 0);
 		CHECK(exercise_auto_transfer(host, console) == 0);
 #ifdef ST_RIP_TEST_PYTHON
-		CHECK(exercise_rip_transfer(host, console) == 0);
+		CHECK(exercise_rip_transfer(host) == 0);
 #endif
 #endif
 		CHECK(exercise_connected_sftp(host, console, &selected) == 0);

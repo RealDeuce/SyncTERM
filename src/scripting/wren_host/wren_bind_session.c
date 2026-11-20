@@ -1157,8 +1157,12 @@ fn_cterm_write(WrenVM *vm)
 	}
 	if (!st_wren_text_slot(vm, 1, &bytes, &length))
 		return;
-	status = st_cterm_write_utf8(context->cterm, bytes, (size_t)length,
-	    &consumed);
+	status = context->session==NULL ? 0 : st_term_session_begin_local_text(context->session);
+	if (status==0) {
+		status=st_cterm_write_utf8(context->cterm,bytes,(size_t)length,&consumed);
+		int presented=context->session==NULL ? 0 : st_term_session_end_local_text(context->session);
+		if (status==0) status=presented;
+	}
 	/* Counts describe the normalized C input, not the original Wren String. */
 	if (consumed > (size_t)length || (status == 0 && consumed != (size_t)length)) {
 		st_wren_abort(vm, "CTerm.write returned an invalid native consumed count");
@@ -1179,7 +1183,12 @@ fn_cterm_reset(WrenVM *vm)
 		st_wren_abort(vm, "CTerm.reset requires an active terminal");
 		return;
 	}
-	int status = st_cterm_reset_terminal(context->cterm);
+	int status=context->session==NULL ? 0 : st_term_session_begin_local_text(context->session);
+	if (status==0) {
+		status=st_cterm_reset_terminal(context->cterm);
+		int presented=context->session==NULL ? 0 : st_term_session_end_local_text(context->session);
+		if (status==0) status=presented;
+	}
 	if (status != 0)
 		push_cterm_error(vm, status, CTERM_ERROR_RESET, 0, false);
 	else

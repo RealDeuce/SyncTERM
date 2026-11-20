@@ -18,6 +18,14 @@ struct st_rip3_input;
 struct st_rip3_query;
 struct st_rip3_bitmap_destination;
 struct st_rip3_text_context;
+struct st_rip3_text_window_layout;
+
+struct st_rip3_text_window_host {
+	void *context;
+	/* Prepare/apply one normal window. Status is consumed by the enclosing
+	 * void parser boundary, never returned as a transport/session error. */
+	int (*define)(void *context, const struct st_rip3_text_window_layout *layout);
+};
 
 /* Borrowed UI request, made on the session thread for file/decode failures.
  * name and area live only during show(). Explicit areas are viewport-relative
@@ -50,9 +58,10 @@ struct st_rip3_command_host {
 	const uint64_t *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	struct st_rip3_text_context *text;
-	/* Current text-window output gate. The session owns the default window;
-	 * full text-window definitions/switching remain a separate table milestone. */
+	/* Current text-window output gate. The session owns ordinary w layouts;
+	 * full TW table definitions/protection/switching remain pending. */
 	bool *text_active;
+	const struct st_rip3_text_window_host *text_window;
 };
 
 enum st_rip3_command_diagnostic {
@@ -84,7 +93,7 @@ struct st_rip3_command_sink {
  * 2Y style selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
- * 3D delays, 3e record edits, the all-zero w text-window deactivation tuple,
+ * 3D delays, 3e record edits, ordinary w layouts/wrap/reactivation/deactivation,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.

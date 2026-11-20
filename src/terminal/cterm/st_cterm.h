@@ -287,6 +287,13 @@ int st_cterm_skypix_load_sample(st_cterm_t *terminal, const void *bytes, size_t 
  * and status layout remain unchanged; capture completed history beforehand. */
 int st_cterm_prepare_disconnect(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
+/* Client-side text-window policy, without injecting received ANSI bytes.
+ * Turning wrapping off also clears a deferred right-margin wrap. */
+int st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled);
+/* Start local text rendering without representing a received input byte. */
+int st_cterm_start_text(st_cterm_t *terminal);
+/* Commit pending Unicode text at an external graphics/window boundary. */
+int st_cterm_text_boundary(st_cterm_t *terminal);
 
 /* Resizes the owned console geometry and preserves visible and saved cells. */
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);

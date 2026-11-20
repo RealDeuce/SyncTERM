@@ -16,6 +16,7 @@
 #include "st_rip3_table_host.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_bitmap_error_ui.h"
+#include "st_rip3_text_window.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -38,6 +39,9 @@ struct st_rip3_session {
 	struct st_rip3_user_variables *owned_user;
 	bool ready;
 	bool text_active;
+	bool has_text_window;
+	struct st_rip3_text_window_layout text_window;
+	struct st_rip3_text_window_host window_host;
 	uint64_t revision;
 	struct st_rip3_bitmap_error_ui bitmap_ui;
 	struct st_rip3_bitmap_error_sink bitmap_errors;
@@ -94,6 +98,17 @@ line_start(void *context)
 	return session->text_active && session->sink.at_line_start!=NULL && session->sink.at_line_start(session->sink.context);
 }
 
+static int
+define_text_window(void *context, const struct st_rip3_text_window_layout *layout)
+{
+	struct st_rip3_session *session=context;
+	if (session->sink.text_window==NULL) return IO_ERROR_NOT_SUPPORTED;
+	bool same=session->has_text_window && st_rip3_text_window_same(&session->text_window,layout);
+	int status=session->sink.text_window(session->sink.context,layout,same);
+	if (status==0) {session->text_window=*layout;session->has_text_window=true;session->text_active=true;}
+	return status;
+}
+
 bool
 st_rip3_session_text_active(const struct st_rip3_session *session)
 {
@@ -142,6 +157,7 @@ static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
+	if (session->sink.before_command!=NULL) session->sink.before_command(session->sink.context);
 	const struct st_rip3_command_sink sink={session,diagnose};
 	st_rip3_commands_process(&session->commands,&sink,bytes,length);
 	++session->revision;
@@ -208,6 +224,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
 	session->text_active=true;session->commands.text_active=&session->text_active;
+	session->window_host=(struct st_rip3_text_window_host){session,define_text_window};
+	session->commands.text_window=&session->window_host;
 	session->commands.audio=config->audio;session->commands.resources=config->resources;
 	session->commands.offscreen_pixel_budget=config->offscreen_pixel_budget;session->commands.bitmap_errors=config->bitmap_errors;
 	session->commands.clipboard=&session->clipboard;session->commands.text=&session->text;

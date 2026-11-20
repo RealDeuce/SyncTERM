@@ -2851,6 +2851,31 @@ st_cterm_prepare_disconnect(st_cterm_t *terminal)
 }
 
 int
+st_cterm_text_boundary(st_cterm_t *terminal)
+{
+	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=cterm_text_boundary(terminal);
+	if (status==0 && terminal->status_sub!=NULL) status=cterm_text_boundary(terminal->status_sub);
+	return status;
+}
+
+int
+st_cterm_start_text(st_cterm_t *terminal)
+{
+	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	cterm_start(terminal);return cterm_render_take_error(terminal);
+}
+
+int
+st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled)
+{
+	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (enabled) terminal->extattr|=CTERM_EXTATTR_AUTOWRAP;
+	else {terminal->extattr&=~CTERM_EXTATTR_AUTOWRAP;terminal->last_column_flag&=~CTERM_LCF_SET;}
+	return 0;
+}
+
+int
 st_cterm_reset_terminal(st_cterm_t *terminal)
 {
 	if (terminal != NULL) {
