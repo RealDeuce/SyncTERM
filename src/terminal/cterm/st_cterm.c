@@ -2867,6 +2867,25 @@ st_cterm_start_text(st_cterm_t *terminal)
 }
 
 int
+st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
+{
+	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	cterm_start(terminal);
+	int status=cterm_text_boundary(terminal);
+	if (status!=0) return status;
+	uint32_t columns=(uint32_t)((terminal->extattr&CTERM_EXTATTR_ORIGINMODE)
+	    ? terminal->right_margin-terminal->left_margin+1 : terminal->width);
+	uint32_t rows=(uint32_t)((terminal->extattr&CTERM_EXTATTR_ORIGINMODE)
+	    ? terminal->bottom_margin-terminal->top_margin+1 : terminal->height);
+	if (column>=columns) column=columns-1;
+	if (row>=rows) row=rows-1;
+	cterm_clear_lcf(terminal);++terminal->cursor_position_changes;
+	cterm_render_set_position(terminal,(int)column+1,(int)row+1);
+	cterm_coord_get_xy(terminal,CTERM_COORD_ABSTERM,&terminal->xpos,&terminal->ypos);
+	return cterm_render_take_error(terminal);
+}
+
+int
 st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled)
 {
 	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;

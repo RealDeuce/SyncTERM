@@ -61,6 +61,9 @@ Hook.onKey(Key.f9) {|event|
         for probe in (b"\x1b[!", b"\x1b[0!"):
             send(probe)
             receive(peer, b"RIPSCRIP030001", root / "replies.bin")
+        t.case("rip3-text-cursor-on-entry-grid")
+        t.exchange(b"\x01|g0509\r\n\x1b[6n", b"\x1b[10;6R")
+        t.exchange(b"\x01|H\r\n\x1b[6n", b"\x1b[1;1R")
         t.case(f"rip3-connected-dixon-{width}-{args.encoding}")
         selected = t.exchange(b"!|y00000W0M000000001a1a000000Dixon\r\n")
         assert selected.application["cterm.graphics_mode"] == 2
@@ -256,6 +259,25 @@ Hook.onKey(Key.f9) {|event|
             assert any(pixel(frame, cx, cy) == 0xffffff
                        for cy in range(fy, fy + fh) for cx in range(fx, fx + fw))
             assert (frame.metadata["plane_width"], frame.metadata["plane_height"]) == (width, height)
+
+        t.case("rip3-text-cursor-home-goto-and-recovery")
+        before = t.exchange(b"\x01|w0A050C0710\r\n")
+        frame = t.exchange(b"\x01|g0102\r\n\x1b[6n", b"\x1b[3;2R")
+        assert frame.primary == before.primary
+        frame = t.exchange(b"\x01|H\r\n\x1b[6n", b"\x1b[1;1R")
+        assert frame.primary == before.primary
+        frame = t.exchange(b"\x01|gZZZZ\r\n\x1b[6n", b"\x1b[3;3R")
+        assert frame.primary == before.primary
+        # g has fixed two-digit fields even when XY width is five; base-64
+        # 0l means column 47, which clamps to the window's right edge.
+        t.exchange(b"\x01|J1S|n5|g0l01\r\n\x1b[6n", b"\x1b[2;3R")
+        t.exchange(b"\x01|g??00|g000|H0|J10|n2\r\n\x1b[6n", b"\x1b[2;3R")
+        send(b"\x01|w0000000000|g0000|H\r\n" + query(b"cursor-off"))
+        receive(peer, b"cursor-off", root / "replies.bin")
+        frame = t.exchange(b"\x01|w0A050C0710\r\n\x1b[6n", b"\x1b[2;3R")
+        assert frame.primary == before.primary and frame.application["connected"] == 1
+        # Positioning clears a pending right-margin wrap before the next text.
+        t.exchange(b"\x01|g0200\r\nX\x01|g0001\r\nB\x1b[6n", b"\x1b[2;2R")
 
 
 def mega(number):

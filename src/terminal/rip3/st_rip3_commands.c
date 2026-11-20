@@ -230,6 +230,28 @@ normal_text_window(const struct st_rip3_command_host *host,
 }
 
 static int
+text_cursor(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	uint64_t column=0,row=0;
+	if (command[0]=='H') {
+		if (length!=1) return IO_ERROR_INVALID_FORMAT;
+	}
+	else {
+		/* Unlike w's XY fields, g always has two digits per coordinate. */
+		if (length!=5) return IO_ERROR_INVALID_FORMAT;
+		struct st_rip3_environment environment;unsigned number;
+		int status=st_rip3_command_environment(host,&number,&environment);
+		if (status==0) status=st_rip3_command_field(&column,command+1,2,environment.base_math);
+		if (status==0) status=st_rip3_command_field(&row,command+3,2,environment.base_math);
+		if (status!=0) return status;
+	}
+	if (host->text_window==NULL || host->text_window->position==NULL) return IO_ERROR_NOT_SUPPORTED;
+	*operation=true;
+	return host->text_window->position(host->text_window->context,(uint32_t)column,(uint32_t)row);
+}
+
+static int
 execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
@@ -255,6 +277,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
 	if (command[0]=='w') return normal_text_window(host,command,length,operation);
+	if (command[0]=='g' || command[0]=='H') return text_cursor(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
 		return switch_style(host,command,length,operation,sink);
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)

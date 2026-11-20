@@ -109,6 +109,15 @@ define_text_window(void *context, const struct st_rip3_text_window_layout *layou
 	return status;
 }
 
+static int
+position_text_cursor(void *context, uint32_t column, uint32_t row)
+{
+	struct st_rip3_session *session=context;
+	if (!session->text_active) return 0;
+	return session->sink.text_cursor==NULL ? IO_ERROR_NOT_SUPPORTED
+	    : session->sink.text_cursor(session->sink.context,column,row);
+}
+
 bool
 st_rip3_session_text_active(const struct st_rip3_session *session)
 {
@@ -224,7 +233,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
 	session->text_active=true;session->commands.text_active=&session->text_active;
-	session->window_host=(struct st_rip3_text_window_host){session,define_text_window};
+	session->window_host=(struct st_rip3_text_window_host){session,define_text_window,position_text_cursor};
 	session->commands.text_window=&session->window_host;
 	session->commands.audio=config->audio;session->commands.resources=config->resources;
 	session->commands.offscreen_pixel_budget=config->offscreen_pixel_budget;session->commands.bitmap_errors=config->bitmap_errors;

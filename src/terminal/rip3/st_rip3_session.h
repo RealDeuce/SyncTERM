@@ -40,6 +40,8 @@ struct st_rip3_session_sink {
 	/* Resource/renderer adapter. Prepare before committing a new view; the
 	 * parser consumes failures nonfatally and retains its prior layout/gate. */
 	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical);
+	/* Native text-window cursor movement, without synthesized received bytes. */
+	int (*text_cursor)(void *context, uint32_t column, uint32_t row);
 };
 
 struct st_rip3_session_config {

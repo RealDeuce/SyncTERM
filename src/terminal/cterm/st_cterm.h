@@ -294,6 +294,10 @@ int st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled);
 int st_cterm_start_text(st_cterm_t *terminal);
 /* Commit pending Unicode text at an external graphics/window boundary. */
 int st_cterm_text_boundary(st_cterm_t *terminal);
+/* Zero-based local equivalent of ANSI CUP. Clamp to the current addressing
+ * region (including origin mode), commit Unicode and clear pending wrap.
+ * No received bytes, input hooks or capture events are manufactured. */
+int st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row);
 
 /* Resizes the owned console geometry and preserves visible and saved cells. */
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);

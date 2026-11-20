@@ -35,7 +35,10 @@ ordinary text/ANSI suppressed while RIP graphics/replies remain live. Ordinary
 scrolling, cursor-preserving reactivation, key forwarding and local Wren
 writes/reset/state. Changed-definition ANSI-state semantics remain under
 upstream clarification; full TW tables/protection/switching and extended `b`
-remain pending. The
+remain pending. Wire `g`/`H` address both the entry TTY and positioned windows,
+including fixed-width numeric fields in both radices, native CUP clamping,
+deactivated-window no-ops and nonfatal recovery; cursor-only commands retain
+the artwork. The
 entry's grid/raster is retained at
 the three presets and at 1280x800 and 720x400. These tests disable physical
 audio. Full-compliance acceptance and incomplete command families remain open.

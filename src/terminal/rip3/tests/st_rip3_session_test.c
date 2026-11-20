@@ -28,6 +28,8 @@ struct fixture {
 	bool overflow;
 	unsigned windows;
 	int window_status;
+	unsigned moves, column, row;
+	int move_status;
 	bool identical;
 	struct st_rip3_text_window_layout window;
 };
@@ -277,6 +279,33 @@ window(void *context, const struct st_rip3_text_window_layout *layout, bool iden
 }
 
 static int
+move_cursor(void *context, uint32_t column, uint32_t row)
+{
+	struct fixture *f=context;f->moves++;f->column=column;f->row=row;
+	return f->move_status;
+}
+
+static int
+text_cursor(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_cursor=move_cursor;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(append(&f,"!|g0509|H\r")==0 && pump(&f)==0 && f.moves==2 && f.column==0 && f.row==0);
+	CHECK(append(&f,"!|J1S|n5|g0l0A\r")==0 && pump(&f)==0 && f.moves==3 && f.column==47 && f.row==10);
+	CHECK(append(&f,"!|g??00|g000|H0|g00000\r")==0 && pump(&f)==0 && f.moves==3 && f.errors==4);
+	f.move_status=IO_ERROR_IO;
+	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==4 && f.errors==5
+	    && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
+	CHECK(query(&f,"$RESX$","640")==0);
+	f.move_status=0;
+	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==5 && f.column==0 && f.row==0);
+	CHECK(append(&f,"!|J10|n2|w0000000000|g0102|H\r")==0 && pump(&f)==0 && f.moves==5 && f.errors==5);
+	CHECK(query(&f,"$RESX$","640")==0 && !st_rip3_session_text_active(f.session));
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 normal_window(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -378,6 +407,6 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && normal_window()==0 && text_deactivation()==0 && construction(false)==0 && construction(true)==0);
+	    && normal_window()==0 && text_cursor()==0 && text_deactivation()==0 && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;
 }

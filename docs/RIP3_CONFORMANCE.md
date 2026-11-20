@@ -50,6 +50,17 @@ font-2 placement example are tracked in upstream
 [#100](https://github.com/bbs-land/remote-imaging-protocol/issues/100); those
 details are not claimed compliant.
 
+Wire `g` and `H` now move the active text cursor through a native ANSI service,
+without injecting input bytes. `g` has two-digit fields in the current radix
+regardless of XY width; `H` is argumentless. Both ignore deactivated windows.
+The renderer applies the documented CUP equivalence, including origin-mode
+margins and clamping, and clears pending wrap before later text. Incoming
+validation and renderer failures remain inside RIP3's nonfatal boundary.
+Extended `b` fitting/automatic font choice and conflicting erase/control-variable
+rules are tracked in upstream
+[#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101); the
+ordinary cursor commands do not claim those unresolved macro semantics.
+
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
 playback and deferred queries remain incomplete. The historical milestones below
@@ -5719,6 +5730,37 @@ font-2 example outside its declared row range. Existing issues were untouched.
 The ledger records 1076 implemented, 1597 pending, 3976 unreviewed, 1167 context,
 24 excluded and 27 blocked blocks. Full TW tables/protection/switching,
 extended windows and the unresolved redefinition details remain unfinished.
+
+## Connected text-cursor commands
+
+The separate command dispatcher now decodes wire `g`/`H` and asks the session
+owner to move its active TTY cursor. `g` retains fixed two-digit fields under
+both current radices even when XY width changes to five; `H` does not depend
+on ENV numeric fields. Valid commands on a deactivated window do nothing.
+The native CTerm service starts text rendering, commits pending Unicode,
+clears deferred right-margin wrap and applies CUP's clamp/origin addressing.
+It updates the real console cursor and parser state without manufacturing
+received text, input-hook calls or captures. A positioned window publishes its
+new cursor through the same connected view adapter. Every incoming command
+and service failure is still consumed at RIP3's void recovery boundary.
+
+Independent native CTerm tests verify startup, oversized coordinates,
+origin-mode margins, no input/capture effects, pending-wrap recovery and the
+later cell contents. Session tests verify literal fields, both radices,
+malformed tuples, inactive no-ops and a renderer failure followed by a valid
+query and command. CP437/UTF-8 TCP tests cover entry-sized and positioned TTYs
+on the existing five rasters, exact cursor replies, unchanged artwork,
+deactivation/reactivation and subsequent text. Native configure/full build
+and the five relevant CTests pass. There are no C compiler diagnostics; make
+reports environmental sub-millisecond clock-skew notices on generated dependency
+files. The preservation guard retains all 93 frozen files and 41 helpers.
+
+New upstream [#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101)
+requests the extended fitting/auto-font/metric/bounding rules and conflicting
+erase-color, activation and cursor-variable contracts. No existing issue was
+modified. The ledger records 1087 implemented, 1597 pending, 3950 unreviewed,
+1167 contextual, 24 excluded and 42 blocked blocks. Extended windows, full TW
+tables and unresolved control-variable behavior remain pending.
 
 ## Verification and acceptance
 

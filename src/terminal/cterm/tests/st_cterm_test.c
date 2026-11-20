@@ -121,6 +121,42 @@ crc16(const void *data, size_t size)
 }
 
 static void
+check_local_text_position(void)
+{
+	st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
+	struct input_filter_state observed={0};struct st_cterm_state state;
+	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry={.columns=4,.rows=3,.cell_width=8,.cell_height=8};
+	CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
+	const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
+	    .encoding=ST_CTERM_ENCODING_CODEPAGE,.codepage=ST_CODEPAGE_CP437,.quiet=true,
+	    .input_filter=filter_input,.input_filter_context=&observed,
+	    .input_filter_active=input_filter_active,.capture=capture_input,.capture_context=&observed};
+	CHECK(st_cterm_create(&terminal,&config)==0);
+	CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0);
+	CHECK(st_cterm_state(terminal,&state)==0 && state.x==4 && state.y==3);
+	CHECK(observed.count==0 && observed.captured_size==0);
+	CHECK(st_cterm_position_text(terminal,0,0)==0 && st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1);
+	const char margins[]="\x1b[2;3r\x1b[?6h";
+	feed(terminal,margins,sizeof(margins)-1);observed.count=0;observed.captured_size=0;
+	CHECK(st_cterm_position_text(terminal,0,0)==0 && st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==2);
+	CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0
+	    && st_cterm_state(terminal,&state)==0 && state.x==4 && state.y==3);
+	CHECK(observed.count==0 && observed.captured_size==0);
+	const char reset[]="\x1b[?6l\x1b[r";feed(terminal,reset,sizeof(reset)-1);
+	CHECK(st_cterm_position_text(terminal,3,0)==0);feed(terminal,"X",1);
+	CHECK(st_cterm_position_text(terminal,0,1)==0);feed(terminal,"B",1);
+	CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==2);
+	struct st_console_cell cell;const struct st_console_rect at={0,1,1,1};
+	char text[2];size_t required;
+	CHECK(st_console_read_cells(console,&at,&cell,1)==0);
+	CHECK(st_console_font_glyph_text(console,cell.glyph_font,cell.glyph,text,sizeof(text),&required)==0
+	    && required==1 && text[0]=='B');
+	CHECK(st_cterm_position_text(NULL,0,0)==IO_ERROR_INVALID_ARGUMENT);
+	st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+}
+
+static void
 test_profile_presentation(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -587,6 +623,7 @@ test_graphics_history(void)
 int
 st_cterm_test_main(void)
 {
+	check_local_text_position();
 	test_graphics_history();
 	test_status_display_routing();
 	test_direct_reset();
