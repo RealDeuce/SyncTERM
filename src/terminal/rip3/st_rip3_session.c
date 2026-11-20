@@ -157,6 +157,20 @@ window_info(void *context, unsigned number, struct st_rip3_text_window_info *res
 }
 
 static int
+window_snapshot(void *context, unsigned number, struct st_rip3_text_window_snapshot *result)
+{
+	struct st_rip3_session *session=context;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (session->sink.text_snapshot==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_text_window_snapshot value;
+	int status=session->sink.text_snapshot(session->sink.context,number,&value);
+	if (status!=0) return status;
+	value.font_known=session->windows[number].has_layout;
+	if (value.font_known) value.layout=session->windows[number].layout;
+	*result=value;return 0;
+}
+
+static int
 protect_window(void *context, unsigned number, bool protect)
 {
 	struct st_rip3_session *session=context;
@@ -423,7 +437,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
-	    .current=current_text_window,.select=select_window,.info=window_info,.protect=protect_window,.activate=activate_text_windows,
+	    .current=current_text_window,.select=select_window,.info=window_info,.snapshot=window_snapshot,
+	    .protect=protect_window,.activate=activate_text_windows,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
 	    .erase_eol=erase_window_lines};
 	session->variables.text_windows=&session->window_operations;

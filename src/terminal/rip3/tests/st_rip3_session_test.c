@@ -36,6 +36,8 @@ struct fixture {
 	bool cursor_visible;
 	unsigned erases;
 	unsigned eol_erases;
+	unsigned observations,observed_window;
+	int observation_status;
 	int erase_status;
 	bool erase_whole;
 	uint32_t erase_rgb;
@@ -409,6 +411,38 @@ window_table(void)
 }
 
 static int
+observe_window(void *context, unsigned number, struct st_rip3_text_window_snapshot *result)
+{
+	struct fixture *f=context;f->observations++;f->observed_window=number;
+	if (f->observation_status!=0) return f->observation_status;
+	*result=(struct st_rip3_text_window_snapshot){.column=7,.row=5,.cursor_visible=true,
+	    .layout={.columns=31,.rows=13,.cell_width=8,.cell_height=8}};
+	return 0;
+}
+
+static int
+window_queries(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_snapshot=observe_window;options.sink.text_window=window;options.sink.text_select=select_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$CURX$:$CURY$:$CURSOR$:$TWW$:$TWH$","7:5:YES:31:13")==0);
+	CHECK(append(&f,"!|1\0330000$TWFONT$\r")==0 && pump(&f)==0 && f.errors==1
+	    && f.kind==ST_RIP3_COMMAND_UNSUPPORTED);
+	CHECK(append(&f,"!|w0A050H0A10\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$TWW$:$TWH$:$TWFONT$:$TWH(CUR,TEXT,WORLD)$","8:6:1:48")==0);
+	CHECK(query(&f,"$CUR(TW,7)$$CUR(TW,0)$$CURX(7)$:$CUR(TW)$","7:0")==0 && f.observed_window==7);
+	unsigned observations=f.observations;
+	CHECK(query(&f,"$DTW(7)$$CURY(7)$:$CURSOR(7)$:$TWX0(7)$","0:NO:-1")==0 && f.observations==observations);
+	CHECK(query(&f,"$ATW(7)$$WORLD(CUR,0,0)$$TWW(7,TEXT,DEVICE)$","64")==0);
+	CHECK(append(&f,"!|1\0330000$TWW(7,TEXT,WORLD)$\r")==0 && pump(&f)==0 && f.errors==2);
+	f.observation_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(append(&f,"!|1\0330000$CURX$\r")==0 && pump(&f)==0 && f.errors==3 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	f.observation_status=0;CHECK(query(&f,"$CURY$alive","5alive")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 show_cursor(void *context, unsigned number, bool visible)
 {
 	(void)number;
@@ -714,7 +748,7 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0 && text_erases()==0 && window_table()==0 && extended_window()==0
+	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0 && text_erases()==0 && window_table()==0 && window_queries()==0 && extended_window()==0
 	    && text_deactivation()==0 && text_activation_variables()==0
 	    && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;

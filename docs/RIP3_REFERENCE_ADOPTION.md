@@ -420,3 +420,33 @@ from the painter. Detailed independent coverage and remaining color-key,
 coordinate-producer and application-integration limits are recorded in
 [`RIP3_CONFORMANCE.md`](RIP3_CONFORMANCE.md#load_bitmap-post-draw-duplication-and-wallpaper-reconciliation).
 The reference pin and recorded document/research identities are unchanged.
+
+## ANSI-only character-set update from PR #107
+
+The reviewed fork stable revision is
+[`ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f`](https://github.com/RealDeuce/remote-imaging-protocol/tree/ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f),
+including open PR [#107](https://github.com/bbs-land/remote-imaging-protocol/pull/107)
+head `16164ae796c6d81da4e7488b0d47900dd7c59461`, specification commit `563ee596`.
+Archive SHA-256: `2be54ba1d4d3f1524084cccfa707309364b034f7145fbdb53606a27ec0deb931`.
+
+Review covers both changed normative documents and the new read-only original
+byte/handler derivation. The inventory remains 68 documents, now 7971 blocks:
+7907 exact source/heading matches retain their evidence, 170 references move,
+and 64 new units are reviewed separately. All 48 previous derivation hashes are
+unchanged; the #104 derivation becomes the 49th. B104 is resolved as documentation,
+with runtime acceptance pending. CSI s/u saved coordinates and ESC7/8 full-TW
+snapshots are distinct, reopening the earlier shared saved-cursor claim. Existing
+successful native ESC8-home tests do not prove the corrected contract.
+
+The user's explicit no-VT-102-mode constraint takes precedence over this PR.
+Only applicable ANSI designation/byte/state behavior is in scope; VT-only
+mapping tables and vectors are excluded. No mode, selector or keymap is added.
+The ANSI-only interpretation, exclusion reasons and adoption provenance are in
+the ledger. #105 outer reset and #106 selection remain separate; the new #108
+geometry-query conflict is filed against the parent without modifying old issues.
+
+Native Release CMake build and affected query/slot tests pass. Reference-adoption
+and source-freeze guards pass; strict reindexing retains the edited ledger
+byte-for-byte. No original driver/probe/UI is executed. The owned archive,
+extraction and logs are removed. No code is pushed or PR published, and RIP1.54's
+baseline, sources and historical assets remain unchanged.

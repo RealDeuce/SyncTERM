@@ -14,6 +14,7 @@ struct st_rip3_text_cursor_position {
 };
 
 struct st_rip3_text_window_info { bool defined,protected,active,extended; };
+struct st_rip3_text_window_snapshot;
 
 /* Borrowed single-owner text-window services for host control variables.
  * Numbers are decimal TW slots 0..35. Cursor operations skip undefined/inactive
@@ -27,6 +28,7 @@ struct st_rip3_text_window_operations {
 	int (*current)(void *context, unsigned *number);
 	int (*select)(void *context, unsigned number);
 	int (*info)(void *context, unsigned number, struct st_rip3_text_window_info *result);
+	int (*snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
 	int (*protect)(void *context, unsigned number, bool protect);
 	int (*activate)(void *context, const unsigned *numbers, size_t count, bool active);
 	int (*position)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
@@ -51,6 +53,14 @@ struct st_rip3_text_window_layout {
 };
 
 struct st_rip3_text_cell { uint32_t width,height; };
+/* Read-only native observation. Cursor coordinates are one-based within the
+ * full window, independently of ANSI origin/margins. Layout is unclipped.
+ * The client's unredefined startup TTY has no established MicroANSI font. */
+struct st_rip3_text_window_snapshot {
+	struct st_rip3_text_window_layout layout;
+	uint32_t column,row;
+	bool cursor_visible,font_known;
+};
 struct st_rip3_rect;
 
 /* Geometry service below the parser's void recovery boundary. These are

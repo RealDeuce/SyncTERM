@@ -351,6 +351,36 @@ present_window(struct st_term_rip3 *rip, bool active)
 }
 
 static int
+text_snapshot(void *context, unsigned number, struct st_rip3_text_window_snapshot *result)
+{
+	struct st_term_rip3 *rip=context;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	struct st_term_rip3_view *view=rip->windows[number];
+	st_cterm_t *text=view==NULL ? rip->text : st_term_rip3_view_text(view);
+	struct st_cterm_state state;
+	struct st_rip3_text_window_snapshot value={0};
+	int status=st_cterm_state(text,&state);
+	if (status==0) status=st_cterm_get_text_cursor_visible(text,&value.cursor_visible);
+	if (status!=0) return status;
+	value.column=(uint32_t)state.x;value.row=(uint32_t)state.y;
+	const struct st_rip3_text_window_layout *layout=st_term_rip3_view_layout(view);
+	if (layout!=NULL) value.layout=*layout;
+	else {
+		uint32_t columns,rows,cw,ch,x,y;
+		status=st_cterm_size(text,&columns,&rows);
+		if (status==0) status=st_cterm_origin(text,&x,&y);
+		if (status==0) status=st_console_cell_pixel_size(rip->config.console,&cw,&ch);
+		if (status!=0) return status;
+		value.layout=(struct st_rip3_text_window_layout){.x1=columns-1,.y1=rows-1,
+		    .columns=columns,.rows=rows,.cell_width=cw,.cell_height=ch,
+		    .x=(uint64_t)(x-1)*cw,.y=(uint64_t)(y-1)*ch,
+		    .bound_x=(uint64_t)(x-1)*cw,.bound_y=(uint64_t)(y-1)*ch,
+		    .bound_width=(uint64_t)columns*cw,.bound_height=(uint64_t)rows*ch};
+	}
+	*result=value;return 0;
+}
+
+static int
 text_select(void *context, unsigned number, bool first, bool active)
 {
 	struct st_term_rip3 *rip=context;
@@ -779,7 +809,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .device_width=width,.device_height=height,
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
-	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_cursor=text_cursor,
+	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};

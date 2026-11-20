@@ -19,6 +19,7 @@ struct st_rip3_variable_reference;
 struct st_rip3_variable_value;
 struct st_pixel_buffer;
 struct st_rip3_text_window_layout;
+struct st_rip3_text_window_snapshot;
 struct st_rip3_text_cursor_position;
 struct st_rip3_rect;
 
@@ -45,6 +46,8 @@ struct st_rip3_session_sink {
 	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical,
 		uint32_t clear_rgb);
 	int (*text_select)(void *context, unsigned number, bool first, bool active);
+	/* Observe the specified native owner without selecting it or presenting. */
+	int (*text_snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
 	/* Native text-window cursor movement, without synthesized received bytes. */
 	int (*text_cursor)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
 	int (*text_cursor_visible)(void *context, unsigned number, bool visible);

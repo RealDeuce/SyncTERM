@@ -27,7 +27,8 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
 or mode-specific keymap is explicitly outside the user-approved scope, even
 when upstream reference documentation or a PR describes that mode. Applicable
-ANSI charset behavior remains separately tracked under #104.
+ANSI charset behavior is specified by PR #107 and awaits implementation; its
+VT-102-only translation and vectors remain excluded.
 `syncterm_rip3_connected_CP437` and `syncterm_rip3_connected_UTF-8` exercise the
 normal executable over TCP with the control bitmap backend. They cover the
 literal Dixon selection and drawing sequence, bold advance, nonfatal recovery,
@@ -60,7 +61,14 @@ effects, and finite aggregate allocation. Native `cterm_text_window` checks
 independent copied font artwork after source destruction. Full first-use and
 partial-ANSI selection acceptance awaits upstream #106; those unresolved edge
 requests reject nonfatally, retaining the old owner. TW backups/reset, MTW and
-remaining geometry/font queries stay pending.
+`syncterm_rip3_window_query_CP437` and UTF-8 cover cursor/font/geometry readback
+for current and noncurrent slots on three reference rasters and 720x400. Expected
+replies include inactive sentinels, actual established font metrics, explicit
+DEVICE/WORLD bounds, live scaling, unclipped wide origins and unchanged pixels/
+cursor/wrap. Disputed far-edge defaults (#108) and startup-font initialization
+(#105) remain pending alongside MTW and TW backups/reset. PR #107's separate
+CSI saved coordinates and ESC7/8 full-TW snapshot also await implementation;
+older native saved-home checks are historical, not acceptance of that new rule.
 Wire `g`/`H` address both the entry TTY and positioned windows,
 including fixed-width numeric fields in both radices, native CUP clamping,
 deactivated-window no-ops and nonfatal recovery; cursor-only commands retain
@@ -75,7 +83,8 @@ pixels. The native `cterm_text_window` test covers owned parser/tab buffers,
 split CSI and OSC continuation after destroying the prior owner, saved home
 and allocation failures. Optional pending media payloads reject redefinition
 nonfatally; their transfer and G0/G1 character sets remain unfinished. The
-applicable ANSI charset byte contract is requested in upstream #104. CRLF
+applicable ANSI charset byte contract is now supplied by PR #107; implementation
+acceptance is separate. CRLF
 regressions include bottom-row cursors outside column one, positioned windows,
 valid/rejected/empty/continued lines and processing-budget boundaries. The
 entry's grid/raster is retained at

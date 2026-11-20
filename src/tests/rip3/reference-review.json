@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/103",
-  "revision": "ff2043e344e0c0df09d369bea076e781781345f3",
-  "previous_revision": "93fd0c3bfac24fda5e76d20b33d782b27ba89e99",
-  "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
-  "upstream_state_at_adoption": "PR #103 open; reviewed contract consolidated into fork stable, including corrected PR #102 head.",
-  "archive_sha256": "107319bba6b5bb61d767c21596fbe65b95a885c655145b5e3958e114349bc945",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/107",
+  "revision": "ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f",
+  "previous_revision": "ff2043e344e0c0df09d369bea076e781781345f3",
+  "authorization": "User selected fork stable as reference and explicitly forbids adding VT-102 mode regardless of documentation or PR content.",
+  "upstream_state_at_adoption": "PR #107 open/ready, reviewed head consolidated into fork stable.",
+  "archive_sha256": "2be54ba1d4d3f1524084cccfa707309364b034f7145fbdb53606a27ec0deb931",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1268,6 +1268,12 @@
       "path": "version/3.0/research/issue-101-extended-text-window-contract.md",
       "sha256": "467df2fb7f4800f68838082628b3ae839f6856c6f04f421c3322840b17b7e8b9",
       "role": "Primary source/policy derivation; explicit portable completion rules are distinguished from original implementation observations."
+    },
+    {
+      "path": "version/3.0/research/issue-104-terminal-character-sets.md",
+      "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
+      "title": "Issue #104: Terminal character sets",
+      "role": "Read-only original byte/handler provenance and explicit portable syntax/glyph boundary; VT-102-specific runtime behavior is excluded by user scope."
     }
   ],
   "documents": [
@@ -1373,7 +1379,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "94c413359f6dd8960f84d76078c7238994087596f7f0c0e91e928302e43fb404"
+      "sha256": "74798100e392cc0170b368908f1c147a009a658921b0b1b9741f5a618e87e4db"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1533,7 +1539,7 @@
     },
     {
       "path": "version/baseline/techspecs/ansi-vt-support.md",
-      "sha256": "710e3d120bb6cfb2f8ad4548d720efd7719e8101fa893180ed072d1704f17032"
+      "sha256": "7d63bd77da0bdbcf6bce00f7b684e90b091b9f7d3ad576624a5ec89a8fb06c37"
     },
     {
       "path": "version/glossary.md",
@@ -2720,6 +2726,146 @@
         "implemented": 1157,
         "blocked": 28,
         "excluded": 24
+      }
+    },
+    {
+      "previous_revision": "ff2043e344e0c0df09d369bea076e781781345f3",
+      "revision": "ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f",
+      "archive_sha256": "2be54ba1d4d3f1524084cccfa707309364b034f7145fbdb53606a27ec0deb931",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/107",
+          "revision": "16164ae796c6d81da4e7488b0d47900dd7c59461"
+        }
+      ],
+      "upstream_state": "PR #107 open/ready, reviewed head consolidated into fork stable.",
+      "authorization": "User selected fork stable as reference and explicitly forbids adding VT-102 mode regardless of documentation or PR content.",
+      "prior_adoption_commit": "1f3b864eb35ef092ef68c4a5219591b2a3f44593",
+      "changed_documents": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+        "version/baseline/techspecs/ansi-vt-support.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 7907,
+      "moved_source_blocks": 170,
+      "new_source_blocks": 64,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:25",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:29",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:31",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:33",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:37",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:39",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:40",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:41",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:42",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:43",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:44",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:45",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:46",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:47",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:48",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:49",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:50",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:51",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:52",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:53",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:54",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:55",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:56",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:57",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:58",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:59",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:60",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:61",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:62",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:63",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:64",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:65",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:66",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:67",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:68",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:69",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:70",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:71",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:72",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:74",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:76",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:80",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:81",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:82",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:83",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:84",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:85",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:86",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:87",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:88",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:89",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:91",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:95",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:97",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:98",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:99",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:100",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:101",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:102",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:103",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:104",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:105",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:107",
+        "version/baseline/techspecs/ansi-vt-support.md:136"
+      ],
+      "reopened_implementation_claims": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:86"
+      ],
+      "removed_implementation_claims": [],
+      "previous_implementation_evidence": [
+        {
+          "heading": "Ordinary Definition State Boundary",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "text": "| Saved ANSI cursor coordinates | Retained | `(0,0)` |\n",
+          "sha256": "cb8f94f65b55beb6e4a46ffdd18a5cfe692310ebea7a86dfc6b0de763673cd13",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/cterm/st_cterm_text_window.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/term/st_term_rip3_view.c"
+          ],
+          "tests": [
+            "cterm_text_window",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:86",
+          "lines": [
+            86,
+            86
+          ],
+          "reason": "Connected changed-window definitions prepare independently owned tab/string buffers and ordinary ANSI ESC/CSI parser state before replacing the prior view. Fresh saved cursor is one-based home; identical definitions retain existing state. Native tests complete literal truecolor sequences at every split after destroying the source, resume OSC strings, check horizontal/vertical/default tabs, saved home, allocation-failure atomicity and safe rejection of optional media payloads. Live CP437/UTF-8 sessions complete a CSI across a changed definition and verify cursor, ink, margins, visibility and tab retention through shrinking/growing windows. UTF-8 presenter state is committed at each RIP boundary as explicit client policy, not a RIPtel contract. Pending optional sixel/macro/music/font payloads reject redefinition nonfatally and retain the prior owner; their transfer is not claimed."
+        }
+      ],
+      "removed_source_block_ids": [],
+      "source_blocks_after_update": 7971,
+      "resolved_documentation_blockers": [
+        104
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-104-terminal-character-sets.md",
+          "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
+          "title": "Issue #104: Terminal character sets",
+          "role": "Read-only original byte/handler provenance and explicit portable syntax/glyph boundary; VT-102-specific runtime behavior is excluded by user scope."
+        }
+      ],
+      "reviewed_change": "ANSI designation recording and literal SI/SO bank glyphs, per-window charset/reset boundaries, and distinct CSI coordinates versus ESC7/8 full-TW snapshot. VT-only mapping and vectors are excluded; no VT mode is added. Metadata-query runtime work is separate.",
+      "states_after_update": {
+        "unreviewed": 3750,
+        "context": 1241,
+        "pending": 1603,
+        "implemented": 1282,
+        "blocked": 28,
+        "excluded": 67
       }
     }
   ],

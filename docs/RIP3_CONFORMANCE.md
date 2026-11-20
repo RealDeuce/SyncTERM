@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-ff2043e344e0c0df09d369bea076e781781345f3](https://github.com/RealDeuce/remote-imaging-protocol/tree/ff2043e344e0c0df09d369bea076e781781345f3/version/3.0)
+ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f](https://github.com/RealDeuce/remote-imaging-protocol/tree/ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -90,9 +90,10 @@ window. Adopted
 [PR #102](https://github.com/bbs-land/remote-imaging-protocol/pull/102) resolves
 the ordinary-state contract and corrects the font-2 placement example.
 Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
-are implemented. Character-set selections await the applicable ANSI byte contract
-requested in [#104](https://github.com/bbs-land/remote-imaging-protocol/issues/104);
-complete terminal-mode reset acceptance remains pending. UTF-8 is a client extension: incomplete decoding is
+are implemented. [PR #107](https://github.com/bbs-land/remote-imaging-protocol/pull/107)
+now supplies the applicable ANSI charset/byte contract; its implementation and
+separate CSI-coordinate versus ESC7/8 full-window saved-state acceptance remain
+pending. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
 Extended `b` now defines the selected connected text window using wide,
@@ -101,12 +102,13 @@ Directional font fitting, automatic font selection, centered display placement,
 minimum one-cell extension, wrap, cursor hiding and immediate deactivation are
 connected. Flag 16 clears the complete bounding rectangle to current palette
 index 0 before deactivation; omission preserves artwork. Every definition resets
-live/saved cursor, rendition, margins and tab stops while retaining unfinished
+live/CSI-saved cursor coordinates, rendition, margins and tab stops while retaining unfinished
 ANSI input and requested cursor visibility. Wholly offscreen windows remain valid;
 over-budget allocations fail nonfatally and retain the old window. TW0 cannot be
 protected, so flag 32 diagnoses that request after completing the definition.
-Nonzero definition protection is connected. Remaining geometry/font metadata
-queries, backups and the character-set reset contract (#104) remain incomplete. The entry's raster and root grid remain unchanged.
+Nonzero definition protection is connected. Known cursor/font/geometry queries
+are connected; ambiguous far-edge defaults (#108), startup font (#105), backups
+and the newly specified ANSI charset/saved-state behavior remain incomplete. The entry's raster and root grid remain unchanged.
 
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
 without injecting input bytes. `g` has two-digit fields in the current radix
@@ -159,6 +161,17 @@ unfinished ANSI syntax; it leaves extended bounding margins intact. Its fully
 validated selector list defaults to current; undefined/deactivated targets do
 nothing. Defined noncurrent and protected target views are connected. Full TW
 backups/reset and remaining geometry/font metadata queries stay pending.
+
+`$CURX$`, `$CURY$` and `$CURSOR$` now observe a defined active target's native
+one-based cursor and requested visibility without selecting or presenting it.
+`$TWFONT$` reports font+1 after a protocol w/b definition. TWW/TWH and
+TWX0/TWX1/TWY0/TWY1 provide stored unclipped bounding/display/cell geometry,
+including wide offscreen origins, explicit DEVICE/WORLD domains and live WORLD
+scaling. Omitted coordinate type returns ordinary cell coordinates or -1 for an
+extended window; graphical far edges are exclusive. Inactive/undefined targets
+use each variable's documented zero/NO/-1 sentinel. Ambiguous far TEXT defaults
+and cell domains reject nonfatally under #108; the unredefined startup TTY does
+not invent a MicroANSI font under #105. These are connected read-only services.
 
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
@@ -216,7 +229,7 @@ unimplemented; the documentation blocker is resolved independently.
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
 provenance, scope and reopened claims. PR #103 further resolves extended-window
 fitting, erase sources, absolute RIP cursor positioning and COFF omission. There
-are now 7907 blocks in 68 normative
+are now 7971 blocks in 68 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -6425,6 +6438,52 @@ The queue is now 1283 implemented, 1585 pending, 3750 unreviewed, 1234 context,
 26 excluded and 29 blocked blocks. The source pin and RIP1.54 freeze remain
 unchanged. Native CMake configure/build and the edited contract check pass;
 previous successful runtime tests are reused for this documentation-only change.
+
+## Connected window metadata and ANSI-only PR #107 adoption
+
+The current/default/noncurrent metadata families now use a read-only native
+snapshot callback. It observes target cursor coordinates and requested visibility
+without selecting a slot, presenting a surface or changing pending wrap. Protocol
+w/b definitions supply established font and unclipped geometry. TWW/TWH support
+cell counts, bounding/display/cell DEVICE sizes and current-WORLD conversion;
+TWX0/TWX1/TWY0/TWY1 return ordinary stored cell coordinates when type is omitted,
+-1 for that extended-window request, and explicit graphical DEVICE/WORLD edges.
+Graphical far edges are exclusive. Division decomposes the integer ratio before
+multiplying, so legal wide offscreen origins do not overflow an intermediate
+pixel-times-WORLD product. Neither graphics PORT clipping nor physical screen
+clipping changes query geometry. Inactive/undefined replies do not call the
+native snapshot service. Syntax/reply/resource failures stay inside RIP3.
+
+[Issue #108](https://github.com/bbs-land/remote-imaging-protocol/issues/108) records
+conflicting omitted-domain and COLS/ROWS grammar. Far-edge explicit TEXT without
+a domain, and its disputed cell-domain forms, remain unsupported/nonfatal.
+Known explicit DEVICE/WORLD forms and ordinary omitted-type coordinates work
+now. TWFONT works after a protocol definition; the client's unredefined startup
+font remains unsupported under #105. MTW and TW backup/copy/reset still need
+implementation. No broader completed-family or full-compliance claim is made.
+
+The fork stable reference advanced to ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f,
+including reviewed PR #107 head 16164ae796c6d81da4e7488b0d47900dd7c59461.
+Its ANSI-only contract resolves B104 as documentation, independently of runtime
+acceptance. All VT-102-only translations/vectors remain excluded by the user's
+scope constraint. The new separate CSI s/u coordinates versus ESC7/8 full-TW
+snapshot contract reopens the earlier saved-cursor claim; old passing native
+ESC8-home fixtures do not establish that new behavior. Original RIP1.54 source,
+assets, expectations and preservation baseline are unchanged.
+
+The native Release CMake configure/build and 12 distinct affected CTests pass,
+including host parsing/session failure recovery, new CP437/UTF-8 TCP query suites,
+the existing connected 36-slot suites, source freeze and reference-adoption
+checks. Literal geometry/cursor/font replies cover three reference rasters and
+the 720x400 MAF fallback, live WORLD changes, zero-WORLD recovery, hidden cursors,
+noncurrent reads, all five defined fonts, inactive sentinels, unchanged pixels/
+cursor/wrap and origins beyond 32 bits. The native vector also checks a ratio
+whose direct intermediate product would exceed 64 bits. Physical audio is off.
+No existing-art corpus replay is performed. Strict reindexing of the downloaded
+reference preserves the edited ledger byte-for-byte. The queue is 1383 implemented,
+1594 pending, 3584 unreviewed, 1307 context, 67 excluded and 36 blocked blocks
+across 7971 units. Owned archive/extraction, issue payload and logs are removed;
+no existing issue is modified and no code is published.
 
 ## Verification and acceptance
 
