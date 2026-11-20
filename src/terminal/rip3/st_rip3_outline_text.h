@@ -85,10 +85,21 @@ int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
  * Device origins, layout baseline/spacing and shadow displacement are not
  * transformed again. The font must be realized for layout.font_orientation.
  * Nonzero interior fill and realized device-space hollow width are selected
- * here. Plain solid/hollow and bold hollow faces are supported. Until their
- * renderers exist, solid BOLD, ITALIC and decorations return NOT_SUPPORTED
- * before allocation/painting rather than omit the selected effect. Parser
- * entry points must absorb all service failures nonfatally. Other validation,
+ * here. The ordinary synthetic-ink profile uses design-space x -= y/4 for
+ * italic, before horizontal face scaling/character rotation/device scaling.
+ * Solid bold expands filled scan spans on both DEVICE X sides by
+ * max(1,ceil(points*X-DPI/1728)); hollow BOLD retains its recovered stamp rule.
+ * Underline/strike are filled per-byte local-baseline bands over the unspaced
+ * declared advance, at floor(U/10) / -floor(U/3), thickness max(1,floor(U/16))
+ * font units, where U is units/em. Blank/damaged present glyphs retain bands;
+ * missing/zero-advance codes have none. Bands follow italic/character geometry,
+ * omit spacing gaps and keep their normal thickness under bold. This profile
+ * does not alter B, layout positions, advances or the logical cursor cache.
+ * Glyph/band coverage is united; both participate in the same device-displaced
+ * shadow. Foreground wins over shadow and W is applied once per covered pixel,
+ * independently of vector pen, border, fill and fill color attributes. This is
+ * a described renderer choice, not a RIPtel pixel oracle. Parser entry points
+ * must absorb all service failures nonfatally. Other validation,
  * atomicity and coverage contracts are those of draw_rff_positioned above. */
 int st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
 	const struct st_rip3_outline_font *font, const struct st_rip3_outline_layout *layout,

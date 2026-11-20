@@ -45,7 +45,8 @@ device-space hollow widths to the positioned renderer. All sixteen rotation
 pairs have coherent native captures on every canvas with isotropic and unequal
 X/Y DPI. Shadow/write-mode scenes use that same production path; hollow bold's
 minimum width, pending-effect rejection and failure atomicity have focused checks.
-Solid bold, italic and decorations remain pending their portable ink contract.
+Solid bold, italic and decorations now have internal implementation/test evidence
+under PR #99's portable renderer-choice contract; connection integration is pending.
 PR #83's signed RFF global-bbox correction is adopted. Realization transforms
 all four corners through face percentage, orientation and device-axis DPI,
 retaining wide y-down edges. Spacing uses their horizontal max-minus-min span.
@@ -176,9 +177,16 @@ five modes, negative bbox spacing and signed baseline displacement. Unequal DPI
 separates vertical layout from cached X width. Native cases also cover shadows,
 RGB ink lookup, NOT without a palette, CP437/UTF-8, blank/clipped text, 700-byte
 width wrapping, owned cache lifecycle, allocation failures and split recovery.
-Plain solid/hollow and bold hollow render; synthetic solid bold/italic/decorations,
-name/text expansion, full reset orchestration and application routing remain
-pending; upstream #97 tracks the portable synthetic-effect/decorations boundary.
+The separate renderer now also implements synthetic solid bold, italic and
+decorations under the adopted PR #99 boundary. Its documented profile shears in
+font coordinates, expands solid scan spans on DEVICE X and uses per-byte local
+baseline bands. These change ink only: metric B, ordinary positions and cached
+cursor widths remain unchanged. Glyph/band coverage shares the device-displaced
+shadow and W operation, independently of vector pen, border and fill attributes.
+Independent internal captures cover 15,360 rotation/DPI/effect/spacing/mode scenes,
+q accumulation through CP437/UTF-8, hollow blank/damaged/missing glyphs and failed
+coverage allocations without partial painting. Name/text expansion, full reset
+orchestration and application routing remain pending.
 These are separate-engine parser/bitmap fixtures, without GUI or native
 font-device coverage.
 RIP3 stream/body tests cover split input, nonfatal recovery and coherent palette/port

@@ -22,6 +22,12 @@ struct outlines {
 	size_t glyph_count;
 };
 
+/* Ordinary-text ink policy. Raw positioned RFF callers leave this absent. */
+struct effects {
+	double bold;
+	uint32_t flags;
+};
+
 static int
 next_glyph(const struct st_rip3_rff *font, const uint8_t *text, size_t index,
     bool kerning, int32_t *advance, int32_t *position,
@@ -296,8 +302,42 @@ fill_span(struct st_rip3_stroke_mask *mask, int32_t y, double left, double right
 }
 
 static int
+build_bands(struct outlines *path, const struct st_rip3_rff *font,
+    const uint8_t *text, size_t length, const struct st_rip3_text_position *positions,
+    const struct st_rip3_rff_text_style *style, unsigned percent, uint32_t flags)
+{
+	if ((flags&12)==0) return 0;
+	if (length>SIZE_MAX/2/sizeof(*path->glyphs)) return IO_ERROR_OUT_OF_RANGE;
+	path->glyphs=calloc(length*2,sizeof(*path->glyphs));
+	if (path->glyphs==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	path->glyph_count=length*2;
+	int thickness=(int)(font->units_per_em/16);
+	if (thickness==0) thickness=1;
+	for (size_t i=0; i<length; i++) {
+		unsigned advance;int status=st_rip3_rff_advance(&advance,font,text[i]);
+		if (status==IO_ERROR_NOT_FOUND) continue;
+		if (status!=0) return status;
+		if (advance==0) continue;
+		for (unsigned band=0; band<2; band++) {
+			if ((flags&(4u<<band))==0) continue;
+			int y=band==0 ? (int)(font->units_per_em/10) : -(int)(font->units_per_em/3);
+			const int x[]={0,(int)advance,(int)advance,0},ys[]={y,y,y+thickness,y+thickness};
+			struct glyph_group *group=&path->glyphs[2*i+band];group->first=path->run_count;
+			for (unsigned corner=0; corner<4; corner++) {
+				struct st_rip3_vector point=transform(&positions[i],style,percent,0,x[corner],ys[corner]);
+				status=corner==0 ? start_run(path,point) : append_point(path,point);
+				if (status!=0) return status;
+			}
+			status=close_run(path);if (status!=0) return status;
+			group->count=path->run_count-group->first;
+		}
+	}
+	return 0;
+}
+
+static int
 fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
-    enum st_rip3_outline_fill_rule rule, struct st_rip3_stroke_mask *result)
+    enum st_rip3_outline_fill_rule rule, double bold, struct st_rip3_stroke_mask *result)
 {
 	struct st_rip3_stroke_mask mask = {0};
 	struct crossing *crossings;
@@ -313,8 +353,8 @@ fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
 		xmin = fmin(xmin, path->vertices[i].x); xmax = fmax(xmax, path->vertices[i].x);
 		ymin = fmin(ymin, path->vertices[i].y); ymax = fmax(ymax, path->vertices[i].y);
 	}
-	left = fmax(0, ceil(xmin - 0.5));
-	right = fmin(info->clip.x1, ceil(xmax - 0.5) - 1);
+	left = fmax(0, ceil(xmin - bold - 0.5));
+	right = fmin(info->clip.x1, ceil(xmax + bold - 0.5) - 1);
 	top = fmax(0, ceil(ymin - 0.5));
 	bottom = fmin(info->clip.y1, ceil(ymax - 0.5) - 1);
 	if (left > right || top > bottom) {
@@ -363,7 +403,7 @@ fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
 				bool inside = rule == ST_RIP3_OUTLINE_NONZERO ? winding != 0 : winding % 2 != 0;
 
 				if (inside)
-					fill_span(&mask, y, crossings[i - 1].x, x);
+					fill_span(&mask, y, crossings[i - 1].x-bold, x+bold);
 				do {
 					winding += crossings[i++].direction;
 				} while (i < count && crossings[i].x == x);
@@ -376,17 +416,63 @@ fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
 }
 
 static int
+unite(struct st_rip3_stroke_mask *ink, struct st_rip3_stroke_mask *bands)
+{
+	if (bands->coverage==NULL) return 0;
+	if (ink->coverage==NULL) {*ink=*bands;*bands=(struct st_rip3_stroke_mask){0};return 0;}
+	struct st_rip3_stroke_mask value={0};
+	value.bounds=(struct st_rip3_rect){
+	    ink->bounds.x0<bands->bounds.x0 ? ink->bounds.x0 : bands->bounds.x0,
+	    ink->bounds.y0<bands->bounds.y0 ? ink->bounds.y0 : bands->bounds.y0,
+	    ink->bounds.x1>bands->bounds.x1 ? ink->bounds.x1 : bands->bounds.x1,
+	    ink->bounds.y1>bands->bounds.y1 ? ink->bounds.y1 : bands->bounds.y1};
+	value.width=(size_t)(value.bounds.x1-value.bounds.x0)+1;
+	value.height=(size_t)(value.bounds.y1-value.bounds.y0)+1;
+	if (value.width>SIZE_MAX/value.height) return IO_ERROR_OUT_OF_RANGE;
+	value.coverage=calloc(value.width*value.height,1);
+	if (value.coverage==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	const struct st_rip3_stroke_mask *sources[]={ink,bands};
+	for (unsigned i=0; i<2; i++) {
+		const struct st_rip3_stroke_mask *source=sources[i];
+		for (size_t y=0; y<source->height; y++) for (size_t x=0; x<source->width; x++) {
+			if (source->coverage[y*source->width+x]!=0)
+				value.coverage[(y+(size_t)(source->bounds.y0-value.bounds.y0))*value.width
+				    +x+(size_t)(source->bounds.x0-value.bounds.x0)]=2;
+		}
+	}
+	st_rip3_stroke_free(ink);*ink=value;return 0;
+}
+
+static int
+collect(struct st_rip3_ports *ports, const struct outlines *path, const struct outlines *bands,
+    const struct st_rip3_port_info *info, const struct st_rip3_rff_text_style *style,
+    bool hollow, double bold, struct st_rip3_stroke_mask *result)
+{
+	struct st_rip3_stroke_mask ink={0},decoration={0};int status=0;
+	if (path->vertex_count!=0)
+		status=hollow ? st_rip3_stroke_vectors(ports,path->vertices,path->vertex_count,
+		    path->runs,path->run_count,style->hollow_thickness,&ink)
+		    : fill_collect(path,info,style->fill_rule,bold,&ink);
+	if (status==0) status=fill_collect(bands,info,ST_RIP3_OUTLINE_NONZERO,0,&decoration);
+	if (status==0) status=unite(&ink,&decoration);
+	st_rip3_stroke_free(&decoration);
+	if (status!=0) st_rip3_stroke_free(&ink);
+	else *result=ink;
+	return status;
+}
+
+static int
 draw(struct st_rip3_ports *ports,
     const struct st_rip3_rff *font, const uint8_t *text, size_t length,
     const struct st_rip3_point *origin, const struct st_rip3_text_position *positions,
-    const struct st_rip3_rff_text_style *style,
+    const struct st_rip3_rff_text_style *style, const struct effects *effects,
     uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_rff checked;
 	struct st_rip3_rff_style face;
 	struct st_rip3_port_info info;
 	struct st_rip3_stroke_mask ink = {0}, shade = {0};
-	struct outlines path = {0};
+	struct outlines path = {0},bands = {0};
 	int32_t advance;
 	unsigned current;
 	int status;
@@ -430,25 +516,24 @@ draw(struct st_rip3_ports *ports,
 		return IO_ERROR_OUT_OF_MEMORY;
 	path.glyph_count = length;
 	status = build(&path, &checked, text, length, origin, positions, style, face.horizontal_percent);
-	if (status != 0 || path.vertex_count == 0)
+	if (status==0 && effects!=NULL)
+		status=build_bands(&bands,&checked,text,length,positions,style,face.horizontal_percent,effects->flags);
+	if (status != 0)
 		goto done;
-	status = face.hollow ? st_rip3_stroke_vectors(ports, path.vertices, path.vertex_count,
-	    path.runs, path.run_count, style->hollow_thickness, &ink)
-	    : fill_collect(&path, &info, style->fill_rule, &ink);
+	double bold=effects==NULL || face.hollow ? 0 : effects->bold;
+	status=collect(ports,&path,&bands,&info,style,face.hollow,bold,&ink);
 	if (status != 0)
 		goto done;
 	if (style->shadow.x != 0 || style->shadow.y != 0) {
-		for (size_t i = 0; i < path.vertex_count; i++) {
-			path.vertices[i].x += style->shadow.x;
-			path.vertices[i].y += style->shadow.y;
-			if (!valid_vector(path.vertices[i])) {
-				status = IO_ERROR_OUT_OF_RANGE;
-				goto done;
+		struct outlines *paths[]={&path,&bands};
+		for (unsigned p=0; p<2; p++) for (size_t i=0; i<paths[p]->vertex_count; i++) {
+			struct st_rip3_vector *point=&paths[p]->vertices[i];
+			point->x+=style->shadow.x;point->y+=style->shadow.y;
+			if (!valid_vector(*point)) {
+				status=IO_ERROR_OUT_OF_RANGE;goto done;
 			}
 		}
-		status = face.hollow ? st_rip3_stroke_vectors(ports, path.vertices, path.vertex_count,
-		    path.runs, path.run_count, style->hollow_thickness, &shade)
-		    : fill_collect(&path, &info, style->fill_rule, &shade);
+		status=collect(ports,&path,&bands,&info,style,face.hollow,bold,&shade);
 		if (status == 0)
 			status = st_rip3_stroke_shadow_apply(ports, &ink, &shade, foreground, background, mode);
 	}
@@ -460,6 +545,7 @@ done:
 	free(path.vertices);
 	free(path.runs);
 	free(path.glyphs);
+	free(bands.vertices);free(bands.runs);free(bands.glyphs);
 	return status;
 }
 
@@ -471,7 +557,7 @@ st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 {
 	if (origin == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	return draw(ports,font,text,length,origin,NULL,style,foreground,background,mode);
+	return draw(ports,font,text,length,origin,NULL,style,NULL,foreground,background,mode);
 }
 
 int
@@ -482,7 +568,7 @@ st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
 {
 	if (positions == NULL && length != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	return draw(ports,font,text,length,NULL,positions,style,foreground,background,mode);
+	return draw(ports,font,text,length,NULL,positions,style,NULL,foreground,background,mode);
 }
 
 int
@@ -500,8 +586,7 @@ st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
 	    || layout->character_turns>3 || layout->font_orientation!=orientation[layout->character_turns]
 	    || font->orientation!=layout->font_orientation)
 		return IO_ERROR_OUT_OF_RANGE;
-	if ((font->flags&14)!=0 || ((font->flags&1)!=0 && !font->style.hollow))
-		return IO_ERROR_NOT_SUPPORTED;
+	if (positions==NULL && length!=0) return IO_ERROR_INVALID_ARGUMENT;
 	unsigned turn=layout->character_turns;
 	struct st_rip3_rff_text_style style={
 	    .face=font->face,
@@ -510,6 +595,12 @@ st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
 	    .shadow=layout->shadow,.fill_rule=ST_RIP3_OUTLINE_NONZERO,
 	    .hollow_thickness=font->hollow_thickness,
 	};
-	return st_rip3_draw_rff_positioned(ports,&font->file,text,length,positions,&style,
+	if ((font->flags&2)!=0) {
+		double shear=font->style.horizontal_percent/400.0;
+		style.xy-=style.xx*shear;style.yy-=style.yx*shear;
+	}
+	const struct effects effects={.flags=font->flags,
+	    .bold=(font->flags&1)!=0 ? fmax(1,ceil((double)font->points*font->dpi_x/1728)) : 0};
+	return draw(ports,&font->file,text,length,NULL,positions,&style,&effects,
 	    foreground,background,mode);
 }

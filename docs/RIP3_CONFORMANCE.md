@@ -5499,6 +5499,62 @@ upstream code or the original client. No existing issue is modified and no code
 is pushed or PR published. RIP1.54 and original font assets remain unchanged.
 Full compliance and connection integration remain in progress.
 
+## Internal synthetic outline effects and decorations
+
+The separate renderer now implements the low four y/q style bits under the
+adopted PR #99 rendering boundary. This is internal implementation and test
+coverage, not a feature available from a connection. The application still uses
+the old RIP3 path. The geometry profile is documented in the public renderer
+header; it is an explicit SyncTERM choice, not a claim of native pixel identity.
+
+Italic shears design coordinates with x := x - y/4 before face percentage,
+independent character rotation and device-axis scaling. Solid bold expands each
+filled scan interval on both DEVICE X sides by max(1,ceil(points*X-DPI/1728)).
+Hollow bold retains its previously adopted device stamp formula. Neither effect
+changes the supplied metric bbox B, logical advances, spacing, justification,
+glyph origins or cached cursor widths. Wider bold ink narrows visual gaps or
+overlaps its neighbor; it does not move that neighbor or add to its advance.
+
+Underline and strike-through are filled per-byte local-baseline bands spanning
+the declared unspaced advance. Their font-unit offsets are floor(U/10) and
+-floor(U/3), with thickness max(1,floor(U/16)), where U is units per em. They follow
+the italic/character geometry, omit spacing gaps and retain their normal thickness
+under bold. Present blank/damaged glyphs retain their bands; missing or zero-advance
+codes do not create a band. Geometry comes from the current font/text, not a stale
+cursor snapshot. No tentative alignment/font field is promoted to a band metric.
+
+Glyphs and bands form union coverage; both have the same final DEVICE-displaced
+shadow. Foreground wins where this profile's foreground and shadow overlap, and
+the selected W operation applies once per covered pixel. Draw/Back colors retain
+their ordinary roles. Decorations do not consume the unrelated vector pen type,
+width or off-draw flag, border mode, fill pattern or Fill Color. All geometry and
+coverage allocations finish before painting; errors remain inside the existing
+void parser boundaries, with the adopted accepted-call cursor/cache effects.
+
+Independent rectangle/parallelogram expectations cover all three canvases,
+sixteen S/R pairs, isotropic/unequal DPI, all sixteen low effect combinations,
+normal/negative bbox spacing and all five W modes: 15,360 coherent command scenes.
+They assert the complete viewport image and cursor state, including clipped and
+overlapping bands, blank glyphs, four shadow quadrants and nondefault unrelated
+vector settings. Additional captures check q's OR accumulation through CP437 and
+UTF-8 accented input. Native renderer cases check hollow italic/bold blank bands,
+missing glyphs, damaged glyph advances and failure at every allocation of a
+combined glyph/band/shadow operation without partial paint. Existing hollow width,
+font, cache, text, cursor and session evidence remains applicable.
+
+Native CMake configure/full build passes without diagnostics. Six of seven
+initially affected CTests pass; the new effect scenes pass, but the old command
+fixture still expects solid bold to be unsupported. That expectation is replaced
+with accepted drawing and unchanged cursor width. The two changed outline suites,
+including allocation and hollow-band cases, pass. After adding accented/q cases,
+only the changed command suite is rebuilt/rerun and passes. Unchanged passing
+checks are reused. Updated ledger consistency passes: 1008 implemented internally,
+1644 pending, 4003 unreviewed, 1163 contextual, 24 excluded and 25 blocked across
+7867 units. These are evidence-review counts, not connection-available features.
+RIP1.54, original font assets, reference pin and application route remain unchanged;
+scoped logs are removed. No issue is modified, code pushed or PR published.
+Full compliance and connection integration remain in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

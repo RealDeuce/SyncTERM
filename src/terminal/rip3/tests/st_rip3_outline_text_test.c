@@ -750,13 +750,14 @@ realized_behavior(void)
 	    &position,10,8,ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_draw_outline_positioned(ports,&font,NULL,(const uint8_t *)"A",1,
 	    &position,10,8,ST_RIP3_COPY) == IO_ERROR_INVALID_ARGUMENT);
-	/* Pending effects may not be silently dropped by the production bridge. */
+	/* Every combined ordinary effect request is accepted by the production
+	 * bridge. Authored command scenes independently check its ink profile. */
 	for (unsigned flags = 1; flags < 16; flags++) {
 		CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,1000,flags,0) == 0);
 		st_rip3_outline_test_allocations=0;
 		CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,
-		    &position,10,8,ST_RIP3_COPY) == IO_ERROR_NOT_SUPPORTED);
-		CHECK(st_rip3_outline_test_allocations == 0);
+		    &position,10,8,ST_RIP3_COPY) == 0);
+		CHECK(st_rip3_outline_test_allocations != 0 && st_rip3_ports_erase(ports,5)==0);
 	}
 	CHECK(unchanged(ports) == 0);
 	font = saved;
@@ -777,6 +778,33 @@ realized_behavior(void)
 		CHECK(st_rip3_ports_read(ports,1,11,7,&value) == 0 && value == (bold ? 10 : 5));
 		CHECK(st_rip3_ports_read(ports,1,12,7,&value) == 0 && value == 5);
 	}
+	/* All allocations for combined effected ink, bands, their union and
+	 * displaced shadows complete before any paint. Exercise each boundary. */
+	word(bytes+44,16);word(bytes+220,16);CHECK(st_rip3_rff_open(&file,bytes,sizeof(bytes))==0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,16,15,0)==0);
+	layout.shadow=(struct st_rip3_point){2,1};
+	CHECK(st_rip3_ports_erase(ports,5)==0);st_rip3_outline_test_allocations=0;
+	CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,&position,10,8,ST_RIP3_COPY)==0);
+	size_t allocations=st_rip3_outline_test_allocations;CHECK(allocations>8);
+	CHECK(st_rip3_ports_erase(ports,5)==0);
+	for (size_t fail=0; fail<allocations; fail++) {
+		st_rip3_outline_test_allocations=0;st_rip3_outline_test_fail_at=fail;
+		CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,&position,10,8,ST_RIP3_COPY)==IO_ERROR_OUT_OF_MEMORY);
+		CHECK(unchanged(ports)==0);
+	}
+	st_rip3_outline_test_fail_at=SIZE_MAX;
+	/* Hollow/italic/bold blank glyph: only solid decoration bands and their
+	 * shadows, with no invented glyph ink or extra bold band thickness. */
+	CHECK(st_rip3_outline_font_bind(&font,&file,1,&frame,16,15,0)==0
+	    && st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"E",1,&hollow_position,10,8,ST_RIP3_XOR)==0);
+	for (int y=0; y<16; y++) for (int x=0; x<32; x++) {
+		bool ink=(x==10 && y==11)||(x==11 && y==5),shade=(x==12 && y==12)||(x==13 && y==6);
+		CHECK(st_rip3_ports_read(ports,1,x,y,&value)==0 && value==(ink ? 15 : shade ? 13 : 5));
+	}
+	CHECK(st_rip3_ports_erase(ports,5)==0 && st_rip3_draw_outline_positioned(ports,&font,&layout,
+	    (const uint8_t *)"@",1,&hollow_position,10,8,ST_RIP3_COPY)==0 && unchanged(ports)==0);
+	CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"D",1,&hollow_position,10,8,ST_RIP3_COPY)==0
+	    && st_rip3_ports_read(ports,1,11,11,&value)==0 && value==10);
 	CHECK(st_rip3_ports_info(ports,1,&info) == 0 && info.cursor.x == -5 && info.cursor.y == 103);
 	st_rip3_ports_destroy(ports);
 	return 0;

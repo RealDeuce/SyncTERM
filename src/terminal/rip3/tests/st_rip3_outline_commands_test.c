@@ -290,6 +290,111 @@ shadows_and_rgb(void)
 }
 
 static int
+profile_quad(double x, double y, const struct st_rip3_point *origin,
+    unsigned rotation, unsigned sy, bool italic, double width, double top, double bottom)
+{
+	/* Authored rectangle/sheared parallelogram, sampled at pixel centers.
+	 * The four quarter-turn equations are independent expected geometry. */
+	double px[4]={0,width,width,0},py[4]={top,top,bottom,bottom};
+	for (unsigned i=0; i<4; i++) {
+		if (italic) px[i]-=py[i]/4;
+		double u=px[i],v=py[i];
+		switch (rotation) {
+			case 0:break;case 1:px[i]=v;py[i]=-u;break;
+			case 2:px[i]=-u;py[i]=-v;break;default:px[i]=-v;py[i]=u;break;
+		}
+		px[i]+=origin->x;py[i]=origin->y+py[i]*sy;
+	}
+	bool inside=false;
+	for (unsigned i=0,j=3; i<4; j=i++) {
+		if ((py[i]>y)!=(py[j]>y) && x<(px[j]-px[i])*(y-py[i])/(py[j]-py[i])+px[i]) inside=!inside;
+	}
+	return inside;
+}
+
+static bool
+profile_ink(double x, double y, const struct st_rip3_point origins[2], unsigned r, unsigned sy, unsigned flags)
+{
+	bool italic=(flags&2)!=0,hit=false;
+	for (int dx=(flags&1)!=0 ? -1 : 0; dx<=((flags&1)!=0 ? 1 : 0); dx++)
+		hit|=profile_quad(x+dx,y,&origins[0],r,sy,italic,3,-4,0)!=0;
+	for (unsigned i=0; i<2; i++) {
+		if ((flags&4)!=0) hit|=profile_quad(x,y,&origins[i],r,sy,italic,i==0 ? 5 : 3,0,1)!=0;
+		if ((flags&8)!=0) hit|=profile_quad(x,y,&origins[i],r,sy,italic,i==0 ? 5 : 3,-2,-1)!=0;
+	}
+	return hit;
+}
+
+static int
+effects(enum st_rip3_canvas canvas)
+{
+	static const int direction[][2]={{1,0},{0,-1},{-1,0},{0,1}};
+	static const uint8_t foreground[]={3,6,7,1,250},background[]={8,13,13,0,250};
+	struct fixture f={0};CHECK(create(&f,canvas)==0);
+	/* Keep the same authored contours/advances, with one font unit per DEVICE
+	 * pixel. U=8 gives one-unit decoration bands at y=0 and y=-2. */
+	word(f.bytes+44,8);word(f.bytes+124,8);CHECK(st_rip3_rff_open(&f.font,f.bytes,sizeof(f.bytes))==0);
+	for (unsigned sy=1; sy<=2; sy++) {
+		struct st_rip3_environment env;CHECK(st_rip3_environments_get(f.host.environments,0,&env)==0);
+		struct st_rip3_frame frame;CHECK(st_rip3_environments_frame(f.host.environments,0,&frame)==0);
+		env.world_height=frame.device_height/sy;CHECK(st_rip3_environments_set(f.host.environments,0,&env)==0);
+		for (unsigned s=0; s<4; s++) for (unsigned r=0; r<4; r++)
+		for (unsigned flags=0; flags<16; flags++) for (unsigned gap=0; gap<2; gap++) for (unsigned mode=0; mode<5; mode++) {
+			unsigned bbox=(r&1)!=0 ? 40 : 30,which=(s+r)%4;
+			int step=(int)(5*((s&1)!=0 ? sy : 1))-(gap!=0 ? (int)(bbox*9/10) : 0);
+			const struct st_rip3_point origins[]={{40,30},{40+direction[s][0]*step,30+direction[s][1]*step}};
+			CHECK(select_font(&f,"Fixture",8,s,r,flags|(gap!=0 ? 0x400 : 0)|(which<<6),gap!=0 ? 10 : 100,0,gap!=0 ? 3 : 0)==0);
+			struct st_rip3_style style;CHECK(st_rip3_styles_get(f.host.styles,3,&style)==0);
+			style.drawing_color=3;style.fill_color=14;style.line_type=4;
+			style.pen.pattern=0xaaaa;style.pen.thickness=9;style.pen.draw_background=true;style.borders=false;
+			CHECK(st_rip3_fill_solid(&style.fill,false)==0);style.write_mode=(enum st_rip3_write_mode)mode;
+			CHECK(st_rip3_styles_protect(f.host.styles,3,false)==0 && st_rip3_styles_set(f.host.styles,3,&style)==0
+			    && st_rip3_styles_protect(f.host.styles,3,true)==0 && st_rip3_ports_erase(f.host.ports,5)==0
+			    && xy(&f,40,30/sy,"A ",-1)==0);
+			struct st_rip3_palette palette;struct st_rip3_bitmap *image=NULL;struct st_rip3_port_info info;
+			CHECK(st_rip3_palettes_get(f.host.palettes,0,&palette)==0 && st_rip3_bitmap_capture(&image,f.host.ports,1,NULL,&palette)==0
+			    && st_rip3_ports_info(f.host.ports,1,&info)==0 && info.cursor.x==45+8-(gap!=0 ? 2*(int)(bbox*9/10) : 0) && info.cursor.y==37);
+			int shadow_x=(which&1)!=0 ? 3 : -3,shadow_y=(which&2)!=0 ? 3 : -3;
+			for (int y=0; y<70; y++) for (int x=0; x<80; x++) {
+				bool hit=profile_ink(x+.5,y+.5,origins,r,sy,flags);
+				bool shade=gap!=0 && profile_ink(x+.5-shadow_x,y+.5-shadow_y,origins,r,sy,flags);
+				uint32_t expected=hit ? foreground[mode] : shade ? background[mode] : 5;
+				if (image->pixels->primary[(size_t)y*80+(size_t)x]!=expected) {
+					fprintf(stderr,"effect scene canvas%u sy%u S%u R%u flags%u gap%u W%u at %d,%d\n",(unsigned)canvas,sy,s,r,flags,gap,mode,x,y);
+					st_rip3_bitmap_destroy(image);destroy(&f);return 1;
+				}
+			}
+			st_rip3_bitmap_destroy(image);
+		}
+	}
+	/* The same accented byte reaches effected drawing through CP437 and
+	 * UTF-8. q accumulates the four low flags before rendering. */
+	struct st_rip3_environment env;struct st_rip3_frame frame;
+	CHECK(st_rip3_environments_get(f.host.environments,0,&env)==0
+	    && st_rip3_environments_frame(f.host.environments,0,&frame)==0);
+	env.world_height=frame.device_height;CHECK(st_rip3_environments_set(f.host.environments,0,&env)==0);
+	for (unsigned utf8=0; utf8<2; utf8++) {
+		CHECK(select_font(&f,"Fixture",8,0,0,0,100,0,0)==0 && st_rip3_styles_protect(f.host.styles,3,false)==0
+		    && process(&f,"q01",-1)==0 && process(&f,"q02",-1)==0 && process(&f,"q04",-1)==0 && process(&f,"q08",-1)==0);
+		struct st_rip3_style style;CHECK(st_rip3_styles_get(f.host.styles,3,&style)==0 && style.outline.flags==15);
+		style.write_mode=ST_RIP3_XOR;CHECK(st_rip3_styles_set(f.host.styles,3,&style)==0
+		    && st_rip3_styles_protect(f.host.styles,3,true)==0 && st_rip3_ports_erase(f.host.ports,5)==0);
+		f.text.encoding=utf8!=0 ? ST_RIP3_TEXT_UTF8 : ST_RIP3_TEXT_CP437;
+		CHECK(xy(&f,40,30,utf8!=0 ? "\xc3\xa9" : "\x82",-1)==0 && cursor(&f,51,37)==0);
+		struct st_rip3_palette palette;struct st_rip3_bitmap *image=NULL;const struct st_rip3_point origin={40,30};
+		CHECK(st_rip3_palettes_get(f.host.palettes,0,&palette)==0 && st_rip3_bitmap_capture(&image,f.host.ports,1,NULL,&palette)==0);
+		for (int y=0; y<70; y++) for (int x=0; x<80; x++) {
+			bool hit=profile_quad(x+.5,y+.5,&origin,0,1,true,6,0,1)!=0
+			    || profile_quad(x+.5,y+.5,&origin,0,1,true,6,-2,-1)!=0;
+			for (int dx=-1; dx<=1; dx++) hit|=profile_quad(x+.5+dx,y+.5,&origin,0,1,true,3,-4,0)!=0;
+			CHECK(image->pixels->primary[(size_t)y*80+(size_t)x]==(hit ? 6u : 5u));
+		}
+		st_rip3_bitmap_destroy(image);
+	}
+	destroy(&f);return 0;
+}
+
+static int
 errors_and_encoding(void)
 {
 	struct fixture f={0};CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0);
@@ -311,8 +416,8 @@ errors_and_encoding(void)
 	st_rip3_outline_test_allocations=0;st_rip3_outline_test_fail_at=0;
 	CHECK(xy(&f,40,30,"A",ST_RIP3_COMMAND_RESOURCE_FAILURE)==0 && cursor(&f,50,37)==0 && capture(&f,origin,0,12,true)==0);
 	st_rip3_outline_test_fail_at=SIZE_MAX;
-	CHECK(select_font(&f,"Fixture",72,0,0,1,100,0,0)==0 && xy(&f,40,30,"A",ST_RIP3_COMMAND_UNSUPPORTED)==0
-	    && cursor(&f,50,37)==0 && capture(&f,origin,0,12,true)==0);
+	CHECK(select_font(&f,"Fixture",72,0,0,1,100,0,0)==0 && xy(&f,40,30,"A",-1)==0
+	    && cursor(&f,50,37)==0 && st_rip3_ports_erase(f.host.ports,85)==0);
 	CHECK(select_font(&f,"Fixture",72,0,0,0,100,0,0)==0);
 	f.bytes[16]=0;
 	CHECK(xy(&f,40,30,"A",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && cursor(&f,50,37)==0);
@@ -337,7 +442,8 @@ int
 main(void)
 {
 	for (unsigned canvas=0; canvas<3; canvas++) {
-		CHECK(matrix((enum st_rip3_canvas)canvas)==0 && lifecycle((enum st_rip3_canvas)canvas)==0);
+		CHECK(matrix((enum st_rip3_canvas)canvas)==0 && lifecycle((enum st_rip3_canvas)canvas)==0
+		    && effects((enum st_rip3_canvas)canvas)==0);
 	}
 	CHECK(anisotropic()==0 && real_faces()==0 && shadows_and_rgb()==0 && errors_and_encoding()==0);return 0;
 }
