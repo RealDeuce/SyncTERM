@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-d046bb4b1f9d066b8534ac9b1369a63abee4563c](https://github.com/RealDeuce/remote-imaging-protocol/tree/d046bb4b1f9d066b8534ac9b1369a63abee4563c/version/3.0)
+b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3](https://github.com/RealDeuce/remote-imaging-protocol/tree/b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -36,9 +36,13 @@ PRs [#92](https://github.com/bbs-land/remote-imaging-protocol/pull/92),
 adopted conditional operand grammar, ordinary outline origin/justification and
 host-response/embedding clipping policies for #90/#91/#93. Their documentation
 answers are adopted independently of remaining implementation acceptance.
+PRs [#98](https://github.com/bbs-land/remote-imaging-protocol/pull/98) and
+[#99](https://github.com/bbs-land/remote-imaging-protocol/pull/99) now resolve the
+outer angle-scanner/branch contract and portable synthetic outline-effect
+boundary for #96/#97. Implementation acceptance remains separate.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7767 blocks in 68 normative
+provenance, scope and reopened claims. There are now 7867 blocks in 68 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -5464,6 +5468,36 @@ Whole-scene reset/header orchestration, other table families and application
 routing remain pending. The reference pin, original assets and RIP1.54 are
 unchanged; no upstream issue is modified and no code is pushed or PR published.
 Scoped logs are removed. Full compliance remains in progress.
+
+## PR98/99 adoption and exact Dixon wire regression
+
+The pinned reference now includes reviewed open PRs #98/#99 as consolidated in
+fork stable. B96/B97 are resolved documentation questions; outer angle-worker
+execution and synthetic outline effects remain pending implementation. The
+adoption record retains the old pin and all earlier reviews, exact reviewed heads,
+archive/document/derivation hashes and source-block movement. The 68 normative
+documents now contain 7867 blocks: 990 implemented internally, 1671 pending,
+4003 unreviewed, 1154 contextual, 24 excluded and 25 blocked. These counts track
+internal implementation evidence; they are not connection-available feature counts.
+
+A new separate-engine session regression consumes the user's exact
+`!|y00000W0M000000001a1a000000Dixon` followed by CRLF. In a fresh interpreter it
+accepts the base-64 y fields while ordinary coordinates remain base 36. Selection
+alone leaves the bitmap blank and cache cold. Subsequent TEXT_XY/TEXT produce
+Dixon ink and cursor updates on all canvases. Independent metrics use the bundled
+Dixon F advance 610/1000 em, 22 points and logical half-up width 268; X-DPI
+truncation gives 13/16/21 device pixels at 640/800/1024 widths. This establishes
+only the internal wire path. A normal connection cannot invoke it while the old
+application route remains active; no connection-visible font feature is claimed.
+
+Native CMake configure/full build passes without diagnostics. The changed session,
+contract and preservation-guard CTests pass (three tests, 0.65 seconds). Earlier
+unchanged rendering and application tests are reused. The ordinary source indexer
+reproduces the adopted document inventory and review blocks. Scoped review inputs
+and build logs are removed; the reference archive is read as data without running
+upstream code or the original client. No existing issue is modified and no code
+is pushed or PR published. RIP1.54 and original font assets remain unchanged.
+Full compliance and connection integration remain in progress.
 
 ## Verification and acceptance
 

@@ -207,7 +207,7 @@ issue thread is modified and no code is published.
 
 ## Conditional, outline-placement and response-limit updates
 
-The current pin is fork stable
+The preceding pin was fork stable
 [`d046bb4b1f9d066b8534ac9b1369a63abee4563c`](https://github.com/RealDeuce/remote-imaging-protocol/tree/d046bb4b1f9d066b8534ac9b1369a63abee4563c).
 It includes reviewed open PR #92 head `63e6e1541de7fe99693efeadcc1e5cb11fd3e801`,
 PR #94 head `74ac57b4e7cbd70519eff5d39f04accd60cc5722` and PR #95 head
@@ -241,6 +241,35 @@ integration. Three focused adoption guards pass; the normal indexer independentl
 reproduces the source blocks/document hashes. Both review archives are processed
 in memory, selected temporary review inputs and build logs are removed, and no
 existing issue receives content. No code is published.
+
+## Outer angle worker and portable outline effects adoption
+
+The current pin is fork stable
+[`b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3`](https://github.com/RealDeuce/remote-imaging-protocol/tree/b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3).
+Reviewed open PR #98 head is `38c0809af6469c0019aafea5b772f644df2b329f`;
+PR #99 head is `b120bfa52e6172f56033fcc187792219e416f15d`. Both are integrated
+in fork stable. Exact archive SHA256 is
+`c913830c6b5944b49f7073cab96b21ad56d43790766aa579a5febc0e1d2d99ba`.
+Five normative documents change within the same 68-document inventory.
+Reindexing retains 7766 exact source/heading/content reviews, moves 488 line
+references and reviews 101 added/replaced blocks, yielding 7867 blocks. No
+implemented source claim is removed. New obligations remain pending their own
+implementation and independent acceptance.
+
+PR #98 specifies exact outer keywords, no implicit trimming, escaped-introducer
+and quote-blind delimiter lookahead, matched conditional boundaries, pure syntax
+validation before provider eligibility, strict IF/ELSEIF/ELSE state and sixteen
+open IF frames. It preserves the distinct operand grammar and eight wrapper
+passes. PR #99 requires bold/italic/decorated output while leaving synthetic
+ink geometry and overlap grouping to a described renderer profile. Metric B,
+logical/cached widths and origins remain independent of effects; Draw Color/W,
+independence from unrelated vector attributes and the effected glyph's displaced
+shadow remain mandatory. No universal native synthetic pixel oracle is invented.
+B96/B97 are resolved as documentation questions; their implementation stays
+pending. Existing issue threads receive no content. The archive is read as data,
+selected review files are removed after indexing, and no upstream code or original
+client/probe is executed. RIP1.54, original fonts and application routing remain
+unchanged.
 
 ## Source and review evidence
 

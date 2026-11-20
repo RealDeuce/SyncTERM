@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/95",
-  "revision": "d046bb4b1f9d066b8534ac9b1369a63abee4563c",
-  "previous_revision": "ab37e09a1d239f21ae5d748c5b6cddbea9522a20",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/99",
+  "revision": "b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3",
+  "previous_revision": "d046bb4b1f9d066b8534ac9b1369a63abee4563c",
   "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
-  "upstream_state_at_adoption": "Three PRs open; reviewed heads integrated in fork stable.",
-  "archive_sha256": "77203e133e339d8f5ff2e8d3fa2a82506d98a77bb0950c5bef0097d353f95f92",
+  "upstream_state_at_adoption": "Both PRs open; reviewed heads integrated into fork stable.",
+  "archive_sha256": "c913830c6b5944b49f7073cab96b21ad56d43790766aa579a5febc0e1d2d99ba",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1249,6 +1249,16 @@
     {
       "path": "version/3.0/research/issue-93-template-embedding-limits.md",
       "sha256": "acf56d18792a8d626ceabdce606d79e1d506b27ca049a2f5d93319578f586114"
+    },
+    {
+      "path": "version/3.0/research/issue-96-angle-worker-boundaries.md",
+      "sha256": "1ac94a1df5f3a89f0a11d7ea1f010802e20918dd67856b830cd77f469e85c4ac",
+      "role": "Primary source/policy derivation; intermediate leads are not independent normative obligations."
+    },
+    {
+      "path": "version/3.0/research/issue-97-outline-effects-boundary.md",
+      "sha256": "b5a0dc45ecfd999783336e5490be1e3617aae4b92f4d2c3c18363b7d762b9a86",
+      "role": "Primary source/policy derivation; intermediate leads are not independent normative obligations."
     }
   ],
   "documents": [
@@ -1374,7 +1384,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "19a1ff00a5777af7bbc39956b33d9db4ec1d7c513ab3bbdc65862c0900542f5a"
+      "sha256": "147a7322ffdd5b26040bbd0cc53c893e8e0f2525202da4304bc6201ddb386798"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1414,7 +1424,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "37fc072c3e2002690200a67db3a1af05ba600ad63fdc74ba57ff08cec5665b5b"
+      "sha256": "38f2c7ff2ff348ef9498714bab6fa2d918eee23120830210fa031ab1d7a31407"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1490,7 +1500,7 @@
     },
     {
       "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
-      "sha256": "2abbebc2e42118e76a60d4f64989d91506e39fdc5d2001db488bdb53aeb64156"
+      "sha256": "96ba6e0ec4de239525ccf3bb2c734e407eb9701dee159b408eabb144336b47f9"
     },
     {
       "path": "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
@@ -1498,7 +1508,7 @@
     },
     {
       "path": "version/3.0/techspecs/3.2-fastfont-additions.md",
-      "sha256": "0dc8746c9bfff3cd78038bde27a127be72edc5ef14a6696687d7cc0397df2990"
+      "sha256": "69af658a898cd9d813c07f261f065a9d615b7e6c5cf0d1ca2b54e40bd3fa9e24"
     },
     {
       "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
@@ -1510,7 +1520,7 @@
     },
     {
       "path": "version/3.0/techspecs/README.md",
-      "sha256": "8c0e044b85fbe177d31f156018003158ae306e593f765acce6f48b1fb19dc011"
+      "sha256": "34940d57a6c17d0a1a8e2b6a8cf79afee5689aa15c359f8cd3a1251763d1bbc8"
     },
     {
       "path": "version/baseline/techspecs/ansi-vt-support.md",
@@ -2156,6 +2166,61 @@
         "B91",
         "B93"
       ]
+    },
+    {
+      "previous_revision": "d046bb4b1f9d066b8534ac9b1369a63abee4563c",
+      "revision": "b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3",
+      "archive_sha256": "c913830c6b5944b49f7073cab96b21ad56d43790766aa579a5febc0e1d2d99ba",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/98",
+          "revision": "38c0809af6469c0019aafea5b772f644df2b329f"
+        },
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/99",
+          "revision": "b120bfa52e6172f56033fcc187792219e416f15d"
+        }
+      ],
+      "upstream_state": "Both PRs open; reviewed heads integrated into fork stable.",
+      "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
+      "prior_adoption_commit": "2c61877d0cd11f4df2a3998cd53210e1377316db",
+      "changed_documents": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+        "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
+        "version/3.0/techspecs/3.2-fastfont-additions.md",
+        "version/3.0/techspecs/README.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 7766,
+      "moved_source_blocks": 488,
+      "new_source_blocks": 101,
+      "removed_implementation_claims": [],
+      "source_blocks_after_update": 7867,
+      "resolved_documentation_blockers": [
+        "B96",
+        "B97"
+      ],
+      "reviewed_change": "PR98 specifies exact outer angle scanning, escape/lookahead gates, pure skipped-header validation and sixteen-frame branch policy. PR99 requires synthetic effects while leaving their ink geometry/grouping to the renderer; adopted metrics, origins, W, attribute independence and effected glyph shadows remain mandatory.",
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-96-angle-worker-boundaries.md",
+          "sha256": "1ac94a1df5f3a89f0a11d7ea1f010802e20918dd67856b830cd77f469e85c4ac"
+        },
+        {
+          "path": "version/3.0/research/issue-97-outline-effects-boundary.md",
+          "sha256": "b5a0dc45ecfd999783336e5490be1e3617aae4b92f4d2c3c18363b7d762b9a86"
+        }
+      ],
+      "states_after_update": {
+        "unreviewed": 4003,
+        "context": 1154,
+        "pending": 1671,
+        "implemented": 990,
+        "blocked": 25,
+        "excluded": 24
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",

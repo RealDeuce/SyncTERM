@@ -159,6 +159,25 @@ graphics(enum st_rip3_canvas canvas, unsigned width, unsigned height)
 }
 
 static int
+literal_dixon(enum st_rip3_canvas canvas, unsigned width, unsigned height, unsigned f_width)
+{
+	struct fixture f={0};const struct st_rip3_session_config options=config(&f,canvas);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(append(&f,"!|y00000W0M000000001a1a000000Dixon\r\n")==0 && pump(&f)==0 && f.errors==0);
+	struct st_rip3_session_capture capture={0};CHECK(st_rip3_session_capture(f.session,&capture)==0 && !capture.outline_cache_valid);
+	for (size_t i=0; i<(size_t)width*height; i++) CHECK(capture.pixels->primary[i]==ST_PIXEL_COLOR_RGB_TAG);
+	st_rip3_session_capture_dispose(&capture);
+	/* y's numeric block is UltraNum even though this fresh interpreter still
+	 * has base-36 drawing coordinates. Dixon F has 610/1000 em advance:
+	 * 22-point logical half-up width 268, then X-DPI truncation 13/16/21. */
+	CHECK(append(&f,"!|@2S2SF|TF\r\n")==0 && pump(&f)==0 && f.errors==0
+	    && st_rip3_session_capture(f.session,&capture)==0 && capture.outline_cache_valid
+	    && capture.cursor_x==(int64_t)(100*width/640+2*f_width) && capture.cursor_y==(int64_t)(100*height/350));
+	bool ink=false;for (size_t i=0; i<(size_t)width*height; i++) ink|=capture.pixels->primary[i]==(ST_PIXEL_COLOR_RGB_TAG|0xffffff);
+	CHECK(ink);st_rip3_session_capture_dispose(&capture);st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 prompts_and_delays(void)
 {
 	struct fixture f={0};const struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -270,6 +289,8 @@ main(void)
 {
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
+	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
+	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0 && construction()==0);
 	CHECK(st_rip3_session_test_live==0);return 0;
 }
