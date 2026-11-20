@@ -20,6 +20,7 @@ struct st_rip3_variable_value;
 struct st_pixel_buffer;
 struct st_rip3_text_window_layout;
 struct st_rip3_text_cursor_position;
+struct st_rip3_rect;
 
 struct st_rip3_session_source {
 	void *context;
@@ -44,6 +45,10 @@ struct st_rip3_session_sink {
 	/* Native text-window cursor movement, without synthesized received bytes. */
 	int (*text_cursor)(void *context, const struct st_rip3_text_cursor_position *position);
 	int (*text_cursor_visible)(void *context, bool visible);
+	/* Paint the native window with untagged RGB. Return the absolute clipped
+	 * DEVICE region for the owner's matching index-plane COPY. Whole erase
+	 * homes the live cursor only; EOL retains it. Empty is 0,0,-1,-1. */
+	int (*text_erase)(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area);
 };
 
 struct st_rip3_session_config {

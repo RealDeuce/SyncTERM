@@ -14,6 +14,8 @@ int st_term_rip3_view_create(struct st_term_rip3_view **result,
 	uint32_t device_width, uint32_t device_height);
 void st_term_rip3_view_destroy(struct st_term_rip3_view *view);
 st_cterm_t *st_term_rip3_view_text(struct st_term_rip3_view *view);
+/* Borrowed immutable geometry, valid until the view is destroyed. */
+const struct st_rip3_text_window_layout *st_term_rip3_view_layout(const struct st_term_rip3_view *view);
 /* Import actual underlying artwork before an ANSI batch (including scrolling),
  * then publish the resulting raster. Factory/render statuses stay below the
  * owning parser's nonfatal command boundary. No physical display is opened. */

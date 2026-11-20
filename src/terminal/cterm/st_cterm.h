@@ -308,6 +308,11 @@ int st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row);
 /* RIP3-only native visibility control. Retain cursor mode/scan lines, ANSI
  * attributes, position and pending wrap; never manufacture received bytes. */
 int st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible);
+/* RIP3-only solid COPY erase with untagged RGB, independent of ANSI origin
+ * and scrolling margins. Whole window homes the live cursor only; EOL erases
+ * cursor-inclusive through the last full-window cell without moving it.
+ * Preserve rendition/modes, saved cursor and requested visibility. */
+int st_cterm_erase_text(st_cterm_t *terminal, bool whole, uint32_t rgb);
 
 /* Resizes the owned console geometry and preserves visible and saved cells. */
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);

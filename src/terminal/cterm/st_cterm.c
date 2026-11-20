@@ -2910,6 +2910,45 @@ st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible)
 }
 
 int
+st_cterm_erase_text(st_cterm_t *terminal, bool whole, uint32_t rgb)
+{
+	if (terminal == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (!terminal->rip3_session_owner)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (rgb > UINT32_C(0xffffff))
+		return IO_ERROR_OUT_OF_RANGE;
+	cterm_start(terminal);
+	int status = cterm_text_boundary(terminal);
+	if (status != 0)
+		return status;
+	struct st_console_rect area = {(uint32_t)(terminal->x - 1), (uint32_t)(terminal->y - 1),
+	    (uint32_t)terminal->width, (uint32_t)terminal->height};
+	if (!whole) {
+		if (terminal->xpos < 1 || terminal->xpos > terminal->width
+		    || terminal->ypos < 1 || terminal->ypos > terminal->height)
+			return IO_ERROR_OUT_OF_RANGE;
+		area.x += (uint32_t)(terminal->xpos - 1);
+		area.y += (uint32_t)(terminal->ypos - 1);
+		area.width -= (uint32_t)(terminal->xpos - 1);
+		area.height = 1;
+	}
+	struct st_console_cell blank;
+	status = cterm_render_make_current_cell(terminal, &blank, ' ', 0);
+	if (status != 0)
+		return status;
+	/* An erase is solid paint even when ANSI underline/inverse is selected.
+	 * The terminal's current rendition and colors remain untouched. */
+	blank.foreground = blank.background = ST_PIXEL_COLOR_RGB_TAG | rgb;
+	blank.flags = 0;
+	blank.hyperlink = 0;
+	status = st_console_fill(terminal->screen.console, &area, &blank);
+	if (status == 0 && whole)
+		status = st_cterm_position_text(terminal, 0, 0);
+	return status != 0 ? status : cterm_render_take_error(terminal);
+}
+
+int
 st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled)
 {
 	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;

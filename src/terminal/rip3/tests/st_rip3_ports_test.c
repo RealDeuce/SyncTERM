@@ -15,6 +15,33 @@
 } while (0)
 
 static int
+screen_fill(void)
+{
+	struct st_rip3_ports *ports=NULL;uint8_t value,damage[12]={0};unsigned current;
+	CHECK(st_rip3_ports_create_device(&ports,4,3)==0);
+	const struct st_rip3_rect bitmap={0,0,1,1},area={-1,1,2,8},reversed={2,1,1,2};
+	CHECK(st_rip3_ports_define(ports,7,&bitmap,true)==0 && st_rip3_ports_switch(ports,7)==0);
+	CHECK(st_rip3_ports_activate(ports,false)==0 && st_rip3_ports_protect(ports,7,true)==0);
+	CHECK(st_rip3_ports_screen_damage(ports,damage,sizeof(damage))==0);
+	CHECK(st_rip3_ports_screen_fill(ports,&area,3)==0);
+	for (int32_t y=0;y<3;y++) for (int32_t x=0;x<4;x++) {
+		CHECK(st_rip3_ports_read(ports,0,x,y,&value)==0 && value==(y>=1 && x<=2 ? 3 : 0));
+		CHECK(damage[y*4+x]==(y>=1 && x<=2 ? 1 : 0));
+	}
+	for (size_t i=0;i<sizeof(damage);i++) damage[i]=0;
+	CHECK(st_rip3_ports_screen_fill(ports,&area,3)==0);
+	for (size_t i=0;i<sizeof(damage);i++) CHECK(damage[i]==(i>=4 && i%4<=2 ? 1 : 0));
+	CHECK(st_rip3_ports_screen_fill(ports,&reversed,9)!=0);
+	CHECK(st_rip3_ports_read(ports,0,1,1,&value)==0 && value==3);
+	CHECK(st_rip3_ports_read(ports,7,0,0,&value)==0 && value==0);
+	struct st_rip3_port_info info;
+	CHECK(st_rip3_ports_current(ports,&current)==0 && current==7 && st_rip3_ports_info(ports,7,&info)==0
+	    && info.protected && !info.viewport_active);
+	CHECK(st_rip3_ports_screen_fill(NULL,&area,0)==IO_ERROR_INVALID_ARGUMENT);
+	st_rip3_ports_destroy(ports);return 0;
+}
+
+static int
 layout(void)
 {
 	struct st_rip3_ports *ports = NULL;
@@ -298,5 +325,6 @@ main(void)
 	CHECK(lifecycle() == 0);
 	CHECK(copies() == 0);
 	CHECK(boundaries() == 0 && install_bitmap() == 0);
+	CHECK(screen_fill()==0);
 	return 0;
 }

@@ -4,6 +4,7 @@
 #include "st_term_rip3_view.h"
 #include "st_rip3_session.h"
 #include "st_rip3_text_window.h"
+#include "st_rip3_surface.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_features.h"
 #include "st_rip3_host_variables.h"
@@ -298,6 +299,50 @@ text_cursor(void *context, const struct st_rip3_text_cursor_position *position)
 }
 
 static int
+text_erase(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area)
+{
+	struct st_term_rip3 *rip=context;
+	/* Commit earlier graphics before importing the ANSI surface. The session
+	 * mirrors this same erase into its index plane after a successful render. */
+	present(rip);
+	int status=text_visibility(rip);
+	if (status==0 && rip->view!=NULL) status=st_term_rip3_view_begin(rip->view,rip->config.console);
+	st_cterm_t *text=st_term_rip3_text(rip);struct st_cterm_state state;
+	uint32_t columns,rows,width,height,cw,ch,origin_x,origin_y;
+	if (status==0) status=st_cterm_state(text,&state);
+	if (status==0) status=st_cterm_size(text,&columns,&rows);
+	if (status==0) status=st_console_pixel_size(rip->config.console,&width,&height);
+	if (status!=0) return status;
+	const struct st_rip3_text_window_layout *layout=st_term_rip3_view_layout(rip->view);
+	if (layout!=NULL) {
+		origin_x=layout->x;origin_y=layout->y;cw=layout->cell_width;ch=layout->cell_height;
+	}
+	else {
+		status=st_console_cell_pixel_size(rip->config.console,&cw,&ch);
+		if (status==0) status=st_cterm_origin(text,&origin_x,&origin_y);
+		if (status!=0) return status;
+		origin_x=(origin_x-1)*cw;origin_y=(origin_y-1)*ch;
+	}
+	uint64_t left=origin_x,top=origin_y;
+	uint64_t right=left+(uint64_t)columns*cw,bottom=top+(uint64_t)rows*ch;
+	if (!whole) {
+		left+=(uint64_t)(state.x-1)*cw;top+=(uint64_t)(state.y-1)*ch;
+		bottom=top+ch;
+	}
+	struct st_rip3_rect clipped={0,0,-1,-1};
+	if (left<width && top<height && right>left && bottom>top) {
+		if (right>width) right=width;
+		if (bottom>height) bottom=height;
+		clipped=(struct st_rip3_rect){(int32_t)left,(int32_t)top,(int32_t)(right-1),(int32_t)(bottom-1)};
+	}
+	status=st_cterm_erase_text(text,whole,rgb);
+	if (status==0 && rip->view!=NULL)
+		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
+	if (status==0) *area=clipped;
+	return status;
+}
+
+static int
 text_cursor_visible(void *context, bool visible)
 {
 	struct st_term_rip3 *rip=context;
@@ -530,7 +575,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
 	        .before_command=before_command,.text_window=text_window,.text_cursor=text_cursor,
-	        .text_cursor_visible=text_cursor_visible},
+	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

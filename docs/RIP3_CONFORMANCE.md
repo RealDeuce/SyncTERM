@@ -117,6 +117,16 @@ undefined nonzero slots and deactivated windows are ignored. These controls are
 callable on connections now; persistent defined noncurrent views and their
 protection/selection lifecycle still require the unfinished TW table.
 
+Wire `e` and `$ETW$` now erase the connected default/current ordinary window to
+current graphics palette index 0 and home its live cursor. Wire `>` erases from
+the cursor cell through the full display row's last cell using STYLE background,
+resolved through ENV color precision/current palette. Both paths apply solid COPY
+to native cells and the matching screen index plane, independent of graphics
+PORT/viewport state, W, fill pattern and ANSI background. They retain terminal
+attributes, origin/margins, visibility and saved cursor. Extended `b` bounding
+margins, defined noncurrent windows and ANSI-background `$TWERASEEOL$` remain
+unfinished; the latter is not an alias of wire `>`.
+
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
 playback and deferred queries remain incomplete. The historical milestones below
@@ -6181,6 +6191,60 @@ are undefined until the complete TW table and owned-view lifecycle are added.
 The queue is 1187 implemented, 1634 pending, 3839 unreviewed, 1195 context,
 24 excluded and 28 blocked. The pin remains ff2043e, existing-art replay stays
 deferred and full reset/header orchestration (#105) remains unresolved.
+
+## Connected graphics-color text-window erasure
+
+Wire e/> and host ETW now execute on connected entry and ordinary positioned
+current/default windows. Whole erase uses index 0 of the current graphics PAL
+and homes only the live cursor, even with zero WORLD or RGB input mode selected.
+Wire > resolves STYLE background through ENV component precision/current PAL,
+erases the cursor-inclusive full display row and retains its cursor/pending wrap.
+ANSI background does not select either paint. RGB resolution uses the existing
+256-index renderer; broader truecolor-surface acceptance remains unfinished.
+
+A narrow absolute screen fill applies COPY to the shared RIP index plane without
+selecting/changing PORT, viewport, protection, fill pattern, write mode, cursor
+or graphics state. It marks damage even for unchanged indexes, so later ANSI ink
+is overwritten by repeated identical erase. The adapter presents preceding
+graphics before importing a native ANSI surface, paints solid RGB blank cells
+without inherited underline/inverse decoration, and returns the same physically
+clipped DEVICE region to the session's backing-plane fill. Whole erasure homes
+via the native full-window cursor service. Native rendition, modes, margins,
+saved cursor and visibility remain untouched. Geometry stays wide until screen
+clipping. Undefined slots and deactivated TTY ignore valid operations; argument
+validation and renderer failures remain within the nonfatal parser boundary.
+
+Independent native tests cover a protected/inactive current offscreen PORT,
+physical clipping, unchanged offscreen pixels/selection, repeated same-index
+damage, distinct palette-0/STYLE paint, ENV precision,
+late selector rejection, missing services and IO/resource failures. CTerm tests
+check literal RGB pixels, no decoration leakage, full versus EOL geometry,
+retained attributes/origin/margins/saved cursor, and pending-wrap behavior in
+both encodings. Connected CP437/UTF-8 fixtures cover all three reference rasters,
+both the entry grid and an ordinary positioned 8×6 window. They distinguish red
+graphics index 0, blue STYLE background and red ANSI background while graphics
+viewport is inactive, W is XOR and fill is empty. Palette edits after erasure
+prove backing indexes changed; repeated paint removes intervening CP437/UTF-8
+ink. Border strips/corners retain independent green artwork. ETW in RGB mode with
+WORLD=0, saved-cursor restore, inactive requests and malformed command recovery
+are checked through one reply-fenced capture per related scene/state. Physical
+audio is disabled and no existing-art corpus is replayed.
+
+One synthetic setup initially supplied four-digit f fields while XY width was
+two. Correct the setup streams to the documented current-width fields without
+changing erase expectations. The 13 affected native/connected CTests pass after
+that correction; only the failed native test and changed connected fixtures
+were rerun. The ledger checker also passes, for 14 affected checks total. Native
+Release CMake configure/full build has no new compiler warnings, and the 93
+frozen RIP1.54 files/41 helper bodies remain unchanged.
+
+Eighteen source metadata/basic-color/gate blocks are accepted and thirteen
+attribution/description blocks classified as context. Complete extended-b
+bounding margins, defined noncurrent TW/protection lifecycle, and the separate
+ANSI-background TWERASEEOL family remain pending; their broad paragraphs are not
+accepted by this milestone. The queue is 1205 implemented, 1632 pending, 3810
+unreviewed, 1208 context, 24 excluded and 28 blocked. The reference remains
+ff2043e and full scene-reset/header orchestration (#105) remains unresolved.
 
 ## Verification and acceptance
 

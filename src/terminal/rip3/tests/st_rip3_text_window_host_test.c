@@ -15,7 +15,7 @@ struct fixture {
 	bool active;
 	int current_status,operation_status;
 	enum st_rip3_host_diagnostic kind;
-	unsigned moves,cursors;
+	unsigned moves,cursors,erases;
 	unsigned x[36],y[36];
 	bool defined[36],enabled[36],visible[36];
 };
@@ -43,6 +43,16 @@ position(void *context, unsigned number, const struct st_rip3_text_cursor_positi
 		if (position->set_column) f->x[number]=position->column>299 ? 299 : (unsigned)position->column;
 		if (position->set_row) f->y[number]=position->row>99 ? 99 : (unsigned)position->row;
 	}
+	return 0;
+}
+
+static int
+erase(void *context, const unsigned *numbers, size_t count)
+{
+	struct fixture *f=context;f->erases++;
+	if (f->operation_status!=0) return f->operation_status;
+	for (size_t i=0;i<count;i++) if (f->defined[numbers[i]] && f->enabled[numbers[i]])
+		f->x[numbers[i]]=f->y[numbers[i]]=0;
 	return 0;
 }
 
@@ -168,5 +178,19 @@ main(void)
 	CHECK(run(&host,&f,"$CON$",ST_RIP3_HOST_OPERATION_FAILED)==0 && f.cursors==5 && !f.visible[0]);
 	f.operation_status=0;
 	CHECK(run(&host,&f,"$CON$",-1)==0 && f.cursors==6 && f.visible[0]);
+	operations.erase=erase;f.x[0]=10;f.y[0]=20;
+	CHECK(run(&host,&f,"$ETW$",-1)==0 && f.erases==1 && f.x[0]==0 && f.y[0]==0);
+	f.x[0]=10;f.y[0]=20;f.x[35]=11;f.y[35]=21;
+	CHECK(run(&host,&f,"$etw( all,cur,0,35,35 )$",-1)==0 && f.erases==2
+	    && f.x[0]==0 && f.y[0]==0 && f.x[35]==0 && f.y[35]==0 && f.x[7]==8 && f.y[7]==9);
+	lookups=f.current_calls;
+	CHECK(run(&host,&f,"$ETW(CUR,36)$",ST_RIP3_HOST_INVALID_REFERENCE)==0 && f.erases==2 && f.current_calls==lookups);
+	CHECK(run(&host,&f,"$ETW(1,7)$",-1)==0 && f.erases==3 && f.x[7]==8 && f.y[7]==9);
+	operations.erase=NULL;
+	CHECK(run(&host,&f,"$ETW$",ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0 && f.erases==3);
+	operations.erase=erase;f.operation_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(run(&host,&f,"$ETW$",ST_RIP3_HOST_RESOURCE_FAILURE)==0 && f.erases==4);
+	f.operation_status=0;
+	CHECK(run(&host,&f,"$ETW(CUR)$",-1)==0 && f.erases==5);
 	return 0;
 }

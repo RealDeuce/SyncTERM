@@ -155,6 +155,8 @@ check_local_text_position(void)
 	CHECK(st_cterm_position_text(NULL,0,0)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_set_text_cursor_visible(NULL,false)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_set_text_cursor_visible(terminal,false)==IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_cterm_erase_text(NULL,true,0)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_erase_text(terminal,true,0)==IO_ERROR_NOT_SUPPORTED);
 	st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
 }
 
@@ -254,6 +256,54 @@ check_rip3_absolute_text_position(void)
 		CHECK(st_cterm_set_text_cursor_visible(terminal,true)==0);
 		CHECK(st_console_get_default_cursor(console,&cursor)==0 && st_console_get_custom_cursor(console,&shown)==0
 		    && shown.visible && shown.start==cursor.start && shown.end==cursor.end);
+		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+	}
+}
+
+static void
+check_rip3_text_erase(void)
+{
+	for (int encoding=ST_CTERM_ENCODING_UTF8;encoding<=ST_CTERM_ENCODING_CODEPAGE;encoding++) {
+		st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
+		const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config geometry={.columns=6,.rows=4,.cell_width=8,.cell_height=8};
+		CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
+		const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
+		    .encoding=encoding,.codepage=ST_CODEPAGE_CP437,.quiet=true,
+		    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true};
+		CHECK(st_cterm_create(&terminal,&config)==0);
+		const char rows[]="\x1b[31;44mABCDEF\x1b[2;1HGHIJKL\x1b[3;1HMNOPQR\x1b[4;1HSTUVWX"
+		    "\x1b[2;3r\x1b[?6h\x1b[2;2H\x1b" "7\x1b[4m";
+		feed(terminal,rows,sizeof(rows)-1);
+		struct st_pixel_buffer *before=NULL,*after=NULL;
+		const struct st_console_rect all={0,0,48,32};
+		CHECK(st_console_get_pixels(&before,console,&all,false)==0);
+		CHECK(st_cterm_erase_text(terminal,false,0x123456)==0);
+		struct st_cterm_state state;
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3 && state.attr==0x14
+		    && state.ext_attr.origin_mode && state.top_margin==2 && state.bottom_margin==3);
+		CHECK(terminal->save_xpos==2 && terminal->save_ypos==2);
+		CHECK(st_console_get_pixels(&after,console,&all,false)==0);
+		for (size_t y=0;y<32;y++) for (size_t x=0;x<48;x++) {
+			uint32_t expected=y>=16 && y<24 && x>=8 ? ST_PIXEL_COLOR_RGB_TAG|0x123456 : before->primary[y*48+x];
+			CHECK(after->primary[y*48+x]==expected);
+		}
+		st_pixel_buffer_destroy(before);st_pixel_buffer_destroy(after);
+		CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && state.attr==0x14
+		    && state.ext_attr.origin_mode && state.top_margin==2 && state.bottom_margin==3);
+		CHECK(st_console_get_pixels(&after,console,&all,false)==0);
+		for (size_t i=0;i<48*32;i++) CHECK(after->primary[i]==(ST_PIXEL_COLOR_RGB_TAG|0xabcdef));
+		st_pixel_buffer_destroy(after);
+		const char restore[]="\x1b" "8";feed(terminal,restore,sizeof(restore)-1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3 && state.attr==0x14);
+		CHECK(st_cterm_erase_text(terminal,true,0x1000000)==IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3);
+		CHECK(st_cterm_position_text(terminal,5,3)==0);feed(terminal,"Z",1);
+		CHECK(st_cterm_erase_text(terminal,false,0x112233)==0);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==6 && state.y==4 && state.last_column_flag.set);
+		CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && !state.last_column_flag.set);
 		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
 	}
 }
@@ -727,6 +777,7 @@ st_cterm_test_main(void)
 {
 	check_local_text_position();
 	check_rip3_absolute_text_position();
+	check_rip3_text_erase();
 	test_graphics_history();
 	test_status_display_routing();
 	test_direct_reset();

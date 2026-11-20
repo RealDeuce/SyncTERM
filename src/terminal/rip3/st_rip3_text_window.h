@@ -26,6 +26,8 @@ struct st_rip3_text_window_operations {
 	int (*activate)(void *context, const unsigned *numbers, size_t count, bool active);
 	int (*position)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
 	int (*cursor)(void *context, const unsigned *numbers, size_t count, bool visible);
+	/* ETW: whole target bounding rectangle, graphics palette index 0. */
+	int (*erase)(void *context, const unsigned *numbers, size_t count);
 };
 
 struct st_rip3_text_window_layout {

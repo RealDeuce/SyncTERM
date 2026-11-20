@@ -671,6 +671,14 @@ st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
 }
 
 int
+st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
+    const struct st_rip3_rect *area, uint8_t color)
+{
+	if (ports==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	return st_rip3_surface_fill(ports->screen,NULL,area,color,ST_RIP3_COPY);
+}
+
+int
 st_rip3_ports_screen_damage(struct st_rip3_ports *ports, uint8_t *damage, size_t length)
 {
 	if (ports==NULL) return IO_ERROR_INVALID_ARGUMENT;

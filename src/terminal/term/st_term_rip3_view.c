@@ -107,6 +107,12 @@ st_term_rip3_view_text(struct st_term_rip3_view *view)
 	return view==NULL ? NULL : view->text;
 }
 
+const struct st_rip3_text_window_layout *
+st_term_rip3_view_layout(const struct st_term_rip3_view *view)
+{
+	return view==NULL ? NULL : &view->layout;
+}
+
 static int
 rgb(struct st_term_rip3_view *view, struct st_pixel_buffer *pixels, st_console_t *console)
 {

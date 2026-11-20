@@ -179,6 +179,11 @@ int st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
 	const struct st_rip3_surface *snapshot);
 int st_rip3_ports_screen_damage(struct st_rip3_ports *ports,
 	uint8_t *damage, size_t length);
+/* Absolute inclusive DEVICE rectangle, clipped only to the physical screen.
+ * COPY independent of current PORT, viewport, activation and protection.
+ * Record damage even when the stored indexes already equal the paint. */
+int st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
+	const struct st_rip3_rect *area, uint8_t color);
 
 /* Backup the device port definitions/current selection and owned offscreen
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore

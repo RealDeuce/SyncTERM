@@ -25,9 +25,12 @@ struct st_rip3_text_window_host {
 	/* Prepare/apply one normal window. Status is consumed by the enclosing
 	 * void parser boundary, never returned as a transport/session error. */
 	int (*define)(void *context, const struct st_rip3_text_window_layout *layout);
-	/* Zero-based g/H position. The owner gates deactivated windows; the
-	 * renderer applies its ANSI cursor-addressing clamp/origin policy. */
+	/* Zero-based full-window g/H position, independent of ANSI origin/margins.
+	 * The owner gates deactivated windows. */
 	int (*position)(void *context, uint32_t column, uint32_t row);
+	/* e uses current graphics palette index 0 and homes the live cursor;
+	 * > uses STYLE background and retains the cursor. Both use COPY. */
+	int (*erase)(void *context, bool whole);
 };
 
 /* Borrowed UI request, made on the session thread for file/decode failures.
@@ -98,7 +101,7 @@ struct st_rip3_command_sink {
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits, ordinary w layouts/wrap/reactivation/deactivation,
- * g/H text-window cursor addressing,
+ * g/H text-window cursor addressing and e/> graphics-color text erasure,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,
  * documented shortening/reserved omission and J/n invalid-value defaults.

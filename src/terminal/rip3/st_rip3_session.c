@@ -139,6 +139,38 @@ show_window_cursors(void *context, const unsigned *numbers, size_t count, bool v
 }
 
 static int
+erase_text_window(void *context, bool whole)
+{
+	struct st_rip3_session *session=context;
+	if (!session->text_active) return 0;
+	if (session->sink.text_erase==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_palette palette;uint8_t ink=0;
+	int status=st_rip3_palettes_current_palette(session->commands.palettes,&palette);
+	if (!whole && status==0) {
+		struct st_rip3_environment environment;struct st_rip3_style style;unsigned number;
+		status=st_rip3_environments_current(session->commands.environments,&number);
+		if (status==0) status=st_rip3_environments_get(session->commands.environments,number,&environment);
+		if (status==0) status=st_rip3_styles_current(session->commands.styles,&number);
+		if (status==0) status=st_rip3_styles_get(session->commands.styles,number,&style);
+		if (status==0) status=st_rip3_palettes_color_bits(session->commands.palettes,
+		    environment.rgb_bits,style.background_color,&ink);
+	}
+	struct st_rip3_rect area={0,0,-1,-1};
+	if (status==0) status=session->sink.text_erase(session->sink.context,whole,palette.rgb[ink],&area);
+	if (status==0 && area.x0<=area.x1 && area.y0<=area.y1)
+		status=st_rip3_ports_screen_fill(session->commands.ports,&area,ink);
+	return status;
+}
+
+static int
+erase_text_windows(void *context, const unsigned *numbers, size_t count)
+{
+	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i=0;i<count;i++) if (numbers[i]==0) return erase_text_window(context,true);
+	return 0;
+}
+
+static int
 current_text_window(void *context, unsigned *number)
 {
 	(void)context;*number=0;return 0;
@@ -271,7 +303,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
 	session->text_active=true;session->commands.text_active=&session->text_active;
-	session->window_host=(struct st_rip3_text_window_host){session,define_text_window,position_text_cursor};
+	session->window_host=(struct st_rip3_text_window_host){.context=session,.define=define_text_window,
+	    .position=position_text_cursor,.erase=erase_text_window};
 	session->commands.text_window=&session->window_host;
 	session->commands.audio=config->audio;session->commands.resources=config->resources;
 	session->commands.offscreen_pixel_budget=config->offscreen_pixel_budget;session->commands.bitmap_errors=config->bitmap_errors;
@@ -281,7 +314,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
 	    .current=current_text_window,.activate=activate_text_windows,
-	    .position=position_window_cursor,.cursor=show_window_cursors};
+	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows};
 	session->variables.text_windows=&session->window_operations;
 	session->random.state=config->random_seed;
 	if (session->variables.random==NULL) session->variables.random=&session->random;
