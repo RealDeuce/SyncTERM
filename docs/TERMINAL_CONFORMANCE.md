@@ -33,8 +33,9 @@ command-only CRLF without scrolling, and default-window deactivation with
 ordinary text/ANSI suppressed while RIP graphics/replies remain live. Ordinary
 `w` definitions cover all five MAF modes, scaled placement, wrap/chop, clipped
 scrolling, cursor-preserving reactivation, key forwarding and local Wren
-writes/reset/state. Changed-definition ANSI-state semantics remain under
-upstream clarification; full TW tables/protection/switching and extended `b`
+writes/reset/state. Changed definitions retain ordinary ANSI parser state and
+tabs while resetting the rendering state and saved cursor to home; full
+character-set support, TW tables/protection/switching and extended `b`
 remain pending. Wire `g`/`H` address both the entry TTY and positioned windows,
 including fixed-width numeric fields in both radices, native CUP clamping,
 deactivated-window no-ops and nonfatal recovery; cursor-only commands retain
@@ -44,8 +45,12 @@ off. Undefined nonzero slots are ignored; defining/protecting/switching them
 remains pending. Ordinary window endpoints order/clamp to their nominal font
 grid before identity; tests verify the corrected font-2 extent, preserved
 cursor/saved cursor/colors for equivalent definitions and unchanged visible
-pixels. PR #102's changed-definition tab/character-set/incomplete-ANSI retention
-still requires implementation. The
+pixels. The native `cterm_text_window` test covers owned parser/tab buffers,
+split CSI and OSC continuation after destroying the prior owner, saved home
+and allocation failures. Optional pending media payloads reject redefinition
+nonfatally; their transfer and G0/G1 character sets remain unfinished. CRLF
+regressions include bottom-row cursors outside column one, positioned windows,
+valid/rejected/empty/continued lines and processing-budget boundaries. The
 entry's grid/raster is retained at
 the three presets and at 1280x800 and 720x400. These tests disable physical
 audio. Full-compliance acceptance and incomplete command families remain open.

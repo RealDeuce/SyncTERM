@@ -46,13 +46,18 @@ retains the entry's raster. Native tests cover widths 2–5, both radices, exact
 geometry/ranges and error recovery; CP437/UTF-8 connection captures cover all
 five modes, placement, scrolling, wrap/chop, reactivation and script operations.
 The full TW table, protected entries, switching and extended `b` remain pending.
-Changed definitions currently construct a fresh ANSI parser without clearing
-underlying artwork. Adopted
+Changed definitions construct a fresh rendering state without clearing
+underlying artwork, retaining independently owned tab stops and unfinished
+ordinary ANSI ESC/CSI/string parsing. Saved cursor coordinates reset to home;
+identical definitions retain their existing interpreter. Optional media and
+font-download payloads reject redefinition nonfatally while retaining the old
+window. Adopted
 [PR #102](https://github.com/bbs-land/remote-imaging-protocol/pull/102) resolves
 the ordinary-state contract and corrects the font-2 placement example.
-Geometry/normalized identity and pixel preservation are implemented; retaining
-tabs, character sets and incomplete ANSI parsing across changed definitions
-still requires implementation. Those details are not claimed compliant.
+Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
+are implemented. Character-set selections and complete terminal-mode reset
+acceptance remain pending. UTF-8 is a client extension: incomplete decoding is
+committed at RIP boundaries, so bytes cannot join across window definitions.
 
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
 without injecting input bytes. `g` has two-digit fields in the current radix
@@ -5854,6 +5859,43 @@ boundary rather than a RIPtel claim. The ledger keeps these state-table rows
 pending; adoption and passing geometry tests do not establish them. The current
 queue is 1102 implemented, 1615 pending, 3931 unreviewed, 1171 context, 24 excluded
 and 40 blocked source blocks.
+
+## Connected ordinary ANSI interpreter retention
+
+Changed ordinary `w` definitions now copy unfinished ESC/CSI parsing, collected
+parameters, string buffers and tab stops into the prepared new view before
+publishing it. All buffer allocations finish before destination mutation;
+failures leave the old connected window usable and stay within RIP3's nonfatal
+diagnostic boundary. Owned buffers and parameter aliases never point into the
+destroyed old CTerm. New default tab stops extend on growth; custom stops beyond
+a temporarily smaller window survive. Changed definitions reset saved cursor
+coordinates to home as well as the existing fresh rendering state.
+
+The native `cterm_text_window` test completes literal truecolor CSI at every
+split after destroying its source, resumes OSC strings, exercises horizontal,
+vertical and default tabs, verifies saved home and injects every preparation
+allocation failure. Pending sixel, macro, music and font-download payloads carry
+extra resources; redefinition rejects them nonfatally rather than transferring
+incomplete ownership. Their transfer and G0/G1 character-set support remain
+unfinished. The source-block ledger keeps the combined tabs/charset row pending.
+Connected CP437/UTF-8 tests exercise CSI completion across changed definitions,
+tab retention through shrink/growth, saved home and fresh margins/cursor
+visibility. UTF-8 partial decoding commits at the RIP boundary as client policy.
+The queue is now 1105 implemented, 1612 pending, 3931 unreviewed, 1171 context,
+24 excluded and 40 blocked source blocks.
+
+The command-only CRLF regression also covers non-leftmost bottom-row cursors
+on both the entry canvas and positioned windows. Valid, rejected, empty and
+continued command lines span more than a full text window and the session's
+4096-byte processing budget. Each check compares one fenced capture of all
+pixels and cursor state. This is expanded regression coverage; the reported
+scrolling stream has not yet been reproduced, so no additional CRLF fix is
+claimed from these tests.
+
+Native CMake configure/full build and the focused interpreter, framing and
+CP437/UTF-8 connected CTests pass. The existing ANSI, historical wire and
+RIP1.54 preservation checks passed for this source change; the compliance
+ledger check also passes with all 93 frozen files and 41 helpers unchanged.
 
 ## Verification and acceptance
 

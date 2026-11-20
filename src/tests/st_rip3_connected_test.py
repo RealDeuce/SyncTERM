@@ -27,6 +27,23 @@ def pixel(frame, x, y):
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
 
 
+def command_lines_keep_art(t, count):
+    # Start with a non-leftmost cursor on the last row. SOH begins the first
+    # physical RIP line without a raw CR; subsequent ! introducers must stay
+    # valid even though suppressed line endings never move that cursor.
+    before = t.exchange(b"\x1b[999;2H")
+    xy = before.application["cterm.x"], before.application["cterm.y"]
+    # Valid commands, rejected commands, empty lines and continuations all
+    # share framing. Cross both TTY height and the session's 4096-byte budget.
+    lines = b"!|c0C|!comment\r\n!|9?\r\n!|\r\n!|!continued\\\r\nend\r\n"
+    data = lines * max(100, count)
+    frame = t.exchange(b"\x01" + data[1:] + b"\x1b[6n",
+                       f"\x1b[{xy[1]};{xy[0]}R".encode())
+    assert frame.primary == before.primary
+    assert frame.application["connected"] == 1
+    return frame
+
+
 def run(args, width, height, advance):
     script = r'''
 import "syncterm" for CTerm, Conn, Hook, Key
@@ -116,6 +133,7 @@ Hook.onKey(Key.f9) {|event|
         frame = t.exchange(b"\n")
         assert frame.primary == before.primary
         assert frame.application["cterm.y"] == before.application["cterm.y"]
+        command_lines_keep_art(t, height // 8 + 10)
         t.case("rip3-connected-angles-templates-and-empty-input-continuation")
         frame = t.exchange(query(b"<<IF RESX=" + str(width).encode()
                                  + b">>[3:]yes<<ELSE>>[3:]no<<ENDIF>>[]$?3$"), b"yes")
@@ -266,6 +284,8 @@ Hook.onKey(Key.f9) {|event|
         receive(peer, b"off-painted", root / "replies.bin")
         frame = t.exchange(b"\x01|w0A050C0710\r\n")
         assert pixel(frame, px, py) == 0x55ff55
+        t.case("rip3-positioned-command-crlf-does-not-scroll-art")
+        command_lines_keep_art(t, 100)
         for font, nominal_cols, nominal_rows, ref_cw, ref_ch in (
                 (1, 91, 43, 7, 8), (2, 80, 25, 8, 14),
                 (3, 91, 25, 7, 14), (4, 40, 25, 16, 14)):
@@ -333,6 +353,28 @@ Hook.onKey(Key.f9) {|event|
         assert frame.application["cterm.ext_attr.auto_wrap"] == 0
         t.exchange(b"\x1b[u\x1b[6n", b"\x1b[3;4R")
         t.exchange(b"\x01|w0A0F0K0P15\r\n\x1b[6n", b"\x1b[3;4R")
+
+        t.case("rip3-changed-window-retains-tabs-and-pending-ansi")
+        # Retain a custom sixth-column stop, but reset cursor, saved cursor,
+        # colors, margins, origin mode and visibility when geometry changes.
+        t.exchange(b"\x1b[3g\x1b[1;6H\x1bH\x1b[2;3H\x1b" b"7"
+                   b"\x1b[1;4;5;7;31;44m\x1b[2;8r\x1b[?6h\x1b[?25l")
+        frame = t.exchange(b"\x1b[38;2;12;\x01|w00000G0310\r\n34;56mF\x1b[6n", b"\x1b[1;2R")
+        assert frame.application["cterm.fg_color"] == 0x0c2238
+        assert frame.application["cterm.bg_color"] == 16  # ANSI black in the local bank
+        assert (frame.application["cterm.top_margin"], frame.application["cterm.bottom_margin"]) == (1, 4)
+        assert frame.application["cterm.ext_attr.origin_mode"] == 0
+        assert frame.metadata["pixel_cursor_visible"] == 1
+        assert any(pixel(frame, x, y) == 0x0c2238
+                   for y in range(height // 43) for x in range(width // 80))
+        t.exchange(b"\x01|H\r\n\t\x1b[6n", b"\x1b[1;6R")
+        t.exchange(b"\x1b[2;2H\x1b" b"8\x1b[6n", b"\x1b[1;1R")
+        # A stop outside a temporary smaller window survives later growth.
+        t.exchange(b"\x01|w0000020310\r\n\x01|w00000G0310\r\n\t\x1b[6n", b"\x1b[1;6R")
+        if args.encoding == "UTF-8":
+            # The client extension commits malformed/incomplete UTF-8 at
+            # each RIP boundary; bytes never join across a changed window.
+            t.exchange(b"\xc3\x01|w00000F0310\r\n\xa9\x1b[6n", b"\x1b[1;2R")
 
 
 def mega(number):

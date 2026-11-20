@@ -294,6 +294,12 @@ int st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled);
 int st_cterm_start_text(st_cterm_t *terminal);
 /* Commit pending Unicode text at an external graphics/window boundary. */
 int st_cterm_text_boundary(st_cterm_t *terminal);
+/* RIP3-only preparation: inherit tabs and unfinished ordinary ANSI syntax
+ * into a started, idle fresh window without copying rendition/geometry or
+ * UTF-8 presenter state. No rendering/input callbacks. Failure preserves both
+ * objects; success leaves source independently owned. Pending optional media
+ * and font-download payloads remain unsupported, never partially transferred. */
+int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
 /* Zero-based local equivalent of ANSI CUP. Clamp to the current addressing
  * region (including origin mode), commit Unicode and clear pending wrap.
  * No received bytes, input hooks or capture events are manufactured. */

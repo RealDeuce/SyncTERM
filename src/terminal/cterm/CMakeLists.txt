@@ -141,6 +141,7 @@ add_library(st_cterm STATIC
 	cterm_rip_raster.c
 	${ST_CTERM_RIP_TIME_SOURCE}
 	st_cterm.c
+	st_cterm_text_window.c
 	cterm_vt52.c)
 target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
@@ -164,6 +165,16 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_cterm_text_window_test tests/st_cterm_text_window_test.c
+		tests/st_cterm_text_window_fault_impl.c)
+	target_link_libraries(st_cterm_text_window_test PRIVATE st_cterm)
+	set_target_properties(st_cterm_text_window_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_text_window_test PRIVATE /W4)
+	else()
+		target_compile_options(st_cterm_text_window_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME cterm_text_window COMMAND st_cterm_text_window_test)
 	add_executable(st_cterm_big_test tests/st_cterm_big_test.c)
 	target_link_libraries(st_cterm_big_test PRIVATE st_cterm st_big)
 	set_target_properties(st_cterm_big_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

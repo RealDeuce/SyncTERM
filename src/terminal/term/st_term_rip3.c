@@ -249,6 +249,7 @@ text_window(void *context, const struct st_rip3_text_window_layout *layout, bool
 	int status=st_console_pixel_size(rip->config.console,&width,&height);
 	struct st_term_rip3_view *view=NULL;
 	if (status==0) status=st_term_rip3_view_create(&view,&rip->text_config,layout,width,height);
+	if (status==0) status=st_cterm_inherit_window_interpreter(st_term_rip3_view_text(view),st_term_rip3_text(rip));
 	if (status==0) {
 		st_cterm_set_music_mode(st_term_rip3_view_text(view),st_cterm_music_mode(st_term_rip3_text(rip)));
 		st_cterm_set_doorway_mode(st_term_rip3_view_text(view),st_cterm_doorway_mode(st_term_rip3_text(rip)));
