@@ -290,6 +290,13 @@ st_rip3_query_pending(const struct st_rip3_query *query)
 	return query!=NULL && query->pass!=0;
 }
 
+bool
+st_rip3_query_prompt_pending(const struct st_rip3_query *query)
+{
+	return query!=NULL && query->active_user!=NULL
+	    && st_rip3_user_variables_state(query->active_user)==ST_RIP3_USER_VARIABLE_PROMPT;
+}
+
 static bool
 user_result(struct st_rip3_query *query)
 {

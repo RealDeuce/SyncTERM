@@ -2,6 +2,9 @@
 #include "st_rip3_host_internal.h"
 
 #include "st_rip3_ports.h"
+#include "st_rip3_styles.h"
+#include "st_rip3_environments.h"
+#include "st_rip3_palettes.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -62,7 +65,30 @@ st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 	for (unsigned i = 0; i < 36; i++) {
 		if (selected[i]) numbers[count++] = i;
 	}
-	status = st_rip3_ports_operate_views(ports, numbers, count, operation, host->background);
+	uint8_t background=host->background;
+	struct st_rip3_styles *styles=host->tables->tables[ST_RIP3_TABLE_STYLE].live;
+	if (operation==ST_RIP3_VIEW_ERASE && styles!=NULL) {
+		unsigned number;struct st_rip3_style style;bool direct=false;
+		status=st_rip3_styles_current(styles,&number);
+		if (status==0) status=st_rip3_styles_get(styles,number,&style);
+		struct st_rip3_environments *environments=host->tables->tables[ST_RIP3_TABLE_ENV].live;
+		if (status==0 && environments!=NULL) {
+			struct st_rip3_environment environment;
+			status=st_rip3_environments_current(environments,&number);
+			if (status==0) status=st_rip3_environments_get(environments,number,&environment);
+			if (status==0) direct=environment.rgb_bits==8;
+		}
+		if (status==0 && direct) {
+			struct st_rip3_palettes *palettes=host->tables->tables[ST_RIP3_TABLE_PAL].live;
+			status=palettes==NULL ? IO_ERROR_NOT_SUPPORTED : st_rip3_palettes_color(palettes,true,style.background_color,&background);
+		}
+		else if (status==0) {
+			if (style.background_color>255) status=IO_ERROR_OUT_OF_RANGE;
+			else background=(uint8_t)style.background_color;
+		}
+		if (status!=0) return status;
+	}
+	status = st_rip3_ports_operate_views(ports, numbers, count, operation, background);
 	if (status == 0)
 		result[0] = 0;
 	return status;

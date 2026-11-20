@@ -1,0 +1,116 @@
+/* Owned separate-engine session lifecycle, without terminal-mode routing. */
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#ifndef ST_RIP3_SESSION_H_
+#define ST_RIP3_SESSION_H_
+
+#include "st_rip3_commands.h"
+#include "st_rip3_geometry.h"
+#include "st_rip3_text_commands.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+struct st_rip3_session;
+struct st_rip3_host_variables;
+struct st_rip3_classic_font;
+struct st_rip3_rff;
+struct st_rip3_variable_reference;
+struct st_rip3_variable_value;
+struct st_pixel_buffer;
+
+struct st_rip3_session_source {
+	void *context;
+	uint64_t (*now_ns)(void *context);
+	/* Nonblocking: false means no byte available. The client owns its queue,
+	 * connection/EOF policy and bytes not yet taken by this callback. */
+	bool (*next)(void *context, uint8_t *byte);
+};
+
+struct st_rip3_session_sink {
+	void *context;
+	void (*text)(void *context, const uint8_t *bytes, size_t length);
+	void (*reply)(void *context, const uint8_t *bytes, size_t length);
+	bool (*at_line_start)(void *context);
+	void (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
+	void (*selection_required)(void *context, unsigned group);
+};
+
+struct st_rip3_session_config {
+	enum st_rip3_canvas canvas;
+	enum st_rip3_text_encoding encoding;
+	struct st_rip3_session_source source;
+	struct st_rip3_session_sink sink;
+	/* Optional copied external service bindings. frame/tables/input/templates
+	 * must be NULL: this session owns those. Identity, features, time, local
+	 * queries and an optional random/user processor remain borrowed. A supplied
+	 * user processor is reserved exclusively while a session query is pending.
+	 * Otherwise private session/persistent memory stores and a processor are
+	 * created; their lifetime ends here, without implicit disk persistence. */
+	const struct st_rip3_host_variables *services;
+	uint32_t random_seed; /* Used only when no external generator is supplied. */
+	const struct st_rip3_classic_font *classic_font;
+	const struct st_rip3_rff *outline_font;
+	const struct st_rip3_resource_paths *resources;
+	const uint64_t *offscreen_pixel_budget;
+	const struct st_rip3_bitmap_error_sink *bitmap_errors;
+	/* Optional exclusive player, owned by the client. Cancel/destroy stops it;
+	 * the client destroys it after this session and before its mixer engine. */
+	struct st_rip3_audio *audio;
+};
+
+/* One terminal/session thread owns every call and callback. Config/source/sink
+ * structs are copied; referenced objects and callback contexts must outlive the
+ * session. Callbacks must not reenter, cancel/destroy or change its bindings.
+ * Creation prepares all represented tables/backups, font cache, variables,
+ * templates, stream, query and input gate before publishing result. Failure
+ * preserves result and borrowed services and invokes no client callback.
+ * This does not select an application terminal mode or implement unbound
+ * text-window/button/mouse tables, full reset, preprocessing or scene headers. */
+int st_rip3_session_create(struct st_rip3_session **result,
+	const struct st_rip3_session_config *config);
+void st_rip3_session_destroy(struct st_rip3_session *session);
+/* Take at most budget source bytes. Resume an owned host continuation before
+ * taking more bytes, even when no new input is available. Pauses for delays or
+ * user prompts; no sleeping or threads. Syntax/resource/operation failures are
+ * absorbed internally and never returned to a terminal/session failure path. */
+void st_rip3_session_process(struct st_rip3_session *session, size_t budget);
+uint64_t st_rip3_session_wait_ns(const struct st_rip3_session *session);
+/* Local host work remains, independently of source availability. If ready
+ * and not waiting for a prompt, schedule another pump even without new bytes. */
+bool st_rip3_session_pending(const struct st_rip3_session *session);
+/* EOF/transport cancellation: discard incomplete framing and owned host/prompt
+ * work, cancel the delay and stop the exclusive player. Never take queued bytes
+ * or emit text/replies. Retain completed table/store/drawing/cache effects; this
+ * is not a full graphics reset. The source owner decides how to clear its queue. */
+void st_rip3_session_cancel(struct st_rip3_session *session);
+
+struct st_rip3_session_prompt {
+	const struct st_rip3_variable_reference *reference;
+	const struct st_rip3_variable_value *initial;
+};
+/* Borrowed prompt views, invalidated by response/process/cancel/destruction.
+ * Report only a query-owned prompt; do not answer another consumer's prompt. */
+bool st_rip3_session_prompt(const struct st_rip3_session *session,
+	struct st_rip3_session_prompt *result);
+void st_rip3_session_respond(struct st_rip3_session *session,
+	const uint8_t *bytes, size_t length, bool cancelled);
+
+struct st_rip3_session_capture {
+	/* Owned full screen RGB view using the currently selected PAL record.
+	 * No drawing/parser pumping occurs during this coherent observation. */
+	struct st_pixel_buffer *pixels;
+	struct st_rip3_frame frame;
+	int64_t cursor_x, cursor_y;
+	unsigned environment, style, port, palette;
+	uint64_t wait_ns;
+	bool viewport_active, query_pending, outline_cache_valid;
+};
+/* Resource/accessor service, not incoming-data processing. Failure preserves
+ * result. The observation owns only pixels; release it before reuse. This
+ * selected-palette view does not claim complete SCREEN/UI backup ownership. */
+int st_rip3_session_capture(const struct st_rip3_session *session,
+	struct st_rip3_session_capture *result);
+void st_rip3_session_capture_dispose(struct st_rip3_session_capture *capture);
+
+#endif

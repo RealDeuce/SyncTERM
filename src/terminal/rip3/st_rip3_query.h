@@ -57,6 +57,9 @@ void st_rip3_query_destroy(struct st_rip3_query *query);
  * coordinates cancellation/reset of its queue, parser, dialog and input gate. */
 void st_rip3_query_cancel(struct st_rip3_query *query);
 bool st_rip3_query_pending(const struct st_rip3_query *query);
+/* True only for a prompt started by this query, never a busy borrowed
+ * processor's unrelated prompt. Used by the owning session UI boundary. */
+bool st_rip3_query_prompt_pending(const struct st_rip3_query *query);
 /* Resume at most budget tokens, stopping at a delay or pending prompt. The owner
  * resumes this before fetching more source bytes. A final D may leave a wait
  * even after pending() becomes false; the input driver must recheck its gate.

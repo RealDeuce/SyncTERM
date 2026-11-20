@@ -27,25 +27,25 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance. Separate
 RIP3 outline-font realization resolves all 80 bundled names and prepares
 world-derived DPI/scales plus device-space hollow widths. Tests cover caps,
 WORD narrowing, orientation, file strength bytes and cache preservation on
-failure. Outline text production remains pending.
+failure. Literal outline T/@ rendering is implemented in the separate engine.
 The outline geometry kernel accepts independent per-byte device positions and
 glyph matrices, plus explicit device-axis shadows. Independent rectangle
 expectations cover all sixteen direction/rotation pairs on the three canvases,
 four shadow directions in five write modes, fractional/clipped placement and
-allocation-failure atomicity. Ordinary metric policy, alignment and command
-integration remain pending.
+allocation-failure atomicity. Ordinary metric policy and command alignment now
+use the adopted portable placement contract.
 Outline layout tests resolve string direction and independent font orientation,
 the complete signed additive-baseline table, one-time baseline conversion,
 device-axis shadow distance/direction and device advance/spacing arithmetic.
 Native captures now consume those prepared positions and shadows on all canvases.
-Zero-baseline alignment and outline command integration remain pending;
-adjusted layout advances are separate from cached cursor metrics.
+Zero-baseline alignment uses the design origin and signed total for justification;
+adjusted layout advances remain separate from cached cursor metrics.
 Prepared outline fonts now supply production glyph matrices, nonzero fill and
 device-space hollow widths to the positioned renderer. All sixteen rotation
 pairs have coherent native captures on every canvas with isotropic and unequal
 X/Y DPI. Shadow/write-mode scenes use that same production path; hollow bold's
 minimum width, pending-effect rejection and failure atomicity have focused checks.
-Solid bold, italic, decorations and ordinary outline commands remain pending.
+Solid bold, italic and decorations remain pending their portable ink contract.
 PR #83's signed RFF global-bbox correction is adopted. Realization transforms
 all four corners through face percentage, orientation and device-axis DPI,
 retaining wide y-down edges. Spacing uses their horizontal max-minus-min span.
@@ -67,10 +67,22 @@ bytes, final signed-WORD wrapping and nonfatal overflow. Classic font-zero @
 reads that snapshot in every direction/justification, with raw cursor anchors
 and separately converted drawing anchors. Cold/warm, port/style/frame changes,
 CP437/UTF-8 and recovery have coherent native captures on all three canvases.
-Successful outline-call preparation, full drawing reset and ordinary outline
-commands remain pending. Earlier unrelated test and legacy evidence is reused.
-Typographic alignment and effect-specific ink extents remain separate from the
-global coordinate box.
+Accepted outline T/@ calls now prepare metrics for the y-selected face before
+cursor measurement, retaining the previous snapshot on preparation failure.
+Native captures cover real Marin/Cn/Wd/HE selection, independent rotation and
+justification, shadows and write modes. Full drawing reset and application routing
+remain pending. Earlier unrelated test and legacy evidence is reused.
+Effect-specific ink extents remain separate from the global coordinate box.
+The separate engine now has a session owner for its live ENV/STYLE/PAL/PORT tables,
+typed backups, templates, variables, font cache, stream and resumable input/query
+pipeline. Its void pump absorbs parsing failures, holds queued bytes during delays
+and owned prompts, and resumes local work without requiring new input. Cancel and
+destruction abort owned work and stop a borrowed exclusive audio player without
+destroying client services. Native wire/capture tests cover all canvases, actual
+y/T/@ drawing, same-query STYLE/background changes, prompt ownership, cancellation,
+isolation and all constructor-failure boundaries. These tests use a pull audio
+engine without physical output; they do not claim GUI or application routing,
+full graphics reset, preprocessing or unbound table-class coverage.
 The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization
 and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
 and destination requests now diagnose separately without ending processing;

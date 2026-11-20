@@ -49,7 +49,8 @@ struct st_rip3_host_variables {
 	const struct tm *local_time;
 	/* Borrowed word/phrase; NULL or empty means the zone is unknown. */
 	const char *time_zone;
-	/* Current graphics-style background, already resolved to a palette index. */
+	/* Fallback background, already resolved to a palette index. A bound live
+	 * STYLE takes precedence, using live ENV/PAL for direct-color resolution. */
 	uint8_t background;
 	/* Active D references set this gate. The enclosing evaluator must yield
 	 * before executing another reference/host action while its wait is nonzero. */

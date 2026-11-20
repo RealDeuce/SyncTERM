@@ -5362,6 +5362,58 @@ platform local-input adapters remain pending. Original fonts, RIP1.54, the activ
 application route and the reference pin remain unchanged. Scoped build logs are
 removed. No code is pushed or PR published. Full compliance remains in progress.
 
+## Owned session lifetime and ordered input/query pipeline
+
+The separate engine now exposes an owned session factory, void processing pump,
+cancellation/destruction, owned-prompt response and coherent capture services.
+Construction prepares the live ENV/STYLE/PAL/PORT tables and their typed backups,
+one logical outline cache, template slots, private variable stores/processor and
+the stream/query/input gate before publishing the session. External services are
+copied as borrowed bindings; a supplied user processor or exclusive audio player
+remains client-owned. Partial construction releases every completed allocation
+without reading input, invoking client callbacks or stopping the borrowed player.
+
+Each nonblocking pump resumes local query work before taking another source byte.
+Delays and user prompts retain later RIP/raw input in the client queue. Pending
+local work remains observable even when the source is empty, so a budgeted query
+can finish without new network traffic. Processing failures stay inside the void
+parser boundary. A query-owned prompt check prevents a pending delay query from
+exposing or answering another consumer's prompt on a borrowed processor. Cancel
+discards incomplete framing, pending query/prompt work and delays, and stops the
+exclusive player without consuming queued bytes or emitting replies. Completed
+drawing/store/cache effects remain; cancellation is not a full drawing reset.
+
+The capture service observes the complete screen through the selected palette
+together with current frame, selections, cursor, viewport, query/delay and cache
+state. It performs no parser pumping. Host viewport erase now resolves the live
+STYLE background at execution, including a STYLE change earlier in the same
+query, and uses current ENV/PAL for direct-color resolution. A separately bound
+pre-resolved background remains the fallback for hosts without a STYLE service.
+
+Native wire tests cover default and changed frames on all three canvases, bytewise
+drawing, y-selected Marin T/@ ink and cursor widths, classic font-zero warm-cache
+handoff, same-query STYLE/erase ordering and indexed/direct backgrounds. Other
+cases cover delayed required prompts, empty-source continuation, cancellation,
+store/session isolation, malformed-command recovery, missing reply sinks,
+foreign-versus-owned borrowed prompts and all seventeen construction boundaries.
+Headless pull-engine tests verify stop and borrowed-player lifetime without
+physical output; existing PCM evidence is reused.
+
+Native CMake configure/full build and rip3_session/rip3_query_commands initially
+pass without compiler/build diagnostics. Final integration review finds the stale
+background binding; its focused ordering/direct-color cases and fix pass the
+affected viewport-host suite. The session case catches a six-digit test color
+field where the command accepts four; after correcting the fixture, only the
+failed session suite is rerun and passes. The native rebuild introduces no
+diagnostics. Edited ledger consistency passes;
+counts remain 972 implemented, 1572 pending, 4028 unreviewed, 1139 contextual,
+24 excluded and 32 blocked across 7767 units. Existing unrelated passing evidence
+is reused. Text-window/button/mouse/SCREEN ownership, full drawing reset,
+preprocessing, scene headers and application routing remain pending. Original
+fonts, RIP1.54 and the reference pin remain unchanged. Scoped logs are removed;
+no existing issue is modified, code pushed or PR published. Full compliance remains
+in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from
