@@ -98,6 +98,20 @@ Hook.onKey(Key.f9) {|event|
         frame = t.exchange(query(b"$ATW$cursor-still-off"), b"cursor-still-off")
         assert frame.primary == before.primary and frame.metadata["cursor_visible"] == 0
         t.exchange(b"\x1b[?25h")
+        t.case("rip3-wire-color-mode-and-corpus-prologue")
+        # The actual corpus prologue must restore palette mode after RGB.
+        t.exchange(b"\x01|M18\r\n" + query(b"$COLORMODE$"), b"8")
+        t.exchange(b"!|J10|n2000|M08|fZKQO\r\n"
+                   + query(b"$COLORMODE$:$WORLD$"), b"0:1280:960")
+        t.exchange(b"\x01|M17\r\n" + query(b"$COLORMODE$"), b"0")
+        frame = t.exchange(b"\x01|M18|c&m00|X0000|M17\r\n"
+                           + query(b"$COLORMODE$"), b"8")
+        assert pixel(frame, 0, 0) == 0xff0000
+        frame = t.exchange(b"\x01|J1S|M0&|c0A|X1000\r\n"
+                           + query(b"$COLORMODE$"), b"0")
+        assert pixel(frame, width // 20, 0) == 0x55ff55  # UltraNum 10 = 64
+        t.exchange(b"\x01|M28|M0?|M0|J10|M08|fHS9Q|c0F\r\n"
+                   + query(b"$COLORMODE$"), b"0")
         t.case(f"rip3-connected-dixon-{width}-{args.encoding}")
         selected = t.exchange(b"!|y00000W0M000000001a1a000000Dixon\r\n")
         assert selected.application["cterm.graphics_mode"] == 2

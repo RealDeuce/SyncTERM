@@ -5,6 +5,7 @@
 #include "st_rip3_host_variables.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_stream.h"
+#include "st_rip3_number.h"
 #include "st_rip3_audio.h"
 #include "st_audio_file.h"
 #include "filesystem.h"
@@ -213,6 +214,44 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 }
 
 static int
+color_modes(void)
+{
+	struct st_rip3_command_host host={0},missing={0};
+	CHECK(st_rip3_environments_create(&host.environments,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(process(&missing,"M08",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	for (unsigned radix=36;radix<=64;radix+=28) {
+		CHECK(process(&host,radix==36 ? "J10" : "J1S",-1)==0);
+		for (unsigned bits=0;bits<radix;bits++) {
+			char wire[4]={'M','1',0,0};
+			CHECK(st_rip3_number_encode(wire+2,1,bits,1,radix)==0);
+			CHECK(process(&host,"M08",-1)==0 && process(&host,wire,-1)==0);
+			CHECK(query(host.environments,"$COLORMODE$",bits==8 ? "8" : "0")==0);
+			CHECK(process(&host,"M18",-1)==0 && process(&host,wire,-1)==0);
+			CHECK(query(host.environments,"$COLORMODE$","8")==0);
+			wire[1]='0';CHECK(process(&host,wire,-1)==0);
+			CHECK(query(host.environments,"$COLORMODE$","0")==0);
+		}
+	}
+	const char *invalid[]={"M","M0","M080","M?8","M0?","M28"};
+	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+		CHECK(process(&host,"M18",-1)==0);
+		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
+		CHECK(query(host.environments,"$COLORMODE$","8")==0);
+	}
+	struct st_rip3_environment value;
+	CHECK(st_rip3_environments_get(host.environments,0,&value)==0
+	    && st_rip3_environments_define(host.environments,1,&value)==0
+	    && st_rip3_environments_select(host.environments,1)==0);
+	CHECK(st_rip3_environments_protect(host.environments,1,true)==0);
+	CHECK(process(&host,"M08",ST_RIP3_COMMAND_OPERATION_FAILED)==0);
+	CHECK(process(&host,"M17",-1)==0 && query(host.environments,"$COLORMODE$","8")==0);
+	CHECK(st_rip3_environments_protect(host.environments,1,false)==0);
+	CHECK(process(&host,"M08",-1)==0 && query(host.environments,"$COLORMODE$","0")==0);
+	CHECK(query(host.environments,"$COLORMODE(0)$","8")==0);
+	st_rip3_environments_destroy(host.environments);return 0;
+}
+
+static int
 baud(enum st_rip3_canvas canvas)
 {
 	struct st_rip3_command_host host = {0}, missing = {0};
@@ -341,6 +380,7 @@ main(int argc, char **argv)
 	CHECK(geometry(ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(geometry(ST_RIP3_CANVAS_800_600, 800,600) == 0);
 	CHECK(geometry(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);
+	CHECK(color_modes() == 0);
 	CHECK(baud(ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(baud(ST_RIP3_CANVAS_800_600) == 0);
 	CHECK(baud(ST_RIP3_CANVAS_1024_768) == 0);

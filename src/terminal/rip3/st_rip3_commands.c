@@ -257,6 +257,28 @@ text_cursor(const struct st_rip3_command_host *host,
 }
 
 static int
+color_mode(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	struct st_rip3_environment value;
+	unsigned number;
+	uint64_t mode,bits;
+	if (length!=3) return IO_ERROR_INVALID_FORMAT;
+	int status=st_rip3_command_environment(host,&number,&value);
+	if (status==0) status=st_rip3_command_field(&mode,command+1,1,value.base_math);
+	if (status==0) status=st_rip3_command_field(&bits,command+2,1,value.base_math);
+	if (status!=0) return status;
+	if (mode>1) return IO_ERROR_OUT_OF_RANGE;
+	/* The wire setter's RGB gate differs from the COLORMODE variable:
+	 * unsupported precision leaves the current mode unchanged. Palette
+	 * mode ignores the precision field after its numeric validation. */
+	if (mode==1 && bits!=8) return 0;
+	value.rgb_bits=mode==0 ? 0 : 8;
+	*operation=true;
+	return st_rip3_environments_set(host->environments,number,&value);
+}
+
+static int
 execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
@@ -282,6 +304,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
 	if (command[0]=='w') return normal_text_window(host,command,length,operation,sink);
+	if (command[0]=='M') return color_mode(host,command,length,operation);
 	if (command[0]=='g' || command[0]=='H') return text_cursor(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
 		return switch_style(host,command,length,operation,sink);

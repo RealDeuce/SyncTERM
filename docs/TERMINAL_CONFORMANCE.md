@@ -27,6 +27,8 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 `syncterm_rip3_connected_CP437` and `syncterm_rip3_connected_UTF-8` exercise the
 normal executable over TCP with the control bitmap backend. They cover the
 literal Dixon selection and drawing sequence, bold advance, nonfatal recovery,
+wire `M` color-mode changes and literal scene-prologue restoration of palette
+mapping after RGB, independently expected red/green pixels,
 live WORLD/device queries, templates/angles, empty-input continuations, delays,
 offscreen BMP export/load and clipboard paste, repeated paint over ANSI,
 command-only CRLF without scrolling, and default-window deactivation with
@@ -48,7 +50,8 @@ cursor/saved cursor/colors for equivalent definitions and unchanged visible
 pixels. The native `cterm_text_window` test covers owned parser/tab buffers,
 split CSI and OSC continuation after destroying the prior owner, saved home
 and allocation failures. Optional pending media payloads reject redefinition
-nonfatally; their transfer and G0/G1 character sets remain unfinished. CRLF
+nonfatally; their transfer and G0/G1 character sets remain unfinished. The
+ANSI/VT-102 charset byte contract is requested in upstream #104. CRLF
 regressions include bottom-row cursors outside column one, positioned windows,
 valid/rejected/empty/continued lines and processing-budget boundaries. The
 entry's grid/raster is retained at

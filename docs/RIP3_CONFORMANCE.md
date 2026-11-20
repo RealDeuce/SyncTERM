@@ -31,6 +31,14 @@ including split CR/LF; ordinary text keeps its own line endings. Processing
 failures are diagnosed and discarded inside RIP3, never returned as connection
 errors. Constructor/accessor and transport failures remain distinct.
 
+Level-0 `M` now selects the current environment's color mode on connections:
+`M08` restores palette mapping, `M18` enables eight-bit direct RGB, and other
+RGB precision values retain the old mode. Both numeric fields use current
+Base Math; malformed fields and protected writes recover nonfatally. This
+wire gate is distinct from the still-incomplete 1..8-bit COLORMODE variable
+contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
+it does not clear the screen. The scene reset `*` remains unimplemented.
+
 Ordinary `w` definitions now configure the default text window on connected
 sessions: all five MicroANSI font modes, inclusive bounds, device-sized cells,
 independently scaled reference origin, wrap/chop and clipped ANSI scrolling.
@@ -55,8 +63,9 @@ window. Adopted
 [PR #102](https://github.com/bbs-land/remote-imaging-protocol/pull/102) resolves
 the ordinary-state contract and corrects the font-2 placement example.
 Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
-are implemented. Character-set selections and complete terminal-mode reset
-acceptance remain pending. UTF-8 is a client extension: incomplete decoding is
+are implemented. Character-set selections await the ANSI/VT-102 byte contract
+requested in [#104](https://github.com/bbs-land/remote-imaging-protocol/issues/104);
+complete terminal-mode reset acceptance remains pending. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
@@ -5888,14 +5897,49 @@ The command-only CRLF regression also covers non-leftmost bottom-row cursors
 on both the entry canvas and positioned windows. Valid, rejected, empty and
 continued command lines span more than a full text window and the session's
 4096-byte processing budget. Each check compares one fenced capture of all
-pixels and cursor state. This is expanded regression coverage; the reported
-scrolling stream has not yet been reproduced, so no additional CRLF fix is
-claimed from these tests.
+pixels and cursor state. The user has confirmed that the CRLF scrolling issue
+is fixed; further investigation is closed and these checks remain regressions.
 
 Native CMake configure/full build and the focused interpreter, framing and
 CP437/UTF-8 connected CTests pass. The existing ANSI, historical wire and
 RIP1.54 preservation checks passed for this source change; the compliance
 ledger check also passes with all 93 frozen files and 41 helpers unchanged.
+
+## Connected color-mode wire command
+
+The separate command dispatcher now implements `M mode:1 bits:1` against the
+current ENV entry. Numeric validation precedes mutation. Palette mode ignores
+the valid bits value; RGB mode activates only for eight, leaving the old mode
+unchanged for other precision values. Other environment fields and noncurrent
+records remain intact. Protection and malformed input use parser-owned
+diagnostics; no incoming error escapes to disconnect the session.
+
+Native tests exhaust every one-digit precision value in both radices, from
+palette and RGB starting states, plus malformed fields, missing services,
+current-slot protection and recovery. CP437/UTF-8 connections on five entry
+rasters verify palette restoration by the literal scene prologue, mode/query
+agreement, RGB-red and mapped-green pixels, and recovery after invalid input.
+Native CMake configure/full build and all four affected CTests pass without C
+compiler warnings. The reference/preservation ledger check passes as well.
+
+The local `/synchronet/tmp/ripterm/rips/broken/` label reflects legacy-parser
+classification and does not establish that a source is invalid. Initial manual
+replays showed later command families drawing over a connection, with remaining
+unsupported diagnostics; this was not conformance acceptance. Per user direction,
+corpus testing is deferred until implementation is considered complete. The
+temporary replay tool and its inspection artifacts were removed. Continue with
+independent spec tests while implementing the remaining families.
+
+Character-set work found a separate documentation gap: the baseline lists
+US/UK/special G0/G1 designation under VT-102, but does not specify ANSI-versus-VT
+gating, initial/invoked sets, SI/SO handling, exact byte-to-MicroANSI mapping or
+3.1 reset scope. New parent issue
+[#104](https://github.com/bbs-land/remote-imaging-protocol/issues/104) asks for
+that contract and independent byte vectors, referencing #100/PR #102 and
+#101/PR #103 without adding content to any existing issue. B104 blocks the
+combined tab/charset row; tab retention itself is already connected. The pin
+remains 93fd0c3. The queue is now 1114 implemented, 1613 pending, 3911 unreviewed,
+1180 context, 24 excluded and 41 blocked source blocks.
 
 ## Verification and acceptance
 
