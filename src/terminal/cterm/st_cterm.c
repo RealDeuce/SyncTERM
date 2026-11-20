@@ -2892,6 +2892,24 @@ st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 }
 
 int
+st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible)
+{
+	if (terminal == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (!terminal->rip3_session_owner)
+		return IO_ERROR_NOT_SUPPORTED;
+	cterm_start(terminal);
+	int status = cterm_text_boundary(terminal);
+	if (status != 0)
+		return status;
+	if (terminal->cursor != CTERM_CURSOR_HIDDEN)
+		terminal->rip3_visible_cursor = terminal->cursor;
+	terminal->cursor = visible ? terminal->rip3_visible_cursor : CTERM_CURSOR_HIDDEN;
+	cterm_render_set_cursor(terminal, terminal->cursor);
+	return cterm_render_take_error(terminal);
+}
+
+int
 st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled)
 {
 	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;

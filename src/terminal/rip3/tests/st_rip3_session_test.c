@@ -30,6 +30,9 @@ struct fixture {
 	int window_status;
 	unsigned moves, column, row;
 	int move_status;
+	unsigned cursor_changes;
+	int cursor_status;
+	bool cursor_visible;
 	bool identical;
 	struct st_rip3_text_window_layout window;
 };
@@ -279,10 +282,55 @@ window(void *context, const struct st_rip3_text_window_layout *layout, bool iden
 }
 
 static int
-move_cursor(void *context, uint32_t column, uint32_t row)
+move_cursor(void *context, const struct st_rip3_text_cursor_position *position)
 {
-	struct fixture *f=context;f->moves++;f->column=column;f->row=row;
+	struct fixture *f=context;f->moves++;
+	if (position->set_column) f->column=position->column>UINT32_MAX ? UINT32_MAX : (uint32_t)position->column;
+	if (position->set_row) f->row=position->row>UINT32_MAX ? UINT32_MAX : (uint32_t)position->row;
 	return f->move_status;
+}
+
+static int
+show_cursor(void *context, bool visible)
+{
+	struct fixture *f=context;f->cursor_changes++;
+	if (f->cursor_status==0) f->cursor_visible=visible;
+	return f->cursor_status;
+}
+
+static int
+cursor_variables(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_cursor=move_cursor;options.sink.text_cursor_visible=show_cursor;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$TWGOTO(0,123,456)$","")==0 && f.moves==1 && f.column==123 && f.row==456);
+	CHECK(query(&f,"$TWGOTO(CUR,CUR,2)$","")==0 && f.moves==2 && f.column==123 && f.row==2);
+	CHECK(query(&f,"$TWGOTO$$TWGOTO(CUR)$","")==0 && f.moves==2);
+	CHECK(query(&f,"$TWHOME$","")==0 && f.moves==3 && f.column==0 && f.row==0);
+	CHECK(query(&f,"$TWGOTO(1,2,3)$$TWHOME(35)$$CON(1,35)$","")==0 && f.moves==3 && f.cursor_changes==0);
+	CHECK(query(&f,"$CON$","")==0 && f.cursor_changes==1 && f.cursor_visible);
+	CHECK(query(&f,"$COFF$","")==0 && f.cursor_changes==2 && !f.cursor_visible);
+	CHECK(append(&f,"!|1\0330000$TWGOTO(CUR,0,NO)$$CON(CUR,36)$\r")==0 && pump(&f)==0
+	    && f.moves==3 && f.cursor_changes==2 && f.errors==2 && f.kind==ST_RIP3_COMMAND_INVALID);
+	f.move_status=IO_ERROR_IO;
+	CHECK(append(&f,"!|1\0330000$TWHOME$\r")==0 && pump(&f)==0 && f.moves==4 && f.errors==3
+	    && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
+	CHECK(query(&f,"$RESX$","640")==0);
+	f.move_status=0;f.cursor_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(append(&f,"!|1\0330000$CON$\r")==0 && pump(&f)==0 && f.cursor_changes==3 && f.errors==4
+	    && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE && !f.cursor_visible);
+	f.cursor_status=0;
+	CHECK(query(&f,"$DTW$$CON$$TWGOTO(CUR,2,3)$$TWHOME$","")==0 && f.cursor_changes==3 && f.moves==4);
+	CHECK(query(&f,"$ATW$$CON$","")==0 && f.cursor_changes==4 && f.cursor_visible && f.errors==4);
+	st_rip3_session_destroy(f.session);
+	struct fixture missing={0};options=config(&missing,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&missing.session,&options)==0);
+	CHECK(query(&missing,"$TWGOTO(1,0,0)$$COFF(35)$","")==0 && missing.errors==0);
+	CHECK(append(&missing,"!|1\0330000$COFF$$TWHOME$\r")==0 && pump(&missing)==0
+	    && missing.errors==2 && missing.kind==ST_RIP3_COMMAND_UNSUPPORTED);
+	CHECK(query(&missing,"$RESY$","480")==0);
+	st_rip3_session_destroy(missing.session);return 0;
 }
 
 static int
@@ -483,7 +531,7 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0
+	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0
 	    && text_deactivation()==0 && text_activation_variables()==0
 	    && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;

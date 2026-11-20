@@ -3,6 +3,7 @@
 #include "st_term_rip3.h"
 #include "st_term_rip3_view.h"
 #include "st_rip3_session.h"
+#include "st_rip3_text_window.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_features.h"
 #include "st_rip3_host_variables.h"
@@ -278,10 +279,32 @@ before_command(void *context)
 }
 
 static int
-text_cursor(void *context, uint32_t column, uint32_t row)
+text_cursor(void *context, const struct st_rip3_text_cursor_position *position)
 {
 	struct st_term_rip3 *rip=context;
-	int status=st_cterm_position_text(st_term_rip3_text(rip),column,row);
+	st_cterm_t *text=st_term_rip3_text(rip);
+	struct st_cterm_state state;uint32_t columns,rows;
+	int status=st_cterm_state(text,&state);
+	if (status==0) status=st_cterm_size(text,&columns,&rows);
+	if (status!=0) return status;
+	uint32_t column=position->set_column
+	    ? position->column>=columns ? columns-1 : (uint32_t)position->column : (uint32_t)(state.x-1);
+	uint32_t row=position->set_row
+	    ? position->row>=rows ? rows-1 : (uint32_t)position->row : (uint32_t)(state.y-1);
+	status=st_cterm_position_text(text,column,row);
+	if (status==0 && rip->view!=NULL)
+		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
+	return status;
+}
+
+static int
+text_cursor_visible(void *context, bool visible)
+{
+	struct st_term_rip3 *rip=context;
+	/* An ATW earlier in the same host expansion can still have a hidden
+	 * renderer cursor saved. Restore that gate before applying CON/COFF. */
+	int status=text_visibility(rip);
+	if (status==0) status=st_cterm_set_text_cursor_visible(st_term_rip3_text(rip),visible);
 	if (status==0 && rip->view!=NULL)
 		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
 	return status;
@@ -506,7 +529,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .device_width=width,.device_height=height,
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
-	        .before_command=before_command,.text_window=text_window,.text_cursor=text_cursor},
+	        .before_command=before_command,.text_window=text_window,.text_cursor=text_cursor,
+	        .text_cursor_visible=text_cursor_visible},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

@@ -2068,6 +2068,7 @@ cterm_reset(struct cterminal *cterm)
 	cterm->xpos = TERM_MINX;
 	cterm->ypos = TERM_MINY;
 	cterm->cursor=CTERM_CURSOR_UNDERLINE;
+	cterm->rip3_visible_cursor=CTERM_CURSOR_UNDERLINE;
 	cterm->cursor_style = 0;
 	cterm->extattr = CTERM_EXTATTR_AUTOWRAP | CTERM_EXTATTR_SXSCROLL | CTERM_EXTATTR_DECBKM;
 	cterm->cell_flags = 0;

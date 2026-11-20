@@ -111,12 +111,31 @@ define_text_window(void *context, const struct st_rip3_text_window_layout *layou
 }
 
 static int
-position_text_cursor(void *context, uint32_t column, uint32_t row)
+position_window_cursor(void *context, unsigned number, const struct st_rip3_text_cursor_position *position)
 {
 	struct st_rip3_session *session=context;
-	if (!session->text_active) return 0;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (number!=0 || !session->text_active) return 0;
 	return session->sink.text_cursor==NULL ? IO_ERROR_NOT_SUPPORTED
-	    : session->sink.text_cursor(session->sink.context,column,row);
+	    : session->sink.text_cursor(session->sink.context,position);
+}
+
+static int
+position_text_cursor(void *context, uint32_t column, uint32_t row)
+{
+	const struct st_rip3_text_cursor_position position={true,true,column,row};
+	return position_window_cursor(context,0,&position);
+}
+
+static int
+show_window_cursors(void *context, const unsigned *numbers, size_t count, bool visible)
+{
+	struct st_rip3_session *session=context;
+	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i=0;i<count;i++) if (numbers[i]==0 && session->text_active)
+		return session->sink.text_cursor_visible==NULL ? IO_ERROR_NOT_SUPPORTED
+		    : session->sink.text_cursor_visible(session->sink.context,visible);
+	return 0;
 }
 
 static int
@@ -260,7 +279,9 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->text.encoding=config->encoding;session->text.font=config->classic_font;session->text.outline_font=config->outline_font;
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
-	session->window_operations=(struct st_rip3_text_window_operations){session,current_text_window,activate_text_windows};
+	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
+	    .current=current_text_window,.activate=activate_text_windows,
+	    .position=position_window_cursor,.cursor=show_window_cursors};
 	session->variables.text_windows=&session->window_operations;
 	session->random.state=config->random_seed;
 	if (session->variables.random==NULL) session->variables.random=&session->random;

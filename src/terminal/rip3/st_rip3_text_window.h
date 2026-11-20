@@ -8,14 +8,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct st_rip3_text_cursor_position {
+	bool set_column,set_row;
+	uint64_t column,row;
+};
+
 /* Borrowed single-owner text-window services for host control variables.
- * Numbers are decimal TW slots 0..35. The owner skips undefined/protected
- * targets and retains layout, cursor, attributes and current selection.
+ * Numbers are decimal TW slots 0..35. Cursor operations skip undefined/inactive
+ * targets, permit protected definitions and retain current selection.
+ * Unspecified axes retain the chosen target's coordinate. Clamp supplied
+ * coordinates against its full dimensions before narrowing, independently
+ * of ANSI origin/margins and graphics PORT state.
  * These statuses stay below the parser's nonfatal recovery boundary. */
 struct st_rip3_text_window_operations {
 	void *context;
 	int (*current)(void *context, unsigned *number);
 	int (*activate)(void *context, const unsigned *numbers, size_t count, bool active);
+	int (*position)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
+	int (*cursor)(void *context, const unsigned *numbers, size_t count, bool visible);
 };
 
 struct st_rip3_text_window_layout {

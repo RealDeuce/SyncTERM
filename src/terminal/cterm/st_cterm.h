@@ -305,6 +305,9 @@ int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_
  * use ANSI CUP's current addressing region. Commit Unicode and clear wrap.
  * No received bytes, input hooks or capture events are manufactured. */
 int st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row);
+/* RIP3-only native visibility control. Retain cursor mode/scan lines, ANSI
+ * attributes, position and pending wrap; never manufacture received bytes. */
+int st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible);
 
 /* Resizes the owned console geometry and preserves visible and saved cells. */
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);

@@ -153,6 +153,8 @@ check_local_text_position(void)
 	CHECK(st_console_font_glyph_text(console,cell.glyph_font,cell.glyph,text,sizeof(text),&required)==0
 	    && required==1 && text[0]=='B');
 	CHECK(st_cterm_position_text(NULL,0,0)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_set_text_cursor_visible(NULL,false)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_set_text_cursor_visible(terminal,false)==IO_ERROR_NOT_SUPPORTED);
 	st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
 }
 
@@ -229,6 +231,29 @@ check_rip3_absolute_text_position(void)
 			CHECK(st_console_font_glyph_text(console,after[i].glyph_font,after[i].glyph,text,sizeof(text),&length)==0);
 			CHECK(length==1 && text[0]==erased[i]);
 		}
+		const char block[]="\x1b[2 q";feed(terminal,block,sizeof(block)-1);
+		struct st_console_custom_cursor cursor,hidden,shown;
+		CHECK(st_console_get_custom_cursor(console,&cursor)==0 && cursor.visible);
+		CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0);
+		CHECK(st_console_get_custom_cursor(console,&hidden)==0 && !hidden.visible
+		    && hidden.start==cursor.start && hidden.end==cursor.end && hidden.range==cursor.range);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && state.ext_attr.origin_mode && state.attr==0x14);
+		/* Subsequent input must not undo the control's native terminal state. */
+		feed(terminal,"V",1);
+		CHECK(st_console_get_custom_cursor(console,&hidden)==0 && !hidden.visible);
+		CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0);
+		CHECK(st_cterm_set_text_cursor_visible(terminal,true)==0);
+		CHECK(st_console_get_custom_cursor(console,&shown)==0 && shown.visible
+		    && shown.start==cursor.start && shown.end==cursor.end && shown.range==cursor.range);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==1 && state.attr==0x14);
+		CHECK(st_cterm_position_text(terminal,7,5)==0);feed(terminal,"W",1);
+		CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0 && st_cterm_set_text_cursor_visible(terminal,true)==0);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.last_column_flag.set && state.x==8 && state.y==6);
+		CHECK(st_cterm_reset_terminal(terminal)==0);
+		const char hide[]="\x1b[?25l";feed(terminal,hide,sizeof(hide)-1);
+		CHECK(st_cterm_set_text_cursor_visible(terminal,true)==0);
+		CHECK(st_console_get_default_cursor(console,&cursor)==0 && st_console_get_custom_cursor(console,&shown)==0
+		    && shown.visible && shown.start==cursor.start && shown.end==cursor.end);
 		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
 	}
 }

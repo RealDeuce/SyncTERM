@@ -92,8 +92,8 @@ independently of ANSI origin and both vertical/horizontal margins, as required b
 adopted PR #103. Movement clears pending wrap and retains margins, modes and saved
 cursor. Following text can render outside the addressing region, while later ANSI
 CUP remains margin-relative. Incoming validation and renderer failures remain
-inside RIP3's nonfatal boundary. Complete TW tables/protection and macro cursor
-controls remain pending. Extended `b` fitting/automatic font choice
+inside RIP3's nonfatal boundary. Complete TW tables/protection remain pending.
+Extended `b` fitting/automatic font choice
 and erase/control-variable rules are documented by
 [PR #103](https://github.com/bbs-land/remote-imaging-protocol/pull/103), resolving
 [#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101) as a
@@ -106,6 +106,16 @@ cursor while preserving its requested visibility/shape, text state and layout.
 Reactivation imports the current artwork before showing a positioned cursor,
 and activation effects publish before reply fences. Defined noncurrent windows,
 selection and protection still require the unfinished TW table.
+
+`$CON$`/`$COFF$` now control the default/current cursor through native services,
+retaining its shape and requested visibility across later text and activation.
+`$TWGOTO$`/`$TWHOME$` use absolute full-window coordinates independently of ANSI
+origin/margins; optional `CUR` axes retain the target coordinate. Decimal values
+clamp to actual dimensions before narrowing, including legal 20-digit arguments.
+No-argument/only-WINNO TWGOTO is a no-op. Selectors are validated before effects;
+undefined nonzero slots and deactivated windows are ignored. These controls are
+callable on connections now; persistent defined noncurrent views and their
+protection/selection lifecycle still require the unfinished TW table.
 
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
@@ -6122,6 +6132,55 @@ protection/macro paragraphs remain pending. The queue is 1168 implemented, 1630
 pending, 3873 unreviewed, 1184 context, 24 excluded and 28 blocked. The reference
 remains ff2043e; reset orchestration (#105), extended b and the larger goal remain
 incomplete. Existing-art replay is still deferred.
+
+## Connected cursor-control variables
+
+CON, COFF, TWGOTO and TWHOME now execute through immediate host-command queries
+on real connections. Their fully validated decimal selectors share ATW/DTW's
+current/number/ALL list handling where documented. CON/COFF omit to CUR, accept
+lists and ignore undefined/deactivated targets. TWHOME accepts one optional
+current/number target; TWGOTO accepts one target and up to two optional decimal
+coordinates or CUR axes. No arguments or only WINNO is a validated no-op.
+
+Cursor position requests retain optional axes of their chosen target and clamp
+against its actual full-window dimensions before narrowing. Legal 20-digit
+coordinate arguments beyond uint64 saturate to UINT64_MAX, which is still beyond
+all accepted device/window dimensions; remaining characters are validated before
+any callback. They therefore reach the nearest border without byte/word wrap.
+ENV base math does not change macro decimal data. Native movement retains ANSI
+origin/margins and saved cursor, and remains distinct from ANSI CUP.
+
+A RIP3-only native visibility operation retains the visible cursor mode and
+style, changes no received bytes, and survives later ordinary text. Its saved
+mode resets with ANSI reset. The adapter restores any pending ATW renderer gate
+before a same-expansion CON/COFF effect, so a previously saved visible cursor
+cannot overwrite a subsequent COFF at the reply fence. Deactivated cursor
+requests change neither live position nor saved visibility.
+
+Host tests first reproduced unsupported TWGOTO, then exercised noncurrent
+callback targets, chosen-target CUR axes, full-range dimensions, 20-digit clamp,
+late syntax rejection before current lookup/effects, undefined/inactive gates,
+selectors, missing services and failure recovery. Session tests verify native
+callback routing, no-coordinate no-ops and nonfatal malformed/IO/resource errors.
+Native CTerm tests cover visibility/style persistence, later text, unchanged
+position/attributes/origin, pending wrap and reset. A dedicated connected suite
+covers CP437 and UTF-8 on all three reference rasters, both the entry grid and a
+positioned 8×6 window. One reply-fenced capture checks each related scene/state;
+it covers both margin axes, unchanged pixels for control operations, saved
+cursor, invalid trailing arguments, decimal data in UltraNum mode, inactive
+requests, reactivation ordering and following text. Wire g still reaches the
+full-window border through the shared adapter. Physical audio is disabled.
+
+Native Release CMake configure/full build and all 13 affected CTests pass without
+new compiler warnings, including the ledger checker and RIP1.54 source guard.
+The 93 frozen files and 41 helper bodies remain unchanged. Source metadata/basic
+predicates gain 19 implemented blocks; 11 descriptive/historical blocks are
+classified as context. The full noncurrent-window/protection paragraphs remain
+pending: only the default/current slot has a connected owner, and other slots
+are undefined until the complete TW table and owned-view lifecycle are added.
+The queue is 1187 implemented, 1634 pending, 3839 unreviewed, 1195 context,
+24 excluded and 28 blocked. The pin remains ff2043e, existing-art replay stays
+deferred and full reset/header orchestration (#105) remains unresolved.
 
 ## Verification and acceptance
 

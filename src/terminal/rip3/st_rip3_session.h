@@ -19,6 +19,7 @@ struct st_rip3_variable_reference;
 struct st_rip3_variable_value;
 struct st_pixel_buffer;
 struct st_rip3_text_window_layout;
+struct st_rip3_text_cursor_position;
 
 struct st_rip3_session_source {
 	void *context;
@@ -41,7 +42,8 @@ struct st_rip3_session_sink {
 	 * parser consumes failures nonfatally and retains its prior layout/gate. */
 	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical);
 	/* Native text-window cursor movement, without synthesized received bytes. */
-	int (*text_cursor)(void *context, uint32_t column, uint32_t row);
+	int (*text_cursor)(void *context, const struct st_rip3_text_cursor_position *position);
+	int (*text_cursor_visible)(void *context, bool visible);
 };
 
 struct st_rip3_session_config {
