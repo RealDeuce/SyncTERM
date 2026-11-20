@@ -70,6 +70,10 @@ int st_rip3_environments_protect(struct st_rip3_environments *environments,
  * here before any caller can divide by them; the record itself stays valid. */
 int st_rip3_environments_frame(const struct st_rip3_environments *environments,
 	unsigned number, struct st_rip3_frame *result);
+/* Physical canvas with its initial compatibility WORLD, for consumers such
+ * as ordinary w that must not depend on any record's stored WORLD. */
+int st_rip3_environments_device(const struct st_rip3_environments *environments,
+	struct st_rip3_frame *result);
 
 /* Whole record table/current index, including protection, in owned snapshots.
  * Restore bypasses live protection and requires the same device canvas.

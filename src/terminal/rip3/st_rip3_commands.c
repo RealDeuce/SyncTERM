@@ -9,6 +9,7 @@
 #include "st_rip3_ports.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_text_window.h"
+#include "st_rip3_maf.h"
 #include "string_compat.h"
 #include "io_error.h"
 
@@ -222,7 +223,7 @@ normal_text_window(const struct st_rip3_command_host *host,
 	}
 	if (host->text_window==NULL || host->text_window->define==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_frame frame;struct st_rip3_text_window_layout layout;
-	status=st_rip3_environments_frame(host->environments,number,&frame);
+	status=st_rip3_environments_device(host->environments,&frame);
 	if (status==0) status=st_rip3_text_window_normal(&layout,&frame,(uint32_t)values[0],
 	    (uint32_t)values[1],(uint32_t)values[2],(uint32_t)values[3],(unsigned)values[4],(unsigned)values[5]);
 	if (status!=0) return status;
@@ -231,6 +232,45 @@ normal_text_window(const struct st_rip3_command_host *host,
 	if ((near_x!=layout.x0 || far_x!=layout.x1 || near_y!=layout.y0 || far_y!=layout.y1)
 	    && sink!=NULL && sink->diagnostic!=NULL)
 		sink->diagnostic(sink->context,ST_RIP3_COMMAND_COORDINATES_CLAMPED);
+	*operation=true;return host->text_window->define(host->text_window->context,&layout);
+}
+
+static int
+extended_text_window(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	struct st_rip3_environment environment;unsigned number;
+	int status=st_rip3_command_environment(host,&number,&environment);
+	if (status!=0) return status;
+	size_t prefix=1+4*environment.coordinate_size+5;
+	if (length<=prefix || length>prefix+7) return IO_ERROR_INVALID_FORMAT;
+	uint64_t fields[9]={0};size_t at=1;
+	for (unsigned i=0;i<7;i++) {
+		size_t width=i<4 ? environment.coordinate_size : i<6 ? 2 : 1;
+		status=st_rip3_command_field(fields+i,command+at,width,environment.base_math);
+		if (status!=0) return status;
+		at+=width;
+	}
+	size_t remaining=length-at,flags=remaining>4 ? 4 : remaining;
+	status=st_rip3_command_field(fields+7,command+at,flags,environment.base_math);
+	if (status==0 && remaining>4)
+		status=st_rip3_command_field(fields+8,command+at+4,remaining-4,environment.base_math);
+	if (status!=0) return status;
+	if (fields[4]==0 || fields[5]==0 || fields[7]>63 || (!(fields[7]&8) && fields[6]>4))
+		return IO_ERROR_OUT_OF_RANGE;
+	if (host->text_window==NULL || host->text_window->define==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_frame frame;struct st_rip3_text_cell cells[5];
+	status=st_rip3_environments_frame(host->environments,number,&frame);
+	for (unsigned i=0;status==0 && i<5;i++) {
+		struct st_rip3_maf_font font;
+		status=st_rip3_maf_builtin_font(&font,frame.device_width,frame.device_height,(enum st_rip3_maf_mode)i);
+		if (status==0) cells[i]=(struct st_rip3_text_cell){font.width,font.height};
+	}
+	struct st_rip3_text_window_layout layout;
+	if (status==0) status=st_rip3_text_window_extended(&layout,&frame,cells,
+	    (uint32_t)fields[0],(uint32_t)fields[1],(uint32_t)fields[2],(uint32_t)fields[3],
+	    (uint32_t)fields[4],(uint32_t)fields[5],(unsigned)fields[6],(unsigned)fields[7]);
+	if (status!=0) return status;
 	*operation=true;return host->text_window->define(host->text_window->context,&layout);
 }
 
@@ -304,6 +344,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
 	if (command[0]=='w') return normal_text_window(host,command,length,operation,sink);
+	if (command[0]=='b') return extended_text_window(host,command,length,operation);
 	if (command[0]=='M') return color_mode(host,command,length,operation);
 	if (command[0]=='g' || command[0]=='H') return text_cursor(host,command,length,operation);
 	if (command[0]=='e' || command[0]=='>') {

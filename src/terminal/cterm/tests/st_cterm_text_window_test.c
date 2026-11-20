@@ -53,7 +53,7 @@ continuations(void)
 		struct fixture source={0},next={0};
 		CHECK(create(&source,17)==0 && create(&next,23)==0);
 		CHECK(feed(&source,sequence,split)==0);
-		CHECK(st_cterm_inherit_window_interpreter(next.text,source.text)==0);
+		CHECK(st_cterm_inherit_window_interpreter(next.text,source.text,true)==0);
 		destroy(&source); /* No inherited pointer may still alias this object. */
 		CHECK(feed(&next,sequence+split,sizeof(sequence)-1-split)==0 && feed(&next,"F",1)==0);
 		struct st_cterm_state state;
@@ -70,8 +70,8 @@ tabs_and_saved_cursor(void)
 	CHECK(create(&source,17)==0 && create(&small,4)==0 && create(&large,23)==0);
 	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[3;3H\x1b" "7\x1b[31;44m";
 	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
-	CHECK(st_cterm_inherit_window_interpreter(small.text,source.text)==0);
-	CHECK(st_cterm_inherit_window_interpreter(large.text,small.text)==0);
+	CHECK(st_cterm_inherit_window_interpreter(small.text,source.text,true)==0);
+	CHECK(st_cterm_inherit_window_interpreter(large.text,small.text,true)==0);
 	destroy(&source);destroy(&small);
 	CHECK(feed(&large,"\t",1)==0 && position(&large,6,1)==0);
 	const char restore[]="\x1b[2;2H\x1b" "8";
@@ -81,7 +81,7 @@ tabs_and_saved_cursor(void)
 	destroy(&large);
 	/* Unmodified default stops extend when the new window grows. */
 	CHECK(create(&source,4)==0 && create(&large,23)==0);
-	CHECK(st_cterm_inherit_window_interpreter(large.text,source.text)==0);
+	CHECK(st_cterm_inherit_window_interpreter(large.text,source.text,true)==0);
 	destroy(&source);
 	CHECK(feed(&large,"\t\t",2)==0 && position(&large,17,1)==0);destroy(&large);return 0;
 }
@@ -96,33 +96,50 @@ failures(void)
 	st_cterm_window_test_tracking=true;
 	for (size_t i=0;i<3;i++) {
 		st_cterm_window_test_attempts=0;st_cterm_window_test_fail_at=i;
-		CHECK(st_cterm_inherit_window_interpreter(next.text,source.text)==IO_ERROR_OUT_OF_MEMORY
+		CHECK(st_cterm_inherit_window_interpreter(next.text,source.text,true)==IO_ERROR_OUT_OF_MEMORY
 		    && st_cterm_window_test_live==0 && next.text->tabs==old_tabs && next.text->strbuf==old_string
 		    && next.text->string==0 && next.text->save_xpos==0);
 	}
 	st_cterm_window_test_tracking=false;st_cterm_window_test_fail_at=SIZE_MAX;
-	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text)==0
+	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text,true)==0
 	    && next.text->strbuf!=source.text->strbuf && strcmp(next.text->strbuf,"0;partial")==0);
 	destroy(&source);
 	CHECK(feed(&next," title\x07",7)==0 && feed(&next,"\t",1)==0 && position(&next,6,1)==0);
 	/* ANSI-BBS renders the CP437 VT byte as a glyph; CSI Y addresses the
 	 * inherited vertical tab stop without depending on that byte policy. */
 	CHECK(feed(&next,"\x1b[Y",3)==0 && position(&next,6,3)==0);
-	CHECK(st_cterm_inherit_window_interpreter(next.text,next.text)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_cterm_inherit_window_interpreter(NULL,next.text)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_inherit_window_interpreter(next.text,next.text,true)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_inherit_window_interpreter(NULL,next.text,true)==IO_ERROR_INVALID_ARGUMENT);
 	destroy(&next);
 	CHECK(create(&source,17)==0 && create(&next,23)==0);
 	old_tabs=next.text->tabs;
 	source.text->graphics_mode=ST_CTERM_GRAPHICS_RIP_1;
-	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text)==IO_ERROR_NOT_SUPPORTED && next.text->tabs==old_tabs);
+	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text,true)==IO_ERROR_NOT_SUPPORTED && next.text->tabs==old_tabs);
 	source.text->graphics_mode=ST_CTERM_GRAPHICS_RIP_3;
 	const char dcs[]="\x1bPq";CHECK(feed(&source,dcs,sizeof(dcs)-1)==0);
-	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text)==IO_ERROR_NOT_SUPPORTED && next.text->tabs==old_tabs);
+	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text,true)==IO_ERROR_NOT_SUPPORTED && next.text->tabs==old_tabs);
+	destroy(&source);destroy(&next);return 0;
+}
+
+int
+extended_tabs(void)
+{
+	struct fixture source={0},next={0};
+	CHECK(create(&source,17)==0 && create(&next,23)==0);
+	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[2;2H\x1b[3";
+	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
+	int *fresh_tabs=next.text->tabs;
+	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text,false)==0 && next.text->tabs==fresh_tabs);
+	CHECK(feed(&next,"1mA",3)==0 && position(&next,2,1)==0 && next.text->attr==4);
+	CHECK(feed(&next,"\t",1)==0 && position(&next,9,1)==0);
+	const char saved[]="\x1b" "8";
+	CHECK(feed(&next,saved,sizeof(saved)-1)==0 && position(&next,1,1)==0);
+	CHECK(feed(&source,"2mB",3)==0 && position(&source,3,2)==0 && source.text->attr==2);
 	destroy(&source);destroy(&next);return 0;
 }
 
 int
 main(void)
 {
-	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0);return 0;
+	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0);return 0;
 }

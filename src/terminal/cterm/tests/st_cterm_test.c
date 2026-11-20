@@ -155,6 +155,9 @@ check_local_text_position(void)
 	CHECK(st_cterm_position_text(NULL,0,0)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_set_text_cursor_visible(NULL,false)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_set_text_cursor_visible(terminal,false)==IO_ERROR_NOT_SUPPORTED);
+	bool requested=true;
+	CHECK(st_cterm_get_text_cursor_visible(terminal,&requested)==IO_ERROR_NOT_SUPPORTED && requested);
+	CHECK(st_cterm_get_text_cursor_visible(NULL,&requested)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_erase_text(NULL,true,0)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_erase_text(terminal,true,0)==IO_ERROR_NOT_SUPPORTED);
 	st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
@@ -237,6 +240,8 @@ check_rip3_absolute_text_position(void)
 		struct st_console_custom_cursor cursor,hidden,shown;
 		CHECK(st_console_get_custom_cursor(console,&cursor)==0 && cursor.visible);
 		CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0);
+		bool requested=true;
+		CHECK(st_cterm_get_text_cursor_visible(terminal,&requested)==0 && !requested);
 		CHECK(st_console_get_custom_cursor(console,&hidden)==0 && !hidden.visible
 		    && hidden.start==cursor.start && hidden.end==cursor.end && hidden.range==cursor.range);
 		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && state.ext_attr.origin_mode && state.attr==0x14);

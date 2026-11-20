@@ -105,8 +105,26 @@ define_text_window(void *context, const struct st_rip3_text_window_layout *layou
 	struct st_rip3_session *session=context;
 	if (session->sink.text_window==NULL) return IO_ERROR_NOT_SUPPORTED;
 	bool same=session->has_text_window && st_rip3_text_window_same(&session->text_window,layout);
-	int status=session->sink.text_window(session->sink.context,layout,same);
-	if (status==0) {session->text_window=*layout;session->has_text_window=true;session->text_active=true;}
+	uint32_t clear_rgb=0;int status=0;
+	if (layout->extended && (layout->flags&16)) {
+		struct st_rip3_palette palette;
+		status=st_rip3_palettes_current_palette(session->commands.palettes,&palette);
+		if (status==0) clear_rgb=palette.rgb[0];
+	}
+	if (status==0) status=session->sink.text_window(session->sink.context,layout,same,clear_rgb);
+	if (status==0) {
+		session->text_window=*layout;session->has_text_window=true;
+		session->text_active=!layout->extended || !(layout->flags&4);
+		if (layout->extended && (layout->flags&16)) {
+			struct st_rip3_rect area;
+			status=st_rip3_text_window_bounds(layout,session->frame.device_width,session->frame.device_height,&area);
+			if (status==0 && area.x0<=area.x1 && area.y0<=area.y1)
+				status=st_rip3_ports_screen_fill(session->commands.ports,&area,0);
+		}
+		/* The working TW0 cannot be protected. This ordered request does
+		 * not undo the completed definition, clear or activation flags. */
+		if (layout->extended && (layout->flags&32)) diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);
+	}
 	return status;
 }
 

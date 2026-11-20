@@ -69,7 +69,8 @@ and native key forwarding address the selected virtual TTY; the main canvas
 retains the entry's raster. Native tests cover widths 2–5, both radices, exact
 geometry/ranges and error recovery; CP437/UTF-8 connection captures cover all
 five modes, placement, scrolling, wrap/chop, reactivation and script operations.
-The full TW table, protected entries, switching and extended `b` remain pending.
+The full TW table, protected entries and switching remain pending. Ordinary
+`w` depends only on the physical device; a stored zero WORLD does not reject it.
 Changed definitions construct a fresh rendering state without clearing
 underlying artwork, retaining independently owned tab stops and unfinished
 ordinary ANSI ESC/CSI/string parsing. Saved cursor coordinates reset to home;
@@ -84,6 +85,19 @@ requested in [#104](https://github.com/bbs-land/remote-imaging-protocol/issues/1
 complete terminal-mode reset acceptance remains pending. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
+Extended `b` now defines the connected default/current text window using wide,
+unclipped WORLD-to-device bounds and the actual bundled MAF cell metrics.
+Directional font fitting, automatic font selection, centered display placement,
+minimum one-cell extension, wrap, cursor hiding and immediate deactivation are
+connected. Flag 16 clears the complete bounding rectangle to current palette
+index 0 before deactivation; omission preserves artwork. Every definition resets
+live/saved cursor, rendition, margins and tab stops while retaining unfinished
+ANSI input and requested cursor visibility. Wholly offscreen windows remain valid;
+over-budget allocations fail nonfatally and retain the old window. TW0 cannot be
+protected, so flag 32 diagnoses that request after completing the definition.
+Nonzero protection, metadata queries and the character-set reset contract (#104)
+remain incomplete. The entry's raster and root grid remain unchanged.
+
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
 without injecting input bytes. `g` has two-digit fields in the current radix
 regardless of XY width; `H` is argumentless. Both ignore deactivated windows.
@@ -94,7 +108,7 @@ cursor. Following text can render outside the addressing region, while later ANS
 CUP remains margin-relative. Incoming validation and renderer failures remain
 inside RIP3's nonfatal boundary. Complete TW tables/protection remain pending.
 Extended `b` fitting/automatic font choice
-and erase/control-variable rules are documented by
+and erase/control-variable rules follow
 [PR #103](https://github.com/bbs-land/remote-imaging-protocol/pull/103), resolving
 [#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101) as a
 documentation blocker; implementation acceptance remains separate.
@@ -117,15 +131,15 @@ undefined nonzero slots and deactivated windows are ignored. These controls are
 callable on connections now; persistent defined noncurrent views and their
 protection/selection lifecycle still require the unfinished TW table.
 
-Wire `e` and `$ETW$` now erase the connected default/current ordinary window to
+Wire `e` and `$ETW$` now erase the connected default/current ordinary or extended window to
 current graphics palette index 0 and home its live cursor. Wire `>` erases from
 the cursor cell through the full display row's last cell using STYLE background,
 resolved through ENV color precision/current palette. Both paths apply solid COPY
 to native cells and the matching screen index plane, independent of graphics
 PORT/viewport state, W, fill pattern and ANSI background. They retain terminal
-attributes, origin/margins, visibility and saved cursor. Extended `b` bounding
-margins, defined noncurrent windows and ANSI-background `$TWERASEEOL$` remain
-unfinished; the latter is not an alias of wire `>`.
+attributes, origin/margins, visibility and saved cursor. Extended bounding margins
+are included in whole-window erases. Defined noncurrent windows and
+ANSI-background `$TWERASEEOL$` remain unfinished; the latter is not an alias of wire `>`.
 
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
@@ -6245,6 +6259,47 @@ ANSI-background TWERASEEOL family remain pending; their broad paragraphs are not
 accepted by this milestone. The queue is 1205 implemented, 1632 pending, 3810
 unreviewed, 1208 context, 24 excluded and 28 blocked. The reference remains
 ff2043e and full scene-reset/header orchestration (#105) remains unresolved.
+
+## Connected extended text windows
+
+Level-0 `b` now reaches the native window renderer in live connections. All
+numeric fields use the current radix and coordinate width; validation includes
+shortened or omitted final reserved fields and unknown flags before effects.
+The fitter floors both WORLD endpoints independently, orders exclusive bounds,
+ignores graphics PORT/viewport state and retains wide coordinates until actual
+screen clipping. It follows the documented directional transition table using
+the original requested count at every step, then reduces counts or extends an
+undersized axis to one cell. Fitting and glyph rendering share the immutable MAF
+provider, including the 1024x768 20x24 font-4 cells and 640x480 fallback bank.
+
+The native adapter reinitializes each accepted extended definition, including
+identical ones. Pending ANSI syntax and global client options survive; tabs,
+rendition, origin/margins and live/saved cursor reset. Cursor hiding persists
+across definitions unless explicitly enabled. Flag 16 paints the entire adjusted
+bounding box in both native pixels and the graphics index plane before flag 4
+deactivates output. Whole-window `e`/ETW now cover extended margins too. Nonzero
+TW tables/protection/query variables and complete charset reset remain pending;
+this milestone does not accept the broad mixed requirements for those features.
+The separate scene-reset `*` contract remains unresolved under #105.
+
+Independent native vectors cover all directional transitions, floor/reversal,
+odd centering, minimum dimensions, unavailable metrics, zero WORLD and coordinates
+beyond 32 bits. Real TCP/control-bitmap captures in CP437 and UTF-8 exercise
+640x480, 800x600, 1024x768 and the 720x400 fallback without changing the entry's
+raster/grid. They cover repeated definitions, partial ANSI, tab reset, clear
+ordering, hidden/deactivated cursors, palette-sensitive margin erasure, offscreen
+placement, allocation rejection, recovery and non-ASCII text. Physical audio is
+disabled and existing RIP-art corpus replay remains deferred.
+
+The native Release CMake configure/build and 19 affected CTests pass, including
+existing connected window/cursor/erase suites and the RIP1.54 source guard.
+Only the strengthened split-input/reserved-field session test was repeated after
+its test edit; unchanged passing suites were reused. The edited ledger check
+also passes, for 20 distinct affected checks. No compiler warnings were introduced.
+The queue now contains 1232 implemented, 1618 pending, 3788 unreviewed, 1217 context,
+24 excluded and 28 blocked blocks. The reference remains ff2043e; frozen RIP1.54
+sources/helpers, baseline and historical assets are unchanged. Task-owned build
+logs are removed after review; no code or issue updates are published.
 
 ## Verification and acceptance
 

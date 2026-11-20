@@ -22,7 +22,7 @@ struct st_rip3_text_window_layout;
 
 struct st_rip3_text_window_host {
 	void *context;
-	/* Prepare/apply one normal window. Status is consumed by the enclosing
+	/* Prepare/apply one ordinary or extended window. Status is consumed by the enclosing
 	 * void parser boundary, never returned as a transport/session error. */
 	int (*define)(void *context, const struct st_rip3_text_window_layout *layout);
 	/* Zero-based full-window g/H position, independent of ANSI origin/margins.
@@ -101,6 +101,7 @@ struct st_rip3_command_sink {
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits, ordinary w layouts/wrap/reactivation/deactivation,
+ * extended b fitting/flags with loaded MAF metrics,
  * g/H text-window cursor addressing and e/> graphics-color text erasure,
  * comments, terminal grouping no-ops and resumable immediate 1ESC queries.
  * Numeric commands use the current ENV record,

@@ -39,6 +39,7 @@ struct fixture {
 	bool erase_whole;
 	uint32_t erase_rgb;
 	bool identical;
+	uint32_t clear_rgb;
 	struct st_rip3_text_window_layout window;
 };
 
@@ -280,9 +281,9 @@ borrowed_user(void)
 }
 
 static int
-window(void *context, const struct st_rip3_text_window_layout *layout, bool identical)
+window(void *context, const struct st_rip3_text_window_layout *layout, bool identical, uint32_t clear_rgb)
 {
-	struct fixture *f=context;f->windows++;f->window=*layout;f->identical=identical;
+	struct fixture *f=context;f->windows++;f->window=*layout;f->identical=identical;f->clear_rgb=clear_rgb;
 	return f->window_status;
 }
 
@@ -404,6 +405,68 @@ text_cursor(void)
 	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==5 && f.column==0 && f.row==0);
 	CHECK(append(&f,"!|J10|n2|w0000000000|g0102|H\r")==0 && pump(&f)==0 && f.moves==5 && f.errors==5);
 	CHECK(query(&f,"$RESX$","640")==0 && !st_rip3_session_text_active(f.session));
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
+extended_wire(char *wire, size_t capacity, unsigned radix, unsigned xy, unsigned flags)
+{
+	const uint64_t fields[]={10,20,1010,620,40,25,4,flags};
+	size_t at=2;CHECK(capacity>2);wire[0]='!';wire[1]='|';wire[at++]='b';
+	for (unsigned i=0;i<8;i++) {
+		unsigned width=i<4 ? xy : i<6 ? 2 : i==6 ? 1 : 4;
+		CHECK(st_rip3_number_encode(wire+at,capacity-at,fields[i],width,radix)==0);at+=width;
+	}
+	CHECK(capacity>at+1);wire[at++]='\r';wire[at]=0;return 0;
+}
+
+static int
+extended_window(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_1024_768);
+	options.sink.text_window=window;
+	CHECK(st_rip3_session_create(&f.session,&options)==0 && query(&f,"$WORLD(CUR,1024,768)$","")==0);
+	CHECK(append(&f,"!|b0A0KS2H8140PZ8\r")==0);
+	while (f.read<f.length) st_rip3_session_process(f.session,1);
+	CHECK(!f.overflow && f.windows==1 && !f.identical
+	    && f.window.extended && f.window.font==4 && f.window.x==110 && f.window.y==20
+	    && f.window.columns==40 && f.window.rows==25 && f.window.cell_width==20 && f.window.cell_height==24);
+	CHECK(append(&f,"!|a0010|b0A0KS2H8140P4000HXYZ\r")==0 && pump(&f)==0 && f.windows==2
+	    && !f.identical && f.window.flags==17 && f.clear_rgb==0xff0000);
+	CHECK(append(&f,"!|b0A0KS2H8140P4000H001\r")==0 && pump(&f)==0 && f.windows==3 && !f.identical && f.window.flags==17);
+	CHECK(append(&f,"!|b0A0KS2H8140P4000H0|b0A0KS2H8140P4000H00|b0A0KS2H8140P4H\r")==0
+	    && pump(&f)==0 && f.windows==6 && !f.identical && f.window.flags==17);
+	const char *const invalid[]={"b","b0A0KS2H8140PZ","b0A0KS2H8000P48","b0A0KS2H8140048",
+	    "b0A0KS2H8140P50","b0A0KS2H8140P41S","b0A0KS2H8140P48?","b0A0KS2H8140P?8",
+	    "b0A0KS2H8140P4000H00?","b0A0KS2H8140P4000H0000"};
+	unsigned errors=f.errors;
+	for (size_t i=0;i<sizeof(invalid)/sizeof(*invalid);i++) {
+		char bad[100];snprintf(bad,sizeof(bad),"!|%s\r",invalid[i]);
+		CHECK(append(&f,bad)==0 && pump(&f)==0 && f.windows==6 && f.errors==errors+i+1 && f.kind==ST_RIP3_COMMAND_INVALID);
+	}
+	for (unsigned radix=36;radix<=64;radix+=28) {
+		CHECK(append(&f,radix==36 ? "!|J10|n2\r" : "!|J1S|n2\r")==0 && pump(&f)==0);
+		for (unsigned flags=0;flags<64;flags++) {
+			char wire[100];CHECK(extended_wire(wire,sizeof(wire),radix,2,flags)==0);
+			unsigned windows=f.windows;errors=f.errors;
+			CHECK(append(&f,wire)==0 && pump(&f)==0 && f.windows==windows+1 && !f.identical
+			    && f.window.flags==flags && f.window.wrap==((flags&1)!=0)
+			    && st_rip3_session_text_active(f.session)==((flags&4)==0));
+			CHECK(f.errors==errors+((flags&32)!=0)); /* TW0 cannot be protected. */
+		}
+	}
+	CHECK(query(&f,"$ATW$","")==0 && st_rip3_session_text_active(f.session));
+	f.window_status=IO_ERROR_OUT_OF_MEMORY;
+	unsigned windows=f.windows;errors=f.errors;
+	CHECK(append(&f,"!|b0A0KFo9i0e0P44\r")==0 && pump(&f)==0 && f.windows==windows+1
+	    && f.errors==errors+1 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE && st_rip3_session_text_active(f.session));
+	f.window_status=0;
+	CHECK(append(&f,"!|J10|w0A050C0710\r")==0 && pump(&f)==0 && !f.identical && !f.window.extended);
+	CHECK(append(&f,"!|w0A050C0710\r")==0 && pump(&f)==0 && f.identical);
+	CHECK(query(&f,"$WORLD(CUR,0,0)$","")==0);windows=f.windows;errors=f.errors;
+	CHECK(append(&f,"!|b0A0KS2H8140P48\r")==0 && pump(&f)==0 && f.windows==windows && f.errors==errors+1);
+	CHECK(append(&f,"!|w0A050C0710\r")==0 && pump(&f)==0 && f.windows==windows+1 && !f.window.extended);
+	CHECK(query(&f,"$WORLD(CUR,1024,768)$$RESX$","1024")==0);
 	st_rip3_session_destroy(f.session);return 0;
 }
 
@@ -585,7 +648,7 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0 && text_erases()==0
+	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0 && text_erases()==0 && extended_window()==0
 	    && text_deactivation()==0 && text_activation_variables()==0
 	    && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;

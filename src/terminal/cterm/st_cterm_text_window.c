@@ -9,7 +9,8 @@
 #include <string.h>
 
 int
-st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source)
+st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source,
+    bool preserve_tabs)
 {
 	if (destination==NULL || source==NULL || destination==source
 	    || destination->input_depth!=0 || source->input_depth!=0
@@ -33,32 +34,36 @@ st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *s
 	    || (source->strbuf!=NULL && source->strbuflen>=source->strbufsize))
 		return IO_ERROR_INVALID_ARGUMENT;
 	int first=source->tab_width==0 ? 0 : (source->tab_width-1)/8+1;
-	int extra=destination->width>source->tab_width && source->default_tabs
+	int extra=preserve_tabs && destination->width>source->tab_width && source->default_tabs
 	    ? (destination->width-1)/8+1-first : 0;
-	size_t count=(size_t)source->tab_count+(size_t)extra;
+	size_t count=preserve_tabs ? (size_t)source->tab_count+(size_t)extra : 0;
+	size_t vertical=preserve_tabs ? (size_t)source->vtab_count : 0;
 	if (count>INT_MAX || count>SIZE_MAX/sizeof(int) || (size_t)source->vtab_count>SIZE_MAX/sizeof(int))
 		return IO_ERROR_OUT_OF_RANGE;
 	int *tabs=NULL,*vtabs=NULL;char *string=NULL;
 	if (count!=0) tabs=malloc(count*sizeof(*tabs));
-	if (source->vtab_count!=0) vtabs=malloc((size_t)source->vtab_count*sizeof(*vtabs));
+	if (vertical!=0) vtabs=malloc(vertical*sizeof(*vtabs));
 	if (source->strbuf!=NULL) string=malloc(source->strbuflen+1);
-	if ((count!=0 && tabs==NULL) || (source->vtab_count!=0 && vtabs==NULL)
+	if ((count!=0 && tabs==NULL) || (vertical!=0 && vtabs==NULL)
 	    || (source->strbuf!=NULL && string==NULL)) {
 		free(tabs);free(vtabs);free(string);return IO_ERROR_OUT_OF_MEMORY;
 	}
-	if (source->tab_count!=0) memcpy(tabs,source->tabs,(size_t)source->tab_count*sizeof(*tabs));
+	if (preserve_tabs && source->tab_count!=0) memcpy(tabs,source->tabs,(size_t)source->tab_count*sizeof(*tabs));
 	for (int i=0;i<extra;i++) tabs[source->tab_count+i]=1+8*(first+i);
-	if (source->vtab_count!=0) memcpy(vtabs,source->vtabs,(size_t)source->vtab_count*sizeof(*vtabs));
+	if (vertical!=0) memcpy(vtabs,source->vtabs,vertical*sizeof(*vtabs));
 	if (string!=NULL) {
 		memcpy(string,source->strbuf,source->strbuflen);string[source->strbuflen]=0;
 	}
 	/* No destination mutation or received-input callback precedes successful
 	 * allocation of every owned buffer. The source remains independently usable. */
-	free(destination->tabs);free(destination->vtabs);free(destination->strbuf);
-	destination->tabs=tabs;destination->tab_count=(int)count;
-	destination->tab_width=source->tab_width>destination->width ? source->tab_width : destination->width;
-	destination->default_tabs=source->default_tabs;
-	destination->vtabs=vtabs;destination->vtab_count=source->vtab_count;
+	if (preserve_tabs) {
+		free(destination->tabs);free(destination->vtabs);
+		destination->tabs=tabs;destination->tab_count=(int)count;
+		destination->tab_width=source->tab_width>destination->width ? source->tab_width : destination->width;
+		destination->default_tabs=source->default_tabs;
+		destination->vtabs=vtabs;destination->vtab_count=source->vtab_count;
+	}
+	free(destination->strbuf);
 	destination->strbuf=string;destination->strbuflen=source->strbuflen;
 	destination->strbufsize=string==NULL ? 0 : source->strbuflen+1;
 	destination->sequence=source->sequence;destination->string=source->string;

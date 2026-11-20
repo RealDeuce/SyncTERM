@@ -198,6 +198,14 @@ st_rip3_environments_frame(const struct st_rip3_environments *environments,
 	return status;
 }
 
+int
+st_rip3_environments_device(const struct st_rip3_environments *environments,
+    struct st_rip3_frame *result)
+{
+	if (environments==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*result=environments->device;return 0;
+}
+
 static int
 environment_clone(const void *object, void **result)
 {

@@ -294,12 +294,14 @@ int st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled);
 int st_cterm_start_text(st_cterm_t *terminal);
 /* Commit pending Unicode text at an external graphics/window boundary. */
 int st_cterm_text_boundary(st_cterm_t *terminal);
-/* RIP3-only preparation: inherit tabs and unfinished ordinary ANSI syntax
- * into a started, idle fresh window without copying rendition/geometry or
+/* RIP3-only preparation of a started, idle fresh window: inherit unfinished
+ * ordinary ANSI syntax and, when preserve_tabs is true, the old tab stops.
+ * Extended b keeps fresh default tabs. Do not copy rendition/geometry or
  * UTF-8 presenter state. No rendering/input callbacks. Failure preserves both
  * objects; success leaves source independently owned. Pending optional media
  * and font-download payloads remain unsupported, never partially transferred. */
-int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
+int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source,
+	bool preserve_tabs);
 /* Zero-based local cursor placement. A RIP3 session owner uses full-window
  * absolute coordinates independently of ANSI origin/margins. Other callers
  * use ANSI CUP's current addressing region. Commit Unicode and clear wrap.
@@ -308,6 +310,9 @@ int st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row);
 /* RIP3-only native visibility control. Retain cursor mode/scan lines, ANSI
  * attributes, position and pending wrap; never manufacture received bytes. */
 int st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible);
+/* Requested native visibility, independently of an inactive/offscreen view's
+ * physical cursor gate. Does not start or change the interpreter. */
+int st_cterm_get_text_cursor_visible(const st_cterm_t *terminal, bool *visible);
 /* RIP3-only solid COPY erase with untagged RGB, independent of ANSI origin
  * and scrolling margins. Whole window homes the live cursor only; EOL erases
  * cursor-inclusive through the last full-window cell without moving it.

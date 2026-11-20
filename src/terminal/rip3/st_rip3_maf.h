@@ -34,6 +34,11 @@ int st_rip3_maf_open(struct st_rip3_maf *result, const void *data, size_t size);
 int st_rip3_maf_find(struct st_rip3_maf_font *result,
 	const struct st_rip3_maf *file, unsigned width, unsigned height,
 	enum st_rip3_maf_mode mode);
+/* Borrow the bundled font actually used by a DEVICE raster. Missing exact
+ * profiles use the existing 640x480 fallback, independently of WORLD. Both
+ * extended-window fitting and the renderer consume these same dimensions. */
+int st_rip3_maf_builtin_font(struct st_rip3_maf_font *result,
+	unsigned width, unsigned height, enum st_rip3_maf_mode mode);
 /* CP437 character zero is blank and has no stored record (returns NULL).
  * Others have glyph_size bytes: row-major, MSB first, row_bytes per row. */
 const uint8_t *st_rip3_maf_glyph(const struct st_rip3_maf_font *font,

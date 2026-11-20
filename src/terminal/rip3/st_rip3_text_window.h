@@ -35,10 +35,16 @@ struct st_rip3_text_window_layout {
 	uint32_t x0,y0,x1,y1;
 	unsigned font;
 	bool wrap;
+	bool extended;
+	unsigned flags;
 	/* Absolute DEVICE placement; independent of PORT, viewport and WORLD.
 	 * The physical canvas clips any far-edge cell overhang. */
-	uint32_t x,y,columns,rows,cell_width,cell_height;
+	uint64_t x,y,bound_x,bound_y,bound_width,bound_height;
+	uint32_t columns,rows,cell_width,cell_height;
 };
+
+struct st_rip3_text_cell { uint32_t width,height; };
+struct st_rip3_rect;
 
 /* Geometry service below the parser's void recovery boundary. These are
  * non-deactivation w layouts: the all-zero tuple's gate operation belongs
@@ -53,5 +59,17 @@ int st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
  * updates wrap without relocating the current ANSI cursor. */
 bool st_rip3_text_window_same(const struct st_rip3_text_window_layout *left,
 	const struct st_rip3_text_window_layout *right);
+/* Extended b geometry: unsigned absolute WORLD endpoints, exclusive far
+ * edges, directed first-fit selection using the actual loaded cell metrics.
+ * Retain unclipped wide bounds, extend undersized axes at their far edges and
+ * center the display with odd spare pixels at right/bottom. No state changes. */
+int st_rip3_text_window_extended(struct st_rip3_text_window_layout *result,
+	const struct st_rip3_frame *device, const struct st_rip3_text_cell cells[5],
+	uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1,
+	uint32_t columns, uint32_t rows, unsigned font, unsigned flags);
+/* Clip the stored bounding rectangle only to the physical raster. Empty is
+ * 0,0,-1,-1; narrowing follows clipping. Neither WORLD nor PORT is applied. */
+int st_rip3_text_window_bounds(const struct st_rip3_text_window_layout *layout,
+	uint32_t width, uint32_t height, struct st_rip3_rect *result);
 
 #endif

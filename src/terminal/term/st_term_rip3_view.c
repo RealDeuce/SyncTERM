@@ -1,7 +1,6 @@
 /* Independent ANSI rendering inside a RIP3 window; no legacy RIP helpers. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_term_rip3_view.h"
-#include "st_rip3_font_data.h"
 #include "st_rip3_maf.h"
 #include "st_builtin_fonts.h"
 #include "io_error.h"
@@ -34,16 +33,8 @@ output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, 
 static int
 bitmap_font(st_font_catalog_t *catalog, unsigned width, unsigned height, unsigned number)
 {
-	const struct st_rip3_font_asset *asset=NULL;
-	for (size_t i=0;i<st_rip3_font_asset_count();i++) {
-		const struct st_rip3_font_asset *candidate=st_rip3_font_asset_at(i);
-		if (strcmp(candidate->filename,"RIPscrip.maf")==0) {asset=candidate;break;}
-	}
-	if (asset==NULL) return IO_ERROR_NOT_FOUND;
-	struct st_rip3_maf file;struct st_rip3_maf_font font;
-	int status=st_rip3_maf_open(&file,asset->data,asset->size);
-	if (status==0) status=st_rip3_maf_find(&font,&file,width,height,(enum st_rip3_maf_mode)number);
-	if (status==IO_ERROR_NOT_FOUND) status=st_rip3_maf_find(&font,&file,640,480,(enum st_rip3_maf_mode)number);
+	struct st_rip3_maf_font font;
+	int status=st_rip3_maf_builtin_font(&font,width,height,(enum st_rip3_maf_mode)number);
 	if (status!=0) return status;
 	if (font.glyph_size>SIZE_MAX/256) return IO_ERROR_OUT_OF_RANGE;
 	uint8_t *bytes=calloc(256,font.glyph_size);
@@ -75,10 +66,21 @@ st_term_rip3_view_create(struct st_term_rip3_view **result,
     uint32_t device_width, uint32_t device_height)
 {
 	if (result==NULL || text_config==NULL || layout==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (layout->columns==0 || layout->rows==0 || layout->cell_width==0 || layout->cell_height==0
+	    || device_width==0 || device_height==0) return IO_ERROR_INVALID_ARGUMENT;
+	uint64_t pixel_width=(uint64_t)layout->columns*layout->cell_width;
+	uint64_t pixel_height=(uint64_t)layout->rows*layout->cell_height;
+	uint64_t budget=(uint64_t)device_width*device_height;
+	budget=budget>UINT64_MAX/36 ? UINT64_MAX : budget*36;
+	/* Match the session's finite offscreen resource policy before allocating
+	 * a private pixel plane. Valid but oversized requests fail nonfatally. */
+	if (pixel_width>UINT32_MAX || pixel_height>UINT32_MAX || pixel_width*pixel_height>budget)
+		return IO_ERROR_OUT_OF_MEMORY;
 	struct st_term_rip3_view *view=calloc(1,sizeof(*view));
 	if (view==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	view->layout=*layout;
-	view->output=text_config->output;view->output_context=text_config->output_context;view->active=true;
+	view->output=text_config->output;view->output_context=text_config->output_context;
+	view->active=!layout->extended || !(layout->flags&4);
 	view->palette=calloc(UINT16_MAX+1u,sizeof(*view->palette));
 	if (view->palette==NULL) {st_term_rip3_view_destroy(view);return IO_ERROR_OUT_OF_MEMORY;}
 	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
@@ -136,9 +138,9 @@ st_term_rip3_view_begin(struct st_term_rip3_view *view, st_console_t *parent)
 	uint32_t width,height;
 	int status=st_console_pixel_size(parent,&width,&height);
 	if (status!=0) return status;
-	struct st_console_rect area={view->layout.x,view->layout.y,
+	if (view->layout.x>=width || view->layout.y>=height) return 0;
+	struct st_console_rect area={(uint32_t)view->layout.x,(uint32_t)view->layout.y,
 	    view->layout.columns*view->layout.cell_width,view->layout.rows*view->layout.cell_height};
-	if (area.x>=width || area.y>=height) return IO_ERROR_OUT_OF_RANGE;
 	if (area.width>width-area.x) area.width=width-area.x;
 	if (area.height>height-area.y) area.height=height-area.y;
 	struct st_pixel_buffer *pixels=NULL;
@@ -153,25 +155,38 @@ int
 st_term_rip3_view_present(struct st_term_rip3_view *view, st_console_t *parent, bool active)
 {
 	if (view==NULL || parent==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	const struct st_console_rect area={0,0,view->layout.columns*view->layout.cell_width,
-	    view->layout.rows*view->layout.cell_height};
-	struct st_pixel_buffer *pixels=NULL;
-	int status=st_console_get_pixels(&pixels,view->console,&area,false);
-	if (status==0) status=rgb(view,pixels,view->console);
-	const struct st_pixel_blit blit={.width=area.width,.height=area.height,.scale_x=1,.scale_y=1,
-	    .destination_x=(int32_t)view->layout.x,.destination_y=(int32_t)view->layout.y};
-	if (status==0) status=st_console_blit_pixels(parent,pixels,NULL,&blit);
-	st_pixel_buffer_destroy(pixels);
+	uint32_t width,height;
+	int status=st_console_pixel_size(parent,&width,&height);
+	if (status!=0) return status;
+	if (view->layout.x<width && view->layout.y<height) {
+		struct st_console_rect area={0,0,view->layout.columns*view->layout.cell_width,
+		    view->layout.rows*view->layout.cell_height};
+		if (area.width>width-(uint32_t)view->layout.x) area.width=width-(uint32_t)view->layout.x;
+		if (area.height>height-(uint32_t)view->layout.y) area.height=height-(uint32_t)view->layout.y;
+		struct st_pixel_buffer *pixels=NULL;
+		status=st_console_get_pixels(&pixels,view->console,&area,false);
+		if (status==0) status=rgb(view,pixels,view->console);
+		const struct st_pixel_blit blit={.width=area.width,.height=area.height,.scale_x=1,.scale_y=1,
+		    .destination_x=(int32_t)view->layout.x,.destination_y=(int32_t)view->layout.y};
+		if (status==0) status=st_console_blit_pixels(parent,pixels,NULL,&blit);
+		st_pixel_buffer_destroy(pixels);
+	}
 	uint32_t x,y;bool visible;enum st_console_cursor_shape shape;
 	if (status==0) status=st_console_get_position(view->console,&x,&y);
 	if (status==0) status=st_console_get_cursor(view->console,&visible,&shape);
 	if (status!=0) return status;
-	struct st_console_pixel_cursor cursor={.enabled=true,.visible=active && visible,
-	    .colour=ST_PIXEL_COLOR_RGB_VALUE(255,255,255),.rectangle={
-	        view->layout.x+x*view->layout.cell_width,view->layout.y+y*view->layout.cell_height,
-	        shape==ST_CONSOLE_CURSOR_BAR ? 1 : view->layout.cell_width,
-	        shape==ST_CONSOLE_CURSOR_UNDERLINE ? 1 : view->layout.cell_height}};
-	if (shape==ST_CONSOLE_CURSOR_UNDERLINE) cursor.rectangle.y+=view->layout.cell_height-1;
+	uint64_t cursor_x=view->layout.x+(uint64_t)x*view->layout.cell_width;
+	uint64_t cursor_y=view->layout.y+(uint64_t)y*view->layout.cell_height;
+	if (shape==ST_CONSOLE_CURSOR_UNDERLINE) cursor_y+=view->layout.cell_height-1;
+	struct st_console_pixel_cursor cursor={.enabled=true,.colour=ST_PIXEL_COLOR_RGB_VALUE(255,255,255)};
+	if (cursor_x<width && cursor_y<height) {
+		cursor.visible=active && visible;
+		cursor.rectangle=(struct st_console_rect){(uint32_t)cursor_x,(uint32_t)cursor_y,
+		    shape==ST_CONSOLE_CURSOR_BAR ? 1 : view->layout.cell_width,
+		    shape==ST_CONSOLE_CURSOR_UNDERLINE ? 1 : view->layout.cell_height};
+		if (cursor.rectangle.width>width-cursor.rectangle.x) cursor.rectangle.width=width-cursor.rectangle.x;
+		if (cursor.rectangle.height>height-cursor.rectangle.y) cursor.rectangle.height=height-cursor.rectangle.y;
+	}
 	status=st_console_set_cursor(parent,false,ST_CONSOLE_CURSOR_UNDERLINE);
 	if (status==0) status=st_console_set_pixel_cursor(parent,&cursor);
 	return status;

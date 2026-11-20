@@ -40,8 +40,10 @@ struct st_rip3_session_sink {
 	/* Commit pending ordinary text before changing graphics/window state. */
 	void (*before_command)(void *context);
 	/* Resource/renderer adapter. Prepare before committing a new view; the
-	 * parser consumes failures nonfatally and retains its prior layout/gate. */
-	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical);
+	 * parser consumes failures nonfatally and retains its prior layout/gate.
+	 * clear_rgb resolves current PAL index0 for extended flag16; ignored otherwise. */
+	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical,
+		uint32_t clear_rgb);
 	/* Native text-window cursor movement, without synthesized received bytes. */
 	int (*text_cursor)(void *context, const struct st_rip3_text_cursor_position *position);
 	int (*text_cursor_visible)(void *context, bool visible);
