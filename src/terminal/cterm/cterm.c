@@ -2342,25 +2342,44 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 {
 	int lm = TERM_MINX, rm = TERM_MAXX;
 	int tm = TERM_MINY, bm = TERM_MAXY;
+	int maxx = CURR_MAXX, maxy = CURR_MAXY;
+	bool scroll_at_margin = true;
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &lm, &tm);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &rm, &bm);
+	if (cterm->rip3_session_owner && (cterm->extattr & CTERM_EXTATTR_ORIGINMODE)) {
+		/* RIP can position text beyond ANSI's addressing margins. Such
+		 * output reaches the physical edge without scrolling that region. */
+		if (*x > rm) {
+			lm = 1;
+			maxx = cterm->width;
+			maxy = cterm->height;
+			cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &lm, NULL);
+			cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &maxx, &maxy);
+			rm = maxx;
+			scroll_at_margin = false;
+		}
+		else if (*y < tm || *y > bm) {
+			maxy = cterm->height;
+			cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, NULL, &maxy);
+		}
+	}
 
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB) {
 		cterm_prestel_fix_line(cterm, *x, *y, true, false);
 		cterm_render_set_attribute(cterm, cterm->attr);
 		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 	}
-	if((*x == rm || *x == CURR_MAXX) && (!(cterm->extattr & CTERM_EXTATTR_AUTOWRAP))) {
+	if((*x == rm || *x == maxx) && (!(cterm->extattr & CTERM_EXTATTR_AUTOWRAP))) {
 		cterm_render_set_position(cterm, *x, *y);
 		return;
 	}
 	else {
-		if((*x == rm || *x == CURR_MAXX) && ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == CTERM_LCF_ENABLED)) {
+		if((*x == rm || *x == maxx) && ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == CTERM_LCF_ENABLED)) {
 			cterm->last_column_flag |= CTERM_LCF_SET;
 			cterm_render_set_position(cterm, *x, *y);
 		}
-		else if(*y == bm && (*x == rm || *x == CURR_MAXX)) {
+		else if(scroll_at_margin && *y == bm && (*x == rm || *x == maxx)) {
 			if (cterm->emulation == CTERM_EMULATION_PRESTEL) {
 				*y = tm;
 				move = 1;
@@ -2376,12 +2395,12 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 			}
 		}
 		else {
-			if(*x == rm || *x == CURR_MAXX) {
+			if(*x == rm || *x == maxx) {
 				if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB) {
 					cterm_prestel_new_line(cterm);
 				}
 				*x=lm;
-				if (*y < CURR_MAXY)
+				if (*y < maxy)
 					(*y)++;
 				if (move)
 					cterm_render_set_position(cterm, *x, *y);

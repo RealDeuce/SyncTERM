@@ -2226,6 +2226,8 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		return status;
 	}
 	terminal->graphics_mode = config->graphics_mode;
+	terminal->rip3_session_owner = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3
+	    && config->rip3_session_owner;
 	terminal->skypix_transfer = config->skypix_transfer;
 	terminal->skypix_transfer_context = config->skypix_transfer_context;
 	terminal->quiet = config->quiet;
@@ -2873,14 +2875,18 @@ st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 	cterm_start(terminal);
 	int status=cterm_text_boundary(terminal);
 	if (status!=0) return status;
-	uint32_t columns=(uint32_t)((terminal->extattr&CTERM_EXTATTR_ORIGINMODE)
+	bool origin=!terminal->rip3_session_owner && (terminal->extattr&CTERM_EXTATTR_ORIGINMODE);
+	uint32_t columns=(uint32_t)(origin
 	    ? terminal->right_margin-terminal->left_margin+1 : terminal->width);
-	uint32_t rows=(uint32_t)((terminal->extattr&CTERM_EXTATTR_ORIGINMODE)
+	uint32_t rows=(uint32_t)(origin
 	    ? terminal->bottom_margin-terminal->top_margin+1 : terminal->height);
 	if (column>=columns) column=columns-1;
 	if (row>=rows) row=rows-1;
 	cterm_clear_lcf(terminal);++terminal->cursor_position_changes;
-	cterm_render_set_position(terminal,(int)column+1,(int)row+1);
+	int x=(int)column+1,y=(int)row+1;
+	if (terminal->rip3_session_owner)
+		cterm_coord_conv_xy(terminal,CTERM_COORD_ABSTERM,CTERM_COORD_CURR,&x,&y);
+	cterm_render_set_position(terminal,x,y);
 	cterm_coord_get_xy(terminal,CTERM_COORD_ABSTERM,&terminal->xpos,&terminal->ypos);
 	return cterm_render_take_error(terminal);
 }

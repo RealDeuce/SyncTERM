@@ -87,11 +87,13 @@ committed at RIP boundaries, so bytes cannot join across window definitions.
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
 without injecting input bytes. `g` has two-digit fields in the current radix
 regardless of XY width; `H` is argumentless. Both ignore deactivated windows.
-The current renderer applies ANSI CUP semantics, including origin-mode margins,
-and clears pending wrap before later text. Adopted PR #103 requires full-window
-absolute positioning independently of ANSI origin/margins; these implementation
-claims are reopened pending correction. Incoming validation and renderer failures
-remain inside RIP3's nonfatal boundary. Extended `b` fitting/automatic font choice
+The connected default/current window now uses full-window absolute positioning
+independently of ANSI origin and both vertical/horizontal margins, as required by
+adopted PR #103. Movement clears pending wrap and retains margins, modes and saved
+cursor. Following text can render outside the addressing region, while later ANSI
+CUP remains margin-relative. Incoming validation and renderer failures remain
+inside RIP3's nonfatal boundary. Complete TW tables/protection and macro cursor
+controls remain pending. Extended `b` fitting/automatic font choice
 and erase/control-variable rules are documented by
 [PR #103](https://github.com/bbs-land/remote-imaging-protocol/pull/103), resolving
 [#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101) as a
@@ -6080,6 +6082,46 @@ Native CMake configure/build and the three reference/preservation CTests pass;
 strict reindexing against the extracted pinned source preserves the ledger byte
 for byte. Already passing drawing tests are reused for this documentation-only
 milestone. RIP1.54's frozen files/helpers remain unchanged.
+
+## Connected absolute RIP cursor positioning after PR #103
+
+Wire g/H on the entry TTY and positioned default/current window now address the
+full text window independently of ANSI origin mode and both scrolling-margin
+axes. Clamp before narrowing, commit Unicode, clear pending wrap and preserve
+origin/margins, colors and saved cursor. Existing radix/field validation,
+deactivated-window no-ops and nonfatal parser/renderer diagnostics remain.
+Complete TW tables, protected-definition lifecycle and TWGOTO/TWHOME macros are
+still unfinished; their broad behavior paragraphs remain pending.
+
+An explicit RIP3-session-owner flag confines the native rendering adaptation.
+The console cursor uses full physical window bounds; the separate ANSI addressing
+rectangle still supplies origin-relative coordinates and erase limits. Signed
+coordinate conversion permits a cursor above/left of that rectangle. Text to the
+right of the horizontal margin reaches the physical edge and can wrap without
+scrolling the ANSI region; ordinary text inside the margins still scrolls that
+region. Direct/legacy CTerm paths retain their previous addressing behavior.
+
+Independent native tests first reproduced origin-mode home failure and then
+caught text suppression beyond the horizontal margin. CP437 and UTF-8 cell
+expectations now cover full-window endpoints, movement without repaint, pending
+wrap, text outside all margins, outside-margin wrapping, confined scrolling,
+ANSI CUP and saved-cursor restoration, and EL's retained addressing limit.
+Connected CP437/UTF-8 captures exercise entry grids and positioned windows with
+both margin axes on all five existing rasters, including unchanged artwork and
+following text at full-window corners. The initial test incorrectly expected
+bright white from the root legacy color alias; the corrected fixture explicitly
+requests normal ANSI gray (0xa8a8a8), independently of the cursor expectations.
+
+Native Release CMake builds and affected CTests pass without new compiler
+warnings. The final run includes both connected suites, native CTerm/text/stream
+checks, legacy RIP live rendering and the frozen-source guard. Earlier unaffected
+term/legacy Unicode/oracle checks remain valid. The contract checker accepts the
+updated evidence. RIP1.54's 93 files/41 helper definitions remain frozen.
+Eleven command metadata/basic-activation blocks are accepted again; broad TW
+protection/macro paragraphs remain pending. The queue is 1168 implemented, 1630
+pending, 3873 unreviewed, 1184 context, 24 excluded and 28 blocked. The reference
+remains ff2043e; reset orchestration (#105), extended b and the larger goal remain
+incomplete. Existing-art replay is still deferred.
 
 ## Verification and acceptance
 

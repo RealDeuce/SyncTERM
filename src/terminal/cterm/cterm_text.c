@@ -105,6 +105,10 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &right, NULL);
 	if (right > CURR_MAXX || x > right)
 		right = CURR_MAXX;
+	if (cterm->rip3_session_owner && x > right) {
+		right = cterm->width;
+		cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &right, NULL);
+	}
 	if ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET))
 	    == (CTERM_LCF_ENABLED | CTERM_LCF_SET) && x == right) {
 		cterm_advance_char(cterm, &x, &y, 1);

@@ -27,6 +27,39 @@ def pixel(frame, x, y):
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
 
 
+def absolute_cursor_with_origin(t, columns, rows, ox, oy, cw, ch):
+    # A private ANSI origin region must survive RIP full-window positioning.
+    # Each reply fences one coherent pixel/cursor/mode capture. Query bytes
+    # begin with SOH so they do not introduce a raw carriage return.
+    modes = (f"\x1b[2;{rows-1}r\x1b[?69h\x1b[3;{columns-2}s"
+             "\x1b[?6h\x1b[1;2H\x1b7\x1b[0;37m").encode()
+    before = t.exchange(modes + query(b"origin-ready", at_cursor=True), b"origin-ready")
+    for command, x, y in ((b"H", 1, 1), (b"gZZZZ", columns, rows)):
+        frame = t.exchange(b"\x01|" + command + b"\r\n" + query(b"moved", at_cursor=True), b"moved")
+        assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (x, y)
+        assert frame.application["cterm.ext_attr.origin_mode"] == 1
+        assert frame.application["cterm.top_margin"] == 2
+        assert frame.application["cterm.bottom_margin"] == rows - 1
+        assert frame.application["cterm.left_margin"] == 3
+        assert frame.application["cterm.right_margin"] == columns - 2
+        assert frame.primary == before.primary
+    frame = t.exchange(b"Z" + query(b"last-cell", at_cursor=True), b"last-cell")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (columns, rows)
+    assert any(pixel(frame, x, y) == 0xa8a8a8
+               for y in range(oy + (rows-1)*ch, oy + rows*ch)
+               for x in range(ox + (columns-1)*cw, ox + columns*cw))
+    frame = t.exchange(b"\x01|H\r\nB" + query(b"first-cell", at_cursor=True), b"first-cell")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (2, 1)
+    assert any(pixel(frame, x, y) == 0xa8a8a8
+               for y in range(oy, oy + ch) for x in range(ox, ox + cw))
+    frame = t.exchange(b"\x1b[1;1H" + query(b"ansi-cup", at_cursor=True), b"ansi-cup")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (3, 2)
+    frame = t.exchange(b"\x1b8" + query(b"saved-cursor", at_cursor=True), b"saved-cursor")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (4, 2)
+    assert frame.application["cterm.ext_attr.origin_mode"] == 1
+    t.exchange(f"\x1b[?6l\x1b[1;{columns}s\x1b[?69l\x1b[r\x1b[0m".encode())
+
+
 def command_lines_keep_art(t, count):
     # Start with a non-leftmost cursor on the last row. SOH begins the first
     # physical RIP line without a raw CR; subsequent ! introducers must stay
@@ -82,6 +115,8 @@ Hook.onKey(Key.f9) {|event|
         t.case("rip3-text-cursor-on-entry-grid")
         t.exchange(b"\x01|g0509\r\n\x1b[6n", b"\x1b[10;6R")
         t.exchange(b"\x01|H\r\n\x1b[6n", b"\x1b[1;1R")
+        t.case("rip3-entry-cursor-independent-of-ansi-origin")
+        absolute_cursor_with_origin(t, width // 8, height // 8, 0, 0, 8, 8)
         t.case("rip3-default-text-activation-variables-and-cursor")
         before = t.exchange(b"\x1b[?25h")
         send(query(b"$DTW$") + b"HIDDEN\r\n" * (height // 8 + 10)
@@ -329,6 +364,12 @@ Hook.onKey(Key.f9) {|event|
         assert frame.primary == before.primary and frame.application["connected"] == 1
         # Positioning clears a pending right-margin wrap before the next text.
         t.exchange(b"\x01|g0200\r\nX\x01|g0001\r\nB\x1b[6n", b"\x1b[2;2R")
+
+        t.case("rip3-positioned-cursor-independent-of-ansi-origin")
+        t.exchange(b"\x01|w0A050H0A10\r\n")
+        absolute_cursor_with_origin(t, 8, 6, ox, oy, cw, ch)
+        # Restore the existing activation fixture's window and cursor.
+        t.exchange(b"\x01|w0A050C0710|g0101\r\n")
 
         t.case("rip3-positioned-text-activation-preserves-artwork-and-state")
         before = t.exchange(b"\x1b[?25h")

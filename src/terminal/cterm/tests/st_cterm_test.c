@@ -157,6 +157,83 @@ check_local_text_position(void)
 }
 
 static void
+check_rip3_absolute_text_position(void)
+{
+	for (int encoding=ST_CTERM_ENCODING_UTF8;encoding<=ST_CTERM_ENCODING_CODEPAGE;encoding++) {
+		st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
+		const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config geometry={.columns=8,.rows=6,.cell_width=8,.cell_height=8};
+		CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
+		const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
+		    .encoding=encoding,.codepage=ST_CODEPAGE_CP437,.quiet=true,
+		    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true};
+		CHECK(st_cterm_create(&terminal,&config)==0);
+		const char rows[]="11111111\x1b[2;1H22222222\x1b[3;1H33333333"
+		    "\x1b[4;1H44444444\x1b[5;1H55555555\x1b[6;1H66666666";
+		feed(terminal,rows,sizeof(rows)-1);
+		const char modes[]="\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b" "7\x1b[31;44m";
+		feed(terminal,modes,sizeof(modes)-1);
+		struct st_console_cell before[48],after[48];const struct st_console_rect all={0,0,8,6};
+		CHECK(st_console_read_cells(console,&all,before,8)==0);
+		CHECK(st_cterm_position_text(terminal,0,0)==0);
+		struct st_cterm_state state;
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1);
+		CHECK(state.ext_attr.origin_mode && state.top_margin==2 && state.bottom_margin==5 && state.attr==0x14);
+		CHECK(terminal->save_xpos==3 && terminal->save_ypos==2);
+		CHECK(st_console_read_cells(console,&all,after,8)==0 && memcmp(before,after,sizeof(before))==0);
+		feed(terminal,"A",1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==1);
+		CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==8 && state.y==6);
+		feed(terminal,"Z",1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.last_column_flag.set);
+		CHECK(st_cterm_position_text(terminal,0,0)==0);
+		CHECK(st_cterm_state(terminal,&state)==0 && !state.last_column_flag.set);
+		feed(terminal,"B",1);
+		const char cup[]="\x1b[1;1H";feed(terminal,cup,sizeof(cup)-1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==2);
+		const char scroll[]="\x1b[4;1HS\n";feed(terminal,scroll,sizeof(scroll)-1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==5);
+		CHECK(st_console_read_cells(console,&all,after,8)==0);
+		const char expected[]="B1111111" "33333333" "44444444" "S5555555" "        " "6666666Z";
+		for (size_t i=0;i<48;i++) {
+			char text[8];size_t length;
+			CHECK(st_console_font_glyph_text(console,after[i].glyph_font,after[i].glyph,text,sizeof(text),&length)==0);
+			CHECK(length==1 && text[0]==expected[i]);
+		}
+		const char restore[]="\x1b" "8";feed(terminal,restore,sizeof(restore)-1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==3 && state.y==3 && state.ext_attr.origin_mode);
+		/* A cursor outside both horizontal and vertical margins stays legal
+		 * for RIP movement and following text; ANSI CUP still uses margins. */
+		const char horizontal[]="\x1b[?69h\x1b[3;6s\x1b[?6h";
+		feed(terminal,horizontal,sizeof(horizontal)-1);
+		CHECK(st_cterm_position_text(terminal,0,0)==0);feed(terminal,"L",1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==1);
+		feed(terminal,cup,sizeof(cup)-1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==3 && state.y==2
+		    && state.left_margin==3 && state.right_margin==6 && state.ext_attr.origin_mode);
+		CHECK(st_cterm_position_text(terminal,UINT32_MAX,UINT32_MAX)==0);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==8 && state.y==6);
+		feed(terminal,"R",1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==8 && state.y==6 && state.last_column_flag.set);
+		CHECK(st_cterm_position_text(terminal,7,4)==0);feed(terminal,"TU",2);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==6);
+		feed(terminal,cup,sizeof(cup)-1);
+		const char erase[]="\x1b[K";feed(terminal,erase,sizeof(erase)-1);
+		CHECK(st_cterm_position_text(terminal,0,0)==0);feed(terminal,erase,sizeof(erase)-1);
+		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && state.ext_attr.origin_mode);
+		CHECK(st_console_read_cells(console,&all,after,8)==0);
+		const char erased[]="      11" "33    33" "44444444" "S5555555" "       T" "U666666R";
+		for (size_t i=0;i<48;i++) {
+			char text[8];size_t length;
+			CHECK(st_console_font_glyph_text(console,after[i].glyph_font,after[i].glyph,text,sizeof(text),&length)==0);
+			CHECK(length==1 && text[0]==erased[i]);
+		}
+		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+	}
+}
+
+static void
 test_profile_presentation(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -624,6 +701,7 @@ int
 st_cterm_test_main(void)
 {
 	check_local_text_position();
+	check_rip3_absolute_text_position();
 	test_graphics_history();
 	test_status_display_routing();
 	test_direct_reset();

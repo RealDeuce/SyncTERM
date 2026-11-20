@@ -300,8 +300,9 @@ int st_cterm_text_boundary(st_cterm_t *terminal);
  * objects; success leaves source independently owned. Pending optional media
  * and font-download payloads remain unsupported, never partially transferred. */
 int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
-/* Zero-based local equivalent of ANSI CUP. Clamp to the current addressing
- * region (including origin mode), commit Unicode and clear pending wrap.
+/* Zero-based local cursor placement. A RIP3 session owner uses full-window
+ * absolute coordinates independently of ANSI origin/margins. Other callers
+ * use ANSI CUP's current addressing region. Commit Unicode and clear wrap.
  * No received bytes, input hooks or capture events are manufactured. */
 int st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row);
 
