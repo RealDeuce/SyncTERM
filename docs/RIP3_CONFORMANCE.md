@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-93fd0c3bfac24fda5e76d20b33d782b27ba89e99](https://github.com/RealDeuce/remote-imaging-protocol/tree/93fd0c3bfac24fda5e76d20b33d782b27ba89e99/version/3.0)
+ff2043e344e0c0df09d369bea076e781781345f3](https://github.com/RealDeuce/remote-imaging-protocol/tree/ff2043e344e0c0df09d369bea076e781781345f3/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -87,13 +87,15 @@ committed at RIP boundaries, so bytes cannot join across window definitions.
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
 without injecting input bytes. `g` has two-digit fields in the current radix
 regardless of XY width; `H` is argumentless. Both ignore deactivated windows.
-The renderer applies the documented CUP equivalence, including origin-mode
-margins and clamping, and clears pending wrap before later text. Incoming
-validation and renderer failures remain inside RIP3's nonfatal boundary.
-Extended `b` fitting/automatic font choice and conflicting erase/control-variable
-rules are tracked in upstream
-[#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101); the
-ordinary cursor commands do not claim those unresolved macro semantics.
+The current renderer applies ANSI CUP semantics, including origin-mode margins,
+and clears pending wrap before later text. Adopted PR #103 requires full-window
+absolute positioning independently of ANSI origin/margins; these implementation
+claims are reopened pending correction. Incoming validation and renderer failures
+remain inside RIP3's nonfatal boundary. Extended `b` fitting/automatic font choice
+and erase/control-variable rules are documented by
+[PR #103](https://github.com/bbs-land/remote-imaging-protocol/pull/103), resolving
+[#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101) as a
+documentation blocker; implementation acceptance remains separate.
 
 `$ATW$` and `$DTW$` now activate/deactivate the default window through immediate
 host queries. Omission, `CUR`, decimal slots and `ALL` use one fully validated
@@ -157,7 +159,9 @@ preservation for #100. Its ANSI interpreter-state requirements remain partly
 unimplemented; the documentation blocker is resolved independently.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7883 blocks in 68 normative
+provenance, scope and reopened claims. PR #103 further resolves extended-window
+fitting, erase sources, absolute RIP cursor positioning and COFF omission. There
+are now 7907 blocks in 68 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -6057,6 +6061,25 @@ RIP1.54's 93 frozen files and 41 helpers remain unchanged. The pin remains
 93fd0c3; corpus replay remains deferred and the full goal remains incomplete.
 The current queue is 1168 implemented, 1586 pending, 3882 unreviewed,
 1180 context, 24 excluded and 43 blocked source blocks.
+
+## Stable PR #103 contract adoption
+
+The reference now pins stable ff2043e344e0c0df09d369bea076e781781345f3.
+Three changed normative documents and the new extended-window derivation are
+reviewed; B101 is resolved as documentation. Full-window absolute g/H acceptance
+is reopened because the connected implementation still uses origin-aware CUP.
+Extended b, erase controls and macro cursor controls remain pending. B104/B105
+are unchanged. No corpus replay runs before full implementation.
+
+Exact source matching retains 7864 reviews, moves 1478 line identities and
+replaces 19 old blocks with 43 new ones, giving 7907 total. Nine unchanged cursor
+metadata claims and two changed cursor behavior claims are reopened/removed;
+the adoption record retains their former evidence. The queue is now 1157
+implemented, 1641 pending, 3873 unreviewed, 1184 context, 24 excluded and 28 blocked.
+Native CMake configure/build and the three reference/preservation CTests pass;
+strict reindexing against the extracted pinned source preserves the ledger byte
+for byte. Already passing drawing tests are reused for this documentation-only
+milestone. RIP1.54's frozen files/helpers remain unchanged.
 
 ## Verification and acceptance
 

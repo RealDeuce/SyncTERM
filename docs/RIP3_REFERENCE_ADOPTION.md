@@ -365,6 +365,40 @@ No original client instructions, native probes or UI execute. RIP1.54, original
 font bytes and external-launch exclusion remain unchanged. Issue #100 receives
 no more content; future findings reference its PR from new parent issues.
 
+## Stable ff2043e: extended text-window and cursor contract
+
+Adopt fork stable
+[`ff2043e344e0c0df09d369bea076e781781345f3`](https://github.com/RealDeuce/remote-imaging-protocol/tree/ff2043e344e0c0df09d369bea076e781781345f3),
+including [PR #103](https://github.com/bbs-land/remote-imaging-protocol/pull/103)
+head `ed0f290ac4227716c4c158c65b093864f30eccc8`. The downloaded archive is
+2,130,213 bytes, SHA-256
+`107319bba6b5bb61d767c21596fbe65b95a885c655145b5e3958e114349bc945`.
+Three normative documents change; the 68-document inventory is unchanged.
+
+Match source blocks by document, heading and exact text, consuming duplicate
+matches in order. Preserve 7864 reviews, including 1478 moved line identities;
+19 old blocks are replaced by 43 new blocks, yielding 7907 total. Reopen nine
+unchanged g/H metadata claims and remove two changed behavior claims because
+PR #103 requires full-window absolute positioning even with ANSI origin mode
+and margins. The update record retains their previous implementation/test
+evidence. New normative blocks remain pending; reviewed attribution/table
+structure is context. No changed behavior is accepted merely because old tests
+passed.
+
+The contract now specifies absolute exclusive WORLD/device bounds, loaded MAF
+metrics and directed first-fit selection for extended b; validation, one-cell
+extension, state reset and flag order; palette-index-0 e/ETW/flag16 erasure;
+STYLE-background wire > versus target-ANSI-background TWERASEEOL; full-window
+absolute g/H/TWGOTO/TWHOME; and omitted COFF hiding the active cursor. B101 is
+resolved as documentation; those runtime requirements remain pending. B104
+character-set mapping and B105 reset semantics remain separate blockers.
+
+Pin the new issue-101 derivation and the corrected issue-100 derivation digest.
+The latter corrects its .rdata section bias to RVA minus 0x1000 and records
+workflow notes; its section-aware ANSI-state conclusions are unchanged. All
+46 other previously pinned derivations match. No original-client code executes,
+legacy behavior changes or existing issue comments are involved.
+
 ## Acceptance
 
 The source guard checks that the pinned revision and complete document inventory

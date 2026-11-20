@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/102",
-  "revision": "93fd0c3bfac24fda5e76d20b33d782b27ba89e99",
-  "previous_revision": "b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/103",
+  "revision": "ff2043e344e0c0df09d369bea076e781781345f3",
+  "previous_revision": "93fd0c3bfac24fda5e76d20b33d782b27ba89e99",
   "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
-  "upstream_state_at_adoption": "PR #102 open; reviewed normative change consolidated into fork stable.",
-  "archive_sha256": "7f0bb1a52a616c0fc1228f0715a4089e75be0d5e7adcbf533499b53386df7ad0",
+  "upstream_state_at_adoption": "PR #103 open; reviewed contract consolidated into fork stable, including corrected PR #102 head.",
+  "archive_sha256": "107319bba6b5bb61d767c21596fbe65b95a885c655145b5e3958e114349bc945",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1262,7 +1262,12 @@
     },
     {
       "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
-      "sha256": "bc6635c64b7455f1e849fd4ab4cbed10dd9cd2ffdaeb5b7c758946da959f0db8"
+      "sha256": "25ed5048bb063e4a257eca5b129da0b87419b234be83355bd3d7b47e2d758d26"
+    },
+    {
+      "path": "version/3.0/research/issue-101-extended-text-window-contract.md",
+      "sha256": "467df2fb7f4800f68838082628b3ae839f6856c6f04f421c3322840b17b7e8b9",
+      "role": "Primary source/policy derivation; explicit portable completion rules are distinguished from original implementation observations."
     }
   ],
   "documents": [
@@ -1368,7 +1373,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "c81c383348c9ce0e722002d287dc926ceb16b8b2747b62b2bd77558c1c4f88c3"
+      "sha256": "94c413359f6dd8960f84d76078c7238994087596f7f0c0e91e928302e43fb404"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1424,7 +1429,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "a5665cd7a10c6dc19b53fd2726e014dabde435fb34115480bbca9d63dc81a484"
+      "sha256": "7294820ec0a9a5d38e7f35eb9362574bbac45a7633ab71829968cf4ecf4fd835"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1516,7 +1521,7 @@
     },
     {
       "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
-      "sha256": "25758b86b3ef5178dd7e9f31989e1bbd0a9644d62b13cab9ee6bb70a245748d7"
+      "sha256": "47785b08e3bf4f0795adddfad92b29ecdc8d1c88f554ac64bde565be98949f63"
     },
     {
       "path": "version/3.0/techspecs/4.0-connection-directory-model-delta.md",
@@ -2306,6 +2311,414 @@
         "pending": 1640,
         "implemented": 1080,
         "blocked": 40,
+        "excluded": 24
+      }
+    },
+    {
+      "previous_revision": "93fd0c3bfac24fda5e76d20b33d782b27ba89e99",
+      "revision": "ff2043e344e0c0df09d369bea076e781781345f3",
+      "archive_sha256": "107319bba6b5bb61d767c21596fbe65b95a885c655145b5e3958e114349bc945",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/103",
+          "revision": "ed0f290ac4227716c4c158c65b093864f30eccc8"
+        }
+      ],
+      "upstream_state": "PR #103 open; reviewed contract consolidated into fork stable, including corrected PR #102 head.",
+      "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
+      "prior_adoption_commit": "440352efbea2d64041380bf49de2d5b05af8d3eb",
+      "changed_documents": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+        "version/3.0/ripscrip/5.1-text-variables.md",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 7864,
+      "moved_source_blocks": 1478,
+      "new_source_blocks": 43,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:119",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:131",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:133",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:135",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:137",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:141",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:143",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:181",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:183",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:185",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:187",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:189",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:201",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:242",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:254",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:260",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:278",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:280",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:282",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:302",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:326",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:328",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:329",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:330",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:331",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:332",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:333",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:335",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:337",
+        "version/3.0/ripscrip/5.1-text-variables.md:1283",
+        "version/3.0/ripscrip/5.1-text-variables.md:1293",
+        "version/3.0/ripscrip/5.1-text-variables.md:1454",
+        "version/3.0/ripscrip/5.1-text-variables.md:1456",
+        "version/3.0/ripscrip/5.1-text-variables.md:1609",
+        "version/3.0/ripscrip/5.1-text-variables.md:1623",
+        "version/3.0/ripscrip/5.1-text-variables.md:1627",
+        "version/3.0/ripscrip/5.1-text-variables.md:1688",
+        "version/3.0/ripscrip/5.1-text-variables.md:1694",
+        "version/3.0/ripscrip/5.1-text-variables.md:1696",
+        "version/3.0/ripscrip/5.1-text-variables.md:1698",
+        "version/3.0/ripscrip/5.1-text-variables.md:1700",
+        "version/3.0/ripscrip/5.1-text-variables.md:1790",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:30"
+      ],
+      "reopened_implementation_claims": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:250",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:251",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:252",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:254",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:270",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:271",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:272",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:274",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:276"
+      ],
+      "removed_implementation_claims": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:258",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:278"
+      ],
+      "previous_implementation_evidence": [
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:250",
+          "heading": "RIP_GOTOXY",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            250,
+            250
+          ],
+          "text": "| **Level**     | 0         |\n",
+          "sha256": "894a5dd17096848f7065310e0fe39e18a0d65048f7827f1067ec5e40c3e4596a",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:251",
+          "heading": "RIP_GOTOXY",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            251,
+            251
+          ],
+          "text": "| **Command**   | `g`       |\n",
+          "sha256": "ab6d4a876a0401b0028740bc9596e73b69782675a949f0f8457beb5609346061",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:252",
+          "heading": "RIP_GOTOXY",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            252,
+            252
+          ],
+          "text": "| **Arguments** | `x:2 y:2` |\n",
+          "sha256": "b1332f2e76606094e82e6c8a14be6b901b5df9f362bf06d65524e7f9cb5eba35",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:254",
+          "heading": "RIP_GOTOXY",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            254,
+            254
+          ],
+          "text": "**Format:** `!|g <x> <y>` **Example:** `!|g0509`\n",
+          "sha256": "bef9d5e6a9f686c963e8da43a636c6684120b49c46c2b30740fd2f1a0289fb5e",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:270",
+          "heading": "RIP_HOME",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            270,
+            270
+          ],
+          "text": "| **Level**     | 0        |\n",
+          "sha256": "0e4c00843fb556bb69be23a599c4dfe6de8b3e8b469432549b5f57d763e992dc",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:271",
+          "heading": "RIP_HOME",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            271,
+            271
+          ],
+          "text": "| **Command**   | `H`      |\n",
+          "sha256": "4f6fa372b982dedb628a5c5767a74165ca5aa0d38ec16d4ceddfe8cea9138008",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:272",
+          "heading": "RIP_HOME",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            272,
+            272
+          ],
+          "text": "| **Arguments** | \\<none\\> |\n",
+          "sha256": "e0b1d1509f30b26674688ec8af22806a67cd3d5a98f5a3b95dac1d514d9f6e34",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:274",
+          "heading": "RIP_HOME",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            274,
+            274
+          ],
+          "text": "**Format:** `!|H` **Example:** `!|H`\n",
+          "sha256": "8b923904a9c66d7b04595e791c72299e7f490983b27e059156b8e4bdb9819c8d",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:276",
+          "heading": "RIP_HOME",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            276,
+            276
+          ],
+          "text": "**Attributes used:** none\n",
+          "sha256": "ac46f93fe99f3991b6460b9d2034e79873d937af8fa1dc6782b1cef59a187afd",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:258",
+          "heading": "RIP_GOTOXY",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            258,
+            258
+          ],
+          "text": "This command sets the position of the text cursor in the TTY Text window, if it is active. If inactive (if the dimensions are 0,0,0,0), then this command is ignored. This command is equivalent to the ANSI/VT-100 command goto x/y, `<Esc>[x;yH`, except that the coordinates of that ANSI command are 1-based and the coordinates of this RIPscrip command are 0-based.\n",
+          "sha256": "b443e077c1e44d6bd9ea6c4f434df1fe7cffea9b2a2a3172849ef05bd4b2cae7",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:278",
+          "heading": "RIP_HOME",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            278,
+            278
+          ],
+          "text": "This command positions the text cursor to the upper-left corner in the TTY Text Window, if it is active. This is equivalent to the ANSI command `ESC[1;1H`.\n",
+          "sha256": "47a377a7fe68c2c0ff4dddb8a743b1db0d364b64641f303deadc81f9c355afd0",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/cterm/st_cterm.c"
+          ],
+          "tests": [
+            "cterm",
+            "rip3_session",
+            "syncterm_rip3_connected_CP437",
+            "syncterm_rip3_connected_UTF-8"
+          ],
+          "reason": "Wire g and H address the active default TTY on real connections. g uses two digits per coordinate in current ENV radix regardless of XY width; H is argumentless and needs no ENV. The native ANSI cursor service commits text, clears pending wrap, applies CUP clamping/origin mode and produces no fake received bytes/hooks. Deactivated windows ignore valid operations. Malformed tuples and renderer failures recover nonfatally. Independent native tests verify both radices, fixed width, native cells, origin margins, endpoint clamps and service failures; CP437/UTF-8 TCP tests cover initial entry grids and positioned windows on five actual rasters, cursor replies, unchanged artwork, inactive/reactivation state and later text. Full TW tables and the conflicting TWGOTO macro remain separate unfinished requirements."
+        }
+      ],
+      "removed_source_block_ids": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:119",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:167",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:169",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:181",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:222",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:234",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:256",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:258",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:278",
+        "version/3.0/ripscrip/5.1-text-variables.md:1283",
+        "version/3.0/ripscrip/5.1-text-variables.md:1452",
+        "version/3.0/ripscrip/5.1-text-variables.md:1605",
+        "version/3.0/ripscrip/5.1-text-variables.md:1619",
+        "version/3.0/ripscrip/5.1-text-variables.md:1623",
+        "version/3.0/ripscrip/5.1-text-variables.md:1684",
+        "version/3.0/ripscrip/5.1-text-variables.md:1690",
+        "version/3.0/ripscrip/5.1-text-variables.md:1692",
+        "version/3.0/ripscrip/5.1-text-variables.md:1694",
+        "version/3.0/ripscrip/5.1-text-variables.md:1784"
+      ],
+      "source_blocks_after_update": 7907,
+      "resolved_documentation_blockers": [
+        "B101"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
+          "sha256": "25ed5048bb063e4a257eca5b129da0b87419b234be83355bd3d7b47e2d758d26",
+          "previous_sha256": "bc6635c64b7455f1e849fd4ab4cbed10dd9cd2ffdaeb5b7c758946da959f0db8",
+          "review": "Correct .rdata RVA-to-file bias to 0x1000 and workflow notes; section-aware ANSI-state conclusions unchanged."
+        },
+        {
+          "path": "version/3.0/research/issue-101-extended-text-window-contract.md",
+          "sha256": "467df2fb7f4800f68838082628b3ae839f6856c6f04f421c3322840b17b7e8b9",
+          "role": "Primary source/policy derivation; explicit portable completion rules are distinguished from original implementation observations."
+        }
+      ],
+      "reviewed_change": "Extended b uses absolute exclusive WORLD/device bounds and loaded MAF cell metrics, explicit validation and directed first-fit transitions; accepted definitions reset window state while retaining incomplete ANSI parsing. e/ETW/flag16 use graphics palette index0, wire > uses STYLE background and TWERASEEOL uses target ANSI background. g/H/TWGOTO/TWHOME are full-window absolute independent of ANSI origin/margins; COFF omission hides the current active cursor. B104 character-set and B105 reset contract remain separate.",
+      "states_after_update": {
+        "unreviewed": 3873,
+        "context": 1184,
+        "pending": 1641,
+        "implemented": 1157,
+        "blocked": 28,
         "excluded": 24
       }
     }
