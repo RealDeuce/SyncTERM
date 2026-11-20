@@ -40,6 +40,8 @@ struct st_rip3_session {
 	bool ready;
 	bool text_active;
 	unsigned current_window;
+	unsigned default_text_font;
+	bool default_text_wrap;
 	struct {
 		struct st_rip3_text_window_info info;
 		bool has_layout;
@@ -180,23 +182,44 @@ protect_window(void *context, unsigned number, bool protect)
 }
 
 static int
-select_window(void *context, unsigned number)
+select_text_window(struct st_rip3_session *session, unsigned number, bool clone)
 {
-	struct st_rip3_session *session=context;
 	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
 	if (number==session->current_window) return 0;
 	if (session->sink.text_select==NULL) return IO_ERROR_NOT_SUPPORTED;
 	unsigned previous=session->current_window;
 	bool first=!session->windows[number].info.defined;
-	/* Whether first-use selection inherits source protection awaits #106. */
-	if (first && session->windows[previous].info.protected) return IO_ERROR_NOT_SUPPORTED;
-	bool active=first ? session->text_active : session->windows[number].info.active;
-	int status=session->sink.text_select(session->sink.context,number,first,active);
+	struct st_rip3_text_window_layout fresh;
+	bool defaults=first && !clone;
+	int status=defaults ? st_rip3_text_window_normal(&fresh,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
+	    session->default_text_wrap,session->default_text_font) : 0;
+	if (status!=0) return status;
+	bool active=defaults || (first ? session->text_active : session->windows[number].info.active);
+	status=session->sink.text_select(session->sink.context,number,first,active,defaults ? &fresh : NULL);
 	if (status!=0) return status;
 	session->windows[previous].info.active=session->text_active;
-	if (first) session->windows[number]=session->windows[previous];
+	if (first) {
+		if (clone) session->windows[number]=session->windows[previous];
+		else {
+			session->windows[number].layout=fresh;session->windows[number].has_layout=true;
+			session->windows[number].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
+		}
+		session->windows[number].info.protected=false;
+	}
 	session->current_window=number;session->text_active=active;
 	return 0;
+}
+
+static int
+select_window(void *context, unsigned number)
+{
+	return select_text_window(context,number,true);
+}
+
+static int
+select_default_window(void *context, unsigned number)
+{
+	return select_text_window(context,number,false);
 }
 
 static bool
@@ -413,6 +436,7 @@ int
 st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_session_config *config)
 {
 	if (result==NULL || config==NULL || config->source.now_ns==NULL || config->source.next==NULL
+	    || config->default_text_font>=5
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
 	    || config->services->input!=NULL || config->services->templates!=NULL
@@ -425,6 +449,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	struct st_rip3_session *session=calloc(1,sizeof(*session));
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
+	session->default_text_font=config->default_text_font;session->default_text_wrap=config->default_text_wrap;
 	session->text_active=true;session->commands.text_active=&session->text_active;
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
 	session->window_host=(struct st_rip3_text_window_host){.context=session,.define=define_text_window,
@@ -437,7 +462,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
-	    .current=current_text_window,.select=select_window,.info=window_info,.snapshot=window_snapshot,
+	    .current=current_text_window,.select=select_default_window,.info=window_info,.snapshot=window_snapshot,
 	    .protect=protect_window,.activate=activate_text_windows,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
 	    .erase_eol=erase_window_lines};

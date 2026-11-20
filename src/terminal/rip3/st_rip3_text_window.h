@@ -26,6 +26,7 @@ struct st_rip3_text_window_snapshot;
 struct st_rip3_text_window_operations {
 	void *context;
 	int (*current)(void *context, unsigned *number);
+	/* CUR first use creates fresh defaults; wire 2T has a separate clone path. */
 	int (*select)(void *context, unsigned number);
 	int (*info)(void *context, unsigned number, struct st_rip3_text_window_info *result);
 	int (*snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);

@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/107",
-  "revision": "ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f",
-  "previous_revision": "ff2043e344e0c0df09d369bea076e781781345f3",
-  "authorization": "User selected fork stable as reference and explicitly forbids adding VT-102 mode regardless of documentation or PR content.",
-  "upstream_state_at_adoption": "PR #107 open/ready, reviewed head consolidated into fork stable.",
-  "archive_sha256": "2be54ba1d4d3f1524084cccfa707309364b034f7145fbdb53606a27ec0deb931",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/110",
+  "revision": "568d8063c68bd009cf687fb3809f547101949727",
+  "previous_revision": "ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f",
+  "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
+  "upstream_state_at_adoption": "Reviewed PR #109/#110 heads consolidated into fork stable.",
+  "archive_sha256": "b180864fd09bde670d871a1e8b8a43596699e180db14728ae21d0c964d561e26",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1034,7 +1034,7 @@
     {
       "path": "version/3.0/research/issue-15-bezier-contracts.md",
       "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
-      "title": "Issue #15: Bézier equations, subdivision and block grammar",
+      "title": "Issue #15: B\u00e9zier equations, subdivision and block grammar",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1274,6 +1274,18 @@
       "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
       "title": "Issue #104: Terminal character sets",
       "role": "Read-only original byte/handler provenance and explicit portable syntax/glyph boundary; VT-102-specific runtime behavior is excluded by user scope."
+    },
+    {
+      "path": "version/3.0/research/issue-105-outer-soft-reset.md",
+      "sha256": "c3c63d2e4de8d6464a1165656fdc07312ab03c9b9e852c2e843ef0e4ddd6a60a",
+      "title": "Issue #105: Outer SOFT drawing reset",
+      "role": "Read-only outer/callee provenance, eight independent protocol vectors, and explicit portable black-clear/protected-STYLE policy."
+    },
+    {
+      "path": "version/3.0/research/issue-106-text-window-selection.md",
+      "sha256": "db4d51fe2df2808cf1d3b037c272f1a0ffc7f199e900cac73897bea5f9ffefd5",
+      "title": "Issue #106: Text-window selection state boundary",
+      "role": "Read-only selector provenance and explicit distinction between wire first-use clone and CUR fresh defaults; connection-wide ANSI syntax and pixel-preserving selection."
     }
   ],
   "documents": [
@@ -1375,11 +1387,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "50ce8662cc6f9fa3acbcf3e31fe3cb0369fa14476be7a420d77b22b6e0f42fa5"
+      "sha256": "15e370409366d00871becb1f2a299318d84b714c01597edece1d799a172b5680"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "74798100e392cc0170b368908f1c147a009a658921b0b1b9741f5a618e87e4db"
+      "sha256": "a307f5cd4e68f2a5e43c32cb3fdaf3f2903c7338e7f446398084557b790fbebf"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1435,7 +1447,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "7294820ec0a9a5d38e7f35eb9362574bbac45a7633ab71829968cf4ecf4fd835"
+      "sha256": "37883f93358c96cdbaa881bbd42b6051c603a77c7c44a1674843e515b4f4f9c8"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1471,7 +1483,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "e41938a248c35a420f41015db79d191d8be05782112a364e8ee11fd567d5630c"
+      "sha256": "ac49a08ca71b2d8f6f2b1a9c57e33298b986f12f9f5d229c014367bac5326775"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
@@ -2866,6 +2878,149 @@
         "implemented": 1282,
         "blocked": 28,
         "excluded": 67
+      }
+    },
+    {
+      "previous_revision": "ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f",
+      "revision": "568d8063c68bd009cf687fb3809f547101949727",
+      "archive_sha256": "b180864fd09bde670d871a1e8b8a43596699e180db14728ae21d0c964d561e26",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/109",
+          "revision": "773da350de5198164df4bc3680346f274703aa99"
+        },
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/110",
+          "revision": "368fe26b6b18f557517fed6ee53d46e5da13c709"
+        }
+      ],
+      "upstream_state": "Reviewed PR #109/#110 heads consolidated into fork stable.",
+      "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
+      "prior_adoption_commit": "ed6200b184ced930f122f9beaab80e12a5b4f22d",
+      "changed_documents": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+        "version/3.0/ripscrip/5.1-text-variables.md",
+        "version/3.0/ripscrip/7.1-data-tables.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 7963,
+      "moved_source_blocks": 301,
+      "new_source_blocks": 71,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:203",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:205",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:207",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:208",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:209",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:210",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:211",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:212",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:213",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:214",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:216",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:220",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:222",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:224",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:228",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:230",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:232",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:234",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:236",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:238",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:240",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:242",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:246",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:251",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:255",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:257",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:258",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:259",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:260",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:261",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:262",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:263",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:264",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:265",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:266",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:268",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:320",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:324",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:326",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:328",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:330",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:331",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:332",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:333",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:334",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:335",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:336",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:337",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:338",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:339",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:340",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:341",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:342",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:343",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:345",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:347",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:349",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:353",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:355",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:356",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:357",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:358",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:359",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:360",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:361",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:362",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:364",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:366",
+        "version/3.0/ripscrip/5.1-text-variables.md:3023",
+        "version/3.0/ripscrip/5.1-text-variables.md:4421",
+        "version/3.0/ripscrip/7.1-data-tables.md:75"
+      ],
+      "reopened_implementation_claims": [],
+      "removed_implementation_claims": [],
+      "previous_implementation_evidence": [],
+      "removed_source_block_ids": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:201",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:203",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:218",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:220",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:222",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:320",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:322",
+        "version/3.0/ripscrip/5.1-text-variables.md:3023"
+      ],
+      "source_blocks_after_update": 8034,
+      "resolved_documentation_blockers": [
+        105,
+        106
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-105-outer-soft-reset.md",
+          "sha256": "c3c63d2e4de8d6464a1165656fdc07312ab03c9b9e852c2e843ef0e4ddd6a60a",
+          "title": "Issue #105: Outer SOFT drawing reset",
+          "role": "Read-only outer/callee provenance, eight independent protocol vectors, and explicit portable black-clear/protected-STYLE policy."
+        },
+        {
+          "path": "version/3.0/research/issue-106-text-window-selection.md",
+          "sha256": "db4d51fe2df2808cf1d3b037c272f1a0ffc7f199e900cac73897bea5f9ffefd5",
+          "title": "Issue #106: Text-window selection state boundary",
+          "role": "Read-only selector provenance and explicit distinction between wire first-use clone and CUR fresh defaults; connection-wide ANSI syntax and pixel-preserving selection."
+        }
+      ],
+      "reviewed_change": "Outer SOFT family selections/protection, physical RGB-black clear before palette reset, independent preserved backups/variables/input lock/audio, old-current ANSI and ENV exceptions; wire first-use cloning versus CUR defaults, protected-source selection and connection-owned partial ANSI input. No VT-102 mode is authorized or added.",
+      "states_after_update": {
+        "unreviewed": 3578,
+        "context": 1316,
+        "pending": 1657,
+        "implemented": 1383,
+        "excluded": 67,
+        "blocked": 33
       }
     }
   ],

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f](https://github.com/RealDeuce/remote-imaging-protocol/tree/ba97c882b2d5ea13fd5310431f3442fc9cbc9f9f/version/3.0)
+568d8063c68bd009cf687fb3809f547101949727](https://github.com/RealDeuce/remote-imaging-protocol/tree/568d8063c68bd009cf687fb3809f547101949727/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -46,8 +46,8 @@ Base Math; malformed fields and protected writes recover nonfatally. This
 wire gate is distinct from the now-connected 1..8-bit COLORMODE variable
 contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
 it does not clear the screen. The scene reset `*` remains unimplemented;
-its outer reset/clear contract needs reconciliation in
-[#105](https://github.com/bbs-land/remote-imaging-protocol/issues/105).
+[PR #109](https://github.com/bbs-land/remote-imaging-protocol/pull/109) now
+answers its outer reset/clear contract. Connected orchestration remains pending.
 
 WORLD state now follows the adopted word-range contract: wire `f` accepts
 0..65535 per dimension; `$WORLD$` preserves the documented asymmetric overflow
@@ -79,7 +79,11 @@ geometry/ranges and error recovery; CP437/UTF-8 connection captures cover all
 five modes, placement, scrolling, wrap/chop, reactivation and script operations.
 TW backups, full reset and remaining metadata queries remain pending. Slot
 selection/protection and defined noncurrent native views are now connected;
-first-use/partial-ANSI selection acceptance is tracked under #106. Ordinary
+wire first use copies represented state into an unprotected slot, even from a
+protected source. CUR first use creates fresh full-screen defaults instead;
+ordinary ANSI parsing follows the connection across selection. Charset,
+ESC7/8 snapshot and resident-query acceptance remain pending under the adopted
+PR #107/#110 contracts. Ordinary
 `w` depends only on the physical device; a stored zero WORLD does not reject it.
 Changed definitions construct a fresh rendering state without clearing
 underlying artwork, retaining independently owned tab stops and unfinished
@@ -6484,6 +6488,51 @@ reference preserves the edited ledger byte-for-byte. The queue is 1383 implement
 1594 pending, 3584 unreviewed, 1307 context, 67 excluded and 36 blocked blocks
 across 7971 units. Owned archive/extraction, issue payload and logs are removed;
 no existing issue is modified and no code is published.
+
+## Adopted outer reset and connected selection continuation
+
+Fork stable 568d8063c68bd009cf687fb3809f547101949727 incorporates reviewed
+[PR #109](https://github.com/bbs-land/remote-imaging-protocol/pull/109) and
+[PR #110](https://github.com/bbs-land/remote-imaging-protocol/pull/110).
+B105 and B106 are resolved as documentation. The outer SOFT contract specifies
+physical RGB-black clearing before palette reset, retained PAL selection,
+family-specific protection and old-current ANSI/ENV effects, preserved backups,
+variables/templates, input lock and audio. That orchestration is still pending;
+`*` is not accepted as working. No existing issue receives additional comments.
+
+Connected selection now follows the distinct first-use paths: wire `2T` clones
+represented native window state into an independently owned unprotected slot,
+including when its source is protected; `$CUR(TW,n)$` creates an unused slot with
+fresh full-screen ordinary geometry, normal attributes/cursors/margins and an
+empty explicit tab map. The session accepts a client default font/wrap policy;
+the current application supplies font 0 and wrap enabled. This does not change
+the entry raster, initial TTY grid or existing defined slots. Existing ANSI-BBS
+tab behavior remains in use. Existing protected targets remain selectable and
+inactive wire clones remain inactive.
+
+Ordinary unfinished ESC/CSI and supported OSC syntax now follows the connection
+into an existing, cloned or fresh default window. Tab maps and other per-window
+state remain independent; preparation failures retain the previous selection and
+recover inside RIP3. Source buffers can be destroyed after native preparation
+without invalidating continuation. Selection imports current artwork before
+presenting the target cursor; it copies no cells/history and preserves pixels.
+Charset designation, resident TW queries and the interpreter-owned ESC7/8
+snapshot remain pending. The focused saved-coordinate tests now use CSI s/u,
+so their results do not imply that the larger ESC7/8 snapshot is implemented.
+No VT-102 mode, selector, toggle or keymap is added or authorized.
+
+The native Release CMake configure/build and 13 distinct affected CTests pass,
+including split CSI/OSC at every boundary, CSI saved coordinates, fresh defaults,
+protected-source cloning, resource recovery, host/table services, connected
+CP437/UTF-8 selection and geometry queries, and preservation/adoption guards.
+Connected captures use three reference rasters; geometry queries also cover
+720x400. Physical audio is disabled; existing art replay remains deferred.
+No compiler warnings are introduced. Strict reference reindexing is byte-identical
+and all 51 derivation hashes match. The queue is 1394 implemented, 1645 pending,
+3578 unreviewed, 1317 context, 67 excluded and 33 blocked across 8034 units.
+All 93 frozen files and 41 helpers match the unchanged baseline and its two
+historical exceptions. Task-owned archives, extraction, scripts, logs and failure
+fixtures are removed; no code is pushed or PR published.
 
 ## Verification and acceptance
 

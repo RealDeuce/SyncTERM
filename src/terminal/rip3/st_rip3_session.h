@@ -45,7 +45,10 @@ struct st_rip3_session_sink {
 	 * clear_rgb resolves current PAL index0 for extended flag16; ignored otherwise. */
 	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical,
 		uint32_t clear_rgb);
-	int (*text_select)(void *context, unsigned number, bool first, bool active);
+	/* First wire selection clones the source; first CUR selection supplies
+	 * fresh default geometry instead. Neither path copies pixels/history. */
+	int (*text_select)(void *context, unsigned number, bool first, bool active,
+		const struct st_rip3_text_window_layout *fresh);
 	/* Observe the specified native owner without selecting it or presenting. */
 	int (*text_snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
 	/* Native text-window cursor movement, without synthesized received bytes. */
@@ -65,6 +68,10 @@ struct st_rip3_session_config {
 	/* Both zero selects canvas. Otherwise both supply the entry's physical
 	 * raster, which must never be replaced by a parser preset. */
 	uint32_t device_width, device_height;
+	/* Client's default MicroANSI font 0..4 and wrap preference for newly
+	 * defaulted windows. Independent of the entry raster and ordinary TTY. */
+	unsigned default_text_font;
+	bool default_text_wrap;
 	enum st_rip3_text_encoding encoding;
 	struct st_rip3_session_source source;
 	struct st_rip3_session_sink sink;

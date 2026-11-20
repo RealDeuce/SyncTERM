@@ -99,10 +99,23 @@ st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *s
 int
 st_cterm_select_window_interpreter(st_cterm_t *destination, const st_cterm_t *source)
 {
-	/* Selection's partial-input policy is unresolved under reference #106.
-	 * Keep the source owner intact instead of inventing a discard/move rule. */
-	if (source!=NULL && (source->sequence!=0 || source->string!=0)) return IO_ERROR_NOT_SUPPORTED;
+	/* ANSI syntax follows the connection into the selected window. Tabs and
+	 * other per-window fields retain the destination's existing values. */
 	return inherit_interpreter(destination,source,false,false);
+}
+
+int
+st_cterm_default_window_interpreter(st_cterm_t *destination, const st_cterm_t *source)
+{
+	int status=inherit_interpreter(destination,source,false,true);
+	if (status!=0) return status;
+	/* CUR first use starts with no explicit tab stops, unlike redefinition's
+	 * retained map or a terminal reset's regularly spaced default map. */
+	free(destination->tabs);free(destination->vtabs);
+	destination->tabs=destination->vtabs=NULL;
+	destination->tab_count=destination->vtab_count=0;
+	destination->tab_width=destination->width;destination->default_tabs=false;
+	return 0;
 }
 
 int
@@ -110,7 +123,6 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 {
 	if (destination==NULL || source==NULL || destination->width!=source->width || destination->height!=source->height)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (source->sequence!=0 || source->string!=0) return IO_ERROR_NOT_SUPPORTED;
 	int status=inherit_interpreter(destination,source,true,true);
 	if (status!=0) return status;
 	char *fg=source->fg_tc_str==NULL ? NULL : strdup(source->fg_tc_str);

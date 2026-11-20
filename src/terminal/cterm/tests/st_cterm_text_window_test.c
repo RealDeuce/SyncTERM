@@ -68,13 +68,13 @@ tabs_and_saved_cursor(void)
 {
 	struct fixture source={0},small={0},large={0};
 	CHECK(create(&source,17)==0 && create(&small,4)==0 && create(&large,23)==0);
-	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[3;3H\x1b" "7\x1b[31;44m";
+	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[3;3H\x1b[s\x1b[31;44m";
 	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
 	CHECK(st_cterm_inherit_window_interpreter(small.text,source.text,true)==0);
 	CHECK(st_cterm_inherit_window_interpreter(large.text,small.text,true)==0);
 	destroy(&source);destroy(&small);
 	CHECK(feed(&large,"\t",1)==0 && position(&large,6,1)==0);
-	const char restore[]="\x1b[2;2H\x1b" "8";
+	const char restore[]="\x1b[2;2H\x1b[u";
 	CHECK(feed(&large,restore,sizeof(restore)-1)==0 && position(&large,1,1)==0);
 	struct st_cterm_state state;
 	CHECK(st_cterm_state(large.text,&state)==0 && state.attr==7 && state.top_margin==1 && state.bottom_margin==5);
@@ -132,7 +132,7 @@ extended_tabs(void)
 	CHECK(st_cterm_inherit_window_interpreter(next.text,source.text,false)==0 && next.text->tabs==fresh_tabs);
 	CHECK(feed(&next,"1mA",3)==0 && position(&next,2,1)==0 && next.text->attr==4);
 	CHECK(feed(&next,"\t",1)==0 && position(&next,9,1)==0);
-	const char saved[]="\x1b" "8";
+	const char saved[]="\x1b[u";
 	CHECK(feed(&next,saved,sizeof(saved)-1)==0 && position(&next,1,1)==0);
 	CHECK(feed(&source,"2mB",3)==0 && position(&source,3,2)==0 && source.text->attr==2);
 	destroy(&source);destroy(&next);return 0;
@@ -157,7 +157,7 @@ window_copy(void)
 	    .encoding=ST_CTERM_ENCODING_CODEPAGE,.codepage=ST_CODEPAGE_CP437,.quiet=true,.font_selector=46,
 	    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true};
 	CHECK(st_cterm_create(&source.text,&config)==0 && st_cterm_start_text(source.text)==0);
-	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[2;4r\x1b[?6h\x1b[2;3H\x1b" "7\x1b[38;2;18;52;86;48;2;0;0;0m\x1b[?25l";
+	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[2;4r\x1b[?6h\x1b[2;3H\x1b[s\x1b[38;2;18;52;86;48;2;0;0;0m\x1b[?25l";
 	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
 	CHECK(st_cterm_copy_window_state(next.text,source.text)==0 && position(&next,3,3)==0);
 	struct st_cterm_state state;
@@ -174,18 +174,60 @@ window_copy(void)
 		CHECK((pixels->primary[y*8+x]&0xffffff)==(x==y ? 0x123456 : 0));
 	}
 	st_pixel_buffer_destroy(pixels);
-	const char restore[]="\x1b" "8";CHECK(feed(&next,restore,sizeof(restore)-1)==0 && position(&next,3,3)==0);
+	const char restore[]="\x1b[u";CHECK(feed(&next,restore,sizeof(restore)-1)==0 && position(&next,3,3)==0);
 	CHECK(st_cterm_position_text(next.text,0,0)==0 && feed(&next,"\t",1)==0 && position(&next,6,1)==0);
 	bool visible=true;CHECK(st_cterm_get_text_cursor_visible(next.text,&visible)==0 && !visible);
 	CHECK(create(&source,17)==0);
-	CHECK(feed(&source,"\x1b[3",3)==0 && st_cterm_select_window_interpreter(next.text,source.text)==IO_ERROR_NOT_SUPPORTED);
-	CHECK(feed(&source,"1m",2)==0 && st_cterm_select_window_interpreter(next.text,source.text)==0 && position(&next,6,1)==0);
+	CHECK(feed(&source,"\x1b[3",3)==0 && st_cterm_select_window_interpreter(next.text,source.text)==0 && position(&next,6,1)==0);
 	CHECK(st_cterm_state(next.text,&state)==0 && state.fg_color==0x123456 && next.text->save_xpos==3);
+	CHECK(feed(&next,"1m",2)==0 && next.text->attr==4 && position(&next,6,1)==0);
 	destroy(&source);destroy(&next);return 0;
+}
+
+static int
+selection_continuations(void)
+{
+	static const char *const sequences[]={"\x1b[31m","\x1b]0;partial title\x07"};
+	for (unsigned copying=0;copying<2;copying++) for (size_t n=0;n<2;n++) {
+		const char *sequence=sequences[n];size_t length=strlen(sequence);
+		for (size_t split=1;split<length;split++) {
+			struct fixture source={0},next={0};
+			CHECK(create(&source,17)==0 && create(&next,17)==0);
+			const char setup[]="\x1b[32m\x1b[3;4H";
+			CHECK(feed(&source,setup,sizeof(setup)-1)==0 && feed(&next,setup,sizeof(setup)-1)==0);
+			CHECK(feed(&source,sequence,split)==0);
+			CHECK((copying ? st_cterm_copy_window_state(next.text,source.text)
+			    : st_cterm_select_window_interpreter(next.text,source.text))==0);
+			destroy(&source);
+			CHECK(feed(&next,sequence+split,length-split)==0 && feed(&next,"F",1)==0 && position(&next,5,3)==0);
+			CHECK(next.text->attr==(n==0 ? 4 : 2) && next.text->sequence==0 && next.text->string==0);
+			destroy(&next);
+		}
+	}
+	return 0;
+}
+
+static int
+default_window(void)
+{
+	struct fixture source={0},next={0};
+	CHECK(create(&source,17)==0 && create(&next,23)==0);
+	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[2;4r\x1b[?6h\x1b[2;3H\x1b[32;44m\x1b[3";
+	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
+	CHECK(st_cterm_default_window_interpreter(next.text,source.text)==0 && position(&next,1,1)==0);
+	CHECK(next.text->tab_count==0 && next.text->vtab_count==0 && !next.text->default_tabs
+	    && next.text->save_xpos==1 && next.text->save_ypos==1 && next.text->attr==7
+	    && !(next.text->extattr&CTERM_EXTATTR_ORIGINMODE)
+	    && next.text->top_margin==1 && next.text->bottom_margin==5);
+	destroy(&source);
+	/* Existing ANSI-BBS HT wraps when no later explicit stop is present. */
+	CHECK(feed(&next,"1m\t",3)==0 && next.text->attr==4 && position(&next,1,2)==0);
+	destroy(&next);return 0;
 }
 
 int
 main(void)
 {
-	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0 && window_copy()==0);return 0;
+	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
+	    && window_copy()==0 && selection_continuations()==0 && default_window()==0);return 0;
 }

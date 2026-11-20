@@ -42,6 +42,7 @@ struct fixture {
 	bool erase_whole;
 	uint32_t erase_rgb;
 	bool identical;
+	bool selected_first,selected_fresh,selected_active;
 	uint32_t clear_rgb;
 	struct st_rip3_text_window_layout window;
 };
@@ -374,15 +375,20 @@ text_erases(void)
 }
 
 static int
-select_text(void *context, unsigned number, bool first, bool active)
+select_text(void *context, unsigned number, bool first, bool active,
+    const struct st_rip3_text_window_layout *fresh)
 {
-	struct fixture *f=context;(void)number;(void)first;(void)active;return f->window_status;
+	struct fixture *f=context;(void)number;
+	f->selected_first=first;f->selected_fresh=fresh!=NULL;f->selected_active=active;
+	if (fresh!=NULL) f->window=*fresh;
+	return f->window_status;
 }
 
 static int
 window_table(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.default_text_font=2;options.default_text_wrap=true;
 	options.sink.text_select=select_text;options.sink.text_window=window;
 	options.sink.text_cursor=move_cursor;options.sink.text_erase=erase_text;
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
@@ -407,6 +413,14 @@ window_table(void)
 	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,2)$","2:1")==0);
 	CHECK(append(&f,"!|2T2?\r")==0 && pump(&f)==0 && f.errors==4);
 	CHECK(query(&f,"$CUR(TW)$","2")==0);
+	CHECK(query(&f,"$PROT(TW,2)$","")==0 && append(&f,"!|2T30\r")==0 && pump(&f)==0
+	    && f.selected_first && !f.selected_fresh && f.selected_active);
+	CHECK(query(&f,"$CUR(TW)$:$ISPROT(TW,CUR)$:$ISPROT(TW,2)$","3:0:1")==0);
+	CHECK(query(&f,"$DTW$$CUR(TW,4)$","")==0 && f.selected_first && f.selected_fresh && f.selected_active
+	    && f.window.font==2 && f.window.columns==80 && f.window.rows==25 && f.window.wrap
+	    && f.window.x0==0 && f.window.y0==0 && f.window.x1==79 && f.window.y1==24);
+	CHECK(query(&f,"$TWIN$:$ISPROT(TW,CUR)$:$TWIN(3)$","YES:0:NO")==0);
+	CHECK(query(&f,"$CUR(TW,2)$","")==0 && !f.selected_first && !f.selected_fresh);
 	st_rip3_session_destroy(f.session);return 0;
 }
 
@@ -431,7 +445,8 @@ window_queries(void)
 	    && f.kind==ST_RIP3_COMMAND_UNSUPPORTED);
 	CHECK(append(&f,"!|w0A050H0A10\r")==0 && pump(&f)==0);
 	CHECK(query(&f,"$TWW$:$TWH$:$TWFONT$:$TWH(CUR,TEXT,WORLD)$","8:6:1:48")==0);
-	CHECK(query(&f,"$CUR(TW,7)$$CUR(TW,0)$$CURX(7)$:$CUR(TW)$","7:0")==0 && f.observed_window==7);
+	CHECK(append(&f,"!|2T70\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$CUR(TW,0)$$CURX(7)$:$CUR(TW)$","7:0")==0 && f.observed_window==7);
 	unsigned observations=f.observations;
 	CHECK(query(&f,"$DTW(7)$$CURY(7)$:$CURSOR(7)$:$TWX0(7)$","0:NO:-1")==0 && f.observations==observations);
 	CHECK(query(&f,"$ATW(7)$$WORLD(CUR,0,0)$$TWW(7,TEXT,DEVICE)$","64")==0);

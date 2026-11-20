@@ -381,7 +381,8 @@ text_snapshot(void *context, unsigned number, struct st_rip3_text_window_snapsho
 }
 
 static int
-text_select(void *context, unsigned number, bool first, bool active)
+text_select(void *context, unsigned number, bool first, bool active,
+    const struct st_rip3_text_window_layout *fresh)
 {
 	struct st_term_rip3 *rip=context;
 	st_cterm_t *source=st_term_rip3_text(rip);
@@ -393,7 +394,8 @@ text_select(void *context, unsigned number, bool first, bool active)
 		const struct st_rip3_text_window_layout *existing=st_term_rip3_view_layout(rip->view);
 		uint32_t width,height;
 		status=st_console_pixel_size(rip->config.console,&width,&height);
-		if (existing!=NULL) layout=*existing;
+		if (fresh!=NULL) layout=*fresh;
+		else if (existing!=NULL) layout=*existing;
 		else {
 			uint32_t columns,rows,cw,ch,x,y;struct st_cterm_state state;
 			if (status==0) status=st_cterm_size(source,&columns,&rows);
@@ -407,7 +409,9 @@ text_select(void *context, unsigned number, bool first, bool active)
 		}
 		if (status==0) status=window_budget(rip,&layout,number);
 		if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,&layout,width,height);
-		if (status==0) status=st_cterm_copy_window_state(st_term_rip3_view_text(candidate),source);
+		if (status==0) status=fresh!=NULL
+		    ? st_cterm_default_window_interpreter(st_term_rip3_view_text(candidate),source)
+		    : st_cterm_copy_window_state(st_term_rip3_view_text(candidate),source);
 	}
 	else status=st_cterm_select_window_interpreter(candidate==NULL ? rip->text : st_term_rip3_view_text(candidate),source);
 	if (status==0) {
@@ -807,6 +811,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	const struct st_rip3_session_config session={
 	    .canvas=width==1024 ? ST_RIP3_CANVAS_1024_768 : width==800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480,
 	    .device_width=width,.device_height=height,
+	    .default_text_font=0,.default_text_wrap=true,
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
 	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_snapshot=text_snapshot,.text_cursor=text_cursor,

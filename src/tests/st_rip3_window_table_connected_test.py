@@ -91,9 +91,22 @@ def run(args, width, height):
         assert all((a if a & 0x80000000 else frame.palette[a]) & 0xffffff
                    == (b if b & 0x80000000 else before.palette[b]) & 0xffffff
                    for a, b in zip(frame.primary, before.primary)) and frame.application["cterm.attr"] == 0x44
-        # A source-protection first-use copy is explicitly unresolved in #106:
-        # fail nonfatally rather than silently deciding the destination policy.
-        variables(b"$CUR(TW,3)$$CUR(TW)$:$INUSE(TW,3)$", b"1:0")
+        # Wire first use can read a protected source; the clone is unprotected.
+        frame = capture(b"\x01|2T30\r\n"
+                        + query(b"$CUR(TW)$:$ISPROT(TW,CUR)$:$ISPROT(TW,1)$", at_cursor=True), b"3:0:1")
+        assert (frame.application["cterm.x"], frame.application["cterm.y"], frame.application["cterm.attr"]) == (1, 1, 0x44)
+        variables(b"$CUR(TW,1)$")
+        before = capture(scene(width, height))
+        frame = variables(b"$CUR(TW,4)$$TWW$:$TWH$:$TWFONT$:$CURX$:$CURY$:$CURSOR$:$ISPROT(TW,CUR)$",
+                          b"80:43:1:1:1:YES:0")
+        assert frame.application["cterm.attr"] == 7
+        assert all(pixel(frame, x, y) == pixel(before, x, y)
+                   for y in range(height) for x in range(width))
+        # CUR's fresh window has no explicit tab stops, unlike a wire clone.
+        frame = capture(b"\t")
+        assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, 2)
+        capture(b"\x01|w0000030312\r\n")  # release the large default plane
+        variables(b"$CUR(TW,1)$")
         variables(b"$DTW(1)$$TWIN(1)$", b"YES")
         variables(b"$UNPROT(TW,1)$$DTW(1)$$PROT(TW,1)$$ATW(1)$$TWIN(1)$", b"NO")
         variables(b"$CUR(TW,2)$$INUSE(TW,1)$:$TWIN(1)$:$ISEXTWIN(1)$", b"1:NO:-1")
@@ -111,15 +124,15 @@ def run(args, width, height):
         assert frame.metadata["pixel_cursor_visible"]
         frame = capture(b"\x01|w0000030312\r\n")
         assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, 1)
-        # Pending ANSI selection remains nonfatal and retains its source until
-        # #106 supplies a contract; later completion still works on that owner.
-        frame = capture(b"\x1b[3\x01|2T00\r\n" + query(b"$CUR(TW)$", at_cursor=True), b"1")
+        # One connection-owned CSI completes in the selected destination.
+        frame = capture(b"\x1b[3\x01|2T00\r\n" + query(b"$CUR(TW)$", at_cursor=True), b"0")
         frame = capture(b"1m")
         assert frame.application["cterm.attr"] == 4
         variables(b"$CUR(TW,0)$$CUR(TW)$", b"0")
         frame = variables(b"$CUR(TW,1)$")
-        assert frame.application["cterm.attr"] == 4
-        frame = variables(b"$DTW(1)$$CUR(TW,6)$$TWIN$:$INUSE(TW,6)$", b"NO:1")
+        assert frame.application["cterm.attr"] == 7
+        frame = capture(query(b"$DTW(1)$", at_cursor=True) + b"\x01|2T60\r\n"
+                        + query(b"$TWIN$:$INUSE(TW,6)$", at_cursor=True), b"NO:1")
         assert not frame.metadata["pixel_cursor_visible"]
         frame = variables(b"$ATW(6)$$CUR(TW,1)$$TWIN$", b"NO")
         assert not frame.metadata["pixel_cursor_visible"]
@@ -127,10 +140,10 @@ def run(args, width, height):
         if width == 640 and args.encoding == "CP437":
             t.case("rip3-window-aggregate-resource-budget")
             capture(b"\x01|n3\r\n" + window((0, 0, 2560, 1440), 320, 130, 0, 1, xy=3))
-            variables(b"$CUR(TW,3)$$CUR(TW,4)$$CUR(TW)$", b"4")
-            variables(b"$CUR(TW,5)$$CUR(TW)$:$INUSE(TW,5)$", b"4:0")
+            capture(b"\x01|2T80|2T90\r\n" + query(b"$CUR(TW)$", at_cursor=True), b"9")
+            capture(b"\x01|2TA0\r\n" + query(b"$CUR(TW)$:$INUSE(TW,10)$", at_cursor=True), b"9:0")
             # Release each large plane by a real definition replacement.
-            for number in (4, 3, 1):
+            for number in (9, 8, 1):
                 capture(query(f"$CUR(TW,{number})$".encode(), at_cursor=True)
                         + b"\x01|n2|w0000030312\r\n")
         t.case(f"rip3-window-all-slots-{width}x{height}")

@@ -450,3 +450,39 @@ and source-freeze guards pass; strict reindexing retains the edited ledger
 byte-for-byte. No original driver/probe/UI is executed. The owned archive,
 extraction and logs are removed. No code is pushed or PR published, and RIP1.54's
 baseline, sources and historical assets remain unchanged.
+
+## PR #109/#110: outer SOFT reset and text-window selection
+
+Adopt fork stable `568d8063c68bd009cf687fb3809f547101949727`, consolidating
+reviewed PR #109 head `773da350de5198164df4bc3680346f274703aa99` and PR #110
+head `368fe26b6b18f557517fed6ee53d46e5da13c709`. The archive SHA-256 is
+`b180864fd09bde670d871a1e8b8a43596699e180db14728ae21d0c964d561e26`.
+Only four of the 68 normative documents change. Match 7963 unchanged blocks
+by source/heading/text digest, relocate 301, remove eight superseded blocks
+and review 71 new blocks, yielding 8034 units. No prior implemented block is
+removed. Verify all 49 previous derivation hashes and add the two new notes,
+without executing foreign code, probes or client/UI instructions.
+
+B105's reset answer replaces the blanket zero-selection list with per-family
+selection/protection and lifetime rules. Physical clear is RGB black before
+palette reset; PAL current remains selected, even if undefined afterward.
+Protected live records, old-current ANSI/image/ENV effects, independent backups,
+variables/templates, input lock and audio have explicit separate policies.
+Reset/header orchestration remains local implementation work; `*` is not claimed.
+
+B106's answer distinguishes wire first-use cloning from CUR's fresh full-screen
+defaults. Protected sources do not protect new implicit wire destinations;
+existing protected entries remain selectable. Partial ordinary ANSI syntax
+belongs to the connection and completes in the new target, without copying
+cells, pixels or history. The connected implementation now covers those paths
+for represented fields. Charset designation, resident queries and the larger
+interpreter-owned ESC7/8 snapshot remain pending. The user's no-VT-102-mode
+constraint takes precedence over every retained client-mode reference.
+
+Native Release CMake build and 13 distinct relevant CTests pass, including
+CP437/UTF-8 connected selection/query suites, parser/host services, source freeze
+and adoption guards. Strict reindexing preserves the reviewed ledger exactly.
+The ledger is 1394 implemented, 1645 pending, 3578 unreviewed, 1317 context,
+67 excluded and 33 blocked; source indexing is not a full compliance claim.
+Temporary owned artifacts are cleaned, original RIP1.54 remains frozen, and
+no existing issue, code push or PR publication is performed.
