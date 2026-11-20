@@ -126,6 +126,8 @@ struct st_rip3_session_capture {
 	/* Owned full screen RGB view using the currently selected PAL record.
 	 * No drawing/parser pumping occurs during this coherent observation. */
 	struct st_pixel_buffer *pixels;
+	/* Accepted raw WORLD state can contain a zero dimension. Capture remains
+	 * valid; projection consumers separately require a nonzero frame. */
 	struct st_rip3_frame frame;
 	int64_t cursor_x, cursor_y;
 	unsigned environment, style, port, palette;

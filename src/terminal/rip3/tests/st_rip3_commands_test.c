@@ -168,12 +168,12 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(process(&host, "n3", -1) == 0);
 	CHECK(process(&host, "fPA7PA7", -1) == 0); /* 32767 in each axis. */
 	CHECK(expect(env, 0, 36,3,32767,32767) == 0);
-	CHECK(process(&host, "fPA8PA7", ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(expect(env, 0, 36,3,32767,32767) == 0);
-	CHECK(query(env, "$WORLD$", "32767:32767") == 0);
+	CHECK(process(&host, "fPA8PA7", -1) == 0);
+	CHECK(expect(env, 0, 36,3,32768,32767) == 0);
+	CHECK(query(env, "$WORLD$", "32768:32767") == 0);
 	CHECK(process(&host, "n2", -1) == 0);
 	static const char *const invalid[] = {"J","J?","J100","n","n?000","n20000",
-	    "f","fZK","fZKQO1","fZZ00","f0000","fZK?0"};
+	    "f","fZK","fZKQO1","fZK?0"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(process(&host, "fZKQO", -1) == 0);
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
@@ -211,6 +211,30 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	    && value.mouse_pointer == 2 && value.baud_rate == 9600);
 	st_rip3_environments_destroy(env);
 	return 0;
+}
+
+static int
+world_wire(void)
+{
+	static const unsigned inputs[]={0,1,32767,32768,65535,65536,65537};
+	struct st_rip3_command_host host={0};
+	CHECK(st_rip3_environments_create(&host.environments,ST_RIP3_CANVAS_640_480)==0);
+	for (unsigned radix=36;radix<=64;radix+=28) {
+		CHECK(process(&host,radix==36 ? "J10" : "J1S",-1)==0 && process(&host,"n5",-1)==0);
+		for (size_t x=0;x<7;x++) for (size_t y=0;y<7;y++) {
+			struct st_rip3_environment initial;
+			CHECK(st_rip3_environments_get(host.environments,0,&initial)==0);
+			initial.world_width=640;initial.world_height=350;
+			CHECK(st_rip3_environments_set(host.environments,0,&initial)==0);
+			char wire[12]={'f'};wire[11]=0;
+			CHECK(st_rip3_number_encode(wire+1,5,inputs[x],5,radix)==0
+			    && st_rip3_number_encode(wire+6,5,inputs[y],5,radix)==0);
+			bool rejected=inputs[x]>65535 || inputs[y]>65535;
+			CHECK(process(&host,wire,rejected ? ST_RIP3_COMMAND_INVALID : -1)==0);
+			CHECK(expect(host.environments,0,radix,5,rejected ? 640 : inputs[x],rejected ? 350 : inputs[y])==0);
+		}
+	}
+	st_rip3_environments_destroy(host.environments);return 0;
 }
 
 static int
@@ -381,6 +405,7 @@ main(int argc, char **argv)
 	CHECK(geometry(ST_RIP3_CANVAS_800_600, 800,600) == 0);
 	CHECK(geometry(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);
 	CHECK(color_modes() == 0);
+	CHECK(world_wire() == 0);
 	CHECK(baud(ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(baud(ST_RIP3_CANVAS_800_600) == 0);
 	CHECK(baud(ST_RIP3_CANVAS_1024_768) == 0);

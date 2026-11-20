@@ -13,7 +13,8 @@ struct st_rip3_backup;
 /* Environment records own values/references, not the referenced objects.
  * Device dimensions belong to the client canvas and cannot vary per entry.
  * The shipping v3 limits supersede the inherited 2.x parameter tables:
- * world dimensions 1..32767, RGB precision zero (palette) or eight. */
+ * stored world dimensions 0..65535, RGB precision zero (palette) or eight.
+ * A zero stored dimension is queryable but has no usable projection frame. */
 struct st_rip3_environment {
 	unsigned graphics_style, button_style, port, text_window, palette;
 	uint32_t world_width, world_height;
@@ -60,6 +61,8 @@ int st_rip3_environments_select(struct st_rip3_environments *environments,
 	unsigned number);
 int st_rip3_environments_protect(struct st_rip3_environments *environments,
 	unsigned number, bool protect);
+/* Resolve a usable projection frame. Zero stored WORLD dimensions reject
+ * here before any caller can divide by them; the record itself stays valid. */
 int st_rip3_environments_frame(const struct st_rip3_environments *environments,
 	unsigned number, struct st_rip3_frame *result);
 

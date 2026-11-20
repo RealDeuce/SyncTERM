@@ -83,7 +83,13 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (reference->count > (compat ? 1u : world || color ? 3u : 2u))
 		return IO_ERROR_INVALID_FORMAT;
-	if (reference->count != 0 && !equal(reference->parameters[0].text, "CUR")) {
+	/* The shipped two-argument axis setters invert their target test:
+	 * literal CUR errors; every other target text writes the current ENV.
+	 * Getter forms still validate and honor the requested numeric slot. */
+	bool axis_setting=(width || height) && reference->count==2;
+	if (axis_setting && equal(reference->parameters[0].text,"CUR"))
+		return IO_ERROR_INVALID_FORMAT;
+	if (!axis_setting && reference->count != 0 && !equal(reference->parameters[0].text, "CUR")) {
 		status = st_rip3_host_number(reference->parameters[0].text, 0, 35, &index);
 		if (status != 0)
 			return status;
@@ -91,7 +97,7 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	environments = host->tables->tables[ST_RIP3_TABLE_ENV].live;
-	if (reference->count == 0 || equal(reference->parameters[0].text, "CUR")) {
+	if (axis_setting || reference->count == 0 || equal(reference->parameters[0].text, "CUR")) {
 		status = st_rip3_environments_current(environments, &index);
 		if (status != 0)
 			return status;
@@ -151,19 +157,23 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 			return IO_ERROR_INVALID_FORMAT;
 	}
 	else if (world) {
-		unsigned x, y;
+		uint64_t x, y;
 
 		if (reference->count == 2 && equal(reference->parameters[1].text, "DEFAULT")) {
 			value.world_width = value.base_math == 36 ? 1280 : 4096;
 			value.world_height = value.base_math == 36 ? 960 : 3072;
 		}
 		else if (reference->count == 3) {
-			status = st_rip3_host_number(reference->parameters[1].text, 1, 32767, &x);
+			status = baud_number(reference->parameters[1].text, &x);
 			if (status == 0)
-				status = st_rip3_host_number(reference->parameters[2].text, 1, 32767, &y);
+				status = baud_number(reference->parameters[2].text, &y);
 			if (status != 0)
 				return status;
-			value.world_width = x; value.world_height = y;
+			/* Preserve WORLD's documented AND-shaped validation defect;
+			 * the wire f command independently rejects either oversized axis. */
+			if (x>65535 && y>65535) return IO_ERROR_INVALID_FORMAT;
+			value.world_width=(uint32_t)(x&UINT64_C(65535));
+			value.world_height=(uint32_t)(y&UINT64_C(65535));
 		}
 		else
 			return IO_ERROR_INVALID_FORMAT;
@@ -171,7 +181,7 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	else {
 		unsigned number;
 		status = st_rip3_host_number(reference->parameters[1].text,
-		    base ? 36 : coord ? 2 : 1, base ? 64 : coord ? 5 : 32767, &number);
+		    base ? 36 : coord ? 2 : 0, base ? 64 : coord ? 5 : 65535, &number);
 		if (status != 0)
 			return status;
 		if (base) {

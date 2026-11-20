@@ -69,6 +69,11 @@ examples(void)
 	CHECK(point.x == 639 && point.y == 479);
 	CHECK(st_rip3_device_to_world(&frame, &point, &point) == 0);
 	CHECK(point.x == 32715 && point.y == 32698);
+	CHECK(st_rip3_frame_world(&frame,65535,65535)==0);
+	source=(struct st_rip3_point){32767,32767};
+	CHECK(st_rip3_world_to_device(&frame,&source,&point)==0 && point.x==319 && point.y==239);
+	source=(struct st_rip3_point){65535,65535};
+	CHECK(st_rip3_world_to_device(&frame,&source,&point)==0 && point.x==640 && point.y==480);
 	return 0;
 }
 
@@ -84,7 +89,7 @@ failures(void)
 	saved = frame;
 	CHECK(st_rip3_frame_init(&frame, (enum st_rip3_canvas)3) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_frame_world(&frame, 0, 350) == IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_frame_world(&frame, 640, 32768) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_frame_world(&frame, 640, 65536) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_frame_world(&frame, UINT32_MAX, 350) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(memcmp(&frame, &saved, sizeof(frame)) == 0);
 	CHECK(st_rip3_frame_world(&frame, 1, 1) == 0);

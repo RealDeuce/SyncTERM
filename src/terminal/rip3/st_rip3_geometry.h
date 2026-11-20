@@ -37,6 +37,8 @@ int st_rip3_frame_init(struct st_rip3_frame *frame, enum st_rip3_canvas canvas);
  * Nonzero dimensions must fit signed device coordinates. */
 int st_rip3_frame_init_device(struct st_rip3_frame *frame,
 	uint32_t width, uint32_t height);
+/* Usable projection dimensions are 1..65535. ENV separately stores the
+ * accepted zero-size world state; it must not become a divisor here. */
 int st_rip3_frame_world(struct st_rip3_frame *frame,
 	uint32_t width, uint32_t height);
 /* Exact integer-ratio mapping, rounding down to the containing device/world

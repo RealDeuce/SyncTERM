@@ -41,6 +41,12 @@ it does not clear the screen. The scene reset `*` remains unimplemented;
 its outer reset/clear contract needs reconciliation in
 [#105](https://github.com/bbs-land/remote-imaging-protocol/issues/105).
 
+WORLD state now follows the adopted word-range contract: wire `f` accepts
+0..65535 per dimension; `$WORLD$` preserves the documented asymmetric overflow
+and `$WORLDH/W$` preserves the inverted setter-target behavior. Device dimensions
+stay entry-owned. Zero WORLD dimensions remain queryable and capturable, while
+projection requests reject before division and recover without disconnecting.
+
 Ordinary `w` definitions now configure the default text window on connected
 sessions: all five MicroANSI font modes, inclusive bounds, device-sized cells,
 independently scaled reference origin, wrap/chop and clipped ANSI scrolling.
@@ -5967,6 +5973,43 @@ SOFT-reset requirement. No additional corpus testing is performed. The current
 queue is 1114 implemented, 1613 pending, 3909 unreviewed, 1180 context,
 24 excluded and 43 blocked source blocks; other implementation work remains
 available while this contract is clarified.
+
+## WORLD word range and macro target behavior
+
+The adopted PR #56 contract supersedes this document's historical 32767 setter
+gate. Environment storage now accepts each WORLD dimension in 0..65535.
+Positive projection frames support the full word range with wide arithmetic;
+zero-size records remain valid state but do not become projection divisors.
+Coherent session captures report their accepted raw WORLD dimensions and
+unchanged screen pixels. The wire command validates both fields before mutation
+and rejects either dimension above 65535.
+
+`$WORLD$` follows the shipped AND-shaped rejection: both oversized dimensions
+reject; one oversized dimension stores the low word of each. The axis setters
+follow their separate shipped defect: two-argument literal `CUR` errors,
+whereas any other target text edits the current environment, including an
+undefined number or invalid name. Getter target validation remains intact.
+Default WORLD values and defined noncurrent updates retain their prior rules.
+Incoming failures stay inside the nonfatal parser boundary.
+
+Native tests use literal 0/1/32767/32768/65535/65536/65537 matrices for macro
+storage and both wire radices, current/noncurrent slots, both axes and
+CUR/numeric/undefined/invalid targets. Independent geometry expectations place
+32767 in a 65535 frame at device pixel (319,239) on 640x480. Session and
+CP437/UTF-8 TCP captures verify that placement, zero-state observation without
+pixel damage, nonfatal drawing rejection and drawing after restoring a positive
+frame on all five existing rasters. A stale font failure fixture now rejects
+65536 instead of the newly valid 32768 and adds a literal wide-WORLD DPI case.
+Native CMake configure/full build and ten affected CTests pass; only the failed
+font test was rerun after its correction. No C compiler warnings were introduced.
+Corpus replay remains deferred. RIP1.54's frozen files/helpers are unchanged.
+
+WORLD state/query acceptance does not complete environment context switching,
+full reset/header operations, COLORMODE precisions 1..7, or unspecified behavior
+of original-client drawing on zero-size frames. Those requirements remain
+separate in the ledger.
+The current queue is 1148 implemented, 1596 pending, 3892 unreviewed,
+1180 context, 24 excluded and 43 blocked source blocks.
 
 ## Verification and acceptance
 

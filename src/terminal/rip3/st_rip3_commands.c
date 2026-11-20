@@ -433,7 +433,7 @@ execute(const struct st_rip3_command_host *host,
 				status = st_rip3_command_field(&second, arguments + width, count - width, value.base_math);
 			if (status != 0)
 				return status;
-			if (first == 0 || second == 0 || first > 32767 || second > 32767)
+			if (first > 65535 || second > 65535)
 				return IO_ERROR_OUT_OF_RANGE;
 			value.world_width = (uint32_t)first;
 			value.world_height = (uint32_t)second;

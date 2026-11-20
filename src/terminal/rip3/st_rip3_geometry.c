@@ -11,8 +11,8 @@ static bool
 frame_valid(const struct st_rip3_frame *frame)
 {
 	return frame != NULL && frame->world_width != 0
-	    && frame->world_width <= 32767 && frame->world_height != 0
-	    && frame->world_height <= 32767
+	    && frame->world_width <= 65535 && frame->world_height != 0
+	    && frame->world_height <= 65535
 	    && frame->device_width!=0 && frame->device_width<=INT32_MAX
 	    && frame->device_height!=0 && frame->device_height<=INT32_MAX;
 }
@@ -58,7 +58,7 @@ st_rip3_frame_world(struct st_rip3_frame *frame, uint32_t width, uint32_t height
 {
 	if (!frame_valid(frame))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (width == 0 || height == 0 || width > 32767 || height > 32767)
+	if (width == 0 || height == 0 || width > 65535 || height > 65535)
 		return IO_ERROR_OUT_OF_RANGE;
 	frame->world_width = width;
 	frame->world_height = height;

@@ -390,6 +390,24 @@ Hook.onKey(Key.f9) {|event|
             # each RIP boundary; bytes never join across a changed window.
             t.exchange(b"\xc3\x01|w00000F0310\r\n\xa9\x1b[6n", b"\x1b[1;2R")
 
+        t.case("rip3-world-word-range-zero-state-and-axis-setter-recovery")
+        frame = t.exchange(b"\x01|n4|f1EKF1EKF|c0C|X0PA70PA7\r\n"
+                           + query(b"$WORLD$"), b"65535:65535")
+        assert pixel(frame, width // 2 - 1, height // 2 - 1) == 0xff5555
+        # Zero is accepted state, but geometry must never divide by zero.
+        before = frame
+        frame = t.exchange(b"\x01|f00000000|L0000000000010001\r\n"
+                           + query(b"$WORLD$"), b"0:0")
+        assert frame.primary == before.primary and frame.application["connected"] == 1
+        t.exchange(query(b"$WORLD(CUR,65536,1)$$WORLD$"), b"0:1")
+        t.exchange(query(b"$WORLD(CUR,1,65536)$$WORLD$"), b"1:0")
+        t.exchange(query(b"$WORLD(CUR,65536,65536)$$WORLD$"), b"1:0")
+        t.exchange(query(b"$WORLDH(CUR,1000)$$WORLD$"), b"1:0")
+        t.exchange(query(b"$WORLDH(BOGUS,65535)$$WORLD$"), b"1:65535")
+        t.exchange(query(b"$WORLDW(5,32768)$$WORLD$:$WORLDW(5)$"), b"32768:65535:-1")
+        t.exchange(query(b"$WORLD(CUR," + str(width).encode() + b"," + str(height).encode()
+                         + b")$") + b"\x01|n2|X0101\r\n")
+
 
 def mega(number):
     digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

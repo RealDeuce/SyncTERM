@@ -31,8 +31,7 @@ valid(const struct st_rip3_environment *value)
 {
 	return value->graphics_style < 36 && value->button_style < 36
 	    && value->port < 36 && value->text_window < 36 && value->palette < 36
-	    && value->world_width >= 1 && value->world_width <= 32767
-	    && value->world_height >= 1 && value->world_height <= 32767
+	    && value->world_width <= 65535 && value->world_height <= 65535
 	    && (value->base_math == 36 || value->base_math == 64)
 	    && value->coordinate_size >= 2 && value->coordinate_size <= 5
 	    && (value->rgb_bits == 0 || value->rgb_bits == 8)

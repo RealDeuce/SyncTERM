@@ -417,6 +417,29 @@ text_activation_variables(void)
 }
 
 static int
+world_state(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(append(&f,"!|n4|f1EKF1EKF|c0C|X0PA70PA7\r")==0 && pump(&f)==0 && f.errors==0);
+	struct st_rip3_session_capture capture={0};
+	CHECK(st_rip3_session_capture(f.session,&capture)==0 && capture.frame.world_width==65535);
+	for (unsigned y=0;y<480;y++) for (unsigned x=0;x<640;x++)
+		CHECK(capture.pixels->primary[(size_t)y*640+x]==(ST_PIXEL_COLOR_RGB_TAG|((x==319 && y==239) ? 0xff5555 : 0)));
+	st_rip3_session_capture_dispose(&capture);
+	CHECK(append(&f,"!|f00000000|L0000000000010001\r")==0 && pump(&f)==0 && f.errors==1);
+	CHECK(st_rip3_session_capture(f.session,&capture)==0 && capture.frame.world_width==0 && capture.frame.world_height==0);
+	CHECK(capture.pixels->primary[239*640+319]==(ST_PIXEL_COLOR_RGB_TAG|0xff5555));
+	st_rip3_session_capture_dispose(&capture);
+	CHECK(query(&f,"$WORLD$","0:0")==0 && query(&f,"$WORLD(CUR,65536,1)$$WORLD$","0:1")==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$$WORLD$","640:480")==0);
+	CHECK(append(&f,"!|n2|X0101\r")==0 && pump(&f)==0 && f.errors==1);
+	CHECK(st_rip3_session_capture(f.session,&capture)==0
+	    && capture.pixels->primary[641]==(ST_PIXEL_COLOR_RGB_TAG|0xff5555));
+	st_rip3_session_capture_dispose(&capture);st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 construction(bool device)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -454,6 +477,7 @@ construction(bool device)
 int
 main(void)
 {
+	CHECK(world_state()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0

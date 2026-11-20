@@ -107,8 +107,8 @@ records(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	for (unsigned i = 0; i < 12; i++) {
 		value = initial;
 		switch (i) {
-			case 0: value.world_width = 0; break;
-			case 1: value.world_height = 32768; break;
+			case 0: value.world_width = 65536; break;
+			case 1: value.world_height = 65536; break;
 			case 2: value.base_math = 35; break;
 			case 3: value.coordinate_size = 1; break;
 			case 4: value.coordinate_size = 6; break;
@@ -179,6 +179,49 @@ run(const struct st_rip3_host_variables *host, const char *text, const char *exp
 }
 
 static int
+world_ranges(void)
+{
+	static const unsigned input[]={0,1,32767,32768,65535,65536,65537};
+	static const unsigned stored[]={0,1,32767,32768,65535,0,1};
+	struct st_rip3_environments *environments=NULL;
+	struct st_rip3_table_host tables={0};
+	const struct st_rip3_host_variables host={.tables=&tables};
+	CHECK(st_rip3_environments_create(&environments,ST_RIP3_CANVAS_640_480)==0);
+	tables.tables[ST_RIP3_TABLE_ENV].live=environments;
+	for (unsigned slot=0;slot<=35;slot+=35) {
+		struct st_rip3_environment defaults;
+		CHECK(st_rip3_environment_defaults(&defaults)==0);
+		CHECK(st_rip3_environments_define(environments,35,&defaults)==0);
+		for (size_t x=0;x<7;x++) for (size_t y=0;y<7;y++) {
+			CHECK(st_rip3_environments_set(environments,slot,&defaults)==0);
+			char wire[100],expected[100];
+			(void)snprintf(wire,sizeof(wire),"$WORLD(%u,%u,%u)$",slot,input[x],input[y]);
+			bool rejected=input[x]>65535 && input[y]>65535;
+			CHECK(run(&host,wire,"",rejected ? ST_RIP3_HOST_INVALID_REFERENCE : -1)==0);
+			(void)snprintf(wire,sizeof(wire),"$WORLD(%u)$",slot);
+			(void)snprintf(expected,sizeof(expected),"%u:%u",rejected ? 640 : stored[x],rejected ? 350 : stored[y]);
+			CHECK(run(&host,wire,expected,-1)==0);
+		}
+	}
+	static const char *targets[]={"CUR","cur","0","35","6","BOGUS"};
+	for (unsigned current=0;current<=35;current+=35) {
+		CHECK(st_rip3_environments_select(environments,current)==0);
+		for (unsigned axis=0;axis<2;axis++) for (size_t target=0;target<6;target++) for (size_t n=0;n<7;n++) {
+			CHECK(run(&host,"$WORLD(CUR,640,350)$","",-1)==0);
+			char wire[100],expected[100];
+			(void)snprintf(wire,sizeof(wire),"$WORLD%c(%s,%u)$",axis==0 ? 'W' : 'H',targets[target],input[n]);
+			bool rejected=target<2 || input[n]>65535;
+			CHECK(run(&host,wire,"",rejected ? ST_RIP3_HOST_INVALID_REFERENCE : -1)==0);
+			(void)snprintf(expected,sizeof(expected),"%u:%u",!rejected && axis==0 ? input[n] : 640,
+			    !rejected && axis==1 ? input[n] : 350);
+			CHECK(run(&host,"$WORLD$",expected,-1)==0);
+			CHECK(run(&host,"$WORLD(6)$","-1",-1)==0);
+		}
+	}
+	st_rip3_environments_destroy(environments);return 0;
+}
+
+static int
 host_variables(void)
 {
 	struct st_rip3_environments *environments = NULL;
@@ -227,8 +270,8 @@ host_variables(void)
 	CHECK(run(&host, "$WORLD(CUR,32767,1)$", "", -1) == 0);
 	CHECK(run(&host, "$WORLD$", "32767:1", -1) == 0);
 	CHECK(run(&host, "$WORLD(CUR,1000,1000)$", "", -1) == 0);
-	CHECK(run(&host, "$WORLDW(CUR,1234)$", "", -1) == 0);
-	CHECK(run(&host, "$WORLDH(CUR,777)$", "", -1) == 0);
+	CHECK(run(&host, "$WORLDW(BOGUS,1234)$", "", -1) == 0);
+	CHECK(run(&host, "$WORLDH(35,777)$", "", -1) == 0);
 	CHECK(run(&host, "$WORLD$", "1234:777", -1) == 0);
 	CHECK(run(&host, "$COORDSIZE(CUR,5)$", "", -1) == 0);
 	CHECK(run(&host, "$COLORMODE(CUR,RGB,8)$", "", -1) == 0);
@@ -256,8 +299,8 @@ host_variables(void)
 		CHECK(st_rip3_environment_host_execute(&host, NULL, output, sizeof(output)) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(st_rip3_environment_host_execute(&host, &reference, NULL, sizeof(output)) == IO_ERROR_INVALID_ARGUMENT);
 	}
-	static const char *invalid[] = {"$WORLD(CUR,1,32768)$", "$WORLD(CUR,65535,1)$",
-	    "$WORLD(CUR,0,1)$", "$WORLD(CUR,10)$", "$WORLD(CUR,DEFAULT,1)$",
+	static const char *invalid[] = {"$WORLD(CUR,65536,65536)$", "$WORLD(CUR,-1,1)$",
+	    "$WORLD(CUR,18446744073709551616,1)$", "$WORLD(CUR,10)$", "$WORLD(CUR,DEFAULT,1)$",
 	    "$WORLD(CUR,20,BAD)$", "$WORLDH(CUR,32768)$", "$WORLDW(CUR,-1)$",
 	    "$BASEMATH(CUR,63)$", "$COORDSIZE(CUR,1)$", "$COORDSIZE(CUR,6)$",
 	    "$COLORMODE(CUR,RGB)$", "$COLORMODE(CUR,PAL,8)$", "$COLORMODE(CUR,RGB,9)$",
@@ -321,6 +364,7 @@ host_variables(void)
 int
 main(void)
 {
+	CHECK(world_ranges() == 0);
 	CHECK(records(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
 	CHECK(records(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
 	CHECK(records(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);

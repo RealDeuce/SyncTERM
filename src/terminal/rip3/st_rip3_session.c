@@ -353,8 +353,15 @@ st_rip3_session_capture(const struct st_rip3_session *session, struct st_rip3_se
 {
 	if (session==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_session_capture value={0};struct st_rip3_port_info port;struct st_rip3_palette palette;
+	struct st_rip3_environment environment;
 	int status=st_rip3_environments_current(session->commands.environments,&value.environment);
-	if (status==0) status=st_rip3_environments_frame(session->commands.environments,value.environment,&value.frame);
+	if (status==0) status=st_rip3_environments_get(session->commands.environments,value.environment,&environment);
+	if (status==0) {
+		/* Observation is valid even when WORLD stores a zero dimension.
+		 * Drawing still obtains a checked nonzero projection frame. */
+		value.frame=session->frame;value.frame.world_width=environment.world_width;
+		value.frame.world_height=environment.world_height;
+	}
 	if (status==0) status=st_rip3_styles_current(session->commands.styles,&value.style);
 	if (status==0) status=st_rip3_ports_current(session->commands.ports,&value.port);
 	if (status==0) status=st_rip3_ports_info(session->commands.ports,value.port,&port);
