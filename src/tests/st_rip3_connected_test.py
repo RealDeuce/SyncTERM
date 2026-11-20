@@ -16,8 +16,9 @@ from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
 
 
-def query(source):
-    return b"\r!|1\x1b0000" + source + b"\r\n"
+def query(source, *, at_cursor=False):
+    # SOH permits a command without first moving the ordinary TTY cursor.
+    return (b"\x01|1\x1b0000" if at_cursor else b"\r!|1\x1b0000") + source + b"\r\n"
 
 
 def pixel(frame, x, y):
@@ -64,6 +65,22 @@ Hook.onKey(Key.f9) {|event|
         t.case("rip3-text-cursor-on-entry-grid")
         t.exchange(b"\x01|g0509\r\n\x1b[6n", b"\x1b[10;6R")
         t.exchange(b"\x01|H\r\n\x1b[6n", b"\x1b[1;1R")
+        t.case("rip3-default-text-activation-variables-and-cursor")
+        before = t.exchange(b"\x1b[?25h")
+        send(query(b"$DTW$") + b"HIDDEN\r\n" * (height // 8 + 10)
+             + b"\x1b[2J\x1b[?25l" + query(b"root-off"))
+        receive(peer, b"root-off", root / "replies.bin")
+        hidden = client.capture()
+        assert hidden.primary == before.primary and hidden.metadata["cursor_visible"] == 0
+        frame = t.exchange(query(b"$ATW(CUR)$root-on"), b"root-on")
+        assert frame.primary == before.primary
+        assert frame.metadata["cursor_visible"] == before.metadata["cursor_visible"] == 1
+        before = t.exchange(b"\x1b[?25l")
+        send(query(b"$DTW$cursor-already-off"))
+        receive(peer, b"cursor-already-off", root / "replies.bin")
+        frame = t.exchange(query(b"$ATW$cursor-still-off"), b"cursor-still-off")
+        assert frame.primary == before.primary and frame.metadata["cursor_visible"] == 0
+        t.exchange(b"\x1b[?25h")
         t.case(f"rip3-connected-dixon-{width}-{args.encoding}")
         selected = t.exchange(b"!|y00000W0M000000001a1a000000Dixon\r\n")
         assert selected.application["cterm.graphics_mode"] == 2
@@ -278,6 +295,27 @@ Hook.onKey(Key.f9) {|event|
         assert frame.primary == before.primary and frame.application["connected"] == 1
         # Positioning clears a pending right-margin wrap before the next text.
         t.exchange(b"\x01|g0200\r\nX\x01|g0001\r\nB\x1b[6n", b"\x1b[2;2R")
+
+        t.case("rip3-positioned-text-activation-preserves-artwork-and-state")
+        before = t.exchange(b"\x1b[?25h")
+        px, py = ox + 2 * cw, oy + 2 * ch
+        send(query(b"$DTW(ALL)$", at_cursor=True) + b"HIDDEN\r\n" * (height // 8 + 10)
+             + b"\x1b[2J\x1b[?25l\x01|c0A|X" + mega(px) + mega(py)
+             + b"\r\n" + query(b"window-off"))
+        receive(peer, b"window-off", root / "replies.bin")
+        hidden = client.capture()
+        assert hidden.metadata["pixel_cursor_visible"] == 0
+        assert (hidden.application["cterm.x"], hidden.application["cterm.y"]) == (2, 2)
+        assert pixel(hidden, px, py) == 0x55ff55
+        send(query(b"$ATW(1,35)$$ATW(CUR,36)$still-off"))
+        receive(peer, b"still-off", root / "replies.bin")
+        invalid = client.capture()
+        assert invalid.metadata["pixel_cursor_visible"] == 0 and invalid.primary == hidden.primary
+        frame = t.exchange(query(b"$ATW(CUR)$window-on") + b"\x1b[6n", b"window-on\x1b[2;2R")
+        assert frame.primary == hidden.primary and frame.metadata["pixel_cursor_visible"] == 1
+        assert pixel(frame, px, py) == 0x55ff55
+        frame = t.exchange(query(b"$DTW(ALL,36)$still-on", at_cursor=True) + b"\x1b[6n", b"still-on\x1b[2;2R")
+        assert frame.primary == hidden.primary and frame.application["connected"] == 1
 
 
 def mega(number):

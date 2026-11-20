@@ -5,7 +5,18 @@
 
 #include "st_rip3_geometry.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+
+/* Borrowed single-owner text-window services for host control variables.
+ * Numbers are decimal TW slots 0..35. The owner skips undefined/protected
+ * targets and retains layout, cursor, attributes and current selection.
+ * These statuses stay below the parser's nonfatal recovery boundary. */
+struct st_rip3_text_window_operations {
+	void *context;
+	int (*current)(void *context, unsigned *number);
+	int (*activate)(void *context, const unsigned *numbers, size_t count, bool active);
+};
 
 struct st_rip3_text_window_layout {
 	/* Original inclusive character-cell coordinates for ordinary w. */

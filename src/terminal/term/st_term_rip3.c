@@ -29,6 +29,11 @@ struct st_term_rip3 {
 	uint8_t tty[4096];
 	size_t tty_length;
 	bool flushing;
+	/* Suppress the entry TTY's cursor without discarding its requested shape,
+	 * scan lines or visibility. Positioned views keep their own cursor state. */
+	bool root_cursor_saved,root_cursor_hidden;
+	enum st_console_cursor_shape root_cursor_shape;
+	struct st_console_custom_cursor root_cursor;
 	st_cterm_output_callback_t output;
 	void *output_context;
 	struct st_rip3_session *session;
@@ -165,13 +170,45 @@ ansi(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 	}
 }
 
+static int
+text_visibility(struct st_term_rip3 *rip)
+{
+	bool active=st_rip3_session_text_active(rip->session);
+	if (rip->view!=NULL) return st_term_rip3_view_active(rip->view,rip->config.console,active);
+	if (active && !rip->root_cursor_saved) return 0;
+	int status=0;
+	if (!active) {
+		if (!rip->root_cursor_saved) {
+			bool visible;
+			status=st_console_get_cursor(rip->config.console,&visible,&rip->root_cursor_shape);
+			if (status==0) status=st_console_get_custom_cursor(rip->config.console,&rip->root_cursor);
+			if (status!=0) return status;
+			rip->root_cursor.visible=visible;rip->root_cursor_saved=true;
+		}
+		if (rip->root_cursor_hidden) return 0;
+		struct st_console_custom_cursor hidden=rip->root_cursor;hidden.visible=false;
+		status=rip->root_cursor_shape==ST_CONSOLE_CURSOR_BAR
+		    ? st_console_set_cursor(rip->config.console,false,ST_CONSOLE_CURSOR_BAR)
+		    : st_console_set_custom_cursor(rip->config.console,&hidden);
+		if (status==0) rip->root_cursor_hidden=true;
+	}
+	else {
+		status=rip->root_cursor_shape==ST_CONSOLE_CURSOR_BAR
+		    ? st_console_set_cursor(rip->config.console,rip->root_cursor.visible,ST_CONSOLE_CURSOR_BAR)
+		    : st_console_set_custom_cursor(rip->config.console,&rip->root_cursor);
+		if (status==0) rip->root_cursor_saved=rip->root_cursor_hidden=false;
+	}
+	return status;
+}
+
 static void
 flush_text(void *context)
 {
 	struct st_term_rip3 *rip=context;
 	if (rip->tty_length==0 || rip->flushing) return;
 	rip->flushing=true;size_t length=rip->tty_length,used=0;rip->tty_length=0;
-	int status=rip->view==NULL ? 0 : st_term_rip3_view_begin(rip->view,rip->config.console);
+	int status=text_visibility(rip);
+	if (status==0 && rip->view!=NULL) status=st_term_rip3_view_begin(rip->view,rip->config.console);
 	if (status==0) status=st_cterm_write(st_term_rip3_text(rip),rip->tty,length,&used);
 	if (rip->view!=NULL && status==0) status=st_term_rip3_view_present(rip->view,rip->config.console,
 	    st_rip3_session_text_active(rip->session));
@@ -254,6 +291,7 @@ text(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_term_rip3 *rip=context;
 	present(rip);
+	if (text_visibility(rip)!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	for (size_t i=0;i<length;i++) {
 		uint8_t byte=bytes[i];
 		if ((rip->escape_length==2 || rip->escape_length==3) && byte=='!') {
@@ -277,6 +315,9 @@ static void
 reply(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_term_rip3 *rip=context;
+	present(rip);
+	/* Publish active-variable effects before the peer receives its fence. */
+	if (text_visibility(rip)!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	rip->output(rip->output_context,ST_CTERM_OUTPUT_RESPONSE,bytes,length);
 }
 
@@ -337,8 +378,7 @@ process(struct st_term_rip3 *rip)
 	(void)cterm_rip_localtime(time(NULL),&rip->local_time);
 	st_rip3_session_process(rip->session,4096);
 	present(rip);prompt(rip);present(rip);
-	if (rip->view!=NULL && st_term_rip3_view_active(rip->view,rip->config.console,
-	    st_rip3_session_text_active(rip->session))!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	if (text_visibility(rip)!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	if (rip->position==rip->length) rip->position=rip->length=0;
 }
 

@@ -48,5 +48,7 @@ int st_rip3_image_style_host_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 int st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+int st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
+	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 
 #endif

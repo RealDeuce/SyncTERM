@@ -52,8 +52,9 @@ struct st_rip3_session_config {
 	enum st_rip3_text_encoding encoding;
 	struct st_rip3_session_source source;
 	struct st_rip3_session_sink sink;
-	/* Optional copied external service bindings. frame/tables/input/templates
-	 * must be NULL: this session owns those. Identity, features, time, local
+	/* Optional copied external service bindings. The frame, tables, input,
+	 * templates and text_windows must be NULL: this session owns those.
+	 * Identity, features, time, local
 	 * queries and an optional random/user processor remain borrowed. A supplied
 	 * user processor is reserved exclusively while a session query is pending.
 	 * Otherwise private session/persistent memory stores and a processor are

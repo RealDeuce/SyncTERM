@@ -42,6 +42,7 @@ struct st_rip3_session {
 	bool has_text_window;
 	struct st_rip3_text_window_layout text_window;
 	struct st_rip3_text_window_host window_host;
+	struct st_rip3_text_window_operations window_operations;
 	uint64_t revision;
 	struct st_rip3_bitmap_error_ui bitmap_ui;
 	struct st_rip3_bitmap_error_sink bitmap_errors;
@@ -116,6 +117,23 @@ position_text_cursor(void *context, uint32_t column, uint32_t row)
 	if (!session->text_active) return 0;
 	return session->sink.text_cursor==NULL ? IO_ERROR_NOT_SUPPORTED
 	    : session->sink.text_cursor(session->sink.context,column,row);
+}
+
+static int
+current_text_window(void *context, unsigned *number)
+{
+	(void)context;*number=0;return 0;
+}
+
+static int
+activate_text_windows(void *context, const unsigned *numbers, size_t count, bool active)
+{
+	struct st_rip3_session *session=context;
+	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
+	/* Only the default unprotected slot is currently defined. Other slots
+	 * stay undefined until TW definition/selection and owned views are added. */
+	for (size_t i=0;i<count;i++) if (numbers[i]==0) session->text_active=active;
+	return 0;
 }
 
 bool
@@ -223,7 +241,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (result==NULL || config==NULL || config->source.now_ns==NULL || config->source.next==NULL
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
-	    || config->services->input!=NULL || config->services->templates!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	    || config->services->input!=NULL || config->services->templates!=NULL
+	    || config->services->text_windows!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
 	bool device=config->device_width!=0 || config->device_height!=0;
 	struct st_rip3_frame frame;
 	int status=device ? st_rip3_frame_init_device(&frame,config->device_width,config->device_height)
@@ -241,6 +260,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->text.encoding=config->encoding;session->text.font=config->classic_font;session->text.outline_font=config->outline_font;
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
+	session->window_operations=(struct st_rip3_text_window_operations){session,current_text_window,activate_text_windows};
+	session->variables.text_windows=&session->window_operations;
 	session->random.state=config->random_seed;
 	if (session->variables.random==NULL) session->variables.random=&session->random;
 	session->templates=(struct st_rip3_template_host){.context=session,.selection_required=selection_required};

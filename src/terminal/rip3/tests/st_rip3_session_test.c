@@ -371,6 +371,30 @@ text_deactivation(void)
 }
 
 static int
+text_activation_variables(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$DTW$","")==0 && !st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$RESX$","640")==0);
+	/* Undefined noncurrent slots do not define or reactivate a window. */
+	CHECK(query(&f,"$ATW(1,35)$","")==0 && !st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$ATW(0)$","")==0 && st_rip3_session_text_active(f.session));
+	CHECK(append(&f,"!|1\0330000$DTW(CUR,36)$\r")==0 && pump(&f)==0
+	    && f.errors==1 && f.kind==ST_RIP3_COMMAND_INVALID && st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$dtw(ALL)$","")==0 && !st_rip3_session_text_active(f.session));
+	CHECK(append(&f,"!|1\0330000$ATW(CUR,OTHER)$\r")==0 && pump(&f)==0
+	    && f.errors==2 && !st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$ATW( cur, 0, 0 )$","")==0 && st_rip3_session_text_active(f.session));
+	CHECK(append(&f,"!|w0000000000\r")==0 && pump(&f)==0 && !st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$ATW()$","")==0 && st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$DTW(CUR)$","")==0 && !st_rip3_session_text_active(f.session));
+	st_rip3_session_cancel(f.session);CHECK(!st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$ATW(ALL)$","")==0 && st_rip3_session_text_active(f.session));
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 construction(bool device)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -380,6 +404,12 @@ construction(bool device)
 	st_rip3_session_test_attempts=0;CHECK(st_rip3_session_create(&f.session,&options)==0);
 	size_t attempts=st_rip3_session_test_attempts,live=st_rip3_session_test_live,stops=st_rip3_session_test_stops;
 	CHECK(attempts>12 && live==attempts);
+	struct st_rip3_text_window_operations windows={0};
+	const struct st_rip3_host_variables owned={.text_windows=&windows};
+	options.services=&owned;struct st_rip3_session *unchanged=f.session;
+	CHECK(st_rip3_session_create(&unchanged,&options)==IO_ERROR_INVALID_ARGUMENT && unchanged==f.session
+	    && st_rip3_session_test_live==live && f.reads==0 && f.errors==0);
+	options.services=NULL;
 	for (size_t at=0; at<attempts; at++) {
 		st_rip3_session_test_attempts=0;st_rip3_session_test_fail_at=at;
 		struct st_rip3_session *unchanged=f.session;
@@ -407,6 +437,7 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && normal_window()==0 && text_cursor()==0 && text_deactivation()==0 && construction(false)==0 && construction(true)==0);
+	    && normal_window()==0 && text_cursor()==0 && text_deactivation()==0 && text_activation_variables()==0
+	    && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;
 }

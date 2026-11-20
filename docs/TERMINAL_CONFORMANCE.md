@@ -38,7 +38,10 @@ upstream clarification; full TW tables/protection/switching and extended `b`
 remain pending. Wire `g`/`H` address both the entry TTY and positioned windows,
 including fixed-width numeric fields in both radices, native CUP clamping,
 deactivated-window no-ops and nonfatal recovery; cursor-only commands retain
-the artwork. The
+the artwork. `$ATW$`/`$DTW$` control the default TTY, validate complete selector
+lists, retain cursor preferences and preserve artwork painted while text is
+off. Undefined nonzero slots are ignored; defining/protecting/switching them
+remains pending. The
 entry's grid/raster is retained at
 the three presets and at 1280x800 and 720x400. These tests disable physical
 audio. Full-compliance acceptance and incomplete command families remain open.

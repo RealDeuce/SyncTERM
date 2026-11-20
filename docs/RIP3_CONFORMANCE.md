@@ -61,6 +61,14 @@ rules are tracked in upstream
 [#101](https://github.com/bbs-land/remote-imaging-protocol/issues/101); the
 ordinary cursor commands do not claim those unresolved macro semantics.
 
+`$ATW$` and `$DTW$` now activate/deactivate the default window through immediate
+host queries. Omission, `CUR`, decimal slots and `ALL` use one fully validated
+selector list; undefined nonzero slots do nothing. Deactivation hides the
+cursor while preserving its requested visibility/shape, text state and layout.
+Reactivation imports the current artwork before showing a positioned cursor,
+and activation effects publish before reply fences. Defined noncurrent windows,
+selection and protection still require the unfinished TW table.
+
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
 playback and deferred queries remain incomplete. The historical milestones below
@@ -5761,6 +5769,41 @@ erase-color, activation and cursor-variable contracts. No existing issue was
 modified. The ledger records 1087 implemented, 1597 pending, 3950 unreviewed,
 1167 contextual, 24 excluded and 42 blocked blocks. Extended windows, full TW
 tables and unresolved control-variable behavior remain pending.
+
+## Connected default-window activation variables
+
+Immediate queries now execute `$ATW$`/`$DTW$` through an owner-bound activation
+service. Omission selects CUR; case-insensitive CUR/ALL and decimal slots 0..35
+are collected, deduplicated and validated before any callback. The common
+argument grammar still drops empty comma fields; a retained whitespace-only
+field is invalid after normalization. Invalid later parameters cannot partly
+change earlier targets. The connected owner currently defines only unprotected
+slot zero; other numeric targets remain undefined no-ops. This does not claim
+complete TW table, protection or switching support.
+
+The entry TTY hides its cursor without discarding requested visibility, shape
+or custom scan-line data. A positioned window imports actual screen artwork
+before reactivation, avoiding stale cached pixels overwriting RIP drawings.
+The adapter publishes these effects before replies and ordinary text rendering.
+No cursor, ANSI attributes or layout are reset by activation. Incoming syntax
+and service failures remain inside the existing void parser recovery boundary.
+
+Native selector tests cover all 36 targets, duplicates, forty arguments,
+empty/whitespace fields, callback ordering, capacity prevalidation, missing
+services and resource/operation failure recovery. Owned-session tests exercise
+actual default-state changes, undefined targets, malformed lists, interaction
+with all-zero `w`, cancellation and rejection of external activation bindings.
+CP437/UTF-8 TCP captures verify output/ANSI suppression, retained cursor
+preferences, unchanged text state, invalid-list atomicity and artwork surviving
+disabled text followed by activation on all five existing device rasters.
+Native CMake configure/full build and seven relevant CTests pass across the
+targeted runs; unchanged successful checks are reused. No C compiler warnings
+were introduced. All 93 frozen files and 41 RIP1.54 helpers still match.
+
+The ledger records 1098 implemented, 1604 pending, 3932 unreviewed, 1167 context,
+24 excluded and 42 blocked blocks. Mixed requirements that also describe
+protected/defined noncurrent windows remain pending. The reference pin and
+upstream issues are unchanged; full compliance remains unfinished.
 
 ## Verification and acceptance
 

@@ -176,10 +176,18 @@ st_term_rip3_view_active(struct st_term_rip3_view *view, st_console_t *parent, b
 {
 	if (view==NULL || parent==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (view->active==active) return 0;
-	view->active=active;
-	if (active) return st_term_rip3_view_present(view,parent,true);
-	struct st_console_pixel_cursor cursor;
-	int status=st_console_get_pixel_cursor(parent,&cursor);
-	if (status==0) {cursor.visible=false;status=st_console_set_pixel_cursor(parent,&cursor);}
+	int status;
+	if (active) {
+		/* RIP may have painted beneath a deactivated window. Activation must
+		 * reveal its cursor over the current screen, never replay old pixels. */
+		status=st_term_rip3_view_begin(view,parent);
+		if (status==0) status=st_term_rip3_view_present(view,parent,true);
+	}
+	else {
+		struct st_console_pixel_cursor cursor;
+		status=st_console_get_pixel_cursor(parent,&cursor);
+		if (status==0) {cursor.visible=false;status=st_console_set_pixel_cursor(parent,&cursor);}
+	}
+	if (status==0) view->active=active;
 	return status;
 }

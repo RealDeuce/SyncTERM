@@ -165,6 +165,11 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		if (status != IO_ERROR_NOT_SUPPORTED)
 			return status;
 	}
+	{
+		int status = st_rip3_text_window_host_execute(host, reference, result, capacity);
+		if (status != IO_ERROR_NOT_SUPPORTED)
+			return status;
+	}
 	if (host->tables != NULL)
 		return st_rip3_table_host_execute(host->tables, reference, result, capacity);
 	return IO_ERROR_NOT_SUPPORTED;
