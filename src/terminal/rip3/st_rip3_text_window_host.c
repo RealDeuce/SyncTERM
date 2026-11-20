@@ -67,8 +67,9 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 	bool activation=strcmp(reference->name,"ATW")==0 || strcmp(reference->name,"DTW")==0;
 	bool visibility=strcmp(reference->name,"CON")==0 || strcmp(reference->name,"COFF")==0;
 	bool erase=strcmp(reference->name,"ETW")==0;
+	bool erase_eol=strcmp(reference->name,"TWERASEEOL")==0;
 	bool home=strcmp(reference->name,"TWHOME")==0;
-	if (!activation && !visibility && !erase && !home && strcmp(reference->name,"TWGOTO")!=0)
+	if (!activation && !visibility && !erase && !erase_eol && !home && strcmp(reference->name,"TWGOTO")!=0)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_builtin_reference words;
@@ -81,7 +82,7 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 		}
 	}
 	const struct st_rip3_text_window_operations *windows=host->text_windows;
-	if (!activation && !visibility && !erase) {
+	if (!activation && !visibility && !erase && !erase_eol) {
 		status=position(windows,&words,home);
 		if (status==0) result[0]=0;
 		return status;
@@ -102,7 +103,8 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 	}
 	/* A later bad parameter must not cause even a current-slot lookup,
 	 * much less partial effects on earlier valid targets. */
-	if (windows==NULL || (erase ? windows->erase==NULL : activation ? windows->activate==NULL : windows->cursor==NULL))
+	if (windows==NULL || (erase ? windows->erase==NULL : erase_eol ? windows->erase_eol==NULL
+	    : activation ? windows->activate==NULL : windows->cursor==NULL))
 		return IO_ERROR_NOT_SUPPORTED;
 	if (current_requested) {
 		unsigned number;
@@ -114,6 +116,7 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 	for (unsigned n=0;n<36;n++) if (selected[n]) numbers[count++]=n;
 	bool enabled=strcmp(reference->name,activation ? "ATW" : "CON")==0;
 	status=erase ? windows->erase(windows->context,numbers,count)
+	    : erase_eol ? windows->erase_eol(windows->context,numbers,count)
 	    : activation ? windows->activate(windows->context,numbers,count,enabled)
 	    : windows->cursor(windows->context,numbers,count,enabled);
 	if (status==0) result[0]=0;

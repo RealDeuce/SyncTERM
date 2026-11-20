@@ -35,6 +35,7 @@ struct fixture {
 	int cursor_status;
 	bool cursor_visible;
 	unsigned erases;
+	unsigned eol_erases;
 	int erase_status;
 	bool erase_whole;
 	uint32_t erase_rgb;
@@ -304,6 +305,12 @@ erase_text(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area)
 }
 
 static int
+erase_eol(void *context)
+{
+	struct fixture *f=context;f->eol_erases++;return f->erase_status;
+}
+
+static int
 text_erases(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -340,6 +347,24 @@ text_erases(void)
 	for (size_t y=0;y<3;y++) for (size_t x=0;x<4;x++)
 		CHECK(capture.pixels->primary[y*4+x]==(ST_PIXEL_COLOR_RGB_TAG|(x>=1 && x<=2 && y>=1 ? 0xff : 0xaa00)));
 	st_rip3_session_capture_dispose(&capture);
+	st_rip3_session_destroy(f.session);
+	/* ANSI erasure has its own service and does not use graphics STYLE/PAL. */
+	f=(struct fixture){0};options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_erase_eol=erase_eol;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$TWERASEEOL$","")==0 && f.eol_erases==1 && f.erases==0);
+	CHECK(query(&f,"$TWERASEEOL(ALL,CUR,0,0)$","")==0 && f.eol_erases==2);
+	CHECK(query(&f,"$DTW$$TWERASEEOL$$ATW$$TWERASEEOL(1,35)$","")==0 && f.eol_erases==2);
+	CHECK(append(&f,"!|1\0330000$TWERASEEOL(CUR,36)$\r")==0 && pump(&f)==0
+	    && f.eol_erases==2 && f.errors==1 && f.kind==ST_RIP3_COMMAND_INVALID);
+	f.erase_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(append(&f,"!|1\0330000$TWERASEEOL$\r")==0 && pump(&f)==0
+	    && f.eol_erases==3 && f.errors==2 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	f.erase_status=IO_ERROR_IO;
+	CHECK(append(&f,"!|1\0330000$TWERASEEOL$\r")==0 && pump(&f)==0
+	    && f.eol_erases==4 && f.errors==3 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
+	f.erase_status=0;
+	CHECK(query(&f,"$TWERASEEOL$alive","alive")==0 && f.eol_erases==5);
 	st_rip3_session_destroy(f.session);return 0;
 }
 

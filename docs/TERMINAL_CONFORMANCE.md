@@ -41,8 +41,17 @@ ordinary text/ANSI suppressed while RIP graphics/replies remain live. Ordinary
 scrolling, cursor-preserving reactivation, key forwarding and local Wren
 writes/reset/state. Changed definitions retain ordinary ANSI parser state and
 tabs while resetting the rendering state and saved cursor to home; full
-character-set support, TW tables/protection/switching and extended `b`
-remain pending. Wire `g`/`H` address both the entry TTY and positioned windows,
+character-set support and TW tables/protection/switching remain pending.
+`syncterm_rip3_extended_window_CP437` and its UTF-8 counterpart cover connected
+`b` WORLD/device bounds, actual MAF metrics, directional font fitting, centered
+placement, state/tab reset, flag-16 bounding-box clear before deactivation,
+offscreen clipping and nonfatal allocation rejection. The connected
+`syncterm_rip3_text_erase_CP437` and UTF-8 suites cover PAL0 whole-window e/ETW,
+STYLE-background wire >, and ANSI-background TWERASEEOL, including full-row
+extent, unchanged cursor/wrap/ANSI state and untouched extended bounding margins.
+The latter follows the target's ANSI palette mapping and direct RGB, separately
+from graphics colors. Defined noncurrent TW/protection acceptance stays pending.
+Wire `g`/`H` address both the entry TTY and positioned windows,
 including fixed-width numeric fields in both radices, native CUP clamping,
 deactivated-window no-ops and nonfatal recovery; cursor-only commands retain
 the artwork. `$ATW$`/`$DTW$` control the default TTY, validate complete selector

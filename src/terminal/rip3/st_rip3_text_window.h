@@ -28,6 +28,8 @@ struct st_rip3_text_window_operations {
 	int (*cursor)(void *context, const unsigned *numbers, size_t count, bool visible);
 	/* ETW: whole target bounding rectangle, graphics palette index 0. */
 	int (*erase)(void *context, const unsigned *numbers, size_t count);
+	/* TWERASEEOL: display row from cursor inclusive, target ANSI background. */
+	int (*erase_eol)(void *context, const unsigned *numbers, size_t count);
 };
 
 struct st_rip3_text_window_layout {

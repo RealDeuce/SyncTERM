@@ -51,6 +51,9 @@ struct st_rip3_session_sink {
 	 * DEVICE region for the owner's matching index-plane COPY. Whole erase
 	 * homes the live cursor only; EOL retains it. Empty is 0,0,-1,-1. */
 	int (*text_erase)(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area);
+	/* Native ANSI-background EOL erase. Like ordinary ANSI text, this paints
+	 * the terminal surface rather than changing the graphics palette indices. */
+	int (*text_erase_eol)(void *context);
 };
 
 struct st_rip3_session_config {

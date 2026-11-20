@@ -15,7 +15,7 @@ struct fixture {
 	bool active;
 	int current_status,operation_status;
 	enum st_rip3_host_diagnostic kind;
-	unsigned moves,cursors,erases;
+	unsigned moves,cursors,erases,eol_erases;
 	unsigned x[36],y[36];
 	bool defined[36],enabled[36],visible[36];
 };
@@ -54,6 +54,13 @@ erase(void *context, const unsigned *numbers, size_t count)
 	for (size_t i=0;i<count;i++) if (f->defined[numbers[i]] && f->enabled[numbers[i]])
 		f->x[numbers[i]]=f->y[numbers[i]]=0;
 	return 0;
+}
+
+static int
+erase_eol(void *context, const unsigned *numbers, size_t count)
+{
+	struct fixture *f=context;f->eol_erases++;f->count=count;
+	memcpy(f->numbers,numbers,count*sizeof(*numbers));return f->operation_status;
 }
 
 static int
@@ -192,5 +199,22 @@ main(void)
 	CHECK(run(&host,&f,"$ETW$",ST_RIP3_HOST_RESOURCE_FAILURE)==0 && f.erases==4);
 	f.operation_status=0;
 	CHECK(run(&host,&f,"$ETW(CUR)$",-1)==0 && f.erases==5);
+	operations.erase_eol=erase_eol;
+	CHECK(run(&host,&f,"$TWERASEEOL$",-1)==0 && f.eol_erases==1 && f.count==1 && f.numbers[0]==0);
+	CHECK(run(&host,&f,"$tweraseeol( all,cur,35,35 )$",-1)==0 && f.eol_erases==2 && f.count==36);
+	for (unsigned i=0;i<36;i++) CHECK(f.numbers[i]==i);
+	lookups=f.current_calls;
+	const char *const bad_eol[]={"$TWERASEEOL(CUR,36)$","$TWERASEEOL(ALL,NO)$",
+	    "$TWERASEEOL(-1)$","$TWERASEEOL(0,3A)$","$TWERASEEOL(CUR, ,0)$"};
+	for (size_t i=0;i<sizeof(bad_eol)/sizeof(*bad_eol);i++)
+		CHECK(run(&host,&f,bad_eol[i],ST_RIP3_HOST_INVALID_REFERENCE)==0
+		    && f.eol_erases==2 && f.current_calls==lookups);
+	operations.erase_eol=NULL;
+	CHECK(run(&host,&f,"$TWERASEEOL$",ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0 && f.eol_erases==2);
+	operations.erase_eol=erase_eol;f.operation_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(run(&host,&f,"$TWERASEEOL$",ST_RIP3_HOST_RESOURCE_FAILURE)==0 && f.eol_erases==3);
+	f.operation_status=0;
+	CHECK(run(&host,&f,"$TWERASEEOL(35,0,35)$",-1)==0 && f.eol_erases==4 && f.count==2
+	    && f.numbers[0]==0 && f.numbers[1]==35 && f.erases==5);
 	return 0;
 }

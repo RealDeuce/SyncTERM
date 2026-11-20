@@ -318,6 +318,10 @@ int st_cterm_get_text_cursor_visible(const st_cterm_t *terminal, bool *visible);
  * cursor-inclusive through the last full-window cell without moving it.
  * Preserve rendition/modes, saved cursor and requested visibility. */
 int st_cterm_erase_text(st_cterm_t *terminal, bool whole, uint32_t rgb);
+/* RIP3 TWERASEEOL: same full-window row extent and retained state as EOL
+ * above, using the target's current ANSI background/color mapping instead
+ * of a graphics color. Does not inject bytes or clear pending wrap. */
+int st_cterm_erase_ansi_text_eol(st_cterm_t *terminal);
 
 /* Resizes the owned console geometry and preserves visible and saved cells. */
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);

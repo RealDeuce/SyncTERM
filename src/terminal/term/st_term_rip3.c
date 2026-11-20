@@ -390,6 +390,19 @@ text_erase(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area)
 }
 
 static int
+text_erase_eol(void *context)
+{
+	struct st_term_rip3 *rip=context;
+	present(rip);
+	int status=text_visibility(rip);
+	if (status==0 && rip->view!=NULL) status=st_term_rip3_view_begin(rip->view,rip->config.console);
+	if (status==0) status=st_cterm_erase_ansi_text_eol(st_term_rip3_text(rip));
+	if (status==0 && rip->view!=NULL)
+		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
+	return status;
+}
+
+static int
 text_cursor_visible(void *context, bool visible)
 {
 	struct st_term_rip3 *rip=context;
@@ -622,7 +635,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
 	        .before_command=before_command,.text_window=text_window,.text_cursor=text_cursor,
-	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase},
+	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

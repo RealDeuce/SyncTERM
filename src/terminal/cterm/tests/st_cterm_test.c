@@ -160,6 +160,8 @@ check_local_text_position(void)
 	CHECK(st_cterm_get_text_cursor_visible(NULL,&requested)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_erase_text(NULL,true,0)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_cterm_erase_text(terminal,true,0)==IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_cterm_erase_ansi_text_eol(NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_cterm_erase_ansi_text_eol(terminal)==IO_ERROR_NOT_SUPPORTED);
 	st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
 }
 
@@ -309,6 +311,59 @@ check_rip3_text_erase(void)
 		CHECK(st_cterm_state(terminal,&state)==0 && state.x==6 && state.y==4 && state.last_column_flag.set);
 		CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
 		CHECK(st_cterm_state(terminal,&state)==0 && state.x==1 && state.y==1 && !state.last_column_flag.set);
+		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
+	}
+}
+
+static void
+check_rip3_ansi_eol(void)
+{
+	for (int encoding=ST_CTERM_ENCODING_UTF8;encoding<=ST_CTERM_ENCODING_CODEPAGE;encoding++) {
+		st_console_t *console=NULL;st_font_catalog_t *fonts=NULL;st_cterm_t *terminal=NULL;
+		const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config geometry={.columns=6,.rows=4,.cell_width=8,.cell_height=8};
+		CHECK(st_console_create(&console,&display,&geometry)==0 && st_font_catalog_create(&fonts,console)==0);
+		const uint16_t mapping[16]={0,1,2,3,42,5,6,7,8,9,10,11,12,13,14,15};
+		const struct st_cterm_config config={.console=console,.fonts=fonts,.emulation=ST_CTERM_ANSI_BBS,
+		    .encoding=encoding,.codepage=ST_CODEPAGE_CP437,.quiet=true,
+		    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true,.palette_mapping=mapping};
+		CHECK(st_cterm_create(&terminal,&config)==0 && st_cterm_start_text(terminal)==0);
+		uint32_t red=0x2468ac;
+		/* CTerm's extended ANSI bank follows the 16 system entries. */
+		CHECK(st_console_set_palette(console,16+42,&red,1)==0);
+		const char *const rendition[]={"\x1b[31;41;4m","\x1b[38;2;9;8;7;48;2;18;52;86m"};
+		const uint32_t colours[]={0x2468ac,0x123456};
+		for (size_t n=0;n<2;n++) {
+			CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
+			const char modes[]="\x1b[2;3r\x1b[?69h\x1b[2;4s\x1b[?6h\x1b[2;2H\x1b" "7";
+			feed(terminal,modes,sizeof(modes)-1);feed(terminal,rendition[n],strlen(rendition[n]));
+			CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0 && st_cterm_position_text(terminal,4,0)==0);
+			struct st_cterm_state before,after;
+			CHECK(st_cterm_state(terminal,&before)==0 && before.x==5 && before.y==1);
+			CHECK(st_cterm_erase_ansi_text_eol(terminal)==0 && st_cterm_state(terminal,&after)==0);
+			CHECK(after.x==5 && after.y==1 && after.attr==before.attr && after.ext_attr.origin_mode
+			    && after.top_margin==2 && after.bottom_margin==3 && after.left_margin==2 && after.right_margin==4);
+			CHECK(terminal->save_xpos==2 && terminal->save_ypos==2);
+			bool visible=true;CHECK(st_cterm_get_text_cursor_visible(terminal,&visible)==0 && !visible);
+			struct st_pixel_buffer *pixels=NULL;const struct st_console_rect all={0,0,48,32};
+			CHECK(st_console_get_pixels(&pixels,console,&all,false)==0);
+			for (size_t y=0;y<32;y++) for (size_t x=0;x<48;x++) {
+				uint32_t rgb=pixels->primary[y*48+x];
+				if (!ST_PIXEL_COLOR_IS_RGB(rgb)) CHECK(st_console_get_palette(console,(uint16_t)rgb,&rgb,1)==0);
+				if ((rgb&0xffffff)!=(y<8 && x>=32 ? colours[n] : 0xabcdef))
+					fprintf(stderr,"ANSI EOL case %zu at %zu,%zu: %06x, expected %06x\n",n,x,y,
+					    (unsigned)(rgb&0xffffff),(unsigned)(y<8 && x>=32 ? colours[n] : 0xabcdef));
+				CHECK((rgb&0xffffff)==(y<8 && x>=32 ? colours[n] : 0xabcdef));
+			}
+			st_pixel_buffer_destroy(pixels);
+			CHECK(st_cterm_position_text(terminal,5,3)==0);feed(terminal,"Z",1);
+			CHECK(st_cterm_state(terminal,&before)==0 && before.last_column_flag.set);
+			CHECK(st_cterm_erase_ansi_text_eol(terminal)==0 && st_cterm_state(terminal,&after)==0
+			    && after.x==6 && after.y==4 && after.last_column_flag.set);
+			/* The service must not consume an unfinished received CSI. */
+			feed(terminal,"\x1b[3",3);CHECK(st_cterm_erase_ansi_text_eol(terminal)==0);feed(terminal,"2m",2);
+			CHECK(st_cterm_state(terminal,&after)==0 && (after.attr&7)==2);
+		}
 		st_cterm_destroy(&terminal);st_font_catalog_destroy(fonts);st_console_destroy(console);
 	}
 }
@@ -783,6 +838,7 @@ st_cterm_test_main(void)
 	check_local_text_position();
 	check_rip3_absolute_text_position();
 	check_rip3_text_erase();
+	check_rip3_ansi_eol();
 	test_graphics_history();
 	test_status_display_routing();
 	test_direct_reset();

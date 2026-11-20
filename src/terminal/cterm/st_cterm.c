@@ -2920,8 +2920,8 @@ st_cterm_get_text_cursor_visible(const st_cterm_t *terminal, bool *visible)
 	return 0;
 }
 
-int
-st_cterm_erase_text(st_cterm_t *terminal, bool whole, uint32_t rgb)
+static int
+erase_text(st_cterm_t *terminal, bool whole, bool ansi, uint32_t rgb)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -2950,13 +2950,25 @@ st_cterm_erase_text(st_cterm_t *terminal, bool whole, uint32_t rgb)
 		return status;
 	/* An erase is solid paint even when ANSI underline/inverse is selected.
 	 * The terminal's current rendition and colors remain untouched. */
-	blank.foreground = blank.background = ST_PIXEL_COLOR_RGB_TAG | rgb;
+	blank.foreground = blank.background = ansi ? blank.background : ST_PIXEL_COLOR_RGB_TAG | rgb;
 	blank.flags = 0;
 	blank.hyperlink = 0;
 	status = st_console_fill(terminal->screen.console, &area, &blank);
 	if (status == 0 && whole)
 		status = st_cterm_position_text(terminal, 0, 0);
 	return status != 0 ? status : cterm_render_take_error(terminal);
+}
+
+int
+st_cterm_erase_text(st_cterm_t *terminal, bool whole, uint32_t rgb)
+{
+	return erase_text(terminal, whole, false, rgb);
+}
+
+int
+st_cterm_erase_ansi_text_eol(st_cterm_t *terminal)
+{
+	return erase_text(terminal, false, true, 0);
 }
 
 int

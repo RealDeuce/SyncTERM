@@ -189,6 +189,17 @@ erase_text_windows(void *context, const unsigned *numbers, size_t count)
 }
 
 static int
+erase_window_lines(void *context, const unsigned *numbers, size_t count)
+{
+	struct st_rip3_session *session=context;
+	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i=0;i<count;i++) if (numbers[i]==0 && session->text_active)
+		return session->sink.text_erase_eol==NULL ? IO_ERROR_NOT_SUPPORTED
+		    : session->sink.text_erase_eol(session->sink.context);
+	return 0;
+}
+
+static int
 current_text_window(void *context, unsigned *number)
 {
 	(void)context;*number=0;return 0;
@@ -332,7 +343,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
 	    .current=current_text_window,.activate=activate_text_windows,
-	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows};
+	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
+	    .erase_eol=erase_window_lines};
 	session->variables.text_windows=&session->window_operations;
 	session->random.state=config->random_seed;
 	if (session->variables.random==NULL) session->variables.random=&session->random;

@@ -138,8 +138,13 @@ resolved through ENV color precision/current palette. Both paths apply solid COP
 to native cells and the matching screen index plane, independent of graphics
 PORT/viewport state, W, fill pattern and ANSI background. They retain terminal
 attributes, origin/margins, visibility and saved cursor. Extended bounding margins
-are included in whole-window erases. Defined noncurrent windows and
-ANSI-background `$TWERASEEOL$` remain unfinished; the latter is not an alias of wire `>`.
+are included in whole-window erases. `$TWERASEEOL$` now erases the connected
+current/default display row through its final cell using the native ANSI
+background and color mapping, independently of graphics colors. It preserves
+live/saved cursor, pending wrap, rendition, margins, cursor visibility and
+unfinished ANSI syntax; it leaves extended bounding margins intact. Its fully
+validated selector list defaults to current; undefined/deactivated targets do
+nothing. Defined noncurrent TW views/protection remain unfinished.
 
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
@@ -6300,6 +6305,46 @@ The queue now contains 1232 implemented, 1618 pending, 3788 unreviewed, 1217 con
 24 excluded and 28 blocked blocks. The reference remains ff2043e; frozen RIP1.54
 sources/helpers, baseline and historical assets are unchanged. Task-owned build
 logs are removed after review; no code or issue updates are published.
+
+## Connected ANSI-background end-of-line erasure
+
+`$TWERASEEOL$` now calls the connected target's native ANSI renderer. It shares
+selector parsing with ETW, including case-insensitive CUR/ALL, decimal slots,
+deduplication and whole-list validation before even looking up the current slot.
+Its separate owner callback uses the native ANSI background rather than graphics
+STYLE or PAL0. Indexed backgrounds retain the configured ANSI color mapping;
+direct ANSI RGB is preserved. Like ordinary ANSI output, it paints the terminal
+surface without rewriting the separate graphics index plane. Complete SCREEN/
+truecolor composition remains a separate unfinished family.
+
+The native erase covers the cursor-inclusive full display row independently of
+ANSI origin/scrolling margins and graphics PORT/viewport, W or fill state. Solid
+blank cells remove prior glyph/underline ink without changing rendition or
+hyperlink state. Live/saved cursor, requested visibility, pending wrap and
+unfinished received ANSI syntax survive. Current/default root, ordinary w and
+extended b windows are connected; full defined noncurrent TW views and protection
+still require the pending TW table. Mixed requirements describing that lifecycle
+remain pending rather than being accepted from the default-window tests.
+
+The host test first failed on the previously unsupported variable. New native
+expectations cover a deliberately remapped ANSI palette entry, direct RGB,
+full-row erasure outside margins, hidden cursor, saved position, pending wrap,
+partial CSI and both encodings. The real TCP/control-bitmap erase suites cover
+all three reference rasters in CP437 and UTF-8, including Custom's existing
+monochrome root mapping, color MicroANSI windows, untouched extended margins,
+non-ASCII ink, invalid selectors with no effects, deactivation and reply-fenced
+recovery. Audio remains disabled. The pending-wrap case explicitly enables wrap
+on its extended definition.
+
+Native Release CMake configure/build completes without warnings. Nine distinct
+affected CTests pass: text-window host, session, native CTerm, both connected
+erase and both extended-window suites, the RIP1.54 source guard and the edited
+contract ledger. Only the new tests were repeated while their palette/wrap
+fixtures were corrected; unchanged passing suites were reused. Task-owned logs
+and failure fixtures are removed. The queue is 1236 implemented, 1617 pending,
+3781 unreviewed, 1221 context, 24 excluded and 28 blocked blocks. The reference
+remains ff2043e, and no legacy source/assets, freeze baseline or issue content
+changes. Full compliance and scene reset (#105) remain incomplete.
 
 ## Verification and acceptance
 
