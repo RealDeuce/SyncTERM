@@ -148,6 +148,13 @@ graphics(enum st_rip3_canvas canvas, unsigned width, unsigned height)
 	CHECK(append(&f,background)==0 && pump(&f)==0 && query(&f,"$EGW$","")==0
 	    && f.errors==0 && st_rip3_session_capture(f.session,&capture)==0);
 	for (size_t i=0; i<(size_t)width*height; i++) CHECK(capture.pixels->primary[i]==(ST_PIXEL_COLOR_RGB_TAG|0xff5555));
+	st_rip3_session_capture_dispose(&capture);
+	CHECK(query(&f,"$COLORMODE(CUR,PAL)$$CUR(PAL,5)$$RESET(PAL)$$CUR(PAL)$:$INUSE(PAL,5)$:$ISPROT(PAL,5)$:$ISPROT(PAL,CUR)$",
+	    "5:0:-1:0")==0 && append(&f,"!|c02|X0202\r")==0 && pump(&f)==0
+	    && st_rip3_session_capture(f.session,&capture)==0 && capture.palette==5 && capture.outline_cache_valid);
+	/* Reset does not reselect/define PAL 5 or prevent drawing/observation. */
+	for (unsigned y=0; y<height; y++) for (unsigned x=0; x<width; x++)
+		CHECK(capture.pixels->primary[(size_t)y*width+x]==(ST_PIXEL_COLOR_RGB_TAG|((x==2 && y==2) ? 0xaa00 : 0xff5555)));
 	st_rip3_session_capture_dispose(&capture);st_rip3_session_destroy(f.session);return 0;
 }
 

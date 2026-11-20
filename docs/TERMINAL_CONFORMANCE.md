@@ -83,6 +83,15 @@ y/T/@ drawing, same-query STYLE/background changes, prompt ownership, cancellati
 isolation and all constructor-failure boundaries. These tests use a pull audio
 engine without physical output; they do not claim GUI or application routing,
 full graphics reset, preprocessing or unbound table-class coverage.
+Palette lifecycle tests now cover reset/default RGB state separately from
+definition, protection and current selection. RESET(PAL,...) supports live and
+backup selectors with full syntax/binding prevalidation; protected slots survive
+aggregate reset. Live palette COPY prevalidates every destination and transfers
+source protection except to zero. Reset may leave the current slot undefined:
+numeric ISPROT then returns -1 while CUR protection returns zero, and drawing,
+bitmap/image consumers and coherent captures retain access to its RGB values.
+Table-local soft/hard reset services are covered; whole-scene reset/header
+orchestration and other live-entry COPY families remain pending.
 The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization
 and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
 and destination requests now diagnose separately without ending processing;

@@ -272,7 +272,7 @@ st_rip3_session_capture(const struct st_rip3_session *session, struct st_rip3_se
 	if (status==0) status=st_rip3_ports_current(session->commands.ports,&value.port);
 	if (status==0) status=st_rip3_ports_info(session->commands.ports,value.port,&port);
 	if (status==0) status=st_rip3_palettes_current(session->commands.palettes,&value.palette);
-	if (status==0) status=st_rip3_palettes_get(session->commands.palettes,value.palette,&palette);
+	if (status==0) status=st_rip3_palettes_current_palette(session->commands.palettes,&palette);
 	if (status==0) status=st_rip3_ports_snapshot(session->commands.ports,&palette,&value.pixels);
 	if (status!=0) return status;
 	value.cursor_x=port.cursor.x;value.cursor_y=port.cursor.y;value.viewport_active=port.viewport_active;

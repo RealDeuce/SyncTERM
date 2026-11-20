@@ -116,6 +116,70 @@ st_rip3_palettes_desktop(struct st_rip3_palettes *palettes, size_t start,
 }
 
 int
+st_rip3_palettes_current_palette(const struct st_rip3_palettes *palettes,
+    struct st_rip3_palette *result)
+{
+	if (palettes == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*result = palettes->entries[palettes->current].palette;
+	return 0;
+}
+
+int
+st_rip3_palettes_reset_entry(struct st_rip3_palettes *palettes, unsigned number)
+{
+	if (palettes == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct palette_entry *entry = &palettes->entries[number];
+	if (entry->info.protected)
+		return IO_ERROR_PERMISSION_DENIED;
+	(void)st_rip3_palette_defaults(&entry->palette);
+	entry->info.defined = number == 0;
+	return 0;
+}
+
+int
+st_rip3_palettes_reset(struct st_rip3_palettes *palettes, bool hard)
+{
+	if (palettes == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (unsigned i = 0; i < 36; i++) {
+		if (hard) palettes->entries[i].info.protected = false;
+		if (!palettes->entries[i].info.protected)
+			(void)st_rip3_palettes_reset_entry(palettes,i);
+	}
+	if (hard) palettes->current = 0;
+	return 0;
+}
+
+int
+st_rip3_palettes_copy_entries(struct st_rip3_palettes *palettes, unsigned source,
+    const unsigned *destinations, size_t count)
+{
+	if (palettes == NULL || destinations == NULL || count == 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (source >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (!palettes->entries[source].info.defined)
+		return IO_ERROR_NOT_FOUND;
+	for (size_t i = 0; i < count; i++) {
+		if (destinations[i] >= 36)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (destinations[i] == source)
+			return IO_ERROR_INVALID_ARGUMENT;
+		if (palettes->entries[destinations[i]].info.protected)
+			return IO_ERROR_PERMISSION_DENIED;
+	}
+	for (size_t i = 0; i < count; i++) {
+		palettes->entries[destinations[i]] = palettes->entries[source];
+		if (destinations[i] == 0) palettes->entries[0].info.protected = false;
+	}
+	return 0;
+}
+
+int
 st_rip3_palettes_rgb(struct st_rip3_palettes *palettes, size_t start,
     unsigned bits, const uint32_t *colors, size_t count)
 {

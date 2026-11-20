@@ -25,7 +25,6 @@ write_bitmap(const struct st_rip3_command_host *host, unsigned source,
 	uint8_t *bytes = NULL;
 	char *filename;
 	size_t size;
-	unsigned number;
 	int status;
 
 	if (host->ports == NULL || host->palettes == NULL || host->resources == NULL
@@ -33,8 +32,7 @@ write_bitmap(const struct st_rip3_command_host *host, unsigned source,
 		return IO_ERROR_NOT_SUPPORTED;
 	filename = strndup((const char *)name,name_length);
 	if (filename == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	status = st_rip3_palettes_current(host->palettes,&number);
-	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
+	status = st_rip3_palettes_current_palette(host->palettes,&palette);
 	if (status == 0) {
 		if (kind == BITMAP_PORT)
 			status = st_rip3_bitmap_capture_port(&bitmap,host->ports,source,area,&palette);

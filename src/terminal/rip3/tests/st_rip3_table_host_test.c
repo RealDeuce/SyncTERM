@@ -240,7 +240,7 @@ palette_expressions(void)
 	CHECK(execute(&host, "$COPY(PAL,BASE,S6,S7)$", output, sizeof(output)) == IO_ERROR_PERMISSION_DENIED);
 	CHECK(execute(&host, "$COPY(PAL,BASE,S6)$", output, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(execute(&host, "$BACKSTAT(PAL)$", output, 2) == IO_ERROR_OUT_OF_RANGE);
-	CHECK(execute(&host, "$COPY(PAL,3,5)$", output, sizeof(output)) == IO_ERROR_NOT_SUPPORTED);
+	CHECK(execute(&host, "$COPY(PAL,3,5)$", output, sizeof(output)) == IO_ERROR_NOT_FOUND);
 	CHECK(execute(&host, "$BACKSTAT(TW)$", output, sizeof(output)) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(execute(&host, "$IFS(JPEG)$", output, sizeof(output)) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(memcmp(output, previous, sizeof(output)) == 0);

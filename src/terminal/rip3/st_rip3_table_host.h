@@ -32,9 +32,14 @@ struct st_rip3_table_host {
  * supports PAL/PORT/STYLE selection and PAL/PORT/ENV/STYLE metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
- * Parameter defaults and
- * decimal slot syntax follow the reference; entry COPY stays NOT_SUPPORTED
- * pending #16. Other built-ins return NOT_SUPPORTED for wider dispatch.
+ * Palette live-entry COPY validates all destinations before mutation and
+ * copies source protection except to zero. RESET(PAL,...) handles current or
+ * specific entries, TBL and the base/numbered/stack/aggregate backup selectors.
+ * It validates the full selector list and required bindings first. Palette
+ * resets preserve selection even when it becomes undefined; ISPROT(PAL,CUR)
+ * reads current protection without the numeric-slot definition check.
+ * Parameter defaults and decimal slot syntax follow the reference. Other
+ * live-entry COPY/reset families return NOT_SUPPORTED for wider dispatch.
  * CUR(STYLE,n) selects/defaults the represented style and its font family,
  * independently of PORT/ENV/text-cursor state. CUR(ENV,n), SENV, RENV, SGS and
  * RGS remain unsupported until
@@ -43,8 +48,10 @@ struct st_rip3_table_host {
  * drawing attributes currently stored in st_rip3_styles, not the unresolved
  * complete context under #24.
  * Parsed references must come from builtin_reference_parse. Empty outputs
- * require capacity >= 1, validated before any active operation. Failures leave
- * caller output and bound table/save state unchanged. No host transmission,
+ * require capacity >= 1, validated before any active operation. Validation and
+ * binding failures leave caller output and bound table/save state unchanged.
+ * Individual runtime reset failures may follow completed earlier selectors;
+ * their effects are not rolled back. No host transmission,
  * prompting, stream parsing or app/session routing occurs here. Execution
  * statuses are private to parser-owned recovery; use the public host-variable
  * process entry to consume malformed references without a session error. */

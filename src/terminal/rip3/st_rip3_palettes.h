@@ -32,6 +32,23 @@ int st_rip3_palettes_protect(struct st_rip3_palettes *palettes,
  * changing result. No mutable palette/table memory is exposed to callers. */
 int st_rip3_palettes_get(const struct st_rip3_palettes *palettes,
 	unsigned number, struct st_rip3_palette *result);
+/* The selected slot's RGB values remain usable after reset clears its in-use
+ * bit. This view neither defines nor reselects it; numbered get still requires
+ * a defined slot for PALENTRY and live-entry copy semantics. */
+int st_rip3_palettes_current_palette(const struct st_rip3_palettes *palettes,
+	struct st_rip3_palette *result);
+/* Specific/current reset rejects protection, restores RGB defaults and clears
+ * nonzero definition without changing selection. Table/soft reset skips
+ * protected slots; hard reset also removes protection and selects zero.
+ * These operations do not clear the separately owned backup area. */
+int st_rip3_palettes_reset_entry(struct st_rip3_palettes *palettes, unsigned number);
+int st_rip3_palettes_reset(struct st_rip3_palettes *palettes, bool hard);
+/* Validate the defined source and every destination before any mutation.
+ * Protected sources are readable; protected/self/out-of-range destinations
+ * reject the whole operation. Copy definition/protection, clearing protection
+ * at destination zero. Selection is retained; duplicate destinations are legal. */
+int st_rip3_palettes_copy_entries(struct st_rip3_palettes *palettes, unsigned source,
+	const unsigned *destinations, size_t count);
 /* Edit the current palette. Protected entries reject all changes. Underlying
  * setters validate the whole input span before writing any RGB values. */
 int st_rip3_palettes_desktop(struct st_rip3_palettes *palettes, size_t start,

@@ -5414,6 +5414,57 @@ fonts, RIP1.54 and the reference pin remain unchanged. Scoped logs are removed;
 no existing issue is modified, code pushed or PR published. Full compliance remains
 in progress.
 
+## Palette reset lifecycle and validated live-entry copying
+
+Palette reset now treats stored RGB values, in-use state, protection and current
+selection as separate state. A specific/current reset restores defaults and
+clears a nonzero slot's definition without selecting another slot. Protected
+specific/current entries reject unchanged; a table/soft reset skips them. The
+table-local hard-reset service removes protection, defaults all slots and selects
+zero. Slot zero remains defined and unprotectable. These table services do not
+clear their separately owned backup area or claim whole-scene reset dispatch.
+
+`$RESET(PAL,...)$` now supports omitted/current and numbered live targets, TBL,
+BASE, numbered saves, SLOTS, STACK, BACKUP and ALL. The complete selector list
+and all required live/backup bindings validate before any operation. Backup
+clearing preserves protected numbered saves. Execution follows selector order;
+an individual runtime protection failure does not roll back earlier completed
+selectors. Invalid source syntax and missing bindings never partially reset a
+mixed live/backup expression. All incoming failures remain inside the public
+void host/query/session processing boundaries.
+
+Live palette COPY accepts decimal/CUR source and destinations independently of
+whole-table backup COPY. The source must be defined; its protection does not
+prevent reading. Every destination is validated before any copy, including a
+late protected, self or invalid destination. Successful destinations become
+defined and inherit source protection except at zero, which stays unprotected.
+Selection is retained. Numeric ISPROT still returns -1 for an undefined slot;
+ISPROT(PAL,CUR) directly returns its protection bit as the adopted contract
+requires. Reselecting an undefined slot defines it with defaults again.
+
+A separate selected-palette RGB view supports the legitimate undefined-but-current
+state without implicitly defining it. Session captures, bitmap writing/loading,
+image presentation and error painting now use this view. Numbered reads retain
+their definition checks for PALENTRY and live-entry copying. Independent tests
+cover all 36 slots, default RGB samples, protected and repeated resets, hard
+versus soft table behavior, copied protection/zero, multiple destinations, failed
+prevalidation, current/numeric status distinctions, every save-area reset class,
+missing services, zero output capacity and public recovery. All-canvas session
+wire captures assert the published 5/0/-1/0 status sequence and successful
+drawing while palette 5 remains selected and undefined, without losing the font
+cache. These are separate-engine native tests, not application-route coverage.
+
+Native CMake configure/full build passes without diagnostics. All fifteen
+affected palette/table/host/query/session/bitmap/image CTests pass (24.35 seconds).
+After adding positive base/stack/numbered-save isolation checks, only the changed
+palette-lifecycle test is rebuilt/rerun and passes. Other passing evidence is
+reused. Edited ledger consistency passes: 990 implemented, 1577 pending,
+4003 unreviewed, 1141 contextual, 24 excluded and 32 blocked across 7767 units.
+Whole-scene reset/header orchestration, other table families and application
+routing remain pending. The reference pin, original assets and RIP1.54 are
+unchanged; no upstream issue is modified and no code is pushed or PR published.
+Scoped logs are removed. Full compliance remains in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

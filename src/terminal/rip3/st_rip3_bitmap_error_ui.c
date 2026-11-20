@@ -70,7 +70,7 @@ st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
 	struct st_rip3_bitmap_destination area;
 	uint8_t filename[255], background;
 	size_t length;
-	unsigned current, number;
+	unsigned current;
 	const int64_t limit = INT64_C(1024)*INT32_MAX;
 
 	if (ui == NULL || ui->ports == NULL) return;
@@ -97,8 +97,7 @@ st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
 	int32_t y1 = area.y1 > max_y ? (int32_t)max_y : (int32_t)area.y1;
 	size_t width = (size_t)(x1-x0)+1, height = (size_t)(y1-y0)+1;
 	if (height > SIZE_MAX/width) return;
-	if (st_rip3_palettes_current(ui->palettes,&number) != 0
-	    || st_rip3_palettes_get(ui->palettes,number,&palette) != 0
+	if (st_rip3_palettes_current_palette(ui->palettes,&palette) != 0
 	    || st_rip3_palette_color(&palette,true,0,&background) != 0) return;
 	uint8_t foreground = contrasting(&palette,background);
 	uint8_t *pixels = malloc(width*height);

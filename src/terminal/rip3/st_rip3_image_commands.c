@@ -79,8 +79,7 @@ st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
 	 * all-zero coordinates. No image-style bit deletes a skipped JPEG. */
 	if (!port.image.enabled) return 0;
 	if (host->resources == NULL || host->palettes == NULL) return IO_ERROR_NOT_SUPPORTED;
-	status = st_rip3_palettes_current(host->palettes,&number);
-	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
+	status = st_rip3_palettes_current_palette(host->palettes,&palette);
 	if (status != 0) return status;
 	size_t size = length-6;
 	char *name = malloc(size+1);

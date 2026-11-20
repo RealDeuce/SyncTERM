@@ -100,6 +100,16 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_rip3_palette_lifecycle_test tests/st_rip3_palette_lifecycle_test.c)
+	target_link_libraries(st_rip3_palette_lifecycle_test PRIVATE st_rip3)
+	set_target_properties(st_rip3_palette_lifecycle_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_palette_lifecycle_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_rip3_palette_lifecycle_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME rip3_palette_lifecycle COMMAND st_rip3_palette_lifecycle_test)
 	add_executable(st_rip3_session_test tests/st_rip3_session_test.c tests/st_rip3_session_fault_impl.c)
 	target_link_libraries(st_rip3_session_test PRIVATE st_rip3_commands)
 	set_target_properties(st_rip3_session_test PROPERTIES

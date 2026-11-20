@@ -32,7 +32,7 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	struct st_rip3_bitmap_destination area;
 	uint64_t x, y, mode, clipboard, scale, reserved;
 	size_t width = environment->coordinate_size, suffix = 2+2*width, prefix = suffix+5;
-	unsigned port, number;
+	unsigned port;
 	int status;
 
 	if (length <= prefix) return IO_ERROR_INVALID_FORMAT;
@@ -84,8 +84,7 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	}
 	area.x1 = area.x0+(int64_t)image_width-1;
 	area.y1 = area.y0+(int64_t)image_height-1;
-	status = st_rip3_palettes_current(host->palettes,&number);
-	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
+	status = st_rip3_palettes_current_palette(host->palettes,&palette);
 	if (status == 0) {
 		status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,
 		    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL);
@@ -173,7 +172,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 		area.y1 = area.y0+bitmap->pixels->height-1;
 	}
 	status = st_rip3_palettes_current(host->palettes,&number);
-	if (status == 0) status = st_rip3_palettes_get(host->palettes,number,&palette);
+	if (status == 0) status = st_rip3_palettes_current_palette(host->palettes,&palette);
 	uint8_t transparent_color = (uint8_t)transparent;
 	/* This engine's initialized 256-entry device has the normal 236 direct
 	 * index limit. ENV RGB precision is an input format, not device depth.

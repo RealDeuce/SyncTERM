@@ -391,10 +391,90 @@ objects(const struct st_rip3_table_host *host,
 				}
 			}
 			if (isprot)
-				return reply_number(result, capacity, !single_defined ? -1 : single_protected);
+				return reply_number(result, capacity, !single_defined && !(type==ST_RIP3_TABLE_PAL && selected==CURRENT)
+				    ? -1 : single_protected);
 			return reply_number(result, capacity, (selected == ALL || selected == ALLSLOTS) ? used == total : used != 0);
 		}
 	}
+}
+
+enum palette_reset_kind { RESET_ENTRY, RESET_CURRENT, RESET_TABLE, RESET_BASE,
+	RESET_SLOT, RESET_SLOTS, RESET_STACK, RESET_BACKUP, RESET_ALL };
+
+static int
+palette_reset(const struct st_rip3_table_binding *binding,
+    const struct st_rip3_builtin_reference *reference)
+{
+	struct {enum palette_reset_kind kind; unsigned index;} actions[39];
+	size_t count=reference->count==1 ? 1 : reference->count-1;
+	bool needs_live=false,needs_backup=false;
+	/* Validate the complete selector list and every required binding before
+	 * executing anything, including a mixed live-table/backup reset. */
+	for (size_t i=0; i<count; i++) {
+		const char *word=reference->count==1 ? "CUR" : reference->parameters[i+1].text;
+		enum palette_reset_kind kind;unsigned index=0;
+		if (equal(word,"CUR")) kind=RESET_CURRENT;
+		else if (equal(word,"TBL")) kind=RESET_TABLE;
+		else if (equal(word,"BASE")) kind=RESET_BASE;
+		else if (equal(word,"SLOTS")) kind=RESET_SLOTS;
+		else if (equal(word,"STACK")) kind=RESET_STACK;
+		else if (equal(word,"BACKUP")) kind=RESET_BACKUP;
+		else if (equal(word,"ALL")) kind=RESET_ALL;
+		else if ((word[0]=='S' || word[0]=='s') && word[1]>='0' && word[1]<='9' && word[2]==0) {
+			kind=RESET_SLOT;index=(unsigned)(word[1]-'0');
+		}
+		else if (st_rip3_host_number(word,0,35,&index)==0) kind=RESET_ENTRY;
+		else return IO_ERROR_INVALID_FORMAT;
+		actions[i].kind=kind;actions[i].index=index;
+		needs_live|=kind==RESET_ENTRY || kind==RESET_CURRENT || kind==RESET_TABLE || kind==RESET_ALL;
+		needs_backup|=kind!=RESET_ENTRY && kind!=RESET_CURRENT && kind!=RESET_TABLE;
+	}
+	if ((needs_live && binding->live==NULL) || (needs_backup && binding->backup==NULL))
+		return IO_ERROR_NOT_SUPPORTED;
+	for (size_t i=0; i<count; i++) {
+		enum palette_reset_kind kind=actions[i].kind;unsigned index=actions[i].index;
+		int status=0;
+		if (kind==RESET_CURRENT) status=st_rip3_palettes_current(binding->live,&index);
+		if (status==0 && (kind==RESET_ENTRY || kind==RESET_CURRENT))
+			status=st_rip3_palettes_reset_entry(binding->live,index);
+		else if (kind==RESET_TABLE || kind==RESET_ALL)
+			status=st_rip3_palettes_reset(binding->live,false);
+		if (status!=0) return status;
+		if (kind==RESET_BASE) status=st_rip3_backup_clear(binding->backup,ST_RIP3_BACKUP_BASE,0);
+		else if (kind==RESET_STACK) status=st_rip3_backup_clear(binding->backup,ST_RIP3_BACKUP_STACK,0);
+		else if (kind==RESET_SLOT) {
+			status=st_rip3_backup_clear(binding->backup,ST_RIP3_BACKUP_SLOT,index);
+			if (status==IO_ERROR_PERMISSION_DENIED) status=0;
+		}
+		else if (kind==RESET_SLOTS) {
+			for (unsigned slot=0; slot<10; slot++) {
+				status=st_rip3_backup_clear(binding->backup,ST_RIP3_BACKUP_SLOT,slot);
+				if (status!=0 && status!=IO_ERROR_PERMISSION_DENIED) return status;
+			}
+			status=0;
+		}
+		else if (kind==RESET_BACKUP || kind==RESET_ALL) status=st_rip3_backup_clear_all(binding->backup,false);
+		if (status!=0) return status;
+	}
+	return 0;
+}
+
+static int
+palette_copy(const struct st_rip3_table_binding *binding,
+    const struct st_rip3_builtin_reference *reference)
+{
+	unsigned source=0,destinations[38];
+	for (size_t i=1; i<reference->count; i++) {
+		const char *word=reference->parameters[i].text;unsigned index;
+		int status;
+		if (equal(word,"CUR")) status=entry_current(ST_RIP3_TABLE_PAL,binding->live,&index);
+		else status=st_rip3_host_number(word,0,35,&index);
+		if (status!=0) return status;
+		if (i==1) source=index;
+		else destinations[i-2]=index;
+	}
+	if (binding->live==NULL) return IO_ERROR_NOT_SUPPORTED;
+	return st_rip3_palettes_copy_entries(binding->live,source,destinations,reference->count-2);
 }
 
 int
@@ -412,6 +492,14 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	status=st_rip3_builtin_reference_words(&words,reference);
 	if (status!=0) return status;
 	reference=&words;
+	if (strcmp(reference->name,"RESET")==0) {
+		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+		if (reference->count==0) return IO_ERROR_NOT_SUPPORTED;
+		if (!equal(reference->parameters[0].text,"PAL")) return IO_ERROR_NOT_SUPPORTED;
+		status=palette_reset(&host->tables[ST_RIP3_TABLE_PAL],reference);
+		if (status==0) result[0]=0;
+		return status;
+	}
 	if (strcmp(reference->name, "PALENTRY") == 0)
 		return palette_entries(host, reference, result, capacity);
 	if (strcmp(reference->name, "CUR") == 0 || strcmp(reference->name, "INUSE") == 0
@@ -461,6 +549,12 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (status != 0)
 			return status;
 		binding = &host->tables[type];
+		if (copy && type==ST_RIP3_TABLE_PAL && (equal(reference->parameters[1].text,"CUR")
+		    || (reference->parameters[1].text[0]>='0' && reference->parameters[1].text[0]<='9'))) {
+			status=palette_copy(binding,reference);
+			if (status==0) result[0]=0;
+			return status;
+		}
 		if (backstat) {
 			bool protection = reference->count == 2 && equal(reference->parameters[1].text, "PROT");
 
