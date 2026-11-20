@@ -202,6 +202,14 @@ prompts_and_delays(void)
 	for (unsigned i=0; i<8 && st_rip3_session_pending(f.session); i++) st_rip3_session_process(f.session,1);
 	CHECK(!st_rip3_session_pending(f.session) && f.reply_length==130);
 	for (size_t i=0; i<f.reply_length; i++) CHECK(f.reply[i]==13);
+	CHECK(query(&f,"<<IF RESX=640>>[3:]yes[]$?3$<<ELSE>>no<<ENDIF>>","yes")==0
+	    && query(&f,"<<IF ?3=yes>>ready<<ELSE>>bad<<ENDIF>>","ready")==0);
+	f.reply_length=0;CHECK(append(&f,"!|1\0330000<<*=ANGLE>>\rnext\r\n")==0 && pump(&f)==0
+	    && st_rip3_session_prompt(f.session,&prompt) && strcmp(prompt.reference->name,"ANGLE")==0);
+	stopped=f.read;st_rip3_session_respond(f.session,(const uint8_t *)"<<RESX>>",8,false);
+	CHECK(f.read==stopped && f.reply_length==3 && memcmp(f.reply,"640",3)==0 && !st_rip3_session_pending(f.session));
+	CHECK(pump(&f)==0 && f.text_length==11 && memcmp(f.text+5,"next\r\n",6)==0
+	    && query(&f,"$&ANGLE$","<<RESX>>")==0);
 	st_rip3_session_destroy(f.session);return 0;
 }
 

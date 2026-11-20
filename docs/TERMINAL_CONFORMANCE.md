@@ -83,7 +83,7 @@ destroying client services. Native wire/capture tests cover all canvases, actual
 y/T/@ drawing, same-query STYLE/background changes, prompt ownership, cancellation,
 isolation and all constructor-failure boundaries. These tests use a pull audio
 engine without physical output; they do not claim GUI or application routing,
-full graphics reset, preprocessing or unbound table-class coverage.
+full graphics reset, graphical-text preprocessing or unbound table-class coverage.
 Palette lifecycle tests now cover reset/default RGB state separately from
 definition, protection and current selection. RESET(PAL,...) supports live and
 backup selectors with full syntax/binding prevalidation; protected slots survive
@@ -125,15 +125,16 @@ Its native test covers 768 matrix combinations plus owned suspended prompt state
 format-adapter handoff, failed allocation/write/format and nonfatal recovery.
 Immediate-query dispatch now uses that processor and suspends the shared input
 pump until the prompt completes. Dialog/editor formatting, persistent disk
-flushing, hang-up, complete macro processing and application routing remain pending. Completed macro-ordering and argument-byte
+flushing, hang-up, other macro consumers and application routing remain pending. Completed macro-ordering and argument-byte
 answers are retained.
 The typed condition stage now compares wrapped signed decimals or literal
 case-insensitive byte strings and performs the original staged Boolean reduction.
 Native vectors distinguish equal AND/OR precedence, late NOT, grouping and
 multiple-NOT phase boundaries. Provider calls are ordered without short-circuiting;
 failed values become false, and complete preflight/allocation precedes callbacks.
-Validation-only use makes no provider calls. These are helper-stage tests;
-full angle preprocessing and consumer integration remain pending.
+Validation-only use makes no provider calls. These helper-stage tests now also
+support the internal outer worker and immediate-query integration below;
+graphical-text consumer integration remains pending.
 PR #92 now supplies the conditional operand grammar; its private source parser
 preflights complete structure without allocation/providers, owns decoded operands,
 validates exact synthesized references and routes template indexes separately.
@@ -142,14 +143,23 @@ independent escape stages, quoted/empty literals, connector-space boundaries,
 255-byte pre-trim/provider bounds, long encoded input, ordered callbacks, nested
 structure, owned source and nonfatal helper recovery. Existing typed reduction is
 reused. A private owned continuation now exposes one validated operand request
-at a time, letting a future branch owner wait for a prompt without replaying
+at a time, letting the branch owner wait for a prompt without replaying
 earlier provider actions. Supplied borrowed bytes are compared immediately,
 all leaves still run in source order, and resumed processing/reduction allocates
 nothing. The synchronous evaluator uses the same continuation. Independent native
 tests cover waiting/budgets, independent owned runs, unavailable/oversized values,
-pending destruction and allocator failure. Full IF/ELSE branch preprocessing and
-real consumer providers remain pending; outer angle-scanner boundaries are
-tracked in upstream #96 separately from the adopted operand grammar.
+pending destruction and allocator failure. PR #98's outer scanner now implements
+IF/ELSEIF/ELSE/ENDIF with pure skipped-header validation, quote-blind delimiter
+lookahead, exact keyword/name/template boundaries, sixteen open frames and eight
+whole passes. Named results rescan immediately; angle templates defer within a
+pass and their inactive output is discarded after lookup. Internal query binding
+uses real built-in/user/template providers ahead of segmentation and the two
+ordinary passes. Pending prompts/delays retain queued bytes; owned cancellation
+does not replay or undo completed provider effects. Native tests cover branch and
+provider order, escaped delimiters, depth/bounds, failed allocation, source lifetime,
+required templates, prompt response/cancel and later-input recovery on all canvases.
+The owned-session fixture also exercises the public pump/prompt/response boundary.
+These are internal tests; graphical text and connection integration remain pending.
 PR #94's ordinary outline origin/justification policy now drives literal T/@:
 design origins start at the supplied anchor, end/center use the signed ordinary
 total with the final gap, selector 3 starts normally, and the baseline table is
@@ -401,7 +411,8 @@ side effects survive. A trailing outer backslash stays literal. Independent
 all-canvas boundary cases cover the published vectors, both passes, controls,
 raw UTF-8 cuts, required-empty selection/recovery and generic/user results.
 Earlier structural stages still precede clipping; ordinary syntax after a
-replacement is checked only when reached. Angle preprocessing, button-group
+replacement is checked only when reached. Immediate-query angle preprocessing
+now precedes these stages. Button-group
 aggregation and highlighting, pick lists/playback, dialog presentation, application routing and
 deferred queries remain pending. No physical audio or
 interactive application coverage is claimed by these native parser fixtures.

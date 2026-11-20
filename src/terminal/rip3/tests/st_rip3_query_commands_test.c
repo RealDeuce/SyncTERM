@@ -354,7 +354,10 @@ owned_and_recovery(void)
 	f.reply_length = 0;
 	CHECK(process(&f,"1\0330000after",-1) == 0 && f.reply_length == 5 && memcmp(f.reply,"after",5) == 0);
 	/* Earlier structural stages are still checked before any ordinary effect. */
-	const char *const tails[] = {"<<macro>>","((x::a,b))","[0]"};
+	unsigned errors=f.host_errors;
+	CHECK(process(&f,"1\0330000no$D(1)$<<macro>>",-1)==0 && f.host_errors==errors+1
+	    && f.host_kind==ST_RIP3_HOST_OPERATION_FAILED && st_rip3_input_wait_ns(f.host.input)==0 && f.reply_length==5);
+	const char *const tails[] = {"((x::a,b))","[0]"};
 	for (size_t i = 0; i < sizeof(tails)/sizeof(tails[0]); i++) {
 		char body[160];
 		(void)snprintf(body,sizeof(body),"1\0330000no$D(1)$%s",tails[i]);
@@ -472,7 +475,7 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	    && !st_rip3_query_pending(f.host.query) && st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE);
 	f.reply_length=0;
 	/* An unsupported tail prevents the earlier silent write and all output. */
-	CHECK(process(&f,"1\0330000pre$-=NAME=changed$<<macro>>",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(process(&f,"1\0330000pre$-=NAME=changed$((picklist))",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	CHECK(user_value(f.session,"NAME","Ada")==0 && f.reply_length==0);
 	/* Known invalid/unsupported built-ins never prompt, including excluded
 	 * external-launch names. P has no built-in registration and does prompt. */
@@ -965,9 +968,88 @@ allocation_and_budget(void)
 	return 0;
 }
 
+static int
+angle_queries(enum st_rip3_canvas canvas, const char *width)
+{
+	struct fixture f={0};CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots)==0);
+	f.templates.context=&f;f.templates.selection_required=selection_required;f.variables.templates=&f.templates;
+	struct st_rip3_table_host tables={0};tables.tables[ST_RIP3_TABLE_ENV].live=f.host.environments;f.variables.tables=&tables;
+	CHECK(st_rip3_variables_set(f.session,"A",1,(const uint8_t *)"<<B>>",5)==0
+	    && st_rip3_variables_set(f.session,"B",1,(const uint8_t *)"$RESX$",6)==0);
+	CHECK(process(&f,"1\0330000<<A>>",-1)==0 && f.reply_length==strlen(width) && memcmp(f.reply,width,strlen(width))==0);
+	char body[400];(void)snprintf(body,sizeof(body),"1\0330000<<IF RESX=%s>>yes<<ELSEIF RESX(1)=0>>bad<<ELSE>>no<<ENDIF>>",width);
+	f.reply_length=0;CHECK(process(&f,body,-1)==0 && f.reply_length==3 && memcmp(f.reply,"yes",3)==0 && f.host_errors==0);
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<IF RESX(1)!=0>>bad<<ELSE>>ok<<ENDIF>>",-1)==0
+	    && f.reply_length==2 && memcmp(f.reply,"ok",2)==0 && f.host_errors==0);
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<-=FLAG=before>>",-1)==0 && user_value(f.session,"FLAG","before")==0);
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<IF RESX=0>><<-=FLAG=after>>$-=FLAG=wrong$<<ELSE>>x<<ENDIF>>",-1)==0
+	    && f.reply_length==1 && f.reply[0]=='x' && user_value(f.session,"FLAG","after")==0);
+	/* Substitution precedes segmentation/definition storage, while a later
+	 * ordinary insertion never starts another angle-preprocessor invocation. */
+	CHECK(st_rip3_variables_set(f.session,"B",1,(const uint8_t *)"[3:]raw[]$?3$",13)==0);
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<B>>",-1)==0 && f.reply_length==3 && memcmp(f.reply,"raw",3)==0
+	    && template_value(&f,3,"raw")==0);
+	CHECK(st_rip3_variables_set(f.session,"B",1,(const uint8_t *)"Done",4)==0);
+	CHECK(append(&f,"!|1\0330000<<*=ASK>>|J1S\rraw\r\n")==0);st_rip3_input_process(f.host.input,2048);
+	CHECK(st_rip3_query_pending(f.host.query) && st_rip3_query_prompt_pending(f.host.query)
+	    && strcmp(st_rip3_user_variables_prompt(f.variables.user_variables)->name,"ASK")==0);
+	size_t stopped=f.read;unsigned reads=f.reads;f.reply_length=0;
+	st_rip3_input_process(f.host.input,2048);CHECK(f.read==stopped && f.reads==reads);
+	st_rip3_user_variables_respond(f.variables.user_variables,(const uint8_t *)"<<B>>",5,false);
+	st_rip3_input_process(f.host.input,2048);
+	CHECK(f.read==f.length && !st_rip3_query_pending(f.host.query) && f.reply_length==4 && memcmp(f.reply,"Done",4)==0
+	    && user_value(f.session,"ASK","<<B>>")==0 && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0);
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<*=UNFINISHED>>",-1)==0 && st_rip3_query_prompt_pending(f.host.query));
+	st_rip3_query_cancel(f.host.query);
+	CHECK(!st_rip3_query_pending(f.host.query) && st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE
+	    && user_value(f.session,"UNFINISHED",NULL)==0 && f.reply_length==0);
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<D(1)>><<TERMINFO(NAME)>>",-1)==0
+	    && st_rip3_input_wait_ns(f.host.input)==16666667 && st_rip3_query_pending(f.host.query));
+	const struct st_rip3_terminal_identity later={"Later","Tests","0"};f.variables.identity=&later;
+	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	CHECK(f.reply_length==5 && memcmp(f.reply,"Later",5)==0 && !st_rip3_query_pending(f.host.query));
+	unsigned errors=f.host_errors;f.reply_length=0;
+	CHECK(process(&f,"1\0330000$-=FLAG=wrong$<<IF N>>",-1)==0 && f.host_errors==errors+1
+	    && f.host_kind==ST_RIP3_HOST_INVALID_REFERENCE && f.reply_length==0 && user_value(f.session,"FLAG","after")==0);
+	CHECK(process(&f,"1\0330000<<APP>>",-1)==0 && f.host_errors==errors+2 && !st_rip3_query_pending(f.host.query));
+	errors=f.host_errors;
+	CHECK(process(&f,"1\0330000<<-=FLAG=kept>><<IF N>>",-1)==0 && f.host_errors==errors+1
+	    && f.reply_length==0 && user_value(f.session,"FLAG","kept")==0);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,NULL,0)==0 && st_rip3_templates_required(f.templates.slots,3,true)==0);
+	CHECK(process(&f,"1\0330000<<IF RESX=0>><<?3>><<ENDIF>>",-1)==0 && f.required_calls==1 && f.required_group==3
+	    && !st_rip3_query_pending(f.host.query) && f.reply_length==0);
+	/* The eight-pass success result may still contain deferred angle syntax. */
+	for (unsigned n=0; n<10; n++) {
+		char text[16];(void)snprintf(text,sizeof(text),"<<?%u>>",n+1);
+		CHECK(st_rip3_templates_required(f.templates.slots,n,false)==0
+		    && st_rip3_templates_set(f.templates.slots,n,(const uint8_t *)(n==9 ? "END" : text),n==9 ? 3 : strlen(text))==0);
+	}
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<?0>>",-1)==0);
+	for (unsigned i=0; i<20 && st_rip3_query_pending(f.host.query); i++) st_rip3_query_process(f.host.query,64);
+	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==6 && memcmp(f.reply,"<<?8>>",6)==0);
+	/* The 4096 response cap follows preprocessing; it is not a whole-program
+	 * cap that could discard a later direct response block before segmentation. */
+	char large[5001];memset(large,'X',5000);large[5000]=0;
+	const struct st_rip3_terminal_identity big={large,"Tests","0"};f.variables.identity=&big;
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<TERMINFO(NAME)>>[]tail",-1)==0);
+	for (unsigned i=0; i<20 && st_rip3_query_pending(f.host.query); i++) st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==4100 && memcmp(f.reply+4096,"tail",4)==0);
+	for (size_t i=0; i<4096; i++) CHECK(f.reply[i]=='X');
+	f.reply_length=0;CHECK(process(&f,"1\0330000<<IF TERMINFO(NAME)!=x>>bad<<ELSE>>ok<<ENDIF>>",-1)==0
+	    && f.reply_length==2 && memcmp(f.reply,"ok",2)==0);
+	f.reply_length=0;errors=f.host_errors;st_rip3_query_test_allocation_countdown=1;
+	CHECK(process(&f,"1\0330000<<RESX>>",-1)==0 && f.host_errors==errors+1
+	    && f.host_kind==ST_RIP3_HOST_RESOURCE_FAILURE && !st_rip3_query_pending(f.host.query) && f.reply_length==0);
+	const uint8_t nul_source[]={'a',0,'<','<','X','>','>'};
+	CHECK(st_rip3_query_start(f.host.query,nul_source,sizeof(nul_source))==0 && f.reply_length==1 && f.reply[0]=='a');
+	CHECK(!f.overflow && f.user_errors==0 && f.errors==0);destroy(&f);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(angle_queries(ST_RIP3_CANVAS_640_480,"640")==0 && angle_queries(ST_RIP3_CANVAS_800_600,"800")==0
+	    && angle_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);
 	CHECK(compound(ST_RIP3_CANVAS_640_480,"640") == 0);
 	CHECK(compound(ST_RIP3_CANVAS_800_600,"800") == 0);
 	CHECK(compound(ST_RIP3_CANVAS_1024_768,"1024") == 0);

@@ -4,6 +4,7 @@
 #include "st_rip3_input.h"
 #include "st_rip3_user_variables.h"
 #include "st_rip3_templates.h"
+#include "st_rip3_angle.h"
 #include "io_error.h"
 
 #include <stdlib.h>
@@ -15,11 +16,14 @@ struct st_rip3_query {
 	uint8_t *bytes, *output, *program;
 	size_t program_length, program_cursor;
 	size_t length, cursor, used, capacity;
-	unsigned pass; /* 0 idle; 1/2 ordinary expansion; 3 prepare the next block. */
+	unsigned pass; /* 0 idle; 1/2 ordinary expansion; 3 next block; 4 angles. */
+	struct st_rip3_angle *angle;
 	bool allocation_failed;
 	/* Non-NULL only for an operation begun by this query. */
 	struct st_rip3_user_variables *active_user;
 };
+
+static int start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length);
 
 static bool
 slot(uint8_t byte)
@@ -231,6 +235,7 @@ st_rip3_query_cancel(struct st_rip3_query *query)
 	if (query->active_user!=NULL) {
 		st_rip3_user_variables_abort(query->active_user);query->active_user=NULL;
 	}
+	st_rip3_angle_destroy(query->angle);query->angle=NULL;
 	free(query->bytes);free(query->output);free(query->program);
 	query->bytes=query->output=query->program=NULL;
 	query->length=query->cursor=query->used=query->capacity=0;
@@ -307,6 +312,108 @@ user_result(struct st_rip3_query *query)
 	return true;
 }
 
+static void
+angle_failure(struct st_rip3_query *query, enum st_rip3_host_diagnostic kind)
+{
+	st_rip3_query_cancel(query);diagnose(query,kind);
+}
+
+struct angle_value {uint8_t *bytes;size_t length,capacity;int status;};
+
+static void
+angle_reply(void *context, const uint8_t *bytes, size_t length)
+{
+	struct angle_value *value=context;if (value->status!=0 || length==0) return;
+	if (length>SIZE_MAX-value->length) {value->status=IO_ERROR_OUT_OF_MEMORY;return;}
+	size_t needed=value->length+length;
+	if (needed>value->capacity) {
+		size_t capacity=value->capacity==0 ? 64 : value->capacity;
+		while (capacity<needed) capacity=capacity>SIZE_MAX/2 ? needed : capacity*2;
+		uint8_t *replacement=realloc(value->bytes,capacity);
+		if (replacement==NULL) {value->status=IO_ERROR_OUT_OF_MEMORY;return;}
+		value->bytes=replacement;value->capacity=capacity;
+	}
+	memcpy(value->bytes+value->length,bytes,length);value->length=needed;
+}
+
+static void
+angle_diagnostic(void *context, enum st_rip3_host_diagnostic kind)
+{
+	struct angle_value *value=context;
+	value->status=kind==ST_RIP3_HOST_RESOURCE_FAILURE ? IO_ERROR_OUT_OF_MEMORY
+	    : kind==ST_RIP3_HOST_INVALID_REFERENCE ? IO_ERROR_INVALID_FORMAT
+	    : kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_IO;
+}
+
+static void
+angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_bytes *reference)
+{
+	/* The outer/conditional stages synthesize retrieval. Strip only repeated
+	 * GET prefixes for ordinary built-in dispatch; extended syntax on a known
+	 * built-in must never reach a same-named user record. */
+	uint8_t ordinary[259];size_t start=1;
+	while (start<reference->length && reference->bytes[start]=='&') start++;
+	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+start,reference->length-start);
+	size_t length=reference->length-start+1;
+	struct st_rip3_builtin_reference builtin;struct st_rip3_variable_reference user;
+	if (st_rip3_builtin_reference_parse(&builtin,ordinary,length)==0 && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
+		struct angle_value value={0};const struct st_rip3_host_sink sink={&value,angle_reply,angle_diagnostic};
+		st_rip3_host_variables_process(query->variables,&sink,ordinary,length);
+		const struct st_rip3_condition_bytes bytes={value.bytes,value.length};
+		st_rip3_angle_supply(query->angle,&bytes,value.status);free(value.bytes);
+	}
+	else if (st_rip3_variable_reference_parse(&user,reference->bytes,reference->length)!=0
+	    || st_rip3_builtin_known(user.name,strlen(user.name))) st_rip3_angle_supply(query->angle,NULL,IO_ERROR_NOT_SUPPORTED);
+	else if (query->variables->user_variables==NULL) st_rip3_angle_supply(query->angle,NULL,IO_ERROR_NOT_SUPPORTED);
+	else if (st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
+		st_rip3_angle_supply(query->angle,NULL,IO_ERROR_BUSY);
+	else {
+		query->active_user=query->variables->user_variables;
+		st_rip3_user_variables_process(query->active_user,&user);
+	}
+}
+
+static bool
+angle_step(struct st_rip3_query *query)
+{
+	if (query->active_user!=NULL) {
+		if (st_rip3_user_variables_state(query->active_user)==ST_RIP3_USER_VARIABLE_PROMPT) return false;
+		const struct st_rip3_variable_value *value=st_rip3_user_variables_result(query->active_user);
+		const struct st_rip3_condition_bytes bytes={value==NULL ? NULL : value->bytes,value==NULL ? 0 : value->length};
+		st_rip3_angle_supply(query->angle,&bytes,value==NULL ? IO_ERROR_IO : 0);
+		st_rip3_user_variables_abort(query->active_user);query->active_user=NULL;
+	}
+	st_rip3_angle_process(query->angle,1);
+	const struct st_rip3_angle_request *request=st_rip3_angle_request(query->angle);
+	if (request!=NULL) {
+		if (request->kind==ST_RIP3_ANGLE_REFERENCE) angle_reference(query,&request->reference);
+		else {
+			struct st_rip3_template_bytes value;const struct st_rip3_template_host *host=query->variables->templates;
+			unsigned number=request->number;
+			int status=host==NULL || host->slots==NULL ? IO_ERROR_NOT_SUPPORTED : st_rip3_templates_resolve(host->slots,number,&value);
+			if (status==IO_ERROR_NOT_FOUND) {operation_failed(query,status,number);return false;}
+			const struct st_rip3_condition_bytes bytes={status==0 ? value.bytes : NULL,status==0 ? value.length : 0};
+			st_rip3_angle_supply(query->angle,&bytes,status);
+		}
+	}
+	if (st_rip3_angle_state(query->angle)==ST_RIP3_ANGLE_FAILED) {
+		enum st_rip3_angle_diagnostic kind=st_rip3_angle_diagnostic(query->angle);
+		angle_failure(query,kind==ST_RIP3_ANGLE_RESOURCE ? ST_RIP3_HOST_RESOURCE_FAILURE
+		    : kind==ST_RIP3_ANGLE_INVALID ? ST_RIP3_HOST_INVALID_REFERENCE : ST_RIP3_HOST_OPERATION_FAILED);return false;
+	}
+	const struct st_rip3_condition_bytes *result=st_rip3_angle_result(query->angle);
+	if (result!=NULL) {
+		struct st_rip3_angle *angle=query->angle;query->angle=NULL;query->pass=0;
+		int status=start_program(query,result->bytes,result->length);st_rip3_angle_destroy(angle);
+		if (status!=0) {
+			angle_failure(query,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE
+			    : status==IO_ERROR_INVALID_FORMAT || status==IO_ERROR_OUT_OF_RANGE ? ST_RIP3_HOST_INVALID_REFERENCE
+			    : ST_RIP3_HOST_UNSUPPORTED_REFERENCE);return false;
+		}
+	}
+	return true;
+}
+
 /* Pass boundaries do not rescan inserted text in its producing pass. Take the
  * completed buffer as the next immutable input, then emit only after pass two.
  * Even a final active delay suspends this transition and later source reads. */
@@ -339,6 +446,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		if (st_rip3_input_wait_ns(query->variables->input)!=0) return;
 		settle(query);
 		if (!st_rip3_query_pending(query)) return;
+		if (query->pass==4) {if (!angle_step(query)) return;continue;}
 		if (query->pass==3) { prepare_block(query);settle(query);continue; }
 		if (query->active_user!=NULL) {
 			if (!user_result(query)) return;
@@ -382,16 +490,15 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 	}
 }
 
-int
-st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
+static int
+start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 {
 	if (query==NULL || query->sink->reply==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (st_rip3_query_pending(query)) return IO_ERROR_BUSY;
 	if ((bytes==NULL && length!=0) || length==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
 	size_t incomplete_templates=0;
 	for (size_t i=0; i<length; i++) {
-		if (bytes[i]==0 || (i+1<length && ((bytes[i]=='<' && bytes[i+1]=='<')
-		    || (bytes[i]=='(' && bytes[i+1]=='(')))) return IO_ERROR_NOT_SUPPORTED;
+		if (bytes[i]==0 || (i+1<length && bytes[i]=='(' && bytes[i+1]=='(')) return IO_ERROR_NOT_SUPPORTED;
 		if (bytes[i]=='[') {
 			struct delimiter value;
 			enum delimiter_kind kind=delimiter(bytes+i,length-i,&value);
@@ -425,6 +532,23 @@ st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t le
 	memcpy(copy,bytes,length);
 	query->program=copy;query->program_length=length;query->program_cursor=0;query->pass=3;
 	for (size_t i=0; i<incomplete_templates; i++) diagnose(query,ST_RIP3_HOST_INVALID_REFERENCE);
-	st_rip3_query_process(query,64);
 	return 0;
+}
+
+int
+st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
+{
+	if (query==NULL || query->sink->reply==NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (st_rip3_query_pending(query)) return IO_ERROR_BUSY;
+	if ((bytes==NULL && length!=0) || length==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
+	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
+	if (end!=NULL) length=(size_t)(end-bytes);
+	for (size_t i=0; i+1<length; i++) if (bytes[i]=='<' && bytes[i+1]=='<') {
+		int status=st_rip3_angle_create(&query->angle,bytes,length);
+		if (status!=0) return status;
+		query->pass=4;st_rip3_query_process(query,64);return 0;
+	}
+	int status=start_program(query,bytes,length);
+	if (status==0) st_rip3_query_process(query,64);
+	return status;
 }

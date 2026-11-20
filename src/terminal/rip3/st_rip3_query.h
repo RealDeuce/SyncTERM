@@ -16,8 +16,17 @@ struct st_rip3_host_sink;
  * is read when each reference executes, including after a suspension.
  *
  * Commands submit complete immediate expressions through the private parser
- * boundary. The evaluator owns the whole source across blocks/suspensions and
- * preflights its supported structure and the first direct-text replacement.
+ * boundary. The evaluator owns the whole source across blocks/suspensions.
+ * Outer angle preprocessing runs first, using the adopted eight-pass/16-frame
+ * scanner with owned resumable comparisons and real built-in/user/template
+ * providers. Skipped IF/ELSEIF headers validate without operand calls; inactive
+ * named/template lookups retain their documented effects. Required prompts and
+ * active delays suspend before later source reads or provider requests. Named
+ * results rescan immediately; angle templates defer within a pass. Completed
+ * preprocessing precedes structural block/ordinary preflight. It has no 4096
+ * response cap; each later response receives that separate cap. Unchanged
+ * angle-free input can bypass the worker without changing the stage result.
+ * Preflight then checks supported structure and the first direct replacement.
  * Ordinary suffix syntax is checked when reached, after replacement clipping.
  * Definitions retain raw ordinary text until use; later chain composition may
  * discard a feed without executing its variables. Caller buffers may be reused.
@@ -44,8 +53,8 @@ struct st_rip3_host_sink;
  * A trailing outer backslash stays literal. Required empty groups request
  * selection through the borrowed callback and abort the current host program.
  * Literal/unrecognized brackets pass through; incomplete slots diagnose without
- * suppressing bytes. Angle preprocessing, pick lists, playback and button-
- * associated aggregation remain separate.
+ * suppressing bytes. Pick lists, playback and button-associated aggregation
+ * remain separate, as does one-pass graphical-text consumer integration.
  * Unsupported extended syntax on known names never enters the user path.
  * Syntax/operation errors never return to a terminal/session failure path. */
 int st_rip3_query_create(struct st_rip3_query **result,

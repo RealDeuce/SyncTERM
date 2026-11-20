@@ -5555,6 +5555,75 @@ RIP1.54, original font assets, reference pin and application route remain unchan
 scoped logs are removed. No issue is modified, code pushed or PR published.
 Full compliance and connection integration remain in progress.
 
+## Internal outer angle worker and immediate-query continuation
+
+The separate engine now owns a resumable outer angle worker under PR #98.
+It copies its bounded C-string source and owns working text, sixteen branch
+frames and each eligible condition continuation across provider requests.
+Its processing/supply methods are void; syntax, operation and resource failures
+become internal failed state without returning a terminal/session error or
+publishing partial output. Input callbacks, dialogs and transport remain with
+the owner. A pending provider is never replayed or advanced by another process
+call. Cyclic immediate named expansion can remain pending, but finite work budgets
+keep each call bounded and permit cancellation without further evaluation.
+
+The worker implements exact case-insensitive IF-space/ELSEIF-space and exact
+ELSE/ENDIF boundaries, no opening whitespace trim, literal-single-angle behavior,
+255-byte complete fallback references and single-digit angle templates. Its
+lookahead ignores quotes, skips a delimiter only on an immediately preceding
+backslash and rejects eligible nested introducers. Conditional syntax must end
+at that same outer terminator before any operand lookup. The special introducer
+escape is separate from operand and ordinary-pass decoding. Skipped IF/ELSEIF
+headers validate without providers, including under inactive parents; selected
+chains cannot reopen, repeated ELSE/ELSEIF-after-ELSE/stray/unclosed structures
+reject, and a seventeenth frame fails before its providers. Inactive named/template
+lookups retain their documented effects; deferred template output is discarded.
+Named insertions rescan immediately, templates skip their inserted bytes in that
+pass, and eight whole passes can succeed with deferred syntax still present.
+
+Immediate queries now bind the worker to real built-in, user-variable and template
+services before command-block segmentation, definition storage, composition or
+the two ordinary response passes. Built-in retrieval normalizes the synthetic GET
+prefix without falling back to same-named user records. Failed/overlong comparison
+values become false; failed named lookup aborts preprocessing. Required missing
+templates retain the existing selection callback/abort boundary. Required user
+prompts expose only query-owned state, and D delays yield before later lookups or
+source bytes. No 4096-byte whole-preprocessor cap substitutes for the later
+per-response bound. Source NUL ends input. Later ordinary inserted text never
+restarts preprocessing. Cancellation releases owned worker/prompt state while
+retaining earlier completed store effects and the input gate's separate policy.
+
+Independent worker tests cover all branch outcomes/provider order, inactive
+lookups versus skipped operands, malformed skipped headers, keyword/template/name
+boundaries, nested/escaped/quoted delimiter gates, 255/256-byte bodies, deferred
+eight-pass output, exact argument-byte handoff, active/inactive depth overflow,
+owned source, NUL values, cyclic yielding and every owned construction/growth
+boundary. Query fixtures on all canvases cover actual built-in/user/template
+dispatch, segmentation introduced by substitution, assignment ordering, prompt
+response/cancellation, delay/state changes, required selection, no partial reply,
+resource failure/recovery and 5000-byte preprocessing followed by separately
+capped responses. The owned-session fixture additionally verifies wire IF/template
+execution and an angle prompt through its public pump/response API, with queued
+raw bytes and literal later ordinary angle output preserved as specified.
+
+Native CMake configure/full build succeeds without compiler diagnostics. GNU make
+reports a transient sub-millisecond clock-skew warning; it is environmental.
+Five of six initially affected CTests pass; query fixtures still expecting every
+angle form to be unsupported are updated to the new parser-owned diagnostic
+boundary. The changed worker/query tests pass. After adding owned-session and
+earlier-effect retention cases, their changed session/query tests pass; targeted
+lexical additions then pass the changed worker test. Existing passing condition,
+template, session and unrelated rendering/RIP1.54 evidence is reused. The final
+successful session/query results were recovered from CTest's completed log after
+the tool session ended; those checks were not restarted. Updated ledger consistency
+passes: 1058 implemented internally, 1596 pending, 3997 unreviewed, 1167 contextual,
+24 excluded and 25 blocked across 7867 units. These are internal native fixtures, not
+connection-available features or GUI/device coverage. Graphical-text consumers,
+pick lists, playback, button-associated aggregation and application routing remain
+pending. The reference pin, original fonts and RIP1.54 are unchanged. Scoped logs
+are removed; no existing issue is modified, code pushed or PR published.
+Full compliance and connection integration remain in progress.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

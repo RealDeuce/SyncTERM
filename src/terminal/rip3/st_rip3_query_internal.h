@@ -7,7 +7,8 @@
 
 /* Private preflight/ownership status, consumed by the void command parser.
  * A busy evaluator retains its current program. No side effects on failure.
- * Success starts up to 64 tokens; remaining work is resumed by process(). */
+ * Success starts up to 64 work steps; remaining angle/ordinary work is resumed
+ * by process(). Preprocessing failures are diagnosed/consumed internally. */
 int st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t length);
 
 #endif
