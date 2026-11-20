@@ -2302,7 +2302,8 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		}
 		terminal->screen.hyperlink_root_registered = true;
 	}
-	if ((config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)) {
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
+	    || (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && !config->rip3_session_owner)) {
 		const struct cterm_rip_parser_sink sink = {
 			.context = terminal,
 			.boundary = rip_text_boundary,

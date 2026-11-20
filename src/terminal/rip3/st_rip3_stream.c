@@ -9,7 +9,8 @@ struct st_rip3_stream {
 	uint8_t *command;
 	size_t length, capacity;
 	uint8_t introducer, previous_text;
-	bool active, line_start, quoted, comment, dropping;
+	unsigned identification_prefix;
+	bool active, line_start, quoted, comment, dropping, skip_lf;
 };
 
 static void
@@ -22,6 +23,11 @@ report(struct st_rip3_stream *stream, enum st_rip3_stream_diagnostic kind)
 static void
 raw(struct st_rip3_stream *stream, uint8_t byte)
 {
+	/* Do not defer the final bang of an ANSI identification request as a
+	 * potential RIP introducer: the peer may wait for its reply immediately. */
+	stream->identification_prefix=byte==0x1b ? 1
+	    : stream->identification_prefix==1 && byte=='[' ? 2
+	    : stream->identification_prefix==2 && byte=='0' ? 3 : 0;
 	if (stream->sink.text != NULL)
 		stream->sink.text(stream->sink.context, &byte, 1);
 	stream->previous_text = byte;
@@ -102,7 +108,9 @@ st_rip3_stream_reset(struct st_rip3_stream *stream)
 	clear_command(stream);
 	stream->introducer = 0;
 	stream->previous_text = 0;
+	stream->identification_prefix = 0;
 	stream->active = false;
+	stream->skip_lf = false;
 	stream->line_start = true;
 }
 
@@ -117,6 +125,10 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 	}
 	for (size_t i = 0; i < length; i++) {
 		uint8_t byte = bytes[i];
+		if (stream->skip_lf) {
+			stream->skip_lf=false;
+			if (byte=='\n') continue;
+		}
 
 		if (stream->active) {
 			if (byte == '\n')
@@ -134,6 +146,7 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 					stream->active = false;
 					stream->line_start = true;
 					stream->previous_text = '\r';
+					stream->skip_lf = true;
 				}
 				continue;
 			}
@@ -164,6 +177,9 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 				raw(stream, byte);
 			}
 			continue;
+		}
+		if (stream->identification_prefix>=2 && byte=='!') {
+			raw(stream,byte);continue;
 		}
 		if (stream->previous_text != '\\'
 		    && (byte == 1 || byte == 2 || (byte == '!'

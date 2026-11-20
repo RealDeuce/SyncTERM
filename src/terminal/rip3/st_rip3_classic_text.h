@@ -28,6 +28,8 @@ struct st_rip3_classic_font {
 		struct st_rip3_maf_font bitmap;
 		struct st_rip3_chr stroke;
 	} data;
+	/* Optional client raster override; both zero retains canvas. */
+	uint32_t device_width, device_height;
 };
 
 struct st_rip3_classic_text_plan {
@@ -52,6 +54,10 @@ int st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
  * CHR views; unresolved SCAN glyphs remain unsupported during painting. */
 int st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
 	enum st_rip3_canvas canvas, unsigned number);
+/* Use an exact MAF bank when available; other client rasters use the 640x480
+ * bitmap bank. Stroke scaling always uses the actual device dimensions. */
+int st_rip3_classic_font_builtin_device(struct st_rip3_classic_font *result,
+	uint32_t width, uint32_t height, unsigned number);
 /* Explicit font codes; transport conversion/expansion is outside this kernel.
  * Vector magnifications use the published rational table, then scale the
  * 640x350 reference to the device. Bitmap cells magnify integrally; their

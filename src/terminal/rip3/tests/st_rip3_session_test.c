@@ -265,9 +265,10 @@ borrowed_user(void)
 }
 
 static int
-construction(void)
+construction(bool device)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	if (device) {options.device_width=720;options.device_height=400;}
 	audio_engine_t *engine=NULL;struct st_rip3_audio *player=NULL;
 	CHECK(audio_engine_create_pull(&engine)==0 && st_rip3_audio_create(&player,engine,0,0)==0);options.audio=player;
 	st_rip3_session_test_attempts=0;CHECK(st_rip3_session_create(&f.session,&options)==0);
@@ -299,6 +300,7 @@ main(void)
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
-	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0 && construction()==0);
+	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
+	    && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;
 }

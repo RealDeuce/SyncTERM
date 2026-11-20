@@ -20,6 +20,8 @@ static const struct st_rip3_image_style image_defaults = {
 
 struct st_rip3_ports {
 	struct st_rip3_surface *screen;
+	uint8_t *damage;
+	size_t damage_length;
 	struct st_rip3_rect screen_bounds;
 	unsigned current;
 	struct port entries[36];
@@ -82,13 +84,21 @@ clear_port(struct port *port)
 int
 st_rip3_ports_create(struct st_rip3_ports **result, enum st_rip3_canvas canvas)
 {
+	struct st_rip3_frame frame;
+	int status=st_rip3_frame_init(&frame,canvas);
+	return status!=0 ? status : st_rip3_ports_create_device(result,frame.device_width,frame.device_height);
+}
+
+int
+st_rip3_ports_create_device(struct st_rip3_ports **result, uint32_t width, uint32_t height)
+{
 	struct st_rip3_ports *ports;
 	struct st_rip3_frame frame;
 	int status;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rip3_frame_init(&frame, canvas);
+	status = st_rip3_frame_init_device(&frame, width, height);
 	if (status != 0)
 		return status;
 	ports = calloc(1, sizeof(*ports));
@@ -653,7 +663,20 @@ st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
 		return status;
 	st_rip3_surface_destroy(ports->screen);
 	ports->screen = pixels;
+	(void)st_rip3_surface_damage(pixels,ports->damage,ports->damage_length);
+	if (ports->damage!=NULL) {
+		for (size_t i=0; i<(size_t)width*height; i++) ports->damage[i]=1;
+	}
 	return 0;
+}
+
+int
+st_rip3_ports_screen_damage(struct st_rip3_ports *ports, uint8_t *damage, size_t length)
+{
+	if (ports==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status=st_rip3_surface_damage(ports->screen,damage,length);
+	if (status==0) {ports->damage=damage;ports->damage_length=length;}
+	return status;
 }
 
 struct port_snapshot {

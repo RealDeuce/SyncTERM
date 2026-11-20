@@ -27,7 +27,19 @@ int
 st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
     enum st_rip3_canvas canvas, unsigned number)
 {
-	struct st_rip3_classic_font font = {.canvas = canvas, .number = number};
+	struct st_rip3_frame frame;
+	int status=st_rip3_frame_init(&frame,canvas);
+	if (status!=0) return status;
+	status=st_rip3_classic_font_builtin_device(result,frame.device_width,frame.device_height,number);
+	if (status==0) {result->canvas=canvas;result->device_width=result->device_height=0;}
+	return status;
+}
+
+int
+st_rip3_classic_font_builtin_device(struct st_rip3_classic_font *result,
+    uint32_t width, uint32_t height, unsigned number)
+{
+	struct st_rip3_classic_font font = {.number = number,.device_width=width,.device_height=height};
 	struct st_rip3_frame frame;
 	int status;
 
@@ -35,7 +47,7 @@ st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (number > 10)
 		return IO_ERROR_OUT_OF_RANGE;
-	status = st_rip3_frame_init(&frame, canvas);
+	status = st_rip3_frame_init_device(&frame, width, height);
 	if (status != 0)
 		return status;
 	if (number != 0)
@@ -57,6 +69,8 @@ st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
 		if (status == 0)
 			status = st_rip3_maf_find(&font.data.bitmap, &maf, frame.device_width,
 			    frame.device_height, ST_RIP3_MAF_80X43);
+		if (status==IO_ERROR_NOT_FOUND)
+			status=st_rip3_maf_find(&font.data.bitmap,&maf,640,480,ST_RIP3_MAF_80X43);
 	}
 	if (status == 0)
 		*result = font;
@@ -99,7 +113,9 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 		return status;
 	if (font->number != style->font)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rip3_frame_init(&frame, font->canvas);
+	status = font->device_width!=0 || font->device_height!=0
+	    ? st_rip3_frame_init_device(&frame,font->device_width,font->device_height)
+	    : st_rip3_frame_init(&frame, font->canvas);
 	if (status != 0)
 		return status;
 	if (font->number == 0) {
@@ -160,7 +176,9 @@ st_rip3_draw_classic_text(struct st_rip3_ports *ports,
 
 	if (ports == NULL || font == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rip3_frame_init(&frame, font->canvas);
+	status = font->device_width!=0 || font->device_height!=0
+	    ? st_rip3_frame_init_device(&frame,font->device_width,font->device_height)
+	    : st_rip3_frame_init(&frame, font->canvas);
 	if (status == 0)
 		status = st_rip3_ports_info(ports, 0, &screen);
 	if (status != 0)

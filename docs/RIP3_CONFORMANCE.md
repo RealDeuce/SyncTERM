@@ -10,9 +10,48 @@ required. RIPlib extensions and future proposals are outside the goal.
 External application and URL launching are excluded: recognize the syntax,
 do not execute it, and report unsupported capabilities truthfully.
 
-**Status: implementation in progress; no full-compliance claim.** The existing
-RIP 3 implementation remains active until the separate engine passes acceptance.
+**Status: implementation in progress; no full-compliance claim.** Connected
+RIP3 sessions now use the separate engine for its completed command families.
+Incomplete families remain unsupported and nonfatal; full compliance is not a
+prerequisite for connecting completed work. RIP1.54 retains its original route.
 Source indexing is discovery, not adjudication or working-feature evidence.
+
+The connection owner supplies ordinary ANSI text rendering, automatic replies,
+nonblocking input and continuation pumping, delays, bundled classic/outline
+fonts, live ENV/STYLE/PAL/PORT tables and backups, bitmap/clipboard operations,
+trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts,
+session/persistent variables, local modifier/capacity queries and WAV playback
+through the existing mixer when audio is available. Persistent variables use
+`rip3-variables.bin` in the existing RIP cache, separately from 1.54 storage.
+Device geometry comes from the entry's selected raster; WORLD remains independent.
+The three 4:3 presets remain supported without overriding other entry modes.
+Unlisted bitmap-font resolutions use the original 640x480 MAF bank; vector and
+outline scaling use the actual device dimensions. Command CRLF is suppressed,
+including split CR/LF; ordinary text keeps its own line endings. Processing
+failures are diagnosed and discarded inside RIP3, never returned as connection
+errors. Constructor/accessor and transport failures remain distinct.
+
+Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
+graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
+playback and deferred queries remain incomplete. The historical milestones below
+record their state at each commit; older statements that application routing was
+pending are superseded by this connected-session integration.
+
+Connection acceptance uses the normal executable, TCP and the control bitmap
+backend in CP437 and UTF-8. It verifies Dixon selection/ink/cursor advance,
+bold's unchanged advance, classic fonts, nonfatal command recovery, long
+command-only CRLF runs without scrolling, isolated identification probes,
+live queries, templates/angles, local continuations, delays, a real prompt,
+offscreen export/load and clipboard paste. Coherent captures retain the entry's
+grid/raster at all three presets and at 1280x800 and 720x400. Physical audio is
+disabled. Relevant native tests cover device-frame validation, typed tables,
+text, source splitting, damage/copy behavior and constructor failure cleanup
+for both preset and entry-sized sessions. The stale outline rejection of a
+non-preset device was replaced with zero-width rejection and an explicit
+720x400 DPI expectation. Native Release CMake builds and these tests pass.
+RIP1.54 preservation guards, its historical connection oracle, encoding/native
+term tests and the ellipses/raster/buttons application groups pass; those
+unchanged successful checks are reused after the later RIP3-only fixes.
 
 The user approved adopting the open documentation integration PR #71. Its
 reviewed inactive-viewport #21 follow-up and PR #73's DEFINE_PORT clarification
@@ -46,7 +85,7 @@ provenance, scope and reopened claims. There are now 7867 blocks in 68 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
-RIP1.54 baseline, original font bytes, active application route and external-launch
+RIP1.54 baseline, original font bytes and external-launch
 exclusion remain unchanged. No further content is to be added to existing
 upstream issues.
 
@@ -298,9 +337,9 @@ requirements and affected expectations still require reconciliation.
    actual payload hashes, including Git LFS materialization.
 5. Add variables, macros, interaction, delivery/queries, playback, tones/WAV
    and delays through existing terminal services, with explicit cleanup.
-6. Route existing RIP 3 mode exclusively to the new engine after requirements
-   and blockers are resolved and application acceptance passes. Add a v3-only
-   profile canvas choice: 640x480 (default), 800x600 and 1024x768 at 4:3.
+6. Route completed RIP3 work through the separate engine incrementally and
+   verify it through actual connected sessions. Retain support for 640x480,
+   800x600 and 1024x768 without overriding the entry's configured raster/grid.
    Preserve mode IDs, persistence/profile-copy/Wren contracts and all 1.54
    behavior. The v3 `$COMPAT$` environment remains inside the v3 engine.
 

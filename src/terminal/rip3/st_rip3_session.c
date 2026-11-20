@@ -15,6 +15,7 @@
 #include "st_rip3_input.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_audio.h"
+#include "st_rip3_bitmap_error_ui.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -36,6 +37,9 @@ struct st_rip3_session {
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool ready;
+	uint64_t revision;
+	struct st_rip3_bitmap_error_ui bitmap_ui;
+	struct st_rip3_bitmap_error_sink bitmap_errors;
 };
 
 static void
@@ -121,7 +125,9 @@ static bool
 prepare(void *context)
 {
 	struct st_rip3_session *session=context;
+	bool pending=st_rip3_query_pending(session->commands.query);
 	st_rip3_query_process(session->commands.query,64);
+	if (pending) ++session->revision;
 	return !st_rip3_query_pending(session->commands.query);
 }
 
@@ -131,6 +137,20 @@ command(void *context, const uint8_t *bytes, size_t length)
 	struct st_rip3_session *session=context;
 	const struct st_rip3_command_sink sink={session,diagnose};
 	st_rip3_commands_process(&session->commands,&sink,bytes,length);
+	++session->revision;
+}
+
+uint64_t
+st_rip3_session_revision(const struct st_rip3_session *session)
+{
+	return session==NULL ? 0 : session->revision;
+}
+
+int
+st_rip3_session_damage(struct st_rip3_session *session, uint8_t *damage, size_t length)
+{
+	return session==NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_rip3_ports_screen_damage(session->commands.ports,damage,length);
 }
 
 void
@@ -172,7 +192,10 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
 	    || config->services->input!=NULL || config->services->templates!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
-	struct st_rip3_frame frame;int status=st_rip3_frame_init(&frame,config->canvas);
+	bool device=config->device_width!=0 || config->device_height!=0;
+	struct st_rip3_frame frame;
+	int status=device ? st_rip3_frame_init_device(&frame,config->device_width,config->device_height)
+	    : st_rip3_frame_init(&frame,config->canvas);
 	if (status!=0) return status;
 	struct st_rip3_session *session=calloc(1,sizeof(*session));
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
@@ -191,10 +214,17 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	 * active host actions. Do not install a pretend successful discard sink. */
 	session->host_sink=(struct st_rip3_host_sink){session,config->sink.reply!=NULL ? reply : NULL,host_diagnostic};
 	struct st_rip3_style initial;status=st_rip3_style_defaults(&initial);
-	if (status==0) status=st_rip3_environments_create(&session->commands.environments,config->canvas);
+	if (status==0) status=device ? st_rip3_environments_create_device(&session->commands.environments,frame.device_width,frame.device_height)
+	    : st_rip3_environments_create(&session->commands.environments,config->canvas);
 	if (status==0) status=st_rip3_styles_create(&session->commands.styles,&initial);
 	if (status==0) status=st_rip3_palettes_create(&session->commands.palettes);
-	if (status==0) status=st_rip3_ports_create(&session->commands.ports,config->canvas);
+	if (status==0) status=device ? st_rip3_ports_create_device(&session->commands.ports,frame.device_width,frame.device_height)
+	    : st_rip3_ports_create(&session->commands.ports,config->canvas);
+	if (config->builtin_bitmap_errors && config->bitmap_errors==NULL) {
+		session->bitmap_ui=(struct st_rip3_bitmap_error_ui){.ports=session->commands.ports,.palettes=session->commands.palettes};
+		session->bitmap_errors=(struct st_rip3_bitmap_error_sink){&session->bitmap_ui,st_rip3_bitmap_error_show};
+		session->commands.bitmap_errors=&session->bitmap_errors;
+	}
 	if (status==0) status=st_rip3_environments_backup_create(&session->tables.tables[ST_RIP3_TABLE_ENV].backup);
 	if (status==0) status=st_rip3_styles_backup_create(&session->tables.tables[ST_RIP3_TABLE_STYLE].backup);
 	if (status==0) status=st_rip3_palettes_backup_create(&session->tables.tables[ST_RIP3_TABLE_PAL].backup);
@@ -259,6 +289,7 @@ st_rip3_session_respond(struct st_rip3_session *session, const uint8_t *bytes, s
 	if (!st_rip3_session_prompt(session,&prompt)) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
 	st_rip3_user_variables_respond(session->variables.user_variables,bytes,length,cancelled);
 	st_rip3_query_process(session->commands.query,64);
+	++session->revision;
 }
 
 int

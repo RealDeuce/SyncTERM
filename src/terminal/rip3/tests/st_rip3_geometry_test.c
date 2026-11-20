@@ -105,7 +105,7 @@ failures(void)
 	frame.world_width = 0;
 	CHECK(st_rip3_world_to_device(&frame, &input, &output) == IO_ERROR_INVALID_ARGUMENT);
 	frame = saved;
-	frame.device_height = 350;
+	frame.device_height = 0;
 	CHECK(st_rip3_device_to_world(&frame, &input, &output) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(output.x == 17 && output.y == 19);
 	return 0;
@@ -116,5 +116,15 @@ main(void)
 {
 	CHECK(examples() == 0);
 	CHECK(failures() == 0);
+	struct st_rip3_frame frame={0};struct st_rip3_point point={320,175};
+	CHECK(st_rip3_frame_init_device(&frame,720,400)==0);
+	CHECK(st_rip3_world_to_device(&frame,&point,&point)==0 && point.x==360 && point.y==200);
+	CHECK(st_rip3_device_to_world(&frame,&point,&point)==0 && point.x==320 && point.y==175);
+	CHECK(st_rip3_frame_init_device(&frame,1280,800)==0);
+	CHECK(st_rip3_world_to_device(&frame,&point,&point)==0 && point.x==640 && point.y==400);
+	struct st_rip3_frame saved=frame;
+	CHECK(st_rip3_frame_init_device(&frame,0,400)==IO_ERROR_OUT_OF_RANGE && memcmp(&frame,&saved,sizeof(frame))==0);
+	CHECK(st_rip3_frame_init_device(&frame,720,0)==IO_ERROR_OUT_OF_RANGE && memcmp(&frame,&saved,sizeof(frame))==0);
+	CHECK(st_rip3_frame_init_device(&frame,UINT32_MAX,400)==IO_ERROR_OUT_OF_RANGE);
 	return 0;
 }

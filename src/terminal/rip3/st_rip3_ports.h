@@ -52,6 +52,8 @@ struct st_rip3_port_info {
  * wire-field special cases belong to the caller. Screen ports share one
  * surface, so overlapping regions never acquire separate composited layers. */
 int st_rip3_ports_create(struct st_rip3_ports **result, enum st_rip3_canvas canvas);
+int st_rip3_ports_create_device(struct st_rip3_ports **result,
+	uint32_t width, uint32_t height);
 void st_rip3_ports_destroy(struct st_rip3_ports *ports);
 int st_rip3_ports_current(const struct st_rip3_ports *ports, unsigned *result);
 int st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
@@ -175,6 +177,8 @@ int st_rip3_ports_screen_clone(const struct st_rip3_ports *ports,
 	struct st_rip3_surface **result);
 int st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
 	const struct st_rip3_surface *snapshot);
+int st_rip3_ports_screen_damage(struct st_rip3_ports *ports,
+	uint8_t *damage, size_t length);
 
 /* Backup the device port definitions/current selection and owned offscreen
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore

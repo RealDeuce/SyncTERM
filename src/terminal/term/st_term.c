@@ -6,6 +6,7 @@
  */
 
 #include "st_term.h"
+#include "st_term_rip3.h"
 
 #include "audio.h"
 #include "io_error.h"
@@ -22,6 +23,7 @@ struct st_term_session {
 	struct st_term_config config;
 	st_cterm_t *cterm;
 	st_ooii_t *ooii;
+	struct st_term_rip3 *rip3;
 	int output_error;
 	bool end_requested;
 	bool exit_requested;
@@ -46,6 +48,19 @@ struct st_term_session {
 	uint8_t prestel_frame[65536];
 	size_t prestel_frame_size;
 };
+
+static bool
+input_paused(st_term_session_t *session)
+{
+	return st_term_rip3_paused(session->rip3) || st_cterm_input_paused(session->cterm);
+}
+
+static int
+finish(st_term_session_t *session)
+{
+	st_term_rip3_cancel(session->rip3);
+	return st_cterm_finish(session->cterm);
+}
 
 bool st_term_session_inspect_transfer(st_term_session_t *session,
 	struct st_transfer_inspection *state, bool *reserved)
@@ -310,6 +325,12 @@ st_term_session_create(st_term_session_t **result,
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	session->config = *config;
+	if (config->graphics_mode==ST_CTERM_GRAPHICS_RIP_3) {
+		status=st_term_rip3_prepare_console(config->console);
+		if (status!=0) {free(session);return status;}
+		status=st_console_size(config->console,&columns,&rows);
+		if (status!=0) {free(session);return status;}
+	}
 	if (config->throttle_supported)
 		session->throttle_bps = config->initial_throttle_bps;
 	session->throttle_credit = UINT64_C(10000);
@@ -333,6 +354,7 @@ st_term_session_create(st_term_session_t **result,
 		.encoding = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
 		    ? ST_CTERM_ENCODING_UTF8 : config->encoding,
 		.graphics_mode = config->graphics_mode,
+		.rip3_session_owner = config->graphics_mode==ST_CTERM_GRAPHICS_RIP_3,
 		.rip_directory = config->rip_directory,
 		.amiga_font_directory = config->amiga_font_directory,
 		.amiga_font = config->amiga_font,
@@ -398,6 +420,10 @@ st_term_session_create(st_term_session_t **result,
 		free(session);
 		return status;
 	}
+	if (config->graphics_mode==ST_CTERM_GRAPHICS_RIP_3) {
+		status=st_term_rip3_create(&session->rip3,config,session->cterm,cterm_output,session);
+		if (status!=0) {st_term_session_destroy(&session);return status;}
+	}
 	*result = session;
 	return 0;
 }
@@ -447,9 +473,10 @@ st_term_session_destroy(st_term_session_t **session)
 	if (session == NULL || *session == NULL)
 		return;
 	(void)st_term_session_end_transfer(*session);
-	(void)st_cterm_finish((*session)->cterm);
+	(void)finish(*session);
 	publish_history(*session);
 	st_ooii_destroy((*session)->ooii);
+	st_term_rip3_destroy((*session)->rip3);
 	st_cterm_destroy(&(*session)->cterm);
 	free((*session)->returned_wire);
 	free(*session);
@@ -489,7 +516,7 @@ int
 st_term_session_prepare_disconnect(st_term_session_t *session)
 {
 	if (session == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	int status = st_cterm_finish(session->cterm);
+	int status = finish(session);
 	if (status != 0) return status;
 	/* Retain the completed screen before making room for the notice. */
 	publish_history(session);
@@ -734,6 +761,17 @@ local_command(st_console_t *console, const struct st_console_event *event,
 }
 
 static int
+write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_t *consumed)
+{
+	if (session->rip3!=NULL) {
+		st_term_rip3_write(session->rip3,bytes,size);
+		*consumed=size;
+		return 0;
+	}
+	return st_cterm_write(session->cterm,bytes,size,consumed);
+}
+
+static int
 write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
 {
 	st_term_session_t *session = context;
@@ -746,7 +784,7 @@ write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
 	    || (session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
 	    && session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 	    || session->config.encoding == ST_CTERM_ENCODING_UTF8) {
-		status = st_cterm_write(session->cterm, bytes, size, &consumed);
+		status = write_protocol(session, bytes, size, &consumed);
 		/* An accepted asynchronous command can pause after this byte.
 		 * The pump retains the following bytes and polls its owner. */
 		if (status==IO_ERROR_IN_PROGRESS && consumed==size
@@ -757,7 +795,7 @@ write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
 	    &converted, bytes, size, session->config.codepage);
 	if (status != 0)
 		return status;
-	status = st_cterm_write(session->cterm, unicode, converted, &consumed);
+	status = write_protocol(session, unicode, converted, &consumed);
 	return status == 0 && consumed != converted ? IO_ERROR_IO : status;
 }
 
@@ -1055,14 +1093,16 @@ st_term_session_pump(st_term_session_t *session,
 	/* A stopped transport has no recipient for asynchronous reports.
 	 * Still drain its received bytes and take the normal disconnect path. */
 	bool parser_was_paused = st_cterm_input_paused(session->cterm);
+	parser_was_paused |= st_term_rip3_paused(session->rip3);
 	if (st_connection_is_connected(session->config.connection)) {
+		st_term_rip3_poll(session->rip3);
 		status = st_cterm_poll(session->cterm);
 		if (status != 0 || session->output_error != 0)
 			return status != 0 ? status : session->output_error;
 	}
 	if (!session->suspended && session->transfer == NULL && session->throttle_bps != 0) {
 		uint64_t now;
-		bool parser_wait = parser_was_paused || st_cterm_input_paused(session->cterm);
+		bool parser_wait = parser_was_paused || input_paused(session);
 		/* Credits are BPS*milliseconds: ten bits per character makes
 		 * 10,000 credits one received byte.  Retain at most 100 ms of
 		 * catch-up after an occupied UI tick. */
@@ -1102,12 +1142,12 @@ st_term_session_pump(st_term_session_t *session,
 	bool protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 	if (session->transfer != NULL && st_transfer_done(session->transfer)) read_size = 0;
 	if (!protocol_input && !st_connection_is_connected(session->config.connection)
-	    && st_cterm_input_paused(session->cterm)) {
-		status = st_cterm_finish(session->cterm);
+	    && input_paused(session)) {
+		status = finish(session);
 		if (status != 0) return status;
 	}
-	bool input_paused = !protocol_input && st_cterm_input_paused(session->cterm);
-	if (session->transfer_reserved || session->wire_owner != NULL || input_paused) read_size = 0;
+	bool paused = !protocol_input && input_paused(session);
+	if (session->transfer_reserved || session->wire_owner != NULL || paused) read_size = 0;
 	if (protocol_input) {
 		size_t space = st_transfer_input_space(session->transfer);
 		if (read_size > space) read_size = space;
@@ -1145,7 +1185,7 @@ st_term_session_pump(st_term_session_t *session,
 	if (protocol_input && received == 0) st_transfer_eof(session->transfer);
 	/* A detector can claim the stream midway through this read. Recheck
 	 * ownership after each ordinary byte, retaining any suffix on backpressure. */
-	while (session->wire_owner == NULL && (!st_cterm_input_paused(session->cterm) || protocol_input) && (!session->suspended || protocol_input) && !session->transfer_reserved
+	while (session->wire_owner == NULL && (!input_paused(session) || protocol_input) && (!session->suspended || protocol_input) && !session->transfer_reserved
 	    && (session->returned_position < session->returned_size
 	    || session->wire_position < session->wire_size)) {
 		bool replay = session->returned_position < session->returned_size;
@@ -1254,7 +1294,7 @@ st_term_session_run(st_term_session_t *session,
 		if (status != 0)
 			return status;
 	}
-	return st_cterm_finish(session->cterm);
+	return finish(session);
 }
 
 int

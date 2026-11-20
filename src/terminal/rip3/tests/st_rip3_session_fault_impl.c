@@ -51,9 +51,11 @@ static void test_##name(struct type *object) { \
 }
 
 FACTORY(st_rip3_environments_create,(struct st_rip3_environments **p,enum st_rip3_canvas c),(p,c))
+FACTORY(st_rip3_environments_create_device,(struct st_rip3_environments **p,uint32_t w,uint32_t h),(p,w,h))
 FACTORY(st_rip3_styles_create,(struct st_rip3_styles **p,const struct st_rip3_style *s),(p,s))
 FACTORY(st_rip3_palettes_create,(struct st_rip3_palettes **p),(p))
 FACTORY(st_rip3_ports_create,(struct st_rip3_ports **p,enum st_rip3_canvas c),(p,c))
+FACTORY(st_rip3_ports_create_device,(struct st_rip3_ports **p,uint32_t w,uint32_t h),(p,w,h))
 FACTORY(st_rip3_environments_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_styles_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_palettes_backup_create,(struct st_rip3_backup **p),(p))
@@ -87,9 +89,11 @@ test_audio_stop(struct st_rip3_audio *player)
 #define calloc test_calloc
 #define free test_free
 #define st_rip3_environments_create test_st_rip3_environments_create
+#define st_rip3_environments_create_device test_st_rip3_environments_create_device
 #define st_rip3_styles_create test_st_rip3_styles_create
 #define st_rip3_palettes_create test_st_rip3_palettes_create
 #define st_rip3_ports_create test_st_rip3_ports_create
+#define st_rip3_ports_create_device test_st_rip3_ports_create_device
 #define st_rip3_environments_backup_create test_st_rip3_environments_backup_create
 #define st_rip3_styles_backup_create test_st_rip3_styles_backup_create
 #define st_rip3_palettes_backup_create test_st_rip3_palettes_backup_create

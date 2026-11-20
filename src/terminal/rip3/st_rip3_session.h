@@ -1,4 +1,4 @@
-/* Owned separate-engine session lifecycle, without terminal-mode routing. */
+/* Owned separate-engine session lifecycle. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #ifndef ST_RIP3_SESSION_H_
 #define ST_RIP3_SESSION_H_
@@ -38,6 +38,9 @@ struct st_rip3_session_sink {
 
 struct st_rip3_session_config {
 	enum st_rip3_canvas canvas;
+	/* Both zero selects canvas. Otherwise both supply the entry's physical
+	 * raster, which must never be replaced by a parser preset. */
+	uint32_t device_width, device_height;
 	enum st_rip3_text_encoding encoding;
 	struct st_rip3_session_source source;
 	struct st_rip3_session_sink sink;
@@ -54,6 +57,9 @@ struct st_rip3_session_config {
 	const struct st_rip3_resource_paths *resources;
 	const uint64_t *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
+	/* Bind the completed in-scene error renderer to this owner's PORT/PAL
+	 * tables when no external bitmap error sink is supplied. */
+	bool builtin_bitmap_errors;
 	/* Optional exclusive player, owned by the client. Cancel/destroy stops it;
 	 * the client destroys it after this session and before its mixer engine. */
 	struct st_rip3_audio *audio;
@@ -76,6 +82,12 @@ void st_rip3_session_destroy(struct st_rip3_session *session);
  * user prompts; no sleeping or threads. Syntax/resource/operation failures are
  * absorbed internally and never returned to a terminal/session failure path. */
 void st_rip3_session_process(struct st_rip3_session *session, size_t budget);
+/* Presentation services. Revision advances after commands/host continuations;
+ * it does not promise that pixels changed. Damage is borrowed through unbind
+ * or destruction, one byte per canvas pixel; see surface_damage. */
+uint64_t st_rip3_session_revision(const struct st_rip3_session *session);
+int st_rip3_session_damage(struct st_rip3_session *session,
+	uint8_t *damage, size_t length);
 uint64_t st_rip3_session_wait_ns(const struct st_rip3_session *session);
 /* Local host work remains, independently of source availability. If ready
  * and not waiting for a prompt, schedule another pump even without new bytes. */

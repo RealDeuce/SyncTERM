@@ -18,9 +18,11 @@ request(struct st_rip3_outline_font *value, const struct st_rip3_frame *frame,
 	struct st_rip3_frame checked = *frame;
 	int status = st_rip3_frame_world(&checked,frame->world_width,frame->world_height);
 	if (status != 0) return status;
+	uint64_t dx=UINT64_C(72)*checked.device_width/checked.world_width;
+	uint64_t dy=UINT64_C(72)*checked.device_height/checked.world_height;
+	if (dx>72*1024 || dy>72*1024) return IO_ERROR_OUT_OF_RANGE;
 	*value = (struct st_rip3_outline_font){.points=points,.flags=flags,.orientation=orientation,
-	    .dpi_x=72*checked.device_width/checked.world_width,
-	    .dpi_y=72*checked.device_height/checked.world_height};
+	    .dpi_x=(unsigned)dx,.dpi_y=(unsigned)dy};
 	return 0;
 }
 

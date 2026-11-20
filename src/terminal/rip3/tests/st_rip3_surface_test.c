@@ -236,11 +236,39 @@ tiers_test(void)
 	return 0;
 }
 
+static int
+damage_test(void)
+{
+	struct st_rip3_surface *surface=NULL,*copy=NULL;
+	uint8_t damage[12]={0};
+	CHECK(st_rip3_surface_create(&surface,4,3)==0);
+	CHECK(st_rip3_surface_damage(surface,damage,11)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_surface_damage(surface,damage,sizeof(damage))==0);
+	/* Black-on-black COPY is still damage: ANSI may have painted over it. */
+	CHECK(st_rip3_surface_plot(surface,NULL,1,1,0,ST_RIP3_COPY)==0);
+	for (size_t i=0;i<sizeof(damage);i++) CHECK(damage[i]==(i==5));
+	CHECK(st_rip3_surface_plot(surface,NULL,-1,0,0,ST_RIP3_COPY)==0 && damage[0]==0);
+	CHECK(st_rip3_surface_clone(&copy,surface)==0);
+	memset(damage,0,sizeof(damage));
+	CHECK(st_rip3_surface_plot(copy,NULL,0,0,0,ST_RIP3_COPY)==0 && damage[0]==0);
+	const struct st_rip3_rect source={0,0,0,0},destination={2,2,3,2};
+	CHECK(st_rip3_surface_copy(surface,NULL,&destination,copy,NULL,&source,ST_RIP3_TRANSFER_COPY)==0);
+	for (size_t i=0;i<sizeof(damage);i++) CHECK(damage[i]==(i>=10));
+	memset(damage,0,sizeof(damage));
+	CHECK(st_rip3_surface_copy_projected(surface,&destination,copy,&source,ST_RIP3_TRANSFER_COPY)==0);
+	CHECK(damage[10]==1 && damage[11]==1);
+	CHECK(st_rip3_surface_damage(surface,NULL,0)==0);
+	memset(damage,0,sizeof(damage));
+	CHECK(st_rip3_surface_plot(surface,NULL,0,0,15,ST_RIP3_COPY)==0 && damage[0]==0);
+	st_rip3_surface_destroy(copy);st_rip3_surface_destroy(surface);return 0;
+}
+
 int
 main(void)
 {
 	CHECK(palette_test() == 0);
 	CHECK(surface_test() == 0);
 	CHECK(tiers_test() == 0);
+	CHECK(damage_test() == 0);
 	return 0;
 }

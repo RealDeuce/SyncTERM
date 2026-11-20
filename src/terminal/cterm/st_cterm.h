@@ -166,6 +166,10 @@ struct st_cterm_config {
 	 * 640x350 pixels; BIG defaults to 640x350 with 8x14 console cells; SkyPix
 	 * uses the selected canvas and wire encoding. */
 	enum st_cterm_graphics_mode graphics_mode;
+	/* st_term owns the independent RIP3 engine and feeds only its ordinary
+	 * text into this CTerm. Keep the public mode identity, without creating
+	 * a second parser/raster for that connected session. RIP3 only. */
+	bool rip3_session_owner;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
 	const char *rip_directory;
 	const char *amiga_font_directory;

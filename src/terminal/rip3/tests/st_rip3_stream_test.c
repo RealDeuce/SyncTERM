@@ -106,7 +106,12 @@ example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_leng
 static int
 boundaries(void)
 {
-	EXAMPLE("!|J10|n2000|fZKQO\r\nraw\r\n", "\nraw\r\n", "J10\0n2000\0fZKQO\0", 3);
+	EXAMPLE("!|J10|n2000|fZKQO\r\nraw\r\n", "raw\r\n", "J10\0n2000\0fZKQO\0", 3);
+	EXAMPLE("!|J10\r\n!|!comment\r\n!|\r\n", "", "J10\0!comment\0", 2);
+	EXAMPLE("!|J10\r\n\ntext\r\n", "\ntext\r\n", "J10\0", 1);
+	EXAMPLE("!|J10\r\r\ntext\r\n", "\r\ntext\r\n", "J10\0", 1);
+	EXAMPLE("\x1b[!", "\x1b[!", "", 0);
+	EXAMPLE("\x1b[0!", "\x1b[0!", "", 0);
 	EXAMPLE("prefix !|J10\r\n!oops\r\n!|a0001\r", "prefix !|J10\r\n!oops\r\n", "a0001\0", 1);
 	EXAMPLE("raw\x01|J10|fZKQO\r!|a0F1\r", "raw", "J10\0fZKQO\0a0F1\0", 3);
 	EXAMPLE("raw\x02|n2\r", "raw", "n2\0", 1);

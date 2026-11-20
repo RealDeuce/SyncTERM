@@ -10,6 +10,7 @@
 
 struct st_rip3_surface {
 	uint8_t *pixels;
+	uint8_t *damage;
 	uint32_t width;
 	uint32_t height;
 };
@@ -230,6 +231,15 @@ write_pixel(uint8_t destination, uint8_t source, enum st_rip3_write_mode mode)
 	}
 }
 
+int
+st_rip3_surface_damage(struct st_rip3_surface *surface, uint8_t *damage, size_t length)
+{
+	if (surface==NULL || (damage!=NULL && length<(size_t)surface->width*surface->height))
+		return IO_ERROR_INVALID_ARGUMENT;
+	surface->damage=damage;
+	return 0;
+}
+
 static bool
 rect_valid(const struct st_rip3_rect *rect)
 {
@@ -273,6 +283,7 @@ st_rip3_surface_fill(struct st_rip3_surface *surface,
 
 			surface->pixels[offset] = write_pixel(surface->pixels[offset],
 			    color, mode);
+			if (surface->damage!=NULL) surface->damage[offset]=1;
 		}
 	}
 	return 0;
@@ -354,6 +365,7 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 				destination->pixels[offset] = write_pixel(
 				    destination->pixels[offset], pixel,
 				    (enum st_rip3_write_mode)mode);
+			if (destination->damage!=NULL) destination->damage[offset]=1;
 		}
 	}
 	free(saved);
@@ -402,6 +414,7 @@ st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
 			size_t offset = (size_t)y*destination->width+(uint32_t)x;
 			destination->pixels[offset] = mode == ST_RIP3_TRANSFER_INVERT ? (uint8_t)~pixel
 			    : write_pixel(destination->pixels[offset],pixel,(enum st_rip3_write_mode)mode);
+			if (destination->damage!=NULL) destination->damage[offset]=1;
 		}
 	}
 	free(saved);

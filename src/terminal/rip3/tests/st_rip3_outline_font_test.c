@@ -123,10 +123,15 @@ errors(void)
 		switch (which) {
 			case 0:size=0;break;case 1:size=4096;break;case 2:orientation=4;break;
 			case 3:flags=0x1000000;break;case 4:bad.world_width=0;break;
-			case 5:bad.world_height=32768;break;default:bad.device_width=641;break;
+			case 5:bad.world_height=32768;break;default:bad.device_width=0;break;
 		}
 		CHECK(st_rip3_outline_font_builtin(&font,"Marin",&bad,size,flags,orientation)!=0 && memcmp(&font,&saved,sizeof(font))==0);
 	}
+	struct st_rip3_frame custom;
+	CHECK(st_rip3_frame_init_device(&custom,720,400)==0);
+	struct st_rip3_outline_font custom_font;
+	CHECK(st_rip3_outline_font_builtin(&custom_font,"Marin",&custom,25,0,0)==0
+	    && custom_font.dpi_x==81 && custom_font.dpi_y==82);
 	struct st_rip3_rff file=saved.file;file.units_per_em=1; /* Revalidate bytes, not caller metadata. */
 	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,25,0,0)==0 && font.file.units_per_em==1000);
 	memcpy(&saved,&font,sizeof(saved));

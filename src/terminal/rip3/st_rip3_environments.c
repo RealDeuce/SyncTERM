@@ -43,13 +43,21 @@ int
 st_rip3_environments_create(struct st_rip3_environments **result,
     enum st_rip3_canvas canvas)
 {
+	struct st_rip3_frame frame;
+	int status=st_rip3_frame_init(&frame,canvas);
+	return status!=0 ? status : st_rip3_environments_create_device(result,frame.device_width,frame.device_height);
+}
+
+int
+st_rip3_environments_create_device(struct st_rip3_environments **result, uint32_t width, uint32_t height)
+{
 	struct st_rip3_environments *environments;
 	struct st_rip3_frame frame;
 	int status;
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rip3_frame_init(&frame, canvas);
+	status = st_rip3_frame_init_device(&frame, width, height);
 	if (status != 0)
 		return status;
 	environments = calloc(1, sizeof(*environments));

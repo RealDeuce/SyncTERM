@@ -36,6 +36,8 @@ struct st_rip3_environment_info {
 int st_rip3_environment_defaults(struct st_rip3_environment *result);
 int st_rip3_environments_create(struct st_rip3_environments **result,
 	enum st_rip3_canvas canvas);
+int st_rip3_environments_create_device(struct st_rip3_environments **result,
+	uint32_t width, uint32_t height);
 void st_rip3_environments_destroy(struct st_rip3_environments *environments);
 int st_rip3_environments_current(const struct st_rip3_environments *environments,
 	unsigned *result);

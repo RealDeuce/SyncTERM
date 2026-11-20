@@ -33,6 +33,10 @@ struct st_rip3_text_position {
 /* Initialize the selected device frame with the 640x350 compatibility world.
  * World dimensions are counts, not the inclusive last pixel coordinate. */
 int st_rip3_frame_init(struct st_rip3_frame *frame, enum st_rip3_canvas canvas);
+/* Client-selected physical raster, independently of the three presets.
+ * Nonzero dimensions must fit signed device coordinates. */
+int st_rip3_frame_init_device(struct st_rip3_frame *frame,
+	uint32_t width, uint32_t height);
 int st_rip3_frame_world(struct st_rip3_frame *frame,
 	uint32_t width, uint32_t height);
 /* Exact integer-ratio mapping, rounding down to the containing device/world

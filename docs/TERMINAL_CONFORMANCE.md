@@ -23,8 +23,18 @@ not claim physical MIDI, original sender timing or Atari hardware validation.
 The separate [RIPscrip 3.0 implementation goal](RIP3_CONFORMANCE.md) pins its
 documentation and tracks requirements and upstream blockers. Its source guard
 freezes the existing RIP 1.54 implementation and historical fixtures. This is
-preservation/inventory coverage, not a claim of RIPtel 3.1 compliance. Separate
-RIP3 outline-font realization resolves all 80 bundled names and prepares
+preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
+`syncterm_rip3_connected_CP437` and `syncterm_rip3_connected_UTF-8` exercise the
+normal executable over TCP with the control bitmap backend. They cover the
+literal Dixon selection and drawing sequence, bold advance, nonfatal recovery,
+live WORLD/device queries, templates/angles, empty-input continuations, delays,
+offscreen BMP export/load and clipboard paste, repeated paint over ANSI, and
+command-only CRLF without scrolling. The entry's grid/raster is retained at
+the three presets and at 1280x800 and 720x400. These tests disable physical
+audio. Full-compliance acceptance and incomplete command families remain open.
+The internal fixture descriptions below retain their narrower coverage scope;
+older application-routing limitations are superseded by this connection suite.
+Separate RIP3 outline-font realization resolves all 80 bundled names and prepares
 world-derived DPI/scales plus device-space hollow widths. Tests cover caps,
 WORD narrowing, orientation, file strength bytes and cache preservation on
 failure. Literal outline T/@ rendering is implemented in the separate engine.

@@ -190,9 +190,7 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	}
 	const struct st_rip3_classic_font *font = host->text->font;
 	if (font == NULL || font->number != style.font.font) {
-		enum st_rip3_canvas canvas = frame.device_width == 640 ? ST_RIP3_CANVAS_640_480
-		    : frame.device_width == 800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_1024_768;
-		status = st_rip3_classic_font_builtin(&builtin,canvas,style.font.font);
+		status = st_rip3_classic_font_builtin_device(&builtin,frame.device_width,frame.device_height,style.font.font);
 		if (status != 0) goto done;
 		font = &builtin;
 	}
