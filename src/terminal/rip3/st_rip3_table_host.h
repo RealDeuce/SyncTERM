@@ -29,7 +29,7 @@ struct st_rip3_table_host {
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
  * SCP/RCP, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
- * supports PAL/PORT/STYLE selection and PAL/PORT/ENV/STYLE metadata; backup-slot operations
+ * supports PAL/PORT/STYLE/TW selection and PAL/PORT/ENV/STYLE/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
  * Palette live-entry COPY validates all destinations before mutation and
@@ -47,6 +47,8 @@ struct st_rip3_table_host {
  * activate referenced table/UI state. STYLE snapshots capture only the resolved
  * drawing attributes currently stored in st_rip3_styles, not the unresolved
  * complete context under #24.
+ * A TW live binding borrows st_rip3_text_window_operations; its native owner
+ * handles selection/protection. Complete TW backup/copy/reset remains separate.
  * Parsed references must come from builtin_reference_parse. Empty outputs
  * require capacity >= 1, validated before any active operation. Validation and
  * binding failures leave caller output and bound table/save state unchanged.

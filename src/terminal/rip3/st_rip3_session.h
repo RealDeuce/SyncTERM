@@ -44,16 +44,17 @@ struct st_rip3_session_sink {
 	 * clear_rgb resolves current PAL index0 for extended flag16; ignored otherwise. */
 	int (*text_window)(void *context, const struct st_rip3_text_window_layout *layout, bool identical,
 		uint32_t clear_rgb);
+	int (*text_select)(void *context, unsigned number, bool first, bool active);
 	/* Native text-window cursor movement, without synthesized received bytes. */
-	int (*text_cursor)(void *context, const struct st_rip3_text_cursor_position *position);
-	int (*text_cursor_visible)(void *context, bool visible);
+	int (*text_cursor)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
+	int (*text_cursor_visible)(void *context, unsigned number, bool visible);
 	/* Paint the native window with untagged RGB. Return the absolute clipped
 	 * DEVICE region for the owner's matching index-plane COPY. Whole erase
 	 * homes the live cursor only; EOL retains it. Empty is 0,0,-1,-1. */
-	int (*text_erase)(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area);
+	int (*text_erase)(void *context, unsigned number, bool whole, uint32_t rgb, struct st_rip3_rect *area);
 	/* Native ANSI-background EOL erase. Like ordinary ANSI text, this paints
 	 * the terminal surface rather than changing the graphics palette indices. */
-	int (*text_erase_eol)(void *context);
+	int (*text_erase_eol)(void *context, unsigned number);
 };
 
 struct st_rip3_session_config {
@@ -93,7 +94,7 @@ struct st_rip3_session_config {
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
  * This does not select an application terminal mode or implement unbound
- * text-window/button/mouse tables, full reset, graphical-text preprocessing or
+ * full text-window backups/reset, button/mouse tables, graphical-text preprocessing or
  * scene headers. Immediate host queries do include their angle preprocessor. */
 int st_rip3_session_create(struct st_rip3_session **result,
 	const struct st_rip3_session_config *config);

@@ -68,8 +68,9 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 	bool visibility=strcmp(reference->name,"CON")==0 || strcmp(reference->name,"COFF")==0;
 	bool erase=strcmp(reference->name,"ETW")==0;
 	bool erase_eol=strcmp(reference->name,"TWERASEEOL")==0;
+	bool query=strcmp(reference->name,"TWIN")==0 || strcmp(reference->name,"ISEXTWIN")==0;
 	bool home=strcmp(reference->name,"TWHOME")==0;
-	if (!activation && !visibility && !erase && !erase_eol && !home && strcmp(reference->name,"TWGOTO")!=0)
+	if (!activation && !visibility && !erase && !erase_eol && !query && !home && strcmp(reference->name,"TWGOTO")!=0)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_builtin_reference words;
@@ -82,6 +83,23 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 		}
 	}
 	const struct st_rip3_text_window_operations *windows=host->text_windows;
+	if (query) {
+		if (words.count>1) return IO_ERROR_INVALID_FORMAT;
+		unsigned number=0;bool current=words.count==0;
+		if (words.count==1) status=window_number(words.parameters[0].text,&current,&number);
+		if (status!=0) return status;
+		if (windows==NULL || windows->info==NULL) return IO_ERROR_NOT_SUPPORTED;
+		if (current) status=current_number(windows,&number);
+		struct st_rip3_text_window_info info;
+		if (status==0) status=windows->info(windows->context,number,&info);
+		if (status!=0) return status;
+		bool active=info.defined && info.active;
+		const char *answer=strcmp(reference->name,"TWIN")==0 ? active ? "YES" : "NO"
+		    : !active ? "-1" : info.extended ? "1" : "0";
+		size_t length=strlen(answer);
+		if (length>=capacity) return IO_ERROR_OUT_OF_RANGE;
+		memcpy(result,answer,length+1);return 0;
+	}
 	if (!activation && !visibility && !erase && !erase_eol) {
 		status=position(windows,&words,home);
 		if (status==0) result[0]=0;

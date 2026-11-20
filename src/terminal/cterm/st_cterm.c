@@ -2910,6 +2910,15 @@ st_cterm_set_text_cursor_visible(st_cterm_t *terminal, bool visible)
 }
 
 int
+st_cterm_present_text_cursor(st_cterm_t *terminal)
+{
+	if (terminal==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (!terminal->rip3_session_owner) return IO_ERROR_NOT_SUPPORTED;
+	cterm_render_set_cursor(terminal,terminal->cursor);
+	return cterm_render_take_error(terminal);
+}
+
+int
 st_cterm_get_text_cursor_visible(const st_cterm_t *terminal, bool *visible)
 {
 	if (terminal == NULL || visible == NULL)

@@ -2,20 +2,22 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_cterm.h"
 #include "cterm.h"
+#include "cterm_internal.h"
 #include "io_error.h"
+#include "string_compat.h"
 
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
-int
-st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source,
-    bool preserve_tabs)
+static int
+inherit_interpreter(st_cterm_t *destination, const st_cterm_t *source,
+    bool preserve_tabs, bool fresh)
 {
 	if (destination==NULL || source==NULL || destination==source
 	    || destination->input_depth!=0 || source->input_depth!=0
 	    || destination->width<1 || destination->height<1 || !destination->started
-	    || destination->accumulator!=NULL || destination->string!=0)
+	    || (fresh && (destination->accumulator!=NULL || destination->string!=0)))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (destination->emulation!=CTERM_EMULATION_ANSI_BBS || source->emulation!=CTERM_EMULATION_ANSI_BBS
 	    || destination->graphics_mode!=ST_CTERM_GRAPHICS_RIP_3 || source->graphics_mode!=ST_CTERM_GRAPHICS_RIP_3
@@ -84,6 +86,95 @@ st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *s
 	destination->accumulator=source->accumulator;destination->saved_accumulator=source->saved_accumulator;
 	destination->wire_encoding=source->wire_encoding;destination->screen.codepage=source->screen.codepage;
 	/* A fresh RIP3 definition's saved (0,0) is one-based (1,1) to CTerm. */
-	destination->save_xpos=destination->save_ypos=1;
+	if (fresh) destination->save_xpos=destination->save_ypos=1;
 	return 0;
+}
+
+int
+st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source, bool preserve_tabs)
+{
+	return inherit_interpreter(destination,source,preserve_tabs,true);
+}
+
+int
+st_cterm_select_window_interpreter(st_cterm_t *destination, const st_cterm_t *source)
+{
+	/* Selection's partial-input policy is unresolved under reference #106.
+	 * Keep the source owner intact instead of inventing a discard/move rule. */
+	if (source!=NULL && (source->sequence!=0 || source->string!=0)) return IO_ERROR_NOT_SUPPORTED;
+	return inherit_interpreter(destination,source,false,false);
+}
+
+int
+st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
+{
+	if (destination==NULL || source==NULL || destination->width!=source->width || destination->height!=source->height)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (source->sequence!=0 || source->string!=0) return IO_ERROR_NOT_SUPPORTED;
+	int status=inherit_interpreter(destination,source,true,true);
+	if (status!=0) return status;
+	char *fg=source->fg_tc_str==NULL ? NULL : strdup(source->fg_tc_str);
+	char *bg=source->bg_tc_str==NULL ? NULL : strdup(source->bg_tc_str);
+	if ((source->fg_tc_str!=NULL && fg==NULL) || (source->bg_tc_str!=NULL && bg==NULL)) {
+		free(fg);free(bg);return IO_ERROR_OUT_OF_MEMORY;
+	}
+	uint32_t *palette=malloc((UINT16_MAX+1u)*sizeof(*palette));
+	if (palette==NULL) {free(fg);free(bg);return IO_ERROR_OUT_OF_MEMORY;}
+	status=st_console_get_palette(source->screen.console,0,palette,UINT16_MAX+1u);
+	if (status==0) status=st_console_set_palette(destination->screen.console,0,palette,UINT16_MAX+1u);
+	free(palette);
+	if (status!=0) {free(fg);free(bg);return status;}
+	/* A fresh private target can be discarded on resource failure. Font IDs
+	 * are console-local, so never copy them as unowned integer aliases. */
+	uint16_t old[260],mapped[260];size_t count=0;
+	memcpy(destination->screen.font_valid,source->screen.font_valid,sizeof(source->screen.font_valid));
+	for (unsigned i=0;i<256;i++) if (source->screen.font_valid[i]) {
+		uint16_t id=source->screen.font_identifiers[i];size_t n=0;
+		while (n<count && old[n]!=id) n++;
+		if (n==count) {
+			status=st_console_copy_font(destination->screen.console,source->screen.console,id,&mapped[n]);
+			if (status!=0) {free(fg);free(bg);return status;}
+			old[count++]=id;
+		}
+		destination->screen.font_identifiers[i]=mapped[n];
+		destination->screen.font_valid[i]=true;
+		destination->screen.font_codepages[i]=source->screen.font_codepages[i];
+	}
+	free(destination->fg_tc_str);free(destination->bg_tc_str);destination->fg_tc_str=fg;destination->bg_tc_str=bg;
+	destination->screen.fonts=source->screen.fonts;
+	uint16_t *selections[]={&destination->screen.fonts.normal,&destination->screen.fonts.bright,
+	    &destination->screen.fonts.blink,&destination->screen.fonts.bright_blink};
+	for (size_t i=0;i<4;i++) {
+		size_t n=0;while (n<count && old[n]!=*selections[i]) n++;
+		if (n==count) {
+			status=st_console_copy_font(destination->screen.console,source->screen.console,*selections[i],&mapped[n]);
+			if (status!=0) return status;
+			old[count++]=*selections[i];
+		}
+		*selections[i]=mapped[n];
+	}
+	destination->attr=source->attr;destination->fg_color=source->fg_color;destination->bg_color=source->bg_color;
+	destination->cell_flags=source->cell_flags;destination->negative=source->negative;
+	destination->extattr=source->extattr;destination->last_column_flag=source->last_column_flag;
+	destination->saved_mode=source->saved_mode;destination->saved_mode_mask=source->saved_mode_mask;
+	destination->save_xpos=source->save_xpos;destination->save_ypos=source->save_ypos;
+	destination->top_margin=source->top_margin;destination->bottom_margin=source->bottom_margin;
+	destination->left_margin=source->left_margin;destination->right_margin=source->right_margin;
+	destination->cursor=source->cursor;destination->rip3_visible_cursor=source->rip3_visible_cursor;
+	destination->cursor_style=source->cursor_style;destination->decsace=source->decsace;
+	destination->fetm=source->fetm;destination->ttm=source->ttm;
+	memcpy(destination->screen.mode_palette,source->screen.mode_palette,sizeof(source->screen.mode_palette));
+	memcpy(destination->altfont,source->altfont,sizeof(source->altfont));
+	memcpy(destination->screen.selectors,source->screen.selectors,sizeof(source->screen.selectors));
+	uint32_t video_flags;
+	status=st_console_get_video_flags(source->screen.console,&video_flags);
+	if (status==0) status=st_console_set_video_flags(destination->screen.console,video_flags);
+	if (status!=0) return status;
+	cterm_apply_window(destination);
+	status=st_cterm_position_text(destination,(uint32_t)(source->xpos-1),(uint32_t)(source->ypos-1));
+	destination->last_column_flag=source->last_column_flag;
+	cterm_render_set_attribute(destination,destination->attr);
+	cterm_render_set_colours(destination,destination->fg_color,destination->bg_color);
+	cterm_render_set_cursor(destination,destination->cursor);
+	return status!=0 ? status : cterm_render_take_error(destination);
 }

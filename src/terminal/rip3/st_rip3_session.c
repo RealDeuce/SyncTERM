@@ -39,8 +39,12 @@ struct st_rip3_session {
 	struct st_rip3_user_variables *owned_user;
 	bool ready;
 	bool text_active;
-	bool has_text_window;
-	struct st_rip3_text_window_layout text_window;
+	unsigned current_window;
+	struct {
+		struct st_rip3_text_window_info info;
+		bool has_layout;
+		struct st_rip3_text_window_layout layout;
+	} windows[36];
 	struct st_rip3_text_window_host window_host;
 	struct st_rip3_text_window_operations window_operations;
 	uint64_t revision;
@@ -104,7 +108,9 @@ define_text_window(void *context, const struct st_rip3_text_window_layout *layou
 {
 	struct st_rip3_session *session=context;
 	if (session->sink.text_window==NULL) return IO_ERROR_NOT_SUPPORTED;
-	bool same=session->has_text_window && st_rip3_text_window_same(&session->text_window,layout);
+	unsigned number=session->current_window;
+	if (session->windows[number].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	bool same=session->windows[number].has_layout && st_rip3_text_window_same(&session->windows[number].layout,layout);
 	uint32_t clear_rgb=0;int status=0;
 	if (layout->extended && (layout->flags&16)) {
 		struct st_rip3_palette palette;
@@ -113,7 +119,7 @@ define_text_window(void *context, const struct st_rip3_text_window_layout *layou
 	}
 	if (status==0) status=session->sink.text_window(session->sink.context,layout,same,clear_rgb);
 	if (status==0) {
-		session->text_window=*layout;session->has_text_window=true;
+		session->windows[number].layout=*layout;session->windows[number].has_layout=true;
 		session->text_active=!layout->extended || !(layout->flags&4);
 		if (layout->extended && (layout->flags&16)) {
 			struct st_rip3_rect area;
@@ -123,9 +129,67 @@ define_text_window(void *context, const struct st_rip3_text_window_layout *layou
 		}
 		/* The working TW0 cannot be protected. This ordered request does
 		 * not undo the completed definition, clear or activation flags. */
-		if (layout->extended && (layout->flags&32)) diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);
+		if (layout->extended && (layout->flags&32)) {
+			if (number==0) diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);
+			else session->windows[number].info.protected=true;
+		}
 	}
 	return status;
+}
+
+static int
+deactivate_window(void *context)
+{
+	struct st_rip3_session *session=context;
+	if (session->windows[session->current_window].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	session->text_active=false;return 0;
+}
+
+static int
+window_info(void *context, unsigned number, struct st_rip3_text_window_info *result)
+{
+	struct st_rip3_session *session=context;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	*result=session->windows[number].info;
+	result->extended=session->windows[number].has_layout && session->windows[number].layout.extended;
+	if (number==session->current_window) result->active=session->text_active;
+	return 0;
+}
+
+static int
+protect_window(void *context, unsigned number, bool protect)
+{
+	struct st_rip3_session *session=context;
+	if (number>=36 || (number==0 && protect)) return IO_ERROR_OUT_OF_RANGE;
+	if (session->windows[number].info.defined) session->windows[number].info.protected=protect;
+	return 0;
+}
+
+static int
+select_window(void *context, unsigned number)
+{
+	struct st_rip3_session *session=context;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (number==session->current_window) return 0;
+	if (session->sink.text_select==NULL) return IO_ERROR_NOT_SUPPORTED;
+	unsigned previous=session->current_window;
+	bool first=!session->windows[number].info.defined;
+	/* Whether first-use selection inherits source protection awaits #106. */
+	if (first && session->windows[previous].info.protected) return IO_ERROR_NOT_SUPPORTED;
+	bool active=first ? session->text_active : session->windows[number].info.active;
+	int status=session->sink.text_select(session->sink.context,number,first,active);
+	if (status!=0) return status;
+	session->windows[previous].info.active=session->text_active;
+	if (first) session->windows[number]=session->windows[previous];
+	session->current_window=number;session->text_active=active;
+	return 0;
+}
+
+static bool
+window_active(struct st_rip3_session *session, unsigned number)
+{
+	return session->windows[number].info.defined
+	    && (number==session->current_window ? session->text_active : session->windows[number].info.active);
 }
 
 static int
@@ -133,16 +197,17 @@ position_window_cursor(void *context, unsigned number, const struct st_rip3_text
 {
 	struct st_rip3_session *session=context;
 	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
-	if (number!=0 || !session->text_active) return 0;
+	if (!window_active(session,number)) return 0;
 	return session->sink.text_cursor==NULL ? IO_ERROR_NOT_SUPPORTED
-	    : session->sink.text_cursor(session->sink.context,position);
+	    : session->sink.text_cursor(session->sink.context,number,position);
 }
 
 static int
 position_text_cursor(void *context, uint32_t column, uint32_t row)
 {
 	const struct st_rip3_text_cursor_position position={true,true,column,row};
-	return position_window_cursor(context,0,&position);
+	struct st_rip3_session *session=context;
+	return position_window_cursor(context,session->current_window,&position);
 }
 
 static int
@@ -150,17 +215,18 @@ show_window_cursors(void *context, const unsigned *numbers, size_t count, bool v
 {
 	struct st_rip3_session *session=context;
 	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
-	for (size_t i=0;i<count;i++) if (numbers[i]==0 && session->text_active)
-		return session->sink.text_cursor_visible==NULL ? IO_ERROR_NOT_SUPPORTED
-		    : session->sink.text_cursor_visible(session->sink.context,visible);
+	for (size_t i=0;i<count;i++) if (window_active(session,numbers[i])) {
+		int status=session->sink.text_cursor_visible==NULL ? IO_ERROR_NOT_SUPPORTED
+		    : session->sink.text_cursor_visible(session->sink.context,numbers[i],visible);
+		if (status!=0) return status;
+	}
 	return 0;
 }
 
 static int
-erase_text_window(void *context, bool whole)
+erase_window(struct st_rip3_session *session, unsigned number, bool whole)
 {
-	struct st_rip3_session *session=context;
-	if (!session->text_active) return 0;
+	if (!window_active(session,number)) return 0;
 	if (session->sink.text_erase==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_palette palette;uint8_t ink=0;
 	int status=st_rip3_palettes_current_palette(session->commands.palettes,&palette);
@@ -174,17 +240,27 @@ erase_text_window(void *context, bool whole)
 		    environment.rgb_bits,style.background_color,&ink);
 	}
 	struct st_rip3_rect area={0,0,-1,-1};
-	if (status==0) status=session->sink.text_erase(session->sink.context,whole,palette.rgb[ink],&area);
+	if (status==0) status=session->sink.text_erase(session->sink.context,number,whole,palette.rgb[ink],&area);
 	if (status==0 && area.x0<=area.x1 && area.y0<=area.y1)
 		status=st_rip3_ports_screen_fill(session->commands.ports,&area,ink);
 	return status;
 }
 
 static int
+erase_text_window(void *context, bool whole)
+{
+	struct st_rip3_session *session=context;
+	return erase_window(session,session->current_window,whole);
+}
+
+static int
 erase_text_windows(void *context, const unsigned *numbers, size_t count)
 {
 	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
-	for (size_t i=0;i<count;i++) if (numbers[i]==0) return erase_text_window(context,true);
+	for (size_t i=0;i<count;i++) {
+		int status=erase_window(context,numbers[i],true);
+		if (status!=0) return status;
+	}
 	return 0;
 }
 
@@ -193,16 +269,18 @@ erase_window_lines(void *context, const unsigned *numbers, size_t count)
 {
 	struct st_rip3_session *session=context;
 	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
-	for (size_t i=0;i<count;i++) if (numbers[i]==0 && session->text_active)
-		return session->sink.text_erase_eol==NULL ? IO_ERROR_NOT_SUPPORTED
-		    : session->sink.text_erase_eol(session->sink.context);
+	for (size_t i=0;i<count;i++) if (window_active(session,numbers[i])) {
+		int status=session->sink.text_erase_eol==NULL ? IO_ERROR_NOT_SUPPORTED
+		    : session->sink.text_erase_eol(session->sink.context,numbers[i]);
+		if (status!=0) return status;
+	}
 	return 0;
 }
 
 static int
 current_text_window(void *context, unsigned *number)
 {
-	(void)context;*number=0;return 0;
+	struct st_rip3_session *session=context;*number=session->current_window;return 0;
 }
 
 static int
@@ -210,9 +288,11 @@ activate_text_windows(void *context, const unsigned *numbers, size_t count, bool
 {
 	struct st_rip3_session *session=context;
 	for (size_t i=0;i<count;i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
-	/* Only the default unprotected slot is currently defined. Other slots
-	 * stay undefined until TW definition/selection and owned views are added. */
-	for (size_t i=0;i<count;i++) if (numbers[i]==0) session->text_active=active;
+	for (size_t i=0;i<count;i++) if (session->windows[numbers[i]].info.defined
+	    && !session->windows[numbers[i]].info.protected) {
+		session->windows[numbers[i]].info.active=active;
+		if (numbers[i]==session->current_window) session->text_active=active;
+	}
 	return 0;
 }
 
@@ -332,8 +412,9 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
 	session->text_active=true;session->commands.text_active=&session->text_active;
+	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
 	session->window_host=(struct st_rip3_text_window_host){.context=session,.define=define_text_window,
-	    .position=position_text_cursor,.erase=erase_text_window};
+	    .position=position_text_cursor,.erase=erase_text_window,.select=select_window,.deactivate=deactivate_window};
 	session->commands.text_window=&session->window_host;
 	session->commands.audio=config->audio;session->commands.resources=config->resources;
 	session->commands.offscreen_pixel_budget=config->offscreen_pixel_budget;session->commands.bitmap_errors=config->bitmap_errors;
@@ -342,10 +423,11 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
-	    .current=current_text_window,.activate=activate_text_windows,
+	    .current=current_text_window,.select=select_window,.info=window_info,.protect=protect_window,.activate=activate_text_windows,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
 	    .erase_eol=erase_window_lines};
 	session->variables.text_windows=&session->window_operations;
+	session->tables.tables[ST_RIP3_TABLE_TW].live=&session->window_operations;
 	session->random.state=config->random_seed;
 	if (session->variables.random==NULL) session->variables.random=&session->random;
 	session->templates=(struct st_rip3_template_host){.context=session,.selection_required=selection_required};

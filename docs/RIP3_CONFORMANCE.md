@@ -69,7 +69,9 @@ and native key forwarding address the selected virtual TTY; the main canvas
 retains the entry's raster. Native tests cover widths 2–5, both radices, exact
 geometry/ranges and error recovery; CP437/UTF-8 connection captures cover all
 five modes, placement, scrolling, wrap/chop, reactivation and script operations.
-The full TW table, protected entries and switching remain pending. Ordinary
+TW backups, full reset and remaining metadata queries remain pending. Slot
+selection/protection and defined noncurrent native views are now connected;
+first-use/partial-ANSI selection acceptance is tracked under #106. Ordinary
 `w` depends only on the physical device; a stored zero WORLD does not reject it.
 Changed definitions construct a fresh rendering state without clearing
 underlying artwork, retaining independently owned tab stops and unfinished
@@ -85,7 +87,7 @@ requested in [#104](https://github.com/bbs-land/remote-imaging-protocol/issues/1
 complete terminal-mode reset acceptance remains pending. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
-Extended `b` now defines the connected default/current text window using wide,
+Extended `b` now defines the selected connected text window using wide,
 unclipped WORLD-to-device bounds and the actual bundled MAF cell metrics.
 Directional font fitting, automatic font selection, centered display placement,
 minimum one-cell extension, wrap, cursor hiding and immediate deactivation are
@@ -95,8 +97,8 @@ live/saved cursor, rendition, margins and tab stops while retaining unfinished
 ANSI input and requested cursor visibility. Wholly offscreen windows remain valid;
 over-budget allocations fail nonfatally and retain the old window. TW0 cannot be
 protected, so flag 32 diagnoses that request after completing the definition.
-Nonzero protection, metadata queries and the character-set reset contract (#104)
-remain incomplete. The entry's raster and root grid remain unchanged.
+Nonzero definition protection is connected. Remaining geometry/font metadata
+queries, backups and the character-set reset contract (#104) remain incomplete. The entry's raster and root grid remain unchanged.
 
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
 without injecting input bytes. `g` has two-digit fields in the current radix
@@ -106,7 +108,8 @@ independently of ANSI origin and both vertical/horizontal margins, as required b
 adopted PR #103. Movement clears pending wrap and retains margins, modes and saved
 cursor. Following text can render outside the addressing region, while later ANSI
 CUP remains margin-relative. Incoming validation and renderer failures remain
-inside RIP3's nonfatal boundary. Complete TW tables/protection remain pending.
+inside RIP3's nonfatal boundary. Noncurrent TW cursor controls and definition protection are connected; full
+table backups/reset and remaining metadata queries stay pending.
 Extended `b` fitting/automatic font choice
 and erase/control-variable rules follow
 [PR #103](https://github.com/bbs-land/remote-imaging-protocol/pull/103), resolving
@@ -118,8 +121,9 @@ host queries. Omission, `CUR`, decimal slots and `ALL` use one fully validated
 selector list; undefined nonzero slots do nothing. Deactivation hides the
 cursor while preserving its requested visibility/shape, text state and layout.
 Reactivation imports the current artwork before showing a positioned cursor,
-and activation effects publish before reply fences. Defined noncurrent windows,
-selection and protection still require the unfinished TW table.
+and activation effects publish before reply fences. Defined noncurrent slots retain their own activation state. Protected TWs
+ignore ATW/DTW; selection does not activate an inactive slot. Full table backups,
+reset and remaining query families stay pending.
 
 `$CON$`/`$COFF$` now control the default/current cursor through native services,
 retaining its shape and requested visibility across later text and activation.
@@ -128,8 +132,9 @@ origin/margins; optional `CUR` axes retain the target coordinate. Decimal values
 clamp to actual dimensions before narrowing, including legal 20-digit arguments.
 No-argument/only-WINNO TWGOTO is a no-op. Selectors are validated before effects;
 undefined nonzero slots and deactivated windows are ignored. These controls are
-callable on connections now; persistent defined noncurrent views and their
-protection/selection lifecycle still require the unfinished TW table.
+callable for defined current and noncurrent windows now. Definition protection
+permits cursor controls; inactive targets ignore them. TW backups/reset and
+remaining metadata queries stay pending.
 
 Wire `e` and `$ETW$` now erase the connected default/current ordinary or extended window to
 current graphics palette index 0 and home its live cursor. Wire `>` erases from
@@ -144,7 +149,8 @@ background and color mapping, independently of graphics colors. It preserves
 live/saved cursor, pending wrap, rendition, margins, cursor visibility and
 unfinished ANSI syntax; it leaves extended bounding margins intact. Its fully
 validated selector list defaults to current; undefined/deactivated targets do
-nothing. Defined noncurrent TW views/protection remain unfinished.
+nothing. Defined noncurrent and protected target views are connected. Full TW
+backups/reset and remaining geometry/font metadata queries stay pending.
 
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
 graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
@@ -6345,6 +6351,57 @@ and failure fixtures are removed. The queue is 1236 implemented, 1617 pending,
 3781 unreviewed, 1221 context, 24 excluded and 28 blocked blocks. The reference
 remains ff2043e, and no legacy source/assets, freeze baseline or issue content
 changes. Full compliance and scene reset (#105) remain incomplete.
+
+## Connected text-window selection, protection and noncurrent operations
+
+The session now owns 36 TW slots with independent definition, activation and
+protection state. Wire `2T` and `$CUR(TW,n)$` select existing windows without
+redefining them; an ordinary unprotected first-use copy prepares independent
+native window state/fonts/tabs before publishing the new slot. Each view retains
+its geometry, live/saved cursor, rendition, margins, wrap and requested cursor
+visibility. The entry's root grid/raster remains unchanged. Native font copies
+own their rasters/mappings after source destruction and never hold two console
+locks simultaneously. All private window pixel planes share one finite budget;
+failed construction/selection retains the prior selected slot and connection.
+
+`INUSE(TW,...)`, individual `ISPROT`, `PROT`/`UNPROT`, TWIN and ISEXTWIN are
+connected to the slot owner. Generic table numeric selectors remain 1–35; CUR
+addresses working slot zero for protection queries. Cursor/erase selectors use
+0–35 as documented. Protected definitions reject ordinary/extended redefinition
+and all-zero w. ATW/DTW skip protected slots, including a protected inactive slot;
+CON/COFF, TWGOTO/TWHOME and e/ETW/TWERASEEOL remain permitted. Noncurrent targets
+receive their own native cursor/color/layout state while the selected cursor is
+restored over freshly imported artwork, without replaying stale pixels. Extended
+flag 32 now protects nonzero slots after definition/clear; zero remains
+unprotectable. ETW(ALL) homes every active target without changing selection.
+
+[Issue #106](https://github.com/bbs-land/remote-imaging-protocol/issues/106) requests
+the unresolved first-use copy/protection and partial ANSI selection boundary,
+referencing #100/#101 and PR #102/#103 without modifying those issues. Selection
+from a protected source into an unused slot and selection across unfinished
+ordinary ANSI reject nonfatally until a contract is available; later completion
+on the old owner still works. The broad first-use paragraph is blocked, not
+accepted from the common-copy tests. Exact charset/reset acceptance (#104), full
+TW backups/entry COPY/reset, MTW, and remaining coordinate/font metadata queries
+stay pending. Full scene reset remains under #105.
+
+Independent native tests cover owned font artwork after source destruction,
+separate tab/color buffers, saved/live cursor and margins, selected-slot metadata,
+protection gates and nonfatal selection/resource failures. Real TCP/bitmap tests
+exercise all 36 slots on each reference raster in CP437 and UTF-8, root and
+MicroANSI font preservation, inactive first-use state, protected definitions,
+protected activation gates, noncurrent cursor/erase effects, extended flag-32
+protection, ETW(ALL), both numeric bases and cumulative allocation rejection.
+Physical audio is disabled and existing RIP-art replay remains deferred.
+
+The native Release CMake configure/build and 20 distinct affected CTests pass,
+including existing connection/cursor/erase/extended-window suites and the frozen
+RIP1.54 guard. Only the changed selection/protection checks were repeated after
+the final focused corrections; unaffected passing suites were reused. Compiler
+logs contain no warnings. The queue is 1283 implemented, 1585 pending, 3752
+unreviewed, 1234 context, 24 excluded and 29 blocked blocks. Stable remains
+ff2043e. Task-owned build logs, issue payload and failure fixtures are removed;
+no code is pushed and no existing issue receives comments.
 
 ## Verification and acceptance
 

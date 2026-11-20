@@ -28,6 +28,9 @@ struct st_term_rip3 {
 	st_cterm_t *text;
 	struct st_cterm_config text_config;
 	struct st_term_rip3_view *view;
+	struct st_term_rip3_view *windows[36];
+	unsigned selected_window;
+	bool targeting;
 	uint8_t tty[4096];
 	size_t tty_length;
 	bool flushing;
@@ -173,10 +176,8 @@ ansi(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 }
 
 static int
-text_visibility(struct st_term_rip3 *rip)
+root_visibility(struct st_term_rip3 *rip, bool active)
 {
-	bool active=st_rip3_session_text_active(rip->session);
-	if (rip->view!=NULL) return st_term_rip3_view_active(rip->view,rip->config.console,active);
 	if (active && !rip->root_cursor_saved) return 0;
 	int status=0;
 	if (!active) {
@@ -201,6 +202,15 @@ text_visibility(struct st_term_rip3 *rip)
 		if (status==0) rip->root_cursor_saved=rip->root_cursor_hidden=false;
 	}
 	return status;
+}
+
+static int
+text_visibility(struct st_term_rip3 *rip)
+{
+	if (rip->targeting) return 0;
+	bool active=st_rip3_session_text_active(rip->session);
+	return rip->view!=NULL ? st_term_rip3_view_active(rip->view,rip->config.console,active)
+	    : root_visibility(rip,active);
 }
 
 static void
@@ -271,6 +281,23 @@ paint_window_bounds(st_console_t *console, const struct st_rip3_rect *area, uint
 }
 
 static int
+window_budget(struct st_term_rip3 *rip, const struct st_rip3_text_window_layout *layout, unsigned replacing)
+{
+	uint64_t width=(uint64_t)layout->columns*layout->cell_width;
+	uint64_t height=(uint64_t)layout->rows*layout->cell_height;
+	if (width>UINT32_MAX || height>UINT32_MAX || width*height>rip->pixel_budget)
+		return IO_ERROR_OUT_OF_MEMORY;
+	uint64_t remaining=rip->pixel_budget-width*height;
+	for (unsigned i=0;i<36;i++) if (i!=replacing && rip->windows[i]!=NULL) {
+		const struct st_rip3_text_window_layout *other=st_term_rip3_view_layout(rip->windows[i]);
+		uint64_t pixels=(uint64_t)other->columns*other->cell_width*other->rows*other->cell_height;
+		if (pixels>remaining) return IO_ERROR_OUT_OF_MEMORY;
+		remaining-=pixels;
+	}
+	return 0;
+}
+
+static int
 text_window(void *context, const struct st_rip3_text_window_layout *layout, bool identical, uint32_t clear_rgb)
 {
 	struct st_term_rip3 *rip=context;
@@ -281,6 +308,7 @@ text_window(void *context, const struct st_rip3_text_window_layout *layout, bool
 	}
 	uint32_t width,height;
 	int status=st_console_pixel_size(rip->config.console,&width,&height);
+	if (status==0) status=window_budget(rip,layout,rip->selected_window);
 	bool visible=true;
 	if (status==0 && layout->extended) status=st_cterm_get_text_cursor_visible(st_term_rip3_text(rip),&visible);
 	struct st_term_rip3_view *view=NULL;
@@ -301,10 +329,73 @@ text_window(void *context, const struct st_rip3_text_window_layout *layout, bool
 	}
 	if (status==0) status=st_term_rip3_view_present(view,rip->config.console,!layout->extended || !(layout->flags&4));
 	if (status!=0) {st_term_rip3_view_destroy(view);return status;}
-	st_term_rip3_view_destroy(rip->view);rip->view=view;
+	st_term_rip3_view_destroy(rip->view);rip->view=view;rip->windows[rip->selected_window]=view;
 	if (rip->text_config.size_changed!=NULL)
 		rip->text_config.size_changed(rip->text_config.size_context,layout->columns,layout->rows,
 		    layout->columns*layout->cell_width,layout->rows*layout->cell_height);
+	return 0;
+}
+
+static int
+present_window(struct st_term_rip3 *rip, bool active)
+{
+	if (rip->view!=NULL) {
+		int status=st_term_rip3_view_begin(rip->view,rip->config.console);
+		return status!=0 ? status : st_term_rip3_view_present(rip->view,rip->config.console,active);
+	}
+	const struct st_console_pixel_cursor cursor={0};
+	int status=st_console_set_pixel_cursor(rip->config.console,&cursor);
+	if (status==0) status=st_cterm_present_text_cursor(rip->text);
+	rip->root_cursor_saved=rip->root_cursor_hidden=false;
+	return status!=0 ? status : root_visibility(rip,active);
+}
+
+static int
+text_select(void *context, unsigned number, bool first, bool active)
+{
+	struct st_term_rip3 *rip=context;
+	st_cterm_t *source=st_term_rip3_text(rip);
+	struct st_term_rip3_view *candidate=rip->windows[number];
+	present(rip);
+	int status=0;
+	if (first) {
+		struct st_rip3_text_window_layout layout;
+		const struct st_rip3_text_window_layout *existing=st_term_rip3_view_layout(rip->view);
+		uint32_t width,height;
+		status=st_console_pixel_size(rip->config.console,&width,&height);
+		if (existing!=NULL) layout=*existing;
+		else {
+			uint32_t columns,rows,cw,ch,x,y;struct st_cterm_state state;
+			if (status==0) status=st_cterm_size(source,&columns,&rows);
+			if (status==0) status=st_cterm_origin(source,&x,&y);
+			if (status==0) status=st_console_cell_pixel_size(rip->config.console,&cw,&ch);
+			if (status==0) status=st_cterm_state(source,&state);
+			if (status==0) layout=(struct st_rip3_text_window_layout){.x1=columns-1,.y1=rows-1,
+			    .columns=columns,.rows=rows,.cell_width=cw,.cell_height=ch,.wrap=state.ext_attr.auto_wrap,
+			    .x=(uint64_t)(x-1)*cw,.y=(uint64_t)(y-1)*ch,.bound_x=(uint64_t)(x-1)*cw,.bound_y=(uint64_t)(y-1)*ch,
+			    .bound_width=(uint64_t)columns*cw,.bound_height=(uint64_t)rows*ch};
+		}
+		if (status==0) status=window_budget(rip,&layout,number);
+		if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,&layout,width,height);
+		if (status==0) status=st_cterm_copy_window_state(st_term_rip3_view_text(candidate),source);
+	}
+	else status=st_cterm_select_window_interpreter(candidate==NULL ? rip->text : st_term_rip3_view_text(candidate),source);
+	if (status==0) {
+		st_cterm_t *target=candidate==NULL ? rip->text : st_term_rip3_view_text(candidate);
+		st_cterm_set_music_mode(target,st_cterm_music_mode(source));
+		st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(source));
+		struct st_term_rip3_view *previous=rip->view;
+		rip->view=candidate;status=present_window(rip,active);
+		if (status!=0) rip->view=previous;
+	}
+	if (status!=0) {if (first) st_term_rip3_view_destroy(candidate);return status;}
+	rip->windows[number]=candidate;rip->selected_window=number;
+	if (rip->text_config.size_changed!=NULL) {
+		uint32_t columns,rows,width,height;
+		if (st_cterm_size(st_term_rip3_text(rip),&columns,&rows)==0
+		    && st_console_pixel_size(rip->config.console,&width,&height)==0)
+			rip->text_config.size_changed(rip->text_config.size_context,columns,rows,width,height);
+	}
 	return 0;
 }
 
@@ -322,7 +413,7 @@ before_command(void *context)
 }
 
 static int
-text_cursor(void *context, const struct st_rip3_text_cursor_position *position)
+text_cursor_current(void *context, const struct st_rip3_text_cursor_position *position)
 {
 	struct st_term_rip3 *rip=context;
 	st_cterm_t *text=st_term_rip3_text(rip);
@@ -341,7 +432,7 @@ text_cursor(void *context, const struct st_rip3_text_cursor_position *position)
 }
 
 static int
-text_erase(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area)
+text_erase_current(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area)
 {
 	struct st_term_rip3 *rip=context;
 	/* Commit earlier graphics before importing the ANSI surface. The session
@@ -390,7 +481,7 @@ text_erase(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area)
 }
 
 static int
-text_erase_eol(void *context)
+text_erase_eol_current(void *context)
 {
 	struct st_term_rip3 *rip=context;
 	present(rip);
@@ -403,7 +494,7 @@ text_erase_eol(void *context)
 }
 
 static int
-text_cursor_visible(void *context, bool visible)
+text_cursor_visible_current(void *context, bool visible)
 {
 	struct st_term_rip3 *rip=context;
 	/* An ATW earlier in the same host expansion can still have a hidden
@@ -413,6 +504,60 @@ text_cursor_visible(void *context, bool visible)
 	if (status==0 && rip->view!=NULL)
 		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
 	return status;
+}
+
+/* A noncurrent operation temporarily addresses its private native state. The
+ * selected window is restored over freshly imported scene pixels, so cursor
+ * restoration cannot replay stale artwork over the target's completed paint. */
+static struct st_term_rip3_view *
+target_window(struct st_term_rip3 *rip, unsigned number)
+{
+	struct st_term_rip3_view *previous=rip->view;
+	rip->view=rip->windows[number];rip->targeting=true;return previous;
+}
+
+static int
+finish_target(struct st_term_rip3 *rip, struct st_term_rip3_view *previous, int status)
+{
+	rip->view=previous;rip->targeting=false;
+	int restored=present_window(rip,st_rip3_session_text_active(rip->session));
+	return status!=0 ? status : restored;
+}
+
+static int
+text_cursor(void *context, unsigned number, const struct st_rip3_text_cursor_position *position)
+{
+	struct st_term_rip3 *rip=context;
+	if (number==rip->selected_window) return text_cursor_current(context,position);
+	struct st_term_rip3_view *previous=target_window(rip,number);
+	return finish_target(rip,previous,text_cursor_current(context,position));
+}
+
+static int
+text_cursor_visible(void *context, unsigned number, bool visible)
+{
+	struct st_term_rip3 *rip=context;
+	if (number==rip->selected_window) return text_cursor_visible_current(context,visible);
+	struct st_term_rip3_view *previous=target_window(rip,number);
+	return finish_target(rip,previous,text_cursor_visible_current(context,visible));
+}
+
+static int
+text_erase(void *context, unsigned number, bool whole, uint32_t rgb, struct st_rip3_rect *area)
+{
+	struct st_term_rip3 *rip=context;
+	if (number==rip->selected_window) return text_erase_current(context,whole,rgb,area);
+	struct st_term_rip3_view *previous=target_window(rip,number);
+	return finish_target(rip,previous,text_erase_current(context,whole,rgb,area));
+}
+
+static int
+text_erase_eol(void *context, unsigned number)
+{
+	struct st_term_rip3 *rip=context;
+	if (number==rip->selected_window) return text_erase_eol_current(context);
+	struct st_term_rip3_view *previous=target_window(rip,number);
+	return finish_target(rip,previous,text_erase_eol_current(context));
 }
 
 static void
@@ -568,7 +713,7 @@ st_term_rip3_destroy(struct st_term_rip3 *rip)
 	}
 	st_rip3_session_destroy(rip->session);
 	st_rip3_audio_destroy(rip->audio);
-	st_term_rip3_view_destroy(rip->view);
+	for (unsigned i=0;i<36;i++) st_term_rip3_view_destroy(rip->windows[i]);
 	st_rip3_user_variables_destroy(rip->user);
 	st_rip3_variables_destroy(rip->session_values);
 	st_rip3_variables_destroy(rip->persistent_values);
@@ -634,7 +779,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .device_width=width,.device_height=height,
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
-	        .before_command=before_command,.text_window=text_window,.text_cursor=text_cursor,
+	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};

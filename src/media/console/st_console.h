@@ -667,6 +667,11 @@ int st_console_register_static_font(st_console_t *console,
 	const struct st_console_font *font, uint16_t *identifier);
 int st_console_register_font_copy(st_console_t *console,
 	const struct st_console_font *font, uint16_t *identifier);
+/* Copy one registered font into another console with independent ownership.
+ * No simultaneous console locks; source replacement/destruction after return
+ * cannot invalidate the destination. Failure preserves identifier. */
+int st_console_copy_font(st_console_t *destination, st_console_t *source,
+	uint16_t identifier, uint16_t *result);
 int st_console_font_registered(st_console_t *console, uint16_t identifier,
 	bool *registered);
 /* Designate one registered fallback per pixel size. Later lookups search

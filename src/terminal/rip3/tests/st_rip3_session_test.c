@@ -289,8 +289,9 @@ window(void *context, const struct st_rip3_text_window_layout *layout, bool iden
 }
 
 static int
-move_cursor(void *context, const struct st_rip3_text_cursor_position *position)
+move_cursor(void *context, unsigned number, const struct st_rip3_text_cursor_position *position)
 {
+	(void)number;
 	struct fixture *f=context;f->moves++;
 	if (position->set_column) f->column=position->column>UINT32_MAX ? UINT32_MAX : (uint32_t)position->column;
 	if (position->set_row) f->row=position->row>UINT32_MAX ? UINT32_MAX : (uint32_t)position->row;
@@ -298,15 +299,17 @@ move_cursor(void *context, const struct st_rip3_text_cursor_position *position)
 }
 
 static int
-erase_text(void *context, bool whole, uint32_t rgb, struct st_rip3_rect *area)
+erase_text(void *context, unsigned number, bool whole, uint32_t rgb, struct st_rip3_rect *area)
 {
+	(void)number;
 	struct fixture *f=context;f->erases++;f->erase_whole=whole;f->erase_rgb=rgb;
 	*area=(struct st_rip3_rect){1,1,2,2};return f->erase_status;
 }
 
 static int
-erase_eol(void *context)
+erase_eol(void *context, unsigned number)
 {
+	(void)number;
 	struct fixture *f=context;f->eol_erases++;return f->erase_status;
 }
 
@@ -369,8 +372,46 @@ text_erases(void)
 }
 
 static int
-show_cursor(void *context, bool visible)
+select_text(void *context, unsigned number, bool first, bool active)
 {
+	struct fixture *f=context;(void)number;(void)first;(void)active;return f->window_status;
+}
+
+static int
+window_table(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select=select_text;options.sink.text_window=window;
+	options.sink.text_cursor=move_cursor;options.sink.text_erase=erase_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,ANY)$:$INUSE(TW,1)$:$ISPROT(TW,CUR)$:$TWIN$:$ISEXTWIN$","0:0:0:0:YES:0")==0);
+	CHECK(append(&f,"!|w0A050H0A10|2T10\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,1)$:$ISPROT(TW,1)$","1:1:0")==0);
+	CHECK(query(&f,"$PROT(TW,1)$$ISPROT(TW,CUR)$","1")==0);
+	unsigned windows=f.windows;
+	CHECK(append(&f,"!|w0000000000|w00000A0510\r")==0 && pump(&f)==0 && f.windows==windows
+	    && f.errors==2 && st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$DTW(1)$$TWIN(1)$","YES")==0);
+	CHECK(query(&f,"$UNPROT(TW,1)$$DTW(1)$$PROT(TW,1)$$ATW(1)$$TWIN(1)$","NO")==0);
+	CHECK(query(&f,"$UNPROT(TW,1)$$INUSE(TW,1)$:$TWIN(1)$:$ISEXTWIN(1)$$ATW(1)$$PROT(TW,1)$$CUR(TW,0)$$TWGOTO(1,3,2)$","1:NO:-1")==0
+	    && f.moves==1 && f.column==3 && f.row==2);
+	CHECK(query(&f,"$ETW(1)$","")==0 && f.erases==1);
+	CHECK(query(&f,"$CUR(TW,1)$$UNPROT(TW,CUR)$$ISPROT(TW,1)$","0")==0);
+	f.window_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(append(&f,"!|2T20\r")==0 && pump(&f)==0 && f.errors==3 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,2)$","1:0")==0);
+	f.window_status=0;
+	CHECK(append(&f,"!|2T2\r")==0 && pump(&f)==0 && f.errors==3);
+	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,2)$","2:1")==0);
+	CHECK(append(&f,"!|2T2?\r")==0 && pump(&f)==0 && f.errors==4);
+	CHECK(query(&f,"$CUR(TW)$","2")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
+show_cursor(void *context, unsigned number, bool visible)
+{
+	(void)number;
 	struct fixture *f=context;f->cursor_changes++;
 	if (f->cursor_status==0) f->cursor_visible=visible;
 	return f->cursor_status;
@@ -673,7 +714,7 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0 && text_erases()==0 && extended_window()==0
+	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0 && text_erases()==0 && window_table()==0 && extended_window()==0
 	    && text_deactivation()==0 && text_activation_variables()==0
 	    && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;

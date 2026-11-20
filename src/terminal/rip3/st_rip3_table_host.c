@@ -7,6 +7,7 @@
 #include "st_rip3_ports.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
+#include "st_rip3_text_window.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -75,6 +76,10 @@ entry_current(enum st_rip3_table_type type, void *live, unsigned *result)
 {
 	if (live == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
+	if (type == ST_RIP3_TABLE_TW) {
+		const struct st_rip3_text_window_operations *windows=live;
+		return windows->current==NULL ? IO_ERROR_NOT_SUPPORTED : windows->current(windows->context,result);
+	}
 	if (type == ST_RIP3_TABLE_PAL)
 		return st_rip3_palettes_current(live, result);
 	if (type == ST_RIP3_TABLE_PORT)
@@ -92,6 +97,13 @@ entry_info(enum st_rip3_table_type type, void *live, unsigned index,
 {
 	if (live == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
+	if (type == ST_RIP3_TABLE_TW) {
+		const struct st_rip3_text_window_operations *windows=live;
+		struct st_rip3_text_window_info info;
+		int status=windows->info==NULL ? IO_ERROR_NOT_SUPPORTED : windows->info(windows->context,index,&info);
+		if (status==0) {*defined=info.defined;*protected=info.protected;}
+		return status;
+	}
 	if (type == ST_RIP3_TABLE_PAL) {
 		struct st_rip3_palette_info info;
 		int status = st_rip3_palettes_info(live, index, &info);
@@ -282,6 +294,10 @@ objects(const struct st_rip3_table_host *host,
 			status = st_rip3_ports_select(binding->live, index);
 		else if (type == ST_RIP3_TABLE_STYLE)
 			status = st_rip3_styles_switch(binding->live,index);
+		else if (type == ST_RIP3_TABLE_TW) {
+			const struct st_rip3_text_window_operations *windows=binding->live;
+			status=windows->select==NULL ? IO_ERROR_NOT_SUPPORTED : windows->select(windows->context,index);
+		}
 		else
 			return IO_ERROR_NOT_SUPPORTED;
 		if (status == 0)
@@ -335,7 +351,7 @@ objects(const struct st_rip3_table_host *host,
 		}
 		if (uses_entries && (binding->live == NULL
 		    || (type != ST_RIP3_TABLE_PAL && type != ST_RIP3_TABLE_PORT
-		    && type != ST_RIP3_TABLE_ENV && type != ST_RIP3_TABLE_STYLE)))
+		    && type != ST_RIP3_TABLE_ENV && type != ST_RIP3_TABLE_STYLE && type != ST_RIP3_TABLE_TW)))
 			return IO_ERROR_NOT_SUPPORTED;
 		if ((uses_slots || selected == BASE || selected == STACK) && binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
@@ -353,6 +369,12 @@ objects(const struct st_rip3_table_host *host,
 					(void)st_rip3_ports_protect(binding->live, i, protect);
 				else if (type == ST_RIP3_TABLE_STYLE)
 					(void)st_rip3_styles_protect(binding->live, i, protect);
+				else if (type == ST_RIP3_TABLE_TW) {
+					const struct st_rip3_text_window_operations *windows=binding->live;
+					if (windows->protect==NULL) return IO_ERROR_NOT_SUPPORTED;
+					status=windows->protect(windows->context,i,protect);
+					if (status!=0) return status;
+				}
 				else
 					(void)st_rip3_environments_protect(binding->live, i, protect);
 			}

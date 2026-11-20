@@ -302,6 +302,15 @@ int st_cterm_text_boundary(st_cterm_t *terminal);
  * and font-download payloads remain unsupported, never partially transferred. */
 int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source,
 	bool preserve_tabs);
+/* RIP3 window selection retains the destination's window state. Pending
+ * ordinary ANSI syntax rejects selection nonfatally until reference #106
+ * defines its ownership. First use copies represented
+ * ANSI/window state and independently owned fonts/tabs from the source.
+ * Copy targets must be fresh, same-sized private consoles; discard on error. */
+int st_cterm_select_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
+int st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source);
+/* Restore physical cursor presentation from the retained native state. */
+int st_cterm_present_text_cursor(st_cterm_t *terminal);
 /* Zero-based local cursor placement. A RIP3 session owner uses full-window
  * absolute coordinates independently of ANSI origin/margins. Other callers
  * use ANSI CUP's current addressing region. Commit Unicode and clear wrap.

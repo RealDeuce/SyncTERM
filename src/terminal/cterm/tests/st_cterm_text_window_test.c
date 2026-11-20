@@ -138,8 +138,54 @@ extended_tabs(void)
 	destroy(&source);destroy(&next);return 0;
 }
 
+static int
+window_copy(void)
+{
+	struct fixture source={0},next={0};CHECK(create(&source,17)==0 && create(&next,17)==0);
+	uint16_t copied=123;
+	CHECK(st_console_copy_font(NULL,source.console,0,&copied)==IO_ERROR_INVALID_ARGUMENT && copied==123);
+	CHECK(st_console_copy_font(next.console,source.console,UINT16_MAX,&copied)==IO_ERROR_NOT_FOUND && copied==123);
+	CHECK(st_console_copy_font(source.console,source.console,0,&copied)==0 && copied==0);
+	st_cterm_destroy(&source.text);
+	uint8_t bitmap[256*8]={0};
+	for (unsigned y=0;y<8;y++) bitmap['A'*8+y]=(uint8_t)(0x80u>>y);
+	const struct st_console_font_mapping mapping[]={{'A','A'}};
+	const struct st_console_font font={.bitmap=bitmap,.bitmap_size=sizeof(bitmap),.width=8,.height=8,
+	    .glyph_count=256,.row_stride=1,.glyph_stride=8,.mapping=mapping,.mapping_count=1};
+	CHECK(st_font_catalog_load_bitmap(source.fonts,46,&font,ST_CODEPAGE_CP437)==0);
+	const struct st_cterm_config config={.console=source.console,.fonts=source.fonts,.emulation=ST_CTERM_ANSI_BBS,
+	    .encoding=ST_CTERM_ENCODING_CODEPAGE,.codepage=ST_CODEPAGE_CP437,.quiet=true,.font_selector=46,
+	    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true};
+	CHECK(st_cterm_create(&source.text,&config)==0 && st_cterm_start_text(source.text)==0);
+	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[2;4r\x1b[?6h\x1b[2;3H\x1b" "7\x1b[38;2;18;52;86;48;2;0;0;0m\x1b[?25l";
+	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
+	CHECK(st_cterm_copy_window_state(next.text,source.text)==0 && position(&next,3,3)==0);
+	struct st_cterm_state state;
+	CHECK(st_cterm_state(next.text,&state)==0 && state.fg_color==0x123456 && state.bg_color==0
+	    && state.ext_attr.origin_mode && state.top_margin==2 && state.bottom_margin==4);
+	CHECK(next.text->tabs!=source.text->tabs && next.text->fg_tc_str!=source.text->fg_tc_str);
+	destroy(&source);memset(bitmap,0,sizeof(bitmap));
+	CHECK(st_cterm_position_text(next.text,0,0)==0 && feed(&next,"A",1)==0 && st_cterm_text_boundary(next.text)==0);
+	struct st_pixel_buffer *pixels=NULL;const struct st_console_rect cell={0,0,8,8};
+	CHECK(st_console_get_pixels(&pixels,next.console,&cell,false)==0);
+	for (unsigned y=0;y<8;y++) for (unsigned x=0;x<8;x++) {
+		if ((pixels->primary[y*8+x]&0xffffff)!=(x==y ? 0x123456 : 0))
+			fprintf(stderr,"copied glyph %u,%u raw=%08x\n",x,y,(unsigned)pixels->primary[y*8+x]);
+		CHECK((pixels->primary[y*8+x]&0xffffff)==(x==y ? 0x123456 : 0));
+	}
+	st_pixel_buffer_destroy(pixels);
+	const char restore[]="\x1b" "8";CHECK(feed(&next,restore,sizeof(restore)-1)==0 && position(&next,3,3)==0);
+	CHECK(st_cterm_position_text(next.text,0,0)==0 && feed(&next,"\t",1)==0 && position(&next,6,1)==0);
+	bool visible=true;CHECK(st_cterm_get_text_cursor_visible(next.text,&visible)==0 && !visible);
+	CHECK(create(&source,17)==0);
+	CHECK(feed(&source,"\x1b[3",3)==0 && st_cterm_select_window_interpreter(next.text,source.text)==IO_ERROR_NOT_SUPPORTED);
+	CHECK(feed(&source,"1m",2)==0 && st_cterm_select_window_interpreter(next.text,source.text)==0 && position(&next,6,1)==0);
+	CHECK(st_cterm_state(next.text,&state)==0 && state.fg_color==0x123456 && next.text->save_xpos==3);
+	destroy(&source);destroy(&next);return 0;
+}
+
 int
 main(void)
 {
-	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0);return 0;
+	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0 && window_copy()==0);return 0;
 }

@@ -41,7 +41,7 @@ ordinary text/ANSI suppressed while RIP graphics/replies remain live. Ordinary
 scrolling, cursor-preserving reactivation, key forwarding and local Wren
 writes/reset/state. Changed definitions retain ordinary ANSI parser state and
 tabs while resetting the rendering state and saved cursor to home; full
-character-set support and TW tables/protection/switching remain pending.
+character-set support and full TW backups/reset/metadata remain pending.
 `syncterm_rip3_extended_window_CP437` and its UTF-8 counterpart cover connected
 `b` WORLD/device bounds, actual MAF metrics, directional font fitting, centered
 placement, state/tab reset, flag-16 bounding-box clear before deactivation,
@@ -50,14 +50,21 @@ offscreen clipping and nonfatal allocation rejection. The connected
 STYLE-background wire >, and ANSI-background TWERASEEOL, including full-row
 extent, unchanged cursor/wrap/ANSI state and untouched extended bounding margins.
 The latter follows the target's ANSI palette mapping and direct RGB, separately
-from graphics colors. Defined noncurrent TW/protection acceptance stays pending.
+from graphics colors. `syncterm_rip3_window_table_CP437` and UTF-8 cover 36 owned slots, wire 2T/CUR
+selection, protection and activation gates, TWIN/ISEXTWIN, noncurrent cursor/erase
+effects, and finite aggregate allocation. Native `cterm_text_window` checks
+independent copied font artwork after source destruction. Full first-use and
+partial-ANSI selection acceptance awaits upstream #106; those unresolved edge
+requests reject nonfatally, retaining the old owner. TW backups/reset, MTW and
+remaining geometry/font queries stay pending.
 Wire `g`/`H` address both the entry TTY and positioned windows,
 including fixed-width numeric fields in both radices, native CUP clamping,
 deactivated-window no-ops and nonfatal recovery; cursor-only commands retain
 the artwork. `$ATW$`/`$DTW$` control the default TTY, validate complete selector
 lists, retain cursor preferences and preserve artwork painted while text is
-off. Undefined nonzero slots are ignored; defining/protecting/switching them
-remains pending. Ordinary window endpoints order/clamp to their nominal font
+off. Undefined slots are ignored. Defined noncurrent slots retain their own
+activation; protected TWs ignore ATW/DTW while permitting cursor and erase
+operations. Selection retains the target activation state. Ordinary window endpoints order/clamp to their nominal font
 grid before identity; tests verify the corrected font-2 extent, preserved
 cursor/saved cursor/colors for equivalent definitions and unchanged visible
 pixels. The native `cterm_text_window` test covers owned parser/tab buffers,

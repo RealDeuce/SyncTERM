@@ -3058,6 +3058,37 @@ st_console_register_font_copy(st_console_t *console,
 }
 
 int
+st_console_copy_font(st_console_t *destination, st_console_t *source,
+    uint16_t identifier, uint16_t *result)
+{
+	if (destination == NULL || source == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(&source->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	size_t index;
+	struct st_console_font_registration *copy = NULL;
+	bool found = find_font(source, identifier, &index);
+	if (found && destination != source) {
+		const struct st_console_font_registration *registration=source->fonts[index];
+		copy = font_registration_create(&registration->font, true);
+	}
+	(void)st_rwlock_unlock(&source->state_lock);
+	if (!found)
+		return IO_ERROR_NOT_FOUND;
+	if (destination == source) {
+		*result = identifier;
+		return 0;
+	}
+	if (copy == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	uint16_t assigned;
+	int status = st_console_register_font_copy(destination, &copy->font, &assigned);
+	font_registration_free(copy);
+	if (status == 0) *result = assigned;
+	return status;
+}
+
+int
 st_console_font_registered(st_console_t *console, uint16_t identifier,
 	bool *registered)
 {

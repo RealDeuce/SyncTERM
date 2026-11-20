@@ -25,6 +25,8 @@ struct st_rip3_text_window_host {
 	/* Prepare/apply one ordinary or extended window. Status is consumed by the enclosing
 	 * void parser boundary, never returned as a transport/session error. */
 	int (*define)(void *context, const struct st_rip3_text_window_layout *layout);
+	int (*select)(void *context, unsigned number);
+	int (*deactivate)(void *context);
 	/* Zero-based full-window g/H position, independent of ANSI origin/margins.
 	 * The owner gates deactivated windows. */
 	int (*position)(void *context, uint32_t column, uint32_t row);
@@ -64,8 +66,8 @@ struct st_rip3_command_host {
 	const uint64_t *offscreen_pixel_budget;
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	struct st_rip3_text_context *text;
-	/* Current text-window output gate. The session owns ordinary w layouts;
-	 * full TW table definitions/protection/switching remain pending. */
+	/* Current text-window output gate. The session owns slot selection,
+	 * definition/activation/protection; backups and full reset remain pending. */
 	bool *text_active;
 	const struct st_rip3_text_window_host *text_window;
 };

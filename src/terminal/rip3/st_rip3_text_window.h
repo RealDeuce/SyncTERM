@@ -13,6 +13,8 @@ struct st_rip3_text_cursor_position {
 	uint64_t column,row;
 };
 
+struct st_rip3_text_window_info { bool defined,protected,active,extended; };
+
 /* Borrowed single-owner text-window services for host control variables.
  * Numbers are decimal TW slots 0..35. Cursor operations skip undefined/inactive
  * targets, permit protected definitions and retain current selection.
@@ -23,6 +25,9 @@ struct st_rip3_text_cursor_position {
 struct st_rip3_text_window_operations {
 	void *context;
 	int (*current)(void *context, unsigned *number);
+	int (*select)(void *context, unsigned number);
+	int (*info)(void *context, unsigned number, struct st_rip3_text_window_info *result);
+	int (*protect)(void *context, unsigned number, bool protect);
 	int (*activate)(void *context, const unsigned *numbers, size_t count, bool active);
 	int (*position)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
 	int (*cursor)(void *context, const unsigned *numbers, size_t count, bool visible);

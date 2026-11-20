@@ -167,7 +167,7 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_cterm_text_window_test tests/st_cterm_text_window_test.c
 		tests/st_cterm_text_window_fault_impl.c)
-	target_link_libraries(st_cterm_text_window_test PRIVATE st_cterm)
+	target_link_libraries(st_cterm_text_window_test PRIVATE st_cterm syncterm_string_compat)
 	set_target_properties(st_cterm_text_window_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_cterm_text_window_test PRIVATE /W4)
