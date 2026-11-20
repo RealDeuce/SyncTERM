@@ -24,6 +24,10 @@ The separate [RIPscrip 3.0 implementation goal](RIP3_CONFORMANCE.md) pins its
 documentation and tracks requirements and upstream blockers. Its source guard
 freezes the existing RIP 1.54 implementation and historical fixtures. This is
 preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
+RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
+or mode-specific keymap is explicitly outside the user-approved scope, even
+when upstream reference documentation or a PR describes that mode. Applicable
+ANSI charset behavior remains separately tracked under #104.
 `syncterm_rip3_connected_CP437` and `syncterm_rip3_connected_UTF-8` exercise the
 normal executable over TCP with the control bitmap backend. They cover the
 literal Dixon selection and drawing sequence, bold advance, nonfatal recovery,
@@ -71,7 +75,7 @@ pixels. The native `cterm_text_window` test covers owned parser/tab buffers,
 split CSI and OSC continuation after destroying the prior owner, saved home
 and allocation failures. Optional pending media payloads reject redefinition
 nonfatally; their transfer and G0/G1 character sets remain unfinished. The
-ANSI/VT-102 charset byte contract is requested in upstream #104. CRLF
+applicable ANSI charset byte contract is requested in upstream #104. CRLF
 regressions include bottom-row cursors outside column one, positioned windows,
 valid/rejected/empty/continued lines and processing-budget boundaries. The
 entry's grid/raster is retained at

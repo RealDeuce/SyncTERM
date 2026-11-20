@@ -10,6 +10,14 @@ required. RIPlib extensions and future proposals are outside the goal.
 External application and URL launching are excluded: recognize the syntax,
 do not execute it, and report unsupported capabilities truthfully.
 
+**User scope constraint:** RIPv3 uses SyncTERM's existing ANSI engine. Do not
+add a VT-102 emulation mode, parser mode, UI/profile selector, toggle or keymap
+as part of this work, regardless of what reference documentation or a PR says.
+This constraint takes precedence over reference adoption. ANSI behavior and
+charset clarifications are evaluated for the existing ANSI engine; references
+to RIPtel's separate VT-102 option do not expand SyncTERM's scope. Issue #104
+remains relevant only to applicable ANSI charset/byte/reset semantics.
+
 **Status: implementation in progress; no full-compliance claim.** Connected
 RIP3 sessions now use the separate engine for its completed command families.
 Incomplete families remain unsupported and nonfatal; full compliance is not a
@@ -82,7 +90,7 @@ window. Adopted
 [PR #102](https://github.com/bbs-land/remote-imaging-protocol/pull/102) resolves
 the ordinary-state contract and corrects the font-2 placement example.
 Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
-are implemented. Character-set selections await the ANSI/VT-102 byte contract
+are implemented. Character-set selections await the applicable ANSI byte contract
 requested in [#104](https://github.com/bbs-land/remote-imaging-protocol/issues/104);
 complete terminal-mode reset acceptance remains pending. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
@@ -6402,6 +6410,21 @@ logs contain no warnings. The queue is 1283 implemented, 1585 pending, 3752
 unreviewed, 1234 context, 24 excluded and 29 blocked blocks. Stable remains
 ff2043e. Task-owned build logs, issue payload and failure fixtures are removed;
 no code is pushed and no existing issue receives comments.
+
+## Scope constraint: existing ANSI engine only
+
+The user explicitly ruled out adding a VT-102 mode through the RIPv3 work,
+regardless of upstream documentation or PR content. This policy is recorded
+above as a contract exception and in blocker B104's implementation scope.
+The reference's VT-102-only mode/keymap rows are excluded; shared ANSI commands,
+CP437 handling and applicable ANSI charset questions are reviewed independently.
+No parser, native terminal behavior, profile option or UI is changed by this
+scope record, and no existing upstream issue is modified.
+
+The queue is now 1283 implemented, 1585 pending, 3750 unreviewed, 1234 context,
+26 excluded and 29 blocked blocks. The source pin and RIP1.54 freeze remain
+unchanged. Native CMake configure/build and the edited contract check pass;
+previous successful runtime tests are reused for this documentation-only change.
 
 ## Verification and acceptance
 
